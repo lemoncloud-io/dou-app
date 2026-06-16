@@ -1,5 +1,5 @@
 import type { SiteView } from '@lemoncloud/chatic-socials-api';
-import type { UserMakeSitePayload, UserUpdateSitePayload, WSSPayload } from '@lemoncloud/chatic-sockets-api';
+import type { UserMakeSiteInput, UserUpdateSiteInput, UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { ISiteLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
@@ -11,13 +11,13 @@ import { createDomainListResult, type DomainListResult, type DomainSite, toDomai
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSite> {
     /** 사용자의 site 목록을 조회합니다. */
-    fetchSite(payload?: WSSPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainSite>>;
+    fetchSite(payload?: UserMySiteInput, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainSite>>;
 
     /** 새 site를 생성합니다. */
-    createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite>;
+    createSite(payload: UserMakeSiteInput, options?: RepositoryRequestOptions): Promise<DomainSite>;
 
     /** 기존 site 정보를 수정합니다. */
-    updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite>;
+    updateSite(payload: UserUpdateSiteInput, options?: RepositoryRequestOptions): Promise<DomainSite>;
 
     /** 현재 스코프의 site 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -31,7 +31,7 @@ export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSit
     // --- 통합 스트림 인터페이스 ---
     /** 로컬 캐시 기준 사이트 목록을 스트림으로 구독합니다. */
     subscribeList(
-        payload: WSSPayload | undefined,
+        payload: UserMySiteInput | undefined,
         callback: (result: DomainListResult<DomainSite> | null) => void
     ): () => void;
 
@@ -52,7 +52,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     }
 
     public async fetchSite(
-        payload?: WSSPayload,
+        payload?: UserMySiteInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainSite>> {
         return this.fetchWithCachePolicy<DomainListResult<DomainSite>>({
@@ -65,14 +65,14 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         });
     }
 
-    public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
+    public async createSite(payload: UserMakeSiteInput, options?: RepositoryRequestOptions): Promise<DomainSite> {
         const site = (await this.siteRemoteDataSource.createSite(payload)) as SiteView;
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
     }
 
-    public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
+    public async updateSite(payload: UserUpdateSiteInput, options?: RepositoryRequestOptions): Promise<DomainSite> {
         const site = (await this.siteRemoteDataSource.updateSite(payload)) as SiteView;
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
@@ -97,7 +97,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
 
     // --- 스트림 인터페이스 통합 ---
     public subscribeList(
-        payload: WSSPayload | undefined,
+        payload: UserMySiteInput | undefined,
         callback: (result: DomainListResult<DomainSite> | null) => void
     ): () => void {
         return this.siteLocalDataSource.subscribeList(payload, callback, this.getRepositoryContext());
@@ -135,7 +135,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     }
 
     private async fetchFromRemoteAndCache(
-        payload?: WSSPayload,
+        payload?: UserMySiteInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainSite>> {
         // 요청 시점의 context를 캡처 — await 중 cloud 전환이 발생해도 올바른 scope에 캐시 저장

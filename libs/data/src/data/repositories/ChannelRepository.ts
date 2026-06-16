@@ -19,36 +19,42 @@ import {
 import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
 import type { ChannelSyncView } from '../events/common';
 import type {
-    ChatDeleteChannelPayload,
-    ChatInvitePayload,
-    ChatLeavePayload,
-    ChatStartPayload,
-    ChatUpdateChannelPayload,
+    ChatDeleteChannelInput,
+    ChatInviteInput,
+    ChatLeaveInput,
+    ChatMineInput,
+    ChatStartInput,
+    ChatUpdateChannelInput,
+    ChannelGetSelfInput,
+    ChannelUnreadsInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { ListResult } from '../events/common';
 
 /** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository extends ILocalCacheMutationRepository<DomainChannel> {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
-    fetchChannel(
-        payload: DomainChannelListPayload,
-        options?: RepositoryRequestOptions
-    ): Promise<DomainListResult<DomainChannel>>;
+    fetchChannel(payload: ChatMineInput, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainChannel>>;
 
     /** 채널 이름/설정 등 채널 메타데이터를 수정합니다. */
-    updateChannel(payload: ChatUpdateChannelPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    updateChannel(payload: ChatUpdateChannelInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 채널 삭제 또는 종료 요청을 수행합니다. */
-    deleteChannel(payload: ChatDeleteChannelPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    deleteChannel(payload: ChatDeleteChannelInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 신규 채널을 생성하거나 대화를 시작합니다. */
-    createChannel(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    createChannel(payload: ChatStartInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 기존 채널에 사용자를 초대합니다. */
-    inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    inviteChannel(payload: ChatInviteInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 채널에서 나갑니다. */
-    leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    leaveChannel(payload: ChatLeaveInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+
+    /** 자신의 개인 채널 정보를 조회합니다. */
+    getSelfChannel(payload?: ChannelGetSelfInput, options?: RepositoryRequestOptions): Promise<unknown>;
+
+    /** 읽지 않은 메시지 통계를 조회합니다. */
+    getUnreads(payload?: ChannelUnreadsInput, options?: RepositoryRequestOptions): Promise<unknown>;
 
     /** 현재 스코프의 channel 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -102,7 +108,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     }
 
     public async updateChannel(
-        payload: ChatUpdateChannelPayload,
+        payload: ChatUpdateChannelInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainChannel> {
         const channel = (await this.channelRemoteDataSource.updateChannel(payload)) as ChannelView;
@@ -112,7 +118,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     }
 
     public async deleteChannel(
-        payload: ChatDeleteChannelPayload,
+        payload: ChatDeleteChannelInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainChannel> {
         const channel = (await this.channelRemoteDataSource.deleteChannel(payload)) as ChannelView;
@@ -124,21 +130,21 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return domainChannel;
     }
 
-    public async createChannel(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
-        const channel = (await this.channelRemoteDataSource.startChat(payload)) as ChannelView;
+    public async createChannel(payload: ChatStartInput, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+        const channel = (await this.channelRemoteDataSource.createChannel(payload)) as ChannelView;
         const domainChannel = toDomainChannel(channel, this.getDomainScope());
         await this.channelLocalDataSource.upsert(domainChannel, this.getRepositoryContext());
         return domainChannel;
     }
 
-    public async inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+    public async inviteChannel(payload: ChatInviteInput, options?: RepositoryRequestOptions): Promise<DomainChannel> {
         const channel = (await this.channelRemoteDataSource.inviteChannel(payload)) as ChannelView;
         const domainChannel = toDomainChannel(channel, this.getDomainScope());
         await this.channelLocalDataSource.upsert(domainChannel, this.getRepositoryContext());
         return domainChannel;
     }
 
-    public async leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+    public async leaveChannel(payload: ChatLeaveInput, options?: RepositoryRequestOptions): Promise<DomainChannel> {
         const channelId = payload.channelId || '';
         if (channelId) {
             this.leftChannelIds.add(channelId);
@@ -152,6 +158,14 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             this.leftChannelIds.delete(channelId);
             throw error;
         }
+    }
+
+    public async getSelfChannel(payload?: ChannelGetSelfInput, options?: RepositoryRequestOptions): Promise<unknown> {
+        return this.channelRemoteDataSource.getSelfChannel(payload ?? {});
+    }
+
+    public async getUnreads(payload?: ChannelUnreadsInput, options?: RepositoryRequestOptions): Promise<unknown> {
+        return this.channelRemoteDataSource.getUnreads(payload ?? {});
     }
 
     public clearAll(): Promise<void> {

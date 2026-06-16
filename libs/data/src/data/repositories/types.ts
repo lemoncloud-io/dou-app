@@ -4,13 +4,8 @@ import type { DomainScope } from '../domain';
 
 /**
  * Repository 요청 단위에서만 덮어쓸 수 있는 옵션입니다.
- * ref는 서버 응답과 Promise를 매칭하기 위한 식별자이고,
- * timeoutMs는 SocketRequestManager가 응답 대기를 중단할 제한 시간입니다.
  */
 export interface RepositoryRequestOptions {
-    ref?: string;
-    timeoutMs?: number;
-
     /**
      * 읽기 시 cache/network 병행 정책을 제어합니다.
      * - cache-first: cache hit면 즉시 반환하고 background refresh 수행

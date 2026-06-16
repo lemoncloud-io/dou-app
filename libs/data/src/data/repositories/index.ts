@@ -16,6 +16,14 @@ import type { ISiteRepository } from './SiteRepository';
 import { SiteRepository } from './SiteRepository';
 import type { IInviteCloudRepository } from './InviteCloudRepository';
 import { InviteCloudRepository } from './InviteCloudRepository';
+import type { IDeviceRepository } from './DeviceRepository';
+import { DeviceRepository } from './DeviceRepository';
+import type { ISocketsRepository } from './SocketsRepository';
+import { SocketsRepository } from './SocketsRepository';
+import type { ICloudRepository } from './CloudRepository';
+import { CloudRepository } from './CloudRepository';
+import type { IProfileRepository } from './ProfileRepository';
+import { ProfileRepository } from './ProfileRepository';
 import type { DataContextProvider } from './types';
 
 export * from './AuthRepository';
@@ -25,6 +33,10 @@ export * from './InviteCloudRepository';
 export * from './JoinRepository';
 export * from './SiteRepository';
 export * from './UserRepository';
+export * from './DeviceRepository';
+export * from './SocketsRepository';
+export * from './CloudRepository';
+export * from './ProfileRepository';
 export * from './types';
 
 /**
@@ -39,6 +51,10 @@ export interface DataRepositories {
     user: IUserRepository;
     site: ISiteRepository;
     inviteCloud: IInviteCloudRepository;
+    device: IDeviceRepository;
+    sockets: ISocketsRepository;
+    cloud: ICloudRepository;
+    profile: IProfileRepository;
 }
 
 /**
@@ -63,4 +79,8 @@ export const createRepositories = ({
     site: new SiteRepository(remoteDataSources.site, localDataSources.site, context, domainEventBus),
     user: new UserRepository(remoteDataSources.user, localDataSources.user, context, domainEventBus),
     inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, context, domainEventBus),
+    device: new DeviceRepository(remoteDataSources.device, context, domainEventBus),
+    sockets: new SocketsRepository(remoteDataSources.sockets, context, domainEventBus),
+    cloud: new CloudRepository(remoteDataSources.cloud, context, domainEventBus),
+    profile: new ProfileRepository(remoteDataSources.profile, context, domainEventBus),
 });

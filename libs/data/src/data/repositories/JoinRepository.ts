@@ -1,4 +1,4 @@
-import type { ChatReadInput, ChannelUpdateJoinInput } from '@lemoncloud/chatic-sockets-api';
+import type { ChatReadInput, ChannelUpdateJoinInput, ChannelJoinInput } from '@lemoncloud/chatic-sockets-api';
 import type { IJoinLocalDataSource } from '../local/data-sources';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
@@ -27,6 +27,9 @@ export interface IJoinRepository extends ILocalCacheMutationRepository<DomainJoi
 
     /** 채널 참여 정보(예: 푸시 알림 설정)를 업데이트합니다. */
     updateJoin(payload: ChannelUpdateJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin>;
+
+    /** 채널에 참여 요청을 보냅니다. */
+    joinChannel(payload: ChannelJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin>;
 
     /** 현재 스코프의 join 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -89,6 +92,13 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
 
     public async updateJoin(payload: ChannelUpdateJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin> {
         const join = (await this.joinRemoteDataSource.updateJoin(payload)) as JoinView;
+        const domainJoin = toDomainJoin(join, this.getDomainScope());
+        await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
+        return domainJoin;
+    }
+
+    public async joinChannel(payload: ChannelJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin> {
+        const join = (await this.joinRemoteDataSource.joinChannel(payload)) as JoinView;
         const domainJoin = toDomainJoin(join, this.getDomainScope());
         await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
         return domainJoin;

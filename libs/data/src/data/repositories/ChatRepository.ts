@@ -66,7 +66,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
     public async sendChat(payload: ChatSendInput, options?: RepositoryRequestOptions): Promise<DomainChat> {
-        const requestRef = options?.ref ?? `chat-send-${Date.now()}`;
+        const requestRef = `chat-send-${Date.now()}`;
         const repositoryContext = this.getRepositoryContext();
         const domainScope = this.getDomainScope();
 
@@ -129,10 +129,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         if (isLocalPageValid) {
             // 로컬에 유효한 데이터가 있으면 즉시 반환하되, 정책에 따라 백그라운드 동기화를 스케줄링합니다.
             if (cachePolicy === 'cache-first' || cachePolicy === 'cache-and-network') {
-                this.runInBackground(
-                    () => this.fetchFromRemoteAndCache(payload, { ...options, ref: `${options?.ref}-bg-sync` }),
-                    `bg-sync-chat-feed`
-                );
+                this.runInBackground(() => this.fetchFromRemoteAndCache(payload, options), `bg-sync-chat-feed`);
             }
             return localResult;
         } else {
@@ -282,7 +279,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         });
     }
 
-    private createOptimisticChat(payload: ChatSendPayload, id: string, domainScope: DomainScope): DomainChat {
+    private createOptimisticChat(payload: ChatSendInput, id: string, domainScope: DomainScope): DomainChat {
         const now = Date.now();
 
         return toDomainChat(
