@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets/clients/clients';
+import type { ISocketClient } from '../sockets';
 import type {
     ChannelSyncSiteProfileInput,
     ChannelSyncUsersInput,

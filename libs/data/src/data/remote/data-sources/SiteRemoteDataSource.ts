@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { UserMakeSiteInput, UserMySiteInput, UserUpdateSiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';

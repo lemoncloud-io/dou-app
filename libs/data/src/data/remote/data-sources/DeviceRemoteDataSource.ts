@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { DeviceReadInput, DeviceSaveInput, DeviceSyncInput, DeviceView } from '@lemoncloud/chatic-sockets-api';
 
 export interface IDeviceRemoteDataSource {

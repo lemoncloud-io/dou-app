@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { UserGetSiteProfileInput, UserSetSiteProfileInput } from '@lemoncloud/chatic-sockets-api';
 import type { ProfileView } from '@lemoncloud/chatic-socials-api';
 

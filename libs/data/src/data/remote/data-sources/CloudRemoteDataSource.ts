@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { CloudUpdateInput } from '@lemoncloud/chatic-sockets-api';
 
 export interface ICloudRemoteDataSource {

@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { AuthUpdateInput } from '@lemoncloud/chatic-sockets-api';
 import type { AuthUpdateResponse } from '@lemoncloud/chatic-sockets-api/dist/lib/auth/types';
 

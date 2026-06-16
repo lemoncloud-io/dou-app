@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { ChannelJoinInput, ChannelUpdateJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 

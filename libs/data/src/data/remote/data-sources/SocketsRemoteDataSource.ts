@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets/clients';
+import type { ISocketClient } from '../sockets';
 import type { SocketsFindConnectionInput } from '@lemoncloud/chatic-sockets-api';
 import type { ConnectionModel } from '@lemoncloud/chatic-sockets-api/dist/modules/sockets/model';
 
