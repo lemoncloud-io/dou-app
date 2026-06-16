@@ -53,6 +53,34 @@ export interface DomainEventMap {
     'site:create': DomainPayload<SiteView>;
     'site:update': DomainPayload<SiteView>;
     'site:delete': DomainPayload<SiteView>;
+
+    // ------------------------------------------
+    // 6. Auth Domain (인증)
+    // ------------------------------------------
+    'auth:create': DomainPayload<any>;
+    'auth:update': DomainPayload<any>;
+    'auth:delete': DomainPayload<any>;
+
+    // ------------------------------------------
+    // 7. Device Domain (디바이스)
+    // ------------------------------------------
+    'device:create': DomainPayload<any>;
+    'device:update': DomainPayload<any>;
+    'device:delete': DomainPayload<any>;
+
+    // ------------------------------------------
+    // 8. Socket Domain (소켓)
+    // ------------------------------------------
+    'socket:create': DomainPayload<any>;
+    'socket:update': DomainPayload<any>;
+    'socket:delete': DomainPayload<any>;
+
+    // ------------------------------------------
+    // 9. Connection Domain (연결)
+    // ------------------------------------------
+    'connection:create': DomainPayload<any>;
+    'connection:update': DomainPayload<any>;
+    'connection:delete': DomainPayload<any>;
 }
 
 export type DomainEventType = keyof DomainEventMap;
