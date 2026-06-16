@@ -88,13 +88,13 @@ const getPermissions = (userType: UserType): UserPermissions => {
  * 기존 isGuest, isInvited, isCloudUser를 대체합니다.
  */
 export const useUserContext = (): UserContext => {
-    const { profile, isInvited } = useWebCoreStore();
+    const { profile, isInvited, selectedPlaceId } = useWebCoreStore();
 
     // cloudCore 정보
     const cloudToken = cloudCore.getCloudToken();
     const cloudWSS = cloudCore.getWss();
     const cloudHTTP = cloudCore.getBackend();
-    const currentPlace = cloudCore.getSelectedPlaceId();
+    const currentPlace = selectedPlaceId;
 
     const hasCloudToken = !!cloudToken;
     const hasCloudWSS = !!cloudWSS;
