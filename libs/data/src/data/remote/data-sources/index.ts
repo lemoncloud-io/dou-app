@@ -1,7 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { SocketEventMap } from '../../events/socket';
-import type { IWebSocketClient } from '../clients';
+import type { ISocketClient } from '../sockets/clients/clients';
 import type { IAuthRemoteDataSource } from './AuthRemoteDataSource';
 import { AuthRemoteDataSource } from './AuthRemoteDataSource';
 import type { IChannelRemoteDataSource } from './ChannelRemoteDataSource';
@@ -33,21 +32,18 @@ export interface RemoteDataSources {
 
 /**
  * RemoteDataSource 생성 위치를 한 곳으로 모읍니다.
- * 네트워크 client 또는 event bus 연결 방식이 바뀌면 이 factory의 인자만 조정하면 됩니다.
  */
 export const createRemoteDataSources = ({
     domainEventBus,
-    socketEventBus,
-    wssClient,
+    socketClient,
 }: {
     domainEventBus: IEventBus<DomainEventMap>;
-    socketEventBus: IEventBus<SocketEventMap>;
-    wssClient: IWebSocketClient;
+    socketClient: ISocketClient;
 }): RemoteDataSources => ({
-    auth: new AuthRemoteDataSource(socketEventBus, domainEventBus, wssClient),
-    channel: new ChannelRemoteDataSource(socketEventBus, domainEventBus, wssClient),
-    chat: new ChatRemoteDataSource(socketEventBus, domainEventBus, wssClient),
-    join: new JoinRemoteDataSource(socketEventBus, domainEventBus, wssClient),
-    site: new SiteRemoteDataSource(socketEventBus, domainEventBus, wssClient),
-    user: new UserRemoteDataSource(socketEventBus, domainEventBus, wssClient),
+    auth: new AuthRemoteDataSource(socketClient),
+    channel: new ChannelRemoteDataSource(domainEventBus, socketClient),
+    chat: new ChatRemoteDataSource(domainEventBus, socketClient),
+    join: new JoinRemoteDataSource(domainEventBus, socketClient),
+    site: new SiteRemoteDataSource(domainEventBus, socketClient),
+    user: new UserRemoteDataSource(domainEventBus, socketClient),
 });

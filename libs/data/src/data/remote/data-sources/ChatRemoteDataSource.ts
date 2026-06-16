@@ -1,68 +1,35 @@
-import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatSendPayload, ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
+import type { DomainEventMap } from '../../events/domain';
+import type { ISocketClient } from '../sockets/clients/clients';
+import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
 export interface IChatRemoteDataSource {
     /** 새로운 메시지를 서버로 전송합니다. */
-    sendChat(payload: ChatSendPayload, ref?: string): void;
+    sendChat(payload: ChatSendInput): Promise<unknown>;
     /** 특정 채팅방의 이전 메시지 목록(피드)을 요청합니다. */
-    fetchChat(payload: ChatFeedPayload, ref?: string): void;
+    fetchChat(payload: ChatFeedInput): Promise<unknown>;
+    /** 인바운드 모델 이벤트를 처리합니다. */
+    handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void;
 }
 
 export class ChatRemoteDataSource implements IChatRemoteDataSource {
     constructor(
-        private readonly socketEventBus: IEventBus<SocketEventMap>,
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly wssClient: IWebSocketClient
-    ) {
-        this.initializeListeners();
+        private readonly client: ISocketClient
+    ) {}
+
+    public async sendChat(payload: ChatSendInput): Promise<unknown> {
+        return this.client.request('chat.send', payload);
     }
 
-    private initializeListeners() {
-        this.socketEventBus.on('chat:create', detail => {
-            this.domainEventBus.emit('chat:create', {
-                data: detail.payload as ChatView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:feed', detail => {
-            this.domainEventBus.emit('chat:list', {
-                data: detail.payload as ChatFeedResult,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:delete', detail => {
-            this.domainEventBus.emit('chat:delete', {
-                data: detail.payload as ChatView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:update', detail => {
-            this.domainEventBus.emit('chat:update', {
-                data: detail.payload as ChatView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:error', detail => {
-            this.domainEventBus.emit('error', {
-                domain: 'chat',
-                message: detail.payload.error || 'Unknown Chat Error',
-                ref: detail.ref,
-            });
-        });
+    public async fetchChat(payload: ChatFeedInput): Promise<unknown> {
+        return this.client.request('chat.feed', payload);
     }
 
-    public sendChat(payload: ChatSendPayload, ref?: string) {
-        this.wssClient.send('chat', 'send', payload, ref);
-    }
-
-    public fetchChat(payload: ChatFeedPayload, ref?: string) {
-        this.wssClient.send('chat', 'feed', payload, ref);
+    public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
+        const eventName = `chat:${action}` as 'chat:create' | 'chat:update' | 'chat:delete';
+        this.domainEventBus.emit(eventName, {
+            data,
+        });
     }
 }
