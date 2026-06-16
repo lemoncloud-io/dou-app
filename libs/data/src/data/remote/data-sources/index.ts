@@ -56,14 +56,14 @@ export const createRemoteDataSources = ({
     domainEventBus: IEventBus<DomainEventMap>;
     socketClient: ISocketClient;
 }): RemoteDataSources => ({
-    auth: new AuthRemoteDataSource(socketClient),
+    auth: new AuthRemoteDataSource(domainEventBus, socketClient),
     channel: new ChannelRemoteDataSource(domainEventBus, socketClient),
     chat: new ChatRemoteDataSource(domainEventBus, socketClient),
     join: new JoinRemoteDataSource(domainEventBus, socketClient),
     site: new SiteRemoteDataSource(domainEventBus, socketClient),
     user: new UserRemoteDataSource(domainEventBus, socketClient),
-    device: new DeviceRemoteDataSource(socketClient),
-    sockets: new SocketsRemoteDataSource(socketClient),
+    device: new DeviceRemoteDataSource(domainEventBus, socketClient),
+    sockets: new SocketsRemoteDataSource(domainEventBus, socketClient),
     cloud: new CloudRemoteDataSource(socketClient),
     profile: new ProfileRemoteDataSource(socketClient),
 });
