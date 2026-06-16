@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { app, powerMonitor } from 'electron';
+import { app, powerMonitor, powerSaveBlocker } from 'electron';
 
 import { AndroidFCM, Client, type PushReceiverMessage } from '@liamcottle/push-receiver';
 
@@ -84,6 +84,13 @@ export const startFcm = async (
     handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void }
 ): Promise<void> => {
     if (!config.apiKey || !config.senderId || !config.appId) return; // not configured for this build
+
+    // Cross-cloud push rides this in-process mtalk socket (not an OS push daemon), so it —
+    // and the reconnect watchdog below — stop the moment macOS App Nap suspends the app
+    // after a long background stint. Hold a 'prevent-app-suspension' assertion so both keep
+    // running while backgrounded (display may still sleep; only the OS nap is blocked).
+    // Scoped here, past the config guard, so unconfigured builds don't pay the battery cost.
+    powerSaveBlocker.start('prevent-app-suspension');
 
     let creds = loadCreds();
     if (!creds?.token || !creds.androidId || !creds.securityToken) {
