@@ -11,7 +11,7 @@ import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud
 
 import i18n from '../i18n';
 import { AppRouter } from './routes';
-import { AppShellSkeleton, ConnectionBanner } from './shared';
+import { AppShellSkeleton, ConnectionBanner, UpdateBanner } from './shared';
 import {
     useCrossCloudPushBadge,
     useCrossCloudPushToast,
@@ -105,6 +105,8 @@ export function App() {
                             {isAuthenticated && isWebCoreReady && <DesktopNotifications />}
                             {isAuthenticated && isWebCoreReady && <ShellUnreadSync />}
                             {isAuthenticated && isWebCoreReady && <ConnectionBanner />}
+                            {/* Desktop auto-update banner — always mounted (no-op in browser). */}
+                            <UpdateBanner />
                             <AppRouter />
                             <Toaster />
                         </DataProvider>

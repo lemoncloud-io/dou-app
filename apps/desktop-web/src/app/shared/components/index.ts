@@ -4,3 +4,4 @@ export * from './ProfileCard';
 export * from './ProfilePanel';
 export * from './ConnectionBanner';
 export * from './VersionInfo';
+export * from './UpdateBanner';

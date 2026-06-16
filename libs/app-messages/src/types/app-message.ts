@@ -73,6 +73,9 @@ import type {
     OnUploadProgressPayload,
     PongPayload,
     OnCopyToClipboardPayload,
+    OnUpdateStatusPayload,
+    OnStartUpdateDownloadPayload,
+    OnRestartToUpdatePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -170,6 +173,11 @@ export type AppMessageDataMap = {
     OnSaveTestRecord: OnSaveTestRecordPayload;
     OnSaveAllTestRecords: OnSaveAllTestRecordsPayload;
     OnClearTestRecords: OnClearTestRecordsPayload;
+
+    // 9. Auto Update (desktop)
+    OnUpdateStatus: OnUpdateStatusPayload;
+    OnStartUpdateDownload: OnStartUpdateDownloadPayload;
+    OnRestartToUpdate: OnRestartToUpdatePayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

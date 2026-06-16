@@ -65,6 +65,8 @@ import type {
     FetchAppLogBufferSizePayload,
     CopyToClipboardPayload,
     DismissResumeOverlayPayload,
+    StartUpdateDownloadPayload,
+    RestartToUpdatePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -152,6 +154,10 @@ export type WebMessagePayloadMap = {
     SaveTestRecord: SaveTestRecordPayload;
     SaveAllTestRecords: SaveAllTestRecordsPayload;
     ClearTestRecords: ClearTestRecordsPayload;
+
+    // 9. Auto Update (desktop)
+    StartUpdateDownload: StartUpdateDownloadPayload;
+    RestartToUpdate: RestartToUpdatePayload;
 };
 
 /** WebMessagePayloadMap의 Key들을 조합하여 가능한 모든 웹 메시지 타입(String Union)을 자동 생성합니다. */

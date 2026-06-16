@@ -15,10 +15,9 @@ import {
     shell,
     Tray,
 } from 'electron';
-import electronUpdater from 'electron-updater';
-
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
+import { startUpdater } from './updater';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
 // the package.json name ("@chatic/desktop") — the very name the packaged
@@ -420,6 +419,14 @@ const createWindow = (): BrowserWindow => {
     });
     registerHandlers(host, win);
 
+    // Auto-update the shell (web updates remotely per ADR-0001). Ask-first UX: the
+    // renderer drives download/restart via the OnUpdateStatus event + bridge handlers.
+    // beforeQuit flips isQuitting so quitAndInstall isn't swallowed by close-to-tray.
+    // No-op unless packaged.
+    startUpdater(host, () => {
+        isQuitting = true;
+    });
+
     // Cross-cloud push: register for an FCM token (renderer registers it with the
     // broker via FetchFcmToken→reg-dev) and surface incoming pushes as OS
     // notifications. Best-effort — failure degrades to the live-WS same-cloud path.
@@ -562,9 +569,6 @@ if (!singleInstanceLock) {
         const coldUrl = pendingDeeplink ?? extractDeeplink(process.argv);
         pendingDeeplink = null;
         if (coldUrl) handleDeeplink(coldUrl);
-
-        // Auto-update the shell only (web updates remotely per ADR-0001). Production only.
-        if (app.isPackaged) electronUpdater.autoUpdater.checkForUpdatesAndNotify();
 
         app.on('activate', () => {
             const [existing] = BrowserWindow.getAllWindows();

@@ -145,7 +145,12 @@ jobs:
                   BASE=$(node -p "require('./apps/desktop/package.json').version.split('.').slice(0,2).join('.')")
                   VERSION="${BASE}.${{ github.run_number }}"
                   echo "desktop build version: $VERSION"
-                  EXTRA="-c.extraMetadata.version=$VERSION"
+                  # electron-updater generic feed baked into app-update.yml per env.
+                  FEED_URL="https://desktop.dou-dev.chatic.io/updates"
+                  [ "${{ env.BUILD_ENV }}" = "prod" ] && FEED_URL="https://desktop.dou.chatic.io/updates"
+                  # --publish never: generate latest*.yml locally and upload to S3 ourselves (next
+                  # step) — the generic provider isn't auto-publishable by electron-builder.
+                  EXTRA="-c.extraMetadata.version=$VERSION -c.publish.0.url=$FEED_URL --publish never"
                   if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ env.BUILD_ENV }}" = "prod" ] \
                      && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
                      && [ -n "$APPLE_API_KEY_B64" ]; then
@@ -163,6 +168,42 @@ jobs:
                   name: chatic-desktop-${{ env.BUILD_ENV }}-${{ matrix.platform }}
                   path: ${{ matrix.artifact }}
                   if-no-files-found: error
+
+            # electron-updater feed: push the update manifest (latest*.yml) + installers/blockmaps
+            # to the desktop bucket under <env>/updates/ so the installed app can self-update.
+            # Same bucket/CDN as the desktop web (sync has no --delete, so they coexist).
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+            - name: Publish update feed (S3 + CloudFront)
+              shell: bash
+              env:
+                  DESKTOP_S3_BUCKET: ${{ secrets.DESKTOP_S3_BUCKET }}
+                  CF_DIST: ${{ env.BUILD_ENV == 'prod' && secrets.DESKTOP_CF_PROD_DISTRIBUTION_ID || secrets.DESKTOP_CF_DEV_DISTRIBUTION_ID }}
+              run: |
+                  set -e
+                  DEST="s3://${DESKTOP_S3_BUCKET}/${{ env.BUILD_ENV }}/updates/"
+                  shopt -s nullglob
+                  # The update manifest is the critical artifact — fail loud if the build didn't
+                  # emit it (a publish-config / --publish-never regression would silently break
+                  # auto-update otherwise).
+                  YML=(apps/desktop/release/*.yml)
+                  if [ ${#YML[@]} -eq 0 ]; then
+                    echo "no latest*.yml generated — auto-update feed would be broken"
+                    exit 1
+                  fi
+                  # One sync (vs a cp per file): manifests + installers + blockmaps.
+                  aws s3 sync apps/desktop/release/ "$DEST" \
+                      --exclude '*' --include '*.yml' --include '*.dmg' --include '*.zip' \
+                      --include '*.exe' --include '*.blockmap' \
+                      --cache-control "no-cache" --no-progress
+                  if [ -n "$CF_DIST" ]; then
+                    aws cloudfront create-invalidation --distribution-id "$CF_DIST" --paths '/updates/*' --no-cli-pager || true
+                  fi
 
     release:
         name: Publish GitHub Release

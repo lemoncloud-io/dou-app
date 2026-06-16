@@ -9,3 +9,4 @@ export * from './preference';
 export * from './system';
 export * from './test-record';
 export * from './unfurl';
+export * from './update';

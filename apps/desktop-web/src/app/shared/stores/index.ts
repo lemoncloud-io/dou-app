@@ -14,3 +14,4 @@ export * from './useSavedItemsStore';
 export * from './useCloudPushBadgeStore';
 export * from './useDebugModeStore';
 export * from './useSocketFrameLogStore';
+export * from './useUpdateStore';

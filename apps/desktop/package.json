@@ -58,7 +58,8 @@
         ],
         "mac": {
             "target": [
-                "dmg"
+                "dmg",
+                "zip"
             ],
             "category": "public.app-category.social-networking",
             "hardenedRuntime": true,
@@ -70,6 +71,12 @@
             "target": [
                 "nsis"
             ]
-        }
+        },
+        "publish": [
+            {
+                "provider": "generic",
+                "url": "https://desktop.dou.chatic.io/updates"
+            }
+        ]
     }
 }
