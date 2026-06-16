@@ -33,8 +33,10 @@ interface SavedCreds {
 const RECONNECT_MS = 5_000;
 // push-receiver has no app-level heartbeat and macOS TCP keepalive waits ~2h, so a
 // silently dropped socket (network blip, NAT rebind, wifi roam) is otherwise
-// undetectable. Periodically force a fresh connect as a safety net.
-const WATCHDOG_MS = 10 * 60 * 1_000;
+// undetectable. Periodically force a fresh connect as a safety net — short enough
+// that a half-open socket recovers (and its queued pushes replay) within minutes
+// rather than feeling like a sudden burst on the next focus.
+const WATCHDOG_MS = 3 * 60 * 1_000;
 // Min gap between focus-triggered reconnects so rapid window focus toggling doesn't
 // churn the socket (the watchdog/powerMonitor reconnects also refresh this clock).
 const FOCUS_RECONNECT_THROTTLE_MS = 30_000;
