@@ -66,7 +66,7 @@ export const resolveScopedContext = (type: CacheType, contextProvider: DataConte
 /** 캐시 저장 시 TTL 메타를 모델에 주입합니다. */
 export const withCacheMeta = <K extends CacheType>(type: K, item: CacheModelMap[K]): CacheModelMap[K] => {
     return {
-        ...(item as object),
+        ...(item as any),
         __cacheMeta: createTtlMeta(type),
     } as CacheModelMap[K];
 };
