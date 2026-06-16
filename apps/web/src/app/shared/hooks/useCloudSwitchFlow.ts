@@ -98,6 +98,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
                 cloudCore.saveSelectedCloudId('default');
                 useWebSocketV2Store.getState().setCloudId('default');
                 useWebSocketV2Store.getState().setIsVerified(false);
+            } else if (cloudCore.getInvitedCloud(previousCloudId)) {
+                // Invited clouds aren't broker-delegable — re-enter via the captured
+                // session (mirrors switchCloud) instead of selectCloud → delegate-cloud 404.
+                await restoreInvitedCloud(previousCloudId);
+                await waitForVerified(10_000);
             } else {
                 // 이전 cloud 재선택
                 await selectCloud(previousCloudId);

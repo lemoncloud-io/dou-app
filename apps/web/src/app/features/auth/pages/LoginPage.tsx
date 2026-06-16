@@ -212,6 +212,11 @@ export const LoginPage = (): JSX.Element => {
 
             // 4. Save cloud token + selected cloud ID
             cloudCore.saveCloudToken(data as unknown as UserTokenView);
+            // `data.cloudId` is the cloud's AWS account-no (SDK `UserTokenView.cloudId`); the
+            // invite deeplink carries no real cloud id, so it's the only identifier we have for
+            // this invited cloud and is used purely as its restore key (re-entry goes through
+            // restoreInvitedCloud, never delegate-cloud). issueCloudDelegationToken guards the
+            // delegate boundary so this account-no can never leak into a delegation 404.
             const effectiveCloudId = urlCloudId ?? data.cloudId;
             if (effectiveCloudId) {
                 cloudCore.saveSelectedCloudId(effectiveCloudId);

@@ -54,6 +54,11 @@ export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
         try {
             if (!previousCloudId || previousCloudId === 'default') {
                 rollbackToDefault();
+            } else if (cloudCore.getInvitedCloud(previousCloudId)) {
+                // Invited clouds aren't broker-delegable — re-enter via the captured
+                // session (mirrors switchCloud) instead of selectCloud → delegate-cloud 404.
+                await restoreInvitedCloud(previousCloudId);
+                await waitForVerified(10_000);
             } else {
                 await selectCloud(previousCloudId);
                 await waitForVerified(10_000);

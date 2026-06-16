@@ -91,6 +91,11 @@ export const useInviteLogin = () => {
                 if (!tokenView.Token?.identityToken) throw new Error('No identityToken from invite code');
 
                 cloudCore.saveCloudToken(tokenView);
+                // `tokenView.cloudId` is the cloud's AWS account-no (SDK `UserTokenView.cloudId`);
+                // the invite carries no real cloud id, so it's the only identifier for this
+                // invited cloud and is used purely as its restore key (re-entry goes through
+                // restoreInvitedCloud, never delegate-cloud). The delegate-cloud boundary guards
+                // against an account-no target, so this can never cause a 404.
                 const cloudId = info?.cloudId ?? tokenView.cloudId;
                 if (cloudId) {
                     cloudCore.saveSelectedCloudId(cloudId);

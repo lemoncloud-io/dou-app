@@ -17,6 +17,11 @@ import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
 
+// A 12-digit AWS account number (e.g. the SDK's `UserTokenView.cloudId`, documented
+// as "aws account-no of current cloud") is NOT a delegatable cloud id — cloud ids are
+// the short lemon numeric id like "1000010". Catch it before hitting delegate-cloud.
+const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value);
+
 export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> => {
     const { data } = await webCore
         .buildSignedRequest({
@@ -54,6 +59,13 @@ export const updateCloud = async (cloudId: string, body: CloudBody): Promise<Clo
 };
 
 export const issueCloudDelegationToken = async (target: string): Promise<CloudDelegationTokenView> => {
+    // Defense-in-depth catch-all: every cloud delegation funnels through here, so reject
+    // an AWS account-no target (from a buggy/stale stored cloud id) before the network.
+    // The caller's rollback then heals the stale selection to 'default' instead of a 404.
+    if (isAwsAccountNo(target)) {
+        throw new Error(`issueCloudDelegationToken: refusing AWS account-no as cloud target: ${target}`);
+    }
+
     const { data } = await webCore
         .buildSignedRequest({
             method: 'POST',
