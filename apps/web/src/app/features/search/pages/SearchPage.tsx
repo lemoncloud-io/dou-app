@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { useWebCoreStore } from '@chatic/web-core';
 import { usePlaces } from '../../../shared/hooks';
-import { useSocketState } from '../../../shared/socket';
 
 import { useChannels } from '../../../shared/hooks/useChannels';
 
@@ -15,7 +15,7 @@ export const SearchPage = () => {
     const [query, setQuery] = useState('');
 
     const { places } = usePlaces();
-    const sid = useSocketState(state => state.selectedPlaceId) || '';
+    const sid = useWebCoreStore(state => state.selectedPlaceId) || '';
     const { channels } = useChannels({ sid, detail: true });
 
     const lowerQuery = query.toLowerCase();

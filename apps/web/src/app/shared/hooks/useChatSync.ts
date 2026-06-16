@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useSocketState } from '../socket';
+import { getSocketManager } from '../socket';
 
 import { useRepositories } from '../data';
 import { ChatSyncScheduler } from '../sync/ChatSyncScheduler';
@@ -25,7 +25,13 @@ interface SyncableChannel {
  */
 export const useChatSync = (channels: SyncableChannel[]) => {
     const { chat: chatRepository } = useRepositories();
-    const isConnected = useSocketState(s => s.isConnected);
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
     const { setChannelState, reset } = useChatSyncStore();
     const schedulerRef = useRef<ChatSyncScheduler | null>(null);
 

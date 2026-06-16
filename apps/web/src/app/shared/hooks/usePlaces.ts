@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useWebCoreStore } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
 import { useRepositories } from '../data';
 import type { DomainSite } from '@chatic/data';
-import { useSocketState } from '../socket';
+import { getSocketManager } from '../socket';
 
 // 초대 수락 직후 place 동기화가 필요함을 표시하는 일회성 키 (sessionStorage — 탭 종료 시 자동 소멸)
 const INVITE_PLACE_SYNC_KEY = 'chatic-invite-place-sync';
@@ -71,8 +72,14 @@ let placesCacheCloudId: string | null = null;
  */
 export const usePlaces = () => {
     const { site: siteRepository } = useRepositories();
-    const cloudId = useSocketState(s => s.cloudId);
-    const isConnected = useSocketState(s => s.isConnected);
+    const cloudId = useWebCoreStore(s => s.selectedCloudId);
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
     const prevCloudIdRef = useRef<string | undefined>(undefined);
     const requestSeqRef = useRef(0);
 

@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
-import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
-import { getSocketManager, useSocketState } from '../socket';
+import { cloudCore, useUserContext, useWebCoreStore, webCore } from '@chatic/web-core';
+import { getSocketManager } from '../socket';
 import { useRepositories } from '../data';
 
 const DEBOUNCE_MS = 300;
 
 export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) => {
     const { isAuthenticated } = useWebCoreStore();
-    const wssType = useSocketState(state => state.wssType);
+    const { currentWSS } = useUserContext();
+    const wssType = currentWSS;
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { auth: authRepository } = useRepositories();
 
@@ -44,7 +45,7 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
 
             // Re-send auth only if socket was alive (not reconnecting)
             if (socketStatus === 'connected') {
-                let token: string | undefined;
+                let token: string | null;
                 if (wssType === 'cloud') {
                     token = cloudCore.getIdentityToken();
                 } else {

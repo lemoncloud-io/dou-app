@@ -1,7 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useSocketState } from '../socket';
 
 import { useRepositories } from '../data';
 import { usePlaceUnreadCounts } from './usePlaceUnreadCounts';
@@ -40,8 +39,15 @@ jest.mock('@chatic/shared', () => ({
     useInterval: jest.fn(),
 }));
 
+const subscribeActiveClientStateMock = jest.fn((listener: (state: string) => void) => {
+    listener(websocketState.isConnected ? 'connected' : 'idle');
+    return jest.fn();
+});
+
 jest.mock('../socket', () => ({
-    useSocketState: jest.fn(),
+    getSocketManager: jest.fn(() => ({
+        subscribeActiveClientState: subscribeActiveClientStateMock,
+    })),
 }));
 
 jest.mock('@chatic/web-core', () => ({
@@ -76,7 +82,7 @@ describe('usePlaceUnreadCounts', () => {
             selectedCloudId: websocketState.cloudId,
             selectedPlaceId: websocketState.selectedPlaceId,
         }));
-        (useSocketState as unknown as jest.Mock).mockImplementation(selector => selector(websocketState));
+
         (useRepositories as jest.Mock).mockReturnValue({
             channel: channelRepositoryMock,
             chat: chatRepositoryMock,

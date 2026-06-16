@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import type { ClientChannelView, DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
+
+export interface ClientChannelView extends DomainChannel {
+    isOwner: boolean;
+    isSelfChat: boolean;
+    memberCount: number;
+    unreadCount: number;
+}
 
 // toClientChannel에 joinCount(참여자 수)를 주입받을 수 있도록 파라미터 추가
 const toClientChannel = (channel: DomainChannel, userId?: string, joinCount?: number): ClientChannelView => {

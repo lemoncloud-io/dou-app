@@ -7,7 +7,6 @@ import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 import { cloudCore, UserType, useUserContext, useWebCoreStore } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import { useSocketState } from '../../../shared/socket';
 import { useRepositories } from '../../../shared/data';
 
 let placeAuthDone = false;
@@ -95,10 +94,8 @@ export const PlaceList = ({
     placeUnreadCounts,
 }: PlaceListProps) => {
     const { t } = useTranslation();
-    const { userType } = useUserContext();
+    const { userType, currentWSS } = useUserContext();
     const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
-    const wssType = useSocketState(s => s.wssType);
-    const cloudId = useSocketState(s => s.cloudId);
     const { selectedCloudId, selectedPlaceId, setSelectedPlaceId } = useWebCoreStore();
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
@@ -125,10 +122,9 @@ export const PlaceList = ({
 
         // relay 모드: refreshToken 불필요, 단순 선택만
         // localStorage도 갱신하여 contextHolder·GlobalChatSync 등이 stale sid를 읽지 않도록 함
-        // NOTE: wssType === null (초기화 전)인 경우 cloud path로 폴백 —
-        //       초대 직후 페이지 리로드 시 WebSocket connect가 setTimeout(0)으로 지연되어
-        //       wssType이 아직 null인 상태에서 이 함수가 호출될 수 있음
-        if (wssType === 'relay') {
+        // NOTE: currentWSS === null (초기화 전)인 경우 cloud path로 폴백 —
+        //       currentWSS가 아직 null인 상태에서 이 함수가 호출될 수 있음
+        if (currentWSS === 'relay') {
             cloudCore.saveSelectedSiteId(placeId);
             setSelectedPlaceId(placeId);
             onPlaceSelected?.(placeId);
@@ -203,9 +199,9 @@ export const PlaceList = ({
     }, [isDefaultMode, userType]);
 
     // cloud 전환 시 이전 place 선택 초기화
-    const prevCloudIdRef = useRef(cloudId);
+    const prevCloudIdRef = useRef(selectedCloudId);
     useEffect(() => {
-        if (prevCloudIdRef.current && prevCloudIdRef.current !== cloudId) {
+        if (prevCloudIdRef.current && prevCloudIdRef.current !== selectedCloudId) {
             placeAuthDone = false;
             setSelectedPlaceId(null);
             initialPlaceNotifiedRef.current = false;
@@ -224,8 +220,8 @@ export const PlaceList = ({
                 onPlaceSelected?.('');
             }
         }
-        prevCloudIdRef.current = cloudId;
-    }, [cloudId]);
+        prevCloudIdRef.current = selectedCloudId;
+    }, [selectedCloudId]);
 
     // place 목록 로드 후 auto-selection (cloud 모드 전용)
     useEffect(() => {
@@ -251,7 +247,7 @@ export const PlaceList = ({
     }
 
     // cloud 모드에서 cloud 선택 대기 중 (isInvited는 cloud 선택 없이도 place 목록 표시)
-    if (wssType === 'cloud' && !selectedCloudId && !isInvited) {
+    if (currentWSS === 'cloud' && !selectedCloudId && !isInvited) {
         return (
             <div className="flex flex-col items-center gap-2 py-10">
                 <p className="text-sm text-muted-foreground">{t('placeList.selectCloud')}</p>

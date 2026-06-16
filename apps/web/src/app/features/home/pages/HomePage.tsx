@@ -1,6 +1,6 @@
 import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -13,9 +13,16 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useDynamicProfile, useOnboardingStore, UserType, useUserContext } from '@chatic/web-core';
+import {
+    cloudCore,
+    useDynamicProfile,
+    useOnboardingStore,
+    UserType,
+    useUserContext,
+    useWebCoreStore,
+} from '@chatic/web-core';
 import { useLogout } from '@chatic/auth';
-import { useSocketState } from '../../../shared/socket';
+import { getSocketManager } from '../../../shared/socket';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
@@ -51,10 +58,16 @@ export const HomePage = () => {
 
     // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
     const placesResult = usePlaces();
-    const selectedPlaceId = useSocketState(s => s.selectedPlaceId);
-    const storeCloudId = useSocketState(s => s.cloudId);
-    const wssType = useSocketState(s => s.wssType);
-    const isConnected = useSocketState(s => s.isConnected);
+    const { selectedCloudId: storeCloudId, selectedPlaceId } = useWebCoreStore();
+    const { currentWSS } = useUserContext();
+    const wssType = currentWSS;
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
     const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
     const placeUnreadCounts = usePlaceUnreadCounts();
 

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 
+import { useWebCoreStore } from '@chatic/web-core';
+
 import { useRepositories } from '../shared/data';
 import { useChatSync } from '../shared/hooks/useChatSync';
-import { useSocketState } from '../shared/socket';
 
 const MIN_HIDDEN_MS = 5_000;
 
@@ -20,7 +21,7 @@ export const GlobalChatSync = () => {
     // place 전환 시 구독을 재생성하여 새 place의 채널도 sync 대상에 포함
     // channelRepository.subscribeList()가 호출 시점의 DataContext(sid 포함)를 캡처하므로
     // selectedPlaceId가 변경되면 구독을 재생성해야 새 place의 채널이 반환됨
-    const selectedPlaceId = useSocketState(s => s.selectedPlaceId);
+    const selectedPlaceId = useWebCoreStore(s => s.selectedPlaceId);
 
     useEffect(() => {
         setChannels([]);

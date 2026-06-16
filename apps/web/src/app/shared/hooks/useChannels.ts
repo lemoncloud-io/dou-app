@@ -2,14 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
-import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, useUserContext, useWebCoreStore } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
-import type { ClientChannelView } from '../types';
+
+export interface ClientChannelView extends DomainChannel {
+    isOwner: boolean;
+    isSelfChat: boolean;
+    memberCount: number;
+    unreadCount: number;
+}
 
 import { useChannelSyncStore } from '../stores/useChannelSyncStore';
 import { useConnectionRecoverySync } from './useConnectionRecoverySync';
-import { useSocketState } from '../socket';
+import { getSocketManager } from '../socket';
 
 const DEFAULT_CHANNEL_LIMIT = 100;
 
@@ -65,9 +71,15 @@ export const useChannels = (initialParams: DomainChannelListPayload) => {
     const { currentWSS } = useUserContext();
     const userId = profile?.uid;
     const targetPlaceId = initialParams.sid;
-    const storeCloudId = useSocketState(s => s.cloudId);
-    const isConnected = useSocketState(s => s.isConnected);
+    const storeCloudId = useWebCoreStore(s => s.selectedCloudId);
+    const [isConnected, setIsConnected] = useState(false);
     const cloudId = storeCloudId || cloudCore.getSelectedCloudId() || null;
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
 
     const currentParamsRef = useRef(initialParams);
     const requestSeqRef = useRef(0);

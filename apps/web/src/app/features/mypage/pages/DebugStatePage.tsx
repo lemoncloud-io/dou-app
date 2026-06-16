@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ChevronLeft } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useDelegatorId, useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
-import { useSocketState } from '../../../shared/socket';
+import { getSocketManager } from '../../../shared/socket';
 import { useClouds, useRegisterDeviceToken } from '@chatic/users';
 import { usePlaces } from '../../../shared/hooks';
 
@@ -39,14 +39,20 @@ export const DebugStatePage = () => {
     const profile = useDynamicProfile();
     const { userType } = useUserContext();
     const delegatorId = useDelegatorId();
-    const { isAuthenticated, isInitialized, isOnMobileApp } = useWebCoreStore();
+    const { isAuthenticated, isInitialized, isOnMobileApp, selectedCloudId: storeCloudId } = useWebCoreStore();
     const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
     const cloudToken = cloudCore.getCloudToken();
 
-    const cloudId = useSocketState(s => s.cloudId);
-    const wssType = useSocketState(s => s.wssType);
-    const isConnected = useSocketState(s => s.isConnected);
-    const connectionStatus = useSocketState(s => s.connectionStatus);
+    const cloudId = storeCloudId;
+    const wssType = getSocketManager().getActiveConfig()?.wssType ?? null;
+    const [connectionStatus, setConnectionStatus] = useState<string>('idle');
+    const isConnected = connectionStatus === 'connected';
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setConnectionStatus(state);
+        });
+    }, []);
 
     const { data: cloudsData } = useClouds();
     const { places } = usePlaces();

@@ -29,13 +29,13 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
-import { useSocketState } from '../../../shared/socket';
+import { getSocketManager } from '../../../shared/socket';
 
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
 import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPositions } from '../../../shared/hooks';
-import type { ClientChatView } from '../../../shared/types';
+import type { ClientChatView } from '../../../shared/hooks';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
 import { debounce } from '../../../shared/utils/debounce';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -69,7 +69,13 @@ export const ChatRoomPage = () => {
     const { userType, currentWSS } = useUserContext();
     const isDefaultCloud = currentWSS === 'relay';
     const { isIOS } = useAppChecker();
-    const isConnected = useSocketState(s => s.isConnected);
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
 
     // --- 데이터 패칭 Hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);

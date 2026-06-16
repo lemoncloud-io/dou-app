@@ -1,7 +1,18 @@
-import { useSocketState } from '../shared/socket';
+import { useEffect, useState } from 'react';
+import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
+import { getSocketManager } from '../shared/socket';
+import type { ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
 
 export const WebSocketV2Status = () => {
-    const { isConnected, connectionStatus, deviceId } = useSocketState(state => state);
+    const { deviceId } = useDynamicDeviceId();
+    const [connectionStatus, setConnectionStatus] = useState<ClientSocketState>('idle');
+    const isConnected = connectionStatus === 'connected';
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setConnectionStatus(state);
+        });
+    }, []);
 
     return (
         <div className="fixed bottom-4 right-4 rounded-lg border bg-background p-3 text-xs shadow-lg">

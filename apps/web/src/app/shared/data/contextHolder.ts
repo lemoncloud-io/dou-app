@@ -4,14 +4,13 @@ import { logger } from '@chatic/bridges';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSocketState } from '../socket';
 
 export const useDataContextHolder = (
     injectedContext?: Partial<DataContext>
 ): { contextHolder: DataContextProvider; dataContext: DataContext } => {
-    const cloudId = useSocketState((state: { cloudId?: string | null }) => state.cloudId);
+    const { selectedCloudId: cloudId, selectedPlaceId: rawPlaceId } = useWebCoreStore();
     const profileUid = useWebCoreStore(state => (state.profile as UserProfile$ | null | undefined)?.uid);
-    const selectedPlaceId = useSocketState(state => state.selectedPlaceId) || undefined;
+    const selectedPlaceId = rawPlaceId || undefined;
 
     // React 의존성 추적을 위한 순수 객체 (Snapshot)
     const dataContext = useMemo<DataContext>(() => {

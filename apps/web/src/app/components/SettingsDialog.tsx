@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { webCore, useOnboardingStore } from '@chatic/web-core';
 import { useRepositories } from '../shared/data';
-import { useConnectionStatus } from '../shared/socket';
+import { getSocketManager } from '../shared/socket';
+import type { ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
 
 interface SettingsDialogProps {
     open?: boolean;
@@ -18,9 +19,15 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const { t } = useTranslation();
     const [tokenInput, setTokenInput] = useState('');
     const [currentToken, setCurrentToken] = useState<string | null>(null);
-    const connectionStatus = useConnectionStatus();
+    const [connectionStatus, setConnectionStatus] = useState<ClientSocketState>('idle');
     const { resetOnboarding } = useOnboardingStore();
     const { auth: authRepository } = useRepositories();
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setConnectionStatus(state);
+        });
+    }, []);
 
     useEffect(() => {
         webCore
@@ -48,7 +55,9 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
                 return 'bg-green-500';
             case 'connecting':
                 return 'bg-yellow-500';
-            case 'disconnected':
+            case 'idle':
+            case 'closing':
+            case 'closed':
                 return 'bg-red-500';
             default:
                 return 'bg-gray-500';

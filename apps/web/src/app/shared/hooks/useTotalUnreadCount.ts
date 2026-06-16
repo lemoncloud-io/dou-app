@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel, DomainListResult } from '@chatic/data';
 import { useRepositories } from '../data';
-import { useSocketState } from '../socket';
+import { useWebCoreStore } from '@chatic/web-core';
 
 export const useTotalUnreadCount = () => {
-    const sid = useSocketState(state => state.selectedPlaceId) || 'default';
+    const sid = useWebCoreStore(state => state.selectedPlaceId) || 'default';
     const { channel: channelRepository } = useRepositories();
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);

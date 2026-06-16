@@ -4,7 +4,15 @@ import type { DomainChat, DomainListResult } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 import { useRepositories } from '../data';
-import type { ClientChatView } from '../types';
+
+export interface ClientChatView extends DomainChat {
+    readCount?: number;
+    unreadCount?: number;
+    timestamp: Date;
+    isSystem: boolean;
+    ownerName: string;
+    isOwner: boolean;
+}
 
 const DEFAULT_CHAT_LIMIT = 50;
 const PENDING_TIMEOUT_MS = 10_000; // 10초

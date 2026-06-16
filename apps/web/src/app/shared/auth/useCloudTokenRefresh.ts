@@ -1,10 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
+import {
+    cloudCore,
+    reportError,
+    toError,
+    useServiceStatusStore,
+    useUserContext,
+    useWebCoreStore,
+    webCore,
+} from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { getSocketManager, useSocketState } from '../socket';
+import { getSocketManager } from '../socket';
 import { useRepositories } from '../data';
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -32,10 +40,17 @@ export const useCloudTokenRefresh = () => {
     const { isAuthenticated, setSelectedCloudId, setSelectedPlaceId } = useWebCoreStore();
     const { setServiceUnavailable } = useServiceStatusStore();
     const { toast } = useToast();
-    const wssType = useSocketState(s => s.wssType);
-    const isConnected = useSocketState(s => s.isConnected);
+    const { currentWSS } = useUserContext();
+    const wssType = currentWSS;
+    const [isConnected, setIsConnected] = useState(false);
     const refreshingRef = useRef(false);
     const { auth: authRepository } = useRepositories();
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) return;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isNative, logger, webClient } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
-import { useSocketState } from '../socket';
+import { getSocketManager } from '../socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { useWebCoreStore } from '@chatic/web-core';
 
@@ -24,7 +24,13 @@ const EVENT_DEBOUNCE_MS = 1_000;
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
-    const isConnected = useSocketState(s => s.isConnected);
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        return getSocketManager().subscribeActiveClientState(state => {
+            setIsConnected(state === 'connected');
+        });
+    }, []);
     const { selectedCloudId: cloudId, selectedPlaceId } = useWebCoreStore();
 
     const [counts, setCounts] = useState<Record<string, number>>({});
