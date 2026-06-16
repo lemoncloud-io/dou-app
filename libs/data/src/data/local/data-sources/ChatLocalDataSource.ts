@@ -11,7 +11,7 @@ import type { DataContextProvider } from '../../repositories';
 import type { CacheStorage, CacheStorageItem } from '../storages';
 import type { DomainChat, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChat as toDomainChatBase } from '../../domain';
-import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 import { resolveScopedContext } from '../storages/utils';
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import { logger } from '@chatic/bridges';
@@ -26,7 +26,7 @@ const getChatNo = (chat: ChatSortable): number | undefined => {
 
 export interface IChatLocalDataSource
     extends ICrudLocalDataSource<DomainChat>,
-        IListLocalDataSource<DomainChat, ChatFeedPayload, DomainListResult<DomainChat>>,
+        IListLocalDataSource<DomainChat, ChatFeedInput, DomainListResult<DomainChat>>,
         IStreamLocalDataSource<DomainChat, string, DomainListResult<DomainChat>> {
     clearByChannelId(channelId: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
 }
@@ -136,7 +136,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
     // =========================================================================
 
     public async fetchList(
-        payload: ChatFeedPayload,
+        payload: ChatFeedInput,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
         const { channelId, limit = 50 } = payload;
@@ -190,7 +190,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource implements IChatLoc
     ): LocalStreamUnsubscribe {
         // fetchList의 인자 타입이 변경되었으므로, 여기서는 channelId만으로 호출할 수 없습니다.
         // subscribeList는 전체 목록을 스트리밍하는 역할이므로, 페이징 없이 모든 데이터를 가져오도록 payload를 구성합니다.
-        const payload: ChatFeedPayload = { channelId };
+        const payload: ChatFeedInput = { channelId };
         return this.subscribeQueryStream(() => this.fetchList(payload, contextOverride), callback);
     }
 

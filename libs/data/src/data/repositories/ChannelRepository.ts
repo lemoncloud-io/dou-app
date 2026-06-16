@@ -16,19 +16,18 @@ import {
     type DomainListResult,
     toDomainChannel,
 } from '../domain';
-import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
-import type { ChannelSyncView } from '../events/common';
+import type { ChannelSyncView, ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
 import type {
+    ChannelGetSelfInput,
+    ChannelUnreadsInput,
     ChatDeleteChannelInput,
     ChatInviteInput,
     ChatLeaveInput,
     ChatMineInput,
     ChatStartInput,
     ChatUpdateChannelInput,
-    ChannelGetSelfInput,
-    ChannelUnreadsInput,
 } from '@lemoncloud/chatic-sockets-api';
-import type { ListResult } from '../events/common';
+import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 
 /** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository extends ILocalCacheMutationRepository<DomainChannel> {
