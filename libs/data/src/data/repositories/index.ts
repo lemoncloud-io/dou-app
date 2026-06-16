@@ -2,7 +2,6 @@ import type { RemoteDataSources } from '../remote/data-sources';
 import type { LocalDataSources } from '../local/data-sources';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { IAuthRepository } from './AuthRepository';
 import { AuthRepository } from './AuthRepository';
 import type { IChannelRepository } from './ChannelRepository';
@@ -25,9 +24,8 @@ export * from './ChatRepository';
 export * from './InviteCloudRepository';
 export * from './JoinRepository';
 export * from './SiteRepository';
-export * from './types';
-export type { default as ISyncRepository } from './types';
 export * from './UserRepository';
+export * from './types';
 
 /**
  * Web 화면 계층에 노출되는 Repository 묶음입니다.
@@ -52,25 +50,17 @@ export const createRepositories = ({
     localDataSources,
     context,
     domainEventBus,
-    requestManager,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSources;
     context: DataContextProvider;
     domainEventBus: IEventBus<DomainEventMap>;
-    requestManager: ISocketRequestManager;
 }): DataRepositories => ({
-    auth: new AuthRepository(remoteDataSources.auth, requestManager, context, domainEventBus),
-    channel: new ChannelRepository(
-        remoteDataSources.channel,
-        localDataSources.channel,
-        requestManager,
-        context,
-        domainEventBus
-    ),
-    chat: new ChatRepository(remoteDataSources.chat, localDataSources.chat, requestManager, context, domainEventBus),
-    join: new JoinRepository(remoteDataSources.join, localDataSources.join, requestManager, context, domainEventBus),
-    site: new SiteRepository(remoteDataSources.site, localDataSources.site, requestManager, context, domainEventBus),
-    user: new UserRepository(remoteDataSources.user, localDataSources.user, requestManager, context, domainEventBus),
-    inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, requestManager, context, domainEventBus),
+    auth: new AuthRepository(remoteDataSources.auth, context, domainEventBus),
+    channel: new ChannelRepository(remoteDataSources.channel, localDataSources.channel, context, domainEventBus),
+    chat: new ChatRepository(remoteDataSources.chat, localDataSources.chat, context, domainEventBus),
+    join: new JoinRepository(remoteDataSources.join, localDataSources.join, context, domainEventBus),
+    site: new SiteRepository(remoteDataSources.site, localDataSources.site, context, domainEventBus),
+    user: new UserRepository(remoteDataSources.user, localDataSources.user, context, domainEventBus),
+    inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, context, domainEventBus),
 });

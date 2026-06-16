@@ -3,9 +3,7 @@ import type { UserMakeSitePayload, UserUpdateSitePayload, WSSPayload } from '@le
 import type { ISiteLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
-import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import { createDomainListResult, type DomainListResult, type DomainSite, toDomainSite } from '../domain';
@@ -42,19 +40,15 @@ export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSit
 }
 
 /** Remote site API와 local site cache를 중재합니다. */
-export class SiteRepository extends BaseRepository implements ISiteRepository, ISyncRepository {
+export class SiteRepository extends BaseRepository implements ISiteRepository {
     constructor(
         private readonly siteRemoteDataSource: ISiteRemoteDataSource,
         private readonly siteLocalDataSource: ISiteLocalDataSource,
-        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, contextProvider, domainEventBus);
+        super(contextProvider, domainEventBus);
         this.initializeInternalListeners();
-    }
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
-        throw new Error('Method not implemented.');
     }
 
     public async fetchSite(
@@ -72,20 +66,14 @@ export class SiteRepository extends BaseRepository implements ISiteRepository, I
     }
 
     public async createSite(payload: UserMakeSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
-        const site = await this.requestRemote<SiteView>(
-            ref => this.siteRemoteDataSource.createSite(payload, ref),
-            options
-        );
+        const site = (await this.siteRemoteDataSource.createSite(payload)) as SiteView;
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
     }
 
     public async updateSite(payload: UserUpdateSitePayload, options?: RepositoryRequestOptions): Promise<DomainSite> {
-        const site = await this.requestRemote<SiteView>(
-            ref => this.siteRemoteDataSource.updateSite(payload, ref),
-            options
-        );
+        const site = (await this.siteRemoteDataSource.updateSite(payload)) as SiteView;
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
@@ -154,10 +142,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository, I
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const remote = await this.requestRemote<ListResult<SiteView>>(
-            ref => this.siteRemoteDataSource.fetchSite(payload, ref),
-            options
-        );
+        const remote = (await this.siteRemoteDataSource.fetchSite(payload)) as ListResult<SiteView>;
         // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
         // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
         // 서버 응답의 배열 순서를 order 필드로 보존 — 로컬 캐시에서 읽을 때도 동일 순서 유지
@@ -194,8 +179,5 @@ export class SiteRepository extends BaseRepository implements ISiteRepository, I
                 'site:update'
             );
         });
-        // NOTE: site:list 캐시 저장은 fetchFromRemoteAndCache에서 요청 시점 context를 캡처하여 처리함.
-        // 여기서 중복 upsertMany를 수행하면 cloud 전환 중 도착한 이전 cloud 응답이
-        // 현재 cloud의 캐시 파티션에 저장되는 cross-cloud 오염이 발생함.
     }
 }

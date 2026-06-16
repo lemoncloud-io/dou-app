@@ -1,14 +1,12 @@
-import type { ChatFeedPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { IChatLocalDataSource } from '../local/data-sources';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type {
     DataContextProvider,
     ILocalCacheMutationRepository,
     LocalCacheBulkPatch,
     RepositoryRequestOptions,
 } from './types';
-import type ISyncRepository from './types';
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
@@ -24,10 +22,10 @@ import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 /** 채팅 메시지 도메인의 Repository 공개 계약입니다. */
 export interface IChatRepository extends ILocalCacheMutationRepository<DomainChat> {
     /** 서버의 chat:send 요청을 수행합니다. */
-    sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat>;
+    sendChat(payload: ChatSendInput, options?: RepositoryRequestOptions): Promise<DomainChat>;
 
     /** 서버의 chat:feed 요청을 수행하여 채널의 메시지 피드를 조회합니다. */
-    fetchChat(payload: ChatFeedPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainChat>>;
+    fetchChat(payload: ChatFeedInput, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainChat>>;
 
     /** 현재 스코프의 chat 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -55,25 +53,20 @@ export interface IChatRepository extends ILocalCacheMutationRepository<DomainCha
 }
 
 /** Remote chat API와 local message cache를 중재합니다. */
-export class ChatRepository extends BaseRepository implements IChatRepository, ISyncRepository {
+export class ChatRepository extends BaseRepository implements IChatRepository {
     constructor(
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSource,
-        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, contextProvider, domainEventBus);
+        super(contextProvider, domainEventBus);
         this.initializeInternalListeners();
-    }
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
-        throw new Error('Method not implemented.');
     }
 
     /** 메시지 발신을 data source에 위임하고 응답을 기다립니다. */
-    public async sendChat(payload: ChatSendPayload, options?: RepositoryRequestOptions): Promise<DomainChat> {
+    public async sendChat(payload: ChatSendInput, options?: RepositoryRequestOptions): Promise<DomainChat> {
         const requestRef = options?.ref ?? `chat-send-${Date.now()}`;
-        const requestOptions: RepositoryRequestOptions = { ...options, ref: requestRef };
         const repositoryContext = this.getRepositoryContext();
         const domainScope = this.getDomainScope();
 
@@ -81,10 +74,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
         await this.chatLocalDataSource.upsert(optimisticChat, repositoryContext);
 
         try {
-            const chat = await this.requestRemote<ChatView>(
-                ref => this.chatRemoteDataSource.sendChat(payload, ref),
-                requestOptions
-            );
+            const chat = (await this.chatRemoteDataSource.sendChat(payload)) as ChatView;
 
             const domainChat = toDomainChat(
                 {
@@ -120,7 +110,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
      * 캐시 우선 + 백그라운드 동기화 전략으로 메시지 피드를 조회합니다.
      */
     public async fetchChat(
-        payload: ChatFeedPayload,
+        payload: ChatFeedInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChat>> {
         const cachePolicy = options?.cachePolicy ?? 'cache-first';
@@ -224,16 +214,13 @@ export class ChatRepository extends BaseRepository implements IChatRepository, I
     }
 
     private async fetchFromRemoteAndCache(
-        payload: ChatFeedPayload,
+        payload: ChatFeedInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChat>> {
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const remote = await this.requestRemote<ChatFeedResult>(
-            ref => this.chatRemoteDataSource.fetchChat(payload, ref),
-            options
-        );
+        const remote = (await this.chatRemoteDataSource.fetchChat(payload)) as ChatFeedResult;
         if (!remote) {
             return createDomainListResult([], {
                 cursorNo: 0,

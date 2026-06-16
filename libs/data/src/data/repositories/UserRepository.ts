@@ -2,9 +2,7 @@ import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } fr
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
-import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
@@ -52,21 +50,16 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
 
 /**
  * UserRemoteDataSource를 감싸는 사용자 Repository 구현체입니다.
- * chat 도메인에 걸친 사용자 조회/초대 요청도 사용자 API로 묶어 노출합니다.
  */
-export class UserRepository extends BaseRepository implements IUserRepository, ISyncRepository {
+export class UserRepository extends BaseRepository implements IUserRepository {
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSource,
-        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, contextProvider, domainEventBus);
+        super(contextProvider, domainEventBus);
         this.initializeInternalListeners();
-    }
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
-        throw new Error('Method not implemented.');
     }
 
     public async fetchUsers(
@@ -93,24 +86,21 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         payload: UserUpdateProfilePayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainUser> {
-        const user = await this.requestRemote<UserView>(
-            ref => this.userRemoteDataSource.updateProfile(payload, ref),
-            options
-        );
+        const user = (await this.userRemoteDataSource.updateProfile(payload)) as UserView;
         const domainUser = toDomainUser(user, this.getDomainScope());
         await this.userLocalDataSource.upsert(domainUser, this.getRepositoryContext());
         return domainUser;
     }
 
-    public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
-        return this.requestRemote<MyInviteView>(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
+    public async requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
+        return (await this.userRemoteDataSource.requestInvite(payload)) as MyInviteView;
     }
 
-    public requestInviteBatch(payload: MyUserInviteBody, options?: RepositoryRequestOptions): Promise<MyInviteView[]> {
-        return this.requestRemote<MyInviteView[]>(
-            ref => this.userRemoteDataSource.requestInviteBatch(payload, ref),
-            options
-        );
+    public async requestInviteBatch(
+        payload: MyUserInviteBody,
+        options?: RepositoryRequestOptions
+    ): Promise<MyInviteView[]> {
+        return (await this.userRemoteDataSource.requestInviteBatch(payload)) as MyInviteView[];
     }
 
     public clearAll(): Promise<void> {
@@ -182,10 +172,7 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const remote = await this.requestRemote<ListResult<UserView>>(
-            ref => this.userRemoteDataSource.fetchUsers(payload, ref),
-            options
-        );
+        const remote = (await this.userRemoteDataSource.fetchUsers(payload)) as ListResult<UserView>;
         // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
         // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
         const domainList = (remote.list || []).map(item => ({
@@ -241,15 +228,6 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
                 () => this.userLocalDataSource.remove(userId, this.getRepositoryContext()),
                 'user:delete'
             );
-        });
-
-        this.onDomainEvent('user:list', detail => {
-            const list = detail.data?.list || [];
-            if (list.length === 0) return;
-            this.runInBackground(() => {
-                const domainUsers = list.map((item: any) => toDomainUser(item, this.getDomainScope()));
-                return this.userLocalDataSource.upsertMany(domainUsers, this.getRepositoryContext());
-            }, 'user:list');
         });
     }
 }
