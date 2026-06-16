@@ -7,7 +7,6 @@ export * from './useChannelMutations';
 export * from './useChannels';
 export * from './useChatMutations';
 export * from './useChats';
-export * from './useForegroundResync';
 export * from './useJoinPositions';
 export * from './usePlaceMutations';
 export * from './usePlaces';

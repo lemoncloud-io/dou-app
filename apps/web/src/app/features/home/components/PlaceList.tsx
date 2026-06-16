@@ -5,9 +5,10 @@ import { Check, Home, RefreshCw, Users } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
-import { cloudCore, useWebCoreStore, useUserContext, UserType } from '@chatic/web-core';
+import { cloudCore, UserType, useUserContext, useWebCoreStore } from '@chatic/web-core';
 import type { MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import { getSocketManager, useSocketState } from '../../../shared/socket';
+import { useSocketState } from '../../../shared/socket';
+import { useRepositories } from '../../../shared/data';
 
 let placeAuthDone = false;
 
@@ -101,6 +102,7 @@ export const PlaceList = ({
     const { selectedCloudId, selectedPlaceId, setSelectedPlaceId } = useWebCoreStore();
     const [isPending, setIsPending] = useState(false);
     const switchingRef = useRef(false);
+    const { auth: authRepository } = useRepositories();
 
     const isDefaultMode = selectedCloudId === 'default';
 
@@ -155,12 +157,11 @@ export const PlaceList = ({
             useWebCoreStore.getState().setProfile({ ...currentProfile, ...cloudProfile } as unknown as UserProfile$);
 
             // place 전용 토큰으로 현재 active client에 auth.update 적용
-            const client = getSocketManager().getActiveClient();
             const identityToken = cloudCore.getIdentityToken();
-            if (!client || !identityToken) {
+            if (!identityToken) {
                 throw new Error('Socket client is not ready for place switch');
             }
-            await client.request('auth.update' as any, { token: identityToken });
+            await authRepository.updateSocketAuth({ token: identityToken });
 
             placeAuthDone = true;
             setSelectedPlaceId(placeId);

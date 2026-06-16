@@ -5,6 +5,7 @@ import { logger } from '@chatic/bridges';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { getSocketManager, useSocketState } from '../socket';
+import { useRepositories } from '../data';
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -34,6 +35,7 @@ export const useCloudTokenRefresh = () => {
     const wssType = useSocketState(s => s.wssType);
     const isConnected = useSocketState(s => s.isConnected);
     const refreshingRef = useRef(false);
+    const { auth: authRepository } = useRepositories();
 
     useEffect(() => {
         if (!isConnected || !isAuthenticated) return;
@@ -46,7 +48,7 @@ export const useCloudTokenRefresh = () => {
                 if (!client) return;
                 if (wssType !== 'cloud') {
                     const token = (await webCore.getTokenSignature()).originToken?.identityToken;
-                    if (token) await client.request('auth.update' as any, { token });
+                    if (token) await authRepository.updateSocketAuth({ token });
                     return;
                 }
 
@@ -74,7 +76,7 @@ export const useCloudTokenRefresh = () => {
 
                 const token = cloudCore.getIdentityToken();
                 if (token) {
-                    await client.request('auth.update' as any, { token });
+                    await authRepository.updateSocketAuth({ token });
                 }
             } finally {
                 refreshingRef.current = false;

@@ -13,7 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, useOnboardingStore, UserType, useUserContext } from '@chatic/web-core';
 import { useLogout } from '@chatic/auth';
 import { useSocketState } from '../../../shared/socket';
 
@@ -22,7 +22,7 @@ import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { usePlaces } from '../../../shared/hooks/usePlaces';
 import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
 import { useChannels } from '../../../shared/hooks/useChannels';
-import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '../../../shared/auth';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';

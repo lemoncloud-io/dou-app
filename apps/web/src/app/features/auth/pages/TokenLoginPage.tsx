@@ -7,7 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore, useWebCoreStore } from '@chatic/web-core';
-import { getSocketManager } from '../../../shared/socket';
+import { useRepositories } from '../../../shared/data';
 
 const decodeJWT = (token: string) => {
     try {
@@ -38,6 +38,7 @@ export const TokenLoginPage = () => {
     const { setProfile, setIsAuthenticated } = useWebCoreStore();
     const { toast } = useToast();
     const [isInvalid, setIsInvalid] = useState(false);
+    const { auth: authRepository } = useRepositories();
 
     useEffect(() => {
         const handleTokenLogin = async () => {
@@ -65,18 +66,16 @@ export const TokenLoginPage = () => {
                 setIsAuthenticated(true);
             }
 
-            await getSocketManager()
-                .getActiveClient()
-                ?.request('auth.update' as any, {
-                    token,
-                    dryRun: true,
-                });
+            await authRepository.updateSocketAuth({
+                token,
+                dryRun: true,
+            });
 
             toast({ title: t('auth.loginSuccess') });
         };
 
         void handleTokenLogin();
-    }, [token, setProfile, setIsAuthenticated, toast, navigate]);
+    }, [token, setProfile, setIsAuthenticated, toast, navigate, authRepository]);
 
     if (isInvalid) {
         return (

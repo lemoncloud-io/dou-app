@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { getSocketManager, useSocketState } from '../socket';
+import { useRepositories } from '../data';
 
 const DEBOUNCE_MS = 300;
 
@@ -9,6 +10,7 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
     const { isAuthenticated } = useWebCoreStore();
     const wssType = useSocketState(state => state.wssType);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { auth: authRepository } = useRepositories();
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -49,7 +51,7 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
                     token = (await webCore.getTokenSignature()).originToken?.identityToken;
                 }
                 if (client && token) {
-                    await client.request('auth.update' as any, { token });
+                    await authRepository.updateSocketAuth({ token });
                 }
             }
             // If reconnecting, useCloudTokenRefresh handles auth on isConnected change
@@ -60,5 +62,5 @@ export const useForegroundTokenRefresh = (refreshToken: () => Promise<boolean>) 
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (debounceTimer.current) clearTimeout(debounceTimer.current);
         };
-    }, [isAuthenticated, refreshToken, wssType]);
+    }, [isAuthenticated, refreshToken, wssType, authRepository]);
 };

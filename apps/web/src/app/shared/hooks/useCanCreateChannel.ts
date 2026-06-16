@@ -1,6 +1,6 @@
 import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
 
-import { useCloudSession } from './useCloudSession';
+import { useCloudSession } from '../auth';
 
 interface ChannelsInfo {
     count: number;

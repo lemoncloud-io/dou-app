@@ -6,7 +6,8 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { webCore, useOnboardingStore } from '@chatic/web-core';
-import { getSocketManager, useConnectionStatus } from '../shared/socket';
+import { useRepositories } from '../shared/data';
+import { useConnectionStatus } from '../shared/socket';
 
 interface SettingsDialogProps {
     open?: boolean;
@@ -19,6 +20,7 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const [currentToken, setCurrentToken] = useState<string | null>(null);
     const connectionStatus = useConnectionStatus();
     const { resetOnboarding } = useOnboardingStore();
+    const { auth: authRepository } = useRepositories();
 
     useEffect(() => {
         webCore
@@ -32,12 +34,10 @@ export const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     const handleUpdateToken = () => {
         if (!tokenInput.trim()) return;
         void webCore.getTokenStorage().saveOAuthToken({ identityToken: tokenInput.trim() } as never);
-        void getSocketManager()
-            .getActiveClient()
-            ?.request('auth.update' as any, {
-                token: tokenInput.trim(),
-                dryRun: false,
-            });
+        void authRepository.updateSocketAuth({
+            token: tokenInput.trim(),
+            dryRun: false,
+        });
 
         setTokenInput('');
     };

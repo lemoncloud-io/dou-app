@@ -17,8 +17,7 @@ import { DataProvider } from './shared/data';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
 
-import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
-import { useForegroundResync } from './shared/hooks/useForegroundResync';
+import { useForegroundResync, useForegroundTokenRefresh } from './shared/auth';
 import i18n from '../i18n';
 import { logger, webClient } from '@chatic/bridges';
 import { useDeviceInfoStore } from '@chatic/device-utils';

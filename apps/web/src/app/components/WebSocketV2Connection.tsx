@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { logger } from '@chatic/bridges';
 import { cloudCore, useUserContext, useWebCoreStore, webCore } from '@chatic/web-core';
 
+import { useRepositories } from '../shared/data';
 import { useDynamicDeviceId } from '../shared/hooks/useDynamicDeviceId';
-import { useCloudTokenRefresh } from '../shared/hooks/useCloudTokenRefresh';
-import { useCloudSession } from '../shared/hooks/useCloudSession';
+import { useCloudSession, useCloudTokenRefresh } from '../shared/auth';
 import { getSocketManager } from '../shared/socket';
 
 export const WebSocketV2Connection = () => {
@@ -14,6 +14,7 @@ export const WebSocketV2Connection = () => {
     const { currentWSS, endpoints } = useUserContext();
     const socketManager = getSocketManager();
     const { setSelectedCloudId, setSelectedPlaceId } = useWebCoreStore();
+    const { device: deviceRepository, auth: authRepository } = useRepositories();
 
     // 현재 WSS 타입에 따라 endpoint 결정
     const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
@@ -51,7 +52,7 @@ export const WebSocketV2Connection = () => {
                     await client.connect();
                 }
 
-                await client.request('device.save' as any, {
+                await deviceRepository.saveDevice({
                     id: deviceId,
                     platform: 'web',
                 });
@@ -63,7 +64,7 @@ export const WebSocketV2Connection = () => {
                         : (await webCore.getTokenSignature()).originToken?.identityToken;
 
                 if (token) {
-                    await client.request('auth.update' as any, { token });
+                    await authRepository.updateSocketAuth({ token });
                 }
             } catch (error) {
                 logger.error('SOCKET', '[WebSocketV2Connection] Failed to bootstrap data socket client', {
@@ -74,7 +75,7 @@ export const WebSocketV2Connection = () => {
         };
 
         void bootstrap();
-    }, [socketManager, selectedCloudId, deviceId, isPending, endpoint, currentWSS]);
+    }, [socketManager, selectedCloudId, deviceId, isPending, endpoint, currentWSS, deviceRepository, authRepository]);
 
     useCloudTokenRefresh();
 

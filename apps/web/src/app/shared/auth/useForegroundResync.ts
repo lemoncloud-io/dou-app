@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { useOnBackgroundStatusChanged } from './useHandleAppMessage';
+import { useOnBackgroundStatusChanged } from '../hooks/useHandleAppMessage';
 import { getSocketManager } from '../socket';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../types';

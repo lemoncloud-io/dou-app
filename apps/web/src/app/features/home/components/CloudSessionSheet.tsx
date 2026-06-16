@@ -14,7 +14,7 @@ import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
-import { useCloudSession } from '../../../shared/hooks/useCloudSession';
+import { useCloudSession } from '../../../shared/auth';
 import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
 import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
