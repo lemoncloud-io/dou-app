@@ -1,27 +1,8 @@
 import type { AppMessageError, AppMessageType, AppResponseMessage, AppSuccessMessage } from './app-message';
 import type { BaseMessage } from './types';
-import type { WebMessageData, WebMessagePayloadMap, WebMessageType } from './web-message';
+import type { WebMessageData, WebMessageType } from './web-message';
 
 export type WebMessageRequest<K extends WebMessageType> = WebMessageData<K>;
-
-/** request(type, params) overload에서 명시적으로 data를 감싼 요청 본문입니다. */
-export type WebMessageRequestEnvelope<K extends WebMessageType> = BaseMessage & {
-    data: WebMessagePayloadMap[K];
-};
-
-/**
- * @deprecated 현재 Web -> 과거 App 호환을 위해서만 유지합니다.
- * 새 호출부는 `request({ type, data })` 또는 `post({ type, data })` message object 형태를 사용하세요.
- */
-export type LegacyWebMessageRequestPayloadParams<K extends WebMessageType> = WebMessagePayloadMap[K] & BaseMessage;
-
-/**
- * 기존 Web caller 호환을 위한 request/post 두 번째 인자 타입입니다.
- * `request('OAuthLogin', { provider })`처럼 payload를 직접 넘겨도 WebBridgeClient가 `{ data: payload }`로 정규화합니다.
- */
-export type WebMessageRequestParams<K extends WebMessageType> =
-    | WebMessageRequestEnvelope<K>
-    | LegacyWebMessageRequestPayloadParams<K>;
 
 /**
  * Web -> App 요청이 어떤 App -> Web 응답으로 resolve되어야 하는지 정의하는 단일 계약입니다.
@@ -54,6 +35,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchAppIconList: 'OnFetchAppIconList',
     ChangeAppIcon: 'OnChangeAppIcon',
     CopyToClipboard: 'OnCopyToClipboard',
+    DismissResumeOverlay: 'OnDismissResumeOverlay',
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
@@ -99,8 +81,8 @@ export type WebMessageResponseTypeMap = typeof WEB_MESSAGE_RESPONSE_TYPE;
 
 export type WebMessageResponseType<K extends WebMessageType> = WebMessageResponseTypeMap[K];
 
-/** Web client request가 성공했을 때 caller가 받는 응답 타입입니다. */
-export type WebMessageSuccessResponse<K extends WebMessageType> = AppSuccessMessage<WebMessageResponseType<K>>;
+/** Web client request가 resolve할 때 caller가 받는 응답 타입입니다. 실패는 BridgeError로 reject됩니다. */
+export type WebMessageResponse<K extends WebMessageType> = AppSuccessMessage<WebMessageResponseType<K>>;
 
 /** Native handler 함수 자체에서 payload까지 엄격하게 반환 타입을 고정하고 싶을 때 사용합니다. */
 export type WebMessageAppResponse<K extends WebMessageType> = AppResponseMessage<WebMessageResponseType<K>>;
@@ -165,18 +147,7 @@ export type BridgeErrorResponse = BaseMessage & {
     error: BridgeError;
 };
 
-/**
- * 구버전 모바일 앱이 WebAppReady 요청에 동일 type으로 응답하던 wire format입니다.
- * 신규 client는 이를 OnWebAppReady로 normalize해서 웹/모바일 배포 싱크 불일치를 흡수합니다.
- */
-export type LegacyWebAppReadyResponse = BaseMessage & {
-    type: 'WebAppReady';
-    success: true;
-    data?: Record<string, never>;
-};
-
 /** Bridge adapter를 통해 들어올 수 있는 응답 전체입니다. */
 export type BridgeResponseMessage<K extends WebMessageType = WebMessageType> =
     | WebMessageHandlerResponse<K>
-    | BridgeErrorResponse
-    | LegacyWebAppReadyResponse;
+    | BridgeErrorResponse;

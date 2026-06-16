@@ -49,7 +49,8 @@ export function ThemeProvider({
     useEffect(() => {
         if (!isOnMobileApp) return;
 
-        webClient.post('SavePreference', {
+        webClient.post({
+            type: 'SavePreference',
             data: {
                 key: 'theme',
                 value: theme,

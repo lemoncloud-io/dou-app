@@ -90,3 +90,21 @@ export const getConsoleOverrideScript = (): string => `
         try { window.ReactNativeWebView?.postMessage(JSON.stringify({ type: '__console__', level: 'error', msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })); } catch(e) {}
     };
 `;
+
+/**
+ * Parameters for generating the combined synchronous injection script.
+ */
+export interface SyncInjectionScriptParams {
+    insets: EdgeInsets;
+    keyboardHeight: number;
+    deviceInfo: DeviceInfoParams;
+}
+
+/**
+ * Combines safe area, device info, and console override scripts into a single script.
+ */
+export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
+    ${getSafeAreaScript(params.insets, params.keyboardHeight)}
+    ${getDeviceInfoScript(params.deviceInfo)}
+    ${getConsoleOverrideScript()}
+`;

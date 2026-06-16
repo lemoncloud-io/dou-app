@@ -8,6 +8,7 @@ import { reportError, useWebCoreStore } from '@chatic/web-core';
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
 import { publicRoutes } from './public/PublicRoutes';
+import { GlobalBridgeListener } from './GlobalBridgeListener';
 
 export const Router = () => {
     const { isAuthenticated, isInitialized } = useWebCoreStore();
@@ -22,7 +23,14 @@ export const Router = () => {
             ? [...privateRoutes, ...commonRoutes, { path: '*', element: <Navigate to="/" replace /> }]
             : [...publicRoutes, ...commonRoutes, { path: '*', element: <Navigate to="/auth/login" replace /> }];
 
-        const routesWithErrorElement = baseRoutes.map(route => ({
+        const wrappedRoutes = [
+            {
+                element: <GlobalBridgeListener />,
+                children: baseRoutes,
+            },
+        ];
+
+        const routesWithErrorElement = wrappedRoutes.map(route => ({
             ...route,
             errorElement: <RouterErrorFallback onError={handleRouterError} />,
         }));

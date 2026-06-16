@@ -41,7 +41,8 @@ describe('NativeDBAdapter', () => {
             const item = { id: 'chat-1', text: 'hello' } as any;
             await adapter.save('chat-1', item);
 
-            expect(mockBridge.request).toHaveBeenCalledWith('SaveCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'SaveCacheData',
                 data: {
                     type: 'chat',
                     cid: mockScope.cid,
@@ -64,7 +65,8 @@ describe('NativeDBAdapter', () => {
             const items = [{ id: 'chat-1' }, { id: 'chat-2' }] as any[];
             await adapter.saveAll(items);
 
-            expect(mockBridge.request).toHaveBeenCalledWith('SaveAllCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'SaveAllCacheData',
                 data: {
                     type: 'chat',
                     cid: mockScope.cid,
@@ -84,7 +86,8 @@ describe('NativeDBAdapter', () => {
 
             const result = await adapter.load('chat-1');
 
-            expect(mockBridge.request).toHaveBeenCalledWith('FetchCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'FetchCacheData',
                 data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid, id: 'chat-1' },
             });
             expect(result).toEqual(expectedItem);
@@ -107,7 +110,8 @@ describe('NativeDBAdapter', () => {
             const options = { keyword: 'test', limit: 10 };
             const result = await adapter.loadAll(options as any);
 
-            expect(mockBridge.request).toHaveBeenCalledWith('FetchAllCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'FetchAllCacheData',
                 data: {
                     type: 'chat',
                     cid: mockScope.cid,
@@ -128,7 +132,8 @@ describe('NativeDBAdapter', () => {
     describe('delete & deleteAll & clearAll', () => {
         it('delete는 정확한 id와 scope로 DeleteCacheData를 요청한다', async () => {
             await adapter.delete('chat-1');
-            expect(mockBridge.request).toHaveBeenCalledWith('DeleteCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'DeleteCacheData',
                 data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid, id: 'chat-1' },
             });
         });
@@ -140,14 +145,16 @@ describe('NativeDBAdapter', () => {
 
         it('deleteAll은 ids 배열로 DeleteAllCacheData를 요청한다', async () => {
             await adapter.deleteAll(['chat-1', 'chat-2']);
-            expect(mockBridge.request).toHaveBeenCalledWith('DeleteAllCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'DeleteAllCacheData',
                 data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid, ids: ['chat-1', 'chat-2'] },
             });
         });
 
         it('clearAll은 도메인과 scope 정보로 ClearCacheData를 요청한다', async () => {
             await adapter.clearAll();
-            expect(mockBridge.request).toHaveBeenCalledWith('ClearCacheData', {
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'ClearCacheData',
                 data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid },
             });
         });

@@ -212,7 +212,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         const oauthProvider = getOAuthProvider();
         const isOnMobileApp = isNative();
         if (oauthProvider && isOnMobileApp) {
-            webClient.post('OAuthLogout', { data: { provider: oauthProvider } });
+            webClient.post({ type: 'OAuthLogout', data: { provider: oauthProvider } });
         }
         setOAuthProvider(null);
 

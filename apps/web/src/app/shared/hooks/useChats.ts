@@ -224,8 +224,9 @@ export const useChats = (initialParams: ChatFeedPayload) => {
             feedCursorNo <= 1 ||
             isLoadingMoreRef.current ||
             loadMoreCooldownRef.current
-        )
-            {return;}
+        ) {
+            return;
+        }
 
         isLoadingMoreRef.current = true;
         setStatus(prev => ({ ...prev, isLoadingMore: true, isError: false }));

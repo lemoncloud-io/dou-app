@@ -81,7 +81,7 @@ export function App() {
 
     // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
     useEffect(() => {
-        webClient.post('WebAppReady');
+        webClient.post({ type: 'WebAppReady', data: {} });
     }, []);
 
     // 네이티브에서 버전 정보 업데이트 이벤트 구독

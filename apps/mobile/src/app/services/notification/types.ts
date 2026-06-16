@@ -92,25 +92,6 @@ export interface INotificationService {
 }
 
 /**
- * IOfflinePushQueue
- *
- * 헤드리스 JS 스레드나 SQLite가 사용 불가능한 상태에서 유입된 실시간 알림 페이로드를
- * 유실 방지를 위해 임시 디바이스 스토리지(MMKV)에 큐 형태로 캐싱하는 서비스입니다.
- */
-export interface IOfflinePushQueue {
-    /**
-     * 알림 데이터 페이로드를 캐시 큐에 임시 적재합니다. (중복 방지 데듀플리케이션 처리 포함)
-     * @param payload 캐싱할 알림 데이터 딕셔너리
-     */
-    enqueue(payload: Record<string, string | object>): Promise<void>;
-
-    /**
-     * 임시 적재된 오프라인 알림 데이터를 모두 읽어 로컬 SQLite 데이터베이스에 벌크 반영(Upsert)하고 큐를 비웁니다.
-     */
-    flush(): Promise<void>;
-}
-
-/**
  * IPushEventManager
  *
  * 최하단 네이티브 알림 채널과 하이브리드 웹뷰 브릿지(`useFcmHandler`) 간의 결합도를 낮추고

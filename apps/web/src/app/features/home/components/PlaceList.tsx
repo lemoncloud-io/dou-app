@@ -117,13 +117,14 @@ export const PlaceList = ({
     const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultMode = selectedCloudId === 'default';
 
-    // 저장된 순서 적용
+    // stereo가 'place'인 항목 제외 + 저장된 순서 적용
     const places = (() => {
-        if (!selectedCloudId || isDefaultMode) return rawPlaces;
+        const filtered = rawPlaces.filter(p => p.stereo !== 'place');
+        if (!selectedCloudId || isDefaultMode) return filtered;
         const savedOrder = cloudCore.getPlaceOrder(selectedCloudId);
-        if (!savedOrder) return rawPlaces;
+        if (!savedOrder) return filtered;
         const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
-        return [...rawPlaces].sort((a, b) => {
+        return [...filtered].sort((a, b) => {
             const ai = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
             const bi = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
             return ai - bi;

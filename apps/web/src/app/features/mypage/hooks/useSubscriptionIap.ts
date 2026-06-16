@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { webClient } from '@chatic/bridges';
-import { useValidateApple, useValidateGoogle, useValidateMembership, subscriptionKeys } from '@chatic/subscriptions';
+import { subscriptionKeys, useValidateApple, useValidateGoogle, useValidateMembership } from '@chatic/subscriptions';
 import { cloudsKeys } from '@chatic/users';
 
 import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
@@ -42,8 +42,6 @@ type PurchaseError = { code: string; message?: string };
 
 export const useSubscriptionIap = () => {
     const isIOS = typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
-    const [isFetchingProducts, setIsFetchingProducts] = useState(false);
-    const [isPurchasing, setIsPurchasing] = useState(false);
     const validateGoogle = useValidateGoogle();
     const validateApple = useValidateApple();
     const validateMembership = useValidateMembership();
@@ -110,12 +108,13 @@ export const useSubscriptionIap = () => {
                     }
                 }, 60000);
 
-                webClient.post('Purchase', {
+                webClient.post({
+                    type: 'Purchase',
                     data: {
                         id,
                         ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
                     },
-                } as any);
+                });
 
                 const originalResolve = resolve;
                 const originalReject = reject;
@@ -174,7 +173,7 @@ export const useSubscriptionIap = () => {
         return new Promise(resolve => {
             finishResolverRef.current = { resolve };
 
-            webClient.post('FinishPurchaseTransaction', { data: { purchase: result } } as any);
+            webClient.post({ type: 'FinishPurchaseTransaction', data: { purchase: result } });
         });
     }, []);
 
@@ -182,7 +181,7 @@ export const useSubscriptionIap = () => {
     const fetchCurrentPurchases = useCallback((): Promise<NativePurchase[]> => {
         return new Promise(resolve => {
             currentPurchasesResolverRef.current = { resolve };
-            webClient.post('FetchCurrentPurchases', { data: {} } as any);
+            webClient.post({ type: 'FetchCurrentPurchases', data: {} });
         });
     }, []);
 
@@ -205,7 +204,7 @@ export const useSubscriptionIap = () => {
                     reject(reason);
                 },
             };
-            webClient.post('FetchProducts', { data: {} } as any);
+            webClient.post({ type: 'FetchProducts', data: {} });
         });
     }, []);
 
@@ -215,7 +214,7 @@ export const useSubscriptionIap = () => {
             const result = await purchase(product);
             await validate(result, email);
             await finishTransaction(result);
-            webClient.post('FetchCurrentPurchases', { data: {} } as any);
+            webClient.post({ type: 'FetchCurrentPurchases', data: {} });
 
             await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
@@ -240,7 +239,7 @@ export const useSubscriptionIap = () => {
         }
 
         if (restored > 0) {
-            webClient.post('FetchCurrentPurchases', { data: {} } as any);
+            webClient.post({ type: 'FetchCurrentPurchases', data: {} });
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 

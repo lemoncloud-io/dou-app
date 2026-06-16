@@ -10,7 +10,7 @@ import { getRouteStateFromDeepLinkPath } from './services/deeplinks/deeplinkUtil
 import type { RootStackParamList } from './features/core/navigation';
 import { RootNavigator } from './features/core/navigation';
 import { useAppVersionCheck, useResolvedTheme } from './hooks';
-import { deeplinkService, logger, notificationService, offlinePushQueue } from './services';
+import { deeplinkService, logger, notificationService } from './services';
 import { FloatingMenu, SystemBars } from './features/core/components';
 import { DebugOverlay } from './features/debug';
 import type { DebugOverlayEntryKey } from './features/debug/debugMenu';
@@ -55,7 +55,6 @@ export const App = () => {
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
         notificationService.createNotificationChannel();
-        void offlinePushQueue.flush();
     }, []);
 
     // Show update alert when update is available

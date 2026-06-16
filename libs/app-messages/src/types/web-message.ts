@@ -64,6 +64,7 @@ import type {
     ClearAppLogBufferPayload,
     FetchAppLogBufferSizePayload,
     CopyToClipboardPayload,
+    DismissResumeOverlayPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -143,6 +144,7 @@ export type WebMessagePayloadMap = {
     SendLog: SendLogPayload;
     Ping: PingPayload;
     CopyToClipboard: CopyToClipboardPayload;
+    DismissResumeOverlay: DismissResumeOverlayPayload;
 
     // 8. Test DB Scenario Validation
     FetchTestRecord: FetchTestRecordPayload;

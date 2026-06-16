@@ -41,4 +41,3 @@ export const keyValueStorage = provider.keyValueStorage;
 export const pushEventManager = provider.pushEventManager;
 export const deeplinkManager = provider.deeplinkManager;
 export const deeplinkService = provider.deeplinkService;
-export const offlinePushQueue = provider.offlinePushQueue;

@@ -1,4 +1,4 @@
-import { isNative } from '../provider';
+import { isNative } from '../common';
 import { createConsoleFallbackAdapter } from './adapters/consoleFallbackAdapter';
 import { createNativeBridgeAdapter } from './adapters/nativeBridgeAdapter';
 import type { LogAdapter, LogEntry, LogErrorOptions, Logger } from './types';

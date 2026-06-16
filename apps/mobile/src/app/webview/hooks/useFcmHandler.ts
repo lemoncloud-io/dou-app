@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
 import { deeplinkService, logger, notificationService, pushEventManager } from '../../services';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
@@ -102,23 +102,43 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
 
         // Foreground notification reception from OS -> emit to our PushEventManager
         const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
-            // 포그라운드 수신 시 페이로드에 뱃지 정보가 포함된 경우 네이티브 뱃지 갱신 ("badge": "5" 등)
-            const rawBadge = remoteMessage.data?.badge;
-            if (rawBadge !== undefined && rawBadge !== null) {
-                const badgeCount = parseInt(String(rawBadge), 10);
-                if (!isNaN(badgeCount)) {
-                    notificationService.setBadgeCount(badgeCount).catch(e => {
-                        logger.error('NOTIFICATION', 'Failed to set native badge in foreground:', e);
-                    });
-                }
-            }
             pushEventManager.emitReceiveNotification(remoteMessage);
+        });
+
+        // Android native foreground push listener
+        const foregroundPushSubscription = DeviceEventEmitter.addListener('onForegroundPushReceived', event => {
+            logger.info('NOTIFICATION', 'Received Android native foreground push event:', event);
+            try {
+                const customData = event.payload ? JSON.parse(event.payload) : {};
+                const remoteMessage = {
+                    messageId: event.messageId,
+                    sentTime: Number(event.timestamp) || Date.now(),
+                    notification: {
+                        title: event.title,
+                        body: event.body,
+                    },
+                    data: {
+                        ...customData,
+                        id: event.messageId,
+                        messageId: event.messageId,
+                        type: event.type,
+                        link: event.clickAction,
+                        clickAction: event.clickAction,
+                        channel_id: event.channelId,
+                        channelId: event.channelId,
+                        timestamp: event.timestamp,
+                    },
+                };
+                pushEventManager.emitReceiveNotification(remoteMessage as any);
+            } catch (err) {
+                logger.error('NOTIFICATION', 'Error processing native foreground push event:', err);
+            }
         });
 
         // Helper to extract and route URL from notification payload
         const routeNotification = (data: Record<string, string | object> | undefined) => {
             if (!data) return;
-            const rawUrl = data.deeplink || data.url || data.link;
+            const rawUrl = data.link || data.clickAction || data.deeplink || data.url;
             if (typeof rawUrl === 'string' && rawUrl.trim().length > 0) {
                 void deeplinkService.handleUrl(rawUrl);
             }
@@ -142,6 +162,7 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         return () => {
             unsubscribeReceive();
             unsubscribeOnMessage();
+            foregroundPushSubscription.remove();
             unsubscribeOnOpened();
         };
     }, [bridge]);

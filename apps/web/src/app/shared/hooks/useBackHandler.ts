@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
@@ -28,7 +28,7 @@ export const useBackHandler = () => {
     useEffect(() => {
         if (!isOnMobileApp) return;
 
-        webClient.post('SavePreference', { data: { key: 'language', value: i18n.language } });
+        webClient.post({ type: 'SavePreference', data: { key: 'language', value: i18n.language } });
     }, [i18n.language, isOnMobileApp]);
 
     // Notify native app about navigation state changes
@@ -40,7 +40,7 @@ export const useBackHandler = () => {
             // Only report dialog state - native app tracks navigation history separately
             const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 
-            webClient.post('SetCanGoBack', { data: { canGoBack: hasOpenDialogs } });
+            webClient.post({ type: 'SetCanGoBack', data: { canGoBack: hasOpenDialogs } });
         };
 
         // Initial check

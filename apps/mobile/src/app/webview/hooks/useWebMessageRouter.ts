@@ -16,8 +16,8 @@ import {
     useSubscriptionIapHandler,
     useUploadHandler,
     useTestRecordHandler,
+    useResumeOverlay,
 } from './index';
-import { type ModalHandler, useModalHandler } from './useModalHandler';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
 import { useAppStateHandler } from './useAppStateHandler';
@@ -29,10 +29,6 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 export interface UseWebMessageRouterProps {
     /** Bridge instance for communicating with the WebView */
     bridge: IAppBridgeHost;
-    /** Handler for modal operations */
-    modalHandler: ModalHandler;
-    /** Callback to update the state indicating if the web layer can handle back navigation */
-    setWebCanGoBack: (back: boolean) => void;
 }
 
 /**
@@ -43,10 +39,12 @@ export interface UseWebMessageRouterProps {
  * @param props - Dependencies injected from the MainScreen (bridge, navigation, etc.)
  * @returns An object containing the message handler callback and IAP loading state.
  */
-export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: UseWebMessageRouterProps) => {
+export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
+    const { showResumeOverlay, dismissOverlay } = useResumeOverlay();
+
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
-    const { handleFetchBackgroundStatus } = useAppStateHandler(bridge);
+    const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
     const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount } = useFcmHandler(bridge);
     const {
         fetchProducts,
@@ -102,8 +100,6 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
 
-    const { handleOpenModal, handleCloseModal } = useModalHandler(bridge, modalHandler);
-
     const {
         handleFetchTestRecord,
         handleFetchAllTestRecords,
@@ -114,19 +110,17 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
 
     // --- Keep handlers fresh for async execution without triggering re-renders ---
     const handlersRef = useRef({
-        setWebCanGoBack,
         fetchFcmToken,
         handleFetchBadgeCount,
         handleSetBadgeCount,
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
+        handleDismissResumeOverlay,
         fetchProducts,
         fetchCurrentPurchases,
         handlePurchaseSubscription,
         handleFinishPurchase,
         handleOpenSubscriptionManagement,
-        handleOpenModal,
-        handleCloseModal,
         handleFetchCache,
         handleFetchAllCache,
         handleSaveCache,
@@ -175,19 +169,17 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
 
     useEffect(() => {
         handlersRef.current = {
-            setWebCanGoBack,
             fetchFcmToken,
             handleFetchBadgeCount,
             handleSetBadgeCount,
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
+            handleDismissResumeOverlay,
             fetchProducts,
             fetchCurrentPurchases,
             handlePurchaseSubscription,
             handleFinishPurchase,
             handleOpenSubscriptionManagement,
-            handleOpenModal,
-            handleCloseModal,
             handleFetchCache,
             handleFetchAllCache,
             handleSaveCache,
@@ -240,7 +232,6 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         const handlerMap: {
             [K in WebMessageType]?: (message: WebMessageData<K>) => any;
         } = {
-            SetCanGoBack: message => handlersRef.current.setWebCanGoBack(message.data.canGoBack),
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
@@ -251,8 +242,6 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             Purchase: message => handlersRef.current.handlePurchaseSubscription(message),
             FinishPurchaseTransaction: message => handlersRef.current.handleFinishPurchase(message),
             OpenSubscriptionManagement: message => handlersRef.current.handleOpenSubscriptionManagement(message),
-            OpenModal: message => handlersRef.current.handleOpenModal(message),
-            CloseModal: message => handlersRef.current.handleCloseModal(message),
             FetchCacheData: message => handlersRef.current.handleFetchCache(message),
             FetchAllCacheData: message => handlersRef.current.handleFetchAllCache(message),
             SaveCacheData: message => handlersRef.current.handleSaveCache(message),
@@ -297,6 +286,7 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
             RecoverUpload: message => handlersRef.current.handleRecoverUpload(message),
             RetryUpload: message => handlersRef.current.handleRetryUpload(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
+            DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
         };
 
         // Bridge에 핸들러 등록
@@ -315,5 +305,5 @@ export const useWebMessageRouter = ({ bridge, modalHandler, setWebCanGoBack }: U
         };
     }, [bridge]);
 
-    return { isIapLoading };
+    return { isIapLoading, showResumeOverlay };
 };

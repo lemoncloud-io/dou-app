@@ -34,7 +34,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     async save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>> {
         const scope = this.getScope();
 
-        await this.bridge.request('SaveCacheData', {
+        await this.bridge.request({
+            type: 'SaveCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,
@@ -50,7 +51,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (items.length === 0) return [];
         const scope = this.getScope();
 
-        await this.bridge.request('SaveAllCacheData', {
+        await this.bridge.request({
+            type: 'SaveAllCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,
@@ -64,7 +66,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     async load(id: string): Promise<CacheModelOf<TType> | null> {
         const scope = this.getScope();
 
-        const response = await this.bridge.request('FetchCacheData', {
+        const response = await this.bridge.request({
+            type: 'FetchCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,
@@ -85,7 +88,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
             ...options,
         };
 
-        const response = await this.bridge.request('FetchAllCacheData', {
+        const response = await this.bridge.request({
+            type: 'FetchAllCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,
@@ -101,7 +105,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     async delete(id: string): Promise<void> {
         const scope = this.getScope();
 
-        await this.bridge.request('DeleteCacheData', {
+        await this.bridge.request({
+            type: 'DeleteCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,
@@ -115,7 +120,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (ids.length === 0) return;
         const scope = this.getScope();
 
-        await this.bridge.request('DeleteAllCacheData', {
+        await this.bridge.request({
+            type: 'DeleteAllCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,
@@ -128,7 +134,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     async clearAll(): Promise<void> {
         const scope = this.getScope();
 
-        await this.bridge.request('ClearCacheData', {
+        await this.bridge.request({
+            type: 'ClearCacheData',
             data: {
                 type: this.type,
                 cid: scope.cid,

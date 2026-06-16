@@ -78,7 +78,7 @@ export const SubscriptionSelectDialog = ({
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) webClient.post('OpenURL', { data: { url } });
+        if (isOnMobileApp) webClient.post({ type: 'OpenURL', data: { url } });
         else window.open(url, '_blank');
     };
 

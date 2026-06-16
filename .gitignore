@@ -145,3 +145,9 @@ vite.config.*.timestamp*
 
 # Stray electron-vite output landing at the repo root (misplaced build artifact)
 /index.js
+
+AuthKey_*.p8
+*.p8
+./AuthKey_DEV.p8
+./AuthKey_PROD.p8
+./serviceAccountKey.json
