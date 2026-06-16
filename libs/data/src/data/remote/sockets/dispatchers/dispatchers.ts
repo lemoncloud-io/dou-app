@@ -4,9 +4,27 @@ import type {
     IChannelRemoteDataSource,
     IChatRemoteDataSource,
     IJoinRemoteDataSource,
-    ISiteRemoteDataSource,
     IUserRemoteDataSource,
+    IAuthRemoteDataSource,
+    IDeviceRemoteDataSource,
+    ISocketsRemoteDataSource,
 } from '../../data-sources';
+
+/**
+ * ModelType에 정의된 모든 모델 타입입니다.
+ */
+type ModelType =
+    | 'user'
+    | 'auth'
+    | 'mock'
+    | 'test'
+    | 'callback'
+    | 'channel'
+    | 'chat'
+    | 'join'
+    | 'socket'
+    | 'connection'
+    | 'device';
 
 export interface ISocketDispatcher {
     destroy(): void;
@@ -20,8 +38,10 @@ export class SocketDispatcher implements ISocketDispatcher {
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly joinRemoteDataSource: IJoinRemoteDataSource,
-        private readonly siteRemoteDataSource: ISiteRemoteDataSource,
-        private readonly userRemoteDataSource: IUserRemoteDataSource
+        private readonly userRemoteDataSource: IUserRemoteDataSource,
+        private readonly authRemoteDataSource: IAuthRemoteDataSource,
+        private readonly deviceRemoteDataSource: IDeviceRemoteDataSource,
+        private readonly socketsRemoteDataSource: ISocketsRemoteDataSource
     ) {
         this.initialize();
     }
@@ -36,7 +56,7 @@ export class SocketDispatcher implements ISocketDispatcher {
         const data = msg.data;
         if (!data) return;
 
-        const modelType = data.type; // e.g. 'chat', 'channel', 'join', 'user', 'site'
+        const modelType = data.type as ModelType;
         switch (modelType) {
             case 'chat':
                 this.chatRemoteDataSource.handleModelEvent(action, data);
@@ -50,10 +70,25 @@ export class SocketDispatcher implements ISocketDispatcher {
             case 'user':
                 this.userRemoteDataSource.handleModelEvent(action, data);
                 break;
-            case 'site':
-                this.siteRemoteDataSource.handleModelEvent(action, data);
+            case 'auth':
+                this.authRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'device':
+                this.deviceRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'socket':
+                this.socketsRemoteDataSource.handleSocketModelEvent(action, data);
+                break;
+            case 'connection':
+                this.socketsRemoteDataSource.handleConnectionModelEvent(action, data);
+                break;
+            case 'mock':
+            case 'test':
+            case 'callback':
+                console.warn(`[SocketDispatcher] unhandled model type: "${modelType}"`);
                 break;
             default:
+                console.warn(`[SocketDispatcher] unknown model type: "${modelType}"`);
                 break;
         }
     }
