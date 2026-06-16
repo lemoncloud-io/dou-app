@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../clients/clients';
+import type { ISocketClient } from '../clients';
 import type { SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 import type {
     IChannelRemoteDataSource,
