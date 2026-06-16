@@ -1,5 +1,4 @@
-import type { SocketMessage } from '@lemoncloud/chatic-sockets-api';
-import type { ClientSocketMessageEvent, ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
+import type { ClientSocketMessageEvent, ClientSocketState, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 import type { ISocketClient } from '../../sockets';
 
 /**

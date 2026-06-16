@@ -1,7 +1,11 @@
-import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
+import type { SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
 /**
- * v2 웹소켓 클라이언트의 상위 계층 인터페이스입니다.
- * ClientSocketV2를 확장하여 동일한 규격을 사용하도록 합니다.
+ * 데이터 계층이 의존하는 최소 소켓 규약입니다.
+ * 구체 구현(ClientSocketV2 등)은 상위(web) 모듈에서 연결합니다.
  */
-export interface ISocketClient extends ClientSocketV2 {}
+export interface ISocketClient {
+    request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
+    send<T = unknown>(message: SocketMessage<T>): void;
+    onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
+}
