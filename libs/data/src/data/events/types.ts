@@ -4,5 +4,4 @@
  * 기존 `../events/types` import 경로는 이 barrel을 통해 유지합니다.
  */
 export * from './common';
-export * from './socket';
 export * from './domain';
