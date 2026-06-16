@@ -15,15 +15,39 @@ on:
                     - dev
                     - prod
                 default: dev
+    # Merge to main → auto-build the SIGNED prod installers (mac .dmg + win .exe).
+    # Path-filtered to the Electron shell + the libs it bundles (the app loads the
+    # remote desktop-web at runtime, so a web-only change needs no shell rebuild —
+    # that deploys via deploy-prod.yml). Trigger a manual run for any push the
+    # filter skips. develop is intentionally absent: it only deploys desktop-web.
+    push:
+        branches:
+            - main
+        paths:
+            - 'apps/desktop/**'
+            - 'libs/bridges/**'
+            - 'libs/app-messages/**'
+            - 'yarn.lock'
+            - '.nvmrc'
+            - '.github/workflows/build-desktop.yml'
 
 # The desktop build never needs the mobile CocoaPods install that the root postinstall
 # runs on macOS runners — skip it to save minutes and drop an unrelated failure surface.
 env:
     SKIP_MOBILE_POD: '1'
+    # Manual runs pick the env; a push to main is always a prod release build.
+    BUILD_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.env || 'prod' }}
+
+# Rolling release per ref: a newer main commit supersedes an in-flight build (the
+# release always holds the latest installers), and serialised publishes can't race
+# on the delete+create of the same tag.
+concurrency:
+    group: build-desktop-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
     build:
-        name: Build ${{ matrix.platform }} (${{ inputs.env }})
+        name: Build ${{ matrix.platform }} (${{ github.event_name == 'workflow_dispatch' && inputs.env || 'prod' }})
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
@@ -76,7 +100,7 @@ jobs:
             # electron-builder (the .app) and the afterAllArtifactBuild hook (the .dmg) resolve it
             # by name. No-op when the cert secret is absent → build stays unsigned / ad-hoc.
             - name: Set up macOS signing keychain
-              if: ${{ matrix.platform == 'mac' && inputs.env == 'prod' }}
+              if: ${{ matrix.platform == 'mac' && env.BUILD_ENV == 'prod' }}
               env:
                   MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
                   MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -107,15 +131,15 @@ jobs:
                   # web's FIREBASE_* secrets — kept out of the tracked .env (public OSS repo).
                   # electron-vite bakes process.env MAIN_VITE_* (overrides the .env files).
                   # Android appId differs from the web FIREBASE_*_APP_ID → its own secret.
-                  MAIN_VITE_FCM_API_KEY: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_API_KEY || secrets.FIREBASE_DEV_API_KEY }}
-                  MAIN_VITE_FCM_PROJECT_ID: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_PROJECT_ID || secrets.FIREBASE_DEV_PROJECT_ID }}
-                  MAIN_VITE_FCM_SENDER_ID: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_MESSAGING_SENDER_ID || secrets.FIREBASE_DEV_MESSAGING_SENDER_ID }}
-                  MAIN_VITE_FCM_APP_ID: ${{ inputs.env == 'prod' && secrets.FIREBASE_PROD_ANDROID_APP_ID || secrets.FIREBASE_DEV_ANDROID_APP_ID }}
-                  MAIN_VITE_FCM_PACKAGE: ${{ inputs.env == 'prod' && 'io.chatic.dou' || 'io.chatic.dou.dev' }}
+                  MAIN_VITE_FCM_API_KEY: ${{ env.BUILD_ENV == 'prod' && secrets.FIREBASE_PROD_API_KEY || secrets.FIREBASE_DEV_API_KEY }}
+                  MAIN_VITE_FCM_PROJECT_ID: ${{ env.BUILD_ENV == 'prod' && secrets.FIREBASE_PROD_PROJECT_ID || secrets.FIREBASE_DEV_PROJECT_ID }}
+                  MAIN_VITE_FCM_SENDER_ID: ${{ env.BUILD_ENV == 'prod' && secrets.FIREBASE_PROD_MESSAGING_SENDER_ID || secrets.FIREBASE_DEV_MESSAGING_SENDER_ID }}
+                  MAIN_VITE_FCM_APP_ID: ${{ env.BUILD_ENV == 'prod' && secrets.FIREBASE_PROD_ANDROID_APP_ID || secrets.FIREBASE_DEV_ANDROID_APP_ID }}
+                  MAIN_VITE_FCM_PACKAGE: ${{ env.BUILD_ENV == 'prod' && 'io.chatic.dou' || 'io.chatic.dou.dev' }}
               run: |
                   set -e
                   EXTRA=""
-                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ inputs.env }}" = "prod" ] \
+                  if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ env.BUILD_ENV }}" = "prod" ] \
                      && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
                      && [ -n "$APPLE_API_KEY_B64" ]; then
                     echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/apple_api_key.p8"
@@ -123,13 +147,13 @@ jobs:
                     EXTRA="-c.mac.notarize=true"
                     echo "macOS prod: Developer ID signing + notarization enabled"
                   fi
-                  yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ inputs.env }} $EXTRA
+                  yarn workspace @chatic/desktop package:${{ matrix.platform }}:${{ env.BUILD_ENV }} $EXTRA
 
             # Artifact is the transport to the release job below (and a fallback download).
             - name: Upload installer artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: chatic-desktop-${{ inputs.env }}-${{ matrix.platform }}
+                  name: chatic-desktop-${{ env.BUILD_ENV }}-${{ matrix.platform }}
                   path: ${{ matrix.artifact }}
                   if-no-files-found: error
 
@@ -158,13 +182,13 @@ jobs:
               id: publish
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  TAG: desktop-${{ inputs.env }}
+                  TAG: desktop-${{ env.BUILD_ENV }}
               run: |
                   set -e
                   VERSION=$(node -p "require('./apps/desktop/package.json').version")
-                  TITLE="Chatic Desktop (${{ inputs.env }}) v${VERSION}"
+                  TITLE="Chatic Desktop (${{ env.BUILD_ENV }}) v${VERSION}"
                   PRERELEASE=""
-                  [ "${{ inputs.env }}" = "dev" ] && PRERELEASE="--prerelease"
+                  [ "${{ env.BUILD_ENV }}" = "dev" ] && PRERELEASE="--prerelease"
                   # Rolling release per env: drop the previous one so the tag always points at the
                   # latest build and holds only the current installers (internal "grab latest").
                   shopt -s nullglob
@@ -177,7 +201,7 @@ jobs:
                   gh release create "$TAG" "${FILES[@]}" \
                       --title "$TITLE" \
                       --target "$GITHUB_SHA" \
-                      --notes "Unsigned internal build (\`${{ inputs.env }}\`). Installers: ${FILES[*]##*/}. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
+                      --notes "Internal build (\`${{ env.BUILD_ENV }}\`). Installers: ${FILES[*]##*/}. Build ${{ github.run_number }}, commit \`${GITHUB_SHA:0:7}\`." \
                       $PRERELEASE
                   URL=$(gh release view "$TAG" --json url -q .url)
                   echo "url=${URL}" >> "$GITHUB_OUTPUT"
@@ -185,8 +209,8 @@ jobs:
     notify-slack:
         name: Notify Slack
         needs: [build, release]
-        # Only notify for real manual builds — never for push-triggered smoke tests.
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        # Notify for every real build — manual dispatch and the auto prod build on main merge.
+        if: ${{ always() }}
         runs-on: ubuntu-latest
         steps:
             - name: Prepare Slack message
@@ -197,15 +221,15 @@ jobs:
                   COMMIT_SHA="${GITHUB_SHA:0:7}"
                   if [[ "${{ needs.release.result }}" == "success" ]]; then
                     echo "emoji=:desktop_computer:" >> "$GITHUB_OUTPUT"
-                    echo "title=Chatic 데스크톱 빌드 완료 (${{ inputs.env }})" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 빌드 완료 (${{ env.BUILD_ENV }})" >> "$GITHUB_OUTPUT"
                     echo "body=• mac \`.dmg\` + win \`.exe\` → <${{ needs.release.outputs.url }}|GitHub Release에서 다운로드>" >> "$GITHUB_OUTPUT"
                   elif [[ "${{ needs.build.result }}" != "success" ]]; then
                     echo "emoji=:x:" >> "$GITHUB_OUTPUT"
-                    echo "title=Chatic 데스크톱 빌드 실패 (${{ inputs.env }})" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 빌드 실패 (${{ env.BUILD_ENV }})" >> "$GITHUB_OUTPUT"
                     echo "body=• 빌드 결과: \`${{ needs.build.result }}\` — 로그 확인 필요" >> "$GITHUB_OUTPUT"
                   else
                     echo "emoji=:warning:" >> "$GITHUB_OUTPUT"
-                    echo "title=Chatic 데스크톱 릴리즈 실패 (${{ inputs.env }})" >> "$GITHUB_OUTPUT"
+                    echo "title=Chatic 데스크톱 릴리즈 실패 (${{ env.BUILD_ENV }})" >> "$GITHUB_OUTPUT"
                     echo "body=• 빌드는 성공했으나 릴리즈 단계 실패 — 로그 확인 필요" >> "$GITHUB_OUTPUT"
                   fi
                   echo "timestamp=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
