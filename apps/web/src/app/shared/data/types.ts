@@ -1,4 +1,4 @@
-import type { DataContext, DataRepositories } from '@chatic/data';
+import type { DataContext, DataRepositories, ISocketClient } from '@chatic/data';
 
 import type { ReactNode } from 'react';
 
@@ -9,7 +9,6 @@ import type { ReactNode } from 'react';
 export interface DataProviderValue {
     repositories: DataRepositories;
     setDataContext(context: DataContext): void;
-    socketClient: any;
 }
 
 /**
@@ -19,4 +18,5 @@ export interface DataProviderValue {
 export interface DataProviderProps {
     children: ReactNode;
     context?: DataContext;
+    socketClient?: ISocketClient;
 }

@@ -23,8 +23,10 @@ export const useRemoteDataSourcesFactory = ({
                 remoteDataSources.channel,
                 remoteDataSources.chat,
                 remoteDataSources.join,
-                remoteDataSources.site,
-                remoteDataSources.user
+                remoteDataSources.user,
+                remoteDataSources.auth,
+                remoteDataSources.device,
+                remoteDataSources.sockets
             ),
         [socketClient, remoteDataSources]
     );
