@@ -6,13 +6,15 @@ import {
     type SocketMessage,
 } from '@lemoncloud/chatic-sockets-lib';
 
-import type { SocketBindingConfig, SocketScope, SocketState } from './types';
 import { logger } from '@chatic/bridges';
-
-/** Callback signature for listening to comprehensive socket state changes. */
-type StateListener = (state: SocketState) => void;
-/** Callback signature for listening to socket instance replacement. */
-type ClientListener = (client: ClientSocketV2 | null) => void;
+import type {
+    ISocketManager,
+    SocketBindingConfig,
+    SocketClientListener,
+    SocketScope,
+    SocketState,
+    SocketStateListener,
+} from './types';
 
 const initialState = (): SocketState => ({
     cloudId: null,
@@ -31,7 +33,7 @@ const initialState = (): SocketState => ({
  * the current scope (cid/sid/uid): any scope or config change tears down the old
  * socket and builds a fresh one — there is no "active" socket among many.
  */
-export class SocketManager {
+export class SocketManager implements ISocketManager {
     private client: ClientSocketV2 | null = null;
     private config: SocketBindingConfig | null = null;
     private scope: SocketScope = { cid: null, sid: null, uid: null };
@@ -39,10 +41,10 @@ export class SocketManager {
 
     // State is an observable store: each consumer (e.g. a useSyncExternalStore hook,
     // one callback per mounted component) registers its own listener — hence a Set.
-    private readonly stateListeners = new Set<StateListener>();
+    private readonly stateListeners = new Set<SocketStateListener>();
     // Client-instance changes have exactly one consumer (the SocketClientAdapter
     // singleton), so a single slot is enough — no Set needed.
-    private clientListener: ClientListener | null = null;
+    private clientListener: SocketClientListener | null = null;
     private unsubscribes: Array<() => void> = [];
 
     /**
@@ -60,13 +62,7 @@ export class SocketManager {
         this.config = config;
         this.scope = scope;
 
-        const client = createClientSocketV2({
-            url: this.normalizeUrl(config.url),
-            device: {
-                id: config.deviceId,
-                platform: 'web',
-            },
-        });
+        const client = this.createClient(config);
         this.client = client;
         this.bindClient(client);
 
@@ -103,7 +99,7 @@ export class SocketManager {
     /**
      * Subscribes to socket state changes. Fires immediately with the current snapshot.
      */
-    public subscribe(listener: StateListener): () => void {
+    public subscribe(listener: SocketStateListener): () => void {
         this.stateListeners.add(listener);
         listener(this.state);
         return () => {
@@ -115,7 +111,7 @@ export class SocketManager {
      * Subscribes to socket instance replacement (e.g. on scope switch / restart).
      * Fires immediately with the current client. Used by the adapter to re-bind listeners.
      */
-    public subscribeClient(listener: ClientListener): () => void {
+    public subscribeClient(listener: SocketClientListener): () => void {
         this.clientListener = listener;
         listener(this.client);
         return () => {
@@ -255,11 +251,26 @@ export class SocketManager {
         return left.cid === right.cid && left.sid === right.sid && left.uid === right.uid;
     }
 
-    /**
-     * Normalizes the URL by appending the 'v2=' query parameter so the connection
-     * requests the V2 protocol.
-     */
+    private createClient(config: SocketBindingConfig): ClientSocketV2 {
+        return createClientSocketV2({
+            url: this.normalizeUrl(config.url),
+            device: {
+                id: config.deviceId,
+                platform: 'web',
+            },
+        });
+    }
+
     private normalizeUrl(url: string): string {
-        return `${url}${url.includes('?') ? '&' : '?'}v2=`;
+        try {
+            const next = new URL(url);
+            if (!next.searchParams.has('v2')) {
+                next.searchParams.set('v2', '');
+            }
+            return next.toString();
+        } catch {
+            const separator = url.includes('?') ? '&' : '?';
+            return url.includes('v2=') ? url : `${url}${separator}v2=`;
+        }
     }
 }

@@ -2,29 +2,48 @@ import type { ISocketClient } from '@chatic/data';
 
 import { SocketClientAdapter } from './SocketClientAdapter';
 import { SocketManager } from './SocketManager';
+import type { ISocketManager } from './types';
 
-// Cached singleton instances of the SocketManager and SocketClientAdapter.
-let socketManagerSingleton: SocketManager | null = null;
-let socketClientAdapterSingleton: SocketClientAdapter | null = null;
+export interface SocketRuntime {
+    manager: ISocketManager;
+    socketClient: ISocketClient;
+}
+
+let socketRuntimeSingleton: SocketRuntime | null = null;
 
 /**
- * Returns the singleton instance of SocketManager.
- * Creates it on the first call.
+ * Creates a fresh socket runtime assembly.
  */
-export const getSocketManager = (): SocketManager => {
-    if (!socketManagerSingleton) {
-        socketManagerSingleton = new SocketManager();
-    }
-    return socketManagerSingleton;
+export const createSocketRuntime = (): SocketRuntime => {
+    const manager = new SocketManager();
+    const socketClient = new SocketClientAdapter(manager);
+
+    return {
+        manager,
+        socketClient,
+    };
 };
 
 /**
- * Returns the singleton instance of SocketClientAdapter, which implements the ISocketClient interface.
- * Creates it on the first call using the SocketManager singleton.
+ * Returns the singleton socket runtime assembly.
+ */
+export const getSocketRuntime = (): SocketRuntime => {
+    if (!socketRuntimeSingleton) {
+        socketRuntimeSingleton = createSocketRuntime();
+    }
+    return socketRuntimeSingleton;
+};
+
+/**
+ * Returns the singleton instance of SocketManager.
+ */
+export const getSocketManager = (): ISocketManager => {
+    return getSocketRuntime().manager;
+};
+
+/**
+ * Returns the singleton socket client adapter, which implements the ISocketClient interface.
  */
 export const getSocketClientAdapter = (): ISocketClient => {
-    if (!socketClientAdapterSingleton) {
-        socketClientAdapterSingleton = new SocketClientAdapter(getSocketManager());
-    }
-    return socketClientAdapterSingleton;
+    return getSocketRuntime().socketClient;
 };
