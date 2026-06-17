@@ -23,7 +23,7 @@ import type {
     ChatDeleteChannelInput,
     ChatInviteInput,
     ChatLeaveInput,
-    ChatMineInput,
+    ChannelMineInput,
     ChatStartInput,
     ChatUpdateChannelInput,
 } from '@lemoncloud/chatic-sockets-api';
@@ -32,7 +32,10 @@ import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types
 /** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository extends ILocalCacheMutationRepository<DomainChannel> {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
-    fetchChannel(payload: ChatMineInput, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainChannel>>;
+    fetchChannel(
+        payload: ChannelMineInput,
+        options?: RepositoryRequestOptions
+    ): Promise<DomainListResult<DomainChannel>>;
 
     /** 채널 이름/설정 등 채널 메타데이터를 수정합니다. */
     updateChannel(payload: ChatUpdateChannelInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
