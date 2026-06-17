@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 import type { ClientChannelView, DomainChannel } from '@chatic/data';
 import { useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 // toClientChannel에 joinCount(참여자 수)를 주입받을 수 있도록 파라미터 추가
 const toClientChannel = (channel: DomainChannel, userId?: string, joinCount?: number): ClientChannelView => {
@@ -28,7 +28,7 @@ const toClientChannel = (channel: DomainChannel, userId?: string, joinCount?: nu
  * 특정 채널의 상세 정보를 Repository의 구독(Stream)을 통해 실시간으로 렌더링하는 훅
  */
 export const useChannel = (channelId: string | null) => {
-    const { channel: channelRepository, join: joinRepository } = useRepositories();
+    const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
     const profile = useDynamicProfile();
     const userId = profile?.uid;
 

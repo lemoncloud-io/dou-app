@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 
 import { cloudCore } from '@chatic/web-core';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { buildInviteLink } from '../utils/buildInviteLink';
 
@@ -18,7 +18,7 @@ import { buildInviteLink } from '../utils/buildInviteLink';
  * invite-login parser consumes), which we return.
  */
 export const useCreateInvite = () => {
-    const { user: userRepository } = useRepositories();
+    const { user: userRepository } = useRuntimeRepositories();
     const [isCreating, setIsCreating] = useState(false);
 
     const createInvite = useCallback(

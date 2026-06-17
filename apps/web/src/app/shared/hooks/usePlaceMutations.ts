@@ -5,7 +5,7 @@ import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { UserMakeSitePayload, UserUpdateSitePayload } from '@lemoncloud/chatic-sockets-api';
 import type { DomainSite, LocalCacheBulkPatch } from '@chatic/data'; // DomainSite 및 LocalCacheBulkPatch 타입 임포트
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 type PlaceMutationAction = 'make-site' | 'update-site' | 'update-place-order';
 
@@ -13,7 +13,7 @@ type PlaceMutationAction = 'make-site' | 'update-site' | 'update-place-order';
  * 플레이스(Site) 생성 및 수정을 repository를 통해 관리하는 훅
  */
 export const usePlaceMutations = () => {
-    const { site: siteRepository } = useRepositories();
+    const { site: siteRepository } = useRuntimeRepositories();
 
     const [pendingStates, setPendingStates] = useState<Record<PlaceMutationAction, boolean>>({
         'make-site': false,

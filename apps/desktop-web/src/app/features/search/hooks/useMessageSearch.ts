@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 export interface ChannelSearchResult {
     channel: DomainChannel;
@@ -26,7 +26,7 @@ const MAX_CHANNELS = 30;
  * (repository fallback). Results are best-effort: bounded by what's cached.
  */
 export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
-    const { chat: chatRepository } = useRepositories();
+    const { chat: chatRepository } = useRuntimeRepositories();
     const [results, setResults] = useState<ChannelSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 

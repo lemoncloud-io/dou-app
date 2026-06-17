@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import type { CacheType } from '@chatic/app-messages';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 type CacheMutationAction = 'clear-cache' | 'clear-all-cache';
 
@@ -17,7 +17,7 @@ export const useCacheMutations = () => {
         join: joinRepo,
         site: siteRepo,
         inviteCloud: inviteCloudRepo,
-    } = useRepositories();
+    } = useRuntimeRepositories();
 
     const getClearAction = useCallback(
         (type: CacheType): (() => Promise<void>) => {

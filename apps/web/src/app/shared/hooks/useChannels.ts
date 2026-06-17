@@ -5,7 +5,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { ClientChannelView } from '../types';
 
 import { useChannelSyncStore } from '../stores/useChannelSyncStore';
@@ -62,7 +62,7 @@ const buildFetchPayload = ({ sid: _placeId, ...params }: DomainChannelListPayloa
 });
 
 export const useChannels = (initialParams: DomainChannelListPayload) => {
-    const { channel: channelRepository } = useRepositories();
+    const { channel: channelRepository } = useRuntimeRepositories();
     const profile = useDynamicProfile();
     const { currentWSS } = useUserContext();
     const userId = profile?.uid;

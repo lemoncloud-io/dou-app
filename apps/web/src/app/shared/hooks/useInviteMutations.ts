@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore } from '@chatic/web-core';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainInviteCloud } from '@chatic/data';
 
 export const useInviteMutations = () => {
@@ -12,7 +12,7 @@ export const useInviteMutations = () => {
     const cloudId = cloudIdFromStore || cloudCore.getSelectedCloudId() || 'default';
 
     // DataSource 대신 Repository 인스턴스를 가져옵니다.
-    const { inviteCloud } = useRepositories();
+    const { inviteCloud } = useRuntimeRepositories();
 
     const [isSaving, setIsSaving] = useState(false);
 

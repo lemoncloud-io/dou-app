@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { useSelectedPlaceStore } from '../stores/useSelectedPlaceStore';
 import { type PlaceProfileEntry, useSiteProfilesStore } from '../stores/useSiteProfilesStore';
@@ -15,7 +15,7 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
  * via useDisplayProfile rather than subscribing itself.
  */
 export const useSiteProfiles = (): void => {
-    const { profile: profileRepository } = useRepositories();
+    const { profile: profileRepository } = useRuntimeRepositories();
     const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
     const setAll = useSiteProfilesStore(s => s.setAll);
     const reset = useSiteProfilesStore(s => s.reset);
@@ -34,11 +34,7 @@ export const useSiteProfiles = (): void => {
 };
 
 /** Resolved Display Profile for one user — Place override over the given Global fallback. */
-export const useDisplayProfile = (
-    uid: string,
-    fallbackName: string,
-    fallbackThumbnail?: string
-): ResolvedDisplay => {
+export const useDisplayProfile = (uid: string, fallbackName: string, fallbackThumbnail?: string): ResolvedDisplay => {
     const place = useSiteProfilesStore(s => s.profiles[uid]);
     return resolveDisplay(place, fallbackName, fallbackThumbnail);
 };

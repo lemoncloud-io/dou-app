@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { useSelectedPlaceStore } from '../stores/useSelectedPlaceStore';
 import { useSiteProfileCursorStore } from '../stores/useSiteProfileCursorStore';
@@ -18,7 +18,7 @@ import { useSiteProfileCursorStore } from '../stores/useSiteProfileCursorStore';
  * untouched.
  */
 export const useSiteProfileSync = (): void => {
-    const { profile: profileRepository } = useRepositories();
+    const { profile: profileRepository } = useRuntimeRepositories();
     const sid = useSelectedPlaceStore(s => s.selectedPlaceId);
     const cid = useWebSocketV2Store(s => s.cloudId) ?? 'default';
     const isVerified = useWebSocketV2Store(s => s.isVerified);

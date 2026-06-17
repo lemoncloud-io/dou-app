@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainUser, RepositoryCachePolicy } from '@chatic/data';
 
 const MEMBER_POLL_INTERVAL_MS = 10_000;
@@ -11,7 +11,7 @@ const MEMBER_POLL_INTERVAL_MS = 10_000;
  * 특정 채널의 멤버 목록을 캐시 우선 전략으로 조회하고, 실시간으로 동기화하는 훅.
  */
 export const useChannelMembers = (initialParams: ChatUsersPayload) => {
-    const { user: userRepository, join: joinRepository } = useRepositories();
+    const { user: userRepository, join: joinRepository } = useRuntimeRepositories();
     const targetChannelId = initialParams.channelId;
 
     const [members, setMembers] = useState<DomainUser[] | null>(null); // 로딩 상태 구분을 위해 null로 초기화

@@ -6,7 +6,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { cloudCore } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { debounce } from '../utils/debounce';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -23,7 +23,7 @@ const EVENT_DEBOUNCE_MS = 1_000;
  * - 전환 완료 후 isVerified=true + selectedPlaceId=newPlaceId가 되면 재조회
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const storeCloudId = useWebSocketV2Store(s => s.cloudId);
     const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);

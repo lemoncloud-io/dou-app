@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { isNative, webClient } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { usePlaceUnreadCounts } from './usePlaceUnreadCounts';
 
 const fetchChannelMock = jest.fn();
@@ -51,7 +51,7 @@ jest.mock('@chatic/web-core', () => ({
 }));
 
 jest.mock('@chatic/app-runtime', () => ({
-    useRepositories: jest.fn(),
+    useRuntimeRepositories: jest.fn(),
 }));
 
 describe('usePlaceUnreadCounts', () => {
@@ -68,7 +68,7 @@ describe('usePlaceUnreadCounts', () => {
         };
         webCoreMock.cloudCore.getSelectedCloudId.mockReturnValue('cloud-1');
         (useWebSocketV2Store as unknown as jest.Mock).mockImplementation(selector => selector(websocketState));
-        (useRepositories as jest.Mock).mockReturnValue({
+        (useRuntimeRepositories as jest.Mock).mockReturnValue({
             channel: channelRepositoryMock,
             chat: chatRepositoryMock,
             join: joinRepositoryMock,
