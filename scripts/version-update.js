@@ -48,49 +48,42 @@ function getProjectsToProcess() {
     return targetProjects;
 }
 
+// conventional commit 한 줄("type(scope): message") 파싱 → { type, scope, message } | null
+const CONVENTIONAL_RE = /^([a-z]+)(?:\(([^)]+)\))?:\s*(.+)/i;
+
+function parseConventionalSubject(subject) {
+    const cleaned = subject.replace(/\s*\(#\d+\)$/, '').trim();
+    const match = cleaned.match(CONVENTIONAL_RE);
+    if (!match) return null;
+
+    return {
+        type: match[1].toLowerCase(),
+        scope: match[2]?.toLowerCase() || '',
+        message: match[3].trim(),
+    };
+}
+
 function parseSquashMergeCommit(commitMessage) {
     const commits = [];
     const lines = commitMessage.trim().split('\n');
 
     // PR 제목 처리
     const firstLine = lines[0].replace(/\s*\(#\d+\)$/, '').trim();
-    const titleMatch = firstLine.match(/^([a-z]+)(?:\(([^\)]+)\))?:\s*(.+)/i);
+    const title = parseConventionalSubject(firstLine);
+    if (title) commits.push(title);
 
-    if (titleMatch) {
-        commits.push({
-            type: titleMatch[1].toLowerCase(),
-            scope: titleMatch[2]?.toLowerCase() || '',
-            message: titleMatch[3].trim(),
-        });
-    }
-
-    // 세부 커밋 처리
+    // 세부 커밋 처리 (* 불릿)
     lines.forEach(line => {
         line = line.trim();
-        if (!line || !line.startsWith('*')) return;
-
-        line = line.substring(1).trim();
-        const match = line.match(/^([a-z]+)(?:\(([^\)]+)\))?:\s*(.+)/);
-        if (match) {
-            commits.push({
-                type: match[1],
-                scope: match[2]?.toLowerCase() || '',
-                message: match[3].trim(),
-            });
-        }
+        if (!line.startsWith('*')) return;
+        const bullet = parseConventionalSubject(line.substring(1).trim());
+        if (bullet) commits.push(bullet);
     });
 
     // Feature/ 형식 처리 - 다른 커밋이 없을 때만 처리
     if (commits.length === 0 && firstLine.toLowerCase().startsWith('feature/')) {
-        commits.push({
-            type: 'feat',
-            scope: '',
-            message: firstLine.substring(8).trim(),
-        });
+        commits.push({ type: 'feat', scope: '', message: firstLine.substring(8).trim() });
     }
-
-    // 디버깅용 로그
-    console.log('Parsed commits:', JSON.stringify(commits, null, 2));
 
     return commits;
 }
@@ -229,6 +222,32 @@ function getSquashMergeCommitMessage() {
     return result.stdout.toString().trim();
 }
 
+function getCommitParents() {
+    const out = spawnSync('git', ['log', '-1', '--pretty=%P']).stdout.toString().trim();
+    return out ? out.split(/\s+/) : [];
+}
+
+function getMergedCommitSubjects(firstParent) {
+    const out = spawnSync('git', ['log', '--no-merges', '--pretty=format:%s', `${firstParent}..HEAD`]).stdout.toString();
+    return out.split('\n').map(line => line.trim()).filter(Boolean);
+}
+
+// 머지 방식과 무관하게 conventional 커밋 목록을 수집한다.
+// - 일반 merge commit(부모 2개 이상): 마지막 커밋이 "Merge pull request ..." 라 매칭이 안 되므로
+//   머지에 포함된 실제 커밋들의 subject(first-parent..HEAD)를 각각 파싱한다.
+// - squash merge / 단일 커밋: 마지막 커밋 메시지(제목 + * 불릿)를 파싱한다.
+function collectCommits() {
+    const parents = getCommitParents();
+
+    const commits =
+        parents.length >= 2
+            ? getMergedCommitSubjects(parents[0]).map(parseConventionalSubject).filter(Boolean)
+            : parseSquashMergeCommit(getSquashMergeCommitMessage());
+
+    console.log('Parsed commits:', JSON.stringify(commits, null, 2));
+    return commits;
+}
+
 function incrementVersion(version, type) {
     const [major, minor, patch] = version.split('.').map(Number);
 
@@ -253,8 +272,7 @@ function main() {
             return;
         }
 
-        const commitMessage = getSquashMergeCommitMessage();
-        const commits = parseSquashMergeCommit(commitMessage);
+        const commits = collectCommits();
 
         if (commits.length === 0) {
             console.log('No conventional commits found in the squash merge message');

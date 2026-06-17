@@ -70,7 +70,9 @@ export const ProfilePage = () => {
     useSiteProfiles();
     const { placeName } = useCurrentPlace();
     const placeLabel = placeName || t('profile.thisPlaceFallback');
-    // Whether I have an active per-place override here (vs falling back to the account).
+    // Whether I have an active per-place override here (vs falling back to the
+    // account). useSiteProfiles mirrors my own entry under the account uid, so the
+    // account-uid lookup resolves self from cache (no async self read here).
     const hasPlaceProfile = !!useSiteProfileMap()[profile?.uid ?? ''];
 
     const user = profile?.$user;

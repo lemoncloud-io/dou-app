@@ -214,7 +214,7 @@ export const DebugChatPage = () => {
                     전체 삭제
                 </Button>
             </div>
-            <section className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="grid w-full grid-cols-1 gap-6">
                 <article className="rounded-2xl border border-border bg-card p-4">
                     <h2 className="text-lg font-semibold">Channel</h2>
                     <div className="mt-4 flex flex-col gap-3">

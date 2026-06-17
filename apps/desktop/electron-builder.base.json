@@ -1,0 +1,37 @@
+{
+    "appId": "io.chatic.desktop",
+    "productName": "DoU",
+    "directories": {
+        "output": "release"
+    },
+    "afterPack": "build/afterPack.cjs",
+    "afterAllArtifactBuild": "build/afterAllArtifactBuild.cjs",
+    "files": ["out/**/*"],
+    "extraResources": [
+        {
+            "from": "build/tray.png",
+            "to": "tray.png"
+        },
+        {
+            "from": "build/tray@2x.png",
+            "to": "tray@2x.png"
+        }
+    ],
+    "mac": {
+        "target": ["dmg", "zip"],
+        "category": "public.app-category.social-networking",
+        "hardenedRuntime": true,
+        "gatekeeperAssess": false,
+        "entitlements": "build/entitlements.mac.plist",
+        "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+        "target": ["nsis"]
+    },
+    "publish": [
+        {
+            "provider": "generic",
+            "url": "https://desktop.dou.chatic.io/updates"
+        }
+    ]
+}

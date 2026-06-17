@@ -186,7 +186,7 @@ const HealthCard = ({
 }) => (
     <div className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-sm font-semibold text-foreground">한눈에 보기</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
             <Stat label="소켓 연결" value={`${socket.dot} ${socket.text}`} />
             <Stat label="이번 세션 수신" value={`${frameCount} 프레임`} />
             <Stat label="저장된 캐시" value={`${totalRows}개`} sub={typeText} />
