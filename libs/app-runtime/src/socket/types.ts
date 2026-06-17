@@ -1,58 +1,42 @@
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
-export type WSSActionType = string;
-export type WSSEventDomainType = string;
-
-export interface WSSEnvelope<TPayload = unknown> {
-    type: WSSEventDomainType;
-    action: WSSActionType;
-    payload?: TPayload;
-    mid?: string;
-    meta?: Record<string, unknown>;
-}
-
+/**
+ * Unique identifier for a specific cloud environment or tenant connection context.
+ */
 export type SocketCloudId = string;
 
+/**
+ * Configuration options required to initialize and bind a socket connection.
+ */
 export interface SocketBindingConfig {
+    /**
+     * The destination WebSocket server URL.
+     */
     url: string;
+    /**
+     * A unique identifier representing the user's device.
+     */
     deviceId: string;
+    /**
+     * The type of the WebSocket connection, distinguishing between relaying or direct cloud connection.
+     */
     wssType?: 'relay' | 'cloud';
 }
 
+/**
+ * Internal tracking structure representing a managed active socket client and its configuration.
+ */
 export interface ManagedSocketRecord {
+    /**
+     * The socket client instance itself.
+     */
     client: ClientSocketV2;
+    /**
+     * The original configuration that was used to initialize this socket client.
+     */
     config: SocketBindingConfig;
+    /**
+     * Unsubscribe handle for the error listener.
+     */
     unsubscribeError?: () => void;
-}
-
-export type WSSType = 'relay' | 'cloud';
-
-export interface WebSocketV2State {
-    id: string | null;
-    cloudId: string | null;
-    selectedPlaceId: string | null;
-    wssType: WSSType | null;
-    connectionId: string | null;
-    isConnected: boolean;
-    isDeviceRegistered: boolean;
-    isVerified: boolean;
-    connectionStatus: ConnectionStatus;
-    lastMessage: WSSEnvelope | null;
-    deviceId: string | null;
-}
-
-export interface WebSocketV2Store extends WebSocketV2State {
-    setId: (id: string | null) => void;
-    setCloudId: (cloudId: string) => void;
-    setSelectedPlaceId: (selectedPlaceId: string | null) => void;
-    setWssType: (wssType: WSSType | null) => void;
-    setConnectionId: (connectionId: string | null) => void;
-    setIsConnected: (isConnected: boolean) => void;
-    setIsDeviceRegistered: (isDeviceRegistered: boolean) => void;
-    setIsVerified: (isVerified: boolean) => void;
-    setConnectionStatus: (status: ConnectionStatus) => void;
-    setLastMessage: (message: WSSEnvelope | null) => void;
-    setDeviceId: (deviceId: string | null) => void;
-    reset: () => void;
 }
