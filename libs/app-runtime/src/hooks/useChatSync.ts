@@ -5,7 +5,6 @@ import { logger } from '@chatic/bridges';
 import { useRepositories } from '../data';
 import { ChatSyncScheduler } from '../sync/ChatSyncScheduler';
 import { useChatSyncStore } from '../stores/useChatSyncStore';
-import { useWebSocketV2Store } from '../socket';
 
 interface SyncableChannel {
     id?: string;
@@ -25,7 +24,6 @@ interface SyncableChannel {
  */
 export const useChatSync = (channels: SyncableChannel[]) => {
     const { chat: chatRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
     const { setChannelState, reset } = useChatSyncStore();
     const schedulerRef = useRef<ChatSyncScheduler | null>(null);
 
@@ -46,21 +44,18 @@ export const useChatSync = (channels: SyncableChannel[]) => {
 
     // isVerified가 false로 바뀌면 스케줄러 중지
     useEffect(() => {
-        if (!isVerified && schedulerRef.current?.running) {
+        if (schedulerRef.current?.running) {
             logger.debug('SYNC', `[ChatSync] isVerified=false → stopping scheduler`);
             schedulerRef.current.stop();
         }
-    }, [isVerified]);
+    });
 
     // 채널 리스트 → 큐 등록 + 시작
     // cleanup에서 stop하지 않음 — channels ref가 바뀔 때마다 stop→restart하면
     // in-flight 요청이 중복 발사되고, abort로 인해 'synced' 상태 전환이 누락됨
     useEffect(() => {
         const scheduler = schedulerRef.current;
-        if (!scheduler || !isVerified || channels.length === 0) {
-            if (!isVerified) {
-                logger.debug('SYNC', `[ChatSync] waiting for isVerified (channels=${channels.length})`);
-            }
+        if (!scheduler || channels.length === 0) {
             return;
         }
 
@@ -76,12 +71,12 @@ export const useChatSync = (channels: SyncableChannel[]) => {
             return;
         }
 
-        logger.info('SYNC', `[ChatSync] channels ready — targets=${targets.length}, isVerified=${isVerified}`);
+        logger.info('SYNC', `[ChatSync] channels ready — targets=${targets.length}`);
         scheduler.enqueue(targets);
         scheduler.start();
         // cleanup 없음 — enqueue()는 synced 채널 skip, start()는 isRunning이면 no-op
         // unmount 시 정리는 스케줄러 생성 effect의 cleanup에서 처리
-    }, [channels, isVerified]);
+    }, [channels]);
 
     // 브라우저 가시성 처리
     useEffect(() => {
