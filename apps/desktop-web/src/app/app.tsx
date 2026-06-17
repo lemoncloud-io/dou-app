@@ -7,7 +7,13 @@ import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud } from '@chatic/app-runtime';
+import {
+    DataProvider,
+    GlobalChatSync,
+    WebSocketV2Connection,
+    useAutoSelectCloud,
+    useRuntimeBinding,
+} from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { AppRouter } from './routes';
@@ -78,6 +84,7 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus } = useTokenRefresh(isWebCoreReady);
+    const runtimeBinding = useRuntimeBinding();
 
     // Fast path mirrors apps/web: render once webCore is ready and either the
     // session is unauthenticated, a cached profile exists, or refresh resolved.
@@ -98,8 +105,8 @@ export function App() {
             <Suspense fallback={BootFallback}>
                 <QueryClientProvider client={queryClient}>
                     <ThemeProvider>
-                        <DataProvider>
-                            {isAuthenticated && isWebCoreReady && <WebSocketV2Connection />}
+                        <DataProvider context={runtimeBinding.context}>
+                            {isAuthenticated && isWebCoreReady && <WebSocketV2Connection binding={runtimeBinding} />}
                             {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
                             {isAuthenticated && isWebCoreReady && <CloudBootstrap />}
                             {isAuthenticated && isWebCoreReady && <DesktopNotifications />}

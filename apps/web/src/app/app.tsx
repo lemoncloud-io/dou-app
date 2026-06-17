@@ -11,7 +11,7 @@ import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionU
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { DataProvider, GlobalChatSync, WebSocketV2Connection } from '@chatic/app-runtime';
+import { DataProvider, GlobalChatSync, WebSocketV2Connection, useRuntimeBinding } from '@chatic/app-runtime';
 import { ServiceUnavailableOverlay } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
@@ -64,6 +64,7 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
+    const runtimeBinding = useRuntimeBinding();
 
     const minTimeElapsed = true;
 
@@ -112,9 +113,11 @@ export function App() {
                             <HelmetProvider>
                                 <QueryClientProvider client={queryClient}>
                                     <ThemeProvider>
-                                        <DataProvider>
+                                        <DataProvider context={runtimeBinding.context}>
                                             <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                            {isAuthenticated && isWebCoreReady && <WebSocketV2Connection />}
+                                            {isAuthenticated && isWebCoreReady && (
+                                                <WebSocketV2Connection binding={runtimeBinding} />
+                                            )}
                                             {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
                                             <ServiceUnavailableOverlay />
                                             <DeviceTokenRegistration />
