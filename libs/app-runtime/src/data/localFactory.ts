@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import type { CacheType } from '@chatic/app-messages';
 import {
     type CacheErrorReporter,
@@ -7,7 +5,7 @@ import {
     type CacheStorageFactory,
     type CapacityPolicy,
     createCacheStorages,
-    createLocalDataSources,
+    createLocalDataSources as createDataLocalDataSources,
     type DataContextProvider,
     type EvictionStrategy,
     type LocalDataSources,
@@ -56,20 +54,14 @@ export const getCacheStorage = <TType extends CacheType>(
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.
  */
-export const useLocalDataSourcesFactory = ({
+export const createLocalDataSources = ({
     contextProvider, // 주입 파라미터 변경
     cacheStorageFactory = getCacheStorage,
 }: {
     contextProvider: DataContextProvider;
     cacheStorageFactory?: CacheStorageFactory;
-}): { localDataSources: LocalDataSources } => {
-    const localDataSources = useMemo(() => {
-        // 스토리지 생성 시 Provider 주입
-        const storages = createCacheStorages(contextProvider, cacheStorageFactory);
+}): LocalDataSources => {
+    const storages = createCacheStorages(contextProvider, cacheStorageFactory);
 
-        // LocalDataSource 팩터리에도 Provider 주입
-        return createLocalDataSources(contextProvider, storages);
-    }, [contextProvider, cacheStorageFactory]);
-
-    return { localDataSources };
+    return createDataLocalDataSources(contextProvider, storages);
 };

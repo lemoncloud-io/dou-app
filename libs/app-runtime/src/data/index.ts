@@ -1,2 +1,2 @@
-export * from './DataProvider';
+export * from './runtime';
 export * from './types';
