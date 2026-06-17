@@ -1,6 +1,6 @@
 import type { DataContext, DataRepositories } from '@chatic/data';
 
-import { getSocketClientAdapter } from '../socket';
+import { getSocketClientAdapter } from '../socket/runtime';
 import { DataManager } from './DataManager';
 import type { IDataManager } from './types';
 
