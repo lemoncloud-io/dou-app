@@ -2,7 +2,7 @@ import type { ISocketClient } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import type { ClientSocketV2, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
-import type { SocketManager } from './SocketManager';
+import type { ISocketManager } from './types';
 
 /**
  * Represents a registered listener for a specific message type.
@@ -32,7 +32,7 @@ export class SocketClientAdapter implements ISocketClient {
     // Cleanup handle for the SocketManager subscription.
     private readonly unsubscribeClient: () => void;
 
-    constructor(private readonly manager: SocketManager) {
+    constructor(private readonly manager: ISocketManager) {
         // Re-bind type listeners whenever the manager swaps the socket instance.
         this.unsubscribeClient = this.manager.subscribeClient(client => {
             if (this.currentClient === client) return;

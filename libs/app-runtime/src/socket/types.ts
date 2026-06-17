@@ -1,4 +1,4 @@
-import type { ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
+import type { ClientSocketState, ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 /**
  * Unique identifier for a specific cloud environment or tenant connection context.
@@ -58,4 +58,18 @@ export interface SocketState {
     isDeviceRegistered: boolean;
     /** Server-assigned connection id, when known. */
     connectionId: string | null;
+}
+
+export type SocketStateListener = (state: SocketState) => void;
+
+export type SocketClientListener = (client: ClientSocketV2 | null) => void;
+
+export interface ISocketManager {
+    ensure(config: SocketBindingConfig, scope: SocketScope): ClientSocketV2;
+    getClient(): ClientSocketV2 | null;
+    getSnapshot(): SocketState;
+    subscribe(listener: SocketStateListener): () => void;
+    subscribeClient(listener: SocketClientListener): () => void;
+    connect(): Promise<void>;
+    destroy(): void;
 }
