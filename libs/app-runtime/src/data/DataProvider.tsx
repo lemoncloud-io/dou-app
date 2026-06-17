@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import type { DataContext, DataRepositories, IEventBus, ISocketClient } from '@chatic/data';
+import type { DataRepositories, IEventBus, ISocketClient } from '@chatic/data';
 import { type DomainEventMap, EventBusEngine } from '@chatic/data';
 
 import { useRepositoryFactory } from './repositoryFactory';
@@ -12,18 +12,14 @@ import { getSocketClientAdapter } from '../socket';
 
 const DataProviderContext = createContext<DataProviderValue | null>(null);
 
-export const DataProvider = ({
-    children,
-    context: injectedContext,
-    socketClient: injectedSocketClient,
-}: DataProviderProps) => {
+export const DataProvider = ({ children, context, socketClient: injectedSocketClient }: DataProviderProps) => {
     const socketClient = useMemo<ISocketClient>(
         () => injectedSocketClient ?? getSocketClientAdapter(),
         [injectedSocketClient]
     );
     const domainEventBus: IEventBus<DomainEventMap> = useMemo(() => new EventBusEngine<DomainEventMap>(), []);
 
-    const { contextHolder } = useDataContextHolder(injectedContext);
+    const { contextHolder } = useDataContextHolder(context);
     const { remoteDataSources } = useRemoteDataSourcesFactory({ domainEventBus, socketClient });
 
     const { localDataSources } = useLocalDataSourcesFactory({
@@ -40,9 +36,8 @@ export const DataProvider = ({
     const value = useMemo<DataProviderValue>(
         () => ({
             repositories,
-            setDataContext: (nextContext: DataContext) => contextHolder.setContext(nextContext),
         }),
-        [contextHolder, repositories]
+        [repositories]
     );
 
     return <DataProviderContext.Provider value={value}>{children}</DataProviderContext.Provider>;

@@ -8,7 +8,6 @@ import type { ReactNode } from 'react';
  */
 export interface DataProviderValue {
     repositories: DataRepositories;
-    setDataContext(context: DataContext): void;
 }
 
 /**
@@ -17,6 +16,6 @@ export interface DataProviderValue {
  */
 export interface DataProviderProps {
     children: ReactNode;
-    context?: DataContext;
+    context: DataContext;
     socketClient?: ISocketClient;
 }
