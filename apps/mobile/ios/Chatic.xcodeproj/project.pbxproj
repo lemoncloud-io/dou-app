@@ -241,8 +241,6 @@
 				F75662762FD9233500100E59 /* ChaticNotificationServiceExtension */,
 			);
 			name = ChaticNotificationServiceExtension;
-			packageProductDependencies = (
-			);
 			productName = ChaticNotificationServiceExtension;
 			productReference = F75662752FD9233500100E59 /* ChaticNotificationServiceExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
