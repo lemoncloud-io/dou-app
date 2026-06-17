@@ -1,0 +1,17 @@
+{
+    "extends": "./electron-builder.base.json",
+    "appId": "io.chatic.desktop.dev",
+    "productName": "DoU Dev",
+    "protocols": [
+        {
+            "name": "DoU Dev Protocol",
+            "schemes": ["chatic-dev"]
+        }
+    ],
+    "mac": {
+        "icon": "build/icon-dev.png"
+    },
+    "win": {
+        "icon": "build/icon-dev.png"
+    }
+}

@@ -150,7 +150,10 @@ jobs:
                   [ "${{ env.BUILD_ENV }}" = "prod" ] && FEED_URL="https://desktop.dou.chatic.io/updates"
                   # --publish never: generate latest*.yml locally and upload to S3 ourselves (next
                   # step) — the generic provider isn't auto-publishable by electron-builder.
-                  EXTRA="-c.extraMetadata.version=$VERSION -c.publish.0.url=$FEED_URL --publish never"
+                  # Re-set provider too: a `-c.publish.0.url` override replaces array element 0
+                  # wholesale (electron-builder doesn't deep-merge indexed config), which would
+                  # drop the package.json `provider: generic` and fail schema validation.
+                  EXTRA="-c.extraMetadata.version=$VERSION -c.publish.0.provider=generic -c.publish.0.url=$FEED_URL --publish never"
                   if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ env.BUILD_ENV }}" = "prod" ] \
                      && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
                      && [ -n "$APPLE_API_KEY_B64" ]; then

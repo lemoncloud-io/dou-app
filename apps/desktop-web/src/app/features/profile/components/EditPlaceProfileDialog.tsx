@@ -44,14 +44,18 @@ export const EditPlaceProfileDialog = () => {
     // profile" reset (there's nothing to revert until one is set).
     const hasActiveProfile = useSiteProfilesStore(s => (myUid ? !!s.profiles[myUid] : false));
 
-    // Seed the form when the dialog opens. Precedence: the freshly-loaded Place
-    // Profile → the locally-cached active override (covers a get-site-profile
-    // timeout, so the form still reflects what's shown) → the Global Profile.
+    // Seed the form when the dialog opens. Seed SYNCHRONOUSLY from the locally
+    // cached override first (useSiteProfiles mirrors my own entry under the account
+    // uid) so the form shows my nick/photo immediately — no empty flash while the
+    // network self read is in flight. Then refine from the freshly-loaded Place
+    // Profile. Precedence end-state: loaded → cached → Global.
     useEffect(() => {
         if (!isOpen) return;
         setIsError(false);
+        const cached = myUid ? useSiteProfilesStore.getState().profiles[myUid] : undefined;
+        setNick(cached?.nick || globalName);
+        setThumbnail(cached?.thumbnail || globalPhoto || undefined);
         void load().then(profile => {
-            const cached = myUid ? useSiteProfilesStore.getState().profiles[myUid] : undefined;
             setNick(profile?.nick || cached?.nick || globalName);
             setThumbnail(profile?.thumbnail || cached?.thumbnail || globalPhoto || undefined);
         });
@@ -116,7 +120,10 @@ export const EditPlaceProfileDialog = () => {
                     <div className="flex items-center gap-3">
                         <Avatar className="h-14 w-14 rounded-xl">
                             {thumbnail && <AvatarImage src={thumbnail} alt={nick} />}
-                            <AvatarFallback className="rounded-xl text-lg font-semibold" style={avatarStyle(myUid || nick)}>
+                            <AvatarFallback
+                                className="rounded-xl text-lg font-semibold"
+                                style={avatarStyle(myUid || nick)}
+                            >
                                 {initial}
                             </AvatarFallback>
                         </Avatar>
@@ -125,12 +132,7 @@ export const EditPlaceProfileDialog = () => {
                                 {t('profile.place.changePhoto')}
                             </Button>
                             {thumbnail && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setThumbnail(undefined)}
-                                >
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setThumbnail(undefined)}>
                                     {t('profile.place.removePhoto')}
                                 </Button>
                             )}

@@ -18,6 +18,9 @@
     "exclude": ["node_modules", "out", "dist"],
     "references": [
         {
+            "path": "../../libs/app-messages"
+        },
+        {
             "path": "../../libs/bridges"
         }
     ]

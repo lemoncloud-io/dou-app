@@ -4,7 +4,7 @@ import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'r
 import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 
-import { AppShellSkeleton, useDebugModeStore, usePendingOpenStore } from './shared';
+import { AppShellSkeleton, usePendingOpenStore } from './shared';
 
 /**
  * Desktop-shell OS-notification click handler. Mounted inside the Router (so it
@@ -44,18 +44,9 @@ const TokenLoginPage = lazy(() => import('./features/auth').then(m => ({ default
 const DebugLoginPage = lazy(() => import('./features/auth').then(m => ({ default: m.DebugLoginPage })));
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
-const DebugStatePage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugStatePage })));
-const DebugChatPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugChatPage })));
-const DebugBadgeCountPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugBadgeCountPage })));
-const DebugSyncPage = lazy(() => import('./features/debug').then(m => ({ default: m.DebugSyncPage })));
-const DebugLayout = lazy(() => import('./features/debug').then(m => ({ default: m.DebugLayout })));
 
 export const AppRouter = () => {
     const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
-    // Debug routes are mounted in dev, or when debug mode is toggled on via the
-    // hidden rail gesture (7× tap) — the latter works in packaged/prod builds too.
-    const debugEnabled = useDebugModeStore(s => s.enabled);
-    const showDebug = import.meta.env.DEV || debugEnabled;
 
     return (
         <Router>
@@ -71,14 +62,6 @@ export const AppRouter = () => {
                             <Route path="/" element={<HomePage />} />
                             <Route path="/profile" element={<ProfilePage />} />
                             <Route path="/settings" element={<SettingsPage />} />
-                            {showDebug && (
-                                <Route path="/debug" element={<DebugLayout />}>
-                                    <Route index element={<DebugStatePage />} />
-                                    <Route path="sync" element={<DebugSyncPage />} />
-                                    <Route path="chat" element={<DebugChatPage />} />
-                                    <Route path="badge" element={<DebugBadgeCountPage />} />
-                                </Route>
-                            )}
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}

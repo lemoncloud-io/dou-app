@@ -33,7 +33,7 @@ export const DebugStatePage = () => {
     return (
         <div className="mx-auto w-full max-w-4xl p-6">
             <h1 className="mb-4 text-base font-semibold text-foreground">State</h1>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4">
                 <Section title="Session">
                     <Row label="Authenticated" value={isAuthenticated} />
                     <Row label="UID" value={profile?.uid} />
