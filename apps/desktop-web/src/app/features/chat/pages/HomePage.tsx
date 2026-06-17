@@ -11,11 +11,13 @@ import {
     useChannelSettingsStore,
     useCreateChannelDialogStore,
 } from '../../channels';
+import { DebugPanel } from '../../debug';
 import { EditPlaceProfileDialog, useEditPlaceProfileDialogStore } from '../../profile';
 import {
     ProfilePanel,
     lastChatNoOf,
     useChannels,
+    useDebugModeStore,
     useCloudPushBadgeStore,
     useClouds,
     useCloudSwitchFlow,
@@ -88,6 +90,11 @@ export const HomePage = () => {
     const savedOpen = useSavedPanelStore(s => s.isOpen);
     const closeSaved = useSavedPanelStore(s => s.close);
     const openSaved = useSavedPanelStore(s => s.open);
+    // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
+    // 7×-tap toggle). Top precedence so it owns the dock while open.
+    const debugEnabled = useDebugModeStore(s => s.enabled);
+    const debugPanelOpen = useDebugModeStore(s => s.overlayOpen);
+    const showDebugPanel = (import.meta.env.DEV || debugEnabled) && debugPanelOpen;
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     // Default Cloud (relay / Guest Session): no joinable places — force the
     // 'default' place so the Self Channel loads; the sidebar hides the switcher.
@@ -315,7 +322,9 @@ export const HomePage = () => {
                 }
                 main={<ChatPane channel={selectedChannel} members={members} membersLoading={membersLoading} />}
                 panel={
-                    openThreadRootId && selectedChannel ? (
+                    showDebugPanel ? (
+                        <DebugPanel />
+                    ) : openThreadRootId && selectedChannel ? (
                         <ThreadPanel
                             channel={selectedChannel}
                             rootId={openThreadRootId}

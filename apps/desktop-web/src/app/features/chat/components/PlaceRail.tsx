@@ -127,10 +127,11 @@ export const PlaceRail = ({
     const userInitial = selfName.charAt(0).toUpperCase();
 
     // Hidden gesture: tap the rail divider 7× (within 1.5s between taps) to toggle
-    // developer debug mode. When on, the Debug menu + /debug/* routes appear even in
-    // packaged/prod builds; tapping 7× again turns it off.
+    // developer debug mode. When on, the Debug menu (which opens the debug overlay)
+    // appears even in packaged/prod builds; tapping 7× again turns it off.
     const debugEnabled = useDebugModeStore(s => s.enabled);
     const toggleDebug = useDebugModeStore(s => s.toggle);
+    const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
     const tapRef = useRef({ count: 0, last: 0 });
     const onSecretTap = () => {
         const now = Date.now();
@@ -203,7 +204,7 @@ export const PlaceRail = ({
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
                     {(import.meta.env.DEV || debugEnabled) && (
-                        <DropdownMenuItem onClick={() => navigate('/debug')}>{t('rail.menu.debug')}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => void logout()}>{t('rail.menu.logout')}</DropdownMenuItem>
