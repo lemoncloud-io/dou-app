@@ -1,38 +1,64 @@
-import { type ClientSocketV2, createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
+import {
+    type ClientSocketErrorEvent,
+    type ClientSocketStateEvent,
+    type ClientSocketV2,
+    createClientSocketV2,
+    type SocketMessage,
+} from '@lemoncloud/chatic-sockets-lib';
 
-import type { ManagedSocketRecord, SocketBindingConfig, SocketCloudId } from './types';
+import type { SocketBindingConfig, SocketScope, SocketState } from './types';
 import { logger } from '@chatic/bridges';
 
-/** Callback signature for listening to changes of the active client. */
-type ActiveClientListener = (client: ClientSocketV2 | null, cloudId: SocketCloudId) => void;
+/** Callback signature for listening to comprehensive socket state changes. */
+type StateListener = (state: SocketState) => void;
+/** Callback signature for listening to socket instance replacement. */
+type ClientListener = (client: ClientSocketV2 | null) => void;
+
+const initialState = (): SocketState => ({
+    cloudId: null,
+    siteId: null,
+    userId: null,
+    state: 'idle',
+    isConnected: false,
+    isVerified: false,
+    isDeviceRegistered: false,
+    connectionId: null,
+});
 
 /**
- * SocketManager is responsible for managing multiple ClientSocketV2 instances,
- * mapped by SocketCloudId. It handles creating, caching, updating, and destroying
- * socket connections, and maintains a concept of the "active" client connection.
+ * SocketManager wraps a single ClientSocketV2 instance and owns the comprehensive,
+ * observable socket state (connection + handshake). The socket is always 1:1 with
+ * the current scope (cid/sid/uid): any scope or config change tears down the old
+ * socket and builds a fresh one — there is no "active" socket among many.
  */
 export class SocketManager {
-    // Map of cloudId to its respective client socket and configuration.
-    private readonly records = new Map<SocketCloudId, ManagedSocketRecord>();
-    // Listeners subscribed to changes of the active client socket.
-    private readonly activeClientListeners = new Set<ActiveClientListener>();
-    // The currently active cloud context.
-    private activeCloudId: SocketCloudId = 'default';
+    private client: ClientSocketV2 | null = null;
+    private config: SocketBindingConfig | null = null;
+    private scope: SocketScope = { cid: null, sid: null, uid: null };
+    private state: SocketState = initialState();
+
+    // State is an observable store: each consumer (e.g. a useSyncExternalStore hook,
+    // one callback per mounted component) registers its own listener — hence a Set.
+    private readonly stateListeners = new Set<StateListener>();
+    // Client-instance changes have exactly one consumer (the SocketClientAdapter
+    // singleton), so a single slot is enough — no Set needed.
+    private clientListener: ClientListener | null = null;
+    private unsubscribes: Array<() => void> = [];
 
     /**
-     * Ensures a ClientSocketV2 instance exists for the given cloudId with the provided config.
-     * If a client already exists with the exact same config, it is reused.
-     * If the config has changed, the old client is destroyed and a new one is created.
+     * Ensures a single ClientSocketV2 bound to the given config + scope.
+     * Reuses the existing socket when both config and scope are unchanged; otherwise
+     * destroys the old socket and creates a fresh one for the new scope.
      */
-    public ensure(cloudId: SocketCloudId, config: SocketBindingConfig): ClientSocketV2 {
-        const existing = this.records.get(cloudId);
-        if (existing && this.isSameConfig(existing.config, config)) {
-            return existing.client;
+    public ensure(config: SocketBindingConfig, scope: SocketScope): ClientSocketV2 {
+        if (this.client && this.isSameConfig(this.config, config) && this.isSameScope(this.scope, scope)) {
+            return this.client;
         }
 
-        if (existing) {
-            this.destroyClient(cloudId, existing);
-        }
+        this.teardownClient();
+
+        this.config = config;
+        this.scope = scope;
 
         const client = createClientSocketV2({
             url: this.normalizeUrl(config.url),
@@ -41,173 +67,199 @@ export class SocketManager {
                 platform: 'web',
             },
         });
+        this.client = client;
+        this.bindClient(client);
 
-        const unsubscribeError = client.onError(event => {
-            logger.error('SOCKET', `[SocketManager] Socket error (cloudId=${cloudId})`, {
-                error: event.error,
-                data: { cloudId, phase: event.phase },
-            });
+        // Reset handshake flags for the new scope; connection state follows the client.
+        this.setState({
+            cloudId: scope.cid,
+            siteId: scope.sid,
+            userId: scope.uid,
+            state: client.state,
+            isConnected: client.state === 'connected',
+            isVerified: false,
+            isDeviceRegistered: false,
+            connectionId: null,
         });
-
-        this.records.set(cloudId, { client, config, unsubscribeError });
-
-        // If the updated/created client is the active one, notify listeners.
-        if (this.activeCloudId === cloudId) {
-            this.emitActiveClientChanged();
-        }
+        this.emitClientChanged();
 
         return client;
     }
 
     /**
-     * Retrieves the socket client associated with the given cloudId.
+     * Retrieves the underlying socket client, if any.
      */
-    public get(cloudId: SocketCloudId): ClientSocketV2 | null {
-        return this.records.get(cloudId)?.client ?? null;
+    public getClient(): ClientSocketV2 | null {
+        return this.client;
     }
 
     /**
-     * Gets the currently active cloud ID.
+     * Returns the current comprehensive socket state snapshot.
      */
-    public getActiveCloudId(): SocketCloudId {
-        return this.activeCloudId;
+    public getSnapshot(): SocketState {
+        return this.state;
     }
 
     /**
-     * Sets the active cloud ID and notifies listeners if it changed.
+     * Subscribes to socket state changes. Fires immediately with the current snapshot.
      */
-    public setActiveCloudId(cloudId: SocketCloudId): void {
-        if (this.activeCloudId === cloudId) return;
-        this.activeCloudId = cloudId;
-        this.emitActiveClientChanged();
+    public subscribe(listener: StateListener): () => void {
+        this.stateListeners.add(listener);
+        listener(this.state);
+        return () => {
+            this.stateListeners.delete(listener);
+        };
     }
 
     /**
-     * Retrieves the ClientSocketV2 instance of the currently active cloud.
+     * Subscribes to socket instance replacement (e.g. on scope switch / restart).
+     * Fires immediately with the current client. Used by the adapter to re-bind listeners.
      */
-    public getActiveClient(): ClientSocketV2 | null {
-        return this.get(this.activeCloudId);
+    public subscribeClient(listener: ClientListener): () => void {
+        this.clientListener = listener;
+        listener(this.client);
+        return () => {
+            if (this.clientListener === listener) {
+                this.clientListener = null;
+            }
+        };
     }
 
     /**
-     * Retrieves the configuration of the currently active cloud connection.
+     * Connects the current socket if it is idle or closed.
      */
-    public getActiveConfig(): SocketBindingConfig | null {
-        return this.records.get(this.activeCloudId)?.config ?? null;
-    }
-
-    /**
-     * Destroys and removes the client associated with the given cloudId.
-     */
-    public remove(cloudId: SocketCloudId): void {
-        const record = this.records.get(cloudId);
-        if (!record) return;
-
-        this.destroyClient(cloudId, record);
-        this.records.delete(cloudId);
-
-        if (this.activeCloudId === cloudId) {
-            this.emitActiveClientChanged();
+    public async connect(): Promise<void> {
+        const client = this.client;
+        if (!client) return;
+        if (client.state === 'idle' || client.state === 'closed') {
+            await client.connect();
         }
     }
 
     /**
-     * Destroys all managed socket clients and clears records.
+     * Destroys the socket and resets all state.
      */
     public destroy(): void {
-        for (const [cloudId, record] of this.records) {
-            this.destroyClient(cloudId, record);
-        }
-        this.records.clear();
-        this.emitActiveClientChanged();
+        this.teardownClient();
+        this.config = null;
+        this.scope = { cid: null, sid: null, uid: null };
+        this.setState(initialState());
+        this.emitClientChanged();
     }
 
     /**
-     * Subscribes a listener to active client changes.
-     * Triggers immediately with the current active client upon registration.
+     * Binds connection, error, and handshake listeners to the given client and
+     * routes them into the comprehensive socket state.
      */
-    public subscribeActiveClient(listener: ActiveClientListener): () => void {
-        this.activeClientListeners.add(listener);
-        listener(this.getActiveClient(), this.activeCloudId);
+    private bindClient(client: ClientSocketV2): void {
+        this.unsubscribes.push(
+            client.onState((event: ClientSocketStateEvent) => {
+                const next = event.next;
+                const patch: Partial<SocketState> = {
+                    state: next,
+                    isConnected: next === 'connected',
+                };
+                // A dropped/closed socket loses its handshake.
+                if (next === 'idle' || next === 'closed') {
+                    patch.isVerified = false;
+                    patch.isDeviceRegistered = false;
+                    patch.connectionId = null;
+                }
+                this.setState(patch);
+            })
+        );
 
-        return () => {
-            this.activeClientListeners.delete(listener);
-        };
-    }
+        this.unsubscribes.push(
+            client.onError((event: ClientSocketErrorEvent) => {
+                logger.error('SOCKET', '[SocketManager] Socket error', {
+                    error: event.error,
+                    data: { phase: event.phase, ...this.scope },
+                });
+            })
+        );
 
-    /**
-     * Subscribes a listener to the state of the active client (e.g. 'connected', 'connecting', 'disconnected').
-     * Handles switching states correctly when the active client itself changes.
-     */
-    public subscribeActiveClientState(listener: (state: ClientSocketV2['state']) => void): () => void {
-        let unsubscribeState: (() => void) | null = null;
-
-        // Binds connection state listener to the current client instance.
-        const bind = (client: ClientSocketV2 | null) => {
-            unsubscribeState?.();
-            unsubscribeState = null;
-
-            listener(client?.state ?? 'idle');
-
-            if (!client) return;
-            unsubscribeState = client.onState(event => {
-                listener(event.next);
+        // device.save / device.read acknowledgement → device registered (+ connection id).
+        const onDevice = (message: SocketMessage<any>) => {
+            const view = (message.data ?? {}) as { connId?: string };
+            this.setState({
+                isDeviceRegistered: true,
+                ...(view.connId ? { connectionId: view.connId } : {}),
             });
         };
+        this.unsubscribes.push(client.onType('device.save:ok', onDevice));
+        this.unsubscribes.push(client.onType('device.read:ok', onDevice));
 
-        // Subscribe to active client switches and re-bind state listener to the new client.
-        const unsubscribeClient = this.subscribeActiveClient(client => {
-            bind(client);
-        });
-
-        return () => {
-            unsubscribeState?.();
-            unsubscribeClient();
-        };
+        // auth.update acknowledgement → verified flag.
+        this.unsubscribes.push(client.onType('auth.update:ok', () => this.setState({ isVerified: true })));
+        this.unsubscribes.push(client.onType('auth.update:error', () => this.setState({ isVerified: false })));
     }
 
     /**
-     * Fires the active client changed event to all active client listeners.
+     * Safely unsubscribes all listeners and destroys the current client.
      */
-    private emitActiveClientChanged(): void {
-        const client = this.getActiveClient();
-        for (const listener of this.activeClientListeners) {
-            listener(client, this.activeCloudId);
+    private teardownClient(): void {
+        for (const unsubscribe of this.unsubscribes) {
+            try {
+                unsubscribe();
+            } catch (error) {
+                logger.warn('SOCKET', '[SocketManager] Failed to unsubscribe socket listener', { error });
+            }
+        }
+        this.unsubscribes = [];
+
+        if (this.client) {
+            try {
+                this.client.destroy();
+            } catch (error) {
+                logger.warn('SOCKET', '[SocketManager] Failed to destroy socket client', { error });
+            }
+            this.client = null;
         }
     }
 
     /**
-     * Safely destroys the socket client instance, catching and logging any errors.
+     * Applies a partial state patch and notifies listeners only when something changed.
      */
-    private destroyClient(cloudId: SocketCloudId, record: ManagedSocketRecord): void {
-        try {
-            record.unsubscribeError?.();
-        } catch (error) {
-            logger.warn('SOCKET', '[SocketManager] Failed to unsubscribe error listener', {
-                data: { cloudId },
-                error,
-            });
+    private setState(patch: Partial<SocketState>): void {
+        const next = { ...this.state, ...patch };
+        if (
+            next.state === this.state.state &&
+            next.isConnected === this.state.isConnected &&
+            next.isVerified === this.state.isVerified &&
+            next.isDeviceRegistered === this.state.isDeviceRegistered &&
+            next.connectionId === this.state.connectionId &&
+            next.cloudId === this.state.cloudId &&
+            next.siteId === this.state.siteId &&
+            next.userId === this.state.userId
+        ) {
+            return;
         }
-
-        try {
-            record.client.destroy();
-        } catch (error) {
-            logger.warn('SOCKET', '[SocketManager] Failed to destroy socket client', {
-                data: { cloudId },
-                error,
-            });
+        this.state = next;
+        for (const listener of this.stateListeners) {
+            listener(next);
         }
     }
 
     /**
-     * Compares two SocketBindingConfig instances to see if they are identical.
+     * Notifies listeners that the underlying client instance was replaced.
      */
-    isSameConfig = (left: SocketBindingConfig, right: SocketBindingConfig): boolean =>
-        left.url === right.url && left.deviceId === right.deviceId && left.wssType === right.wssType;
+    private emitClientChanged(): void {
+        this.clientListener?.(this.client);
+    }
+
+    private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {
+        return !!left && left.url === right.url && left.deviceId === right.deviceId && left.wssType === right.wssType;
+    }
+
+    private isSameScope(left: SocketScope, right: SocketScope): boolean {
+        return left.cid === right.cid && left.sid === right.sid && left.uid === right.uid;
+    }
 
     /**
-     * Normalizes the URL by appending the 'v2=' query parameter.
-     * Ensures the connection requests the V2 protocol.
+     * Normalizes the URL by appending the 'v2=' query parameter so the connection
+     * requests the V2 protocol.
      */
-    normalizeUrl = (url: string): string => `${url}${url.includes('?') ? '&' : '?'}v2=`;
+    private normalizeUrl(url: string): string {
+        return `${url}${url.includes('?') ? '&' : '?'}v2=`;
+    }
 }

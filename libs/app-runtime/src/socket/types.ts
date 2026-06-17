@@ -1,4 +1,4 @@
-import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
+import type { ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
 
 /**
  * Unique identifier for a specific cloud environment or tenant connection context.
@@ -24,19 +24,38 @@ export interface SocketBindingConfig {
 }
 
 /**
- * Internal tracking structure representing a managed active socket client and its configuration.
+ * Scope the socket is currently bound to. A change in any field (cloud, site, user)
+ * is treated as a scope switch and always forces a fresh socket connection.
  */
-export interface ManagedSocketRecord {
-    /**
-     * The socket client instance itself.
-     */
-    client: ClientSocketV2;
-    /**
-     * The original configuration that was used to initialize this socket client.
-     */
-    config: SocketBindingConfig;
-    /**
-     * Unsubscribe handle for the error listener.
-     */
-    unsubscribeError?: () => void;
+export interface SocketScope {
+    /** cloudId — null when unbound. */
+    cid: string | null;
+    /** siteId — null when no place is selected. */
+    sid: string | null;
+    /** userId — null until the profile is resolved. */
+    uid: string | null;
+}
+
+/**
+ * Comprehensive, observable state of the single managed socket.
+ * Connection fields follow ClientSocketV2; handshake fields (`isVerified`,
+ * `isDeviceRegistered`, `connectionId`) are derived from app-level acknowledgements.
+ */
+export interface SocketState {
+    /** Currently bound cloudId. */
+    cloudId: string | null;
+    /** Currently bound siteId. */
+    siteId: string | null;
+    /** Currently bound userId. */
+    userId: string | null;
+    /** Raw transport state. */
+    state: ClientSocketState;
+    /** Shorthand for `state === 'connected'`. */
+    isConnected: boolean;
+    /** True once `auth.update:ok` has been acknowledged for this connection. */
+    isVerified: boolean;
+    /** True once `device.save:ok` / `device.read:ok` has been acknowledged. */
+    isDeviceRegistered: boolean;
+    /** Server-assigned connection id, when known. */
+    connectionId: string | null;
 }

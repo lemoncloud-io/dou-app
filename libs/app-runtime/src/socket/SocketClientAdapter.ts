@@ -2,7 +2,6 @@ import type { ISocketClient } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import type { ClientSocketV2, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
-import type { SocketCloudId } from './types';
 import type { SocketManager } from './SocketManager';
 
 /**
@@ -14,41 +13,36 @@ type TypeListenerEntry = {
     type: string;
     /** The callback handler triggered when a matching message arrives. */
     listener: (message: SocketMessage<any>) => void;
-    /** The unsubscribe function returned by the currently active ClientSocketV2 instance. */
+    /** The unsubscribe function returned by the current ClientSocketV2 instance. */
     unsubscribe?: () => void;
 };
 
 /**
- * SocketClientAdapter implements the shared ISocketClient interface.
- * It serves as a facade over ClientSocketV2 and delegates calls to the active client instance.
- * It automatically manages binding and re-binding of type listeners when the active cloud environment
- * or socket client switches in SocketManager, preventing any message loss or listener leaks.
+ * SocketClientAdapter implements the shared ISocketClient interface as a facade over
+ * the single ClientSocketV2 owned by SocketManager. It automatically re-binds type
+ * listeners whenever the manager replaces the socket (scope switch / restart),
+ * preventing any message loss or listener leaks.
  */
 export class SocketClientAdapter implements ISocketClient {
-    // Set of all registered type listeners that need to be maintained across client switches.
+    // Set of all registered type listeners that need to survive client replacement.
     private readonly typeListeners = new Set<TypeListenerEntry>();
-    // The current active ClientSocketV2 connection instance.
+    // The current ClientSocketV2 connection instance.
     private currentClient: ClientSocketV2 | null = null;
-    // The currently active cloud configuration identifier.
-    private currentCloudId: SocketCloudId = 'default';
 
     // Cleanup handle for the SocketManager subscription.
-    private readonly unsubscribeActiveClient: () => void;
+    private readonly unsubscribeClient: () => void;
 
     constructor(private readonly manager: SocketManager) {
-        // Listen to changes of the active client from the manager.
-        this.unsubscribeActiveClient = this.manager.subscribeActiveClient((client, cloudId) => {
-            if (this.currentClient === client && this.currentCloudId === cloudId) return;
+        // Re-bind type listeners whenever the manager swaps the socket instance.
+        this.unsubscribeClient = this.manager.subscribeClient(client => {
+            if (this.currentClient === client) return;
             this.currentClient = client;
-            this.currentCloudId = cloudId;
-
-            // Re-bind all type listeners to the newly active client.
             this.rebindTypeListeners();
         });
     }
 
     /**
-     * Sends a request-response message over the active socket connection and returns a promise.
+     * Sends a request-response message over the current socket connection and returns a promise.
      */
     public request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireClient(`request(${type})`);
@@ -56,7 +50,7 @@ export class SocketClientAdapter implements ISocketClient {
     }
 
     /**
-     * Sends a one-way message/notification over the active socket connection.
+     * Sends a one-way message/notification over the current socket connection.
      */
     public send<T = unknown>(message: SocketMessage<T>): void {
         const client = this.requireClient(`send(${message.type})`);
@@ -73,7 +67,7 @@ export class SocketClientAdapter implements ISocketClient {
             listener: listener as (message: SocketMessage<any>) => void,
         };
 
-        // Track this listener so we can re-bind it if the active client changes.
+        // Track this listener so we can re-bind it if the socket is replaced.
         this.typeListeners.add(entry);
         this.bindTypeListener(entry);
 
@@ -84,10 +78,10 @@ export class SocketClientAdapter implements ISocketClient {
     }
 
     /**
-     * Destroys the adapter, cleaning up all active client listeners and manager subscriptions.
+     * Destroys the adapter, cleaning up all listeners and the manager subscription.
      */
     public destroy(): void {
-        this.unsubscribeActiveClient();
+        this.unsubscribeClient();
         for (const entry of this.typeListeners) {
             entry.unsubscribe?.();
         }
@@ -96,13 +90,11 @@ export class SocketClientAdapter implements ISocketClient {
     }
 
     /**
-     * Helper to assert and retrieve the active client, throwing an error if it's not ready.
+     * Helper to assert and retrieve the current client, throwing an error if it's not ready.
      */
     private requireClient(action: string): ClientSocketV2 {
         if (!this.currentClient) {
-            throw new Error(
-                `[SocketClientAdapter] Active socket client not ready for ${action} (cloudId=${this.currentCloudId})`
-            );
+            throw new Error(`[SocketClientAdapter] Socket client not ready for ${action}`);
         }
         return this.currentClient;
     }
@@ -119,13 +111,12 @@ export class SocketClientAdapter implements ISocketClient {
     }
 
     /**
-     * Binds a single listener entry to the current active client instance.
+     * Binds a single listener entry to the current client instance.
      */
     private bindTypeListener(entry: TypeListenerEntry): void {
         if (!this.currentClient) {
-            logger.debug('SOCKET', '[SocketClientAdapter] Skipping bind until active socket client is ready', {
+            logger.debug('SOCKET', '[SocketClientAdapter] Skipping bind until socket client is ready', {
                 type: entry.type,
-                data: { cloudId: this.currentCloudId },
             });
             return;
         }
