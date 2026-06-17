@@ -5,7 +5,7 @@ import { useIssueCloudToken } from '@chatic/auth';
 import { useClouds } from '@chatic/users';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
-import { useWebSocketV2Store } from '../socket';
+import { getSocketManager } from '../socket';
 
 /**
  * Merge a cloud token's user fields onto the signed-in profile WITHOUT collapsing
@@ -36,6 +36,7 @@ export const clearCloudSession = (): void => {
 };
 
 export const useCloudSession = () => {
+    const socketManager = getSocketManager();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { isAuthenticated, setProfile } = useWebCoreStore();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
@@ -66,12 +67,8 @@ export const useCloudSession = () => {
             const { Token: _Token, ...cloudProfile } = userToken;
             setProfile(mergeCloudProfile(currentProfile, cloudProfile));
 
-            // WebSocket store의 cloudId 업데이트 → usePlaces 등 데이터 훅이 재실행
-            useWebSocketV2Store.getState().setCloudId(cloudId);
-
-            // WebSocket에 새 cloud 인증 정보 전달
-            // useCloudTokenRefresh가 isVerified=false를 감지하여 auth:update 발송
-            useWebSocketV2Store.getState().setIsVerified(false);
+            useWebCoreStore.getState().setSelectedCloudId(cloudId);
+            socketManager.setActiveCloudId(cloudId);
         } catch (e) {
             logger.error('SESSION', '[useCloudSession] selectCloud failed', { error: e });
             throw e;
@@ -102,9 +99,9 @@ export const useCloudSession = () => {
             // Land back on the invited place the bundle was captured with, then
             // re-run the auth handshake (mirrors selectCloud's tail).
             const siteId = cloudCore.getSelectedPlaceId();
-            useWebSocketV2Store.getState().setCloudId(cloudId);
-            if (siteId) useWebSocketV2Store.getState().setSelectedPlaceId(siteId);
-            useWebSocketV2Store.getState().setIsVerified(false);
+            useWebCoreStore.getState().setSelectedCloudId(cloudId);
+            if (siteId) useWebCoreStore.getState().setSelectedPlaceId(siteId);
+            socketManager.setActiveCloudId(cloudId);
         } catch (e) {
             logger.error('SESSION', '[useCloudSession] restoreInvitedCloud failed', { error: e });
             throw e;
@@ -123,6 +120,7 @@ export const useCloudSession = () => {
 };
 
 export const useAutoSelectCloud = () => {
+    const socketManager = getSocketManager();
     const { clouds, selectCloud, isFetchingClouds } = useCloudSession();
     const { isAuthenticated, isInvited } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
@@ -136,7 +134,8 @@ export const useAutoSelectCloud = () => {
             const currentCloudId = cloudCore.getSelectedCloudId();
             if (!currentCloudId) {
                 cloudCore.saveSelectedCloudId('default');
-                useWebSocketV2Store.getState().setCloudId('default');
+                useWebCoreStore.getState().setSelectedCloudId('default');
+                socketManager.setActiveCloudId('default');
                 autoSelectedRef.current = true;
             }
             return;
@@ -157,5 +156,5 @@ export const useAutoSelectCloud = () => {
 
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string);
-    }, [clouds, isAuthenticated, isFetchingClouds, isInvited]);
+    }, [clouds, isAuthenticated, isFetchingClouds, isInvited, selectCloud, socketManager]);
 };

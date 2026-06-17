@@ -4,10 +4,8 @@ import { logger } from '@chatic/bridges';
 import { cloudCore, useUserContext, useWebCoreStore, webCore } from '@chatic/web-core';
 
 import { useRepositories } from '../data';
-import { useDynamicDeviceId } from '../hooks/useDynamicDeviceId';
-import { useCloudTokenRefresh } from '../hooks/useCloudTokenRefresh';
-import { useCloudSession } from '../hooks/useCloudSession';
-import { getSocketManager, useWebSocketV2Store } from '../socket';
+import { useCloudSession, useCloudTokenRefresh, useDynamicDeviceId } from '../hooks';
+import { getSocketManager } from '../socket';
 
 export const WebSocketV2Connection = () => {
     const { deviceId } = useDynamicDeviceId();
@@ -15,32 +13,27 @@ export const WebSocketV2Connection = () => {
     const { currentWSS, endpoints } = useUserContext();
     const socketManager = getSocketManager();
     const { setSelectedCloudId, setSelectedPlaceId } = useWebCoreStore();
-    const repositories = useRepositories();
-    const deviceRepository = (
-        repositories as typeof repositories & {
-            device: { saveDevice: (input: { id: string; platform: string }) => Promise<unknown> };
-        }
-    ).device;
-    const authRepository = repositories.auth;
+    const { device: deviceRepository, auth: authRepository } = useRepositories();
 
+    // 현재 WSS 타입에 따라 endpoint 결정
     const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
+
+    // cloudId 설정 (cloud WSS 사용 시만 실제 cloudId, 아니면 'default')
     const selectedCloudId = currentWSS === 'cloud' ? cloudCore.getSelectedCloudId() || 'default' : 'default';
 
     useEffect(() => {
         setSelectedCloudId(selectedCloudId);
-        useWebSocketV2Store.getState().setCloudId(selectedCloudId);
-    }, [selectedCloudId, setSelectedCloudId]);
+    }, [selectedCloudId]);
 
+    // selectedPlaceId 복원: cloudCore(영속)에 저장된 값을 Zustand store에 즉시 동기화
+    // — 캐시 기반 채널 목록을 바로 표시하기 위함 (서버 fetch는 isVerified 후에만 실행)
     const persistedPlaceId = cloudCore.getSelectedPlaceId();
 
     useEffect(() => {
         if (persistedPlaceId) {
             setSelectedPlaceId(persistedPlaceId);
-            if (!useWebSocketV2Store.getState().selectedPlaceId) {
-                useWebSocketV2Store.getState().setSelectedPlaceId(persistedPlaceId);
-            }
         }
-    }, [persistedPlaceId, setSelectedPlaceId]);
+    }, [persistedPlaceId]);
 
     useEffect(() => {
         if (!deviceId || isPending || !endpoint) return;
@@ -52,10 +45,6 @@ export const WebSocketV2Connection = () => {
             wssType: currentWSS,
         });
 
-        const store = useWebSocketV2Store.getState();
-        store.setWssType(currentWSS);
-        store.setDeviceId(deviceId);
-
         const bootstrap = async () => {
             try {
                 if (client.state === 'idle' || client.state === 'closed') {
@@ -66,7 +55,6 @@ export const WebSocketV2Connection = () => {
                     id: deviceId,
                     platform: 'web',
                 });
-                useWebSocketV2Store.getState().setIsDeviceRegistered(true);
 
                 const token =
                     currentWSS === 'cloud'
@@ -76,14 +64,12 @@ export const WebSocketV2Connection = () => {
 
                 if (token) {
                     await authRepository.updateSocketAuth({ token });
-                    useWebSocketV2Store.getState().setIsVerified(true);
                 }
             } catch (error) {
                 logger.error('SOCKET', '[WebSocketV2Connection] Failed to bootstrap data socket client', {
                     error,
                     data: { cloudId: selectedCloudId, wssType: currentWSS },
                 });
-                useWebSocketV2Store.getState().setIsVerified(false);
             }
         };
 
