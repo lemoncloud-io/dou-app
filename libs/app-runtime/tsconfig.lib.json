@@ -43,16 +43,13 @@
             "path": "../app-messages/tsconfig.lib.json"
         },
         {
-            "path": "../bridges/tsconfig.lib.json"
+            "path": "../data/tsconfig.lib.json"
         },
         {
             "path": "../web-core/tsconfig.lib.json"
         },
         {
-            "path": "../socket/tsconfig.lib.json"
-        },
-        {
-            "path": "../data/tsconfig.lib.json"
+            "path": "../bridges/tsconfig.lib.json"
         }
     ]
 }

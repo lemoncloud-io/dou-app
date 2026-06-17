@@ -1,11 +1,6 @@
 import type { ClientSocketState, ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 /**
- * Unique identifier for a specific cloud environment or tenant connection context.
- */
-export type SocketCloudId = string;
-
-/**
  * Configuration options required to initialize and bind a socket connection.
  */
 export interface SocketBindingConfig {

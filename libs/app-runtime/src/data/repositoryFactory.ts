@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import type {
     DataContextProvider,
     DataRepositories,
@@ -7,9 +5,9 @@ import type {
     LocalDataSources,
     RemoteDataSources,
 } from '@chatic/data';
-import { createRepositories, type DomainEventMap } from '@chatic/data';
+import { createRepositories as createDataRepositories, type DomainEventMap } from '@chatic/data';
 
-export const useRepositoryFactory = ({
+export const createRepositories = ({
     remoteDataSources,
     localDataSources,
     contextProvider,
@@ -19,17 +17,10 @@ export const useRepositoryFactory = ({
     localDataSources: LocalDataSources;
     contextProvider: DataContextProvider;
     domainEventBus: IEventBus<DomainEventMap>;
-}): { repositories: DataRepositories } => {
-    const repositories = useMemo(
-        () =>
-            createRepositories({
-                remoteDataSources,
-                localDataSources,
-                context: contextProvider,
-                domainEventBus,
-            }),
-        [contextProvider, remoteDataSources, localDataSources, domainEventBus]
-    );
-
-    return { repositories };
-};
+}): DataRepositories =>
+    createDataRepositories({
+        remoteDataSources,
+        localDataSources,
+        context: contextProvider,
+        domainEventBus,
+    });
