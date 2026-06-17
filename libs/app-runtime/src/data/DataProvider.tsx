@@ -1,27 +1,31 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import type { DataContext, DataRepositories, IEventBus, ISocketRequestManager } from '@chatic/data';
-import { type DomainEventMap, EventBusEngine, type SocketEventMap, SocketRequestManager } from '@chatic/data';
+import type { DataContext, DataRepositories, IEventBus } from '@chatic/data';
+import { type DomainEventMap, EventBusEngine } from '@chatic/data';
 
 import { useRepositoryFactory } from './repositoryFactory';
 import type { DataProviderProps, DataProviderValue } from './types';
 import { useDataContextHolder } from './contextHolder';
 import { useRemoteDataSourcesFactory } from './remoteFactory';
 import { useLocalDataSourcesFactory } from './localFactory';
+import { getSocketClientAdapter } from '../socket';
+import type { RuntimeSocketClient } from '../socket/client-contract';
 
 const DataProviderContext = createContext<DataProviderValue | null>(null);
 
-export const DataProvider = ({ children, context: injectedContext }: DataProviderProps) => {
-    const socketEventBus: IEventBus<SocketEventMap> = useMemo(() => new EventBusEngine<SocketEventMap>(), []);
+export const DataProvider = ({
+    children,
+    context: injectedContext,
+    socketClient: injectedSocketClient,
+}: DataProviderProps) => {
+    const socketClient = useMemo<RuntimeSocketClient>(
+        () => injectedSocketClient ?? getSocketClientAdapter(),
+        [injectedSocketClient]
+    );
     const domainEventBus: IEventBus<DomainEventMap> = useMemo(() => new EventBusEngine<DomainEventMap>(), []);
 
-    const requestManager: ISocketRequestManager = useMemo(
-        () => new SocketRequestManager(domainEventBus),
-        [domainEventBus]
-    );
-
     const { contextHolder } = useDataContextHolder(injectedContext);
-    const { remoteDataSources } = useRemoteDataSourcesFactory({ socketEventBus, domainEventBus });
+    const { remoteDataSources } = useRemoteDataSourcesFactory({ domainEventBus, socketClient });
 
     const { localDataSources } = useLocalDataSourcesFactory({
         contextProvider: contextHolder,
@@ -32,7 +36,6 @@ export const DataProvider = ({ children, context: injectedContext }: DataProvide
         localDataSources,
         contextProvider: contextHolder,
         domainEventBus,
-        requestManager,
     });
 
     const value = useMemo<DataProviderValue>(

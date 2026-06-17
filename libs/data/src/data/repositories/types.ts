@@ -1,17 +1,11 @@
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/types';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainScope } from '../domain';
 
 /**
  * Repository 요청 단위에서만 덮어쓸 수 있는 옵션입니다.
- * ref는 서버 응답과 Promise를 매칭하기 위한 식별자이고,
- * timeoutMs는 SocketRequestManager가 응답 대기를 중단할 제한 시간입니다.
  */
 export interface RepositoryRequestOptions {
-    ref?: string;
-    timeoutMs?: number;
-
     /**
      * 읽기 시 cache/network 병행 정책을 제어합니다.
      * - cache-first: cache hit면 즉시 반환하고 background refresh 수행
@@ -96,19 +90,9 @@ export class DataContextHolder implements DataContextProvider {
  */
 export abstract class BaseRepository {
     protected constructor(
-        private readonly requestManager: ISocketRequestManager,
         private readonly context: DataContextProvider,
-        private readonly domainEventBus: IEventBus<DomainEventMap>
+        protected readonly domainEventBus: IEventBus<DomainEventMap>
     ) {}
-
-    /**
-     * 모든 원격 Repository 메서드가 동일한 요청 파이프라인을 타도록 묶는 공통 메서드입니다.
-     * sendAction은 RemoteDataSource의 발신 메서드를 호출하고,
-     * requestManager는 같은 ref를 가진 domain event가 돌아올 때 Promise를 resolve/reject 합니다.
-     */
-    protected requestRemote<T>(sendAction: (ref: string) => void, options: RepositoryRequestOptions = {}): Promise<T> {
-        return this.requestManager.request<T>(sendAction, options.ref, options.timeoutMs);
-    }
 
     /**
      * 현재 Repository 실행 문맥을 읽습니다.
@@ -188,17 +172,3 @@ export abstract class BaseRepository {
         return this.domainEventBus.on(event, callback);
     }
 }
-
-/**
- * SyncManager에 의해 동기화될 수 있는 Repository가 구현해야 하는 인터페이스입니다.
- */
-interface ISyncRepository {
-    /**
-     * 특정 항목을 동기화합니다.
-     * @param id 동기화할 항목의 식별자; 없을 경우 전체로 식별
-     * @param meta 동기화에 필요한 추가 정보 (옵션)
-     */
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void>;
-}
-
-export default ISyncRepository;

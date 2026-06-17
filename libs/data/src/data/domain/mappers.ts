@@ -1,12 +1,11 @@
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type { ChannelView, ChatView, JoinView, ProfileDisplay, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, JoinView, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CacheStorageItem } from '../local/storages';
 import type {
     DomainChannel,
     DomainChat,
     DomainInviteCloud,
     DomainJoin,
-    DomainProfile,
     DomainScope,
     DomainSite,
     DomainUser,
@@ -121,23 +120,6 @@ export const toDomainSite = (
         order: toNumberSafe((source as { order?: number }).order, Number.MAX_SAFE_INTEGER),
         type: normalizedType,
         stereo: (source as { stereo?: string }).stereo === '' ? '' : undefined,
-    };
-};
-
-export const toDomainProfile = (
-    source: ProfileDisplay | CacheStorageItem<'profile'> | Partial<DomainProfile>,
-    scope: DomainScope
-): DomainProfile => {
-    const uid = toStringSafe((source as { uid?: string }).uid) || scope.uid || '';
-    const sid = toStringSafe((source as { sid?: string }).sid) || scope.sid || '';
-    const id = toStringSafe((source as { id?: string }).id) || `${sid}@${uid}`;
-
-    return {
-        ...(source as ProfileDisplay),
-        id,
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        sid: sid || undefined,
-        uid,
     };
 };
 

@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { logger } from '@chatic/bridges';
 import { useIssueCloudToken } from '@chatic/auth';
-import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useClouds } from '@chatic/users';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
+import { useWebSocketV2Store } from '../socket';
 
 /**
  * Merge a cloud token's user fields onto the signed-in profile WITHOUT collapsing
@@ -84,7 +84,11 @@ export const useCloudSession = () => {
     // the saved delegation + cloud token and re-run the socket auth handshake.
     const restoreInvitedCloud = async (cloudId: string) => {
         try {
-            if (!cloudCore.applyInvitedCloud(cloudId)) {
+            if (
+                !(
+                    cloudCore as typeof cloudCore & { applyInvitedCloud?: (cloudId: string) => boolean }
+                ).applyInvitedCloud?.(cloudId)
+            ) {
                 throw new Error(`No invited-cloud session for ${cloudId}`);
             }
 

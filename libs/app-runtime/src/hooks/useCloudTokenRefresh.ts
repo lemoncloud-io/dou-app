@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useWebSocketV2, useWebSocketV2Store } from '@chatic/socket';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useWebSocketV2, useWebSocketV2Store } from '../socket';
 
 const REFRESH_INTERVAL_MS = 60_000;
 const AUTH_UPDATE_MAX_RETRIES = 3;

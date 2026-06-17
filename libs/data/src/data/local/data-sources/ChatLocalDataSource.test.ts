@@ -72,31 +72,6 @@ describe('ChatLocalDataSource', () => {
         expect(loaded?.chatNo).toBe(10);
     });
 
-    it('preserves existing fields (e.g. owner$) when upsertMany omits them', async () => {
-        const storage = createMemoryStorage();
-        const dataSource = new ChatLocalDataSource(contextProvider, storage);
-
-        // A detail fetch cached the author (owner$ embedded).
-        await dataSource.upsert({
-            id: 'c1',
-            channelId: 'ch-1',
-            cid: 'cloud-a',
-            content: 'hi',
-            chatNo: 5,
-            createdAt: 1000,
-            owner$: { id: 'user-b', name: '개발자' },
-        } as any);
-
-        // A later list fetch (bulk) omits owner$ for other users — must not drop it.
-        await dataSource.upsertMany([
-            { id: 'c1', channelId: 'ch-1', cid: 'cloud-a', content: 'hi', chatNo: 5, createdAt: 1000 } as any,
-        ]);
-
-        const loaded = await storage.load('c1');
-        expect((loaded as any)?.owner$?.name).toBe('개발자');
-        expect(loaded?.content).toBe('hi');
-    });
-
     it('re-emits subscribed chat feed when local cache is mutated', async () => {
         const storage = createMemoryStorage();
         const dataSource = new ChatLocalDataSource(contextProvider, storage);

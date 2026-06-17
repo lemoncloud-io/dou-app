@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useRepositories } from '../data';
 import { useChatSync } from '../hooks/useChatSync';
+import { useWebSocketV2Store } from '../socket';
 
 const MIN_HIDDEN_MS = 5_000;
 
@@ -135,7 +135,6 @@ export const GlobalChatSync = () => {
                 sawDisconnect = false;
                 const sid = useWebSocketV2Store.getState().selectedPlaceId || undefined;
                 void channelRepository.fetchChannel({ sid }, { cachePolicy: 'network-only' });
-                void chatRepository.flushFailedChats();
             }
         );
     }, [channelRepository, chatRepository]);

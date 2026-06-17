@@ -5,9 +5,14 @@ describe('UserRepository', () => {
 
     const createRepository = ({ localResult }: { localResult: any | null }) => {
         const remote = {
-            fetchUsers: jest.fn(),
+            fetchUsers: jest.fn().mockResolvedValue({
+                list: [{ id: 'u1', cid: 'cloud-a' }],
+                total: 1,
+            }),
             updateProfile: jest.fn(),
             requestInvite: jest.fn(),
+            requestInviteBatch: jest.fn(),
+            handleModelEvent: jest.fn(),
         };
 
         const local = {
@@ -23,16 +28,6 @@ describe('UserRepository', () => {
             subscribeItem: jest.fn(() => () => undefined),
         };
 
-        const requestManager = {
-            request: jest.fn(async (sendAction: (ref: string) => void) => {
-                sendAction('ref-1');
-                return {
-                    list: [{ id: 'u1', cid: 'cloud-a' }],
-                    total: 1,
-                };
-            }),
-        };
-
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }),
             setContext: () => undefined,
@@ -44,27 +39,20 @@ describe('UserRepository', () => {
             onAny: jest.fn(() => () => undefined),
         };
 
-        const repository = new UserRepository(
-            remote as any,
-            local as any,
-            requestManager as any,
-            contextProvider,
-            domainEventBus as any
-        );
+        const repository = new UserRepository(remote as any, local as any, contextProvider, domainEventBus as any);
 
-        return { repository, remote, local, requestManager };
+        return { repository, remote, local };
     };
 
     it('returns local first for cache-first and runs remote refresh in background', async () => {
         const localResult = { list: [{ id: 'u-local' }], meta: { total: 1, source: 'local' } };
-        const { repository, remote, requestManager } = createRepository({ localResult });
+        const { repository, remote } = createRepository({ localResult });
 
         const result = await repository.fetchUsers(payload, { cachePolicy: 'cache-first' });
 
         expect(result).toEqual(localResult);
         await Promise.resolve();
         expect(remote.fetchUsers).toHaveBeenCalledTimes(1);
-        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
     it('delegates subscribeList to local data source with repository context', () => {

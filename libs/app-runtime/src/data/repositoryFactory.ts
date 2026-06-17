@@ -4,7 +4,6 @@ import type {
     DataContextProvider,
     DataRepositories,
     IEventBus,
-    ISocketRequestManager,
     LocalDataSources,
     RemoteDataSources,
 } from '@chatic/data';
@@ -15,13 +14,11 @@ export const useRepositoryFactory = ({
     localDataSources,
     contextProvider,
     domainEventBus,
-    requestManager,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSources;
     contextProvider: DataContextProvider;
     domainEventBus: IEventBus<DomainEventMap>;
-    requestManager: ISocketRequestManager;
 }): { repositories: DataRepositories } => {
     const repositories = useMemo(
         () =>
@@ -30,9 +27,8 @@ export const useRepositoryFactory = ({
                 localDataSources,
                 context: contextProvider,
                 domainEventBus,
-                requestManager,
             }),
-        [contextProvider, remoteDataSources, localDataSources, domainEventBus, requestManager]
+        [contextProvider, remoteDataSources, localDataSources, domainEventBus]
     );
 
     return { repositories };

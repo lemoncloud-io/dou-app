@@ -1,0 +1,14 @@
+import type { ISocketClient } from '../sockets';
+import type { CloudUpdateInput } from '@lemoncloud/chatic-sockets-api';
+
+export interface ICloudRemoteDataSource {
+    updateCloud(payload: CloudUpdateInput): Promise<unknown>;
+}
+
+export class CloudRemoteDataSource implements ICloudRemoteDataSource {
+    constructor(private readonly client: ISocketClient) {}
+
+    public async updateCloud(payload: CloudUpdateInput): Promise<unknown> {
+        return this.client.request('cloud.update', payload);
+    }
+}
