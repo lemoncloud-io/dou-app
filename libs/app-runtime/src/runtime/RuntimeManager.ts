@@ -1,13 +1,17 @@
 import { logger } from '@chatic/bridges';
 import { cloudCore, webCore } from '@chatic/web-core';
+import type { DataRepositories } from '@chatic/data';
 
-import { getDataManager, type IDataManager } from '../data';
-import { getSocketManager, type ISocketManager } from '../socket';
+import { getDataManager } from '../data/runtime';
+import type { IDataManager } from '../data/types';
+import { getSocketManager } from '../socket/runtime';
+import type { ISocketManager } from '../socket/types';
 import type { RuntimeBinding } from './useRuntimeBinding';
 
 export interface IRuntimeManager {
     ensure(binding: RuntimeBinding): void;
     bootstrap(binding: RuntimeBinding): Promise<void>;
+    getRepositories(): DataRepositories;
 }
 
 export class RuntimeManager implements IRuntimeManager {
@@ -63,6 +67,10 @@ export class RuntimeManager implements IRuntimeManager {
                 data: { cloudId: binding.context.cid, wssType: socketBinding.config.wssType },
             });
         }
+    }
+
+    public getRepositories(): DataRepositories {
+        return this.dataManager.getRepositories();
     }
 
     private createBindingKey(binding: RuntimeBinding): string {

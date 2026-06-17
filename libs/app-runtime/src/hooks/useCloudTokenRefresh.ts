@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useRepositories } from '../data';
+import { useRuntimeRepositories } from '../runtime';
 
 const REFRESH_INTERVAL_MS = 60_000;
 const AUTH_UPDATE_MAX_RETRIES = 3;
@@ -39,7 +39,7 @@ const isAuthError = (error: unknown): boolean => {
 export const useCloudTokenRefresh = () => {
     const { t } = useTranslation();
     const { isAuthenticated } = useWebCoreStore();
-    const { auth: authRepository } = useRepositories();
+    const { auth: authRepository } = useRuntimeRepositories();
     const isConnected = useWebSocketV2Store(s => s.isConnected);
     const { setServiceUnavailable } = useServiceStatusStore();
     const { toast } = useToast();
