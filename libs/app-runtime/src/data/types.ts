@@ -1,7 +1,6 @@
-import type { DataContext, DataRepositories } from '@chatic/data';
+import type { DataContext, DataRepositories, ISocketClient } from '@chatic/data';
 
 import type { ReactNode } from 'react';
-import type { RuntimeSocketClient } from '../socket/client-contract';
 
 /**
  * WebDataProvider가 React context로 제공하는 값입니다.
@@ -19,5 +18,5 @@ export interface DataProviderValue {
 export interface DataProviderProps {
     children: ReactNode;
     context?: DataContext;
-    socketClient?: RuntimeSocketClient;
+    socketClient?: ISocketClient;
 }

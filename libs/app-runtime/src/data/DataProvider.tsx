@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import type { DataContext, DataRepositories, IEventBus } from '@chatic/data';
+import type { DataContext, DataRepositories, IEventBus, ISocketClient } from '@chatic/data';
 import { type DomainEventMap, EventBusEngine } from '@chatic/data';
 
 import { useRepositoryFactory } from './repositoryFactory';
@@ -9,7 +9,6 @@ import { useDataContextHolder } from './contextHolder';
 import { useRemoteDataSourcesFactory } from './remoteFactory';
 import { useLocalDataSourcesFactory } from './localFactory';
 import { getSocketClientAdapter } from '../socket';
-import type { RuntimeSocketClient } from '../socket/client-contract';
 
 const DataProviderContext = createContext<DataProviderValue | null>(null);
 
@@ -18,7 +17,7 @@ export const DataProvider = ({
     context: injectedContext,
     socketClient: injectedSocketClient,
 }: DataProviderProps) => {
-    const socketClient = useMemo<RuntimeSocketClient>(
+    const socketClient = useMemo<ISocketClient>(
         () => injectedSocketClient ?? getSocketClientAdapter(),
         [injectedSocketClient]
     );

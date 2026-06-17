@@ -3,7 +3,7 @@ import { DataContextHolder } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 
 export const useDataContextHolder = (
     injectedContext?: Partial<DataContext>
@@ -37,17 +37,6 @@ export const useDataContextHolder = (
         }
         contextHolder.setContext(dataContext);
     }, [contextHolder, dataContext]);
-
-    useEffect(() => {
-        return useWebCoreStore.subscribe(state => {
-            const current = contextHolder.getContext();
-            const nextCid = injectedContext?.cid ?? state.selectedCloudId ?? 'default';
-            const nextSid = injectedContext?.sid ?? state.selectedPlaceId ?? undefined;
-            if (current.cid !== nextCid || current.sid !== nextSid) {
-                contextHolder.setContext({ ...current, cid: nextCid, sid: nextSid });
-            }
-        });
-    }, [contextHolder, injectedContext]);
 
     return { contextHolder, dataContext };
 };
