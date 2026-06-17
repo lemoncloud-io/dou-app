@@ -5,7 +5,6 @@ import { useIssueCloudToken } from '@chatic/auth';
 import { useClouds } from '@chatic/users';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
-import { getSocketManager } from '../socket';
 
 /**
  * Merge a cloud token's user fields onto the signed-in profile WITHOUT collapsing
@@ -36,7 +35,6 @@ export const clearCloudSession = (): void => {
 };
 
 export const useCloudSession = () => {
-    const socketManager = getSocketManager();
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
     const { isAuthenticated, setProfile } = useWebCoreStore();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
@@ -68,7 +66,6 @@ export const useCloudSession = () => {
             setProfile(mergeCloudProfile(currentProfile, cloudProfile));
 
             useWebCoreStore.getState().setSelectedCloudId(cloudId);
-            socketManager.setActiveCloudId(cloudId);
         } catch (e) {
             logger.error('SESSION', '[useCloudSession] selectCloud failed', { error: e });
             throw e;
@@ -101,7 +98,6 @@ export const useCloudSession = () => {
             const siteId = cloudCore.getSelectedPlaceId();
             useWebCoreStore.getState().setSelectedCloudId(cloudId);
             if (siteId) useWebCoreStore.getState().setSelectedPlaceId(siteId);
-            socketManager.setActiveCloudId(cloudId);
         } catch (e) {
             logger.error('SESSION', '[useCloudSession] restoreInvitedCloud failed', { error: e });
             throw e;
@@ -120,7 +116,6 @@ export const useCloudSession = () => {
 };
 
 export const useAutoSelectCloud = () => {
-    const socketManager = getSocketManager();
     const { clouds, selectCloud, isFetchingClouds } = useCloudSession();
     const { isAuthenticated, isInvited } = useWebCoreStore();
     const autoSelectedRef = useRef(false);
@@ -135,7 +130,6 @@ export const useAutoSelectCloud = () => {
             if (!currentCloudId) {
                 cloudCore.saveSelectedCloudId('default');
                 useWebCoreStore.getState().setSelectedCloudId('default');
-                socketManager.setActiveCloudId('default');
                 autoSelectedRef.current = true;
             }
             return;
@@ -156,5 +150,5 @@ export const useAutoSelectCloud = () => {
 
         autoSelectedRef.current = true;
         void selectCloud(activeCloud.id as string);
-    }, [clouds, isAuthenticated, isFetchingClouds, isInvited, selectCloud, socketManager]);
+    }, [clouds, isAuthenticated, isFetchingClouds, isInvited, selectCloud]);
 };
