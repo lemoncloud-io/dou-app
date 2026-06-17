@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useWebSocketV2, useWebSocketV2Store } from '../socket';
+import { useRepositories } from '../data';
 
 const REFRESH_INTERVAL_MS = 60_000;
 const AUTH_UPDATE_MAX_RETRIES = 3;
 const AUTH_UPDATE_BASE_DELAY_MS = 2_000;
 
 // caller(handleSelectPlace)가 토큰 갱신 중일 때 자동 auth:update 전송을 차단
-// handleSelectPlace: setIsVerified(false) → refreshToken(async) → emit auth
+// handleSelectPlace: refreshToken(async) → auth.update
 // 이 플래그가 없으면 refreshToken 완료 전에 useCloudTokenRefresh가 OLD 토큰으로 auth를 보냄
 let _skipAutoAuth = false;
 export const setSkipAutoAuth = (value: boolean) => {
@@ -39,93 +39,99 @@ const isAuthError = (error: unknown): boolean => {
 export const useCloudTokenRefresh = () => {
     const { t } = useTranslation();
     const { isAuthenticated } = useWebCoreStore();
-    const { emit, isConnected } = useWebSocketV2();
+    const { auth: authRepository } = useRepositories();
+    const isConnected = useWebSocketV2Store(s => s.isConnected);
     const { setServiceUnavailable } = useServiceStatusStore();
     const { toast } = useToast();
     const wssType = useWebSocketV2Store(s => s.wssType);
     const isDeviceRegistered = useWebSocketV2Store(s => s.isDeviceRegistered);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
     const refreshingRef = useRef(false);
 
     useEffect(() => {
         // Wait for device.save response before sending auth.update
         if (!isConnected || !isAuthenticated || !isDeviceRegistered) return;
 
+        let disposed = false;
+        let retryCount = 0;
+        let retryTimer: ReturnType<typeof setTimeout> | null = null;
+        let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+        const sendAuthUpdate = async () => {
+            const token =
+                wssType !== 'cloud'
+                    ? (await webCore.getTokenSignature()).originToken?.identityToken
+                    : cloudCore.getIdentityToken();
+
+            if (!token) return;
+            await authRepository.updateSocketAuth({ token });
+        };
+
         const refresh = async () => {
-            if (refreshingRef.current) return;
+            if (disposed || refreshingRef.current) return;
             refreshingRef.current = true;
             try {
-                if (wssType !== 'cloud') {
-                    const token = (await webCore.getTokenSignature()).originToken?.identityToken;
-                    if (token) emit({ type: 'auth', action: 'update', payload: { token } });
-                    return;
-                }
-
-                try {
-                    await cloudCore.refreshToken();
-                    setServiceUnavailable(false);
-                } catch (e) {
-                    logger.error('AUTH', '[CloudTokenRefresh] refreshToken failed', { error: e });
-                    reportError(toError(e));
-                    if (isServerError(e)) {
-                        setServiceUnavailable(true);
-                        return;
-                    }
-                    if (isAuthError(e)) {
-                        // cloud 토큰 만료/무효 → 기본 클라우드(relay)로 fallback
-                        logger.warn('AUTH', '[CloudTokenRefresh] Cloud token expired, falling back to default cloud');
-                        cloudCore.clearDelegationToken();
-                        cloudCore.clearSelectedPlace();
-                        cloudCore.saveSelectedCloudId('default');
-                        useWebSocketV2Store.getState().setCloudId('default');
-                        useWebSocketV2Store.getState().setSelectedPlaceId(null);
-                        useWebSocketV2Store.getState().setIsVerified(false);
-                        toast({ title: t('cloudSessionSheet.cloudSessionExpired'), variant: 'destructive' });
-                        return;
+                if (wssType === 'cloud') {
+                    try {
+                        await cloudCore.refreshToken();
+                        setServiceUnavailable(false);
+                    } catch (e) {
+                        logger.error('AUTH', '[CloudTokenRefresh] refreshToken failed', { error: e });
+                        reportError(toError(e));
+                        if (isServerError(e)) {
+                            setServiceUnavailable(true);
+                            return;
+                        }
+                        if (isAuthError(e)) {
+                            // cloud 토큰 만료/무효 → 기본 클라우드(relay)로 fallback
+                            logger.warn(
+                                'AUTH',
+                                '[CloudTokenRefresh] Cloud token expired, falling back to default cloud'
+                            );
+                            cloudCore.clearDelegationToken();
+                            cloudCore.clearSelectedPlace();
+                            cloudCore.saveSelectedCloudId('default');
+                            useWebCoreStore.getState().setSelectedCloudId('default');
+                            useWebCoreStore.getState().setSelectedPlaceId(null);
+                            toast({ title: t('cloudSessionSheet.cloudSessionExpired'), variant: 'destructive' });
+                            return;
+                        }
                     }
                 }
 
-                const token = cloudCore.getIdentityToken();
-                if (token) emit({ type: 'auth', action: 'update', payload: { token } });
+                await sendAuthUpdate();
+            } catch (error) {
+                logger.error('AUTH', '[CloudTokenRefresh] auth:update failed', { error });
             } finally {
                 refreshingRef.current = false;
             }
         };
 
-        if (!isVerified) {
-            // 미인증 상태: caller(selectCloud/handleSelectPlace)가 이미 토큰을 준비했으므로
-            // refreshToken을 다시 호출하지 않고 기존 토큰만 전송
-            // (refreshToken()을 호출하면 place 전용 토큰이 cloud 레벨 토큰으로 덮어써짐)
-            // 실패 시 exponential backoff로 재시도 (최대 AUTH_UPDATE_MAX_RETRIES회)
-            const sendAuthUpdate = async () => {
-                if (wssType !== 'cloud') {
-                    const sig = (await webCore.getTokenSignature()).originToken?.identityToken;
-                    if (sig) emit({ type: 'auth', action: 'update', payload: { token: sig } });
-                } else {
-                    const token = cloudCore.getIdentityToken();
-                    if (token) emit({ type: 'auth', action: 'update', payload: { token } });
-                }
-            };
+        const startRefreshInterval = () => {
+            if (refreshInterval) return;
+            refreshInterval = setInterval(() => {
+                void refresh();
+            }, REFRESH_INTERVAL_MS);
+        };
 
-            let retryCount = 0;
-            let retryTimer: ReturnType<typeof setTimeout>;
+        const attemptInitialAuthUpdate = async () => {
+            if (disposed) return;
 
-            const attemptAuthUpdate = () => {
-                // 이미 인증 완료되었으면 재시도 중단
-                if (useWebSocketV2Store.getState().isVerified) return;
+            if (_skipAutoAuth) {
+                retryTimer = setTimeout(() => {
+                    void attemptInitialAuthUpdate();
+                }, AUTH_UPDATE_BASE_DELAY_MS);
+                return;
+            }
 
-                // caller가 토큰 갱신 중이면 전송하지 않고 재시도 예약
-                // (handleSelectPlace가 refreshToken 완료 후 직접 auth 전송)
-                if (_skipAutoAuth) {
-                    retryTimer = setTimeout(attemptAuthUpdate, AUTH_UPDATE_BASE_DELAY_MS);
-                    return;
-                }
-
-                void sendAuthUpdate();
+            try {
+                await sendAuthUpdate();
+                startRefreshInterval();
+            } catch (error) {
                 retryCount++;
 
                 if (retryCount > AUTH_UPDATE_MAX_RETRIES) {
                     logger.error('AUTH', '[CloudTokenRefresh] auth:update failed after max retries', {
+                        error,
                         data: { retries: AUTH_UPDATE_MAX_RETRIES },
                     });
                     toast({ title: t('inviteAccept.authVerifyFailed'), variant: 'destructive' });
@@ -139,22 +145,17 @@ export const useCloudTokenRefresh = () => {
                     delay,
                 });
                 retryTimer = setTimeout(() => {
-                    // 재확인: 이미 인증 완료되었으면 재시도 중단
-                    if (useWebSocketV2Store.getState().isVerified) return;
-                    attemptAuthUpdate();
+                    void attemptInitialAuthUpdate();
                 }, delay);
-            };
+            }
+        };
 
-            attemptAuthUpdate();
+        void attemptInitialAuthUpdate();
 
-            return () => clearTimeout(retryTimer);
-        }
-
-        // 주기적 토큰 갱신 (인증 완료 상태에서만)
-        const id = setInterval(() => {
-            void refresh();
-        }, REFRESH_INTERVAL_MS);
-
-        return () => clearInterval(id);
-    }, [wssType, isAuthenticated, isConnected, isDeviceRegistered, isVerified, emit, setServiceUnavailable, toast, t]);
+        return () => {
+            disposed = true;
+            if (retryTimer) clearTimeout(retryTimer);
+            if (refreshInterval) clearInterval(refreshInterval);
+        };
+    }, [authRepository, wssType, isAuthenticated, isConnected, isDeviceRegistered, setServiceUnavailable, toast, t]);
 };
