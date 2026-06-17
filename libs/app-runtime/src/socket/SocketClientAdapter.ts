@@ -3,8 +3,8 @@ import { cloudCore, webCore } from '@chatic/web-core';
 import type { ClientSocketV2, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
 import type { SocketCloudId } from './types';
-import type { RuntimeSocketClient } from './client-contract';
 import type { SocketManager } from './SocketManager';
+import type { ISocketClient } from '@chatic/data';
 
 type TypeListenerEntry = {
     type: string;
@@ -12,7 +12,7 @@ type TypeListenerEntry = {
     unsubscribe?: () => void;
 };
 
-export class SocketClientAdapter implements RuntimeSocketClient {
+export class SocketClientAdapter implements ISocketClient {
     private readonly typeListeners = new Set<TypeListenerEntry>();
     private currentClient: ClientSocketV2 | null = null;
     private currentCloudId: SocketCloudId = 'default';
