@@ -1,5 +1,5 @@
 import type { ErrorInfo } from 'react';
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
@@ -11,7 +11,7 @@ import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionU
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { DataProvider, GlobalChatSync, WebSocketV2Connection, useRuntimeBinding } from '@chatic/app-runtime';
+import { getRuntimeManager, WebSocketV2Connection, useRuntimeBinding } from '@chatic/app-runtime';
 import { ServiceUnavailableOverlay } from './components';
 import { Router } from './routes';
 import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
@@ -65,6 +65,7 @@ export function App() {
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
     const runtimeBinding = useRuntimeBinding();
+    const runtimeManager = getRuntimeManager();
 
     const minTimeElapsed = true;
 
@@ -79,6 +80,10 @@ export function App() {
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     useForegroundResync(refreshToken);
+
+    useLayoutEffect(() => {
+        runtimeManager.ensure(runtimeBinding);
+    }, [runtimeManager, runtimeBinding]);
 
     // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
     useEffect(() => {
@@ -113,19 +118,16 @@ export function App() {
                             <HelmetProvider>
                                 <QueryClientProvider client={queryClient}>
                                     <ThemeProvider>
-                                        <DataProvider context={runtimeBinding.context}>
-                                            <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                            {isAuthenticated && isWebCoreReady && (
-                                                <WebSocketV2Connection binding={runtimeBinding} />
-                                            )}
-                                            {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
-                                            <ServiceUnavailableOverlay />
-                                            <DeviceTokenRegistration />
-                                            <Router />
-                                            <GlobalLoader />
-                                            <SonnerToaster />
-                                            <Toaster />
-                                        </DataProvider>
+                                        <ForegroundTokenRefresh refreshToken={refreshToken} />
+                                        {isAuthenticated && isWebCoreReady && (
+                                            <WebSocketV2Connection binding={runtimeBinding} />
+                                        )}
+                                        <ServiceUnavailableOverlay />
+                                        <DeviceTokenRegistration />
+                                        <Router />
+                                        <GlobalLoader />
+                                        <SonnerToaster />
+                                        <Toaster />
                                     </ThemeProvider>
                                     {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
                                 </QueryClientProvider>
