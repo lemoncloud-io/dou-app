@@ -6,7 +6,7 @@ import type {
     ChannelSyncSiteProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
-import type { DomainEventMap, ListResult } from '../events/types';
+import type { DomainEventMap } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
@@ -14,6 +14,7 @@ import type { IEventBus } from '../events/eventBus';
 import type { IUserLocalDataSource } from '../local/data-sources';
 import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
 import type { UserView } from '@lemoncloud/chatic-socials-api';
+import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 
 /**
  * 사용자 도메인의 Repository 공개 계약입니다.
