@@ -1,12 +1,13 @@
 import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { UserMakeSiteInput, UserUpdateSiteInput, UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { ISiteLocalDataSource } from '../local/data-sources';
-import type { DomainEventMap, ListResult } from '../events/types';
+import type { DomainEventMap } from '../events/types';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
 import { createDomainListResult, type DomainListResult, type DomainSite, toDomainSite } from '../domain';
+import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 
 /** 사이트/플레이스 도메인의 Repository 공개 계약입니다. */
 export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSite> {
