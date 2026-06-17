@@ -1,23 +1,37 @@
 import { useEffect, useMemo } from 'react';
-import type { IEventBus } from '@chatic/data';
+import type { IEventBus, ISocketClient } from '@chatic/data';
 import { createRemoteDataSources, type DomainEventMap, SocketDispatcher } from '@chatic/data';
-import type { RuntimeSocketClient } from '../socket/client-contract';
 
 export const useRemoteDataSourcesFactory = ({
     domainEventBus,
     socketClient,
 }: {
     domainEventBus: IEventBus<DomainEventMap>;
-    socketClient: RuntimeSocketClient;
+    socketClient: ISocketClient;
 }) => {
     const remoteDataSources = useMemo(
-        () => createRemoteDataSources({ domainEventBus, socketClient }),
+        () =>
+            (
+                createRemoteDataSources as unknown as (args: {
+                    domainEventBus: IEventBus<DomainEventMap>;
+                    socketClient: ISocketClient;
+                }) => ReturnType<typeof createRemoteDataSources>
+            )({ domainEventBus, socketClient }),
         [domainEventBus, socketClient]
     );
 
     const dispatcher = useMemo(
         () =>
-            new SocketDispatcher(
+            new (SocketDispatcher as unknown as new (
+                socketClient: ISocketClient,
+                channel: typeof remoteDataSources.channel,
+                chat: typeof remoteDataSources.chat,
+                join: typeof remoteDataSources.join,
+                user: typeof remoteDataSources.user,
+                auth: typeof remoteDataSources.auth,
+                device: typeof remoteDataSources.device,
+                sockets: typeof remoteDataSources.sockets
+            ) => { destroy(): void })(
                 socketClient,
                 remoteDataSources.channel,
                 remoteDataSources.chat,
