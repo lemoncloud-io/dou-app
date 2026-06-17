@@ -14,7 +14,7 @@ describe('ChatRepository cache policy', () => {
     const createRepository = ({ localResult }: { localResult: any | null }) => {
         const remote = {
             sendChat: jest.fn(),
-            fetchChat: jest.fn(),
+            fetchChat: jest.fn().mockResolvedValue(remoteResult),
         };
 
         const local = {
@@ -29,14 +29,6 @@ describe('ChatRepository cache policy', () => {
             subscribeItem: jest.fn(() => () => undefined),
         };
 
-        const requestManager = {
-            // requestManager.request() 호출 시 콜백(sendAction)을 실행하여 원격 API 모킹과 연결
-            request: jest.fn(async (sendAction: (ref: string) => void) => {
-                sendAction('ref-1');
-                return remoteResult;
-            }),
-        };
-
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }),
             setContext: () => undefined,
@@ -48,15 +40,9 @@ describe('ChatRepository cache policy', () => {
             onAny: jest.fn(() => () => undefined),
         };
 
-        const repository = new ChatRepository(
-            remote as any,
-            local as any,
-            requestManager as any,
-            contextProvider,
-            domainEventBus as any
-        );
+        const repository = new ChatRepository(remote as any, local as any, contextProvider, domainEventBus as any);
 
-        return { repository, remote, local, requestManager };
+        return { repository, remote, local };
     };
 
     it('returns local first and schedules remote refresh in background for cache-first', async () => {
@@ -65,7 +51,7 @@ describe('ChatRepository cache policy', () => {
             list: [{ id: 'l1', channelId: 'ch-1', chatNo: 5, content: 'local' }],
             meta: { cursorNo: 0, limit: 30, readNo: 0, total: 1, source: 'local' },
         };
-        const { repository, remote, local, requestManager } = createRepository({ localResult });
+        const { repository, remote, local } = createRepository({ localResult });
 
         const result = await repository.fetchChat(payload, { cachePolicy: 'cache-first' });
 
@@ -76,7 +62,6 @@ describe('ChatRepository cache policy', () => {
         // 2. 백그라운드 동기화(runInBackground)가 실행되었는지 이벤트 루프 대기 후 확인
         await Promise.resolve();
         expect(remote.fetchChat).toHaveBeenCalledTimes(1);
-        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
     it('awaits and returns remote data when local cache is empty', async () => {
@@ -85,7 +70,7 @@ describe('ChatRepository cache policy', () => {
             list: [],
             meta: { cursorNo: 0, limit: 30, readNo: 0, total: 0, source: 'local' },
         };
-        const { repository, remote, local, requestManager } = createRepository({ localResult });
+        const { repository, remote, local } = createRepository({ localResult });
 
         const result = await repository.fetchChat(payload, { cachePolicy: 'cache-first' });
 
@@ -96,7 +81,6 @@ describe('ChatRepository cache policy', () => {
 
         // 2. 원격 조회가 백그라운드가 아닌 메인 흐름에서 await되어 실행되었는지 확인
         expect(remote.fetchChat).toHaveBeenCalledTimes(1);
-        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
     it('ignores local cache and directly fetches remote for network-only policy', async () => {
@@ -105,7 +89,7 @@ describe('ChatRepository cache policy', () => {
             list: [{ id: 'l1', content: 'local' }],
             meta: { source: 'local' },
         };
-        const { repository, remote, local, requestManager } = createRepository({ localResult });
+        const { repository, remote, local } = createRepository({ localResult });
 
         const result = await repository.fetchChat(payload, { cachePolicy: 'network-only' });
 
@@ -116,6 +100,5 @@ describe('ChatRepository cache policy', () => {
         expect(result.list[0]).toMatchObject({ id: 'r1', content: 'remote' });
         expect(result.meta.source).toBe('remote');
         expect(remote.fetchChat).toHaveBeenCalledTimes(1);
-        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 });

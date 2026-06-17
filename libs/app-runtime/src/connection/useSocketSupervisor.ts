@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { forceReconnect, isSocketRestarting, probeSocket, restartSocket, useWebSocketV2Store } from '@chatic/socket';
+import { forceReconnect, isSocketRestarting, probeSocket, restartSocket, useWebSocketV2Store } from '../socket';
 
 /**
  * Time the socket may stay unhealthy before the watchdog forces recovery. The

@@ -1,13 +1,17 @@
-import type { ChatUsersPayload, UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
+import type {
+    ChatUsersInput,
+    UserInviteInput,
+    UserUpdateProfileInput,
+    ChannelSyncUsersInput,
+    ChannelSyncSiteProfileInput,
+} from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap, ListResult } from '../events/types';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
-import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
-import type { IProfileLocalDataSource, IUserLocalDataSource } from '../local/data-sources';
+import type { IUserLocalDataSource } from '../local/data-sources';
 import { createDomainListResult, type DomainListResult, type DomainUser, toDomainUser } from '../domain';
 import type { UserView } from '@lemoncloud/chatic-socials-api';
 
@@ -17,16 +21,22 @@ import type { UserView } from '@lemoncloud/chatic-socials-api';
  */
 export interface IUserRepository extends ILocalCacheMutationRepository<DomainUser> {
     /** 특정 채널 또는 조건에 맞는 사용자 목록을 조회합니다. */
-    fetchUsers(payload: ChatUsersPayload, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainUser>>;
+    fetchUsers(payload: ChatUsersInput, options?: RepositoryRequestOptions): Promise<DomainListResult<DomainUser>>;
 
     /** 내 사용자 프로필 정보를 수정합니다. */
-    updateProfile(payload: UserUpdateProfilePayload, options?: RepositoryRequestOptions): Promise<DomainUser>;
+    updateProfile(payload: UserUpdateProfileInput, options?: RepositoryRequestOptions): Promise<DomainUser>;
 
     /** 외부 사용자 초대 코드를 생성합니다. */
-    requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView>;
+    requestInvite(payload: UserInviteInput, options?: RepositoryRequestOptions): Promise<MyInviteView>;
 
     /** 여러 사용자를 일괄 초대합니다. */
     requestInviteBatch(payload: MyUserInviteBody, options?: RepositoryRequestOptions): Promise<MyInviteView[]>;
+
+    /** 채널 사용자를 동기화합니다. */
+    syncChannelUsers(payload: ChannelSyncUsersInput, options?: RepositoryRequestOptions): Promise<unknown>;
+
+    /** 사이트 프로필 동기화를 수행합니다. */
+    syncSiteProfile(payload: ChannelSyncSiteProfileInput, options?: RepositoryRequestOptions): Promise<unknown>;
 
     /** 현재 스코프의 user 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -41,10 +51,7 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
     onUserDeleted(callback: (user: DomainUser) => void): () => void;
 
     /** 로컬 캐시 기준 사용자 목록을 스트림으로 구독합니다. */
-    subscribeList(
-        payload: ChatUsersPayload,
-        callback: (result: DomainListResult<DomainUser> | null) => void
-    ): () => void;
+    subscribeList(payload: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
 
     /** 로컬 캐시 기준 단일 사용자를 스트림으로 구독합니다. */
     subscribeItem(id: string, callback: (user: DomainUser | null) => void): () => void;
@@ -52,26 +59,20 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
 
 /**
  * UserRemoteDataSource를 감싸는 사용자 Repository 구현체입니다.
- * chat 도메인에 걸친 사용자 조회/초대 요청도 사용자 API로 묶어 노출합니다.
  */
-export class UserRepository extends BaseRepository implements IUserRepository, ISyncRepository {
+export class UserRepository extends BaseRepository implements IUserRepository {
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSource,
-        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
-        domainEventBus: IEventBus<DomainEventMap>,
-        private readonly profileLocalDataSource?: IProfileLocalDataSource
+        domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, contextProvider, domainEventBus);
+        super(contextProvider, domainEventBus);
         this.initializeInternalListeners();
-    }
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
-        throw new Error('Method not implemented.');
     }
 
     public async fetchUsers(
-        payload: ChatUsersPayload,
+        payload: ChatUsersInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainUser>> {
         return this.fetchWithCachePolicy<DomainListResult<DomainUser>>({
@@ -91,27 +92,40 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
     }
 
     public async updateProfile(
-        payload: UserUpdateProfilePayload,
+        payload: UserUpdateProfileInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainUser> {
-        const user = await this.requestRemote<UserView>(
-            ref => this.userRemoteDataSource.updateProfile(payload, ref),
-            options
-        );
+        const user = (await this.userRemoteDataSource.updateProfile(payload)) as UserView;
         const domainUser = toDomainUser(user, this.getDomainScope());
         await this.userLocalDataSource.upsert(domainUser, this.getRepositoryContext());
         return domainUser;
     }
 
-    public requestInvite(payload: UserInvitePayload, options?: RepositoryRequestOptions): Promise<MyInviteView> {
-        return this.requestRemote<MyInviteView>(ref => this.userRemoteDataSource.requestInvite(payload, ref), options);
+    public async requestInvite(payload: UserInviteInput, options?: RepositoryRequestOptions): Promise<MyInviteView> {
+        return (await this.userRemoteDataSource.requestInvite(payload)) as MyInviteView;
     }
 
-    public requestInviteBatch(payload: MyUserInviteBody, options?: RepositoryRequestOptions): Promise<MyInviteView[]> {
-        return this.requestRemote<MyInviteView[]>(
-            ref => this.userRemoteDataSource.requestInviteBatch(payload, ref),
-            options
-        );
+    public async requestInviteBatch(
+        payload: MyUserInviteBody,
+        options?: RepositoryRequestOptions
+    ): Promise<MyInviteView[]> {
+        const to = payload.alias ? [payload.alias] : payload.userId ? [payload.userId] : [];
+        const response = await this.userRemoteDataSource.inviteBatch({ to });
+        return response.list || [];
+    }
+
+    public async syncChannelUsers(
+        payload: ChannelSyncUsersInput,
+        options?: RepositoryRequestOptions
+    ): Promise<unknown> {
+        return this.userRemoteDataSource.syncChannelUsers(payload);
+    }
+
+    public async syncSiteProfile(
+        payload: ChannelSyncSiteProfileInput,
+        options?: RepositoryRequestOptions
+    ): Promise<unknown> {
+        return this.userRemoteDataSource.syncSiteProfile(payload);
     }
 
     public clearAll(): Promise<void> {
@@ -138,7 +152,7 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
 
     // --- 스트림 인터페이스 통합 ---
     public subscribeList(
-        payload: ChatUsersPayload,
+        payload: ChatUsersInput,
         callback: (result: DomainListResult<DomainUser> | null) => void
     ): () => void {
         return this.userLocalDataSource.subscribeList(payload, callback, this.getRepositoryContext());
@@ -176,17 +190,14 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
     }
 
     private async fetchFromRemoteAndCache(
-        payload: ChatUsersPayload,
+        payload: ChatUsersInput,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainUser>> {
         // 요청 시점의 context를 캡처 — await 중 cloud 전환이 발생해도 올바른 scope에 캐시 저장
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const remote = await this.requestRemote<ListResult<UserView>>(
-            ref => this.userRemoteDataSource.fetchUsers(payload, ref),
-            options
-        );
+        const remote = (await this.userRemoteDataSource.fetchUsers(payload)) as ListResult<UserView>;
         // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
         // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
         const domainList = (remote.list || []).map(item => ({
@@ -198,24 +209,6 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         const currentCid = this.getRepositoryContext().cid;
         if (currentCid === requestContext.cid) {
             await this.userLocalDataSource.upsertMany(domainList, requestContext);
-            // 응답의 nick/thumbnail을 place-profile 캐시로 미러링 — 백엔드가
-            // channel.sync-site-profile delta를 아직 채워주지 않아(ADR 0007), 이
-            // 응답이 타인 프로필 변경이 캐시에 도달하는 유일한 경로입니다.
-            // 정식 profile sync가 구현되면 이 미러링은 제거합니다.
-            const profilePatches = domainList
-                .filter(user => user.id && (user.nick !== undefined || user.thumbnail !== undefined))
-                .map(user => ({
-                    id: `${requestScope.sid ?? ''}@${user.id}`,
-                    cid: requestScope.cid,
-                    sid: requestScope.sid,
-                    uid: user.id,
-                    ...(user.nick !== undefined ? { nick: user.nick } : {}),
-                    ...(user.thumbnail !== undefined ? { thumbnail: user.thumbnail } : {}),
-                    updatedAt: Date.now(),
-                }));
-            if (profilePatches.length > 0) {
-                await this.profileLocalDataSource?.upsertMany(profilePatches, requestContext);
-            }
         }
 
         return createDomainListResult(domainList, {
@@ -260,15 +253,6 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
                 () => this.userLocalDataSource.remove(userId, this.getRepositoryContext()),
                 'user:delete'
             );
-        });
-
-        this.onDomainEvent('user:list', detail => {
-            const list = detail.data?.list || [];
-            if (list.length === 0) return;
-            this.runInBackground(() => {
-                const domainUsers = list.map((item: any) => toDomainUser(item, this.getDomainScope()));
-                return this.userLocalDataSource.upsertMany(domainUsers, this.getRepositoryContext());
-            }, 'user:list');
         });
     }
 }

@@ -20,7 +20,6 @@ export interface LocalCacheStorages {
     chat: CacheStorage<'chat'>;
     inviteCloud: CacheStorage<'invitecloud'>;
     join: CacheStorage<'join'>;
-    profile: CacheStorage<'profile'>;
     site: CacheStorage<'site'>;
     user: CacheStorage<'user'>;
 }
@@ -33,7 +32,6 @@ export const createCacheStorages = (
     chat: storageFactory('chat', contextProvider),
     inviteCloud: storageFactory('invitecloud', contextProvider),
     join: storageFactory('join', contextProvider),
-    profile: storageFactory('profile', contextProvider),
     site: storageFactory('site', contextProvider),
     user: storageFactory('user', contextProvider),
 });

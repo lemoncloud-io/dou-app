@@ -1,82 +1,102 @@
-import { authHandler, chatHandler, modelHandler, syncHandler, systemHandler, userHandler } from '../handlers';
-import type { IEventBus } from '../../../events/eventBus';
-import type { SocketEventMap } from '../../../events/types';
-import type { WSSEnvelope, WSSEventDomainType } from '@lemoncloud/chatic-sockets-api';
-import { logger } from '@chatic/bridges';
+import type { ISocketClient } from '../clients';
+import type { SocketMessage } from '@lemoncloud/chatic-sockets-lib';
+import type {
+    IChannelRemoteDataSource,
+    IChatRemoteDataSource,
+    IJoinRemoteDataSource,
+    IUserRemoteDataSource,
+    IAuthRemoteDataSource,
+    IDeviceRemoteDataSource,
+    ISocketsRemoteDataSource,
+} from '../../data-sources';
+
+/**
+ * ModelType에 정의된 모든 모델 타입입니다.
+ */
+type ModelType =
+    | 'user'
+    | 'auth'
+    | 'mock'
+    | 'test'
+    | 'callback'
+    | 'channel'
+    | 'chat'
+    | 'join'
+    | 'socket'
+    | 'connection'
+    | 'device';
 
 export interface ISocketDispatcher {
-    dispatch(envelope: WSSEnvelope): void;
+    destroy(): void;
 }
 
 export class SocketDispatcher implements ISocketDispatcher {
-    /**
-     * @param eventBus 핸들러들이 이벤트를 방출할 때 사용할 공통 이벤트 버스
-     */
-    constructor(private readonly eventBus: IEventBus<SocketEventMap>) {}
+    private unsubs: Array<() => void> = [];
 
-    /**
-     * 수신된 소켓 Envelope) 타입을 분석하여 적절한 핸들러 함수를 호출합니다.
-     * @param envelope 서버로부터 수신된 원시 소켓 데이터
-     */
-    dispatch(envelope: WSSEnvelope) {
-        if (!envelope || !envelope.type) {
-            logger.warn('SOCKET_DISPATCHER', '[Socket Dispatcher] Invalid envelope received');
-            return;
+    constructor(
+        private readonly socketClient: ISocketClient,
+        private readonly channelRemoteDataSource: IChannelRemoteDataSource,
+        private readonly chatRemoteDataSource: IChatRemoteDataSource,
+        private readonly joinRemoteDataSource: IJoinRemoteDataSource,
+        private readonly userRemoteDataSource: IUserRemoteDataSource,
+        private readonly authRemoteDataSource: IAuthRemoteDataSource,
+        private readonly deviceRemoteDataSource: IDeviceRemoteDataSource,
+        private readonly socketsRemoteDataSource: ISocketsRemoteDataSource
+    ) {
+        this.initialize();
+    }
+
+    private initialize() {
+        this.unsubs.push(this.socketClient.onType('model.create', msg => this.dispatchModelEvent('create', msg)));
+        this.unsubs.push(this.socketClient.onType('model.update', msg => this.dispatchModelEvent('update', msg)));
+        this.unsubs.push(this.socketClient.onType('model.delete', msg => this.dispatchModelEvent('delete', msg)));
+    }
+
+    private dispatchModelEvent(action: 'create' | 'update' | 'delete', msg: SocketMessage<any>) {
+        const data = msg.data;
+        if (!data) return;
+
+        const modelType = data.type as ModelType;
+        switch (modelType) {
+            case 'chat':
+                this.chatRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'channel':
+                this.channelRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'join':
+                this.joinRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'user':
+                this.userRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'auth':
+                this.authRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'device':
+                this.deviceRemoteDataSource.handleModelEvent(action, data);
+                break;
+            case 'socket':
+                this.socketsRemoteDataSource.handleSocketModelEvent(action, data);
+                break;
+            case 'connection':
+                this.socketsRemoteDataSource.handleConnectionModelEvent(action, data);
+                break;
+            case 'mock':
+            case 'test':
+            case 'callback':
+                console.warn(`[SocketDispatcher] unhandled model type: "${modelType}"`);
+                break;
+            default:
+                console.warn(`[SocketDispatcher] unknown model type: "${modelType}"`);
+                break;
         }
+    }
 
-        const domain: WSSEventDomainType = envelope.type;
-
-        if (domain) {
-            /**
-             * 도메인 타입에 따라 메시지 처리를 분기합니다.
-             * 각 핸들러는 데이터를 가공하여 최종적으로 이벤트 버스에 이벤트를 방출합니다.
-             */
-            switch (domain) {
-                case 'model': {
-                    modelHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'chat': {
-                    chatHandler(envelope, this.eventBus);
-                    break;
-                }
-                // channel.* server types are normally remapped to the `chat` domain
-                // via INBOUND_TYPE_MAP; a raw `channel` here is an UNMAPPED channel.*
-                // type. Route it to chatHandler (action-keyed, safe default) so a new
-                // server type isn't silently dropped — the class of bug that hid
-                // channel.sync-site-profile until its mapping was added.
-                case 'channel': {
-                    chatHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'auth': {
-                    authHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'sync': {
-                    syncHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'user': {
-                    userHandler(envelope, this.eventBus);
-                    break;
-                }
-                case 'system': {
-                    systemHandler(envelope, this.eventBus);
-                    break;
-                }
-                // device.* (read/save) responses are consumed in the socket layer
-                // (useWebSocketV2 sets isDeviceRegistered/connId); nothing downstream
-                // needs them. Swallow quietly so they don't log as "Unhandled domain".
-                case 'device': {
-                    break;
-                }
-                default: {
-                    logger.warn('SOCKET_DISPATCHER', `[Socket Dispatcher] Unhandled domain: ${domain}`);
-                }
-            }
-        } else {
-            logger.warn('SOCKET_DISPATCHER', `[Socket Dispatcher] No router found for domain: ${domain}`);
+    public destroy() {
+        for (const unsub of this.unsubs) {
+            unsub();
         }
+        this.unsubs = [];
     }
 }

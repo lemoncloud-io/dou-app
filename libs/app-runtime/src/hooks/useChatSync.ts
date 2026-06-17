@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
 
 import { useRepositories } from '../data';
 import { ChatSyncScheduler } from '../sync/ChatSyncScheduler';
 import { useChatSyncStore } from '../stores/useChatSyncStore';
+import { useWebSocketV2Store } from '../socket';
 
 interface SyncableChannel {
     id?: string;
@@ -32,7 +32,7 @@ export const useChatSync = (channels: SyncableChannel[]) => {
     // 스케줄러 인스턴스 생성
     useEffect(() => {
         logger.info('SYNC', `[ChatSync] hook init — creating scheduler`);
-        const scheduler = new ChatSyncScheduler(chatRepository, {
+        const scheduler = new ChatSyncScheduler(chatRepository as never, {
             onStateChange: (channelId, state) => setChannelState(channelId, state),
         });
         schedulerRef.current = scheduler;

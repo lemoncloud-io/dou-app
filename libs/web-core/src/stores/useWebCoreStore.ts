@@ -93,6 +93,8 @@ export interface WebCoreState {
     error: Error | null;
     profile: UserProfile$ | null;
     userName: string;
+    selectedCloudId: string;
+    selectedPlaceId: string | null;
 }
 
 export interface LogoutOptions {
@@ -107,6 +109,8 @@ export interface WebCoreStore extends WebCoreState {
     setProfile: (profile: UserProfile$) => void;
     updateProfile: (uid: string, user: Record<string, unknown>) => Promise<void>;
     registerLogoutCallback: (callback: () => void) => () => void;
+    setSelectedCloudId: (cloudId: string) => void;
+    setSelectedPlaceId: (placeId: string | null) => void;
 }
 
 /**
@@ -141,6 +145,9 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
         setDelegatorId(profile.uid);
     }
 
+    const selectedCloudId = cloudCore.getSelectedCloudId() || 'default';
+    const selectedPlaceId = cloudCore.getSelectedPlaceId();
+
     return {
         isInitialized: false,
         isAuthenticated: !!profile,
@@ -152,6 +159,8 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
         error: null,
         profile,
         userName: profile ? profile['$user']?.name || 'Unknown' : '',
+        selectedCloudId,
+        selectedPlaceId,
     };
 })();
 
@@ -224,7 +233,14 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         // isInvited는 유지 — 로그아웃 후 재로그인 시 초대 상태 복원에 필요
         localStorage.removeItem('chatic-device-token');
 
-        set({ isAuthenticated: false, profile: null, userName: '', isGuest: false });
+        set({
+            isAuthenticated: false,
+            profile: null,
+            userName: '',
+            isGuest: false,
+            selectedCloudId: 'default',
+            selectedPlaceId: null,
+        });
         try {
             localStorage.removeItem(PROFILE_CACHE_KEY);
         } catch {
@@ -319,5 +335,19 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         return () => {
             logoutCallbacks.delete(callback);
         };
+    },
+
+    setSelectedCloudId: (cloudId: string) => {
+        cloudCore.saveSelectedCloudId(cloudId);
+        set({ selectedCloudId: cloudId });
+    },
+
+    setSelectedPlaceId: (placeId: string | null) => {
+        if (placeId) {
+            cloudCore.saveSelectedSiteId(placeId);
+        } else {
+            cloudCore.clearSelectedPlace();
+        }
+        set({ selectedPlaceId: placeId });
     },
 }));
