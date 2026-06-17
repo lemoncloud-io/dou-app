@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-06-17] - root@0.36.0, @chatic/desktop-web@0.1.0
+
+### Features
+
+- (desktop-web) dock debug tools as a resizable side panel
+
+### Bug Fixes
+
+- (desktop) build dev installer via extends config (electron-builder 25.1.8)
+- (ci) bump versions from merged commits, not just squash messages
+- (desktop-web) resolve own place profile from cache by account uid
+- (ci) preserve generic provider when overriding desktop publish url
+
+### Chores
+
+- (desktop) add desktop:start:local to load the local web server
+
+### Other
+
+- build: add app-messages lib reference
+
 ## [2026-05-12] - root@0.35.2, @chatic/web@0.32.2
 
 ### Refactor
