@@ -9,7 +9,7 @@ import { cloudCore, reportError, toError, useWebCoreStore } from '@chatic/web-co
 import type { DomainSite } from '@chatic/data';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useCloudSession } from '@chatic/app-runtime';
 import { waitForVerified } from '../utils/waitForVerified';
 import { setPlaceAuthDone } from '../../features/home/components/PlaceList';
@@ -74,7 +74,7 @@ interface UseCloudSwitchFlowOptions {
 
 export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions) => {
     const { selectCloud, restoreInvitedCloud } = useCloudSession();
-    const { site: siteRepository, channel: channelRepository } = useRepositories();
+    const { site: siteRepository, channel: channelRepository } = useRuntimeRepositories();
     const setIsLoading = useLoaderStore(s => s.setIsLoading);
     const { t } = useTranslation();
     const { toast } = useToast();

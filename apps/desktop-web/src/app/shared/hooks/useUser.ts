@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 /**
  * Reactive single-user lookup for the profile card. `subscribeItem` emits the
@@ -11,7 +11,7 @@ import { useRepositories } from '@chatic/app-runtime';
  * hit; callers fall back to the identity they already hold (name/initial).
  */
 export const useUser = (userId: string | null): DomainUser | null => {
-    const { user: userRepository } = useRepositories();
+    const { user: userRepository } = useRuntimeRepositories();
     const [user, setUser] = useState<DomainUser | null>(null);
 
     useEffect(() => {

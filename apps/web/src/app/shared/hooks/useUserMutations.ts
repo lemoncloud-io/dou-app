@@ -4,7 +4,7 @@ import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-
 import type { UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 type UserMutationAction = 'update-profile' | 'invite' | 'invite-batch';
 
@@ -12,7 +12,7 @@ type UserMutationAction = 'update-profile' | 'invite' | 'invite-batch';
  * 사용자 정보 및 유저 관련 명령(초대 등)을 repository를 통해 서버에 전달하는 훅
  */
 export const useUserMutations = () => {
-    const { user: userRepository } = useRepositories();
+    const { user: userRepository } = useRuntimeRepositories();
     const profile = useDynamicProfile();
     const myUserId = profile?.uid;
 

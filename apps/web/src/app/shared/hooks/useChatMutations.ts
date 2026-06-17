@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
 import { useDynamicProfile } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainChat } from '@chatic/data';
 
 type ChatMutationAction = 'send' | 'read' | 'delete';
@@ -13,7 +13,7 @@ type ChatMutationAction = 'send' | 'read' | 'delete';
  * 메시지 전송, 읽음 처리 등 채팅 상태를 변경하고 작업 진행 상태를 관리하는 훅
  */
 export const useChatMutations = () => {
-    const { chat: chatRepository, join: joinRepository } = useRepositories();
+    const { chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
     const dynamicProfile = useDynamicProfile();
     const userId = dynamicProfile?.uid;
 

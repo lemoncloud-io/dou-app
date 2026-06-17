@@ -9,7 +9,7 @@ import type {
     ChatUpdateChannelPayload,
 } from '@lemoncloud/chatic-sockets-api';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
 
@@ -17,7 +17,7 @@ type MutationAction = 'leave' | 'delete' | 'start' | 'update' | 'invite';
  * 채널 관련 쓰기/수정 명령을 repository를 통해 서버에 전달하는 훅
  */
 export const useChannelMutations = () => {
-    const { channel: channelRepository, chat: chatRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository } = useRuntimeRepositories();
 
     const [pendingStates, setPendingStates] = useState<Record<MutationAction, boolean>>({
         leave: false,

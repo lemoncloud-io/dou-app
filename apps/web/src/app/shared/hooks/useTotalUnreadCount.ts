@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel, DomainListResult } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 export const useTotalUnreadCount = () => {
     const sid = useWebSocketV2Store(s => s.selectedPlaceId) || 'default';
-    const { channel: channelRepository } = useRepositories();
+    const { channel: channelRepository } = useRuntimeRepositories();
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
 

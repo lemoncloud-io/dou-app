@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -15,7 +15,7 @@ const nowLabel = (): string => new Date().toLocaleTimeString();
  * watch optimistic IndexedDB writes + event broadcasts. Ported from apps/web.
  */
 export const DebugChatPage = () => {
-    const { channel: channelRepository, chat: chatRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository } = useRuntimeRepositories();
 
     const [placeId] = useState(() => makeId('debug-place'));
 

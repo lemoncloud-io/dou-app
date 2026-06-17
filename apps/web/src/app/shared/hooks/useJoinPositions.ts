@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 interface JoinPosition {
     chatNo: number;
@@ -27,7 +27,7 @@ interface UseJoinPositionsReturn {
  * @param initialJoins useChannelMembers(detail:true) 응답의 UserView.$join 배열로 초기 위치 구성
  */
 export const useJoinPositions = (channelId: string | null, initialJoins: JoinView[]): UseJoinPositionsReturn => {
-    const { join: joinRepository } = useRepositories();
+    const { join: joinRepository } = useRuntimeRepositories();
     const positionsRef = useRef<Map<string, JoinPosition>>(new Map());
     const [version, setVersion] = useState(0);
     const [isReady, setIsReady] = useState(false);

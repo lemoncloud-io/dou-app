@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import type { DomainChat } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { useReadCursorStore } from '../stores';
 
@@ -13,7 +13,8 @@ const DEBOUNCE_MS = 500;
 // messages advance the read position.
 const maxChatNoOf = (messages: DomainChat[]): number =>
     messages.reduce(
-        (max, m) => (!m.isPending && m.chatNo && m.chatNo !== Number.MAX_SAFE_INTEGER && m.chatNo > max ? m.chatNo : max),
+        (max, m) =>
+            !m.isPending && m.chatNo && m.chatNo !== Number.MAX_SAFE_INTEGER && m.chatNo > max ? m.chatNo : max,
         0
     );
 
@@ -32,7 +33,7 @@ const isWindowActive = (): boolean =>
  * No UI; returns nothing.
  */
 export const useReadReceipts = (channelId: string | null, messages: DomainChat[]): void => {
-    const { join: joinRepository } = useRepositories();
+    const { join: joinRepository } = useRuntimeRepositories();
     const lastSentRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Keep the latest messages in a ref so the listener/flush effect does not have

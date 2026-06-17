@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { DomainJoin, DomainUser } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const MEMBER_LIMIT = 100;
 const REFETCH_DEBOUNCE_MS = 500;
@@ -26,7 +26,7 @@ export interface ChannelMember extends DomainUser {
  * on unmount/switch.
  */
 export const useChannelMembers = (channelId: string | null, ownerId?: string) => {
-    const { user: userRepository, join: joinRepository } = useRepositories();
+    const { user: userRepository, join: joinRepository } = useRuntimeRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const [rawMembers, setRawMembers] = useState<DomainUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
