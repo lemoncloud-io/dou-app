@@ -1,6 +1,6 @@
-import { getDynamicRelayBackend, getDynamicRelayWss } from '../transport';
+import { getDynamicRelayBackend, getDynamicRelayWss } from '../../transport';
 import { storage } from '@chatic/shared';
-import { notifySessionStateChanged } from '../session';
+import { notifySessionStateChanged } from '../utils';
 
 export const RELAY_SELECTED_SITE_KEY = 'chatic-relay-selected-site-id';
 
