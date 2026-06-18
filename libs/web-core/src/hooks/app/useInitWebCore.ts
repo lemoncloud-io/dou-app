@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { reportError } from '../api';
-import { initializeSession, markSessionInitialized } from '../session';
-import { useSessionAuth } from './session';
+
+import { reportError } from '../../api';
+import { markSessionInitialized } from '../../session/contextStore';
+import { initializeRelaySession } from '../../session';
+import { useSessionAuth } from '../session/readers/useSessionAuth';
 
 type InitState = 'idle' | 'initializing' | 'completed';
 
 const MAX_INIT_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
+/**
+ * Bootstraps relay session initialization once for the current app runtime.
+ */
 export const useInitWebCore = () => {
     const { isInitialized } = useSessionAuth();
     const [localInitState, setLocalInitState] = useState<InitState>('idle');
@@ -21,7 +26,7 @@ export const useInitWebCore = () => {
             logger.info('WEB_CORE', 'Starting initialization attempt', {
                 data: { retry: retryCountRef.current },
             });
-            await initializeSession();
+            await initializeRelaySession();
             logger.info('WEB_CORE', 'Initialization completed successfully');
             setLocalInitState('completed');
             retryCountRef.current = 0;
@@ -38,8 +43,6 @@ export const useInitWebCore = () => {
                     void runInitialization();
                 }, RETRY_DELAY_MS * retryCountRef.current);
             } else {
-                // All retries exhausted — force isInitialized so Router can render
-                // and user can interact (logout, retry, etc.)
                 logger.error('WEB_CORE', 'WebCore initialization failed after all retries, forcing app render');
                 markSessionInitialized();
                 setLocalInitState('completed');
