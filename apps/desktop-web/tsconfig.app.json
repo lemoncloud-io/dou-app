@@ -43,6 +43,9 @@
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/socket/tsconfig.lib.json"
         }
     ]
 }
