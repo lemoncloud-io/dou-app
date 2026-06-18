@@ -1,12 +1,8 @@
-import type { ISocketClient } from '@chatic/data';
-
-import { SocketClientAdapter } from './SocketClientAdapter';
 import { SocketManager } from './SocketManager';
 import type { ISocketManager } from './types';
 
 export interface SocketRuntime {
     manager: ISocketManager;
-    socketClient: ISocketClient;
 }
 
 let socketRuntimeSingleton: SocketRuntime | null = null;
@@ -16,11 +12,9 @@ let socketRuntimeSingleton: SocketRuntime | null = null;
  */
 export const createSocketRuntime = (): SocketRuntime => {
     const manager = new SocketManager();
-    const socketClient = new SocketClientAdapter(manager);
 
     return {
         manager,
-        socketClient,
     };
 };
 
@@ -39,11 +33,4 @@ export const getSocketRuntime = (): SocketRuntime => {
  */
 export const getSocketManager = (): ISocketManager => {
     return getSocketRuntime().manager;
-};
-
-/**
- * Returns the singleton socket client adapter, which implements the ISocketClient interface.
- */
-export const getSocketClientAdapter = (): ISocketClient => {
-    return getSocketRuntime().socketClient;
 };
