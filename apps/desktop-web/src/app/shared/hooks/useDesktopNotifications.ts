@@ -12,7 +12,18 @@ import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSe
 
 const CHANNEL_LIMIT = 100;
 
-const chatAuthorId = (chat: DomainChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
+// A chat's ownerId is the author's global uid (same space as profile.uid — see
+// ChatRepository's optimistic `ownerId: domainScope.uid` and the `ownerId === uid`
+// self-checks in ChannelRepository / channelUnread). Do NOT use owner$.id: that's a
+// place-scoped member id that collides across places and with profile.id, which
+// silently suppressed real messages whose author's member id matched mine.
+const chatAuthorUid = (chat: DomainChat): string | undefined => chat.ownerId;
+// Optimistic own messages carry a sentinel chatNo (Number.MAX_SAFE_INTEGER) so they
+// sort to the bottom (ChatRepository). They must NOT drive the notification baseline:
+// counting one pins `seen` to MAX, after which every real message reads as
+// top <= prev and the channel goes permanently silent (mirrors apps/web useChats).
+const isPersisted = (chat: DomainChat): boolean =>
+    typeof chat.chatNo === 'number' && chat.chatNo > 0 && chat.chatNo !== Number.MAX_SAFE_INTEGER;
 const maxChatNo = (list: DomainChat[]): number => list.reduce((max, c) => Math.max(max, c.chatNo ?? 0), 0);
 // The subscription list isn't guaranteed chronological, so the newest message is
 // the one with the highest chatNo — not the last array element.
@@ -46,7 +57,6 @@ export const useDesktopNotifications = (): void => {
     const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const { places } = usePlaces();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const myId = useWebCoreStore(s => s.profile?.id);
     const myUid = useWebCoreStore(s => s.profile?.uid);
 
     const seen = useRef<Map<string, number>>(new Map());
@@ -55,8 +65,6 @@ export const useDesktopNotifications = (): void => {
     const chatSubs = useRef<Map<string, () => void>>(new Map());
     // Read identity at notify time via refs so a changing profile object doesn't
     // re-run the effect (which would drop every live subscription).
-    const myIdRef = useRef(myId);
-    myIdRef.current = myId;
     const myUidRef = useRef(myUid);
     myUidRef.current = myUid;
 
@@ -68,9 +76,13 @@ export const useDesktopNotifications = (): void => {
         let active = true;
 
         const notifyFromList = (placeId: string, channel: DomainChannel, list: DomainChat[]) => {
-            if (list.length === 0) return;
+            // Drop optimistic own messages (sentinel chatNo) up front so they never
+            // touch the baseline — otherwise sending poisons `seen` and the channel
+            // goes silent (see isPersisted).
+            const persisted = list.filter(isPersisted);
+            if (persisted.length === 0) return;
 
-            const top = maxChatNo(list);
+            const top = maxChatNo(persisted);
             const prev = seen.current.get(channel.id);
             // Monotonic: a partial snapshot (resync, page-limited cache read) must not
             // regress the baseline, or the next full snapshot reads as "new" messages.
@@ -87,11 +99,12 @@ export const useDesktopNotifications = (): void => {
             // Don't notify for a channel you're actively viewing (you can see it).
             if (isViewing(channel.id)) return;
             // Don't re-notify a message already marked read (e.g. resync redelivery).
-            if (top <= (useReadCursorStore.getState().cursors[channel.id] ?? 0)) return;
+            const cursor = useReadCursorStore.getState().cursors[channel.id] ?? 0;
+            if (top <= cursor) return;
 
-            const latest = newestChat(list);
-            const authorId = chatAuthorId(latest);
-            if (authorId && (authorId === myIdRef.current || authorId === myUidRef.current)) return;
+            const latest = newestChat(persisted);
+            const authorUid = chatAuthorUid(latest);
+            if (authorUid && authorUid === myUidRef.current) return;
 
             // Mentions-only channels: drop anything that doesn't @-mention me
             // (global profile name + this place's nick, plus @channel/@here).
@@ -100,13 +113,18 @@ export const useDesktopNotifications = (): void => {
             }
 
             void webClient
-                .request('ShowNotification', {
-                    title: notificationTitle(channel, latest),
-                    body: stripMarkdown(latest.content ?? ''),
-                    channelId: channel.id,
-                    // Clicking the notification routes here (place + channel).
-                    deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
+                .request({
+                    type: 'ShowNotification',
+                    data: {
+                        title: notificationTitle(channel, latest),
+                        body: stripMarkdown(latest.content ?? ''),
+                        channelId: channel.id,
+                        // Clicking the notification routes here (place + channel).
+                        deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
+                    },
                 })
+                // Degrade gracefully on older shells (NATIVE_NOT_SUPPORTED) or transient
+                // bridge errors — a dropped OS banner must never break the renderer.
                 .catch(() => undefined);
         };
 
