@@ -1,69 +1,28 @@
+import { cloudCore } from '../core';
 import type {
-    ActiveRuntimeTarget,
-    CloudSessionContext,
+    ActiveServerContext,
+    CloudContext,
     CloudSessionSnapshot,
     GlobalSessionContext,
-    RelaySessionContext,
-    SessionIdentityContext,
+    IdentityContext,
+    RelayContext,
 } from './types';
-import { sessionProfileResolver } from './profiles';
+import { sessionContextStore } from './contextStore';
 
-export const getRelaySessionContext = (): RelaySessionContext => {
-    return sessionProfileResolver.getRelayProfile().toContext();
-};
+export const getRelaySessionContext = (): RelayContext => sessionContextStore.getRelayContext();
 
-export const getCloudSessionContext = (): CloudSessionContext => sessionProfileResolver.getCloudProfile().toContext();
+export const getCloudSessionContext = (): CloudContext => sessionContextStore.getCloudContext();
 
-export const getSessionIdentityContext = (): SessionIdentityContext => sessionProfileResolver.getIdentityContext();
+export const getIdentityContext = (): IdentityContext => sessionContextStore.getIdentityContext();
+export const getSessionIdentityContext = getIdentityContext;
 
-export const getCloudSessionSnapshot = (): CloudSessionSnapshot | null => {
-    const session = getCloudSessionContext();
-    if (!session.cloudId || !session.backend || !session.wss || !session.identityToken) {
-        return null;
-    }
+export const getCloudSessionSnapshot = (): CloudSessionSnapshot | null => sessionContextStore.getCloudSessionSnapshot();
 
-    return {
-        cloudId: session.cloudId,
-        siteId: session.siteId,
-        identityToken: session.identityToken,
-        backend: session.backend,
-        wss: session.wss,
-    };
-};
+export const getActiveServerContext = (): ActiveServerContext =>
+    sessionContextStore.getGlobalSessionContext().activeServer;
 
-const resolveActiveRuntimeTarget = (relay: RelaySessionContext, cloud: CloudSessionContext): ActiveRuntimeTarget => {
-    if (cloud.cloudId && cloud.backend && cloud.wss && cloud.identityToken) {
-        return {
-            kind: 'cloud',
-            cloudId: cloud.cloudId,
-            siteId: cloud.siteId,
-            backend: cloud.backend,
-            wss: cloud.wss,
-            identityToken: cloud.identityToken,
-        };
-    }
-
-    return {
-        kind: 'relay',
-        backend: relay.backend as string,
-        wss: relay.wss as string,
-        siteId: relay.siteId,
-        identityToken: relay.identityToken,
-    };
-};
-
-export const getGlobalSessionContext = (): GlobalSessionContext => {
-    const relay = getRelaySessionContext();
-    const cloud = getCloudSessionContext();
-    const identity = getSessionIdentityContext();
-    return {
-        relay,
-        cloud,
-        identity,
-        activeTarget: resolveActiveRuntimeTarget(relay, cloud),
-    };
-};
+export const getGlobalSessionContext = (): GlobalSessionContext => sessionContextStore.getGlobalSessionContext();
 
 export const clearCloudSession = (): void => {
-    sessionProfileResolver.getCloudProfile().clearSession();
+    cloudCore.clearSession();
 };

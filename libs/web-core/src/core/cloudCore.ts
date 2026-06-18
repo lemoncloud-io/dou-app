@@ -2,7 +2,9 @@ import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import { storage } from '@chatic/shared';
+import { notifySessionStateChanged } from '../session';
 
+export const CLOUD_IS_ACTIVE_KEY = 'chatic-cloud-is-active';
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
 export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
@@ -11,6 +13,8 @@ export const CLOUD_PLACE_ORDER_KEY_PREFIX = 'chatic-place-order-';
 export const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
 
 interface CloudCore {
+    getIsActive: () => boolean;
+    setIsActive: (isActive: boolean) => void;
     saveDelegationToken: (token: CloudDelegationTokenView) => void;
     getDelegationToken: () => CloudDelegationTokenView | null;
     saveCloudToken: (token: UserTokenView) => void;
@@ -34,8 +38,16 @@ interface CloudCore {
 }
 
 export const cloudCore: CloudCore = {
+    getIsActive: (): boolean => {
+        const raw = storage.get(CLOUD_IS_ACTIVE_KEY);
+        return raw ? (JSON.parse(raw) as boolean) : false;
+    },
+    setIsActive: (isActive: boolean) => {
+        storage.set(CLOUD_IS_ACTIVE_KEY, JSON.stringify(isActive));
+    },
     saveDelegationToken: (token: CloudDelegationTokenView): void => {
         storage.set(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
+        notifySessionStateChanged();
     },
 
     getDelegationToken: (): CloudDelegationTokenView | null => {
@@ -45,6 +57,7 @@ export const cloudCore: CloudCore = {
 
     saveCloudToken: (token: UserTokenView): void => {
         storage.set(CLOUD_TOKEN_KEY, JSON.stringify(token));
+        notifySessionStateChanged();
     },
 
     getCloudToken: (): UserTokenView | null => {
@@ -54,6 +67,7 @@ export const cloudCore: CloudCore = {
 
     saveSelectedCloudId: (cloudId: string): void => {
         storage.set(CLOUD_SELECTED_CLOUD_KEY, cloudId);
+        notifySessionStateChanged();
     },
 
     getSelectedCloudId: (): string | null => {
@@ -62,6 +76,7 @@ export const cloudCore: CloudCore = {
 
     saveSelectedSiteId: (siteId: string): void => {
         storage.set(CLOUD_SELECTED_PLACE_KEY, siteId);
+        notifySessionStateChanged();
     },
 
     getSelectedSiteId: (): string | null => {
@@ -70,6 +85,7 @@ export const cloudCore: CloudCore = {
 
     clearSelectedSite: (): void => {
         storage.remove(CLOUD_SELECTED_PLACE_KEY);
+        notifySessionStateChanged();
     },
 
     clearSelectedPlace: (): void => {
@@ -91,6 +107,7 @@ export const cloudCore: CloudCore = {
 
     clearPlaceOrder: (cloudId: string): void => {
         storage.remove(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
+        notifySessionStateChanged();
     },
 
     clearDelegationToken: (): void => {
@@ -98,6 +115,7 @@ export const cloudCore: CloudCore = {
         storage.remove(CLOUD_TOKEN_KEY);
         storage.remove(CLOUD_SELECTED_PLACE_KEY);
         storage.set(CLOUD_SELECTED_CLOUD_KEY, 'default');
+        notifySessionStateChanged();
     },
 
     clearSession: (): void => {
@@ -106,6 +124,7 @@ export const cloudCore: CloudCore = {
         storage.remove(CLOUD_SELECTED_CLOUD_KEY);
         storage.remove(CLOUD_SELECTED_PLACE_KEY);
         storage.remove(CLOUD_INVITED_BUNDLES_KEY);
+        notifySessionStateChanged();
     },
 
     getBackend: (): string | null => {

@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { fetchProfile, refreshAuthToken, reportError, tryFetchProfile } from '../api';
-import { useWebCoreStore } from '../stores';
 import type { ErrorClassification } from '../api/utils';
 import { classifyError, toError } from '../api/utils';
+import { setSessionProfile, useSessionAuth, useSessionIdentity, useSessionLogout } from '../session';
 
 type InitializationStatus = 'pending' | 'success' | 'failed';
 
@@ -20,7 +20,9 @@ const isInviteFlow = (): boolean => {
 };
 
 export const useTokenRefresh = (webCoreReady: boolean) => {
-    const { isAuthenticated, setProfile, logout } = useWebCoreStore();
+    const { isAuthenticated, profile: sessionProfile } = useSessionAuth();
+    const { isInvited } = useSessionIdentity();
+    const logout = useSessionLogout();
 
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const isRefreshingRef = useRef(false);
@@ -52,7 +54,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             if (errorClassification.shouldLogout) {
                 // Invite 세션에서는 auto-logout 방지 — cloud 토큰/상태 보존
                 // initStatus='failed' fallback으로 앱을 렌더하여 사용자가 수동 조치 가능
-                const { isInvited } = useWebCoreStore.getState();
                 if (isInvited) {
                     logger.warn(
                         'AUTH',
@@ -69,7 +70,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         } finally {
             isRefreshingRef.current = false;
         }
-    }, [logout]);
+    }, [isInvited]);
 
     const startInterval = useCallback(() => {
         if (intervalRef.current) {
@@ -104,7 +105,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
         logger.info('AUTH', '[tokenRefresh] Initializing: checking token validity');
         try {
-            const hasCachedProfile = !!useWebCoreStore.getState().profile;
+            const hasCachedProfile = !!sessionProfile;
 
             // 토큰 갱신과 프로필 조회를 병렬 시도
             // tryFetchProfile: 현재 토큰으로 낙관적 fetch (실패 시 null, alert/redirect 없음)
@@ -120,7 +121,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             // 1) 병렬 프로필 조회 성공 → 즉시 완료 (토큰 유효 시 ~50% 시간 절감)
             if (optimisticProfile) {
                 logger.info('AUTH', '[tokenRefresh] parallel init succeeded');
-                setProfile(optimisticProfile);
+                setSessionProfile(optimisticProfile);
                 isInitializedRef.current = true;
                 networkRetryRef.current = 0;
                 setInitStatus('success');
@@ -134,7 +135,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                 networkRetryRef.current = 0;
                 setInitStatus('success');
                 fetchProfile()
-                    .then(p => setProfile(p))
+                    .then(p => setSessionProfile(p))
                     .catch(e => logger.warn('AUTH', '[tokenRefresh] bg profile refresh failed', { error: e }));
                 return;
             }
@@ -142,7 +143,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             // 3) 캐시 없음 + 병렬 실패 → 갱신된 토큰으로 정규 fetchProfile (withRetry 포함)
             logger.info('AUTH', '[tokenRefresh] token refreshed, fetching profile');
             const profile = await fetchProfile();
-            setProfile(profile);
+            setSessionProfile(profile);
 
             isInitializedRef.current = true;
             networkRetryRef.current = 0;
@@ -159,7 +160,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                 if (refreshSuccess) {
                     try {
                         const profile = await fetchProfile();
-                        setProfile(profile);
+                        setSessionProfile(profile);
                         isInitializedRef.current = true;
                         setInitStatus('success');
                         logger.info('AUTH', 'Initialization succeeded after additional token refresh');
@@ -171,7 +172,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                             hasFailedRef.current = true;
                             setInitStatus('failed');
                             // Invite 세션에서는 auto-logout 방지
-                            const { isInvited } = useWebCoreStore.getState();
                             if (isInvited) {
                                 logger.warn('AUTH', 'Profile fetch failing in invite session, skipping auto-logout');
                                 return;
@@ -203,7 +203,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             setInitStatus('failed');
             logger.info('AUTH', 'Initialization failed after all network retries');
         }
-    }, [isAuthenticated, refreshToken, webCoreReady, setProfile, logout]);
+    }, [isAuthenticated, isInvited, logout, refreshToken, sessionProfile, webCoreReady]);
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {

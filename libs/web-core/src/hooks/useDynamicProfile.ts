@@ -1,14 +1,12 @@
 import { useMemo } from 'react';
 
 import { cloudCore } from '../core';
-import { useWebCoreStore } from '../stores/useWebCoreStore';
-import { useUserContext } from './useUserContext';
-import { UserType } from '../types/userContext';
+import { UserType, useSessionAuth, useUserContext } from '../session';
 
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export const useDynamicProfile = (): UserProfile$ | null => {
-    const profile = useWebCoreStore(s => s.profile);
+    const { profile } = useSessionAuth();
     const { userType } = useUserContext();
 
     const cloudToken = cloudCore.getCloudToken();

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { logger } from '@chatic/bridges';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
-import { useWebCoreStore } from '../../stores';
+import { useSessionAuth } from '../session';
 
 import {
     fetchClouds,
@@ -37,7 +37,7 @@ export type UseCloudsOptions = {
 };
 
 export const useClouds = (params: UseCloudsParams = {}, options?: UseCloudsOptions) => {
-    const { isAuthenticated } = useWebCoreStore();
+    const { isAuthenticated } = useSessionAuth();
     const { enabled: legacyEnabled, ...requestParams } = params;
     const enabled = options?.enabled ?? legacyEnabled ?? true;
 

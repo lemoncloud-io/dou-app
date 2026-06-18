@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { cloudCore, DOU_ENDPOINT, getDynamicDOUEndpoint, OAUTH_ENDPOINT } from '../core';
-import { webTransport } from '../transport';
-import { signAwsRequest } from './utils';
+import { cloudCore, DOU_ENDPOINT, getDynamicDOUEndpoint, OAUTH_ENDPOINT } from '../../core';
+import { webTransport } from '../../transport';
+import { signAwsRequest } from './func';
 
 import type { AxiosRequestConfig, AxiosResponse, Method } from 'axios';
 

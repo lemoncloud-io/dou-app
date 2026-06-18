@@ -1,6 +1,5 @@
 export * from './cloudCore';
 export * from './relayCore';
-export * from './invitedCloudState';
 export {
     WEB_DOU_ENDPOINT as DOU_ENDPOINT,
     WEB_ENV as ENV,

@@ -2,21 +2,19 @@ import { useCallback } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { fetchProfile } from '../api';
-import { useWebCoreStore } from '../stores';
+import { setSessionProfile } from '../session';
 
 export const useProfile = () => {
-    const { setProfile } = useWebCoreStore();
-
     const loadProfile = useCallback(async () => {
         try {
             const profile = await fetchProfile();
-            setProfile(profile);
+            setSessionProfile(profile);
             return profile;
         } catch (error) {
             logger.error('PROFILE', 'Profile fetch failed', { error });
             throw error;
         }
-    }, [setProfile]);
+    }, []);
 
     return { loadProfile };
 };
