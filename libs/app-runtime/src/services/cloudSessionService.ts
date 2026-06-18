@@ -8,6 +8,7 @@ type IssueCloudTokenResult = {
 };
 
 export type IssueCloudToken = (cloudId: string) => Promise<IssueCloudTokenResult>;
+export type RefreshCloudToken = (target?: string) => Promise<UserTokenView>;
 
 /**
  * Preserve the canonical profile identity when cloud tokens only provide a flat
@@ -60,7 +61,7 @@ export const selectCloudSession = async ({
         const { cloudDelegationToken, userToken } = await issueCloudToken(cloudId);
 
         cloudCore.saveDelegationToken(cloudDelegationToken);
-        const existingToken = previousCloudId === cloudId ? cloudCore.getCloudToken() : null;
+        const existingToken: UserTokenView | null = previousCloudId === cloudId ? cloudCore.getCloudToken() : null;
         cloudCore.saveCloudToken(existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken);
         cloudCore.saveSelectedCloudId(cloudId);
 
@@ -128,12 +129,18 @@ export const restoreInvitedCloudSession = async (cloudId: string): Promise<Cloud
     }
 };
 
-export const refreshCloudPlaceSession = async (placeId: string): Promise<CloudSessionSnapshot> => {
+export const refreshCloudPlaceSession = async ({
+    placeId,
+    refreshCloudToken,
+}: {
+    placeId: string;
+    refreshCloudToken: RefreshCloudToken;
+}): Promise<CloudSessionSnapshot> => {
     const cloudToken = cloudCore.getCloudToken();
     const uid = cloudToken?.id;
     if (!uid) throw new Error('No cloud token uid for place auth');
 
-    const refreshed = await cloudCore.refreshToken(`${uid}@${placeId}`);
+    const refreshed = await refreshCloudToken(`${uid}@${placeId}`);
     cloudCore.saveSelectedSiteId(placeId);
     useWebCoreStore.getState().setSelectedPlaceId(placeId);
 

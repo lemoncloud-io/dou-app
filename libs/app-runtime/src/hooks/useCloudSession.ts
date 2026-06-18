@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { useIssueCloudToken } from '@chatic/auth';
+import { useIssueCloudToken, useRefreshCloudToken } from '@chatic/auth';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useClouds } from '@chatic/users';
 import {
     clearCloudSession,
     getCloudSessionSnapshot,
+    refreshCloudPlaceSession,
     restoreInvitedCloudSession,
     selectCloudSession,
 } from '../services/cloudSessionService';
@@ -15,6 +16,7 @@ export { clearCloudSession };
 
 export const useCloudSession = () => {
     const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
+    const { mutateAsync: refreshCloudToken, isPending: isRefreshingCloudToken } = useRefreshCloudToken();
     const { isAuthenticated } = useWebCoreStore();
     const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
 
@@ -23,11 +25,14 @@ export const useCloudSession = () => {
 
     const selectCloud = async (cloudId: string) => selectCloudSession({ cloudId, issueCloudToken });
     const restoreInvitedCloud = async (cloudId: string) => restoreInvitedCloudSession(cloudId);
+    const refreshPlaceSession = async (placeId: string) => refreshCloudPlaceSession({ placeId, refreshCloudToken });
 
     return {
         selectCloud,
         restoreInvitedCloud,
+        refreshPlaceSession,
         isPending,
+        isRefreshingCloudToken,
         clouds,
         isCloudsError,
         isFetchingClouds: isFetching,

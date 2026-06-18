@@ -90,9 +90,11 @@ class SocketAuthCoordinator {
     }
 
     public async refreshCloudTokenIfNeeded({
+        refreshCloudToken,
         reason,
         wssType,
     }: {
+        refreshCloudToken: (target?: string) => Promise<unknown>;
         reason: string;
         wssType?: WssType;
     }): Promise<boolean> {
@@ -101,7 +103,7 @@ class SocketAuthCoordinator {
         }
         return this.enqueue(async () => {
             logger.info('AUTH', '[SocketAuthCoordinator] refresh cloud token', { data: { reason } });
-            await cloudCore.refreshToken();
+            await refreshCloudToken();
             return true;
         });
     }

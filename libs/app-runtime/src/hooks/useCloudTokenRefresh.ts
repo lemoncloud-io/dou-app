@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useRefreshCloudToken } from '@chatic/auth';
 import { logger } from '@chatic/bridges';
 import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -31,6 +32,7 @@ const isAuthError = (error: unknown): boolean => {
 
 export const useCloudTokenRefresh = () => {
     const { t } = useTranslation();
+    const { mutateAsync: refreshCloudToken } = useRefreshCloudToken();
     const { isAuthenticated, selectedCloudId } = useWebCoreStore();
     const { auth: authRepository } = useRuntimeRepositories();
     const isConnected = useSocketState(s => s.isConnected);
@@ -69,6 +71,7 @@ export const useCloudTokenRefresh = () => {
                 if (wssType === 'cloud') {
                     try {
                         await coordinator.refreshCloudTokenIfNeeded({
+                            refreshCloudToken,
                             reason: 'interval-refresh',
                             wssType,
                         });
@@ -161,6 +164,7 @@ export const useCloudTokenRefresh = () => {
         isAuthenticated,
         isConnected,
         isDeviceRegistered,
+        refreshCloudToken,
         setServiceUnavailable,
         t,
         toast,

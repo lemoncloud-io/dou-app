@@ -1,4 +1,5 @@
 import {
+    calcSignature,
     cloudCore,
     executeCloudRequest,
     executeRelayRequest,
@@ -85,14 +86,32 @@ export const issueCloudToken = async (baseURL: string, body: CloudExchangeTokenB
  * Refreshes the cloud access token against the currently selected cloud backend.
  * Used for explicit refresh flows and cloud session recovery.
  */
-export const refreshCloudToken = async (authId: string, body: OAuthRefreshBody): Promise<UserTokenView> => {
+export const refreshCloudToken = async (target?: string): Promise<UserTokenView> => {
+    const token = cloudCore.getCloudToken();
+    if (!token?.Token) throw new Error('No cloud token found');
+
+    const { authId, accountId, identityId, identityToken } = token.Token;
+    if (!authId || !accountId || !identityId || !identityToken) {
+        throw new Error('Missing token fields for refresh');
+    }
+
+    const current = new Date().toISOString();
+    const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
+    const body: OAuthRefreshBody = { current, signature, ...(target && { target }) };
+
     const backend = cloudCore.getBackend();
-    return executeCloudRequest<UserTokenView, OAuthRefreshBody>({
+    const refreshed = await executeCloudRequest<UserTokenView, OAuthRefreshBody>({
         method: 'POST',
-        baseURL: `${backend}/oauth/${authId}/refresh-token`,
+        baseURL: `${backend}/oauth/${authId}/refresh`,
         params: { token: 1 },
-        body: { ...body },
+        body,
     });
+
+    // Preserve client-only fields the backend does not echo back, such as thumbnails.
+    const existing = cloudCore.getCloudToken();
+    const merged = { ...existing, ...refreshed } as UserTokenView;
+    cloudCore.saveCloudToken(merged);
+    return merged;
 };
 
 /**
