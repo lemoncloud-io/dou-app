@@ -15,7 +15,7 @@ import {
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useOnboardingStore, useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useLogout } from '@chatic/auth';
+import { useLogout } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';

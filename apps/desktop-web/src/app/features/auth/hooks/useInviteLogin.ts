@@ -5,8 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { CloudDelegationTokenView, MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { useRegisterDevice } from '@chatic/auth';
-import { cloudsKeys } from '@chatic/users';
+import { cloudsKeys, useRegisterDevice } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useDynamicDeviceId } from '@chatic/app-runtime';
 import {

@@ -17,7 +17,7 @@ import {
     useUserContext,
     useWebCoreStore,
 } from '@chatic/web-core';
-import { useLogout } from '@chatic/auth';
+import { useLogout } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { useTotalUnreadCount } from '../../../shared/hooks/useTotalUnreadCount';

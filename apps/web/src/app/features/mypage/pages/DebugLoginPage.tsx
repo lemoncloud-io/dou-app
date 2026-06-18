@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { login } from '@chatic/auth';
+import { login } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore, cloudCore, useWebCoreStore } from '@chatic/web-core';
 

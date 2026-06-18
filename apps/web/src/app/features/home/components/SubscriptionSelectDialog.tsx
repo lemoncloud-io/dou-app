@@ -7,7 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { isNative, webClient } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
-import { useProductPlans } from '@chatic/subscriptions';
+import { useProductPlans } from '@chatic/web-core';
 
 import { EmailVerifyDialog } from './EmailVerifyDialog';
 import { useSubscriptionIap } from '../../mypage/hooks/useSubscriptionIap';

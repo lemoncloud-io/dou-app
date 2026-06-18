@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { webClient } from '@chatic/bridges';
 import { useOnFetchFcmToken } from './useHandleAppMessage';
 import { useWebCoreStore } from '@chatic/web-core';
-import { useRegisterDeviceToken } from '@chatic/users';
+import { useRegisterDeviceToken } from '@chatic/web-core';
 
 import { useDynamicDeviceId } from '@chatic/app-runtime';
 

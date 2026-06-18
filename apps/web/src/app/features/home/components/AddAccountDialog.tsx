@@ -9,9 +9,14 @@ import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudsKeys, fetchClouds, useVerifyEmail } from '@chatic/users';
-import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
-import { useUserContext, UserType } from '@chatic/web-core';
+import {
+    cloudsKeys,
+    fetchClouds,
+    useIsSubscriptionAvailable,
+    useUserContext,
+    UserType,
+    useVerifyEmail,
+} from '@chatic/web-core';
 
 import { VerificationCodeInput } from '../../account/components/VerificationCodeInput';
 import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account/constants';
@@ -134,7 +139,7 @@ export const AddAccountDialog = ({ open, onOpenChange }: AddAccountDialogProps) 
         if (isCodeComplete && loadingState === 'idle' && timeLeft > 0) {
             handleVerifyCode();
         }
-    }, [isCodeComplete]);  
+    }, [isCodeComplete]);
 
     const handleVerifyCode = async () => {
         setLoadingState('verifying');

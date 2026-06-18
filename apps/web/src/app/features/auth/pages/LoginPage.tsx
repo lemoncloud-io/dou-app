@@ -28,7 +28,7 @@ import type {
     UserTokenView,
 } from '@lemoncloud/chatic-backend-api';
 
-import { useRegisterDevice } from '@chatic/auth';
+import { useRegisterDevice } from '@chatic/web-core';
 import { useDynamicDeviceId } from '@chatic/app-runtime';
 import { useInviteMutations } from '../../../shared/hooks/useInviteMutations';
 import { markInvitePlaceSyncPending, markNameSetupPending } from '../../../shared/hooks/usePlaces';

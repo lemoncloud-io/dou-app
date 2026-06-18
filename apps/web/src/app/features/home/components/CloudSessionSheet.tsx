@@ -11,8 +11,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-ki
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useIsSubscriptionAvailable } from '@chatic/subscriptions';
-import { cloudsKeys } from '@chatic/users';
+import { cloudsKeys, useIsSubscriptionAvailable } from '@chatic/web-core';
 
 import { useCloudSession } from '@chatic/app-runtime';
 import { useCloudSwitchFlow } from '../../../shared/hooks/useCloudSwitchFlow';

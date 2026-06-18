@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useDynamicProfile } from '@chatic/web-core';
-import { useLogout } from '@chatic/auth';
+import { useLogout } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';

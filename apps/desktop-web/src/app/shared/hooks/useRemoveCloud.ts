@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { cloudCore } from '@chatic/web-core';
 import { useCloudSession } from '@chatic/app-runtime';
-import { useDeleteCloud } from '@chatic/subscriptions';
+import { useDeleteCloud } from '@chatic/web-core';
 
 import { useJoinedCloudsStore } from '../stores';
 

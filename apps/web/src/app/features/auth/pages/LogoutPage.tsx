@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { LoadingFallback } from '@chatic/shared';
-import { useLogout } from '@chatic/auth';
+import { useLogout } from '@chatic/web-core';
 import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
 
 export const LogoutPage = () => {

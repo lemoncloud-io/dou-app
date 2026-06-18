@@ -5,8 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useClouds, cloudsKeys } from '@chatic/users';
-import { useMembershipInfo, useDeleteCloud } from '@chatic/subscriptions';
+import { cloudsKeys, useClouds, useDeleteCloud, useMembershipInfo } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore } from '@chatic/web-core';
 

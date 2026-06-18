@@ -8,7 +8,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative, logger, webClient } from '@chatic/bridges';
 import { reportError, toError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useMembershipInfo } from '@chatic/subscriptions';
+import { useMembershipInfo } from '@chatic/web-core';
 
 import { useSubscriptionIap } from '../hooks';
 
