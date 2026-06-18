@@ -7,14 +7,8 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useRepositories } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
-import { isMentioned, stripMarkdown } from '../utils';
-import {
-    channelNotifyMode,
-    useNotificationPrefsStore,
-    useReadCursorStore,
-    useSelectedChannelStore,
-    useSiteProfilesStore,
-} from '../stores';
+import { isDndActive, isMentioned, resolveMyMentionNames, stripMarkdown } from '../utils';
+import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
 const CHANNEL_LIMIT = 100;
 
@@ -86,6 +80,8 @@ export const useDesktopNotifications = (): void => {
             if (prev === undefined || top <= prev) return;
             // Respect the user's notification preferences (global off / channel mode).
             const prefs = useNotificationPrefsStore.getState();
+            // Global do-not-disturb (snooze / quiet hours) silences every banner.
+            if (isDndActive(prefs)) return;
             const notifyMode = channelNotifyMode(prefs, channel.id);
             if (!prefs.desktopEnabled || notifyMode === 'none') return;
             // Don't notify for a channel you're actively viewing (you can see it).
@@ -100,13 +96,7 @@ export const useDesktopNotifications = (): void => {
             // Mentions-only channels: drop anything that doesn't @-mention me
             // (global profile name + this place's nick, plus @channel/@here).
             if (notifyMode === 'mention') {
-                const placeProfiles = useSiteProfilesStore.getState().profiles;
-                const myNames = [
-                    useWebCoreStore.getState().profile?.$user?.name,
-                    myUidRef.current ? placeProfiles[myUidRef.current]?.nick : undefined,
-                    myIdRef.current ? placeProfiles[myIdRef.current]?.nick : undefined,
-                ];
-                if (!isMentioned(latest.content ?? '', myNames)) return;
+                if (!isMentioned(latest.content ?? '', resolveMyMentionNames())) return;
             }
 
             void webClient

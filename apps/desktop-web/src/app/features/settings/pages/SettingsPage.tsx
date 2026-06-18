@@ -26,6 +26,11 @@ export const SettingsPage = () => {
     const { theme, setTheme } = useTheme();
     const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
     const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
+    const quietHours = useNotificationPrefsStore(s => s.quietHours);
+    const setQuietHours = useNotificationPrefsStore(s => s.setQuietHours);
+
+    const quietEnabled = quietHours != null;
+    const toggleQuiet = (on: boolean) => setQuietHours(on ? (quietHours ?? { start: '22:00', end: '07:00' }) : null);
 
     return (
         <div className="flex h-screen flex-col bg-background">
@@ -106,6 +111,42 @@ export const SettingsPage = () => {
                             onCheckedChange={setDesktopEnabled}
                             aria-label={t('settings.desktopNotifications')}
                         />
+                    </div>
+
+                    <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                                <span className="text-sm font-medium text-foreground">{t('settings.quietHours')}</span>
+                                <span className="text-xs text-muted-foreground">{t('settings.quietHoursHint')}</span>
+                            </div>
+                            <Switch
+                                checked={quietEnabled}
+                                onCheckedChange={toggleQuiet}
+                                aria-label={t('settings.quietHours')}
+                            />
+                        </div>
+                        {quietHours && (
+                            <div className="flex items-center gap-3">
+                                <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                                    {t('settings.quietHoursStart')}
+                                    <input
+                                        type="time"
+                                        value={quietHours.start}
+                                        onChange={e => setQuietHours({ start: e.target.value, end: quietHours.end })}
+                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                    />
+                                </label>
+                                <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                                    {t('settings.quietHoursEnd')}
+                                    <input
+                                        type="time"
+                                        value={quietHours.end}
+                                        onChange={e => setQuietHours({ start: quietHours.start, end: e.target.value })}
+                                        className="focus-ring rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                    />
+                                </label>
+                            </div>
+                        )}
                     </div>
                 </section>
 

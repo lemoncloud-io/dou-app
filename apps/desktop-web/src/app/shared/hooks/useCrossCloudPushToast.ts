@@ -4,7 +4,8 @@ import { webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useSelectedChannelStore } from '../stores';
+import { isDndActive } from '../utils';
+import { useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
 
 interface PushNotification {
     title?: string;
@@ -34,6 +35,8 @@ export const useCrossCloudPushToast = (): void => {
             if (!title && !body) return;
             // Background is already covered by the OS banner; avoid a duplicate.
             if (typeof document !== 'undefined' && !document.hasFocus()) return;
+            // Global do-not-disturb (snooze / quiet hours) silences in-app toasts too.
+            if (isDndActive(useNotificationPrefsStore.getState())) return;
 
             const data = notification?.data ?? {};
             const myUid = useWebCoreStore.getState().profile?.uid;

@@ -18,6 +18,7 @@ import {
     useDesktopBadge,
     useDesktopNotifications,
     useDeviceTokenRegistration,
+    useMentionCapture,
     usePlaceUnreadCounts,
     useRetainLeavingCloudBadge,
     useUnreadStore,
@@ -32,6 +33,8 @@ const DesktopNotifications = () => {
     useCrossCloudPushToast();
     // Cross-cloud push: mark the source cloud's rail tile until it's visited.
     useCrossCloudPushBadge();
+    // Capture @me messages across all channels into the device-local Activity inbox.
+    useMentionCapture();
     return null;
 };
 
