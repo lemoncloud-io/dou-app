@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useRefreshCloudToken } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
-import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore } from '@chatic/web-core';
+import { reportError, sessionProfileResolver, toError, useServiceStatusStore, useWebCoreStore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { getSocketAuthCoordinator, useRuntimeRepositories } from '../runtime';
 import { useSocketState } from '../socket';
@@ -38,7 +38,10 @@ export const useCloudTokenRefresh = () => {
     const isConnected = useSocketState(s => s.isConnected);
     const { setServiceUnavailable } = useServiceStatusStore();
     const { toast } = useToast();
-    const wssType = selectedCloudId !== 'default' && cloudCore.getDelegationToken() ? 'cloud' : 'relay';
+    const wssType =
+        selectedCloudId !== 'default' && sessionProfileResolver.getCloudProfile().getDelegationToken()
+            ? 'cloud'
+            : 'relay';
     const isDeviceRegistered = useSocketState(s => s.isDeviceRegistered);
     const refreshingRef = useRef(false);
     const coordinator = getSocketAuthCoordinator();
@@ -71,7 +74,7 @@ export const useCloudTokenRefresh = () => {
                 if (wssType === 'cloud') {
                     try {
                         await coordinator.refreshCloudTokenIfNeeded({
-                            refreshCloudToken,
+                            refreshCloudToken: target => refreshCloudToken({ target }),
                             reason: 'interval-refresh',
                             wssType,
                         });
@@ -84,14 +87,15 @@ export const useCloudTokenRefresh = () => {
                             return;
                         }
                         if (isAuthError(error)) {
+                            const cloudProfile = sessionProfileResolver.getCloudProfile();
                             logger.warn(
                                 'AUTH',
                                 '[CloudTokenRefresh] Cloud token expired, falling back to default cloud'
                             );
-                            cloudCore.clearDelegationToken();
-                            cloudCore.clearSelectedPlace();
+                            cloudProfile.clearDelegationToken();
+                            cloudProfile.clearSelectedSite();
                             useWebCoreStore.getState().setSelectedCloudId('default');
-                            useWebCoreStore.getState().setSelectedPlaceId(null);
+                            useWebCoreStore.getState().setSelectedSiteId(null);
                             toast({ title: t('cloudSessionSheet.cloudSessionExpired'), variant: 'destructive' });
                             return;
                         }

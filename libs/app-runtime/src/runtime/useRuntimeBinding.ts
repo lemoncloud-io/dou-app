@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import type { DataContext } from '@chatic/data';
-import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
+import { getGlobalSessionContext, useUserContext, useWebCoreStore } from '@chatic/web-core';
 
 import type { SocketBindingConfig, SocketScope } from '../socket';
 import { useDynamicDeviceId } from '../hooks';
@@ -17,12 +17,15 @@ export interface RuntimeBinding {
 export const useRuntimeBinding = (): RuntimeBinding => {
     const { deviceId } = useDynamicDeviceId();
     const { currentWSS, endpoints } = useUserContext();
-    const { selectedCloudId, selectedPlaceId, profile } = useWebCoreStore();
+    const { selectedCloudId, selectedSiteId, profile } = useWebCoreStore();
 
     return useMemo(() => {
+        const { activeTarget } = getGlobalSessionContext();
         const cid =
-            currentWSS === 'cloud' ? (selectedCloudId ?? cloudCore.getSelectedCloudId() ?? 'default') : 'default';
-        const sid = selectedPlaceId || undefined;
+            currentWSS === 'cloud'
+                ? selectedCloudId || (activeTarget.kind === 'cloud' ? activeTarget.cloudId : 'default')
+                : 'default';
+        const sid = selectedSiteId || (activeTarget.kind === 'cloud' ? activeTarget.siteId : null) || undefined;
         const uid = (profile?.uid as string | undefined) ?? undefined;
         const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
 
@@ -44,5 +47,5 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                       }
                     : null,
         };
-    }, [currentWSS, deviceId, endpoints.cloudWSS, endpoints.relayWSS, profile?.uid, selectedCloudId, selectedPlaceId]);
+    }, [currentWSS, deviceId, endpoints.cloudWSS, endpoints.relayWSS, profile?.uid, selectedCloudId, selectedSiteId]);
 };

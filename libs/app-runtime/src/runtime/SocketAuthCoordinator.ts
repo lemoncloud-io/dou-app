@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { cloudCore, webCore } from '@chatic/web-core';
+import { sessionProfileResolver, webTransport } from '@chatic/web-core';
 import type { DataRepositories } from '@chatic/data';
 import { getSocketManager } from '../socket/runtime';
 import { useCloudTransitionStore } from '../stores/useCloudTransitionStore';
@@ -110,9 +110,9 @@ class SocketAuthCoordinator {
 
     private async resolveToken(wssType: WssType): Promise<string | null> {
         if (wssType === 'cloud') {
-            return cloudCore.getIdentityToken();
+            return sessionProfileResolver.getCloudProfile().getIdentityToken();
         }
-        return (await webCore.getTokenSignature()).originToken?.identityToken ?? null;
+        return (await webTransport.getTokenSignature()).originToken?.identityToken ?? null;
     }
 
     private enqueue<T>(task: () => Promise<T>): Promise<T> {

@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { logger } from '@chatic/bridges';
-import { useWebCoreStore, webCore } from '@chatic/web-core';
+import { useWebCoreStore, webTransport } from '@chatic/web-core';
 
 // import { useWebSocket } from './useWebSocket';
 import { useWebSocketWorker } from './useWebSocketWorker';
@@ -61,7 +61,7 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
 
     const tokenProvider = useCallback(async (): Promise<string | null> => {
         try {
-            const tokenData = await webCore.getTokenSignature();
+            const tokenData = await webTransport.getTokenSignature();
             return tokenData?.originToken?.identityToken || null;
         } catch (error) {
             logger.error('SOCKET', '[WebSocket] Failed to get token', { error });
