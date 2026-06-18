@@ -109,7 +109,6 @@ export interface CloudContext extends BaseServerContext {
 export interface IdentityContext {
     isInitialized: boolean;
     isAuthenticated: boolean;
-    isOnMobileApp: boolean;
     error: Error | null;
     relayProfile: UserProfile$ | null;
     cloudProfile: UserProfile$ | null;
