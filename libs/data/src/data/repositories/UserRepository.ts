@@ -198,24 +198,11 @@ export class UserRepository extends BaseRepository implements IUserRepository, I
         const currentCid = this.getRepositoryContext().cid;
         if (currentCid === requestContext.cid) {
             await this.userLocalDataSource.upsertMany(domainList, requestContext);
-            // 응답의 nick/thumbnail을 place-profile 캐시로 미러링 — 백엔드가
-            // channel.sync-site-profile delta를 아직 채워주지 않아(ADR 0007), 이
-            // 응답이 타인 프로필 변경이 캐시에 도달하는 유일한 경로입니다.
-            // 정식 profile sync가 구현되면 이 미러링은 제거합니다.
-            const profilePatches = domainList
-                .filter(user => user.id && (user.nick !== undefined || user.thumbnail !== undefined))
-                .map(user => ({
-                    id: `${requestScope.sid ?? ''}@${user.id}`,
-                    cid: requestScope.cid,
-                    sid: requestScope.sid,
-                    uid: user.id,
-                    ...(user.nick !== undefined ? { nick: user.nick } : {}),
-                    ...(user.thumbnail !== undefined ? { thumbnail: user.thumbnail } : {}),
-                    updatedAt: Date.now(),
-                }));
-            if (profilePatches.length > 0) {
-                await this.profileLocalDataSource?.upsertMany(profilePatches, requestContext);
-            }
+            // NOTE: 이전에는 user 응답의 global nick/thumbnail을 place-profile 캐시로
+            // 미러링했으나, 백엔드가 channel.sync-site-profile delta를 채워주므로
+            // (ADR 0007) 더 이상 필요 없다. 미러링은 place nick을 global nick으로
+            // 덮어써 "프로필이 로컬에서만 바뀌고 새로고침 시 되돌아가는" 버그를
+            // 유발했다. place profile은 ProfileRepository.syncProfiles만이 채운다.
         }
 
         return createDomainListResult(domainList, {
