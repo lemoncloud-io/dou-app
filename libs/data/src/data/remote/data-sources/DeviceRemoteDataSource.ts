@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets';
+import type { DeviceGateway } from '@lemoncloud/chatic-sockets-lib';
 import type { DeviceReadInput, DeviceSaveInput, DeviceSyncInput, DeviceView } from '@lemoncloud/chatic-sockets-api';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
@@ -14,19 +14,20 @@ export interface IDeviceRemoteDataSource {
 export class DeviceRemoteDataSource implements IDeviceRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: DeviceGateway
     ) {}
 
     public async saveDevice(payload: DeviceSaveInput): Promise<DeviceView> {
-        return this.client.request('device.save', payload) as Promise<DeviceView>;
+        return this.gateway.save(payload);
     }
 
     public async readDevice(payload: DeviceReadInput): Promise<DeviceView> {
-        return this.client.request('device.read', payload) as Promise<DeviceView>;
+        return this.gateway.read(payload);
     }
 
     public async syncDevice(payload: DeviceSyncInput): Promise<unknown> {
-        return this.client.request('device.sync', payload);
+        this.gateway.sync(payload);
+        return null;
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

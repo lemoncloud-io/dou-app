@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets/clients/clients';
+import type { ChatGateway } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 
@@ -16,15 +16,15 @@ export interface IChatRemoteDataSource {
 export class ChatRemoteDataSource implements IChatRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: ChatGateway
     ) {}
 
     public async sendChat(payload: ChatSendInput): Promise<ChatView> {
-        return this.client.request('chat.send', payload) as Promise<ChatView>;
+        return this.gateway.send(payload);
     }
 
     public async fetchChat(payload: ChatFeedInput): Promise<ChatFeedResult> {
-        return this.client.request('chat.feed', payload) as Promise<ChatFeedResult>;
+        return this.gateway.feed(payload);
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

@@ -1,27 +1,26 @@
 import { AuthRemoteDataSource } from './AuthRemoteDataSource';
-import { MockSocketClient } from '../sockets/__mocks__/MockSocketClient';
+import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
 import type { AuthUpdateInput } from '@lemoncloud/chatic-sockets-api';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-
 describe('AuthRemoteDataSource', () => {
-    let mockClient: MockSocketClient;
+    let mockGateways: MockRemoteGatewayBundle;
     let mockEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
     let dataSource: AuthRemoteDataSource;
 
     beforeEach(() => {
-        mockClient = new MockSocketClient();
+        mockGateways = createMockRemoteGateways();
         mockEventBus = { emit: jest.fn(), on: jest.fn(), off: jest.fn() } as any;
-        dataSource = new AuthRemoteDataSource(mockEventBus, mockClient);
+        dataSource = new AuthRemoteDataSource(mockEventBus, mockGateways.auth);
     });
 
     it('updateSocketAuth 호출 시 auth.update 액션으로 request가 전송되어야 한다', async () => {
         const payload: AuthUpdateInput = { token: 'new-token' } as any;
-        mockClient.request.mockResolvedValue({ status: 'ok' });
+        mockGateways.auth.update.mockResolvedValue({ status: 'ok' } as any);
 
         const result = await dataSource.updateSocketAuth(payload);
 
-        expect(mockClient.request).toHaveBeenCalledWith('auth.update', payload);
+        expect(mockGateways.auth.update).toHaveBeenCalledWith(payload);
         expect(result).toEqual({ status: 'ok' });
     });
 

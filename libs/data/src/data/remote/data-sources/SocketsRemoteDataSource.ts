@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets';
+import type { SocketsGateway } from '../gateways';
 import type { SocketsFindConnectionInput } from '@lemoncloud/chatic-sockets-api';
 import type { ConnectionModel } from '@lemoncloud/chatic-sockets-api/dist/modules/sockets/model';
 import type { IEventBus } from '../../events/eventBus';
@@ -15,11 +15,11 @@ export interface ISocketsRemoteDataSource {
 export class SocketsRemoteDataSource implements ISocketsRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: SocketsGateway
     ) {}
 
     public async findConnection(payload: SocketsFindConnectionInput): Promise<ConnectionModel> {
-        return (await this.client.request('sockets.find-connection', payload)) as Promise<ConnectionModel>;
+        return this.gateway.request('find-connection', payload);
     }
 
     public handleSocketModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

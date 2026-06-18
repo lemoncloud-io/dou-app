@@ -1,47 +1,45 @@
 import { DeviceRemoteDataSource } from './DeviceRemoteDataSource';
-import { MockSocketClient } from '../sockets/__mocks__/MockSocketClient';
+import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
 import type { DeviceSaveInput, DeviceReadInput, DeviceSyncInput } from '@lemoncloud/chatic-sockets-api';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-
 describe('DeviceRemoteDataSource', () => {
-    let mockClient: MockSocketClient;
+    let mockGateways: MockRemoteGatewayBundle;
     let mockEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
     let dataSource: DeviceRemoteDataSource;
 
     beforeEach(() => {
-        mockClient = new MockSocketClient();
+        mockGateways = createMockRemoteGateways();
         mockEventBus = { emit: jest.fn(), on: jest.fn(), off: jest.fn() } as any;
-        dataSource = new DeviceRemoteDataSource(mockEventBus, mockClient);
+        dataSource = new DeviceRemoteDataSource(mockEventBus, mockGateways.device);
     });
 
     it('saveDevice 호출 시 device.save 액션으로 request가 전송되어야 한다', async () => {
         const payload: DeviceSaveInput = { name: 'iPhone 15' };
-        mockClient.request.mockResolvedValue({ id: 'dev-1', name: 'iPhone 15' });
+        mockGateways.device.save.mockResolvedValue({ id: 'dev-1', name: 'iPhone 15' } as any);
 
         const result = await dataSource.saveDevice(payload);
 
-        expect(mockClient.request).toHaveBeenCalledWith('device.save', payload);
+        expect(mockGateways.device.save).toHaveBeenCalledWith(payload);
         expect(result).toEqual({ id: 'dev-1', name: 'iPhone 15' });
     });
 
     it('readDevice 호출 시 device.read 액션으로 request가 전송되어야 한다', async () => {
         const payload: DeviceReadInput = { id: 'dev-1' };
-        mockClient.request.mockResolvedValue({ id: 'dev-1', name: 'iPhone 15' });
+        mockGateways.device.read.mockResolvedValue({ id: 'dev-1', name: 'iPhone 15' } as any);
 
         const result = await dataSource.readDevice(payload);
 
-        expect(mockClient.request).toHaveBeenCalledWith('device.read', payload);
+        expect(mockGateways.device.read).toHaveBeenCalledWith(payload);
         expect(result).toEqual({ id: 'dev-1', name: 'iPhone 15' });
     });
 
     it('syncDevice 호출 시 device.sync 액션으로 request가 전송되어야 한다', async () => {
         const payload: DeviceSyncInput = { tick: 456 };
-        mockClient.request.mockResolvedValue(null);
 
         const result = await dataSource.syncDevice(payload);
 
-        expect(mockClient.request).toHaveBeenCalledWith('device.sync', payload);
+        expect(mockGateways.device.sync).toHaveBeenCalledWith(payload);
         expect(result).toBeNull();
     });
 

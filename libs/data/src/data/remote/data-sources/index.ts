@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets/clients/clients';
+import type { RemoteGatewayBundle } from '../gateways';
 import type { IAuthRemoteDataSource } from './AuthRemoteDataSource';
 import { AuthRemoteDataSource } from './AuthRemoteDataSource';
 import type { IChannelRemoteDataSource } from './ChannelRemoteDataSource';
@@ -51,19 +51,19 @@ export interface RemoteDataSources {
  */
 export const createRemoteDataSources = ({
     domainEventBus,
-    socketClient,
+    gateways,
 }: {
     domainEventBus: IEventBus<DomainEventMap>;
-    socketClient: ISocketClient;
+    gateways: RemoteGatewayBundle;
 }): RemoteDataSources => ({
-    auth: new AuthRemoteDataSource(domainEventBus, socketClient),
-    channel: new ChannelRemoteDataSource(domainEventBus, socketClient),
-    chat: new ChatRemoteDataSource(domainEventBus, socketClient),
-    join: new JoinRemoteDataSource(domainEventBus, socketClient),
-    site: new SiteRemoteDataSource(domainEventBus, socketClient),
-    user: new UserRemoteDataSource(domainEventBus, socketClient),
-    device: new DeviceRemoteDataSource(domainEventBus, socketClient),
-    sockets: new SocketsRemoteDataSource(domainEventBus, socketClient),
-    cloud: new CloudRemoteDataSource(socketClient),
-    profile: new ProfileRemoteDataSource(socketClient),
+    auth: new AuthRemoteDataSource(domainEventBus, gateways.auth),
+    channel: new ChannelRemoteDataSource(domainEventBus, gateways.channel),
+    chat: new ChatRemoteDataSource(domainEventBus, gateways.chat),
+    join: new JoinRemoteDataSource(domainEventBus, gateways.join),
+    site: new SiteRemoteDataSource(domainEventBus, gateways.site),
+    user: new UserRemoteDataSource(domainEventBus, gateways.user),
+    device: new DeviceRemoteDataSource(domainEventBus, gateways.device),
+    sockets: new SocketsRemoteDataSource(domainEventBus, gateways.sockets),
+    cloud: new CloudRemoteDataSource(gateways.cloud),
+    profile: new ProfileRemoteDataSource(gateways.profile),
 });

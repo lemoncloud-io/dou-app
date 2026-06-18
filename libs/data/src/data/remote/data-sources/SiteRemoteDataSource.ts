@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets';
+import type { SiteGateway } from '../gateways';
 import type { UserMakeSiteInput, UserMySiteInput, UserUpdateSiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
@@ -19,19 +19,19 @@ export interface ISiteRemoteDataSource {
 export class SiteRemoteDataSource implements ISiteRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: SiteGateway
     ) {}
 
     public async fetchSite(payload?: UserMySiteInput): Promise<ListResult<MySiteView>> {
-        return (await this.client.request('user.my-site', payload ?? {})) as Promise<ListResult<MySiteView>>;
+        return this.gateway.mySite(payload ?? null);
     }
 
     public async createSite(payload: UserMakeSiteInput): Promise<MySiteView> {
-        return (await this.client.request('user.make-site', payload)) as Promise<MySiteView>;
+        return this.gateway.makeSite(payload);
     }
 
     public async updateSite(payload: UserUpdateSiteInput): Promise<MySiteView> {
-        return (await this.client.request('user.update-site', payload)) as Promise<MySiteView>;
+        return this.gateway.updateSite(payload);
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
