@@ -2,15 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { fetchProfile, refreshAuthToken, reportError, tryFetchProfile } from '../api';
-import type { ErrorClassification } from '../api/utils';
-import { classifyError, toError } from '../api/utils';
-import { setSessionProfile, useSessionAuth, useSessionIdentity, useSessionLogout } from '../session';
+import { reportError } from '../../api';
+import type { ErrorClassification } from '../../transport/error';
+import { classifyError, toError } from '../../transport/error';
+import { loadRelayProfile, refreshRelaySession, tryLoadRelayProfile } from '../../session';
+import { useSessionLogout } from '../session';
+import { useSessionAuth } from '../session/readers/useSessionAuth';
+import { useSessionIdentity } from '../session/readers/useSessionIdentity';
 
 type InitializationStatus = 'pending' | 'success' | 'failed';
 
-const REFRESH_INTERVAL = 1000 * 60; // 1분
-const MIN_REFRESH_GAP = 5000; // 5초 간격 제한
+const REFRESH_INTERVAL = 1000 * 60;
+const MIN_REFRESH_GAP = 5000;
 const MAX_NETWORK_RETRIES = 3;
 const NETWORK_RETRY_BASE_MS = 2000;
 
@@ -19,9 +22,12 @@ const isInviteFlow = (): boolean => {
     return params.get('provider') === 'invite';
 };
 
+/**
+ * Maintains relay token validity for an initialized app runtime and recovers profile state when possible.
+ */
 export const useTokenRefresh = (webCoreReady: boolean) => {
-    const { isAuthenticated, profile: sessionProfile } = useSessionAuth();
-    const { isInvited } = useSessionIdentity();
+    const { isAuthenticated } = useSessionAuth();
+    const { relayProfile, isInvited } = useSessionIdentity();
     const logout = useSessionLogout();
 
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -31,7 +37,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     const hasFailedRef = useRef(false);
     const networkRetryRef = useRef(0);
     const [initStatus, setInitStatus] = useState<InitializationStatus>('pending');
-    // Capture invite flow state at mount time to avoid stale URL reads during interval refresh
     const wasInviteFlowRef = useRef(isInviteFlow());
 
     const refreshToken = useCallback(async (): Promise<boolean> => {
@@ -45,15 +50,13 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         lastRefreshTime.current = now;
 
         try {
-            await refreshAuthToken();
+            await refreshRelaySession({ syncProfile: false });
             return true;
         } catch (error) {
             logger.error('AUTH', 'Token refresh failed', { error });
             reportError(toError(error));
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
-                // Invite 세션에서는 auto-logout 방지 — cloud 토큰/상태 보존
-                // initStatus='failed' fallback으로 앱을 렌더하여 사용자가 수동 조치 가능
                 if (isInvited) {
                     logger.warn(
                         'AUTH',
@@ -70,7 +73,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         } finally {
             isRefreshingRef.current = false;
         }
-    }, [isInvited]);
+    }, [isInvited, logout]);
 
     const startInterval = useCallback(() => {
         if (intervalRef.current) {
@@ -90,7 +93,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     }, []);
 
     const initialize = useCallback(async () => {
-        // Prevent re-initialization if already initialized or failed
         if (!isAuthenticated || !webCoreReady || isInitializedRef.current || hasFailedRef.current) {
             logger.info('AUTH', '[tokenRefresh] initialize skipped', {
                 data: {
@@ -105,11 +107,8 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
         logger.info('AUTH', '[tokenRefresh] Initializing: checking token validity');
         try {
-            const hasCachedProfile = !!sessionProfile;
-
-            // 토큰 갱신과 프로필 조회를 병렬 시도
-            // tryFetchProfile: 현재 토큰으로 낙관적 fetch (실패 시 null, alert/redirect 없음)
-            const [refreshSuccess, optimisticProfile] = await Promise.all([refreshToken(), tryFetchProfile()]);
+            const hasCachedProfile = !!relayProfile;
+            const [refreshSuccess, optimisticProfile] = await Promise.all([refreshToken(), tryLoadRelayProfile()]);
 
             if (!refreshSuccess) {
                 logger.warn('AUTH', '[tokenRefresh] token refresh failed, marking as failed');
@@ -118,32 +117,27 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                 return;
             }
 
-            // 1) 병렬 프로필 조회 성공 → 즉시 완료 (토큰 유효 시 ~50% 시간 절감)
             if (optimisticProfile) {
                 logger.info('AUTH', '[tokenRefresh] parallel init succeeded');
-                setSessionProfile(optimisticProfile);
                 isInitializedRef.current = true;
                 networkRetryRef.current = 0;
                 setInitStatus('success');
                 return;
             }
 
-            // 2) 캐시된 프로필 존재 → 토큰만 갱신하고 즉시 완료, 프로필은 백그라운드 갱신
             if (hasCachedProfile) {
                 logger.info('AUTH', '[tokenRefresh] using cached profile, background refresh');
                 isInitializedRef.current = true;
                 networkRetryRef.current = 0;
                 setInitStatus('success');
-                fetchProfile()
-                    .then(p => setSessionProfile(p))
-                    .catch(e => logger.warn('AUTH', '[tokenRefresh] bg profile refresh failed', { error: e }));
+                loadRelayProfile().catch(e =>
+                    logger.warn('AUTH', '[tokenRefresh] bg profile refresh failed', { error: e })
+                );
                 return;
             }
 
-            // 3) 캐시 없음 + 병렬 실패 → 갱신된 토큰으로 정규 fetchProfile (withRetry 포함)
             logger.info('AUTH', '[tokenRefresh] token refreshed, fetching profile');
-            const profile = await fetchProfile();
-            setSessionProfile(profile);
+            await loadRelayProfile();
 
             isInitializedRef.current = true;
             networkRetryRef.current = 0;
@@ -159,8 +153,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                 const refreshSuccess = await refreshToken();
                 if (refreshSuccess) {
                     try {
-                        const profile = await fetchProfile();
-                        setSessionProfile(profile);
+                        await loadRelayProfile();
                         isInitializedRef.current = true;
                         setInitStatus('success');
                         logger.info('AUTH', 'Initialization succeeded after additional token refresh');
@@ -171,7 +164,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                         if (retryErrorClassification.shouldLogout) {
                             hasFailedRef.current = true;
                             setInitStatus('failed');
-                            // Invite 세션에서는 auto-logout 방지
                             if (isInvited) {
                                 logger.warn('AUTH', 'Profile fetch failing in invite session, skipping auto-logout');
                                 return;
@@ -184,7 +176,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
                 }
             }
 
-            // For non-auth errors (network, server), retry with backoff before giving up
             if (networkRetryRef.current < MAX_NETWORK_RETRIES) {
                 networkRetryRef.current++;
                 const delay = NETWORK_RETRY_BASE_MS * networkRetryRef.current;
@@ -203,7 +194,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             setInitStatus('failed');
             logger.info('AUTH', 'Initialization failed after all network retries');
         }
-    }, [isAuthenticated, isInvited, logout, refreshToken, sessionProfile, webCoreReady]);
+    }, [isAuthenticated, isInvited, logout, refreshToken, relayProfile, webCoreReady]);
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {
@@ -223,7 +214,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         return stopInterval;
     }, [isAuthenticated, initialize, startInterval, stopInterval, webCoreReady]);
 
-    // Retry initialization on foreground if it previously failed due to network
     useEffect(() => {
         if (initStatus !== 'failed' || !isAuthenticated || !webCoreReady) return;
 
@@ -244,8 +234,6 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         return () => document.removeEventListener('visibilitychange', handleVisibility);
     }, [initStatus, isAuthenticated, webCoreReady, initialize, startInterval]);
 
-    // isInitialized should be true only when initialization succeeded
-    // or when initialization failed (to prevent infinite loading)
     const isInitialized = initStatus === 'success' || initStatus === 'failed';
 
     return {

@@ -16,6 +16,9 @@ export const setServiceUnavailable = (value: boolean): void => {
     emit();
 };
 
+/**
+ * Subscribes to the app-level service availability flag.
+ */
 export const useServiceUnavailable = (): boolean => {
     return useSyncExternalStore(
         listener => {
