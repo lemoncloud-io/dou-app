@@ -1,1 +1,0 @@
-export { PointerCanvas } from './PointerCanvas';
