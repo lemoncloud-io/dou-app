@@ -1,4 +1,5 @@
-import { cloudCore } from '../core';
+import { cloudCore } from './core';
+import { clearSessionCloudProfile } from './contextStore';
 import type {
     ActiveServerContext,
     CloudContext,
@@ -25,4 +26,5 @@ export const getGlobalSessionContext = (): GlobalSessionContext => sessionContex
 
 export const clearCloudSession = (): void => {
     cloudCore.clearSession();
+    clearSessionCloudProfile();
 };
