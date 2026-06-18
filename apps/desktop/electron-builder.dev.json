@@ -13,5 +13,11 @@
     },
     "win": {
         "icon": "build/icon-dev.png"
-    }
+    },
+    "publish": [
+        {
+            "provider": "generic",
+            "url": "https://desktop.dou-dev.chatic.io/updates"
+        }
+    ]
 }

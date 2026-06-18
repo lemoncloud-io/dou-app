@@ -27,11 +27,5 @@
     },
     "win": {
         "target": ["nsis"]
-    },
-    "publish": [
-        {
-            "provider": "generic",
-            "url": "https://desktop.dou.chatic.io/updates"
-        }
-    ]
+    }
 }

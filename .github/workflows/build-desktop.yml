@@ -145,15 +145,13 @@ jobs:
                   BASE=$(node -p "require('./apps/desktop/package.json').version.split('.').slice(0,2).join('.')")
                   VERSION="${BASE}.${{ github.run_number }}"
                   echo "desktop build version: $VERSION"
-                  # electron-updater generic feed baked into app-update.yml per env.
-                  FEED_URL="https://desktop.dou-dev.chatic.io/updates"
-                  [ "${{ env.BUILD_ENV }}" = "prod" ] && FEED_URL="https://desktop.dou.chatic.io/updates"
+                  # The generic update feed (provider + per-env URL) is baked into the build config
+                  # itself — prod in apps/desktop/package.json `build`, dev in electron-builder.dev.json
+                  # — so it is NOT overridden on the CLI. electron-builder 25.1.8 can't patch a config
+                  # array via `-c.publish.0.*` (it yields publish:{"0":{}}, failing schema validation).
                   # --publish never: generate latest*.yml locally and upload to S3 ourselves (next
                   # step) — the generic provider isn't auto-publishable by electron-builder.
-                  # Re-set provider too: a `-c.publish.0.url` override replaces array element 0
-                  # wholesale (electron-builder doesn't deep-merge indexed config), which would
-                  # drop the package.json `provider: generic` and fail schema validation.
-                  EXTRA="-c.extraMetadata.version=$VERSION -c.publish.0.provider=generic -c.publish.0.url=$FEED_URL --publish never"
+                  EXTRA="-c.extraMetadata.version=$VERSION --publish never"
                   if [ "${{ matrix.platform }}" = "mac" ] && [ "${{ env.BUILD_ENV }}" = "prod" ] \
                      && security find-identity -v -p codesigning | grep -q "Developer ID Application" \
                      && [ -n "$APPLE_API_KEY_B64" ]; then
