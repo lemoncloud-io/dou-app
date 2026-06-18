@@ -153,7 +153,6 @@ export const initializeRelaySession = async (): Promise<void> => {
     setSessionIdentityState({
         isInitialized: true,
         isAuthenticated,
-        isOnMobileApp: isNative(),
     });
 };
 
