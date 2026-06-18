@@ -26,7 +26,7 @@
 주요 코드 기준:
 
 - `libs/web-core/src/session`
-- `libs/web-core/src/core/cloudCore.ts`
-- `libs/web-core/src/core/relayCore.ts`
-- `libs/web-core/src/core/identityCore.ts`
-- `libs/web-core/src/hooks/session.ts`
+- `libs/web-core/src/session/core/cloudCore.ts`
+- `libs/web-core/src/session/core/relayCore.ts`
+- `libs/web-core/src/session/core/identityCore.ts`
+- `libs/web-core/src/hooks`

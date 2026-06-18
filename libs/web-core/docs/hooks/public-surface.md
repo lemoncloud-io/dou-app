@@ -20,6 +20,12 @@
 - `useSessionAuth()`
 - `useSessionIdentity()`
 - `useSessionSelection()`
+- `useCloudSessionCatalog()`
+- `useRefreshRelaySession()`
+- `useLogoutCloudSession()`
+- `useRefreshCloudSiteSession()`
+- `useRestoreInvitedCloudSession()`
+- `useSwitchCloudSession()`
 - 도메인별 query/mutation hook
 
 ### Session Context
@@ -57,6 +63,8 @@ flowchart LR
 - hook은 요청을 service로 전달합니다
 - hook은 결과 상태를 session context 구독으로 읽습니다
 - hook이 `transport`나 `...Core`를 직접 다루면 안 됩니다
+- session reader hook은 `session context getter`만 사용합니다
+- session action hook은 `session/services`만 사용합니다
 
 ## 권장 Export 정책
 

@@ -43,7 +43,6 @@ getGlobalSessionContext(): GlobalSessionContext
 - `useGlobalSession()`
 - `useSessionAuth()`
 - `useSessionIdentity()`
-- `useSessionSelection()`
 
 연계 hook:
 
@@ -75,6 +74,12 @@ getGlobalSessionContext(): GlobalSessionContext
 - `logoutCloudSession()`
 - `restorePreviousCloudSession()`
 - `persistDeviceId()`
+
+현재 구현 메모:
+
+- 위 서비스들은 `libs/web-core/src/session/services.ts`에 정의되어 있습니다.
+- `refreshRelaySession()`은 현재 relay auth refresh와 profile 재동기화까지 구현되어 있습니다.
+- `refreshRelaySession(target = uid@sid)`는 relay auth refresh와 relay selected site 전환을 함께 수행합니다.
 
 소켓 모듈 연계:
 
