@@ -10,7 +10,7 @@ export const setStorageAdapter = (adapter: StorageAdapter): void => {
     _adapter = adapter;
 };
 
-export const coreStorage = {
+export const storage = {
     get: (key: string): string | null => _adapter.getItem(key),
     set: (key: string, value: string): void => _adapter.setItem(key, value),
     remove: (key: string): void => _adapter.removeItem(key),
