@@ -1,40 +1,37 @@
 import { useEffect, useRef } from 'react';
-import { cloudCore, useClouds, useIssueCloudToken, useRefreshCloudToken, useWebCoreStore } from '@chatic/web-core';
 import {
     clearCloudSession,
+    cloudCore,
     getCloudSessionSnapshot,
-    refreshCloudPlaceSession,
-    restoreInvitedCloudSession,
-    selectCloudSession,
-} from '../services/cloudSessionService';
+    useCloudSessionCatalog,
+    useRefreshCloudSiteSession,
+    useRestoreInvitedCloudSession,
+    useSwitchCloudSession,
+    useWebCoreStore,
+} from '@chatic/web-core';
+import { type CloudSessionSnapshot } from '../services/cloudSessionService';
 import { useCloudTransitionStore } from '../stores/useCloudTransitionStore';
 
 export const getCloudSession = getCloudSessionSnapshot;
 export { clearCloudSession };
 
 export const useCloudSession = () => {
-    const { mutateAsync: issueCloudToken, isPending } = useIssueCloudToken();
-    const { mutateAsync: refreshCloudToken, isPending: isRefreshingCloudToken } = useRefreshCloudToken();
-    const { isAuthenticated } = useWebCoreStore();
-    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
-
-    const clouds = data?.list ?? [];
-    const isCloudsError = !isFetching && isFetchError;
-
-    const selectCloud = async (cloudId: string) => selectCloudSession({ cloudId, issueCloudToken });
-    const restoreInvitedCloud = async (cloudId: string) => restoreInvitedCloudSession(cloudId);
-    const refreshPlaceSession = async (placeId: string) => refreshCloudPlaceSession({ placeId, refreshCloudToken });
+    const { switchCloud: selectCloud, isPending } = useSwitchCloudSession();
+    const { restoreInvitedCloud } = useRestoreInvitedCloudSession();
+    const { refreshSiteSession, isRefreshingCloudToken } = useRefreshCloudSiteSession();
+    const { clouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSessionCatalog();
 
     return {
         selectCloud,
         restoreInvitedCloud,
-        refreshPlaceSession,
+        refreshSiteSession,
+        refreshPlaceSession: (siteId: string): Promise<CloudSessionSnapshot> => refreshSiteSession(siteId),
         isPending,
         isRefreshingCloudToken,
         clouds,
         isCloudsError,
-        isFetchingClouds: isFetching,
-        refetchClouds: refetch,
+        isFetchingClouds,
+        refetchClouds,
     };
 };
 
