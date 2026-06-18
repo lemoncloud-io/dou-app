@@ -15,14 +15,14 @@ import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type { Params } from '@lemoncloud/lemon-web-core';
 
-export const DOU_ENDPOINT = getCoreEndpoint();
+const CORE_ENDPOINT = getCoreEndpoint();
 
 export const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value);
 
 export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> => {
     return executeSignedRelayRequest<ListResult<UserView>, never, Params>({
         method: 'GET',
-        baseURL: `${DOU_ENDPOINT}/hello/user/list`,
+        baseURL: `${CORE_ENDPOINT}/hello/user/list`,
         params: { ...params },
     });
 };
@@ -30,7 +30,7 @@ export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> 
 export const fetchClouds = async (params: Params = {}): Promise<ListResult<CloudView>> => {
     return executeSignedRelayRequest<ListResult<CloudView>, never, Params & { view: 'mine' }>({
         method: 'GET',
-        baseURL: `${DOU_ENDPOINT}/clouds/0/list`,
+        baseURL: `${CORE_ENDPOINT}/clouds/0/list`,
         params: { ...params, view: 'mine' },
     });
 };
@@ -38,7 +38,7 @@ export const fetchClouds = async (params: Params = {}): Promise<ListResult<Cloud
 export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
     return executeSignedRelayRequest<CloudView, CloudBody>({
         method: 'PUT',
-        baseURL: `${DOU_ENDPOINT}/clouds/${cloudId}`,
+        baseURL: `${CORE_ENDPOINT}/clouds/${cloudId}`,
         body,
     });
 };
@@ -50,7 +50,7 @@ export const issueCloudDelegationToken = async (target: string): Promise<CloudDe
 
     return executeSignedRelayRequest<CloudDelegationTokenView, { target: string }, { legacy: false }>({
         method: 'POST',
-        baseURL: `${DOU_ENDPOINT}/users/0/delegate-cloud`,
+        baseURL: `${CORE_ENDPOINT}/users/0/delegate-cloud`,
         body: { target },
         params: { legacy: false },
     });
@@ -62,7 +62,7 @@ export const registerDeviceToken = async (
 ): Promise<RegisterDeviceResult> => {
     return executeSignedRelayRequest<RegisterDeviceResult, RegisterDeviceTokenBody, { force?: string }>({
         method: 'POST',
-        baseURL: `${DOU_ENDPOINT}/users/0/reg-dev`,
+        baseURL: `${CORE_ENDPOINT}/users/0/reg-dev`,
         params: opts?.force ? { force: 'true' } : undefined,
         body,
     });
@@ -71,7 +71,7 @@ export const registerDeviceToken = async (
 export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise<UserTokenView> => {
     return executeSignedRelayRequest<UserTokenView, VerifyNativeTokenBody, { token: 1 }>({
         method: 'POST',
-        baseURL: `${DOU_ENDPOINT}/users/0/verify-native-token`,
+        baseURL: `${CORE_ENDPOINT}/users/0/verify-native-token`,
         params: { token: 1 },
         body,
     });
@@ -83,7 +83,7 @@ export const verifyEmail = async (
 ): Promise<CloudVerifyEmailView> => {
     return executeSignedRelayRequest<CloudVerifyEmailView, CloudVerifyEmailBody, { dryRun?: boolean }>({
         method: 'POST',
-        baseURL: `${DOU_ENDPOINT}/clouds/0/verify-email`,
+        baseURL: `${CORE_ENDPOINT}/clouds/0/verify-email`,
         params: { ...params },
         body,
     });

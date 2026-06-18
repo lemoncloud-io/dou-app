@@ -1,5 +1,5 @@
-import { useWebCoreStore } from '../stores/useWebCoreStore';
+import { useSessionIdentity } from '../session';
 
 export const useDelegatorId = (): string | null => {
-    return useWebCoreStore(s => s.delegatorId);
+    return useSessionIdentity().delegatorId;
 };

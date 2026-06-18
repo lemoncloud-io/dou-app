@@ -4,8 +4,8 @@ import { logger } from '@chatic/bridges';
 
 import { fetchProfile, refreshAuthToken, reportError, tryFetchProfile } from '../api';
 import { useWebCoreStore } from '../stores';
-import type { ErrorClassification } from '../utils';
-import { classifyError, toError } from '../utils';
+import type { ErrorClassification } from '../api/utils';
+import { classifyError, toError } from '../api/utils';
 
 type InitializationStatus = 'pending' | 'success' | 'failed';
 

@@ -1,6 +1,9 @@
-import { cloudCore, DOU_ENDPOINT, getDynamicDOUEndpoint, OAUTH_ENDPOINT, webCore } from '../core';
+import axios from 'axios';
+import { cloudCore, DOU_ENDPOINT, getDynamicDOUEndpoint, OAUTH_ENDPOINT } from '../core';
+import { webTransport } from '../transport';
+import { signAwsRequest } from './utils';
 
-import type { AxiosRequestConfig, Method } from 'axios';
+import type { AxiosRequestConfig, AxiosResponse, Method } from 'axios';
 
 export type ApiRequestMethod = Method;
 
@@ -9,6 +12,12 @@ export interface ApiRequestOptions<TBody = unknown, TParams = Record<string, unk
     baseURL: string;
     body?: TBody;
     params?: TParams;
+}
+
+interface CloudRequestBuilder {
+    setBody: (body: unknown) => CloudRequestBuilder;
+    setParams: (params: Record<string, unknown>) => CloudRequestBuilder;
+    execute: <T>() => Promise<AxiosResponse<T>>;
 }
 
 /**
@@ -39,6 +48,38 @@ export const getOAuthEndpoint = (): string => OAUTH_ENDPOINT;
  */
 export const getIapEndpoint = (): string => import.meta.env.VITE_IAP_ENDPOINT || '';
 
+const buildCloudRequest = (requestConfig: AxiosRequestConfig): CloudRequestBuilder => {
+    let config = requestConfig;
+
+    const builder: CloudRequestBuilder = {
+        setBody: (body: unknown) => {
+            config.data = body;
+            return builder;
+        },
+        setParams: (params: Record<string, unknown>) => {
+            config.params = params;
+            return builder;
+        },
+        execute: async <T>(): Promise<AxiosResponse<T>> => {
+            const identityToken = cloudCore.getIdentityToken();
+            const credential = cloudCore.getCredential();
+
+            config.headers = {
+                ...config.headers,
+                ...(identityToken && { 'x-lemon-identity': identityToken }),
+            };
+
+            if (credential) {
+                config = await signAwsRequest(config, credential);
+            }
+
+            return axios.request<T>(config);
+        },
+    };
+
+    return builder;
+};
+
 /**
  * Executes a relay request without authentication signing.
  */
@@ -48,7 +89,7 @@ export const executeRelayRequest = async <TResponse, TBody = unknown, TParams = 
     body,
     params,
 }: ApiRequestOptions<TBody, TParams>): Promise<TResponse> => {
-    const request = webCore.buildRequest({
+    const request = webTransport.buildRequest({
         method,
         baseURL,
     } as AxiosRequestConfig);
@@ -69,7 +110,7 @@ export const executeSignedRelayRequest = async <TResponse, TBody = unknown, TPar
     body,
     params,
 }: ApiRequestOptions<TBody, TParams>): Promise<TResponse> => {
-    const request = webCore.buildSignedRequest({
+    const request = webTransport.buildSignedRequest({
         method,
         baseURL,
     } as AxiosRequestConfig);
@@ -90,7 +131,7 @@ export const executeCloudRequest = async <TResponse, TBody = unknown, TParams = 
     body,
     params,
 }: ApiRequestOptions<TBody, TParams>): Promise<TResponse> => {
-    const request = cloudCore.buildRequest({
+    const request = buildCloudRequest({
         method,
         baseURL,
     } as AxiosRequestConfig);

@@ -81,9 +81,9 @@ export interface UserContext {
      */
     endpoints: {
         relayWSS: string; // 중계서버 WSS (VITE_WS_ENDPOINT)
-        cloudWSS: string | null; // cloud WSS (cloudCore.getWss())
+        cloudWSS: string | null; // cloud WSS
         relayHTTP: string; // 중계서버 HTTP (OAUTH_ENDPOINT)
-        cloudHTTP: string | null; // cloud HTTP (cloudCore.getBackend())
+        cloudHTTP: string | null; // cloud HTTP
     };
 
     /**

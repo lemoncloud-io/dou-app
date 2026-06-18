@@ -1,5 +1,7 @@
-import { DOU_ENDPOINT, ENV, getDynamicDOUEndpoint, OAUTH_ENDPOINT, webCore, cloudCore } from '../core';
-import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
+import { DOU_ENDPOINT, ENV, OAUTH_ENDPOINT, cloudCore } from '../core';
+import { relayCore } from '../relay';
+import { getDynamicRelayBackend, webTransport } from '../transport';
+import { MAX_RETRIES, validateTokenResponse, withRetry } from './utils';
 import { useWebCoreStore } from '../stores';
 
 import { logger, isNative } from '@chatic/bridges';
@@ -166,7 +168,7 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             save: true,
         };
 
-        await webCore
+        await webTransport
             .buildSignedRequest({
                 method: 'POST',
                 baseURL: ERROR_REPORT_ENDPOINT,
@@ -221,7 +223,7 @@ export const reportIssue = async (title: string, message: string): Promise<void>
             save: true,
         };
 
-        await webCore
+        await webTransport
             .buildSignedRequest({
                 method: 'POST',
                 baseURL: ERROR_REPORT_ENDPOINT,
@@ -239,7 +241,7 @@ export const reportIssue = async (title: string, message: string): Promise<void>
 // ============================================================================
 
 export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
-    const { data } = await webCore
+    const { data } = await webTransport
         .buildSignedRequest({ method: 'POST', baseURL: `${OAUTH_ENDPOINT}/oauth/0/verify-native-token` })
         .setParams({ token: 1 })
         .setBody(tokenBody)
@@ -252,7 +254,7 @@ export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
         identityToken: data.Token.identityToken,
     };
 
-    await webCore.buildCredentialsByToken(refreshToken);
+    await webTransport.buildCredentialsByToken(refreshToken);
 
     return data;
 };
@@ -267,7 +269,7 @@ export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
  * @returns Promise resolving to authentication credentials
  */
 export const createCredentialsByProvider = async (provider = 'google', code: string) => {
-    const { data } = await webCore
+    const { data } = await webTransport
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${OAUTH_ENDPOINT}/oauth/${provider}/token`,
@@ -277,7 +279,7 @@ export const createCredentialsByProvider = async (provider = 'google', code: str
 
     throwIfApiError(data);
 
-    return await webCore.buildCredentialsByToken(data.Token);
+    return await webTransport.buildCredentialsByToken(data.Token);
 };
 
 /**
@@ -318,8 +320,8 @@ export const loginWithInviteCode = async (
     delegatorId: string,
     backend?: string
 ): Promise<UserTokenView> => {
-    const endpoint = backend ?? getDynamicDOUEndpoint();
-    const { data } = await webCore
+    const endpoint = backend ?? getDynamicRelayBackend();
+    const { data } = await webTransport
         .buildSignedRequest({
             method: 'POST',
             baseURL: `${endpoint}/oauth/login-invite`,
@@ -333,12 +335,12 @@ export const loginWithInviteCode = async (
 export const refreshAuthToken = async () => {
     return withRetry(
         async () => {
-            const { current, signature, authId, originToken } = await webCore.getTokenSignature();
+            const { current, signature, authId, originToken } = await webTransport.getTokenSignature();
             if (!authId || !originToken || !signature || !originToken.identityToken) {
                 throw new Error('Missing required token information');
             }
 
-            const response = await webCore
+            const response = await webTransport
                 .buildSignedRequest({
                     method: 'POST',
                     baseURL: `${OAUTH_ENDPOINT}/oauth/${authId}/refresh`,
@@ -354,7 +356,7 @@ export const refreshAuthToken = async () => {
                 ...(response.data.Token ? response.data.Token : response.data),
             };
             const validatedToken: LemonOAuthToken = validateTokenResponse(tokenData);
-            await webCore.buildCredentialsByToken(validatedToken);
+            await webTransport.buildCredentialsByToken(validatedToken);
         },
         MAX_RETRIES,
         'Token refresh'
@@ -364,7 +366,7 @@ export const refreshAuthToken = async () => {
 export const fetchProfile = async () => {
     return await withRetry(
         async () => {
-            const { data } = await webCore
+            const { data } = await webTransport
                 .buildSignedRequest({
                     method: 'GET',
                     baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
@@ -384,7 +386,7 @@ export const fetchProfile = async () => {
  */
 export const tryFetchProfile = async (): Promise<UserProfile | null> => {
     try {
-        const { data } = await webCore
+        const { data } = await webTransport
             .buildSignedRequest({
                 method: 'GET',
                 baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
@@ -397,12 +399,12 @@ export const tryFetchProfile = async (): Promise<UserProfile | null> => {
 };
 
 export const updateProfile = async (uid: string, body: Record<string, unknown>) => {
-    const endpoint = getDynamicDOUEndpoint();
+    const endpoint = relayCore.getBackend();
 
     try {
         return await withRetry(
             async () => {
-                const { data } = await webCore
+                const { data } = await webTransport
                     .buildSignedRequest({
                         method: 'PUT',
                         baseURL: `${endpoint}/users/${uid}`,
@@ -427,7 +429,7 @@ export const updateProfile = async (uid: string, body: Record<string, unknown>) 
                 // Retry profile update once after successful token refresh
                 return await withRetry(
                     async () => {
-                        const { data } = await webCore
+                        const { data } = await webTransport
                             .buildSignedRequest({
                                 method: 'PUT',
                                 baseURL: `${endpoint}/dou-d1/users/${uid}`,

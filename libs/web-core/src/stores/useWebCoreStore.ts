@@ -2,9 +2,12 @@ import { create } from 'zustand';
 
 import type { OAuthLoginProvider } from '@chatic/app-messages';
 import { isNative, logger, webClient } from '@chatic/bridges';
+import { storage } from '@chatic/shared';
 
 import { updateProfile } from '../api';
-import { cloudCore, coreStorage, LANGUAGE_KEY, resetWebCoreInit, startWebCoreInit, webCore } from '../core';
+import { cloudCore, LANGUAGE_KEY, resetWebCoreInit, startWebCoreInit } from '../core';
+import { relayCore } from '../core';
+import { clearRelayTransportOverrides, webTransport } from '../transport';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 export type UserView = Partial<UserProfile$>;
@@ -33,7 +36,7 @@ export const getIsInvited = (): boolean => {
     } catch {
         // ignore
     }
-    return coreStorage.get(INVITED_SESSION_KEY) === 'true';
+    return storage.get(INVITED_SESSION_KEY) === 'true';
 };
 
 /**
@@ -43,14 +46,14 @@ export const getIsInvited = (): boolean => {
  */
 export const setIsInvitedSession = (value: boolean): void => {
     if (value) {
-        coreStorage.set(INVITED_SESSION_KEY, 'true');
+        storage.set(INVITED_SESSION_KEY, 'true');
         try {
             localStorage.setItem(INVITED_SESSION_KEY, 'true');
         } catch {
             // ignore
         }
     } else {
-        coreStorage.remove(INVITED_SESSION_KEY);
+        storage.remove(INVITED_SESSION_KEY);
         try {
             localStorage.removeItem(INVITED_SESSION_KEY);
         } catch {
@@ -60,25 +63,25 @@ export const setIsInvitedSession = (value: boolean): void => {
 };
 
 export const getOAuthProvider = (): OAuthLoginProvider | null =>
-    coreStorage.get(OAUTH_PROVIDER_KEY) as OAuthLoginProvider | null;
+    storage.get(OAUTH_PROVIDER_KEY) as OAuthLoginProvider | null;
 
 export const setOAuthProvider = (provider: OAuthLoginProvider | null): void => {
     if (provider) {
-        coreStorage.set(OAUTH_PROVIDER_KEY, provider);
+        storage.set(OAUTH_PROVIDER_KEY, provider);
     } else {
-        coreStorage.remove(OAUTH_PROVIDER_KEY);
+        storage.remove(OAUTH_PROVIDER_KEY);
     }
 };
 
 export const getDelegatorId = (): string | null => {
-    return coreStorage.get(DELEGATOR_ID_KEY);
+    return storage.get(DELEGATOR_ID_KEY);
 };
 
 export const setDelegatorId = (value: string | null): void => {
     if (value) {
-        coreStorage.set(DELEGATOR_ID_KEY, value);
+        storage.set(DELEGATOR_ID_KEY, value);
     } else {
-        coreStorage.remove(DELEGATOR_ID_KEY);
+        storage.remove(DELEGATOR_ID_KEY);
     }
 };
 
@@ -95,6 +98,7 @@ export interface WebCoreState {
     userName: string;
     selectedCloudId: string;
     selectedPlaceId: string | null;
+    selectedSiteId: string | null;
 }
 
 export interface LogoutOptions {
@@ -110,6 +114,7 @@ export interface WebCoreStore extends WebCoreState {
     updateProfile: (uid: string, user: Record<string, unknown>) => Promise<void>;
     registerLogoutCallback: (callback: () => void) => () => void;
     setSelectedCloudId: (cloudId: string) => void;
+    setSelectedSiteId: (siteId: string | null) => void;
     setSelectedPlaceId: (placeId: string | null) => void;
 }
 
@@ -146,7 +151,8 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
     }
 
     const selectedCloudId = cloudCore.getSelectedCloudId() || 'default';
-    const selectedPlaceId = cloudCore.getSelectedPlaceId();
+    const selectedSiteId =
+        selectedCloudId === 'default' ? relayCore.getSelectedSiteId() : cloudCore.getSelectedSiteId();
 
     return {
         isInitialized: false,
@@ -160,7 +166,8 @@ const initialState: Pick<WebCoreStore, keyof WebCoreState> = (() => {
         profile,
         userName: profile ? profile['$user']?.name || 'Unknown' : '',
         selectedCloudId,
-        selectedPlaceId,
+        selectedPlaceId: selectedSiteId,
+        selectedSiteId,
     };
 })();
 
@@ -178,12 +185,12 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
      */
     initialize: async () => {
         set({ isInitialized: false, error: null });
-        logger.info('WEB_CORE', '[initialize] awaiting webCore.init (eager)');
+        logger.info('WEB_CORE', '[initialize] awaiting relay transport init');
         await startWebCoreInit();
-        logger.info('WEB_CORE', '[initialize] webCore.init done, setting language + auth in parallel');
+        logger.info('WEB_CORE', '[initialize] relay transport init done, setting language + auth in parallel');
         const [, isAuthenticated] = await Promise.all([
-            webCore.setUseXLemonLanguage(true, LANGUAGE_KEY),
-            webCore.isAuthenticated(),
+            webTransport.setUseXLemonLanguage(true, LANGUAGE_KEY),
+            webTransport.isAuthenticated(),
         ]);
         logger.info('WEB_CORE', '[initialize] isAuthenticated resolved', {
             data: { isAuthenticated },
@@ -225,10 +232,12 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         }
         setOAuthProvider(null);
 
-        await webCore.logout();
+        await webTransport.logout();
         cloudCore.clearSession();
+        relayCore.clearSelectedSite();
+        clearRelayTransportOverrides();
         // SPA 내비게이션 시 모듈이 재평가되지 않아 _initDone이 true로 남을 수 있음
-        // → 다음 startWebCoreInit() 호출 시 webCore.init()이 실행되도록 리셋
+        // → 다음 startWebCoreInit() 호출 시 relay transport init이 다시 실행되도록 리셋
         resetWebCoreInit();
         // isInvited는 유지 — 로그아웃 후 재로그인 시 초대 상태 복원에 필요
         localStorage.removeItem('chatic-device-token');
@@ -240,6 +249,7 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
             isGuest: false,
             selectedCloudId: 'default',
             selectedPlaceId: null,
+            selectedSiteId: null,
         });
         try {
             localStorage.removeItem(PROFILE_CACHE_KEY);
@@ -342,12 +352,25 @@ export const useWebCoreStore = create<WebCoreStore>()(set => ({
         set({ selectedCloudId: cloudId });
     },
 
-    setSelectedPlaceId: (placeId: string | null) => {
-        if (placeId) {
-            cloudCore.saveSelectedSiteId(placeId);
+    setSelectedSiteId: (siteId: string | null) => {
+        const selectedCloudId = useWebCoreStore.getState().selectedCloudId;
+        if (siteId) {
+            if (selectedCloudId === 'default') {
+                relayCore.saveSelectedSiteId(siteId);
+            } else {
+                cloudCore.saveSelectedSiteId(siteId);
+            }
         } else {
-            cloudCore.clearSelectedPlace();
+            if (selectedCloudId === 'default') {
+                relayCore.clearSelectedSite();
+            } else {
+                cloudCore.clearSelectedSite();
+            }
         }
-        set({ selectedPlaceId: placeId });
+        set({ selectedSiteId: siteId, selectedPlaceId: siteId });
+    },
+
+    setSelectedPlaceId: (placeId: string | null) => {
+        useWebCoreStore.getState().setSelectedSiteId(placeId);
     },
 }));

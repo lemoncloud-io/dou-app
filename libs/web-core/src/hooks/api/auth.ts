@@ -27,7 +27,7 @@ import {
 } from '@lemoncloud/chatic-backend-api';
 import type { AxiosError } from 'axios';
 
-import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../../api/types';
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../../api';
 
 export const authKeys = createQueryKeys('auth');
 

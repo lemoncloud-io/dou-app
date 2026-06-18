@@ -1,11 +1,7 @@
-import axios from 'axios';
-
-import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
-import { signAwsRequest } from '../utils';
-import { coreStorage } from './coreStorage';
+import { storage } from '@chatic/shared';
 
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
@@ -13,28 +9,6 @@ export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
 export const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
 export const CLOUD_PLACE_ORDER_KEY_PREFIX = 'chatic-place-order-';
 export const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
-
-/**
- * A self-contained credential snapshot for an invite-joined cloud, keyed per
- * cloudId. Invite-joined clouds live on their own deployment and are NOT in the
- * home broker's `/clouds/0/list?view=mine`, so `delegate-cloud` 404s for them —
- * they can only be re-entered by replaying the session captured at invite-login.
- * Stored in the same `coreStorage` as the live cloud token (sessionStorage on
- * web, localStorage on the native shells), so it shares the existing token's
- * lifetime and exposure rather than introducing a new credential store.
- */
-export interface InvitedCloudBundle {
-    delegation: CloudDelegationTokenView | null;
-    cloudToken: UserTokenView;
-    siteId?: string;
-    name?: string;
-}
-
-interface RequestBuilder {
-    setBody: (body: unknown) => RequestBuilder;
-    setParams: (params: Record<string, unknown>) => RequestBuilder;
-    execute: <T>() => Promise<AxiosResponse<T>>;
-}
 
 interface CloudCore {
     saveDelegationToken: (token: CloudDelegationTokenView) => void;
@@ -44,6 +18,8 @@ interface CloudCore {
     saveSelectedCloudId: (cloudId: string) => void;
     getSelectedCloudId: () => string | null;
     saveSelectedSiteId: (siteId: string) => void;
+    getSelectedSiteId: () => string | null;
+    clearSelectedSite: () => void;
     clearSelectedPlace: () => void;
     getSelectedPlaceId: () => string | null;
     clearDelegationToken: () => void;
@@ -55,133 +31,81 @@ interface CloudCore {
     savePlaceOrder: (cloudId: string, order: string[]) => void;
     getPlaceOrder: (cloudId: string) => string[] | null;
     clearPlaceOrder: (cloudId: string) => void;
-    /** Snapshot the current session as the re-entry bundle for an invited cloud. */
-    captureInvitedCloud: (cloudId: string, name?: string) => void;
-    getInvitedCloud: (cloudId: string) => InvitedCloudBundle | null;
-    /** Restore a captured invited-cloud bundle into the active session slots. */
-    applyInvitedCloud: (cloudId: string) => boolean;
-    /** Forget a single invited cloud's captured session. */
-    clearInvitedCloud: (cloudId: string) => void;
-    clearInvitedClouds: () => void;
-    buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
 }
-
-const readInvitedBundles = (): Record<string, InvitedCloudBundle> => {
-    const raw = coreStorage.get(CLOUD_INVITED_BUNDLES_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, InvitedCloudBundle>) : {};
-};
 
 export const cloudCore: CloudCore = {
     saveDelegationToken: (token: CloudDelegationTokenView): void => {
-        coreStorage.set(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
+        storage.set(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
     },
 
     getDelegationToken: (): CloudDelegationTokenView | null => {
-        const raw = coreStorage.get(CLOUD_DELEGATION_TOKEN_KEY);
+        const raw = storage.get(CLOUD_DELEGATION_TOKEN_KEY);
         return raw ? (JSON.parse(raw) as CloudDelegationTokenView) : null;
     },
 
     saveCloudToken: (token: UserTokenView): void => {
-        coreStorage.set(CLOUD_TOKEN_KEY, JSON.stringify(token));
+        storage.set(CLOUD_TOKEN_KEY, JSON.stringify(token));
     },
 
     getCloudToken: (): UserTokenView | null => {
-        const raw = coreStorage.get(CLOUD_TOKEN_KEY);
+        const raw = storage.get(CLOUD_TOKEN_KEY);
         return raw ? (JSON.parse(raw) as UserTokenView) : null;
     },
 
     saveSelectedCloudId: (cloudId: string): void => {
-        coreStorage.set(CLOUD_SELECTED_CLOUD_KEY, cloudId);
+        storage.set(CLOUD_SELECTED_CLOUD_KEY, cloudId);
     },
 
     getSelectedCloudId: (): string | null => {
-        return coreStorage.get(CLOUD_SELECTED_CLOUD_KEY);
+        return storage.get(CLOUD_SELECTED_CLOUD_KEY);
     },
 
     saveSelectedSiteId: (siteId: string): void => {
-        coreStorage.set(CLOUD_SELECTED_PLACE_KEY, siteId);
+        storage.set(CLOUD_SELECTED_PLACE_KEY, siteId);
+    },
+
+    getSelectedSiteId: (): string | null => {
+        return storage.get(CLOUD_SELECTED_PLACE_KEY);
+    },
+
+    clearSelectedSite: (): void => {
+        storage.remove(CLOUD_SELECTED_PLACE_KEY);
     },
 
     clearSelectedPlace: (): void => {
-        coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
+        cloudCore.clearSelectedSite();
     },
 
     getSelectedPlaceId: (): string | null => {
-        return coreStorage.get(CLOUD_SELECTED_PLACE_KEY);
+        return cloudCore.getSelectedSiteId();
     },
 
     savePlaceOrder: (cloudId: string, order: string[]): void => {
-        coreStorage.set(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`, JSON.stringify(order));
+        storage.set(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`, JSON.stringify(order));
     },
 
     getPlaceOrder: (cloudId: string): string[] | null => {
-        const raw = coreStorage.get(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
+        const raw = storage.get(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
         return raw ? (JSON.parse(raw) as string[]) : null;
     },
 
     clearPlaceOrder: (cloudId: string): void => {
-        coreStorage.remove(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
-    },
-
-    captureInvitedCloud: (cloudId: string, name?: string): void => {
-        const cloudToken = cloudCore.getCloudToken();
-        if (!cloudId || !cloudToken) return;
-        const bundles = readInvitedBundles();
-        bundles[cloudId] = {
-            delegation: cloudCore.getDelegationToken(),
-            cloudToken,
-            siteId: cloudCore.getSelectedPlaceId() ?? undefined,
-            name,
-        };
-        coreStorage.set(CLOUD_INVITED_BUNDLES_KEY, JSON.stringify(bundles));
-    },
-
-    getInvitedCloud: (cloudId: string): InvitedCloudBundle | null => {
-        return readInvitedBundles()[cloudId] ?? null;
-    },
-
-    applyInvitedCloud: (cloudId: string): boolean => {
-        const bundle = readInvitedBundles()[cloudId];
-        if (!bundle) return false;
-        if (bundle.delegation) cloudCore.saveDelegationToken(bundle.delegation);
-        cloudCore.saveCloudToken(bundle.cloudToken);
-        cloudCore.saveSelectedCloudId(cloudId);
-        if (bundle.siteId) cloudCore.saveSelectedSiteId(bundle.siteId);
-        return true;
-    },
-
-    clearInvitedCloud: (cloudId: string): void => {
-        const bundles = readInvitedBundles();
-        if (!(cloudId in bundles)) return;
-        delete bundles[cloudId];
-        coreStorage.set(CLOUD_INVITED_BUNDLES_KEY, JSON.stringify(bundles));
-    },
-
-    clearInvitedClouds: (): void => {
-        coreStorage.remove(CLOUD_INVITED_BUNDLES_KEY);
+        storage.remove(`${CLOUD_PLACE_ORDER_KEY_PREFIX}${cloudId}`);
     },
 
     clearDelegationToken: (): void => {
-        coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
-        coreStorage.remove(CLOUD_TOKEN_KEY);
-        coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
-        coreStorage.set(CLOUD_SELECTED_CLOUD_KEY, 'default');
+        storage.remove(CLOUD_DELEGATION_TOKEN_KEY);
+        storage.remove(CLOUD_TOKEN_KEY);
+        storage.remove(CLOUD_SELECTED_PLACE_KEY);
+        storage.set(CLOUD_SELECTED_CLOUD_KEY, 'default');
     },
 
     clearSession: (): void => {
-        coreStorage.remove(CLOUD_DELEGATION_TOKEN_KEY);
-        coreStorage.remove(CLOUD_TOKEN_KEY);
-        coreStorage.remove(CLOUD_SELECTED_CLOUD_KEY);
-        coreStorage.remove(CLOUD_SELECTED_PLACE_KEY);
-        coreStorage.remove(CLOUD_INVITED_BUNDLES_KEY);
-
-        // Clear endpoint overrides from both storages (web uses sessionStorage, mobile uses localStorage)
-        sessionStorage.removeItem('CHATIC_OAUTH_ENDPOINT');
-        sessionStorage.removeItem('CHATIC_DOU_ENDPOINT');
-        sessionStorage.removeItem('CHATIC_WS_ENDPOINT');
-        localStorage.removeItem('CHATIC_OAUTH_ENDPOINT');
-        localStorage.removeItem('CHATIC_DOU_ENDPOINT');
-        localStorage.removeItem('CHATIC_WS_ENDPOINT');
+        storage.remove(CLOUD_DELEGATION_TOKEN_KEY);
+        storage.remove(CLOUD_TOKEN_KEY);
+        storage.remove(CLOUD_SELECTED_CLOUD_KEY);
+        storage.remove(CLOUD_SELECTED_PLACE_KEY);
+        storage.remove(CLOUD_INVITED_BUNDLES_KEY);
     },
 
     getBackend: (): string | null => {
@@ -199,36 +123,5 @@ export const cloudCore: CloudCore = {
     getCredential: (): AWSCredentials | null => {
         const token = cloudCore.getCloudToken();
         return (token?.Token?.credential as AWSCredentials) ?? null;
-    },
-    buildRequest: (config: AxiosRequestConfig): RequestBuilder => {
-        const builder: RequestBuilder = {
-            setBody: (body: unknown) => {
-                config.data = body;
-                return builder;
-            },
-
-            setParams: (params: Record<string, unknown>) => {
-                config.params = params;
-                return builder;
-            },
-
-            execute: async <T>(): Promise<AxiosResponse<T>> => {
-                const identityToken = cloudCore.getIdentityToken();
-                const credential = cloudCore.getCredential();
-
-                config.headers = {
-                    ...config.headers,
-                    ...(identityToken && { 'x-lemon-identity': identityToken }),
-                };
-
-                if (credential) {
-                    config = await signAwsRequest(config, credential);
-                }
-
-                return axios.request<T>(config);
-            },
-        };
-
-        return builder;
     },
 };
