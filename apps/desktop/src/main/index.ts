@@ -431,7 +431,13 @@ const createWindow = (): BrowserWindow => {
     // broker via FetchFcmToken→reg-dev) and surface incoming pushes as OS
     // notifications. Best-effort — failure degrades to the live-WS same-cloud path.
     void startFcm(readFcmConfig(), {
-        onToken: onFcmToken,
+        onToken: token => {
+            onFcmToken(token);
+            // Proactively push the (re-minted) token so the renderer re-registers it
+            // with the broker. Its OnFetchFcmToken listener handles this beyond its
+            // own one-shot FetchFcmToken request; buffered until the web frame is ready.
+            host.pushEvent({ type: 'OnFetchFcmToken', success: true, data: { token } });
+        },
         onPush: push => {
             showOsNotification(host, win, {
                 title: push.title ?? 'DoU',
