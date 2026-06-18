@@ -1,13 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import { logger } from '@chatic/bridges';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
+import { useWebCoreStore } from '@chatic/web-core';
 
 import {
     findAlias,
     issueCloudToken,
     login,
     logout,
+    refreshCloudToken,
     registerDevice,
     registerUser,
     registerUserV2,
@@ -69,7 +70,7 @@ export const useLogin = () => {
 
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
         onSuccess: data => {
-            const { Token, ...rest } = data;
+            const { Token: _Token, ...rest } = data;
             setProfile(rest as unknown as UserProfile$);
             setIsAuthenticated(true);
             logger.info('AUTH', 'Login successful');
@@ -118,7 +119,7 @@ export const useIssueCloudToken = () => {
  */
 export const useRefreshCloudToken = () => {
     return useMutation({
-        mutationFn: () => cloudCore.refreshToken(),
+        mutationFn: ({ target }: { target?: string } = {}) => refreshCloudToken(target),
     });
 };
 

@@ -4,7 +4,7 @@ import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
-import { calcSignature, signAwsRequest } from '../utils/func';
+import { signAwsRequest } from '../utils';
 import { coreStorage } from './coreStorage';
 
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
@@ -64,7 +64,6 @@ interface CloudCore {
     clearInvitedCloud: (cloudId: string) => void;
     clearInvitedClouds: () => void;
     buildRequest: (config: AxiosRequestConfig) => RequestBuilder;
-    refreshToken: (target?: string) => Promise<UserTokenView>;
 }
 
 const readInvitedBundles = (): Record<string, InvitedCloudBundle> => {
@@ -201,36 +200,6 @@ export const cloudCore: CloudCore = {
         const token = cloudCore.getCloudToken();
         return (token?.Token?.credential as AWSCredentials) ?? null;
     },
-
-    refreshToken: async (target?: string): Promise<UserTokenView> => {
-        const token = cloudCore.getCloudToken();
-        if (!token?.Token) throw new Error('No cloud token found');
-
-        const { authId, accountId, identityId, identityToken } = token.Token;
-        if (!authId || !accountId || !identityId || !identityToken) {
-            throw new Error('Missing token fields for refresh');
-        }
-
-        const current = new Date().toISOString();
-        const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
-
-        const backend = cloudCore.getBackend();
-        const { data: refreshed } = await cloudCore
-            .buildRequest({
-                method: 'POST',
-                baseURL: `${backend}/oauth/${authId}/refresh`,
-            })
-            .setParams({ token: 1 })
-            .setBody({ current, signature, ...(target && { target }) })
-            .execute<UserTokenView>();
-
-        // 서버가 반환하지 않는 로컬 커스텀 필드(thumbnail 등)를 보존
-        const existing = cloudCore.getCloudToken();
-        const merged = { ...existing, ...refreshed } as UserTokenView;
-        cloudCore.saveCloudToken(merged);
-        return merged;
-    },
-
     buildRequest: (config: AxiosRequestConfig): RequestBuilder => {
         const builder: RequestBuilder = {
             setBody: (body: unknown) => {
