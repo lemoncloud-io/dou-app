@@ -28,37 +28,49 @@ export const subscriptionKeys = createQueryKeys('subscriptions');
 export const membershipKeys = createQueryKeys('memberships');
 export const productPlansKeys = createQueryKeys('productPlans');
 
-/** #0. Google 결제 검증 */
+/**
+ * Mutation for validating a Google Play receipt.
+ */
 export const useValidateGoogle = () =>
     useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params: Params }>(({ body, params }) =>
         validateGoogle(body, params)
     );
 
-/** #0. Apple 결제 검증 */
+/**
+ * Mutation for validating an App Store receipt.
+ */
 export const useValidateApple = () =>
     useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params: Params }>(({ body, params }) =>
         validateApple(body, params)
     );
 
-/** #0. 멤버십 검증 */
+/**
+ * Mutation for membership creation and validation.
+ */
 export const useValidateMembership = () =>
     useCustomMutation<MembershipView, string, { body: CreateMembershipBody; params?: Params }>(({ body, params }) =>
         validateMembership(body, params)
     );
 
-/** #1. 활성 구독 확인 (선언형) */
+/**
+ * Declarative React Query hook for the active subscription list.
+ */
 export const useActiveSubscriptions = (params: ListValidateParam) =>
     useQuery<ListResult<ReceiptModel>>({
-        queryKey: subscriptionKeys.list(params),
+        queryKey: subscriptionKeys.list(params as unknown as Record<string, unknown>),
         queryFn: () => fetchActiveSubscriptions(params),
         refetchOnWindowFocus: false,
     });
 
-/** #1. 활성 구독 확인 (명령형) */
+/**
+ * Exposes active subscription fetching as an imperative mutation.
+ */
 export const useFetchActiveSubscriptions = () =>
     useCustomMutation<ListResult<ReceiptModel>, string, ListValidateParam>(params => fetchActiveSubscriptions(params));
 
-/** #2. 영수증 상세 조회 */
+/**
+ * Mutation for fetching the details of a specific receipt.
+ */
 export const useFetchReceiptDetail = () =>
     useCustomMutation<
         ValidateAPIResponse,
@@ -66,6 +78,9 @@ export const useFetchReceiptDetail = () =>
         { receiptId: string; params?: { v?: string | boolean; history?: string | boolean } }
     >(({ receiptId, params }) => fetchReceiptDetail(receiptId, params));
 
+/**
+ * Query hook for the list of purchasable product plans.
+ */
 export const useProductPlans = (params: Params = {}) =>
     useQuery({
         queryKey: productPlansKeys.list(params),
@@ -73,7 +88,9 @@ export const useProductPlans = (params: Params = {}) =>
         refetchOnWindowFocus: false,
     });
 
-/** 멤버십 정보 조회 */
+/**
+ * Query hook for the current signed-in user's membership status.
+ */
 export const useMembershipInfo = () =>
     useQuery<MembershipView>({
         queryKey: subscriptionKeys.detail('mine'),
@@ -83,7 +100,10 @@ export const useMembershipInfo = () =>
         refetchOnMount: 'always',
     });
 
-/** 현재 디바이스 플랫폼과 구독 플랫폼이 일치하는지 확인 */
+/**
+ * Computes whether the current device platform matches the platform of the active subscription.
+ * Returns availability, loading state, and the raw membership payload together.
+ */
 export const useIsSubscriptionAvailable = () => {
     const { data: membership, isLoading } = useMembershipInfo();
     const { deviceInfo } = useDeviceInfo();
@@ -99,5 +119,8 @@ export const useIsSubscriptionAvailable = () => {
     };
 };
 
+/**
+ * Mutation for the cloud release request.
+ */
 export const useDeleteCloud = () =>
     useCustomMutation<CloudView, string, { id: string; params?: Params }>(({ id, params }) => deleteCloud(id, params));

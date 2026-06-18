@@ -1,5 +1,10 @@
-import { throwIfApiError } from '@chatic/shared';
-import { webCore, cloudCore } from '@chatic/web-core';
+import {
+    cloudCore,
+    executeCloudRequest,
+    executeRelayRequest,
+    executeSignedRelayRequest,
+    getCoreEndpoint,
+} from '@chatic/web-core';
 
 import type {
     CloudExchangeTokenBody,
@@ -14,115 +19,114 @@ import type {
 import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../types';
 import type { OAuthRefreshBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
-const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
-
+/**
+ * Issues a temporary auth token from a device identifier.
+ * Used during the initial auth bootstrap in native shells or webviews.
+ */
 export const registerDevice = async (deviceId: string): Promise<UserTokenView> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/register-device`,
-        })
-        .setBody({ deviceId })
-        .execute<UserTokenView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeRelayRequest<UserTokenView, { deviceId: string }>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/oauth/register-device`,
+        body: { deviceId },
+    });
 };
 
+/**
+ * Executes the basic sign-up request.
+ * Used by the standard email/password account creation flow.
+ */
 export const registerUser = async (body: UserBody): Promise<UserView> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/register-user`,
-        })
-        .setBody(body)
-        .execute<UserView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeRelayRequest<UserView, UserBody>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/oauth/register-user`,
+        body,
+    });
 };
 
+/**
+ * Executes the extended sign-up request.
+ * Uses the `email` flag to switch server-side email post-processing behavior.
+ */
 export const registerUserV2 = async (body: RegisterUserV2Body, email?: boolean): Promise<UserView> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/register-user-v2`,
-        })
-        .setParams(email !== undefined ? { email: email ? 'true' : 'false' } : {})
-        .setBody(body)
-        .execute<UserView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeRelayRequest<UserView, RegisterUserV2Body>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/oauth/register-user-v2`,
+        params: email !== undefined ? { email: email ? 'true' : 'false' } : undefined,
+        body,
+    });
 };
 
+/**
+ * Executes the login request and returns the user token payload.
+ * Always includes `token=1` so the server returns a token-bearing response.
+ */
 export const login = async (body: LoginUserBody, email?: boolean): Promise<UserTokenView> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/login-user`,
-        })
-        .setParams({ token: 1, ...(email !== undefined && { email: email ? 'true' : 'false' }) })
-        .setBody(body)
-        .execute<UserTokenView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeRelayRequest<UserTokenView, LoginUserBody>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/oauth/login-user`,
+        params: { token: 1, ...(email !== undefined && { email: email ? 'true' : 'false' }) },
+        body,
+    });
 };
 
+/**
+ * Exchanges a relay-issued cloud delegation token for an actual cloud user token.
+ * This should only be called immediately before switching cloud sessions.
+ */
 export const issueCloudToken = async (baseURL: string, body: CloudExchangeTokenBody): Promise<UserTokenView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${baseURL}/oauth/exchange-token`,
-        })
-        .setBody({ ...body })
-        .execute<UserTokenView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<UserTokenView, CloudExchangeTokenBody>({
+        method: 'POST',
+        baseURL: `${baseURL}/oauth/exchange-token`,
+        body: { ...body },
+    });
 };
 
+/**
+ * Refreshes the cloud access token against the currently selected cloud backend.
+ * Used for explicit refresh flows and cloud session recovery.
+ */
 export const refreshCloudToken = async (authId: string, body: OAuthRefreshBody): Promise<UserTokenView> => {
     const backend = cloudCore.getBackend();
-    const { data } = await cloudCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${backend}/oauth/${authId}/refresh-token`,
-        })
-        .setParams({ token: 1 })
-        .setBody({ ...body })
-        .execute<UserTokenView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeCloudRequest<UserTokenView, OAuthRefreshBody>({
+        method: 'POST',
+        baseURL: `${backend}/oauth/${authId}/refresh-token`,
+        params: { token: 1 },
+        body: { ...body },
+    });
 };
 
+/**
+ * Checks whether the email alias already exists.
+ * Used for account recovery and pre-sign-up duplication checks.
+ */
 export const findAlias = async (body: FindAliasBody): Promise<FindAliasView> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/find-alias`,
-        })
-        .setBody(body)
-        .execute<FindAliasView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeRelayRequest<FindAliasView, FindAliasBody>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/oauth/find-alias`,
+        body,
+    });
 };
 
+/**
+ * Executes the email alias verification flow.
+ * Forwards the `send / resend / check / change / confirm` steps directly to the server.
+ */
 export const verifyAlias = async (body: VerifyAliasBody): Promise<VerifyAliasView> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/oauth/verify-alias`,
-        })
-        .setBody(body)
-        .execute<VerifyAliasView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeRelayRequest<VerifyAliasView, VerifyAliasBody>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/oauth/verify-alias`,
+        body,
+    });
 };
 
+/**
+ * Executes the relay logout request.
+ * Local state cleanup is handled by the hook layer afterward.
+ */
 export const logout = async (): Promise<UserLogoutResult> => {
-    const { data } = await webCore
-        .buildRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/users/logout`,
-        })
-        .setBody({})
-        .execute<UserLogoutResult>();
-    return throwIfApiError(data);
+    return executeRelayRequest<UserLogoutResult, Record<string, never>>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/users/logout`,
+        body: {},
+    });
 };

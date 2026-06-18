@@ -1,127 +1,115 @@
-import { throwIfApiError } from '@chatic/shared';
-import { webCore } from '@chatic/web-core';
+import { executeSignedRelayRequest } from '@chatic/web-core';
+
+import { DOU_ENDPOINT, isAwsAccountNo } from '../apis/shared';
 
 import type {
-    UserView,
-    CloudDelegationTokenView,
-    RegisterDeviceTokenBody,
-    UserTokenView,
     CloudBody,
-    CloudView,
+    CloudDelegationTokenView,
     CloudVerifyEmailBody,
     CloudVerifyEmailView,
+    CloudView,
+    RegisterDeviceTokenBody,
+    UserTokenView,
+    UserView,
 } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
-import type { Params } from '@lemoncloud/lemon-web-core';
-import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
+import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
+import type { Params } from '@lemoncloud/lemon-web-core';
 
-// A 12-digit AWS account number (e.g. the SDK's `UserTokenView.cloudId`, documented
-// as "aws account-no of current cloud") is NOT a delegatable cloud id — cloud ids are
-// the short lemon numeric id like "1000010". Catch it before hitting delegate-cloud.
-const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value);
-
+/**
+ * Fetches the user list available to the current signed-in user.
+ * Mainly used by admin search and user-list screens.
+ */
 export const fetchUsers = async (params: Params): Promise<ListResult<UserView>> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${DOU_ENDPOINT}/hello/user/list`,
-        })
-        .setParams({ ...params })
-        .execute<ListResult<UserView> & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ListResult<UserView>, never, Params>({
+        method: 'GET',
+        baseURL: `${DOU_ENDPOINT}/hello/user/list`,
+        params: { ...params },
+    });
 };
 
+/**
+ * Fetches the clouds owned by or accessible to the current signed-in user.
+ * Always forces `view: 'mine'` so the response stays scoped to the current account.
+ */
 export const fetchClouds = async (params: Params = {}): Promise<ListResult<CloudView>> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${DOU_ENDPOINT}/clouds/0/list`,
-        })
-        .setParams({ ...params, view: 'mine' })
-        .execute<ListResult<CloudView> & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ListResult<CloudView>, never, Params & { view: 'mine' }>({
+        method: 'GET',
+        baseURL: `${DOU_ENDPOINT}/clouds/0/list`,
+        params: { ...params, view: 'mine' },
+    });
 };
 
+/**
+ * Updates the profile data of a specific cloud.
+ * Currently used by single-field edit flows such as cloud name changes.
+ */
 export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'PUT',
-            baseURL: `${DOU_ENDPOINT}/clouds/${cloudId}`,
-        })
-        .setBody(body)
-        .execute<CloudView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<CloudView, CloudBody>({
+        method: 'PUT',
+        baseURL: `${DOU_ENDPOINT}/clouds/${cloudId}`,
+        body,
+    });
 };
 
+/**
+ * Issues a delegation token used to switch the current session to another cloud.
+ * Rejects a mistakenly stored AWS account number before the network request is sent.
+ */
 export const issueCloudDelegationToken = async (target: string): Promise<CloudDelegationTokenView> => {
-    // Defense-in-depth catch-all: every cloud delegation funnels through here, so reject
-    // an AWS account-no target (from a buggy/stale stored cloud id) before the network.
-    // The caller's rollback then heals the stale selection to 'default' instead of a 404.
     if (isAwsAccountNo(target)) {
         throw new Error(`issueCloudDelegationToken: refusing AWS account-no as cloud target: ${target}`);
     }
 
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/users/0/delegate-cloud`,
-        })
-        .setBody({ target })
-        .setParams({ legacy: false })
-        .execute<CloudDelegationTokenView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<CloudDelegationTokenView, { target: string }, { legacy: false }>({
+        method: 'POST',
+        baseURL: `${DOU_ENDPOINT}/users/0/delegate-cloud`,
+        body: { target },
+        params: { legacy: false },
+    });
 };
 
+/**
+ * Registers the current device push token with the relay server.
+ * When `force` is true, the broker is forced to recreate or re-enable the cached endpoint.
+ */
 export const registerDeviceToken = async (
     body: RegisterDeviceTokenBody,
     opts?: { force?: boolean }
 ): Promise<RegisterDeviceResult> => {
-    // `force` makes the broker (re)create + re-enable the SNS endpoint instead of
-    // trusting its cached device record — needed on desktop, whose push-receiver
-    // token churns and whose endpoint SNS disables on a single rejected delivery.
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/users/0/reg-dev`,
-        })
-        .setParams(opts?.force ? { force: 'true' } : {})
-        .setBody(body)
-        .execute<RegisterDeviceResult & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<RegisterDeviceResult, RegisterDeviceTokenBody, { force?: string }>({
+        method: 'POST',
+        baseURL: `${DOU_ENDPOINT}/users/0/reg-dev`,
+        params: opts?.force ? { force: 'true' } : undefined,
+        body,
+    });
 };
 
+/**
+ * Verifies a token received from the native app and issues a user token for the web session.
+ */
 export const verifyNativeAppToken = async (body: VerifyNativeTokenBody): Promise<UserTokenView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/users/0/verify-native-token`,
-        })
-        .setParams({ token: 1 })
-        .setBody(body)
-        .execute<UserTokenView & { error?: string }>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<UserTokenView, VerifyNativeTokenBody, { token: 1 }>({
+        method: 'POST',
+        baseURL: `${DOU_ENDPOINT}/users/0/verify-native-token`,
+        params: { token: 1 },
+        body,
+    });
 };
 
+/**
+ * Executes the `send / resend / check / confirm` steps of the email verification flow.
+ * Dry-run policy for local and dev environments is decided in the hook layer, not here.
+ */
 export const verifyEmail = async (
     body: CloudVerifyEmailBody,
     params?: { dryRun?: boolean }
 ): Promise<CloudVerifyEmailView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/clouds/0/verify-email`,
-        })
-        .setParams({ ...params })
-        .setBody(body)
-        .execute<CloudVerifyEmailView>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<CloudVerifyEmailView, CloudVerifyEmailBody, { dryRun?: boolean }>({
+        method: 'POST',
+        baseURL: `${DOU_ENDPOINT}/clouds/0/verify-email`,
+        params: { ...params },
+        body,
+    });
 };

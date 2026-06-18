@@ -1,5 +1,4 @@
-import { throwIfApiError } from '@chatic/shared';
-import { webCore } from '@chatic/web-core';
+import { executeSignedRelayRequest, getCoreEndpoint, getIapEndpoint } from '../../../web-core/src/api/request';
 
 import type {
     ValidateAPIBody,
@@ -11,113 +10,103 @@ import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types
 import type { Params } from '@lemoncloud/lemon-web-core';
 import type { CloudView, CreateMembershipBody, MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
 
-const IAP_ENDPOINT = import.meta.env.VITE_IAP_ENDPOINT;
-const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT;
-
+/**
+ * Fetches the product plans shown in subscription and membership screens.
+ */
 export const fetchPlans = async (params: Params = {}): Promise<ListResult<ProductView>> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${DOU_ENDPOINT}/products/plans`,
-        })
-        .setParams({ ...params })
-        .execute<ListResult<ProductView>>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ListResult<ProductView>, never, Params>({
+        method: 'GET',
+        baseURL: `${getCoreEndpoint()}/products/plans`,
+        params: { ...params },
+    });
 };
 
-/** #0. Google 구독 결제 검증 */
+/**
+ * Validates a Google Play receipt.
+ * Used right after purchase so the server can finalize the subscription state.
+ */
 export const validateGoogle = async (body: ValidateAPIBody, params: Params = {}): Promise<ValidateAPIResponse> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${IAP_ENDPOINT}/validate/google`,
-        })
-        .setParams({ ...params })
-        .setBody(body)
-        .execute<ValidateAPIResponse>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ValidateAPIResponse, ValidateAPIBody, Params>({
+        method: 'POST',
+        baseURL: `${getIapEndpoint()}/validate/google`,
+        params: { ...params },
+        body,
+    });
 };
 
-/** #0. Apple 구독 결제 검증 */
+/**
+ * Validates an App Store receipt.
+ * Used right after purchase so the server can finalize the subscription state.
+ */
 export const validateApple = async (body: ValidateAPIBody, params: Params = {}): Promise<ValidateAPIResponse> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${IAP_ENDPOINT}/validate/apple`,
-        })
-        .setParams({ ...params })
-        .setBody(body)
-        .execute<ValidateAPIResponse>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ValidateAPIResponse, ValidateAPIBody, Params>({
+        method: 'POST',
+        baseURL: `${getIapEndpoint()}/validate/apple`,
+        params: { ...params },
+        body,
+    });
 };
 
-/** #1. 활성 구독 확인 (본인) */
+/**
+ * Fetches the active subscription list for the current user.
+ * Always forces `active: 1` so only valid subscriptions are returned.
+ */
 export const fetchActiveSubscriptions = async (params: ListValidateParam): Promise<ListResult<ReceiptModel>> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${IAP_ENDPOINT}/validate`,
-        })
-        .setParams({ ...params, active: 1 })
-        .execute<ListResult<ReceiptModel>>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ListResult<ReceiptModel>, never, Record<string, unknown>>({
+        method: 'GET',
+        baseURL: `${getIapEndpoint()}/validate`,
+        params: { ...params, active: 1 },
+    });
 };
 
-/** #2. 구독(영수증) 상세 조회 */
+/**
+ * Fetches the detailed validation result for a specific receipt.
+ * History lookup and verbose response flags are controlled through `params`.
+ */
 export const fetchReceiptDetail = async (
     receiptId: string,
     params?: { v?: string | boolean; history?: string | boolean }
 ): Promise<ValidateAPIResponse> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${IAP_ENDPOINT}/validate/${receiptId}`,
-        })
-        .setParams({ ...params })
-        .execute<ValidateAPIResponse>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<ValidateAPIResponse, never, Record<string, unknown>>({
+        method: 'GET',
+        baseURL: `${getIapEndpoint()}/validate/${receiptId}`,
+        params: { ...params },
+    });
 };
 
+/**
+ * Fetches the membership status for the current signed-in user.
+ */
 export const fetchMembershipInfo = async (): Promise<MembershipView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${DOU_ENDPOINT}/memberships/0/mine`,
-        })
-        .execute<MembershipView>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<MembershipView>({
+        method: 'GET',
+        baseURL: `${getCoreEndpoint()}/memberships/0/mine`,
+    });
 };
 
+/**
+ * Executes the membership create or refresh validation request.
+ */
 export const validateMembership = async (body: CreateMembershipBody, params: Params = {}): Promise<MembershipView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/memberships/0`,
-        })
-        .setParams({ ...params })
-        .setBody(body)
-        .execute<MembershipView>();
-
-    return throwIfApiError(data);
+    return executeSignedRelayRequest<MembershipView, CreateMembershipBody, Params>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/memberships/0`,
+        params: { ...params },
+        body,
+    });
 };
 
+/**
+ * Releases the subscription or membership association for a specific cloud.
+ * Used by subscription cleanup flows and account-management cloud release actions.
+ */
 export const deleteCloud = async (cloudId: string, params: Params = {}): Promise<CloudView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${DOU_ENDPOINT}/clouds/${cloudId}/release`,
-        })
-        .setBody({})
-        .setParams({
+    return executeSignedRelayRequest<CloudView, Record<string, never>, Params>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/clouds/${cloudId}/release`,
+        body: {},
+        params: {
             ...params,
-        })
-        .execute<CloudView>();
-
-    return throwIfApiError(data);
+        },
+    });
 };
