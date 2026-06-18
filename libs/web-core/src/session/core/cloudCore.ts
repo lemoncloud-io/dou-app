@@ -2,7 +2,7 @@ import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import { storage } from '@chatic/shared';
-import { notifySessionStateChanged } from '../session';
+import { notifySessionStateChanged } from '../utils';
 
 export const CLOUD_IS_ACTIVE_KEY = 'chatic-cloud-is-active';
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
