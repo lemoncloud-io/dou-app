@@ -1,4 +1,3 @@
-import { isNative } from '@chatic/bridges';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { cloudCore, identityCore, relayCore } from './core';
@@ -17,7 +16,7 @@ interface UserViewExtended {
     userRole?: string;
 }
 
-type SessionIdentityState = Pick<IdentityContext, 'isInitialized' | 'isAuthenticated' | 'isOnMobileApp' | 'error'>;
+type SessionIdentityState = Pick<IdentityContext, 'isInitialized' | 'isAuthenticated' | 'error'>;
 
 const buildRelayContext = (): RelayContext => ({
     backend: relayCore.getBackend(),
@@ -77,7 +76,6 @@ const readSessionIdentityState = (): SessionIdentityState => {
     return {
         isInitialized: identity.isInitialized,
         isAuthenticated: identity.isAuthenticated,
-        isOnMobileApp: identity.isOnMobileApp,
         error: identity.error,
     };
 };
@@ -106,7 +104,6 @@ const resolveActiveServerContext = (relay: RelayContext, cloud: CloudContext): A
 let identityState = buildIdentityContext({
     isInitialized: false,
     isAuthenticated: !!identityCore.getRelayProfile(),
-    isOnMobileApp: isNative(),
     error: null,
 });
 
@@ -150,8 +147,8 @@ export const sessionContextStore = {
 };
 
 export const getSessionAuthSnapshot = () => {
-    const { isInitialized, isAuthenticated, isOnMobileApp, error, activeProfile } = identityState;
-    return { isInitialized, isAuthenticated, isOnMobileApp, error, activeProfile };
+    const { isInitialized, isAuthenticated, error, activeProfile } = identityState;
+    return { isInitialized, isAuthenticated, error, activeProfile };
 };
 
 export const getSelectedCloudId = (): string => cloudCore.getSelectedCloudId() || 'default';
@@ -227,7 +224,6 @@ export const setSessionIdentityState = (partial: Partial<SessionIdentityState>):
         buildIdentityContext({
             isInitialized: partial.isInitialized ?? state.isInitialized,
             isAuthenticated: partial.isAuthenticated ?? state.isAuthenticated,
-            isOnMobileApp: partial.isOnMobileApp ?? state.isOnMobileApp,
             error: partial.error !== undefined ? partial.error : state.error,
         })
     );
