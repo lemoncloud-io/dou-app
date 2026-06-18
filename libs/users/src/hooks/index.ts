@@ -1,9 +1,7 @@
 export {
-    cloudsKeys,
     useClouds,
     useRegisterDeviceToken,
     useUpdateCloud,
-    usersKeys,
     useUsers,
     useVerifyEmail,
     useVerifyNativeAppToken,

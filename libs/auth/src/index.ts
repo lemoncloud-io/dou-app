@@ -1,5 +1,4 @@
 export {
-    authKeys,
     findAlias,
     issueCloudToken,
     login,
@@ -12,9 +11,9 @@ export {
     useIssueCloudToken,
     useIssueToken,
     useLogin,
-    useLogout,
+    useLogoutRelaySession,
     useRefreshCloudToken,
-    useRegisterDevice,
+    useRegisterDeviceToken,
     useRegisterUser,
     useRegisterUserV2,
     useVerifyAlias,
