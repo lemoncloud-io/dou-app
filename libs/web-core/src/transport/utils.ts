@@ -1,14 +1,6 @@
-import { createAsyncDelay } from '@lemoncloud/lemon-web-core';
-import { logger } from '@chatic/bridges';
-
 import { classifyError, handleAuthError } from './error';
-
-import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
-
-export interface ValidatedToken {
-    identityToken: string;
-    [key: string]: any;
-}
+import { logger } from '@chatic/bridges';
+import { createAsyncDelay } from '@lemoncloud/lemon-web-core';
 
 export const withTimeout = <T>(promise: Promise<T>, ms: number, context = 'Operation'): Promise<T> => {
     return new Promise<T>((resolve, reject) => {
@@ -67,17 +59,4 @@ export const withRetry = async <T>(operation: () => Promise<T>, maxRetries = 4, 
     }
 
     throw lastError;
-};
-
-export const validateTokenResponse = (tokenData: any): LemonOAuthToken => {
-    const token = tokenData?.Token;
-    const tokenIdentityToken = token?.identityToken;
-    const responseIdentityToken = tokenData?.identityToken;
-
-    const identityToken = tokenIdentityToken || responseIdentityToken;
-    if (!identityToken) {
-        throw new Error('INVALID_TOKEN: identityToken is missing from refresh response');
-    }
-
-    return tokenData;
 };

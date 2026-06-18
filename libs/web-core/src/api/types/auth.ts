@@ -148,3 +148,8 @@ export interface LoginInviteResponse {
         identityToken: string;
     };
 }
+
+export interface ValidatedToken {
+    identityToken: string;
+    [key: string]: any;
+}
