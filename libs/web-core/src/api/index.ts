@@ -3,11 +3,7 @@ import { MAX_RETRIES, validateTokenResponse, withRetry } from '../utils';
 import { useWebCoreStore } from '../stores';
 
 import { logger, isNative } from '@chatic/bridges';
-
-const throwIfApiError = <T>(data: T & { error?: string }): T => {
-    if (data.error) throw new Error(data.error);
-    return data;
-};
+import { throwIfApiError } from './request';
 
 import type { UserProfile$ as UserProfile, UserTokenView, SlackReportBody } from '@lemoncloud/chatic-backend-api';
 import type { LemonRefreshTokenResult, VerifyNativeTokenBody } from '../types';
@@ -451,3 +447,5 @@ export const updateProfile = async (uid: string, body: Record<string, unknown>) 
         throw error;
     }
 };
+
+export * from './request';
