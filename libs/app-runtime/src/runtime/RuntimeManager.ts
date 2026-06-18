@@ -1,11 +1,11 @@
 import { logger } from '@chatic/bridges';
-import { cloudCore, webCore } from '@chatic/web-core';
 import type { DataRepositories } from '@chatic/data';
 
 import { getDataManager } from '../data/runtime';
 import type { IDataManager } from '../data/types';
 import { getSocketManager } from '../socket/runtime';
 import type { ISocketManager } from '../socket/types';
+import { getSocketAuthCoordinator } from './SocketAuthCoordinator';
 import type { RuntimeBinding } from './useRuntimeBinding';
 
 export interface IRuntimeManager {
@@ -42,6 +42,7 @@ export class RuntimeManager implements IRuntimeManager {
         if (bindingKey !== this.currentBindingKey) return;
 
         const { device: deviceRepository, auth: authRepository } = this.dataManager.getRepositories();
+        const authCoordinator = getSocketAuthCoordinator();
 
         try {
             await this.socketManager.connect();
@@ -53,14 +54,11 @@ export class RuntimeManager implements IRuntimeManager {
             });
             if (bindingKey !== this.currentBindingKey) return;
 
-            const token =
-                socketBinding.config.wssType === 'cloud'
-                    ? (cloudCore.getIdentityToken() ?? (await webCore.getTokenSignature()).originToken?.identityToken)
-                    : (await webCore.getTokenSignature()).originToken?.identityToken;
-
-            if (bindingKey !== this.currentBindingKey || !token) return;
-
-            await authRepository.updateSocketAuth({ token });
+            await authCoordinator.reauthenticateSocket({
+                authRepository,
+                reason: 'runtime-bootstrap',
+                wssType: socketBinding.config.wssType,
+            });
         } catch (error) {
             logger.error('RUNTIME', '[RuntimeManager] Failed to bootstrap runtime binding', {
                 error,

@@ -2,21 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore, webCore } from '@chatic/web-core';
+import { cloudCore, reportError, toError, useServiceStatusStore, useWebCoreStore } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useRuntimeRepositories } from '../runtime';
+import { getSocketAuthCoordinator, useRuntimeRepositories } from '../runtime';
+import { useSocketState } from '../socket';
 
 const REFRESH_INTERVAL_MS = 60_000;
 const AUTH_UPDATE_MAX_RETRIES = 3;
 const AUTH_UPDATE_BASE_DELAY_MS = 2_000;
-
-// caller(handleSelectPlace)가 토큰 갱신 중일 때 자동 auth:update 전송을 차단
-// handleSelectPlace: refreshToken(async) → auth.update
-// 이 플래그가 없으면 refreshToken 완료 전에 useCloudTokenRefresh가 OLD 토큰으로 auth를 보냄
-let _skipAutoAuth = false;
-export const setSkipAutoAuth = (value: boolean) => {
-    _skipAutoAuth = value;
-};
 
 const isServerError = (error: unknown): boolean => {
     const err = error as any;
@@ -38,17 +31,17 @@ const isAuthError = (error: unknown): boolean => {
 
 export const useCloudTokenRefresh = () => {
     const { t } = useTranslation();
-    const { isAuthenticated } = useWebCoreStore();
+    const { isAuthenticated, selectedCloudId } = useWebCoreStore();
     const { auth: authRepository } = useRuntimeRepositories();
-    const isConnected = useWebSocketV2Store(s => s.isConnected);
+    const isConnected = useSocketState(s => s.isConnected);
     const { setServiceUnavailable } = useServiceStatusStore();
     const { toast } = useToast();
-    const wssType = useWebSocketV2Store(s => s.wssType);
-    const isDeviceRegistered = useWebSocketV2Store(s => s.isDeviceRegistered);
+    const wssType = selectedCloudId !== 'default' && cloudCore.getDelegationToken() ? 'cloud' : 'relay';
+    const isDeviceRegistered = useSocketState(s => s.isDeviceRegistered);
     const refreshingRef = useRef(false);
+    const coordinator = getSocketAuthCoordinator();
 
     useEffect(() => {
-        // Wait for device.save response before sending auth.update
         if (!isConnected || !isAuthenticated || !isDeviceRegistered) return;
 
         let disposed = false;
@@ -56,14 +49,17 @@ export const useCloudTokenRefresh = () => {
         let retryTimer: ReturnType<typeof setTimeout> | null = null;
         let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
-        const sendAuthUpdate = async () => {
-            const token =
-                wssType !== 'cloud'
-                    ? (await webCore.getTokenSignature()).originToken?.identityToken
-                    : cloudCore.getIdentityToken();
+        const sendAuthUpdate = async (reason: string) => {
+            if (coordinator.isTransitioning()) {
+                logger.info('AUTH', '[CloudTokenRefresh] auth paused during cloud transition', { data: { reason } });
+                return false;
+            }
 
-            if (!token) return;
-            await authRepository.updateSocketAuth({ token });
+            return coordinator.reauthenticateSocket({
+                authRepository,
+                reason,
+                wssType,
+            });
         };
 
         const refresh = async () => {
@@ -72,24 +68,25 @@ export const useCloudTokenRefresh = () => {
             try {
                 if (wssType === 'cloud') {
                     try {
-                        await cloudCore.refreshToken();
+                        await coordinator.refreshCloudTokenIfNeeded({
+                            reason: 'interval-refresh',
+                            wssType,
+                        });
                         setServiceUnavailable(false);
-                    } catch (e) {
-                        logger.error('AUTH', '[CloudTokenRefresh] refreshToken failed', { error: e });
-                        reportError(toError(e));
-                        if (isServerError(e)) {
+                    } catch (error) {
+                        logger.error('AUTH', '[CloudTokenRefresh] refreshToken failed', { error });
+                        reportError(toError(error));
+                        if (isServerError(error)) {
                             setServiceUnavailable(true);
                             return;
                         }
-                        if (isAuthError(e)) {
-                            // cloud 토큰 만료/무효 → 기본 클라우드(relay)로 fallback
+                        if (isAuthError(error)) {
                             logger.warn(
                                 'AUTH',
                                 '[CloudTokenRefresh] Cloud token expired, falling back to default cloud'
                             );
                             cloudCore.clearDelegationToken();
                             cloudCore.clearSelectedPlace();
-                            cloudCore.saveSelectedCloudId('default');
                             useWebCoreStore.getState().setSelectedCloudId('default');
                             useWebCoreStore.getState().setSelectedPlaceId(null);
                             toast({ title: t('cloudSessionSheet.cloudSessionExpired'), variant: 'destructive' });
@@ -98,7 +95,7 @@ export const useCloudTokenRefresh = () => {
                     }
                 }
 
-                await sendAuthUpdate();
+                await sendAuthUpdate('interval-auth-update');
             } catch (error) {
                 logger.error('AUTH', '[CloudTokenRefresh] auth:update failed', { error });
             } finally {
@@ -116,7 +113,7 @@ export const useCloudTokenRefresh = () => {
         const attemptInitialAuthUpdate = async () => {
             if (disposed) return;
 
-            if (_skipAutoAuth) {
+            if (coordinator.isTransitioning()) {
                 retryTimer = setTimeout(() => {
                     void attemptInitialAuthUpdate();
                 }, AUTH_UPDATE_BASE_DELAY_MS);
@@ -124,7 +121,8 @@ export const useCloudTokenRefresh = () => {
             }
 
             try {
-                await sendAuthUpdate();
+                const sent = await sendAuthUpdate('socket-bootstrap');
+                if (!sent) return;
                 startRefreshInterval();
             } catch (error) {
                 retryCount++;
@@ -157,5 +155,15 @@ export const useCloudTokenRefresh = () => {
             if (retryTimer) clearTimeout(retryTimer);
             if (refreshInterval) clearInterval(refreshInterval);
         };
-    }, [authRepository, wssType, isAuthenticated, isConnected, isDeviceRegistered, setServiceUnavailable, toast, t]);
+    }, [
+        authRepository,
+        coordinator,
+        isAuthenticated,
+        isConnected,
+        isDeviceRegistered,
+        setServiceUnavailable,
+        t,
+        toast,
+        wssType,
+    ]);
 };

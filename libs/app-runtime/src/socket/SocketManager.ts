@@ -122,6 +122,13 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * Marks the current socket as requiring a fresh auth acknowledgement.
+     */
+    public markUnverified(): void {
+        this.setState({ isVerified: false });
+    }
+
+    /**
      * Connects the current socket if it is idle or closed.
      */
     public async connect(): Promise<void> {

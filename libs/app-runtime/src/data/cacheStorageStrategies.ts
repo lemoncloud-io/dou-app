@@ -1,21 +1,21 @@
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { CacheType } from '@chatic/app-messages';
 import {
-    type CacheStorage,
-    type DataContextProvider,
-    type PolicyResolver,
-    type CacheReadPolicy,
-    type EvictionStrategy,
-    type CapacityPolicy,
     type CacheErrorReporter,
-    IndexedDBDatabase,
-    IndexedDBAdapter,
-    NativeDBAdapter,
+    type CacheReadPolicy,
+    type CacheStorage,
+    type CapacityPolicy,
     ChatQueryExecutor,
-    DynamicCacheStorage,
-    DefaultPolicyResolver,
-    DefaultEvictionStrategy,
+    type DataContextProvider,
     DefaultCapacityPolicy,
+    DefaultEvictionStrategy,
+    DefaultPolicyResolver,
+    DynamicCacheStorage,
+    type EvictionStrategy,
+    IndexedDBAdapter,
+    IndexedDBDatabase,
+    NativeDBAdapter,
+    type PolicyResolver,
 } from '@chatic/data';
 
 /**
@@ -68,6 +68,7 @@ const appReadPolicies: Record<CacheType, CacheReadPolicy> = {
     join: 'cold-first',
     site: 'hot-first',
     user: 'hot-first',
+    profile: 'hot-first',
 };
 
 const appLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
@@ -77,6 +78,7 @@ const appLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
     join: 'cold-first',
     site: 'hot-first',
     user: 'hot-first',
+    profile: 'hot-first',
 };
 
 /**
