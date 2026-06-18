@@ -59,8 +59,9 @@ export const useSiteProfiles = (): void => {
                 if (item.uid) next[item.uid] = { nick: item.nick, thumbnail: item.thumbnail };
             }
             // Mirror my own entry (keyed by canonical cloud uid) under the account
-            // uid that every surface looks me up by.
-            if (cloudUid && accountUid && next[cloudUid] && !next[accountUid]) {
+            // uid that every surface looks me up by. Mirror always, so edits to the
+            // canonical entry are reflected in the accountUid lookup immediately.
+            if (cloudUid && accountUid && next[cloudUid]) {
                 next[accountUid] = next[cloudUid];
             }
             setAll(next);
