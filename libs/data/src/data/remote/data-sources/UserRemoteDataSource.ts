@@ -1,6 +1,5 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets';
 import type {
     ChannelSyncSiteProfileInput,
     ChannelSyncUsersInput,
@@ -12,6 +11,7 @@ import type { ChannelUsersSyncView, SiteProfileSyncView, UserView } from '@lemon
 import type { ChannelListUserInput } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { UserDomainGateway } from '../gateways';
 
 export interface IUserRemoteDataSource {
     /** 특정 조건의 사용자 목록을 서버에 요청합니다. */
@@ -33,31 +33,31 @@ export interface IUserRemoteDataSource {
 export class UserRemoteDataSource implements IUserRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: UserDomainGateway
     ) {}
 
     public async fetchUsers(payload: ChannelListUserInput): Promise<ListResult<UserView>> {
-        return (await this.client.request('channel.list-user', payload)) as Promise<ListResult<UserView>>;
+        return this.gateway.listUser(payload);
     }
 
     public async updateProfile(payload: UserUpdateProfileInput): Promise<UserView> {
-        return (await this.client.request('user.update-profile', payload)) as Promise<UserView>;
+        return this.gateway.updateProfile(payload);
     }
 
     public async requestInvite(payload: UserInviteInput): Promise<MyInviteView> {
-        return (await this.client.request('user.invite', payload)) as Promise<MyInviteView>;
+        return this.gateway.invite(payload);
     }
 
     public async inviteBatch(payload: UserInviteBatchInput): Promise<ListResult<MyInviteView>> {
-        return (await this.client.request('user.invite-batch', payload)) as Promise<ListResult<MyInviteView>>;
+        return this.gateway.inviteBatch(payload);
     }
 
     public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<ChannelUsersSyncView> {
-        return (await this.client.request('channel.sync-users', payload)) as Promise<ChannelUsersSyncView>;
+        return this.gateway.syncUsers(payload);
     }
 
     public async syncSiteProfile(payload: ChannelSyncSiteProfileInput): Promise<SiteProfileSyncView> {
-        return (await this.client.request('channel.sync-site-profile', payload)) as Promise<SiteProfileSyncView>;
+        return this.gateway.syncProfile(payload);
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

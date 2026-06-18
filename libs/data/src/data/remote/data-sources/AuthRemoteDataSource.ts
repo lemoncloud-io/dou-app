@@ -1,8 +1,8 @@
-import type { ISocketClient } from '../sockets';
 import type { AuthUpdateInput } from '@lemoncloud/chatic-sockets-api';
 import type { AuthUpdateResponse } from '@lemoncloud/chatic-sockets-api/dist/lib/auth/types';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
+import type { AuthGateway } from '@lemoncloud/chatic-sockets-lib';
 
 export interface IAuthRemoteDataSource {
     /** 서버에 인증 정보(토큰 등) 업데이트를 요청합니다. */
@@ -15,11 +15,11 @@ export interface IAuthRemoteDataSource {
 export class AuthRemoteDataSource implements IAuthRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: AuthGateway
     ) {}
 
     public async updateSocketAuth(payload: AuthUpdateInput): Promise<AuthUpdateResponse> {
-        return this.client.request('auth.update', payload);
+        return this.gateway.update(payload);
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

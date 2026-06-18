@@ -18,8 +18,8 @@ export class MockSocketClient implements ISocketClient {
     private typeListeners: Map<string, Array<(msg: SocketMessage) => void>> = new Map();
 
     // 메서드 호출 추적
-    send = jest.fn<void, [any]>();
-    request = jest.fn<Promise<any>, [any, any, any]>();
+    send = jest.fn<void, [any?, any?]>();
+    request = jest.fn<Promise<any>, [any, any?, any?]>();
     connect = jest.fn<Promise<void>, []>().mockResolvedValue(undefined);
     disconnect = jest.fn<Promise<void>, [number?, string?]>().mockResolvedValue(undefined);
     onState = jest.fn<() => void, [any]>().mockReturnValue(() => undefined);

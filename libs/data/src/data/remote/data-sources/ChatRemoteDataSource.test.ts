@@ -1,23 +1,23 @@
 import { ChatRemoteDataSource } from './ChatRemoteDataSource';
-import { MockSocketClient } from '../sockets/__mocks__/MockSocketClient';
+import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('ChatRemoteDataSource', () => {
-    let mockClient: MockSocketClient;
+    let mockGateways: MockRemoteGatewayBundle;
     let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
     let dataSource: ChatRemoteDataSource;
 
     beforeEach(() => {
-        mockClient = new MockSocketClient();
+        mockGateways = createMockRemoteGateways();
         mockDomainEventBus = {
             emit: jest.fn(),
             on: jest.fn(),
             onAny: jest.fn(),
         } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
 
-        dataSource = new ChatRemoteDataSource(mockDomainEventBus, mockClient);
+        dataSource = new ChatRemoteDataSource(mockDomainEventBus, mockGateways.chat);
     });
 
     it('sendChat 호출 시 chat.send 액션으로 request가 전송되어야 한다', async () => {
@@ -27,7 +27,7 @@ describe('ChatRemoteDataSource', () => {
             contentType: 'text',
         };
         await dataSource.sendChat(payload);
-        expect(mockClient.request).toHaveBeenCalledWith('chat.send', payload);
+        expect(mockGateways.chat.send).toHaveBeenCalledWith(payload);
     });
 
     it('fetchChat 호출 시 chat.feed 액션으로 request가 전송되어야 한다', async () => {
@@ -36,7 +36,7 @@ describe('ChatRemoteDataSource', () => {
             limit: 20,
         };
         await dataSource.fetchChat(payload);
-        expect(mockClient.request).toHaveBeenCalledWith('chat.feed', payload);
+        expect(mockGateways.chat.feed).toHaveBeenCalledWith(payload);
     });
 
     it('handleModelEvent("create", data) 호출 시 chat:create를 emit 해야 한다', () => {

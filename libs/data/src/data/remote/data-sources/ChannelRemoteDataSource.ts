@@ -1,6 +1,5 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets';
 import type {
     ChannelGetSelfInput,
     ChannelSyncInput,
@@ -16,6 +15,7 @@ import type {
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { ChannelGateway } from '@lemoncloud/chatic-sockets-lib';
 
 export interface IChannelRemoteDataSource {
     /** 내가 참여 중인 채널 목록을 서버에 요청합니다. */
@@ -44,43 +44,43 @@ export interface IChannelRemoteDataSource {
 export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: ChannelGateway
     ) {}
 
     public async fetchChannel(payload: ChannelMineInput): Promise<ListResult<ChannelView>> {
-        return this.client.request('channel.mine', payload) as Promise<ListResult<ChannelView>>;
+        return this.gateway.mine(payload);
     }
 
     public async syncChannel(payload: ChannelSyncInput): Promise<ChannelSyncView> {
-        return this.client.request('channel.sync', payload) as Promise<ChannelSyncView>;
+        return this.gateway.sync(payload);
     }
 
     public async updateChannel(payload: ChannelUpdateInput): Promise<ChannelView> {
-        return this.client.request('channel.update', payload) as Promise<ChannelView>;
+        return this.gateway.update(payload);
     }
 
     public async deleteChannel(payload: ChannelDeleteInput): Promise<ChannelView> {
-        return this.client.request('channel.delete', payload) as Promise<ChannelView>;
+        return this.gateway.delete(payload);
     }
 
     public async createChannel(payload: ChannelCreateInput): Promise<ChannelView> {
-        return this.client.request('channel.create', payload) as Promise<ChannelView>;
+        return this.gateway.create(payload);
     }
 
     public async inviteChannel(payload: ChatInviteInput): Promise<ChannelView> {
-        return this.client.request('channel.invite', payload) as Promise<ChannelView>;
+        return this.gateway.invite(payload);
     }
 
     public async leaveChannel(payload: ChatLeaveInput): Promise<ChannelView> {
-        return this.client.request('channel.leave', payload) as Promise<ChannelView>;
+        return this.gateway.leave(payload);
     }
 
     public async getSelfChannel(payload: ChannelGetSelfInput): Promise<ChannelView> {
-        return this.client.request('channel.get-self', payload) as Promise<ChannelView>;
+        return this.gateway.getSelf(payload);
     }
 
     public async getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
-        return this.client.request('channel.unreads', payload) as Promise<UnreadsSummaryView>;
+        return this.gateway.unreads(payload);
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {

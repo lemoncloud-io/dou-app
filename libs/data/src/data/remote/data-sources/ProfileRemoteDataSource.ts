@@ -1,4 +1,4 @@
-import type { ISocketClient } from '../sockets';
+import type { ProfileGateway } from '../gateways';
 import type { UserGetSiteProfileInput, UserSetSiteProfileInput } from '@lemoncloud/chatic-sockets-api';
 import type { ProfileView } from '@lemoncloud/chatic-socials-api';
 
@@ -10,13 +10,13 @@ export interface IProfileRemoteDataSource {
 }
 
 export class ProfileRemoteDataSource implements IProfileRemoteDataSource {
-    constructor(private readonly client: ISocketClient) {}
+    constructor(private readonly gateway: ProfileGateway) {}
 
     public async getSiteProfile(payload: UserGetSiteProfileInput): Promise<ProfileView> {
-        return (await this.client.request('user.get-site-profile', payload)) as Promise<ProfileView>;
+        return this.gateway.getSiteProfile(payload);
     }
 
     public async setSiteProfile(payload: UserSetSiteProfileInput): Promise<ProfileView> {
-        return (await this.client.request('user.set-site-profile', payload)) as Promise<ProfileView>;
+        return this.gateway.setSiteProfile(payload);
     }
 }

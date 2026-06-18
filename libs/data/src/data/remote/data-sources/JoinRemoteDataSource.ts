@@ -1,6 +1,6 @@
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
-import type { ISocketClient } from '../sockets';
+import type { JoinGateway } from '../gateways';
 import type { ChannelJoinInput, ChannelUpdateJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
@@ -18,19 +18,19 @@ export interface IJoinRemoteDataSource {
 export class JoinRemoteDataSource implements IJoinRemoteDataSource {
     constructor(
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly client: ISocketClient
+        private readonly gateway: JoinGateway
     ) {}
 
     public async readChat(payload: ChatReadInput): Promise<JoinView> {
-        return (await this.client.request('chat.read', payload)) as Promise<JoinView>;
+        return this.gateway.read(payload);
     }
 
     public async updateJoin(payload: ChannelUpdateJoinInput): Promise<JoinView> {
-        return (await this.client.request('channel.update-join', payload)) as Promise<JoinView>;
+        return this.gateway.updateJoin(payload);
     }
 
     public async joinChannel(payload: ChannelJoinInput): Promise<JoinView> {
-        return (await this.client.request('channel.join', payload)) as Promise<JoinView>;
+        return this.gateway.join(payload);
     }
 
     public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
