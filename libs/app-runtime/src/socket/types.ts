@@ -65,6 +65,7 @@ export interface ISocketManager {
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;
     subscribeClient(listener: SocketClientListener): () => void;
+    markUnverified(): void;
     connect(): Promise<void>;
     destroy(): void;
 }

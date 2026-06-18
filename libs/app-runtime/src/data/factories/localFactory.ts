@@ -16,7 +16,7 @@ import {
     type CacheStorageStrategy,
     HotColdCacheStorageStrategy,
     IndexedDbOnlyCacheStorageStrategy,
-} from './cacheStorageStrategies';
+} from '../cacheStorageStrategies';
 import { webClient } from '@chatic/bridges';
 
 export const isNativeApp = (): boolean => {

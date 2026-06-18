@@ -1,9 +1,11 @@
 import type { DataContext, DataContextProvider, DataRepositories, IEventBus, ISocketClient } from '@chatic/data';
 import { DataContextHolder, type DomainEventMap, EventBusEngine } from '@chatic/data';
 
-import { createLocalDataSources } from './localFactory';
-import { createRemoteDataSources } from './remoteFactory';
-import { createRepositories } from './repositoryFactory';
+import { createLocalDataSources } from './factories/localFactory';
+import { createRemoteDataSources } from './factories/remoteFactory';
+import { createRepositories } from './factories/repositoryFactory';
+import type { IDataManager } from './types';
+import { DEFAULT_CONTEXT } from './types';
 
 export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
