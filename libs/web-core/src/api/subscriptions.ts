@@ -1,4 +1,4 @@
-import { executeSignedRelayRequest, getCoreEndpoint, getIapEndpoint } from './request';
+import { executeSignedRelayRequest, getCoreEndpoint, getIapEndpoint } from './utils/request';
 
 import type {
     ValidateAPIBody,

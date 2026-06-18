@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { updateProfile } from '../api';
-import { useWebCoreStore } from '../stores/useWebCoreStore';
+import { setSessionProfile, useSessionAuth } from '../session';
 
 interface UpdateProfileData {
     name?: string;
@@ -9,8 +9,7 @@ interface UpdateProfileData {
 }
 
 export const useUpdateProfile = () => {
-    const profile = useWebCoreStore(s => s.profile);
-    const setProfile = useWebCoreStore(s => s.setProfile);
+    const { profile } = useSessionAuth();
 
     return useMutation({
         mutationFn: async (data: UpdateProfileData) => {
@@ -23,7 +22,7 @@ export const useUpdateProfile = () => {
         onSuccess: updated => {
             // Merge with existing profile to preserve other fields
             if (updated && profile) {
-                setProfile({
+                setSessionProfile({
                     ...profile,
                     $user: {
                         ...profile.$user,

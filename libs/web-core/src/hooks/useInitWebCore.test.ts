@@ -2,11 +2,16 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useInitWebCore } from './useInitWebCore';
 
 const mockInitialize = jest.fn();
+const mockMarkSessionInitialized = jest.fn();
 const mockIsInitialized = { current: false };
 
-jest.mock('../stores', () => ({
-    useWebCoreStore: jest.fn(() => ({
-        initialize: mockInitialize,
+jest.mock('../session', () => ({
+    initializeSession: (...args: unknown[]) => mockInitialize(...args),
+    markSessionInitialized: (...args: unknown[]) => mockMarkSessionInitialized(...args),
+}));
+
+jest.mock('./session', () => ({
+    useSessionAuth: jest.fn(() => ({
         get isInitialized() {
             return mockIsInitialized.current;
         },
@@ -57,6 +62,7 @@ describe('useInitWebCore', () => {
         // 더 이상 재시도 없음
         jest.advanceTimersByTime(10000);
         expect(mockInitialize).toHaveBeenCalledTimes(4);
+        expect(mockMarkSessionInitialized).toHaveBeenCalledTimes(1);
     });
 
     it('재시도 중 성공하면 더 이상 재시도하지 않는다', async () => {

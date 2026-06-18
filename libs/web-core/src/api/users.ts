@@ -1,4 +1,4 @@
-import { executeSignedRelayRequest, getCoreEndpoint } from './request';
+import { executeSignedRelayRequest, getCoreEndpoint } from './utils/request';
 
 import type {
     CloudBody,

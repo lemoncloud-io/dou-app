@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { logger } from '@chatic/bridges';
 import { createQueryKeys, useCustomMutation } from '@chatic/shared';
-import { useWebCoreStore } from '../../stores';
 
+import type { FindAliasBody, FindAliasView, IssueCloudTokenResult, VerifyAliasBody, VerifyAliasView } from '../../api';
 import {
     findAlias,
     issueCloudDelegationToken,
@@ -26,8 +26,7 @@ import {
     type UserView,
 } from '@lemoncloud/chatic-backend-api';
 import type { AxiosError } from 'axios';
-
-import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from '../../api';
+import { setSessionAuthenticated, setSessionProfile, useSessionLogout } from '../../session';
 
 export const authKeys = createQueryKeys('auth');
 
@@ -51,13 +50,11 @@ export const useRegisterUserV2 = () =>
     );
 
 export const useLogin = () => {
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
-
     return useCustomMutation<UserTokenView, string, LoginUserBody>(login, {
         onSuccess: data => {
             const { Token: _Token, ...rest } = data;
-            setProfile(rest as unknown as UserProfile$);
-            setIsAuthenticated(true);
+            setSessionProfile(rest as unknown as UserProfile$);
+            setSessionAuthenticated(true);
             logger.info('AUTH', 'Login successful');
         },
     });
@@ -72,11 +69,6 @@ export const useIssueToken = () => {
         ...mutation,
         issuingLoginId: mutation.isPending ? mutation.variables?.uid : null,
     };
-};
-
-export type IssueCloudTokenResult = {
-    cloudDelegationToken: CloudDelegationTokenView;
-    userToken: UserTokenView;
 };
 
 export const useIssueCloudToken = () => {
@@ -101,12 +93,12 @@ export const useFindAlias = () => useCustomMutation<FindAliasView, AxiosError, F
 export const useVerifyAlias = () => useCustomMutation<VerifyAliasView, AxiosError, VerifyAliasBody>(verifyAlias);
 
 export const useLogout = () => {
-    const storeLogout = useWebCoreStore(s => s.logout);
+    const logoutSession = useSessionLogout();
 
     return useCustomMutation<void, string, void>(async () => {
         await logout().catch(err => {
             logger.error('AUTH', '[useLogout] Server logout failed', { error: err });
         });
-        await storeLogout();
+        await logoutSession();
     });
 };
