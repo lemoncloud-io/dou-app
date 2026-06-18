@@ -1,31 +1,28 @@
-import type { ISocketClient } from '@chatic/data';
+import type {
+    ClientSocketErrorEvent,
+    ClientSocketMessageEvent,
+    ClientSocketStateEvent,
+    ClientSocketV2,
+    SocketMessage,
+} from '@lemoncloud/chatic-sockets-lib';
+
 import { logger } from '@chatic/bridges';
-import type { ClientSocketV2, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
-import type { ISocketManager } from '../types';
+import type { ISocketManager } from './types';
 
-/**
- * Represents a registered listener for a specific message type.
- * Stores metadata needed to re-bind the listener if the underlying socket client changes.
- */
 type TypeListenerEntry = {
-    /** The message type/event name to listen to. */
     type: string;
-    /** The callback handler triggered when a matching message arrives. */
     listener: (message: SocketMessage<any>) => void;
-    /** The unsubscribe function returned by the current ClientSocketV2 instance. */
     unsubscribe?: () => void;
 };
 
 /**
- * SocketClientAdapter implements the shared ISocketClient interface as a facade over
- * the single ClientSocketV2 owned by SocketManager. It automatically re-binds type
- * listeners whenever the manager replaces the socket (scope switch / restart),
- * preventing any message loss or listener leaks.
+ * Stable proxy that survives socket instance replacement in SocketManager.
+ * Gateways and inbound dispatchers bind to this proxy instead of a raw ClientSocketV2.
  */
-export class SocketClientAdapter implements ISocketClient {
-    private readonly typeListeners = new Set<TypeListenerEntry>();
+export class ManagedSocketClientProxy {
     private currentClient: ClientSocketV2 | null = null;
+    private readonly typeListeners = new Set<TypeListenerEntry>();
     private readonly unsubscribeClient: () => void;
 
     constructor(private readonly manager: ISocketManager) {
@@ -36,14 +33,46 @@ export class SocketClientAdapter implements ISocketClient {
         });
     }
 
+    public get state() {
+        return this.currentClient?.state ?? 'idle';
+    }
+
+    public connect(): Promise<void> {
+        return this.manager.connect();
+    }
+
+    public disconnect(code?: number, reason?: string): Promise<void> {
+        const client = this.requireClient('disconnect()');
+        return client.disconnect(code, reason);
+    }
+
+    public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
+        const client = this.requireClient('send()');
+        if (typeof type === 'string') {
+            client.send(type as any, data as any);
+            return;
+        }
+        client.send(type);
+    }
+
     public request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireClient(`request(${type})`);
         return client.request(type as any, data as any, options) as Promise<T>;
     }
 
-    public send<T = unknown>(message: SocketMessage<T>): void {
-        const client = this.requireClient(`send(${message.type})`);
-        client.send(message);
+    public onState(listener: (event: ClientSocketStateEvent) => void): () => void {
+        const client = this.requireClient('onState()');
+        return client.onState(listener);
+    }
+
+    public onError(listener: (event: ClientSocketErrorEvent) => void): () => void {
+        const client = this.requireClient('onError()');
+        return client.onError(listener);
+    }
+
+    public onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void {
+        const client = this.requireClient('onMessage()');
+        return client.onMessage(listener);
     }
 
     public onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void {
@@ -51,7 +80,6 @@ export class SocketClientAdapter implements ISocketClient {
             type,
             listener: listener as (message: SocketMessage<any>) => void,
         };
-
         this.typeListeners.add(entry);
         this.bindTypeListener(entry);
 
@@ -71,10 +99,11 @@ export class SocketClientAdapter implements ISocketClient {
     }
 
     private requireClient(action: string): ClientSocketV2 {
-        if (!this.currentClient) {
-            throw new Error(`[SocketClientAdapter] Socket client not ready for ${action}`);
+        const client = this.currentClient ?? this.manager.getClient();
+        if (!client) {
+            throw new Error(`[ManagedSocketClientProxy] Socket client not ready for ${action}`);
         }
-        return this.currentClient;
+        return client;
     }
 
     private rebindTypeListeners(): void {
@@ -87,12 +116,11 @@ export class SocketClientAdapter implements ISocketClient {
 
     private bindTypeListener(entry: TypeListenerEntry): void {
         if (!this.currentClient) {
-            logger.debug('SOCKET', '[SocketClientAdapter] Skipping bind until socket client is ready', {
+            logger.debug('SOCKET', '[ManagedSocketClientProxy] Skipping bind until socket client is ready', {
                 type: entry.type,
             });
             return;
         }
-
         entry.unsubscribe = this.currentClient.onType(entry.type, entry.listener);
     }
 }

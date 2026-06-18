@@ -1,6 +1,6 @@
 import type { DataContext, DataRepositories } from '@chatic/data';
 
-import { getSocketClientAdapter } from '../socket/runtime';
+import { getSocketManager } from '../socket/runtime';
 import { DataManager } from './DataManager';
 import type { IDataManager } from './types';
 
@@ -12,7 +12,7 @@ export interface DataRuntime {
 let dataRuntimeSingleton: DataRuntime | null = null;
 
 export const createDataRuntime = (initialContext?: DataContext): DataRuntime => {
-    const manager = new DataManager(getSocketClientAdapter(), initialContext);
+    const manager = new DataManager(getSocketManager(), initialContext);
 
     return {
         manager,
