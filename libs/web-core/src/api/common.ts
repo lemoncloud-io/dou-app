@@ -1,4 +1,4 @@
-import { cloudCore, DOU_ENDPOINT, ENV } from '../core';
+import { DOU_ENDPOINT, ENV } from '../session/core';
 import { webTransport } from '../transport';
 import { getGlobalSessionContext } from '../session';
 import { isNative, logger } from '@chatic/bridges';
@@ -34,11 +34,11 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
         const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = getGlobalSessionContext();
-        const userRole = (state.identity.profile?.$user as any)?.userRole;
+        const userRole = (state.identity.activeProfile?.$user as any)?.userRole;
 
-        // 클라우드 정보 (cloudCore에서)
-        const cloudToken = cloudCore.getCloudToken();
-        const backend = cloudCore.getBackend();
+        const cloudState = state.cloud;
+        const cloudToken = cloudState.cloudToken;
+        const backend = cloudState.backend;
         const hasCloud = !!cloudToken && !!backend;
 
         // HTTP 에러 정보 추출
@@ -68,20 +68,20 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent,
             user: {
-                uid: state.identity.profile?.uid,
-                name: state.identity.profile?.$user?.name,
+                uid: state.identity.activeProfile?.uid,
+                name: state.identity.activeProfile?.$user?.name,
                 role: userRole,
                 isAuthenticated: state.identity.isAuthenticated,
                 isGuest: state.identity.isGuest,
-                isCloudUser: state.identity.isCloudUser,
+                isCloudUser: state.identity.cloudProfile !== null,
                 isInvited: state.identity.isInvited,
             },
             cloud: {
                 connected: hasCloud,
-                cloudId: hasCloud ? (cloudCore.getSelectedCloudId() ?? undefined) : undefined,
+                cloudId: hasCloud ? (cloudState.cloudId ?? undefined) : undefined,
                 name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
                 backend: hasCloud ? (backend ?? undefined) : undefined,
-                placeId: cloudCore.getSelectedPlaceId() ?? undefined,
+                placeId: cloudState.siteId ?? undefined,
             },
             http: httpInfo,
             device: isNative()
@@ -124,10 +124,11 @@ export const reportIssue = async (title: string, message: string): Promise<void>
         const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = getGlobalSessionContext();
-        const userRole = (state.identity.profile?.$user as any)?.userRole;
+        const userRole = (state.identity.activeProfile?.$user as any)?.userRole;
 
-        const cloudToken = cloudCore.getCloudToken();
-        const backend = cloudCore.getBackend();
+        const cloudState = state.cloud;
+        const cloudToken = cloudState.cloudToken;
+        const backend = cloudState.backend;
         const hasCloud = !!cloudToken && !!backend;
 
         const payload = {
@@ -138,16 +139,16 @@ export const reportIssue = async (title: string, message: string): Promise<void>
             url: window.location.href,
             timestamp: new Date().toISOString(),
             user: {
-                uid: state.identity.profile?.uid,
-                name: state.identity.profile?.$user?.name,
+                uid: state.identity.activeProfile?.uid,
+                name: state.identity.activeProfile?.$user?.name,
                 role: userRole,
                 isAuthenticated: state.identity.isAuthenticated,
             },
             cloud: {
                 connected: hasCloud,
-                cloudId: hasCloud ? (cloudCore.getSelectedCloudId() ?? undefined) : undefined,
+                cloudId: hasCloud ? (cloudState.cloudId ?? undefined) : undefined,
                 name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
-                placeId: cloudCore.getSelectedPlaceId() ?? undefined,
+                placeId: cloudState.siteId ?? undefined,
             },
         };
 

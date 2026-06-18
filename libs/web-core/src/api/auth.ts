@@ -1,12 +1,13 @@
-import { cloudCore, OAUTH_ENDPOINT } from '../core';
-import { calcSignature, MAX_RETRIES, validateTokenResponse, withRetry } from './utils';
 import {
+    calcSignature,
     executeCloudRequest,
     executeRelayRequest,
     executeSignedRelayRequest,
     getCoreEndpoint,
+    getDynamicRelayBackend,
     getOAuthEndpoint,
-} from './utils/request';
+    webTransport,
+} from '../transport';
 
 import type {
     CloudExchangeTokenBody,
@@ -14,20 +15,18 @@ import type {
     RegisterUserV2Body,
     UserBody,
     UserLogoutResult,
+    UserProfile$,
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
-import type {
-    OAuthRefreshBody,
-    VerifyNativeTokenBody,
-} from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
+import type { OAuthRefreshBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 import type { TokenGenerateRequest, TokenGenerateResponse } from '@chatic/shared';
 import { throwIfApiError } from '@chatic/shared';
 
-import type { FindAliasBody, FindAliasView, LemonRefreshTokenResult, VerifyAliasBody, VerifyAliasView } from './types';
-import { getDynamicRelayBackend, webTransport } from '../transport';
+import type { FindAliasBody, FindAliasView, VerifyAliasBody, VerifyAliasView } from './types';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
-import { logger } from '@chatic/bridges';
+import { MAX_RETRIES } from '../transport/error';
+import { withRetry } from '../transport/utils';
 
 export const registerDevice = async (deviceId: string): Promise<UserTokenView> => {
     return executeRelayRequest<UserTokenView, { deviceId: string }>({
@@ -71,8 +70,15 @@ export const issueCloudToken = async (baseURL: string, body: CloudExchangeTokenB
     });
 };
 
-export const refreshCloudToken = async (target?: string): Promise<UserTokenView> => {
-    const token = cloudCore.getCloudToken();
+export const refreshCloudToken = async ({
+    baseURL,
+    token,
+    target,
+}: {
+    baseURL: string;
+    token: UserTokenView;
+    target?: string;
+}): Promise<UserTokenView> => {
     if (!token?.Token) throw new Error('No cloud token found');
 
     const { authId, accountId, identityId, identityToken } = token.Token;
@@ -84,18 +90,12 @@ export const refreshCloudToken = async (target?: string): Promise<UserTokenView>
     const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
     const body: OAuthRefreshBody = { current, signature, ...(target && { target }) };
 
-    const backend = cloudCore.getBackend();
-    const refreshed = await executeCloudRequest<UserTokenView, OAuthRefreshBody>({
+    return executeCloudRequest<UserTokenView, OAuthRefreshBody>({
         method: 'POST',
-        baseURL: `${backend}/oauth/${authId}/refresh`,
+        baseURL: `${baseURL}/oauth/${authId}/refresh`,
         params: { token: 1 },
         body,
     });
-
-    const existing = cloudCore.getCloudToken();
-    const merged = { ...existing, ...refreshed } as UserTokenView;
-    cloudCore.saveCloudToken(merged);
-    return merged;
 };
 
 export const findAlias = async (body: FindAliasBody): Promise<FindAliasView> => {
@@ -130,48 +130,6 @@ export const logout = async (): Promise<UserLogoutResult> => {
     });
 };
 
-export const snsTestLogin = async (tokenBody: VerifyNativeTokenBody) => {
-    const { data } = await webTransport
-        .buildSignedRequest({ method: 'POST', baseURL: `${OAUTH_ENDPOINT}/oauth/0/verify-native-token` })
-        .setParams({ token: 1 })
-        .setBody(tokenBody)
-        .execute<LemonRefreshTokenResult & { error?: string }>();
-
-    throwIfApiError(data);
-
-    const refreshToken: LemonOAuthToken = {
-        ...data.Token,
-        identityToken: data.Token.identityToken,
-    };
-
-    await webTransport.buildCredentialsByToken(refreshToken);
-
-    return data;
-};
-
-/**
- * Creates authentication credentials using OAuth provider
- * - Exchanges authorization code for access token
- * - Builds credentials using the obtained token
- *
- * @param provider - OAuth provider name (default: 'google')
- * @param code - Authorization code from OAuth flow
- * @returns Promise resolving to authentication credentials
- */
-export const createCredentialsByProvider = async (provider = 'google', code: string) => {
-    const { data } = await webTransport
-        .buildSignedRequest({
-            method: 'POST',
-            baseURL: `${OAUTH_ENDPOINT}/oauth/${provider}/token`,
-        })
-        .setBody({ code })
-        .execute<{ Token: LemonOAuthToken } & { error?: string }>();
-
-    throwIfApiError(data);
-
-    return await webTransport.buildCredentialsByToken(data.Token);
-};
-
 /**
  * Login with invite code
  * - Uses POST /oauth/login-invite endpoint
@@ -204,21 +162,27 @@ export const loginWithInviteCode = async (
     return throwIfApiError(data);
 };
 
-export const refreshAuthToken = async () => {
+/**
+ * Refreshes the active relay OAuth token and optionally switches the active relay site.
+ *
+ * When `target` is provided, the backend issues a token scoped to the requested `uid@sid`
+ * site session and the refreshed credentials are written back into the web transport.
+ */
+export const refreshAuthToken = async (target?: string) => {
+    const { current, signature, authId, originToken } = await webTransport.getTokenSignature();
+    if (!authId || !originToken || !signature || !originToken.identityToken) {
+        throw new Error('Missing required token information');
+    }
+
     return withRetry(
         async () => {
-            const { current, signature, authId, originToken } = await webTransport.getTokenSignature();
-            if (!authId || !originToken || !signature || !originToken.identityToken) {
-                throw new Error('Missing required token information');
-            }
-
             const response = await webTransport
                 .buildSignedRequest({
                     method: 'POST',
-                    baseURL: `${OAUTH_ENDPOINT}/oauth/${authId}/refresh`,
+                    baseURL: `${getOAuthEndpoint()}/oauth/${authId}/refresh`,
                 })
                 .setParams({ token: 1 })
-                .setBody({ current, signature })
+                .setBody({ current, signature, ...(target ? { target } : {}) })
                 .execute<LemonOAuthToken & { error?: string }>();
 
             throwIfApiError(response.data);
@@ -227,8 +191,7 @@ export const refreshAuthToken = async () => {
                 identityPoolId: originToken.identityPoolId,
                 ...(response.data.Token ? response.data.Token : response.data),
             };
-            const validatedToken: LemonOAuthToken = validateTokenResponse(tokenData);
-            await webTransport.buildCredentialsByToken(validatedToken);
+            return validateTokenResponse(tokenData);
         },
         MAX_RETRIES,
         'Token refresh'
@@ -241,9 +204,9 @@ export const fetchProfile = async () => {
             const { data } = await webTransport
                 .buildSignedRequest({
                     method: 'GET',
-                    baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                    baseURL: `${getOAuthEndpoint()}/users/0/profile`,
                 })
-                .execute<UserProfile & { error?: string }>();
+                .execute<UserProfile$ & { error?: string }>();
             return throwIfApiError(data);
         },
         MAX_RETRIES,
@@ -256,70 +219,47 @@ export const fetchProfile = async () => {
  * 토큰 갱신과 병렬 실행용: 현재 토큰이 아직 유효하면 즉시 프로필 반환.
  * 실패 시 null 반환 (alert/redirect 없음).
  */
-export const tryFetchProfile = async (): Promise<UserProfile | null> => {
+export const tryFetchProfile = async (): Promise<UserProfile$ | null> => {
     try {
         const { data } = await webTransport
             .buildSignedRequest({
                 method: 'GET',
-                baseURL: `${OAUTH_ENDPOINT}/users/0/profile`,
+                baseURL: `${getOAuthEndpoint()}/users/0/profile`,
             })
-            .execute<UserProfile & { error?: string }>();
+            .execute<UserProfile$ & { error?: string }>();
         return data?.error ? null : data;
     } catch {
         return null;
     }
 };
 
-class UserProfile {}
-
 export const updateProfile = async (uid: string, body: Record<string, unknown>) => {
     const endpoint = getDynamicRelayBackend();
+    return withRetry(
+        async () => {
+            const { data } = await webTransport
+                .buildSignedRequest({
+                    method: 'PUT',
+                    baseURL: `${endpoint}/users/${uid}`,
+                })
+                .setBody(body as Record<string, unknown>)
+                .execute<UserProfile$ & { error?: string }>();
+            return throwIfApiError(data);
+        },
+        MAX_RETRIES,
+        'Profile update'
+    );
+};
 
-    try {
-        return await withRetry(
-            async () => {
-                const { data } = await webTransport
-                    .buildSignedRequest({
-                        method: 'PUT',
-                        baseURL: `${endpoint}/users/${uid}`,
-                    })
-                    .setBody(body as Record<string, unknown>)
-                    .execute<UserProfile & { error?: string }>();
-                return throwIfApiError(data);
-            },
-            MAX_RETRIES,
-            'Profile update'
-        );
-    } catch (error: any) {
-        const is403 =
-            error?.status === 403 ||
-            error?.response?.status === 403 ||
-            (error?.message && error.message.includes('403'));
+const validateTokenResponse = (tokenData: any): LemonOAuthToken => {
+    const token = tokenData?.Token;
+    const tokenIdentityToken = token?.identityToken;
+    const responseIdentityToken = tokenData?.identityToken;
 
-        if (is403) {
-            logger.info('PROFILE', 'Profile update got 403, attempting token refresh');
-            try {
-                await refreshAuthToken();
-                // Retry profile update once after successful token refresh
-                return await withRetry(
-                    async () => {
-                        const { data } = await webTransport
-                            .buildSignedRequest({
-                                method: 'PUT',
-                                baseURL: `${endpoint}/dou-d1/users/${uid}`,
-                            })
-                            .setBody(body as Record<string, unknown>)
-                            .execute<UserProfile & { error?: string }>();
-                        return throwIfApiError(data);
-                    },
-                    1,
-                    'Profile update after token refresh'
-                );
-            } catch (refreshError) {
-                logger.error('PROFILE', 'Token refresh failed during profile update', { error: refreshError });
-                throw error;
-            }
-        }
-        throw error;
+    const identityToken = tokenIdentityToken || responseIdentityToken;
+    if (!identityToken) {
+        throw new Error('INVALID_TOKEN: identityToken is missing from refresh response');
     }
+
+    return tokenData;
 };

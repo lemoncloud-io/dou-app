@@ -1,9 +1,9 @@
-import { executeSignedRelayRequest, getCoreEndpoint, getIapEndpoint } from './utils/request';
+import { executeSignedRelayRequest, getCoreEndpoint, getIapEndpoint } from '../transport';
 
 import type {
+    ListValidateParam,
     ValidateAPIBody,
     ValidateAPIResponse,
-    ListValidateParam,
 } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/views';
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
