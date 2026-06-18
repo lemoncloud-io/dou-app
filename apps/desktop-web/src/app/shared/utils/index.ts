@@ -7,6 +7,8 @@ export * from './displayName';
 export * from './displayProfile';
 export * from './relativeTime';
 export * from './mentionMatch';
+export * from './myNames';
+export * from './dnd';
 export * from './stripMarkdown';
 export * from './dmDisplay';
 export * from './resolvePushCloudId';

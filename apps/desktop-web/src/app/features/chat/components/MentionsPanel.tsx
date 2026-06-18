@@ -1,21 +1,28 @@
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, ChevronRight, Hash, X } from 'lucide-react';
+import { AtSign, ChevronRight, Hash, X } from 'lucide-react';
 
 import type { DomainChannel, DomainSite } from '@chatic/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { avatarStyle, usePanelWidth, useSavedItemsStore, useSavedPanelStore, type SavedItem } from '../../../shared';
+import {
+    avatarStyle,
+    unreadMentionCount,
+    usePanelWidth,
+    useMentionsPanelStore,
+    useMentionsStore,
+    type MentionItem,
+} from '../../../shared';
 
-const formatSavedAt = (ms: number): string => {
+const formatMentionAt = (ms: number): string => {
     const date = new Date(ms);
     if (Number.isNaN(date.getTime())) return '';
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-interface SavedRowProps {
-    item: SavedItem;
+interface MentionRowProps {
+    item: MentionItem;
     /** Resolved channel name (current place only); chip is hidden when absent. */
     channelName?: string;
     removeLabel: string;
@@ -23,13 +30,17 @@ interface SavedRowProps {
     onRemove: () => void;
 }
 
-const SavedRow = ({ item, channelName, removeLabel, onOpen, onRemove }: SavedRowProps) => (
-    <div className="group/saved relative flex rounded-md border border-hairline bg-elevated shadow-raised transition-colors ease-tactile hover:bg-accent/60">
+const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: MentionRowProps) => (
+    <div className="group/mention relative flex rounded-md border border-hairline bg-elevated shadow-raised transition-colors ease-tactile hover:bg-accent/60">
         <button
             type="button"
             onClick={onOpen}
             className="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-md p-2.5 text-left"
         >
+            {/* Unread marker — a dot in the left gutter until the mention is opened. */}
+            <span aria-hidden className="mt-3 w-1.5 shrink-0">
+                {!item.readAt && <span className="block h-1.5 w-1.5 rounded-full bg-primary" />}
+            </span>
             <Avatar className="mt-0.5 h-9 w-9 shrink-0 rounded-md">
                 {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
                 <AvatarFallback
@@ -48,7 +59,7 @@ const SavedRow = ({ item, channelName, removeLabel, onOpen, onRemove }: SavedRow
                             <span className="truncate">{channelName}</span>
                         </>
                     )}
-                    <span className="ml-auto shrink-0 tabular-nums">{formatSavedAt(item.savedAt)}</span>
+                    <span className="ml-auto shrink-0 tabular-nums">{formatMentionAt(item.createdAt)}</span>
                 </span>
                 <span className="line-clamp-2 whitespace-pre-wrap break-words pr-5 text-callout text-muted-foreground">
                     {item.content}
@@ -59,43 +70,45 @@ const SavedRow = ({ item, channelName, removeLabel, onOpen, onRemove }: SavedRow
         <ChevronRight
             size={16}
             aria-hidden
-            className="pointer-events-none absolute bottom-2 right-2 text-muted-foreground opacity-0 transition-opacity ease-tactile group-hover/saved:opacity-100"
+            className="pointer-events-none absolute bottom-2 right-2 text-muted-foreground opacity-0 transition-opacity ease-tactile group-hover/mention:opacity-100"
         />
         <button
             type="button"
             onClick={onRemove}
             title={removeLabel}
             aria-label={removeLabel}
-            className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/saved:opacity-100"
+            className="focus-ring tactile absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity ease-tactile hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/mention:opacity-100"
         >
             <X size={13} />
         </button>
     </div>
 );
 
-interface SavedPanelProps {
-    /** Loaded channels (active place) — names the saved rows' channel chips. */
+interface MentionsPanelProps {
+    /** Loaded channels (active place) — names the mention rows' channel chips. */
     channels: DomainChannel[];
     /** Places in the active cloud — names the place-group headers. */
     places: DomainSite[];
     /** The active place — its group sorts to the top. */
     currentPlaceId?: string;
-    /** Jump to the saved message: select its place + channel, then scroll to it. */
+    /** Jump to the mentioned message: select its place + channel, then scroll to it. */
     onSelect: (channelId: string, chatNo?: number, placeId?: string) => void;
 }
 
 /**
- * Trailing pane listing device-local saved messages, grouped by place (active
- * place first), newest first within each group. Rows jump to their message; the
- * bookmark toggles off via the row's remove button or the message's toolbar.
+ * Trailing pane listing device-local @me mentions ("Activity"), grouped by place
+ * (active place first), newest first within each group. Opening a row jumps to
+ * its message and marks it read; the X drops it from the inbox.
  */
-export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: SavedPanelProps) => {
+export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: MentionsPanelProps) => {
     const { t } = useTranslation();
-    const close = useSavedPanelStore(s => s.close);
-    const items = useSavedItemsStore(s => s.items);
-    const remove = useSavedItemsStore(s => s.remove);
+    const close = useMentionsPanelStore(s => s.close);
+    const items = useMentionsStore(s => s.items);
+    const markRead = useMentionsStore(s => s.markRead);
+    const markAllRead = useMentionsStore(s => s.markAllRead);
+    const remove = useMentionsStore(s => s.remove);
     const { width, minWidth, maxWidth, panelRef, startResize, resizeByKey } = usePanelWidth({
-        storageKey: 'chatic.savedPanel.width',
+        storageKey: 'chatic.mentionsPanel.width',
         defaultWidth: 320,
     });
 
@@ -112,11 +125,11 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     const placeName = (placeId: string): string => places.find(p => p.id === placeId)?.name ?? t('saved.otherPlace');
 
     // Group newest-first items by place; the active place sorts to the top, the
-    // rest keep recency order. Items saved before placeId existed fall under the
-    // catch-all "Other workspace" group (key '').
+    // rest keep recency order. Items captured before placeId existed fall under
+    // the catch-all "Other workspace" group (key '').
     const groups = useMemo(() => {
-        const sorted = Object.values(items).sort((a, b) => b.savedAt - a.savedAt);
-        const byPlace = new Map<string, SavedItem[]>();
+        const sorted = Object.values(items).sort((a, b) => b.createdAt - a.createdAt);
+        const byPlace = new Map<string, MentionItem[]>();
         for (const item of sorted) {
             const key = item.placeId ?? '';
             const list = byPlace.get(key);
@@ -128,6 +141,8 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
         return keys.map(key => ({ key, items: byPlace.get(key) ?? [] }));
     }, [items, currentPlaceId]);
 
+    const hasUnread = unreadMentionCount(items) > 0;
+
     return (
         <aside
             ref={panelRef}
@@ -138,7 +153,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
             <div
                 role="separator"
                 aria-orientation="vertical"
-                aria-label={t('saved.resize')}
+                aria-label={t('activity.resize')}
                 aria-valuenow={width}
                 aria-valuemin={minWidth}
                 aria-valuemax={maxWidth}
@@ -147,25 +162,36 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
                 onKeyDown={resizeByKey}
                 className="focus-ring absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ease-tactile hover:bg-primary/40 active:bg-primary/60"
             />
-            <header className="flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4">
-                <span className="truncate text-title text-foreground">{t('saved.title')}</span>
-                <button
-                    type="button"
-                    onClick={close}
-                    title={t('saved.close')}
-                    aria-label={t('saved.close')}
-                    className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                >
-                    <X size={18} />
-                </button>
+            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-hairline px-4">
+                <span className="truncate text-title text-foreground">{t('activity.title')}</span>
+                <div className="flex shrink-0 items-center gap-1">
+                    {hasUnread && (
+                        <button
+                            type="button"
+                            onClick={markAllRead}
+                            className="focus-ring tactile rounded-md px-2 py-1 text-caption text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                        >
+                            {t('activity.markAllRead')}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={close}
+                        title={t('activity.close')}
+                        aria-label={t('activity.close')}
+                        className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
             </header>
             {groups.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-well text-muted-foreground">
-                        <Bookmark size={22} />
+                        <AtSign size={22} />
                     </div>
-                    <p className="text-heading text-foreground">{t('saved.empty')}</p>
-                    <p className="max-w-xs text-caption text-muted-foreground">{t('saved.emptyHint')}</p>
+                    <p className="text-heading text-foreground">{t('activity.empty')}</p>
+                    <p className="max-w-xs text-caption text-muted-foreground">{t('activity.emptyHint')}</p>
                 </div>
             ) : (
                 <div className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto p-2">
@@ -177,12 +203,13 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
                                 <span className="shrink-0 tabular-nums">{group.items.length}</span>
                             </p>
                             {group.items.map(item => (
-                                <SavedRow
+                                <MentionRow
                                     key={item.id}
                                     item={item}
                                     channelName={channelName(item.channelId)}
                                     removeLabel={t('saved.remove')}
                                     onOpen={() => {
+                                        markRead(item.id);
                                         onSelect(item.channelId, item.chatNo, item.placeId);
                                         close();
                                     }}

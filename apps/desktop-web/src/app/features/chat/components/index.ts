@@ -18,3 +18,5 @@ export * from './MentionAutocomplete';
 export * from './QuickSwitcher';
 export * from './LinkPreviewCard';
 export * from './SavedPanel';
+export * from './MentionsPanel';
+export * from './NotificationSnoozeButton';

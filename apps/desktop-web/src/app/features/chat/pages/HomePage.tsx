@@ -26,6 +26,7 @@ import {
     usePlaces,
     useProfilePanelStore,
     useSavedPanelStore,
+    useMentionsPanelStore,
     useReadCursorStore,
     useSelectPlace,
     useSelectedChannelStore,
@@ -45,6 +46,7 @@ import {
     SidebarHeader,
     SwitchingOverlay,
     SavedPanel,
+    MentionsPanel,
     ThreadPanel,
 } from '../components';
 import { useThreadStore } from '../stores';
@@ -90,6 +92,9 @@ export const HomePage = () => {
     const savedOpen = useSavedPanelStore(s => s.isOpen);
     const closeSaved = useSavedPanelStore(s => s.close);
     const openSaved = useSavedPanelStore(s => s.open);
+    const activityOpen = useMentionsPanelStore(s => s.isOpen);
+    const closeActivity = useMentionsPanelStore(s => s.close);
+    const openActivity = useMentionsPanelStore(s => s.open);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
@@ -176,43 +181,56 @@ export const HomePage = () => {
         closeProfile();
     }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
 
-    // Settings, thread, and profile share the one trailing pane — opening any
-    // closes the others so the pane never has two owners (each effect fires on
-    // its own opener only, so the last one opened wins).
+    // The one trailing pane has five possible owners (thread, settings, profile,
+    // saved, activity) — opening any closes the others so the pane never has two
+    // owners (each effect fires on its own opener only, so the last one opened wins).
     useEffect(() => {
         if (openThreadRootId) {
             closeSettings();
             closeProfile();
             closeSaved();
+            closeActivity();
         }
-    }, [openThreadRootId, closeSettings, closeProfile, closeSaved]);
+    }, [openThreadRootId, closeSettings, closeProfile, closeSaved, closeActivity]);
     useEffect(() => {
         if (settingsChannelId) {
             closeThread();
             closeProfile();
             closeSaved();
+            closeActivity();
         }
-    }, [settingsChannelId, closeThread, closeProfile, closeSaved]);
+    }, [settingsChannelId, closeThread, closeProfile, closeSaved, closeActivity]);
     useEffect(() => {
         if (profileTarget) {
             closeThread();
             closeSettings();
             closeSaved();
+            closeActivity();
         }
-    }, [profileTarget, closeThread, closeSettings, closeSaved]);
+    }, [profileTarget, closeThread, closeSettings, closeSaved, closeActivity]);
     useEffect(() => {
         if (savedOpen) {
             closeThread();
             closeSettings();
             closeProfile();
+            closeActivity();
         }
-    }, [savedOpen, closeThread, closeSettings, closeProfile]);
+    }, [savedOpen, closeThread, closeSettings, closeProfile, closeActivity]);
+    useEffect(() => {
+        if (activityOpen) {
+            closeThread();
+            closeSettings();
+            closeProfile();
+            closeSaved();
+        }
+    }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved]);
 
-    // The saved panel's rows belong to the place you opened it from — close it on
-    // any place or cloud switch so it never shows another place's items.
+    // The saved + activity panes' rows belong to the place you opened them from —
+    // close both on any place or cloud switch so they never show another place's items.
     useEffect(() => {
         closeSaved();
-    }, [selectedPlaceId, activeCloudId, closeSaved]);
+        closeActivity();
+    }, [selectedPlaceId, activeCloudId, closeSaved, closeActivity]);
 
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads.
@@ -307,6 +325,7 @@ export const HomePage = () => {
                             onCreateChannel={openCreateChannel}
                             onEditPlaceProfile={openEditPlaceProfile}
                             onOpenSaved={openSaved}
+                            onOpenActivity={openActivity}
                         />
                         <div className="flex-1 overflow-y-auto scrollbar-hide">
                             <ChannelList
@@ -343,6 +362,13 @@ export const HomePage = () => {
                         <ProfilePanel />
                     ) : savedOpen ? (
                         <SavedPanel
+                            channels={channels}
+                            places={places}
+                            currentPlaceId={selectedPlaceId ?? undefined}
+                            onSelect={jumpToSaved}
+                        />
+                    ) : activityOpen ? (
+                        <MentionsPanel
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}
