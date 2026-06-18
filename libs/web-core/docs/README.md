@@ -8,6 +8,11 @@
 - [session/context-model.md](./session/context-model.md): 컨텍스트 정의와 source of truth
 - [session/session-scenarios.md](./session/session-scenarios.md): 토큰 전환, 갱신, 소켓 인증, 초대 흐름
 - [session/public-api.md](./session/public-api.md): 공개 세션 API 계약
+- [transport/README.md](./transport/README.md): `transport` 계층의 역할과 경계
+- [transport/runtime-model.md](./transport/runtime-model.md): transport runtime 모델과 init 규칙
+- [transport/request-lifecycle.md](./transport/request-lifecycle.md): request builder와 auth 흐름
+- [hooks/README.md](./hooks/README.md): `hooks` 계층의 역할, 분류 원칙, 정리 방향
+- [hooks/public-surface.md](./hooks/public-surface.md): 외부 공개 hook / sessionContext surface 규칙
 
 ## 범위
 
