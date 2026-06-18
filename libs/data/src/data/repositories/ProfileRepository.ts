@@ -59,6 +59,15 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
                 // fail-soft: 적용 실패 시 다음 syncProfiles가 따라잡습니다.
             });
         });
+        // 타인의 프로필 변경 브로드캐스트(channel.sync-site-profile → profile:sync)를
+        // 즉시 캐시에 반영합니다. 이 리스너가 없으면 서버가 보내는 delta가 그대로
+        // 버려져, 다른 사용자가 프로필을 바꿔도 새로고침(커서 pull) 전까지 반영되지
+        // 않습니다. syncProfiles의 pull과 동일한 idempotent apply를 재사용합니다.
+        this.onDomainEvent('profile:sync', detail => {
+            void this.applySyncDelta(detail.data as SiteProfileSyncView).catch(() => {
+                // fail-soft: 적용 실패 시 다음 syncProfiles가 따라잡습니다.
+            });
+        });
     }
     sync(_id?: string, _meta?: Record<string, unknown>): Promise<void> {
         throw new Error('Method not implemented.');
@@ -141,18 +150,23 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
     }
 
     public async syncProfiles(since: number, options?: RepositoryRequestOptions): Promise<SiteProfileSyncView> {
-        const repositoryContext = this.getRepositoryContext();
-        const domainScope = this.getDomainScope();
-
         const result = await this.requestRemote<SiteProfileSyncView>(
             ref => this.profileRemoteDataSource.syncProfiles(since, ref),
             options
         );
 
-        // idempotent apply: null = 제거, 그 외 = upsert. key 부재는 변경 없음(여기 도착하지 않음).
-        // requestRemote rejects on error, so `result` is always present here; the
-        // guard belongs on `profiles` only if the server omits it (no changes).
-        const entries = Object.entries(result.profiles ?? {});
+        await this.applySyncDelta(result);
+        return result;
+    }
+
+    /**
+     * SiteProfileSyncView delta를 현재 스코프의 Display 캐시에 idempotent하게 적용합니다.
+     * null = 제거, 그 외 = upsert. (cursor pull과 실시간 profile:sync 브로드캐스트 공용)
+     */
+    private async applySyncDelta(view: SiteProfileSyncView): Promise<void> {
+        const domainScope = this.getDomainScope();
+        const repositoryContext = this.getRepositoryContext();
+        const entries = Object.entries(view?.profiles ?? {});
         await Promise.all(
             entries.map(([uid, value]) => {
                 const id = buildProfileId(domainScope.sid, uid);
@@ -173,8 +187,6 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
                 );
             })
         );
-
-        return result;
     }
 
     public clearAll(): Promise<void> {
