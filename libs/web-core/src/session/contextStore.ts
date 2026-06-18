@@ -1,6 +1,7 @@
-import { cloudCore } from '../core';
-import { relayCore } from '../core';
-import { getDelegatorId, getIsInvited, getOAuthProvider, readCachedProfile } from './sessionPersistence';
+import { isNative } from '@chatic/bridges';
+import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+
+import { cloudCore, identityCore, relayCore } from './core';
 import type {
     ActiveServerContext,
     CloudContext,
@@ -10,13 +11,20 @@ import type {
     RelayContext,
 } from './types';
 import { getPermissions, getUserType } from './types';
+import { notifySessionStateChanged } from './utils';
+
+interface UserViewExtended {
+    userRole?: string;
+}
+
+type SessionIdentityState = Pick<IdentityContext, 'isInitialized' | 'isAuthenticated' | 'isOnMobileApp' | 'error'>;
 
 const buildRelayContext = (): RelayContext => ({
     backend: relayCore.getBackend(),
     wss: relayCore.getWss(),
     identityToken: null,
     siteId: relayCore.getSelectedSiteId(),
-    isAuthenticated: !!readCachedProfile(),
+    isAuthenticated: !!identityCore.getRelayProfile(),
 });
 
 const buildCloudContext = (): CloudContext => {
@@ -37,32 +45,40 @@ const buildCloudContext = (): CloudContext => {
     };
 };
 
-const buildIdentityContext = (): IdentityContext => {
-    const profile = readCachedProfile();
-    const isInvited = getIsInvited();
+const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
+    const relayProfile = identityCore.getRelayProfile();
+    const cloudProfile = identityCore.getCloudProfile();
+    const isInvited = identityCore.getIsInvited();
     const cloudToken = cloudCore.getCloudToken();
-    const userRole = (profile?.$user as { userRole?: string } | undefined)?.userRole ?? null;
-    const isAuthenticated = !!profile;
-    const isGuest = userRole === 'guest' && !isInvited;
-    const isCloudUser = isInvited || userRole === 'user';
-    const userType = getUserType(profile, isInvited, !!cloudToken);
+    const activeProfile = cloudProfile ?? relayProfile;
+    const userRole = (activeProfile?.$user as { userRole?: string } | undefined)?.userRole ?? null;
+    const isGuest = userRole === 'guest';
+    const userType = getUserType(activeProfile, isInvited, !!cloudToken);
 
     return {
-        isInitialized: false,
-        isAuthenticated,
-        isOnMobileApp: false,
-        error: null,
-        profile,
-        userId: profile?.uid ?? null,
-        delegatorId: getDelegatorId(),
+        ...state,
+        relayProfile,
+        cloudProfile,
+        activeProfile,
+        userId: activeProfile?.uid ?? null,
+        delegatorId: identityCore.getDelegatorId(),
         userRole,
         isInvited,
         isGuest,
-        isCloudUser,
-        userName: profile?.$user?.name || 'Unknown',
-        oAuthProvider: getOAuthProvider(),
+        userName: activeProfile?.$user?.name || 'Unknown',
+        oAuthProvider: identityCore.getOAuthProvider(),
         userType,
         permissions: getPermissions(userType),
+    };
+};
+
+const readSessionIdentityState = (): SessionIdentityState => {
+    const identity = identityState;
+    return {
+        isInitialized: identity.isInitialized,
+        isAuthenticated: identity.isAuthenticated,
+        isOnMobileApp: identity.isOnMobileApp,
+        error: identity.error,
     };
 };
 
@@ -87,7 +103,12 @@ const resolveActiveServerContext = (relay: RelayContext, cloud: CloudContext): A
     };
 };
 
-let identityState = buildIdentityContext();
+let identityState = buildIdentityContext({
+    isInitialized: false,
+    isAuthenticated: !!identityCore.getRelayProfile(),
+    isOnMobileApp: isNative(),
+    error: null,
+});
 
 const getGlobalSessionContext = (): GlobalSessionContext => {
     const relay = buildRelayContext();
@@ -126,4 +147,95 @@ export const sessionContextStore = {
     updateIdentityState: (updater: (current: IdentityContext) => IdentityContext): void => {
         identityState = updater(identityState);
     },
+};
+
+export const getSessionAuthSnapshot = () => {
+    const { isInitialized, isAuthenticated, isOnMobileApp, error, activeProfile } = identityState;
+    return { isInitialized, isAuthenticated, isOnMobileApp, error, activeProfile };
+};
+
+export const getSelectedCloudId = (): string => cloudCore.getSelectedCloudId() || 'default';
+
+export const getSelectedSiteId = (): string | null =>
+    getSelectedCloudId() === 'default' ? relayCore.getSelectedSiteId() : cloudCore.getSelectedSiteId();
+
+export const setSelectedCloudId = (cloudId: string): void => {
+    cloudCore.saveSelectedCloudId(cloudId);
+};
+
+export const setSelectedSiteId = (siteId: string | null): void => {
+    const selectedCloudId = getSelectedCloudId();
+    if (siteId) {
+        if (selectedCloudId === 'default') {
+            relayCore.saveSelectedSiteId(siteId);
+        } else {
+            cloudCore.saveSelectedSiteId(siteId);
+        }
+        return;
+    }
+
+    if (selectedCloudId === 'default') {
+        relayCore.clearSelectedSite();
+    } else {
+        cloudCore.clearSelectedSite();
+    }
+};
+
+export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated }));
+    notifySessionStateChanged();
+};
+
+export const setSessionProfile = (profile: UserProfile$): void => {
+    identityCore.setRelayProfile(profile);
+    const userRoleGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
+    if (userRoleGuest && profile.uid) {
+        identityCore.setDelegatorId(profile.uid);
+    } else {
+        identityCore.setDelegatorId(null);
+    }
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: true }));
+    notifySessionStateChanged();
+};
+
+export const clearSessionProfile = (): void => {
+    identityCore.setRelayProfile(null);
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: false }));
+    notifySessionStateChanged();
+};
+
+export const setSessionCloudProfile = (profile: UserProfile$ | null): void => {
+    identityCore.setCloudProfile(profile);
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(buildIdentityContext(state));
+    notifySessionStateChanged();
+};
+
+export const clearSessionCloudProfile = (): void => {
+    identityCore.setCloudProfile(null);
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(buildIdentityContext(state));
+    notifySessionStateChanged();
+};
+
+export const setSessionIdentityState = (partial: Partial<SessionIdentityState>): void => {
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(
+        buildIdentityContext({
+            isInitialized: partial.isInitialized ?? state.isInitialized,
+            isAuthenticated: partial.isAuthenticated ?? state.isAuthenticated,
+            isOnMobileApp: partial.isOnMobileApp ?? state.isOnMobileApp,
+            error: partial.error !== undefined ? partial.error : state.error,
+        })
+    );
+    notifySessionStateChanged();
+};
+
+export const markSessionInitialized = (): void => {
+    const state = readSessionIdentityState();
+    sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isInitialized: true }));
+    notifySessionStateChanged();
 };

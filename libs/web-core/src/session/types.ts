@@ -111,13 +111,14 @@ export interface IdentityContext {
     isAuthenticated: boolean;
     isOnMobileApp: boolean;
     error: Error | null;
-    profile: UserProfile$ | null;
+    relayProfile: UserProfile$ | null;
+    cloudProfile: UserProfile$ | null;
+    activeProfile: UserProfile$ | null;
     userId: string | null;
     delegatorId: string | null;
     userRole: string | null;
     isInvited: boolean;
     isGuest: boolean;
-    isCloudUser: boolean;
     userName: string;
     oAuthProvider: OAuthLoginProvider | null;
     readonly userType: UserType;
