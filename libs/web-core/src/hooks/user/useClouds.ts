@@ -1,6 +1,6 @@
 import type { UseCloudsOptions, UseCloudsParams } from '../../api/types/cloud';
 import { cloudsKeys } from '../../api/types/cloud';
-import { useSessionAuth } from '../session/readers/useSessionAuth';
+import { useSessionAuth } from '../session';
 import { useQuery } from '@tanstack/react-query';
 import { fetchClouds } from '../../api';
 
