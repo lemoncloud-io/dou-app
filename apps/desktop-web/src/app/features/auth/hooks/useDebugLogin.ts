@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { login } from '@chatic/auth';
+import { login } from '@chatic/web-core';
 import { cloudCore, reportError, startWebCoreInit, toError, useWebCoreStore, webCore } from '@chatic/web-core';
 
 /**

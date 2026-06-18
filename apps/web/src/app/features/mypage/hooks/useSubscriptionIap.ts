@@ -2,8 +2,13 @@ import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { webClient } from '@chatic/bridges';
-import { subscriptionKeys, useValidateApple, useValidateGoogle, useValidateMembership } from '@chatic/subscriptions';
-import { cloudsKeys } from '@chatic/users';
+import {
+    cloudsKeys,
+    subscriptionKeys,
+    useValidateApple,
+    useValidateGoogle,
+    useValidateMembership,
+} from '@chatic/web-core';
 
 import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
 import {

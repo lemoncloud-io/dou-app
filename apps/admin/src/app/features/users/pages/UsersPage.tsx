@@ -15,14 +15,13 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
-import { useUsers } from '@chatic/users';
+import { useIssueToken, useUsers } from '@chatic/web-core';
 
 import { RegisterUserDialog } from '../components';
 
 import { reportError, toError } from '@chatic/web-core';
 
 import type { JSX } from 'react';
-import { useIssueToken } from '@chatic/auth';
 import { useSearchParams } from 'react-router-dom';
 
 export const UsersPage = (): JSX.Element => {

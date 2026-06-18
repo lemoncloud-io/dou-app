@@ -10,14 +10,14 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     useFetchActiveSubscriptions,
     useFetchReceiptDetail,
+    useClouds,
     useProductPlans,
     useValidateApple,
     useValidateGoogle,
-} from '@chatic/subscriptions';
+} from '@chatic/web-core';
 
 import { useSubscriptionIap } from '../hooks';
 import { EmailVerifyDialog } from '../../home/components/EmailVerifyDialog';
-import { useClouds } from '@chatic/users';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';

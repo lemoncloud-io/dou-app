@@ -5,6 +5,7 @@ import { Key, Settings } from 'lucide-react';
 
 import { TokenGeneratorModal } from '@chatic/shared';
 import { useWebSocketStore } from '@chatic/socket';
+import { generateToken } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { UserSelectDialog } from '../../../shared/components/UserSelectDialog';
@@ -139,6 +140,7 @@ export const AdminAuthTestPanel = ({ deviceId, ws, onRegenerateDeviceId }: Admin
                 isOpen={isTokenModalOpen}
                 onClose={() => setIsTokenModalOpen(false)}
                 onTokenGenerated={handleTokenGenerated}
+                onGenerateToken={generateToken}
                 UserSelectDialog={UserSelectDialog}
             />
 

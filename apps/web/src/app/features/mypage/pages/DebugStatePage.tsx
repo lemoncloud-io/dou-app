@@ -6,7 +6,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useDelegatorId, useDynamicProfile, useWebCoreStore, useUserContext, cloudCore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useClouds, useRegisterDeviceToken } from '@chatic/users';
+import { useClouds, useRegisterDeviceToken } from '@chatic/web-core';
 import { usePlaces } from '../../../shared/hooks';
 
 import { useChannels } from '../../../shared/hooks/useChannels';

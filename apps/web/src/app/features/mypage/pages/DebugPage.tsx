@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { useLogout } from '@chatic/auth';
+import { useLogout } from '@chatic/web-core';
 
 import { DEBUG_STORAGE_KEY } from '../consts';
 

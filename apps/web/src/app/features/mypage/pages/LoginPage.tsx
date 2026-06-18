@@ -7,7 +7,7 @@ import { setOAuthProvider, useWebCoreStore, webCore } from '@chatic/web-core';
 
 import { isNative, logger, webClient } from '@chatic/bridges';
 import type { OAuthTokenResult } from '@chatic/app-messages';
-import { useVerifyNativeAppToken } from '@chatic/users';
+import { useVerifyNativeAppToken } from '@chatic/web-core';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 import { PageHeader } from '../../../shared/components';

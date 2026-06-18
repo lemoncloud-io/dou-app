@@ -1,6 +1,6 @@
 import { cloudCore } from '@chatic/web-core';
 import { isNative, webClient } from '@chatic/bridges';
-import { useClouds } from '@chatic/users';
+import { useClouds } from '@chatic/web-core';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import { useUserMutations } from '../../../shared/hooks';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';

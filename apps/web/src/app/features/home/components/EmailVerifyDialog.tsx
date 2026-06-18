@@ -8,7 +8,7 @@ import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useVerifyEmail } from '@chatic/users';
+import { useVerifyEmail } from '@chatic/web-core';
 
 import { VerificationCodeInput } from '../../account/components/VerificationCodeInput';
 import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account/constants';
@@ -113,7 +113,7 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified }: EmailVerif
         if (isCodeComplete && loadingState === 'idle' && timeLeft > 0) {
             handleVerifyCode();
         }
-    }, [isCodeComplete]);  
+    }, [isCodeComplete]);
 
     const handleVerifyCode = async () => {
         setLoadingState('verifying');

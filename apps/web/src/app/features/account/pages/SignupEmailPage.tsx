@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { useVerifyAlias } from '@chatic/auth';
+import { useVerifyAlias } from '@chatic/web-core';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useWebCoreStore } from '@chatic/web-core';
