@@ -192,6 +192,35 @@ export const MessageList = ({
         // Scrolled back up mid-fade — restore the divider (fades back in).
         setDividerFading(false);
     };
+    // Stable refs so the focus/visibility listener can subscribe once (not per
+    // render) yet still see the live at-bottom state + latest schedule closure.
+    const atBottomRef = useRef(atBottom);
+    atBottomRef.current = atBottom;
+    const seenUpToRef = useRef(seenUpTo);
+    seenUpToRef.current = seenUpTo;
+    const scheduleDividerClearRef = useRef(scheduleDividerClear);
+    scheduleDividerClearRef.current = scheduleDividerClear;
+
+    // A message that arrives while the window is hidden raises the divider, and
+    // useReadReceipts (also focus-gated) holds the read cursor back, so the badge
+    // stays too. On refocus the badge clears (useReadReceipts flushes the read) —
+    // match it: if the reader is already at the bottom (those messages are on
+    // screen), clear the divider on the same edge so the two never disagree. A
+    // scrolled-up reader keeps the divider as their jump anchor.
+    useEffect(() => {
+        const onActivity = () => {
+            // Only when a divider is actually showing (unseen tail) — otherwise a
+            // routine focus would arm a pointless timer + fade toggle.
+            const hasDivider = seenUpToRef.current < maxChatNoRef.current;
+            if (isWindowActive() && atBottomRef.current && hasDivider) scheduleDividerClearRef.current();
+        };
+        document.addEventListener('visibilitychange', onActivity);
+        window.addEventListener('focus', onActivity);
+        return () => {
+            document.removeEventListener('visibilitychange', onActivity);
+            window.removeEventListener('focus', onActivity);
+        };
+    }, []);
 
     // A late $join can raise the open-time baseline after mount — lift the
     // divider's floor to match so it anchors at the right place.
