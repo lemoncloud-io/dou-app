@@ -3297,17 +3297,17 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@0.26.519":
-  version "0.26.519"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.519.tgz#ff2864f8b28be251ce791b00bf1a73d0df60f9a9"
-  integrity sha512-YiHspWE7Sc4aF/0zyfmK9mifq9uEm+BoxV19LrYYHnjxweQroDF0Jxtb6RyJrKWcLQH/M3Y3YxOnXsS/rRkjWQ==
+"@lemoncloud/chatic-sockets-api@0.26.525":
+  version "0.26.525"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.525.tgz#67167727b511f994c2ee7cdfe1f466c5f94cc061"
+  integrity sha512-4Ohc/i3yvRE9i0hCAfmniMF5Op1Lp/Hwbx5gcuH4HF+UWK7cNuuOwPYrhnk1jgARFGEpRNKWTudeE4NrA1N60w==
   dependencies:
-    lemon-model "^1.1.1"
+    lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.2.0.tgz#75eb1164baa8ff0adbed02afb2dd43d5a7c14446"
-  integrity sha512-KcHyjE2JI201YcwQ4Nhw2NrFHpPwnV/RJ0Oe7FveBWN6gkvemF7OtJK09cHV168/8guZuFdupZySqk+/zdNGIw==
+"@lemoncloud/chatic-sockets-lib@0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.2.1.tgz#8ae05f34b210c8cfb2eb28e92ef6551c2134e6cc"
+  integrity sha512-ZcaEU40pz5aTyedF1+ZxMoHhNBhHwoBP/7pSLLTH0P8nmnoQdkZpEZxHVWu5HDWpoJiOoOniV20ic8sjhEhDeg==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"
@@ -14404,6 +14404,11 @@ lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.1.1.tgz#6344621b2c3fdfd99febc659baa7adef41ca951b"
   integrity sha512-idf2zPvYzUmz50F9wJik8f4vk+FeebgmzsHfpEtsv5nnWbdpaHM1sDMISmgqFPyv3X1cXvaRNyu4btdSIA03sQ==
+
+lemon-model@^1.2.2:
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.2.2.tgz#4e19238d5e2c7c957ce5f31dee26e922d6b1c056"
+  integrity sha512-VMwcZ5eI4AmY4vzdW7MUbHfTcvDeaknrUKAMVv1kif4m6QmqCMFXJij0k9/blWonjoM8wtYschBYItPTA7lCHQ==
 
 leven@^3.1.0:
   version "3.1.0"
