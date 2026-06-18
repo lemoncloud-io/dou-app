@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useIssueCloudToken, useRefreshCloudToken } from '@chatic/auth';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import { useClouds } from '@chatic/users';
+import { cloudCore, useClouds, useIssueCloudToken, useRefreshCloudToken, useWebCoreStore } from '@chatic/web-core';
 import {
     clearCloudSession,
     getCloudSessionSnapshot,
