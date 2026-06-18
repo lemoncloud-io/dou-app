@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
-import { cloudCore, OAUTH_ENDPOINT } from '../core';
+import { OAUTH_ENDPOINT } from '../core';
+import { getGlobalSessionContext } from '../session';
 import { useWebCoreStore } from '../stores/useWebCoreStore';
 import type { WSSType, UserContext, UserPermissions } from '../types/userContext';
 import { UserType, DEFAULT_PERMISSIONS } from '../types/userContext';
@@ -88,16 +89,12 @@ const getPermissions = (userType: UserType): UserPermissions => {
  * 기존 isGuest, isInvited, isCloudUser를 대체합니다.
  */
 export const useUserContext = (): UserContext => {
-    const { profile, isInvited, selectedPlaceId } = useWebCoreStore();
+    const { profile, isInvited, selectedSiteId } = useWebCoreStore();
+    const { cloud } = getGlobalSessionContext();
+    const currentPlace = selectedSiteId;
 
-    // cloudCore 정보
-    const cloudToken = cloudCore.getCloudToken();
-    const cloudWSS = cloudCore.getWss();
-    const cloudHTTP = cloudCore.getBackend();
-    const currentPlace = selectedPlaceId;
-
-    const hasCloudToken = !!cloudToken;
-    const hasCloudWSS = !!cloudWSS;
+    const hasCloudToken = !!cloud.cloudToken;
+    const hasCloudWSS = !!cloud.wss;
 
     // UserType 계산
     const userType = useMemo(() => getUserType(profile, isInvited, hasCloudToken), [profile, isInvited, hasCloudToken]);
@@ -114,9 +111,9 @@ export const useUserContext = (): UserContext => {
         currentPlace,
         endpoints: {
             relayWSS: VITE_WS_ENDPOINT,
-            cloudWSS: cloudWSS,
+            cloudWSS: cloud.wss,
             relayHTTP: OAUTH_ENDPOINT,
-            cloudHTTP: cloudHTTP,
+            cloudHTTP: cloud.backend,
         },
         permissions,
     };

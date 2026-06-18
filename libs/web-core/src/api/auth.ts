@@ -1,5 +1,5 @@
 import { cloudCore } from '../core';
-import { calcSignature } from '../utils';
+import { calcSignature } from './utils';
 import {
     executeCloudRequest,
     executeRelayRequest,

@@ -1,210 +1,22 @@
-import { WebCoreFactory } from '@lemoncloud/lemon-web-core';
-
 export * from './cloudCore';
-export * from './coreStorage';
-
-import { setStorageAdapter } from './coreStorage';
-
-declare global {
-    interface Window {
-        ENV?: string;
-        PROJECT?: string;
-        REGION?: string;
-        OAUTH_ENDPOINT?: string;
-        HOST?: string;
-        IMAGE_API_ENDPOINT?: string;
-        SOCIAL_OAUTH_ENDPOINT?: string;
-        DOU_ENDPOINT?: string;
-        WS_ENDPOINT?: string;
-    }
-}
-
-/**
- * Initialize environment from URL query parameters (web browser deeplink flow)
- *
- * When user clicks deeplink on landing page, envs are passed as query params:
- * - _backend → CHATIC_OAUTH_ENDPOINT, CHATIC_DOU_ENDPOINT
- * - _wss → CHATIC_WS_ENDPOINT
- *
- * Mobile WebView does NOT use query params (injects directly to sessionStorage),
- * so this only runs for web browser flow.
- */
-const initEnvFromQueryParams = (): void => {
-    if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') {
-        return;
-    }
-
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const backend = params.get('_backend');
-        const wss = params.get('_wss');
-
-        // Only set if query params exist (web browser flow from landing page)
-        // Mobile WebView doesn't have these params - it injects directly to sessionStorage
-        if (backend) {
-            sessionStorage.setItem('CHATIC_OAUTH_ENDPOINT', backend);
-            sessionStorage.setItem('CHATIC_DOU_ENDPOINT', backend);
-        }
-        if (wss) {
-            sessionStorage.setItem('CHATIC_WS_ENDPOINT', wss);
-        }
-    } catch {
-        // Ignore errors (e.g., sessionStorage disabled)
-    }
-};
-
-// Initialize from query params before reading localStorage
-initEnvFromQueryParams();
-
-// RN WebView 환경이면 네이티브 스토리지 어댑터로 교체
-const isReactNativeWebView = (): boolean => !!(window as Window & { ReactNativeWebView?: unknown }).ReactNativeWebView;
-
-// Electron desktop shell injects window.ChaticMessageHandler via contextBridge
-// (apps/desktop/src/preload/index.ts), synchronously available before any renderer
-// module evaluates. Plain web browsers have neither global.
-const isDesktopShell = (): boolean => !!(window as Window & { ChaticMessageHandler?: unknown }).ChaticMessageHandler;
-
-// Persistent (localStorage) for RN WebView + desktop shell so OAuth credentials,
-// cloud token, and invite state survive app restart. Plain web keeps sessionStorage.
-const usePersistentStorage = isReactNativeWebView() || isDesktopShell();
-
-if (usePersistentStorage) {
-    setStorageAdapter(localStorage);
-}
-
-/**
- * Clear all auth tokens from storage when arriving from explicit logout.
- *
- * The LoginPage auto-registers a guest device on mount, which re-authenticates the user.
- * When logout redirects to /auth/login?logout=1, we must clear tokens BEFORE webCore.init()
- * runs, so isAuthenticated() returns false and the Router renders public routes.
- */
-const clearTokensOnLogout = (): void => {
-    if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
-    try {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('logout') !== '1') return;
-
-        const storage = usePersistentStorage ? localStorage : sessionStorage;
-        // 로그아웃 후에도 유지해야 하는 키: 언어 설정, 초대 상태
-        const languageKeySuffix = `.${LANGUAGE_KEY}`;
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < storage.length; i++) {
-            const key = storage.key(i);
-            if (key?.startsWith('@') && !key.endsWith(languageKeySuffix)) keysToRemove.push(key);
-        }
-        keysToRemove.forEach(key => storage.removeItem(key));
-        // Clear oauth provider from both storages to handle RN WebView case
-        sessionStorage.removeItem('chatic-oauth-provider');
-        localStorage.removeItem('chatic-oauth-provider');
-    } catch {
-        // Ignore errors
-    }
-};
-clearTokensOnLogout();
-
-// Get endpoint from storage (mobile: localStorage, web: sessionStorage)
-const getEndpointStorageItem = (key: string): string | null => {
-    try {
-        const storage = usePersistentStorage ? localStorage : sessionStorage;
-        return storage.getItem(key);
-    } catch {
-        return null;
-    }
-};
-
-/**
- * Environment configuration variables
- * - Loaded from Vite environment variables
- * - Normalized to lowercase for consistency
- * - Get ENV from index.html
- */
-export const ENV = (window.ENV || import.meta.env.VITE_ENV || '').toLowerCase();
-export const PROJECT = (window.PROJECT || import.meta.env.VITE_PROJECT || '').toLowerCase();
-export const REGION = (window.REGION || import.meta.env.VITE_REGION || 'ap-northeast-2').toLowerCase();
-export const OAUTH_ENDPOINT = (import.meta.env.VITE_OAUTH_ENDPOINT || '').toLowerCase();
-export const HOST = (window.HOST || import.meta.env.VITE_HOST || '').toLowerCase();
-export const SOCIAL_OAUTH_ENDPOINT = (
-    window.SOCIAL_OAUTH_ENDPOINT ||
-    import.meta.env.VITE_SOCIAL_OAUTH_ENDPOINT ||
-    ''
-).toLowerCase();
-export const DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT || '';
-export const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
-
-/**
- * Get DOU_ENDPOINT dynamically at call time
- *
- * Unlike the static DOU_ENDPOINT constant (resolved at module load),
- * this function resolves the endpoint each time it's called.
- *
- * Use this for deeplink flows where _backend param may be set after module initialization.
- *
- * Priority: sessionStorage/localStorage > window global > env variable
- */
-export const getDynamicDOUEndpoint = (): string => {
-    return (
-        getEndpointStorageItem('CHATIC_DOU_ENDPOINT') || window.DOU_ENDPOINT || import.meta.env.VITE_DOU_ENDPOINT || ''
-    );
-};
+export * from './relayCore';
+export * from './invitedCloudState';
+export {
+    WEB_DOU_ENDPOINT as DOU_ENDPOINT,
+    WEB_ENV as ENV,
+    WEB_HOST as HOST,
+    WEB_OAUTH_ENDPOINT as OAUTH_ENDPOINT,
+    WEB_PROJECT as PROJECT,
+    WEB_REGION as REGION,
+    WEB_SOCIAL_OAUTH_ENDPOINT as SOCIAL_OAUTH_ENDPOINT,
+    WEB_WS_ENDPOINT as WS_ENDPOINT,
+    getDynamicRelayBackend as getDynamicDOUEndpoint,
+    getDynamicRelayWss as getDynamicWSEndpoint,
+    resetWebTransportInit as resetWebCoreInit,
+    startWebTransportInit as startWebCoreInit,
+} from '../transport/webTransport';
 
 /**
  * Key for storing language preference
  */
 export const LANGUAGE_KEY = 'i18nextLng';
-
-/**
- * WebCore instance configuration and initialization
- * - Sets up cloud provider and project details
- * - Configures OAuth endpoint and region
- */
-export const webCore = WebCoreFactory.create({
-    cloud: 'aws',
-    project: ENV === 'local' ? `${PROJECT}_${ENV}` : PROJECT,
-    oAuthEndpoint: OAUTH_ENDPOINT,
-    region: REGION,
-    storage: usePersistentStorage ? localStorage : sessionStorage,
-});
-
-/**
- * Eagerly start webCore.init() at module load time.
- * This overlaps the ~800ms init with React mounting instead of waiting
- * for a useEffect callback.
- *
- * - On success: `_initDone = true`, subsequent calls resolve immediately.
- * - On failure: retries in useWebCoreStore.initialize() call fresh init.
- */
-let _pendingInit: Promise<void> | null = null;
-let _initDone = false;
-
-export const startWebCoreInit = (): Promise<void> => {
-    if (_initDone) return Promise.resolve();
-    if (_pendingInit) return _pendingInit;
-    _pendingInit = webCore
-        .init()
-        .then(() => {
-            _initDone = true;
-        })
-        .finally(() => {
-            _pendingInit = null;
-        });
-    return _pendingInit;
-};
-
-/**
- * Reset init state so the next startWebCoreInit() call triggers a fresh webCore.init().
- *
- * Called during logout — on SPA navigation (especially mobile WebView) the module
- * may NOT be re-evaluated, leaving _initDone = true while webCore is in a post-logout
- * state. Without this reset, webCore.buildRequest() can hang because the internal
- * HTTP client was torn down by webCore.logout().
- */
-export const resetWebCoreInit = (): void => {
-    _initDone = false;
-    _pendingInit = null;
-};
-
-// Fire at module evaluation — before React mounts
-startWebCoreInit().catch(() => {
-    // intentionally empty — suppress unhandled rejection on module load
-});
