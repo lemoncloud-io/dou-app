@@ -33,6 +33,33 @@ relay와 cloud 세션 처리의 의도된 lifecycle 시나리오를 정의합니
 
 시나리오를 충족하려면 최소한 아래 서비스 기능이 정의되어야 합니다.
 
+## 현재 구현 상태
+
+현재 `libs/web-core/src/session/services.ts` 기준 구현 상태는 다음과 같습니다.
+
+- 구현됨
+    - `initializeRelaySession`
+    - `loginRelayGuestByDevice`
+    - `loginRelaySocial`
+    - `loginWithInviteCode`
+    - `refreshRelaySession`
+    - `logoutRelaySession`
+    - `switchCloudSession`
+    - `refreshCloudSession`
+    - `logoutCloudSession`
+    - `restorePreviousCloudSession`
+    - `persistDeviceId`
+- 부분 구현
+    - 없음
+
+구현 메모:
+
+- relay 로그인 계열 서비스는 API 응답의 `UserTokenView`에서 relay profile을 갱신하고 session auth 상태를 반영합니다.
+- invite 로그인은 `isInvited=true`를 session identity에 반영합니다.
+- `persistDeviceId`는 현재 local storage에 raw device id를 저장하는 최소 구현입니다.
+- `logoutCloudSession`은 relay 세션을 유지한 채 cloud delegation/token/profile만 정리합니다.
+- `refreshRelaySession(target)`은 relay auth refresh 이후 relay selected site를 `uid@sid` 기준으로 갱신합니다.
+
 ### 1. `initializeRelaySession`
 
 목적:
@@ -72,6 +99,11 @@ device 기반 social 인증을 relay 세션에 반영합니다.
 - social user 기준 identity 갱신
 - OAuth provider 반영
 
+현재 구현 메모:
+
+- `verify-native-token` 기반 relay social login을 서비스로 감쌉니다.
+- provider가 전달되면 `IdentityCore.oAuthProvider`도 함께 갱신합니다.
+
 ### 4. `loginWithInviteCode`
 
 목적:
@@ -84,6 +116,11 @@ device 기반 social 인증을 relay 세션에 반영합니다.
 - invite 로그인 결과 저장
 - invited identity 반영
 - 이후 cloud 진입 가능 상태 준비
+
+현재 구현 메모:
+
+- invite 로그인은 relay profile 저장과 함께 `isInvited=true`를 반영합니다.
+- cloud 진입은 이후 `switchCloudSession()` 또는 `restorePreviousCloudSession()` 단계에서 이어집니다.
 
 ### 5. `refreshRelaySession`
 
@@ -103,6 +140,11 @@ relay auth refresh를 수행하고 relay 인증 연속성을 유지합니다.
 
 relay도 `target = uid@sid`를 포함한 refresh를 통해 site 전환이 가능합니다.
 
+현재 구현 메모:
+
+- 현재 서비스는 relay auth refresh와 relay profile 재동기화까지 구현되어 있습니다.
+- `target = uid@sid`가 전달되면 relay selected site도 함께 갱신합니다.
+
 ### 6. `logoutRelaySession`
 
 목적:
@@ -115,6 +157,11 @@ relay 기준 전체 세션 종료와 관련된 정리 작업을 담당합니다.
 - identity 및 runtime 상태 정리
 - logout callback 실행
 - 필요한 경우 OAuth logout 연동
+
+현재 구현 메모:
+
+- relay logout 시 cloud session/profile도 함께 정리됩니다.
+- device id 저장값은 유지하고, device token 성격의 기존 로컬 키만 제거합니다.
 
 ### 7. `switchCloudSession`
 
@@ -165,6 +212,12 @@ relay 세션은 유지한 채 현재 cloud 세션만 해제합니다.
 - relay fallback 복귀
 - identity와 active server 재계산
 
+현재 구현 메모:
+
+- 현재 구현은 cloud delegation token, cloud token, cloud selected site, cloud profile을 정리합니다.
+- selected cloud는 `default` fallback으로 복귀합니다.
+- relay profile과 relay auth 상태는 유지됩니다.
+
 ### 10. `restorePreviousCloudSession`
 
 목적:
@@ -189,6 +242,11 @@ device 기반 relay 로그인과 복구 흐름에 필요한 device identity를 �
 - device id 생성 또는 수집
 - device id 저장
 - guest/social login 흐름에서 재사용 가능하도록 보존
+
+현재 구현 메모:
+
+- 현재 구현은 `localStorage`에 device id를 저장하는 최소 서비스입니다.
+- `loginRelayGuestByDevice()`는 이 서비스를 내부에서 먼저 호출합니다.
 
 ## 시나리오 1: 클라우드 전환 (`switchCloudSession`)
 

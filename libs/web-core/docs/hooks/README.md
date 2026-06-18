@@ -14,10 +14,9 @@
 
 현재 구조는 아래 문제가 있습니다.
 
-- `hooks` 루트에 도메인과 기능이 섞여 있습니다
-- `hooks/index.ts`가 과도하게 넓은 surface를 re-export 합니다
-- 일부 hook은 session service를 감싸는 thin adapter가 아니라 내부 구현 결합이 강합니다
-- `session/index.ts`가 hook까지 다시 export 하고 있어 공개 경계가 흐립니다
+- `hooks/index.ts`가 여전히 넓은 surface를 re-export 합니다
+- 일부 hook은 호환성 alias 성격이라 이름과 실제 책임이 완전히 일치하지 않습니다
+- `session/index.ts`는 실제 파일 구조와 stale export가 섞일 여지가 있어 지속적인 점검이 필요합니다
 
 ## 설계 원칙
 
@@ -45,32 +44,52 @@
 
 ```text
 hooks/
+  index.ts
   session/
     index.ts
-    useGlobalSession.ts
-    useSessionAuth.ts
-    useSessionIdentity.ts
-    useSessionSelection.ts
-    useInitRelaySession.ts
-    useRefreshRelaySession.ts
-    useSwitchCloudSession.ts
-    useRefreshCloudSession.ts
+    readers/
+      useGlobalSession.ts
+      useSessionAuth.ts
+      useSessionIdentity.ts
+      useSessionSelection.ts
+      useCloudSessionCatalog.ts
+    actions/
+      useLogoutCloudSession.ts
+      useLogoutRelaySession.ts
+      useRefreshCloudSiteSession.ts
+      useRefreshRelaySession.ts
+      useRestoreInvitedCloudSession.ts
+      useSessionLogout.ts
+      useSwitchCloudSession.ts
   auth/
     index.ts
+    useFindAlias.ts
+    useIssueCloudToken.ts
+    useIssueToken.ts
+    useLogin.ts
     useLoginRelayGuestByDevice.ts
     useLoginRelaySocial.ts
     useLoginWithInviteCode.ts
-    useLogoutRelaySession.ts
+    useRefreshCloudToken.ts
+    useRegisterUser.ts
+    useRegisterUserV2.ts
+    useVerifyAlias.ts
   user/
     index.ts
     useClouds.ts
-    useUsers.ts
+    useProfile.ts
+    useRegisterDeviceToken.ts
     useUpdateCloud.ts
+    useUpdateProfile.ts
+    useUsers.ts
+    useVerifyEmail.ts
+    useVerifyNativeAppToken.ts
   subscription/
     index.ts
-    ...
   app/
     index.ts
+    useInitWebCore.ts
+    useTokenRefresh.ts
     useServiceUnavailable.ts
 ```
 
@@ -106,86 +125,90 @@ hook의 비책임:
 - `useSessionAuth()`
 - `useSessionIdentity()`
 - `useSessionSelection()`
+- `useCloudSessionCatalog()`
 - `useSessionLogout()`
-- `useCloudSession()`
-- `useAutoSelectCloud()`
+- `useRefreshRelaySession()`
+- `useLogoutCloudSession()`
+- `useRefreshCloudSiteSession()`
+- `useRestoreInvitedCloudSession()`
+- `useSwitchCloudSession()`
 
 정리 필요:
 
-- `hooks/session.ts`에 여러 역할이 한 파일에 섞여 있음
-- `useRestoreInvitedCloudSession`, `useRefreshCloudSiteSession`, `useCloudSessionCatalog`는 session 도메인 폴더 하위 기능 파일로 쪼개는 것이 좋음
+- `useCloudSessionCatalog.ts`는 현재 위치가 `session/readers`이지만, 성격상 `user` 도메인으로 이동할 여지가 큽니다
+- `useLogoutRelaySession.ts`와 `useSessionLogout.ts`는 의미가 가까워 이름/책임을 하나로 수렴할지 판단이 필요합니다
+- session facade hook(`useCloudSession`, `useAutoSelectCloud`, `useDelegatorId`, `useDynamicProfile`)은 현재 구조에서 제거되었거나 이동되었으므로, 신규 문서 기준에서는 더 이상 기본 공개면으로 다루지 않습니다
 
 ### auth domain
 
 유지 권장:
 
 - relay/cloud 인증 관련 mutation hook
+- alias 검증 관련 mutation hook
 
 정리 필요:
 
-- `useRegisterDevice`, `useLogin`, `useIssueToken` 등 이름이 service naming과 다름
-- session service naming과 맞춰 hook naming도 재정렬 필요
+- `useLogin`과 `useIssueToken`은 둘 다 relay login 계열이라 책임 차이를 문서로 분명히 해야 합니다
+- `useRefreshCloudToken`은 raw auth utility hook이라 session action hook과 구분해야 합니다
 
 권장 방향:
 
 - `useLoginRelayGuestByDevice`
 - `useLoginRelaySocial`
 - `useLoginWithInviteCode`
-- `useLogoutRelaySession`
+- `useIssueToken`
+- `useRefreshCloudToken`
+- `useVerifyAlias`
 
 ### user domain
 
 유지 권장:
 
 - user/cloud 조회 및 수정 관련 query/mutation hook
+- push/device token 등록 hook
 
 ### subscription domain
 
 유지 권장:
 
-- subscription 관련 query/mutation hook
+- `subscription/index.ts`를 통해 공개되는 subscription query/mutation hook
 
 ### app domain
-
-검토 대상:
 
 - `useServiceUnavailable`
 - `useInitWebCore`
 - `useTokenRefresh`
 
-이 셋은 session/auth 도메인과 app bootstrap 도메인이 섞여 있으므로, `app` 또는 `session` 하위로 재배치 기준을 정해야 합니다.
+현재 판단:
+
+- `useInitWebCore`는 app bootstrap lifecycle에 속하므로 현재 위치가 맞습니다
+- `useTokenRefresh`도 interval/visibility/runtime lifecycle 때문에 `app` 위치가 맞습니다
+- 다만 `useTokenRefresh` 내부의 세션 복구 규칙은 계속 `session/services` 쪽으로 더 내려야 합니다
 
 ## 제거 또는 축소 후보
 
 ### 1. 루트 level hook 파일 남용
 
-현재 루트에 있는 파일:
+현재 방향:
 
-- `useCloudSession.ts`
-- `useDelegatorId.ts`
-- `useDynamicProfile.ts`
-- `useInitWebCore.ts`
-- `useProfile.ts`
-- `useServiceUnavailable.ts`
-- `useSwitchCloudSession.ts`
-- `useTokenRefresh.ts`
-- `useUpdateProfile.ts`
+- 루트에는 `index.ts`만 둡니다
+- 실제 hook 파일은 `app`, `auth`, `session`, `subscription`, `user` 아래로 이동합니다
+- `session`은 다시 `readers`, `actions`로 세분화합니다
 
 판단:
 
-- 대부분 도메인 폴더 하위로 이동하는 것이 맞습니다
-- 루트에는 `index.ts` 외 개별 hook 파일을 남기지 않는 방향이 더 좋습니다
+- 이 구조는 현재 코드에 반영되었습니다
+- 남은 정리 대상은 `session/index.ts`의 export 정제와 일부 파일의 도메인 재배치입니다
 
 ### 2. session/index.ts에서 hook 재-export
 
-현재 `session/index.ts`는 `../hooks/session`까지 export 합니다.
+현재 `session/index.ts`는 session public API를 제공하는 계층이고, hook은 `hooks/session/index.ts`를 통해 따로 공개하는 방향이 맞습니다.
 
-이건 제거하는 것이 맞습니다.
+문서 규칙:
 
-이유:
-
-- session context와 hook 공개 경계가 뒤섞입니다
-- 외부에서 `session` import만으로 hook까지 들어오면 계층 경계가 무너집니다
+- `src/session/index.ts`는 session context/service/type만 공개합니다
+- `src/hooks/session/index.ts`는 React hook만 공개합니다
+- 두 surface를 서로 다시 re-export 하지 않습니다
 
 ### 3. 내부 setter 노출
 
@@ -207,15 +230,14 @@ flowchart TD
   H --> U["user"]
   H --> SUB["subscription"]
   H --> APP["app"]
-  S --> S1["session context readers"]
-  S --> S2["session action hooks"]
+  S --> S1["session/readers"]
+  S --> S2["session/actions"]
   A --> A1["relay auth hooks"]
-  A --> A2["invite auth hooks"]
+  A --> A2["alias and token hooks"]
 ```
 
 ## 검토 포인트
 
-- `useTokenRefresh`를 session domain으로 둘지 app bootstrap domain으로 둘지
-- `useInitWebCore`를 `initializeRelaySession` naming과 맞춰 재설계할지
-- `useDynamicProfile`가 profile merge 제거 이후에도 필요한지
-- `useDelegatorId`처럼 지나치게 얇은 selector hook을 유지할지, `useSessionIdentity()`로 통합할지
+- `session/readers/useCloudSessionCatalog.ts`를 `user` 도메인으로 옮길지
+- `useLogoutRelaySession.ts`와 `useSessionLogout.ts`를 하나로 수렴할지
+- `useTokenRefresh`의 세션 복구 규칙을 얼마나 service로 내릴지
