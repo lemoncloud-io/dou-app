@@ -2,13 +2,12 @@ import { useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { logger } from '@chatic/bridges';
-import { useWebCoreStore, webTransport } from '@chatic/web-core';
+import { webTransport } from '@chatic/web-core';
 
 // import { useWebSocket } from './useWebSocket';
 import { useWebSocketWorker } from './useWebSocketWorker';
-import { useWebSocketStore } from '../stores/useWebSocketStore';
-
 import type { WebSocketMessage } from '../stores/useWebSocketStore';
+import { useWebSocketStore } from '../stores/useWebSocketStore';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
 
@@ -53,7 +52,6 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
  * - Items messages: ID starts with ITEM*
  */
 export const useInitWebSocket = (sessionId?: string, channels?: string) => {
-    const { isAuthenticated } = useWebCoreStore();
     const setId = useWebSocketStore(state => state.setId);
     const setConnectionStatus = useWebSocketStore(state => state.setConnectionStatus);
     const broadcastMessage = useWebSocketStore(state => state.broadcastMessage);
@@ -100,14 +98,16 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        const cleanup = (): void => {
-            disconnect();
-            reset();
-        };
-
-        const unregister = useWebCoreStore.getState().registerLogoutCallback(cleanup);
-
-        return unregister;
+        /**
+         *   const cleanup = (): void => {
+         *             disconnect();
+         *             reset();
+         *         };
+         *
+         *         const unregister = useWebCoreStore.getState().registerLogoutCallback(cleanup);
+         *
+         *         return unregister;
+         */
     }, [isAuthenticated, disconnect, reset]);
 
     // Handle AppState changes - disconnect when background, reconnect when foreground
