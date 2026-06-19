@@ -10,6 +10,12 @@ interface InviteFlowArgs {
     backend?: string;
     /** Cloud to enter after login. When provided, the invite cloud entry is performed in one step. */
     cloudId?: string;
+    /** WebSocket endpoint of the target cloud (carried by the deeplink). */
+    wss?: string;
+    /** Name of the target cloud. */
+    cloudName?: string;
+    /** Callback to cache invite cloud information in the repository layer. */
+    onSaveInviteCloud?: (cloud: { id: string; name?: string; backend?: string; wss?: string }) => Promise<void>;
 }
 
 /**
@@ -26,12 +32,22 @@ export const useInviteFlow = () => {
     const { delegatorId } = useSessionIdentity();
 
     const mutation = useMutation({
-        mutationFn: async ({ code, backend, cloudId }: InviteFlowArgs) => {
+        mutationFn: async ({ code, backend, cloudId, wss, cloudName, onSaveInviteCloud }: InviteFlowArgs) => {
             if (!delegatorId) {
                 throw new Error('No delegatorId for invite flow');
             }
 
-            await loginWithInviteCode({ code, delegatorId, backend });
+            const tokenView = await loginWithInviteCode({ code, delegatorId, backend });
+
+            const effectiveCloudId = cloudId ?? tokenView.cloudId;
+            if (effectiveCloudId && onSaveInviteCloud) {
+                await onSaveInviteCloud({
+                    id: effectiveCloudId,
+                    name: cloudName ?? tokenView.name,
+                    backend,
+                    wss,
+                });
+            }
 
             if (!cloudId) {
                 return null;

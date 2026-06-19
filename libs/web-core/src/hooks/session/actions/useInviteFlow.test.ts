@@ -25,7 +25,7 @@ const createWrapper = () => {
 describe('useInviteFlow', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockLoginWithInviteCode.mockResolvedValue({ Token: {} });
+        mockLoginWithInviteCode.mockResolvedValue({ Token: {}, cloudId: 'cloud-1', name: 'My Cloud' });
         mockSwitchCloudSession.mockResolvedValue({ cloudId: 'cloud-1' });
     });
 
@@ -46,6 +46,50 @@ describe('useInviteFlow', () => {
             backend: 'https://cloud.example.com',
         });
         expect(mockSwitchCloudSession).toHaveBeenCalledWith({ cloudId: 'cloud-1' });
+    });
+
+    it('calls onSaveInviteCloud if provided', async () => {
+        mockUseSessionIdentity.mockReturnValue({ delegatorId: 'delegator-1' });
+        const onSaveInviteCloud = jest.fn().mockResolvedValue(undefined);
+
+        const { result } = renderHook(() => useInviteFlow(), { wrapper: createWrapper() });
+
+        await result.current.runInviteFlow({
+            code: 'INVITE',
+            backend: 'https://cloud.example.com',
+            cloudId: 'cloud-1',
+            wss: 'wss://cloud.example.com',
+            cloudName: 'Custom Cloud Name',
+            onSaveInviteCloud,
+        });
+
+        expect(onSaveInviteCloud).toHaveBeenCalledWith({
+            id: 'cloud-1',
+            name: 'Custom Cloud Name',
+            backend: 'https://cloud.example.com',
+            wss: 'wss://cloud.example.com',
+        });
+    });
+
+    it('falls back to tokenView.name when cloudName is not provided', async () => {
+        mockUseSessionIdentity.mockReturnValue({ delegatorId: 'delegator-1' });
+        const onSaveInviteCloud = jest.fn().mockResolvedValue(undefined);
+
+        const { result } = renderHook(() => useInviteFlow(), { wrapper: createWrapper() });
+
+        await result.current.runInviteFlow({
+            code: 'INVITE',
+            backend: 'https://cloud.example.com',
+            cloudId: 'cloud-1',
+            onSaveInviteCloud,
+        });
+
+        expect(onSaveInviteCloud).toHaveBeenCalledWith({
+            id: 'cloud-1',
+            name: 'My Cloud',
+            backend: 'https://cloud.example.com',
+            wss: undefined,
+        });
     });
 
     it('throws when no delegatorId is available', async () => {
