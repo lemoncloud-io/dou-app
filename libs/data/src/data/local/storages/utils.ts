@@ -11,6 +11,7 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     chat: 100 * 12 * 30 * DAY_MS, // no expiration
     invitecloud: 100 * 12 * 30 * DAY_MS, // 100 years; permanent cache
     join: 30 * MINUTE_MS,
+    profile: 30 * MINUTE_MS,
     site: 30 * MINUTE_MS,
     user: 30 * MINUTE_MS,
 };
