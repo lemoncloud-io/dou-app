@@ -1,6 +1,6 @@
 {
     "name": "@chatic/desktop",
-    "version": "0.0.2",
+    "version": "0.0.13",
     "private": true,
     "description": "Chatic desktop shell (Electron)",
     "author": "lemoncloud",
