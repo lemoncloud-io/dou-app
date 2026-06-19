@@ -21,6 +21,7 @@ import {
     useMentionCapture,
     usePlaceUnreadCounts,
     useRetainLeavingCloudBadge,
+    useSocketWedgeReload,
     useUnreadStore,
 } from './shared';
 
@@ -35,6 +36,9 @@ const DesktopNotifications = () => {
     useCrossCloudPushBadge();
     // Capture @me messages across all channels into the device-local Activity inbox.
     useMentionCapture();
+    // Self-heal a socket left unverified after sleep/wake (cloud-token 400 loop)
+    // by reloading the Electron renderer — automatic equivalent of a manual ctrl+r.
+    useSocketWedgeReload();
     return null;
 };
 
