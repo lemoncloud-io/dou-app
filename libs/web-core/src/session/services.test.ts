@@ -163,6 +163,9 @@ import {
     loginRelaySocial,
     loginWithInviteCode,
     logoutCloudSession,
+    persistDeviceId,
+    refreshActiveCloudSession,
+    refreshCloudSession,
     refreshRelaySession,
     switchCloudSession,
 } from './services';
@@ -206,7 +209,6 @@ describe('session/services', () => {
         expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, {
             isInitialized: true,
             isAuthenticated: true,
-            isOnMobileApp: false,
         });
     });
 
@@ -414,5 +416,90 @@ describe('session/services', () => {
         expect(mockClearSessionCloudProfile).toHaveBeenCalledTimes(1);
         expect(mockNotifySessionStateChanged).toHaveBeenCalledTimes(1);
         expect(mockClearSessionProfile).not.toHaveBeenCalled();
+    });
+
+    // ⑪ device registration: deviceId persisted to identityCore (and localStorage)
+    it('persists deviceId to identityCore and localStorage', () => {
+        persistDeviceId('device-42');
+
+        expect(localStorage.getItem('chatic-device-id')).toBe('device-42');
+        expect(mockIdentitySetDeviceId).toHaveBeenCalledWith('device-42');
+    });
+
+    // R2/⑥ relay single-flight: same target coalesces into one refresh
+    it('coalesces concurrent relay refreshes with the same target', async () => {
+        mockRefreshAuthToken.mockResolvedValue({ identityToken: 'relay-token' });
+
+        await Promise.all([
+            refreshRelaySession({ target: 'user-1@site-1', syncProfile: false }),
+            refreshRelaySession({ target: 'user-1@site-1', syncProfile: false }),
+        ]);
+
+        expect(mockRefreshAuthToken).toHaveBeenCalledTimes(1);
+    });
+
+    // R2/⑥ relay single-flight: different targets run serially (not dropped)
+    it('serializes concurrent relay refreshes with different targets', async () => {
+        mockRefreshAuthToken.mockResolvedValue({ identityToken: 'relay-token' });
+
+        await Promise.all([
+            refreshRelaySession({ target: 'user-1@site-1', syncProfile: false }),
+            refreshRelaySession({ target: 'user-1@site-2', syncProfile: false }),
+        ]);
+
+        expect(mockRefreshAuthToken).toHaveBeenCalledTimes(2);
+        expect(mockRefreshAuthToken).toHaveBeenCalledWith('user-1@site-1');
+        expect(mockRefreshAuthToken).toHaveBeenCalledWith('user-1@site-2');
+    });
+
+    // R2/⑥ cloud single-flight: same siteId coalesces into one refresh
+    it('coalesces concurrent cloud refreshes with the same siteId', async () => {
+        mockGetCloudToken.mockReturnValue({ id: 'cloud-user', Token: { identityToken: 'old' } });
+        mockRefreshCloudToken.mockResolvedValue({ id: 'cloud-user', Token: { identityToken: 'new' } });
+
+        await Promise.all([refreshCloudSession({ siteId: 'site-9' }), refreshCloudSession({ siteId: 'site-9' })]);
+
+        expect(mockRefreshCloudToken).toHaveBeenCalledTimes(1);
+    });
+
+    // ② periodic cloud refresh: skips when cloud is not connected or no site session
+    it('skips active cloud refresh when cloud is default', async () => {
+        mockGetSelectedCloudId.mockReturnValue('default');
+
+        await refreshActiveCloudSession();
+
+        expect(mockRefreshCloudToken).not.toHaveBeenCalled();
+    });
+
+    it('skips active cloud refresh when there is no delegation token', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        mockGetDelegationToken.mockReturnValue(null);
+
+        await refreshActiveCloudSession();
+
+        expect(mockRefreshCloudToken).not.toHaveBeenCalled();
+    });
+
+    it('skips active cloud refresh when there is no selected site', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        mockGetDelegationToken.mockReturnValue({ delegationToken: 'd' });
+        mockGetSelectedSiteId.mockReturnValue(null);
+
+        await refreshActiveCloudSession();
+
+        expect(mockRefreshCloudToken).not.toHaveBeenCalled();
+    });
+
+    // ② periodic cloud refresh: refreshes cloudToken when connected with a site session
+    it('refreshes the active cloud session when connected with a site', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        mockGetDelegationToken.mockReturnValue({ delegationToken: 'd' });
+        mockGetSelectedSiteId.mockReturnValue('site-3');
+        mockGetCloudToken.mockReturnValue({ id: 'cloud-user', Token: { identityToken: 'old' } });
+        mockRefreshCloudToken.mockResolvedValue({ id: 'cloud-user', Token: { identityToken: 'new' } });
+
+        await refreshActiveCloudSession();
+
+        expect(mockRefreshCloudToken).toHaveBeenCalledWith(expect.objectContaining({ target: 'cloud-user@site-3' }));
     });
 });

@@ -4,7 +4,7 @@ const mockInitialize = jest.fn();
 const mockMarkSessionInitialized = jest.fn();
 const mockIsInitialized = { current: false };
 
-jest.mock('../../session/services', () => ({
+jest.mock('../../session', () => ({
     initializeRelaySession: (...args: unknown[]) => mockInitialize(...args),
 }));
 
@@ -12,7 +12,7 @@ jest.mock('../../session/contextStore', () => ({
     markSessionInitialized: (...args: unknown[]) => mockMarkSessionInitialized(...args),
 }));
 
-jest.mock('../../api/common', () => ({
+jest.mock('../../api', () => ({
     reportError: jest.fn(),
 }));
 
@@ -24,7 +24,7 @@ jest.mock('../session', () => ({
     })),
 }));
 
-jest.mock('../session/useSessionReaders', () => ({
+jest.mock('../session/readers/useSessionAuth', () => ({
     useSessionAuth: jest.fn(() => ({
         get isInitialized() {
             return mockIsInitialized.current;

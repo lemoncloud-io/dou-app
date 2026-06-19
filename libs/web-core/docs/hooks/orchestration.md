@@ -110,6 +110,26 @@ flowchart LR
 - **선반영(optimistic) + 롤백 (③⑥):** 전환/사이트 변경 시 cid/sid를 API 호출 전에 선반영해 캐시 데이터를 즉시 보여주고, 토큰 교환/리프레시 실패 시 이전 cid/sid로 롤백한다. 토큰은 성공 시에만 저장하므로 롤백 시 이전 세션 토큰이 그대로 유효해야 한다. 대상: `switchCloudSession`(cid), `refreshCloudSession`(cloud sid), `refreshRelaySession`(relay sid).
 - **초대 cloud 비-delegable 케이스:** `switchCloudSession`의 `delegate-cloud`가 초대 cloud에서 404가 나는 경우의 재진입 경로. (과거 `restorePreviousCloudSession`이 담당했으나 writer 부재로 제거됨 — 필요하면 번들 writer까지 포함해 재설계.)
 
+## 검증
+
+각 동작 정책의 검증 기준. 상세 테스트 매트릭스·수동 체크리스트는 검증 플랜(`~/.claude/plans/chatic-front/session-orchestration-verification.md`)에 있다.
+
+자동 (web-core 단위 테스트):
+
+- **① 항시 로그인** — 미인증 + deviceId 준비 시 `loginRelayGuestByDevice`가 1회 호출되고, 진행 중 재진입이 차단된다. 인증 상태면 호출되지 않는다.
+- **② 병렬 리프레시** — `refreshToken` 시 `refreshActiveCloudSession`이 병렬 호출되고, cloud 실패가 logout을 유발하지 않는다. relay `shouldLogout`만 logout으로 이어진다.
+- **②/⑥ single-flight** — `refreshRelaySession`·`refreshCloudSession` 동일 key 동시호출이 1회로 coalesce되고, 다른 key는 직렬 실행되어 selectedSiteId/token 경합이 없다.
+- **⑥ 사이트 전환** — `target = uid@sid` refresh가 selectedSiteId를 refresh 결과로만 반영한다 (독립 setter 아님).
+- **⑦ 초대** — delegatorId 부재 시 throw, 존재 시 `loginWithInviteCode` → `switchCloudSession` 순서로 진행한다.
+- **⑪ 디바이스 등록** — `persistDeviceId`가 `identityCore.setDeviceId`와 localStorage에 함께 반영하고, 로그아웃 후에도 deviceId가 유지된다.
+
+수동/통합 (web-core 경계 밖, app-runtime 결합 후):
+
+- **③⑥ cid/sid 반응** — 전환 시 캐시 우선 표시 + 소켓 재연결 (app-runtime/data·binding).
+- **⑤ 로그아웃 캐시 클리어** — 로그아웃 후 다른 유저 로그인 시 데이터가 꼬이지 않음 (외부 레이어).
+- **⑧⑨ 소켓 리프레시/401 복구** — socket delegate 결합 후 `auth:update` 갱신·재시도 (sid 없으면 skip).
+- **선반영+롤백 (미구현 TODO)** — 구현 시 "전환 실패 → 이전 cid/sid 복귀" 케이스를 자동 테스트로 추가.
+
 ## 관련 문서
 
 - [README.md](./README.md) — hook 분류·폴더 구조
