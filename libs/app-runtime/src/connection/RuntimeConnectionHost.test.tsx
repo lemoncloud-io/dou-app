@@ -77,7 +77,6 @@ describe('RuntimeConnectionHost', () => {
             context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             socket: {
                 config: { url: 'wss://test.com', deviceId: 'device-1' },
-                scope: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             },
         };
 
@@ -94,10 +93,7 @@ describe('RuntimeConnectionHost', () => {
             expect(dataManager.ensure).toHaveBeenCalledWith(binding.context);
         });
         await waitFor(() => {
-            expect(socketRuntime.controller.bootstrap).toHaveBeenCalledWith(
-                binding.socket.config,
-                binding.socket.scope
-            );
+            expect(socketRuntime.controller.bootstrap).toHaveBeenCalledWith(binding.socket.config);
         });
 
         // 변경 테스트

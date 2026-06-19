@@ -30,7 +30,7 @@ export class RuntimeManager implements IRuntimeManager {
             return;
         }
 
-        this.socketManager.ensure(binding.socket.config, binding.socket.scope);
+        this.socketManager.ensure(binding.socket.config);
     }
 
     public async bootstrap(binding: RuntimeBinding): Promise<void> {
@@ -42,7 +42,7 @@ export class RuntimeManager implements IRuntimeManager {
 
         try {
             const socketRuntime = getSocketRuntime();
-            await socketRuntime.controller.bootstrap(socketBinding.config, socketBinding.scope);
+            await socketRuntime.controller.bootstrap(socketBinding.config);
         } catch (error) {
             logger.error('RUNTIME', '[RuntimeManager] Failed to bootstrap runtime binding', {
                 error,
@@ -61,7 +61,6 @@ export class RuntimeManager implements IRuntimeManager {
             socket: binding.socket
                 ? {
                       config: binding.socket.config,
-                      scope: binding.socket.scope,
                   }
                 : null,
         });

@@ -11,15 +11,11 @@ import type {
     ISocketManager,
     SocketBindingConfig,
     SocketClientListener,
-    SocketScope,
     SocketState,
     SocketStateListener,
 } from './types';
 
 const initialState = (): SocketState => ({
-    cloudId: null,
-    siteId: null,
-    userId: null,
     state: 'idle',
     isConnected: false,
     isVerified: false,
@@ -30,13 +26,12 @@ const initialState = (): SocketState => ({
 /**
  * SocketManager wraps a single ClientSocketV2 instance and owns the comprehensive,
  * observable socket state (connection + handshake). The socket is always 1:1 with
- * the current scope (cid/sid/uid): any scope or config change tears down the old
+ * the current config (url/deviceId/wssType): any config change tears down the old
  * socket and builds a fresh one — there is no "active" socket among many.
  */
 export class SocketManager implements ISocketManager {
     private client: ClientSocketV2 | null = null;
     private config: SocketBindingConfig | null = null;
-    private scope: SocketScope = { cid: null, sid: null, uid: null };
     private state: SocketState = initialState();
 
     // State is an observable store: each consumer (e.g. a useSyncExternalStore hook,
@@ -48,29 +43,25 @@ export class SocketManager implements ISocketManager {
     private unsubscribes: Array<() => void> = [];
 
     /**
-     * Ensures a single ClientSocketV2 bound to the given config + scope.
-     * Reuses the existing socket when both config and scope are unchanged; otherwise
-     * destroys the old socket and creates a fresh one for the new scope.
+     * Ensures a single ClientSocketV2 bound to the given config.
+     * Reuses the existing socket when config is unchanged; otherwise
+     * destroys the old socket and creates a fresh one.
      */
-    public ensure(config: SocketBindingConfig, scope: SocketScope): ClientSocketV2 {
-        if (this.client && this.isSameConfig(this.config, config) && this.isSameScope(this.scope, scope)) {
+    public ensure(config: SocketBindingConfig): ClientSocketV2 {
+        if (this.client && this.isSameConfig(this.config, config)) {
             return this.client;
         }
 
         this.teardownClient();
 
         this.config = config;
-        this.scope = scope;
 
         const client = this.createClient(config);
         this.client = client;
         this.bindClient(client);
 
-        // Reset handshake flags for the new scope; connection state follows the client.
+        // Reset handshake flags; connection state follows the client.
         this.setState({
-            cloudId: scope.cid,
-            siteId: scope.sid,
-            userId: scope.uid,
             state: client.state,
             isConnected: client.state === 'connected',
             isVerified: false,
@@ -145,7 +136,6 @@ export class SocketManager implements ISocketManager {
     public destroy(): void {
         this.teardownClient();
         this.config = null;
-        this.scope = { cid: null, sid: null, uid: null };
         this.setState(initialState());
         this.emitClientChanged();
     }
@@ -176,7 +166,7 @@ export class SocketManager implements ISocketManager {
             client.onError((event: ClientSocketErrorEvent) => {
                 logger.error('SOCKET', '[SocketManager] Socket error', {
                     error: event.error,
-                    data: { phase: event.phase, ...this.scope },
+                    data: { phase: event.phase },
                 });
             })
         );
@@ -230,10 +220,7 @@ export class SocketManager implements ISocketManager {
             next.isConnected === this.state.isConnected &&
             next.isVerified === this.state.isVerified &&
             next.isDeviceRegistered === this.state.isDeviceRegistered &&
-            next.connectionId === this.state.connectionId &&
-            next.cloudId === this.state.cloudId &&
-            next.siteId === this.state.siteId &&
-            next.userId === this.state.userId
+            next.connectionId === this.state.connectionId
         ) {
             return;
         }
@@ -252,10 +239,6 @@ export class SocketManager implements ISocketManager {
 
     private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {
         return !!left && left.url === right.url && left.deviceId === right.deviceId && left.wssType === right.wssType;
-    }
-
-    private isSameScope(left: SocketScope, right: SocketScope): boolean {
-        return left.cid === right.cid && left.sid === right.sid && left.uid === right.uid;
     }
 
     private createClient(config: SocketBindingConfig): ClientSocketV2 {

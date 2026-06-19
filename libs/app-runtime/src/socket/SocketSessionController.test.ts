@@ -26,9 +26,6 @@ describe('SocketSessionController', () => {
             ensure: jest.fn().mockReturnValue(client),
             getClient: jest.fn().mockReturnValue(client),
             getSnapshot: jest.fn().mockReturnValue({
-                cloudId: null,
-                siteId: null,
-                userId: null,
                 state: 'connected',
                 isConnected: true,
                 isVerified: false,
@@ -62,11 +59,10 @@ describe('SocketSessionController', () => {
     describe('bootstrap', () => {
         it('bootstrap 시 connect, device.save, auth.update 가 올바르게 실행되어야 한다', async () => {
             const config = { url: 'wss://test.com', deviceId: 'device-123', wssType: 'cloud' as const };
-            const scope = { cid: 'cloud-1', sid: 'site-1', uid: 'user-1' };
 
-            await controller.bootstrap(config, scope);
+            await controller.bootstrap(config);
 
-            expect(manager.ensure).toHaveBeenCalledWith(config, scope);
+            expect(manager.ensure).toHaveBeenCalledWith(config);
             expect(manager.connect).toHaveBeenCalled();
             expect(client.request).toHaveBeenCalledWith('device.save', {
                 id: 'device-123',
@@ -80,9 +76,6 @@ describe('SocketSessionController', () => {
     describe('periodic-refresh', () => {
         it('sid가 존재할 때 1분 주기로 auth.update를 실행해야 한다', async () => {
             manager.getSnapshot.mockReturnValue({
-                cloudId: 'cloud-1',
-                siteId: 'site-1',
-                userId: 'user-1',
                 state: 'connected',
                 isConnected: true,
                 isVerified: true,
@@ -91,9 +84,8 @@ describe('SocketSessionController', () => {
             });
 
             const config = { url: 'wss://test.com', deviceId: 'device-123', wssType: 'cloud' as const };
-            const scope = { cid: 'cloud-1', sid: 'site-1', uid: 'user-1' };
 
-            await controller.bootstrap(config, scope);
+            await controller.bootstrap(config);
             jest.clearAllMocks();
 
             // Fast-forward 1 minute
@@ -106,9 +98,6 @@ describe('SocketSessionController', () => {
 
         it('sid가 없을 때는 리프레시를 수행하지 않아야 한다', async () => {
             manager.getSnapshot.mockReturnValue({
-                cloudId: 'cloud-1',
-                siteId: null, // sid 없음
-                userId: 'user-1',
                 state: 'connected',
                 isConnected: true,
                 isVerified: true,
@@ -117,16 +106,18 @@ describe('SocketSessionController', () => {
             });
 
             const config = { url: 'wss://test.com', deviceId: 'device-123', wssType: 'cloud' as const };
-            const scope = { cid: 'cloud-1', sid: null, uid: 'user-1' };
 
-            await controller.bootstrap(config, scope);
+            await controller.bootstrap(config);
             jest.clearAllMocks();
+
+            // Mock getSocketToken to return null when token refresh is skipped (e.g. no sid)
+            delegate.getSocketToken.mockResolvedValueOnce(null);
 
             // Fast-forward 1 minute
             jest.advanceTimersByTime(60000);
             await flushPromises();
 
-            expect(delegate.getSocketToken).not.toHaveBeenCalled();
+            expect(delegate.getSocketToken).toHaveBeenCalled();
             expect(client.request).not.toHaveBeenCalled();
         });
     });

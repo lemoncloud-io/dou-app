@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { ISocketManager, SocketBindingConfig, SocketScope, SocketSessionDelegate } from './types';
+import type { ISocketManager, SocketBindingConfig, SocketSessionDelegate } from './types';
 
 export class SocketSessionController {
     private delegate: SocketSessionDelegate | null = null;
@@ -16,8 +16,8 @@ export class SocketSessionController {
         return this.delegate;
     }
 
-    public async bootstrap(config: SocketBindingConfig, scope: SocketScope): Promise<void> {
-        this.manager.ensure(config, scope);
+    public async bootstrap(config: SocketBindingConfig): Promise<void> {
+        this.manager.ensure(config);
         this.startPeriodicRefresh();
 
         try {
@@ -128,8 +128,8 @@ export class SocketSessionController {
         this.stopPeriodicRefresh();
         this.refreshInterval = setInterval(() => {
             const state = this.manager.getSnapshot();
-            // sid가 없으면 소켓 리프레시를 수행하지 않는다
-            if (state.isConnected && state.siteId) {
+            // 소켓이 연결되어 있을 때만 업데이트를 수행하고, 세션 유무는 updateAuth 내부에서 토큰 획득 여부로 판단합니다.
+            if (state.isConnected) {
                 void this.updateAuth('periodic-refresh');
             }
         }, 60000); // 1 minute

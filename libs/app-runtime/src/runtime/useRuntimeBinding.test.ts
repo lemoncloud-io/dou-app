@@ -39,11 +39,6 @@ describe('useRuntimeBinding', () => {
                 deviceId: 'test-device-id',
                 wssType: 'cloud',
             },
-            scope: {
-                cid: 'my-cloud-id',
-                sid: 'my-site-id',
-                uid: 'user-123',
-            },
         });
     });
 
@@ -71,11 +66,6 @@ describe('useRuntimeBinding', () => {
                 url: 'wss://relay.chatic.com',
                 deviceId: 'test-device-id',
                 wssType: 'relay',
-            },
-            scope: {
-                cid: 'default',
-                sid: 'relay-site-id',
-                uid: 'user-456',
             },
         });
     });

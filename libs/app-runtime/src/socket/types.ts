@@ -19,30 +19,11 @@ export interface SocketBindingConfig {
 }
 
 /**
- * Scope the socket is currently bound to. A change in any field (cloud, site, user)
- * is treated as a scope switch and always forces a fresh socket connection.
- */
-export interface SocketScope {
-    /** cloudId — null when unbound. */
-    cid: string | null;
-    /** siteId — null when no place is selected. */
-    sid: string | null;
-    /** userId — null until the profile is resolved. */
-    uid: string | null;
-}
-
-/**
  * Comprehensive, observable state of the single managed socket.
  * Connection fields follow ClientSocketV2; handshake fields (`isVerified`,
  * `isDeviceRegistered`, `connectionId`) are derived from app-level acknowledgements.
  */
 export interface SocketState {
-    /** Currently bound cloudId. */
-    cloudId: string | null;
-    /** Currently bound siteId. */
-    siteId: string | null;
-    /** Currently bound userId. */
-    userId: string | null;
     /** Raw transport state. */
     state: ClientSocketState;
     /** Shorthand for `state === 'connected'`. */
@@ -60,7 +41,7 @@ export type SocketStateListener = (state: SocketState) => void;
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 
 export interface ISocketManager {
-    ensure(config: SocketBindingConfig, scope: SocketScope): ClientSocketV2;
+    ensure(config: SocketBindingConfig): ClientSocketV2;
     getClient(): ClientSocketV2 | null;
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;

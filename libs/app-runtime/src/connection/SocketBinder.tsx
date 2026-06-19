@@ -19,7 +19,7 @@ export const SocketBinder = ({ binding }: SocketBinderProps) => {
                 socketRuntime.controller.destroy();
                 socketManager.destroy();
             } else {
-                void socketRuntime.controller.bootstrap(binding.socket.config, binding.socket.scope);
+                void socketRuntime.controller.bootstrap(binding.socket.config);
             }
         }
     }, [binding.socket, socketManager, socketRuntime.controller]);

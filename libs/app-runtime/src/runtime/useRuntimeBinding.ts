@@ -3,14 +3,13 @@ import { useMemo } from 'react';
 import type { DataContext } from '@chatic/data';
 import { useGlobalSession } from '@chatic/web-core';
 
-import type { SocketBindingConfig, SocketScope } from '../socket';
+import type { SocketBindingConfig } from '../socket';
 import { useDynamicDeviceId } from '@chatic/web-core';
 
 export interface RuntimeBinding {
     context: DataContext;
     socket: {
         config: SocketBindingConfig;
-        scope: SocketScope;
     } | null;
 }
 
@@ -35,11 +34,6 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                               url: endpoint,
                               deviceId,
                               wssType,
-                          },
-                          scope: {
-                              cid,
-                              sid: sid ?? null,
-                              uid: uid ?? null,
                           },
                       }
                     : null,
