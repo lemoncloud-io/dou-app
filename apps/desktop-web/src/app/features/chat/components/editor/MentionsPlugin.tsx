@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { LexicalTypeaheadMenuPlugin, MenuOption, type MenuTextMatch } from '@lexical/react/LexicalTypeaheadMenuPlugin';
-import { $createTextNode } from 'lexical';
+import { $createTextNode, COMMAND_PRIORITY_NORMAL } from 'lexical';
 
 import { MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { MentionAutocomplete, type Mentionable } from '../MentionAutocomplete';
@@ -55,6 +55,12 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
         <LexicalTypeaheadMenuPlugin<MentionTypeaheadOption>
             triggerFn={triggerFn}
             options={options}
+            // Outrank SubmitPlugin's Enter (registered at LOW on mount, so it
+            // would otherwise win on registration order and send the message).
+            // While the menu is open the typeahead consumes Enter/Tab to pick the
+            // highlighted member; once closed its commands unregister and Enter
+            // falls through to SubmitPlugin again.
+            commandPriority={COMMAND_PRIORITY_NORMAL}
             onQueryChange={setQuery}
             onSelectOption={(option, nodeToReplace, closeMenu) => {
                 editor.update(() => {
