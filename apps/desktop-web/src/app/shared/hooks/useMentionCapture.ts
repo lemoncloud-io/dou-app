@@ -39,13 +39,37 @@ export const useMentionCapture = (): void => {
 
             const profile = useWebCoreStore.getState().profile;
             const authorId = chatAuthorId(chat);
-            // Never capture my own message.
-            if (authorId && (authorId === profile?.id || authorId === profile?.uid)) return;
-            // Only messages that @-mention me (or @channel/@here).
-            if (!isMentioned(content, resolveMyMentionNames())) return;
-            // Don't re-capture an already-read message (resync redelivery).
+            const myNames = resolveMyMentionNames();
             const chatNo = chat.chatNo ?? 0;
-            if (chatNo <= (useReadCursorStore.getState().cursors[chat.channelId] ?? 0)) return;
+            const cursor = useReadCursorStore.getState().cursors[chat.channelId] ?? 0;
+            const isMe = !!authorId && (authorId === profile?.id || authorId === profile?.uid);
+            const mentioned = isMentioned(content, myNames);
+            // Same precedence as the original guards: own message → not-a-mention →
+            // already-read → capture.
+            const reason = isMe
+                ? 'own-message'
+                : !mentioned
+                  ? 'name-no-match'
+                  : chatNo <= cursor
+                    ? 'below-cursor'
+                    : 'captured';
+
+            // TEMP diagnostic — mentions inbox not populating in prod. Logs every
+            // '@'-bearing inbound message with the exact gate that rejected it.
+            // Remove once the root cause is identified.
+             
+            console.debug('[mention-capture]', reason, {
+                channelId: chat.channelId,
+                chatNo,
+                cursor,
+                authorId,
+                myUid: profile?.uid,
+                myId: profile?.id,
+                myNames,
+                content: content.slice(0, 80),
+            });
+
+            if (reason !== 'captured') return;
 
             add({
                 id: chat.id,
