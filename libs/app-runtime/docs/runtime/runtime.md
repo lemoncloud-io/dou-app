@@ -1,171 +1,90 @@
 # Runtime Domain Spec
 
-Date: 2026-06-18
+Date: 2026-06-19
 
 ## 1. 목적
 
-`runtime` 도메인은 `app-runtime`의 composition root다. `socket`, `data`를 조립하고 runtime binding을 반영하는 역할만 가진다.
+`runtime` 도메인은 `app-runtime` 패키지의 Composition Root 역할을 수행하며, 세션 레이어로부터 넘어온 실행 값을 받아 `socket`과 `data` 도메인 간의 바인딩을 매끄럽게 중재하고 생명주기(Lifecycle) 진입점을 제공한다.
 
-## 2. 현재 구현 관찰
+---
 
-- `RuntimeManager.ensure()`는 context 반영과 socket ensure를 함께 수행한다.
-- `RuntimeManager.bootstrap()`은 connect, device 등록, `auth.update`까지 수행한다.
-- `useRuntimeBinding.ts`는 현재 `@chatic/web-core` 세션 상태를 직접 읽어 binding을 계산한다.
-- `WebSocketV2Connection.tsx`는 `useCloudSession`, `useCloudTokenRefresh`에 의존한다.
+## 2. 핵심 설계 개념: RuntimeBinding
 
-현재 구조는 `runtime`이 composition root를 넘어 세션/인증 흐름에 개입하고 있다.
+`runtime` 도메인의 입력 인터페이스는 `RuntimeBinding`이다. 이 값은 사용자의 로그인 상태 및 전환 행동에 따라 실시간으로 파생되는 실행 컨텍스트다.
 
-## 3. 목표 책임
-
-- runtime binding 수용
-- `socket`과 `data` 조립
-- lifecycle 진입점 제공
-- singleton 편의 API 제공
-
-## 4. 비책임
-
-- 세션 상태 조회
-- 토큰 발급
-- 토큰 refresh 정책
-- cloud fallback 결정
-- 사용자 세션 저장/복구
-- 로그인 상태 판별
-- 세션/인증 hook 제공
-- `@chatic/web-core` 세션 API 직접 의존
-
-## 5. 입력 계약
-
-```ts
+```typescript
 export interface RuntimeBinding {
+    /** 데이터 저장소 컨텍스트에 바인딩할 데이터 세트 */
     context: {
-        cid: string;
-        sid?: string;
-        uid?: string;
+        cid: string; // 클라우드 ID 혹은 중계서버 센티널 ('default')
+        sid?: string; // 활성화된 사이트 ID
+        uid?: string; // 활성화된 사용자 프로필 ID
     };
+    /** 소켓 연결 매니저에 주입할 바인딩 설정 */
     socket: {
         config: {
-            url: string;
-            deviceId: string;
+            url: string; // 소켓 엔드포인트 URL
+            deviceId: string; // 클라이언트 고유 디바이스 ID
             wssType?: 'relay' | 'cloud';
-        };
-        scope: {
-            cid: string | null;
-            sid: string | null;
-            uid: string | null;
         };
     } | null;
 }
 ```
 
-## 6. 상태 소유권
+---
 
-- runtime binding 소유자: 상위 앱 컨텍스트 레이어
-- socket 연결/검증 상태 소유자: `socket` 도메인
-- data context 소유자: `data` 도메인
+## 3. 활성 서버(activeServer) 단일 관측 규칙
 
-## 7. 목표 구조
+`RuntimeBinding` 내의 데이터는 `@chatic/web-core`의 컨텍스트 스토어가 관리하는 **활성 서버 상태(`activeServer`)**를 단일 관측하여 실시간으로 파생한다.
 
-```mermaid
-flowchart LR
-  App["apps/*"] --> Context["App Context Layer"]
-  Context --> Binding["Runtime Binding"]
-  App --> Runtime["Runtime Domain"]
-  Binding --> Runtime
-  Runtime --> Socket["Socket Domain"]
-  Runtime --> Data["Data Domain"]
-```
+파생 및 바인딩 매핑 규칙은 다음과 같다.
 
-## 8. 조립 원칙
+- **클라우드 서버 활성화 (`activeServer.kind === 'cloud'`)**
+    - `cid` = `activeServer.cloudId` (해당 클라우드 고유 ID)
+    - `sid` = `activeServer.siteId` (선택된 사이트 ID)
+- **중계 서버 활성화 (`activeServer.kind === 'relay'`)**
+    - `cid` = `'default'` (중계서버 고유 센티널)
+    - `sid` = `activeServer.siteId` (선택된 사이트 ID)
+- **기타 바인딩 기본값 불변식**
+    - `cid`의 기본 fallback은 `'default'`를 보장한다.
+    - 사이트가 아직 미선택된 상황(클라우드 로그인 직후 등)에서는 `sid`가 `null`이 될 수 있다.
+    - `uid`는 활성 서버의 로그인된 사용자 프로필(`cloudProfile` 또는 `relayProfile`)로부터 안전하게 파생하여 동기화한다.
 
-- `runtime`은 binding 적용만 한다.
-- bootstrap과 reauth 세부는 `socket` 도메인으로 이동한다.
-- `runtime`은 세션 관련 hook을 export하지 않는다.
-- singleton은 편의용이며, 설계의 기본 전제는 아니다.
+---
 
-## 9. 구현 기준
+## 4. 하이브리드 바인딩 전략: 훅 vs 컴포넌트
 
-- `RuntimeManager.ensure()`는 유지 가능하다.
-- `RuntimeManager.bootstrap()`은 장기적으로 socket bootstrap entry 위임 계층으로 축소한다.
-- `useRuntimeBinding()`은 장기적으로 `app-runtime` 밖으로 이동한다.
-- `connection` 계층은 세션/인증 hook을 직접 사용하지 않는다.
+`app-runtime`은 값의 관측과 라이프사이클 통제를 분리하는 **하이브리드 아키텍처**를 채택했다.
 
-## 10. 용어 정리
+1. **값의 파생 및 상태 조회: 훅(Hook)**
+    - `useRuntimeBinding()`: `activeServer` 변화에 반응하여 현재 바인딩 규격을 파생한다.
+    - `useRuntimeRepositories()`: 런타임에 바인딩된 최종 레포지토리 번들을 간편하게 획득한다.
+2. **라이프사이클 동기화 및 갱신: 컴포넌트(Render-null Component)**
+    - 조건에 따른 컴포넌트의 마운트/언마운트 시점을 React의 선언적 라이프사이클에 그대로 묶기 위해 바인더 컴포넌트를 사용한다.
+    - 부모 트리에 마운트함으로써 관심사 및 상태 갱신 영역을 독립적으로 격리한다.
 
-- `runtime`이 관리하는 것은 사용자 세션이 아니라 runtime binding이다.
-- runtime binding은 세션에서 파생된 실행 컨텍스트다.
-- 여기에는 `cid`, `sid`, `uid`, socket endpoint, `deviceId`, `wssType` 같은 실행 값이 포함된다.
+---
 
-## 11. cid / sid / uid 관측 (활성 서버 기준)
+## 5. 바인더 컴포넌트 동작 방식
 
-**원칙: `cid`/`sid`/`uid`는 web-core의 활성 서버 상태(`activeServer`)를 관측해 파생한다.** relay/cloud 필드를 수동으로 조합하지 않는다.
+선언적 트리 구조 내에서 `RuntimeBinding` 변화에 독립적으로 반응하는 두 가지 바인더 컴포넌트가 존재한다.
 
-web-core `contextStore`는 `cloud.isActive`를 기준으로 활성 서버를 resolve해 `GlobalSessionContext.activeServer`(`ActiveServerContext`)로 노출한다.
+### 1) `RuntimeDataBinder`
 
-```ts
-type ActiveServerContext =
-    | { kind: 'relay'; backend; wss; siteId: string | null; identityToken }
-    | { kind: 'cloud'; cloudId: string; siteId: string | null; backend; wss; identityToken };
-```
+- `RuntimeBinding.context` 슬라이스를 구독한다.
+- `cid`, `sid`, `uid` 등의 값에 변화(diff)가 발견되면, 즉시 [DataManager.ts](file:///Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/data/DataManager.ts)의 `ensure(context)`를 호출하여 데이터 컨텍스트를 동기화한다.
+- 데이터 레이어의 context가 갱신되면 DataProvider는 활성화된 스코프의 기존 캐시 데이터를 우선적으로 뷰에 반환(Cache-First)하여 부드러운 사용성을 확보한다.
 
-binding 파생 규칙:
+### 2) `SocketBinder`
 
-- `activeServer.kind === 'cloud'` → `cid = activeServer.cloudId`, `sid = activeServer.siteId`
-- `activeServer.kind === 'relay'` → `cid = 'default'`(중계서버 sentinel), `sid = activeServer.siteId`
-- `uid`는 활성 서버의 active profile(`cloudProfile ?? relayProfile`)에서 관측한다.
+- 소켓 설정(url, wssType, deviceId 등)의 diff를 판단한다.
+- 설정이 변경되면 [SocketManager.ts](file:///Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/socket/SocketManager.ts)의 `ensure(config)`를 호출하여 기존 물리 커넥션을 정리(destroy)하고 새로운 커넥션을 빌드한다.
 
-기본값 불변식:
+---
 
-- `cid`의 기본값은 `'default'`다. cloud가 active가 아니면 항상 `cid = 'default'`이며, 이는 `buildCloudContext` 활성화 조건과 일치한다.
-- `sid`의 기본값은 `null`이다. **`sid`는 없을 수 있다** (클라우드 전환 후 사이트 전환을 아직 안 한 상태 등).
-- `RuntimeBinding.context`의 `cid`/`sid`/`uid`는 위 활성 서버 관측 + 기본값 규칙을 그대로 따른다.
+## 관련 문서
 
-> **현재 구현과의 간극:** `useRuntimeBinding`은 아직 `activeServer`를 쓰지 않고 `currentWSS`/`cloud`/`relay`/`activeTarget`을 수동 조합한다. 목표는 `activeServer` 단일 관측으로 일원화하는 것이다.
-
-## 12. cid / sid 선반영과 반응
-
-클라우드 전환·사이트 전환은 web-core가 활성 서버(`activeServer`) 상태(cid/sid)를 **선반영**한다. `runtime`은 그 변경을 binding으로 받아 반응만 한다.
-
-- web-core가 `cloudCore`/`relayCore`의 selected cloud/site를 선반영 → binding의 `cid`/`sid`가 갱신됨
-- binding 변경 → `runtime`이 `socket`/`data`에 반영 → 새 `cid`/`sid` 기준으로 데이터/소켓이 따라감
-- "캐싱 데이터 우선 표시"는 `data` 도메인이 cid/sid 변경에 반응하는 결과다 (data/data.md 참조)
-- 롤백 로직은 이후 추가될 수 있다. 현재는 선반영만 정의한다.
-
-## 13. 새 와이어링: 훅 vs 컴포넌트
-
-기존 `connection/WebSocketV2Connection` + `SocketAuthCoordinator` 와이어링은 **제거·교체 대상**이다 ([socket/socket.md](../socket/socket.md) §2 참조). 새 와이어링을 **훅으로 둘지 render-null 컴포넌트로 둘지**가 핵심 설계 결정이다.
-
-현재 `apps/web/src/app/app.tsx`에는 이미 두 스타일이 공존한다.
-
-- 값 파생은 훅: `useInitWebCore()`(ready 반환), `useTokenRefresh()`(상태 반환), `useRuntimeBinding()`(binding 반환)
-- lifecycle은 render-null 컴포넌트: `ForegroundTokenRefresh`(훅을 감싼 헤드리스 컴포넌트)
-
-| 축               | 훅 (`useX(binding)`)                                | render-null 컴포넌트 (`<X binding/>`)              |
-| ---------------- | --------------------------------------------------- | -------------------------------------------------- |
-| 조건부 lifecycle | 조건부 호출 불가 → ready 게이팅이 내부 guard로 번짐 | `{ready && <X/>}`로 마운트/언마운트가 곧 lifecycle |
-| 독립 격리        | 부모 한 곳에 누적(god-component 경향)               | 관심사별 독립 마운트·재렌더 격리                   |
-| 값 반환/소비     | 반환값을 트리가 직접 사용하기 쉬움                  | 값 공유는 prop/context 필요                        |
-| 테스트           | `renderHook`                                        | 마운트/언마운트 시나리오 테스트                    |
-
-**권장: 역할별 하이브리드.**
-
-- **값 파생은 훅 유지** — `useRuntimeBinding`(binding 계산), `useRuntimeRepositories`(repo 조회).
-- **lifecycle 오케스트레이션은 render-null 컴포넌트** — binding 반응(§14)과 백그라운드 세션 시나리오([session-runner.md](./session-runner.md)). 둘 다 "ready일 때만 켜고 조건 따라 독립적으로 끄는" 성격이라 조건부 마운트가 자연스럽고, `ForegroundTokenRefresh` 선례와 일치한다.
-
-> 최종 확정은 구현 시점으로 열어둔다. 본 절은 비교와 권장만 제공한다.
-
-## 14. binding 반응 구성 (data/socket)
-
-cid/sid/uid 또는 socket config가 부분 변경되면 해당 모듈의 컨텍스트(endpoint, data context)와 socket scope를 갱신해야 한다. 여기서 cid/sid/uid는 §11대로 활성 서버(`activeServer`)를 관측해 파생된 값이며, binder는 그 값의 diff에만 반응한다. 현재는 `RuntimeManager.ensure()`가 명령형으로 `DataManager.ensure(context)` + `SocketManager.ensure(config, scope)`를 한 번에 호출한다.
-
-§13 권장(컴포넌트)을 적용한 분해 아이디어:
-
-- `<RuntimeDataBinder binding>` (render-null): binding의 `context` 슬라이스를 구독, cid/sid/uid diff 시 `DataManager.ensure(context)`.
-- `<SocketBinder binding>` (render-null): binding의 `socket` 슬라이스를 구독, config/scope diff 시 `SocketManager.ensure` 또는 `destroy`.
-
-슬라이스별로 나누는 이유: 데이터 컨텍스트 변경과 소켓 재연결이 **독립적으로** 반응한다(예: sid만 바뀌면 data context는 갱신하되 소켓 재연결 조건은 별도 판단). 명령형 단일 `ensure` 진입은 더 단순하지만 두 반응이 한 묶음으로 묶이는 트레이드오프가 있다.
-
-## 15. session 서브
-
-세션 상태를 흐르게 하는 백그라운드 병렬 시나리오 러너와 webTransport 초기화는 별도 문서로 정의한다 → [session-runner.md](./session-runner.md).
-
-- 관계: session 러너는 세션 상태(로그인·토큰·deviceId)를 흐르게 하고, §14 binder는 그 결과(cid/sid/uid)를 data/socket에 반영하는 소비자다.
+- [../architecture.md](../architecture.md) — 전체 아키텍처 및 세션 오케스트레이션 지도
+- [../public-surface.md](../public-surface.md) — 외부 앱에서 소비하는 공개 API 및 훅
+- [./session-runner.md](./session-runner.md) — 백그라운드 세션 갱신 컴포넌트 및 `TransportBootstrap`
+- [../data/data.md](../data/data.md) — 데이터 런타임 및 캐싱 반응 사양
