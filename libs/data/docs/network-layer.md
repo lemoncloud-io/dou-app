@@ -15,7 +15,7 @@ Date: 2026-06-18
 
 ```mermaid
 flowchart LR
-  SM["SocketManager"] --> Proxy["ManagedSocketClientProxy"]
+  SM["SocketManager"] --> Proxy["SocketClientProxy"]
   Proxy --> GW["create*Gateway() / createDomainGateway()"]
   GW --> RDS["RemoteDataSources"]
   Proxy --> DISP["SocketDispatcher"]
@@ -35,7 +35,7 @@ flowchart LR
 ### 2. `libs/app-runtime`
 
 - `SocketManager`가 현재 `ClientSocketV2` 인스턴스를 소유한다.
-- `ManagedSocketClientProxy`가 socket 교체를 흡수한다.
+- `SocketClientProxy`가 socket 교체를 흡수한다.
 - factory가 concrete gateway와 dispatcher를 조립한다.
 
 ## Gateway 매핑
@@ -63,7 +63,7 @@ flowchart LR
 
 조립 순서:
 
-1. `SocketManager` 기반 `ManagedSocketClientProxy` 생성
+1. `SocketManager` 기반 `SocketClientProxy` 생성
 2. `createAuthGateway`, `createChannelGateway`, `createChatGateway`, `createCloudGateway`, `createDeviceGateway`, `createUserGateway` 호출
 3. `createDomainGateway('sockets', ...)`로 sockets domain gateway 생성
 4. gateway bundle을 `createRemoteDataSources()`에 전달
