@@ -12,6 +12,9 @@
             "path": "../app-messages/tsconfig.lib.json"
         },
         {
+            "path": "../device-utils/tsconfig.lib.json"
+        },
+        {
             "path": "../bridges/tsconfig.lib.json"
         },
         {
