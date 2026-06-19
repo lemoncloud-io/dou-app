@@ -31,7 +31,7 @@ const requestMetadata = (url: string): Promise<UrlMetadata | null> => {
     const pending = inFlight.get(url);
     if (pending) return pending;
     const request = webClient
-        .request('FetchUrlMetadata', { url })
+        .request({ type: 'FetchUrlMetadata', data: { url } })
         .then(response => {
             const data = response.data;
             if (!data?.success || !data.title) return null;
