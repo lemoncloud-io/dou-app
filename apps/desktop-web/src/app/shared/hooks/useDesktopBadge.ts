@@ -37,8 +37,8 @@ const renderBadgePng = (count: number): string | undefined => {
 export const useDesktopBadge = (count: number): void => {
     useEffect(() => {
         if (!isNative()) return;
-        void webClient.request('SetBadgeCount', { count, overlayIconDataUrl: renderBadgePng(count) }).catch(
-            () => undefined
-        );
+        void webClient
+            .request({ type: 'SetBadgeCount', data: { count, overlayIconDataUrl: renderBadgePng(count) } })
+            .catch(() => undefined);
     }, [count]);
 };
