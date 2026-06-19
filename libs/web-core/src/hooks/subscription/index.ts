@@ -8,6 +8,8 @@ import {
     fetchMembershipInfo,
     fetchPlans,
     fetchReceiptDetail,
+    productPlansKeys,
+    subscriptionKeys,
     validateApple,
     validateGoogle,
     validateMembership,
@@ -22,11 +24,7 @@ import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-ap
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
 import type { CloudView, CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
-import { createQueryKeys, useCustomMutation } from '@chatic/shared';
-
-export const subscriptionKeys = createQueryKeys('subscriptions');
-export const membershipKeys = createQueryKeys('memberships');
-export const productPlansKeys = createQueryKeys('productPlans');
+import { useCustomMutation } from '@chatic/shared';
 
 export const useValidateGoogle = () =>
     useCustomMutation<ValidateAPIResponse, string, { body: ValidateAPIBody; params: Params }>(({ body, params }) =>

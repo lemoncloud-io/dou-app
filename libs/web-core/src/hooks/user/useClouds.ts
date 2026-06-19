@@ -1,5 +1,5 @@
-import type { UseCloudsOptions, UseCloudsParams } from '../../api/types/cloud';
-import { cloudsKeys } from '../../api/types/cloud';
+import type { UseCloudsOptions, UseCloudsParams } from '../../api';
+import { cloudsKeys } from '../../api';
 import { useSessionAuth } from '../session';
 import { useQuery } from '@tanstack/react-query';
 import { fetchClouds } from '../../api';
