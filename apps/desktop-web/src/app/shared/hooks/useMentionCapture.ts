@@ -57,6 +57,9 @@ export const useMentionCapture = (): void => {
                 // owner$ carries no avatar; key the fallback color off the author id.
                 colorSeed: authorId,
                 placeId: chatPlaceId(chat),
+                // Thread reply → server-normalised root chatNo string; drives the
+                // Activity click into the thread panel. Absent on top-level messages.
+                parentId: chat.parentId,
                 createdAt: chat.createdAtMs || Date.now(),
             });
         });

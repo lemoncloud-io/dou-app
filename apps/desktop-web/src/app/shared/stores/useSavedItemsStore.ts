@@ -19,6 +19,8 @@ export interface SavedItem {
     ownerId?: string;
     /** Place the message belongs to — groups the list + drives cross-place jump. */
     placeId?: string;
+    /** Root chatNo string when this message is a thread reply; absent = top-level. */
+    parentId?: string;
     savedAt: number;
 }
 

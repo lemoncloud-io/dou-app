@@ -80,8 +80,9 @@ interface SavedPanelProps {
     places: DomainSite[];
     /** The active place — its group sorts to the top. */
     currentPlaceId?: string;
-    /** Jump to the saved message: select its place + channel, then scroll to it. */
-    onSelect: (channelId: string, chatNo?: number, placeId?: string) => void;
+    /** Jump to the saved message: select its place + channel, then scroll to it
+     *  (or open the thread panel when it's a reply — 4th arg = root chatNo string). */
+    onSelect: (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => void;
 }
 
 /**
@@ -183,7 +184,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
                                     channelName={channelName(item.channelId)}
                                     removeLabel={t('saved.remove')}
                                     onOpen={() => {
-                                        onSelect(item.channelId, item.chatNo, item.placeId);
+                                        onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
                                         close();
                                     }}
                                     onRemove={() => remove(item.id)}
