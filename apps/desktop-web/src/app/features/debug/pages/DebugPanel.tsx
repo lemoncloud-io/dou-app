@@ -3,18 +3,22 @@ import { useEffect, useState } from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { useDebugModeStore, usePanelWidth } from '../../../shared';
+import { DebugAuthPage } from './DebugAuthPage';
 import { DebugBadgeCountPage } from './DebugBadgeCountPage';
 import { DebugChatPage } from './DebugChatPage';
 import { DebugStatePage } from './DebugStatePage';
 import { DebugSyncPage } from './DebugSyncPage';
 
-type TabId = 'state' | 'sync' | 'chat' | 'badge';
+type TabId = 'state' | 'sync' | 'chat' | 'badge' | 'auth';
 
 const TABS: { id: TabId; label: string }[] = [
     { id: 'state', label: 'State' },
     { id: 'sync', label: 'Socket / Cache' },
     { id: 'chat', label: 'Cache stream' },
     { id: 'badge', label: 'OS badge' },
+    // Dev-only account switcher — tree-shaken from production builds so it never
+    // surfaces in the installed app even when debug mode is toggled on.
+    ...(import.meta.env.DEV ? [{ id: 'auth' as const, label: 'Login' }] : []),
 ];
 
 const PAGES: Record<TabId, () => JSX.Element> = {
@@ -22,6 +26,7 @@ const PAGES: Record<TabId, () => JSX.Element> = {
     sync: DebugSyncPage,
     chat: DebugChatPage,
     badge: DebugBadgeCountPage,
+    auth: DebugAuthPage,
 };
 
 /**
