@@ -13,6 +13,7 @@ import i18n from '../i18n';
 import { AppRouter } from './routes';
 import { AppShellSkeleton, ConnectionBanner, UpdateBanner } from './shared';
 import {
+    useAccountResetOnLogout,
     useCrossCloudPushBadge,
     useCrossCloudPushToast,
     useDesktopBadge,
@@ -27,6 +28,8 @@ import {
 
 /** Mounts desktop OS-notification wiring inside DataProvider (needs engine repositories). */
 const DesktopNotifications = () => {
+    // 로그아웃 시 이전 계정 스코프 캐시/스토어 리셋 (repo 접근 위해 DataProvider 내부 마운트).
+    useAccountResetOnLogout();
     useDesktopNotifications();
     // Cross-cloud push: register this device's FCM token with the broker.
     useDeviceTokenRegistration();
