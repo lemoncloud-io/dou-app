@@ -6,7 +6,6 @@ import { createRemoteDataSources } from './factories/remoteFactory';
 import { createRepositories } from './factories/repositoryFactory';
 import type { IDataManager } from './types';
 import { DEFAULT_CONTEXT } from './types';
-import type { ISocketManager } from '../socket/types';
 
 export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
@@ -14,13 +13,12 @@ export class DataManager implements IDataManager {
     private readonly repositories: DataRepositories;
     private readonly dispatcher: { destroy(): void };
 
-    constructor(socketManager: ISocketManager, initialContext: DataContext = DEFAULT_CONTEXT) {
+    constructor(initialContext: DataContext = DEFAULT_CONTEXT) {
         this.contextHolder = new DataContextHolder(initialContext);
         this.domainEventBus = new EventBusEngine<DomainEventMap>();
 
         const { remoteDataSources, dispatcher } = createRemoteDataSources({
             domainEventBus: this.domainEventBus,
-            socketManager,
         });
         this.dispatcher = dispatcher;
         const localDataSources = createLocalDataSources({

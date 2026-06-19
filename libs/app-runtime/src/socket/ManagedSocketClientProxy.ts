@@ -10,6 +10,8 @@ import { logger } from '@chatic/bridges';
 
 import type { ISocketManager } from './types';
 
+import type { SocketSessionController } from './SocketSessionController';
+
 type TypeListenerEntry = {
     type: string;
     listener: (message: SocketMessage<any>) => void;
@@ -25,7 +27,10 @@ export class ManagedSocketClientProxy {
     private readonly typeListeners = new Set<TypeListenerEntry>();
     private readonly unsubscribeClient: () => void;
 
-    constructor(private readonly manager: ISocketManager) {
+    constructor(
+        private readonly manager: ISocketManager,
+        private readonly controller: SocketSessionController
+    ) {
         this.unsubscribeClient = this.manager.subscribeClient(client => {
             if (this.currentClient === client) return;
             this.currentClient = client;
@@ -55,9 +60,31 @@ export class ManagedSocketClientProxy {
         client.send(type);
     }
 
-    public request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
+    public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireClient(`request(${type})`);
-        return client.request(type as any, data as any, options) as Promise<T>;
+        try {
+            return await (client.request(type as any, data as any, options) as Promise<T>);
+        } catch (error: any) {
+            if (this.is401Error(error)) {
+                logger.info('SOCKET', '[ManagedSocketClientProxy] Intercepted 401 error, triggering recovery', {
+                    type,
+                });
+                const success = await this.controller.handle401Recovery();
+                if (success) {
+                    const newClient = this.requireClient(`retry request(${type})`);
+                    return await (newClient.request(type as any, data as any, options) as Promise<T>);
+                }
+            }
+            throw error;
+        }
+    }
+
+    private is401Error(error: any): boolean {
+        if (!error) return false;
+        const code = error.code || error.errorCode || error.statusCode || (error.response && error.response.status);
+        if (code === 401 || code === '401') return true;
+        const msg = error.message || '';
+        return msg.includes('401') || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
     }
 
     public onState(listener: (event: ClientSocketStateEvent) => void): () => void {

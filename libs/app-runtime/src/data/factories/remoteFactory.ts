@@ -11,17 +11,10 @@ import {
 import type { DomainEventMap, IEventBus, RemoteGatewayBundle } from '@chatic/data';
 import { createRemoteDataSources as createRemote, SocketDispatcher } from '@chatic/data';
 
-import { ManagedSocketClientProxy } from '../../socket/ManagedSocketClientProxy';
-import type { ISocketManager } from '../../socket/types';
+import { getSocketRuntime } from '../../socket/runtime';
 
-export const createRemoteDataSources = ({
-    domainEventBus,
-    socketManager,
-}: {
-    domainEventBus: IEventBus<DomainEventMap>;
-    socketManager: ISocketManager;
-}) => {
-    const socketClient = new ManagedSocketClientProxy(socketManager);
+export const createRemoteDataSources = ({ domainEventBus }: { domainEventBus: IEventBus<DomainEventMap> }) => {
+    const socketClient = getSocketRuntime().proxy;
     const authGateway = createAuthGateway(socketClient as any);
     const channelGateway = createChannelGateway(socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);

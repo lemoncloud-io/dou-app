@@ -69,3 +69,9 @@ export interface ISocketManager {
     connect(): Promise<void>;
     destroy(): void;
 }
+
+export interface SocketSessionDelegate {
+    getSocketToken(): Promise<string | null>;
+    refreshSocketToken(reason: 'bootstrap' | 'socket-401' | 'reconnect'): Promise<string | null>;
+    onRefreshFailed?(error: unknown): Promise<void> | void;
+}

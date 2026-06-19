@@ -3,9 +3,8 @@ import type { DataRepositories } from '@chatic/data';
 
 import { getDataManager } from '../data/runtime';
 import type { IDataManager } from '../data/types';
-import { getSocketManager } from '../socket/runtime';
+import { getSocketManager, getSocketRuntime } from '../socket/runtime';
 import type { ISocketManager } from '../socket/types';
-import { getSocketAuthCoordinator } from './SocketAuthCoordinator';
 import type { RuntimeBinding } from './useRuntimeBinding';
 
 export interface IRuntimeManager {
@@ -41,24 +40,9 @@ export class RuntimeManager implements IRuntimeManager {
         const bindingKey = this.createBindingKey(binding);
         if (bindingKey !== this.currentBindingKey) return;
 
-        const { device: deviceRepository, auth: authRepository } = this.dataManager.getRepositories();
-        const authCoordinator = getSocketAuthCoordinator();
-
         try {
-            await this.socketManager.connect();
-            if (bindingKey !== this.currentBindingKey) return;
-
-            await deviceRepository.saveDevice({
-                id: socketBinding.config.deviceId,
-                platform: 'web',
-            });
-            if (bindingKey !== this.currentBindingKey) return;
-
-            await authCoordinator.reauthenticateSocket({
-                authRepository,
-                reason: 'runtime-bootstrap',
-                wssType: socketBinding.config.wssType,
-            });
+            const socketRuntime = getSocketRuntime();
+            await socketRuntime.controller.bootstrap(socketBinding.config, socketBinding.scope);
         } catch (error) {
             logger.error('RUNTIME', '[RuntimeManager] Failed to bootstrap runtime binding', {
                 error,

@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 
 import type { DataContext } from '@chatic/data';
-import { getGlobalSessionContext, useUserContext, useWebCoreStore } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/web-core';
 
 import type { SocketBindingConfig, SocketScope } from '../socket';
-import { useDynamicDeviceId } from '../hooks';
+import { useDynamicDeviceId } from '@chatic/web-core';
 
 export interface RuntimeBinding {
     context: DataContext;
@@ -16,18 +16,15 @@ export interface RuntimeBinding {
 
 export const useRuntimeBinding = (): RuntimeBinding => {
     const { deviceId } = useDynamicDeviceId();
-    const { currentWSS, endpoints } = useUserContext();
-    const { selectedCloudId, selectedSiteId, profile } = useWebCoreStore();
+    const session = useGlobalSession();
 
     return useMemo(() => {
-        const { activeTarget } = getGlobalSessionContext();
-        const cid =
-            currentWSS === 'cloud'
-                ? selectedCloudId || (activeTarget.kind === 'cloud' ? activeTarget.cloudId : 'default')
-                : 'default';
-        const sid = selectedSiteId || (activeTarget.kind === 'cloud' ? activeTarget.siteId : null) || undefined;
-        const uid = (profile?.uid as string | undefined) ?? undefined;
-        const endpoint = currentWSS === 'cloud' ? endpoints.cloudWSS : endpoints.relayWSS;
+        const { activeServer, identity } = session;
+        const cid = activeServer.kind === 'cloud' ? activeServer.cloudId : 'default';
+        const sid = activeServer.siteId ?? undefined;
+        const uid = identity.activeProfile?.uid ?? undefined;
+        const endpoint = activeServer.wss;
+        const wssType = activeServer.kind;
 
         return {
             context: { cid, sid, uid },
@@ -37,7 +34,7 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                           config: {
                               url: endpoint,
                               deviceId,
-                              wssType: currentWSS,
+                              wssType,
                           },
                           scope: {
                               cid,
@@ -47,5 +44,5 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                       }
                     : null,
         };
-    }, [currentWSS, deviceId, endpoints.cloudWSS, endpoints.relayWSS, profile?.uid, selectedCloudId, selectedSiteId]);
+    }, [deviceId, session]);
 };
