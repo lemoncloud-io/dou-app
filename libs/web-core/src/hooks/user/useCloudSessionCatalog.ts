@@ -1,5 +1,5 @@
-import { useSessionAuth } from './useSessionAuth';
-import { useClouds } from '../../user/useClouds';
+import { useClouds } from './useClouds';
+import { useSessionAuth } from '../session';
 
 /**
  * Fetches the relay-visible cloud catalog for authenticated users.

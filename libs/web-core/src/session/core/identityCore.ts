@@ -9,6 +9,7 @@ const OAUTH_PROVIDER_KEY = 'chatic-oauth-provider';
 const RELAY_PROFILE_KEY = 'chatic-relay-profile-cache';
 const CLOUD_PROFILE_KEY = 'chatic-cloud-profile-cache';
 const DELEGATOR_ID_KEY = 'chatic-delegator-id';
+const DEVICE_ID_KEY = 'chatic-device-id';
 
 interface IdentityCore {
     getIsInvited(): boolean;
@@ -17,6 +18,8 @@ interface IdentityCore {
     setOAuthProvider(provider: OAuthLoginProvider | null): void;
     getDelegatorId(): string | null;
     setDelegatorId(value: string | null): void;
+    getDeviceId(): string | null;
+    setDeviceId(value: string | null): void;
     getRelayProfile(): UserProfile$ | null;
     setRelayProfile(profile: UserProfile$ | null): void;
     getCloudProfile(): UserProfile$ | null;
@@ -66,6 +69,15 @@ export const identityCore: IdentityCore = {
             storage.set(DELEGATOR_ID_KEY, value);
         } else {
             storage.remove(DELEGATOR_ID_KEY);
+        }
+        notifySessionStateChanged();
+    },
+    getDeviceId: (): string | null => storage.get(DEVICE_ID_KEY),
+    setDeviceId: (value: string | null): void => {
+        if (value) {
+            storage.set(DEVICE_ID_KEY, value);
+        } else {
+            storage.remove(DEVICE_ID_KEY);
         }
         notifySessionStateChanged();
     },

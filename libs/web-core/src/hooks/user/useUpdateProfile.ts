@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { patchRelayProfile, updateSessionProfile } from '../../session';
-import { useSessionIdentity } from '../session/readers/useSessionIdentity';
+import { patchRelayProfile, updateRelayProfile } from '../../session';
+import { useSessionIdentity } from '../session';
 
 interface UpdateProfileData {
     name?: string;
@@ -20,7 +20,7 @@ export const useUpdateProfile = () => {
                 throw new Error('No user ID available');
             }
 
-            await updateSessionProfile(relayProfile.uid, data as Record<string, unknown>);
+            await updateRelayProfile(relayProfile.uid, data as Record<string, unknown>);
             return data;
         },
         onSuccess: updated => {

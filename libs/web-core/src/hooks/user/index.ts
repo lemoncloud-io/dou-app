@@ -1,4 +1,5 @@
 export * from './useClouds';
+export * from './useCloudSessionCatalog';
 export * from './useProfile';
 export * from './useRegisterDeviceToken';
 export * from './useUpdateCloud';

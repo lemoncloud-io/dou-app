@@ -12,23 +12,4 @@ export * from './hooks';
 export * from './api';
 export * from './session/contexts';
 export * from './session/types';
-export {
-    initializeRelaySession,
-    initializeSession,
-    loginRelayGuestByDevice,
-    loginRelaySocial,
-    loginWithInviteCode as loginWithInviteCodeService,
-    logoutCloudSession,
-    logoutRelaySession,
-    logoutSession,
-    persistDeviceId,
-    refreshCloudSession,
-    refreshRelaySession,
-    registerSessionLogoutCallback,
-    restorePreviousCloudSession,
-    switchCloudSession,
-    updateSessionProfile,
-    type LogoutOptions,
-    type RefreshRelaySessionOptions,
-} from './session/services';
 export { LANGUAGE_KEY } from './session/core';

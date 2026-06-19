@@ -5,7 +5,7 @@ import { logger } from '@chatic/bridges';
 import { reportError } from '../../api';
 import type { ErrorClassification } from '../../transport/error';
 import { classifyError, toError } from '../../transport/error';
-import { loadRelayProfile, refreshRelaySession, tryLoadRelayProfile } from '../../session';
+import { loadRelayProfile, refreshActiveCloudSession, refreshRelaySession, tryLoadRelayProfile } from '../../session';
 import { useSessionLogout } from '../session';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 import { useSessionIdentity } from '../session/readers/useSessionIdentity';
@@ -48,6 +48,12 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
 
         isRefreshingRef.current = true;
         lastRefreshTime.current = now;
+
+        // Cloud refresh runs in parallel with relay. It is cloudToken-based and, even on failure,
+        // never triggers logout — relay stays the continuity baseline (independent failure).
+        void refreshActiveCloudSession().catch(error =>
+            logger.error('AUTH', '[tokenRefresh] cloud refresh failed (keeping relay)', { error })
+        );
 
         try {
             await refreshRelaySession({ syncProfile: false });

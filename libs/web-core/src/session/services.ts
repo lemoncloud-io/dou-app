@@ -1,5 +1,4 @@
 import { isNative, logger, webClient } from '@chatic/bridges';
-import { storage } from '@chatic/shared';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
 import type { UserProfile$, UserTokenView, UserView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
@@ -20,15 +19,7 @@ import {
 } from '../api';
 import { clearRelayTransportOverrides, webTransport } from '../transport';
 import { getCloudSessionSnapshot } from './contexts';
-import {
-    CLOUD_INVITED_BUNDLES_KEY,
-    cloudCore,
-    identityCore,
-    LANGUAGE_KEY,
-    relayCore,
-    resetWebCoreInit,
-    startWebCoreInit,
-} from './core';
+import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, startWebCoreInit } from './core';
 import {
     clearSessionCloudProfile,
     clearSessionProfile,
@@ -53,6 +44,32 @@ export interface RefreshRelaySessionOptions {
 
 const logoutCallbacks = new Set<() => void>();
 const DEVICE_ID_STORAGE_KEY = 'chatic-device-id';
+
+/**
+ * Serializes refresh calls so the periodic refresh loop and site-switch refresh never race.
+ *
+ * - In-flight calls with the same key coalesce onto the same promise.
+ * - Different keys run serially (the later call — the site-switch target — is applied last).
+ *
+ * relay and cloud each use an independent instance (session-scenarios.md scenarios 2, 9).
+ */
+const createSerializedSingleFlight = <T>() => {
+    let current: { key: string; promise: Promise<T> } | null = null;
+    return (key: string, run: () => Promise<T>): Promise<T> => {
+        if (current && current.key === key) {
+            return current.promise;
+        }
+        const prior = current?.promise;
+        const promise = prior ? prior.catch(() => undefined).then(() => run()) : run();
+        const entry = { key, promise };
+        current = entry;
+        const clear = () => {
+            if (current === entry) current = null;
+        };
+        promise.then(clear, clear);
+        return promise;
+    };
+};
 
 const parseTargetSiteId = (target?: string): string | null => {
     if (!target) return null;
@@ -81,47 +98,6 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
         backend: cloudCore.getBackend(),
         wss: cloudCore.getWss(),
     };
-};
-
-/**
- * Restores an invited cloud bundle from persisted storage into the current cloud session state.
- */
-const restoreInvitedCloudState = (cloudId: string): boolean => {
-    try {
-        const raw = storage.get(CLOUD_INVITED_BUNDLES_KEY);
-        if (!raw) return false;
-
-        const bundles = JSON.parse(raw) as Record<
-            string,
-            {
-                cloudDelegationToken?: unknown;
-                cloudToken?: unknown;
-                selectedSiteId?: string | null;
-            }
-        >;
-
-        const bundle = bundles[cloudId];
-        if (!bundle?.cloudDelegationToken || !bundle?.cloudToken) {
-            return false;
-        }
-
-        cloudCore.saveDelegationToken(
-            bundle.cloudDelegationToken as Parameters<typeof cloudCore.saveDelegationToken>[0]
-        );
-        cloudCore.saveCloudToken(bundle.cloudToken as Parameters<typeof cloudCore.saveCloudToken>[0]);
-        cloudCore.saveSelectedCloudId(cloudId);
-
-        if (bundle.selectedSiteId) {
-            cloudCore.saveSelectedSiteId(bundle.selectedSiteId);
-        } else {
-            cloudCore.clearSelectedSite();
-        }
-
-        return true;
-    } catch (error) {
-        logger.error('SESSION', '[service] restore invited cloud bundle parse failed', { error, data: { cloudId } });
-        return false;
-    }
 };
 
 /**
@@ -161,6 +137,7 @@ export const initializeRelaySession = async (): Promise<void> => {
  */
 export const persistDeviceId = (deviceId: string): string => {
     localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
+    identityCore.setDeviceId(deviceId);
     return deviceId;
 };
 
@@ -225,10 +202,19 @@ export const loginWithInviteCode = async ({
     return applyRelayProfile(tokenView);
 };
 
+const relayRefreshFlight = createSerializedSingleFlight<UserProfile$ | null>();
+
 /**
  * Refreshes the relay OAuth session and optionally switches the active relay site via `uid@sid`.
+ *
+ * Serialized with a service-level single-flight so the periodic refresh loop and site switch never race.
  */
-export const refreshRelaySession = async ({
+export const refreshRelaySession = (options: RefreshRelaySessionOptions = {}): Promise<UserProfile$ | null> =>
+    relayRefreshFlight(options.target ?? '', () => runRefreshRelaySession(options));
+
+// TODO(optimistic): for a relay site switch (target = uid@sid), pre-apply the sid before the refresh
+// so cached data shows immediately, and roll the sid back if refreshAuthToken fails.
+const runRefreshRelaySession = async ({
     target,
     syncProfile = true,
 }: RefreshRelaySessionOptions = {}): Promise<UserProfile$ | null> => {
@@ -407,6 +393,10 @@ export const updateRelayProfile = async (uid: string, user: Record<string, unkno
 
 /**
  * Switches the active cloud session by exchanging a delegation token for a cloud token.
+ *
+ * TODO(optimistic): pre-apply the new cid before the exchange so app-runtime can show cached data
+ * immediately, and roll the cid/sid back to the previous value if the exchange fails. Tokens are
+ * persisted only on success, so the previous cloud's tokens stay valid on rollback.
  */
 export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Promise<CloudSessionSnapshot> => {
     try {
@@ -437,41 +427,19 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
     }
 };
 
-/**
- * Restores a previously persisted cloud session, typically from an invited-cloud cache.
- */
-export const restorePreviousCloudSession = async (cloudId: string): Promise<CloudSessionSnapshot> => {
-    try {
-        if (!restoreInvitedCloudState(cloudId)) {
-            throw new Error(`No invited-cloud session for ${cloudId}`);
-        }
-
-        const cloudToken = cloudCore.getCloudToken();
-        if (cloudToken) {
-            const { Token: _token, ...cloudProfileUser } = cloudToken;
-            setSessionCloudProfile(toCloudProfile(cloudProfileUser));
-        }
-
-        const siteId = cloudCore.getSelectedSiteId();
-        setSelectedCloudId(cloudId);
-        if (siteId) {
-            setSelectedSiteId(siteId);
-        }
-
-        return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudId, siteId);
-    } catch (error) {
-        logger.error('SESSION', '[service] restorePreviousCloudSession failed', {
-            error,
-            data: { cloudId },
-        });
-        throw error;
-    }
-};
+const cloudRefreshFlight = createSerializedSingleFlight<CloudSessionSnapshot>();
 
 /**
- * Refreshes the active cloud session and optionally switches the active cloud site.
+ * Refreshes the active cloud token (cloudToken-based), optionally switching site via `uid@sid`.
+ *
+ * Serialized with a service-level single-flight so the periodic refresh loop and site switch never race.
  */
-export const refreshCloudSession = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
+export const refreshCloudSession = ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> =>
+    cloudRefreshFlight(siteId, () => runRefreshCloudSession({ siteId }));
+
+// TODO(optimistic): pre-apply the target sid before the refresh so cached data shows immediately,
+// and roll the sid back if the refresh fails (mirror the relay-site path in runRefreshRelaySession).
+const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
     const cloudToken = cloudCore.getCloudToken();
     const uid = cloudToken?.id;
     if (!uid) {
@@ -498,9 +466,22 @@ export const refreshCloudSession = async ({ siteId }: { siteId: string }): Promi
     return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudCore.getSelectedCloudId() ?? 'default', siteId);
 };
 
-export const initializeSession = initializeRelaySession;
-export const logoutSession = logoutRelaySession;
-export const switchCloudSessionUseCase = switchCloudSession;
-export const restoreInvitedCloudSessionUseCase = restorePreviousCloudSession;
-export const refreshCloudSiteSessionUseCase = refreshCloudSession;
-export const updateSessionProfile = updateRelayProfile;
+/**
+ * Cloud refresh for the periodic loop. Refreshes the cloudToken only when a cloud is connected
+ * and a site session exists.
+ *
+ * - Skips when the selected cloud is `default` or there is no delegation token (cloud not connected).
+ * - Skips when there is no selected site (sid null), since no site session exists (cid/sid default rule).
+ *
+ * Failures are absorbed by the caller (useTokenRefresh); they never trigger logout, to keep relay continuity.
+ */
+export const refreshActiveCloudSession = async (): Promise<void> => {
+    if (cloudCore.getSelectedCloudId() === 'default' || !cloudCore.getDelegationToken()) {
+        return;
+    }
+    const siteId = cloudCore.getSelectedSiteId();
+    if (!siteId) {
+        return;
+    }
+    await refreshCloudSession({ siteId });
+};
