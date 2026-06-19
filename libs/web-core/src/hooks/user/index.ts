@@ -1,7 +1,7 @@
 export * from './useClouds';
 export * from './useCloudSessionCatalog';
 export * from './useProfile';
-export * from './useRegisterDeviceToken';
+export { useRegisterDeviceTokenMutation } from './useRegisterDeviceToken';
 export * from './useUpdateCloud';
 export * from './useUpdateProfile';
 export * from './useUsers';

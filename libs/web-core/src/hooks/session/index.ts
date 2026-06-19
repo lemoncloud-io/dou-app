@@ -1,6 +1,7 @@
 export * from './actions/useInviteFlow';
 export * from './actions/useLogoutCloudSession';
 export * from './actions/useRefreshCloudSiteSession';
+export * from './actions/useRefreshCurrentCloudSession';
 export * from './actions/useRefreshRelaySession';
 export * from './actions/useSessionLogout';
 export * from './actions/useSwitchCloudSession';

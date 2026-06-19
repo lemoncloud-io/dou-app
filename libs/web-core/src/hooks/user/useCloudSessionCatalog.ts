@@ -6,12 +6,19 @@ import { useSessionAuth } from '../session';
  */
 export const useCloudSessionCatalog = () => {
     const { isAuthenticated } = useSessionAuth();
-    const { data, isError: isFetchError, isFetching, refetch } = useClouds({ limit: -1, enabled: isAuthenticated });
+    const {
+        data,
+        isError: isFetchError,
+        isFetching,
+        isPending,
+        refetch,
+    } = useClouds({ limit: -1, enabled: isAuthenticated });
 
     return {
         clouds: data?.list ?? [],
-        isCloudsError: !isFetching && isFetchError,
+        isCloudsError: !isFetching && !isPending && isFetchError,
         isFetchingClouds: isFetching,
+        isPendingClouds: isPending,
         refetchClouds: refetch,
     };
 };
