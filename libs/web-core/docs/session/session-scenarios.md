@@ -44,13 +44,15 @@ relay와 cloud 세션 처리의 의도된 lifecycle 시나리오를 정의합니
     - `loginWithInviteCode`
     - `refreshRelaySession`
     - `logoutRelaySession`
-    - `switchCloudSession`
-    - `refreshCloudSession`
+    - `switchCloudSession` (cloud 전환 + 병렬 리프레시 single-flight)
+    - `refreshCloudSession` (cloudToken 기반, 서비스 single-flight)
+    - `refreshActiveCloudSession` (주기 루프용 cloud 갱신)
     - `logoutCloudSession`
-    - `restorePreviousCloudSession`
-    - `persistDeviceId`
-- 부분 구현
-    - 없음
+    - `persistDeviceId` (deviceId를 identityCore에도 저장)
+- 제거됨
+    - `restorePreviousCloudSession` — invited 번들 writer 부재로 죽은 경로였고, 초대 cloud 진입을 `switchCloudSession`으로 일원화하며 제거
+- 미구현 (TODO)
+    - 클라우드/사이트 전환 cid/sid **선반영(optimistic) + 실패 롤백** (orchestration.md "미구현 TODO" 참조)
 
 구현 메모:
 
@@ -120,7 +122,7 @@ device 기반 social 인증을 relay 세션에 반영합니다.
 현재 구현 메모:
 
 - invite 로그인은 relay profile 저장과 함께 `isInvited=true`를 반영합니다.
-- cloud 진입은 이후 `switchCloudSession()` 또는 `restorePreviousCloudSession()` 단계에서 이어집니다.
+- cloud 진입은 이후 `switchCloudSession()` 단계에서 이어집니다 (`useInviteFlow`가 구동).
 
 ### 5. `refreshRelaySession`
 
@@ -199,6 +201,13 @@ selected cloud 변경은 독립 setter가 아니라 이 서비스의 성공 결�
 
 selected site 변경은 독립 setter가 아니라 `target = uid@sid`를 사용한 refresh 결과로만 반영되어야 합니다. 이 규칙은 relay와 cloud에 공통으로 적용됩니다.
 
+single-flight 규칙:
+
+- `refreshCloudSession`은 **서비스 레벨 single-flight**를 가져야 합니다. 주기 리프레시 루프(시나리오 13), 사이트 전환(`target = uid@sid`), 소켓 401 복구가 모두 같은 in-flight promise를 공유합니다.
+- in-flight refresh가 있으면 새 호출은 그 promise에 합류(coalesce)합니다.
+- 단 **target이 다르면**(주기=target 없음 vs 사이트 전환=`uid@sid`) site-switch target을 우선해 직렬 실행합니다.
+- 이유: `refreshCloudSession`이 selectedSiteId 저장 + cloudToken 교체의 유일 소유자이므로, 직렬화를 서비스에 두어야 모든 진입이 같은 경합 보호를 공유합니다. hook 레벨 가드는 호출자마다 중복·우회됩니다.
+
 ### 9. `logoutCloudSession`
 
 목적:
@@ -218,20 +227,7 @@ relay 세션은 유지한 채 현재 cloud 세션만 해제합니다.
 - selected cloud는 `default` fallback으로 복귀합니다.
 - relay profile과 relay auth 상태는 유지됩니다.
 
-### 10. `restorePreviousCloudSession`
-
-목적:
-
-이전에 저장된 cloud 세션 상태를 복원합니다.
-
-예상 책임:
-
-- 마지막 active cloud 또는 invited cloud cache 조회
-- cloud session raw state 복구
-- selected cloud/site 반영
-- identity 및 active server 갱신
-
-### 11. `persistDeviceId`
+### 10. `persistDeviceId`
 
 목적:
 
@@ -473,64 +469,30 @@ relay guest identity를 시작점으로 하여 초대 코드를 통해 로그인
     - target cloud backend endpoint
     - relay guest `delegatorId`
 4. `UserTokenView` 응답 수신
-5. 로그인 결과를 relay identity와 invite 관련 상태에 반영
-6. 필요 시 invited cloud 상태를 cache에 저장
-7. 이후 표준 cloud 흐름을 통해 restore 또는 switch 수행
+5. 로그인 결과를 relay identity와 invite 관련 상태에 반영 (`isInvited=true`)
+6. 이후 표준 cloud 흐름(`switchCloudSession`)으로 cloud 진입 (`useInviteFlow`가 구동)
 
 ```mermaid
 sequenceDiagram
   participant S as Session Service
   participant R as Relay API
   participant IC as IdentityCore
-  participant CC as CloudCore
   S->>R: login-invite(code, delegatorId)
   R-->>S: UserTokenView
   S->>IC: update invited identity
-  S->>CC: save invited cloud cache?
-  S->>S: enable restore/switch path
+  S->>S: switchCloudSession(cloudId) 으로 cloud 진입
 ```
 
 결과:
 
-- invite는 특수 진입 방식입니다
-- 한번 cache되면 이후에는 일반 cloud session lifecycle로 합류해야 합니다
+- invite는 특수 진입 방식이며, 로그인 후에는 일반 cloud session lifecycle(`switchCloudSession`)로 합류합니다
 
 현재 구현 기준:
 
-- relay invite login 서비스
-- cloud restore 서비스
-- `libs/web-core/src/core/cloudCore.ts`의 invited cloud persistence 지원
+- relay invite login 서비스 (`loginWithInviteCode`)
+- cloud 진입은 `switchCloudSession`으로 일원화 (과거 `restorePreviousCloudSession` 경로는 제거됨)
 
-## 시나리오 6: 이전 클라우드 복구 (`restorePreviousCloudSession`)
-
-목적:
-
-이전에 저장된 cloud 세션 또는 invited cloud 상태를 현재 세션으로 복원합니다.
-
-흐름:
-
-1. 복원 가능한 cloud snapshot 또는 invited cache 조회
-2. 복원 대상 cloud의 raw state 로드
-3. selected cloud 반영
-4. 필요 시 selected site 반영
-5. identity와 active server 재계산
-
-```mermaid
-sequenceDiagram
-  participant S as Session Service
-  participant CC as CloudCore
-  participant IC as IdentityCore
-  S->>CC: read previous snapshot / invited cache
-  CC-->>S: cloud raw state
-  S->>CC: restore selectedCloudId + selectedSiteId?
-  S->>IC: restore cloudProfile
-  S->>S: recalculate activeServer + activeProfile
-```
-
-결과:
-
-- 이전 cloud context로 복귀할 수 있습니다
-- relay 기준 세션은 유지됩니다
+> **TODO:** 초대 cloud가 broker-delegable하지 않아 `delegate-cloud`가 404나는 케이스의 재진입 경로는 미해결. (과거 캐시 replay 방식은 번들 writer 부재로 제거됨 — 필요 시 writer 포함 재설계.)
 
 ## 시나리오 7: 중계서버 초기화 (`initializeRelaySession`)
 
@@ -602,6 +564,11 @@ sequenceDiagram
 
 - relay 기준 인증 상태가 생성되거나 강화됩니다
 
+delegatorId 규칙:
+
+- 최초 앱 실행 시에는 반드시 relay 로그인(게스트)이 일어납니다. 이때 `loginRelayGuestByDevice`는 **`identityCore.delegatorId`를 반드시 저장**해야 합니다.
+- 이 `delegatorId`는 이후 초대 로그인(시나리오 5)에서 `login-invite` 요청에 사용됩니다.
+
 ## 시나리오 9: 중계서버 리프레시 (`refreshRelaySession`)
 
 목적:
@@ -629,6 +596,12 @@ sequenceDiagram
   S->>IC: update relayProfile
   S->>S: keep runtime authenticated
 ```
+
+single-flight 규칙:
+
+- relay도 site 전환이 가능하므로(`target = uid@sid`) cloud와 동일한 경합이 존재합니다. 주기 리프레시 루프(시나리오 13)의 `refreshRelaySession()`(target 없음)과 사이트 전환의 `refreshRelaySession(target = uid@sid)`가 동시 실행될 수 있습니다.
+- 따라서 `refreshRelaySession`도 **서비스 레벨 single-flight**를 가집니다. in-flight refresh에 새 호출은 합류하되, target이 다르면 site-switch target을 우선해 직렬 실행합니다.
+- 이 규칙은 `refreshCloudSession`(시나리오 2)과 **대칭**이며, relay/cloud 양쪽에 공통으로 적용됩니다.
 
 ## 시나리오 10: 중계서버 로그아웃 (`logoutRelaySession`)
 
@@ -658,6 +631,12 @@ sequenceDiagram
   S->>S: reset runtime
 ```
 
+캐시 처리 규칙:
+
+- `logoutRelaySession`은 **세션 전이만** 수행합니다. app-runtime/data·react-query 캐시는 web-core가 알지 못하므로 비우지 않습니다.
+- 로그아웃 후 캐시 클리어(`DataManager.destroy()` + query cache clear)는 **외부 레이어 책임**입니다. 외부 레이어가 logout 완료를 받은 뒤 수행합니다.
+- 이 캐시 클리어는 "로그아웃 후 다른 유저로 로그인 시 데이터가 꼬이는" 문제를 막기 위해 반드시 수행되어야 합니다.
+
 ## 시나리오 11: 클라우드 로그아웃 (`logoutCloudSession`)
 
 목적:
@@ -682,7 +661,7 @@ sequenceDiagram
   S->>S: recalculate identity
 ```
 
-## 시나리오 12: 디바이스 아이디 저장 (`persistDeviceId`)
+## 시나리오 12: 디바이스 등록과 아이디 저장 (`persistDeviceId`)
 
 목적:
 
@@ -690,17 +669,63 @@ device 기반 인증 흐름의 선행 조건을 관리합니다.
 
 흐름:
 
-1. device id 확보
-2. 저장소에 기록
-3. guest/social login에서 재사용
+1. **최초 앱 실행 시 디바이스 등록 훅을 수행**합니다 (app lifecycle hook `useDynamicDeviceId`)
+2. device id를 native 주입 또는 persisted 상태에서 확보합니다
+3. **등록 결과 deviceId를 `identityCore`에 저장**합니다 (`persistDeviceId`가 localStorage와 `identityCore.setDeviceId`에 함께 반영)
+4. guest/social login에서 재사용합니다
 
 ```mermaid
 flowchart LR
-  A["Device Source"] --> B["persistDeviceId"]
-  B --> C["Store deviceId"]
-  C --> D["loginRelayGuestByDevice"]
-  C --> E["loginRelaySocial"]
+  A["최초 앱 실행: 등록 훅"] --> B["persistDeviceId"]
+  B --> C1["localStorage"]
+  B --> C2["identityCore.setDeviceId"]
+  C2 --> D["loginRelayGuestByDevice"]
+  C2 --> E["loginRelaySocial"]
 ```
+
+비고:
+
+- deviceId는 identity raw state로 취급합니다 (`delegatorId`, `oAuthProvider`와 같은 계층 — context-model.md 참조).
+- 기존 구현은 `localStorage`만 사용했으나, Core 저장으로 승격해 세션 read model에서 일관되게 조회할 수 있게 합니다.
+
+## 시나리오 13: 병렬 리프레시 루프 (`useTokenRefresh`)
+
+목적:
+
+백그라운드에서 relay/cloud 토큰을 만료 전에 갱신해 인증 연속성을 유지합니다.
+
+규칙:
+
+- 기본은 relay 리프레시(`refreshRelaySession`)입니다
+- cloud 서버가 연결되어 있으면(delegation token 존재) **cloud 리프레시(`refreshCloudSession`)를 병렬 수행**합니다
+- cloud 리프레시는 **`cloudCore.getCloudToken()`을 credential로 사용**합니다 (cloudToken 기반)
+- 주기는 1분입니다
+- 사이트 전환의 refresh와 경합하지 않도록 `refreshRelaySession`(시나리오 9)·`refreshCloudSession`(시나리오 2)의 **서비스 레벨 single-flight**를 공유합니다. relay/cloud 두 축 모두 동일하게 적용됩니다
+
+실패 폴백:
+
+- relay 실패: `shouldLogout`이면 logout, 그 외는 다음 주기 재시도
+- cloud 실패: logout하지 않고 relay를 유지, cloud를 재인증 필요로 표시해 다음 주기/소켓 401 복구에 위임
+- 두 축은 독립 실패. invite 세션에서는 cloud 실패가 logout을 유발하지 않습니다
+
+```mermaid
+sequenceDiagram
+  participant H as useTokenRefresh (1분 주기)
+  participant S as Session Service
+  participant R as Relay API
+  participant C as Cloud API
+  H->>S: refreshRelaySession()
+  S->>R: relay refresh
+  alt cloud 연결됨
+    H->>S: refreshCloudSession() (cloudToken)
+    S->>C: cloud refresh
+  end
+```
+
+비고:
+
+- 이 루프는 app lifecycle hook이 구동하며, 동작 정책 상세는 [hooks/orchestration.md](../hooks/orchestration.md)에 있습니다.
+- 전이 자체(token 교체·저장)는 `refreshRelaySession`/`refreshCloudSession` 서비스가 소유합니다.
 
 ## 시나리오 요약 다이어그램
 

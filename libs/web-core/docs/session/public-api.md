@@ -71,8 +71,8 @@ getGlobalSessionContext(): GlobalSessionContext
 - `logoutRelaySession()`
 - `switchCloudSession()`
 - `refreshCloudSession()`
+- `refreshActiveCloudSession()` — 주기 리프레시 루프용 cloud 갱신
 - `logoutCloudSession()`
-- `restorePreviousCloudSession()`
 - `persistDeviceId()`
 
 현재 구현 메모:
@@ -80,6 +80,9 @@ getGlobalSessionContext(): GlobalSessionContext
 - 위 서비스들은 `libs/web-core/src/session/services.ts`에 정의되어 있습니다.
 - `refreshRelaySession()`은 현재 relay auth refresh와 profile 재동기화까지 구현되어 있습니다.
 - `refreshRelaySession(target = uid@sid)`는 relay auth refresh와 relay selected site 전환을 함께 수행합니다.
+- `refreshRelaySession`·`refreshCloudSession`은 서비스 레벨 single-flight로 주기 루프와 사이트 전환을 직렬화합니다.
+- `restorePreviousCloudSession()`은 **제거**되었습니다 (invited 번들 writer 부재로 죽은 경로 → `switchCloudSession`으로 일원화).
+- cid/sid **선반영(optimistic) + 롤백**은 미구현 TODO입니다 (hooks/orchestration.md 참조).
 
 소켓 모듈 연계:
 

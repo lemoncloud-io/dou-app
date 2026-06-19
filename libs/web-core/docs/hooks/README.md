@@ -52,31 +52,27 @@ hooks/
       useSessionAuth.ts
       useSessionIdentity.ts
       useSessionSelection.ts
-      useCloudSessionCatalog.ts
     actions/
       useLogoutCloudSession.ts
-      useLogoutRelaySession.ts
       useRefreshCloudSiteSession.ts
       useRefreshRelaySession.ts
-      useRestoreInvitedCloudSession.ts
       useSessionLogout.ts
       useSwitchCloudSession.ts
+      useInviteFlow.ts              # 초대 전체 시나리오 전용 훅
   auth/
     index.ts
     useFindAlias.ts
-    useIssueCloudToken.ts
-    useIssueToken.ts
     useLogin.ts
     useLoginRelayGuestByDevice.ts
     useLoginRelaySocial.ts
     useLoginWithInviteCode.ts
-    useRefreshCloudToken.ts
     useRegisterUser.ts
     useRegisterUserV2.ts
     useVerifyAlias.ts
   user/
     index.ts
     useClouds.ts
+    useCloudSessionCatalog.ts       # session/readers에서 이동
     useProfile.ts
     useRegisterDeviceToken.ts
     useUpdateCloud.ts
@@ -91,6 +87,8 @@ hooks/
     useInitWebCore.ts
     useTokenRefresh.ts
     useServiceUnavailable.ts
+    useDynamicDeviceId.ts
+    useRelaySessionKeepAlive.ts   # 중계 세션 항시 유지
 ```
 
 원칙:
@@ -125,19 +123,18 @@ hook의 비책임:
 - `useSessionAuth()`
 - `useSessionIdentity()`
 - `useSessionSelection()`
-- `useCloudSessionCatalog()`
 - `useSessionLogout()`
 - `useRefreshRelaySession()`
 - `useLogoutCloudSession()`
 - `useRefreshCloudSiteSession()`
-- `useRestoreInvitedCloudSession()`
 - `useSwitchCloudSession()`
+- `useInviteFlow()` — 초대 진입(딥링크)부터 cloud 전환까지 한 시나리오로 구동하는 전용 훅. 내부에서 `useLoginWithInviteCode` + `switchCloudSession`을 조합 (orchestration.md §7)
 
-정리 필요:
+정리 결정 (완료):
 
-- `useCloudSessionCatalog.ts`는 현재 위치가 `session/readers`이지만, 성격상 `user` 도메인으로 이동할 여지가 큽니다
-- `useLogoutRelaySession.ts`와 `useSessionLogout.ts`는 의미가 가까워 이름/책임을 하나로 수렴할지 판단이 필요합니다
-- session facade hook(`useCloudSession`, `useAutoSelectCloud`, `useDelegatorId`, `useDynamicProfile`)은 현재 구조에서 제거되었거나 이동되었으므로, 신규 문서 기준에서는 더 이상 기본 공개면으로 다루지 않습니다
+- `useLogoutRelaySession.ts`는 `useSessionLogout.ts`와 동일하게 `logoutRelaySession`을 래핑하므로 **제거하고 `useSessionLogout`으로 일원화**했습니다 (⑤ 공개면 = `useSessionLogout`).
+- `useCloudSessionCatalog.ts`는 세션 reader가 아니라 cloud 목록 조회이므로 **`user` 도메인으로 이동**했습니다 (제거 아님).
+- session facade hook(`useCloudSession`, `useAutoSelectCloud`, `useDelegatorId`, `useDynamicProfile`)은 현재 구조에서 제거/이동되었으므로 기본 공개면으로 다루지 않습니다.
 
 ### auth domain
 
@@ -146,18 +143,18 @@ hook의 비책임:
 - relay/cloud 인증 관련 mutation hook
 - alias 검증 관련 mutation hook
 
-정리 필요:
+정리 결정 (확정):
 
-- `useLogin`과 `useIssueToken`은 둘 다 relay login 계열이라 책임 차이를 문서로 분명히 해야 합니다
-- `useRefreshCloudToken`은 raw auth utility hook이라 session action hook과 구분해야 합니다
+- `useIssueToken`은 `api/login`을 **직접 호출**해 "hook → service만" 규칙(public-surface.md)을 어깁니다. 세션 경유 `useLogin`(`loginRelayUser`)으로 **수렴**하고, `issuingLoginId` UI 편의값은 `useLogin` 위에 재구성합니다.
+- `useRefreshCloudToken`은 `api/refreshCloudToken`을 **직접 호출**해 `refreshCloudSession`의 서비스 레벨 single-flight를 **우회**합니다. 그대로 두면 사이트 전환 ↔ 병렬 리프레시 충돌 해결이 무력화되므로, **`refreshCloudSession` 경유로 수렴**합니다 (소켓 delegate도 이 경로 사용).
+- `useIssueCloudToken`은 `delegate-cloud` + `exchange-token`을 **api 직접 조합**해 ③ 클라우드 전환과 중복이며, cloudCore 저장·activeServer 재계산을 빠뜨립니다. "selected cloud 변경은 `switchCloudSession`의 성공 결과로만 반영"(session-scenarios §7) 불변식을 지키려면 **제거하고 `useSwitchCloudSession`으로 수렴**합니다.
 
-권장 방향:
+권장 방향 (수렴 후 유지):
 
 - `useLoginRelayGuestByDevice`
 - `useLoginRelaySocial`
-- `useLoginWithInviteCode`
-- `useIssueToken`
-- `useRefreshCloudToken`
+- `useLoginWithInviteCode` (단독으로는 raw mutation, 시나리오는 `useInviteFlow`가 구동)
+- `useLogin`
 - `useVerifyAlias`
 
 ### user domain
@@ -178,12 +175,19 @@ hook의 비책임:
 - `useServiceUnavailable`
 - `useInitWebCore`
 - `useTokenRefresh`
+- `useDynamicDeviceId`
+- `useRelaySessionKeepAlive` (예정)
+
+`app` 도메인은 외부 소비자가 직접 부르는 hook이라기보다, 앱 부트스트랩 시점에 한 번 마운트되어 **lifecycle/loop 정책을 구동하는 orchestration hook**들이 모이는 곳입니다. 세부 동작 규칙은 [orchestration.md](./orchestration.md)에 있습니다.
 
 현재 판단:
 
 - `useInitWebCore`는 app bootstrap lifecycle에 속하므로 현재 위치가 맞습니다
 - `useTokenRefresh`도 interval/visibility/runtime lifecycle 때문에 `app` 위치가 맞습니다
-- 다만 `useTokenRefresh` 내부의 세션 복구 규칙은 계속 `session/services` 쪽으로 더 내려야 합니다
+- `useTokenRefresh`는 relay refresh 1분 주기를 이미 보유하며, **cloud 연결 시 cloudToken 기반 `refreshCloudSession`을 병렬 수행**하는 책임으로 확장합니다 (병렬 리프레시). cloud 실패는 logout으로 이어지지 않고 다음 주기/소켓 재인증에 위임합니다.
+- `useDynamicDeviceId`는 native 주입 또는 persisted 상태에서 deviceId를 해석하는 lifecycle hook입니다. **디바이스 등록은 최초 앱 실행 시 수행되며, 등록 결과 deviceId는 `identityCore`에 저장**됩니다(`persistDeviceId` 서비스 경유).
+- `useRelaySessionKeepAlive`(예정)는 relay 세션 부재를 감지하면 백그라운드로 `loginRelayGuestByDevice`를 수행해 **중계서버 로그인 상태를 항시 유지**합니다.
+- 다만 위 hook 내부의 세션 복구/전이 규칙 자체는 계속 `session/services` 쪽에 있어야 하며, hook은 lifecycle 트리거와 service 호출 연결만 담당합니다
 
 ## 제거 또는 축소 후보
 
@@ -220,6 +224,20 @@ hook의 비책임:
 - `clearSessionProfile`
 
 이 값들은 hook이나 외부 feature가 직접 다루는 것이 아니라 service 내부에서만 사용되는 방향이 맞습니다.
+
+### 4. 중복·경계위반 hook 수렴 (완료)
+
+새 시나리오 구조에서 중복되거나 "hook → service만" 규칙을 어기던 hook들. 앱 레이어는 전부 새 surface로 재작성되므로 여기서는 **라이브러리 내부**만 다룹니다. 아래는 하드 제거/이동 완료 상태입니다 (앱은 새 surface로 별도 마이그레이션).
+
+| 후보                                        | 처리                                                    | 대체                                                      |
+| ------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| `session/actions/useLogoutRelaySession.ts`  | ✅ 제거                                                 | `useSessionLogout`                                        |
+| `auth/useIssueToken.ts`                     | ✅ 제거 (api 직접호출)                                  | `useLogin` (`issuingLoginId`는 `variables?.uid`로 재구성) |
+| `auth/useRefreshCloudToken.ts`              | ✅ 제거 (single-flight 우회)                            | `refreshCloudSession` 경유 (소켓 delegate 포함)           |
+| `auth/useIssueCloudToken.ts`                | ✅ 제거 (delegate+exchange 수동 조합, 전이 중복·불완전) | `useSwitchCloudSession` (`switchCloudSession`)            |
+| `session/readers/useCloudSessionCatalog.ts` | ✅ `user` 도메인으로 이동 (제거 아님)                   | `hooks/user/useCloudSessionCatalog.ts`                    |
+
+> app-runtime 쪽 `useRuntimeBinding`(app 레이어로 이동), connection 계층의 `useCloudSession`/`useCloudTokenRefresh`(제거)는 app-runtime docs 소관입니다.
 
 ## 권장 도메인 분류안
 

@@ -34,10 +34,10 @@ interface GlobalSessionContext {
 
 - initialize
 - logout
-- cloud switch
-- invited cloud restore
-- relay/cloud token refresh
+- cloud switch (invite 진입 포함, `switchCloudSession`으로 일원화)
+- relay/cloud token refresh (서비스 레벨 single-flight)
 - relay/cloud site 전환을 포함한 refresh
+- device id 저장 (`persistDeviceId` → identityCore)
 
 즉, 상태 전이는 반드시 `session/services`를 통해서만 수행되어야 합니다.
 
@@ -47,7 +47,7 @@ interface GlobalSessionContext {
 
 - `cloudCore`: cloud token, delegation token, selected cloud, selected site
 - `relayCore`: relay selected site, relay endpoint access
-- `identityCore`: relay/cloud profile, delegatorId, oAuthProvider, invited 관련 raw 상태
+- `identityCore`: relay/cloud profile, delegatorId, deviceId, oAuthProvider, invited 관련 raw 상태
 - 기타 `...Core`: 각 도메인의 raw get/set 저장
 
 `core`는 저장 경계이고, `session`은 조합 및 orchestration 경계입니다.
@@ -61,6 +61,7 @@ interface GlobalSessionContext {
 - `relayProfile`
 - `cloudProfile`
 - `delegatorId`
+- `deviceId`
 - `oAuthProvider`
 - invited 관련 raw flag 또는 value
 
@@ -83,6 +84,8 @@ interface GlobalSessionContext {
 - `setCloudProfile(profile: UserProfile$ | null): void`
 - `getDelegatorId(): string | null`
 - `setDelegatorId(delegatorId: string | null): void`
+- `getDeviceId(): string | null`
+- `setDeviceId(deviceId: string | null): void`
 - `getOAuthProvider(): OAuthLoginProvider | null`
 - `setOAuthProvider(provider: OAuthLoginProvider | null): void`
 - `getIsInvited(): boolean`
@@ -189,6 +192,7 @@ source of truth:
 - `isGuest: boolean`
 - `userId: string | null`
 - `delegatorId: string | null`
+- `deviceId: string | null`
 - `userRole: string | null`
 - `oAuthProvider: OAuthLoginProvider | null`
 - `readonly userType: UserType`
@@ -206,6 +210,7 @@ source of truth:
     - `identityCore.getRelayProfile()`
     - `identityCore.getCloudProfile()`
     - `identityCore.getDelegatorId()`
+    - `identityCore.getDeviceId()`
     - `identityCore.getOAuthProvider()`
 - 파생값
     - `isGuest`

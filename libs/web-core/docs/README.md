@@ -12,7 +12,8 @@
 - [transport/runtime-model.md](./transport/runtime-model.md): transport runtime 모델과 init 규칙
 - [transport/request-lifecycle.md](./transport/request-lifecycle.md): request builder와 auth 흐름
 - [hooks/README.md](./hooks/README.md): `hooks` 계층의 역할, 분류 원칙, 정리 방향
-- [hooks/public-surface.md](./hooks/public-surface.md): 외부 공개 hook / sessionContext surface 규칙
+- [hooks/public-surface.md](./hooks/public-surface.md): 외부 공개 hook / sessionContext surface 규칙 (로직 ↔ hook 매핑)
+- [hooks/orchestration.md](./hooks/orchestration.md): app lifecycle/loop hook의 동작 정책 (항시 로그인·병렬 리프레시·single-flight·디바이스 등록)
 
 ## 범위
 
