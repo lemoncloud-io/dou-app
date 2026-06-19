@@ -336,6 +336,18 @@ export const MessageList = ({
         }
     }, [jumpTarget, messages, hasMore, isLoadingOlder, onLoadOlder, onJumpConsumed]);
 
+    // Auto-fill the viewport: when the loaded page can't be scrolled (scrollHeight
+    // fits the viewport) there's no scroll-up to trigger loadOlder, so older history
+    // stays unreachable. Common in thread-heavy channels — most of a 50-item page is
+    // replies, which the main feed hides, leaving only a handful of top-level rows.
+    // Pull older pages until the feed overflows (giving a manual scroll handle) or
+    // history runs out (hasMore guards termination; isLoadingOlder serialises).
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el || !hasMore || isLoadingOlder || !onLoadOlder) return;
+        if (el.scrollHeight <= el.clientHeight + LOAD_OLDER_PX) onLoadOlder();
+    }, [rows, hasMore, isLoadingOlder, onLoadOlder]);
+
     // Clear pending flash / divider-dismiss timers on unmount.
     useEffect(
         () => () => {
