@@ -26,3 +26,4 @@ export * from './usePanelWidth';
 export * from './useCrossCloudPushBadge';
 export * from './useRetainLeavingCloudBadge';
 export * from './useAppUpdate';
+export * from './useAccountResetOnLogout';
