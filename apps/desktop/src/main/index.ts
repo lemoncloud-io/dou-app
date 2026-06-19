@@ -176,16 +176,18 @@ const pushDeeplink = (host: AppBridgeHost, url: string): void => {
 };
 
 // Last OS notification shown per channel (keyed by deeplink). Electron's
-// Notification has no web-style `tag`, so we coalesce by closing the prior toast
-// for the same channel before showing a new one — rapid messages replace instead
-// of stacking.
-const activeNotifications = new Map<string, Notification>();
-
 /**
- * Raise an OS notification (coalesced per channel/deeplink) and draw attention
- * when unfocused. Shared by the web→app `ShowNotification` bridge (live-WS,
- * same-cloud) and the FCM receiver (cross-cloud push). Click reshows the window
- * and routes the deeplink into the web.
+ * Raise an OS notification and draw attention when unfocused. Shared by the
+ * web→app `ShowNotification` bridge (live-WS, same-cloud) and the FCM receiver
+ * (cross-cloud push). Click reshows the window and routes the deeplink into the
+ * web.
+ *
+ * Each call shows its own banner. A prior "coalesce" closed the last toast for
+ * the same channel before showing the next — but on macOS that close() raced
+ * with the immediate show() and dropped the new banner under rapid bursts, so a
+ * busy channel went silent while a slow-drip one delivered fine. The renderer
+ * already emits at most one notification per cache snapshot (newest chat only),
+ * so dropping the close() bounds stacking without losing messages.
  */
 const showOsNotification = (
     host: AppBridgeHost,
@@ -194,13 +196,7 @@ const showOsNotification = (
 ): void => {
     const { title, body, deeplink } = params;
     if (Notification.isSupported()) {
-        const key = deeplink || title;
-        activeNotifications.get(key)?.close();
         const notification = new Notification({ title, body });
-        activeNotifications.set(key, notification);
-        notification.on('close', () => {
-            if (activeNotifications.get(key) === notification) activeNotifications.delete(key);
-        });
         notification.on('click', () => {
             if (win.isMinimized()) win.restore();
             win.show();
