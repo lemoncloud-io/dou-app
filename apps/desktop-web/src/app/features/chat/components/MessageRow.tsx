@@ -261,6 +261,7 @@ export const MessageRow = memo(
                                                             colorSeed: group.colorSeed,
                                                             ownerId: group.ownerId,
                                                             placeId: selectedPlaceId ?? undefined,
+                                                            parentId: message.parentId,
                                                         })
                                                     }
                                                     title={savedItems[key] ? t('chat.unsave') : t('chat.save')}

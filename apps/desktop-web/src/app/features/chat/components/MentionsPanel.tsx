@@ -91,8 +91,9 @@ interface MentionsPanelProps {
     places: DomainSite[];
     /** The active place — its group sorts to the top. */
     currentPlaceId?: string;
-    /** Jump to the mentioned message: select its place + channel, then scroll to it. */
-    onSelect: (channelId: string, chatNo?: number, placeId?: string) => void;
+    /** Jump to the mentioned message: select its place + channel, then scroll to it
+     *  (or open the thread panel when it's a reply — 4th arg = root chatNo string). */
+    onSelect: (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => void;
 }
 
 /**
@@ -210,7 +211,7 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
                                     removeLabel={t('saved.remove')}
                                     onOpen={() => {
                                         markRead(item.id);
-                                        onSelect(item.channelId, item.chatNo, item.placeId);
+                                        onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
                                         close();
                                     }}
                                     onRemove={() => remove(item.id)}

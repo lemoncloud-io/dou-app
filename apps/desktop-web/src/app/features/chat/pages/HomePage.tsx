@@ -86,6 +86,7 @@ export const HomePage = () => {
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThreadRootId = useThreadStore(s => s.openRootId);
+    const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
     const closeProfile = useProfilePanelStore(s => s.close);
@@ -113,18 +114,32 @@ export const HomePage = () => {
     // A message to scroll to once a cross-place jump's channel has loaded (paired
     // with pendingChannelRef when the saved item lives in another place).
     const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
+    // A thread to open once its channel is selected + loaded. Deferred (not opened
+    // inline) because selecting a different channel runs closeThread() on its way
+    // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
+    const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
     // Open a saved item: when it lives in another place, switch place first and
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
-    const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string) => {
+    const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => {
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
-            pendingJumpRef.current = chatNo != null ? { channelId, chatNo } : null;
+            // A thread reply opens the thread panel once its channel loads; a
+            // top-level message scrolls the main feed. Never both.
+            pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
+            pendingJumpRef.current = !threadRootId && chatNo != null ? { channelId, chatNo } : null;
             void switchPlace(placeId);
             return;
         }
         selectChannel(channelId);
+        if (threadRootId) {
+            // Same channel → open now (nothing switches it shut). Switching channels
+            // runs closeThread() on the way in, so defer past that via the ref.
+            if (channelId === selectedChannelId) openThread(threadRootId);
+            else pendingThreadRef.current = { channelId, rootId: threadRootId };
+            return;
+        }
         if (chatNo != null) requestMessageJump(channelId, chatNo);
     };
 
@@ -256,6 +271,20 @@ export const HomePage = () => {
             if (firstId) selectChannel(firstId);
         }
     }, [channels, selectedChannelId, selectChannel, requestMessageJump]);
+
+    // Open a deferred thread (saved / mention click on a reply) once its channel is
+    // the selected one and present in the loaded list. Declared after the
+    // selectedChannelId cleanup effect so its closeThread() runs first on a switch —
+    // this open then wins. Cross-place clicks land here too: the channel-apply effect
+    // above selects the channel, flipping selectedChannelId and firing this.
+    useEffect(() => {
+        const pending = pendingThreadRef.current;
+        if (!pending) return;
+        if (selectedChannelId === pending.channelId && channels.some(channel => channel.id === pending.channelId)) {
+            pendingThreadRef.current = null;
+            openThread(pending.rootId);
+        }
+    }, [channels, selectedChannelId, openThread]);
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
