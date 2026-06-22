@@ -1,4 +1,4 @@
-import type { ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatUsersInput } from '@lemoncloud/chatic-sockets-api';
 import type { CacheStorage, CacheStorageItem } from '../storages';
 import {
     BaseLocalDataSource,
@@ -16,8 +16,8 @@ import { toDomainUser as toDomainUserBase } from '../../domain';
 
 export interface IUserLocalDataSource
     extends ICrudLocalDataSource<DomainUser>,
-        IListLocalDataSource<DomainUser, ChatUsersPayload>,
-        IStreamLocalDataSource<DomainUser, ChatUsersPayload, DomainListResult<DomainUser>> {
+        IListLocalDataSource<DomainUser, ChatUsersInput>,
+        IStreamLocalDataSource<DomainUser, ChatUsersInput, DomainListResult<DomainUser>> {
     /** 다수 사용자 id로 사용자 목록을 조회합니다. (User 도메인 특화 로직) */
     getUsers(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]>;
 }
@@ -111,7 +111,7 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
     // =========================================================================
 
     public async fetchList(
-        payload: ChatUsersPayload,
+        payload: ChatUsersInput,
         _contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainUser> | null> {
         const channelId = payload.channelId;
@@ -145,7 +145,7 @@ export class UserLocalDataSource extends BaseLocalDataSource implements IUserLoc
     }
 
     public subscribeList(
-        query: ChatUsersPayload,
+        query: ChatUsersInput,
         callback: LocalStreamCallback<DomainListResult<DomainUser> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {

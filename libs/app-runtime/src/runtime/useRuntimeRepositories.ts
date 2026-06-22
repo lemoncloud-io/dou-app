@@ -1,5 +1,5 @@
-import type { DataRepositories } from '@chatic/data';
+import type { DataRepositoriesV2 } from '@chatic/data';
 
 import { getRuntimeManager } from './RuntimeManager';
 
-export const useRuntimeRepositories = (): DataRepositories => getRuntimeManager().getRepositories();
+export const useRuntimeRepositories = (): DataRepositoriesV2 => getRuntimeManager().getRepositories();

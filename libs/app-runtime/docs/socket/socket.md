@@ -6,6 +6,8 @@ Date: 2026-06-19
 
 `socket` 도메인은 WebSocket 연결 관리, 안정적인 API 프록시 제공, 연결 및 인증 상태 관리, 디바이스 등록, 그리고 토큰 401 만료 시 자동 재인증/재시도 시퀀스를 책임진다.
 
+이 문서에서 말하는 소켓 모듈은 `@lemoncloud/chatic-sockets-lib`의 **v2 클라이언트 모듈** 기준이다. 즉 `ClientSocketV2`, `domain.action` / `:ok` / `:error` 메시지 계약, v2 gateway 조립을 전제로 한다.
+
 ---
 
 ## 2. 핵심 컴포넌트 구조

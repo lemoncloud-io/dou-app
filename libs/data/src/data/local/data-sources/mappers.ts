@@ -1,10 +1,9 @@
 import type { CacheStorageItem } from '../storages';
-import type { DomainChannel, DomainChat, DomainJoin, DomainProfile, DomainSite, DomainUser } from '../../domain';
+import type { DomainChannel, DomainChat, DomainJoin, DomainSite, DomainUser } from '../../domain';
 import {
     toDomainChannel as toDomainChannelBase,
     toDomainChat as toDomainChatBase,
     toDomainJoin as toDomainJoinBase,
-    toDomainProfile as toDomainProfileBase,
     toDomainSite as toDomainSiteBase,
     toDomainUser as toDomainUserBase,
 } from '../../domain';
@@ -25,6 +24,3 @@ export const toDomainUser = (user: CacheStorageItem<'user'>): DomainUser =>
 
 export const toDomainSite = (site: CacheStorageItem<'site'>): DomainSite =>
     toDomainSiteBase(site, resolveScope(site.cid));
-
-export const toDomainProfile = (profile: CacheStorageItem<'profile'>): DomainProfile =>
-    toDomainProfileBase(profile, resolveScope(profile.cid));

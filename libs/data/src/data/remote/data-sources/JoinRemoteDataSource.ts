@@ -1,70 +1,42 @@
-import type { JoinView } from '@lemoncloud/chatic-socials-api';
 import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
+import type { DomainEventMap } from '../../events/domain';
+import type { JoinGateway } from '../gateways';
+import type { ChannelJoinInput, ChannelUpdateJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
+import type { JoinView } from '@lemoncloud/chatic-socials-api';
 
 export interface IJoinRemoteDataSource {
     /** 특정 메시지까지 읽었음을 서버에 알리고 참여 정보를 동기화합니다. */
-    readChat(payload: ChatReadPayload, ref?: string): void;
-
+    readChat(payload: ChatReadInput): Promise<JoinView>;
     /** 참여 정보(예: 알림 설정 변경)를 수정합니다. */
-    updateJoin(payload: ChatUpdateJoinPayload, ref?: string): void;
+    updateJoin(payload: ChannelUpdateJoinInput): Promise<JoinView>;
+    /** 채널에 참여 요청을 보냅니다. */
+    joinChannel(payload: ChannelJoinInput): Promise<JoinView>;
+    /** 인바운드 모델 이벤트를 처리합니다. */
+    handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void;
 }
 
 export class JoinRemoteDataSource implements IJoinRemoteDataSource {
     constructor(
-        private readonly socketEventBus: IEventBus<SocketEventMap>,
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly wssClient: IWebSocketClient
-    ) {
-        this.initializeListeners();
+        private readonly gateway: JoinGateway
+    ) {}
+
+    public async readChat(payload: ChatReadInput): Promise<JoinView> {
+        return this.gateway.read(payload);
     }
 
-    private initializeListeners() {
-        // chat:read 이벤트는 도메인 계층에서 join:update 로직으로 통합 처리됩니다.
-        this.socketEventBus.on('chat:read', detail => {
-            this.domainEventBus.emit('join:update', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:create', detail => {
-            this.domainEventBus.emit('join:create', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:update', detail => {
-            this.domainEventBus.emit('join:update', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:delete', detail => {
-            this.domainEventBus.emit('join:delete', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:error', detail => {
-            this.domainEventBus.emit('error', {
-                domain: 'join',
-                message: detail.payload.error || 'Join Error',
-                ref: detail.ref,
-            });
-        });
+    public async updateJoin(payload: ChannelUpdateJoinInput): Promise<JoinView> {
+        return this.gateway.updateJoin(payload);
     }
 
-    public readChat(payload: ChatReadPayload, ref?: string) {
-        this.wssClient.send('chat', 'read', payload, ref);
+    public async joinChannel(payload: ChannelJoinInput): Promise<JoinView> {
+        return this.gateway.join(payload);
     }
 
-    public updateJoin(payload: ChatUpdateJoinPayload, ref?: string) {
-        this.wssClient.send('chat', 'update-join', payload, ref);
+    public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
+        const eventName = `join:${action}` as 'join:create' | 'join:update' | 'join:delete';
+        this.domainEventBus.emit(eventName, {
+            data,
+        });
     }
 }

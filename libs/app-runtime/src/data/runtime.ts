@@ -1,10 +1,10 @@
-import type { DataContext, DataRepositories } from '@chatic/data';
+import type { DataContext, DataRepositoriesV2 } from '@chatic/data';
 import { DataManager } from './DataManager';
 import type { IDataManager } from './types';
 
 export interface DataRuntime {
     manager: IDataManager;
-    repositories: DataRepositories;
+    repositories: DataRepositoriesV2;
 }
 
 let dataRuntimeSingleton: DataRuntime | null = null;
@@ -29,6 +29,6 @@ export const getDataManager = (): IDataManager => {
     return getDataRuntime().manager;
 };
 
-export const getRepositories = (): DataRepositories => {
+export const getRepositories = (): DataRepositoriesV2 => {
     return getDataRuntime().repositories;
 };

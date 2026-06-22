@@ -10,6 +10,10 @@ Date: 2026-06-19
 
 `app-runtime`은 세션의 상태 제어(로그인/토큰 관리 등)를 직접 수행하지 않고 상위 세션 레이어(`@chatic/web-core`)에 위임하며, 파생된 **활성 서버 관측 데이터(RuntimeBinding)**에 반응하여 소켓 및 데이터 레이어를 조립/재연결하는 구조를 취한다.
 
+채널/채팅 sync의 실행 시점 제어는 `data`가 아니라 `app-runtime`이 소유하며, 별도 `sync` 도메인 오케스트레이터로 배치한다. 상세 명세는 [sync/README.md](./sync/README.md)를 따른다.
+
+현재 `app-runtime`의 소켓/게이트웨이 조립은 레거시 `wss` 클라이언트가 아니라 `@lemoncloud/chatic-sockets-lib`의 **v2 모듈**(`ClientSocketV2`, domain gateway, v2 message contract) 사용을 전제로 한다.
+
 ```mermaid
 flowchart TD
   App["apps/* (App UI)"] --> Host["RuntimeConnectionHost"]

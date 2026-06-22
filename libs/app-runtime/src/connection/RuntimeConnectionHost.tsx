@@ -3,6 +3,7 @@ import { TransportBootstrap } from './TransportBootstrap';
 import { SessionBackgroundRunner } from './SessionBackgroundRunner';
 import { RuntimeDataBinder } from './RuntimeDataBinder';
 import { SocketBinder } from './SocketBinder';
+import { RuntimeSyncBinder } from './RuntimeSyncBinder';
 import type { RuntimeBinding } from '../runtime/useRuntimeBinding';
 import type { SocketSessionDelegate } from '../socket/types';
 import { getSocketRuntime } from '../socket/runtime';
@@ -25,6 +26,7 @@ export const RuntimeConnectionHost = ({ binding, delegate, children }: RuntimeCo
             <SessionBackgroundRunner />
             <RuntimeDataBinder binding={binding} />
             <SocketBinder binding={binding} />
+            <RuntimeSyncBinder binding={binding} />
             {children}
         </TransportBootstrap>
     );

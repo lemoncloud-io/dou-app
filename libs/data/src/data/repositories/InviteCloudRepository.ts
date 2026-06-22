@@ -3,7 +3,6 @@ import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulk
 import { BaseRepository } from './types';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import { createDomainListResult, type DomainInviteCloud, type DomainListResult } from '../domain';
 
 /** InviteCloud Repository의 공개 계약입니다. */
@@ -41,11 +40,10 @@ export interface IInviteCloudRepository extends ILocalCacheMutationRepository<Do
 export class InviteCloudRepository extends BaseRepository implements IInviteCloudRepository {
     constructor(
         private readonly inviteCloudLocalDataSource: IInviteCloudLocalDataSource,
-        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, contextProvider, domainEventBus);
+        super(contextProvider, domainEventBus);
     }
 
     public saveInviteCloud(id: string, invite: Partial<DomainInviteCloud>): Promise<void> {

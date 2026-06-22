@@ -7,11 +7,7 @@
 - 현재는 **`(cid, uid)` 복합 scope**를 사용합니다.
 - 각 CRUD 호출 시점에 `DataContextProvider.getContext()`를 읽어 scope를 결정합니다.
 - 같은 adapter 인스턴스라도 context가 변경되면 즉시 다른 scope를 바라봅니다.
-- 캐시 레코드에는 `lastSyncedAt`, `expiresAt` 메타데이터가 함께 저장됩니다. **이 TTL은
-  진단용(advisory)이며 조회 시 강제되지 않습니다** — 만료 데이터를 GC하거나 blanking하지
-  않습니다. 캐시 신선도는 TTL이 아니라 소켓 이벤트(chat/channel/join/profile)와 명시적
-  sync(재연결 catch-up, sync-users/sync-site-profile)로 보장합니다. backend가 eventually
-  consistent하므로 만료-기반 eviction은 refresh 경로 없이 stale-blank만 유발해 오히려 해롭습니다.
+- 캐시 레코드에는 `lastSyncedAt`, `expiresAt` TTL 메타데이터가 함께 저장되며, 조회 시 만료 데이터는 반환 전에 GC됩니다.
 
 ## 주요 구성
 

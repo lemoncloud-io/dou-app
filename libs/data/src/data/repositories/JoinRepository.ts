@@ -1,10 +1,8 @@
-import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatReadInput, ChannelUpdateJoinInput, ChannelJoinInput } from '@lemoncloud/chatic-sockets-api';
 import type { IJoinLocalDataSource } from '../local/data-sources';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
-import type ISyncRepository from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
-import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { DomainEventMap } from '../events/domain';
 import type { IEventBus } from '../events/eventBus';
 import {
@@ -24,11 +22,14 @@ export interface IJoinRepository extends ILocalCacheMutationRepository<DomainJoi
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainJoin>>;
 
-    /** 특정 채팅 번호까지 읽었음을 서버에 알립니다. */
-    readChat(payload: ChatReadPayload, options?: RepositoryRequestOptions): Promise<DomainJoin>;
+    /** 특정 메시지를 읽었음을 서버에 알리고 로컬 캐시를 업데이트합니다. */
+    readChat(payload: ChatReadInput, options?: RepositoryRequestOptions): Promise<DomainJoin>;
 
-    /** 알림 설정, 닉네임 등 채널 참여 정보를 갱신합니다. */
-    updateJoin(payload: ChatUpdateJoinPayload, options?: RepositoryRequestOptions): Promise<DomainJoin>;
+    /** 채널 참여 정보(예: 푸시 알림 설정)를 업데이트합니다. */
+    updateJoin(payload: ChannelUpdateJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin>;
+
+    /** 채널에 참여 요청을 보냅니다. */
+    joinChannel(payload: ChannelJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin>;
 
     /** 현재 스코프의 join 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -54,19 +55,15 @@ export interface IJoinRepository extends ILocalCacheMutationRepository<DomainJoi
 }
 
 /** Remote join API와 local join cache를 중재합니다. */
-export class JoinRepository extends BaseRepository implements IJoinRepository, ISyncRepository {
+export class JoinRepository extends BaseRepository implements IJoinRepository {
     constructor(
         private readonly joinRemoteDataSource: IJoinRemoteDataSource,
         private readonly joinLocalDataSource: IJoinLocalDataSource,
-        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(requestManager, contextProvider, domainEventBus);
+        super(contextProvider, domainEventBus);
         this.initializeInternalListeners();
-    }
-    sync(id?: string, meta?: Record<string, unknown>): Promise<void> {
-        throw new Error('Method not implemented.');
     }
 
     public async fetchJoins(
@@ -86,21 +83,22 @@ export class JoinRepository extends BaseRepository implements IJoinRepository, I
         throw this.createRemoteUnsupportedError(policy);
     }
 
-    public async readChat(payload: ChatReadPayload, options?: RepositoryRequestOptions): Promise<DomainJoin> {
-        const join = await this.requestRemote<JoinView>(
-            ref => this.joinRemoteDataSource.readChat(payload, ref),
-            options
-        );
+    public async readChat(payload: ChatReadInput, options?: RepositoryRequestOptions): Promise<DomainJoin> {
+        const join = (await this.joinRemoteDataSource.readChat(payload)) as JoinView;
         const domainJoin = toDomainJoin(join, this.getDomainScope());
         await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
         return domainJoin;
     }
 
-    public async updateJoin(payload: ChatUpdateJoinPayload, options?: RepositoryRequestOptions): Promise<DomainJoin> {
-        const join = await this.requestRemote<JoinView>(
-            ref => this.joinRemoteDataSource.updateJoin(payload, ref),
-            options
-        );
+    public async updateJoin(payload: ChannelUpdateJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin> {
+        const join = (await this.joinRemoteDataSource.updateJoin(payload)) as JoinView;
+        const domainJoin = toDomainJoin(join, this.getDomainScope());
+        await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
+        return domainJoin;
+    }
+
+    public async joinChannel(payload: ChannelJoinInput, options?: RepositoryRequestOptions): Promise<DomainJoin> {
+        const join = (await this.joinRemoteDataSource.joinChannel(payload)) as JoinView;
         const domainJoin = toDomainJoin(join, this.getDomainScope());
         await this.joinLocalDataSource.upsert(domainJoin, this.getRepositoryContext());
         return domainJoin;
@@ -170,23 +168,18 @@ export class JoinRepository extends BaseRepository implements IJoinRepository, I
     // --- Internal Logic ---
     private initializeInternalListeners(): void {
         this.onDomainEvent('join:create', detail => {
-            if (!detail.data?.id) return;
             this.runInBackground(
                 () => this.joinLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'join:create'
             );
         });
         this.onDomainEvent('join:update', detail => {
-            // A failed/empty server response can surface a null payload — guard so the
-            // background upsert doesn't crash on `null.id`.
-            if (!detail.data?.id) return;
             this.runInBackground(
                 () => this.joinLocalDataSource.upsert(detail.data, this.getRepositoryContext()),
                 'join:update'
             );
         });
         this.onDomainEvent('join:delete', detail => {
-            if (!detail.data?.id) return;
             this.runInBackground(
                 () => this.joinLocalDataSource.remove(detail.data.id || '', this.getRepositoryContext()),
                 'join:delete'

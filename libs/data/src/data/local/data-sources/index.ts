@@ -2,7 +2,6 @@ import { ChannelLocalDataSource, type IChannelLocalDataSource } from './ChannelL
 import { ChatLocalDataSource, type IChatLocalDataSource } from './ChatLocalDataSource';
 import { type IInviteCloudLocalDataSource, InviteCloudLocalDataSource } from './InviteCloudLocalDataSource';
 import { type IJoinLocalDataSource, JoinLocalDataSource } from './JoinLocalDataSource';
-import { type IProfileLocalDataSource, ProfileLocalDataSource } from './ProfileLocalDataSource';
 import { type ISiteLocalDataSource, SiteLocalDataSource } from './SiteLocalDataSource';
 import { type IUserLocalDataSource, UserLocalDataSource } from './UserLocalDataSource';
 import type { CacheStorage } from '../storages';
@@ -13,7 +12,6 @@ export * from './ChannelLocalDataSource';
 export * from './ChatLocalDataSource';
 export * from './InviteCloudLocalDataSource';
 export * from './JoinLocalDataSource';
-export * from './ProfileLocalDataSource';
 export * from './SiteLocalDataSource';
 export * from './UserLocalDataSource';
 
@@ -22,7 +20,6 @@ export interface LocalDataSources {
     chat: IChatLocalDataSource;
     inviteCloud: IInviteCloudLocalDataSource;
     join: IJoinLocalDataSource;
-    profile: IProfileLocalDataSource;
     site: ISiteLocalDataSource;
     user: IUserLocalDataSource;
 }
@@ -34,7 +31,6 @@ export const createLocalDataSources = (
         chat: CacheStorage<'chat'>;
         inviteCloud: CacheStorage<'invitecloud'>;
         join: CacheStorage<'join'>;
-        profile: CacheStorage<'profile'>;
         site: CacheStorage<'site'>;
         user: CacheStorage<'user'>;
     }
@@ -43,7 +39,6 @@ export const createLocalDataSources = (
     chat: new ChatLocalDataSource(contextProvider, storages.chat),
     inviteCloud: new InviteCloudLocalDataSource(contextProvider, storages.inviteCloud),
     join: new JoinLocalDataSource(contextProvider, storages.join),
-    profile: new ProfileLocalDataSource(contextProvider, storages.profile),
     site: new SiteLocalDataSource(contextProvider, storages.site),
     user: new UserLocalDataSource(contextProvider, storages.user),
 });
