@@ -18,7 +18,14 @@ export interface RepositoryRefreshResult {
     wroteCount: number;
 }
 
+export interface DisposableRepositoryV2 {
+    dispose(): void;
+}
+
 export abstract class BaseRepositoryV2 {
+    private readonly cleanupCallbacks = new Set<() => void>();
+    private readonly serialTasks = new Map<string, Promise<void>>();
+
     protected constructor(
         private readonly context: DataContextProviderV2,
         protected readonly domainEventBus: IEventBus<DomainEventMap>
@@ -29,7 +36,14 @@ export abstract class BaseRepositoryV2 {
     }
 
     protected getDomainScope(): DomainScope {
-        const context = this.getRepositoryContext();
+        return this.getDomainScopeFromContext(this.getRepositoryContext());
+    }
+
+    protected getRepositoryContextSnapshot(): RepositoryV2DataContext {
+        return { ...this.getRepositoryContext() };
+    }
+
+    protected getDomainScopeFromContext(context: RepositoryV2DataContext): DomainScope {
         // V2 repositories normalize identifiers to cid/sid/uid before delegating work.
         return {
             cid: context.cid || 'default',
@@ -39,7 +53,12 @@ export abstract class BaseRepositoryV2 {
     }
 
     protected isSameContext(requestContext: RepositoryV2DataContext): boolean {
-        return this.getRepositoryContext().cid === requestContext.cid;
+        const current = this.getRepositoryContext();
+        return (
+            current.cid === requestContext.cid &&
+            current.sid === requestContext.sid &&
+            current.uid === requestContext.uid
+        );
     }
 
     protected assertRequiredString(value: string | undefined, fieldName: string): string {
@@ -55,10 +74,41 @@ export abstract class BaseRepositoryV2 {
         });
     }
 
+    protected runInBackgroundSerial(key: string, task: () => Promise<unknown>, label: string): void {
+        const previous = this.serialTasks.get(key) ?? Promise.resolve();
+        const current = previous
+            .catch(() => undefined)
+            .then(async () => {
+                await task();
+            })
+            .catch(error => {
+                console.error(`[RepositoryV2:${label}] background task failed`, error);
+            })
+            .finally(() => {
+                if (this.serialTasks.get(key) === current) {
+                    this.serialTasks.delete(key);
+                }
+            });
+        this.serialTasks.set(key, current);
+    }
+
     protected onDomainEvent<K extends keyof DomainEventMap>(
         event: K,
         callback: (data: DomainEventMap[K]) => void
     ): () => void {
-        return this.domainEventBus.on(event, callback);
+        const unsubscribe = this.domainEventBus.on(event, callback);
+        this.cleanupCallbacks.add(unsubscribe);
+        return () => {
+            this.cleanupCallbacks.delete(unsubscribe);
+            unsubscribe();
+        };
+    }
+
+    public dispose(): void {
+        for (const cleanup of this.cleanupCallbacks) {
+            cleanup();
+        }
+        this.cleanupCallbacks.clear();
+        this.serialTasks.clear();
     }
 }

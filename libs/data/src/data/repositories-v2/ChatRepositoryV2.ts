@@ -6,7 +6,7 @@ import type { DomainChat, DomainListResult, DomainScope } from '../domain';
 import { toDomainChat } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IChatRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2 } from './types';
+import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
 
 export interface ChatRefreshResult {
     wroteCount: number;
@@ -15,7 +15,7 @@ export interface ChatRefreshResult {
     total: number;
 }
 
-export interface IChatRepositoryV2 {
+export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatFeedInput, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainChat | null) => void): () => void;
 
@@ -141,28 +141,26 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('chat:create', detail => {
-            this.runInBackground(
-                () => this.chatLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'chat:create'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.chatLocalDataSource.cacheWrite(detail.data, context), 'chat:create');
         });
         this.onDomainEvent('chat:update', detail => {
-            this.runInBackground(
-                () => this.chatLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'chat:update'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.chatLocalDataSource.cacheWrite(detail.data, context), 'chat:update');
         });
         this.onDomainEvent('chat:delete', detail => {
+            const context = this.getRepositoryContextSnapshot();
             this.runInBackground(
-                () => this.chatLocalDataSource.cacheDelete(detail.data.id || '', this.getRepositoryContext()),
+                () => this.chatLocalDataSource.cacheDelete(detail.data.id || '', context),
                 'chat:delete'
             );
         });
         this.onDomainEvent('channel:delete', detail => {
             const channelId = detail.data.id || '';
             if (!channelId) return;
+            const context = this.getRepositoryContextSnapshot();
             this.runInBackground(
-                () => this.chatLocalDataSource.cacheClearByChannelId(channelId, this.getRepositoryContext()),
+                () => this.chatLocalDataSource.cacheClearByChannelId(channelId, context),
                 'channel:delete->chat:clear'
             );
         });

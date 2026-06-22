@@ -5,9 +5,14 @@ import type { DomainListResult, DomainSite } from '../domain';
 import { toDomainSite } from '../domain';
 import type { ISiteLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { ISiteRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2, type RepositoryRefreshResult } from './types';
+import {
+    BaseRepositoryV2,
+    type DataContextProviderV2,
+    type DisposableRepositoryV2,
+    type RepositoryRefreshResult,
+} from './types';
 
-export interface ISiteRepositoryV2 {
+export interface ISiteRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
         query: UserMySiteInput | undefined,
         callback: (result: DomainListResult<DomainSite> | null) => void
@@ -118,16 +123,12 @@ export class SiteRepositoryV2 extends BaseRepositoryV2 implements ISiteRepositor
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('site:create', detail => {
-            this.runInBackground(
-                () => this.siteLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'site:create'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.siteLocalDataSource.cacheWrite(detail.data, context), 'site:create');
         });
         this.onDomainEvent('site:update', detail => {
-            this.runInBackground(
-                () => this.siteLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'site:update'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.siteLocalDataSource.cacheWrite(detail.data, context), 'site:update');
         });
     }
 }

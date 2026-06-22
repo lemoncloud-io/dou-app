@@ -10,7 +10,7 @@ import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '
 import { toDomainProfile } from '../domain';
 import type { IProfileLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IProfileRemoteDataSource, IUserRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2 } from './types';
+import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
 
 export interface ProfileSyncResult {
     syncedAt: number;
@@ -18,7 +18,7 @@ export interface ProfileSyncResult {
     removedCount: number;
 }
 
-export interface IProfileRepositoryV2 {
+export interface IProfileRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
         query: DomainProfileListPayload | undefined,
         callback: (result: DomainListResult<DomainProfile> | null) => void

@@ -6,9 +6,9 @@ import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../dom
 import { createDomainListResult, toDomainJoin } from '../domain';
 import type { IJoinLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2 } from './types';
+import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
 
-export interface IJoinRepositoryV2 {
+export interface IJoinRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
         query: DomainJoinListPayload,
         callback: (result: DomainListResult<DomainJoin> | null) => void
@@ -158,20 +158,17 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('join:create', detail => {
-            this.runInBackground(
-                () => this.joinLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'join:create'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.joinLocalDataSource.cacheWrite(detail.data, context), 'join:create');
         });
         this.onDomainEvent('join:update', detail => {
-            this.runInBackground(
-                () => this.joinLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'join:update'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.joinLocalDataSource.cacheWrite(detail.data, context), 'join:update');
         });
         this.onDomainEvent('join:delete', detail => {
+            const context = this.getRepositoryContextSnapshot();
             this.runInBackground(
-                () => this.joinLocalDataSource.cacheDelete(detail.data.id || '', this.getRepositoryContext()),
+                () => this.joinLocalDataSource.cacheDelete(detail.data.id || '', context),
                 'join:delete'
             );
         });

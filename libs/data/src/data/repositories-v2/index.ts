@@ -28,6 +28,7 @@ export interface DataRepositoriesV2 {
     profile: IProfileRepositoryV2;
     site: ISiteRepositoryV2;
     user: IUserRepositoryV2;
+    dispose(): void;
 }
 
 export const createRepositoriesV2 = ({
@@ -40,18 +41,42 @@ export const createRepositoriesV2 = ({
     localDataSources: LocalDataSourcesV2;
     context: DataContextProviderV2;
     domainEventBus: IEventBus<DomainEventMap>;
-}): DataRepositoriesV2 => ({
-    channel: new ChannelRepositoryV2(remoteDataSources.channel, localDataSources.channel, context, domainEventBus),
-    chat: new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context, domainEventBus),
-    inviteCloud: new InviteCloudRepositoryV2(localDataSources.inviteCloud, context, domainEventBus),
-    join: new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context, domainEventBus),
-    profile: new ProfileRepositoryV2(
+}): DataRepositoriesV2 => {
+    const channel = new ChannelRepositoryV2(
+        remoteDataSources.channel,
+        localDataSources.channel,
+        context,
+        domainEventBus
+    );
+    const chat = new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context, domainEventBus);
+    const inviteCloud = new InviteCloudRepositoryV2(localDataSources.inviteCloud, context, domainEventBus);
+    const join = new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context, domainEventBus);
+    const profile = new ProfileRepositoryV2(
         remoteDataSources.profile,
         remoteDataSources.user,
         localDataSources.profile,
         context,
         domainEventBus
-    ),
-    site: new SiteRepositoryV2(remoteDataSources.site, localDataSources.site, context, domainEventBus),
-    user: new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context, domainEventBus),
-});
+    );
+    const site = new SiteRepositoryV2(remoteDataSources.site, localDataSources.site, context, domainEventBus);
+    const user = new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context, domainEventBus);
+
+    return {
+        channel,
+        chat,
+        inviteCloud,
+        join,
+        profile,
+        site,
+        user,
+        dispose() {
+            channel.dispose();
+            chat.dispose();
+            inviteCloud.dispose();
+            join.dispose();
+            profile.dispose();
+            site.dispose();
+            user.dispose();
+        },
+    };
+};

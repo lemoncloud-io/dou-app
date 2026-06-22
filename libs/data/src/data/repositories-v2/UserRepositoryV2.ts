@@ -13,9 +13,14 @@ import type { DomainListResult, DomainUser } from '../domain';
 import { toDomainUser } from '../domain';
 import type { IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2, type RepositoryRefreshResult } from './types';
+import {
+    BaseRepositoryV2,
+    type DataContextProviderV2,
+    type DisposableRepositoryV2,
+    type RepositoryRefreshResult,
+} from './types';
 
-export interface IUserRepositoryV2 {
+export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainUser | null) => void): () => void;
 
@@ -147,20 +152,17 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
 
     private initializeInternalListeners(): void {
         this.onDomainEvent('user:create', detail => {
-            this.runInBackground(
-                () => this.userLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'user:create'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.userLocalDataSource.cacheWrite(detail.data, context), 'user:create');
         });
         this.onDomainEvent('user:update', detail => {
-            this.runInBackground(
-                () => this.userLocalDataSource.cacheWrite(detail.data, this.getRepositoryContext()),
-                'user:update'
-            );
+            const context = this.getRepositoryContextSnapshot();
+            this.runInBackground(() => this.userLocalDataSource.cacheWrite(detail.data, context), 'user:update');
         });
         this.onDomainEvent('user:delete', detail => {
+            const context = this.getRepositoryContextSnapshot();
             this.runInBackground(
-                () => this.userLocalDataSource.cacheDelete(detail.data.id || '', this.getRepositoryContext()),
+                () => this.userLocalDataSource.cacheDelete(detail.data.id || '', context),
                 'user:delete'
             );
         });
