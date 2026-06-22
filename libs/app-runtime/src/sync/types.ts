@@ -15,7 +15,7 @@ export interface SyncDebugState {
     pendingReason: SyncRunReason | null;
 }
 
-export interface ChannelChatSyncDeps {
+export interface RuntimeSyncDeps {
     socketManager: ISocketManager;
     getRepositories(): DataRepositoriesV2;
     now?: () => number;
@@ -32,7 +32,23 @@ export interface ChannelChatSyncSnapshot {
     lastSyncedAt: number;
 }
 
-export interface IChannelChatSyncController {
+export interface SiteSyncTarget extends SyncTargetDescriptor {
+    type: 'site';
+}
+
+export interface ProfileSyncTarget extends SyncTargetDescriptor {
+    type: 'profile';
+}
+
+export interface ProfileSyncSnapshot {
+    lastSyncedAt: number;
+}
+
+export interface UserSyncTarget extends SyncTargetDescriptor {
+    type: 'user';
+}
+
+export interface IRuntimeSyncController {
     ensure(binding: RuntimeBinding): void;
     start(): Promise<void>;
     stop(): void;

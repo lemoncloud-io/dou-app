@@ -1,16 +1,16 @@
 import { getRepositories } from '../data/runtime';
 import { getSocketManager } from '../socket/runtime';
-import { ChannelChatSyncController } from './ChannelChatSyncController';
-import type { IChannelChatSyncController } from './types';
+import { RuntimeSyncController } from './RuntimeSyncController';
+import type { IRuntimeSyncController } from './types';
 
 export interface SyncRuntime {
-    controller: IChannelChatSyncController;
+    controller: IRuntimeSyncController;
 }
 
 let syncRuntimeSingleton: SyncRuntime | null = null;
 
 export const createSyncRuntime = (): SyncRuntime => ({
-    controller: new ChannelChatSyncController({
+    controller: new RuntimeSyncController({
         socketManager: getSocketManager(),
         getRepositories,
     }),

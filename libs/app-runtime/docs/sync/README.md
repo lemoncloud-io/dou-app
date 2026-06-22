@@ -83,8 +83,11 @@ Date: 2026-06-22
 ```text
 libs/app-runtime/src/
   sync/
-    ChannelChatSyncPlan.ts         # DomainSyncPlan 구현체
-    ChannelChatSyncController.ts   # DomainSyncScheduler 관리 및 디버그 상태 노출
+    ChannelChatSyncPlan.ts         # DomainSyncPlan 구현체 (채널 & 채팅)
+    SiteSyncPlan.ts                # DomainSyncPlan 구현체 (사이트)
+    ProfileSyncPlan.ts             # DomainSyncPlan 구현체 (프로필)
+    UserSyncPlan.ts                # DomainSyncPlan 구현체 (유저)
+    RuntimeSyncController.ts       # DomainSyncScheduler 관리 및 디버그 상태 노출
     runtime.ts                     # 싱글톤 조립
     types.ts                       # 공개/내부 타입
     hooks/
@@ -96,8 +99,8 @@ libs/app-runtime/src/
 ### 배치 원칙
 
 1. **Plan & Controller는 `src/sync/`**
-    - `ChannelChatSyncPlan`: 동기화 시점의 실제 데이터 읽기/쓰기 동작(Repository 호출)을 담당
-    - `ChannelChatSyncController`: 소켓 인스턴스 생명주기에 따라 `DomainSyncScheduler`를 초기화하고 라이프사이클 관리
+    - `ChannelChatSyncPlan`, `SiteSyncPlan`, `ProfileSyncPlan`, `UserSyncPlan`: 동기화 시점의 실제 데이터 읽기/쓰기 동작(Repository 호출)을 담당
+    - `RuntimeSyncController`: 소켓 인스턴스 생명주기에 따라 `DomainSyncScheduler`를 초기화하고 라이프사이클 관리
 2. **binder는 `src/connection/`**
     - React lifecycle에 붙는 render-null 컴포넌트
 3. **singleton 조립은 `src/sync/runtime.ts`**
@@ -110,7 +113,7 @@ libs/app-runtime/src/
 ```mermaid
 flowchart TD
   Binding["RuntimeBinding"] --> SyncBinder["RuntimeSyncBinder"]
-  SyncBinder --> SyncRuntime["ChannelChatSyncController"]
+  SyncBinder --> SyncRuntime["RuntimeSyncController"]
 
   SocketManager["SocketManager"] --> SyncRuntime
   DataRuntime["DataManager / Repositories"] --> SyncRuntime
@@ -176,7 +179,7 @@ interface SyncDebugState {
 ## 7. 핵심 인터페이스 초안
 
 ```ts
-export interface ChannelChatSyncController {
+export interface RuntimeSyncController {
     ensure(binding: RuntimeBinding): void;
     start(): Promise<void>;
     stop(): void;
@@ -490,7 +493,7 @@ Map<SyncScopeKey, number>;
 ### Phase 1. 문서 기준 최소 구현
 
 1. `src/sync/types.ts`
-2. `src/sync/ChannelChatSyncController.ts`
+2. `src/sync/RuntimeSyncController.ts`
 3. `src/sync/runtime.ts`
 4. `src/connection/RuntimeSyncBinder.tsx`
 5. `RuntimeConnectionHost.tsx`에 binder 추가

@@ -6,10 +6,16 @@ import {
 } from '@lemoncloud/chatic-sockets-lib';
 import type { RuntimeBinding } from '../runtime/useRuntimeBinding';
 import { ChannelChatSyncPlan } from './ChannelChatSyncPlan';
+import { SiteSyncPlan } from './SiteSyncPlan';
+import { ProfileSyncPlan } from './ProfileSyncPlan';
+import { UserSyncPlan } from './UserSyncPlan';
 import type {
-    ChannelChatSyncDeps,
+    RuntimeSyncDeps,
     ChannelChatSyncTarget,
-    IChannelChatSyncController,
+    SiteSyncTarget,
+    ProfileSyncTarget,
+    UserSyncTarget,
+    IRuntimeSyncController,
     SyncDebugState,
     SyncRunReason,
 } from './types';
@@ -63,11 +69,13 @@ const createScopeKey = (binding: RuntimeBinding | null): string | null => {
     return `${cid}:${sid || ''}:${uid || ''}`;
 };
 
-export class ChannelChatSyncController implements IChannelChatSyncController {
+export class RuntimeSyncController implements IRuntimeSyncController {
+    private binding: RuntimeBinding | null = null;
     private scopeKey: string | null = null;
     private lastSyncedAtByScope = new Map<string, number>();
     private started = false;
     private inFlight = false;
+    private runningCount = 0;
     private lastRunAt: number | null = null;
     private lastFullSyncAt: number | null = null;
     private pendingReason: SyncRunReason | null = null;
@@ -76,29 +84,50 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
 
     private scheduler: DomainSyncScheduler | null = null;
     private unsubscribeClient: (() => void) | null = null;
-    private readonly syncPlan: ChannelChatSyncPlan;
     private readonly timerScheduler: CustomTimerScheduler;
-    private activeTarget: ChannelChatSyncTarget | null = null;
 
-    constructor(private readonly deps: ChannelChatSyncDeps) {
+    private readonly channelChatPlan: ChannelChatSyncPlan;
+    private readonly sitePlan: SiteSyncPlan;
+    private readonly profilePlan: ProfileSyncPlan;
+    private readonly userPlan: UserSyncPlan;
+
+    private activeTarget: ChannelChatSyncTarget | null = null;
+    private siteTarget: SiteSyncTarget | null = null;
+    private profileTarget: ProfileSyncTarget | null = null;
+    private userTarget: UserSyncTarget | null = null;
+
+    constructor(private readonly deps: RuntimeSyncDeps) {
         this.timerScheduler = new CustomTimerScheduler();
-        this.syncPlan = new ChannelChatSyncPlan({
+
+        const onSyncStart = () => {
+            if (!this.pendingReason) {
+                this.pendingReason = this.hasConnectedOnce ? 'interval' : 'bootstrap';
+                if (!this.hasConnectedOnce) {
+                    this.hasConnectedOnce = true;
+                }
+            }
+            this.runningCount++;
+            this.inFlight = this.runningCount > 0;
+            this.emit();
+        };
+
+        const onSyncFinished = () => {
+            this.runningCount = Math.max(0, this.runningCount - 1);
+            this.inFlight = this.runningCount > 0;
+            if (!this.inFlight) {
+                this.pendingReason = null;
+            }
+            this.emit();
+        };
+
+        this.channelChatPlan = new ChannelChatSyncPlan({
             getRepositories: this.deps.getRepositories,
             onConnected: () => {
                 if (this.scopeKey) {
                     this.lastSyncedAtByScope.set(this.scopeKey, 0);
                 }
             },
-            onSyncStart: () => {
-                if (!this.pendingReason) {
-                    this.pendingReason = this.hasConnectedOnce ? 'interval' : 'bootstrap';
-                    if (!this.hasConnectedOnce) {
-                        this.hasConnectedOnce = true;
-                    }
-                }
-                this.inFlight = true;
-                this.emit();
-            },
+            onSyncStart,
             onSyncSuccess: (syncedAt: number, isFullSync: boolean) => {
                 if (this.scopeKey) {
                     this.lastSyncedAtByScope.set(this.scopeKey, syncedAt);
@@ -108,11 +137,31 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
                     this.lastFullSyncAt = this.lastRunAt;
                 }
             },
-            onSyncFinished: () => {
-                this.inFlight = false;
-                this.pendingReason = null;
-                this.emit();
+            onSyncFinished,
+        });
+
+        this.sitePlan = new SiteSyncPlan({
+            getRepositories: this.deps.getRepositories,
+            onSyncStart,
+            onSyncFinished,
+        });
+
+        this.profilePlan = new ProfileSyncPlan({
+            getRepositories: this.deps.getRepositories,
+            onSyncStart,
+            onSyncSuccess: (syncedAt: number, isFullSync: boolean) => {
+                this.lastRunAt = this.now();
+                if (isFullSync) {
+                    this.lastFullSyncAt = this.lastRunAt;
+                }
             },
+            onSyncFinished,
+        });
+
+        this.userPlan = new UserSyncPlan({
+            getRepositories: this.deps.getRepositories,
+            onSyncStart,
+            onSyncFinished,
         });
     }
 
@@ -120,6 +169,7 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
         const nextScopeKey = createScopeKey(binding);
         const scopeChanged = this.scopeKey !== nextScopeKey;
 
+        this.binding = binding;
         this.scopeKey = nextScopeKey;
 
         if (scopeChanged && nextScopeKey) {
@@ -128,10 +178,14 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
             this.pendingReason = null;
             this.lastRunAt = null;
             this.lastFullSyncAt = null;
+            this.runningCount = 0;
 
-            if (this.activeTarget && this.scheduler) {
-                this.scheduler.stop(this.activeTarget);
+            if (this.scheduler) {
+                this.scheduler.stopAll();
             }
+
+            const sid = binding.context.sid;
+            const uid = binding.context.uid;
 
             this.activeTarget = {
                 type: 'channel-chat',
@@ -139,8 +193,29 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
                 intervalMs: this.deps.intervalMs ?? DEFAULT_INTERVAL_MS,
             };
 
+            this.siteTarget = {
+                type: 'site',
+                id: sid || undefined,
+                intervalMs: 30000,
+            };
+
+            this.userTarget = {
+                type: 'user',
+                id: sid || undefined,
+                intervalMs: 15000,
+            };
+
+            this.profileTarget = {
+                type: 'profile',
+                id: uid || undefined,
+                intervalMs: 60000,
+            };
+
             if (this.started && this.scheduler) {
                 this.scheduler.start(this.activeTarget);
+                this.scheduler.start(this.siteTarget);
+                this.scheduler.start(this.userTarget);
+                this.scheduler.start(this.profileTarget);
             }
         }
 
@@ -152,6 +227,7 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
 
         this.started = true;
         this.hasConnectedOnce = false;
+        this.runningCount = 0;
 
         this.unsubscribeClient = this.deps.socketManager.subscribeClient(client => {
             this.handleClientChanged(client);
@@ -163,13 +239,11 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
     public stop(): void {
         this.started = false;
         this.inFlight = false;
+        this.runningCount = 0;
         this.pendingReason = null;
 
-        if (this.activeTarget && this.scheduler) {
-            this.scheduler.stop(this.activeTarget);
-        }
-
         if (this.scheduler) {
+            this.scheduler.stopAll();
             this.scheduler.destroy();
             this.scheduler = null;
         }
@@ -182,8 +256,12 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
 
     public destroy(): void {
         this.stop();
+        this.binding = null;
         this.scopeKey = null;
         this.activeTarget = null;
+        this.siteTarget = null;
+        this.userTarget = null;
+        this.profileTarget = null;
         this.lastSyncedAtByScope.clear();
         this.lastRunAt = null;
         this.lastFullSyncAt = null;
@@ -225,7 +303,7 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
         };
 
         try {
-            await this.syncPlan.run(this.activeTarget, manualCtx);
+            await this.channelChatPlan.run(this.activeTarget, manualCtx);
         } finally {
             this.pendingReason = null;
             this.emit();
@@ -261,13 +339,22 @@ export class ChannelChatSyncController implements IChannelChatSyncController {
         if (client) {
             this.scheduler = new DomainSyncScheduler({
                 client,
-                plans: [this.syncPlan],
+                plans: [this.channelChatPlan, this.sitePlan, this.profilePlan, this.userPlan],
                 now: this.deps.now,
                 timerScheduler: this.timerScheduler,
             });
 
             if (this.activeTarget) {
                 this.scheduler.start(this.activeTarget);
+            }
+            if (this.siteTarget) {
+                this.scheduler.start(this.siteTarget);
+            }
+            if (this.userTarget) {
+                this.scheduler.start(this.userTarget);
+            }
+            if (this.profileTarget) {
+                this.scheduler.start(this.profileTarget);
             }
         }
     }

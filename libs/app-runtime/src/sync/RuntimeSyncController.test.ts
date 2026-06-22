@@ -1,6 +1,6 @@
 import type { DataRepositoriesV2, DomainListResult } from '@chatic/data';
 import { logger } from '@chatic/bridges';
-import { ChannelChatSyncController } from './ChannelChatSyncController';
+import { RuntimeSyncController } from './RuntimeSyncController';
 
 jest.mock('@chatic/bridges', () => ({
     logger: {
@@ -16,7 +16,7 @@ const flushAsyncWork = async () => {
     await Promise.resolve();
 };
 
-const waitForIdle = async (controller: ChannelChatSyncController) => {
+const waitForIdle = async (controller: RuntimeSyncController) => {
     for (let index = 0; index < 20; index += 1) {
         await flushAsyncWork();
         if (!controller.getDebugState().inFlight) {
@@ -51,9 +51,15 @@ const createRepositories = () => {
         },
         join: {},
         inviteCloud: {},
-        profile: {},
-        site: {},
-        user: {},
+        profile: {
+            syncProfiles: jest.fn().mockResolvedValue({ syncedAt: 33, updatedCount: 0, removedCount: 0 }),
+        },
+        site: {
+            refreshList: jest.fn().mockResolvedValue({ wroteCount: 0 }),
+        },
+        user: {
+            refreshList: jest.fn().mockResolvedValue({ wroteCount: 0 }),
+        },
     } as unknown as DataRepositoriesV2;
 
     return { repositories, chatCacheReadList };
@@ -141,7 +147,7 @@ const createSocketManager = (isConnected = false) => {
     };
 };
 
-describe('ChannelChatSyncController', () => {
+describe('RuntimeSyncController', () => {
     beforeEach(() => {
         jest.useFakeTimers();
     });
@@ -154,7 +160,7 @@ describe('ChannelChatSyncController', () => {
     it('does not run sync before the socket is connected', async () => {
         const socket = createSocketManager(false);
         const { repositories } = createRepositories();
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
@@ -173,7 +179,7 @@ describe('ChannelChatSyncController', () => {
     it('runs a full sync once on bootstrap when already connected', async () => {
         const socket = createSocketManager(true);
         const { repositories } = createRepositories();
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
@@ -207,7 +213,7 @@ describe('ChannelChatSyncController', () => {
             )
             .mockResolvedValue({ syncedAt: 44, wroteCount: 2, removedCount: 0 });
 
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
@@ -233,7 +239,7 @@ describe('ChannelChatSyncController', () => {
     it('stores the syncedAt checkpoint after a successful manual run', async () => {
         const socket = createSocketManager(true);
         const { repositories } = createRepositories();
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
@@ -263,7 +269,7 @@ describe('ChannelChatSyncController', () => {
                 })
         );
 
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
             intervalMs: 1000,
@@ -287,7 +293,7 @@ describe('ChannelChatSyncController', () => {
     it('refreshes chats only when the server chatNo is ahead of local cache', async () => {
         const socket = createSocketManager(true);
         const { repositories } = createRepositories();
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
@@ -309,7 +315,7 @@ describe('ChannelChatSyncController', () => {
         const { repositories } = createRepositories();
         (repositories.channel.refreshListSince as jest.Mock).mockRejectedValue(new Error('boom'));
 
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
@@ -328,7 +334,7 @@ describe('ChannelChatSyncController', () => {
     it('resets scope checkpoint when the binding scope changes', async () => {
         const socket = createSocketManager(true);
         const { repositories } = createRepositories();
-        const controller = new ChannelChatSyncController({
+        const controller = new RuntimeSyncController({
             socketManager: socket.manager as any,
             getRepositories: () => repositories,
         });
