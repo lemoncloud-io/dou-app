@@ -43,7 +43,7 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         query: ChatFeedInput,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
-        const channelId = this.assertRequiredString(query.channelId, 'channelId');
+        const channelId = query.channelId;
         const { limit = 50 } = query;
 
         const pageList: CacheChatView[] = await this.cacheStorage.loadAll({

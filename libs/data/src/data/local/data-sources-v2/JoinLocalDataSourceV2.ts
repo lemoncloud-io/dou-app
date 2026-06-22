@@ -34,14 +34,16 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         query: DomainJoinListPayload,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainJoin> | null> {
-        const channelId = this.assertRequiredString(query?.channelId, 'channelId');
+        const channelId = query?.channelId;
 
         const allItems = await this.cacheStorage.loadAll();
-        let list = allItems
-            .map(item => toDomainJoin(item, this.getReadScope(item, contextOverride)))
-            .filter(item => item.channelId === channelId);
+        let list = allItems.map(item => toDomainJoin(item, this.getReadScope(item, contextOverride)));
 
-        if (query.activeOnly) {
+        if (channelId) {
+            list = list.filter(item => item.channelId === channelId);
+        }
+
+        if (query?.activeOnly) {
             list = list.filter(item => item.joined === 1 || item.joined === undefined);
         }
 
