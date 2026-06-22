@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8" />
+        <title>Testbed</title>
+        <base href="/" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <script>
+            (function () {
+                var storageKey = 'vite-ui-theme';
+                var theme = localStorage.getItem(storageKey);
+                var isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            })();
+        </script>
+        <style>
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+            }
+            html {
+                background-color: #ffffff;
+            }
+            html.dark {
+                background-color: #0f0f0f;
+            }
+        </style>
+        <link rel="stylesheet" href="/src/styles.css" />
+    </head>
+    <body>
+        <div id="root">
+            <div
+                id="splash"
+                style="
+                    position: fixed;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: inherit;
+                    font-family: sans-serif;
+                    font-size: 13px;
+                    color: #888;
+                "
+            >
+                초기화 중...
+            </div>
+        </div>
+        <script>
+            // React가 마운트되면 splash는 #root 교체로 자동 제거됩니다
+            document.addEventListener('DOMContentLoaded', function () {
+                var observer = new MutationObserver(function () {
+                    var splash = document.getElementById('splash');
+                    if (splash && document.getElementById('root').children.length > 1) {
+                        splash.remove();
+                        observer.disconnect();
+                    }
+                });
+                observer.observe(document.getElementById('root'), { childList: true, subtree: true });
+            });
+        </script>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
+</html>

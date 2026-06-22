@@ -1,0 +1,11 @@
+{
+    "name": "@chatic/testbed",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "/Users/raine/.nvm/versions/node/v22.15.1/bin/node ../../node_modules/.bin/vite",
+        "build": "/Users/raine/.nvm/versions/node/v22.15.1/bin/node ../../node_modules/.bin/vite build",
+        "preview": "/Users/raine/.nvm/versions/node/v22.15.1/bin/node ../../node_modules/.bin/vite preview",
+        "typecheck": "../../node_modules/.bin/tsc -p tsconfig.app.json --noEmit"
+    }
+}
