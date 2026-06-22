@@ -1,4 +1,4 @@
-import type { DataContext, DataContextProvider, DataRepositories, IEventBus } from '@chatic/data';
+import type { DataContext, DataContextProvider, DataRepositoriesV2, IEventBus } from '@chatic/data';
 import { DataContextHolder, type DomainEventMap, EventBusEngine } from '@chatic/data';
 
 import { createLocalDataSources } from './factories/localFactory';
@@ -10,7 +10,7 @@ import { DEFAULT_CONTEXT } from './types';
 export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
     private readonly domainEventBus: IEventBus<DomainEventMap>;
-    private readonly repositories: DataRepositories;
+    private readonly repositories: DataRepositoriesV2;
     private readonly dispatcher: { destroy(): void };
 
     constructor(initialContext: DataContext = DEFAULT_CONTEXT) {
@@ -33,12 +33,12 @@ export class DataManager implements IDataManager {
         });
     }
 
-    public ensure(context: DataContext): DataRepositories {
+    public ensure(context: DataContext): DataRepositoriesV2 {
         this.contextHolder.setContext(context);
         return this.repositories;
     }
 
-    public getRepositories(): DataRepositories {
+    public getRepositories(): DataRepositoriesV2 {
         return this.repositories;
     }
 

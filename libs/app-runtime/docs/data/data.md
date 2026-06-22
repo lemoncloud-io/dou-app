@@ -6,6 +6,8 @@ Date: 2026-06-19
 
 `data` 도메인은 `@chatic/data` 저장소(Repositories), 로컬/원격 데이터 소스(Local/Remote Data Sources), 그리고 캐시 정책들을 한곳에 버무려 앱에서 소비할 수 있는 헤드리스 데이터 런타임(Headless Data Runtime)을 조립하고 제공한다.
 
+이 조립은 `@lemoncloud/chatic-sockets-lib`의 **v2 gateway 모듈**을 전제로 한다. 즉 remoteFactory는 `ClientSocketV2` 위에서 생성된 v2 domain gateway를 주입받아 remote data source를 구성한다.
+
 ---
 
 ## 2. 런타임 조립 구조

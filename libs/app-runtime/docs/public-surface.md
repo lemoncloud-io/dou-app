@@ -76,3 +76,4 @@ const App = () => {
 - [runtime/runtime.md](./runtime/runtime.md) — 활성 서버 관측 및 Binder/Host 컴포넌트 동작 방식
 - [runtime/session-runner.md](./runtime/session-runner.md) — 백그라운드 러너 및 `TransportBootstrap`
 - [socket/socket.md](./socket/socket.md) — 소켓 5대 책임 모델 및 `SocketSessionDelegate` 위임 계약
+- [sync/README.md](./sync/README.md) — 채널/채팅 sync 오케스트레이터 배치 및 구현 명세
