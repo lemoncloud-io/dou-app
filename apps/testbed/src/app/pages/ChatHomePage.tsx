@@ -16,7 +16,7 @@ const DEFAULT_CLOUD_ID = 'default';
 export const ChatHomePage = () => {
     const navigate = useNavigate();
     const session = useGlobalSession();
-    const { selectedCloudId, selectedSiteId } = useSessionSelection();
+    const { selectedSiteId } = useSessionSelection();
     const { clouds } = useCloudSessionCatalog();
     const { switchCloud, isPending: isSwitching } = useSwitchCloudSession();
     const { logoutCloudSession } = useLogoutCloudSession();
@@ -24,6 +24,8 @@ export const ChatHomePage = () => {
 
     // Cast to V2 — app-runtime dist is stale (V1 return type), source is V2
     const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+
+    const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
 
     const [sites, setSites] = useState<DomainSite[]>([]);
     const [channels, setChannels] = useState<DomainChannel[]>([]);
@@ -38,22 +40,19 @@ export const ChatHomePage = () => {
         });
     }, [repos.inviteCloud]);
 
-    // site 목록 구독
+    // site 목록 구독 — activeServer(cid)가 바뀌면 재구독 + 기존 결과 폐기
     useEffect(() => {
+        setSites([]);
+        setActiveSiteId(null);
         return repos.site.observeList(undefined, result => {
             setSites(result?.list ?? []);
         });
-    }, [repos.site]);
+    }, [repos.site, cid]);
 
     // site 목록 원격 갱신
     useEffect(() => {
         void repos.site.refreshList();
-    }, [repos.site, selectedCloudId]);
-
-    // activeSiteId를 session과 동기화
-    useEffect(() => {
-        setActiveSiteId(selectedSiteId);
-    }, [selectedSiteId]);
+    }, [repos.site, cid]);
 
     // channel 목록 구독
     useEffect(() => {
@@ -74,7 +73,7 @@ export const ChatHomePage = () => {
 
     const handleCloudClick = async (cloudId: string) => {
         if (isSwitching) return;
-        if (cloudId === selectedCloudId) return;
+        if (cloudId === cid) return;
         if (cloudId === DEFAULT_CLOUD_ID) {
             await logoutCloudSession();
         } else {
@@ -109,7 +108,7 @@ export const ChatHomePage = () => {
                             key={c.id ?? ''}
                             id={c.id ?? ''}
                             name={c.name ?? c.id ?? '—'}
-                            isActive={selectedCloudId === c.id && !isRelayMode}
+                            isActive={cid === c.id}
                             isPending={isSwitching}
                             onClick={() => void handleCloudClick(c.id ?? '')}
                         />
@@ -125,7 +124,7 @@ export const ChatHomePage = () => {
                                     key={c.id ?? ''}
                                     id={c.id ?? ''}
                                     name={c.name ?? c.id ?? '—'}
-                                    isActive={selectedCloudId === c.id && !isRelayMode}
+                                    isActive={cid === c.id}
                                     isPending={isSwitching}
                                     isInvited
                                     onClick={() => void handleCloudClick(c.id ?? '')}

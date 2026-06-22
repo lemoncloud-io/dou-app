@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import type { DataRepositoriesV2, DomainChat } from '@chatic/data';
+import type { DataRepositoriesV2, DomainChat, DomainChannel } from '@chatic/data';
 
 export const ChatRoomPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
@@ -10,6 +10,7 @@ export const ChatRoomPage = () => {
     const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
 
     const [chats, setChats] = useState<DomainChat[]>([]);
+    const [channel, setChannel] = useState<DomainChannel | null>(null);
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -19,6 +20,11 @@ export const ChatRoomPage = () => {
     const prevScrollHeight = useRef(0);
 
     if (!channelId) return null;
+
+    // 채널 이름 로드
+    useEffect(() => {
+        void repos.channel.cacheRead(channelId).then(setChannel);
+    }, [repos.channel, channelId]);
 
     // 채팅 목록 구독
     useEffect(() => {
@@ -46,7 +52,7 @@ export const ChatRoomPage = () => {
 
     const loadMore = useCallback(async () => {
         if (isLoadingMore || !hasMore) return;
-        const oldest = chats[0];
+        const oldest = chats[chats.length - 1];
         if (!oldest) return;
 
         setIsLoadingMore(true);
@@ -106,7 +112,8 @@ export const ChatRoomPage = () => {
                     ←
                 </button>
                 <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{channelId}</p>
+                    <p className="font-semibold text-sm truncate">{channel?.name ?? channelId}</p>
+                    <p className="text-xs text-muted-foreground font-mono truncate">{channelId}</p>
                 </div>
             </div>
 
@@ -119,7 +126,7 @@ export const ChatRoomPage = () => {
                 {chats.length === 0 ? (
                     <p className="text-center text-xs text-muted-foreground py-8">메시지가 없습니다</p>
                 ) : (
-                    chats.map(chat => <ChatBubble key={chat.id} chat={chat} />)
+                    [...chats].reverse().map(chat => <ChatBubble key={chat.id} chat={chat} />)
                 )}
             </div>
 

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useGlobalSession, useSessionAuth } from '@chatic/web-core';
 import { useSocketState } from '@chatic/app-runtime';
+import { DBBrowser } from './DBBrowser';
 
 interface Props {
     onClose: () => void;
@@ -23,6 +25,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
     const socketState = useSocketState();
+    const [tab, setTab] = useState<'상태' | 'DB'>('상태');
 
     const { relay, cloud, identity, activeServer } = session;
 
@@ -39,53 +42,72 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                     </button>
                 </div>
 
-                <Section title="Session">
-                    <Row label="initialized" value={String(isInitialized)} />
-                    <Row label="authenticated" value={String(isAuthenticated)} />
-                    <Row label="isGuest" value={String(identity.isGuest)} />
-                    <Row label="isInvited" value={String(identity.isInvited)} />
-                    <Row label="userType" value={identity.userType} />
-                    <Row label="userId" value={identity.userId} />
-                    <Row label="delegatorId" value={identity.delegatorId} />
-                    <Row label="userName" value={identity.userName} />
-                    <Row label="userRole" value={identity.userRole} />
-                    <Row label="oAuthProvider" value={identity.oAuthProvider} />
-                    <Row label="error" value={identity.error?.message ?? null} />
-                </Section>
+                <div className="flex gap-1 mb-3">
+                    {(['상태', 'DB'] as const).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setTab(t)}
+                            className={`px-3 py-1 text-xs rounded ${
+                                tab === t ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            {t}
+                        </button>
+                    ))}
+                </div>
 
-                <Section title="Active Server">
-                    <Row label="kind" value={activeServer.kind} />
-                    <Row label="siteId" value={activeServer.siteId} />
-                    <Row label="backend" value={activeServer.backend} />
-                    <Row label="wss" value={activeServer.wss} />
-                    <Row label="identityToken" value={activeServer.identityToken} />
-                    {'cloudId' in activeServer && <Row label="cloudId" value={activeServer.cloudId} />}
-                </Section>
+                {tab === 'DB' && <DBBrowser />}
+                {tab === '상태' && (
+                    <>
+                        <Section title="Session">
+                            <Row label="initialized" value={String(isInitialized)} />
+                            <Row label="authenticated" value={String(isAuthenticated)} />
+                            <Row label="isGuest" value={String(identity.isGuest)} />
+                            <Row label="isInvited" value={String(identity.isInvited)} />
+                            <Row label="userType" value={identity.userType} />
+                            <Row label="userId" value={identity.userId} />
+                            <Row label="delegatorId" value={identity.delegatorId} />
+                            <Row label="userName" value={identity.userName} />
+                            <Row label="userRole" value={identity.userRole} />
+                            <Row label="oAuthProvider" value={identity.oAuthProvider} />
+                            <Row label="error" value={identity.error?.message ?? null} />
+                        </Section>
 
-                <Section title="Relay">
-                    <Row label="isAuthenticated" value={String(relay.isAuthenticated)} />
-                    <Row label="siteId" value={relay.siteId} />
-                    <Row label="backend" value={relay.backend} />
-                    <Row label="wss" value={relay.wss} />
-                    <Row label="identityToken" value={relay.identityToken} />
-                </Section>
+                        <Section title="Active Server">
+                            <Row label="kind" value={activeServer.kind} />
+                            <Row label="siteId" value={activeServer.siteId} />
+                            <Row label="backend" value={activeServer.backend} />
+                            <Row label="wss" value={activeServer.wss} />
+                            <Row label="identityToken" value={activeServer.identityToken} />
+                            {'cloudId' in activeServer && <Row label="cloudId" value={activeServer.cloudId} />}
+                        </Section>
 
-                <Section title="Cloud">
-                    <Row label="isActive" value={String(cloud.isActive)} />
-                    <Row label="cloudId" value={cloud.cloudId} />
-                    <Row label="siteId" value={cloud.siteId} />
-                    <Row label="backend" value={cloud.backend} />
-                    <Row label="wss" value={cloud.wss} />
-                    <Row label="identityToken" value={cloud.identityToken} />
-                </Section>
+                        <Section title="Relay">
+                            <Row label="isAuthenticated" value={String(relay.isAuthenticated)} />
+                            <Row label="siteId" value={relay.siteId} />
+                            <Row label="backend" value={relay.backend} />
+                            <Row label="wss" value={relay.wss} />
+                            <Row label="identityToken" value={relay.identityToken} />
+                        </Section>
 
-                <Section title="Socket">
-                    <Row label="state" value={socketState.state} />
-                    <Row label="isConnected" value={String(socketState.isConnected)} />
-                    <Row label="isVerified" value={String(socketState.isVerified)} />
-                    <Row label="isDeviceReg" value={String(socketState.isDeviceRegistered)} />
-                    <Row label="connectionId" value={socketState.connectionId} />
-                </Section>
+                        <Section title="Cloud">
+                            <Row label="isActive" value={String(cloud.isActive)} />
+                            <Row label="cloudId" value={cloud.cloudId} />
+                            <Row label="siteId" value={cloud.siteId} />
+                            <Row label="backend" value={cloud.backend} />
+                            <Row label="wss" value={cloud.wss} />
+                            <Row label="identityToken" value={cloud.identityToken} />
+                        </Section>
+
+                        <Section title="Socket">
+                            <Row label="state" value={socketState.state} />
+                            <Row label="isConnected" value={String(socketState.isConnected)} />
+                            <Row label="isVerified" value={String(socketState.isVerified)} />
+                            <Row label="isDeviceReg" value={String(socketState.isDeviceRegistered)} />
+                            <Row label="connectionId" value={socketState.connectionId} />
+                        </Section>
+                    </>
+                )}
             </div>
         </div>
     );

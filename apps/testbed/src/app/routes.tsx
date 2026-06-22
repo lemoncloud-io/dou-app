@@ -7,7 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 
 export const Routes = () => (
     <ReactRoutes>
-        <Route path="/" element={<Navigate to="/settings" replace />} />
+        <Route path="/" element={<Navigate to="/chat" replace />} />
         <Route element={<AppShell />}>
             <Route path="/chat" element={<ChatHomePage />} />
             <Route path="/chat/channels/:channelId" element={<ChatRoomPage />} />

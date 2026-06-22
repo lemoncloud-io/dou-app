@@ -10,7 +10,7 @@ import type {
     RelayContext,
 } from './types';
 import { getPermissions, getUserType } from './types';
-import { notifySessionStateChanged } from './utils';
+import { notifySessionStateChanged, registerSessionCacheInvalidator } from './utils';
 
 interface UserViewExtended {
     userRole?: string;
@@ -112,6 +112,11 @@ let identityState = buildIdentityContext({
 
 let cachedGlobalSessionContext: GlobalSessionContext | null = null;
 let cachedSessionAuthSnapshot: ReturnType<typeof getSessionAuthSnapshotRaw> | null = null;
+
+registerSessionCacheInvalidator(() => {
+    cachedGlobalSessionContext = null;
+    cachedSessionAuthSnapshot = null;
+});
 
 const getSessionAuthSnapshotRaw = () => {
     const { isInitialized, isAuthenticated, error, activeProfile } = identityState;
