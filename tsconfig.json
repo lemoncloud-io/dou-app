@@ -62,6 +62,9 @@
         },
         {
             "path": "./apps/desktop-web"
+        },
+        {
+            "path": "./apps/testbed"
         }
     ]
 }

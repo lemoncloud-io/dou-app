@@ -3304,10 +3304,10 @@
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.2.1":
-  version "0.2.1"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.2.1.tgz#8ae05f34b210c8cfb2eb28e92ef6551c2134e6cc"
-  integrity sha512-ZcaEU40pz5aTyedF1+ZxMoHhNBhHwoBP/7pSLLTH0P8nmnoQdkZpEZxHVWu5HDWpoJiOoOniV20ic8sjhEhDeg==
+"@lemoncloud/chatic-sockets-lib@0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.3.1.tgz#697f36859bcd79909ecd7c2bf3ef957742b3d367"
+  integrity sha512-rApruOhuHHqqrKnqQlgUGgDMQ/60nX9aSjxiK6PM0zIC0VhNKLRTL/uYyFQdeMo2UnOGPaHQTSeZDKZFhQT2Iw==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"
@@ -14400,12 +14400,7 @@ lazy-val@^1.0.5:
   resolved "https://registry.yarnpkg.com/lazy-val/-/lazy-val-1.0.5.tgz#6cf3b9f5bc31cee7ee3e369c0832b7583dcd923d"
   integrity sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==
 
-lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1:
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.1.1.tgz#6344621b2c3fdfd99febc659baa7adef41ca951b"
-  integrity sha512-idf2zPvYzUmz50F9wJik8f4vk+FeebgmzsHfpEtsv5nnWbdpaHM1sDMISmgqFPyv3X1cXvaRNyu4btdSIA03sQ==
-
-lemon-model@^1.2.2:
+lemon-model@1.2.2, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.2.2:
   version "1.2.2"
   resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.2.2.tgz#4e19238d5e2c7c957ce5f31dee26e922d6b1c056"
   integrity sha512-VMwcZ5eI4AmY4vzdW7MUbHfTcvDeaknrUKAMVv1kif4m6QmqCMFXJij0k9/blWonjoM8wtYschBYItPTA7lCHQ==
