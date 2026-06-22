@@ -1,8 +1,18 @@
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type { ChannelView, UserView, ChatView, JoinView, SiteView } from '@lemoncloud/chatic-socials-api';
+import type {
+    ChannelView,
+    ChatView,
+    JoinView,
+    ProfileBody,
+    ProfileDisplay,
+    ProfileView,
+    SiteView,
+    UserView,
+} from '@lemoncloud/chatic-socials-api';
 import type { ChatMineInput } from '@lemoncloud/chatic-sockets-api';
 
 export interface DomainScope {
+    /** Normalized repository scope aliases used by V2 modules. */
     cid: string;
     uid?: string;
     sid?: string;
@@ -44,7 +54,7 @@ export interface DomainJoinListPayload {
 }
 
 export interface DomainChannelListPayload extends ChatMineInput {
-    /** 타겟 사이트/플레이스 아이디  (값이 없을 경우; */
+    /** 타겟 사이트/플레이스 아이디  (값이 없을 경우); */
     sid?: string;
 }
 
@@ -58,6 +68,27 @@ export interface DomainSite extends SiteView {
     cid: string;
     order: number;
 }
+
+export interface DomainProfile extends ProfileView, Partial<ProfileDisplay> {
+    id: string;
+    cid: string;
+    sid: string;
+    uid: string;
+    /** `userId` is retained for API compatibility while V2 logic uses `uid` internally. */
+    userId: string;
+    updatedAtMs: number;
+}
+
+export interface DomainProfileListPayload {
+    /** V2 prefers `sid`/`uid` but still accepts API-shaped aliases. */
+    sid?: string;
+    uid?: string;
+    siteId?: string;
+    userId?: string;
+}
+
+export type SiteProfileBody = ProfileBody;
+export type SiteProfileView = DomainProfile;
 
 export interface DomainInviteCloud extends CloudView {
     id: string;
