@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type Dispatch,
+    type MutableRefObject,
+    type RefObject,
+    type SetStateAction,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
@@ -9,73 +19,85 @@ import {
     $isTextNode,
     COMMAND_PRIORITY_CRITICAL,
     KEY_ENTER_COMMAND,
-    KEY_TAB_COMMAND,
+    type LexicalEditor,
     type RangeSelection,
+    type TextNode,
 } from 'lexical';
 
 import { MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { MentionAutocomplete, type Mentionable } from '../MentionAutocomplete';
 import { $createMentionNode } from './MentionNode';
 
-interface MentionMatch {
-    leadOffset: number;
-    matchingString: string;
-    replaceableString: string;
-}
-
 // Word-start "@" + token chars up to the caret (same class RichText renders).
 const MENTION_MATCH = new RegExp(`(^|[\\s([{])(@(${MENTION_TOKEN_SOURCE}*))$`, 'u');
 
-const checkForMentionMatch = (text: string): MentionMatch | null => {
-    const match = MENTION_MATCH.exec(text);
-    if (!match) return null;
-    return {
-        leadOffset: match.index + match[1].length,
-        matchingString: match[3],
-        replaceableString: match[2],
-    };
-};
-
-// Re-derive the active "@query" span from the live caret — walking back across any
-// adjacent simple-text nodes (a prior mention chip stops the walk) — and delete
-// exactly it. Reading the live model means the result is always current, even right
-// after an IME composition commits. Returns false when no "@query" precedes the caret.
-const deleteMentionQuery = (selection: RangeSelection): boolean => {
-    if (!selection.isCollapsed()) return false;
-    const anchorNode = selection.anchor.getNode();
-    if (!$isTextNode(anchorNode)) return false;
-    let text = anchorNode.getTextContent().slice(0, selection.anchor.offset);
-    let prev = anchorNode.getPreviousSibling();
-    while ($isTextNode(prev) && prev.isSimpleText()) {
-        text = prev.getTextContent() + text;
-        prev = prev.getPreviousSibling();
-    }
-    const match = checkForMentionMatch(text);
-    if (!match) return false;
-    for (let i = 0; i < match.replaceableString.length; i += 1) selection.deleteCharacter(true);
-    return true;
-};
-
-interface MentionsPluginProps {
-    mentionables: Mentionable[];
+interface MentionAtCaret {
+    /** The text typed after "@". */
+    query: string;
+    /** Text node + offset where the "@" starts (for replacement). */
+    startKey: string;
+    startOffset: number;
 }
 
-/**
- * Self-contained "@"-typeahead. We do NOT use @lexical/react's
- * LexicalTypeaheadMenuPlugin: it suspends both its query update and its Enter
- * handling during IME composition (it bails on editor.isComposing(), and Lexical's
- * onKeyDown ignores keys while composing), which breaks Korean/CJK mentions
- * end-to-end — the list won't filter on the first syllable, the selection splits at
- * a stale offset (stray "@"), and Enter needs two presses. Instead we:
- *   1. track the active "@query" from EVERY editor update (composition included),
- *   2. drive keyboard nav from a native capture-phase keydown listener that fires
- *      before Lexical and even mid-composition,
- *   3. replace the span ourselves from the live caret — no stale offsets.
- */
-export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
-    const [editor] = useLexicalComposerContext();
+// Single source of truth for "is the caret inside an @-mention, and where does it
+// start". Walks back across adjacent simple-text nodes (a mention chip — type
+// 'mention', not simple — stops the walk) so detection and replacement always agree,
+// and maps the match back to a precise (node, offset) point so replacement never
+// relies on character counting (codepoint/grapheme-safe). Returns null when the caret
+// is not in an "@query".
+const findMentionAtCaret = (selection: RangeSelection): MentionAtCaret | null => {
+    if (!selection.isCollapsed() || selection.anchor.type !== 'text') return null;
+    const anchorNode = selection.anchor.getNode();
+    if (!$isTextNode(anchorNode) || !anchorNode.isSimpleText()) return null;
+    const caretOffset = selection.anchor.offset;
+
+    const nodes: TextNode[] = [anchorNode];
+    let prev = anchorNode.getPreviousSibling();
+    while ($isTextNode(prev) && prev.isSimpleText()) {
+        nodes.unshift(prev);
+        prev = prev.getPreviousSibling();
+    }
+    const lengthOf = (node: TextNode) => (node === anchorNode ? caretOffset : node.getTextContent().length);
+    const text = nodes.map(node => node.getTextContent().slice(0, lengthOf(node))).join('');
+
+    const match = MENTION_MATCH.exec(text);
+    if (!match) return null;
+
+    // match.index + lead char → absolute offset of "@"; map it back onto a node.
+    let offset = match.index + match[1].length;
+    for (const node of nodes) {
+        const len = lengthOf(node);
+        if (offset <= len) return { query: match[3], startKey: node.getKey(), startOffset: offset };
+        offset -= len;
+    }
+    return null;
+};
+
+interface CaretRect {
+    left: number;
+    top: number;
+}
+
+interface MentionTypeahead {
+    items: Mentionable[];
+    activeIndex: number;
+    caretRect: CaretRect | null;
+    open: boolean;
+    select: (index: number) => void;
+    close: () => void;
+    openRef: MutableRefObject<boolean>;
+    itemsRef: MutableRefObject<Mentionable[]>;
+    indexRef: MutableRefObject<number>;
+    setActiveIndex: Dispatch<SetStateAction<number>>;
+}
+
+// State + filtering + the "@query" replacement. Tracks the active mention from every
+// editor update (composition included, so Korean/CJK filters from the first syllable)
+// and records the caret rect so the menu can follow the caret.
+const useMentionTypeahead = (editor: LexicalEditor, mentionables: Mentionable[]): MentionTypeahead => {
     const [query, setQuery] = useState<string | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [caretRect, setCaretRect] = useState<CaretRect | null>(null);
 
     const items = useMemo(() => {
         if (query === null || !mentionables.length) return [];
@@ -83,72 +105,97 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
         return q ? mentionables.filter(m => m.name.toLowerCase().includes(q)) : mentionables;
     }, [query, mentionables]);
     const open = items.length > 0;
-    const clampedIndex = Math.min(activeIndex, items.length - 1);
+    const activeClamped = Math.min(activeIndex, items.length - 1);
 
-    // Refs mirror the latest render state so the native handlers (registered once)
-    // never read a stale closure.
     const itemsRef = useRef(items);
     itemsRef.current = items;
-    const indexRef = useRef(clampedIndex);
-    indexRef.current = clampedIndex;
+    const indexRef = useRef(activeClamped);
+    indexRef.current = activeClamped;
     const openRef = useRef(open);
     openRef.current = open;
 
-    // Reset the highlight whenever the query changes (the list is rebuilt).
-    useEffect(() => {
-        setActiveIndex(0);
-    }, [query]);
+    const close = useCallback(() => setQuery(null), []);
+
+    // Reset the highlight whenever the list is rebuilt.
+    useEffect(() => setActiveIndex(0), [query]);
 
     const select = useCallback(
         (index: number) => {
             const item = itemsRef.current[index];
-            if (!item) return;
-            editor.update(() => {
-                const selection = $getSelection();
-                if (!$isRangeSelection(selection) || !deleteMentionQuery(selection)) return;
-                const mentionNode = $createMentionNode(`@${item.name}`);
-                selection.insertNodes([mentionNode]);
-                const space = $createTextNode(' ');
-                mentionNode.insertAfter(space);
-                space.select();
-            });
+            if (item) {
+                editor.update(() => {
+                    const selection = $getSelection();
+                    if (!$isRangeSelection(selection)) return;
+                    const found = findMentionAtCaret(selection);
+                    if (!found) return;
+                    // Expand the collapsed caret back over "@query", then replace it.
+                    selection.anchor.set(found.startKey, found.startOffset, 'text');
+                    const mentionNode = $createMentionNode(`@${item.name}`);
+                    selection.insertNodes([mentionNode]);
+                    const space = $createTextNode(' ');
+                    mentionNode.insertAfter(space);
+                    space.select();
+                });
+            }
             setQuery(null);
         },
         [editor]
     );
-    const selectRef = useRef(select);
-    selectRef.current = select;
 
-    // 1. Track the active "@query" on every editor update — including each input
-    //    during IME composition (Lexical updates its model there), so the list
-    //    filters from the first composed syllable.
     useEffect(
         () =>
             editor.registerUpdateListener(({ editorState }) => {
-                editorState.read(() => {
+                const found = editorState.read(() => {
                     const selection = $getSelection();
-                    if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-                        setQuery(null);
-                        return;
-                    }
-                    const anchor = selection.anchor;
-                    const node = anchor.getNode();
-                    if (anchor.type !== 'text' || !$isTextNode(node) || !node.isSimpleText()) {
-                        setQuery(null);
-                        return;
-                    }
-                    const match = checkForMentionMatch(node.getTextContent().slice(0, anchor.offset));
-                    setQuery(match ? match.matchingString : null);
+                    return $isRangeSelection(selection) ? findMentionAtCaret(selection) : null;
                 });
+                setQuery(found ? found.query : null);
+                const domSelection = found ? window.getSelection() : null;
+                if (domSelection && domSelection.rangeCount > 0) {
+                    const rect = domSelection.getRangeAt(0).getBoundingClientRect();
+                    setCaretRect({ left: rect.left, top: rect.top });
+                }
             }),
         [editor]
     );
 
-    // 2. Nav + non-composing select via a native capture-phase listener on the
-    //    editor's parent — it fires before Lexical's own root listener, so we consume
-    //    arrows/Enter/Tab before they move the caret or send. The composing Enter
-    //    can't be caught here (the IME owns that keydown); it's handled by the command
-    //    guard in (3).
+    return {
+        items,
+        activeIndex: activeClamped,
+        caretRect,
+        open,
+        select,
+        close,
+        openRef,
+        itemsRef,
+        indexRef,
+        setActiveIndex,
+    };
+};
+
+interface MentionKeyboardArgs {
+    openRef: MutableRefObject<boolean>;
+    itemsRef: MutableRefObject<Mentionable[]>;
+    indexRef: MutableRefObject<number>;
+    setActiveIndex: Dispatch<SetStateAction<number>>;
+    select: (index: number) => void;
+    close: () => void;
+    menuRef: RefObject<HTMLDivElement | null>;
+}
+
+// All event wiring. Lexical ignores keys while the IME is composing AND re-dispatches
+// KEY_ENTER on compositionend (isComposing now false), so:
+//   - a native capture-phase keydown (fires before Lexical) handles nav + the
+//     non-composing Enter/Tab select;
+//   - the composing Enter is caught by a CRITICAL command guard on that
+//     re-dispatched KEY_ENTER — it selects the highlighted member and consumes the
+//     key, so it never reaches SubmitPlugin (LOW) as a "send".
+const useMentionKeyboardSelect = (editor: LexicalEditor, args: MentionKeyboardArgs): void => {
+    const { openRef, itemsRef, indexRef, setActiveIndex, select, close, menuRef } = args;
+
+    // Native capture-phase keydown (fires before Lexical) handles nav + the
+    // non-composing Enter/Tab select. A composing Enter is left for the command guard
+    // below (Lexical re-dispatches KEY_ENTER on compositionend, where it's caught).
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if (!openRef.current) return;
@@ -164,43 +211,71 @@ export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                setQuery(null);
+                close();
             } else if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.isComposing) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                selectRef.current(indexRef.current);
+                select(indexRef.current);
             }
         };
         return editor.registerRootListener((root, prevRoot) => {
             prevRoot?.parentElement?.removeEventListener('keydown', onKeyDown, true);
             root?.parentElement?.addEventListener('keydown', onKeyDown, true);
         });
-    }, [editor]);
+    }, [editor, openRef, itemsRef, indexRef, setActiveIndex, select, close]);
 
-    // 3. Command guard for the IME case: a composing Enter never reaches keydown
-    //    handling (Lexical ignores keys while composing), but Lexical re-dispatches
-    //    KEY_ENTER on compositionend with isComposing already false — which would
-    //    otherwise reach SubmitPlugin and SEND. Intercept above SubmitPlugin (LOW):
-    //    while the menu is open, pick the highlighted member and consume the key.
-    //    (Plain Enter is already consumed at keydown; Shift+Enter falls through to a
-    //    line break.)
+    // The composing Enter: Lexical ignores it at keydown but re-dispatches KEY_ENTER
+    // on compositionend (isComposing now false) — which SubmitPlugin (LOW) would treat
+    // as "send". Intercept above it: pick the highlighted member and consume the key.
     useEffect(() => {
-        const onSelectKey = (event: KeyboardEvent | null): boolean => {
+        const guard = (event: KeyboardEvent | null): boolean => {
             if (!openRef.current || event?.shiftKey) return false;
-            selectRef.current(indexRef.current);
+            select(indexRef.current);
             return true;
         };
-        const unEnter = editor.registerCommand(KEY_ENTER_COMMAND, onSelectKey, COMMAND_PRIORITY_CRITICAL);
-        const unTab = editor.registerCommand(KEY_TAB_COMMAND, onSelectKey, COMMAND_PRIORITY_CRITICAL);
-        return () => {
-            unEnter();
-            unTab();
-        };
-    }, [editor]);
+        return editor.registerCommand(KEY_ENTER_COMMAND, guard, COMMAND_PRIORITY_CRITICAL);
+    }, [editor, openRef, indexRef, select]);
 
-    // 3. Render the menu above the input (portaled into the editor's relative
-    //    parent so `bottom-full` anchors to it).
-    const parent = editor.getRootElement()?.parentElement ?? null;
-    if (!open || !parent) return null;
-    return createPortal(<MentionAutocomplete items={items} activeIndex={clampedIndex} onSelect={select} />, parent);
+    // Close on a click outside both the menu and the editor (a click inside the
+    // editor moves the caret, which the update listener already reacts to).
+    useEffect(() => {
+        const onPointerDown = (e: PointerEvent) => {
+            if (!openRef.current) return;
+            const target = e.target as Node | null;
+            if (menuRef.current?.contains(target) || editor.getRootElement()?.contains(target)) return;
+            close();
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }, [editor, openRef, menuRef, close]);
+};
+
+interface MentionsPluginProps {
+    mentionables: Mentionable[];
+}
+
+/**
+ * Self-contained "@"-typeahead. We do NOT use @lexical/react's
+ * LexicalTypeaheadMenuPlugin: it suspends both its query update and its Enter handling
+ * during IME composition (it bails on editor.isComposing(), and Lexical's onKeyDown
+ * ignores keys while composing), which breaks Korean/CJK mentions end-to-end. See the
+ * two hooks above for how composition is handled.
+ */
+export const MentionsPlugin = ({ mentionables }: MentionsPluginProps) => {
+    const [editor] = useLexicalComposerContext();
+    const menuRef = useRef<HTMLDivElement>(null);
+    const { items, activeIndex, caretRect, open, select, close, openRef, itemsRef, indexRef, setActiveIndex } =
+        useMentionTypeahead(editor, mentionables);
+
+    useMentionKeyboardSelect(editor, { openRef, itemsRef, indexRef, setActiveIndex, select, close, menuRef });
+
+    if (!open || !caretRect) return null;
+    // Anchor a fixed wrapper at the caret; MentionAutocomplete's `bottom-full` floats
+    // the list just above it, so the menu follows the caret.
+    return createPortal(
+        <div ref={menuRef} className="fixed z-50" style={{ left: caretRect.left, top: caretRect.top }}>
+            <MentionAutocomplete items={items} activeIndex={activeIndex} onSelect={select} />
+        </div>,
+        document.body
+    );
 };
