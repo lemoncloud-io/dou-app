@@ -24,6 +24,9 @@ export const getActiveServerContext = (): ActiveServerContext =>
 
 export const getGlobalSessionContext = (): GlobalSessionContext => sessionContextStore.getGlobalSessionContext();
 
+export const getActiveServerIdentityToken = (): string | null =>
+    sessionContextStore.getGlobalSessionContext().activeServer.identityToken;
+
 export const clearCloudSession = (): void => {
     cloudCore.clearSession();
     clearSessionCloudProfile();

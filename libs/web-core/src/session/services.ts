@@ -103,6 +103,7 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
 const applyRelayProfile = async (tokenView: UserTokenView): Promise<UserTokenView> => {
     if (tokenView.Token) {
         await webTransport.buildCredentialsByToken(tokenView.Token);
+        relayCore.saveRelayToken(tokenView);
     }
     const { Token: _token, ...profile } = tokenView;
 

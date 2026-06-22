@@ -21,7 +21,7 @@ type SessionIdentityState = Pick<IdentityContext, 'isInitialized' | 'isAuthentic
 const buildRelayContext = (): RelayContext => ({
     backend: relayCore.getBackend(),
     wss: relayCore.getWss(),
-    identityToken: null,
+    identityToken: relayCore.getIdentityToken(),
     siteId: relayCore.getSelectedSiteId(),
     isAuthenticated: !!identityCore.getRelayProfile(),
 });
