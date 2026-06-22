@@ -29,16 +29,13 @@
             "path": "../../libs/data/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/users/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/app-messages/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/auth/tsconfig.lib.json"
+            "path": "../../assets/tsconfig.lib.json"
         },
         {
-            "path": "../../assets/tsconfig.lib.json"
+            "path": "../../libs/socket/tsconfig.lib.json"
         },
         {
             "path": "../../libs/device-utils/tsconfig.lib.json"
@@ -60,9 +57,6 @@
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/socket/tsconfig.lib.json"
         }
     ]
 }
