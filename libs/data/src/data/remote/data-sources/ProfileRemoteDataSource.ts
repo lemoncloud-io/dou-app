@@ -1,22 +1,31 @@
-import type { ProfileGateway } from '../gateways';
-import type { UserGetSiteProfileInput, UserSetSiteProfileInput } from '@lemoncloud/chatic-sockets-api';
 import type { ProfileView } from '@lemoncloud/chatic-socials-api';
+import type {
+    ProfileGateway,
+    ProfileGetInput,
+    ProfileGetMineInput,
+    ProfileSetInput,
+    ProfileSyncInput,
+} from '@lemoncloud/chatic-sockets-lib';
 
 export interface IProfileRemoteDataSource {
-    /** 사이트 프로필 조회를 요청합니다. */
-    getSiteProfile(payload: UserGetSiteProfileInput): Promise<ProfileView>;
-    /** 사이트 프로필 설정을 요청합니다. */
-    setSiteProfile(payload: UserSetSiteProfileInput): Promise<ProfileView>;
+    get(payload: ProfileGetInput): Promise<ProfileView>;
+    getMine(payload: ProfileGetMineInput): Promise<ProfileView>;
+    set(payload: ProfileSetInput): Promise<ProfileView>;
+    sync(payload: ProfileSyncInput): Promise<ProfileView>;
 }
 
 export class ProfileRemoteDataSource implements IProfileRemoteDataSource {
     constructor(private readonly gateway: ProfileGateway) {}
-
-    public async getSiteProfile(payload: UserGetSiteProfileInput): Promise<ProfileView> {
-        return this.gateway.getSiteProfile(payload);
+    get(payload: ProfileGetInput): Promise<ProfileView> {
+        return this.gateway.get<ProfileView>(payload);
     }
-
-    public async setSiteProfile(payload: UserSetSiteProfileInput): Promise<ProfileView> {
-        return this.gateway.setSiteProfile(payload);
+    getMine(payload: ProfileGetMineInput): Promise<ProfileView> {
+        return this.gateway.getMine(payload);
+    }
+    set(payload: ProfileSetInput): Promise<ProfileView> {
+        return this.gateway.set(payload);
+    }
+    sync(payload: ProfileSyncInput): Promise<ProfileView> {
+        return this.gateway.sync(payload);
     }
 }

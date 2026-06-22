@@ -63,13 +63,11 @@ interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
 - [ChannelLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/ChannelLocalDataSourceV2.ts)
 - [ChatLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/ChatLocalDataSourceV2.ts)
 - [JoinLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/JoinLocalDataSourceV2.ts)
+- [PlaceLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/PlaceLocalDataSourceV2.ts)
+- [ProfileLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/ProfileLocalDataSourceV2.ts)
 - [SiteLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/SiteLocalDataSourceV2.ts)
 - [UserLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/UserLocalDataSourceV2.ts)
 - [InviteCloudLocalDataSourceV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/InviteCloudLocalDataSourceV2.ts)
-
-현재 미구현:
-
-- `ProfileLocalDataSourceV2`
 
 팩토리 진입점:
 
@@ -109,9 +107,8 @@ local 레이어는 sync 주체가 아닙니다.
 
 profile 관련 추가 메모:
 
-- `CacheType.profile` TTL 정책은 이미 존재한다.
-- 하지만 아직 `ProfileView` 를 읽고 쓰는 전용 local data source / repository V2 는 없다.
-- 따라서 profile 캐시는 "정책은 준비되어 있지만 data source 레벨 연결은 아직 미구현" 상태다.
+- `CacheType.profile` TTL 정책이 존재하며, `ProfileLocalDataSourceV2`에서 실제로 사용된다.
+- `ProfileRepositoryV2`가 `profile.sync` 결과를 upsert/remove하고, local stream을 통해 UI에 노출한다.
 
 ## 채팅 커서와 local
 

@@ -48,11 +48,11 @@ export interface DomainEventMap {
     'user:delete': DomainPayload<UserView>;
 
     // ------------------------------------------
-    // 5. Site Domain (사이트=플레이스)
+    // 5. Place Domain (구 Site — 동일 개념)
     // ------------------------------------------
-    'site:create': DomainPayload<SiteView>;
-    'site:update': DomainPayload<SiteView>;
-    'site:delete': DomainPayload<SiteView>;
+    'place:create': DomainPayload<SiteView>;
+    'place:update': DomainPayload<SiteView>;
+    'place:delete': DomainPayload<SiteView>;
 
     // ------------------------------------------
     // 6. Auth Domain (인증)

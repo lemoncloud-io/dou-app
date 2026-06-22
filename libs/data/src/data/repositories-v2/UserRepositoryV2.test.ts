@@ -30,7 +30,6 @@ describe('UserRepositoryV2', () => {
             requestInvite: jest.fn(),
             inviteBatch: jest.fn(),
             syncChannelUsers: jest.fn(),
-            syncSiteProfile: jest.fn(),
         };
         const userLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -98,12 +97,10 @@ describe('UserRepositoryV2', () => {
         const { repository, userRemoteDataSource } = createRepository();
         userRemoteDataSource.requestInvite.mockResolvedValue({ code: 'invite-1' });
         userRemoteDataSource.inviteBatch.mockResolvedValue({ list: [{ code: 'invite-2' }] });
-        userRemoteDataSource.syncSiteProfile.mockResolvedValue({ syncedAt: 1 });
 
         // Invite helpers should remain passthroughs so callers see the backend contract directly.
         await expect(repository.requestInvite({ alias: 'a' } as any)).resolves.toEqual({ code: 'invite-1' });
         await expect(repository.requestInviteBatch({ alias: 'a' } as any)).resolves.toEqual([{ code: 'invite-2' }]);
-        await expect(repository.refreshSiteProfile({ since: 0 } as any)).resolves.toEqual({ syncedAt: 1 });
     });
 
     it('stops reacting to domain events after dispose is called', async () => {
@@ -113,7 +110,6 @@ describe('UserRepositoryV2', () => {
             requestInvite: jest.fn(),
             inviteBatch: jest.fn(),
             syncChannelUsers: jest.fn(),
-            syncSiteProfile: jest.fn(),
         };
         const userLocalDataSource = {
             observeList: jest.fn(() => () => undefined),

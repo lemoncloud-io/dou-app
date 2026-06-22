@@ -35,7 +35,11 @@
     - `channel.unreads`
     - `chat.feed`
     - `chat.read`
-- 현재 앱에서 소비 중인 `ClientSocketV2` 표면
+    - `place.create` / `place.get` / `place.update` / `place.delete`
+    - `cloud.create` / `cloud.get` / `cloud.update` / `cloud.delete`
+    - `profile.get` / `profile.get-mine` / `profile.set` / `profile.sync`
+- 서버→클라이언트 sync 트리거 (`domain.sync` push)
+- 현재 앱에서 소비 중인 `ClientSocketV2` 표면 (요청 제한 포함)
 - `libs/data` repository V2 / local V2 가 담당하는 동기화 해석
 
 ### 이 문서가 직접 보장하지 않는 범위
@@ -83,8 +87,8 @@ UI / React Hook
   └─ Repository / Gateway
       └─ ClientSocketV2
           ├─ SocketTransport
-          ├─ KeepAliveLoop
-          ├─ AutoReconnectController
+          ├─ KeepAliveLoop           ← 기본 활성화 예정 (Phase A)
+          ├─ AutoReconnectController ← 기본 활성화 예정 (Phase A)
           ├─ ConnectionRotationController
           └─ DeviceSyncRuntime
 ```
@@ -95,16 +99,48 @@ UI / React Hook
 - `channel` / `chat` / `join` 동기화 해석은 앱 레벨과 `libs/data` repository 책임이다.
 - `libs/data` local layer는 sync 주체가 아니라 sync 결과 저장소다.
 
+### 서버→클라이언트 sync 트리거
+
+클라이언트 pull(polling) 외에 서버가 먼저 클라이언트에 sync 신호를 보내는 경로가 있다.
+
+```ts
+// 서버가 보내는 push 메시지 (응답이 아니라 단방향 신호)
+{ type: 'domain.sync', data: { ... } }
+```
+
+이 신호는 re-read 힌트다. `libs/data` repository는 이를 직접 수신하지 않는다. `SocketDispatcher` 또는 앱 레벨 sync orchestrator가 이 신호를 받아 해당 도메인 repository의 refresh 메서드를 호출하는 구조다.
+
+현재 구현된 server-push 이벤트:
+
+- `chat:create` → `ChannelRepositoryV2`에서 unread 스냅샷 즉시 반영
+- `join:update` → `ChannelRepositoryV2` / `JoinRepositoryV2`에서 즉시 반영
+- 그 외 `model.create` / `model.update` / `model.delete` → `SocketDispatcher` → `DomainEventBus`
+
+### `ClientSocketV2` 요청 제한
+
+`ClientSocketV2`는 동시 요청 수를 클라이언트 측에서 제어한다.
+
+| 항목                  | 기본값 | 설명                                                |
+| --------------------- | ------ | --------------------------------------------------- |
+| `maxInflightRequests` | 32     | 동시 in-flight 허용 수                              |
+| `maxPendingRequests`  | 512    | in-flight 포화 시 대기 가능한 최대 요청 수          |
+| request timeout       | 30s    | 서버 응답 없을 때 클라이언트 측 timeout             |
+| 429 (client-side)     | —      | pending 512 초과 시 클라이언트가 reject (서버 무관) |
+
+`channel.sync`, `chat.feed` 등 sync 루프 요청이 다른 도메인 요청과 in-flight 슬롯을 공유한다. 429는 서버 응답이 아니라 클라이언트 내부 reject이므로, repository에서 에러 처리 시 구분이 필요하다.
+
 ### 도메인별 동기화 방식
 
-| 도메인    | 방식                                              | 기준값            | 현재 책임 경계                                     |
-| --------- | ------------------------------------------------- | ----------------- | -------------------------------------------------- |
-| `device`  | polling + `device.sync` trigger                   | `tick`            | sockets-lib runtime                                |
-| `channel` | `channel.sync({ since })` 중심 full/diff sync     | `syncedAt`        | 앱 orchestration + `ChannelRepositoryV2`           |
-| `chat`    | `channel.sync` 감지 후 `chat.feed`                | `chatNo`          | 앱 orchestration + `ChatRepositoryV2`              |
-| `join`    | `chat.read` 결과 반영                             | `chatNo`          | `JoinRepositoryV2`                                 |
-| `user`    | `channel.list-user` / `syncUsers`                 | 도메인별 payload  | `UserRepositoryV2`                                 |
-| `profile` | `user.get-site-profile` / `user.set-site-profile` | `siteId + userId` | 현재 V1 `ProfileRepository`, 목표는 local-first V2 |
+| 도메인    | 방식                                          | 기준값           | 현재 책임 경계                                        |
+| --------- | --------------------------------------------- | ---------------- | ----------------------------------------------------- |
+| `device`  | polling + `device.sync` trigger               | `tick`           | sockets-lib runtime                                   |
+| `channel` | `channel.sync({ since })` 중심 full/diff sync | `syncedAt`       | 앱 orchestration + `ChannelRepositoryV2`              |
+| `chat`    | `channel.sync` 감지 후 `chat.feed`            | `chatNo`         | 앱 orchestration + `ChatRepositoryV2`                 |
+| `join`    | `chat.read` 결과 반영                         | `chatNo`         | `JoinRepositoryV2`                                    |
+| `user`    | `channel.list-user` / `syncUsers`             | 도메인별 payload | `UserRepositoryV2`                                    |
+| `place`   | `place.get` / scope 전환 시 refresh           | `id`             | 앱 orchestration + `PlaceRepositoryV2`                |
+| `profile` | `profile.sync({ since })` delta sync          | `since` (cursor) | 앱 orchestration + `ProfileRepositoryV2.syncProfiles` |
+| `cloud`   | on-demand (`cloud.get`)                       | `id`             | `CloudRemoteDataSource`                               |
 
 > `KeepAliveLoop`와 application sync loop는 별도 책임이다.
 > ping 성공이 곧 모델 최신 상태를 뜻하지는 않는다.
@@ -392,133 +428,81 @@ await chat.read({ channelId: 'CH001', chatNo: latestChatNo });
 
 ---
 
+## Place 동기화
+
+`place`는 사용자가 소속되거나 생성한 공간(workspace) 단위의 신규 도메인이다.
+
+서버 소켓 계약:
+
+```ts
+await client.request('place.create', body); // PlaceCreateInput
+await client.request('place.get', { id }); // PlaceGetInput
+await client.request('place.update', { id, ...body }); // PlaceUpdateInput
+await client.request('place.delete', { id }); // PlaceDeleteInput
+```
+
+### 구현 상태
+
+- remote: `PlaceRemoteDataSource` — `PlaceGateway` 기반 신규
+- repository: `PlaceRepositoryV2` — local-first V2 패턴
+- local: `PlaceLocalDataSourceV2`
+
+### 동기화 방식
+
+`place`는 채널처럼 주기적 delta sync 구조가 아니라, 필요 시 `place.get` 기반 단건 refresh 방식이다.
+
+- scope(cid) 전환 시 현재 cloud의 place 목록을 refresh한다.
+- `PlaceSyncPlan`이 app-runtime에서 scope 전환 타이밍을 제어한다.
+- UserGateway의 `makeSite` / `updateSite` 는 deprecated이므로 신규 코드에서는 PlaceGateway를 사용해야 한다.
+
+---
+
 ## Profile 동기화
 
-`ProfileView`는 사이트별 사용자 프로필(read/write) 모델이다.
+`profile`은 사이트별 사용자 프로필의 V2 local-first 도메인이다.
 
-현재 서버 소켓 계약은 아래 두 action 기준이다.
-
-```ts
-await client.request('user.get-site-profile', { siteId, userId? });
-await client.request('user.set-site-profile', { siteId, userId?, ...body });
-```
-
-### 현재 구현 상태
-
-- remote: `ProfileRemoteDataSource`
-- repository: V1 `ProfileRepository`
-- local cache: 아직 전용 `ProfileLocalDataSource(V2)` 없음
-- domain model 변환: 아직 `DomainProfile` / `toDomainProfile()` 없음
-
-즉 현재 `ProfileView`는 `libs/data` 안에서 remote passthrough 성격이 강하다.
-
-### 서버 스펙에 맞춰 개발할 목표 구조
-
-`ProfileView`도 다른 도메인과 같은 local-first 패턴으로 맞추는 것을 목표로 한다.
-
-1. remote는 `user.get-site-profile` / `user.set-site-profile` 호출만 담당
-2. repository는 remote 결과를 local cache에 적재
-3. UI / hook은 `observeItem` 또는 `observeList` 기반 local stream만 읽음
-4. write 후 렌더 source는 remote 반환값이 아니라 local snapshot
-
-### 권장 캐시 키
-
-프로필은 채널 메시지처럼 list sync가 아니라, `siteId + userId` 조합의 item 캐시에 가깝다.
-
-권장 key 예시:
+서버 소켓 계약 (v2 기준):
 
 ```ts
-profile:${siteId}:${userId || me}
+await client.request('profile.get', { id });          // ProfileGetInput — id = `${siteId}:${userId}`
+await client.request('profile.get-mine', null);       // ProfileGetMineInput
+await client.request('profile.set', { ...body });     // ProfileSetInput
+await client.request('profile.sync', { since? });     // ProfileSyncInput — delta 동기화
 ```
 
-권장 query 예시:
+### 구현 상태
+
+- remote: `ProfileRemoteDataSource` — 신규 `ProfileGateway` 기반
+- repository: `ProfileRepositoryV2` — `syncProfiles(since)` 포함
+- local: `ProfileLocalDataSourceV2`
+
+이전 `UserGateway.getSiteProfile` / `setSiteProfile` 및 `ChannelGateway.syncProfile` 은 deprecated이며, 신규 `ProfileGateway`로 이전됐다.
+
+### profile.sync 흐름
+
+`profile.sync`는 `since` cursor 기반 delta sync를 지원한다.
 
 ```ts
-type ProfileCacheQuery = {
-    siteId: string;
-    userId?: string;
-};
+const result = await profile.sync<SiteProfileSyncView>({ since: lastSyncedAt });
+// result.profiles: { [uid]: ProfileView | null }  — null은 삭제됨을 의미
+// result.syncedAt: 다음 since 값으로 저장
 ```
 
-### 권장 V2 모델
+`ProfileRepositoryV2.syncProfiles(since)`가 이 결과를 해석해 local cache에 upsert / remove한다. `app-runtime/sync`의 `ProfileSyncPlan`이 호출 타이밍과 `since` 저장을 관리한다.
+
+### 캐시 키
 
 ```ts
-interface DomainProfile {
-    id: string; // `${siteId}:${userId}`
-    siteId: string;
-    userId: string;
-    cid: string;
-    nick?: string;
-    status?: string;
-    image?: string;
-    updatedAt?: number;
-}
+// profile id = `${siteId}:${userId}`
+profile:${sid}:${uid}
 ```
 
-`ProfileView`의 실제 필드 집합은 서버 타입 정의를 따른다. 위 예시는 local cache key와 scope를 설명하기 위한 최소 예시다.
+### 동기화 정책
 
-### 권장 repository 동작
-
-#### 조회
-
-```ts
-async function refreshProfile(query: { siteId: string; userId?: string }) {
-    const remote = await profileRemoteDataSource.getSiteProfile(query);
-    const domain = toDomainProfile(remote, scope);
-    await profileLocalDataSource.cacheWrite(domain, context);
-}
-```
-
-#### 수정
-
-```ts
-async function updateProfile(payload: UserSetSiteProfileInput) {
-    const existing = await profileLocalDataSource.cacheRead(makeProfileId(payload), context);
-    await profileLocalDataSource.cacheWrite(toOptimisticProfilePatch(payload), context);
-
-    try {
-        const remote = await profileRemoteDataSource.setSiteProfile(payload);
-        await profileLocalDataSource.cacheWrite(toDomainProfile(remote, scope), context);
-    } catch (error) {
-        if (existing) await profileLocalDataSource.cacheWrite(existing, context);
-        throw error;
-    }
-}
-```
-
-권장 정책:
-
-1. `get-site-profile` 는 full read 기준
-2. `set-site-profile` 는 optimistic patch 후 rollback 가능하게 구성
-3. profile 도 `cid` / `sid?` / `uid` scope 오염을 막기 위해 요청 시점 context 캡처 필요
-4. profile 캐시는 item 중심으로 시작하고, list/cache invalidation 은 후속 확장
-
-### local layer에 필요한 항목
-
-서버 스펙에 맞춰 `ProfileView`를 캐싱 포함으로 연동하려면 아래가 필요하다.
-
-1. `CacheType.profile` 를 실제 profile local data source 에서 사용
-2. `ProfileLocalDataSourceV2`
-    - `cacheRead(id)`
-    - `observeItem(id)`
-    - `cacheWrite(item)`
-    - `cacheDelete(id)`
-    - 필요 시 `cacheReadList(query)` / `observeList(query)`
-3. `DomainProfile`, `toDomainProfile()`
-4. `ProfileRepositoryV2`
-    - `observeItem`
-    - `refreshItem`
-    - `setSiteProfile`
-    - `cache*`
-
-### 문서 기준 결론
-
-현재 문서에서는 `ProfileView`를 아래처럼 이해해야 한다.
-
-- 현재: remote passthrough 중심
-- 목표: `ProfileView` -> `DomainProfile` 변환 후 local cache 적재 -> stream read
-
-즉 profile 도 `site` / `user`와 같은 V2 local-first 방향으로 맞추는 것이 목표다.
+1. full sync: `since: 0` → 전체 프로필 목록 수신
+2. diff sync: `since: N` → 마지막 sync 이후 변경 프로필만 수신
+3. `profiles[uid] === null` → 해당 프로필 local cache에서 삭제
+4. scope(sid) 전환 시 `since` 리셋 후 full sync 수행
 
 ---
 
@@ -578,31 +562,44 @@ interface SyncTargetDescriptor {
 
 ### 관련 gateway 메서드
 
-| 메서드                  | 입력                               | 응답                      |
-| ----------------------- | ---------------------------------- | ------------------------- |
-| `device.save`           | `DeviceBody`                       | `DeviceView`              |
-| `device.read`           | `{ id?: string } \| null`          | `DeviceView`              |
-| `channel.mine`          | `{ page?, limit? }`                | `ListResult<ChannelView>` |
-| `channel.sync`          | `{ since? }`                       | `ChannelSyncView`         |
-| `channel.unreads`       | `{}`                               | `UnreadsSummaryView`      |
-| `chat.feed`             | `{ channelId, cursorNo?, limit? }` | `ChatFeedResponse`        |
-| `chat.read`             | `{ channelId, chatNo }`            | `JoinView`                |
-| `channel.syncUsers`     | `{ channelId, since? }`            | `ChannelUsersSyncView`    |
-| `user.get-site-profile` | `{ siteId, userId? }`              | `ProfileView`             |
-| `user.set-site-profile` | `UserSetSiteProfileInput`          | `ProfileView`             |
+| 메서드              | 입력                               | 응답                      |
+| ------------------- | ---------------------------------- | ------------------------- |
+| `device.save`       | `DeviceBody`                       | `DeviceView`              |
+| `device.read`       | `{ id?: string } \| null`          | `DeviceView`              |
+| `channel.mine`      | `{ page?, limit? }`                | `ListResult<ChannelView>` |
+| `channel.sync`      | `{ since? }`                       | `ChannelSyncView`         |
+| `channel.unreads`   | `{}`                               | `UnreadsSummaryView`      |
+| `chat.feed`         | `{ channelId, cursorNo?, limit? }` | `ChatFeedResponse`        |
+| `chat.read`         | `{ channelId, chatNo }`            | `JoinView`                |
+| `channel.syncUsers` | `{ channelId, since? }`            | `ChannelUsersSyncView`    |
+| `place.create`      | `PlaceCreateInput`                 | `MySiteView`              |
+| `place.get`         | `PlaceGetInput`                    | `MySiteView`              |
+| `place.update`      | `PlaceUpdateInput`                 | `MySiteView`              |
+| `place.delete`      | `PlaceDeleteInput`                 | `MySiteView`              |
+| `cloud.create`      | `CloudCreateInput`                 | `CloudView`               |
+| `cloud.get`         | `CloudGetInput`                    | `CloudView`               |
+| `cloud.update`      | `CloudUpdateInput`                 | `CloudView`               |
+| `cloud.delete`      | `CloudDeleteInput`                 | `CloudView`               |
+| `profile.get`       | `ProfileGetInput`                  | `ProfileView`             |
+| `profile.get-mine`  | `ProfileGetMineInput \| null`      | `ProfileView`             |
+| `profile.set`       | `ProfileSetInput`                  | `ProfileView`             |
+| `profile.sync`      | `ProfileSyncInput \| null`         | `SiteProfileSyncView`     |
 
 ---
 
 ## 운영 규칙
 
-| 규칙                                   | 설명                                                                              |
-| -------------------------------------- | --------------------------------------------------------------------------------- |
-| `tick`은 서버 전용 값                  | `device.save` 입력의 `tick`은 서버가 무시한다.                                    |
-| `device.sync`는 weak trigger           | 응답이 없을 수 있으므로 기본적으로 `send()` 성격으로 다룬다.                      |
-| `channel.sync since` 저장 필요         | 응답의 `syncedAt`을 다음 `since`로 저장해야 diff가 정확하다.                      |
-| `channel.sync.ids`는 stale remove 기준 | 목록 반영만 하고 stale remove 를 생략하면 local cache가 오래 남을 수 있다.        |
-| 최신 chat sync 기준은 `chatNo`         | latest sync 판단과 pagination cursor 를 섞지 않는다.                              |
-| pagination cursor 는 `cursorNo`        | `cursorNo`는 이전 페이지 조회용이다.                                              |
-| local layer는 sync 주체가 아님         | repository / orchestration 이 remote 결과를 해석하고 local 은 저장/재방출만 한다. |
-| context 캡처 필요                      | remote 응답 적재 전 요청 시점 context 와 현재 context 가 같은지 확인해야 한다.    |
-| SPA unmount                            | `runtime.stop()` 후 `client.destroy()` 호출로 listener leak 을 막는다.            |
+| 규칙                                   | 설명                                                                                                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `tick`은 서버 전용 값                  | `device.save` 입력의 `tick`은 서버가 무시한다.                                                               |
+| `device.sync`는 weak trigger           | 응답이 없을 수 있으므로 기본적으로 `send()` 성격으로 다룬다.                                                 |
+| `channel.sync since` 저장 필요         | 응답의 `syncedAt`을 다음 `since`로 저장해야 diff가 정확하다.                                                 |
+| `channel.sync.ids`는 stale remove 기준 | 목록 반영만 하고 stale remove 를 생략하면 local cache가 오래 남을 수 있다.                                   |
+| 최신 chat sync 기준은 `chatNo`         | latest sync 판단과 pagination cursor 를 섞지 않는다.                                                         |
+| pagination cursor 는 `cursorNo`        | `cursorNo`는 이전 페이지 조회용이다.                                                                         |
+| local layer는 sync 주체가 아님         | repository / orchestration 이 remote 결과를 해석하고 local 은 저장/재방출만 한다.                            |
+| context 캡처 필요                      | remote 응답 적재 전 요청 시점 context 와 현재 context 가 같은지 확인해야 한다.                               |
+| 서버→클라이언트 push는 re-read 힌트    | `domain.sync` push를 받으면 해당 도메인 refresh를 즉시 실행한다. pull loop와 독립적이다.                     |
+| 429는 클라이언트 측 reject             | in-flight 32 / pending 512 초과 시 서버 무관하게 클라이언트가 reject한다. 서버 429와 구분해서 처리해야 한다. |
+| `meta.ts` 는 서버 타임스탬프           | 모든 `:ok` 응답에 포함된 서버 측 처리 시각이다. 현재 `syncedAt`과 별도로 존재한다.                           |
+| SPA unmount                            | `runtime.stop()` 후 `client.destroy()` 호출로 listener leak 을 막는다.                                       |

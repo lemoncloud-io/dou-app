@@ -9,8 +9,8 @@ import type { IChatRemoteDataSource } from './ChatRemoteDataSource';
 import { ChatRemoteDataSource } from './ChatRemoteDataSource';
 import type { IJoinRemoteDataSource } from './JoinRemoteDataSource';
 import { JoinRemoteDataSource } from './JoinRemoteDataSource';
-import type { ISiteRemoteDataSource } from './SiteRemoteDataSource';
-import { SiteRemoteDataSource } from './SiteRemoteDataSource';
+import type { IPlaceRemoteDataSource } from './PlaceRemoteDataSource';
+import { PlaceRemoteDataSource } from './PlaceRemoteDataSource';
 import type { IUserRemoteDataSource } from './UserRemoteDataSource';
 import { UserRemoteDataSource } from './UserRemoteDataSource';
 import type { IDeviceRemoteDataSource } from './DeviceRemoteDataSource';
@@ -26,7 +26,7 @@ export * from './AuthRemoteDataSource';
 export * from './ChannelRemoteDataSource';
 export * from './ChatRemoteDataSource';
 export * from './JoinRemoteDataSource';
-export * from './SiteRemoteDataSource';
+export * from './PlaceRemoteDataSource';
 export * from './UserRemoteDataSource';
 export * from './DeviceRemoteDataSource';
 export * from './SocketsRemoteDataSource';
@@ -38,7 +38,7 @@ export interface RemoteDataSources {
     channel: IChannelRemoteDataSource;
     chat: IChatRemoteDataSource;
     join: IJoinRemoteDataSource;
-    site: ISiteRemoteDataSource;
+    place: IPlaceRemoteDataSource;
     user: IUserRemoteDataSource;
     device: IDeviceRemoteDataSource;
     sockets: ISocketsRemoteDataSource;
@@ -60,7 +60,7 @@ export const createRemoteDataSources = ({
     channel: new ChannelRemoteDataSource(domainEventBus, gateways.channel),
     chat: new ChatRemoteDataSource(domainEventBus, gateways.chat),
     join: new JoinRemoteDataSource(domainEventBus, gateways.join),
-    site: new SiteRemoteDataSource(domainEventBus, gateways.site),
+    place: new PlaceRemoteDataSource(domainEventBus, gateways.place),
     user: new UserRemoteDataSource(domainEventBus, gateways.user),
     device: new DeviceRemoteDataSource(domainEventBus, gateways.device),
     sockets: new SocketsRemoteDataSource(domainEventBus, gateways.sockets),

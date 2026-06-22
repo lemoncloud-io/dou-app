@@ -7,7 +7,7 @@ import { ChatRepositoryV2, type IChatRepositoryV2 } from './ChatRepositoryV2';
 import { InviteCloudRepositoryV2, type IInviteCloudRepositoryV2 } from './InviteCloudRepositoryV2';
 import { JoinRepositoryV2, type IJoinRepositoryV2 } from './JoinRepositoryV2';
 import { ProfileRepositoryV2, type IProfileRepositoryV2 } from './ProfileRepositoryV2';
-import { SiteRepositoryV2, type ISiteRepositoryV2 } from './SiteRepositoryV2';
+import { PlaceRepositoryV2, type IPlaceRepositoryV2 } from './PlaceRepositoryV2';
 import { UserRepositoryV2, type IUserRepositoryV2 } from './UserRepositoryV2';
 import type { DataContextProviderV2 } from './types';
 
@@ -17,7 +17,7 @@ export * from './ChatRepositoryV2';
 export * from './InviteCloudRepositoryV2';
 export * from './JoinRepositoryV2';
 export * from './ProfileRepositoryV2';
-export * from './SiteRepositoryV2';
+export * from './PlaceRepositoryV2';
 export * from './UserRepositoryV2';
 
 export interface DataRepositoriesV2 {
@@ -26,7 +26,7 @@ export interface DataRepositoriesV2 {
     inviteCloud: IInviteCloudRepositoryV2;
     join: IJoinRepositoryV2;
     profile: IProfileRepositoryV2;
-    site: ISiteRepositoryV2;
+    place: IPlaceRepositoryV2;
     user: IUserRepositoryV2;
     dispose(): void;
 }
@@ -53,12 +53,11 @@ export const createRepositoriesV2 = ({
     const join = new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context, domainEventBus);
     const profile = new ProfileRepositoryV2(
         remoteDataSources.profile,
-        remoteDataSources.user,
         localDataSources.profile,
         context,
         domainEventBus
     );
-    const site = new SiteRepositoryV2(remoteDataSources.site, localDataSources.site, context, domainEventBus);
+    const place = new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context, domainEventBus);
     const user = new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context, domainEventBus);
 
     return {
@@ -67,7 +66,7 @@ export const createRepositoriesV2 = ({
         inviteCloud,
         join,
         profile,
-        site,
+        place,
         user,
         dispose() {
             channel.dispose();
@@ -75,7 +74,7 @@ export const createRepositoriesV2 = ({
             inviteCloud.dispose();
             join.dispose();
             profile.dispose();
-            site.dispose();
+            place.dispose();
             user.dispose();
         },
     };

@@ -1,5 +1,5 @@
 import type { CacheStorage } from '../storages';
-import { SiteLocalDataSourceV2 } from './SiteLocalDataSourceV2';
+import { PlaceLocalDataSourceV2 } from './PlaceLocalDataSourceV2';
 
 // Keep storage unsorted so ordering guarantees are proven by the datasource, not the fixture.
 const createMemoryStorage = (): CacheStorage<'site'> => {
@@ -34,7 +34,7 @@ const createMemoryStorage = (): CacheStorage<'site'> => {
     };
 };
 
-describe('SiteLocalDataSourceV2', () => {
+describe('PlaceLocalDataSourceV2', () => {
     const contextProvider = {
         current: { cid: 'cloud-a', sid: 'site-1', uid: 'me' },
         getContext() {
@@ -45,9 +45,9 @@ describe('SiteLocalDataSourceV2', () => {
         },
     };
 
-    it('sorts sites by server order before name so the rail stays deterministic', async () => {
+    it('sorts places by server order before name so the rail stays deterministic', async () => {
         const storage = createMemoryStorage();
-        const dataSource = new SiteLocalDataSourceV2(contextProvider as any, storage);
+        const dataSource = new PlaceLocalDataSourceV2(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([
             { id: 's2', name: 'Bravo', order: 2 } as any,
@@ -61,16 +61,16 @@ describe('SiteLocalDataSourceV2', () => {
         expect(result?.list.map(item => item.id)).toEqual(['s1', 's2', 's3']);
     });
 
-    it('clears all cached sites for the scope when a logout-style reset happens', async () => {
+    it('clears all cached places for the scope when a logout-style reset happens', async () => {
         const storage = createMemoryStorage();
-        const dataSource = new SiteLocalDataSourceV2(contextProvider as any, storage);
+        const dataSource = new PlaceLocalDataSourceV2(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 's1', name: 'Alpha' } as any, { id: 's2', name: 'Bravo' } as any]);
         await dataSource.cacheClear();
 
         const result = await dataSource.cacheReadList(undefined);
 
-        // Scope clear should leave no residual site rows behind.
+        // Scope clear should leave no residual place rows behind.
         expect(result?.list).toEqual([]);
     });
 });

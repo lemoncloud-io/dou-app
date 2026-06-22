@@ -1,14 +1,13 @@
 import { ProfileRepositoryV2 } from './ProfileRepositoryV2';
 
 describe('ProfileRepositoryV2', () => {
-    const createRepository = () => {
-        // Mock only the collaborators the repository should orchestrate.
+    const createRepository = (context: Record<string, unknown> = { cid: 'cloud-a', sid: 'site-1', uid: 'me' }) => {
+        // Profile owns its dedicated gateway: get / getMine / set / sync.
         const profileRemoteDataSource = {
-            getSiteProfile: jest.fn(),
-            setSiteProfile: jest.fn(),
-        };
-        const userRemoteDataSource = {
-            syncSiteProfile: jest.fn(),
+            get: jest.fn(),
+            getMine: jest.fn(),
+            set: jest.fn(),
+            sync: jest.fn(),
         };
         const profileLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -22,7 +21,7 @@ describe('ProfileRepositoryV2', () => {
             cacheClear: jest.fn(),
         };
         const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+            getContext: () => context,
             setContext: () => undefined,
         };
         const domainEventBus = {
@@ -33,23 +32,17 @@ describe('ProfileRepositoryV2', () => {
 
         const repository = new ProfileRepositoryV2(
             profileRemoteDataSource as any,
-            userRemoteDataSource as any,
             profileLocalDataSource as any,
-            contextProvider,
+            contextProvider as any,
             domainEventBus as any
         );
 
-        return {
-            repository,
-            profileRemoteDataSource,
-            userRemoteDataSource,
-            profileLocalDataSource,
-        };
+        return { repository, profileRemoteDataSource, profileLocalDataSource };
     };
 
     it('writes non-null sync deltas and deletes null resets for the current site', async () => {
-        const { repository, userRemoteDataSource, profileLocalDataSource } = createRepository();
-        userRemoteDataSource.syncSiteProfile.mockResolvedValue({
+        const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
+        profileRemoteDataSource.sync.mockResolvedValue({
             profiles: {
                 'user-1': { nick: 'Alice', thumbnail: 'thumb-1' },
                 'user-2': null,
@@ -59,7 +52,8 @@ describe('ProfileRepositoryV2', () => {
 
         const result = await repository.syncProfiles(0);
 
-        // Non-null deltas should be normalized into cache writes for the active site scope.
+        // profile.sync delta → cache writes for the active site scope.
+        expect(profileRemoteDataSource.sync).toHaveBeenCalledWith({ since: 0 });
         expect(profileLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [
                 expect.objectContaining({
@@ -80,7 +74,7 @@ describe('ProfileRepositoryV2', () => {
         expect(result).toEqual({ syncedAt: 123, updatedCount: 1, removedCount: 1 });
     });
 
-    it('rolls back the optimistic cache write when setSiteProfile fails', async () => {
+    it('rolls back the optimistic cache write when setProfile fails', async () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
         profileLocalDataSource.cacheRead.mockResolvedValue({
             id: 'site-1:me',
@@ -89,16 +83,11 @@ describe('ProfileRepositoryV2', () => {
             userId: 'me',
             nick: 'Before',
         });
-        profileRemoteDataSource.setSiteProfile.mockRejectedValue(new Error('boom'));
+        profileRemoteDataSource.set.mockRejectedValue(new Error('boom'));
 
-        // The repository should optimistically patch local state first, then restore the previous snapshot on failure.
-        await expect(
-            repository.setSiteProfile({
-                siteId: 'site-1',
-                nick: 'After',
-                active: true,
-            } as any)
-        ).rejects.toThrow('boom');
+        await expect(repository.setProfile({ siteId: 'site-1', nick: 'After', active: true } as any)).rejects.toThrow(
+            'boom'
+        );
 
         // The rollback should restore the previous local snapshot after the remote failure.
         expect(profileLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
@@ -107,38 +96,42 @@ describe('ProfileRepositoryV2', () => {
         );
     });
 
-    it('throws when refreshItem cannot resolve a sid from input or context', async () => {
-        const { profileRemoteDataSource, userRemoteDataSource, profileLocalDataSource } = createRepository();
-        const repository = new ProfileRepositoryV2(
-            profileRemoteDataSource as any,
-            userRemoteDataSource as any,
-            profileLocalDataSource as any,
-            {
-                getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
-                setContext: () => undefined,
-            },
-            {
-                on: jest.fn(() => () => undefined),
-                emit: jest.fn(),
-                onAny: jest.fn(() => () => undefined),
-            } as any
-        );
-
-        await expect(repository.refreshItem()).rejects.toThrow('[RepositoryV2] sid is required.');
+    it('throws when refreshItem is given no id', async () => {
+        const { repository } = createRepository();
+        await expect(repository.refreshItem('')).rejects.toThrow('[RepositoryV2] id is required.');
     });
 
-    it('writes the fetched profile into local cache during refreshItem', async () => {
+    it('writes the fetched profile into local cache during refreshItem (profile.get)', async () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
-        profileRemoteDataSource.getSiteProfile.mockResolvedValue({
+        profileRemoteDataSource.get.mockResolvedValue({
             id: 'site-1:me',
             siteId: 'site-1',
             userId: 'me',
             nick: 'Alice',
         });
 
-        const result = await repository.refreshItem({ siteId: 'site-1', userId: 'me' } as any);
+        const result = await repository.refreshItem('site-1:me');
 
-        // refreshItem should normalize the remote payload and immediately hydrate local cache.
+        expect(profileRemoteDataSource.get).toHaveBeenCalledWith({ id: 'site-1:me' });
+        expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'site-1:me', sid: 'site-1', uid: 'me' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        expect(result).toEqual(expect.objectContaining({ id: 'site-1:me' }));
+    });
+
+    it('fetches my profile via profile.get-mine and hydrates local cache', async () => {
+        const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
+        profileRemoteDataSource.getMine.mockResolvedValue({
+            id: 'site-1:me',
+            siteId: 'site-1',
+            userId: 'me',
+            nick: 'Me',
+        });
+
+        const result = await repository.getMyProfile();
+
+        expect(profileRemoteDataSource.getMine).toHaveBeenCalled();
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-1:me', sid: 'site-1', uid: 'me' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -150,12 +143,11 @@ describe('ProfileRepositoryV2', () => {
         const { repository, profileLocalDataSource } = createRepository();
 
         await repository.cacheRead('site-1:me');
-        await repository.cacheReadList({ siteId: 'site-1' });
+        await repository.cacheReadList({ siteId: 'site-1' } as any);
         await repository.cacheWrite({ id: 'site-1:me' } as any);
         await repository.cacheDelete('site-1:me');
         await repository.cacheClear();
 
-        // Cache helpers should remain thin wrappers around the profile local datasource.
         expect(profileLocalDataSource.cacheClear).toHaveBeenCalledWith({
             cid: 'cloud-a',
             sid: 'site-1',
@@ -163,9 +155,9 @@ describe('ProfileRepositoryV2', () => {
         });
     });
 
-    it('uses the scoped sid when setMyProfile delegates to setSiteProfile', async () => {
+    it('uses the scoped sid when setMyProfile delegates to setProfile (profile.set)', async () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
-        profileRemoteDataSource.setSiteProfile.mockResolvedValue({
+        profileRemoteDataSource.set.mockResolvedValue({
             id: 'site-1:me',
             siteId: 'site-1',
             userId: 'me',
@@ -174,9 +166,7 @@ describe('ProfileRepositoryV2', () => {
 
         const result = await repository.setMyProfile({ nick: 'After' } as any);
 
-        expect(profileRemoteDataSource.setSiteProfile).toHaveBeenCalledWith(
-            expect.objectContaining({ siteId: 'site-1' })
-        );
+        expect(profileRemoteDataSource.set).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'site-1' }));
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ sid: 'site-1', uid: 'me' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -184,24 +174,10 @@ describe('ProfileRepositoryV2', () => {
         expect(result).toEqual(expect.objectContaining({ id: 'site-1:me' }));
     });
 
-    it('throws when setSiteProfile cannot resolve a uid from payload or context', async () => {
-        const { profileRemoteDataSource, userRemoteDataSource, profileLocalDataSource } = createRepository();
-        const repository = new ProfileRepositoryV2(
-            profileRemoteDataSource as any,
-            userRemoteDataSource as any,
-            profileLocalDataSource as any,
-            {
-                getContext: () => ({ cid: 'cloud-a', sid: 'site-1' }),
-                setContext: () => undefined,
-            },
-            {
-                on: jest.fn(() => () => undefined),
-                emit: jest.fn(),
-                onAny: jest.fn(() => () => undefined),
-            } as any
-        );
+    it('throws when setProfile cannot resolve a uid from payload or context', async () => {
+        const { repository } = createRepository({ cid: 'cloud-a', sid: 'site-1' });
 
-        await expect(repository.setSiteProfile({ siteId: 'site-1', nick: 'After' } as any)).rejects.toThrow(
+        await expect(repository.setProfile({ siteId: 'site-1', nick: 'After' } as any)).rejects.toThrow(
             '[RepositoryV2] uid is required.'
         );
     });

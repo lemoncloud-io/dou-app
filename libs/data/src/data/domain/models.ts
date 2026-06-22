@@ -63,11 +63,14 @@ export interface DomainUser extends UserView {
     cid: string;
 }
 
-export interface DomainSite extends SiteView {
+export interface DomainPlace extends SiteView {
     id: string;
     cid: string;
     order: number;
 }
+
+/** @deprecated Use {@link DomainPlace}. Site was consolidated into the Place domain. */
+export type DomainSite = DomainPlace;
 
 export interface DomainProfile extends ProfileView, Partial<ProfileDisplay> {
     id: string;

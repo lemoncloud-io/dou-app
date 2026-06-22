@@ -5,7 +5,7 @@ import { ChatLocalDataSourceV2, type IChatLocalDataSourceV2 } from './ChatLocalD
 import { InviteCloudLocalDataSourceV2, type IInviteCloudLocalDataSourceV2 } from './InviteCloudLocalDataSourceV2';
 import { JoinLocalDataSourceV2, type IJoinLocalDataSourceV2 } from './JoinLocalDataSourceV2';
 import { ProfileLocalDataSourceV2, type IProfileLocalDataSourceV2 } from './ProfileLocalDataSourceV2';
-import { SiteLocalDataSourceV2, type ISiteLocalDataSourceV2 } from './SiteLocalDataSourceV2';
+import { PlaceLocalDataSourceV2, type IPlaceLocalDataSourceV2 } from './PlaceLocalDataSourceV2';
 import { UserLocalDataSourceV2, type IUserLocalDataSourceV2 } from './UserLocalDataSourceV2';
 
 export * from './types';
@@ -14,7 +14,7 @@ export * from './ChatLocalDataSourceV2';
 export * from './InviteCloudLocalDataSourceV2';
 export * from './JoinLocalDataSourceV2';
 export * from './ProfileLocalDataSourceV2';
-export * from './SiteLocalDataSourceV2';
+export * from './PlaceLocalDataSourceV2';
 export * from './UserLocalDataSourceV2';
 
 export interface LocalDataSourcesV2 {
@@ -23,7 +23,7 @@ export interface LocalDataSourcesV2 {
     inviteCloud: IInviteCloudLocalDataSourceV2;
     join: IJoinLocalDataSourceV2;
     profile: IProfileLocalDataSourceV2;
-    site: ISiteLocalDataSourceV2;
+    place: IPlaceLocalDataSourceV2;
     user: IUserLocalDataSourceV2;
 }
 
@@ -44,6 +44,7 @@ export const createLocalDataSourcesV2 = (
     inviteCloud: new InviteCloudLocalDataSourceV2(contextProvider, storages.inviteCloud),
     join: new JoinLocalDataSourceV2(contextProvider, storages.join),
     profile: new ProfileLocalDataSourceV2(contextProvider, storages.profile),
-    site: new SiteLocalDataSourceV2(contextProvider, storages.site),
+    // Place reuses the 'site' cache storage slot (same entity).
+    place: new PlaceLocalDataSourceV2(contextProvider, storages.site),
     user: new UserLocalDataSourceV2(contextProvider, storages.user),
 });

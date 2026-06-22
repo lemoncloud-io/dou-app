@@ -3,12 +3,11 @@ import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gatew
 import type { IEventBus } from '../../events/eventBus';
 import type { DomainEventMap } from '../../events/domain';
 import type {
-    ChatUsersInput,
-    UserUpdateProfileInput,
-    UserInviteInput,
-    UserInviteBatchInput,
     ChannelSyncUsersInput,
-    ChannelSyncSiteProfileInput,
+    ChatUsersInput,
+    UserInviteBatchInput,
+    UserInviteInput,
+    UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 
 describe('UserRemoteDataSource', () => {
@@ -36,7 +35,7 @@ describe('UserRemoteDataSource', () => {
     it('updateProfile 호출 시 user.update-profile 액션으로 request가 전송되어야 한다', async () => {
         const payload: UserUpdateProfileInput = { name: 'New Name' };
         await dataSource.updateProfile(payload);
-        expect(mockGateways.user.updateProfile).toHaveBeenCalledWith(payload);
+        expect(mockGateways.user.update).toHaveBeenCalledWith(payload);
     });
 
     it('requestInvite 호출 시 user.invite 액션으로 request가 전송되어야 한다', async () => {
@@ -55,12 +54,6 @@ describe('UserRemoteDataSource', () => {
         const payload: ChannelSyncUsersInput = { channelId: 'ch-1' };
         await dataSource.syncChannelUsers(payload);
         expect(mockGateways.user.syncUsers).toHaveBeenCalledWith(payload);
-    });
-
-    it('syncSiteProfile 호출 시 channel.sync-site-profile 액션으로 request가 전송되어야 한다', async () => {
-        const payload: ChannelSyncSiteProfileInput = {};
-        await dataSource.syncSiteProfile(payload);
-        expect(mockGateways.user.syncProfile).toHaveBeenCalledWith(payload);
     });
 
     it('handleModelEvent("create", data) 호출 시 user:create를 emit 해야 한다', () => {

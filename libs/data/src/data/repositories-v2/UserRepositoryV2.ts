@@ -1,5 +1,4 @@
 import type {
-    ChannelSyncSiteProfileInput,
     ChannelSyncUsersInput,
     ChatUsersInput,
     UserInviteInput,
@@ -29,7 +28,6 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
     requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]>;
     refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<RepositoryRefreshResult>;
-    refreshSiteProfile(payload: ChannelSyncSiteProfileInput): Promise<unknown>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;
@@ -144,10 +142,6 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         }
         await this.userLocalDataSource.cacheWriteMany(domainList, requestContext);
         return { wroteCount: domainList.length };
-    }
-
-    public refreshSiteProfile(payload: ChannelSyncSiteProfileInput): Promise<unknown> {
-        return this.userRemoteDataSource.syncSiteProfile(payload);
     }
 
     private initializeInternalListeners(): void {

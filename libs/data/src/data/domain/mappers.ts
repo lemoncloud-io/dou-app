@@ -14,9 +14,9 @@ import type {
     DomainChat,
     DomainInviteCloud,
     DomainJoin,
+    DomainPlace,
     DomainProfile,
     DomainScope,
-    DomainSite,
     DomainUser,
 } from './models';
 
@@ -115,10 +115,10 @@ export const toDomainUser = (
     };
 };
 
-export const toDomainSite = (
-    source: SiteView | CacheStorageItem<'site'> | Partial<DomainSite>,
+export const toDomainPlace = (
+    source: SiteView | CacheStorageItem<'site'> | Partial<DomainPlace>,
     scope: DomainScope
-): DomainSite => {
+): DomainPlace => {
     const rawType = (source as { type?: unknown }).type;
     const normalizedType = rawType === 'site' || rawType === 'user' ? rawType : undefined;
 
@@ -131,6 +131,9 @@ export const toDomainSite = (
         stereo: (source as { stereo?: string }).stereo === '' ? '' : undefined,
     };
 };
+
+/** @deprecated Use {@link toDomainPlace}. Site was consolidated into the Place domain. */
+export const toDomainSite = toDomainPlace;
 
 export const toDomainProfile = (
     source: (ProfileView & Partial<ProfileDisplay>) | CacheStorageItem<'profile'> | Partial<DomainProfile>,

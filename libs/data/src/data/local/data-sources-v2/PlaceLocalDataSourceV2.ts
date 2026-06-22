@@ -1,6 +1,6 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
-import type { DomainListResult, DomainSite } from '../../domain';
-import { createDomainListResult, toDomainSite } from '../../domain';
+import type { DomainListResult, DomainPlace } from '../../domain';
+import { createDomainListResult, toDomainPlace } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
 import type { CacheStorage, CacheStorageItem } from '../storages';
 import {
@@ -11,19 +11,20 @@ import {
     type LocalDataSourceV2Unsubscribe,
 } from './types';
 
-type SiteCache = CacheStorageItem<'site'>;
+// Place reuses the existing 'site' cache slot — site and place are the same entity.
+type PlaceCache = CacheStorageItem<'site'>;
 
-const getSiteSortValue = (site: Pick<DomainSite, 'name' | 'id'> & { order?: number }): string => {
-    const order = site.order ?? Number.MAX_SAFE_INTEGER;
-    const name = site.name ?? site.id ?? '';
+const getPlaceSortValue = (place: Pick<DomainPlace, 'name' | 'id'> & { order?: number }): string => {
+    const order = place.order ?? Number.MAX_SAFE_INTEGER;
+    const name = place.name ?? place.id ?? '';
     return `${String(order).padStart(10, '0')}:${name}`;
 };
 
-export interface ISiteLocalDataSourceV2
-    extends ILocalDataSourceV2<DomainSite, UserMySiteInput | undefined, DomainListResult<DomainSite>> {}
+export interface IPlaceLocalDataSourceV2
+    extends ILocalDataSourceV2<DomainPlace, UserMySiteInput | undefined, DomainListResult<DomainPlace>> {}
 
-/** Stores site records in local cache and keeps list observers aligned with sorted site output. */
-export class SiteLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ISiteLocalDataSourceV2 {
+/** Stores place records in local cache and keeps list observers aligned with sorted place output. */
+export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPlaceLocalDataSourceV2 {
     constructor(
         contextProvider: DataContextProvider,
         private readonly cacheStorage: CacheStorage<'site'>
@@ -31,20 +32,23 @@ export class SiteLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ISit
         super(contextProvider);
     }
 
-    public async cacheRead(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<DomainSite | null> {
+    public async cacheRead(
+        id: string,
+        contextOverride?: LocalDataSourceV2ContextOverride
+    ): Promise<DomainPlace | null> {
         const requiredId = this.assertRequiredString(id, 'id');
         const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainSite(item, this.getReadScope(item, contextOverride)) : null;
+        return item ? toDomainPlace(item, this.getReadScope(item, contextOverride)) : null;
     }
 
     public async cacheReadList(
         _query: UserMySiteInput | undefined,
         contextOverride?: LocalDataSourceV2ContextOverride
-    ): Promise<DomainListResult<DomainSite> | null> {
+    ): Promise<DomainListResult<DomainPlace> | null> {
         const items = await this.cacheStorage.loadAll();
         const list = items
-            .map(item => toDomainSite(item, this.getReadScope(item, contextOverride)))
-            .sort((left, right) => getSiteSortValue(left).localeCompare(getSiteSortValue(right)));
+            .map(item => toDomainPlace(item, this.getReadScope(item, contextOverride)))
+            .sort((left, right) => getPlaceSortValue(left).localeCompare(getPlaceSortValue(right)));
 
         return createDomainListResult(list, {
             total: list.length,
@@ -54,7 +58,7 @@ export class SiteLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ISit
 
     public observeItem(
         id: string,
-        callback: LocalDataSourceV2Callback<DomainSite | null>,
+        callback: LocalDataSourceV2Callback<DomainPlace | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
         return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
@@ -62,43 +66,43 @@ export class SiteLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ISit
 
     public observeList(
         query: UserMySiteInput | undefined,
-        callback: LocalDataSourceV2Callback<DomainListResult<DomainSite> | null>,
+        callback: LocalDataSourceV2Callback<DomainListResult<DomainPlace> | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
         return this.observeListQuery(
-            this.createListObserverKey(['sites'], contextOverride),
+            this.createListObserverKey(['places'], contextOverride),
             () => this.cacheReadList(query, contextOverride),
             callback
         );
     }
 
     public async cacheWrite(
-        item: Partial<DomainSite>,
+        item: Partial<DomainPlace>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
         const id = this.assertRequiredString(item.id, 'id');
         const existing = await this.cacheStorage.load(id);
         const context = this.getContext(contextOverride);
         const cid = context.cid || this.getCid(contextOverride);
-        const normalized = toDomainSite(
+        const normalized = toDomainPlace(
             {
                 ...(existing ?? {}),
                 ...(item as Record<string, unknown>),
                 cid,
-            } as Partial<DomainSite>,
+            } as Partial<DomainPlace>,
             {
                 cid,
                 sid: context.sid,
                 uid: context.uid,
             }
         );
-        await this.cacheStorage.save(id, normalized as SiteCache);
+        await this.cacheStorage.save(id, normalized as PlaceCache);
         this.scheduleItemReemit([id]);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|sites`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
     public async cacheWriteMany(
-        items: Array<Partial<DomainSite>>,
+        items: Array<Partial<DomainPlace>>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
         const validItems = items.filter(item => !!item.id);
@@ -109,30 +113,30 @@ export class SiteLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ISit
         const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
         const normalized = validItems.map(
             (item, index) =>
-                toDomainSite(
+                toDomainPlace(
                     {
                         ...(existingItems[index] ?? {}),
                         ...(item as Record<string, unknown>),
                         cid,
-                    } as Partial<DomainSite>,
+                    } as Partial<DomainPlace>,
                     {
                         cid,
                         sid: context.sid,
                         uid: context.uid,
                     }
-                ) as SiteCache
+                ) as PlaceCache
         );
 
         await this.cacheStorage.saveAll(normalized);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|sites`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const requiredId = this.assertRequiredString(id, 'id');
         await this.cacheStorage.delete(requiredId);
         this.scheduleItemReemit([requiredId]);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|sites`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
@@ -140,7 +144,7 @@ export class SiteLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ISit
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
         this.scheduleItemReemit(validIds);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|sites`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
     public async cacheClear(_contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
