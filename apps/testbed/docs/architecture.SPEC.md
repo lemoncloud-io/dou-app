@@ -92,14 +92,18 @@ flowchart LR
 
 ### 6.2 guest login 기본 동작
 
-- 앱은 유즈케이스 로직에 따라 relay 인증이 없으면 guest login을 즉시 수행한다
-- 이 규칙은 실제 코드의 `useRelaySessionKeepAlive` 동작과 일치해야 한다
+- 앱은 마운트 시점에 자동으로 guest login 프로세스를 수행해야 한다
+- guest login은 `app-runtime`의 `RuntimeConnectionHost`를 앱 루트에 마운트하는 것으로 시작된다
+- 내부적으로 `SessionBackgroundRunner`가 `useRelaySessionKeepAlive`를 구독하며, relay 인증이 없으면 guest login을 즉시 수행한다
 - 명시적인 relay 로그아웃 이후에도 relay 인증이 비어 있으면 guest login을 다시 즉시 수행해야 한다
 - 따라서 relay 로그아웃은 "앱 종료 상태"가 아니라 "relay 세션을 초기화한 뒤 guest 기본 상태로 복귀시키는 동작"으로 해석한다
+- 앱 진입 시 별도 로그인 화면 없이 guest 상태로 바로 채팅 홈에 진입해야 한다
 
 현재 코드 근거:
 
-- `libs/web-core/src/hooks/app/useRelaySessionKeepAlive.ts`
+- `libs/app-runtime/src/connection/RuntimeConnectionHost.tsx` — 앱 루트에 마운트할 provider
+- `libs/app-runtime/src/connection/SessionBackgroundRunner.tsx` — guest login 자동 수행
+- `libs/web-core/src/hooks/app/useRelaySessionKeepAlive.ts` — relay 인증 부재 시 guest login 트리거
 
 ### 6.3 하단 네비게이션
 
@@ -131,10 +135,11 @@ URL에 강제하는 것은 아니다.
 
 ### 8.1 앱 시작
 
-1. 앱 셸 초기화
-2. relay 인증 부재 시 guest login 시도
-3. 기본 cloud 기준 상태 확보
-4. 채팅 홈 진입
+1. 앱 셸 초기화 및 `RuntimeConnectionHost` 마운트
+2. `SessionBackgroundRunner`가 `useRelaySessionKeepAlive`를 통해 relay 인증 부재를 감지
+3. guest login 자동 수행 (사용자 개입 없음)
+4. 기본 cloud 기준 상태 확보
+5. 채팅 홈 진입
 
 ### 8.2 cloud 전환
 
@@ -145,13 +150,13 @@ URL에 강제하는 것은 아니다.
 5. target place 인증
 6. channel 목록 재조회
 
-이 흐름은 현재 `useCloudSwitchFlow`의 파이프라인과 모순되지 않아야 한다.
+이 흐름은 `libs/web-core`의 세션 서비스와 `libs/app-runtime`의 socket lifecycle을 조합하여 testbed에서 직접 구현한다.
 
-현재 코드 근거:
+구현 의존 라이브러리:
 
-- `apps/desktop-web/src/app/shared/hooks/useCloudSwitchFlow.ts`
-- `apps/desktop-web/src/app/shared/hooks/useClouds.ts`
-- `apps/desktop-web/src/app/shared/hooks/usePlaces.ts`
+- `libs/web-core` — 세션 상태, cloud 인증, activeServer
+- `libs/app-runtime` — socket lifecycle, repository 연결
+- `libs/data` — place / channel 데이터 조회
 
 ### 8.3 중계서버 클라우드 복귀
 
@@ -197,7 +202,7 @@ apps/testbed/
 
 ## 10. 수용 기준
 
-- guest 기본 진입이 동작해야 한다
+- 앱 실행 시 로그인 화면 없이 guest login이 자동으로 수행되어야 한다
 - 채팅/설정 하단 네비게이션이 동작해야 한다
 - 오버레이에서 세션/웹/DB/소켓 상태를 조회할 수 있어야 한다
 - cloud 전환 시 place / channel 목록이 현재 cloud 기준으로 갱신되어야 한다

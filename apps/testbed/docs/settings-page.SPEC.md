@@ -39,9 +39,10 @@
 
 #### Cloud 로그아웃
 
-- 현재 cloud 세션만 종료한다
+- 현재 cloud 세션만 종료한다 (`useLogoutCloudSession`)
 - relay 세션은 유지한다
-- 성공 시 활성 cloud는 `default` 기준으로 복귀한다
+- `cloud.isActive`가 `false`로 변경되면 `activeServer`가 자동으로 `kind: 'relay'`로 전환된다
+- 결과적으로 채팅 홈은 relay 기준 상태로 자동 복귀한다
 
 #### Relay 로그아웃
 

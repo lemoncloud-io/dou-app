@@ -23,13 +23,11 @@
 
 ## 4. 구현 참고
 
-현재 레포에는 이메일/비밀번호 입력을 사용하는 debug login 화면이 이미 있다.
-`testbed` 로그인 페이지는 이 패턴을 참고하되, testbed 라우트와 상태 흐름에 맞게
-조립한다.
+로그인 페이지는 `libs/web-core`의 세션 hook만 사용하여 testbed에서 직접 구현한다.
 
-참고 파일:
+사용 라이브러리:
 
-- `apps/desktop-web/src/app/features/auth/pages/DebugLoginPage.tsx`
+- `libs/web-core` — 이메일 로그인 API, 세션 상태 hook
 
 ## 5. 검증 포인트
 

@@ -15,6 +15,19 @@
 - 채널 목록은 현재 활성 place가 없으면 비어 있을 수 있다
 - 채널 목록이 비어 있는 경우, 비어 있는 이유를 설명하는 안내 문구를 함께 노출한다
 
+### 2.1 활성 클라우드 기준 조회
+
+채팅 홈의 모든 데이터 조회는 현재 `activeServer` 기준을 따른다.
+
+- `activeServer.kind === 'relay'`이면 relay 기준 context(`cid: 'default'`)로 조회한다
+- `activeServer.kind === 'cloud'`이면 `activeServer.cloudId`를 `cid`로 사용하여 조회한다
+- place 목록, channel 목록 모두 이 기준을 공유한다
+- `activeServer`가 바뀌면 기존 조회 결과를 즉시 폐기하고 새 기준으로 재조회한다
+
+코드 근거:
+
+- `libs/web-core/src/session/types.ts` — `ActiveServerContext` 타입 (`kind: 'relay' | 'cloud'`)
+
 초기 안내 문구 예시:
 
 - 아직 사이트 세션에 연결되지 않아 채널을 불러오지 못했습니다
@@ -53,7 +66,6 @@
 동작:
 
 - 현재 활성 cloud 기준으로 place 목록을 조회한다
-- cloud 전환 시 place 목록은 이전 cloud 데이터를 즉시 비우고 새 목록으로 갱신한다
 - 목록 갱신은 캐싱 스트림을 우선 사용한다
 
 ### 3.3 하단 Channel 목록
@@ -68,7 +80,6 @@
 동작:
 
 - 현재 활성 place 기준으로 channel 목록을 조회한다
-- place 전환 시 channel 목록은 이전 place 데이터를 즉시 비우고 새 목록으로 갱신한다
 - 목록 갱신은 캐싱 스트림을 우선 사용한다
 
 ## 4. Cloud 전환 규칙
@@ -79,12 +90,19 @@
 - cloud 인증이 완료되면 새 cloud 기준 place 목록을 다시 조회한다
 - place가 하나 이상 있으면 첫 place 또는 저장된 place를 선택한다
 
-### 4.2 cloud 세션 상태에서 중계서버 클라우드로 복귀
+### 4.2 cloud 세션 상태에서 중계서버 클라우드(relay)로 복귀
 
-- 현재 cloud 세션 상태에서 중계서버 클라우드를 클릭하면 cloud 세션 로그아웃으로 처리한다
-- relay 세션은 유지한다
-- 활성 cloud는 `default`로 되돌린다
-- place / channel 선택 상태는 중계서버 기준으로 다시 초기화한다
+- 현재 cloud 세션 상태에서 기본(relay) 클라우드를 클릭하면 cloud 세션 로그아웃으로 처리한다
+- 구현: `useLogoutCloudSession()` hook의 `logoutCloudSession()` 호출
+- relay 세션은 유지된다
+- `logoutCloudSession()` 내부에서 `cloud.isActive`가 `false`로 변경되면
+  `resolveActiveServerContext`가 자동으로 `activeServer.kind = 'relay'`로 전환한다
+- `activeServer`가 relay로 바뀐 시점에 채팅 홈은 relay 기준으로 place / channel 목록을 재조회한다
+
+코드 근거:
+
+- `libs/web-core/src/hooks/session/actions/useLogoutCloudSession.ts` — cloud 세션 로그아웃 hook
+- `libs/web-core/src/session/contextStore.ts` — `resolveActiveServerContext` (cloud.isActive false → relay 자동 전환)
 
 ### 4.3 내 클라우드 / 초대 클라우드 세션 로그아웃
 
@@ -111,8 +129,9 @@
 
 ## 8. 검증 포인트
 
-- guest 기본 진입 후 `default` cloud 기준 place 목록이 노출되어야 한다
-- invited cloud 선택 시 해당 cloud 기준 place 목록으로 바뀌어야 한다
-- 중계서버 클라우드 복귀 시 cloud logout 의미로 동작해야 한다
+- guest 기본 진입 후 `activeServer.kind === 'relay'` 기준 place 목록이 노출되어야 한다
+- cloud 선택 시 `activeServer.kind === 'cloud'`, `activeServer.cloudId`가 해당 cloud로 바뀌고 place 목록이 갱신되어야 한다
+- 기본(relay) 클라우드 클릭 시 `logoutCloudSession()`이 호출되고 `activeServer`가 relay로 자동 전환되어야 한다
+- relay 전환 직후 기존 cloud 기준 place/channel 목록이 즉시 폐기되고 relay 기준으로 재조회되어야 한다
 - place 전환 후 channel 목록이 캐싱 스트림 결과로 갱신되어야 한다
 - 활성 place가 없을 때 channel 빈 상태 문구가 노출되어야 한다
