@@ -44,10 +44,6 @@ export interface ProfileSyncSnapshot {
     lastSyncedAt: number;
 }
 
-export interface UserSyncTarget extends SyncTargetDescriptor {
-    type: 'user';
-}
-
 export interface IRuntimeSyncController {
     ensure(binding: RuntimeBinding): void;
     start(): Promise<void>;

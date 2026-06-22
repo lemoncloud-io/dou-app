@@ -8,13 +8,11 @@ import type { RuntimeBinding } from '../runtime/useRuntimeBinding';
 import { ChannelChatSyncPlan } from './ChannelChatSyncPlan';
 import { SiteSyncPlan } from './SiteSyncPlan';
 import { ProfileSyncPlan } from './ProfileSyncPlan';
-import { UserSyncPlan } from './UserSyncPlan';
 import type {
     RuntimeSyncDeps,
     ChannelChatSyncTarget,
     SiteSyncTarget,
     ProfileSyncTarget,
-    UserSyncTarget,
     IRuntimeSyncController,
     SyncDebugState,
     SyncRunReason,
@@ -89,12 +87,10 @@ export class RuntimeSyncController implements IRuntimeSyncController {
     private readonly channelChatPlan: ChannelChatSyncPlan;
     private readonly sitePlan: SiteSyncPlan;
     private readonly profilePlan: ProfileSyncPlan;
-    private readonly userPlan: UserSyncPlan;
 
     private activeTarget: ChannelChatSyncTarget | null = null;
     private siteTarget: SiteSyncTarget | null = null;
     private profileTarget: ProfileSyncTarget | null = null;
-    private userTarget: UserSyncTarget | null = null;
 
     constructor(private readonly deps: RuntimeSyncDeps) {
         this.timerScheduler = new CustomTimerScheduler();
@@ -157,12 +153,6 @@ export class RuntimeSyncController implements IRuntimeSyncController {
             },
             onSyncFinished,
         });
-
-        this.userPlan = new UserSyncPlan({
-            getRepositories: this.deps.getRepositories,
-            onSyncStart,
-            onSyncFinished,
-        });
     }
 
     public ensure(binding: RuntimeBinding): void {
@@ -199,12 +189,6 @@ export class RuntimeSyncController implements IRuntimeSyncController {
                 intervalMs: 30000,
             };
 
-            this.userTarget = {
-                type: 'user',
-                id: sid || undefined,
-                intervalMs: 15000,
-            };
-
             this.profileTarget = {
                 type: 'profile',
                 id: uid || undefined,
@@ -212,10 +196,13 @@ export class RuntimeSyncController implements IRuntimeSyncController {
             };
 
             if (this.started && this.scheduler) {
-                this.scheduler.start(this.activeTarget);
+                if (sid) {
+                    this.scheduler.start(this.activeTarget);
+                }
                 this.scheduler.start(this.siteTarget);
-                this.scheduler.start(this.userTarget);
-                this.scheduler.start(this.profileTarget);
+                if (sid) {
+                    this.scheduler.start(this.profileTarget);
+                }
             }
         }
 
@@ -260,7 +247,6 @@ export class RuntimeSyncController implements IRuntimeSyncController {
         this.scopeKey = null;
         this.activeTarget = null;
         this.siteTarget = null;
-        this.userTarget = null;
         this.profileTarget = null;
         this.lastSyncedAtByScope.clear();
         this.lastRunAt = null;
@@ -269,7 +255,7 @@ export class RuntimeSyncController implements IRuntimeSyncController {
     }
 
     public async requestRun(reason: SyncRunReason): Promise<void> {
-        if (!this.started || !this.activeTarget) {
+        if (!this.started || !this.activeTarget || !this.binding?.context.sid) {
             return;
         }
 
@@ -339,21 +325,19 @@ export class RuntimeSyncController implements IRuntimeSyncController {
         if (client) {
             this.scheduler = new DomainSyncScheduler({
                 client,
-                plans: [this.channelChatPlan, this.sitePlan, this.profilePlan, this.userPlan],
+                plans: [this.channelChatPlan, this.sitePlan, this.profilePlan],
                 now: this.deps.now,
                 timerScheduler: this.timerScheduler,
             });
 
-            if (this.activeTarget) {
+            const sid = this.binding?.context.sid;
+            if (this.activeTarget && sid) {
                 this.scheduler.start(this.activeTarget);
             }
             if (this.siteTarget) {
                 this.scheduler.start(this.siteTarget);
             }
-            if (this.userTarget) {
-                this.scheduler.start(this.userTarget);
-            }
-            if (this.profileTarget) {
+            if (this.profileTarget && sid) {
                 this.scheduler.start(this.profileTarget);
             }
         }

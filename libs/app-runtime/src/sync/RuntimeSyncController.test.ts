@@ -2,6 +2,12 @@ import type { DataRepositoriesV2, DomainListResult } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { RuntimeSyncController } from './RuntimeSyncController';
 
+if (typeof global.TextEncoder === 'undefined') {
+    const { TextEncoder, TextDecoder } = require('util');
+    global.TextEncoder = TextEncoder;
+    global.TextDecoder = TextDecoder as any;
+}
+
 jest.mock('@chatic/bridges', () => ({
     logger: {
         error: jest.fn(),
@@ -356,5 +362,26 @@ describe('RuntimeSyncController', () => {
         await waitForIdle(controller);
 
         expect(repositories.channel.refreshListSince).toHaveBeenCalledWith(0);
+    });
+
+    it('does not run ChannelSync or ProfileSync if sid is missing', async () => {
+        const socket = createSocketManager(true);
+        const { repositories } = createRepositories();
+        const controller = new RuntimeSyncController({
+            socketManager: socket.manager as any,
+            getRepositories: () => repositories,
+        });
+
+        controller.ensure({
+            context: { cid: 'cloud-1', sid: '', uid: 'user-1' },
+            socket: { config: { url: 'wss://socket', deviceId: 'device-1' } },
+        });
+
+        await controller.start();
+        await waitForIdle(controller);
+
+        expect(repositories.channel.refreshListSince).not.toHaveBeenCalled();
+        expect(repositories.profile.syncProfiles).not.toHaveBeenCalled();
+        expect(repositories.site.refreshList).toHaveBeenCalled();
     });
 });
