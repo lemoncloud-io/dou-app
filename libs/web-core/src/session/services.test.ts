@@ -45,6 +45,8 @@ const mockIdentitySetOAuthProvider = jest.fn();
 const mockIdentityGetOAuthProvider = jest.fn();
 const mockIdentitySetDelegatorId = jest.fn();
 const mockIdentitySetDeviceId = jest.fn();
+const mockIdentitySetIsGuest = jest.fn();
+const mockIdentityGetIsGuest = jest.fn();
 
 const mockSetSessionIdentityState = jest.fn();
 const mockSetSessionProfile = jest.fn();
@@ -116,6 +118,8 @@ jest.mock('./core', () => ({
         getOAuthProvider: (...args: unknown[]) => mockIdentityGetOAuthProvider(...args),
         setDelegatorId: (...args: unknown[]) => mockIdentitySetDelegatorId(...args),
         setDeviceId: (...args: unknown[]) => mockIdentitySetDeviceId(...args),
+        setIsGuest: (...args: unknown[]) => mockIdentitySetIsGuest(...args),
+        getIsGuest: (...args: unknown[]) => mockIdentityGetIsGuest(...args),
     },
     relayCore: {
         clearSelectedSite: (...args: unknown[]) => mockRelayClearSelectedSite(...args),

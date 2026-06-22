@@ -50,8 +50,11 @@ const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
     const isInvited = identityCore.getIsInvited();
     const cloudToken = cloudCore.getCloudToken();
     const activeProfile = cloudProfile ?? relayProfile;
-    const userRole = (activeProfile?.$user as { userRole?: string } | undefined)?.userRole ?? null;
-    const isGuest = userRole === 'guest';
+    const userRole =
+        (activeProfile?.$user as { userRole?: string } | undefined)?.userRole ??
+        (activeProfile as { userRole?: string } | undefined)?.userRole ??
+        null;
+    const isGuest = identityCore.getIsGuest() || userRole === 'guest';
     const userType = getUserType(activeProfile, isInvited, !!cloudToken);
 
     return {
@@ -107,16 +110,25 @@ let identityState = buildIdentityContext({
     error: null,
 });
 
+let cachedGlobalSessionContext: GlobalSessionContext | null = null;
+let cachedSessionAuthSnapshot: ReturnType<typeof getSessionAuthSnapshotRaw> | null = null;
+
+const getSessionAuthSnapshotRaw = () => {
+    const { isInitialized, isAuthenticated, error, activeProfile } = identityState;
+    return { isInitialized, isAuthenticated, error, activeProfile };
+};
+
 const getGlobalSessionContext = (): GlobalSessionContext => {
+    if (cachedGlobalSessionContext) return cachedGlobalSessionContext;
     const relay = buildRelayContext();
     const cloud = buildCloudContext();
-
-    return {
+    cachedGlobalSessionContext = {
         relay,
         cloud,
         identity: identityState,
         activeServer: resolveActiveServerContext(relay, cloud),
     };
+    return cachedGlobalSessionContext;
 };
 
 export const sessionContextStore = {
@@ -147,8 +159,9 @@ export const sessionContextStore = {
 };
 
 export const getSessionAuthSnapshot = () => {
-    const { isInitialized, isAuthenticated, error, activeProfile } = identityState;
-    return { isInitialized, isAuthenticated, error, activeProfile };
+    if (cachedSessionAuthSnapshot) return cachedSessionAuthSnapshot;
+    cachedSessionAuthSnapshot = getSessionAuthSnapshotRaw();
+    return cachedSessionAuthSnapshot;
 };
 
 export const getSelectedCloudId = (): string => cloudCore.getSelectedCloudId() || 'default';
@@ -186,7 +199,8 @@ export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
 
 export const setSessionProfile = (profile: UserProfile$): void => {
     identityCore.setRelayProfile(profile);
-    const userRoleGuest = (profile.$user as UserViewExtended)?.userRole === 'guest';
+    const userRoleGuest =
+        (profile.$user as UserViewExtended)?.userRole === 'guest' || (profile as any)?.userRole === 'guest';
     if (userRoleGuest && profile.uid) {
         identityCore.setDelegatorId(profile.uid);
     } else {

@@ -100,12 +100,22 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
     };
 };
 
-/**
- * Applies the relay-facing profile fields returned alongside a relay token issuance response.
- */
-const applyRelayProfile = (tokenView: UserTokenView): UserTokenView => {
+const applyRelayProfile = async (tokenView: UserTokenView): Promise<UserTokenView> => {
+    if (tokenView.Token) {
+        await webTransport.buildCredentialsByToken(tokenView.Token);
+    }
     const { Token: _token, ...profile } = tokenView;
+
+    // Detect and persist user role from the profile
+    const userRole = (profile as any)?.$user?.userRole ?? (profile as any)?.userRole;
+    if (userRole === 'guest') {
+        identityCore.setIsGuest(true);
+    } else if (userRole === 'user') {
+        identityCore.setIsGuest(false);
+    }
+
     setSessionProfile(profile as unknown as UserProfile$);
+    setSessionAuthenticated(true);
     return tokenView;
 };
 
@@ -148,7 +158,7 @@ export const loginRelayGuestByDevice = async (deviceId: string): Promise<UserTok
     persistDeviceId(deviceId);
     identityCore.setIsInvited(false);
     identityCore.setOAuthProvider(null);
-    return applyRelayProfile(await registerDevice(deviceId));
+    return await applyRelayProfile(await registerDevice(deviceId));
 };
 
 /**
@@ -162,7 +172,7 @@ export const loginRelayUser = async ({
     email?: boolean;
 }): Promise<UserTokenView> => {
     identityCore.setIsInvited(false);
-    return applyRelayProfile(await loginRelayRequest(body, email));
+    return await applyRelayProfile(await loginRelayRequest(body, email));
 };
 
 /**
@@ -180,7 +190,7 @@ export const loginRelaySocial = async ({
     if (provider !== undefined) {
         identityCore.setOAuthProvider(provider);
     }
-    return applyRelayProfile(tokenView);
+    return await applyRelayProfile(tokenView);
 };
 
 /**
@@ -199,7 +209,7 @@ export const loginWithInviteCode = async ({
     identityCore.setIsInvited(true);
     identityCore.setOAuthProvider(null);
     identityCore.setDelegatorId(delegatorId);
-    return applyRelayProfile(tokenView);
+    return await applyRelayProfile(tokenView);
 };
 
 const relayRefreshFlight = createSerializedSingleFlight<UserProfile$ | null>();
