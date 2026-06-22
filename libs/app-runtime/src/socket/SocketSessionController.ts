@@ -86,7 +86,7 @@ export class SocketSessionController {
             this.manager.markUnverified();
 
             try {
-                const token = await this.delegate!.refreshSocketToken('socket-401');
+                const token = await this.delegate?.refreshSocketToken('socket-401');
                 if (!token) {
                     throw new Error('Failed to obtain new token during recovery');
                 }
