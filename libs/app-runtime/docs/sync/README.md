@@ -83,7 +83,8 @@ Date: 2026-06-22
 ```text
 libs/app-runtime/src/
   sync/
-    ChannelChatSyncController.ts   # 핵심 오케스트레이터
+    ChannelChatSyncPlan.ts         # DomainSyncPlan 구현체
+    ChannelChatSyncController.ts   # DomainSyncScheduler 관리 및 디버그 상태 노출
     runtime.ts                     # 싱글톤 조립
     types.ts                       # 공개/내부 타입
     hooks/
@@ -94,8 +95,9 @@ libs/app-runtime/src/
 
 ### 배치 원칙
 
-1. **controller는 `src/sync/`**
-    - 순수 런타임 오케스트레이션 로직
+1. **Plan & Controller는 `src/sync/`**
+    - `ChannelChatSyncPlan`: 동기화 시점의 실제 데이터 읽기/쓰기 동작(Repository 호출)을 담당
+    - `ChannelChatSyncController`: 소켓 인스턴스 생명주기에 따라 `DomainSyncScheduler`를 초기화하고 라이프사이클 관리
 2. **binder는 `src/connection/`**
     - React lifecycle에 붙는 render-null 컴포넌트
 3. **singleton 조립은 `src/sync/runtime.ts`**
@@ -145,7 +147,10 @@ interface ChannelChatSyncState {
     lastSyncedAtByScope: Map<SyncScopeKey, number>;
     inFlight: boolean;
     started: boolean;
-    timer: ReturnType<typeof setInterval> | null;
+    scheduler: DomainSyncScheduler | null;
+    syncPlan: ChannelChatSyncPlan;
+    timerScheduler: SharedTimerScheduler;
+    activeTarget: ChannelChatSyncTarget | null;
     lastRunAt: number | null;
 }
 ```
@@ -308,32 +313,39 @@ sequenceDiagram
   participant B as RuntimeSyncBinder
   participant C as SyncController
   participant S as SocketManager
+  participant DS as DomainSyncScheduler
+  participant P as ChannelChatSyncPlan
   participant R as ChannelRepositoryV2
   participant H as ChatRepositoryV2
 
   B->>C: ensure(binding)
   B->>C: start()
-  C->>S: getSnapshot()
-  S-->>C: connected
-  C->>R: refreshListSince(0)
-  R-->>C: { syncedAt, changed channels }
-  C->>H: refreshList(channelId) for channels needing catch-up
+  C->>S: subscribeClient(listener)
+  S-->>C: ClientSocketV2 instance
+  C->>DS: new DomainSyncScheduler(client, [plan])
+  C->>DS: start(target)
+
+  Note over DS,P: When client transitions to connected (Bootstrap/Reconnect)
+  DS->>P: onConnected()
+  P->>DS: writeSnapshot(target, { lastSyncedAt: 0 })
+  DS->>P: run(target)
+  P->>R: refreshListSince(0)
+  R-->>P: { syncedAt, changed channels }
+  P->>H: refreshList(channelId) for channels needing catch-up
+  P->>DS: writeSnapshot(target, { lastSyncedAt: syncedAt })
 
   loop every interval while connected
-    C->>S: getSnapshot()
-    S-->>C: connected
-    C->>R: refreshListSince(lastSyncedAt)
-    R-->>C: { syncedAt, changed channels }
-    C->>H: refreshList(channelId) only if serverChatNo > localLatestChatNo
+    DS->>P: run(target)
+    P->>R: refreshListSince(lastSyncedAt)
+    R-->>P: { syncedAt, changed channels }
+    P->>H: refreshList(channelId) only if serverChatNo > localLatestChatNo
+    P->>DS: writeSnapshot(target, { lastSyncedAt: syncedAt })
   end
 
-  S-->>C: connected edge after reconnect
-  C->>R: refreshListSince(0)
-  R-->>C: full snapshot
-
   B->>C: ensure(new binding after scope change)
-  C->>C: stop old loop + reset since
-  C->>R: refreshListSince(0)
+  C->>DS: stop(old target)
+  C->>C: reset active target (new scopeKey)
+  C->>DS: start(new target)
 ```
 
 ### bootstrap

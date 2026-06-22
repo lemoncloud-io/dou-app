@@ -1,4 +1,5 @@
 import type { DataRepositoriesV2, DomainChannel } from '@chatic/data';
+import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import type { ISocketManager } from '../socket/types';
 import type { RuntimeBinding } from '../runtime/useRuntimeBinding';
 
@@ -22,6 +23,14 @@ export interface ChannelChatSyncDeps {
 }
 
 export interface SyncChannelSnapshot extends Pick<DomainChannel, 'id' | 'chatNo'> {}
+
+export interface ChannelChatSyncTarget extends SyncTargetDescriptor {
+    type: 'channel-chat';
+}
+
+export interface ChannelChatSyncSnapshot {
+    lastSyncedAt: number;
+}
 
 export interface IChannelChatSyncController {
     ensure(binding: RuntimeBinding): void;

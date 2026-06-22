@@ -59,6 +59,39 @@ const createRepositories = () => {
     return { repositories, chatCacheReadList };
 };
 
+const createClientMock = (isConnected: boolean) => {
+    const stateListeners = new Set<(event: any) => void>();
+    const messageListeners = new Set<(event: any) => void>();
+
+    return {
+        state: isConnected ? 'connected' : 'idle',
+        onState: jest.fn(listener => {
+            stateListeners.add(listener);
+            return () => {
+                stateListeners.delete(listener);
+            };
+        }),
+        onMessage: jest.fn(listener => {
+            messageListeners.add(listener);
+            return () => {
+                messageListeners.delete(listener);
+            };
+        }),
+        transition(nextState: string) {
+            const prev = this.state;
+            this.state = nextState as any;
+            for (const listener of stateListeners) {
+                listener({ prev, next: nextState });
+            }
+        },
+        emitMessage(message: any) {
+            for (const listener of messageListeners) {
+                listener({ message });
+            }
+        },
+    };
+};
+
 const createSocketManager = (isConnected = false) => {
     let snapshot = {
         state: isConnected ? 'connected' : 'idle',
@@ -69,6 +102,8 @@ const createSocketManager = (isConnected = false) => {
     } as const;
 
     const listeners = new Set<(state: typeof snapshot) => void>();
+    const client = createClientMock(isConnected);
+    let clientListener: ((client: any) => void) | null = null;
 
     return {
         manager: {
@@ -80,7 +115,16 @@ const createSocketManager = (isConnected = false) => {
                     listeners.delete(listener);
                 };
             }),
+            subscribeClient: jest.fn((listener: (client: any) => void) => {
+                clientListener = listener;
+                listener(client);
+                return () => {
+                    clientListener = null;
+                };
+            }),
+            getClient: jest.fn(() => client),
         },
+        client,
         emit(nextConnected: boolean) {
             snapshot = {
                 ...snapshot,
@@ -91,6 +135,8 @@ const createSocketManager = (isConnected = false) => {
             for (const listener of listeners) {
                 listener(snapshot);
             }
+
+            client.transition(nextConnected ? 'connected' : 'closed');
         },
     };
 };
