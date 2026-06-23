@@ -311,13 +311,14 @@ function useChannelRoom(channelId: string) {
 
 `libs/app-runtime`는 위 lib을 직접 노출하지 않고 `AppSyncRuntime`(`src/socket/sync/`)으로 감싼다. UI/앱은 `getAppSyncRuntime()`의 register\* 메서드만 쓴다.
 
-- **plan 등록**: `src/socket/sync/plans.ts`의 `createSyncPlans()`가 5종 plan을 만들고 각 콜백을 **data 레이어 repository**에 연결한다.
+- **plan 등록**: `src/socket/sync/plans.ts`의 `createSyncPlans()`가 plan을 만들고 각 콜백을 **data 레이어 repository**에 연결한다.
     - `device` → (캐시 미연결, 기본 동작)
     - `channel` → `onUpdate`/`onRemove` → `channel.cacheWrite` / `cacheDelete`
     - `place` → `place.cacheWrite` / `cacheDelete`
     - `profile` → `profile.cacheWrite` / `cacheDelete`
     - `chat` → `onApply` → `chat.cacheWriteMany(applied.map(toDomainChat))` (chatNo 기준 idempotent 머지, `onRemove` 없음 — 이력 보존)
-- **watch on/off**: `registerDevice` / `registerChannel` / `registerChat` / `registerPlace` / `registerProfile`. 모두 ref-count되며 dispose 함수를 반환한다(중복 register 안전, 마지막 dispose 시 `stopSync`).
+    - `join` → `onUpdate`/`onRemove` → `join.cacheWrite(toDomainJoin(view, scope))` / `cacheDelete` (v0.3.4 `JoinSyncPlan` 신규, `updatedAt` 기준 read-state sync — **작업 예정**)
+- **watch on/off**: `registerDevice` / `registerChannel` / `registerChat` / `registerPlace` / `registerProfile` / `registerJoin`(예정). 모두 ref-count되며 dispose 함수를 반환한다(중복 register 안전, 마지막 dispose 시 `stopSync`).
 
 ```ts
 import { getAppSyncRuntime } from '@chatic/app-runtime';

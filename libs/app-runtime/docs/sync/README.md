@@ -88,6 +88,7 @@ sync 타이밍은 데이터 해석 문제가 아니라 런타임 문제다.
 - [place-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/place-sync-plan.d.ts)
 - [profile-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/profile-sync-plan.d.ts)
 - [chat-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/chat-sync-plan.d.ts)
+- [join-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/join-sync-plan.d.ts)
 
 ---
 
@@ -104,7 +105,7 @@ flowchart TD
   SocketManager --> AppSyncRuntime["AppSyncRuntime"]
 
   AppSyncRuntime --> SyncRuntime["SocketRuntime (syncPlans only)"]
-  SyncRuntime --> Plans["Device / Channel / Place / Profile / Chat Plans"]
+  SyncRuntime --> Plans["Device / Channel / Place / Profile / Chat / Join Plans"]
   Plans --> Repos["Repositories"]
   Client --> Proxy["ManagedSocketClientProxy"]
   Proxy --> Gateways["Remote Gateways"]
@@ -211,16 +212,19 @@ libs/app-runtime/src/
 
 ## 9. plan 주입 정책
 
-현재 설치된 dist 기준 우선 주입 대상:
+현재 설치된 dist(`@lemoncloud/chatic-sockets-lib` v0.3.4) 기준 우선 주입 대상:
 
 - `DeviceSyncPlan`
 - `ChannelSyncPlan`
 - `PlaceSyncPlan`
 - `ProfileSyncPlan`
+- `ChatSyncPlan`
+- `JoinSyncPlan`
 
 주의:
 
-- `ChatSyncPlan` 표면은 패키지 버전에 따라 다를 수 있으므로 실제 설치본 기준으로 확인한다.
+- `ChatSyncPlan` / `JoinSyncPlan` 표면은 패키지 버전에 따라 다를 수 있으므로 실제 설치본 기준으로 확인한다.
+- `JoinSyncPlan`은 v0.3.4에서 신규 도입된 plan이며, 동일 버전에서 `join.get` / `join.update` 를 다루는 1급 `JoinGateway`(`createJoinGateway`)도 함께 추가됐다.
 
 권장 조립 방향:
 
@@ -288,14 +292,52 @@ interface ChatSyncSnapshot {
 chat plan은 아래 계층과 역할을 나눠 가진다.
 
 - `ChatRepositoryV2`: 메시지 본문 / 순서 / 중복 제거
-- `JoinRepositoryV2`: 현재 사용자 read-state 보정
+- `JoinSyncPlan` + `JoinRepositoryV2`: 현재 사용자 read-state 보정 (아래 Join Plan 명세 참조)
 - channel cache: 가능하면 최소 patch만 허용
 
 원칙:
 
 - 메시지 본문 소유권은 `ChatRepositoryV2`
-- 읽음 상태 소유권은 `JoinRepositoryV2`
+- 읽음 상태(read-state)의 sync 소유권은 `JoinSyncPlan`이며, local cache 소유권은 `JoinRepositoryV2`
 - 채널 메타(`chatNo`, preview, unread)는 기존 channel merge 정책과 충돌하지 않도록 최소 범위만 갱신
+
+> 과거에는 read-state를 chat plan 안에서 `JoinRepositoryV2`가 직접 보정했지만, v0.3.4부터는 `join.get` polling과 `join.sync` push를 다루는 별도 `JoinSyncPlan`이 read-state sync를 소유한다. chat plan은 메시지 본문에만 집중한다.
+
+### Join Plan 명세
+
+`JoinSyncPlan`은 v0.3.4에서 신규 도입된 **single-join polling plan**이다. join(채널 참여/읽음 상태)을 1급 sync 도메인으로 승격한다.
+
+- `target.type = 'join'`
+- `getKey(target)` = join id 기준 (composite join id, 클라이언트가 보관)
+- `run()` = `join.get` 을 polling 하여 최신 `JoinView` 확인
+- `onConnected()` = reconnect 후 snapshot 기준으로 catch-up
+- `onTrigger()` = `join.sync` push를 받으면 즉시 `join.get` 재조회
+
+적용 규칙:
+
+1. `join.get` 응답 `updatedAt` 이 snapshot 보다 최신이면 `onUpdate(target, view, previous)` 호출
+2. 변화가 없으면 no-op
+3. 대상이 사라지면 `onRemove(target, previous)` 호출
+
+`onUpdate` / `onRemove` 콜백은 `JoinRepositoryV2` 의 cache 메서드로 연결한다.
+
+- `onUpdate` → `join.cacheWrite(toDomainJoin(view, scope))`
+- `onRemove` → `target.id` 가 있으면 `join.cacheDelete(target.id)`
+
+즉 `JoinSyncPlan`은 channel/place/profile plan과 동일한 polling+trigger 패턴을 따르되, 대상 단위가 "단일 join id" 라는 점이 다르다.
+
+#### join.get / join.update 와 보조 명령의 경계
+
+v0.3.4 기준 join 도메인은 **1급 게이트웨이 + 보조 명령** 구조로 정리한다.
+
+- 1급 `JoinGateway`(`createJoinGateway`)
+    - `join.get` — 단일 join 스냅샷 조회 (`JoinSyncPlan` polling이 사용)
+    - `join.update` — join 메타(nick/notify/role) 수정
+- 보조 명령(별도 도메인 게이트웨이 유지)
+    - `chat.read` — 특정 메시지까지 읽음 처리(read cursor 전진)
+    - `channel.join` — 채널 참여 요청
+
+따라서 `JoinRemoteDataSource` / `JoinRepositoryV2` 는 join 단건 조회·수정은 `JoinGateway` 로, 읽음·참여 command는 기존 chat/channel 게이트웨이로 위임하는 다중 게이트웨이 참조 형태가 된다.
 
 ---
 
@@ -308,6 +350,7 @@ watch target은 아래 원칙으로 관리한다.
 3. `context` 변경만으로 target을 전부 제거하지 않는다.
 4. 화면 이탈이나 feature cleanup이 실제 target 해제의 주된 계기다.
 5. `chat` target은 channel 화면 lifecycle과 함께 움직이는 것을 기본값으로 한다.
+6. `join` target(`{ type: 'join', id }`)도 channel 화면 lifecycle을 따른다. 채널 진입 시 `chat:ch-1` 과 함께 해당 채널의 내 join id를 등록하고, 화면 이탈 시 함께 해제하는 것을 기본값으로 한다.
 
 ### `plan`과 `target`의 차이
 
@@ -335,6 +378,7 @@ watch target은 아래 원칙으로 관리한다.
 
 - 채널 화면 진입 시 `channel:ch-1` 등록
 - 채널 화면 진입 시 `chat:ch-1`도 함께 등록
+- 채널 화면 진입 시 `join:<myJoinId>`도 함께 등록
 - 프로필 화면 진입 시 `profile:user-1` 등록
 - 화면 이탈 시 해당 target 해제
 
@@ -418,6 +462,8 @@ interface SyncWatchRegistry {
     - 화면별 registration helper
 4. chat plan 부재를 패키지 업그레이드로 해결할지, 로컬 구현으로 메울지
 5. chat plan이 `ChatRepositoryV2` / `JoinRepositoryV2` / channel preview와 어떻게 역할을 나눌지
+6. `JoinSyncPlan` 도입 후 read-state 소유권이 chat plan에서 join plan으로 넘어갈 때, unread 재계산(`channel.sync` / `join.sync`)과 충돌하지 않는지
+7. join target id(composite join id)를 채널 화면이 어떻게 확보·등록할지 (`channel.sync` 응답의 `$join` 또는 join cache 기준)
 
 ---
 
@@ -429,8 +475,9 @@ interface SyncWatchRegistry {
 4. `SocketRuntime(syncPlans only)` 조립
 5. `device/channel/place/profile` plan 주입
 6. chat 동기화 plan 주입
-7. repository callback 연결
-8. reconnect / replacement / no-socket / chat gap-fill 테스트
+7. join 동기화 plan(`JoinSyncPlan`) 주입 — `createJoinGateway` 와이어링 + `onUpdate`/`onRemove` → `JoinRepositoryV2.cacheWrite`/`cacheDelete`
+8. repository callback 연결
+9. reconnect / replacement / no-socket / chat gap-fill / join read-state 테스트
 
 ---
 

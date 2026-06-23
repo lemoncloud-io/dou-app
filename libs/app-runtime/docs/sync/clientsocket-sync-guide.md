@@ -23,7 +23,7 @@ UI / Hook
      ├ KeepAliveLoop      ← system.ping (연결 생존)
      ├ AutoReconnect / ConnectionRotation
      └ SyncScheduler      ← "지금 무엇을 다시 읽을지"
-        └ DomainSyncPlan registry (Device / Channel / Chat / Profile / Place …)
+        └ DomainSyncPlan registry (Device / Channel / Chat / Profile / Place / Join …)
 ```
 
 핵심 경계(코드 확인):
@@ -37,17 +37,18 @@ UI / Hook
 
 ## 2. plan은 딱 두 부류다
 
-5개 plan을 읽어보면 구조가 **두 패밀리**로 갈린다. 이것이 동기화 설계의 핵심이다.
+plan을 읽어보면 구조가 **두 패밀리**로 갈린다. 이것이 동기화 설계의 핵심이다.
 
-| plan        | 버전 축     | `run` (polling)  | 갱신 트리거               | 인증실패(403/404)          | id 필요               |
-| ----------- | ----------- | ---------------- | ------------------------- | -------------------------- | --------------------- |
-| **Device**  | `tick`      | ✅ `device.read` | `run` 재호출              | **계속 retry** (자기 장치) | ❌ (없으면 현재 연결) |
-| **Channel** | `updatedAt` | ✅ `channel.get` | `run` 재호출              | **2회 후 자동 stop**       | ✅                    |
-| **Profile** | `updatedAt` | ✅ `profile.get` | `run` 재호출              | 2회 후 자동 stop           | ✅                    |
-| **Place**   | `updatedAt` | ✅ `place.get`   | `run` 재호출              | 2회 후 자동 stop           | ✅                    |
-| **Chat**    | `chatNo`    | ❌ **no-op**     | `onTrigger`로 직접 append | (해당 없음)                | ✅                    |
+| plan        | 버전 축     | `run` (polling)  | 갱신 트리거                | 인증실패(403/404)          | id 필요               |
+| ----------- | ----------- | ---------------- | -------------------------- | -------------------------- | --------------------- |
+| **Device**  | `tick`      | ✅ `device.read` | `run` 재호출               | **계속 retry** (자기 장치) | ❌ (없으면 현재 연결) |
+| **Channel** | `updatedAt` | ✅ `channel.get` | `run` 재호출               | **2회 후 자동 stop**       | ✅                    |
+| **Profile** | `updatedAt` | ✅ `profile.get` | `run` 재호출               | 2회 후 자동 stop           | ✅                    |
+| **Place**   | `updatedAt` | ✅ `place.get`   | `run` 재호출               | 2회 후 자동 stop           | ✅                    |
+| **Join**    | `updatedAt` | ✅ `join.get`    | `run` 재호출 / `join.sync` | 2회 후 자동 stop           | ✅                    |
+| **Chat**    | `chatNo`    | ❌ **no-op**     | `onTrigger`로 직접 append  | (해당 없음)                | ✅                    |
 
-→ **Channel/Profile/Place는 거의 동일한 polling+`updatedAt` 템플릿**이고, Device는 거기에 `tick`/hint/never-stop 변형, Chat만 완전히 다른 event-driven이다.
+→ **Channel/Profile/Place/Join은 거의 동일한 polling+`updatedAt` 템플릿**이고(Join은 v0.3.4 신규), Device는 거기에 `tick`/hint/never-stop 변형, Chat만 완전히 다른 event-driven이다.
 
 ### 2-A. Device — tick 비교 기반 pull
 
@@ -308,7 +309,7 @@ function useChannelMessages(channelId: string) {
 | `mine`            | `channel.mine`                  | `ChannelMineInput`            | `{ page?, limit?, detail?, hasSite? }` / null | `ListResult<ChannelView>`       |
 | `listUser`        | `channel.list-user`             | `ChannelListUserInput`        | `{ channelId, limit?, page?, detail? }`       | `ListResult<UserView>`          |
 | `invite`          | `channel.invite`                | `ChannelInviteInput`          | `{ channelId, userIds[] }`                    | `ChannelView`                   |
-| `updateJoin`      | `channel.update-join`           | `ChannelUpdateJoinInput`      | `{ channelId, joinId?, nick?, notify? }`      | `JoinView`                      |
+| ~~`updateJoin`~~  | ~~`channel.update-join`~~       | ~~`ChannelUpdateJoinInput`~~  | ~~`{ channelId, joinId?, nick?, notify? }`~~  | **deprecated → `join.update`**  |
 | `unreads`         | `channel.unreads`               | `ChannelUnreadsInput`         | `{}` / null                                   | `UnreadsSummaryView`            |
 | `sync`            | `channel.sync`                  | `ChannelSyncInput`            | `{ since? }`                                  | `ChannelSyncView`               |
 | `syncUsers`       | `channel.sync-users`            | `ChannelSyncUsersInput`       | `{ channelId, since? }`                       | `ChannelUsersSyncView`          |
@@ -334,6 +335,18 @@ function useChannelMessages(channelId: string) {
 
 `ProfileView` = `{ id?(=`sid@uid`), userId?, siteId?, nick?, thumbnail?, active?: boolean }`
 `SiteProfileSyncView` = `{ profiles: { [uid]: { nick?, thumbnail?, updatedAt? } | null(reset) }, syncedAt }` (key 부재=변경없음)
+
+### 7-E-2. join (`createJoinGateway`) — 응답 `$socials` (v0.3.4~)
+
+1급 join 도메인 게이트웨이. 단일 join 스냅샷 조회/수정을 담당하며, `JoinSyncPlan`이 `get`을 polling 한다. id는 클라이언트가 보관한 composite join id를 그대로 전달한다.
+
+| 메서드   | action        | 요청 Input              | (필드)                          | 응답       |
+| -------- | ------------- | ----------------------- | ------------------------------- | ---------- |
+| `get`    | `join.get`    | `JoinGetRequestBody`    | `{ id }`                        | `JoinView` |
+| `update` | `join.update` | `JoinUpdateRequestBody` | `{ id, nick?, notify?, role? }` | `JoinView` |
+
+`JoinView` = `{ id?, channelId?, ownerId?, stereo?, chatNo?, joined?, updatedAt? }` · `JoinSyncPlan`은 `updatedAt` 변화 기준으로 `onUpdate`를 호출한다.
+보조 command 경계: 읽음 처리는 `chat.read`(7-C), 채널 참여는 `channel.join`(7-D)으로 유지한다.
 
 ### 7-F. place(site) (`createPlaceGateway`) — 응답 `$backend`
 
