@@ -1,7 +1,13 @@
 import type { DomainSyncPlan } from '@lemoncloud/chatic-sockets-lib';
-import { ChannelSyncPlan, DeviceSyncPlan, PlaceSyncPlan, ProfileSyncPlan } from '@lemoncloud/chatic-sockets-lib';
+import {
+    ChannelSyncPlan,
+    ChatSyncPlan,
+    DeviceSyncPlan,
+    PlaceSyncPlan,
+    ProfileSyncPlan,
+} from '@lemoncloud/chatic-sockets-lib';
 import type { DomainScope } from '@chatic/data';
-import { toDomainChannel, toDomainPlace, toDomainProfile } from '@chatic/data';
+import { toDomainChannel, toDomainChat, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { getDataManager, getRepositories } from '../../data/runtime';
 
 /**
@@ -51,6 +57,17 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 if (!target.id) return;
                 const { profile } = getRepositories();
                 void profile.cacheDelete(target.id);
+            },
+        }),
+        // chat은 append-only event-driven plan. onApply가 적용된 메시지 델타(오름차순)를
+        // 넘기므로 chatNo 기준 idempotent 머지를 위해 cacheWriteMany로 일괄 반영한다.
+        // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
+        new ChatSyncPlan({
+            onApply: (_target, applied) => {
+                if (!applied.length) return;
+                const { chat } = getRepositories();
+                const scope = getScope();
+                void chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope)));
             },
         }),
     ];

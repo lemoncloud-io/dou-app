@@ -15,8 +15,6 @@ Date: 2026-06-23
 
 전부 named export다. default는 `createClientSocketV2`.
 
-> 주의: 이 문서는 라이브러리 설계/사용 표면을 설명한다. 실제 프로젝트에 설치된 dist 표면은 패치 버전에 따라 다를 수 있으며, 특히 현재 워크스페이스에서는 `plans/` 아래 `ChatSyncPlan`이 확인되지 않으므로 구현 전 [node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans) 기준으로 재확인해야 한다.
-
 ```ts
 import createClientSocketV2, {
     // 런타임 조립
@@ -306,6 +304,32 @@ function useChannelRoom(channelId: string) {
     return chatStore.useSelector(s => s.byChannel[channelId] ?? []);
 }
 ```
+
+---
+
+## 9-A. 이 리포(app-runtime) 통합 — `AppSyncRuntime`
+
+`libs/app-runtime`는 위 lib을 직접 노출하지 않고 `AppSyncRuntime`(`src/socket/sync/`)으로 감싼다. UI/앱은 `getAppSyncRuntime()`의 register\* 메서드만 쓴다.
+
+- **plan 등록**: `src/socket/sync/plans.ts`의 `createSyncPlans()`가 5종 plan을 만들고 각 콜백을 **data 레이어 repository**에 연결한다.
+    - `device` → (캐시 미연결, 기본 동작)
+    - `channel` → `onUpdate`/`onRemove` → `channel.cacheWrite` / `cacheDelete`
+    - `place` → `place.cacheWrite` / `cacheDelete`
+    - `profile` → `profile.cacheWrite` / `cacheDelete`
+    - `chat` → `onApply` → `chat.cacheWriteMany(applied.map(toDomainChat))` (chatNo 기준 idempotent 머지, `onRemove` 없음 — 이력 보존)
+- **watch on/off**: `registerDevice` / `registerChannel` / `registerChat` / `registerPlace` / `registerProfile`. 모두 ref-count되며 dispose 함수를 반환한다(중복 register 안전, 마지막 dispose 시 `stopSync`).
+
+```ts
+import { getAppSyncRuntime } from '@chatic/app-runtime';
+
+const sync = getAppSyncRuntime();
+const off = sync.registerChat('CH001'); // 채널 진입
+// ...
+off(); // 채널 이탈 (ref-count 0이면 stopSync)
+```
+
+- 갱신 데이터는 콜백 → repository cache → `observeList`/`observeItem` 스트림으로 UI에 흐른다(UI는 네트워크 콜 직접 안 함, [README.md](README.md) 원칙).
+- client 재생성(재로그인/재연결) 시 `AppSyncRuntime`이 등록된 target을 새 runtime에 자동 replay한다.
 
 ---
 

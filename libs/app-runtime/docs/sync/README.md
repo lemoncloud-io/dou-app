@@ -87,8 +87,7 @@ sync 타이밍은 데이터 해석 문제가 아니라 런타임 문제다.
 - [channel-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/channel-sync-plan.d.ts)
 - [place-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/place-sync-plan.d.ts)
 - [profile-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/profile-sync-plan.d.ts)
-
-현재 설치본 기준 `ChatSyncPlan`은 확인되지 않으므로, chat은 별도 검토가 필요하다.
+- [chat-sync-plan.d.ts](file:///Users/raine/Project/lemon/chatic-front/node_modules/@lemoncloud/chatic-sockets-lib/dist/client-socket-v2/plans/chat-sync-plan.d.ts)
 
 ---
 
@@ -105,7 +104,7 @@ flowchart TD
   SocketManager --> AppSyncRuntime["AppSyncRuntime"]
 
   AppSyncRuntime --> SyncRuntime["SocketRuntime (syncPlans only)"]
-  SyncRuntime --> Plans["Device / Channel / Place / Profile Plans"]
+  SyncRuntime --> Plans["Device / Channel / Place / Profile / Chat Plans"]
   Plans --> Repos["Repositories"]
   Client --> Proxy["ManagedSocketClientProxy"]
   Proxy --> Gateways["Remote Gateways"]
@@ -221,14 +220,82 @@ libs/app-runtime/src/
 
 주의:
 
-- `ChatSyncPlan`은 문서 참조에는 등장하지만 현재 설치본 dist 표면에서는 확인되지 않았다.
-- 따라서 chat sync는 이번 문서 기준 “후속 검토 대상”으로 둔다.
+- `ChatSyncPlan` 표면은 패키지 버전에 따라 다를 수 있으므로 실제 설치본 기준으로 확인한다.
 
 권장 조립 방향:
 
 1. `SocketRuntime`을 직접 사용한다.
 2. `createDeviceRuntime()`는 현 구조와 책임이 겹칠 수 있으므로 기본 선택지로 두지 않는다.
 3. 이유는 `SocketSessionController`가 이미 `device.save`와 auth/bootstrap 책임을 가지고 있기 때문이다.
+4. chat 동기화는 `DomainSyncPlan<'chat'>` 요구사항을 만족하는 방식으로 주입한다.
+
+### Chat Plan 명세
+
+chat은 channel/profile/place와 달리 polling plan이 아니다.
+
+- `target.type = 'chat'`
+- `run()` = no-op
+- 실제 동작은 `onConnected()`와 `onTrigger()` 중심
+
+핵심 규칙:
+
+1. `chat.sync` push가 오면 payload `chatNo`를 기준으로 append 또는 gap-fill 판단
+2. `chatNo === lastNo + 1` 이면 서버 재조회 없이 local cache에 바로 append
+3. `chatNo > lastNo + 1` 이면 gap으로 판단하고 `chat.feed`로 누락 구간을 보충
+4. reconnect 후에는 `channel.get`의 최신 `chatNo`를 기준으로 catch-up
+5. `chatNo <= lastNo` 는 중복으로 보고 무시
+
+### chat snapshot 명세
+
+`ChatSyncPlan`은 per-channel snapshot을 가진다.
+
+```ts
+interface ChatSyncSnapshot {
+    id: string;
+    lastNo: number;
+    minNo: number;
+    loaded: number;
+}
+```
+
+설명:
+
+- `lastNo`: 현재 runtime이 알고 있는 최신 chatNo
+- `minNo`: 현재 local cache에 남아 있는 최소 chatNo
+- `loaded`: 현재 baseline 기준 반영한 메시지 수
+
+이 snapshot은 전체 이력의 source of truth가 아니라 **catch-up 기준선**이다.
+
+### chat 연결/트리거 동작
+
+`onConnected()`:
+
+1. `channel.get({ id: channelId })` 호출
+2. 서버 최신 `chatNo` 확인
+3. snapshot `lastNo`와 비교
+4. 차이가 없으면 no-op
+5. 차이가 있으면 `chat.feed()`로 필요한 구간만 보충
+
+`onTrigger()`:
+
+1. payload `channelId !== target.id` 면 무시
+2. `chatNo <= lastNo` 면 무시
+3. `chatNo === lastNo + 1` 이면 바로 append
+4. `chatNo > lastNo + 1` 이면 gap-fill 수행
+
+### chat cache 반영 원칙
+
+chat plan은 아래 계층과 역할을 나눠 가진다.
+
+- `ChatRepositoryV2`: 메시지 본문 / 순서 / 중복 제거
+- `JoinRepositoryV2`: 현재 사용자 read-state 보정
+- channel cache: 가능하면 최소 patch만 허용
+
+원칙:
+
+- 메시지 본문 소유권은 `ChatRepositoryV2`
+- 읽음 상태 소유권은 `JoinRepositoryV2`
+- 채널 메타(`chatNo`, preview, unread)는 기존 channel merge 정책과 충돌하지 않도록 최소 범위만 갱신
 
 ---
 
@@ -240,6 +307,7 @@ watch target은 아래 원칙으로 관리한다.
 2. socket이 교체되면 registry를 새 runtime에 재등록한다.
 3. `context` 변경만으로 target을 전부 제거하지 않는다.
 4. 화면 이탈이나 feature cleanup이 실제 target 해제의 주된 계기다.
+5. `chat` target은 channel 화면 lifecycle과 함께 움직이는 것을 기본값으로 한다.
 
 ### `plan`과 `target`의 차이
 
@@ -266,6 +334,7 @@ watch target은 아래 원칙으로 관리한다.
 예:
 
 - 채널 화면 진입 시 `channel:ch-1` 등록
+- 채널 화면 진입 시 `chat:ch-1`도 함께 등록
 - 프로필 화면 진입 시 `profile:user-1` 등록
 - 화면 이탈 시 해당 target 해제
 
@@ -348,6 +417,7 @@ interface SyncWatchRegistry {
     - 전역 서비스
     - 화면별 registration helper
 4. chat plan 부재를 패키지 업그레이드로 해결할지, 로컬 구현으로 메울지
+5. chat plan이 `ChatRepositoryV2` / `JoinRepositoryV2` / channel preview와 어떻게 역할을 나눌지
 
 ---
 
@@ -358,8 +428,9 @@ interface SyncWatchRegistry {
 3. `SocketManager.subscribeClient(...)` 기반 runtime attach/detach 구현
 4. `SocketRuntime(syncPlans only)` 조립
 5. `device/channel/place/profile` plan 주입
-6. repository callback 연결
-7. reconnect / replacement / no-socket 테스트
+6. chat 동기화 plan 주입
+7. repository callback 연결
+8. reconnect / replacement / no-socket / chat gap-fill 테스트
 
 ---
 

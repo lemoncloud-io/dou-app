@@ -62,6 +62,20 @@ describe('AppSyncRuntime', () => {
         expect(runtime.stopSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
     });
 
+    it('registers a chat target and stops it on dispose', () => {
+        const appSyncRuntime = new AppSyncRuntime(manager, {
+            buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+        listener?.({ state: 'idle' } as ClientSocketV2);
+
+        const dispose = appSyncRuntime.registerChat('ch-1');
+        expect(runtime.startSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
+
+        dispose();
+        expect(runtime.stopSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
+    });
+
     it('reference-counts duplicate registrations before stopping a target', () => {
         const appSyncRuntime = new AppSyncRuntime(manager, {
             buildSyncPlans: () => [{ domain: 'place' } as DomainSyncPlan],

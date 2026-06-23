@@ -77,6 +77,14 @@ export class AppSyncRuntime implements IAppSyncRuntime {
         });
     }
 
+    public registerChat(id: string, intervalMs?: number): () => void {
+        return this.register({
+            type: 'chat',
+            id,
+            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+        });
+    }
+
     public registerPlace(id: string, intervalMs?: number): () => void {
         return this.register({
             type: 'place',
