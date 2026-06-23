@@ -20,7 +20,7 @@ type TypeListenerEntry = {
 
 /**
  * Stable proxy that survives socket instance replacement in SocketManager.
- * Gateways and inbound dispatchers bind to this proxy instead of a raw ClientSocketV2.
+ * Gateways and sync runtimes bind to this proxy instead of a raw ClientSocketV2.
  */
 export class ManagedSocketClientProxy {
     private currentClient: ClientSocketV2 | null = null;

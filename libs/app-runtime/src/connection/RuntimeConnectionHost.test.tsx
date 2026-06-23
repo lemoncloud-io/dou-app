@@ -3,7 +3,6 @@ import { render, waitFor } from '@testing-library/react';
 import { RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketRuntime, getSocketManager } from '../socket/runtime';
 import { getDataManager } from '../data/runtime';
-import { getSyncRuntime } from '../sync/runtime';
 import type { SocketSessionDelegate } from '../socket/types';
 
 jest.mock('@chatic/web-core', () => ({
@@ -30,6 +29,7 @@ jest.mock('../socket/runtime', () => {
         getSocketRuntime: jest.fn().mockReturnValue({
             controller: mockController,
             proxy: {},
+            sync: {},
         }),
         getSocketManager: jest.fn().mockReturnValue(mockManager),
     };
@@ -41,20 +41,6 @@ jest.mock('../data/runtime', () => {
     };
     return {
         getDataManager: jest.fn().mockReturnValue(mockDataManager),
-    };
-});
-
-jest.mock('../sync/runtime', () => {
-    const mockController = {
-        ensure: jest.fn(),
-        start: jest.fn(),
-        stop: jest.fn(),
-    };
-
-    return {
-        getSyncRuntime: jest.fn().mockReturnValue({
-            controller: mockController,
-        }),
     };
 });
 
@@ -87,7 +73,7 @@ describe('RuntimeConnectionHost', () => {
         });
     });
 
-    it('triggers data, socket, and sync binders when the binding changes', async () => {
+    it('triggers data and socket binders when the binding changes', async () => {
         const binding = {
             context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             socket: {
@@ -103,19 +89,12 @@ describe('RuntimeConnectionHost', () => {
 
         const dataManager = getDataManager();
         const socketRuntime = getSocketRuntime();
-        const syncRuntime = getSyncRuntime();
 
         await waitFor(() => {
             expect(dataManager.ensure).toHaveBeenCalledWith(binding.context);
         });
         await waitFor(() => {
             expect(socketRuntime.controller.bootstrap).toHaveBeenCalledWith(binding.socket.config);
-        });
-        await waitFor(() => {
-            expect(syncRuntime.controller.ensure).toHaveBeenCalledWith(binding);
-        });
-        await waitFor(() => {
-            expect(syncRuntime.controller.start).toHaveBeenCalled();
         });
 
         // 변경 테스트
@@ -139,9 +118,6 @@ describe('RuntimeConnectionHost', () => {
         const socketManager = getSocketManager();
         await waitFor(() => {
             expect(socketManager.destroy).toHaveBeenCalled();
-        });
-        await waitFor(() => {
-            expect(syncRuntime.controller.stop).toHaveBeenCalled();
         });
     });
 });
