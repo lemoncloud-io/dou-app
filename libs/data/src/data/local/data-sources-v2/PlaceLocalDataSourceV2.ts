@@ -1,8 +1,8 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../../domain';
-import { createDomainListResult, toDomainPlace } from '../../domain';
+import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
-import type { CacheStorage, CacheStorageItem } from '../storages';
+import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,
@@ -12,8 +12,6 @@ import {
 } from './types';
 
 // Place reuses the existing 'site' cache slot — site and place are the same entity.
-type PlaceCache = CacheStorageItem<'site'>;
-
 const getPlaceSortValue = (place: Pick<DomainPlace, 'name' | 'id'> & { order?: number }): string => {
     const order = place.order ?? Number.MAX_SAFE_INTEGER;
     const name = place.name ?? place.id ?? '';
@@ -34,21 +32,18 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
 
     public async cacheRead(
         id: string,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainPlace | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainPlace(item, this.getReadScope(item, contextOverride)) : null;
+        return this.cacheStorage.load(requiredId);
     }
 
     public async cacheReadList(
         _query: UserMySiteInput | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainPlace> | null> {
         const items = await this.cacheStorage.loadAll();
-        const list = items
-            .map(item => toDomainPlace(item, this.getReadScope(item, contextOverride)))
-            .sort((left, right) => getPlaceSortValue(left).localeCompare(getPlaceSortValue(right)));
+        const list = [...items].sort((left, right) => getPlaceSortValue(left).localeCompare(getPlaceSortValue(right)));
 
         return createDomainListResult(list, {
             total: list.length,
@@ -83,20 +78,15 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         const id = this.assertRequiredString(item.id, 'id');
         const existing = await this.cacheStorage.load(id);
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
-        const normalized = toDomainPlace(
-            {
-                ...(existing ?? {}),
-                ...(item as Record<string, unknown>),
-                cid,
-            } as Partial<DomainPlace>,
-            {
-                cid,
-                sid: context.sid,
-                uid: context.uid,
-            }
-        );
-        await this.cacheStorage.save(id, normalized as PlaceCache);
+        const cid = context.cid || 'default';
+        const merged: DomainPlace = {
+            ...(existing ?? ({} as DomainPlace)),
+            ...item,
+            id,
+            cid,
+            order: item.order ?? existing?.order ?? Number.MAX_SAFE_INTEGER,
+        };
+        await this.cacheStorage.save(id, merged);
         this.scheduleItemReemit([id]);
         this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
@@ -109,25 +99,20 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
+        const cid = context.cid || 'default';
         const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
-        const normalized = validItems.map(
-            (item, index) =>
-                toDomainPlace(
-                    {
-                        ...(existingItems[index] ?? {}),
-                        ...(item as Record<string, unknown>),
-                        cid,
-                    } as Partial<DomainPlace>,
-                    {
-                        cid,
-                        sid: context.sid,
-                        uid: context.uid,
-                    }
-                ) as PlaceCache
-        );
+        const mergedList = validItems.map((item, index) => {
+            const existing = existingItems[index];
+            return {
+                ...(existing ?? ({} as DomainPlace)),
+                ...item,
+                id: item.id!,
+                cid,
+                order: item.order ?? existing?.order ?? Number.MAX_SAFE_INTEGER,
+            } as DomainPlace;
+        });
 
-        await this.cacheStorage.saveAll(normalized);
+        await this.cacheStorage.saveAll(mergedList);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
         this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
@@ -150,16 +135,5 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
     public async cacheClear(_contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
         this.scheduleFullReemit();
-    }
-
-    private getReadScope(
-        item: { cid?: string } | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): { cid: string; sid?: string; uid?: string } {
-        return {
-            cid: item?.cid || this.getCid(contextOverride),
-            sid: this.getSid(contextOverride),
-            uid: this.getUid(contextOverride),
-        };
     }
 }

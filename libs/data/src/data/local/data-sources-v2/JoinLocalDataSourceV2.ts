@@ -1,7 +1,7 @@
 import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../../domain';
-import { createDomainListResult, toDomainJoin } from '../../domain';
+import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
-import type { CacheStorage, CacheStorageItem } from '../storages';
+import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,
@@ -9,8 +9,6 @@ import {
     type LocalDataSourceV2ContextOverride,
     type LocalDataSourceV2Unsubscribe,
 } from './types';
-
-type JoinCache = CacheStorageItem<'join'>;
 
 export interface IJoinLocalDataSourceV2
     extends ILocalDataSourceV2<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>> {}
@@ -24,24 +22,22 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         super(contextProvider);
     }
 
-    public async cacheRead(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<DomainJoin | null> {
+    public async cacheRead(
+        id: string,
+        _contextOverride?: LocalDataSourceV2ContextOverride
+    ): Promise<DomainJoin | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainJoin(item, this.getReadScope(item, contextOverride)) : null;
+        return this.cacheStorage.load(requiredId);
     }
 
     public async cacheReadList(
         query: DomainJoinListPayload,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainJoin> | null> {
-        const channelId = query?.channelId;
+        const channelId = this.assertRequiredString(query?.channelId, 'channelId');
 
         const allItems = await this.cacheStorage.loadAll();
-        let list = allItems.map(item => toDomainJoin(item, this.getReadScope(item, contextOverride)));
-
-        if (channelId) {
-            list = list.filter(item => item.channelId === channelId);
-        }
+        let list = allItems.filter(item => item.channelId === channelId);
 
         if (query?.activeOnly) {
             list = list.filter(item => item.joined === 1 || item.joined === undefined);
@@ -80,26 +76,26 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         const id = this.assertRequiredString(item.id, 'id');
 
         const context = this.getContext(contextOverride);
-        const existing = await this.cacheStorage.load(id);
-        const cid = context.cid || this.getCid(contextOverride);
-        const normalized = toDomainJoin(
-            {
-                ...(existing ?? {}),
-                ...(item as Record<string, unknown>),
-                cid,
-            } as Partial<DomainJoin>,
-            {
-                cid,
-                sid: context.sid,
-                uid: context.uid,
-            }
-        );
+        if (!context.sid) {
+            throw new Error('[JoinLocalDataSourceV2] sid is required in context to save join.');
+        }
 
-        await this.cacheStorage.save(id, normalized as JoinCache);
+        const existing = await this.cacheStorage.load(id);
+        const cid = context.cid || 'default';
+        const merged: DomainJoin = {
+            ...(existing ?? ({} as DomainJoin)),
+            ...item,
+            id,
+            cid,
+            channelId: item.channelId ?? existing?.channelId ?? '',
+            userId: item.userId ?? existing?.userId ?? '',
+            joined: item.joined ?? existing?.joined ?? 1,
+            readNo: item.readNo ?? existing?.readNo ?? 0,
+        };
+
+        await this.cacheStorage.save(id, merged);
         this.scheduleItemReemit([id]);
-        this.scheduleListReemit(
-            this.getAffectedListPrefixes([existing?.channelId, normalized.channelId], contextOverride)
-        );
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], contextOverride));
     }
 
     public async cacheWriteMany(
@@ -110,30 +106,32 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
+        if (!context.sid) {
+            throw new Error('[JoinLocalDataSourceV2] sid is required in context to save joins.');
+        }
+
+        const cid = context.cid || 'default';
         const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
 
-        const normalized = validItems.map(
-            (item, index) =>
-                toDomainJoin(
-                    {
-                        ...(existingItems[index] ?? {}),
-                        ...(item as Record<string, unknown>),
-                        cid,
-                    } as Partial<DomainJoin>,
-                    {
-                        cid,
-                        sid: context.sid,
-                        uid: context.uid,
-                    }
-                ) as JoinCache
-        );
+        const mergedList = validItems.map((item, index) => {
+            const existing = existingItems[index];
+            return {
+                ...(existing ?? ({} as DomainJoin)),
+                ...item,
+                id: item.id!,
+                cid,
+                channelId: item.channelId ?? existing?.channelId ?? '',
+                userId: item.userId ?? existing?.userId ?? '',
+                joined: item.joined ?? existing?.joined ?? 1,
+                readNo: item.readNo ?? existing?.readNo ?? 0,
+            } as DomainJoin;
+        });
 
-        await this.cacheStorage.saveAll(normalized);
+        await this.cacheStorage.saveAll(mergedList);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                normalized.flatMap((item, index) => [existingItems[index]?.channelId, item.channelId]),
+                mergedList.flatMap((item, index) => [existingItems[index]?.channelId, item.channelId]),
                 contextOverride
             )
         );
@@ -180,16 +178,5 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
         return [`${scopeKey}|joins`, ...uniqueChannels.map(channelId => `${scopeKey}|joins|channel:${channelId}`)];
-    }
-
-    private getReadScope(
-        item: Partial<DomainJoin> | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): { cid: string; sid?: string; uid?: string } {
-        return {
-            cid: (item as { cid?: string })?.cid || this.getCid(contextOverride),
-            sid: this.getSid(contextOverride),
-            uid: this.getUid(contextOverride),
-        };
     }
 }

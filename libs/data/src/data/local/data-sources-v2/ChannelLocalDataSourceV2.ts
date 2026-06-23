@@ -1,7 +1,7 @@
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../../domain';
-import { createDomainListResult, toDomainChannel } from '../../domain';
+import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
-import type { CacheStorage, CacheStorageItem } from '../storages';
+import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,
@@ -9,15 +9,6 @@ import {
     type LocalDataSourceV2ContextOverride,
     type LocalDataSourceV2Unsubscribe,
 } from './types';
-
-type ChannelCache = CacheStorageItem<'channel'>;
-
-const getChannelSortTime = (channel: Partial<DomainChannel> | ChannelCache): number => {
-    const lastChatCreatedAt = (channel as { lastChat$?: { createdAt?: string | number } }).lastChat$?.createdAt;
-    const updatedAt = (channel as { updatedAt?: string | number }).updatedAt;
-    const value = lastChatCreatedAt ?? updatedAt ?? 0;
-    return typeof value === 'number' ? value : new Date(value).getTime();
-};
 
 export interface IChannelLocalDataSourceV2
     extends ILocalDataSourceV2<DomainChannel, DomainChannelListPayload, DomainListResult<DomainChannel>> {}
@@ -33,11 +24,11 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
 
     public async cacheRead(
         id: string,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainChannel | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainChannel(item, this.getReadScope(item, contextOverride)) : null;
+        // Cache already holds normalized domain rows; return as-is without re-mapping.
+        return this.cacheStorage.load(requiredId);
     }
 
     public async cacheReadList(
@@ -55,9 +46,10 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        const sorted = [...scopedChannels]
-            .sort((left, right) => getChannelSortTime(right) - getChannelSortTime(left))
-            .map(channel => toDomainChannel(channel, this.getReadScope(channel, contextOverride)));
+        // Order by most recent activity first (lastActivityAt is the domain's sort field).
+        const sorted = [...scopedChannels].sort(
+            (left, right) => (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0)
+        );
 
         const limit = query.limit;
         const page = query.page ?? 0;
@@ -65,7 +57,7 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const list = limit ? sorted.slice(start, start + limit) : sorted;
 
         return createDomainListResult(list, {
-            total: scopedChannels.length,
+            total: sorted.length,
             limit,
             page,
             source: 'local',
@@ -100,20 +92,24 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
 
         const context = this.getContext(contextOverride);
         const existing = await this.cacheStorage.load(id);
-        const sid = (item as { $?: { sid?: string } }).$?.sid || item.sid || existing?.sid || context.sid || 'default';
-        const cid = context.cid || this.getCid(contextOverride);
+        const sid = item.sid || existing?.sid || context.sid;
+        const cid = context.cid || 'default';
 
-        const normalized = toDomainChannel(
-            {
-                ...(existing ?? {}),
-                ...(item as Record<string, unknown>),
-                sid,
-                cid,
-            } as Partial<DomainChannel>,
-            { cid, sid, uid: context.uid }
-        );
+        if (!sid) {
+            throw new Error('[ChannelLocalDataSourceV2] sid is required to sync/save channel.');
+        }
 
-        await this.cacheStorage.save(id, normalized as ChannelCache);
+        const merged: DomainChannel = {
+            ...(existing ?? ({} as DomainChannel)),
+            ...item,
+            id,
+            cid,
+            sid,
+            isNotificationEnabled: item.isNotificationEnabled ?? existing?.isNotificationEnabled ?? true,
+            lastActivityAt: item.lastActivityAt ?? existing?.lastActivityAt ?? Date.now(),
+        };
+
+        await this.cacheStorage.save(id, merged);
         this.scheduleItemReemit([id]);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, sid], contextOverride));
     }
@@ -126,38 +122,41 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
+        const cid = context.cid || 'default';
         const allExisting = await this.cacheStorage.loadAll();
-        const existingMap = new Map<string, ChannelCache>();
+        const existingMap = new Map<string, DomainChannel>();
         for (const item of allExisting) {
-            const id = (item as { id?: string }).id;
-            if (id) existingMap.set(id, item);
+            if (item.id) existingMap.set(item.id, item);
         }
 
-        const normalized: ChannelCache[] = [];
+        const mergedList: DomainChannel[] = [];
         const ids: string[] = [];
         const sids = new Set<string>();
         for (const item of validItems) {
             const id = item.id!;
             const existing = existingMap.get(id);
-            const sid =
-                (item as { $?: { sid?: string } }).$?.sid || item.sid || existing?.sid || context.sid || 'default';
-            const next = toDomainChannel(
-                {
-                    ...(existing ?? {}),
-                    ...(item as Record<string, unknown>),
-                    sid,
-                    cid,
-                } as Partial<DomainChannel>,
-                { cid, sid, uid: context.uid }
-            );
-            normalized.push(next as ChannelCache);
+            const sid = item.sid || existing?.sid || context.sid;
+
+            if (!sid) {
+                throw new Error('[ChannelLocalDataSourceV2] sid is required to sync/save channels.');
+            }
+
+            const next: DomainChannel = {
+                ...(existing ?? ({} as DomainChannel)),
+                ...item,
+                id,
+                cid,
+                sid,
+                isNotificationEnabled: item.isNotificationEnabled ?? existing?.isNotificationEnabled ?? true,
+                lastActivityAt: item.lastActivityAt ?? existing?.lastActivityAt ?? Date.now(),
+            };
+            mergedList.push(next);
             ids.push(id);
             if (existing?.sid) sids.add(existing.sid);
             if (sid) sids.add(sid);
         }
 
-        await this.cacheStorage.saveAll(normalized);
+        await this.cacheStorage.saveAll(mergedList);
         this.scheduleItemReemit(ids);
         this.scheduleListReemit(this.getAffectedListPrefixes(Array.from(sids), contextOverride));
     }
@@ -210,16 +209,5 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
         return [`${scopeKey}|channels`, ...uniqueSids.map(sid => `${scopeKey}|channels|sid:${sid}`)];
-    }
-
-    private getReadScope(
-        item: Partial<DomainChannel> | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): { cid: string; sid?: string; uid?: string } {
-        return {
-            cid: (item as { cid?: string })?.cid || this.getCid(contextOverride),
-            sid: (item as { sid?: string })?.sid || this.getSid(contextOverride),
-            uid: this.getUid(contextOverride),
-        };
     }
 }

@@ -1,5 +1,5 @@
 import type { DataContext, DataContextProvider } from '../../repositories';
-import { stableHash } from '../storages/stableHash';
+import { stableHash } from '../storages';
 
 export type LocalDataSourceV2ContextOverride = Partial<DataContext>;
 export type LocalDataSourceV2Unsubscribe = () => void;

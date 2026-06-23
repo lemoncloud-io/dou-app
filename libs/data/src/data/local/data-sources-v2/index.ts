@@ -6,6 +6,7 @@ import { CloudLocalDataSourceV2, type ICloudLocalDataSourceV2 } from './CloudLoc
 import { JoinLocalDataSourceV2, type IJoinLocalDataSourceV2 } from './JoinLocalDataSourceV2';
 import { ProfileLocalDataSourceV2, type IProfileLocalDataSourceV2 } from './ProfileLocalDataSourceV2';
 import { PlaceLocalDataSourceV2, type IPlaceLocalDataSourceV2 } from './PlaceLocalDataSourceV2';
+import { SyncMetaLocalDataSourceV2, type ISyncMetaLocalDataSourceV2 } from './SyncMetaLocalDataSourceV2';
 import { UserLocalDataSourceV2, type IUserLocalDataSourceV2 } from './UserLocalDataSourceV2';
 
 export * from './types';
@@ -15,6 +16,7 @@ export * from './CloudLocalDataSourceV2';
 export * from './JoinLocalDataSourceV2';
 export * from './ProfileLocalDataSourceV2';
 export * from './PlaceLocalDataSourceV2';
+export * from './SyncMetaLocalDataSourceV2';
 export * from './UserLocalDataSourceV2';
 
 export interface LocalDataSourcesV2 {
@@ -25,6 +27,7 @@ export interface LocalDataSourcesV2 {
     profile: IProfileLocalDataSourceV2;
     place: IPlaceLocalDataSourceV2;
     user: IUserLocalDataSourceV2;
+    syncMeta: ISyncMetaLocalDataSourceV2;
 }
 
 export const createLocalDataSourcesV2 = (
@@ -37,6 +40,7 @@ export const createLocalDataSourcesV2 = (
         profile: CacheStorage<'profile'>;
         site: CacheStorage<'site'>;
         user: CacheStorage<'user'>;
+        meta: CacheStorage<'meta'>;
     }
 ): LocalDataSourcesV2 => ({
     channel: new ChannelLocalDataSourceV2(contextProvider, storages.channel),
@@ -46,4 +50,5 @@ export const createLocalDataSourcesV2 = (
     profile: new ProfileLocalDataSourceV2(contextProvider, storages.profile),
     place: new PlaceLocalDataSourceV2(contextProvider, storages.site),
     user: new UserLocalDataSourceV2(contextProvider, storages.user),
+    syncMeta: new SyncMetaLocalDataSourceV2(contextProvider, storages.meta),
 });

@@ -45,19 +45,19 @@ describe('UserLocalDataSourceV2', () => {
         },
     };
 
-    it('filters channel members from either direct channelId or nested join metadata', async () => {
+    it('매핑된 channelIds 멤버십으로 채널 멤버를 필터링한다', async () => {
         const storage = createMemoryStorage();
         const dataSource = new UserLocalDataSourceV2(contextProvider as any, storage);
 
+        // Channel membership arrives pre-mapped as `channelIds` (resolved upstream from channelId/$join).
         await dataSource.cacheWriteMany([
-            { id: 'u1', channelId: 'ch-1', name: 'Direct' } as any,
-            { id: 'u2', $join: { channelId: 'ch-1' }, name: 'Nested' } as any,
-            { id: 'u3', channelId: 'ch-2', name: 'Other' } as any,
+            { id: 'u1', channelIds: ['ch-1'], name: 'Direct' } as any,
+            { id: 'u2', channelIds: ['ch-1'], name: 'Nested' } as any,
+            { id: 'u3', channelIds: ['ch-2'], name: 'Other' } as any,
         ]);
 
         const result = await dataSource.cacheReadList({ channelId: 'ch-1' } as any);
 
-        // Member lookups should work whether the channel link lives directly on the user or in join metadata.
         expect(result?.list.map(item => item.id)).toEqual(['u1', 'u2']);
     });
 

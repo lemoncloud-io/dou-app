@@ -1,9 +1,9 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import type { DomainChat, DomainListResult } from '../../domain';
-import { createDomainListResult, toDomainChat } from '../../domain';
+import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
-import type { CacheStorage, CacheStorageItem } from '../storages';
+import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,
@@ -11,8 +11,6 @@ import {
     type LocalDataSourceV2ContextOverride,
     type LocalDataSourceV2Unsubscribe,
 } from './types';
-
-type ChatCache = CacheStorageItem<'chat'>;
 
 const getChatNo = (chat: Partial<DomainChat> | CacheChatView): number | undefined => {
     const chatNo = (chat as { chatNo?: number }).chatNo;
@@ -33,20 +31,22 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         super(contextProvider);
     }
 
-    public async cacheRead(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<DomainChat | null> {
+    public async cacheRead(
+        id: string,
+        _contextOverride?: LocalDataSourceV2ContextOverride
+    ): Promise<DomainChat | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainChat(item, this.getReadScope(item, contextOverride)) : null;
+        return this.cacheStorage.load(requiredId);
     }
 
     public async cacheReadList(
         query: ChatFeedInput,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainChat> | null> {
-        const channelId = query.channelId;
+        const channelId = this.assertRequiredString(query?.channelId, 'channelId');
         const { limit = 50 } = query;
 
-        const pageList: CacheChatView[] = await this.cacheStorage.loadAll({
+        const pageList = await this.cacheStorage.loadAll({
             ...query,
             channelId,
             limit,
@@ -61,8 +61,7 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
             nextCursorNo = getChatNo(pageList[0]);
         }
 
-        const list = pageList.map(item => toDomainChat(item, this.getReadScope(item, contextOverride)));
-        return createDomainListResult(list, {
+        return createDomainListResult(pageList, {
             total: pageList.length,
             cursorNo: nextCursorNo,
             limit,
@@ -97,26 +96,28 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         const id = this.assertRequiredString(item.id, 'id');
 
         const context = this.getContext(contextOverride);
-        const existing = await this.cacheStorage.load(id);
-        const cid = context.cid || this.getCid(contextOverride);
-        const normalized = toDomainChat(
-            {
-                ...(existing ?? {}),
-                ...(item as Record<string, unknown>),
-                cid,
-            } as Partial<DomainChat>,
-            {
-                cid,
-                sid: context.sid,
-                uid: context.uid,
-            }
-        );
+        if (!context.sid) {
+            throw new Error('[ChatLocalDataSourceV2] sid is required in context to save chat.');
+        }
 
-        await this.cacheStorage.save(id, normalized as ChatCache);
+        const existing = await this.cacheStorage.load(id);
+        const cid = context.cid || 'default';
+        const merged: DomainChat = {
+            ...(existing ?? ({} as DomainChat)),
+            ...item,
+            id,
+            cid,
+            channelId: item.channelId ?? existing?.channelId ?? '',
+            chatNo: item.chatNo ?? existing?.chatNo ?? 0,
+            isPending: item.isPending ?? existing?.isPending ?? false,
+            isFailed: item.isFailed ?? existing?.isFailed ?? false,
+            createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
+            updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+        };
+
+        await this.cacheStorage.save(id, merged);
         this.scheduleItemReemit([id]);
-        this.scheduleListReemit(
-            this.getAffectedListPrefixes([existing?.channelId, normalized.channelId], contextOverride)
-        );
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], contextOverride));
     }
 
     public async cacheWriteMany(
@@ -127,27 +128,34 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
-        const normalized = validItems.map(
-            item =>
-                toDomainChat(
-                    {
-                        ...(item as Record<string, unknown>),
-                        cid,
-                    } as Partial<DomainChat>,
-                    {
-                        cid,
-                        sid: context.sid,
-                        uid: context.uid,
-                    }
-                ) as ChatCache
-        );
+        if (!context.sid) {
+            throw new Error('[ChatLocalDataSourceV2] sid is required in context to save chats.');
+        }
 
-        await this.cacheStorage.saveAll(normalized);
+        const cid = context.cid || 'default';
+        const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
+
+        const mergedList = validItems.map((item, index) => {
+            const existing = existingItems[index];
+            return {
+                ...(existing ?? ({} as DomainChat)),
+                ...item,
+                id: item.id!,
+                cid,
+                channelId: item.channelId ?? existing?.channelId ?? '',
+                chatNo: item.chatNo ?? existing?.chatNo ?? 0,
+                isPending: item.isPending ?? existing?.isPending ?? false,
+                isFailed: item.isFailed ?? existing?.isFailed ?? false,
+                createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
+                updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+            } as DomainChat;
+        });
+
+        await this.cacheStorage.saveAll(mergedList);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                normalized.map(item => item.channelId),
+                mergedList.map(item => item.channelId),
                 contextOverride
             )
         );
@@ -208,16 +216,5 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
         return [`${scopeKey}|chats`, ...uniqueChannels.map(channelId => `${scopeKey}|chats|channel:${channelId}`)];
-    }
-
-    private getReadScope(
-        item: Partial<DomainChat> | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): { cid: string; sid?: string; uid?: string } {
-        return {
-            cid: (item as { cid?: string })?.cid || this.getCid(contextOverride),
-            sid: this.getSid(contextOverride),
-            uid: this.getUid(contextOverride),
-        };
     }
 }

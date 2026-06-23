@@ -1,8 +1,8 @@
 import type { ChatUsersInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainUser } from '../../domain';
-import { createDomainListResult, toDomainUser } from '../../domain';
+import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
-import type { CacheStorage, CacheStorageItem } from '../storages';
+import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,
@@ -10,8 +10,6 @@ import {
     type LocalDataSourceV2ContextOverride,
     type LocalDataSourceV2Unsubscribe,
 } from './types';
-
-type UserCache = CacheStorageItem<'user'>;
 
 export interface IUserLocalDataSourceV2
     extends ILocalDataSourceV2<DomainUser, ChatUsersInput, DomainListResult<DomainUser>> {
@@ -27,36 +25,33 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         super(contextProvider);
     }
 
-    public async cacheRead(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<DomainUser | null> {
+    public async cacheRead(
+        id: string,
+        _contextOverride?: LocalDataSourceV2ContextOverride
+    ): Promise<DomainUser | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainUser(item, this.getReadScope(item, contextOverride)) : null;
+        return this.cacheStorage.load(requiredId);
     }
 
     public async cacheReadMany(
         ids: string[],
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainUser[]> {
         if (ids.length === 0) return [];
         const items = await Promise.all(ids.map(id => this.cacheStorage.load(id)));
-        return items
-            .filter((item): item is UserCache => !!item)
-            .map(item => toDomainUser(item, this.getReadScope(item, contextOverride)));
+        return items.filter((item): item is DomainUser => !!item);
     }
 
     public async cacheReadList(
         query: ChatUsersInput,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainUser> | null> {
         const allUsers = await this.cacheStorage.loadAll();
-        let users = allUsers.map(item => toDomainUser(item, this.getReadScope(item, contextOverride)));
+        let users = allUsers;
 
         if (query.channelId) {
-            users = users.filter(user => {
-                const joinChannelId = (user as { $join?: { channelId?: string } }).$join?.channelId;
-                const directChannelId = (user as { channelId?: string }).channelId;
-                return joinChannelId === query.channelId || directChannelId === query.channelId;
-            });
+            // Domain users carry their channel membership in `channelIds` (mapped upstream).
+            users = users.filter(user => (user.channelIds || []).includes(query.channelId!));
         }
 
         return createDomainListResult(users, {
@@ -94,27 +89,21 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         const id = this.assertRequiredString(item.id, 'id');
         const existing = await this.cacheStorage.load(id);
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
-        const normalized = toDomainUser(
-            {
-                ...(existing ?? {}),
-                ...(item as Record<string, unknown>),
-                cid,
-            } as Partial<DomainUser>,
-            {
-                cid,
-                sid: context.sid,
-                uid: context.uid,
-            }
-        );
-        await this.cacheStorage.save(id, normalized as UserCache);
+
+        // Channel membership is preserved by unioning the mapped `channelIds`.
+        const channelIds = Array.from(new Set([...(existing?.channelIds || []), ...(item.channelIds || [])]));
+
+        const merged: DomainUser = {
+            ...(existing ?? ({} as DomainUser)),
+            ...item,
+            id,
+            cid: item.cid || existing?.cid || context.cid || 'default',
+            channelIds,
+        };
+
+        await this.cacheStorage.save(id, merged);
         this.scheduleItemReemit([id]);
-        this.scheduleListReemit(
-            this.getAffectedListPrefixes(
-                [existing, normalized].filter(isUserLike) as Array<UserCache | Partial<DomainUser>>,
-                contextOverride
-            )
-        );
+        this.scheduleListReemit(this.getAffectedListPrefixes([existing, merged], contextOverride));
     }
 
     public async cacheWriteMany(
@@ -125,31 +114,24 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        const cid = context.cid || this.getCid(contextOverride);
         const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
-        const normalized = validItems.map(
-            (item, index) =>
-                toDomainUser(
-                    {
-                        ...(existingItems[index] ?? {}),
-                        ...(item as Record<string, unknown>),
-                        cid,
-                    } as Partial<DomainUser>,
-                    {
-                        cid,
-                        sid: context.sid,
-                        uid: context.uid,
-                    }
-                ) as UserCache
-        );
-        await this.cacheStorage.saveAll(normalized);
+
+        const mergedList = validItems.map((item, index) => {
+            const existing = existingItems[index];
+            const channelIds = Array.from(new Set([...(existing?.channelIds || []), ...(item.channelIds || [])]));
+
+            return {
+                ...(existing ?? ({} as DomainUser)),
+                ...item,
+                id: item.id!,
+                cid: item.cid || existing?.cid || context.cid || 'default',
+                channelIds,
+            } as DomainUser;
+        });
+
+        await this.cacheStorage.saveAll(mergedList);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
-        this.scheduleListReemit(
-            this.getAffectedListPrefixes(
-                [...existingItems, ...normalized].filter(isUserLike) as Array<UserCache | Partial<DomainUser>>,
-                contextOverride
-            )
-        );
+        this.scheduleListReemit(this.getAffectedListPrefixes([...existingItems, ...mergedList], contextOverride));
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
@@ -166,12 +148,7 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         const existingItems = await Promise.all(validIds.map(id => this.cacheStorage.load(id)));
         await this.cacheStorage.deleteAll(validIds);
         this.scheduleItemReemit(validIds);
-        this.scheduleListReemit(
-            this.getAffectedListPrefixes(
-                existingItems.filter(isUserLike) as Array<UserCache | Partial<DomainUser>>,
-                contextOverride
-            )
-        );
+        this.scheduleListReemit(this.getAffectedListPrefixes(existingItems, contextOverride));
     }
 
     public async cacheClear(_contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
@@ -192,16 +169,15 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
     }
 
     private getAffectedListPrefixes(
-        users: Array<Partial<DomainUser> | UserCache>,
+        users: Array<Partial<DomainUser> | null | undefined>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const channelIds = new Set<string>();
         for (const user of users) {
-            const directChannelId = (user as { channelId?: string }).channelId;
-            const joinChannelId = (user as { $join?: { channelId?: string } }).$join?.channelId;
-            if (directChannelId) channelIds.add(directChannelId);
-            if (joinChannelId) channelIds.add(joinChannelId);
+            for (const channelId of user?.channelIds || []) {
+                if (channelId) channelIds.add(channelId);
+            }
         }
 
         return [
@@ -210,19 +186,4 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
             ...Array.from(channelIds).map(channelId => `${scopeKey}|users|channel:${channelId}`),
         ];
     }
-
-    private getReadScope(
-        item: Partial<DomainUser> | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): { cid: string; sid?: string; uid?: string } {
-        return {
-            cid: (item as { cid?: string })?.cid || this.getCid(contextOverride),
-            sid: this.getSid(contextOverride),
-            uid: this.getUid(contextOverride),
-        };
-    }
 }
-
-const isUserLike = (value: UserCache | Partial<DomainUser> | null): value is UserCache | Partial<DomainUser> => {
-    return !!value;
-};

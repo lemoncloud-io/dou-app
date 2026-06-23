@@ -1,7 +1,7 @@
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../../domain';
-import { createDomainListResult, toDomainProfile } from '../../domain';
+import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories';
-import type { CacheStorage, CacheStorageItem } from '../storages';
+import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
     type ILocalDataSourceV2,
@@ -9,8 +9,6 @@ import {
     type LocalDataSourceV2ContextOverride,
     type LocalDataSourceV2Unsubscribe,
 } from './types';
-
-type ProfileCache = CacheStorageItem<'profile'>;
 
 export interface IProfileLocalDataSourceV2
     extends ILocalDataSourceV2<DomainProfile, DomainProfileListPayload | undefined, DomainListResult<DomainProfile>> {}
@@ -26,11 +24,10 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
 
     public async cacheRead(
         id: string,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainProfile | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const item = await this.cacheStorage.load(requiredId);
-        return item ? toDomainProfile(item, this.getReadScope(item, contextOverride)) : null;
+        return this.cacheStorage.load(requiredId);
     }
 
     public async cacheReadList(
@@ -39,8 +36,9 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
     ): Promise<DomainListResult<DomainProfile> | null> {
         const sid = query?.sid || query?.siteId || this.getSid(contextOverride) || '';
         const uid = query?.uid || query?.userId;
-        const allItems = await this.cacheStorage.loadAll({ sid: sid || undefined });
-        let list = allItems.map(item => toDomainProfile(item, this.getReadScope(item, contextOverride)));
+        // Storage partitions only by cid/uid; sid is a logical filter applied here in memory.
+        const allItems = await this.cacheStorage.loadAll();
+        let list = allItems;
 
         if (sid) {
             list = list.filter(item => item.sid === sid);
@@ -83,7 +81,7 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         if (!normalized) return;
 
         const existing = await this.cacheStorage.load(normalized.id);
-        await this.cacheStorage.save(normalized.id, normalized as ProfileCache);
+        await this.cacheStorage.save(normalized.id, normalized);
         this.scheduleItemReemit([normalized.id]);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, normalized.sid], contextOverride));
     }
@@ -102,7 +100,7 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const valid = normalized.filter((item): item is DomainProfile => !!item?.id);
         if (valid.length === 0) return;
 
-        await this.cacheStorage.saveAll(valid as ProfileCache[]);
+        await this.cacheStorage.saveAll(valid);
         this.scheduleItemReemit(valid.map(item => item.id));
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
@@ -141,7 +139,7 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
 
     private normalizeProfile(
         item: Partial<DomainProfile>,
-        existing: Partial<DomainProfile> | undefined,
+        existing: DomainProfile | undefined,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): DomainProfile | null {
         const context = this.getContext(contextOverride);
@@ -150,24 +148,19 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         this.assertRequiredString(sid, 'sid');
         this.assertRequiredString(uid, 'uid');
 
-        // Persist both alias sets so repository logic can stay normalized without breaking API-shaped payloads.
-        return toDomainProfile(
-            {
-                ...(existing ?? {}),
-                ...(item as Record<string, unknown>),
-                id: item.id || existing?.id || `${sid}:${uid}`,
-                cid: item.cid || existing?.cid || context.cid || this.getCid(contextOverride),
-                sid,
-                siteId: sid,
-                uid,
-                userId: item.userId || existing?.userId || uid,
-            } as Partial<DomainProfile>,
-            {
-                cid: context.cid || this.getCid(contextOverride),
-                sid,
-                uid,
-            }
-        );
+        const merged: DomainProfile = {
+            ...(existing ?? ({} as DomainProfile)),
+            ...item,
+            id: item.id || existing?.id || `${sid}:${uid}`,
+            cid: item.cid || existing?.cid || context.cid || 'default',
+            sid,
+            siteId: sid,
+            uid,
+            userId: item.userId || existing?.userId || uid,
+            updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+        };
+
+        return merged;
     }
 
     private makeProfileId(
@@ -210,19 +203,5 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
         return [`${scopeKey}|profiles`, ...uniqueSids.map(sid => `${scopeKey}|profiles|sid:${sid}`)];
-    }
-
-    private getReadScope(
-        item: Partial<DomainProfile> | undefined,
-        contextOverride?: LocalDataSourceV2ContextOverride
-    ): { cid: string; sid?: string; uid?: string } {
-        return {
-            cid: (item as { cid?: string })?.cid || this.getCid(contextOverride),
-            sid: (item as { sid?: string })?.sid || this.getSid(contextOverride),
-            uid:
-                (item as { uid?: string; userId?: string })?.uid ||
-                (item as { userId?: string })?.userId ||
-                this.getUid(contextOverride),
-        };
     }
 }
