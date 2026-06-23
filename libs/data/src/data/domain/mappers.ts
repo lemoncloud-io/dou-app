@@ -1,11 +1,10 @@
-import type { CloudView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
 import type {
     ChannelView,
     ChatView,
     JoinView,
     ProfileDisplay,
     ProfileView,
-    SiteView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
 import type { CacheStorageItem } from '../local/storages';
@@ -116,14 +115,14 @@ export const toDomainUser = (
 };
 
 export const toDomainPlace = (
-    source: SiteView | CacheStorageItem<'site'> | Partial<DomainPlace>,
+    source: MySiteView | CacheStorageItem<'site'> | Partial<DomainPlace>,
     scope: DomainScope
 ): DomainPlace => {
     const rawType = (source as { type?: unknown }).type;
     const normalizedType = rawType === 'site' || rawType === 'user' ? rawType : undefined;
 
     return {
-        ...(source as SiteView),
+        ...(source as MySiteView),
         id: toStringSafe((source as { id?: string }).id),
         cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
         order: toNumberSafe((source as { order?: number }).order, Number.MAX_SAFE_INTEGER),
