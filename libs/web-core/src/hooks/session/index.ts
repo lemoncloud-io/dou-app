@@ -4,6 +4,7 @@ export * from './actions/useRefreshCloudSiteSession';
 export * from './actions/useRefreshCurrentCloudSession';
 export * from './actions/useRefreshRelaySession';
 export * from './actions/useSessionLogout';
+export * from './actions/useSiteSwitch';
 export * from './actions/useSwitchCloudSession';
 export * from './readers/useGlobalSession';
 export * from './readers/useSessionAuth';

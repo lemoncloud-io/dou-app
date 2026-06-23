@@ -135,6 +135,7 @@ jest.mock('./contextStore', () => ({
     setSessionCloudProfile: (...args: unknown[]) => mockSetSessionCloudProfile(...args),
     setSelectedCloudId: (...args: unknown[]) => mockSetSelectedCloudId(...args),
     setSelectedSiteId: (...args: unknown[]) => mockSetSelectedSiteId(...args),
+    getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearSessionProfile: (...args: unknown[]) => mockClearSessionProfile(...args),
     clearSessionCloudProfile: (...args: unknown[]) => mockClearSessionCloudProfile(...args),
 }));
@@ -172,6 +173,7 @@ import {
     refreshCloudSession,
     refreshRelaySession,
     switchCloudSession,
+    switchSiteSession,
 } from './services';
 
 describe('session/services', () => {
@@ -410,6 +412,52 @@ describe('session/services', () => {
             identityToken: 'identity-token',
             backend: 'https://cloud.example.com',
             wss: 'wss://cloud.example.com',
+        });
+    });
+
+    describe('switchSiteSession (optimistic + rollback)', () => {
+        const setupCloud = () => {
+            mockGetCloudToken.mockReturnValue({ id: 'cloud-user', Token: { identityToken: 'old' } });
+            mockGetBackend.mockReturnValue('https://cloud.example.com');
+            mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        };
+
+        it('pre-applies the target sid and notifies before committing', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-old');
+            setupCloud();
+            mockRefreshCloudToken.mockResolvedValue({ id: 'cloud-user', Token: { identityToken: 'new' } });
+
+            await switchSiteSession('site-new');
+
+            // optimistic pre-apply + notify, then commit; no rollback
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
+            expect(mockSetSelectedSiteId).not.toHaveBeenCalledWith('site-old');
+            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+            expect(mockRefreshCloudToken).toHaveBeenCalledWith(
+                expect.objectContaining({ target: 'cloud-user@site-new' })
+            );
+        });
+
+        it('rolls the sid back to the previous site when the commit fails', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-old');
+            setupCloud();
+            mockRefreshCloudToken.mockRejectedValue(new Error('boom'));
+
+            await expect(switchSiteSession('site-new')).rejects.toThrow('boom');
+
+            const calls = mockSetSelectedSiteId.mock.calls.map(c => c[0]);
+            expect(calls).toEqual(['site-new', 'site-old']); // optimistic then rollback
+            expect(mockNotifySessionStateChanged).toHaveBeenCalledTimes(2);
+        });
+
+        it('no-ops when switching to the already-selected site', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-1');
+
+            await switchSiteSession('site-1');
+
+            expect(mockSetSelectedSiteId).not.toHaveBeenCalled();
+            expect(mockNotifySessionStateChanged).not.toHaveBeenCalled();
+            expect(mockRefreshCloudToken).not.toHaveBeenCalled();
         });
     });
 

@@ -23,6 +23,7 @@ import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, sta
 import {
     clearSessionCloudProfile,
     clearSessionProfile,
+    getSelectedSiteId,
     setSelectedCloudId,
     setSelectedSiteId,
     setSessionAuthenticated,
@@ -448,8 +449,32 @@ const cloudRefreshFlight = createSerializedSingleFlight<CloudSessionSnapshot>();
 export const refreshCloudSession = ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> =>
     cloudRefreshFlight(siteId, () => runRefreshCloudSession({ siteId }));
 
-// TODO(optimistic): pre-apply the target sid before the refresh so cached data shows immediately,
-// and roll the sid back if the refresh fails (mirror the relay-site path in runRefreshRelaySession).
+/**
+ * User-initiated site switch.
+ *
+ * Pre-applies the target sid (optimistic) and notifies so `activeServer.siteId` flips
+ * immediately — cached channel streams swap to the new site without waiting for the
+ * network. Commits via `refreshCloudSession`; on failure rolls the sid back to the
+ * previous site. The committed cloud token only changes after a successful refresh
+ * (see runRefreshCloudSession), so a failed switch leaves the real session intact and
+ * only the optimistic sid needs reverting.
+ */
+export const switchSiteSession = async (siteId: string): Promise<void> => {
+    const prevSiteId = getSelectedSiteId();
+    if (siteId === prevSiteId) return;
+
+    setSelectedSiteId(siteId);
+    notifySessionStateChanged();
+
+    try {
+        await refreshCloudSession({ siteId });
+    } catch (error) {
+        setSelectedSiteId(prevSiteId);
+        notifySessionStateChanged();
+        throw error;
+    }
+};
+
 const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
     const cloudToken = cloudCore.getCloudToken();
     const uid = cloudToken?.id;
