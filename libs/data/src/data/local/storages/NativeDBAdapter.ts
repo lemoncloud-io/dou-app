@@ -42,7 +42,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 uid: scope.uid,
                 id,
                 item: withCacheMeta(this.type, item),
-            } as Extract<SaveCacheDataPayload, { type: TType }>,
+                // Double cast: the generic TType cannot narrow the discriminated payload union.
+            } as unknown as Extract<SaveCacheDataPayload, { type: TType }>,
         });
         return item;
     }
@@ -58,7 +59,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 cid: scope.cid,
                 uid: scope.uid,
                 items: items.map(item => withCacheMeta(this.type, item)),
-            } as Extract<SaveAllCacheDataPayload, { type: TType }>,
+                // Double cast: the generic TType cannot narrow the discriminated payload union.
+            } as unknown as Extract<SaveAllCacheDataPayload, { type: TType }>,
         });
         return items;
     }
