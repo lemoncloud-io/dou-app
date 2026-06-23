@@ -1,6 +1,5 @@
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/types';
-import type { DomainScope } from '../domain';
 
 /**
  * Repository 요청 단위에서만 덮어쓸 수 있는 옵션입니다.
@@ -100,15 +99,6 @@ export abstract class BaseRepository {
      */
     protected getRepositoryContext(): DataContext {
         return this.context?.getContext() ?? {};
-    }
-
-    protected getDomainScope(): DomainScope {
-        const context = this.getRepositoryContext();
-        return {
-            cid: context.cid || 'default',
-            sid: context.sid,
-            uid: context.uid,
-        };
     }
 
     protected runInBackground(task: () => Promise<unknown>, label: string): void {
