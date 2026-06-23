@@ -11,11 +11,19 @@ import {
     type LocalDataSourceV2Unsubscribe,
 } from './types';
 
-export interface IInviteCloudLocalDataSourceV2
+export interface ICloudLocalDataSourceV2
     extends ILocalDataSourceV2<CacheCloudView, void, DomainListResult<CacheCloudView>> {}
 
-/** Keeps invite-cloud cache entries isolated per cloud scope and re-emits affected observers. */
-export class InviteCloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IInviteCloudLocalDataSourceV2 {
+/** @deprecated Use {@link ICloudLocalDataSourceV2}. */
+export type IInviteCloudLocalDataSourceV2 = ICloudLocalDataSourceV2;
+
+/**
+ * Keeps cloud cache entries isolated per cloud scope and re-emits affected observers.
+ *
+ * Backed by the 'invitecloud' cache storage slot (physical cache key kept for
+ * backward-compatible IndexedDB/SQLite partitions; only the domain naming moved to Cloud).
+ */
+export class CloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICloudLocalDataSourceV2 {
     constructor(
         contextProvider: DataContextProvider,
         private readonly cacheStorage: CacheStorage<'invitecloud'>
@@ -54,7 +62,7 @@ export class InviteCloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implemen
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
         return this.observeListQuery(
-            this.createListObserverKey(['invite-clouds'], contextOverride),
+            this.createListObserverKey(['clouds'], contextOverride),
             () => this.cacheReadList(),
             callback
         );
@@ -72,10 +80,12 @@ export class InviteCloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implemen
             ...(item as CacheCloudView),
             id,
             cid: item.cid || existing?.cid || context.cid || this.getCid(contextOverride),
+            // Cache historically held invited clouds; default unclassified writes to 'invited'.
+            cloudType: item.cloudType ?? existing?.cloudType ?? 'invited',
         };
         await this.cacheStorage.save(id, normalized);
         this.scheduleItemReemit([id]);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invite-clouds`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|clouds`]);
     }
 
     public async cacheWriteMany(
@@ -91,17 +101,18 @@ export class InviteCloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implemen
             ...(item as CacheCloudView),
             id: item.id!,
             cid: item.cid || existingItems[index]?.cid || context.cid || this.getCid(contextOverride),
+            cloudType: item.cloudType ?? existingItems[index]?.cloudType ?? 'invited',
         }));
         await this.cacheStorage.saveAll(normalized);
         this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invite-clouds`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|clouds`]);
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const requiredId = this.assertRequiredString(id, 'id');
         await this.cacheStorage.delete(requiredId);
         this.scheduleItemReemit([requiredId]);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invite-clouds`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|clouds`]);
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
@@ -109,7 +120,7 @@ export class InviteCloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implemen
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
         this.scheduleItemReemit(validIds);
-        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|invite-clouds`]);
+        this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|clouds`]);
     }
 
     public async cacheClear(_contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
@@ -117,3 +128,6 @@ export class InviteCloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implemen
         this.scheduleFullReemit();
     }
 }
+
+/** @deprecated Use {@link CloudLocalDataSourceV2}. */
+export const InviteCloudLocalDataSourceV2 = CloudLocalDataSourceV2;

@@ -1,5 +1,5 @@
 import type { CacheStorage } from '../storages';
-import { InviteCloudLocalDataSourceV2 } from './InviteCloudLocalDataSourceV2';
+import { CloudLocalDataSourceV2 } from './CloudLocalDataSourceV2';
 
 // Observer notifications are debounced, so flush the microtask queue after timers run.
 const flushPromises = async () => {
@@ -39,7 +39,7 @@ const createMemoryStorage = (): CacheStorage<'invitecloud'> => {
     };
 };
 
-describe('InviteCloudLocalDataSourceV2', () => {
+describe('CloudLocalDataSourceV2', () => {
     const contextProvider = {
         current: { cid: 'cloud-a', sid: 'site-1', uid: 'me' },
         getContext() {
@@ -58,9 +58,9 @@ describe('InviteCloudLocalDataSourceV2', () => {
         jest.useRealTimers();
     });
 
-    it('re-emits the invite cloud list after a mutation so the local-only repository stays reactive', async () => {
+    it('re-emits the cloud list after a mutation so the local-first repository stays reactive', async () => {
         const storage = createMemoryStorage();
-        const dataSource = new InviteCloudLocalDataSourceV2(contextProvider as any, storage);
+        const dataSource = new CloudLocalDataSourceV2(contextProvider as any, storage);
         const totals: number[] = [];
 
         const unsubscribe = dataSource.observeList(undefined as void, result => {
@@ -82,16 +82,28 @@ describe('InviteCloudLocalDataSourceV2', () => {
         expect(totals).toEqual([0, 1]);
     });
 
-    it('clears all invite clouds so local-only state can be reset between sessions', async () => {
+    it('clears all clouds so local state can be reset between sessions', async () => {
         const storage = createMemoryStorage();
-        const dataSource = new InviteCloudLocalDataSourceV2(contextProvider as any, storage);
+        const dataSource = new CloudLocalDataSourceV2(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 'cloud-1', name: 'One' } as any, { id: 'cloud-2', name: 'Two' } as any]);
         await dataSource.cacheClear();
 
         const result = await dataSource.cacheReadList();
 
-        // Clearing should leave the local-only list in a stable empty state.
+        // Clearing should leave the local list in a stable empty state.
         expect(result?.list).toEqual([]);
+    });
+
+    it('defaults an unclassified write to the invited cloudType and preserves an explicit one', async () => {
+        const storage = createMemoryStorage();
+        const dataSource = new CloudLocalDataSourceV2(contextProvider as any, storage);
+
+        await dataSource.cacheWrite({ id: 'cloud-1', name: 'One' } as any);
+        await dataSource.cacheWrite({ id: 'cloud-2', name: 'Two', cloudType: 'owner' } as any);
+
+        // Unclassified clouds fall back to 'invited'; explicit ownership is kept verbatim.
+        expect((await dataSource.cacheRead('cloud-1'))?.cloudType).toBe('invited');
+        expect((await dataSource.cacheRead('cloud-2'))?.cloudType).toBe('owner');
     });
 });
