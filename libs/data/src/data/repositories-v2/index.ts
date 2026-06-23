@@ -33,13 +33,10 @@ export const createRepositoriesV2 = ({
     remoteDataSources,
     localDataSources,
     context,
-    // Legacy callers may still pass domainEventBus; V2 repositories no longer consume it.
-    domainEventBus: _domainEventBus,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSourcesV2;
     context: DataContextProviderV2;
-    domainEventBus?: unknown;
 }): DataRepositoriesV2 => {
     const channel = new ChannelRepositoryV2(remoteDataSources.channel, localDataSources.channel, context);
     const chat = new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context);
