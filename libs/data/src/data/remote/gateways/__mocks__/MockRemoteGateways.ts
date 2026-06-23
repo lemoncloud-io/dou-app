@@ -51,11 +51,10 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
         },
         user: {
             listUser: jest.fn(),
-            updateProfile: jest.fn(),
+            update: jest.fn(),
             invite: jest.fn(),
             inviteBatch: jest.fn(),
             syncUsers: jest.fn(),
-            syncProfile: jest.fn(),
         },
         device: {
             save: jest.fn(),
@@ -66,10 +65,14 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
             request: jest.fn(),
         },
         cloud: {
+            get: jest.fn(),
             update: jest.fn(),
+            delete: jest.fn(),
         },
         profile: {
-            getSiteProfile: jest.fn(),
-            setSiteProfile: jest.fn(),
+            get: jest.fn(),
+            getMine: jest.fn(),
+            set: jest.fn(),
+            sync: jest.fn(),
         },
-    }) as MockRemoteGatewayBundle;
+    }) as unknown as MockRemoteGatewayBundle;

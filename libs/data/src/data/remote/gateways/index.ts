@@ -3,6 +3,7 @@ import type {
     ChannelGateway,
     ChatGateway,
     CloudGateway,
+    DeviceGateway,
     DomainGateway,
     PlaceGateway,
     ProfileGateway,
@@ -10,19 +11,21 @@ import type {
 } from '@lemoncloud/chatic-sockets-lib';
 
 export type AuthDomainGateway = Pick<AuthGateway, 'update'>;
-export type ChatDomainGateway = Pick<ChatGateway, 'read'>;
+export type ChatDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete'>;
 export type ChannelDomainGateway = Pick<
     ChannelGateway,
-    'create' | 'update' | 'delete' | 'leave' | 'getSelf' | 'mine' | 'unreads' | 'sync'
+    'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'unreads'
 >;
 export type JoinDomainGateway = Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'updateJoin' | 'join'>;
-export type PlaceDomainGateway = PlaceGateway & Pick<UserGateway, 'mySite'>;
-export type UserDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
-    Pick<UserGateway, 'update' | 'invite' | 'inviteBatch'>;
-export type DeviceDomainGateway = DomainGateway;
+export type PlaceDomainGateway = Pick<PlaceGateway, 'create' | 'get' | 'update' | 'delete'> &
+    Pick<UserGateway, 'mySite'>;
+export type DeviceDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync'>;
 export type SocketDomainGateway = Pick<DomainGateway, 'request'>;
 export type CloudDomainGateway = Pick<CloudGateway, 'update' | 'get' | 'delete'>;
-export type ProfileDomainGateway = ProfileGateway;
+export type ProfileDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' | 'set' | 'sync'>;
+export type JoinGateway = JoinDomainGateway;
+export type UserDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
+    Pick<UserGateway, 'update' | 'invite' | 'inviteBatch'>;
 
 export interface RemoteGatewayBundle {
     auth: AuthDomainGateway;

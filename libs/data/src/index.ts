@@ -8,6 +8,5 @@ export * from './data/local/databases';
 export * from './data/remote/gateways';
 export * from './data/remote/sockets/clients';
 export * from './data/remote/data-sources';
-export * from './data/remote/sockets/dispatchers/dispatchers';
 export * from './data/repositories';
 export * from './data/repositories-v2';

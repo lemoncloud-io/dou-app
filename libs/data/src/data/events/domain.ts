@@ -53,6 +53,9 @@ export interface DomainEventMap {
     'place:create': DomainPayload<SiteView>;
     'place:update': DomainPayload<SiteView>;
     'place:delete': DomainPayload<SiteView>;
+    'site:create': DomainPayload<SiteView>;
+    'site:update': DomainPayload<SiteView>;
+    'site:delete': DomainPayload<SiteView>;
 
     // ------------------------------------------
     // 6. Auth Domain (인증)
