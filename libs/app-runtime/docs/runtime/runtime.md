@@ -6,7 +6,7 @@ Date: 2026-06-19
 
 `runtime` 도메인은 `app-runtime` 패키지의 Composition Root 역할을 수행하며, 세션 레이어로부터 넘어온 실행 값을 받아 `socket`과 `data` 도메인 간의 바인딩을 매끄럽게 중재하고 생명주기(Lifecycle) 진입점을 제공한다.
 
-현재 runtime이 조립하는 transport는 `@lemoncloud/chatic-sockets-lib`의 **v2 소켓 모듈**이다. 따라서 binding, bootstrap, binder 동작은 모두 `ClientSocketV2` 와 v2 gateway 조립 기준으로 해석한다.
+현재 runtime이 조립하는 transport는 `@lemoncloud/chatic-sockets-lib`의 **v2 소켓 모듈**이다. 따라서 binding, bootstrap, binder 동작은 모두 `ClientSocketV2` 와 v2 gateway 조립 기준으로 해석한다. sync 역시 별도 React binder가 아니라 socket lifecycle 내부 서비스로 결합하는 것을 전제로 한다.
 
 ---
 
@@ -81,6 +81,7 @@ export interface RuntimeBinding {
 
 - 소켓 설정(url, wssType, deviceId 등)의 diff를 판단한다.
 - 설정이 변경되면 [SocketManager.ts](file:///Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/socket/SocketManager.ts)의 `ensure(config)`를 호출하여 기존 물리 커넥션을 정리(destroy)하고 새로운 커넥션을 빌드한다.
+- sync runtime은 별도 `RuntimeSyncBinder` 없이 이 socket lifecycle을 따라 내부 서비스로 attach/detach된다.
 
 ---
 

@@ -10,7 +10,7 @@ Date: 2026-06-19
 
 `app-runtime`은 세션의 상태 제어(로그인/토큰 관리 등)를 직접 수행하지 않고 상위 세션 레이어(`@chatic/web-core`)에 위임하며, 파생된 **활성 서버 관측 데이터(RuntimeBinding)**에 반응하여 소켓 및 데이터 레이어를 조립/재연결하는 구조를 취한다.
 
-채널/채팅 sync의 실행 시점 제어는 `data`가 아니라 `app-runtime`이 소유하며, 별도 `sync` 도메인 오케스트레이터로 배치한다. 상세 명세는 [sync/README.md](./sync/README.md)를 따른다.
+채널/채팅 sync의 실행 시점 제어는 `data`가 아니라 `app-runtime`이 소유한다. 다만 제어 기준은 `RuntimeBinding.context`가 아니라 **socket lifecycle**이며, sync runtime은 `SocketManager` 하위 서비스로 결합한다. 상세 명세는 [sync/README.md](./sync/README.md)를 따른다.
 
 현재 `app-runtime`의 소켓/게이트웨이 조립은 레거시 `wss` 클라이언트가 아니라 `@lemoncloud/chatic-sockets-lib`의 **v2 모듈**(`ClientSocketV2`, domain gateway, v2 message contract) 사용을 전제로 한다.
 
@@ -27,7 +27,10 @@ flowchart TD
   DataBinder --> DataManager["DataManager"]
   SocketBinder --> SocketManager["SocketManager"]
 
+  SocketManager --> Session["SocketSessionController"]
+  SocketManager --> Sync["AppSyncRuntime"]
   SocketManager --> Proxy["ManagedSocketClientProxy"]
+  Sync --> Plans["SocketRuntime + Sync Plans"]
   Proxy --> Gateways["Socket Gateways"]
   Gateways --> Data["Data Domain (Repositories)"]
 ```
@@ -41,11 +44,12 @@ flowchart TD
 - 세션 상태 조회, 토큰 Refresh, 디바이스 등록 등 핵심 세션 전이 로직에 직접 관여하지 않는다.
 - 파생된 `RuntimeBinding` 정보를 `DataManager`와 `SocketManager`에 동기화(ensure)하는 바인딩 기능과 진입점만 제공한다.
 
-### 2. `socket`은 연결 관리, 안정적인 프록시, 세션 제어를 담당한다
+### 2. `socket`은 연결 관리, 세션 제어, socket-bound sync를 담당한다
 
 - **SocketManager**: 실제 WebSocket 커넥션의 라이프사이클 및 연결 상태 정보를 관리한다.
-- **ManagedSocketClientProxy**: 게이트웨이들이 참조하는 안정적인 소켓 인터페이스(`ISocketClient`)를 제공하며, 통신 중 발생하는 401 에러를 인터셉트하여 토큰을 복구하고 재시도하는 책임을 가진다.
 - **SocketSessionController**: 중계/클라우드 서버에 대한 Bootstrap 시퀀스 및 1분 주기 리프레시, 401 에러 복구 싱글플라이트(single-flight) 오케스트레이션을 관리한다.
+- **AppSyncRuntime**: 현재 active socket client에 맞춰 sync runtime을 attach/detach하고, 서버 plan 주입, target registry 소유, watch 재등록을 담당한다.
+- **ManagedSocketClientProxy**: 게이트웨이들이 참조하는 안정적인 소켓 인터페이스(`ISocketClient`)를 제공하며, 통신 중 발생하는 401 에러를 인터셉트하여 토큰을 복구하고 재시도하는 책임을 가진다.
 - **SocketSessionDelegate**: 상위 레이어(`@chatic/web-core`)로부터 토큰 발급 및 갱신 동작을 주입받기 위한 계약 인터페이스다.
 
 ### 3. `data`는 게이트웨이 및 레포지토리 조립에 집중한다
@@ -66,7 +70,7 @@ libs/app-runtime/src/
     TransportBootstrap.tsx         # webTransport 초기화 가드
     SessionBackgroundRunner.tsx    # 백그라운드 세션 훅 실행
     RuntimeDataBinder.tsx          # Data context 바인더
-    SocketBinder.tsx               # Socket scope 바인더
+    SocketBinder.tsx               # Socket config 바인더
     index.ts
   runtime/
     RuntimeManager.ts              # 싱글톤 관리 및 레거시 제거된 bootstrap 위임
@@ -74,9 +78,13 @@ libs/app-runtime/src/
     index.ts
   socket/
     SocketManager.ts               # Raw socket lifecycle 및 상태 관리
-    ManagedSocketClientProxy.ts    # 401 감지 및 큐잉 재시도 프록시
     SocketSessionController.ts     # Bootstrap, 주기 리프레시, 401 복구 오케스트레이터
+    ManagedSocketClientProxy.ts    # 401 감지 및 큐잉 재시도 프록시
     runtime.ts                     # Controller, Proxy 싱글톤 관리
+    sync/
+      AppSyncRuntime.ts            # socket lifecycle을 따라가는 sync 서비스
+      plans.ts                     # server plan 인스턴스 조립
+      types.ts
     types.ts                       # Delegate 인터페이스 및 타입 정의
     hooks/
       useSocketState.ts            # 소켓 연결/검증 상태 훅
@@ -106,3 +114,4 @@ libs/app-runtime/src/
 | ⑧   | 소켓 401 복구 (재시도)             | `app-runtime` (`SocketSessionController` & Proxy) | 401 에러 인터셉트 시 `delegate.refreshSocketToken('socket-401')`로 토큰을 갱신하고 재시도 |
 | ⑨   | 디바이스 등록                      | `web-core` (`useDynamicDeviceId`)                 | `SessionBackgroundRunner`가 백그라운드로 마운트하여 구동                                  |
 | ⑩   | cid/sid 기본값                     | `runtime` (`useRuntimeBinding`)                   | `cid` 기본값 `'default'`, `sid` 기본값 `null`로 안전하게 바인딩 파생                      |
+| ⑪   | sync plan attach/detach            | `app-runtime` (`AppSyncRuntime`)                  | socket 교체/종료에 맞춰 sync runtime을 재부착하거나 정지                                  |

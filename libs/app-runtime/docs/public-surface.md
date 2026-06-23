@@ -13,27 +13,27 @@ Date: 2026-06-19
 
 외부로 노출되는 실제 심볼 목록은 다음과 같다.
 
-| 구분                   | 심볼                                                                                           | 설명 / 역할                                                                                                |
-| ---------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **값 파생 훅**         | `useRuntimeBinding()`                                                                          | 활성 서버(`activeServer`) 관측에 기반하여 파생된 `RuntimeBinding` (cid/sid/uid 및 소켓 구성 정보) 반환     |
-|                        | `useRuntimeRepositories()`                                                                     | 활성화된 런타임 데이터 컨텍스트에 바인딩된 `DataRepositories` 조회                                         |
-|                        | `useSocketState()`                                                                             | 소켓의 연결 및 검증 상태(`isConnected`, `isVerified`, `isDeviceRegistered`, `connectionId`) 실시간 관측    |
-| **Lifecycle 컴포넌트** | `<RuntimeConnectionHost>`                                                                      | 런타임 호스트 컨텍스트 및 `RuntimeBinding` 변화에 따른 최상위 주입 컴포넌트                                |
-|                        | `<TransportBootstrap>`                                                                         | `webTransport` 초기화 상태(`isReady`)를 검증하는 라이프사이클 게이트 컴포넌트                              |
-|                        | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 훅들(KeepAlive, TokenRefresh, DeviceId)을 마운트하여 주기적 백그라운드 오케스트레이션 실행 |
-|                        | `<RuntimeDataBinder>`                                                                          | `RuntimeBinding` 값에 맞춰 데이터 저장소 컨텍스트(DataContext) 동기화                                      |
-|                        | `<SocketBinder>`                                                                               | `RuntimeBinding` 값에 맞춰 소켓 연결 갱신 및 소켓 동기화                                                   |
-| **Delegate 계약**      | `SocketSessionDelegate`                                                                        | 소켓 리팩터링 결과에 따라 토큰 및 401 재인증 로직을 외부(`web-core` 등)에서 주입받기 위한 인터페이스       |
-| **편의 진입점**        | `getRuntimeManager()`                                                                          | 싱글톤 `RuntimeManager` 인스턴스 획득                                                                      |
-|                        | `getSocketRuntime()`                                                                           | 싱글톤 `SocketSessionController` 및 `ManagedSocketClientProxy` 인스턴스 획득                               |
-|                        | `getDataRuntime()`                                                                             | 싱글톤 `DataManager` 인스턴스 획득                                                                         |
-| **핵심 타입**          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate` | 주요 통신 및 런타임 데이터 스키마 타입                                                                     |
+| 구분                   | 심볼                                                                                           | 설명 / 역할                                                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **값 파생 훅**         | `useRuntimeBinding()`                                                                          | 활성 서버(`activeServer`) 관측에 기반하여 파생된 `RuntimeBinding` (cid/sid/uid 및 소켓 구성 정보) 반환      |
+|                        | `useRuntimeRepositories()`                                                                     | 활성화된 런타임 데이터 컨텍스트에 바인딩된 `DataRepositories` 조회                                          |
+|                        | `useSocketState()`                                                                             | 소켓의 연결 및 검증 상태(`isConnected`, `isVerified`, `isDeviceRegistered`, `connectionId`) 실시간 관측     |
+| **Lifecycle 컴포넌트** | `<RuntimeConnectionHost>`                                                                      | 런타임 호스트 컨텍스트 및 `RuntimeBinding` 변화에 따른 최상위 주입 컴포넌트                                 |
+|                        | `<TransportBootstrap>`                                                                         | `webTransport` 초기화 상태(`isReady`)를 검증하는 라이프사이클 게이트 컴포넌트                               |
+|                        | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 훅들(KeepAlive, TokenRefresh, DeviceId)을 마운트하여 주기적 백그라운드 오케스트레이션 실행  |
+|                        | `<RuntimeDataBinder>`                                                                          | `RuntimeBinding` 값에 맞춰 데이터 저장소 컨텍스트(DataContext) 동기화                                       |
+|                        | `<SocketBinder>`                                                                               | `RuntimeBinding.socket` 값에 맞춰 소켓 연결을 갱신하며, 내부 socket lifecycle에 sync 서비스가 따라붙도록 함 |
+| **Delegate 계약**      | `SocketSessionDelegate`                                                                        | 소켓 리팩터링 결과에 따라 토큰 및 401 재인증 로직을 외부(`web-core` 등)에서 주입받기 위한 인터페이스        |
+| **편의 진입점**        | `getRuntimeManager()`                                                                          | 싱글톤 `RuntimeManager` 인스턴스 획득                                                                       |
+|                        | `getSocketRuntime()`                                                                           | 싱글톤 `SocketSessionController` 및 `ManagedSocketClientProxy` 인스턴스 획득                                |
+|                        | `getDataRuntime()`                                                                             | 싱글톤 `DataManager` 인스턴스 획득                                                                          |
+| **핵심 타입**          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate` | 주요 통신 및 런타임 데이터 스키마 타입                                                                      |
 
 ---
 
 ## 3. 앱 조립 예시
 
-앱의 메인 진입점(예: `app.tsx`)에서 다음과 같이 컴포넌트 및 바인더 트리로 라이프사이클을 조립하여 사용한다.
+앱의 메인 진입점(예: `app.tsx`)에서 다음과 같이 컴포넌트 및 바인더 트리로 라이프사이클을 조립하여 사용한다. sync는 별도 binder를 두지 않고 socket 계층 내부 서비스로 동작한다.
 
 ```tsx
 import {
@@ -57,7 +57,7 @@ const App = () => {
                 {/* ② 데이터 런타임에 context 동기화 */}
                 <RuntimeDataBinder binding={binding} />
 
-                {/* ③ 소켓 런타임에 scope 및 config 동기화 */}
+                {/* ③ 소켓 런타임에 config 동기화 */}
                 <SocketBinder binding={binding} />
 
                 {/* 앱 메인 UI 영역 */}
@@ -76,4 +76,4 @@ const App = () => {
 - [runtime/runtime.md](./runtime/runtime.md) — 활성 서버 관측 및 Binder/Host 컴포넌트 동작 방식
 - [runtime/session-runner.md](./runtime/session-runner.md) — 백그라운드 러너 및 `TransportBootstrap`
 - [socket/socket.md](./socket/socket.md) — 소켓 5대 책임 모델 및 `SocketSessionDelegate` 위임 계약
-- [sync/README.md](./sync/README.md) — 채널/채팅 sync 오케스트레이터 배치 및 구현 명세
+- [sync/README.md](./sync/README.md) — socket lifecycle 추종형 sync runtime 배치 및 구현 명세
