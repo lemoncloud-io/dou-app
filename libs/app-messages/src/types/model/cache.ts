@@ -1,8 +1,15 @@
-import type { ChannelView, ChatView, JoinView, ProfileDisplay, UserView } from '@lemoncloud/chatic-socials-api';
+import type {
+    ChannelView,
+    ChatView,
+    JoinView,
+    ProfileDisplay,
+    ProfileView,
+    UserView,
+} from '@lemoncloud/chatic-socials-api';
 import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
-export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile';
+export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta';
 
 /** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
 export type PagingMeta = {
@@ -43,6 +50,7 @@ export type CacheModelMap = {
     site: CacheSiteView;
     user: CacheUserView;
     profile: CacheProfileView;
+    meta: CacheMetaView;
 };
 
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
@@ -56,49 +64,79 @@ export type CacheCloudView = CloudView &
         backend?: string;
         wss?: string;
         cid: string;
+        /** 초대받은 클라우드('invited') vs 본인 소유 클라우드('owner') 분류 */
+        cloudType?: 'invited' | 'owner';
     };
 
-/** 채널 정보 뷰 (Site ID 포함) */
+/** 채널 정보 뷰 (Site ID 및 도메인 필드 포함) */
 export type CacheChannelView = ChannelView &
     CacheViewBase & {
+        id: string;
         cid: string;
         sid: string;
         isNotificationEnabled: boolean;
+        lastActivityAt: number; // 추가: 정렬용 활성 시간
     };
 
-/** 채팅 메시지 뷰 (전송 상태 포함) */
+/** 채팅 메시지 뷰 (전송 상태 및 도메인 필드 포함) */
 export type CacheChatView = ChatView &
     CacheViewBase & {
+        id: string;
         cid: string;
+        channelId: string;
+        chatNo: number;
+        isPending: boolean; // 보정: non-optional
+        isFailed: boolean; // 보정: non-optional
+        createdAtMs: number; // 추가: 타임스탬프
+        updatedAtMs: number; // 추가: 타임스탬프
         tempId?: string;
-        isPending?: boolean; // 전송 중 여부
-        isFailed?: boolean; // 전송 실패 여부
     };
 
 /** 사이트 정보 뷰 */
 export type CacheSiteView = MySiteView &
     CacheViewBase & {
+        id: string;
         cid: string;
-        order?: number;
+        order: number; // 보정: non-optional
     };
 
 export type CacheJoinView = JoinView &
     CacheViewBase & {
+        id: string;
         cid: string;
+        channelId: string;
+        userId: string;
+        joined: number;
+        readNo: number;
     };
 
 export type CacheUserView = UserView &
     CacheViewBase & {
+        id: string;
         cid: string;
     };
 
-/** 플레이스(사이트)별 표시 프로필 뷰 — id = `${sid}@${uid}` */
-export type CacheProfileView = ProfileDisplay &
+/**
+ * 동기화 커서 등 cid/uid 스코프의 키-값 메타데이터 뷰.
+ * `id`가 메타 종류(예: 'channel-sync')이고, 값으로 sync 커서(`syncedAt`)를 담는다.
+ */
+export type CacheMetaView = CacheViewBase & {
+    id: string;
+    cid: string;
+    uid: string;
+    syncedAt?: number;
+};
+
+/** 플레이스(사이트)별 표시 프로필 뷰 */
+export type CacheProfileView = ProfileView &
+    Partial<ProfileDisplay> &
     CacheViewBase & {
         id: string;
         cid: string;
-        sid?: string;
+        sid: string; // 보정: non-optional
         uid: string;
+        userId: string;
+        updatedAtMs: number; // 추가: 갱신 시간
     };
 
 /**
@@ -145,6 +183,9 @@ export type ProfileQueryOptions = BaseQueryOptions & {
     sid?: string; // 특정 사이트/플레이스 필터
 };
 
+/** 메타 쿼리 (cid/uid 스코프, 추가 필터 없음) */
+export type MetaQueryOptions = BaseQueryOptions;
+
 /** 도메인별 쿼리 옵션 매핑 */
 export type CacheQueryMap = {
     channel: ChannelQueryOptions;
@@ -154,6 +195,7 @@ export type CacheQueryMap = {
     join: JoinQueryOptions;
     invitecloud: InviteCloudQueryOptions;
     profile: ProfileQueryOptions;
+    meta: MetaQueryOptions;
 };
 
 /** [요청] ID 기반 단일 데이터 조회 */

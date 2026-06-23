@@ -69,6 +69,7 @@ const appReadPolicies: Record<CacheType, CacheReadPolicy> = {
     site: 'hot-first',
     user: 'hot-first',
     profile: 'hot-first',
+    meta: 'hot-first',
 };
 
 const appLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
@@ -79,6 +80,7 @@ const appLoadAllPolicies: Record<CacheType, CacheReadPolicy> = {
     site: 'hot-first',
     user: 'hot-first',
     profile: 'hot-first',
+    meta: 'hot-first',
 };
 
 /**
