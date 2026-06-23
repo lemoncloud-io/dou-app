@@ -35,18 +35,17 @@ describe('ProfileRepositoryV2', () => {
 
     it('writes non-null sync deltas and deletes null resets for the current site', async () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
+        // The remote source now returns the mapped delta (domain upserts + ids to remove).
         profileRemoteDataSource.sync.mockResolvedValue({
-            profiles: {
-                'user-1': { nick: 'Alice', thumbnail: 'thumb-1' },
-                'user-2': null,
-            },
+            upserts: [{ id: 'site-1:user-1', sid: 'site-1', uid: 'user-1', userId: 'user-1', nick: 'Alice' }],
+            removals: ['site-1:user-2'],
             syncedAt: 123,
         });
 
         const result = await repository.syncProfiles(0);
 
         // profile.sync delta → cache writes for the active site scope.
-        expect(profileRemoteDataSource.sync).toHaveBeenCalledWith({ since: 0 });
+        expect(profileRemoteDataSource.sync).toHaveBeenCalledWith({ since: 0 }, expect.anything());
         expect(profileLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [
                 expect.objectContaining({
@@ -98,6 +97,8 @@ describe('ProfileRepositoryV2', () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
         profileRemoteDataSource.get.mockResolvedValue({
             id: 'site-1:me',
+            sid: 'site-1',
+            uid: 'me',
             siteId: 'site-1',
             userId: 'me',
             nick: 'Alice',
@@ -105,7 +106,7 @@ describe('ProfileRepositoryV2', () => {
 
         const result = await repository.refreshItem('site-1:me');
 
-        expect(profileRemoteDataSource.get).toHaveBeenCalledWith({ id: 'site-1:me' });
+        expect(profileRemoteDataSource.get).toHaveBeenCalledWith({ id: 'site-1:me' }, expect.anything());
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-1:me', sid: 'site-1', uid: 'me' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -117,6 +118,8 @@ describe('ProfileRepositoryV2', () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
         profileRemoteDataSource.getMine.mockResolvedValue({
             id: 'site-1:me',
+            sid: 'site-1',
+            uid: 'me',
             siteId: 'site-1',
             userId: 'me',
             nick: 'Me',
@@ -152,6 +155,8 @@ describe('ProfileRepositoryV2', () => {
         const { repository, profileRemoteDataSource, profileLocalDataSource } = createRepository();
         profileRemoteDataSource.set.mockResolvedValue({
             id: 'site-1:me',
+            sid: 'site-1',
+            uid: 'me',
             siteId: 'site-1',
             userId: 'me',
             nick: 'After',
@@ -159,7 +164,10 @@ describe('ProfileRepositoryV2', () => {
 
         const result = await repository.setMyProfile({ nick: 'After' } as any);
 
-        expect(profileRemoteDataSource.set).toHaveBeenCalledWith(expect.objectContaining({ siteId: 'site-1' }));
+        expect(profileRemoteDataSource.set).toHaveBeenCalledWith(
+            expect.objectContaining({ siteId: 'site-1' }),
+            expect.anything()
+        );
         expect(profileLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ sid: 'site-1', uid: 'me' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }

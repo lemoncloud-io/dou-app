@@ -1,14 +1,12 @@
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
-import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChat, DomainListResult } from '../domain';
-import { toDomainChat } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { ChatDeleteInput, ChatGetInput, ChatUpdateInput, IChatRemoteDataSource } from '../remote/data-sources';
 import type { DataContext, DataContextProvider } from '../repositories';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ChatRefreshResult {
-    wroteCount: number;
+    fetchedCount: number;
     cursorNo?: number;
     readNo?: number;
     total: number;
@@ -86,23 +84,22 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         this.assertRequiredString(query.channelId, 'channelId');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = (await this.chatRemoteDataSource.fetchChat(query)) as ChatFeedResult;
-        const domainList = ((remote?.list || []) as ChatView[]).map(item => toDomainChat(item, normalizedContext));
+        const remote = await this.chatRemoteDataSource.fetchChat(query, normalizedContext);
+        const domainList = remote.list || [];
         await this.chatLocalDataSource.cacheWriteMany(domainList, requestContext);
 
         return {
-            wroteCount: domainList.length,
-            cursorNo: remote?.cursorNo,
-            readNo: remote?.readNo,
-            total: remote?.total ?? domainList.length,
+            fetchedCount: domainList.length,
+            cursorNo: remote.cursorNo,
+            readNo: remote.readNo,
+            total: remote.total ?? domainList.length,
         };
     }
 
     public async getChat(payload: ChatGetInput): Promise<DomainChat> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.chatRemoteDataSource.getChat(payload);
-        const domainChat = toDomainChat(remote, normalizedContext);
+        const domainChat = await this.chatRemoteDataSource.getChat(payload, normalizedContext);
         await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
 
         return domainChat;
@@ -117,16 +114,13 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         await this.chatLocalDataSource.cacheWrite(optimisticChat, requestContext);
 
         try {
-            const remote = (await this.chatRemoteDataSource.sendChat(payload)) as ChatView;
-            const domainChat = toDomainChat(
-                {
-                    ...remote,
-                    tempId: optimisticChat.id,
-                    isPending: false,
-                    isFailed: false,
-                },
-                normalizedContext
-            );
+            const remote = await this.chatRemoteDataSource.sendChat(payload, normalizedContext);
+            const domainChat: DomainChat = {
+                ...remote,
+                tempId: optimisticChat.id,
+                isPending: false,
+                isFailed: false,
+            };
             await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
             if (domainChat.id && optimisticChat.id !== domainChat.id) {
                 await this.chatLocalDataSource.cacheDelete(optimisticChat.id, requestContext);
@@ -162,8 +156,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         );
 
         try {
-            const remote = await this.chatRemoteDataSource.updateChat(payload);
-            const domainChat = toDomainChat(remote, normalizedContext);
+            const domainChat = await this.chatRemoteDataSource.updateChat(payload, normalizedContext);
             await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
             return domainChat;
         } catch (error) {
@@ -183,8 +176,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         await this.chatLocalDataSource.cacheDelete(chatId, requestContext);
 
         try {
-            const remote = await this.chatRemoteDataSource.deleteChat(payload);
-            return toDomainChat(remote, normalizedContext);
+            return await this.chatRemoteDataSource.deleteChat(payload, normalizedContext);
         } catch (error) {
             if (existing) {
                 await this.chatLocalDataSource.cacheWrite(existing, requestContext);
@@ -193,27 +185,27 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         }
     }
 
+    // Optimistic chats are built as domain literals (no mapper); cacheWrite fills any remaining defaults.
     private createOptimisticChat(payload: ChatSendInput, id: string, normalizedContext: DataContext): DomainChat {
         const now = Date.now();
-        return toDomainChat(
-            {
-                id,
-                tempId: id,
-                userId: normalizedContext.uid,
-                cid: normalizedContext.cid,
-                channelId: payload.channelId || '',
-                content: payload.content,
-                contentType: payload.contentType ?? 'text',
-                parentId: (payload as { parentId?: string }).parentId,
-                ownerId: normalizedContext.uid,
-                createdAt: now,
-                updatedAt: now,
-                isOwner: true,
-                isPending: true,
-                isFailed: false,
-                chatNo: Number.MAX_SAFE_INTEGER,
-            } as Partial<DomainChat>,
-            normalizedContext
-        );
+        return {
+            id,
+            tempId: id,
+            userId: normalizedContext.uid,
+            cid: normalizedContext.cid ?? 'default',
+            channelId: payload.channelId || '',
+            chatNo: 0,
+            content: payload.content,
+            contentType: payload.contentType ?? 'text',
+            parentId: (payload as { parentId?: string }).parentId,
+            ownerId: normalizedContext.uid,
+            createdAt: now,
+            updatedAt: now,
+            createdAtMs: now,
+            updatedAtMs: now,
+            isOwner: true,
+            isPending: true,
+            isFailed: false,
+        } as DomainChat;
     }
 }

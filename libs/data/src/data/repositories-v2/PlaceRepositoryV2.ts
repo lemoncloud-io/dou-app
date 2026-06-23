@@ -1,6 +1,5 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../domain';
-import { toDomainPlace } from '../domain';
 import type { IPlaceLocalDataSourceV2 } from '../local/data-sources-v2';
 import type {
     IPlaceRemoteDataSource,
@@ -10,7 +9,7 @@ import type {
     PlaceUpdateInput,
 } from '../remote/data-sources';
 import type { DataContextProvider } from '../repositories';
-import { BaseRepositoryV2, type DisposableRepositoryV2, type RepositoryRefreshResult } from './types';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
@@ -19,7 +18,7 @@ export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
     ): () => void;
     observeItem(id: string, callback: (item: DomainPlace | null) => void): () => void;
 
-    refreshList(query?: UserMySiteInput): Promise<RepositoryRefreshResult>;
+    refreshList(query?: UserMySiteInput): Promise<void>;
     createPlace(payload: PlaceCreateInput): Promise<DomainPlace>;
     getPlace(payload: PlaceGetInput): Promise<DomainPlace>;
     updatePlace(payload: PlaceUpdateInput): Promise<DomainPlace>;
@@ -78,24 +77,19 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
         return this.placeLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
-    public async refreshList(query?: UserMySiteInput): Promise<RepositoryRefreshResult> {
+    public async refreshList(query?: UserMySiteInput): Promise<void> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.placeRemoteDataSource.fetchPlace(query);
-        const domainList = (remote.list || []).map((item, index) => ({
-            ...toDomainPlace(item as Partial<DomainPlace>, normalizedContext),
-            cid: normalizedContext.cid,
-            order: index,
-        }));
+        const remote = await this.placeRemoteDataSource.fetchPlace(query, normalizedContext);
+        // Preserve the server-provided ordering by stamping the list index as `order`.
+        const domainList = (remote.list || []).map((item, index) => ({ ...item, order: index }));
         await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
-        return { wroteCount: domainList.length };
     }
 
     public async createPlace(payload: PlaceCreateInput): Promise<DomainPlace> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.placeRemoteDataSource.createPlace(payload);
-        const domain = toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+        const domain = await this.placeRemoteDataSource.createPlace(payload, normalizedContext);
         await this.placeLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
@@ -103,8 +97,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     public async getPlace(payload: PlaceGetInput): Promise<DomainPlace> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.placeRemoteDataSource.getPlace(payload);
-        const domain = toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+        const domain = await this.placeRemoteDataSource.getPlace(payload, normalizedContext);
         await this.placeLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
@@ -118,8 +111,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
             await this.placeLocalDataSource.cacheWrite({ id, ...(payload as Partial<DomainPlace>) }, requestContext);
         }
         try {
-            const remote = await this.placeRemoteDataSource.updatePlace(payload);
-            const domain = toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+            const domain = await this.placeRemoteDataSource.updatePlace(payload, normalizedContext);
             await this.placeLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -139,8 +131,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
             await this.placeLocalDataSource.cacheDelete(id, requestContext);
         }
         try {
-            const remote = await this.placeRemoteDataSource.deletePlace(payload);
-            return toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+            return await this.placeRemoteDataSource.deletePlace(payload, normalizedContext);
         } catch (error) {
             if (existing) {
                 await this.placeLocalDataSource.cacheWrite(existing, requestContext);

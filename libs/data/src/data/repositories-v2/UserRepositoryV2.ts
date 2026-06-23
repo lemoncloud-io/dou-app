@@ -5,23 +5,21 @@ import type {
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
-import type { UserView } from '@lemoncloud/chatic-socials-api';
 import type { DomainListResult, DomainUser } from '../domain';
-import { toDomainUser } from '../domain';
 import type { IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from '../repositories';
-import { BaseRepositoryV2, type DisposableRepositoryV2, type RepositoryRefreshResult } from './types';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainUser | null) => void): () => void;
 
-    refreshList(query: ChatUsersInput): Promise<RepositoryRefreshResult>;
+    refreshList(query: ChatUsersInput): Promise<void>;
     updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser>;
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
     requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]>;
-    refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<RepositoryRefreshResult>;
+    refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<void>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;
@@ -76,16 +74,11 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         return this.userLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
-    public async refreshList(query: ChatUsersInput): Promise<RepositoryRefreshResult> {
+    public async refreshList(query: ChatUsersInput): Promise<void> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.userRemoteDataSource.fetchUsers(query);
-        const domainList = (remote.list || []).map(item => ({
-            ...toDomainUser(item as UserView, normalizedContext),
-            cid: normalizedContext.cid,
-        }));
-        await this.userLocalDataSource.cacheWriteMany(domainList, requestContext);
-        return { wroteCount: domainList.length };
+        const remote = await this.userRemoteDataSource.fetchUsers(query, normalizedContext);
+        await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
     }
 
     public async updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser> {
@@ -97,8 +90,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
             await this.userLocalDataSource.cacheWrite({ id: uid, ...(payload as Partial<DomainUser>) }, requestContext);
         }
         try {
-            const remote = await this.userRemoteDataSource.updateProfile(payload);
-            const domain = toDomainUser(remote as UserView, normalizedContext);
+            const domain = await this.userRemoteDataSource.updateProfile(payload, normalizedContext);
             await this.userLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
@@ -119,15 +111,10 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         return result.list || [];
     }
 
-    public async refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<RepositoryRefreshResult> {
+    public async refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<void> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.userRemoteDataSource.syncChannelUsers(payload);
-        const domainList = (remote.list || []).map(item => ({
-            ...toDomainUser(item as UserView, normalizedContext),
-            cid: normalizedContext.cid,
-        }));
-        await this.userLocalDataSource.cacheWriteMany(domainList, requestContext);
-        return { wroteCount: domainList.length };
+        const remote = await this.userRemoteDataSource.syncChannelUsers(payload, normalizedContext);
+        await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
     }
 }

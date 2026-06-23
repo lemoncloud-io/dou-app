@@ -58,7 +58,59 @@ describe('ChannelRepositoryV2', () => {
             sid: 'site-1',
             uid: 'me',
         });
-        expect(result).toEqual({ wroteCount: 1 });
+        expect(result).toBeUndefined();
+    });
+
+    it('tags the refreshed channels with the viewed sid, not a drifting data-context sid', async () => {
+        // channel.mine returns the current session's channels with no sid field; the
+        // viewed sid (query.sid) must scope the local write even if the data context
+        // has not yet caught up to the newly selected site.
+        const channelRemoteDataSource = {
+            fetchChannel: jest.fn().mockResolvedValue({ list: [{ id: 'ch-1' }] }),
+            syncChannel: jest.fn(),
+            createChannel: jest.fn(),
+            updateChannel: jest.fn(),
+            inviteChannel: jest.fn(),
+            leaveChannel: jest.fn(),
+            deleteChannel: jest.fn(),
+            getSelfChannel: jest.fn(),
+            getUnreads: jest.fn(),
+        };
+        const channelLocalDataSource = {
+            observeList: jest.fn(() => () => undefined),
+            observeItem: jest.fn(() => () => undefined),
+            cacheRead: jest.fn(),
+            cacheReadList: jest.fn().mockResolvedValue({ list: [] }),
+            cacheWrite: jest.fn(),
+            cacheWriteMany: jest.fn(),
+            cacheDelete: jest.fn(),
+            cacheDeleteMany: jest.fn(),
+            cacheClear: jest.fn(),
+        };
+        const contextProvider = {
+            getContext: () => ({ cid: 'cloud-a', sid: 'site-old', uid: 'me' }),
+            setContext: () => undefined,
+        };
+        const repository = new ChannelRepositoryV2(
+            channelRemoteDataSource as any,
+            channelLocalDataSource as any,
+            contextProvider
+        );
+
+        await repository.refreshList({ sid: 'site-new' } as any);
+
+        // Mapping context carries the viewed sid so toDomainChannel tags channels with it...
+        expect(channelRemoteDataSource.fetchChannel).toHaveBeenCalledWith(
+            { sid: 'site-new' },
+            { cid: 'cloud-a', sid: 'site-new', uid: 'me' }
+        );
+        // ...but the cache write runs under the LIVE context so the list re-emit reaches
+        // observers subscribed on that scope (mismatched scope = missed updates).
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith([{ id: 'ch-1' }], {
+            cid: 'cloud-a',
+            sid: 'site-old',
+            uid: 'me',
+        });
     });
 
     it('delegates read and cache helper methods to the local datasource with the runtime context', async () => {

@@ -70,7 +70,7 @@ describe('PlaceRepositoryV2', () => {
             ],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-        expect(result).toEqual({ wroteCount: 2 });
+        expect(result).toBeUndefined();
     });
 
     it('persists the created place into local cache after a successful remote create', async () => {

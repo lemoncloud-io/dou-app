@@ -4,8 +4,10 @@ describe('JoinRepositoryV2', () => {
     const createRepository = () => {
         // Keep join transport mocked separately from local cache so rollback behavior is explicit.
         const joinRemoteDataSource = {
+            getJoin: jest.fn(),
             readChat: jest.fn(),
             updateJoin: jest.fn(),
+            updateChannelJoin: jest.fn(),
             joinChannel: jest.fn(),
         };
         const joinLocalDataSource = {

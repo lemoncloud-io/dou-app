@@ -1,7 +1,5 @@
 import type { DataContext, DataContextProvider } from '../repositories';
 
-export type { DataContext };
-
 export const createSnapshotDataContextProvider = (context: DataContext): DataContextProvider => {
     const snapshot = { ...context };
     return {
@@ -13,10 +11,6 @@ export const createSnapshotDataContextProvider = (context: DataContext): DataCon
         },
     };
 };
-
-export interface RepositoryRefreshResult {
-    wroteCount: number;
-}
 
 export interface DisposableRepositoryV2 {
     dispose(): void;

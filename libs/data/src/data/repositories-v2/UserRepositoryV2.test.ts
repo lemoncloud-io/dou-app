@@ -34,8 +34,9 @@ describe('UserRepositoryV2', () => {
 
     it('writes synced channel users into the local cache with the active cloud scope', async () => {
         const { repository, userRemoteDataSource, userLocalDataSource } = createRepository();
+        // The remote source now returns mapped domain users; the repository writes them as-is.
         userRemoteDataSource.syncChannelUsers.mockResolvedValue({
-            list: [{ id: 'u1', name: 'Alice' }],
+            list: [{ id: 'u1', cid: 'cloud-a', name: 'Alice' }],
         });
 
         const result = await repository.refreshChannelUsers({ channelId: 'ch-1' } as any);
@@ -45,7 +46,7 @@ describe('UserRepositoryV2', () => {
             [expect.objectContaining({ id: 'u1', cid: 'cloud-a' })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-        expect(result).toEqual({ wroteCount: 1 });
+        expect(result).toBeUndefined();
     });
 
     it('rolls back an optimistic profile patch when updateProfile fails', async () => {
