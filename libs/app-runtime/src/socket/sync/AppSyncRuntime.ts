@@ -101,6 +101,14 @@ export class AppSyncRuntime implements IAppSyncRuntime {
         });
     }
 
+    public registerJoin(id: string, intervalMs?: number): () => void {
+        return this.register({
+            type: 'join',
+            id,
+            ...(typeof intervalMs === 'number' ? { intervalMs } : {}),
+        });
+    }
+
     public listTargets(): SyncTargetDescriptor[] {
         return [...this.watchEntries.values()].map(entry => ({ ...entry.target }));
     }

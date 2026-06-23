@@ -23,6 +23,7 @@ export interface IAppSyncRuntime {
     registerChat(id: string, intervalMs?: number): () => void;
     registerPlace(id: string, intervalMs?: number): () => void;
     registerProfile(id: string, intervalMs?: number): () => void;
+    registerJoin(id: string, intervalMs?: number): () => void;
     listTargets(): SyncTargetDescriptor[];
     destroy(): void;
 }

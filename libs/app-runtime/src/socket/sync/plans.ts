@@ -3,11 +3,12 @@ import {
     ChannelSyncPlan,
     ChatSyncPlan,
     DeviceSyncPlan,
+    JoinSyncPlan,
     PlaceSyncPlan,
     ProfileSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainScope } from '@chatic/data';
-import { toDomainChannel, toDomainChat, toDomainPlace, toDomainProfile } from '@chatic/data';
+import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { getDataManager, getRepositories } from '../../data/runtime';
 
 /**
@@ -68,6 +69,19 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 const { chat } = getRepositories();
                 const scope = getScope();
                 void chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope)));
+            },
+        }),
+        // join은 single-join polling plan. join.get 응답의 updatedAt 변화 시 onUpdate가 호출되며,
+        // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
+        new JoinSyncPlan({
+            onUpdate: (_target, view) => {
+                const { join } = getRepositories();
+                void join.cacheWrite(toDomainJoin(view, getScope()));
+            },
+            onRemove: target => {
+                if (!target.id) return;
+                const { join } = getRepositories();
+                void join.cacheDelete(target.id);
             },
         }),
     ];
