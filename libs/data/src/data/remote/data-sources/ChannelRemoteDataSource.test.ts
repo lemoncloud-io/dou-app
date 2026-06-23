@@ -1,7 +1,5 @@
 import { ChannelRemoteDataSource } from './ChannelRemoteDataSource';
 import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
 import type {
     ChatMineInput,
     ChannelSyncInput,
@@ -16,18 +14,11 @@ import type {
 
 describe('ChannelRemoteDataSource', () => {
     let mockGateways: MockRemoteGatewayBundle;
-    let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
     let dataSource: ChannelRemoteDataSource;
 
     beforeEach(() => {
         mockGateways = createMockRemoteGateways();
-        mockDomainEventBus = {
-            emit: jest.fn(),
-            on: jest.fn(),
-            onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
-
-        dataSource = new ChannelRemoteDataSource(mockDomainEventBus, mockGateways.channel);
+        dataSource = new ChannelRemoteDataSource(mockGateways.channel);
     });
 
     describe('발신(Send) 파이프라인 검증 (Request)', () => {
@@ -83,26 +74,6 @@ describe('ChannelRemoteDataSource', () => {
             const payload: ChannelUnreadsInput = {};
             await dataSource.getUnreads(payload);
             expect(mockGateways.channel.unreads).toHaveBeenCalledWith(payload);
-        });
-    });
-
-    describe('수신(Receive) 파이프라인 검증 (Model Event)', () => {
-        it('handleModelEvent("create", data) 호출 시 domainEventBus에 channel:create를 emit 해야 한다', () => {
-            const data = { id: 'ch-1', name: 'General' };
-            dataSource.handleModelEvent('create', data);
-            expect(mockDomainEventBus.emit).toHaveBeenCalledWith('channel:create', { data });
-        });
-
-        it('handleModelEvent("update", data) 호출 시 domainEventBus에 channel:update를 emit 해야 한다', () => {
-            const data = { id: 'ch-1', name: 'General V2' };
-            dataSource.handleModelEvent('update', data);
-            expect(mockDomainEventBus.emit).toHaveBeenCalledWith('channel:update', { data });
-        });
-
-        it('handleModelEvent("delete", data) 호출 시 domainEventBus에 channel:delete를 emit 해야 한다', () => {
-            const data = { id: 'ch-1' };
-            dataSource.handleModelEvent('delete', data);
-            expect(mockDomainEventBus.emit).toHaveBeenCalledWith('channel:delete', { data });
         });
     });
 });

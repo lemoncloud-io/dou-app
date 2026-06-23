@@ -1,5 +1,3 @@
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
 import type {
     ChannelGetSelfInput,
     ChannelSyncInput,
@@ -15,13 +13,11 @@ import type {
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
-import type { ChannelGateway } from '@lemoncloud/chatic-sockets-lib';
+import type { ChannelDomainGateway } from '../gateways';
 
 export interface IChannelRemoteDataSource {
     /** 내가 참여 중인 채널 목록을 서버에 요청합니다. */
     fetchChannel(payload: ChannelMineInput): Promise<ListResult<ChannelView>>;
-    /** 채널 동기화를 서버에 요청합니다. */
-    syncChannel(payload: ChannelSyncInput): Promise<ChannelSyncView>;
     /** 채널의 정보(이름, 설정 등) 수정을 요청합니다. */
     updateChannel(payload: ChannelUpdateInput): Promise<ChannelView>;
     /** 채널 삭제(또는 종료)를 요청합니다. */
@@ -37,15 +33,12 @@ export interface IChannelRemoteDataSource {
     getSelfChannel(payload: ChannelGetSelfInput): Promise<ChannelView>;
     /** 읽지 않은 메시지 통계를 요청합니다. */
     getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
-    /** 인바운드 모델 이벤트를 처리합니다. */
-    handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void;
+    /** 채널 동기화를 서버에 요청합니다. */
+    syncChannel(payload: ChannelSyncInput): Promise<ChannelSyncView>;
 }
 
 export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
-    constructor(
-        private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly gateway: ChannelGateway
-    ) {}
+    constructor(private readonly gateway: ChannelDomainGateway) {}
 
     public async fetchChannel(payload: ChannelMineInput): Promise<ListResult<ChannelView>> {
         return this.gateway.mine(payload);
@@ -81,12 +74,5 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
 
     public async getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
         return this.gateway.unreads(payload);
-    }
-
-    public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
-        const eventName = `channel:${action}` as 'channel:create' | 'channel:update' | 'channel:delete';
-        this.domainEventBus.emit(eventName, {
-            data,
-        });
     }
 }

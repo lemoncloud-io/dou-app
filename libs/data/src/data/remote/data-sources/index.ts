@@ -1,5 +1,3 @@
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
 import type { RemoteGatewayBundle } from '../gateways';
 import type { IAuthRemoteDataSource } from './AuthRemoteDataSource';
 import { AuthRemoteDataSource } from './AuthRemoteDataSource';
@@ -49,21 +47,15 @@ export interface RemoteDataSources {
 /**
  * RemoteDataSource 생성 위치를 한 곳으로 모웁니다.
  */
-export const createRemoteDataSources = ({
-    domainEventBus,
-    gateways,
-}: {
-    domainEventBus: IEventBus<DomainEventMap>;
-    gateways: RemoteGatewayBundle;
-}): RemoteDataSources => ({
-    auth: new AuthRemoteDataSource(domainEventBus, gateways.auth),
-    channel: new ChannelRemoteDataSource(domainEventBus, gateways.channel),
-    chat: new ChatRemoteDataSource(domainEventBus, gateways.chat),
-    join: new JoinRemoteDataSource(domainEventBus, gateways.join),
-    place: new PlaceRemoteDataSource(domainEventBus, gateways.place),
-    user: new UserRemoteDataSource(domainEventBus, gateways.user),
-    device: new DeviceRemoteDataSource(domainEventBus, gateways.device),
-    sockets: new SocketsRemoteDataSource(domainEventBus, gateways.sockets),
+export const createRemoteDataSources = ({ gateways }: { gateways: RemoteGatewayBundle }): RemoteDataSources => ({
+    auth: new AuthRemoteDataSource(gateways.auth),
+    channel: new ChannelRemoteDataSource(gateways.channel),
+    chat: new ChatRemoteDataSource(gateways.chat),
+    join: new JoinRemoteDataSource(gateways.join),
+    place: new PlaceRemoteDataSource(gateways.place),
+    user: new UserRemoteDataSource(gateways.user),
+    device: new DeviceRemoteDataSource(gateways.device),
+    sockets: new SocketsRemoteDataSource(gateways.sockets),
     cloud: new CloudRemoteDataSource(gateways.cloud),
     profile: new ProfileRemoteDataSource(gateways.profile),
 });
