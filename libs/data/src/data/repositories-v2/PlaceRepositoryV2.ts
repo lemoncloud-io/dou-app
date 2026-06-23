@@ -1,6 +1,4 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { DomainListResult, DomainPlace } from '../domain';
 import { toDomainPlace } from '../domain';
 import type { IPlaceLocalDataSourceV2 } from '../local/data-sources-v2';
@@ -44,11 +42,9 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     constructor(
         private readonly placeRemoteDataSource: IPlaceRemoteDataSource,
         private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
-        this.initializeInternalListeners();
+        super(contextProvider);
     }
 
     public observeList(
@@ -152,16 +148,5 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
             }
             throw error;
         }
-    }
-
-    private initializeInternalListeners(): void {
-        this.onDomainEvent('place:create', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.placeLocalDataSource.cacheWrite(detail.data, context), 'place:create');
-        });
-        this.onDomainEvent('place:update', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.placeLocalDataSource.cacheWrite(detail.data, context), 'place:update');
-        });
     }
 }

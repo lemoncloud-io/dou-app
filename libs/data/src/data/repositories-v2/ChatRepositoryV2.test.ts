@@ -6,6 +6,9 @@ describe('ChatRepositoryV2', () => {
         const chatRemoteDataSource = {
             fetchChat: jest.fn(),
             sendChat: jest.fn(),
+            getChat: jest.fn(),
+            updateChat: jest.fn(),
+            deleteChat: jest.fn(),
         };
         const chatLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -22,19 +25,9 @@ describe('ChatRepositoryV2', () => {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
         };
-        const domainEventBus = {
-            on: jest.fn(() => () => undefined),
-            emit: jest.fn(),
-            onAny: jest.fn(() => () => undefined),
-        };
 
         return {
-            repository: new ChatRepositoryV2(
-                chatRemoteDataSource as any,
-                chatLocalDataSource as any,
-                contextProvider,
-                domainEventBus as any
-            ),
+            repository: new ChatRepositoryV2(chatRemoteDataSource as any, chatLocalDataSource as any, contextProvider),
             chatRemoteDataSource,
             chatLocalDataSource,
         };
@@ -83,6 +76,50 @@ describe('ChatRepositoryV2', () => {
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
         expect(result).toEqual({ wroteCount: 1, cursorNo: 2, readNo: 3, total: 1 });
+    });
+
+    it('hydrates local cache when getChat resolves from remote', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatRemoteDataSource.getChat.mockResolvedValue({ id: 'm1', channelId: 'ch-1', content: 'hello' });
+
+        const result = await repository.getChat({ id: 'm1' } as any);
+
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'm1', channelId: 'ch-1' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        expect(result).toEqual(expect.objectContaining({ id: 'm1' }));
+    });
+
+    it('rolls back the optimistic patch when updateChat fails', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
+        chatRemoteDataSource.updateChat.mockRejectedValue(new Error('boom'));
+
+        await expect(repository.updateChat({ id: 'm1', content: 'after' } as any)).rejects.toThrow('boom');
+
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
+            expect.objectContaining({ id: 'm1', content: 'before' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+    });
+
+    it('restores the deleted chat when deleteChat fails', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
+        chatRemoteDataSource.deleteChat.mockRejectedValue(new Error('boom'));
+
+        await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
+
+        expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith('m1', {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
+            expect.objectContaining({ id: 'm1', content: 'before' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
     });
 
     it('delegates cache helper methods to the local datasource', async () => {

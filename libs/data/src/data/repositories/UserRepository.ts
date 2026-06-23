@@ -3,7 +3,6 @@ import type {
     UserInviteInput,
     UserUpdateProfileInput,
     ChannelSyncUsersInput,
-    ChannelSyncSiteProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { DomainEventMap } from '../events/types';
@@ -35,9 +34,6 @@ export interface IUserRepository extends ILocalCacheMutationRepository<DomainUse
 
     /** 채널 사용자를 동기화합니다. */
     syncChannelUsers(payload: ChannelSyncUsersInput, options?: RepositoryRequestOptions): Promise<unknown>;
-
-    /** 사이트 프로필 동기화를 수행합니다. */
-    syncSiteProfile(payload: ChannelSyncSiteProfileInput, options?: RepositoryRequestOptions): Promise<unknown>;
 
     /** 현재 스코프의 user 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -120,13 +116,6 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         options?: RepositoryRequestOptions
     ): Promise<unknown> {
         return this.userRemoteDataSource.syncChannelUsers(payload);
-    }
-
-    public async syncSiteProfile(
-        payload: ChannelSyncSiteProfileInput,
-        options?: RepositoryRequestOptions
-    ): Promise<unknown> {
-        return this.userRemoteDataSource.syncSiteProfile(payload);
     }
 
     public clearAll(): Promise<void> {

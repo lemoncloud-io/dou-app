@@ -24,17 +24,10 @@ describe('ProfileRepositoryV2', () => {
             getContext: () => context,
             setContext: () => undefined,
         };
-        const domainEventBus = {
-            on: jest.fn(() => () => undefined),
-            emit: jest.fn(),
-            onAny: jest.fn(() => () => undefined),
-        };
-
         const repository = new ProfileRepositoryV2(
             profileRemoteDataSource as any,
             profileLocalDataSource as any,
-            contextProvider as any,
-            domainEventBus as any
+            contextProvider as any
         );
 
         return { repository, profileRemoteDataSource, profileLocalDataSource };

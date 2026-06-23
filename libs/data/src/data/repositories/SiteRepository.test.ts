@@ -5,13 +5,12 @@ describe('SiteRepository', () => {
 
     const createRepository = ({ localResult }: { localResult: any | null }) => {
         const remote = {
-            fetchSite: jest.fn().mockResolvedValue({
+            fetchPlace: jest.fn().mockResolvedValue({
                 list: [{ id: 's1', cid: 'cloud-a' }],
                 total: 1,
             }),
-            createSite: jest.fn(),
-            updateSite: jest.fn(),
-            handleModelEvent: jest.fn(),
+            createPlace: jest.fn(),
+            updatePlace: jest.fn(),
         };
 
         const local = {
@@ -51,7 +50,7 @@ describe('SiteRepository', () => {
 
         expect(result).toEqual(localResult);
         await Promise.resolve();
-        expect(remote.fetchSite).toHaveBeenCalledTimes(1);
+        expect(remote.fetchPlace).toHaveBeenCalledTimes(1);
     });
 
     it('delegates subscribeList to local data source with repository context', () => {

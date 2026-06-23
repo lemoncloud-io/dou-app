@@ -1,6 +1,4 @@
 import type { DomainScope } from '../domain';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/types';
 
 export interface RepositoryV2DataContext {
     cid?: string;
@@ -23,13 +21,9 @@ export interface DisposableRepositoryV2 {
 }
 
 export abstract class BaseRepositoryV2 {
-    private readonly cleanupCallbacks = new Set<() => void>();
     private readonly serialTasks = new Map<string, Promise<void>>();
 
-    protected constructor(
-        private readonly context: DataContextProviderV2,
-        protected readonly domainEventBus: IEventBus<DomainEventMap>
-    ) {}
+    protected constructor(private readonly context: DataContextProviderV2) {}
 
     protected getRepositoryContext(): RepositoryV2DataContext {
         return this.context?.getContext() ?? {};
@@ -92,23 +86,7 @@ export abstract class BaseRepositoryV2 {
         this.serialTasks.set(key, current);
     }
 
-    protected onDomainEvent<K extends keyof DomainEventMap>(
-        event: K,
-        callback: (data: DomainEventMap[K]) => void
-    ): () => void {
-        const unsubscribe = this.domainEventBus.on(event, callback);
-        this.cleanupCallbacks.add(unsubscribe);
-        return () => {
-            this.cleanupCallbacks.delete(unsubscribe);
-            unsubscribe();
-        };
-    }
-
     public dispose(): void {
-        for (const cleanup of this.cleanupCallbacks) {
-            cleanup();
-        }
-        this.cleanupCallbacks.clear();
         this.serialTasks.clear();
     }
 }

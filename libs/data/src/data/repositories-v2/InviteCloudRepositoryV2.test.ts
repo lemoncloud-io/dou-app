@@ -16,17 +16,7 @@ describe('InviteCloudRepositoryV2', () => {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
         };
-        const domainEventBus = {
-            on: jest.fn(() => () => undefined),
-            emit: jest.fn(),
-            onAny: jest.fn(() => () => undefined),
-        };
-
-        const repository = new InviteCloudRepositoryV2(
-            inviteCloudLocalDataSource as any,
-            contextProvider,
-            domainEventBus as any
-        );
+        const repository = new InviteCloudRepositoryV2(inviteCloudLocalDataSource as any, contextProvider);
 
         const result = await repository.cacheReadList();
 
@@ -48,18 +38,10 @@ describe('InviteCloudRepositoryV2', () => {
             cacheDelete: jest.fn(),
             cacheClear: jest.fn(),
         };
-        const repository = new InviteCloudRepositoryV2(
-            inviteCloudLocalDataSource as any,
-            {
-                getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
-                setContext: () => undefined,
-            },
-            {
-                on: jest.fn(() => () => undefined),
-                emit: jest.fn(),
-                onAny: jest.fn(() => () => undefined),
-            } as any
-        );
+        const repository = new InviteCloudRepositoryV2(inviteCloudLocalDataSource as any, {
+            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+            setContext: () => undefined,
+        });
 
         await repository.cacheRead('cloud-1');
         await repository.cacheWrite({ id: 'cloud-1' } as any);

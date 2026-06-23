@@ -76,7 +76,7 @@ export const createRepositories = ({
     channel: new ChannelRepository(remoteDataSources.channel, localDataSources.channel, context, domainEventBus),
     chat: new ChatRepository(remoteDataSources.chat, localDataSources.chat, context, domainEventBus),
     join: new JoinRepository(remoteDataSources.join, localDataSources.join, context, domainEventBus),
-    site: new SiteRepository(remoteDataSources.site, localDataSources.site, context, domainEventBus),
+    site: new SiteRepository(remoteDataSources.place, localDataSources.site, context, domainEventBus),
     user: new UserRepository(remoteDataSources.user, localDataSources.user, context, domainEventBus),
     inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, context, domainEventBus),
     device: new DeviceRepository(remoteDataSources.device, context, domainEventBus),

@@ -1,11 +1,9 @@
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { DomainChat, DomainListResult, DomainScope } from '../domain';
 import { toDomainChat } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IChatRemoteDataSource } from '../remote/data-sources';
+import type { ChatDeleteInput, ChatGetInput, ChatUpdateInput, IChatRemoteDataSource } from '../remote/data-sources';
 import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
 
 export interface ChatRefreshResult {
@@ -20,7 +18,10 @@ export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
     observeItem(id: string, callback: (item: DomainChat | null) => void): () => void;
 
     refreshList(query: ChatFeedInput): Promise<ChatRefreshResult>;
+    getChat(payload: ChatGetInput): Promise<DomainChat>;
     sendChat(payload: ChatSendInput): Promise<DomainChat>;
+    updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
+    deleteChat(payload: ChatDeleteInput): Promise<DomainChat>;
 
     cacheRead(id: string): Promise<DomainChat | null>;
     cacheReadList(query: ChatFeedInput): Promise<DomainListResult<DomainChat> | null>;
@@ -36,11 +37,9 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     constructor(
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
-        this.initializeInternalListeners();
+        super(contextProvider);
     }
 
     public observeList(
@@ -101,6 +100,19 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         };
     }
 
+    public async getChat(payload: ChatGetInput): Promise<DomainChat> {
+        const requestContext = this.getRepositoryContext();
+        const requestScope = this.getDomainScope();
+        const remote = await this.chatRemoteDataSource.getChat(payload);
+        const domainChat = toDomainChat(remote, requestScope);
+
+        if (this.isSameContext(requestContext)) {
+            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
+        }
+
+        return domainChat;
+    }
+
     public async sendChat(payload: ChatSendInput): Promise<DomainChat> {
         this.assertRequiredString(payload.channelId, 'channelId');
         const requestRef = `chat-send-${Date.now()}`;
@@ -139,31 +151,49 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         }
     }
 
-    private initializeInternalListeners(): void {
-        this.onDomainEvent('chat:create', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.chatLocalDataSource.cacheWrite(detail.data, context), 'chat:create');
-        });
-        this.onDomainEvent('chat:update', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.chatLocalDataSource.cacheWrite(detail.data, context), 'chat:update');
-        });
-        this.onDomainEvent('chat:delete', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(
-                () => this.chatLocalDataSource.cacheDelete(detail.data.id || '', context),
-                'chat:delete'
-            );
-        });
-        this.onDomainEvent('channel:delete', detail => {
-            const channelId = detail.data.id || '';
-            if (!channelId) return;
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(
-                () => this.chatLocalDataSource.cacheClearByChannelId(channelId, context),
-                'channel:delete->chat:clear'
-            );
-        });
+    public async updateChat(payload: ChatUpdateInput): Promise<DomainChat> {
+        const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
+        const context = this.getRepositoryContext();
+        const existing = await this.chatLocalDataSource.cacheRead(chatId, context);
+
+        await this.chatLocalDataSource.cacheWrite(
+            {
+                ...(existing ?? { id: chatId }),
+                ...(payload as Partial<DomainChat>),
+                id: chatId,
+            },
+            context
+        );
+
+        try {
+            const remote = await this.chatRemoteDataSource.updateChat(payload);
+            const domainChat = toDomainChat(remote, this.getDomainScope());
+            await this.chatLocalDataSource.cacheWrite(domainChat, context);
+            return domainChat;
+        } catch (error) {
+            if (existing) {
+                await this.chatLocalDataSource.cacheWrite(existing, context);
+            }
+            throw error;
+        }
+    }
+
+    public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {
+        const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
+        const context = this.getRepositoryContext();
+        const existing = await this.chatLocalDataSource.cacheRead(chatId, context);
+
+        await this.chatLocalDataSource.cacheDelete(chatId, context);
+
+        try {
+            const remote = await this.chatRemoteDataSource.deleteChat(payload);
+            return toDomainChat(remote, this.getDomainScope());
+        } catch (error) {
+            if (existing) {
+                await this.chatLocalDataSource.cacheWrite(existing, context);
+            }
+            throw error;
+        }
     }
 
     private createOptimisticChat(payload: ChatSendInput, id: string, domainScope: DomainScope): DomainChat {

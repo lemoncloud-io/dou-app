@@ -4,8 +4,8 @@ import type { UserGetSiteProfileInput, UserSetSiteProfileInput } from '@lemonclo
 describe('ProfileRepository', () => {
     const createRepository = () => {
         const remote = {
-            getSiteProfile: jest.fn().mockResolvedValue({ siteId: 'site-1', nick: 'nick-1' }),
-            setSiteProfile: jest.fn().mockResolvedValue({ siteId: 'site-1', nick: 'nick-2' }),
+            getMine: jest.fn().mockResolvedValue({ siteId: 'site-1', nick: 'nick-1' }),
+            set: jest.fn().mockResolvedValue({ siteId: 'site-1', nick: 'nick-2' }),
         };
 
         const contextProvider = {
@@ -24,23 +24,23 @@ describe('ProfileRepository', () => {
         return { repository, remote };
     };
 
-    it('getSiteProfile 호출 시 remoteDataSource.getSiteProfile를 호출해야 한다', async () => {
+    it('getSiteProfile 호출 시 remoteDataSource.getMine를 호출해야 한다', async () => {
         const { repository, remote } = createRepository();
         const payload: UserGetSiteProfileInput = {};
 
         const result = await repository.getSiteProfile(payload);
 
-        expect(remote.getSiteProfile).toHaveBeenCalledWith(payload);
+        expect(remote.getMine).toHaveBeenCalledWith(payload);
         expect(result).toEqual({ siteId: 'site-1', nick: 'nick-1' });
     });
 
-    it('setSiteProfile 호출 시 remoteDataSource.setSiteProfile를 호출해야 한다', async () => {
+    it('setSiteProfile 호출 시 remoteDataSource.set를 호출해야 한다', async () => {
         const { repository, remote } = createRepository();
         const payload: UserSetSiteProfileInput = { nick: 'nick-2' };
 
         const result = await repository.setSiteProfile(payload);
 
-        expect(remote.setSiteProfile).toHaveBeenCalledWith(payload);
+        expect(remote.set).toHaveBeenCalledWith(payload);
         expect(result).toEqual({ siteId: 'site-1', nick: 'nick-2' });
     });
 });

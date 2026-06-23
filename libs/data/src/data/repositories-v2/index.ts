@@ -1,5 +1,3 @@
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { LocalDataSourcesV2 } from '../local/data-sources-v2';
 import type { RemoteDataSources } from '../remote/data-sources';
 import { ChannelRepositoryV2, type IChannelRepositoryV2 } from './ChannelRepositoryV2';
@@ -35,30 +33,21 @@ export const createRepositoriesV2 = ({
     remoteDataSources,
     localDataSources,
     context,
-    domainEventBus,
+    // Legacy callers may still pass domainEventBus; V2 repositories no longer consume it.
+    domainEventBus: _domainEventBus,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSourcesV2;
     context: DataContextProviderV2;
-    domainEventBus: IEventBus<DomainEventMap>;
+    domainEventBus?: unknown;
 }): DataRepositoriesV2 => {
-    const channel = new ChannelRepositoryV2(
-        remoteDataSources.channel,
-        localDataSources.channel,
-        context,
-        domainEventBus
-    );
-    const chat = new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context, domainEventBus);
-    const inviteCloud = new InviteCloudRepositoryV2(localDataSources.inviteCloud, context, domainEventBus);
-    const join = new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context, domainEventBus);
-    const profile = new ProfileRepositoryV2(
-        remoteDataSources.profile,
-        localDataSources.profile,
-        context,
-        domainEventBus
-    );
-    const place = new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context, domainEventBus);
-    const user = new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context, domainEventBus);
+    const channel = new ChannelRepositoryV2(remoteDataSources.channel, localDataSources.channel, context);
+    const chat = new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context);
+    const inviteCloud = new InviteCloudRepositoryV2(localDataSources.inviteCloud, context);
+    const join = new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context);
+    const profile = new ProfileRepositoryV2(remoteDataSources.profile, localDataSources.profile, context);
+    const place = new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context);
+    const user = new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context);
 
     return {
         channel,

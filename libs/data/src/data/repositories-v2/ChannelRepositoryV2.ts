@@ -9,15 +9,7 @@ import type {
     ChannelDeleteInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type {
-    ChannelSyncView,
-    ChannelView,
-    ChatView,
-    JoinView,
-    UnreadsSummaryView,
-} from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
+import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import { toDomainChannel } from '../domain';
 import type { IChannelLocalDataSourceV2 } from '../local/data-sources-v2';
@@ -68,11 +60,9 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     constructor(
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
-        this.initializeInternalListeners();
+        super(contextProvider);
     }
 
     public observeList(
@@ -287,83 +277,5 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView> {
         return this.channelRemoteDataSource.getUnreads(payload ?? {});
-    }
-
-    private initializeInternalListeners(): void {
-        this.onDomainEvent('channel:create', detail => {
-            const createdId = detail.data.id || '';
-            if (createdId) this.leftChannelIds.delete(createdId);
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.channelLocalDataSource.cacheWrite(detail.data, context), 'channel:create');
-        });
-        this.onDomainEvent('channel:update', detail => {
-            const channelId = detail.data.id || '';
-            if (channelId && this.leftChannelIds.has(channelId)) return;
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackgroundSerial(
-                `channel:${channelId || detail.data.id || 'unknown'}`,
-                () => this.channelLocalDataSource.cacheWrite(detail.data, context),
-                'channel:update'
-            );
-        });
-        this.onDomainEvent('channel:delete', detail => {
-            const channelId = detail.data.id || '';
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackgroundSerial(
-                `channel:${channelId || 'unknown'}`,
-                () => this.channelLocalDataSource.cacheDelete(channelId, context),
-                'channel:delete'
-            );
-        });
-        this.onDomainEvent('chat:create', detail => {
-            const chat = detail.data as ChatView;
-            const channelId = chat.channelId;
-            if (!channelId) return;
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackgroundSerial(
-                `channel:${channelId}`,
-                async () => {
-                    const existing = await this.channelLocalDataSource.cacheRead(channelId, context);
-                    if (!existing) return;
-                    const isOwnMessage = !!context.uid && chat.ownerId === context.uid;
-                    const prevUnread = existing.unreadCount ?? 0;
-                    await this.channelLocalDataSource.cacheWrite(
-                        {
-                            id: channelId,
-                            lastChat$: chat,
-                            chatNo: chat.chatNo,
-                            unreadCount: isOwnMessage ? prevUnread : prevUnread + 1,
-                        } as Partial<DomainChannel>,
-                        context
-                    );
-                },
-                'chat:create->channel:update'
-            );
-        });
-        this.onDomainEvent('join:update', detail => {
-            const join = detail.data as JoinView;
-            const channelId = (join as { channelId?: string }).channelId;
-            if (!channelId) return;
-            const context = this.getRepositoryContextSnapshot();
-            const isMyJoin = !!context.uid && (join as { userId?: string }).userId === context.uid;
-            if (!isMyJoin) return;
-
-            this.runInBackgroundSerial(
-                `channel:${channelId}`,
-                async () => {
-                    const existing = await this.channelLocalDataSource.cacheRead(channelId, context);
-                    if (!existing) return;
-                    const lastChatNo =
-                        (existing.lastChat$ as { chatNo?: number } | undefined)?.chatNo ?? existing.chatNo ?? 0;
-                    const myReadNo = (join as { chatNo?: number }).chatNo ?? 0;
-                    const unreadCount = Math.max(0, lastChatNo - myReadNo);
-                    await this.channelLocalDataSource.cacheWrite(
-                        { id: channelId, $join: join, unreadCount } as Partial<DomainChannel>,
-                        context
-                    );
-                },
-                'join:update->channel:read'
-            );
-        });
     }
 }

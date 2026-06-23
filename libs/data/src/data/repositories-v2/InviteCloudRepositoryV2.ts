@@ -1,7 +1,5 @@
 import type { DomainInviteCloud, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { IInviteCloudLocalDataSourceV2 } from '../local/data-sources-v2';
 import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
 
@@ -21,10 +19,9 @@ export interface IInviteCloudRepositoryV2 extends DisposableRepositoryV2 {
 export class InviteCloudRepositoryV2 extends BaseRepositoryV2 implements IInviteCloudRepositoryV2 {
     constructor(
         private readonly inviteCloudLocalDataSource: IInviteCloudLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
+        super(contextProvider);
     }
 
     public observeList(callback: (result: DomainListResult<DomainInviteCloud> | null) => void): () => void {

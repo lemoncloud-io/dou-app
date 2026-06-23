@@ -1,26 +1,5 @@
 import { UserRepositoryV2 } from './UserRepositoryV2';
 
-const createEventBus = () => {
-    const listeners = new Map<string, Set<(payload: any) => void>>();
-    return {
-        on(event: string, callback: (payload: any) => void) {
-            const group = listeners.get(event) ?? new Set<(payload: any) => void>();
-            group.add(callback);
-            listeners.set(event, group);
-            return () => {
-                group.delete(callback);
-                if (group.size === 0) listeners.delete(event);
-            };
-        },
-        emit(event: string, payload: any) {
-            for (const callback of listeners.get(event) ?? []) {
-                callback(payload);
-            }
-        },
-        onAny: jest.fn(() => () => undefined),
-    };
-};
-
 describe('UserRepositoryV2', () => {
     const createRepository = () => {
         // User repository mixes cache writes and helper passthroughs, so keep each collaborator fully isolated.
@@ -45,19 +24,9 @@ describe('UserRepositoryV2', () => {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
         };
-        const domainEventBus = {
-            on: jest.fn(() => () => undefined),
-            emit: jest.fn(),
-            onAny: jest.fn(() => () => undefined),
-        };
 
         return {
-            repository: new UserRepositoryV2(
-                userRemoteDataSource as any,
-                userLocalDataSource as any,
-                contextProvider,
-                domainEventBus as any
-            ),
+            repository: new UserRepositoryV2(userRemoteDataSource as any, userLocalDataSource as any, contextProvider),
             userRemoteDataSource,
             userLocalDataSource,
         };
@@ -101,41 +70,5 @@ describe('UserRepositoryV2', () => {
         // Invite helpers should remain passthroughs so callers see the backend contract directly.
         await expect(repository.requestInvite({ alias: 'a' } as any)).resolves.toEqual({ code: 'invite-1' });
         await expect(repository.requestInviteBatch({ alias: 'a' } as any)).resolves.toEqual([{ code: 'invite-2' }]);
-    });
-
-    it('stops reacting to domain events after dispose is called', async () => {
-        const userRemoteDataSource = {
-            fetchUsers: jest.fn(),
-            updateProfile: jest.fn(),
-            requestInvite: jest.fn(),
-            inviteBatch: jest.fn(),
-            syncChannelUsers: jest.fn(),
-        };
-        const userLocalDataSource = {
-            observeList: jest.fn(() => () => undefined),
-            observeItem: jest.fn(() => () => undefined),
-            cacheRead: jest.fn(),
-            cacheReadList: jest.fn(),
-            cacheWrite: jest.fn().mockResolvedValue(undefined),
-            cacheWriteMany: jest.fn(),
-            cacheDelete: jest.fn(),
-            cacheClear: jest.fn(),
-        };
-        const eventBus = createEventBus();
-        const repository = new UserRepositoryV2(
-            userRemoteDataSource as any,
-            userLocalDataSource as any,
-            {
-                getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
-                setContext: () => undefined,
-            },
-            eventBus as any
-        );
-
-        repository.dispose();
-        eventBus.emit('user:update', { data: { id: 'u1', name: 'After' } });
-        await Promise.resolve();
-
-        expect(userLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 });

@@ -24,18 +24,12 @@ describe('PlaceRepositoryV2', () => {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
         };
-        const domainEventBus = {
-            on: jest.fn(() => () => undefined),
-            emit: jest.fn(),
-            onAny: jest.fn(() => () => undefined),
-        };
 
         return {
             repository: new PlaceRepositoryV2(
                 placeRemoteDataSource as any,
                 placeLocalDataSource as any,
-                contextProvider,
-                domainEventBus as any
+                contextProvider
             ),
             placeRemoteDataSource,
             placeLocalDataSource,

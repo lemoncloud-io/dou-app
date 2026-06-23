@@ -2,7 +2,7 @@ import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { UserMakeSiteInput, UserUpdateSiteInput, UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { ISiteLocalDataSource } from '../local/data-sources';
 import type { DomainEventMap } from '../events/types';
-import type { ISiteRemoteDataSource } from '../remote/data-sources';
+import type { IPlaceRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider, ILocalCacheMutationRepository, LocalCacheBulkPatch } from './types';
 import { BaseRepository, type RepositoryRequestOptions } from './types';
 import type { IEventBus } from '../events/eventBus';
@@ -43,7 +43,7 @@ export interface ISiteRepository extends ILocalCacheMutationRepository<DomainSit
 /** Remote site API와 local site cache를 중재합니다. */
 export class SiteRepository extends BaseRepository implements ISiteRepository {
     constructor(
-        private readonly siteRemoteDataSource: ISiteRemoteDataSource,
+        private readonly placeRemoteDataSource: IPlaceRemoteDataSource,
         private readonly siteLocalDataSource: ISiteLocalDataSource,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
@@ -67,14 +67,14 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
     }
 
     public async createSite(payload: UserMakeSiteInput, options?: RepositoryRequestOptions): Promise<DomainSite> {
-        const site = (await this.siteRemoteDataSource.createSite(payload)) as SiteView;
+        const site = (await this.placeRemoteDataSource.createPlace(payload as any)) as SiteView;
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
     }
 
     public async updateSite(payload: UserUpdateSiteInput, options?: RepositoryRequestOptions): Promise<DomainSite> {
-        const site = (await this.siteRemoteDataSource.updateSite(payload)) as SiteView;
+        const site = (await this.placeRemoteDataSource.updatePlace(payload as any)) as SiteView;
         const domainSite = toDomainSite(site, this.getDomainScope());
         await this.siteLocalDataSource.upsert(domainSite, this.getRepositoryContext());
         return domainSite;
@@ -143,7 +143,7 @@ export class SiteRepository extends BaseRepository implements ISiteRepository {
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const remote = (await this.siteRemoteDataSource.fetchSite(payload)) as ListResult<SiteView>;
+        const remote = (await this.placeRemoteDataSource.fetchPlace(payload)) as ListResult<SiteView>;
         // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
         // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
         // 서버 응답의 배열 순서를 order 필드로 보존 — 로컬 캐시에서 읽을 때도 동일 순서 유지

@@ -1,7 +1,5 @@
 import type { ChatReadInput, ChannelJoinInput, ChannelUpdateJoinInput } from '@lemoncloud/chatic-sockets-api';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../domain';
 import { createDomainListResult, toDomainJoin } from '../domain';
 import type { IJoinLocalDataSourceV2 } from '../local/data-sources-v2';
@@ -33,11 +31,9 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
     constructor(
         private readonly joinRemoteDataSource: IJoinRemoteDataSource,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
-        this.initializeInternalListeners();
+        super(contextProvider);
     }
 
     public observeList(
@@ -154,23 +150,5 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
             await this.joinLocalDataSource.cacheDelete(optimisticId, context);
             throw error;
         }
-    }
-
-    private initializeInternalListeners(): void {
-        this.onDomainEvent('join:create', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.joinLocalDataSource.cacheWrite(detail.data, context), 'join:create');
-        });
-        this.onDomainEvent('join:update', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.joinLocalDataSource.cacheWrite(detail.data, context), 'join:update');
-        });
-        this.onDomainEvent('join:delete', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(
-                () => this.joinLocalDataSource.cacheDelete(detail.data.id || '', context),
-                'join:delete'
-            );
-        });
     }
 }

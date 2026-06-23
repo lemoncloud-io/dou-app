@@ -1,7 +1,5 @@
 import type { ProfileSetInput } from '@lemoncloud/chatic-sockets-lib';
 import type { ProfileBody, SiteProfileSyncView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../domain';
 import { toDomainProfile } from '../domain';
 import type { IProfileLocalDataSourceV2 } from '../local/data-sources-v2';
@@ -44,10 +42,9 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
     constructor(
         private readonly profileRemoteDataSource: IProfileRemoteDataSource,
         private readonly profileLocalDataSource: IProfileLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
+        super(contextProvider);
     }
 
     public observeList(

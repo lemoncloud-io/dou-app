@@ -6,8 +6,6 @@ import type {
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { UserView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../events/eventBus';
-import type { DomainEventMap } from '../events/domain';
 import type { DomainListResult, DomainUser } from '../domain';
 import { toDomainUser } from '../domain';
 import type { IUserLocalDataSourceV2 } from '../local/data-sources-v2';
@@ -42,11 +40,9 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
-        contextProvider: DataContextProviderV2,
-        domainEventBus: IEventBus<DomainEventMap>
+        contextProvider: DataContextProviderV2
     ) {
-        super(contextProvider, domainEventBus);
-        this.initializeInternalListeners();
+        super(contextProvider);
     }
 
     public observeList(
@@ -142,23 +138,5 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         }
         await this.userLocalDataSource.cacheWriteMany(domainList, requestContext);
         return { wroteCount: domainList.length };
-    }
-
-    private initializeInternalListeners(): void {
-        this.onDomainEvent('user:create', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.userLocalDataSource.cacheWrite(detail.data, context), 'user:create');
-        });
-        this.onDomainEvent('user:update', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(() => this.userLocalDataSource.cacheWrite(detail.data, context), 'user:update');
-        });
-        this.onDomainEvent('user:delete', detail => {
-            const context = this.getRepositoryContextSnapshot();
-            this.runInBackground(
-                () => this.userLocalDataSource.cacheDelete(detail.data.id || '', context),
-                'user:delete'
-            );
-        });
     }
 }

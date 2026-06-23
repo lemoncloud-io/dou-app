@@ -23,13 +23,13 @@ export class ProfileRepository extends BaseRepository implements IProfileReposit
         payload?: UserGetSiteProfileInput,
         options?: RepositoryRequestOptions
     ): Promise<unknown> {
-        return this.profileRemoteDataSource.getSiteProfile(payload ?? {});
+        return this.profileRemoteDataSource.getMine(payload ?? {});
     }
 
     public async setSiteProfile(
         payload: UserSetSiteProfileInput,
         options?: RepositoryRequestOptions
     ): Promise<unknown> {
-        return this.profileRemoteDataSource.setSiteProfile(payload);
+        return this.profileRemoteDataSource.set(payload as never);
     }
 }
