@@ -3,7 +3,6 @@ import {
     type ClientSocketStateEvent,
     type ClientSocketV2,
     createClientSocketV2,
-    type SocketMessage,
 } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
@@ -113,10 +112,30 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * Marks the current socket as auth-verified. Called by the session controller
+     * once `auth.update` resolves — the lib settles request responses by mid and
+     * does not route them to `onType`, so the controller owns this signal.
+     */
+    public markVerified(): void {
+        this.setState({ isVerified: true });
+    }
+
+    /**
      * Marks the current socket as requiring a fresh auth acknowledgement.
      */
     public markUnverified(): void {
         this.setState({ isVerified: false });
+    }
+
+    /**
+     * Marks the device as registered. Called by the session controller once
+     * `device.save` resolves; the connection id is taken from its response.
+     */
+    public markDeviceRegistered(connectionId?: string): void {
+        this.setState({
+            isDeviceRegistered: true,
+            ...(connectionId ? { connectionId } : {}),
+        });
     }
 
     /**
@@ -171,20 +190,10 @@ export class SocketManager implements ISocketManager {
             })
         );
 
-        // device.save / device.read acknowledgement → device registered (+ connection id).
-        const onDevice = (message: SocketMessage<any>) => {
-            const view = (message.data ?? {}) as { connId?: string };
-            this.setState({
-                isDeviceRegistered: true,
-                ...(view.connId ? { connectionId: view.connId } : {}),
-            });
-        };
-        this.unsubscribes.push(client.onType('device.save:ok', onDevice));
-        this.unsubscribes.push(client.onType('device.read:ok', onDevice));
-
-        // auth.update acknowledgement → verified flag.
-        this.unsubscribes.push(client.onType('auth.update:ok', () => this.setState({ isVerified: true })));
-        this.unsubscribes.push(client.onType('auth.update:error', () => this.setState({ isVerified: false })));
+        // Handshake flags (isVerified / isDeviceRegistered) are NOT bound here:
+        // `device.save` / `auth.update` are request/response calls, and the lib
+        // settles their `:ok` responses by mid without routing to `onType`. The
+        // session controller reports success via markVerified/markDeviceRegistered.
     }
 
     /**

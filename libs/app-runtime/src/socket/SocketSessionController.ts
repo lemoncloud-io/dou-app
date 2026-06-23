@@ -27,10 +27,11 @@ export class SocketSessionController {
                 throw new Error('Socket client not created');
             }
 
-            await client.request('device.save', {
+            const deviceResult = await client.request('device.save', {
                 id: config.deviceId,
                 platform: 'web',
             });
+            this.manager.markDeviceRegistered((deviceResult as { connId?: string } | null)?.connId);
 
             await this.updateAuth('bootstrap');
         } catch (error) {
@@ -61,6 +62,7 @@ export class SocketSessionController {
         logger.info('SOCKET', '[SocketSessionController] sending auth:update', { reason });
         try {
             await client.request('auth.update', { token });
+            this.manager.markVerified();
             return true;
         } catch (error) {
             logger.error('SOCKET', '[SocketSessionController] auth.update failed, triggering recovery', {
@@ -97,6 +99,7 @@ export class SocketSessionController {
                 }
 
                 await client.request('auth.update', { token });
+                this.manager.markVerified();
                 logger.info('SOCKET', '[SocketSessionController] 401 recovery authentication successful');
                 return true;
             } catch (error) {

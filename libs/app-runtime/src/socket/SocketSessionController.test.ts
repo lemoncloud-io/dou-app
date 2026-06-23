@@ -34,7 +34,9 @@ describe('SocketSessionController', () => {
             }),
             subscribe: jest.fn(),
             subscribeClient: jest.fn(),
+            markVerified: jest.fn(),
             markUnverified: jest.fn(),
+            markDeviceRegistered: jest.fn(),
             connect: jest.fn().mockResolvedValue(undefined),
             destroy: jest.fn(),
         } as unknown as jest.Mocked<ISocketManager>;
@@ -70,6 +72,19 @@ describe('SocketSessionController', () => {
             });
             expect(delegate.getSocketToken).toHaveBeenCalled();
             expect(client.request).toHaveBeenCalledWith('auth.update', { token: 'test-token' });
+            // Flags come from request success, not from onType (responses settle by mid).
+            expect(manager.markDeviceRegistered).toHaveBeenCalled();
+            expect(manager.markVerified).toHaveBeenCalled();
+        });
+
+        it('device.save 응답의 connId 를 markDeviceRegistered 로 전달해야 한다', async () => {
+            client.request.mockImplementation((type: string) =>
+                Promise.resolve(type === 'device.save' ? { connId: 'conn-xyz' } : undefined)
+            );
+
+            await controller.bootstrap({ url: 'wss://test.com', deviceId: 'device-123', wssType: 'cloud' as const });
+
+            expect(manager.markDeviceRegistered).toHaveBeenCalledWith('conn-xyz');
         });
     });
 
