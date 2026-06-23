@@ -7,7 +7,8 @@ import { JoinRepositoryV2, type IJoinRepositoryV2 } from './JoinRepositoryV2';
 import { ProfileRepositoryV2, type IProfileRepositoryV2 } from './ProfileRepositoryV2';
 import { PlaceRepositoryV2, type IPlaceRepositoryV2 } from './PlaceRepositoryV2';
 import { UserRepositoryV2, type IUserRepositoryV2 } from './UserRepositoryV2';
-import type { DataContextProviderV2 } from './types';
+import type { DataContextProvider } from '../repositories';
+import { createSnapshotDataContextProvider, type DataContext } from './types';
 
 export * from './types';
 export * from './ChannelRepositoryV2';
@@ -26,8 +27,25 @@ export interface DataRepositoriesV2 {
     profile: IProfileRepositoryV2;
     place: IPlaceRepositoryV2;
     user: IUserRepositoryV2;
+    withContext(context: DataContext): DataRepositoriesV2;
     dispose(): void;
 }
+
+const buildRepositories = (
+    remoteDataSources: RemoteDataSources,
+    localDataSources: LocalDataSourcesV2,
+    context: DataContextProvider
+): Omit<DataRepositoriesV2, 'withContext' | 'dispose'> => {
+    return {
+        channel: new ChannelRepositoryV2(remoteDataSources.channel, localDataSources.channel, context),
+        chat: new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context),
+        inviteCloud: new InviteCloudRepositoryV2(localDataSources.inviteCloud, context),
+        join: new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context),
+        profile: new ProfileRepositoryV2(remoteDataSources.profile, localDataSources.profile, context),
+        place: new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context),
+        user: new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context),
+    };
+};
 
 export const createRepositoriesV2 = ({
     remoteDataSources,
@@ -36,32 +54,27 @@ export const createRepositoriesV2 = ({
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSourcesV2;
-    context: DataContextProviderV2;
+    context: DataContextProvider;
 }): DataRepositoriesV2 => {
-    const channel = new ChannelRepositoryV2(remoteDataSources.channel, localDataSources.channel, context);
-    const chat = new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context);
-    const inviteCloud = new InviteCloudRepositoryV2(localDataSources.inviteCloud, context);
-    const join = new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context);
-    const profile = new ProfileRepositoryV2(remoteDataSources.profile, localDataSources.profile, context);
-    const place = new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context);
-    const user = new UserRepositoryV2(remoteDataSources.user, localDataSources.user, context);
+    const repositories = buildRepositories(remoteDataSources, localDataSources, context);
 
     return {
-        channel,
-        chat,
-        inviteCloud,
-        join,
-        profile,
-        place,
-        user,
+        ...repositories,
+        withContext(contextSnapshot: DataContext): DataRepositoriesV2 {
+            return createRepositoriesV2({
+                remoteDataSources,
+                localDataSources,
+                context: createSnapshotDataContextProvider(contextSnapshot),
+            });
+        },
         dispose() {
-            channel.dispose();
-            chat.dispose();
-            inviteCloud.dispose();
-            join.dispose();
-            profile.dispose();
-            place.dispose();
-            user.dispose();
+            repositories.channel.dispose();
+            repositories.chat.dispose();
+            repositories.inviteCloud.dispose();
+            repositories.join.dispose();
+            repositories.profile.dispose();
+            repositories.place.dispose();
+            repositories.user.dispose();
         },
     };
 };

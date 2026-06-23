@@ -4,7 +4,8 @@ import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../dom
 import { createDomainListResult, toDomainJoin } from '../domain';
 import type { IJoinLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
+import type { DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface IJoinRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
@@ -26,12 +27,12 @@ export interface IJoinRepositoryV2 extends DisposableRepositoryV2 {
     cacheClear(): Promise<void>;
 }
 
-/** Maintains join membership snapshots and read-state transitions for each channel scope. */
+/** Maintains join membership snapshots and read-state transitions for each channel context. */
 export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositoryV2 {
     constructor(
         private readonly joinRemoteDataSource: IJoinRemoteDataSource,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }
@@ -81,27 +82,31 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
 
     public async readChat(payload: ChatReadInput): Promise<DomainJoin> {
         const channelId = this.assertRequiredString(payload.channelId, 'channelId');
-        const context = this.getRepositoryContext();
-        const currentList = await this.joinLocalDataSource.cacheReadList({ channelId, activeOnly: false }, context);
-        const current = (currentList?.list || []).find(item => item.userId === context.uid);
-        const optimisticId = current?.id || `${channelId}:${context.uid || 'me'}`;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const currentList = await this.joinLocalDataSource.cacheReadList(
+            { channelId, activeOnly: false },
+            requestContext
+        );
+        const current = (currentList?.list || []).find(item => item.userId === requestContext.uid);
+        const optimisticId = current?.id || `${channelId}:${requestContext.uid || 'me'}`;
         const optimisticPatch: Partial<DomainJoin> = {
             id: optimisticId,
             channelId,
-            userId: String(context.uid || ''),
+            userId: String(requestContext.uid || ''),
             readNo: payload.chatNo ?? current?.readNo ?? 0,
             chatNo: payload.chatNo,
         };
 
-        await this.joinLocalDataSource.cacheWrite({ ...(current ?? {}), ...optimisticPatch }, context);
+        await this.joinLocalDataSource.cacheWrite({ ...(current ?? {}), ...optimisticPatch }, requestContext);
         try {
             const remote = (await this.joinRemoteDataSource.readChat(payload)) as JoinView;
-            const domain = toDomainJoin(remote, this.getDomainScope());
-            await this.joinLocalDataSource.cacheWrite(domain, context);
+            const domain = toDomainJoin(remote, normalizedContext);
+            await this.joinLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
             if (current) {
-                await this.joinLocalDataSource.cacheWrite(current, context);
+                await this.joinLocalDataSource.cacheWrite(current, requestContext);
             }
             throw error;
         }
@@ -109,19 +114,23 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
 
     public async updateJoin(payload: ChannelUpdateJoinInput): Promise<DomainJoin> {
         const joinId = (payload as { id?: string }).id || '';
-        const context = this.getRepositoryContext();
-        const existing = joinId ? await this.joinLocalDataSource.cacheRead(joinId, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = joinId ? await this.joinLocalDataSource.cacheRead(joinId, requestContext) : null;
         if (joinId) {
-            await this.joinLocalDataSource.cacheWrite({ id: joinId, ...(payload as Partial<DomainJoin>) }, context);
+            await this.joinLocalDataSource.cacheWrite(
+                { id: joinId, ...(payload as Partial<DomainJoin>) },
+                requestContext
+            );
         }
         try {
             const remote = (await this.joinRemoteDataSource.updateJoin(payload)) as JoinView;
-            const domain = toDomainJoin(remote, this.getDomainScope());
-            await this.joinLocalDataSource.cacheWrite(domain, context);
+            const domain = toDomainJoin(remote, normalizedContext);
+            await this.joinLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
             if (existing) {
-                await this.joinLocalDataSource.cacheWrite(existing, context);
+                await this.joinLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
@@ -129,25 +138,26 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
 
     public async joinChannel(payload: ChannelJoinInput): Promise<DomainJoin> {
         const channelId = this.assertRequiredString(payload.channelId, 'channelId');
-        const context = this.getRepositoryContext();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const optimisticId = `optimistic-join-${channelId}`;
         await this.joinLocalDataSource.cacheWrite(
             {
                 id: optimisticId,
                 channelId,
-                userId: String(context.uid || ''),
+                userId: String(requestContext.uid || ''),
                 joined: 1,
             },
-            context
+            requestContext
         );
         try {
             const remote = (await this.joinRemoteDataSource.joinChannel(payload)) as JoinView;
-            const domain = toDomainJoin(remote, this.getDomainScope());
-            await this.joinLocalDataSource.cacheWrite(domain, context);
-            await this.joinLocalDataSource.cacheDelete(optimisticId, context);
+            const domain = toDomainJoin(remote, normalizedContext);
+            await this.joinLocalDataSource.cacheWrite(domain, requestContext);
+            await this.joinLocalDataSource.cacheDelete(optimisticId, requestContext);
             return domain;
         } catch (error) {
-            await this.joinLocalDataSource.cacheDelete(optimisticId, context);
+            await this.joinLocalDataSource.cacheDelete(optimisticId, requestContext);
             throw error;
         }
     }

@@ -1,7 +1,8 @@
 import type { DomainInviteCloud, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { IInviteCloudLocalDataSourceV2 } from '../local/data-sources-v2';
-import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
+import type { DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface IInviteCloudRepositoryV2 extends DisposableRepositoryV2 {
     observeList(callback: (result: DomainListResult<DomainInviteCloud> | null) => void): () => void;
@@ -19,7 +20,7 @@ export interface IInviteCloudRepositoryV2 extends DisposableRepositoryV2 {
 export class InviteCloudRepositoryV2 extends BaseRepositoryV2 implements IInviteCloudRepositoryV2 {
     constructor(
         private readonly inviteCloudLocalDataSource: IInviteCloudLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }

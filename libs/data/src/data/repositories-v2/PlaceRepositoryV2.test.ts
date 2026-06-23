@@ -1,4 +1,5 @@
 import { PlaceRepositoryV2 } from './PlaceRepositoryV2';
+import { createRepositoriesV2 } from './index';
 
 describe('PlaceRepositoryV2', () => {
     const createRepository = () => {
@@ -85,5 +86,93 @@ describe('PlaceRepositoryV2', () => {
             uid: 'me',
         });
         expect(result).toEqual(expect.objectContaining({ id: 'place-3' }));
+    });
+
+    it('writes to the request-time snapshot even if the global context changes before remote resolve', async () => {
+        const mutableContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
+        let resolveRemote: ((value: unknown) => void) | null = null;
+        const placeRemoteDataSource = {
+            fetchPlace: jest.fn().mockImplementation(
+                () =>
+                    new Promise(resolve => {
+                        resolveRemote = resolve;
+                    })
+            ),
+            createPlace: jest.fn(),
+            getPlace: jest.fn(),
+            updatePlace: jest.fn(),
+            deletePlace: jest.fn(),
+        };
+        const placeLocalDataSource = {
+            observeList: jest.fn(() => () => undefined),
+            observeItem: jest.fn(() => () => undefined),
+            cacheRead: jest.fn(),
+            cacheReadList: jest.fn(),
+            cacheWrite: jest.fn(),
+            cacheWriteMany: jest.fn(),
+            cacheDelete: jest.fn(),
+            cacheClear: jest.fn(),
+        };
+        const repository = new PlaceRepositoryV2(placeRemoteDataSource as any, placeLocalDataSource as any, {
+            getContext: () => mutableContext,
+            setContext: next => Object.assign(mutableContext, next),
+        });
+
+        const pending = repository.refreshList({});
+        Object.assign(mutableContext, { cid: 'cloud-b', sid: 'site-9', uid: 'other' });
+        resolveRemote?.({ list: [{ id: 'place-1', name: 'A' }] });
+
+        await pending;
+
+        expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith([expect.objectContaining({ id: 'place-1' })], {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
+    it('supports a debug context-bound repository facade via withContext', async () => {
+        const placeRemoteDataSource = {
+            fetchPlace: jest.fn().mockResolvedValue({ list: [] }),
+            createPlace: jest.fn(),
+            getPlace: jest.fn(),
+            updatePlace: jest.fn(),
+            deletePlace: jest.fn(),
+        };
+        const placeLocalDataSource = {
+            observeList: jest.fn(() => () => undefined),
+            observeItem: jest.fn(() => () => undefined),
+            cacheRead: jest.fn(),
+            cacheReadList: jest.fn(),
+            cacheWrite: jest.fn(),
+            cacheWriteMany: jest.fn(),
+            cacheDelete: jest.fn(),
+            cacheClear: jest.fn(),
+        };
+        const emptyRemote = {} as any;
+        const emptyLocal = {} as any;
+        const repositories = createRepositoriesV2({
+            remoteDataSources: {
+                ...emptyRemote,
+                place: placeRemoteDataSource,
+            },
+            localDataSources: {
+                ...emptyLocal,
+                place: placeLocalDataSource,
+            },
+            context: {
+                getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+                setContext: () => undefined,
+            },
+        } as any);
+
+        const contextual = repositories.withContext({ cid: 'cloud-debug', sid: 'site-debug', uid: 'debugger' });
+        await contextual.place.refreshList({});
+
+        expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith([], {
+            cid: 'cloud-debug',
+            sid: 'site-debug',
+            uid: 'debugger',
+        });
     });
 });

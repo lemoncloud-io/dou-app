@@ -4,7 +4,8 @@ import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '
 import { toDomainProfile } from '../domain';
 import type { IProfileLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IProfileRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
+import type { DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ProfileSyncResult {
     syncedAt: number;
@@ -42,7 +43,7 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
     constructor(
         private readonly profileRemoteDataSource: IProfileRemoteDataSource,
         private readonly profileLocalDataSource: IProfileLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }
@@ -80,37 +81,33 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
 
     public async refreshItem(id: string): Promise<DomainProfile | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
 
         const remote = await this.profileRemoteDataSource.get({ id: requiredId });
-        const domain = this.toDomainFromView(remote, requestScope);
+        const domain = this.toDomainFromView(remote, normalizedContext);
 
-        if (this.isSameContext(requestContext)) {
-            await this.profileLocalDataSource.cacheWrite(domain, requestContext);
-        }
+        await this.profileLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
 
     public async getMyProfile(): Promise<DomainProfile | null> {
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
 
         const remote = await this.profileRemoteDataSource.getMine({});
-        const domain = this.toDomainFromView(remote, requestScope);
+        const domain = this.toDomainFromView(remote, normalizedContext);
 
-        if (this.isSameContext(requestContext)) {
-            await this.profileLocalDataSource.cacheWrite(domain, requestContext);
-        }
+        await this.profileLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
 
     public async setProfile(payload: ProfileSetInput): Promise<DomainProfile> {
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const input = payload as { siteId?: string; userId?: string; active?: boolean };
-        const sid = this.assertRequiredString(input.siteId || requestScope.sid, 'sid');
-        const uid = this.assertRequiredString(input.userId || requestScope.uid, 'uid');
+        const sid = this.assertRequiredString(input.siteId || normalizedContext.sid, 'sid');
+        const uid = this.assertRequiredString(input.userId || normalizedContext.uid, 'uid');
         const profileId = this.makeProfileId(sid, uid);
         const existing = profileId ? await this.profileLocalDataSource.cacheRead(profileId, requestContext) : null;
 
@@ -139,14 +136,12 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
                 siteId: sid,
                 userId: uid,
             } as ProfileSetInput);
-            const domain = this.toDomainFromView(remote, { cid: requestScope.cid, sid, uid });
+            const domain = this.toDomainFromView(remote, { cid: normalizedContext.cid, sid, uid });
 
-            if (this.isSameContext(requestContext)) {
-                if (input.active === false || domain.active === false) {
-                    await this.profileLocalDataSource.cacheDelete(domain.id, requestContext);
-                } else {
-                    await this.profileLocalDataSource.cacheWrite(domain, requestContext);
-                }
+            if (input.active === false || domain.active === false) {
+                await this.profileLocalDataSource.cacheDelete(domain.id, requestContext);
+            } else {
+                await this.profileLocalDataSource.cacheWrite(domain, requestContext);
             }
             return domain;
         } catch (error) {
@@ -162,20 +157,17 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
     }
 
     public setMyProfile(body: ProfileBody): Promise<DomainProfile> {
-        const sid = this.assertRequiredString(this.getDomainScope().sid, 'sid');
+        const normalizedContext = this.getNormalizedContext();
+        const sid = this.assertRequiredString(normalizedContext.sid, 'sid');
         return this.setProfile({ ...body, siteId: sid } as ProfileSetInput);
     }
 
     public async syncProfiles(since: number): Promise<ProfileSyncResult> {
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
-        const sid = this.assertRequiredString(requestScope.sid, 'sid');
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const sid = this.assertRequiredString(normalizedContext.sid, 'sid');
 
         const remote = (await this.profileRemoteDataSource.sync({ since })) as unknown as SiteProfileSyncView;
-
-        if (!this.isSameContext(requestContext)) {
-            return { syncedAt: remote?.syncedAt ?? since, updatedCount: 0, removedCount: 0 };
-        }
 
         const profiles = (remote?.profiles || {}) as Record<string, Record<string, unknown> | null>;
         const upserts: Array<Partial<DomainProfile>> = [];
@@ -196,9 +188,9 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
                         siteId: sid,
                         uid,
                         userId: uid,
-                        cid: requestScope.cid,
+                        cid: normalizedContext.cid,
                     } as Partial<DomainProfile>,
-                    { cid: requestScope.cid, sid, uid }
+                    { cid: normalizedContext.cid, sid, uid }
                 )
             );
         }
@@ -213,10 +205,13 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
         return { syncedAt: remote?.syncedAt ?? since, updatedCount: upserts.length, removedCount: removals.length };
     }
 
-    private toDomainFromView(view: unknown, scope: { cid: string; sid?: string; uid?: string }): DomainProfile {
+    private toDomainFromView(
+        view: unknown,
+        normalizedContext: { cid: string; sid?: string; uid?: string }
+    ): DomainProfile {
         const source = (view ?? {}) as { siteId?: string; userId?: string };
-        const sid = source.siteId || scope.sid || '';
-        const uid = source.userId || scope.uid || '';
+        const sid = source.siteId || normalizedContext.sid || '';
+        const uid = source.userId || normalizedContext.uid || '';
         return toDomainProfile(
             {
                 ...(source as Partial<DomainProfile>),
@@ -225,9 +220,9 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
                 siteId: sid,
                 uid,
                 userId: uid,
-                cid: scope.cid,
+                cid: normalizedContext.cid,
             } as Partial<DomainProfile>,
-            { cid: scope.cid, sid, uid }
+            { cid: normalizedContext.cid, sid, uid }
         );
     }
 

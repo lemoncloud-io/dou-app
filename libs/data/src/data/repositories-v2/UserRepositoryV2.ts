@@ -10,12 +10,8 @@ import type { DomainListResult, DomainUser } from '../domain';
 import { toDomainUser } from '../domain';
 import type { IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import {
-    BaseRepositoryV2,
-    type DataContextProviderV2,
-    type DisposableRepositoryV2,
-    type RepositoryRefreshResult,
-} from './types';
+import type { DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2, type RepositoryRefreshResult } from './types';
 
 export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
@@ -35,12 +31,12 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     cacheClear(): Promise<void>;
 }
 
-/** Handles user cache hydration and optimistic profile edits inside the active cid/sid/uid scope. */
+/** Handles user cache hydration and optimistic profile edits inside the active cid/sid/uid context. */
 export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositoryV2 {
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }
@@ -81,35 +77,33 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     }
 
     public async refreshList(query: ChatUsersInput): Promise<RepositoryRefreshResult> {
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.userRemoteDataSource.fetchUsers(query);
         const domainList = (remote.list || []).map(item => ({
-            ...toDomainUser(item as UserView, requestScope),
-            cid: requestScope.cid,
+            ...toDomainUser(item as UserView, normalizedContext),
+            cid: normalizedContext.cid,
         }));
-        if (!this.isSameContext(requestContext)) {
-            return { wroteCount: 0 };
-        }
         await this.userLocalDataSource.cacheWriteMany(domainList, requestContext);
         return { wroteCount: domainList.length };
     }
 
     public async updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser> {
         const uid = (payload as { id?: string; userId?: string }).id || (payload as { userId?: string }).userId || '';
-        const context = this.getRepositoryContext();
-        const existing = uid ? await this.userLocalDataSource.cacheRead(uid, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = uid ? await this.userLocalDataSource.cacheRead(uid, requestContext) : null;
         if (uid) {
-            await this.userLocalDataSource.cacheWrite({ id: uid, ...(payload as Partial<DomainUser>) }, context);
+            await this.userLocalDataSource.cacheWrite({ id: uid, ...(payload as Partial<DomainUser>) }, requestContext);
         }
         try {
             const remote = await this.userRemoteDataSource.updateProfile(payload);
-            const domain = toDomainUser(remote as UserView, this.getDomainScope());
-            await this.userLocalDataSource.cacheWrite(domain, context);
+            const domain = toDomainUser(remote as UserView, normalizedContext);
+            await this.userLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
             if (existing) {
-                await this.userLocalDataSource.cacheWrite(existing, context);
+                await this.userLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
@@ -126,16 +120,13 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     }
 
     public async refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<RepositoryRefreshResult> {
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.userRemoteDataSource.syncChannelUsers(payload);
         const domainList = (remote.list || []).map(item => ({
-            ...toDomainUser(item as UserView, requestScope),
-            cid: requestScope.cid,
+            ...toDomainUser(item as UserView, normalizedContext),
+            cid: normalizedContext.cid,
         }));
-        if (!this.isSameContext(requestContext)) {
-            return { wroteCount: 0 };
-        }
         await this.userLocalDataSource.cacheWriteMany(domainList, requestContext);
         return { wroteCount: domainList.length };
     }

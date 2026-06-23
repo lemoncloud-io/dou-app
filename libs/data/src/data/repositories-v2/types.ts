@@ -1,16 +1,18 @@
-import type { DomainScope } from '../domain';
+import type { DataContext, DataContextProvider } from '../repositories';
 
-export interface RepositoryV2DataContext {
-    cid?: string;
-    sid?: string;
-    uid?: string;
-    [key: string]: unknown;
-}
+export type { DataContext };
 
-export interface DataContextProviderV2 {
-    getContext(): RepositoryV2DataContext;
-    setContext(context: RepositoryV2DataContext): void;
-}
+export const createSnapshotDataContextProvider = (context: DataContext): DataContextProvider => {
+    const snapshot = { ...context };
+    return {
+        getContext(): DataContext {
+            return snapshot;
+        },
+        setContext(): void {
+            // Snapshot-bound providers ignore later mutations by design.
+        },
+    };
+};
 
 export interface RepositoryRefreshResult {
     wroteCount: number;
@@ -23,36 +25,23 @@ export interface DisposableRepositoryV2 {
 export abstract class BaseRepositoryV2 {
     private readonly serialTasks = new Map<string, Promise<void>>();
 
-    protected constructor(private readonly context: DataContextProviderV2) {}
+    protected constructor(private readonly context: DataContextProvider) {}
 
-    protected getRepositoryContext(): RepositoryV2DataContext {
+    protected getRepositoryContext(): DataContext {
         return this.context?.getContext() ?? {};
     }
 
-    protected getDomainScope(): DomainScope {
-        return this.getDomainScopeFromContext(this.getRepositoryContext());
-    }
-
-    protected getRepositoryContextSnapshot(): RepositoryV2DataContext {
+    protected getRequestContext(): DataContext {
         return { ...this.getRepositoryContext() };
     }
 
-    protected getDomainScopeFromContext(context: RepositoryV2DataContext): DomainScope {
+    protected getNormalizedContext(context: DataContext = this.getRepositoryContext()): DataContext {
         // V2 repositories normalize identifiers to cid/sid/uid before delegating work.
         return {
             cid: context.cid || 'default',
             sid: typeof context.sid === 'string' ? context.sid : undefined,
             uid: typeof context.uid === 'string' ? context.uid : undefined,
         };
-    }
-
-    protected isSameContext(requestContext: RepositoryV2DataContext): boolean {
-        const current = this.getRepositoryContext();
-        return (
-            current.cid === requestContext.cid &&
-            current.sid === requestContext.sid &&
-            current.uid === requestContext.uid
-        );
     }
 
     protected assertRequiredString(value: string | undefined, fieldName: string): string {

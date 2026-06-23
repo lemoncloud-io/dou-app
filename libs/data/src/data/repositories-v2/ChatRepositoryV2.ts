@@ -1,10 +1,11 @@
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
-import type { DomainChat, DomainListResult, DomainScope } from '../domain';
+import type { DomainChat, DomainListResult } from '../domain';
 import { toDomainChat } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { ChatDeleteInput, ChatGetInput, ChatUpdateInput, IChatRemoteDataSource } from '../remote/data-sources';
-import { BaseRepositoryV2, type DataContextProviderV2, type DisposableRepositoryV2 } from './types';
+import type { DataContext, DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ChatRefreshResult {
     wroteCount: number;
@@ -37,7 +38,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     constructor(
         private readonly chatRemoteDataSource: IChatRemoteDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }
@@ -83,14 +84,11 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
 
     public async refreshList(query: ChatFeedInput): Promise<ChatRefreshResult> {
         this.assertRequiredString(query.channelId, 'channelId');
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = (await this.chatRemoteDataSource.fetchChat(query)) as ChatFeedResult;
-        const domainList = ((remote?.list || []) as ChatView[]).map(item => toDomainChat(item, requestScope));
-
-        if (this.isSameContext(requestContext)) {
-            await this.chatLocalDataSource.cacheWriteMany(domainList, requestContext);
-        }
+        const domainList = ((remote?.list || []) as ChatView[]).map(item => toDomainChat(item, normalizedContext));
+        await this.chatLocalDataSource.cacheWriteMany(domainList, requestContext);
 
         return {
             wroteCount: domainList.length,
@@ -101,14 +99,11 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     }
 
     public async getChat(payload: ChatGetInput): Promise<DomainChat> {
-        const requestContext = this.getRepositoryContext();
-        const requestScope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.chatRemoteDataSource.getChat(payload);
-        const domainChat = toDomainChat(remote, requestScope);
-
-        if (this.isSameContext(requestContext)) {
-            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
-        }
+        const domainChat = toDomainChat(remote, normalizedContext);
+        await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
 
         return domainChat;
     }
@@ -116,10 +111,10 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     public async sendChat(payload: ChatSendInput): Promise<DomainChat> {
         this.assertRequiredString(payload.channelId, 'channelId');
         const requestRef = `chat-send-${Date.now()}`;
-        const repositoryContext = this.getRepositoryContext();
-        const domainScope = this.getDomainScope();
-        const optimisticChat = this.createOptimisticChat(payload, `optimistic-${requestRef}`, domainScope);
-        await this.chatLocalDataSource.cacheWrite(optimisticChat, repositoryContext);
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const optimisticChat = this.createOptimisticChat(payload, `optimistic-${requestRef}`, normalizedContext);
+        await this.chatLocalDataSource.cacheWrite(optimisticChat, requestContext);
 
         try {
             const remote = (await this.chatRemoteDataSource.sendChat(payload)) as ChatView;
@@ -130,11 +125,11 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
                     isPending: false,
                     isFailed: false,
                 },
-                domainScope
+                normalizedContext
             );
-            await this.chatLocalDataSource.cacheWrite(domainChat, repositoryContext);
+            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
             if (domainChat.id && optimisticChat.id !== domainChat.id) {
-                await this.chatLocalDataSource.cacheDelete(optimisticChat.id, repositoryContext);
+                await this.chatLocalDataSource.cacheDelete(optimisticChat.id, requestContext);
             }
             return domainChat;
         } catch (error) {
@@ -145,7 +140,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
                     isFailed: true,
                     updatedAt: Date.now(),
                 },
-                repositoryContext
+                requestContext
             );
             throw error;
         }
@@ -153,8 +148,9 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
 
     public async updateChat(payload: ChatUpdateInput): Promise<DomainChat> {
         const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
-        const context = this.getRepositoryContext();
-        const existing = await this.chatLocalDataSource.cacheRead(chatId, context);
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = await this.chatLocalDataSource.cacheRead(chatId, requestContext);
 
         await this.chatLocalDataSource.cacheWrite(
             {
@@ -162,17 +158,17 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
                 ...(payload as Partial<DomainChat>),
                 id: chatId,
             },
-            context
+            requestContext
         );
 
         try {
             const remote = await this.chatRemoteDataSource.updateChat(payload);
-            const domainChat = toDomainChat(remote, this.getDomainScope());
-            await this.chatLocalDataSource.cacheWrite(domainChat, context);
+            const domainChat = toDomainChat(remote, normalizedContext);
+            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
             return domainChat;
         } catch (error) {
             if (existing) {
-                await this.chatLocalDataSource.cacheWrite(existing, context);
+                await this.chatLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
@@ -180,35 +176,36 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
 
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {
         const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
-        const context = this.getRepositoryContext();
-        const existing = await this.chatLocalDataSource.cacheRead(chatId, context);
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = await this.chatLocalDataSource.cacheRead(chatId, requestContext);
 
-        await this.chatLocalDataSource.cacheDelete(chatId, context);
+        await this.chatLocalDataSource.cacheDelete(chatId, requestContext);
 
         try {
             const remote = await this.chatRemoteDataSource.deleteChat(payload);
-            return toDomainChat(remote, this.getDomainScope());
+            return toDomainChat(remote, normalizedContext);
         } catch (error) {
             if (existing) {
-                await this.chatLocalDataSource.cacheWrite(existing, context);
+                await this.chatLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
     }
 
-    private createOptimisticChat(payload: ChatSendInput, id: string, domainScope: DomainScope): DomainChat {
+    private createOptimisticChat(payload: ChatSendInput, id: string, normalizedContext: DataContext): DomainChat {
         const now = Date.now();
         return toDomainChat(
             {
                 id,
                 tempId: id,
-                userId: domainScope.uid,
-                cid: domainScope.cid,
+                userId: normalizedContext.uid,
+                cid: normalizedContext.cid,
                 channelId: payload.channelId || '',
                 content: payload.content,
                 contentType: payload.contentType ?? 'text',
                 parentId: (payload as { parentId?: string }).parentId,
-                ownerId: domainScope.uid,
+                ownerId: normalizedContext.uid,
                 createdAt: now,
                 updatedAt: now,
                 isOwner: true,
@@ -216,7 +213,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
                 isFailed: false,
                 chatNo: Number.MAX_SAFE_INTEGER,
             } as Partial<DomainChat>,
-            domainScope
+            normalizedContext
         );
     }
 }

@@ -14,12 +14,8 @@ import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '
 import { toDomainChannel } from '../domain';
 import type { IChannelLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
-import {
-    BaseRepositoryV2,
-    type DataContextProviderV2,
-    type DisposableRepositoryV2,
-    type RepositoryRefreshResult,
-} from './types';
+import type { DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2, type RepositoryRefreshResult } from './types';
 
 export interface RefreshChannelsSinceResult extends RepositoryRefreshResult {
     syncedAt: number;
@@ -53,14 +49,14 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     cacheClear(): Promise<void>;
 }
 
-/** Orchestrates channel list/detail caching and derived state updates for the active scope. */
+/** Orchestrates channel list/detail caching and derived state updates for the active context. */
 export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRepositoryV2 {
     private readonly leftChannelIds = new Set<string>();
 
     constructor(
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }
@@ -101,20 +97,16 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     }
 
     public async refreshList(query: DomainChannelListPayload): Promise<RepositoryRefreshResult> {
-        const requestScope = this.getDomainScope();
-        const requestContext = this.getRepositoryContext();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.channelRemoteDataSource.fetchChannel(query);
 
         const domainList = (remote.list || [])
             .map(item => ({
-                ...toDomainChannel(item, requestScope),
-                cid: requestScope.cid,
+                ...toDomainChannel(item, normalizedContext),
+                cid: normalizedContext.cid,
             }))
             .filter(item => !item.id || !this.leftChannelIds.has(item.id));
-
-        if (!this.isSameContext(requestContext)) {
-            return { wroteCount: 0 };
-        }
 
         await this.channelLocalDataSource.cacheWriteMany(domainList, requestContext);
 
@@ -131,19 +123,15 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     }
 
     public async refreshListSince(since: number): Promise<RefreshChannelsSinceResult> {
-        const requestScope = this.getDomainScope();
-        const requestContext = this.getRepositoryContext();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = (await this.channelRemoteDataSource.syncChannel({ since })) as ChannelSyncView;
 
-        if (!this.isSameContext(requestContext)) {
-            return { syncedAt: remote.syncedAt, wroteCount: 0, removedCount: 0 };
-        }
-
-        const syncScope = { ...requestScope, sid: '' };
+        const normalizedSyncContext = { ...normalizedContext, sid: '' };
         const domainList = (remote.list || [])
             .map(item => ({
-                ...toDomainChannel(item, syncScope),
-                cid: requestScope.cid,
+                ...toDomainChannel(item, normalizedSyncContext),
+                cid: normalizedContext.cid,
             }))
             .filter(item => !!item.sid && !!item.id && !this.leftChannelIds.has(item.id));
 
@@ -173,28 +161,28 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public async createChannel(payload: ChannelCreateInput): Promise<DomainChannel> {
         const tempId = `optimistic-channel-${Date.now()}`;
-        const context = this.getRepositoryContext();
-        const scope = this.getDomainScope();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const optimistic = toDomainChannel(
             {
                 id: tempId,
-                cid: scope.cid,
-                sid: scope.sid || '',
+                cid: normalizedContext.cid,
+                sid: normalizedContext.sid || '',
                 name: (payload as { name?: string }).name,
                 updatedAt: Date.now(),
             } as Partial<DomainChannel>,
-            scope
+            normalizedContext
         );
-        await this.channelLocalDataSource.cacheWrite(optimistic, context);
+        await this.channelLocalDataSource.cacheWrite(optimistic, requestContext);
 
         try {
             const remote = (await this.channelRemoteDataSource.createChannel(payload)) as ChannelView;
-            const domain = toDomainChannel(remote, scope);
-            await this.channelLocalDataSource.cacheWrite(domain, context);
-            await this.channelLocalDataSource.cacheDelete(tempId, context);
+            const domain = toDomainChannel(remote, normalizedContext);
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
+            await this.channelLocalDataSource.cacheDelete(tempId, requestContext);
             return domain;
         } catch (error) {
-            await this.channelLocalDataSource.cacheDelete(tempId, context);
+            await this.channelLocalDataSource.cacheDelete(tempId, requestContext);
             throw error;
         }
     }
@@ -202,51 +190,55 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
     public async updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel> {
         const channelId =
             (payload as { channelId?: string; id?: string }).channelId || (payload as { id?: string }).id || '';
-        const context = this.getRepositoryContext();
-        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
         if (channelId) {
             await this.channelLocalDataSource.cacheWrite(
                 { id: channelId, ...(payload as Partial<DomainChannel>) },
-                context
+                requestContext
             );
         }
 
         try {
             const remote = (await this.channelRemoteDataSource.updateChannel(payload)) as ChannelView;
-            const domain = toDomainChannel(remote, this.getDomainScope());
-            await this.channelLocalDataSource.cacheWrite(domain, context);
+            const domain = toDomainChannel(remote, normalizedContext);
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
             if (existing) {
-                await this.channelLocalDataSource.cacheWrite(existing, context);
+                await this.channelLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
     }
 
     public async inviteChannel(payload: ChatInviteInput): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = (await this.channelRemoteDataSource.inviteChannel(payload)) as ChannelView;
-        const domain = toDomainChannel(remote, this.getDomainScope());
-        await this.channelLocalDataSource.cacheWrite(domain, this.getRepositoryContext());
+        const domain = toDomainChannel(remote, normalizedContext);
+        await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
 
     public async leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel> {
         const channelId = payload.channelId || '';
-        const context = this.getRepositoryContext();
-        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
         if (channelId) {
             this.leftChannelIds.add(channelId);
-            await this.channelLocalDataSource.cacheDelete(channelId, context);
+            await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
         }
 
         try {
             const remote = (await this.channelRemoteDataSource.leaveChannel(payload)) as ChannelView;
-            return toDomainChannel(remote, this.getDomainScope());
+            return toDomainChannel(remote, normalizedContext);
         } catch (error) {
             this.leftChannelIds.delete(channelId);
             if (existing) {
-                await this.channelLocalDataSource.cacheWrite(existing, context);
+                await this.channelLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
@@ -254,18 +246,19 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public async deleteChannel(payload: ChannelDeleteInput): Promise<DomainChannel> {
         const channelId = payload.channelId || '';
-        const context = this.getRepositoryContext();
-        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
         if (channelId) {
-            await this.channelLocalDataSource.cacheDelete(channelId, context);
+            await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
         }
 
         try {
             const remote = (await this.channelRemoteDataSource.deleteChannel(payload)) as ChannelView;
-            return toDomainChannel(remote, this.getDomainScope());
+            return toDomainChannel(remote, normalizedContext);
         } catch (error) {
             if (existing) {
-                await this.channelLocalDataSource.cacheWrite(existing, context);
+                await this.channelLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }

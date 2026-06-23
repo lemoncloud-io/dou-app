@@ -9,12 +9,8 @@ import type {
     PlaceGetInput,
     PlaceUpdateInput,
 } from '../remote/data-sources';
-import {
-    BaseRepositoryV2,
-    type DataContextProviderV2,
-    type DisposableRepositoryV2,
-    type RepositoryRefreshResult,
-} from './types';
+import type { DataContextProvider } from '../repositories';
+import { BaseRepositoryV2, type DisposableRepositoryV2, type RepositoryRefreshResult } from './types';
 
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
@@ -42,7 +38,7 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     constructor(
         private readonly placeRemoteDataSource: IPlaceRemoteDataSource,
         private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
-        contextProvider: DataContextProviderV2
+        contextProvider: DataContextProvider
     ) {
         super(contextProvider);
     }
@@ -83,50 +79,52 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     }
 
     public async refreshList(query?: UserMySiteInput): Promise<RepositoryRefreshResult> {
-        const requestScope = this.getDomainScope();
-        const requestContext = this.getRepositoryContext();
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeRemoteDataSource.fetchPlace(query);
         const domainList = (remote.list || []).map((item, index) => ({
-            ...toDomainPlace(item as Partial<DomainPlace>, requestScope),
-            cid: requestScope.cid,
+            ...toDomainPlace(item as Partial<DomainPlace>, normalizedContext),
+            cid: normalizedContext.cid,
             order: index,
         }));
-        if (!this.isSameContext(requestContext)) {
-            return { wroteCount: 0 };
-        }
         await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
         return { wroteCount: domainList.length };
     }
 
     public async createPlace(payload: PlaceCreateInput): Promise<DomainPlace> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeRemoteDataSource.createPlace(payload);
-        const domain = toDomainPlace(remote as Partial<DomainPlace>, this.getDomainScope());
-        await this.placeLocalDataSource.cacheWrite(domain, this.getRepositoryContext());
+        const domain = toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+        await this.placeLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
 
     public async getPlace(payload: PlaceGetInput): Promise<DomainPlace> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeRemoteDataSource.getPlace(payload);
-        const domain = toDomainPlace(remote as Partial<DomainPlace>, this.getDomainScope());
-        await this.placeLocalDataSource.cacheWrite(domain, this.getRepositoryContext());
+        const domain = toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+        await this.placeLocalDataSource.cacheWrite(domain, requestContext);
         return domain;
     }
 
     public async updatePlace(payload: PlaceUpdateInput): Promise<DomainPlace> {
         const id = (payload as { id?: string }).id;
-        const context = this.getRepositoryContext();
-        const existing = id ? await this.placeLocalDataSource.cacheRead(id, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = id ? await this.placeLocalDataSource.cacheRead(id, requestContext) : null;
         if (id) {
-            await this.placeLocalDataSource.cacheWrite({ id, ...(payload as Partial<DomainPlace>) }, context);
+            await this.placeLocalDataSource.cacheWrite({ id, ...(payload as Partial<DomainPlace>) }, requestContext);
         }
         try {
             const remote = await this.placeRemoteDataSource.updatePlace(payload);
-            const domain = toDomainPlace(remote as Partial<DomainPlace>, this.getDomainScope());
-            await this.placeLocalDataSource.cacheWrite(domain, context);
+            const domain = toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
+            await this.placeLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
             if (existing) {
-                await this.placeLocalDataSource.cacheWrite(existing, context);
+                await this.placeLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
@@ -134,17 +132,18 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
 
     public async deletePlace(payload: PlaceDeleteInput): Promise<DomainPlace> {
         const id = (payload as { id?: string }).id || '';
-        const context = this.getRepositoryContext();
-        const existing = id ? await this.placeLocalDataSource.cacheRead(id, context) : null;
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const existing = id ? await this.placeLocalDataSource.cacheRead(id, requestContext) : null;
         if (id) {
-            await this.placeLocalDataSource.cacheDelete(id, context);
+            await this.placeLocalDataSource.cacheDelete(id, requestContext);
         }
         try {
             const remote = await this.placeRemoteDataSource.deletePlace(payload);
-            return toDomainPlace(remote as Partial<DomainPlace>, this.getDomainScope());
+            return toDomainPlace(remote as Partial<DomainPlace>, normalizedContext);
         } catch (error) {
             if (existing) {
-                await this.placeLocalDataSource.cacheWrite(existing, context);
+                await this.placeLocalDataSource.cacheWrite(existing, requestContext);
             }
             throw error;
         }
