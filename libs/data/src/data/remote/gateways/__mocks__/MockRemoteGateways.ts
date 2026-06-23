@@ -38,8 +38,9 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
             delete: jest.fn(),
         },
         join: {
+            get: jest.fn(),
+            update: jest.fn(),
             read: jest.fn(),
-            updateJoin: jest.fn(),
             join: jest.fn(),
         },
         place: {

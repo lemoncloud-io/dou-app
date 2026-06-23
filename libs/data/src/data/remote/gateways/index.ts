@@ -5,6 +5,7 @@ import type {
     CloudGateway,
     DeviceGateway,
     DomainGateway,
+    JoinGateway,
     PlaceGateway,
     ProfileGateway,
     UserGateway,
@@ -16,14 +17,13 @@ export type ChannelDomainGateway = Pick<
     ChannelGateway,
     'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'unreads'
 >;
-export type JoinDomainGateway = Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'updateJoin' | 'join'>;
+export type JoinDomainGateway = JoinGateway & Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'join'>;
 export type PlaceDomainGateway = Pick<PlaceGateway, 'create' | 'get' | 'update' | 'delete'> &
     Pick<UserGateway, 'mySite'>;
 export type DeviceDomainGateway = Pick<DeviceGateway, 'save' | 'read' | 'sync'>;
 export type SocketDomainGateway = Pick<DomainGateway, 'request'>;
 export type CloudDomainGateway = Pick<CloudGateway, 'update' | 'get' | 'delete'>;
 export type ProfileDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' | 'set' | 'sync'>;
-export type JoinGateway = JoinDomainGateway;
 export type UserDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
     Pick<UserGateway, 'update' | 'invite' | 'inviteBatch'>;
 
