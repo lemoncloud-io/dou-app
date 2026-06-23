@@ -7,17 +7,23 @@ import type {
     ProfileView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
-import type { CacheStorageItem } from '../local/storages';
+import type { DataContext } from '../repositories';
 import type {
     DomainChannel,
     DomainChat,
-    DomainInviteCloud,
+    DomainCloud,
     DomainJoin,
     DomainPlace,
     DomainProfile,
-    DomainScope,
     DomainUser,
 } from './models';
+
+/**
+ * Mapper input contract: a raw API view that MAY already carry persisted
+ * domain-only fields (e.g. re-read cache rows or enriched responses).
+ * Required API fields stay required; domain extras are optional reads.
+ */
+type ApiInput<TView, TDomain> = TView & Partial<TDomain>;
 
 const toEpochMs = (value: unknown): number => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -40,138 +46,134 @@ const toBooleanSafe = (value: unknown, fallback = false): boolean => {
     return typeof value === 'boolean' ? value : fallback;
 };
 
-export const toDomainChannel = (
-    source: ChannelView | CacheStorageItem<'channel'> | Partial<DomainChannel>,
-    scope: DomainScope
-): DomainChannel => {
-    const sidFromModel = toStringSafe((source as { sid?: string }).sid);
-    const sidFromNested = toStringSafe((source as { $?: { sid?: string } }).$?.sid);
-    const updatedAtMs = toEpochMs((source as { updatedAt?: string | number }).updatedAt);
-    const lastChatAtMs = toEpochMs((source as { lastChat$?: { createdAt?: string | number } }).lastChat$?.createdAt);
+// Each mapper performs a single, one-way "API View -> Domain" conversion.
+// They are the only place API shapes become domain shapes; repositories and
+// local data sources consume the resulting domain models without re-mapping.
+
+/** API View -> DomainChannel. Derives `lastActivityAt` from the latest of updatedAt/lastChat. */
+export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, context: DataContext): DomainChannel => {
+    const updatedAtMs = toEpochMs(api.updatedAt);
+    const lastChatAtMs = toEpochMs(api.lastChat$?.createdAt);
+    const cid = context.cid || 'default';
 
     return {
-        ...(source as ChannelView),
-        id: toStringSafe((source as { id?: string }).id),
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        sid: sidFromModel || sidFromNested || scope.sid || '',
-        isNotificationEnabled: toBooleanSafe(
-            (source as { isNotificationEnabled?: boolean }).isNotificationEnabled,
-            true
-        ),
+        ...api,
+        id: toStringSafe(api.id),
+        cid,
+        sid: api.sid || context.sid || '',
+        isNotificationEnabled: toBooleanSafe(api.isNotificationEnabled, true),
         lastActivityAt: Math.max(lastChatAtMs, updatedAtMs),
     };
 };
 
-export const toDomainChat = (
-    source: ChatView | CacheStorageItem<'chat'> | Partial<DomainChat>,
-    scope: DomainScope
-): DomainChat => {
-    const createdAtMs = toEpochMs((source as { createdAt?: string | number }).createdAt);
-    const updatedAtMs = toEpochMs((source as { updatedAt?: string | number }).updatedAt);
+/** API View -> DomainChat. Normalizes send-state flags and millisecond timestamps. */
+export const toDomainChat = (api: ApiInput<ChatView, DomainChat>, context: DataContext): DomainChat => {
+    const createdAtMs = toEpochMs(api.createdAt);
+    const updatedAtMs = toEpochMs(api.updatedAt);
+    const cid = context.cid || 'default';
 
     return {
-        ...(source as ChatView),
-        id: toStringSafe((source as { id?: string }).id),
-        tempId: toStringSafe((source as { tempId?: string }).tempId) || undefined,
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        channelId: toStringSafe((source as { channelId?: string }).channelId),
-        chatNo: toNumberSafe((source as { chatNo?: number }).chatNo, 0),
-        isPending: toBooleanSafe((source as { isPending?: boolean }).isPending, false),
-        isFailed: toBooleanSafe((source as { isFailed?: boolean }).isFailed, false),
+        ...api,
+        id: toStringSafe(api.id),
+        tempId: api.tempId || undefined,
+        cid,
+        channelId: toStringSafe(api.channelId),
+        chatNo: toNumberSafe(api.chatNo, 0),
+        isPending: toBooleanSafe(api.isPending, false),
+        isFailed: toBooleanSafe(api.isFailed, false),
         createdAtMs,
         updatedAtMs,
     };
 };
 
-export const toDomainJoin = (
-    source: JoinView | CacheStorageItem<'join'> | Partial<DomainJoin>,
-    scope: DomainScope
-): DomainJoin => {
+/** API View -> DomainJoin. */
+export const toDomainJoin = (api: ApiInput<JoinView, DomainJoin>, context: DataContext): DomainJoin => {
+    const cid = context.cid || 'default';
+
     return {
-        ...(source as JoinView),
-        id: toStringSafe((source as { id?: string }).id),
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        channelId: toStringSafe((source as { channelId?: string }).channelId),
-        userId: toStringSafe((source as { userId?: string }).userId),
-        joined: toNumberSafe((source as { joined?: number }).joined, 1),
-        readNo: toNumberSafe((source as { readNo?: number }).readNo, 0),
+        ...api,
+        id: toStringSafe(api.id),
+        cid,
+        channelId: toStringSafe(api.channelId),
+        userId: toStringSafe(api.userId),
+        joined: toNumberSafe(api.joined, 1),
+        readNo: toNumberSafe(api.readNo, 0),
     };
 };
 
+/**
+ * API View -> DomainUser. Collects channel ids from the user's own `channelId`
+ * and an optional embedded `$join`, neither of which is part of the typed UserView.
+ */
 export const toDomainUser = (
-    source: UserView | CacheStorageItem<'user'> | Partial<DomainUser>,
-    scope: DomainScope
+    api: ApiInput<UserView, DomainUser> & { channelId?: string; $join?: { channelId?: string } },
+    context: DataContext
 ): DomainUser => {
-    const channelId = toStringSafe((source as { channelId?: string }).channelId);
-    const joinedChannelId = toStringSafe((source as { $join?: { channelId?: string } }).$join?.channelId);
+    const channelId = toStringSafe(api.channelId);
+    const joinedChannelId = toStringSafe(api.$join?.channelId);
     const channelIds = [channelId, joinedChannelId].filter(Boolean);
+    const cid = context.cid || 'default';
 
     return {
-        ...(source as UserView),
-        id: toStringSafe((source as { id?: string }).id),
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
+        ...api,
+        id: toStringSafe(api.id),
+        cid,
         channelIds: Array.from(new Set(channelIds)),
     };
 };
 
-export const toDomainPlace = (
-    source: MySiteView | CacheStorageItem<'site'> | Partial<DomainPlace>,
-    scope: DomainScope
-): DomainPlace => {
-    const rawType = (source as { type?: unknown }).type;
+/** API View -> DomainPlace. Normalizes the place `type` and keeps a stable sort `order`. */
+export const toDomainPlace = (api: ApiInput<MySiteView, DomainPlace>, context: DataContext): DomainPlace => {
+    const rawType = api.type;
     const normalizedType = rawType === 'site' || rawType === 'user' ? rawType : undefined;
+    const cid = context.cid || 'default';
 
     return {
-        ...(source as MySiteView),
-        id: toStringSafe((source as { id?: string }).id),
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        order: toNumberSafe((source as { order?: number }).order, Number.MAX_SAFE_INTEGER),
+        ...api,
+        id: toStringSafe(api.id),
+        cid,
+        order: toNumberSafe(api.order, Number.MAX_SAFE_INTEGER),
         type: normalizedType,
-        stereo: (source as { stereo?: string }).stereo === '' ? '' : undefined,
+        stereo: api.stereo === '' ? '' : undefined,
     };
 };
 
-/** @deprecated Use {@link toDomainPlace}. Site was consolidated into the Place domain. */
-export const toDomainSite = toDomainPlace;
-
+/**
+ * API View -> DomainProfile. Resolves the `sid:uid` identity from API aliases
+ * (siteId/userId) or the active context, then derives the cache id.
+ */
 export const toDomainProfile = (
-    source: (ProfileView & Partial<ProfileDisplay>) | CacheStorageItem<'profile'> | Partial<DomainProfile>,
-    scope: DomainScope
+    api: ApiInput<ProfileView, DomainProfile> & Partial<ProfileDisplay>,
+    context: DataContext
 ): DomainProfile => {
-    // Profiles are stored with normalized sid/uid fields even when the payload still uses API keys.
-    const sid =
-        toStringSafe((source as { siteId?: string; sid?: string }).siteId || (source as { sid?: string }).sid) ||
-        scope.sid ||
-        '';
-    const uid =
-        toStringSafe((source as { uid?: string }).uid) ||
-        toStringSafe((source as { userId?: string }).userId) ||
-        scope.uid ||
-        '';
-    const updatedAtMs = toEpochMs((source as { updatedAt?: string | number }).updatedAt);
-    const id = toStringSafe((source as { id?: string }).id) || `${sid}:${uid}`;
+    const sid = toStringSafe(api.siteId || api.sid) || context.sid || '';
+    const uid = toStringSafe(api.uid || api.userId) || context.uid || '';
+    const updatedAtMs = toEpochMs(api.updatedAt);
+    const id = toStringSafe(api.id) || `${sid}:${uid}`;
+    const cid = context.cid || 'default';
 
     return {
-        ...(source as ProfileView),
+        ...api,
         id,
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
+        cid,
         sid,
         uid,
-        userId: toStringSafe((source as { userId?: string }).userId) || uid,
+        userId: toStringSafe(api.userId) || uid,
         updatedAtMs,
     };
 };
 
-export const toDomainInviteCloud = (
-    source: CloudView | CacheStorageItem<'invitecloud'> | Partial<DomainInviteCloud>,
-    scope: DomainScope
-): DomainInviteCloud => {
+/** API View -> DomainCloud. Classifies the cloud via `cloudType` ('invited' | 'owner'). */
+export const toDomainCloud = (api: ApiInput<CloudView, DomainCloud>, context: DataContext): DomainCloud => {
+    const cid = context.cid || 'default';
+
     return {
-        ...(source as CloudView),
-        id: toStringSafe((source as { id?: string }).id),
-        cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        name: toStringSafe((source as { name?: string }).name) || undefined,
-        backend: toStringSafe((source as { backend?: string }).backend) || undefined,
-        wss: toStringSafe((source as { wss?: string }).wss) || undefined,
+        ...api,
+        id: toStringSafe(api.id),
+        cid,
+        name: toStringSafe(api.name) || undefined,
+        backend: toStringSafe(api.backend) || undefined,
+        wss: toStringSafe(api.wss) || undefined,
+        cloudType: api.cloudType === 'invited' || api.cloudType === 'owner' ? api.cloudType : undefined,
     };
 };
