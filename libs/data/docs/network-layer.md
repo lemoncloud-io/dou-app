@@ -4,12 +4,12 @@ Date: 2026-06-18
 
 ## 목적
 
-`libs/data`의 네트워크 레이어는 outbound 요청과 inbound socket 이벤트를 분리한다.
+`libs/data`의 네트워크 레이어는 **gateway 호출**과 **repository 캐시 반영**을 분리한다.
 
-- outbound: `@lemoncloud/chatic-sockets-lib`가 제공하는 gateway 타입 사용
-- inbound: `ISocketClient`를 통한 `SocketDispatcher` 구독 유지
+- outbound: `@lemoncloud/chatic-sockets-lib` gateway만 사용
+- inbound sync: 앱 레벨 sync orchestrator가 `domain.sync` 신호를 해석한 뒤 repository의 `refresh*` / `cacheWrite*`를 직접 호출
 
-즉, `RemoteDataSource`는 더 이상 socket action string을 직접 만들지 않고 gateway 메서드만 호출한다. 반면 `SocketDispatcher`는 `model.create|update|delete` 이벤트를 계속 socket client에서 받아 domain event로 변환한다.
+즉, `RemoteDataSource`는 socket action string이나 model-event 라우팅을 알지 않는다. `RepositoryV2` 역시 socket listener를 직접 붙이지 않고, 외부 orchestrator가 넘긴 결과만 로컬 캐시에 반영한다.
 
 ## 구성
 
@@ -18,10 +18,9 @@ flowchart LR
   SM["SocketManager"] --> Proxy["SocketClientProxy"]
   Proxy --> GW["create*Gateway() / createDomainGateway()"]
   GW --> RDS["RemoteDataSources"]
-  Proxy --> DISP["SocketDispatcher"]
-  DISP --> BUS["DomainEventBus"]
   RDS --> REPO["Repositories"]
-  BUS --> REPO
+  ORCH["Sync Orchestrator"] --> REPO
+  Proxy --> ORCH
 ```
 
 ## 경계
@@ -29,14 +28,14 @@ flowchart LR
 ### 1. `libs/data`
 
 - `RemoteDataSource`는 gateway 타입만 주입받는다.
-- `SocketDispatcher`만 `ISocketClient`를 사용한다.
+- `RepositoryV2`는 `refresh*`, `cacheWrite*`, `cacheDelete*` 계약만 제공한다.
 - repository는 gateway나 socket lifecycle을 모른다.
 
 ### 2. `libs/app-runtime`
 
 - `SocketManager`가 현재 `ClientSocketV2` 인스턴스를 소유한다.
 - `SocketClientProxy`가 socket 교체를 흡수한다.
-- factory가 concrete gateway와 dispatcher를 조립한다.
+- factory가 concrete gateway와 repository를 조립한다.
 
 ## Gateway 매핑
 
@@ -53,7 +52,7 @@ flowchart LR
 | `PlaceRemoteDataSource`   | `PlaceGateway & Pick<UserGateway, 'mySite'>`                                                                 | `create()`, `get()`, `update()`, `delete()`, `mySite()` (목록)                                                       |
 | `UserRemoteDataSource`    | `Pick<ChannelGateway, 'listUser' \| 'syncUsers'> & Pick<UserGateway, 'update' \| 'invite' \| 'inviteBatch'>` | `listUser()`, `syncUsers()`, `update()`, `invite()`, `inviteBatch()` — profile 관련 메서드는 ProfileGateway로 분리됨 |
 | `DeviceRemoteDataSource`  | `DeviceGateway`                                                                                              | `save()`, `read()`, `sync()`                                                                                         |
-| `CloudRemoteDataSource`   | `CloudGateway`                                                                                               | `create()`, `get()`, `update()`, `delete()`                                                                          |
+| `CloudRemoteDataSource`   | `CloudGateway`                                                                                               | `update()`                                                                                                           |
 | `ProfileRemoteDataSource` | `ProfileGateway` (sockets-lib 전용)                                                                          | `get()`, `getMine()`, `set()`, `sync()` (= `profile.get`/`get-mine`/`set`/`sync`)                                    |
 | `SocketsRemoteDataSource` | `Pick<DomainGateway, 'request'>`                                                                             | `request('find-connection', payload)`                                                                                |
 
@@ -83,17 +82,14 @@ flowchart LR
 2. `createAuthGateway`, `createChannelGateway`, `createChatGateway`, `createCloudGateway`, `createDeviceGateway`, `createPlaceGateway`, `createProfileGateway`, `createUserGateway` 호출
 3. `createDomainGateway('sockets', ...)`로 sockets domain gateway 생성
 4. gateway bundle을 `createRemoteDataSources()`에 전달
-5. 같은 proxy로 `SocketDispatcher` 생성
+5. sync runtime/orchestrator가 같은 proxy를 사용해 `domain.sync`를 구독하고 repository를 호출
 
-## Dispatcher 유지 이유
+## 계약 정리
 
-`ISocketClient`는 제거되지 않는다.
-
-이유:
-
-- `SocketDispatcher`가 `onType('model.create' | 'model.update' | 'model.delete')` 구독을 유지해야 한다.
-- inbound 이벤트 라우팅은 gateway가 아니라 socket event source 성격이다.
-- 따라서 outbound는 gateway로 치환하고, inbound는 `ISocketClient`를 유지하는 이중 경계가 현재 구조에 가장 맞다.
+- `dispatcher` 모듈은 제거됐다.
+- `RemoteDataSource`는 gateway thin wrapper다.
+- `RepositoryV2`의 반영 경로는 명시적 메서드 호출 하나만 사용한다.
+- `chat:create` / `join:update` 같은 구형 `DomainEventBus` 자동 반영 경로는 V2 계약에서 제외됐다.
 
 ## `ClientSocketV2` 요청 제한
 

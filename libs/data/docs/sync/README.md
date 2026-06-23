@@ -108,13 +108,13 @@ UI / React Hook
 { type: 'domain.sync', data: { ... } }
 ```
 
-이 신호는 re-read 힌트다. `libs/data` repository는 이를 직접 수신하지 않는다. `SocketDispatcher` 또는 앱 레벨 sync orchestrator가 이 신호를 받아 해당 도메인 repository의 refresh 메서드를 호출하는 구조다.
+이 신호는 re-read 힌트다. `libs/data` repository는 이를 직접 수신하지 않는다. 앱 레벨 sync orchestrator가 이 신호를 받아 해당 도메인 repository의 `refresh*` 또는 `cacheWrite*` 메서드를 호출하는 구조다.
 
-현재 구현된 server-push 이벤트:
+현재 기준 구현 원칙:
 
-- `chat:create` → `ChannelRepositoryV2`에서 unread 스냅샷 즉시 반영
-- `join:update` → `ChannelRepositoryV2` / `JoinRepositoryV2`에서 즉시 반영
-- 그 외 `model.create` / `model.update` / `model.delete` → `SocketDispatcher` → `DomainEventBus`
+- `domain.sync` push는 앱 orchestration이 해석한다.
+- repository는 push payload를 직접 구독하지 않고, orchestration이 계산한 fetch/write 결과만 반영한다.
+- `model.create` / `model.update` / `model.delete` 기반 dispatcher 경로는 V2 계약에서 제거됐다.
 
 ### `ClientSocketV2` 요청 제한
 
