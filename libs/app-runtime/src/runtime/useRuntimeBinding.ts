@@ -11,6 +11,11 @@ export interface RuntimeBinding {
     socket: {
         config: SocketBindingConfig;
     } | null;
+    auth: {
+        kind: 'relay' | 'cloud';
+        siteId?: string;
+        identityToken?: string;
+    } | null;
 }
 
 export const useRuntimeBinding = (): RuntimeBinding => {
@@ -37,6 +42,11 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                           },
                       }
                     : null,
+            auth: {
+                kind: activeServer.kind,
+                siteId: sid,
+                identityToken: activeServer.identityToken ?? undefined,
+            },
         };
     }, [deviceId, session]);
 };

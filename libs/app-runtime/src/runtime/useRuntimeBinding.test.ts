@@ -40,6 +40,11 @@ describe('useRuntimeBinding', () => {
                 wssType: 'cloud',
             },
         });
+        expect(result.current.auth).toEqual({
+            kind: 'cloud',
+            siteId: 'my-site-id',
+            identityToken: undefined,
+        });
     });
 
     it('relay active일 때 cid=default 및 siteId가 올바르게 파생되어야 한다', () => {
@@ -68,6 +73,11 @@ describe('useRuntimeBinding', () => {
                 wssType: 'relay',
             },
         });
+        expect(result.current.auth).toEqual({
+            kind: 'relay',
+            siteId: 'relay-site-id',
+            identityToken: undefined,
+        });
     });
 
     it('deviceId가 없거나 endpoint가 없으면 socket이 null이어야 한다', () => {
@@ -86,5 +96,10 @@ describe('useRuntimeBinding', () => {
         const { result } = renderHook(() => useRuntimeBinding());
 
         expect(result.current.socket).toBeNull();
+        expect(result.current.auth).toEqual({
+            kind: 'relay',
+            siteId: undefined,
+            identityToken: undefined,
+        });
     });
 });
