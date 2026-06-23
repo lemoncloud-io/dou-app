@@ -79,6 +79,13 @@ export interface SocketSessionDelegate {
 1. **주기적 리프레시(②)**: 단순히 로컬에 보존된 유효한 토큰(`delegate.getSocketToken()`)을 획득하여 소켓 연결을 갱신(`auth:update`)한다. 만약 유효한 세션(토큰)이 존재하지 않는다면 수행하지 않는다.
 2. **401 복구(③)**: 소켓 통신 중에 토큰 만료 등의 사유로 401 에러를 받으면 강제로 `delegate.refreshSocketToken('socket-401')`을 호출하여 **클라우드 세션 자체를 갱신(refreshCloudSession)**하는 무거운 복구 흐름을 동반한 뒤 `auth:update`를 재전송한다.
 
+### 사이트 전환 시 `auth:update`의 의미
+
+- site 전환은 항상 새 socket client 생성으로 처리되지 않을 수 있다.
+- 이 경우 핵심은 "기존 socket 위에 새 site session의 identity token을 다시 싣는 것"이며, 그 수단이 `auth:update`다.
+- site 전환 후 `auth:update`가 재실행되지 않으면 클라이언트의 data context는 새 `sid`를 보더라도, 서버는 여전히 이전 site 세션으로 해당 socket을 해석할 수 있다.
+- 결과적으로 remote fetch/sync 응답이 이전 site 기준으로 들어오고, 로컬 write는 새 context 기준으로 수행되어 context mismatch가 발생할 수 있다.
+
 ---
 
 ## 5. 소켓 연결 상태 모델

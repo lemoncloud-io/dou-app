@@ -83,6 +83,13 @@ export interface RuntimeBinding {
 - 설정이 변경되면 [SocketManager.ts](file:///Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/socket/SocketManager.ts)의 `ensure(config)`를 호출하여 기존 물리 커넥션을 정리(destroy)하고 새로운 커넥션을 빌드한다.
 - sync runtime은 별도 `RuntimeSyncBinder` 없이 이 socket lifecycle을 따라 내부 서비스로 attach/detach된다.
 
+### 3) `SocketAuthBinder` (권장 추가안)
+
+- site 전환이나 active server token 변경처럼 **물리 연결은 유지되지만 인증 문맥은 바뀌는 경우**를 담당한다.
+- 비교 대상은 `activeServer.kind`, `activeServer.siteId`, `activeServer.identityToken` 같은 auth session key다.
+- auth session key가 변경되면 `SocketSessionController.updateAuth(...)`를 호출해 현재 socket 위에 새 세션 인증을 다시 싣는다.
+- 이 바인더가 없으면 data context는 새 `sid`를 보더라도 remote/socket 서버는 이전 site 세션 기준으로 응답할 수 있다.
+
 ---
 
 ## 관련 문서
