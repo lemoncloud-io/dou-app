@@ -38,7 +38,8 @@
     - `place.create` / `place.get` / `place.update` / `place.delete`
     - `cloud.create` / `cloud.get` / `cloud.update` / `cloud.delete`
     - `profile.get` / `profile.get-mine` / `profile.set` / `profile.sync`
-- 서버→클라이언트 sync 트리거 (`domain.sync` push)
+    - `join.get` / `join.update`
+- 서버→클라이언트 sync 트리거 (`domain.sync` push, `chat.sync` / `join.sync` 포함)
 - 현재 앱에서 소비 중인 `ClientSocketV2` 표면 (요청 제한 포함)
 - `libs/data` repository V2 / local V2 가 담당하는 동기화 해석
 
@@ -136,7 +137,7 @@ UI / React Hook
 | `device`  | polling + `device.sync` trigger               | `tick`           | sockets-lib runtime                                   |
 | `channel` | `channel.sync({ since })` 중심 full/diff sync | `syncedAt`       | 앱 orchestration + `ChannelRepositoryV2`              |
 | `chat`    | `channel.sync` 감지 후 `chat.feed`            | `chatNo`         | 앱 orchestration + `ChatRepositoryV2`                 |
-| `join`    | `chat.read` 결과 반영                         | `chatNo`         | `JoinRepositoryV2`                                    |
+| `join`    | `join.get` polling + `join.sync` trigger      | `updatedAt`      | `JoinSyncPlan` + `JoinRepositoryV2`                   |
 | `user`    | `channel.list-user` / `syncUsers`             | 도메인별 payload | `UserRepositoryV2`                                    |
 | `place`   | `place.get` / scope 전환 시 refresh           | `id`             | 앱 orchestration + `PlaceRepositoryV2`                |
 | `profile` | `profile.sync({ since })` delta sync          | `since` (cursor) | 앱 orchestration + `ProfileRepositoryV2.syncProfiles` |
@@ -412,7 +413,53 @@ const older = await chat.feed<ChatFeedResponse>({
 
 ## Join / Read 동기화
 
-읽음 상태는 `chat.read`의 응답과 `join` local snapshot 으로 관리한다.
+`join`은 v0.3.4부터 1급 sync 도메인이다. 단일 join(채널 참여/읽음 상태) 스냅샷은 신규 `JoinGateway`(`join.get` / `join.update`)와 `JoinSyncPlan`이 소유하고, 읽음 처리(`chat.read`)·채널 참여(`channel.join`)는 보조 command로 남는다.
+
+### 서버 소켓 계약 (v2 기준)
+
+```ts
+await client.request('join.get', { id });                 // JoinGetRequestBody — composite join id
+await client.request('join.update', { id, nick?, notify?, role? }); // JoinUpdateRequestBody
+```
+
+응답은 `JoinView` 다.
+
+```ts
+interface JoinView {
+    id?: string;
+    channelId?: string;
+    ownerId?: string;
+    stereo?: string;
+    chatNo?: number;
+    joined?: boolean;
+    updatedAt?: number; // JoinSyncPlan 적용 기준값
+}
+```
+
+### 1급 게이트웨이 vs 보조 command
+
+| 동작           | 액션           | 소유 게이트웨이                     | 비고                        |
+| -------------- | -------------- | ----------------------------------- | --------------------------- |
+| 단일 join 조회 | `join.get`     | `JoinGateway` (`createJoinGateway`) | `JoinSyncPlan` polling 기준 |
+| join 메타 수정 | `join.update`  | `JoinGateway`                       | nick / notify / role        |
+| 읽음 처리      | `chat.read`    | `ChatGateway` (보조)                | read cursor 전진            |
+| 채널 참여      | `channel.join` | `ChannelGateway` (보조)             | 참여 요청                   |
+
+`libs/data`의 `JoinDomainGateway` / `JoinRemoteDataSource`는 위 4개를 다중 게이트웨이로 묶어 참조한다. (단건 get/update는 `JoinGateway`, read/join은 chat/channel 게이트웨이)
+
+### JoinSyncPlan 동기화 흐름
+
+`JoinSyncPlan`은 single-join polling plan이다.
+
+1. `run()`에서 `join.get({ id })`로 최신 `JoinView`를 읽는다.
+2. 응답 `updatedAt`이 로컬 snapshot보다 최신이면 `onUpdate(target, view, previous)` 호출 → `JoinRepositoryV2.cacheWrite(toDomainJoin(view, scope))`.
+3. 대상이 사라지면 `onRemove(target, previous)` → `JoinRepositoryV2.cacheDelete(target.id)`.
+4. `join.sync` push가 오면 `onTrigger()`에서 즉시 `join.get` 재조회한다.
+5. reconnect 후 `onConnected()`로 snapshot 기준 catch-up 한다.
+
+### 읽음 처리 흐름
+
+읽음 처리는 여전히 `chat.read` command가 주도한다.
 
 ```ts
 await chat.read({ channelId: 'CH001', chatNo: latestChatNo });
@@ -422,9 +469,9 @@ await chat.read({ channelId: 'CH001', chatNo: latestChatNo });
 
 1. 서버의 내 `$join.chatNo`가 전진한다.
 2. `JoinRepositoryV2`는 optimistic 하게 read cursor를 먼저 갱신한다.
-3. 이후 `channel.sync` 또는 `join:update` 반영으로 unreadCount 가 다시 계산된다.
+3. 이후 `join.get`(`JoinSyncPlan`) 또는 `channel.sync` 반영으로 join 스냅샷과 unreadCount 가 확정된다.
 
-즉 unread 감소는 `chat.read` 단일 호출 결과라기보다, `join`과 `channel` 스냅샷이 다시 만나는 과정에서 확정된다.
+즉 unread 감소는 `chat.read` 단일 호출 결과라기보다, `join`(`JoinSyncPlan`)과 `channel` 스냅샷이 다시 만나는 과정에서 확정된다.
 
 ---
 
@@ -571,6 +618,8 @@ interface SyncTargetDescriptor {
 | `channel.unreads`   | `{}`                               | `UnreadsSummaryView`      |
 | `chat.feed`         | `{ channelId, cursorNo?, limit? }` | `ChatFeedResponse`        |
 | `chat.read`         | `{ channelId, chatNo }`            | `JoinView`                |
+| `join.get`          | `JoinGetRequestBody` (`{ id }`)    | `JoinView`                |
+| `join.update`       | `JoinUpdateRequestBody`            | `JoinView`                |
 | `channel.syncUsers` | `{ channelId, since? }`            | `ChannelUsersSyncView`    |
 | `place.create`      | `PlaceCreateInput`                 | `MySiteView`              |
 | `place.get`         | `PlaceGetInput`                    | `MySiteView`              |

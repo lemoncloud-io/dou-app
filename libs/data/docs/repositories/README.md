@@ -70,6 +70,7 @@ repository V2는 sync 스펙을 해석하는 계층입니다.
 - `chat.read` -> join/read 상태 반영
 - socket/domain event -> local 즉시 반영
 - `channel.mine` -> 필요 시 보조 초기 조회 경로
+- `join.get` / `join.update` -> 단일 join 스냅샷 조회/수정 (`JoinSyncPlan` polling이 `join.get` 사용)
 
 중요한 경계:
 
@@ -133,7 +134,10 @@ repository V2는 sync 스펙을 해석하는 계층입니다.
 
 특징:
 
+- v0.3.4부터 join은 1급 sync 도메인이다. 단일 join 조회/수정은 신규 `JoinGateway`(`join.get` / `join.update`), 읽음(`chat.read`)·참여(`channel.join`)는 보조 command로 다중 게이트웨이를 참조한다.
 - `readChat` 은 optimistic read cursor 전진 후 remote 실패 시 복구
+- read-state의 sync 소유권은 `app-runtime/sync`의 `JoinSyncPlan`(`join.get` polling + `join.sync` trigger)이며, `JoinRepositoryV2`는 그 결과를 `cacheWrite` / `cacheDelete`로 반영하는 local cache 소유자다.
+- `updateJoin` 은 `join.update`(nick/notify/role)로 join 메타를 수정한다.
 
 ### User
 

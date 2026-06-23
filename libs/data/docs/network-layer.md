@@ -43,32 +43,35 @@ flowchart LR
 
 `RemoteGatewayBundle`의 기존 `site` 항목은 제거되고 `place: PlaceDomainGateway`(= `PlaceGateway & Pick<UserGateway, 'mySite'>`)로 통합됐다. Site 도메인은 Place로 일원화됐으며, 물리 캐시 슬롯은 기존 `'site'`를 재사용한다(같은 엔티티).
 
-| DataSource                | Injected gateway type                                                                                        | 실제 호출                                                                                                            |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `AuthRemoteDataSource`    | `AuthGateway`                                                                                                | `update()`                                                                                                           |
-| `ChannelRemoteDataSource` | `ChannelGateway`                                                                                             | `mine()`, `sync()`, `update()`, `delete()`, `create()`, `invite()`, `leave()`, `getSelf()`, `unreads()`              |
-| `ChatRemoteDataSource`    | `ChatGateway`                                                                                                | `send()`, `feed()`                                                                                                   |
-| `JoinRemoteDataSource`    | `Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'updateJoin' \| 'join'>`                                   | `read()`, `updateJoin()`, `join()`                                                                                   |
-| `PlaceRemoteDataSource`   | `PlaceGateway & Pick<UserGateway, 'mySite'>`                                                                 | `create()`, `get()`, `update()`, `delete()`, `mySite()` (목록)                                                       |
-| `UserRemoteDataSource`    | `Pick<ChannelGateway, 'listUser' \| 'syncUsers'> & Pick<UserGateway, 'update' \| 'invite' \| 'inviteBatch'>` | `listUser()`, `syncUsers()`, `update()`, `invite()`, `inviteBatch()` — profile 관련 메서드는 ProfileGateway로 분리됨 |
-| `DeviceRemoteDataSource`  | `DeviceGateway`                                                                                              | `save()`, `read()`, `sync()`                                                                                         |
-| `CloudRemoteDataSource`   | `CloudGateway`                                                                                               | `update()`                                                                                                           |
-| `ProfileRemoteDataSource` | `ProfileGateway` (sockets-lib 전용)                                                                          | `get()`, `getMine()`, `set()`, `sync()` (= `profile.get`/`get-mine`/`set`/`sync`)                                    |
-| `SocketsRemoteDataSource` | `Pick<DomainGateway, 'request'>`                                                                             | `request('find-connection', payload)`                                                                                |
+| DataSource                | Injected gateway type                                                                                                | 실제 호출                                                                                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AuthRemoteDataSource`    | `AuthGateway`                                                                                                        | `update()`                                                                                                                                                       |
+| `ChannelRemoteDataSource` | `ChannelGateway`                                                                                                     | `mine()`, `sync()`, `update()`, `delete()`, `create()`, `invite()`, `leave()`, `getSelf()`, `unreads()`                                                          |
+| `ChatRemoteDataSource`    | `ChatGateway`                                                                                                        | `send()`, `feed()`                                                                                                                                               |
+| `JoinRemoteDataSource`    | `JoinGateway`(`get`/`update`) + `Pick<ChatGateway, 'read'> & Pick<ChannelGateway, 'updateJoin' \| 'join'>` (v0.3.4~) | `getJoin()`(`join.get`), `updateJoin()`(`join.update`), `updateChannelJoin()`(`channel.update-join`), `readChat()`(`chat.read`), `joinChannel()`(`channel.join`) |
+| `PlaceRemoteDataSource`   | `PlaceGateway & Pick<UserGateway, 'mySite'>`                                                                         | `create()`, `get()`, `update()`, `delete()`, `mySite()` (목록)                                                                                                   |
+| `UserRemoteDataSource`    | `Pick<ChannelGateway, 'listUser' \| 'syncUsers'> & Pick<UserGateway, 'update' \| 'invite' \| 'inviteBatch'>`         | `listUser()`, `syncUsers()`, `update()`, `invite()`, `inviteBatch()` — profile 관련 메서드는 ProfileGateway로 분리됨                                             |
+| `DeviceRemoteDataSource`  | `DeviceGateway`                                                                                                      | `save()`, `read()`, `sync()`                                                                                                                                     |
+| `CloudRemoteDataSource`   | `CloudGateway`                                                                                                       | `update()`                                                                                                                                                       |
+| `ProfileRemoteDataSource` | `ProfileGateway` (sockets-lib 전용)                                                                                  | `get()`, `getMine()`, `set()`, `sync()` (= `profile.get`/`get-mine`/`set`/`sync`)                                                                                |
+| `SocketsRemoteDataSource` | `Pick<DomainGateway, 'request'>`                                                                                     | `request('find-connection', payload)`                                                                                                                            |
 
 ## Deprecated gateway 이전
 
 다음 sockets-lib 메서드는 deprecated 처리됐으며, 신규 전용 게이트웨이를 사용해야 한다.
 
-| 기존 (deprecated)              | 이전 대상                            |
-| ------------------------------ | ------------------------------------ |
-| `UserGateway.makeSite()`       | `PlaceGateway.create()`              |
-| `UserGateway.updateSite()`     | `PlaceGateway.update()`              |
-| `UserGateway.getSiteProfile()` | `ProfileGateway.getMine()` / `get()` |
-| `UserGateway.setSiteProfile()` | `ProfileGateway.set()`               |
-| `ChannelGateway.syncProfile()` | `ProfileGateway.sync()`              |
+| 기존 (deprecated)              | 이전 대상                              |
+| ------------------------------ | -------------------------------------- |
+| `UserGateway.makeSite()`       | `PlaceGateway.create()`                |
+| `UserGateway.updateSite()`     | `PlaceGateway.update()`                |
+| `UserGateway.getSiteProfile()` | `ProfileGateway.getMine()` / `get()`   |
+| `UserGateway.setSiteProfile()` | `ProfileGateway.set()`                 |
+| `ChannelGateway.syncProfile()` | `ProfileGateway.sync()`                |
+| `ChannelGateway.updateJoin()`  | `JoinGateway.update()` (`join.update`) |
 
 위 이전은 **완료됐다**: `SiteGateway`는 제거되고 `PlaceDomainGateway`(`PlaceGateway & Pick<UserGateway,'mySite'>`)로 통합됐으며, `ProfileGateway`는 sockets-lib 전용 타입(`get`/`getMine`/`set`/`sync`)으로 교체됐다. `UserDomainGateway`는 `Pick<ChannelGateway,'listUser'|'syncUsers'> & Pick<UserGateway,'update'|'invite'|'inviteBatch'>`로 profile/site 관련 항목이 빠졌다.
+
+`ChannelGateway.updateJoin()` → `JoinGateway.update()` 이전은 v0.3.4 `JoinGateway`(`createJoinGateway`) 도입으로 **게이트웨이/데이터소스 레이어에서는 와이어링 완료**다(`JoinRemoteDataSource.updateJoin` = `join.update`, `updateChannelJoin` = 기존 `channel.update-join`). 다만 `JoinRepositoryV2.updateJoin` / 앱 호출부는 입력이 `{channelId, userId, notify}` 형태라 아직 `updateChannelJoin`(channel.update-join) 경로를 사용하며, 단건 id 기반 `join.update`로의 repo/앱 전환은 **작업 예정**이다. join 단건 조회(`join.get`)는 신규 도메인이고, 읽음(`chat.read`)·참여(`channel.join`)는 보조 command로 남는다.
 
 ## Factory 조립
 
@@ -79,7 +82,7 @@ flowchart LR
 조립 순서:
 
 1. `SocketManager` 기반 `SocketClientProxy` 생성
-2. `createAuthGateway`, `createChannelGateway`, `createChatGateway`, `createCloudGateway`, `createDeviceGateway`, `createPlaceGateway`, `createProfileGateway`, `createUserGateway` 호출
+2. `createAuthGateway`, `createChannelGateway`, `createChatGateway`, `createCloudGateway`, `createDeviceGateway`, `createPlaceGateway`, `createProfileGateway`, `createUserGateway`, `createJoinGateway`(v0.3.4~) 호출
 3. `createDomainGateway('sockets', ...)`로 sockets domain gateway 생성
 4. gateway bundle을 `createRemoteDataSources()`에 전달
 5. sync runtime/orchestrator가 같은 proxy를 사용해 `domain.sync`를 구독하고 repository를 호출
