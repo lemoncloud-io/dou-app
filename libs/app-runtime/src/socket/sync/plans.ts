@@ -31,9 +31,10 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void channel.cacheWrite(toDomainChannel(view, getContext()));
             },
             onRemove: target => {
-                if (!target.id) return;
-                const { channel } = getRepositories();
-                void channel.cacheDelete(target.id);
+                //TODO 확인후 개선필요 @RAINE
+                // if (!target.id) return;
+                // const { channel } = getRepositories();
+                // void channel.cacheDelete(target.id);
             },
         }),
         // Place sync targets emit MySiteView payloads; parameterize the plan so
@@ -56,9 +57,10 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void profile.cacheWrite(toDomainProfile(view, getContext()));
             },
             onRemove: target => {
-                if (!target.id) return;
-                const { profile } = getRepositories();
-                void profile.cacheDelete(target.id);
+                //TODO 확인후 개선필요 @RAINE
+                // if (!target.id) return;
+                // const { profile } = getRepositories();
+                // void profile.cacheDelete(target.id);
             },
         }),
         // chat은 append-only event-driven plan. onApply가 적용된 메시지 델타(오름차순)를
@@ -80,9 +82,10 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void join.cacheWrite(toDomainJoin(view, getContext()));
             },
             onRemove: target => {
-                if (!target.id) return;
-                const { join } = getRepositories();
-                void join.cacheDelete(target.id);
+                //TODO 확인후 개선필요 @RAINE
+                // if (!target.id) return;
+                // const { join } = getRepositories();
+                // void join.cacheDelete(target.id);
             },
         }),
     ];
