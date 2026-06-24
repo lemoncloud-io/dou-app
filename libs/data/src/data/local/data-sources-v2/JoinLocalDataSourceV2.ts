@@ -73,12 +73,11 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         item: Partial<DomainJoin>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
-        const id = this.assertRequiredString(item.id, 'id');
-
         const context = this.getContext(contextOverride);
         if (!context.sid) {
             throw new Error('[JoinLocalDataSourceV2] sid is required in context to save join.');
         }
+        const id = this.assertRequiredString(this.normalizeJoinId(item.id, item.channelId, item.userId), 'id');
 
         const existing = await this.cacheStorage.load(id);
         const cid = context.cid || 'default';
@@ -102,7 +101,12 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         items: Array<Partial<DomainJoin>>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
-        const validItems = items.filter(item => !!item.id);
+        const validItems = items
+            .map(item => ({
+                ...item,
+                id: this.normalizeJoinId(item.id, item.channelId, item.userId),
+            }))
+            .filter(item => !!item.id);
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
@@ -169,6 +173,15 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
             ['joins', `channel:${query.channelId || '__none__'}`, `active:${query.activeOnly ? 1 : 0}`],
             contextOverride
         );
+    }
+
+    private normalizeJoinId(id?: string, channelId?: string, userId?: string): string {
+        if (!id) return '';
+        if (id.includes('@')) return id;
+        if (channelId && userId && id === `${channelId}:${userId}`) {
+            return `${channelId}@${userId}`;
+        }
+        return id;
     }
 
     private getAffectedListPrefixes(

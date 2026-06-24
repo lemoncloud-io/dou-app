@@ -100,7 +100,7 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
             requestContext
         );
         const current = (currentList?.list || []).find(item => item.userId === requestContext.uid);
-        const optimisticId = current?.id || `${channelId}:${requestContext.uid || 'me'}`;
+        const optimisticId = current?.id || `${channelId}@${requestContext.uid || 'me'}`;
         const optimisticPatch: Partial<DomainJoin> = {
             id: optimisticId,
             channelId,

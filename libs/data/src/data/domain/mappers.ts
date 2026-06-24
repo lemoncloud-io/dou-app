@@ -58,6 +58,17 @@ const parseProfileId = (value: unknown): { sid: string; uid: string } => {
     };
 };
 
+const normalizeJoinId = (id: unknown, channelId: unknown, userId: unknown): string => {
+    const rawId = toStringSafe(id);
+    if (rawId.includes('@')) return rawId;
+    const normalizedChannelId = toStringSafe(channelId);
+    const normalizedUserId = toStringSafe(userId);
+    if (normalizedChannelId && normalizedUserId && rawId === `${normalizedChannelId}:${normalizedUserId}`) {
+        return `${normalizedChannelId}@${normalizedUserId}`;
+    }
+    return rawId;
+};
+
 // Each mapper performs a single, one-way "API View -> Domain" conversion.
 // They are the only place API shapes become domain shapes; repositories and
 // local data sources consume the resulting domain models without re-mapping.
@@ -101,13 +112,15 @@ export const toDomainChat = (api: ApiInput<ChatView, DomainChat>, context: DataC
 /** API View -> DomainJoin. */
 export const toDomainJoin = (api: ApiInput<JoinView, DomainJoin>, context: DataContext): DomainJoin => {
     const cid = context.cid || 'default';
+    const channelId = toStringSafe(api.channelId);
+    const userId = toStringSafe(api.userId);
 
     return {
         ...api,
-        id: toStringSafe(api.id),
+        id: normalizeJoinId(api.id, channelId, userId),
         cid,
-        channelId: toStringSafe(api.channelId),
-        userId: toStringSafe(api.userId),
+        channelId,
+        userId,
         joined: toNumberSafe(api.joined, 1),
         readNo: toNumberSafe(api.readNo, 0),
     };
