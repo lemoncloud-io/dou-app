@@ -307,9 +307,9 @@ function useChannelRoom(channelId: string) {
 
 ---
 
-## 9-A. 이 리포(app-runtime) 통합 — `AppSyncRuntime`
+## 9-A. 이 리포(app-runtime) 통합 — `SyncManager`
 
-`libs/app-runtime`는 위 lib을 직접 노출하지 않고 `AppSyncRuntime`(`src/socket/sync/`)으로 감싼다. UI/앱은 `getAppSyncRuntime()`의 register\* 메서드만 쓴다.
+`libs/app-runtime`는 위 lib을 직접 노출하지 않고 `SyncManager`(`src/socket/sync/`)로 감싼다. UI/앱은 `getSyncManager()` 또는 동등 진입점의 `register*` 메서드만 쓴다.
 
 - **plan 등록**: `src/socket/sync/plans.ts`의 `createSyncPlans()`가 plan을 만들고 각 콜백을 **data 레이어 repository**에 연결한다.
     - `device` → (캐시 미연결, 기본 동작)
@@ -321,22 +321,28 @@ function useChannelRoom(channelId: string) {
 - **watch on/off**: `registerDevice` / `registerChannel` / `registerChat` / `registerPlace` / `registerProfile` / `registerJoin`(예정). 모두 ref-count되며 dispose 함수를 반환한다(중복 register 안전, 마지막 dispose 시 `stopSync`).
 
 ```ts
-import { getAppSyncRuntime } from '@chatic/app-runtime';
+import { getSocketRuntime } from '@chatic/app-runtime';
 
-const sync = getAppSyncRuntime();
+const sync = getSocketRuntime().syncManager;
 const off = sync.registerChat('CH001'); // 채널 진입
 // ...
 off(); // 채널 이탈 (ref-count 0이면 stopSync)
 ```
 
 - 갱신 데이터는 콜백 → repository cache → `observeList`/`observeItem` 스트림으로 UI에 흐른다(UI는 네트워크 콜 직접 안 함, [README.md](README.md) 원칙).
-- client 재생성(재로그인/재연결) 시 `AppSyncRuntime`이 등록된 target을 새 runtime에 자동 replay한다.
+- client 재생성(재로그인/재연결) 시 `SyncManager`가 등록된 target을 새 runtime에 자동 replay한다.
+
+> **도메인별 동기화·플랜 관리방식의 단일 레퍼런스는 [domain-sync-and-plans.md](domain-sync-and-plans.md)** 를 따른다. 특히:
+>
+> - **channel**: per-channel register(다중 구독) + 목록 발견·델타는 `channel.sync(since)` 수동 콜(재접속/sid 변경 시) — granularity가 달라 자동 연결되지 않음.
+> - **place**: per-place register(channel과 동일 모델) + 목록 발견은 `place.refreshList`(full) — place엔 `.sync(since)` 델타 게이트웨이가 없다.
+> - **chat prime**: 무조건 refetch가 아니라 **캐시 max chatNo 기반**(비었/뒤처짐일 때만 fetch) + **`updateLocalSnapshot({ lastNo })` 필수**로 plan 기준선을 맞춘다. (이 `updateLocalSnapshot` 단계가 현재 코드에 누락된 정렬 포인트)
 
 ---
 
 ## 10. 4규칙 요약
 
-1. **부팅 1회**: `createClientSocketV2` → `createDeviceRuntime({ extraSyncPlans: [콜백 붙인 plan] })` → `runtime.start()`.
+1. **부팅 1회**: `SocketManager`가 `createClientSocketV2`를 만들고, `SyncManager`가 `createDeviceRuntime({ extraSyncPlans: [콜백 붙인 plan] })`를 만들고 `runtime.start()` 한다.
 2. **화면별**: `startSync`/`stopSync`로 watch on/off (chat은 진입 시 `prime` 1회 추가).
 3. **읽기**: plan 콜백 → store → UI 구독 (request 리턴값 아님).
 4. **쓰기**: gateway 호출, 화면 반영은 push가 담당.
