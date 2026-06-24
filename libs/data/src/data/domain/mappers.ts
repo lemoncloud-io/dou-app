@@ -46,6 +46,18 @@ const toBooleanSafe = (value: unknown, fallback = false): boolean => {
     return typeof value === 'boolean' ? value : fallback;
 };
 
+const parseProfileId = (value: unknown): { sid: string; uid: string } => {
+    const raw = toStringSafe(value);
+    if (!raw) return { sid: '', uid: '' };
+    const separator = raw.includes('@') ? '@' : raw.includes(':') ? ':' : '';
+    if (!separator) return { sid: '', uid: '' };
+    const [sid, uid] = raw.split(separator, 2);
+    return {
+        sid: toStringSafe(sid),
+        uid: toStringSafe(uid),
+    };
+};
+
 // Each mapper performs a single, one-way "API View -> Domain" conversion.
 // They are the only place API shapes become domain shapes; repositories and
 // local data sources consume the resulting domain models without re-mapping.
@@ -146,10 +158,11 @@ export const toDomainProfile = (
     api: ApiInput<ProfileView, DomainProfile> & Partial<ProfileDisplay>,
     context: DataContext
 ): DomainProfile => {
-    const sid = toStringSafe(api.siteId || api.sid) || context.sid || '';
-    const uid = toStringSafe(api.uid || api.userId) || context.uid || '';
+    const parsedId = parseProfileId(api.id);
+    const sid = toStringSafe(api.siteId || api.sid) || parsedId.sid || context.sid || '';
+    const uid = toStringSafe(api.uid || api.userId) || parsedId.uid || context.uid || '';
     const updatedAtMs = toEpochMs(api.updatedAt);
-    const id = toStringSafe(api.id) || `${sid}:${uid}`;
+    const id = sid && uid ? `${sid}@${uid}` : toStringSafe(api.id);
     const cid = context.cid || 'default';
 
     return {

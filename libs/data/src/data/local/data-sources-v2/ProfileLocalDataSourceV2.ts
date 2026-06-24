@@ -13,7 +13,7 @@ import {
 export interface IProfileLocalDataSourceV2
     extends ILocalDataSourceV2<DomainProfile, DomainProfileListPayload | undefined, DomainListResult<DomainProfile>> {}
 
-/** Stores site profiles by normalized `sid:uid` keys and re-emits affected scoped observers. */
+/** Stores site profiles by normalized `sid@uid` keys and re-emits affected scoped observers. */
 export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IProfileLocalDataSourceV2 {
     constructor(
         contextProvider: DataContextProvider,
@@ -38,7 +38,18 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const uid = query?.uid || query?.userId;
         // Storage partitions only by cid/uid; sid is a logical filter applied here in memory.
         const allItems = await this.cacheStorage.loadAll();
-        let list = allItems;
+        const deduped = new Map<string, DomainProfile>();
+        for (const item of allItems) {
+            const canonicalId = this.buildCanonicalProfileId(item.sid, item.uid || item.userId);
+            const previous = deduped.get(canonicalId);
+            if (!previous || (item.updatedAtMs ?? 0) >= (previous.updatedAtMs ?? 0)) {
+                deduped.set(canonicalId, {
+                    ...item,
+                    id: canonicalId,
+                });
+            }
+        }
+        let list = [...deduped.values()];
 
         if (sid) {
             list = list.filter(item => item.sid === sid);
@@ -82,6 +93,10 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
 
         const existing = await this.cacheStorage.load(normalized.id);
         await this.cacheStorage.save(normalized.id, normalized);
+        const legacyId = this.buildLegacyProfileId(normalized.sid, normalized.uid);
+        if (legacyId && legacyId !== normalized.id) {
+            await this.cacheStorage.delete(legacyId);
+        }
         this.scheduleItemReemit([normalized.id]);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, normalized.sid], contextOverride));
     }
@@ -101,6 +116,12 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         if (valid.length === 0) return;
 
         await this.cacheStorage.saveAll(valid);
+        await Promise.all(
+            valid.map(item => {
+                const legacyId = this.buildLegacyProfileId(item.sid, item.uid);
+                return legacyId && legacyId !== item.id ? this.cacheStorage.delete(legacyId) : Promise.resolve();
+            })
+        );
         this.scheduleItemReemit(valid.map(item => item.id));
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
@@ -151,7 +172,7 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const merged: DomainProfile = {
             ...(existing ?? ({} as DomainProfile)),
             ...item,
-            id: item.id || existing?.id || `${sid}:${uid}`,
+            id: this.buildCanonicalProfileId(sid, uid),
             cid: item.cid || existing?.cid || context.cid || 'default',
             sid,
             siteId: sid,
@@ -179,6 +200,14 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
             (item as { uid?: string; userId?: string }).uid ||
             (item as { userId?: string }).userId ||
             this.getUid(contextOverride);
+        return this.buildCanonicalProfileId(sid, uid);
+    }
+
+    private buildCanonicalProfileId(sid?: string, uid?: string): string {
+        return sid && uid ? `${sid}@${uid}` : '';
+    }
+
+    private buildLegacyProfileId(sid?: string, uid?: string): string {
         return sid && uid ? `${sid}:${uid}` : '';
     }
 

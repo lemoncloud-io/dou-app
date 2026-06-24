@@ -24,11 +24,11 @@ export interface IProfileRemoteDataSource {
     sync(payload: ProfileSyncInput, context: DataContext): Promise<ProfileSyncDomainResult>;
 }
 
-const makeProfileId = (sid: string, uid: string): string => (sid && uid ? `${sid}:${uid}` : '');
+const makeProfileId = (sid: string, uid: string): string => (sid && uid ? `${sid}@${uid}` : '');
 
 /**
  * Profile remote source. Single boundary where profile API views become domain
- * models keyed by the canonical `sid:uid` id; callers receive domain shapes only.
+ * models keyed by the canonical `sid@uid` id; callers receive domain shapes only.
  * The request-time `context` is supplied by the caller to keep responses on scope.
  */
 export class ProfileRemoteDataSource implements IProfileRemoteDataSource {
@@ -68,7 +68,7 @@ export class ProfileRemoteDataSource implements IProfileRemoteDataSource {
         return { upserts, removals, syncedAt: remote?.syncedAt };
     }
 
-    /** Resolves the `sid:uid` identity from the view or context, then maps to a domain profile. */
+    /** Resolves the `sid@uid` identity from the view or context, then maps to a domain profile. */
     private toDomain(view: unknown, context: DataContext): DomainProfile {
         const source = (view ?? {}) as { siteId?: string; userId?: string };
         const sid = source.siteId || context.sid || '';

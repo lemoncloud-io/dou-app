@@ -19,7 +19,7 @@ export interface IProfileRepositoryV2 extends DisposableRepositoryV2 {
     ): () => void;
     observeItem(id: string, callback: (item: DomainProfile | null) => void): () => void;
 
-    /** profile.get — id(`${sid}:${uid}`) 기반 단건 조회 후 local 반영. */
+    /** profile.get — id(`${sid}@${uid}`) 기반 단건 조회 후 local 반영. */
     refreshItem(id: string): Promise<DomainProfile | null>;
     /** profile.get-mine — 현재 세션 기반 내 프로필 조회 후 local 반영. */
     getMyProfile(): Promise<DomainProfile | null>;
@@ -180,6 +180,6 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
     }
 
     private makeProfileId(sid: string, uid: string): string {
-        return sid && uid ? `${sid}:${uid}` : '';
+        return sid && uid ? `${sid}@${uid}` : '';
     }
 }
