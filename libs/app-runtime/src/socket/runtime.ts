@@ -1,32 +1,40 @@
 import { SocketManager } from './SocketManager';
 import { SocketSessionController } from './SocketSessionController';
-import { ManagedSocketClientProxy } from './ManagedSocketClientProxy';
-import { AppSyncRuntime } from './sync/AppSyncRuntime';
+import { SyncManager } from './sync/SyncManager';
+import type { SyncRuntimeOptions } from './sync/types';
 import type { ISocketManager } from './types';
 
 export interface SocketRuntime {
-    manager: ISocketManager;
-    controller: SocketSessionController;
-    proxy: ManagedSocketClientProxy;
-    sync: AppSyncRuntime;
+    socketManager: ISocketManager;
+    sessionController: SocketSessionController;
+    syncManager: SyncManager;
 }
 
 let socketRuntimeSingleton: SocketRuntime | null = null;
 
 /**
- * Creates a fresh socket runtime assembly.
+ * Default createDeviceRuntime tuning. Empty for now so the engine keeps its own
+ * defaults (behavior-preserving). The injection point exists so external config
+ * (connectionDraft-style) can override these later without touching SyncManager.
+ */
+const DEFAULT_SYNC_RUNTIME_OPTIONS: SyncRuntimeOptions = {};
+
+/**
+ * Creates a fresh socket runtime assembly. Composition root only: wires objects and
+ * injects cross-cutting policy (401 recovery, sync runtime options); holds no logic.
  */
 export const createSocketRuntime = (): SocketRuntime => {
-    const manager = new SocketManager();
-    const controller = new SocketSessionController(manager);
-    const proxy = new ManagedSocketClientProxy(manager, controller);
-    const sync = new AppSyncRuntime(manager);
+    const socketManager = new SocketManager();
+    const sessionController = new SocketSessionController(socketManager);
+    // The request facade lives in SocketManager but the recovery policy lives in the
+    // session controller — wire them here to avoid a hard manager→controller dependency.
+    socketManager.setRecoveryHandler(() => sessionController.handle401Recovery());
+    const syncManager = new SyncManager(socketManager, { runtimeOptions: DEFAULT_SYNC_RUNTIME_OPTIONS });
 
     return {
-        manager,
-        controller,
-        proxy,
-        sync,
+        socketManager,
+        sessionController,
+        syncManager,
     };
 };
 
@@ -44,9 +52,9 @@ export const getSocketRuntime = (): SocketRuntime => {
  * Returns the singleton instance of SocketManager.
  */
 export const getSocketManager = (): ISocketManager => {
-    return getSocketRuntime().manager;
+    return getSocketRuntime().socketManager;
 };
 
-export const getAppSyncRuntime = (): AppSyncRuntime => {
-    return getSocketRuntime().sync;
+export const getSyncManager = (): SyncManager => {
+    return getSocketRuntime().syncManager;
 };

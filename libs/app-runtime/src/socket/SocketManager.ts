@@ -1,7 +1,9 @@
 import {
     type ClientSocketErrorEvent,
+    type ClientSocketMessageEvent,
     type ClientSocketStateEvent,
     type ClientSocketV2,
+    type SocketMessage,
     createClientSocketV2,
 } from '@lemoncloud/chatic-sockets-lib';
 
@@ -10,15 +12,22 @@ import type {
     ISocketManager,
     SocketBindingConfig,
     SocketClientListener,
+    SocketRecoveryHandler,
     SocketState,
     SocketStateListener,
 } from './types';
+
+/** A push subscription that must be re-bound whenever the underlying client is replaced. */
+type TypeListenerEntry = {
+    type: string;
+    listener: (message: SocketMessage<any>) => void;
+    unsubscribe?: () => void;
+};
 
 const initialState = (): SocketState => ({
     state: 'idle',
     isConnected: false,
     isVerified: false,
-    isDeviceRegistered: false,
     connectionId: null,
 });
 
@@ -36,9 +45,14 @@ export class SocketManager implements ISocketManager {
     // State is an observable store: each consumer (e.g. a useSyncExternalStore hook,
     // one callback per mounted component) registers its own listener — hence a Set.
     private readonly stateListeners = new Set<SocketStateListener>();
-    // Client-instance changes have exactly one consumer (the SocketClientAdapter
-    // singleton), so a single slot is enough — no Set needed.
-    private clientListener: SocketClientListener | null = null;
+    // Client-instance changes now have multiple consumers (e.g. SyncManager). A Set
+    // is required: the former single slot silently dropped all but the last subscriber.
+    private readonly clientListeners = new Set<SocketClientListener>();
+    // Push subscriptions registered via onType. Owned here so they survive socket
+    // replacement — re-bound to the fresh client on every client change.
+    private readonly typeListeners = new Set<TypeListenerEntry>();
+    // Recovery policy is injected by the session layer (see SocketRecoveryHandler).
+    private recoveryHandler: SocketRecoveryHandler | null = null;
     private unsubscribes: Array<() => void> = [];
 
     /**
@@ -64,7 +78,6 @@ export class SocketManager implements ISocketManager {
             state: client.state,
             isConnected: client.state === 'connected',
             isVerified: false,
-            isDeviceRegistered: false,
             connectionId: null,
         });
         this.emitClientChanged();
@@ -102,12 +115,10 @@ export class SocketManager implements ISocketManager {
      * Fires immediately with the current client. Used by the adapter to re-bind listeners.
      */
     public subscribeClient(listener: SocketClientListener): () => void {
-        this.clientListener = listener;
+        this.clientListeners.add(listener);
         listener(this.client);
         return () => {
-            if (this.clientListener === listener) {
-                this.clientListener = null;
-            }
+            this.clientListeners.delete(listener);
         };
     }
 
@@ -128,17 +139,6 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Marks the device as registered. Called by the session controller once
-     * `device.save` resolves; the connection id is taken from its response.
-     */
-    public markDeviceRegistered(connectionId?: string): void {
-        this.setState({
-            isDeviceRegistered: true,
-            ...(connectionId ? { connectionId } : {}),
-        });
-    }
-
-    /**
      * Connects the current socket if it is idle or closed.
      */
     public async connect(): Promise<void> {
@@ -147,6 +147,78 @@ export class SocketManager implements ISocketManager {
         if (client.state === 'idle' || client.state === 'closed') {
             await client.connect();
         }
+    }
+
+    /**
+     * Injects the 401 recovery policy. Wired at the composition root to the session
+     * controller so SocketManager triggers recovery without owning auth policy.
+     */
+    public setRecoveryHandler(handler: SocketRecoveryHandler | null): void {
+        this.recoveryHandler = handler;
+    }
+
+    /**
+     * Stable request facade. Routes to the current client; on a 401 it invokes the
+     * injected recovery handler and retries once against the (possibly replaced) client.
+     */
+    public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
+        const client = this.requireClient(`request(${type})`);
+        try {
+            return await (client.request(type as any, data as any, options) as Promise<T>);
+        } catch (error: any) {
+            if (this.recoveryHandler && this.is401Error(error)) {
+                logger.info('SOCKET', '[SocketManager] Intercepted 401 error, triggering recovery', { type });
+                const success = await this.recoveryHandler();
+                if (success) {
+                    const retryClient = this.requireClient(`retry request(${type})`);
+                    return await (retryClient.request(type as any, data as any, options) as Promise<T>);
+                }
+            }
+            throw error;
+        }
+    }
+
+    public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
+        const client = this.requireClient('send()');
+        if (typeof type === 'string') {
+            client.send(type as any, data as any);
+            return;
+        }
+        client.send(type);
+    }
+
+    /**
+     * Registers a push subscription that survives socket replacement. The entry is
+     * owned by the manager and re-bound on every client change (see emitClientChanged).
+     */
+    public onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void {
+        const entry: TypeListenerEntry = {
+            type,
+            listener: listener as (message: SocketMessage<any>) => void,
+        };
+        this.typeListeners.add(entry);
+        this.bindTypeListener(entry);
+
+        return () => {
+            entry.unsubscribe?.();
+            this.typeListeners.delete(entry);
+        };
+    }
+
+    public onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void {
+        return this.requireClient('onMessage()').onMessage(listener);
+    }
+
+    public onState(listener: (event: ClientSocketStateEvent) => void): () => void {
+        return this.requireClient('onState()').onState(listener);
+    }
+
+    public onError(listener: (event: ClientSocketErrorEvent) => void): () => void {
+        return this.requireClient('onError()').onError(listener);
+    }
+
+    public disconnect(code?: number, reason?: string): Promise<void> {
+        return this.requireClient('disconnect()').disconnect(code, reason);
     }
 
     /**
@@ -174,7 +246,6 @@ export class SocketManager implements ISocketManager {
                 // A dropped/closed socket loses its handshake.
                 if (next === 'idle' || next === 'closed') {
                     patch.isVerified = false;
-                    patch.isDeviceRegistered = false;
                     patch.connectionId = null;
                 }
                 this.setState(patch);
@@ -190,10 +261,9 @@ export class SocketManager implements ISocketManager {
             })
         );
 
-        // Handshake flags (isVerified / isDeviceRegistered) are NOT bound here:
-        // `device.save` / `auth.update` are request/response calls, and the lib
-        // settles their `:ok` responses by mid without routing to `onType`. The
-        // session controller reports success via markVerified/markDeviceRegistered.
+        // The `isVerified` flag is NOT bound here: `auth.update` is a request/response
+        // call, and the lib settles its `:ok` response by mid without routing to
+        // `onType`. The session controller reports success via markVerified.
     }
 
     /**
@@ -228,7 +298,6 @@ export class SocketManager implements ISocketManager {
             next.state === this.state.state &&
             next.isConnected === this.state.isConnected &&
             next.isVerified === this.state.isVerified &&
-            next.isDeviceRegistered === this.state.isDeviceRegistered &&
             next.connectionId === this.state.connectionId
         ) {
             return;
@@ -240,10 +309,51 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Notifies listeners that the underlying client instance was replaced.
+     * Re-binds owned push subscriptions to the new client, then notifies external
+     * client-change listeners. Type-listener rebind happens first so consumers that
+     * react to the change observe an already-consistent subscription state.
      */
     private emitClientChanged(): void {
-        this.clientListener?.(this.client);
+        this.rebindTypeListeners();
+        for (const listener of this.clientListeners) {
+            listener(this.client);
+        }
+    }
+
+    private requireClient(action: string): ClientSocketV2 {
+        const client = this.client;
+        if (!client) {
+            throw new Error(`[SocketManager] Socket client not ready for ${action}`);
+        }
+        return client;
+    }
+
+    /** Re-binds every owned push subscription to the current client. */
+    private rebindTypeListeners(): void {
+        for (const entry of this.typeListeners) {
+            entry.unsubscribe?.();
+            entry.unsubscribe = undefined;
+            this.bindTypeListener(entry);
+        }
+    }
+
+    private bindTypeListener(entry: TypeListenerEntry): void {
+        if (!this.client) {
+            // Defer until a client exists; rebindTypeListeners re-attempts on client change.
+            logger.debug('SOCKET', '[SocketManager] Skipping onType bind until socket client is ready', {
+                type: entry.type,
+            });
+            return;
+        }
+        entry.unsubscribe = this.client.onType(entry.type, entry.listener);
+    }
+
+    private is401Error(error: any): boolean {
+        if (!error) return false;
+        const code = error.code || error.errorCode || error.statusCode || (error.response && error.response.status);
+        if (code === 401 || code === '401') return true;
+        const msg = error.message || '';
+        return msg.includes('401') || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
     }
 
     private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {

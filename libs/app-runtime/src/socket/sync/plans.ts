@@ -2,35 +2,33 @@ import type { DomainSyncPlan } from '@lemoncloud/chatic-sockets-lib';
 import {
     ChannelSyncPlan,
     ChatSyncPlan,
-    DeviceSyncPlan,
     JoinSyncPlan,
     PlaceSyncPlan,
     ProfileSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
-import type { DomainScope } from '@chatic/data';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { getDataManager, getRepositories } from '../../data/runtime';
+import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
+import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * Sync plans resolve runtime-heavy dependencies lazily so tests can inject
  * lightweight factories without loading the socket library at module scope.
+ *
+ * Domain mappers consume the shared DataContext directly (cid/sid/uid live on
+ * it), so we read it straight from the manager instead of projecting a separate
+ * scope object.
  */
-const getScope = (): DomainScope => {
-    const context = getDataManager().getContext();
-    return {
-        cid: context.cid || 'default',
-        sid: typeof context.sid === 'string' ? context.sid : undefined,
-        uid: typeof context.uid === 'string' ? context.uid : undefined,
-    };
-};
+const getContext = () => getDataManager().getContext();
 
+// DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
+// DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
 export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
-        new DeviceSyncPlan(),
-        new ChannelSyncPlan({
+        new ChannelSyncPlan<ChannelView>({
             onUpdate: (_target, view) => {
                 const { channel } = getRepositories();
-                void channel.cacheWrite(toDomainChannel(view, getScope()));
+                void channel.cacheWrite(toDomainChannel(view, getContext()));
             },
             onRemove: target => {
                 if (!target.id) return;
@@ -38,10 +36,13 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void channel.cacheDelete(target.id);
             },
         }),
-        new PlaceSyncPlan({
+        // Place sync targets emit MySiteView payloads; parameterize the plan so
+        // onUpdate's view matches toDomainPlace's input instead of the default
+        // bare SyncableView (id/updatedAt only).
+        new PlaceSyncPlan<MySiteView>({
             onUpdate: (_target, view) => {
                 const { place } = getRepositories();
-                void place.cacheWrite(toDomainPlace(view, getScope()));
+                void place.cacheWrite(toDomainPlace(view, getContext()));
             },
             onRemove: target => {
                 if (!target.id) return;
@@ -49,10 +50,10 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void place.cacheDelete(target.id);
             },
         }),
-        new ProfileSyncPlan({
+        new ProfileSyncPlan<ProfileView>({
             onUpdate: (_target, view) => {
                 const { profile } = getRepositories();
-                void profile.cacheWrite(toDomainProfile(view, getScope()));
+                void profile.cacheWrite(toDomainProfile(view, getContext()));
             },
             onRemove: target => {
                 if (!target.id) return;
@@ -67,7 +68,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
             onApply: (_target, applied) => {
                 if (!applied.length) return;
                 const { chat } = getRepositories();
-                const scope = getScope();
+                const scope = getContext();
                 void chat.cacheWriteMany(applied.map(view => toDomainChat(view, scope)));
             },
         }),
@@ -76,7 +77,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         new JoinSyncPlan({
             onUpdate: (_target, view) => {
                 const { join } = getRepositories();
-                void join.cacheWrite(toDomainJoin(view, getScope()));
+                void join.cacheWrite(toDomainJoin(view, getContext()));
             },
             onRemove: target => {
                 if (!target.id) return;

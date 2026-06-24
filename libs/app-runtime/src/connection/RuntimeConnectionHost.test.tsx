@@ -29,9 +29,8 @@ jest.mock('../socket/runtime', () => {
     };
     return {
         getSocketRuntime: jest.fn().mockReturnValue({
-            controller: mockController,
-            proxy: {},
-            sync: {},
+            sessionController: mockController,
+            syncManager: {},
         }),
         getSocketManager: jest.fn().mockReturnValue(mockManager),
     };
@@ -76,7 +75,7 @@ describe('RuntimeConnectionHost', () => {
 
         await waitFor(() => {
             const socketRuntime = getSocketRuntime();
-            expect(socketRuntime.controller.setDelegate).toHaveBeenCalledWith(delegate);
+            expect(socketRuntime.sessionController.setDelegate).toHaveBeenCalledWith(delegate);
         });
     });
 
@@ -106,7 +105,7 @@ describe('RuntimeConnectionHost', () => {
             expect(dataManager.ensure).toHaveBeenCalledWith(binding.context);
         });
         await waitFor(() => {
-            expect(socketRuntime.controller.bootstrap).toHaveBeenCalledWith(binding.socket.config);
+            expect(socketRuntime.sessionController.bootstrap).toHaveBeenCalledWith(binding.socket.config);
         });
 
         // 변경 테스트
@@ -130,7 +129,7 @@ describe('RuntimeConnectionHost', () => {
             expect(dataManager.ensure).toHaveBeenCalledWith(newBinding.context);
         });
         await waitFor(() => {
-            expect(socketRuntime.controller.destroy).toHaveBeenCalled();
+            expect(socketRuntime.sessionController.destroy).toHaveBeenCalled();
         });
         const socketManager = getSocketManager();
         await waitFor(() => {
@@ -161,7 +160,7 @@ describe('RuntimeConnectionHost', () => {
         const socketManager = getSocketManager();
 
         await waitFor(() => {
-            expect(socketRuntime.controller.bootstrap).toHaveBeenCalledWith(binding.socket.config);
+            expect(socketRuntime.sessionController.bootstrap).toHaveBeenCalledWith(binding.socket.config);
         });
 
         jest.clearAllMocks();
@@ -188,8 +187,8 @@ describe('RuntimeConnectionHost', () => {
             expect(socketManager.markUnverified).toHaveBeenCalled();
         });
         await waitFor(() => {
-            expect(socketRuntime.controller.updateAuth).toHaveBeenCalledWith('session-switch');
+            expect(socketRuntime.sessionController.updateAuth).toHaveBeenCalledWith('session-switch');
         });
-        expect(socketRuntime.controller.bootstrap).not.toHaveBeenCalled();
+        expect(socketRuntime.sessionController.bootstrap).not.toHaveBeenCalled();
     });
 });

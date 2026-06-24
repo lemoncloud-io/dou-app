@@ -4,23 +4,19 @@ import type {
     DomainSyncPlan,
     SyncTargetDescriptor,
 } from '@lemoncloud/chatic-sockets-lib';
-import { SocketRuntime } from '@lemoncloud/chatic-sockets-lib';
+import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
+import { getRepositories } from '../../data/runtime';
 import type { ISocketManager } from '../types';
 import { createSyncPlans } from './plans';
-import type { AppSyncRuntimeDeps, IAppSyncRuntime, SyncWatchEntry } from './types';
+import type { ISyncManager, SyncManagerDeps, SyncRuntimeOptions, SyncWatchEntry } from './types';
 
 const defaultBuildTargetKey = (target: SyncTargetDescriptor): string => `${target.type}:${target.id ?? ''}`;
-const defaultCreateRuntime = (client: ClientSocketV2, plans: DomainSyncPlan[]): ClientSocketRuntime => {
-    return new SocketRuntime({
-        client,
-        syncPlans: plans,
-    });
-};
 
-export class AppSyncRuntime implements IAppSyncRuntime {
+export class SyncManager implements ISyncManager {
     private readonly plans: DomainSyncPlan[];
+    private readonly runtimeOptions: SyncRuntimeOptions;
     private readonly createRuntime: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
     private readonly buildTargetKey: (target: SyncTargetDescriptor) => string;
     private readonly watchEntries = new Map<string, SyncWatchEntry>();
@@ -29,10 +25,21 @@ export class AppSyncRuntime implements IAppSyncRuntime {
 
     constructor(
         private readonly manager: ISocketManager,
-        deps: AppSyncRuntimeDeps = {}
+        deps: SyncManagerDeps = {}
     ) {
         this.plans = (deps.buildSyncPlans ?? createSyncPlans)();
-        this.createRuntime = deps.createRuntime ?? defaultCreateRuntime;
+        this.runtimeOptions = deps.runtimeOptions ?? {};
+        // createDeviceRuntime injects a DeviceSyncPlan and owns connect-driven device
+        // save; app domain plans are passed as extraSyncPlans and tuning options
+        // (keepAlive/reconnect/rotation/devicePlan) are forwarded verbatim.
+        this.createRuntime =
+            deps.createRuntime ??
+            ((client, plans) =>
+                createDeviceRuntime({
+                    client,
+                    extraSyncPlans: plans,
+                    ...this.runtimeOptions,
+                }));
         this.buildTargetKey = deps.buildTargetKey ?? defaultBuildTargetKey;
         this.unsubscribeClient = this.manager.subscribeClient(client => {
             this.handleClientChanged(client);
@@ -135,6 +142,11 @@ export class AppSyncRuntime implements IAppSyncRuntime {
         if (!client) return;
 
         this.runtime = this.createRuntime(client, this.plans);
+        // start() activates the runtime's connect-driven device save (the device
+        // runtime gates it behind an `active` flag) and the rotation controller.
+        // The onState listener is registered in the runtime constructor, so the
+        // `connected` event is caught even though connect() happens after this.
+        void this.runtime.start();
         this.replayTargets();
     }
 
@@ -150,11 +162,44 @@ export class AppSyncRuntime implements IAppSyncRuntime {
         try {
             this.runtime.startSync(target);
         } catch (error) {
-            logger.warn('SOCKET', '[AppSyncRuntime] Failed to start sync target', {
+            logger.warn('SOCKET', '[SyncManager] Failed to start sync target', {
                 error,
                 data: { target },
             });
         }
+
+        this.primeChatTarget(target);
+    }
+
+    // Chat plans have a no-op `run`, so a mid-session register loads nothing. We align the
+    // plan baseline to what the (durable) chat cache already holds — its max chatNo is the
+    // cursor — via `updateLocalSnapshot`, then only fetch a first page when the cache is empty.
+    // Deeper gaps are caught up by ChatSyncPlan.onConnected on the next (re)connect.
+    private primeChatTarget(target: SyncTargetDescriptor): void {
+        if (target.type !== 'chat' || !target.id) return;
+        const runtime = this.runtime;
+        if (!runtime) return;
+        const channelId = target.id;
+
+        void (async () => {
+            const repos = getRepositories();
+            const cached = await repos.chat.cacheReadList({ channelId });
+            const lastNo = (cached?.list ?? []).reduce((max, chat) => (chat.chatNo > max ? chat.chatNo : max), 0);
+
+            runtime.updateLocalSnapshot(
+                { type: 'chat', id: channelId },
+                { id: channelId, lastNo, minNo: 0, messages: [] }
+            );
+
+            if (lastNo === 0) {
+                await repos.chat.refreshList({ channelId });
+            }
+        })().catch(error => {
+            logger.warn('SOCKET', '[SyncManager] Failed to prime chat target', {
+                error,
+                data: { channelId },
+            });
+        });
     }
 
     private stopTarget(target: SyncTargetDescriptor): void {
@@ -163,7 +208,7 @@ export class AppSyncRuntime implements IAppSyncRuntime {
         try {
             this.runtime.stopSync(target);
         } catch (error) {
-            logger.warn('SOCKET', '[AppSyncRuntime] Failed to stop sync target', {
+            logger.warn('SOCKET', '[SyncManager] Failed to stop sync target', {
                 error,
                 data: { target },
             });
@@ -179,7 +224,7 @@ export class AppSyncRuntime implements IAppSyncRuntime {
             runtime.stopAllSync();
             void runtime.stop();
         } catch (error) {
-            logger.warn('SOCKET', '[AppSyncRuntime] Failed to detach sync runtime', { error });
+            logger.warn('SOCKET', '[SyncManager] Failed to detach sync runtime', { error });
         }
     }
 }

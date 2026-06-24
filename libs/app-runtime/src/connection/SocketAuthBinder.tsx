@@ -35,8 +35,8 @@ export const SocketAuthBinder = ({ binding }: SocketAuthBinderProps) => {
         }
 
         socketManager.markUnverified();
-        void socketRuntime.controller.updateAuth('session-switch');
-    }, [binding.auth, binding.socket, socketManager, socketRuntime.controller]);
+        void socketRuntime.sessionController.updateAuth('session-switch');
+    }, [binding.auth, binding.socket, socketManager, socketRuntime.sessionController]);
 
     return null;
 };

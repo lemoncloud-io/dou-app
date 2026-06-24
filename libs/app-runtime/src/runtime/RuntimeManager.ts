@@ -42,7 +42,7 @@ export class RuntimeManager implements IRuntimeManager {
 
         try {
             const socketRuntime = getSocketRuntime();
-            await socketRuntime.controller.bootstrap(socketBinding.config);
+            await socketRuntime.sessionController.bootstrap(socketBinding.config);
         } catch (error) {
             logger.error('RUNTIME', '[RuntimeManager] Failed to bootstrap runtime binding', {
                 error,

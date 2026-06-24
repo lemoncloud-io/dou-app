@@ -16,7 +16,9 @@ import { createRemoteDataSources as createDataRemoteDataSources, type RemoteGate
 import { getSocketRuntime } from '../../socket/runtime';
 
 export const createRemoteDataSources = () => {
-    const socketClient = getSocketRuntime().proxy;
+    // Gateways bind to the SocketManager stable facade (request/send/onType); socket
+    // replacement stays invisible to them. (Formerly the ManagedSocketClientProxy.)
+    const socketClient = getSocketRuntime().socketManager;
     const authGateway = createAuthGateway(socketClient as any);
     const channelGateway = createChannelGateway(socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);

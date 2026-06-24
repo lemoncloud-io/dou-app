@@ -18,7 +18,7 @@ export const RuntimeConnectionHost = ({ binding, delegate, children }: RuntimeCo
     // Inject delegate to SocketSessionController
     useEffect(() => {
         const socketRuntime = getSocketRuntime();
-        socketRuntime.controller.setDelegate(delegate);
+        socketRuntime.sessionController.setDelegate(delegate);
     }, [delegate]);
 
     return (
