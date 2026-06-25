@@ -12,12 +12,6 @@ import {
 } from './types';
 
 // Place reuses the existing 'site' cache slot — site and place are the same entity.
-const getPlaceSortValue = (place: Pick<DomainPlace, 'name' | 'id'> & { order?: number }): string => {
-    const order = place.order ?? Number.MAX_SAFE_INTEGER;
-    const name = place.name ?? place.id ?? '';
-    return `${String(order).padStart(10, '0')}:${name}`;
-};
-
 export interface IPlaceLocalDataSourceV2
     extends ILocalDataSourceV2<DomainPlace, UserMySiteInput | undefined, DomainListResult<DomainPlace>> {}
 
@@ -43,7 +37,11 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainPlace> | null> {
         const items = await this.cacheStorage.loadAll();
-        const list = [...items].sort((left, right) => getPlaceSortValue(left).localeCompare(getPlaceSortValue(right)));
+        // Default ordering is by id (ascending, numeric-aware) so the place rail stays stable
+        // and predictable regardless of server-provided order/name.
+        const list = [...items].sort((left, right) =>
+            String(left.id ?? '').localeCompare(String(right.id ?? ''), undefined, { numeric: true })
+        );
 
         return createDomainListResult(list, {
             total: list.length,

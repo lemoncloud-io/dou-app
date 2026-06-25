@@ -1,7 +1,6 @@
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { RuntimeConnectionHost } from './RuntimeConnectionHost';
-import { getSocketRuntime, getSocketManager } from '../socket/runtime';
+import { getSocketManager, getSocketRuntime } from '../socket/runtime';
 import { getDataManager } from '../data/runtime';
 import type { SocketSessionDelegate } from '../socket/types';
 

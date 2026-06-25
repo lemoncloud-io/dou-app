@@ -45,22 +45,37 @@ describe('ChannelLocalDataSourceV2', () => {
         },
     };
 
-    it('filters channels by the active place and sorts the newest activity first', async () => {
+    it('filters channels by the active place and sorts by id ascending', async () => {
         const storage = createMemoryStorage();
         const dataSource = new ChannelLocalDataSourceV2(contextProvider as any, storage);
 
-        // Seed two channels for the active place and one for another place.
-        // `lastActivityAt` is the domain sort field (mapped upstream); the local cache sorts on it directly.
+        // Seed two channels for the active place and one for another place. lastActivityAt is
+        // intentionally out of id order to prove the local cache orders by id, not by activity.
         await dataSource.cacheWriteMany([
-            { id: 'ch-1', sid: 'site-1', name: 'Older', lastActivityAt: 100 } as any,
             { id: 'ch-2', sid: 'site-1', name: 'Newer', lastActivityAt: 300 } as any,
+            { id: 'ch-1', sid: 'site-1', name: 'Older', lastActivityAt: 100 } as any,
             { id: 'ch-3', sid: 'site-2', name: 'Other place', lastActivityAt: 999 } as any,
         ]);
 
         const result = await dataSource.cacheReadList({ sid: 'site-1' } as any);
 
-        // Only the requested place should remain, ordered by the latest activity timestamp.
-        expect(result?.list.map(item => item.id)).toEqual(['ch-2', 'ch-1']);
+        // Only the requested place should remain, ordered by id (not by latest activity).
+        expect(result?.list.map(item => item.id)).toEqual(['ch-1', 'ch-2']);
+    });
+
+    it('sorts channel ids numerically (10 after 2, not lexicographically)', async () => {
+        const storage = createMemoryStorage();
+        const dataSource = new ChannelLocalDataSourceV2(contextProvider as any, storage);
+
+        await dataSource.cacheWriteMany([
+            { id: '10', sid: 'site-1', name: 'Ten' } as any,
+            { id: '2', sid: 'site-1', name: 'Two' } as any,
+            { id: '1', sid: 'site-1', name: 'One' } as any,
+        ]);
+
+        const result = await dataSource.cacheReadList({ sid: 'site-1' } as any);
+
+        expect(result?.list.map(item => item.id)).toEqual(['1', '2', '10']);
     });
 
     it('removes deleted channels from later reads so bulk list consumers do not see stale entries', async () => {

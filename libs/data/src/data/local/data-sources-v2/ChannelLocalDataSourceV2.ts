@@ -46,9 +46,10 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        // Order by most recent activity first (lastActivityAt is the domain's sort field).
-        const sorted = [...scopedChannels].sort(
-            (left, right) => (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0)
+        // Default ordering is by id (ascending, numeric-aware) so list output stays stable and
+        // predictable across reads, independent of activity timestamps.
+        const sorted = [...scopedChannels].sort((left, right) =>
+            String(left.id ?? '').localeCompare(String(right.id ?? ''), undefined, { numeric: true })
         );
 
         const limit = query.limit;

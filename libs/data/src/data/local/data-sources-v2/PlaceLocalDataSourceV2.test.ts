@@ -45,20 +45,21 @@ describe('PlaceLocalDataSourceV2', () => {
         },
     };
 
-    it('sorts places by server order before name so the rail stays deterministic', async () => {
+    it('sorts places by id ascending (numeric-aware), ignoring server order/name', async () => {
         const storage = createMemoryStorage();
         const dataSource = new PlaceLocalDataSourceV2(contextProvider as any, storage);
 
+        // order/name are intentionally out of id order to prove id drives the sort.
         await dataSource.cacheWriteMany([
-            { id: 's2', name: 'Bravo', order: 2 } as any,
-            { id: 's1', name: 'Alpha', order: 1 } as any,
-            { id: 's3', name: 'Zulu', order: 2 } as any,
+            { id: '10', name: 'Bravo', order: 1 } as any,
+            { id: '2', name: 'Alpha', order: 2 } as any,
+            { id: '1', name: 'Zulu', order: 3 } as any,
         ]);
 
         const result = await dataSource.cacheReadList(undefined);
 
-        // The rail order should follow server order first and name second.
-        expect(result?.list.map(item => item.id)).toEqual(['s1', 's2', 's3']);
+        // id order, with numeric awareness so '10' sorts after '2'.
+        expect(result?.list.map(item => item.id)).toEqual(['1', '2', '10']);
     });
 
     it('clears all cached places for the scope when a logout-style reset happens', async () => {
