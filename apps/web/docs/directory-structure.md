@@ -16,8 +16,8 @@ src/
   app/
     app.tsx          # composition root — provider 조립만
     # ── 플랫폼 / 런타임 레이어 ──
-    runtime/         # 세션 수명 + 소켓 연결: SessionGate, AppRuntime(RuntimeConnectionHost), useSocketDelegate, NativeHandshake
-    bridge/          # 네이티브 메시지 단일 접점: inbound 구독 훅(useHandleAppMessage/useOn*) + outbound(appBridge)
+    runtime/         # 세션 수명 + 소켓 연결: SessionGate, AppRuntime(RuntimeConnectionHost), useSocketDelegate
+    bridge/          # 네이티브 메시지 단일 접점: outbound(appBridge) + inbound push 구독(useHandleAppMessage/useOn*) + GlobalBridgeListener
     monitoring/      # 계측: webVitals 등
     # ── 라우팅 ──
     routing/         # 라우트 트리 · 가드 · 경로 상수(paths) · 공개/비공개 분기
@@ -35,6 +35,21 @@ src/
 ```
 
 > **`shared/` 래퍼는 두지 않는다.** 횡단 자원은 `app/` 최상위 형제 디렉터리로 평면 전개한다 — `shared`가 도메인 코드까지 빨아들이는 junk-drawer가 되는 것을 막기 위함이다.
+
+**bridge 레이어 사용 규칙**
+
+네이티브 ↔ 웹 메시지는 `bridge/` 한 곳에서만 주고받는다. feature가 `webClient`를 직접 쓰지 않는다.
+
+| 방향 | 패턴 | 언제 |
+|------|------|------|
+| Web → Native (응답 있음) | `await appBridge.method()` | 네이티브가 결과를 돌려주는 요청 (`FetchFcmToken`, `OAuthLogin`, `GetContacts` 등) |
+| Web → Native (fire-and-forget) | `appBridge.method()` (void) | 결과 불필요 (`openURL`, `setBadgeCount`, `notifyWebAppReady` 등) |
+| Native → Web (push) | `useOn<EventName>` | 네이티브가 먼저 보내는 이벤트 (`OnNavigate`, `OnBackgroundStatusChanged`, `OnUpdateDeviceInfo` 등) |
+
+- `appBridge` = 모든 outbound 메서드의 단일 진입점. feature는 `appBridge.X()`만 호출한다.
+- `useHandleAppMessage` / `useOn*` = inbound push 전용. request-response 흐름에는 쓰지 않는다.
+- `GlobalBridgeListener` = 앱 전역에서 구독해야 하는 push 이벤트를 한데 모은 컴포넌트.
+- **`Purchase` 예외**: 결과가 `OnPurchaseSuccess` / `OnPurchaseError` push 이벤트로 오므로 `appBridge.purchase()`는 void. feature에서 resolver ref 패턴으로 Promise화한다.
 
 **횡단 디렉터리 규칙**
 

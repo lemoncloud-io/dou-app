@@ -1,13 +1,14 @@
+import { useEffect } from 'react';
 import { Toaster as SonnerToaster } from 'sonner';
 
 import { GlobalLoader, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
+import { appBridge } from '../bridge';
 import { ServiceUnavailableOverlay } from '../shared/components/ServiceUnavailableOverlay';
 import { Router } from '../routes';
 import { DeviceTokenRegistration } from '../shared/hooks/useDeviceTokenRegistration';
-import { NativeHandshake } from './NativeHandshake';
 import { useSocketDelegate } from './useSocketDelegate';
 
 /**
@@ -23,9 +24,13 @@ export const AppRuntime = () => {
     const delegate = useSocketDelegate();
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
+    // Notify native shell that the web app has mounted and is ready to display
+    useEffect(() => {
+        appBridge.notifyWebAppReady();
+    }, []);
+
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
-            <NativeHandshake />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}

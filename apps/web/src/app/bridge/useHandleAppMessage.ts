@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
 import type { AppMessageData, AppMessageType } from '@chatic/app-messages';
 
 /**
@@ -17,6 +17,8 @@ export const useHandleAppMessage = <T extends AppMessageType>(
 
     useEffect(() => {
         const unsubscribe = webClient.onEvent(type, message => {
+            // Log all inbound bridge messages in dev to aid debugging
+            if (process.env.NODE_ENV === 'development') logger.debug('BRIDGE ←', type, message);
             handlerRef.current(message);
         });
         return unsubscribe;

@@ -14,7 +14,7 @@ import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
 import { PermissionDeniedBanner } from './PermissionDeniedBanner';
-import { appBridge, useOnGetContacts } from '../../../bridge';
+import { appBridge } from '../../../bridge';
 
 const inviteLogger = {
     error: (tag: string, msg: string, ...args: any[]) => console.error(`[${tag}] ${msg}`, ...args),
@@ -71,42 +71,32 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         return <AddFriendSheet open={open ?? false} onOpenChange={v => onOpenChange?.(v)} channelId={channelId} />;
     }
 
-    // Listen for contact response from native app
-    useOnGetContacts(message => {
-        setIsWaitingForContacts(false);
-        const receivedContacts = message.data?.contacts ?? [];
-        if (receivedContacts.length > 0) {
-            setContacts(receivedContacts);
-            setPermissionDenied(false);
-        } else {
-            setContacts([]);
-            setPermissionDenied(true);
-        }
-    });
-
-    // Request contacts when dialog opens (mobile only)
+    // Request contacts when dialog opens; bridge timeout replaces the manual 3s fallback
     useEffect(() => {
-        if (open && isOnMobileApp && !hasRequestedContacts) {
-            appBridge.getContacts();
-            setHasRequestedContacts(true);
-            setIsWaitingForContacts(true);
-        }
-    }, [open, isOnMobileApp, hasRequestedContacts]);
+        if (!open || !isOnMobileApp || hasRequestedContacts) return;
 
-    // Timeout: If no response after 3 seconds, assume permission denied
-    // (Android may take longer to fetch contacts on slower devices)
-    useEffect(() => {
-        if (!isWaitingForContacts) return;
+        setHasRequestedContacts(true);
+        setIsWaitingForContacts(true);
 
-        const timeoutId = setTimeout(() => {
-            if (isWaitingForContacts && contacts.length === 0) {
+        appBridge
+            .getContacts()
+            .then(response => {
+                const receivedContacts = response.data?.contacts ?? [];
+                setIsWaitingForContacts(false);
+                if (receivedContacts.length > 0) {
+                    setContacts(receivedContacts);
+                    setPermissionDenied(false);
+                } else {
+                    setContacts([]);
+                    setPermissionDenied(true);
+                }
+            })
+            .catch(() => {
+                // Bridge timeout or permission error — treat as denied
                 setIsWaitingForContacts(false);
                 setPermissionDenied(true);
-            }
-        }, 3000);
-
-        return () => clearTimeout(timeoutId);
-    }, [isWaitingForContacts, contacts.length]);
+            });
+    }, [open, isOnMobileApp, hasRequestedContacts]);
 
     // Reset state when dialog closes
     useEffect(() => {
