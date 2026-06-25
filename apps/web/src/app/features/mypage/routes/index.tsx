@@ -17,8 +17,6 @@ import {
     PolicyListPage,
     PrivacyPage,
     ProfileEditPage,
-    SubscriptionPage,
-    SubscriptionPlansPage,
     TermsPage,
     WithdrawalPage,
 } from '../pages';
@@ -46,15 +44,6 @@ export const MyPageRoutes = () => {
             <Route path="policy/licenses" element={<LicensesPage />} />
             <Route path="policy/privacy" element={<PrivacyPage />} />
             <Route path="withdrawal" element={<WithdrawalPage />} />
-        </Routes>
-    );
-};
-
-export const SubscriptionRoutes = () => {
-    return (
-        <Routes>
-            <Route index element={<SubscriptionPage />} />
-            <Route path="plans" element={<SubscriptionPlansPage />} />
         </Routes>
     );
 };

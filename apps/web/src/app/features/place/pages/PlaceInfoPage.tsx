@@ -10,8 +10,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { cloudCore } from '@chatic/web-core';
 
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { usePlaces } from '../../../hooks';
 import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 

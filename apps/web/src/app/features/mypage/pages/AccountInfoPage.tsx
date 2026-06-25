@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useSessionIdentity } from '@chatic/web-core';
-import { PageHeader } from '../../../shared/components';
+import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 
 export const AccountInfoPage = () => {

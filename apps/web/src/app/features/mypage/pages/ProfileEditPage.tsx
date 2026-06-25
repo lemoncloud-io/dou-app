@@ -8,8 +8,8 @@ import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
 import { useSessionIdentity, useUpdateProfile } from '@chatic/web-core';
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 

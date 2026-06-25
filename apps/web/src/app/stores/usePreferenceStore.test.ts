@@ -40,7 +40,7 @@ describe('usePreferenceStore — web 환경', () => {
         resetStore();
     });
 
-    describe('setBlurLastMessage', () => {
+    describe('setBlurLastMessage — 블러 설정', () => {
         it('true로 설정하면 localStorage에 저장되고 상태가 반영된다', () => {
             usePreferenceStore.getState().setBlurLastMessage(true);
 
@@ -62,7 +62,7 @@ describe('usePreferenceStore — web 환경', () => {
         });
     });
 
-    describe('completeOnboarding', () => {
+    describe('completeOnboarding — 온보딩 완료', () => {
         it('isFirstRun을 false로 바꾸고 localStorage에 저장한다', () => {
             usePreferenceStore.getState().completeOnboarding();
 
@@ -76,7 +76,7 @@ describe('usePreferenceStore — web 환경', () => {
         });
     });
 
-    describe('resetOnboarding', () => {
+    describe('resetOnboarding — 온보딩 초기화', () => {
         it('isFirstRun을 true로 되돌리고 localStorage를 초기화한다', () => {
             usePreferenceStore.getState().completeOnboarding();
             usePreferenceStore.getState().resetOnboarding();
@@ -97,7 +97,7 @@ describe('usePreferenceStore — native 환경', () => {
         resetStore();
     });
 
-    describe('setBlurLastMessage', () => {
+    describe('setBlurLastMessage — 블러 설정', () => {
         it('savePreference bridge를 올바른 키와 값으로 호출한다', () => {
             usePreferenceStore.getState().setBlurLastMessage(true);
 
@@ -118,7 +118,7 @@ describe('usePreferenceStore — native 환경', () => {
         });
     });
 
-    describe('completeOnboarding', () => {
+    describe('completeOnboarding — 온보딩 완료', () => {
         it('savePreference bridge를 isFirstRun 키로 호출한다', () => {
             usePreferenceStore.getState().completeOnboarding();
 

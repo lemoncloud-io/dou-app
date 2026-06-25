@@ -32,7 +32,7 @@ import { useRegisterDevice } from '@chatic/web-core';
 import { useDynamicDeviceId } from '@chatic/app-runtime';
 import { useInviteMutations } from '../../../hooks/useInviteMutations';
 import { markInvitePlaceSyncPending, markNameSetupPending } from '../../../hooks/usePlaces';
-import { fetchInviteCodeInfo } from '../../chats/apis/invite-api';
+import { fetchInviteCodeInfo } from '../../channels/apis/invite-api';
 
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();

@@ -44,7 +44,7 @@ import { ROUTES } from '../../../routes/paths';
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;
 
-export const ChatRoomPage = () => {
+export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);

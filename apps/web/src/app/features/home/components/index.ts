@@ -1,6 +1,4 @@
 export * from './ChannelList';
-export * from './InviteCodeCard';
-export * from './VisibilityToggle';
 export * from './CreateChannelDialog';
 export * from './CreatePlaceDialog';
 export * from './PlaceList';

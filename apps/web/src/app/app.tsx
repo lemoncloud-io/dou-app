@@ -12,7 +12,7 @@ import { reportError } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
 import i18n from '../i18n';
-import { AppRuntime, SessionGate } from './runtime';
+import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
 
 if (typeof window !== 'undefined') {
@@ -49,8 +49,8 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Provider assembly only. Session readiness is owned by `SessionGate` and the runtime
- * connection by `AppRuntime` (see `./runtime`).
+ * Provider assembly only. Session readiness and the runtime connection are both owned by
+ * `AppRuntime` (see `./runtime`).
  */
 export function App() {
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
@@ -66,9 +66,7 @@ export function App() {
                         <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
                             <GlobalBridgeListener />
                             <Suspense fallback={<LoadingFallback />}>
-                                <SessionGate>
-                                    <AppRuntime />
-                                </SessionGate>
+                                <AppRuntime />
                             </Suspense>
                         </ErrorBoundary>
                     </ThemeProvider>

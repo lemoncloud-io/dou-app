@@ -7,7 +7,9 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
-import { useCreateChannel } from '../hooks/useCreateChannel';
+// FIXME(feature-boundary): channel-creation hook now lives in the `channels` feature.
+// This dialog still lives in `home`; ideally it moves to `channels` too. Tracked in directory-restructure-plan §6.
+import { useCreateChannel } from '../../channels/hooks/useCreateChannel';
 
 interface CreateChannelDialogProps {
     open: boolean;

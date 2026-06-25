@@ -9,7 +9,7 @@ import { isNative, logger } from '@chatic/bridges';
 import { useVerifyNativeAppToken } from '@chatic/web-core';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
-import { PageHeader } from '../../../shared/components';
+import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
 
 const GoogleIcon = () => (

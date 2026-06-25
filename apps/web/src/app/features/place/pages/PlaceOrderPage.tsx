@@ -19,8 +19,8 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-ki
 import { cloudCore } from '@chatic/web-core';
 import { usePlaceMutations, usePlaces } from '../../../hooks';
 
-import { PageHeader } from '../../../shared/components';
-import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
+import { PageHeader } from '../../../ui/components';
+import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { SortablePlaceItem } from '../components';
 import type { DomainSite } from '@chatic/data';
 import { logger } from '@chatic/bridges';

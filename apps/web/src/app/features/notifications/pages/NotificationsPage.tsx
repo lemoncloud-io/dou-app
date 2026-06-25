@@ -1,7 +1,7 @@
 import { Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { PageHeader } from '../../../shared/components';
+import { PageHeader } from '../../../ui/components';
 
 export const NotificationsPage = () => {
     const { t } = useTranslation();

@@ -10,7 +10,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, UserType, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
-import { PageHeader } from '../../../shared/components';
+import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -59,7 +59,7 @@ const ChatProfileIcon = ({ thumbnail }: { thumbnail?: string }) => (
     </div>
 );
 
-export const ChatSettingsPage = () => {
+export const ChannelSettingsPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
@@ -200,7 +200,7 @@ export const ChatSettingsPage = () => {
                         <ActionButton
                             icon={Bell}
                             label={t('chat.settings.notifications')}
-                            onClick={() => navigate(`/chats/${channelId}/settings/notifications`)}
+                            onClick={() => navigate(ROUTES.channels.roomNotifications(channelId ?? ''))}
                         />
                         {!channel?.isSelfChat ? (
                             channel?.isOwner ? (

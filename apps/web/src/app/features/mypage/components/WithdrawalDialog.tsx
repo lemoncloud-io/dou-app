@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
+import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 
 interface WithdrawalDialogProps {
     isOpen: boolean;

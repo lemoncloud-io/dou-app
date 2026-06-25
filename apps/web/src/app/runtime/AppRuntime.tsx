@@ -9,12 +9,14 @@ import { PreferenceLoader } from './PreferenceLoader';
 import { useSocketDelegate } from './useSocketDelegate';
 
 /**
- * Runtime layer mounted once the session is ready (under `SessionGate`).
- *
- * Replaces the imperative `runtimeManager.ensure()` + conditional `WebSocketV2Connection`
- * with the declarative `RuntimeConnectionHost`, which assembles transport bootstrap,
- * socket lifecycle and re-auth from the binding + delegate. Re-authentication on
+ * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
+ * socket lifecycle and re-auth from the binding + delegate). Re-authentication on
  * site/cloud switch is handled internally — the app never sends `auth:update` itself.
+ *
+ * Session readiness is owned here, not by a wrapping gate: `SessionBackgroundRunner` (inside
+ * `RuntimeConnectionHost`) is the single owner of `useInitWebCore` / `useTokenRefresh`, which
+ * drive guest login + profile load. `TransportBootstrap` shows the splash during webCore init,
+ * then `AppReadyGate` holds it until the profile is ready so the UI never renders profile-less.
  */
 export const AppRuntime = () => {
     const binding = useRuntimeBinding();

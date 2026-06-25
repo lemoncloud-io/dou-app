@@ -7,7 +7,7 @@ import { cn } from '@chatic/lib/utils';
 import { useOnNavigate } from '../../bridge';
 import { useBackHandler } from '../../hooks';
 
-const MAIN_VARIANT_PATHS = ['/', '/explore'];
+const MAIN_VARIANT_PATHS = ['/'];
 
 const isMainVariant = (pathname: string): boolean =>
     MAIN_VARIANT_PATHS.some(path =>

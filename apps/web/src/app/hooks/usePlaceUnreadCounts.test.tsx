@@ -54,7 +54,7 @@ jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
 }));
 
-describe('usePlaceUnreadCounts', () => {
+describe('usePlaceUnreadCounts — 플레이스 안읽음 카운트', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 

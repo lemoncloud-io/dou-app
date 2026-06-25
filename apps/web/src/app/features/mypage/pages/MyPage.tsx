@@ -13,7 +13,7 @@ import { cloudCore, useDynamicProfile, UserType, useUserContext, useWebCoreStore
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useLogout } from '@chatic/web-core';
 
-import { BottomNavigation } from '../../../shared/components/BottomNavigation';
+import { BottomNavigation } from '../../../ui/components/BottomNavigation';
 import { useTotalUnreadCount } from '../../../hooks/useTotalUnreadCount';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';

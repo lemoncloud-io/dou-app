@@ -1,4 +1,3 @@
-export * from './useCreateChannel';
 export * from './useCreatePlace';
 export * from './useSessionId';
 export * from './useTabLifecycle';

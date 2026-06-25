@@ -12,7 +12,7 @@ jest.mock('@chatic/bridges', () => ({
 const postMock = webClient.post as jest.Mock;
 const requestMock = webClient.request as jest.Mock;
 
-describe('appBridge', () => {
+describe('appBridge — 네이티브 브릿지 호출', () => {
     beforeEach(() => {
         postMock.mockClear();
         requestMock.mockClear();

@@ -1,19 +1,19 @@
 import { lazy, Suspense } from 'react';
 
 import { HomeRoutes } from '../features/home';
-import { UnifiedLayout } from '../shared/layouts';
+import { UnifiedLayout } from '../ui/layouts';
 
-const ChatRoutes = lazy(() => import('../features/chats').then(m => ({ default: m.ChatRoutes })));
-const ExploreRoutes = lazy(() => import('../features/explore').then(m => ({ default: m.ExploreRoutes })));
-const CreateRoomRoutes = lazy(() => import('../features/home').then(m => ({ default: m.CreateRoomRoutes })));
+const ChannelRoutes = lazy(() => import('../features/channels').then(m => ({ default: m.ChannelRoutes })));
 const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.MyPageRoutes })));
-const SubscriptionRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.SubscriptionRoutes })));
+const SubscriptionRoutes = lazy(() =>
+    import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
+);
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
 const NotificationsRoutes = lazy(() =>
     import('../features/notifications').then(m => ({ default: m.NotificationsRoutes }))
 );
 const JoinRoutes = lazy(() => import('../features/join').then(m => ({ default: m.JoinRoutes })));
-const PlaceRoutes = lazy(() => import('../features/places').then(m => ({ default: m.PlaceRoutes })));
+const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default: m.PlaceRoutes })));
 
 const RouteFallback = () => (
     <div className="flex h-full flex-col bg-background px-5 pt-safe-top">
@@ -63,12 +63,10 @@ export const privateRoutes = [
         element: <UnifiedLayout />,
         children: [
             { index: true, element: <HomeRoutes /> },
-            { path: 'explore/*', element: withSuspense(ExploreRoutes) },
             { path: 'mypage/*', element: withSuspense(MyPageRoutes) },
             { path: 'subscription/*', element: withSuspense(SubscriptionRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },
-            { path: 'channels/create', element: withSuspense(CreateRoomRoutes) },
-            { path: 'channels/*', element: withSuspense(ChatRoutes) },
+            { path: 'channels/*', element: withSuspense(ChannelRoutes) },
             { path: 'notifications/*', element: withSuspense(NotificationsRoutes) },
             { path: 'join/*', element: withSuspense(JoinRoutes) },
             { path: 'place/*', element: withSuspense(PlaceRoutes) },

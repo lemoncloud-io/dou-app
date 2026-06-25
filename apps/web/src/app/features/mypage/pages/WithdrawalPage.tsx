@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useDynamicProfile } from '@chatic/web-core';
 import { useLogout } from '@chatic/web-core';
 
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { WithdrawalDialog } from '../components/WithdrawalDialog';
 
 export const WithdrawalPage = () => {

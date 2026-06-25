@@ -12,11 +12,12 @@ import { useProductPlans } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { EmailVerifyDialog } from './EmailVerifyDialog';
-import { useSubscriptionIap } from '../../mypage/hooks/useSubscriptionIap';
+// FIXME(feature-boundary): IAP hook now lives in the `subscription` feature; this home dialog still consumes it.
+import { useSubscriptionIap } from '../../subscription/hooks/useSubscriptionIap';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
-import type { PurchaseProduct } from '../../mypage/hooks/useSubscriptionIap';
+import type { PurchaseProduct } from '../../subscription/hooks/useSubscriptionIap';
 
 enum PageState {
     Idle = 'idle',

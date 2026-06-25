@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
-import { PageHeader } from '../../../shared/components';
+import { PageHeader } from '../../../ui/components';
 
 export const RoomNotificationSettingsPage = () => {
     const { t } = useTranslation();

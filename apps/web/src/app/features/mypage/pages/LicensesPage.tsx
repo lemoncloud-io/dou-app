@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 
-import { PageHeader } from '../../../shared/components';
+import { PageHeader } from '../../../ui/components';
 
 const GITHUB_URL = 'https://github.com/lemoncloud-io/dou-app';
 

@@ -1,3 +1,3 @@
 export * from './useSocketDelegate';
-export * from './SessionGate';
+export * from './AppReadyGate';
 export * from './AppRuntime';

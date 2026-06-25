@@ -10,8 +10,8 @@ import { useUserMutations } from '../../../hooks';
 import { cn } from '@chatic/lib/utils';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 

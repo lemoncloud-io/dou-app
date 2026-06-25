@@ -6,8 +6,8 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { InviteCodeCard, VisibilityToggle } from '../components';
 import { useCreateChannel } from '../hooks/useCreateChannel';
 import { ROUTES } from '../../../routes/paths';

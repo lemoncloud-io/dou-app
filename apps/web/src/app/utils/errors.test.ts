@@ -1,33 +1,33 @@
 import { toError, withTimeout } from './errors';
 
-describe('toError', () => {
-    it('returns the same Error instance when given an Error', () => {
+describe('toError — 에러 정규화', () => {
+    it('Error를 받으면 동일한 Error 인스턴스를 반환한다', () => {
         const err = new Error('boom');
         expect(toError(err)).toBe(err);
     });
 
-    it('wraps a non-Error value into an Error with stringified message', () => {
+    it('Error가 아닌 값은 문자열 메시지를 가진 Error로 감싼다', () => {
         const result = toError('nope');
         expect(result).toBeInstanceOf(Error);
         expect(result.message).toBe('nope');
     });
 
-    it('wraps null/undefined safely', () => {
+    it('null/undefined를 안전하게 감싼다', () => {
         expect(toError(undefined).message).toBe('undefined');
         expect(toError(null).message).toBe('null');
     });
 });
 
-describe('withTimeout', () => {
-    it('resolves when the promise settles before the timeout', async () => {
+describe('withTimeout — 타임아웃 래퍼', () => {
+    it('타임아웃 전에 프로미스가 완료되면 resolve한다', async () => {
         await expect(withTimeout(Promise.resolve(42), 50)).resolves.toBe(42);
     });
 
-    it('rejects with the original error when the promise rejects', async () => {
+    it('프로미스가 reject되면 원래 에러로 reject한다', async () => {
         await expect(withTimeout(Promise.reject(new Error('inner')), 50)).rejects.toThrow('inner');
     });
 
-    it('rejects with a TIMEOUT error when the promise is too slow', async () => {
+    it('프로미스가 너무 느리면 TIMEOUT 에러로 reject한다', async () => {
         const slow = new Promise(resolve => setTimeout(resolve, 50));
         await expect(withTimeout(slow, 5, 'Slow op')).rejects.toThrow(/TIMEOUT: Slow op timed out \(5ms\)/);
     });

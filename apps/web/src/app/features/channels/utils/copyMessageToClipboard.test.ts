@@ -19,7 +19,7 @@ const mockClipboard = (writeText: jest.Mock) => {
     });
 };
 
-describe('copyMessageToClipboard', () => {
+describe('copyMessageToClipboard — 메시지 클립보드 복사', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockClipboard(jest.fn().mockResolvedValue(undefined));
