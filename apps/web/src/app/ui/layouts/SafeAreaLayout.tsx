@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { Outlet } from 'react-router-dom';
 
-import { useBackHandler } from '../hooks/useBackHandler';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 /**
  * Public layout component for unauthenticated pages

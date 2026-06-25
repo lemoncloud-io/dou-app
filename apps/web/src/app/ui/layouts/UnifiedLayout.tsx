@@ -1,10 +1,11 @@
 import type { JSX } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 
-import { bindGlobalNavigate } from '../../routes/globalNavigate';
-import { useBackHandler } from '../hooks/useBackHandler';
+import { useOnNavigate } from '../../bridge';
+import { useBackHandler } from '../../hooks';
 
 const MAIN_VARIANT_PATHS = ['/', '/explore'];
 
@@ -15,7 +16,17 @@ const isMainVariant = (pathname: string): boolean =>
 
 export const UnifiedLayout = (): JSX.Element => {
     useBackHandler();
-    bindGlobalNavigate(useNavigate());
+
+    const navigate = useNavigate();
+    useOnNavigate(message => {
+        const { path, replace } = message.data;
+        logger.info('ROUTER', `Received OnNavigate event from native: ${path}`, { replace });
+        try {
+            navigate(path, { replace: !!replace });
+        } catch (error) {
+            logger.error('ROUTER', `Failed to navigate to: ${path}`, { error });
+        }
+    });
 
     const { pathname } = useLocation();
     const isMain = isMainVariant(pathname);
