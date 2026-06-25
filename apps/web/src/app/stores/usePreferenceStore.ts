@@ -3,44 +3,51 @@ import { isNative } from '@chatic/bridges';
 import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
-import { LOCAL_STORAGE_KEYS, NATIVE_PREFERENCE_KEYS } from './preferenceKeys';
+import { PREFERENCES } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Read helper
+//
+// Read priority:
+//   1. localStorage / sessionStorage  (synchronous — avoids initial flash)
+//   2. defaultValue from PREFERENCES  (native values arrive later via PreferenceLoader)
 // ---------------------------------------------------------------------------
 
-/**
- * Write a preference value to the correct backing store.
- *
- * On native the value is persisted in the native key-value store so it
- * survives webview cache clears. On web it goes to localStorage.
- * The two paths are mutually exclusive: native does NOT write localStorage
- * because native storage is the source of truth there.
- */
-const persistPreference = (nativeKey: PreferenceKey, localKey: string, value: string): void => {
-    if (isNative()) {
-        appBridge.savePreference({ key: nativeKey, value });
-    } else {
-        localStorage.setItem(localKey, value);
+const readPreference = (name: keyof typeof PREFERENCES): string => {
+    if (typeof window === 'undefined') return PREFERENCES[name].defaultValue;
+    const config = PREFERENCES[name];
+    if (config.strategy === 'session') {
+        return sessionStorage.getItem(config.sessionKey) ?? config.defaultValue;
+    }
+    return localStorage.getItem(config.localKey) ?? config.defaultValue;
+};
+
+// ---------------------------------------------------------------------------
+// Write helper
+//
+// Write flow:
+//   1. Caller updates Zustand store with set() (in-memory source of truth)
+//   2. This function persists to the correct backend:
+//        native+local on native  → native bridge (native storage is authoritative)
+//        native+local on web     → localStorage
+//        local                   → localStorage
+//        session                 → sessionStorage
+// ---------------------------------------------------------------------------
+
+const persistPreference = (name: keyof typeof PREFERENCES, value: string): void => {
+    const config = PREFERENCES[name];
+    if (config.strategy === 'native+local') {
+        if (isNative()) {
+            appBridge.savePreference({ key: config.nativeKey, value });
+        } else {
+            localStorage.setItem(config.localKey, value);
+        }
+    } else if (config.strategy === 'local') {
+        localStorage.setItem(config.localKey, value);
+    } else if (config.strategy === 'session') {
+        sessionStorage.setItem(config.sessionKey, value);
     }
 };
-
-const readLocalStorage = (key: string, fallback: string): string => {
-    if (typeof window === 'undefined') return fallback;
-    return localStorage.getItem(key) ?? fallback;
-};
-
-// ---------------------------------------------------------------------------
-// Initial values — read from localStorage synchronously so there is no flash.
-// On native these are overridden once PreferenceLoader hydrates from native.
-// ---------------------------------------------------------------------------
-
-const getInitialBlurLastMessage = (): boolean =>
-    readLocalStorage(LOCAL_STORAGE_KEYS.blurLastMessage, 'false') === 'true';
-
-// isFirstRun = true when onboarding has NOT been completed yet.
-// The localStorage key stores 'true' when onboarding IS completed, so we invert.
-const getInitialIsFirstRun = (): boolean => readLocalStorage(LOCAL_STORAGE_KEYS.onboarding, 'false') !== 'true';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -57,42 +64,46 @@ interface PreferenceActions {
     completeOnboarding: () => void;
     resetOnboarding: () => void;
     /**
-     * Overwrite a preference from an external source (native FetchPreference response).
-     * Called by PreferenceLoader; should not be called directly in product code.
+     * Override store values from an external source (native FetchPreference response).
+     * Called by PreferenceLoader on app startup; do not call in product code.
      */
     hydrate: (key: PreferenceKey, value: unknown) => void;
 }
 
 export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(set => ({
-    blurLastMessage: getInitialBlurLastMessage(),
-    isFirstRun: getInitialIsFirstRun(),
+    // Initial values read from localStorage synchronously.
+    // On native, PreferenceLoader hydrates these with native values shortly after mount.
+    blurLastMessage: readPreference('blurLastMessage') === 'true',
+
+    // isFirstRun is the inverse of the 'completed' flag stored in localStorage.
+    isFirstRun: readPreference('isFirstRun') !== 'true',
 
     setBlurLastMessage: (value: boolean) => {
-        persistPreference(
-            NATIVE_PREFERENCE_KEYS.blurLastMessage,
-            LOCAL_STORAGE_KEYS.blurLastMessage,
-            value ? 'true' : 'false'
-        );
+        // 1. Write to store
         set({ blurLastMessage: value });
+        // 2. Persist to backend
+        persistPreference('blurLastMessage', value ? 'true' : 'false');
     },
 
     completeOnboarding: () => {
-        // Native stores isFirstRun=false to indicate onboarding is done.
-        // localStorage stores 'true' under the 'completed' key (legacy key kept for migration compat).
-        persistPreference(NATIVE_PREFERENCE_KEYS.isFirstRun, LOCAL_STORAGE_KEYS.onboarding, 'true');
+        // 1. Write to store
         set({ isFirstRun: false });
+        // 2. Persist to backend
+        persistPreference('isFirstRun', 'true');
     },
 
     resetOnboarding: () => {
-        persistPreference(NATIVE_PREFERENCE_KEYS.isFirstRun, LOCAL_STORAGE_KEYS.onboarding, 'false');
+        // 1. Write to store
         set({ isFirstRun: true });
+        // 2. Persist to backend
+        persistPreference('isFirstRun', 'false');
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {
-        if (key === NATIVE_PREFERENCE_KEYS.blurLastMessage) {
+        // Native values arrive here via PreferenceLoader after fetchPreference.
+        if (key === PREFERENCES.blurLastMessage.nativeKey) {
             set({ blurLastMessage: value === true || value === 'true' });
-        } else if (key === NATIVE_PREFERENCE_KEYS.isFirstRun) {
-            // Native stores the raw isFirstRun boolean.
+        } else if (key === PREFERENCES.isFirstRun.nativeKey) {
             set({ isFirstRun: value === true || value === 'true' });
         }
     },
