@@ -5,9 +5,9 @@ import { logger } from '@chatic/bridges';
 import { RouterErrorFallback } from '@chatic/shared';
 import { reportError, useSessionAuth } from '@chatic/web-core';
 
-import { commonRoutes } from './common/CommonRoutes';
-import { privateRoutes } from './private/PrivateRoutes';
-import { publicRoutes } from './public/PublicRoutes';
+import { commonRoutes } from './CommonRoutes';
+import { privateRoutes } from './PrivateRoutes';
+import { publicRoutes } from './PublicRoutes';
 import { GlobalBridgeListener } from '../bridge';
 import { ROUTES } from './paths';
 
