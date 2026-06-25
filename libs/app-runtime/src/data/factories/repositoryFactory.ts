@@ -1,26 +1,17 @@
-import type {
-    DataContextProvider,
-    IEventBus,
-    RemoteDataSources,
-    DataRepositoriesV2,
-    LocalDataSourcesV2,
-} from '@chatic/data';
-import { createRepositoriesV2 as createDataRepositories, type DomainEventMap } from '@chatic/data';
+import type { DataContextProvider, DataRepositoriesV2, LocalDataSourcesV2, RemoteDataSources } from '@chatic/data';
+import { createRepositoriesV2 } from '@chatic/data';
 
 export const createRepositories = ({
     remoteDataSources,
     localDataSources,
     contextProvider,
-    domainEventBus,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSourcesV2;
     contextProvider: DataContextProvider;
-    domainEventBus: IEventBus<DomainEventMap>;
 }): DataRepositoriesV2 =>
-    createDataRepositories({
+    createRepositoriesV2({
         remoteDataSources,
         localDataSources,
         context: contextProvider,
-        domainEventBus,
     });

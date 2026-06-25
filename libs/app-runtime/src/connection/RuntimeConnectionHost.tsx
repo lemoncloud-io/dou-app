@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { TransportBootstrap } from './TransportBootstrap';
 import { SessionBackgroundRunner } from './SessionBackgroundRunner';
 import { RuntimeDataBinder } from './RuntimeDataBinder';
+import { SocketAuthBinder } from './SocketAuthBinder';
 import { SocketBinder } from './SocketBinder';
-import { RuntimeSyncBinder } from './RuntimeSyncBinder';
 import type { RuntimeBinding } from '../runtime/useRuntimeBinding';
 import type { SocketSessionDelegate } from '../socket/types';
 import { getSocketRuntime } from '../socket/runtime';
@@ -18,7 +18,7 @@ export const RuntimeConnectionHost = ({ binding, delegate, children }: RuntimeCo
     // Inject delegate to SocketSessionController
     useEffect(() => {
         const socketRuntime = getSocketRuntime();
-        socketRuntime.controller.setDelegate(delegate);
+        socketRuntime.sessionController.setDelegate(delegate);
     }, [delegate]);
 
     return (
@@ -26,7 +26,7 @@ export const RuntimeConnectionHost = ({ binding, delegate, children }: RuntimeCo
             <SessionBackgroundRunner />
             <RuntimeDataBinder binding={binding} />
             <SocketBinder binding={binding} />
-            <RuntimeSyncBinder binding={binding} />
+            <SocketAuthBinder binding={binding} />
             {children}
         </TransportBootstrap>
     );

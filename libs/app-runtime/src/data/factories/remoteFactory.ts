@@ -5,22 +5,29 @@ import {
     createCloudGateway,
     createDeviceGateway,
     createDomainGateway,
+    createJoinGateway,
+    createPlaceGateway,
+    createProfileGateway,
     createUserGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 
-import type { DomainEventMap, IEventBus, RemoteGatewayBundle } from '@chatic/data';
-import { createRemoteDataSources as createRemote, SocketDispatcher } from '@chatic/data';
+import { createRemoteDataSources as createDataRemoteDataSources, type RemoteGatewayBundle } from '@chatic/data';
 
 import { getSocketRuntime } from '../../socket/runtime';
 
-export const createRemoteDataSources = ({ domainEventBus }: { domainEventBus: IEventBus<DomainEventMap> }) => {
-    const socketClient = getSocketRuntime().proxy;
+export const createRemoteDataSources = () => {
+    // Gateways bind to the SocketManager stable facade (request/send/onType); socket
+    // replacement stays invisible to them. (Formerly the ManagedSocketClientProxy.)
+    const socketClient = getSocketRuntime().socketManager;
     const authGateway = createAuthGateway(socketClient as any);
     const channelGateway = createChannelGateway(socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);
     const cloudGateway = createCloudGateway(socketClient as any);
     const deviceGateway = createDeviceGateway(socketClient as any);
     const userGateway = createUserGateway(socketClient as any);
+    const placeGateway = createPlaceGateway(socketClient as any);
+    const profileGateway = createProfileGateway(socketClient as any);
+    const joinGateway = createJoinGateway(socketClient as any);
     const socketsGateway = createDomainGateway('sockets', socketClient as any);
 
     const gateways: RemoteGatewayBundle = {
@@ -28,52 +35,39 @@ export const createRemoteDataSources = ({ domainEventBus }: { domainEventBus: IE
         channel: channelGateway,
         chat: chatGateway,
         join: {
+            // 1급 join 도메인: 단건 조회/수정은 JoinGateway(join.get/join.update)
+            get: joinGateway.get,
+            update: joinGateway.update,
+            // 보조 command: 읽음(chat.read)·참여(channel.join). channel.update-join은 deprecated → join.update.
             read: chatGateway.read,
-            updateJoin: channelGateway.updateJoin,
             join: channelGateway.join,
         },
-        site: {
+        place: {
+            // Place owns CRUD; the list still comes from UserGateway.mySite (same entity as site).
+            create: placeGateway.create,
+            get: placeGateway.get,
+            update: placeGateway.update,
+            delete: placeGateway.delete,
             mySite: userGateway.mySite,
-            makeSite: userGateway.makeSite,
-            updateSite: userGateway.updateSite,
         },
         user: {
+            update: userGateway.update,
             listUser: channelGateway.listUser,
-            updateProfile: userGateway.updateProfile,
             invite: userGateway.invite,
             inviteBatch: userGateway.inviteBatch,
             syncUsers: channelGateway.syncUsers,
-            syncProfile: channelGateway.syncProfile,
         },
         device: deviceGateway,
         sockets: socketsGateway,
-        cloud: cloudGateway,
-        profile: {
-            getSiteProfile: userGateway.getSiteProfile,
-            setSiteProfile: userGateway.setSiteProfile,
+        cloud: {
+            get: cloudGateway.get,
+            update: cloudGateway.update,
+            delete: cloudGateway.delete,
         },
+        profile: profileGateway,
     };
 
-    const remoteDataSources = createRemote({ domainEventBus, gateways });
-
-    const dataDispatcher = new SocketDispatcher(
-        socketClient,
-        remoteDataSources.channel,
-        remoteDataSources.chat,
-        remoteDataSources.join,
-        remoteDataSources.user,
-        remoteDataSources.auth,
-        remoteDataSources.device,
-        remoteDataSources.sockets
-    );
-
     return {
-        remoteDataSources,
-        dispatcher: {
-            destroy() {
-                dataDispatcher.destroy();
-                socketClient.destroy();
-            },
-        },
+        remoteDataSources: createDataRemoteDataSources({ gateways }),
     };
 };

@@ -71,5 +71,6 @@ export const createLocalDataSources = ({
         profile: storages.profile,
         site: storages.site,
         user: storages.user,
+        meta: storages.meta,
     });
 };

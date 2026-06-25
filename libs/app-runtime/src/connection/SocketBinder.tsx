@@ -16,13 +16,13 @@ export const SocketBinder = ({ binding }: SocketBinderProps) => {
         if (prevSocketRef.current !== currentSocketStr) {
             prevSocketRef.current = currentSocketStr;
             if (!binding.socket) {
-                socketRuntime.controller.destroy();
+                socketRuntime.sessionController.destroy();
                 socketManager.destroy();
             } else {
-                void socketRuntime.controller.bootstrap(binding.socket.config);
+                void socketRuntime.sessionController.bootstrap(binding.socket.config);
             }
         }
-    }, [binding.socket, socketManager, socketRuntime.controller]);
+    }, [binding.socket, socketManager, socketRuntime.sessionController]);
 
     return null;
 };
