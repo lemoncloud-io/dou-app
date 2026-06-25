@@ -1,11 +1,9 @@
 import { useCallback, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { isNative } from '@chatic/bridges';
+import { useNavigateWithTransition } from '@chatic/shared';
 import { appBridge, useOnBackPressed } from '../bridge';
-
-import { useNavigateWithTransition } from 'libs/shared/src';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =
@@ -14,22 +12,13 @@ const OPEN_DIALOG_SELECTOR =
 /**
  * Hook to handle back button in hybrid app environment.
  * - Syncs navigation state with native app
- * - Syncs language setting with native app
  * - Handles native back button events
  * - Supports `data-prevent-back-close` attribute to prevent back button from closing dialogs
  */
 export const useBackHandler = () => {
     const location = useLocation();
     const navigate = useNavigateWithTransition();
-    const { i18n } = useTranslation();
     const isOnMobileApp = isNative();
-
-    // Sync language with native app
-    useEffect(() => {
-        if (!isOnMobileApp) return;
-
-        appBridge.savePreference({ key: 'language', value: i18n.language });
-    }, [i18n.language, isOnMobileApp]);
 
     // Notify native app about navigation state changes
     // Also watch for dialog state changes using MutationObserver
