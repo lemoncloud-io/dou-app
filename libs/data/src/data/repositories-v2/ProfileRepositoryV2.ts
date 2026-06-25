@@ -109,22 +109,18 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
         const existing = profileId ? await this.profileLocalDataSource.cacheRead(profileId, requestContext) : null;
 
         if (profileId) {
-            if (input.active === false) {
-                await this.profileLocalDataSource.cacheDelete(profileId, requestContext);
-            } else {
-                await this.profileLocalDataSource.cacheWrite(
-                    {
-                        ...(existing ?? {}),
-                        ...(payload as Partial<DomainProfile>),
-                        id: profileId,
-                        sid,
-                        siteId: sid,
-                        uid,
-                        userId: uid,
-                    },
-                    requestContext
-                );
-            }
+            await this.profileLocalDataSource.cacheWrite(
+                {
+                    ...(existing ?? {}),
+                    ...(payload as Partial<DomainProfile>),
+                    id: profileId,
+                    sid,
+                    siteId: sid,
+                    uid,
+                    userId: uid,
+                },
+                requestContext
+            );
         }
 
         try {
@@ -137,18 +133,12 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
                 { ...normalizedContext, sid, uid }
             );
 
-            if (input.active === false || domain.active === false) {
-                await this.profileLocalDataSource.cacheDelete(domain.id, requestContext);
-            } else {
-                await this.profileLocalDataSource.cacheWrite(domain, requestContext);
-            }
+            await this.profileLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {
             if (profileId) {
                 if (existing) {
                     await this.profileLocalDataSource.cacheWrite(existing, requestContext);
-                } else {
-                    await this.profileLocalDataSource.cacheDelete(profileId, requestContext);
                 }
             }
             throw error;
@@ -171,9 +161,6 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
 
         if (upserts.length > 0) {
             await this.profileLocalDataSource.cacheWriteMany(upserts, requestContext);
-        }
-        if (removals.length > 0) {
-            await this.profileLocalDataSource.cacheDeleteMany(removals, requestContext);
         }
 
         return { syncedAt: syncedAt ?? since, updatedCount: upserts.length, removedCount: removals.length };
