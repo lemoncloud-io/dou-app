@@ -1,5 +1,5 @@
 import { webClient } from '@chatic/bridges';
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageResponse, WebMessageType } from '@chatic/app-messages';
 
 /**
  * Centralized outbound bridge API (Web -> Native).
@@ -55,8 +55,8 @@ export const appBridge = {
     // ---------------------------------------------------------------
 
     /** Request the current FCM device token from native. */
-    fetchFcmToken(): void {
-        webClient.post({ type: 'FetchFcmToken', data: {} });
+    fetchFcmToken(): Promise<WebMessageResponse<'FetchFcmToken'>> {
+        return webClient.request({ type: 'FetchFcmToken', data: {} });
     },
 
     /** Set the app icon badge count. */
@@ -83,8 +83,8 @@ export const appBridge = {
     // ---------------------------------------------------------------
 
     /** Start a native OAuth login flow for the given provider. */
-    oauthLogin(provider: Payload<'OAuthLogin'>['provider']): void {
-        webClient.post({ type: 'OAuthLogin', data: { provider } });
+    oauthLogin(provider: Payload<'OAuthLogin'>['provider']): Promise<WebMessageResponse<'OAuthLogin'>> {
+        return webClient.request({ type: 'OAuthLogin', data: { provider } });
     },
 
     // ---------------------------------------------------------------
@@ -92,32 +92,34 @@ export const appBridge = {
     // ---------------------------------------------------------------
 
     /** Request the device contact list from native. */
-    getContacts(): void {
-        webClient.post({ type: 'GetContacts', data: {} });
+    getContacts(): Promise<WebMessageResponse<'GetContacts'>> {
+        return webClient.request({ type: 'GetContacts', data: {} });
     },
 
     // ---------------------------------------------------------------
     // In-app purchase
     // ---------------------------------------------------------------
 
-    /** Start a native purchase for the given product. */
+    /** Initiate a native purchase flow. Result arrives as OnPurchaseSuccess / OnPurchaseError push events. */
     purchase(data: Payload<'Purchase'>): void {
         webClient.post({ type: 'Purchase', data });
     },
 
     /** Finish/acknowledge a completed purchase transaction. */
-    finishPurchaseTransaction(purchase: Payload<'FinishPurchaseTransaction'>['purchase']): void {
-        webClient.post({ type: 'FinishPurchaseTransaction', data: { purchase } });
+    finishPurchaseTransaction(
+        purchase: Payload<'FinishPurchaseTransaction'>['purchase']
+    ): Promise<WebMessageResponse<'FinishPurchaseTransaction'>> {
+        return webClient.request({ type: 'FinishPurchaseTransaction', data: { purchase } });
     },
 
     /** Request the current set of native purchases. */
-    fetchCurrentPurchases(): void {
-        webClient.post({ type: 'FetchCurrentPurchases', data: {} });
+    fetchCurrentPurchases(): Promise<WebMessageResponse<'FetchCurrentPurchases'>> {
+        return webClient.request({ type: 'FetchCurrentPurchases', data: {} });
     },
 
     /** Request the native product catalog. */
-    fetchProducts(): void {
-        webClient.post({ type: 'FetchProducts', data: {} });
+    fetchProducts(timeoutMs = 10_000): Promise<WebMessageResponse<'FetchProducts'>> {
+        return webClient.request({ type: 'FetchProducts', data: {} }, { timeoutMs });
     },
 
     // ---------------------------------------------------------------
@@ -125,22 +127,22 @@ export const appBridge = {
     // ---------------------------------------------------------------
 
     /** Fetch a page of the native app log buffer. */
-    fetchAppLogBuffer(nonce: string, count: number): void {
-        webClient.post({ type: 'FetchAppLogBuffer', nonce, data: { count } });
+    fetchAppLogBuffer(nonce: string, count: number): Promise<WebMessageResponse<'FetchAppLogBuffer'>> {
+        return webClient.request({ type: 'FetchAppLogBuffer', nonce, data: { count } });
     },
 
     /** Poll the native app log buffer for the latest entries. */
-    pollAppLogBuffer(nonce: string, count: number): void {
-        webClient.post({ type: 'PollAppLogBuffer', nonce, data: { count } });
+    pollAppLogBuffer(nonce: string, count: number): Promise<WebMessageResponse<'PollAppLogBuffer'>> {
+        return webClient.request({ type: 'PollAppLogBuffer', nonce, data: { count } });
     },
 
     /** Clear the native app log buffer. */
-    clearAppLogBuffer(nonce: string): void {
-        webClient.post({ type: 'ClearAppLogBuffer', data: { nonce } });
+    clearAppLogBuffer(nonce: string): Promise<WebMessageResponse<'ClearAppLogBuffer'>> {
+        return webClient.request({ type: 'ClearAppLogBuffer', data: { nonce } });
     },
 
     /** Fetch the current size of the native app log buffer. */
-    fetchAppLogBufferSize(nonce: string): void {
-        webClient.post({ type: 'FetchAppLogBufferSize', data: { nonce } });
+    fetchAppLogBufferSize(nonce: string): Promise<WebMessageResponse<'FetchAppLogBufferSize'>> {
+        return webClient.request({ type: 'FetchAppLogBufferSize', data: { nonce } });
     },
 };

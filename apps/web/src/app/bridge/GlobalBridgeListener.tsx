@@ -3,11 +3,18 @@ import type { JSX } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
+import { useDeviceInfoStore } from '@chatic/device-utils';
 import { appBridge } from './appBridge';
-import { useOnNavigate, useOnBackgroundStatusChanged } from './useHandleAppMessage';
+import { useOnBackgroundStatusChanged, useOnNavigate, useOnUpdateDeviceInfo } from './useHandleAppMessage';
 
 export const GlobalBridgeListener = (): JSX.Element => {
     const navigate = useNavigate();
+
+    // Mirror device-info/version push events into the store; these arrive whenever
+    // native updates its state (app foreground, version change, etc.)
+    useOnUpdateDeviceInfo(message => {
+        useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);
+    });
 
     useOnNavigate(message => {
         const { path, replace } = message.data;

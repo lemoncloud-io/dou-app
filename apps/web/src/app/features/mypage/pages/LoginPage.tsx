@@ -6,12 +6,11 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { setOAuthProvider, useWebCoreStore, webCore } from '@chatic/web-core';
 
 import { isNative, logger } from '@chatic/bridges';
-import type { OAuthTokenResult } from '@chatic/app-messages';
 import { useVerifyNativeAppToken } from '@chatic/web-core';
 import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 import { PageHeader } from '../../../shared/components';
-import { appBridge, useOnOAuthLogin } from '../../../bridge';
+import { appBridge } from '../../../bridge';
 
 const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -51,22 +50,22 @@ export const LoginPage = () => {
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const { mutateAsync: verifyNativeAppToken, isPending: isVerifyNativeAppTokenPending } = useVerifyNativeAppToken();
 
-    const handleOAuthLogin = (provider: 'google' | 'apple') => {
+    const handleOAuthLogin = async (provider: 'google' | 'apple') => {
         setIsOAuthPending(true);
         setActiveProvider(provider);
-        appBridge.oauthLogin(provider);
-    };
-
-    useOnOAuthLogin(async message => {
-        setIsOAuthPending(false);
-        setActiveProvider(null);
-        const result: OAuthTokenResult | null = message.data.result;
-        if (!result) {
-            toast({ title: t('mypageLogin.oauthFailed'), variant: 'destructive' });
-            return;
-        }
-
         try {
+            const response = await appBridge.oauthLogin(provider);
+            const result = response.data.result;
+
+            setIsOAuthPending(false);
+            setActiveProvider(null);
+
+            // null result means the user cancelled the native OAuth flow
+            if (!result) {
+                toast({ title: t('mypageLogin.oauthFailed'), variant: 'destructive' });
+                return;
+            }
+
             const res = await verifyNativeAppToken(result);
             const { Token, ...rest } = res;
             await webCore.buildCredentialsByToken(Token as unknown as LemonOAuthToken);
@@ -74,22 +73,18 @@ export const LoginPage = () => {
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
 
-            // history 전체 정리: [/, /mypage, /mypage/login] → [/]
-            // 첫 엔트리까지 돌아간 뒤 replace하면 뒤로갈 history가 없음
+            // Clean up history stack: [/, /mypage, /mypage/login] → [/]
+            // Going back to the first entry and replacing prevents a back-navigation loop
             const stepsBack = window.history.length - 1;
             if (stepsBack > 0) {
-                window.addEventListener(
-                    'popstate',
-                    () => {
-                        window.location.replace('/');
-                    },
-                    { once: true }
-                );
+                window.addEventListener('popstate', () => window.location.replace('/'), { once: true });
                 window.history.go(-stepsBack);
             } else {
                 window.location.replace('/');
             }
         } catch (e) {
+            setIsOAuthPending(false);
+            setActiveProvider(null);
             logger.error('AUTH', '[LoginPage] OAuth login failed', { error: e });
             toast({
                 title: t('mypageLogin.error'),
@@ -97,7 +92,7 @@ export const LoginPage = () => {
                 variant: 'destructive',
             });
         }
-    });
+    };
 
     const isLoading = isOAuthPending || isVerifyNativeAppTokenPending;
 
