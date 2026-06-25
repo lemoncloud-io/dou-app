@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
+import { ArrowLeftRight, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
 
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,8 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
+import { useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
+import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useLogout } from '@chatic/web-core';
 
@@ -74,7 +75,7 @@ export const HomePage = () => {
         maxCount: maxPlaces,
         isMyCloud,
     } = useCanCreatePlace({ count: placesResult.places.length, isLoading: placesResult.isLoading });
-    const { isCompleted, completeOnboarding } = useOnboardingStore();
+    const { isFirstRun, completeOnboarding } = usePreferenceStore();
     const { isCloudsError } = useCloudSession();
 
     const totalUnread = useMemo(
@@ -160,7 +161,9 @@ export const HomePage = () => {
                     </DropdownMenu>
                 ) : (
                     <button
-                        onClick={() => navigate(isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.cloudProfile)}
+                        onClick={() =>
+                            navigate(isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.cloudProfile)
+                        }
                         className="flex items-center gap-[9px]"
                     >
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
@@ -248,7 +251,7 @@ export const HomePage = () => {
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
-            <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
+            <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
             {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
             <LimitExceededDialog
