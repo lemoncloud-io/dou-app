@@ -39,8 +39,6 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         // Storage partitions only by cid/uid; sid is a logical filter applied here in memory.
         const allItems = await this.cacheStorage.loadAll();
 
-        console.log('PROFILE', sid, uid, allItems);
-
         const deduped = new Map<string, DomainProfile>();
         for (const item of allItems) {
             const canonicalId = this.buildCanonicalProfileId(item.sid, item.uid || item.userId);
@@ -54,12 +52,9 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         }
         let list = [...deduped.values()];
 
-        console.log('PROFILE', deduped);
-
         if (sid) {
             list = list
                 .map(data => {
-                    console.log('프로필목록', data);
                     return data;
                 })
                 .filter(item => item.sid === sid);
