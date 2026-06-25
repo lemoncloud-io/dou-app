@@ -16,11 +16,11 @@ src/
   app/
     app.tsx          # composition root — provider 조립만
     # ── 플랫폼 / 런타임 레이어 ──
-    runtime/         # 세션 수명 + 소켓 연결: SessionGate, AppRuntime(RuntimeConnectionHost), useSocketDelegate
+    runtime/         # 세션 수명 + 소켓 연결: AppRuntime(RuntimeConnectionHost), AppReadyGate, useSocketDelegate
     bridge/          # 네이티브 메시지 단일 접점: outbound(appBridge) + inbound push 구독(useHandleAppMessage/useOn*) + GlobalBridgeListener
     monitoring/      # 계측: webVitals 등
     # ── 라우팅 ──
-    routing/         # 라우트 트리 · 가드 · 경로 상수(paths) · 공개/비공개 분기
+    routes/          # 라우트 트리 · 가드 · 경로 상수(paths) · 공개/비공개 분기
     # ── 도메인 ──
     features/<feature>/   # 도메인 슬라이스 (아래 §3)
     # ── 횡단 자원 (2개 이상 feature가 공유) ──
@@ -28,7 +28,7 @@ src/
       components/    #   횡단 합성 UI (BottomNavigation, Sidebar, 공용 다이얼로그 등)
       layouts/       #   앱 레이아웃 (Main/Private/Public/SafeArea 등)
     hooks/           # 횡단 훅만 — 관심사별 서브폴더로 그룹, 도메인 훅 금지(→ feature)
-      native/        #   예: useBackHandler, useDeviceTokenRegistration
+      native/        #   예: useBackHandler (네이티브 push 등록은 bridge/ 에 둔다)
       ...            #   (유형이 늘 때 추가)
     stores/          # 전역 zustand (앱 환경설정, 온보딩 등)
     utils/           # 순수 util / consts
@@ -40,11 +40,11 @@ src/
 
 네이티브 ↔ 웹 메시지는 `bridge/` 한 곳에서만 주고받는다. feature가 `webClient`를 직접 쓰지 않는다.
 
-| 방향 | 패턴 | 언제 |
-|------|------|------|
-| Web → Native (응답 있음) | `await appBridge.method()` | 네이티브가 결과를 돌려주는 요청 (`FetchFcmToken`, `OAuthLogin`, `GetContacts` 등) |
-| Web → Native (fire-and-forget) | `appBridge.method()` (void) | 결과 불필요 (`openURL`, `setBadgeCount`, `notifyWebAppReady` 등) |
-| Native → Web (push) | `useOn<EventName>` | 네이티브가 먼저 보내는 이벤트 (`OnNavigate`, `OnBackgroundStatusChanged`, `OnUpdateDeviceInfo` 등) |
+| 방향                           | 패턴                        | 언제                                                                                               |
+| ------------------------------ | --------------------------- | -------------------------------------------------------------------------------------------------- |
+| Web → Native (응답 있음)       | `await appBridge.method()`  | 네이티브가 결과를 돌려주는 요청 (`FetchFcmToken`, `OAuthLogin`, `GetContacts` 등)                  |
+| Web → Native (fire-and-forget) | `appBridge.method()` (void) | 결과 불필요 (`openURL`, `setBadgeCount`, `notifyWebAppReady` 등)                                   |
+| Native → Web (push)            | `useOn<EventName>`          | 네이티브가 먼저 보내는 이벤트 (`OnNavigate`, `OnBackgroundStatusChanged`, `OnUpdateDeviceInfo` 등) |
 
 - `appBridge` = 모든 outbound 메서드의 단일 진입점. feature는 `appBridge.X()`만 호출한다.
 - `useHandleAppMessage` / `useOn*` = inbound push 전용. request-response 흐름에는 쓰지 않는다.
@@ -64,12 +64,12 @@ src/
 ```
 features  ─────▶  횡단(ui/{components,layouts} · hooks · stores · utils)
    │                     ▲
-   └──────────▶  runtime / bridge / monitoring / routing
+   └──────────▶  runtime / bridge / monitoring / routes
 ```
 
 - **의존은 단방향**: `features` → `횡단`/`플랫폼`. 역방향 금지(횡단·런타임은 특정 feature를 import하지 않는다).
 - **feature 간 직접 import 금지**: 두 feature가 무언가를 공유해야 하면 횡단 디렉터리로 올리거나(승격), 공유 모델이면 그 자리에서 재배치한다. feature A가 feature B를 import하지 않는다.
-- `routing`은 feature의 pages를 라우트에 연결한다(routing → features 참조는 허용 — 라우팅은 합성 지점).
+- `routes`는 feature의 pages를 라우트에 연결한다(routes → features 참조는 허용 — 라우팅은 합성 지점).
 
 ---
 
@@ -91,11 +91,11 @@ features/<feature>/
 
 ### feature 공개 API + 라우트 소유
 
-- **모든 feature는 `index.ts`(barrel)를 가진다.** 외부(특히 `routing/`)는 이 barrel로만 feature에 접근하고, 내부 파일을 직접 경로로 꺼내지 않는다.
-- **feature가 자기 라우트를 소유한다.** feature는 자신의 라우트 정의(`<Feature>Routes`)를 `index.ts`로 노출하고, `routing/`은 이를 **lazy import로 합성**만 한다(라우트 트리 자체를 routing이 모두 들고 있지 않음).
+- **모든 feature는 `index.ts`(barrel)를 가진다.** 외부(특히 `routes/`)는 이 barrel로만 feature에 접근하고, 내부 파일을 직접 경로로 꺼내지 않는다.
+- **feature가 자기 라우트를 소유한다.** feature는 자신의 라우트 정의(`<Feature>Routes`)를 `index.ts`로 노출하고, `routes/`은 이를 **lazy import로 합성**만 한다(라우트 트리 자체를 routes가 모두 들고 있지 않음).
     ```tsx
-    // routing/private/PrivateRoutes.tsx
-    const ChatRoutes = lazy(() => import('../../features/chat').then(m => ({ default: m.ChatRoutes })));
+    // routes/PrivateRoutes.tsx
+    const ChannelRoutes = lazy(() => import('../features/channels').then(m => ({ default: m.ChannelRoutes })));
     ```
 - **barrel 노출 범위는 최소로**: 보통 `<Feature>Routes`만, 드물게 다른 feature/routing이 정말 필요로 하는 공개 컴포넌트 한둘. pages/components/hooks/model 내부는 비공개. (feature 간 직접 import은 §2에서 금지 — barrel이 그 경계를 물리적으로 강제한다.)
 
@@ -106,8 +106,8 @@ features/<feature>/
 이유: **`@chatic/data`·`@chatic/app-runtime` 자체가 이미 카테고리별 중앙 레이어다.** 그 위에 앱-레벨 중앙 훅 레이어를 또 두면 같은 레이어를 두 번 만드는 중복 인디렉션이고, 그 중간 버킷이 곧 junk-drawer(무한 증식·암묵적 결합·feature 이식성 상실)가 된다. colocation(feature 옆에 데이터 훅) 이 표준이다.
 
 ```
-✅  features/chats/hooks/useChatRoom  →  repos.chat.observeList + useChatSync
-❌  app/hooks/useChats               →  features 전부가 의존하는 중앙 버킷
+✅  features/channels/hooks/useChannelRoom  →  repos.chat.observeList + useChatSync
+❌  app/hooks/useChats                       →  features 전부가 의존하는 중앙 버킷
 ```
 
 예외: 2개 이상 feature가 **동일한** 데이터 훅을 쓸 때만 횡단(`app/hooks`)이나 공유 `model`로 승격한다(§4-4 "두 번째 소비자" 트리거). 기본은 feature, 승격은 예외.
@@ -116,21 +116,21 @@ features/<feature>/
 
 feature가 여러 화면을 가지면, **§4 결정 트리를 한 단계 아래에 그대로 재귀 적용**한다 — "한 화면 전용이면 그 화면 옆에(colocate), 2개+ 화면이 공유하면 feature 루트로".
 
-`chat` feature 예시 (채팅방 / 채팅방 설정 / 초대 / 전송 팝업):
+`channels` feature 예시 (채팅방 / 채팅방 설정 / 초대 / 전송 팝업):
 
 ```
-features/chat/
+features/channels/
   pages/
-    ChatRoomPage/              # 채팅방 (라우트 화면)
-      ChatRoomPage.tsx
+    ChannelRoomPage/           # 채팅방 (라우트 화면)
+      ChannelRoomPage.tsx
       MessageList.tsx          # 이 화면 전용 → colocate
       Composer.tsx
       SendChatPopup.tsx        # 전송 팝업 — 채팅방에서만 열면 여기
-    ChatSettingsPage/          # 채팅방 설정 (라우트 화면)
-      ChatSettingsPage.tsx
+    ChannelSettingsPage/       # 채팅방 설정 (라우트 화면)
+      ChannelSettingsPage.tsx
       InviteDialog.tsx         # 초대 — 설정에서만 열면 여기
   components/                  # 2개+ 화면이 공유하는 UI (MessageBubble 등)
-  hooks/                       # 2개+ 화면이 공유하는 훅 (useChatRoom 등)
+  hooks/                       # 2개+ 화면이 공유하는 훅 (useChannelRoom 등)
   model/                       # 도메인 타입/상태
   index.ts
 ```
@@ -144,12 +144,12 @@ features/chat/
 
 → "초대"/"전송 팝업" 위치는 **누가 여느냐**로 갈린다: 한 화면만 열면 그 화면 폴더, 둘 이상이 열면 `components/`.
 
-**깊이는 필요할 때 자라게 둔다(YAGNI).** 화면이 단순하면 폴더 만들지 말고 `pages/ChatRoomPage.tsx` 단일 파일로 시작 → 전용 부품이 생길 때 폴더로 승격. 빈 `components/`·`model/`을 미리 파지 않는다.
+**깊이는 필요할 때 자라게 둔다(YAGNI).** 화면이 단순하면 폴더 만들지 말고 `pages/ChannelRoomPage.tsx` 단일 파일로 시작 → 전용 부품이 생길 때 폴더로 승격. 빈 `components/`·`model/`을 미리 파지 않는다.
 
 ### 폴더 네이밍
 
-- **컴포넌트 1개를 감싸는 폴더(page-as-folder)**: 그 컴포넌트와 동일한 **PascalCase** (`ChatRoomPage/ChatRoomPage.tsx`). 폴더↔컴포넌트 1:1.
-- **도메인/레이어/표준 폴더**: **lowercase** (`chat/`, `pages/`, `components/`, `hooks/`, `model/`).
+- **컴포넌트 1개를 감싸는 폴더(page-as-folder)**: 그 컴포넌트와 동일한 **PascalCase** (`ChannelRoomPage/ChannelRoomPage.tsx`). 폴더↔컴포넌트 1:1.
+- **도메인/레이어/표준 폴더**: **lowercase** (`channels/`, `pages/`, `components/`, `hooks/`, `model/`).
 - 대소문자는 한 번 정한 규칙을 일관되게 유지한다(리눅스 CI는 대소문자 구분; `git config core.ignorecase false` 권장).
 
 ---
@@ -159,7 +159,7 @@ features/chat/
 새 파일/심볼을 둘 곳을 정할 때:
 
 1. **앱 시작·플랫폼 연결인가?** (부트스트랩, 소켓/세션, 네이티브 브릿지, 계측, 라우팅)
-   → `runtime` / `bridge` / `monitoring` / `routing`
+   → `runtime` / `bridge` / `monitoring` / `routes`
 2. **한 도메인에서만 쓰는가?** → `features/<feature>/` 의 해당 하위(`pages`/`components`/`hooks`/`model`)
 3. **2개 이상 feature가 공유하는가?** → 횡단(`ui/{components,layouts}` · `hooks` · `stores` · `utils`)
 4. **애매하면** feature 안에 두고, **두 번째 소비자가 생길 때** 횡단(또는 `model`)으로 승격한다.
@@ -170,10 +170,10 @@ features/chat/
 
 ## 5. 적용 상태와 마이그레이션
 
-- 이 구조 중 `runtime`·`bridge`·`monitoring`·`routing`·`features`·`stores`·`utils`는 이미 존재한다.
+- 이 구조 중 `runtime`·`bridge`·`monitoring`·`routes`·`features`·`stores`·`utils`는 이미 존재한다.
+- **라우팅 디렉터리는 `routes/`로 유지한다**(별도 개명 없음).
 - **남은 정렬(점진 적용)**:
-    - `routes/` → `routing/` 개명.
-    - `shared/{components,hooks,layouts}` → `app/{components,hooks,layouts}` 로 끌어올림(`shared/` 래퍼 제거).
+    - `shared/{components,hooks,layouts}` → `app/{ui,hooks,...}` 로 끌어올림(`shared/` 래퍼 제거) — 대부분 적용됨, 잔여 import 정리 중.
     - `shared/hooks`에 섞인 도메인 훅 → 각 `features/<feature>/hooks`로 이전 (§4 2번).
 - **일괄 이동하지 않는다.** 진행 중인 socket→runtime 마이그레이션에서 각 파일을 건드릴 때 위 규칙에 맞춰 함께 옮긴다(playbook 절차에 흡수). 이 문서는 그 목표 위치의 기준이다.
 
