@@ -8,6 +8,7 @@ import { ServiceUnavailableOverlay } from '../shared/components/ServiceUnavailab
 import { Router } from '../routes';
 import { DeviceTokenRegistration } from '../shared/hooks/useDeviceTokenRegistration';
 import { NativeHandshake } from './NativeHandshake';
+import { PreferenceLoader } from './PreferenceLoader';
 import { useSocketDelegate } from './useSocketDelegate';
 
 /**
@@ -26,6 +27,7 @@ export const AppRuntime = () => {
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
             <NativeHandshake />
+            <PreferenceLoader />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}

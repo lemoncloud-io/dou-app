@@ -93,3 +93,6 @@ export const useOnFetchFcmToken = (handler: (message: AppMessageData<'OnFetchFcm
 
 export const useOnNavigate = (handler: (message: AppMessageData<'OnNavigate'>) => void) =>
     useHandleAppMessage('OnNavigate', handler);
+
+export const useOnFetchPreference = (handler: (message: AppMessageData<'OnFetchPreference'>) => void) =>
+    useHandleAppMessage('OnFetchPreference', handler);

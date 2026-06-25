@@ -9,15 +9,8 @@ import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import {
-    cloudCore,
-    useAppPreferenceStore,
-    useDynamicProfile,
-    useOnboardingStore,
-    UserType,
-    useUserContext,
-    useWebCoreStore,
-} from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, UserType, useUserContext, useWebCoreStore } from '@chatic/web-core';
+import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useLogout } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
@@ -39,8 +32,7 @@ export const MyPage = () => {
     const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
-    const { resetOnboarding } = useOnboardingStore();
-    const { blurLastMessage, setBlurLastMessage } = useAppPreferenceStore();
+    const { resetOnboarding, blurLastMessage, setBlurLastMessage } = usePreferenceStore();
     const { clearAllCache } = useCacheMutations();
     const totalUnread = useTotalUnreadCount();
 
