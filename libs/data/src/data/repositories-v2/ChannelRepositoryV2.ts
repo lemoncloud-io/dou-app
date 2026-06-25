@@ -16,7 +16,7 @@ import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from '../repositories';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
-export interface RefreshChannelsSinceResult {
+export interface SyncChannelsResult {
     syncedAt: number;
     removedCount: number;
 }
@@ -29,7 +29,9 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     observeItem(id: string, callback: (item: DomainChannel | null) => void): () => void;
 
     refreshList(query: DomainChannelListPayload): Promise<void>;
-    refreshListSince(since: number): Promise<RefreshChannelsSinceResult>;
+    // Cloud-wide delta sync (channel.sync) — pulls channels changed since the cursor across all
+    // places and advances syncedAt. Named like profile.syncProfiles for consistency.
+    syncChannels(since: number): Promise<SyncChannelsResult>;
 
     createChannel(payload: ChannelCreateInput): Promise<DomainChannel>;
     updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel>;
@@ -122,7 +124,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
     }
 
-    public async refreshListSince(since: number): Promise<RefreshChannelsSinceResult> {
+    public async syncChannels(since: number): Promise<SyncChannelsResult> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         // Sync ingests channels across all places, so map without binding to the active sid.
