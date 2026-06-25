@@ -11,8 +11,9 @@ const REPO_KEY: Record<CacheType, keyof DataRepositoriesV2> = {
     chat: 'chat',
     user: 'user',
     join: 'join',
-    site: 'site',
-    invitecloud: 'inviteCloud',
+    // The 'site' cache slot is served by the place repository (Site→Place 통합).
+    site: 'place',
+    invitecloud: 'cloud',
     profile: 'profile',
 };
 
@@ -31,6 +32,22 @@ const FILTER_FIELDS: Record<CacheType, { key: string; label: string; required?: 
 };
 
 const ALL_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile'];
+
+// Monotonic suffix so one-click templates never collide within a session.
+let templateSeq = 0;
+const makeId = (type: CacheType): string => `dbg-${type}-${Date.now().toString(36)}-${templateSeq++}`;
+
+// Per-type starter rows for one-click create. cid/uid are stamped by cacheWrite from the
+// live context, so templates only carry id + the fields a row needs to be useful/visible.
+export const TEMPLATES: Record<CacheType, () => Record<string, unknown>> = {
+    channel: () => ({ id: makeId('channel'), sid: '', name: 'Debug Channel' }),
+    chat: () => ({ id: makeId('chat'), channelId: '', chatNo: 0, content: 'debug message' }),
+    user: () => ({ id: makeId('user'), channelId: '', name: 'Debug User' }),
+    join: () => ({ id: makeId('join'), channelId: '', userId: '', readNo: 0 }),
+    site: () => ({ id: makeId('site'), name: 'Debug Place' }),
+    invitecloud: () => ({ id: makeId('invitecloud'), name: 'Debug Cloud' }),
+    profile: () => ({ id: makeId('profile'), sid: '', nick: 'Debug Nick' }),
+};
 
 function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataRepositoriesV2; onClick: () => void }) {
     const [count, setCount] = useState<number | null>(null);
@@ -55,7 +72,7 @@ function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataReposi
     );
 }
 
-function RowItem({ row, onDelete }: { row: DomainRow; onDelete: () => void }) {
+function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => void; onEdit: () => void }) {
     const [expanded, setExpanded] = useState(false);
 
     const summary = ['cid', 'uid', 'channelId', 'name']
@@ -75,9 +92,18 @@ function RowItem({ row, onDelete }: { row: DomainRow; onDelete: () => void }) {
                 <button
                     onClick={e => {
                         e.stopPropagation();
+                        onEdit();
+                    }}
+                    className="ml-auto shrink-0 text-primary hover:opacity-70"
+                >
+                    수정
+                </button>
+                <button
+                    onClick={e => {
+                        e.stopPropagation();
                         onDelete();
                     }}
-                    className="ml-auto shrink-0 text-destructive hover:opacity-70"
+                    className="shrink-0 text-destructive hover:opacity-70"
                 >
                     삭제
                 </button>
@@ -98,10 +124,15 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
     const [loading, setLoading] = useState(false);
     const [areYouSure, setAreYouSure] = useState(false);
 
+    const [writeJson, setWriteJson] = useState('');
+    const [writeError, setWriteError] = useState<string | null>(null);
+    const [showWritePanel, setShowWritePanel] = useState(false);
+
     const repo = repos[REPO_KEY[type]] as unknown as {
-        cacheReadList: (q: unknown) => Promise<{ list?: DomainRow[] }>;
+        observeList: (q: any, cb: (res: { list?: DomainRow[] } | null) => void) => () => void;
         cacheClear: () => Promise<void>;
         cacheDelete: (id: string) => Promise<void>;
+        cacheWrite: (item: any) => Promise<void>;
     };
 
     const buildParams = () => {
@@ -113,29 +144,66 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
         return params;
     };
 
-    const runQuery = async () => {
+    useEffect(() => {
         setLoading(true);
-        try {
-            const result = await repo.cacheReadList(buildParams() as any);
+        let unsubscribe: (() => void) | undefined;
+        const callback = (result: { list?: DomainRow[] } | null) => {
             setResults(result?.list ?? []);
-        } finally {
+            setLoading(false);
+        };
+
+        try {
+            if (type === 'invitecloud') {
+                const inviteRepo = repo as any;
+                unsubscribe = inviteRepo.observeList(callback);
+            } else {
+                unsubscribe = repo.observeList(buildParams(), callback);
+            }
+        } catch (error) {
+            console.error('Failed to observe list:', error);
             setLoading(false);
         }
-    };
+
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
+    }, [repo, type, JSON.stringify(filters)]);
 
     const handleClear = async () => {
         await repo.cacheClear();
         setAreYouSure(false);
-        setResults(null);
-        // refresh count by re-querying
-        const result = await repo.cacheReadList({} as any);
-        setResults(result?.list ?? []);
     };
 
     const handleDelete = (id: string) => {
-        void repo.cacheDelete(id).then(() => {
-            setResults(prev => prev?.filter(r => r.id !== id) ?? null);
-        });
+        void repo.cacheDelete(id);
+    };
+
+    const handleWrite = async () => {
+        setWriteError(null);
+        try {
+            const parsed = JSON.parse(writeJson);
+            await repo.cacheWrite(parsed);
+            setWriteJson('');
+            setShowWritePanel(false);
+        } catch (e: any) {
+            setWriteError(e.message || String(e));
+        }
+    };
+
+    // One-click create: open the write panel pre-filled with this type's starter template.
+    const openTemplate = () => {
+        setWriteError(null);
+        setWriteJson(JSON.stringify(TEMPLATES[type](), null, 2));
+        setShowWritePanel(true);
+    };
+
+    // Edit: pre-fill the panel with an existing row's JSON. Same id → cacheWrite merges = update.
+    const openEdit = (row: DomainRow) => {
+        setWriteError(null);
+        setWriteJson(JSON.stringify(row, null, 2));
+        setShowWritePanel(true);
     };
 
     return (
@@ -168,18 +236,16 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 
             <div className="flex gap-2 flex-wrap">
                 <button
-                    onClick={() => void runQuery()}
-                    disabled={loading}
-                    className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50"
+                    onClick={openTemplate}
+                    className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:opacity-80"
                 >
-                    조회
+                    + 새 행(템플릿)
                 </button>
                 <button
-                    onClick={() => void runQuery()}
-                    disabled={loading}
-                    className="px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    onClick={() => setShowWritePanel(v => !v)}
+                    className="px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
                 >
-                    새로고침
+                    {showWritePanel ? '작성 취소' : '데이터 추가/수정'}
                 </button>
                 {!areYouSure ? (
                     <button
@@ -206,18 +272,44 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
                 )}
             </div>
 
+            {showWritePanel && (
+                <div className="border border-border bg-card rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold">데이터 추가/수정 (JSON)</p>
+                    <textarea
+                        value={writeJson}
+                        onChange={e => setWriteJson(e.target.value)}
+                        placeholder='{ "id": "...", ... }'
+                        className="w-full h-32 border border-border bg-background rounded p-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    {writeError && <p className="text-xs text-destructive">{writeError}</p>}
+                    <button
+                        onClick={() => void handleWrite()}
+                        className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground"
+                    >
+                        저장
+                    </button>
+                </div>
+            )}
+
             {results !== null && (
                 <div className="space-y-1.5">
                     <p className="text-xs text-muted-foreground">{results.length}건</p>
                     {results.length === 0 ? (
                         <p className="text-xs text-muted-foreground">결과 없음</p>
                     ) : (
-                        results.map(row => <RowItem key={row.id} row={row} onDelete={() => handleDelete(row.id)} />)
+                        results.map(row => (
+                            <RowItem
+                                key={row.id}
+                                row={row}
+                                onDelete={() => handleDelete(row.id)}
+                                onEdit={() => openEdit(row)}
+                            />
+                        ))
                     )}
                 </div>
             )}
 
-            {loading && <p className="text-xs text-muted-foreground">조회 중...</p>}
+            {loading && <p className="text-xs text-muted-foreground font-medium">조회 중...</p>}
         </div>
     );
 }

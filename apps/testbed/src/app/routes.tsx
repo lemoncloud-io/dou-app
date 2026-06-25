@@ -4,6 +4,7 @@ import { ChatHomePage } from './pages/ChatHomePage';
 import { ChatRoomPage } from './pages/ChatRoomPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
+import { InvitePage } from './pages/InvitePage';
 
 export const Routes = () => (
     <ReactRoutes>
@@ -14,5 +15,6 @@ export const Routes = () => (
             <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/invite" element={<InvitePage />} />
     </ReactRoutes>
 );

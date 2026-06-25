@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { useGlobalSession, useSessionAuth } from '@chatic/web-core';
-import { useSocketState } from '@chatic/app-runtime';
+import { useEffect, useRef, useState } from 'react';
+import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
+import { useSocketState, getSyncManager, useRuntimeRepositories } from '@chatic/app-runtime';
+import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
+import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
+import { useRuntimeMetrics } from '../metrics/useRuntimeMetrics';
 
 interface Props {
     onClose: () => void;
@@ -25,25 +28,66 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
     const socketState = useSocketState();
-    const [tab, setTab] = useState<'상태' | 'DB'>('상태');
+    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필'>('상태');
+
+    // Floating draggable panel: start near the top-right so it doesn't cover the header.
+    const panelRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState(() => ({
+        x: Math.max(16, (typeof window !== 'undefined' ? window.innerWidth : 400) - 380 - 16),
+        y: 72,
+    }));
+    const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+
+    const clampToViewport = (x: number, y: number) => {
+        const el = panelRef.current;
+        const w = el?.offsetWidth ?? 360;
+        const h = el?.offsetHeight ?? 400;
+        const maxX = Math.max(0, window.innerWidth - w);
+        const maxY = Math.max(0, window.innerHeight - h);
+        return { x: Math.min(Math.max(0, x), maxX), y: Math.min(Math.max(0, y), maxY) };
+    };
+
+    const onHandlePointerDown = (e: React.PointerEvent) => {
+        const el = panelRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        dragRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+    const onHandlePointerMove = (e: React.PointerEvent) => {
+        if (!dragRef.current) return;
+        setPos(clampToViewport(e.clientX - dragRef.current.dx, e.clientY - dragRef.current.dy));
+    };
+    const onHandlePointerUp = (e: React.PointerEvent) => {
+        dragRef.current = null;
+        (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    };
 
     const { relay, cloud, identity, activeServer } = session;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60">
-            <div className="w-full max-w-lg max-h-[80dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-card border border-border p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">Runtime 상태</span>
-                    <button
-                        onClick={onClose}
-                        className="text-muted-foreground hover:text-foreground text-lg leading-none"
-                    >
-                        ✕
-                    </button>
-                </div>
+        <div
+            ref={panelRef}
+            style={{ left: pos.x, top: pos.y }}
+            className="fixed z-50 w-[min(92vw,32rem)] max-h-[80dvh] flex flex-col overflow-hidden rounded-2xl bg-card border border-border shadow-xl"
+        >
+            {/* Drag handle. The panel is the only element on screen capturing pointer events
+                (no full-screen backdrop), so the rest of the app stays interactive while open. */}
+            <div
+                onPointerDown={onHandlePointerDown}
+                onPointerMove={onHandlePointerMove}
+                onPointerUp={onHandlePointerUp}
+                className="flex items-center justify-between px-4 py-3 border-b border-border cursor-move select-none touch-none"
+            >
+                <span className="font-semibold text-sm">Runtime 상태</span>
+                <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">
+                    ✕
+                </button>
+            </div>
 
+            <div className="overflow-y-auto p-4 space-y-3">
                 <div className="flex gap-1 mb-3">
-                    {(['상태', 'DB'] as const).map(t => (
+                    {(['상태', 'DB', '성능', '프로필'] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -57,6 +101,8 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                 </div>
 
                 {tab === 'DB' && <DBBrowser />}
+                {tab === '프로필' && <ProfileTab />}
+                {tab === '성능' && <PerfTab socketStateLabel={socketState.state} />}
                 {tab === '상태' && (
                     <>
                         <Section title="Session">
@@ -103,12 +149,193 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                             <Row label="state" value={socketState.state} />
                             <Row label="isConnected" value={String(socketState.isConnected)} />
                             <Row label="isVerified" value={String(socketState.isVerified)} />
-                            <Row label="isDeviceReg" value={String(socketState.isDeviceRegistered)} />
                             <Row label="connectionId" value={socketState.connectionId} />
                         </Section>
                     </>
                 )}
             </div>
         </div>
+    );
+};
+
+// Edits the current user's site profile (nick/thumbnail) for the active place. Writes via
+// repos.profile.setMyProfile (optimistic cache + profile.set), which uses the live sid/uid.
+const ProfileTab = () => {
+    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { activeServer } = useGlobalSession();
+    const identity = useSessionIdentity();
+    const sid = activeServer.siteId ?? '';
+    const uid = identity.userId ?? '';
+    const profileId = sid && uid ? `${sid}@${uid}` : '';
+
+    const [current, setCurrent] = useState<DomainProfile | null>(null);
+    const [nick, setNick] = useState('');
+    const [thumbnail, setThumbnail] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
+    const prefilledRef = useRef(false);
+
+    // Observe the current profile so the form reflects synced changes.
+    useEffect(() => {
+        if (!profileId) {
+            setCurrent(null);
+            return;
+        }
+        return repos.profile.observeItem(profileId, setCurrent);
+    }, [repos.profile, profileId]);
+
+    // Prefill inputs once per profile (don't clobber in-progress edits on later emits).
+    useEffect(() => {
+        prefilledRef.current = false;
+    }, [profileId]);
+    useEffect(() => {
+        if (current && !prefilledRef.current) {
+            prefilledRef.current = true;
+            setNick(current.nick ?? '');
+            setThumbnail(current.thumbnail ?? '');
+        }
+    }, [current]);
+
+    const handleSave = async () => {
+        setError(null);
+        setSaved(false);
+        setSaving(true);
+        try {
+            await repos.profile.setMyProfile({
+                nick: nick.trim(),
+                ...(thumbnail.trim() ? { thumbnail: thumbnail.trim() } : {}),
+            });
+            setSaved(true);
+        } catch (e: any) {
+            setError(e?.message ?? String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!sid || !uid) {
+        return (
+            <p className="text-xs text-muted-foreground">
+                사이트(플레이스)를 먼저 선택해야 내 프로필을 설정할 수 있습니다.
+            </p>
+        );
+    }
+
+    return (
+        <div className="space-y-3">
+            <Section title="내 프로필">
+                <Row label="profileId" value={profileId} />
+                <Row label="현재 nick" value={current?.nick ?? '—'} />
+            </Section>
+
+            <div className="space-y-2">
+                <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-muted-foreground">nick</label>
+                    <input
+                        value={nick}
+                        onChange={e => setNick(e.target.value)}
+                        placeholder="표시 이름"
+                        className="border border-border bg-background rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-muted-foreground">thumbnail (URL 또는 base64)</label>
+                    <input
+                        value={thumbnail}
+                        onChange={e => setThumbnail(e.target.value)}
+                        placeholder="https://... 또는 data:image/..."
+                        className="border border-border bg-background rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                </div>
+                {thumbnail.trim() && (
+                    <img
+                        src={thumbnail}
+                        alt="preview"
+                        className="w-12 h-12 rounded-full object-cover border border-border"
+                    />
+                )}
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => void handleSave()}
+                        disabled={saving}
+                        className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
+                    >
+                        {saving ? '저장 중...' : '저장'}
+                    </button>
+                    {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// All values are computed web-side by the MetricsCollector; this tab only renders
+// the snapshot plus a 1s poll of the live sync target registry.
+const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
+    const metrics = useRuntimeMetrics();
+    const [targets, setTargets] = useState<SyncTargetDescriptor[]>([]);
+
+    useEffect(() => {
+        const poll = () => setTargets(getSyncManager().listTargets());
+        poll();
+        const id = setInterval(poll, 1000);
+        return () => clearInterval(id);
+    }, []);
+
+    const sinceSec =
+        metrics.socketStateSinceMs != null ? Math.round((Date.now() - metrics.socketStateSinceMs) / 1000) : null;
+
+    return (
+        <>
+            <Section title={`Sync Targets (${targets.length})`}>
+                {targets.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">등록된 sync 타깃이 없습니다</p>
+                ) : (
+                    targets.map(t => <Row key={`${t.type}:${t.id ?? ''}`} label={t.type} value={t.id ?? '(current)'} />)
+                )}
+            </Section>
+
+            <Section title="Throughput / Latency">
+                <Row label="chat msgs total" value={metrics.chatMessagesTotal} />
+                <Row label="chat msgs/s (10s)" value={metrics.chatMessagesPerSec} />
+                <Row
+                    label="last latency"
+                    value={metrics.lastChatLatencyMs != null ? `${metrics.lastChatLatencyMs} ms` : null}
+                />
+                <Row
+                    label="avg latency"
+                    value={metrics.avgChatLatencyMs != null ? `${metrics.avgChatLatencyMs} ms` : null}
+                />
+            </Section>
+
+            <Section title="Cache observations">
+                {Object.keys(metrics.cacheObservations).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">관측된 변화가 없습니다</p>
+                ) : (
+                    Object.entries(metrics.cacheObservations).map(([domain, count]) => (
+                        <Row key={domain} label={domain} value={count} />
+                    ))
+                )}
+            </Section>
+
+            <Section title="Renders">
+                {Object.keys(metrics.renders).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">렌더 보고가 없습니다</p>
+                ) : (
+                    Object.entries(metrics.renders).map(([label, count]) => (
+                        <Row key={label} label={label} value={count} />
+                    ))
+                )}
+            </Section>
+
+            <Section title="Connection quality">
+                <Row label="state" value={socketStateLabel} />
+                <Row label="connects" value={metrics.socketConnects} />
+                <Row label="disconnects" value={metrics.socketDisconnects} />
+                <Row label="in state for" value={sinceSec != null ? `${sinceSec}s` : null} />
+            </Section>
+        </>
     );
 };
