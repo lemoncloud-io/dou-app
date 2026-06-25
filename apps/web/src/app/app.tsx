@@ -13,6 +13,7 @@ import { logger } from '@chatic/bridges';
 
 import i18n from '../i18n';
 import { AppRuntime, SessionGate } from './runtime';
+import { GlobalBridgeListener } from './bridge';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
@@ -63,6 +64,7 @@ export function App() {
                 <QueryClientProvider client={queryClient}>
                     <ThemeProvider>
                         <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
+                            <GlobalBridgeListener />
                             <Suspense fallback={<LoadingFallback />}>
                                 <SessionGate>
                                     <AppRuntime />

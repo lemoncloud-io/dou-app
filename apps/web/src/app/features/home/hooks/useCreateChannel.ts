@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useChannelMutations } from '../../../shared/hooks';
+import { useChannelMutations } from '../../../hooks';
 import { reportError } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 

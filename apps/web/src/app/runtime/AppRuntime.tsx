@@ -4,10 +4,7 @@ import { GlobalLoader, useVersionCheck, VersionUpdateBanner } from '@chatic/shar
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
-import { ServiceUnavailableOverlay } from '../shared/components/ServiceUnavailableOverlay';
 import { Router } from '../routes';
-import { DeviceTokenRegistration } from '../shared/hooks/useDeviceTokenRegistration';
-import { NativeHandshake } from './NativeHandshake';
 import { PreferenceLoader } from './PreferenceLoader';
 import { useSocketDelegate } from './useSocketDelegate';
 
@@ -26,7 +23,6 @@ export const AppRuntime = () => {
 
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
-            <NativeHandshake />
             <PreferenceLoader />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
@@ -34,8 +30,6 @@ export const AppRuntime = () => {
                 latestVersion={latestVersion}
                 onDismiss={dismissUpdate}
             />
-            <ServiceUnavailableOverlay />
-            <DeviceTokenRegistration />
             <Router />
             <GlobalLoader />
             <SonnerToaster />

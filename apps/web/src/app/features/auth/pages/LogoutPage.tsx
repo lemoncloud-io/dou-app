@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 import { LoadingFallback } from '@chatic/shared';
 import { useLogout } from '@chatic/web-core';
-import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
+import { useCacheMutations } from '../../../hooks/useCacheMutations';
 
 export const LogoutPage = () => {
     const { t } = useTranslation();

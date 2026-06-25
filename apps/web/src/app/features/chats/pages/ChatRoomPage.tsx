@@ -34,7 +34,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
-import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPositions } from '../../../shared/hooks';
+import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPositions } from '../../../hooks';
 import type { ClientChatView } from '../../../shared/types';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
 import { debounce } from '../../../utils/debounce';

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { logger } from '@chatic/bridges';
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from 'libs/app-messages/src';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 type CacheMutationAction = 'clear-cache' | 'clear-all-cache';

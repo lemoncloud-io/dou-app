@@ -14,8 +14,8 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { cloudsKeys, useIsSubscriptionAvailable } from '@chatic/web-core';
 
 import { useCloudSession } from '@chatic/app-runtime';
-import { useCloudSwitchFlow } from '../../../shared/hooks/useCloudSwitchFlow';
-import { useInviteClouds } from '../../../shared/hooks/useInviteClouds';
+import { useCloudSwitchFlow } from '../../../hooks/useCloudSwitchFlow';
+import { useInviteClouds } from '../../../hooks/useInviteClouds';
 import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';

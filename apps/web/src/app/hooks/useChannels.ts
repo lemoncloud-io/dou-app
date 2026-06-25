@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
-import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
+import { cloudCore, useDynamicProfile, useUserContext } from 'libs/web-core/src';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { ClientChannelView } from '../types';

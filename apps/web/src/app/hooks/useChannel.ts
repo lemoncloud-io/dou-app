@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import type { DomainChannel } from '@chatic/data';
 import type { ClientChannelView } from '../types';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from 'libs/web-core/src';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 

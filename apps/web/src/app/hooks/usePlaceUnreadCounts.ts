@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
-import { appBridge } from '../../bridge';
-import { useInterval } from '@chatic/shared';
+import { appBridge } from '../bridge';
+import { useInterval } from 'libs/shared/src';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
-import { cloudCore } from '@chatic/web-core';
+import { cloudCore } from 'libs/web-core/src';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { debounce } from '../../utils/debounce';
+import { debounce } from '../utils/debounce';
 
 const POLL_INTERVAL_MS = 30_000;
 const EVENT_DEBOUNCE_MS = 1_000;

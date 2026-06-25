@@ -1,4 +1,4 @@
-import { usePlaceMutations } from '../../../shared/hooks';
+import { usePlaceMutations } from '../../../hooks';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 

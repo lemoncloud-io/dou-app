@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { isNative } from '@chatic/bridges';
-import { appBridge, useOnBackPressed } from '../../bridge';
+import { appBridge, useOnBackPressed } from '../bridge';
 
-import { useNavigateWithTransition } from '@chatic/shared';
+import { useNavigateWithTransition } from 'libs/shared/src';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =

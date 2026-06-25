@@ -14,10 +14,10 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useLogout } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
-import { useTotalUnreadCount } from '../../../shared/hooks/useTotalUnreadCount';
+import { useTotalUnreadCount } from '../../../hooks/useTotalUnreadCount';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { DEBUG_STORAGE_KEY } from '../consts';
-import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
+import { useCacheMutations } from '../../../hooks/useCacheMutations';
 import type { AppIconOption } from '@chatic/app-messages';
 import { ROUTES } from '../../../routes/paths';
 

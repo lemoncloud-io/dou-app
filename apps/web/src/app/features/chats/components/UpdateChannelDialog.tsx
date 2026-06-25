@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useChannel, useChannelMutations } from '../../../shared/hooks';
+import { useChannel, useChannelMutations } from '../../../hooks';
 
 interface UpdateChannelDialogProps {
     open: boolean;

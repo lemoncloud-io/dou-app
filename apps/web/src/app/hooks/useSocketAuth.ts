@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { useWebSocketV2 } from '@chatic/socket';
-import { cloudCore, useWebCoreStore, webCore } from '@chatic/web-core';
+import { cloudCore, useWebCoreStore, webCore } from 'libs/web-core/src';
 
 export const useSocketAuth = () => {
     const { emit, isConnected } = useWebSocketV2();

@@ -12,7 +12,7 @@ import { cloudCore } from '@chatic/web-core';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
-import { usePlaces } from '../../../shared/hooks';
+import { usePlaces } from '../../../hooks';
 import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';

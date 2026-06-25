@@ -1,4 +1,4 @@
-import { usePlaceMutations } from '../../../shared/hooks';
+import { usePlaceMutations } from '../../../hooks';
 
 import type { UserUpdateSitePayload } from '@lemoncloud/chatic-sockets-api';
 

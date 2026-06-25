@@ -17,7 +17,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { cloudCore } from '@chatic/web-core';
-import { usePlaceMutations, usePlaces } from '../../../shared/hooks';
+import { usePlaceMutations, usePlaces } from '../../../hooks';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../../chats/components/ConfirmDialog';

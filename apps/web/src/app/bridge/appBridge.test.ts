@@ -1,4 +1,5 @@
 import { appBridge } from './appBridge';
+// @ts-ignore
 import { webClient } from '@chatic/bridges';
 
 jest.mock('@chatic/bridges', () => ({

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-import { appBridge } from '../../bridge';
-import { useWebCoreStore } from '@chatic/web-core';
-import { useRegisterDeviceToken } from '@chatic/web-core';
-import { useDynamicDeviceId } from '@chatic/web-core';
+import { appBridge } from '../bridge';
+import { useWebCoreStore } from 'libs/web-core/src';
+import { useRegisterDeviceToken } from 'libs/web-core/src';
+import { useDynamicDeviceId } from 'libs/web-core/src';
 
 // TODO: @chatic/bridges에서 임포트할 logger 변수 임시 사용 또는 console 대체
 const appLogger = {

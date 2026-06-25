@@ -18,12 +18,12 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useLogout } from '@chatic/web-core';
 
-import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
+import { useCanCreateChannel } from '../../../hooks/useCanCreateChannel';
 import { ROUTES } from '../../../routes/paths';
-import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
-import { usePlaces } from '../../../shared/hooks/usePlaces';
-import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
-import { useChannels } from '../../../shared/hooks/useChannels';
+import { useCanCreatePlace } from '../../../hooks/useCanCreatePlace';
+import { usePlaces } from '../../../hooks/usePlaces';
+import { usePlaceUnreadCounts } from '../../../hooks/usePlaceUnreadCounts';
+import { useChannels } from '../../../hooks/useChannels';
 import { useCloudSession } from '@chatic/app-runtime';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { CloudLogo } from '../../../shared/components/CloudLogo';

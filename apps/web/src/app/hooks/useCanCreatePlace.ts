@@ -1,4 +1,4 @@
-import { useCloudSessionCatalog, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useCloudSessionCatalog, useSessionIdentity, useSessionSelection } from 'libs/web-core/src';
 
 import { MAX_PLACES } from '../consts/limits';
 

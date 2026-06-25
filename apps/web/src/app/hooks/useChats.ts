@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import type { DomainChat, DomainListResult } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from 'libs/web-core/src';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { ClientChatView } from '../types';
 

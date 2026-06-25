@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { isNative, webClient } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
+import { usePlaceUnreadCounts } from '../../../hooks/usePlaceUnreadCounts';
 
 type BadgeAction = 'fetch' | 'set' | 'clear' | 'sync';
 type ActionStatus = 'idle' | 'pending' | 'success' | 'error';

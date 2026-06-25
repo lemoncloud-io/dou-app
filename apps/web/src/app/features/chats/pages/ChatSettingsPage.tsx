@@ -16,7 +16,7 @@ import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { ReportMemberDialog } from '../components/ReportMemberDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { useChannel, useChannelMembers, useChannelMutations } from '../../../shared/hooks';
+import { useChannel, useChannelMembers, useChannelMutations } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;

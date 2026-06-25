@@ -8,7 +8,6 @@ import { reportError, useSessionAuth } from '@chatic/web-core';
 import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
-import { GlobalBridgeListener } from '../bridge';
 import { ROUTES } from './paths';
 
 export const Router = () => {
@@ -24,14 +23,7 @@ export const Router = () => {
             ? [...privateRoutes, ...commonRoutes, { path: '*', element: <Navigate to={ROUTES.root} replace /> }]
             : [...publicRoutes, ...commonRoutes, { path: '*', element: <Navigate to={ROUTES.auth.login} replace /> }];
 
-        const wrappedRoutes = [
-            {
-                element: <GlobalBridgeListener />,
-                children: baseRoutes,
-            },
-        ];
-
-        const routesWithErrorElement = wrappedRoutes.map(route => ({
+        const routesWithErrorElement = baseRoutes.map(route => ({
             ...route,
             errorElement: <RouterErrorFallback onError={handleRouterError} />,
         }));

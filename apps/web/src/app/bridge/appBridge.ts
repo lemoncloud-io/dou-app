@@ -74,8 +74,8 @@ export const appBridge = {
     },
 
     /** Request the current value of a preference key from native storage. */
-    fetchPreference: (data: Payload<'FetchPreference'>): void => {
-        webClient.post({ type: 'FetchPreference', data });
+    fetchPreference: (data: Payload<'FetchPreference'>): Promise<WebMessageResponse<'FetchPreference'>> => {
+        return webClient.request({ type: 'FetchPreference', data });
     },
 
     /** Report whether the in-web back action can still go back (dialog open). */

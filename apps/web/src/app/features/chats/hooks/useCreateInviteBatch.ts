@@ -2,7 +2,7 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useClouds, useSessionSelection } from '@chatic/web-core';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
-import { useUserMutations } from '../../../shared/hooks';
+import { useUserMutations } from '../../../hooks';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
 /**

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity } from 'libs/web-core/src';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
