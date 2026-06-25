@@ -1,8 +1,9 @@
 import type { JSX } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 
+import { bindGlobalNavigate } from '../../routes/globalNavigate';
 import { useBackHandler } from '../hooks/useBackHandler';
 
 const MAIN_VARIANT_PATHS = ['/', '/explore'];
@@ -14,6 +15,7 @@ const isMainVariant = (pathname: string): boolean =>
 
 export const UnifiedLayout = (): JSX.Element => {
     useBackHandler();
+    bindGlobalNavigate(useNavigate());
 
     const { pathname } = useLocation();
     const isMain = isMainVariant(pathname);
