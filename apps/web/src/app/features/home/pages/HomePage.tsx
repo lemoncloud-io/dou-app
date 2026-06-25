@@ -18,6 +18,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useLogout } from '@chatic/web-core';
 
 import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
+import { ROUTES } from '../../../routes/paths';
 import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
 import { usePlaces } from '../../../shared/hooks/usePlaces';
 import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
@@ -159,7 +160,7 @@ export const HomePage = () => {
                     </DropdownMenu>
                 ) : (
                     <button
-                        onClick={() => navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile')}
+                        onClick={() => navigate(isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.cloudProfile)}
                         className="flex items-center gap-[9px]"
                     >
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
@@ -190,7 +191,7 @@ export const HomePage = () => {
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => navigate(ROUTES.notifications)} className="cursor-pointer">
                                 <Bell size={16} className="mr-2" />
                                 <span>{t('home.notifications')}</span>
                             </DropdownMenuItem>
@@ -220,7 +221,7 @@ export const HomePage = () => {
                     isLoading={placesResult.isLoading}
                     isError={placesResult.isError}
                     onRefreshPlaces={placesResult.refresh}
-                    onNavigateToOrder={() => navigate('/places/order')}
+                    onNavigateToOrder={() => navigate(ROUTES.places.order)}
                     onCreatePlace={handleCreatePlace}
                     isGuest={userType === UserType.TEMP_ACCOUNT}
                     placeUnreadCounts={placeUnreadCounts}

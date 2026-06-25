@@ -17,6 +17,7 @@ import { MemberListItem } from '../components/MemberListItem';
 import { ReportMemberDialog } from '../components/ReportMemberDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useChannel, useChannelMembers, useChannelMutations } from '../../../shared/hooks';
+import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;
 
@@ -101,7 +102,7 @@ export const ChatSettingsPage = () => {
             await leaveChannel({ channelId });
             closeDialog();
             toast({ title: t('chat.settings.leftRoom') });
-            navigate('/', { replace: true });
+            navigate(ROUTES.root, { replace: true });
         } catch (error) {
             logger.error('CHAT', 'Failed to leave room', { error, data: { channelId } });
             reportError(toError(error));
@@ -116,7 +117,7 @@ export const ChatSettingsPage = () => {
             await deleteChannel({ channelId });
             closeDialog();
             toast({ title: t('chat.settings.deletedRoom') });
-            navigate('/', { replace: true });
+            navigate(ROUTES.root, { replace: true });
         } catch (error) {
             logger.error('CHAT', 'Failed to delete room', { error, data: { channelId } });
             reportError(toError(error));
