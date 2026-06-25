@@ -19,15 +19,7 @@
 
 ```tsx
 import React from 'react';
-import {
-    RuntimeConnectionHost,
-    TransportBootstrap,
-    SessionBackgroundRunner,
-    RuntimeDataBinder,
-    SocketBinder,
-    useRuntimeBinding,
-    SocketSessionDelegate,
-} from '@chatic/app-runtime';
+import { RuntimeConnectionHost, useRuntimeBinding, SocketSessionDelegate } from '@chatic/app-runtime';
 import { useGlobalSession, useRefreshCloudToken } from '@chatic/web-core';
 
 // web-core의 인증/토큰 훅과 소켓 컨트롤러를 연결해주는 위임(Delegate) 계약을 정의합니다.
@@ -59,27 +51,20 @@ export const App = () => {
     const binding = useRuntimeBinding();
     const delegate = useSocketDelegate();
 
+    // 2. RuntimeConnectionHost 하나만 마운트하면 됩니다.
+    //    내부에서 TransportBootstrap(초기화 가드) → SessionBackgroundRunner(백그라운드 세션) →
+    //    RuntimeDataBinder(context 동기화) → SocketBinder(소켓 config 동기화) →
+    //    SocketAuthBinder(token 변경 시 재인증)를 순서대로 마운트합니다.
     return (
-        // 2. 런타임 호스트 컨텍스트 주입
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
-            {/* 3. webTransport 초기화 가드 (완료 전엔 하위 트리 렌더 방지) */}
-            <TransportBootstrap>
-                {/* 4. 백그라운드 세션 제어 훅 구동 (KeepAlive, TokenRefresh, DeviceId) */}
-                <SessionBackgroundRunner />
-
-                {/* 5. activeServer 컨텍스트(cid/sid)에 맞춰 데이터 저장소 자동 동기화 */}
-                <RuntimeDataBinder binding={binding} />
-
-                {/* 6. 소켓 엔드포인트 URL 변경 시 자동 재연결 제어 */}
-                <SocketBinder binding={binding} />
-
-                {/* 실제 화면 레이아웃 마운트 */}
-                <MainLayout />
-            </TransportBootstrap>
+            {/* 실제 화면 레이아웃만 children으로 전달 */}
+            <MainLayout />
         </RuntimeConnectionHost>
     );
 };
 ```
+
+> 개별 바인더(`TransportBootstrap` / `SessionBackgroundRunner` / `RuntimeDataBinder` / `SocketBinder` / `SocketAuthBinder`)는 `RuntimeConnectionHost`가 내부에서 조립하므로 직접 마운트하지 않습니다. 조립 상세는 [docs/architecture.md](docs/architecture.md) §3 참조.
 
 ---
 
@@ -133,5 +118,7 @@ const ConnectionStatusBadge = () => {
 - **[전체 아키텍처 개요](docs/architecture.md)**: 패키지 내 각 도메인간 관계 및 책임 분리 정리
 - **[공개 인터페이스 리스트](docs/public-surface.md)**: 노출되는 훅/컴포넌트 API 명세
 - **[소켓 도메인 및 401 복구](docs/socket/socket.md)**: 소켓 연결 라이프사이클 및 single-flight 401 재시도 흐름
+- **[Sync 도메인 사양](docs/sync/README.md)**: `SyncManager` + `SyncPlan` 기반 동기화 소유 경계 및 register API
+- **[도메인별 동기화 & SyncPlan](docs/sync/domain-sync-and-plans.md)**: plan 패밀리·콜백 매핑·chat prime 상세
 - **[런타임 바인딩 사양](docs/runtime/runtime.md)**: 활성 서버 관측 및 Binder의 데이터/소켓 동기화 상세
 - **[데이터 런타임 및 캐싱 정책](docs/data/data.md)**: 레포지토리 조립 및 Cache-First 표시 정책

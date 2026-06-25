@@ -317,8 +317,8 @@ function useChannelRoom(channelId: string) {
     - `place` → `place.cacheWrite` / `cacheDelete`
     - `profile` → `profile.cacheWrite` / `cacheDelete`
     - `chat` → `onApply` → `chat.cacheWriteMany(applied.map(toDomainChat))` (chatNo 기준 idempotent 머지, `onRemove` 없음 — 이력 보존)
-    - `join` → `onUpdate`/`onRemove` → `join.cacheWrite(toDomainJoin(view, scope))` / `cacheDelete` (v0.3.4 `JoinSyncPlan` 신규, `updatedAt` 기준 read-state sync — **작업 예정**)
-- **watch on/off**: `registerDevice` / `registerChannel` / `registerChat` / `registerPlace` / `registerProfile` / `registerJoin`(예정). 모두 ref-count되며 dispose 함수를 반환한다(중복 register 안전, 마지막 dispose 시 `stopSync`).
+    - `join` → `onUpdate`/`onRemove` → `join.cacheWrite(toDomainJoin(view, scope))` / `cacheDelete` (`JoinSyncPlan`, `updatedAt` 기준 read-state sync)
+- **watch on/off**: `registerDevice` / `registerChannel` / `registerChat` / `registerPlace` / `registerProfile` / `registerJoin`. 모두 ref-count되며 dispose 함수를 반환한다(중복 register 안전, 마지막 dispose 시 `stopSync`). 훅 래퍼: `useChatSync`/`useChannelSync`/`usePlaceSync`/`useProfileSync`/`useJoinSync`.
 
 ```ts
 import { getSocketRuntime } from '@chatic/app-runtime';
@@ -336,7 +336,7 @@ off(); // 채널 이탈 (ref-count 0이면 stopSync)
 >
 > - **channel**: per-channel register(다중 구독) + 목록 발견·델타는 `channel.sync(since)` 수동 콜(재접속/sid 변경 시) — granularity가 달라 자동 연결되지 않음.
 > - **place**: per-place register(channel과 동일 모델) + 목록 발견은 `place.refreshList`(full) — place엔 `.sync(since)` 델타 게이트웨이가 없다.
-> - **chat prime**: 무조건 refetch가 아니라 **캐시 max chatNo 기반**(비었/뒤처짐일 때만 fetch) + **`updateLocalSnapshot({ lastNo })` 필수**로 plan 기준선을 맞춘다. (이 `updateLocalSnapshot` 단계가 현재 코드에 누락된 정렬 포인트)
+> - **chat prime**: 무조건 refetch가 아니라 **캐시 max chatNo 기반**(비었을 때만 첫 페이지 fetch) + **`updateLocalSnapshot({ lastNo })`**로 plan 기준선을 맞춘다 — `SyncManager.primeChatTarget`이 register 시 수행.
 
 ---
 

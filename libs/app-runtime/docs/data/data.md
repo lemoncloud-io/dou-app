@@ -1,7 +1,7 @@
 # Data Domain Spec
 
-Date: 2026-06-24
-Status: Target Architecture
+Date: 2026-06-25
+Status: As-Built (현재 구현 기준)
 
 ## 목적
 
