@@ -1,26 +1,18 @@
 import type { ErrorInfo } from 'react';
-import { Suspense, useCallback, useEffect, useLayoutEffect } from 'react';
+import { Suspense, useCallback } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster as SonnerToaster } from 'sonner';
 
-import { ErrorFallback, GlobalLoader, LoadingFallback, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
+import { ErrorFallback, LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
-import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import { reportError, useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { getRuntimeManager, WebSocketV2Connection, useRuntimeBinding } from '@chatic/app-runtime';
-import { ServiceUnavailableOverlay } from './components';
-import { Router } from './routes';
-import { DeviceTokenRegistration } from './shared/hooks/useDeviceTokenRegistration';
+import { reportError } from '@chatic/web-core';
+import { logger } from '@chatic/bridges';
 
-import { useForegroundTokenRefresh } from './shared/hooks/useForegroundTokenRefresh';
-import { useForegroundResync } from './shared/hooks/useForegroundResync';
 import i18n from '../i18n';
-import { logger, webClient } from '@chatic/bridges';
-import { useDeviceInfoStore } from '@chatic/device-utils';
+import { AppRuntime, SessionGate } from './runtime';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
@@ -55,88 +47,32 @@ const queryClient = new QueryClient({
     },
 });
 
-const ForegroundTokenRefresh = ({ refreshToken }: { refreshToken: () => Promise<boolean> }) => {
-    useForegroundTokenRefresh(refreshToken);
-    return null;
-};
-
+/**
+ * Provider assembly only. Session readiness is owned by `SessionGate` and the runtime
+ * connection by `AppRuntime` (see `./runtime`).
+ */
 export function App() {
-    const isWebCoreReady = useInitWebCore();
-    const { isAuthenticated, profile } = useWebCoreStore();
-    const { isInitialized: isTokenInitialized, initStatus, refreshToken } = useTokenRefresh(isWebCoreReady);
-    const runtimeBinding = useRuntimeBinding();
-    const runtimeManager = getRuntimeManager();
-
-    const minTimeElapsed = true;
-
-    // Fast path: cached profile in localStorage → render app immediately.
-    // webCore.init() and token refresh continue in the background.
-    // If session turns out to be expired, isAuthenticated flips to false → redirect to login.
-    const canRenderApp =
-        (isWebCoreReady && (!isAuthenticated || !!profile || (isTokenInitialized && initStatus === 'failed'))) ||
-        !!profile;
-    const showSplash = !canRenderApp || !minTimeElapsed;
-
-    const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
-
-    useForegroundResync(refreshToken);
-
-    useLayoutEffect(() => {
-        runtimeManager.ensure(runtimeBinding);
-    }, [runtimeManager, runtimeBinding]);
-
-    // 네이티브 APP LOADER 해제 — 웹 마운트 즉시 전송
-    useEffect(() => {
-        webClient.post({ type: 'WebAppReady', data: {} });
-    }, []);
-
-    // 네이티브에서 버전 정보 업데이트 이벤트 구독
-    useEffect(() => {
-        return webClient.onEvent('OnUpdateDeviceInfo', message => {
-            useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);
-        });
-    }, []);
-
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', 'Application Error', { error, data: info });
         reportError(error, { componentStack: info.componentStack ?? undefined });
     }, []);
 
     return (
-        <>
-            {showSplash && <LoadingFallback />}
-            {canRenderApp && (
-                <I18nextProvider i18n={i18n}>
-                    <VersionUpdateBanner
-                        isVisible={hasUpdate}
-                        currentVersion={currentVersion}
-                        latestVersion={latestVersion}
-                        onDismiss={dismissUpdate}
-                    />
-                    <Suspense fallback={<LoadingFallback />}>
+        <HelmetProvider>
+            <I18nextProvider i18n={i18n}>
+                <QueryClientProvider client={queryClient}>
+                    <ThemeProvider>
                         <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-                            <HelmetProvider>
-                                <QueryClientProvider client={queryClient}>
-                                    <ThemeProvider>
-                                        <ForegroundTokenRefresh refreshToken={refreshToken} />
-                                        {isAuthenticated && isWebCoreReady && (
-                                            <WebSocketV2Connection binding={runtimeBinding} />
-                                        )}
-                                        <ServiceUnavailableOverlay />
-                                        <DeviceTokenRegistration />
-                                        <Router />
-                                        <GlobalLoader />
-                                        <SonnerToaster />
-                                        <Toaster />
-                                    </ThemeProvider>
-                                    {/*{process.env.NODE_ENV !== 'prod' && <ReactQueryDevtools buttonPosition="bottom-left" />}*/}
-                                </QueryClientProvider>
-                            </HelmetProvider>
+                            <Suspense fallback={<LoadingFallback />}>
+                                <SessionGate>
+                                    <AppRuntime />
+                                </SessionGate>
+                            </Suspense>
                         </ErrorBoundary>
-                    </Suspense>
-                </I18nextProvider>
-            )}
-        </>
+                    </ThemeProvider>
+                </QueryClientProvider>
+            </I18nextProvider>
+        </HelmetProvider>
     );
 }
 

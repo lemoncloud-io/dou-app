@@ -7,6 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { VerifyCodePage } from '../components';
+import { ROUTES } from '../../../routes/paths';
 
 export const SignupVerifyPage = () => {
     const navigate = useNavigateWithTransition();
@@ -17,13 +18,13 @@ export const SignupVerifyPage = () => {
     const verifyAlias = useVerifyAlias();
 
     useEffect(() => {
-        if (!email) navigate('/account/signup', { replace: true });
+        if (!email) navigate(ROUTES.account.signup.root, { replace: true });
     }, [email, navigate]);
 
     const handleVerify = async (code: string) => {
         try {
             await verifyAlias.mutateAsync({ type: 'email', mode: 'signup', step: 'check', alias: email, userId, code });
-            navigate('/account/signup/password', { replace: true, state: { email, userId } });
+            navigate(ROUTES.account.signup.password, { replace: true, state: { email, userId } });
             return true;
         } catch {
             toast({ title: t('signup.verifyFailed'), variant: 'destructive' });

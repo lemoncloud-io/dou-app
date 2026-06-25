@@ -24,6 +24,7 @@ import { ConfirmDialog } from '../../chats/components/ConfirmDialog';
 import { SortablePlaceItem } from '../components';
 import type { DomainSite } from '@chatic/data';
 import { logger } from '@chatic/bridges';
+import { ROUTES } from '../../../routes/paths';
 
 export const PlaceOrderPage = () => {
     const { t } = useTranslation();
@@ -91,7 +92,7 @@ export const PlaceOrderPage = () => {
     };
 
     const handleSettings = (place: DomainSite) => {
-        navigate(`/places/${place.id}`);
+        navigate(ROUTES.places.detail(place.id));
     };
 
     const handleDelete = (place: DomainSite) => {

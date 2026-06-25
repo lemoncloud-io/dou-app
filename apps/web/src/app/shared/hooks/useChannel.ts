@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import type { ClientChannelView, DomainChannel } from '@chatic/data';
-import { useDynamicProfile } from '@chatic/web-core';
+import type { DomainChannel } from '@chatic/data';
+import type { ClientChannelView } from '../types';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
@@ -29,7 +30,7 @@ const toClientChannel = (channel: DomainChannel, userId?: string, joinCount?: nu
  */
 export const useChannel = (channelId: string | null) => {
     const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
-    const profile = useDynamicProfile();
+    const { activeProfile: profile } = useSessionIdentity();
     const userId = profile?.uid;
 
     // 스트림에서 내려오는 원본 도메인 데이터 상태

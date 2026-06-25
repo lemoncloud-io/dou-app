@@ -3,15 +3,16 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { logger } from '@chatic/bridges';
 import { RouterErrorFallback } from '@chatic/shared';
-import { reportError, useWebCoreStore } from '@chatic/web-core';
+import { reportError, useSessionAuth } from '@chatic/web-core';
 
 import { commonRoutes } from './common/CommonRoutes';
 import { privateRoutes } from './private/PrivateRoutes';
 import { publicRoutes } from './public/PublicRoutes';
-import { GlobalBridgeListener } from './GlobalBridgeListener';
+import { GlobalBridgeListener } from '../bridge';
+import { ROUTES } from './paths';
 
 export const Router = () => {
-    const { isAuthenticated, isInitialized } = useWebCoreStore();
+    const { isAuthenticated, isInitialized } = useSessionAuth();
 
     const handleRouterError = useCallback((error: Error): void => {
         logger.error('ROUTER', 'Router Error', { error });
@@ -20,8 +21,8 @@ export const Router = () => {
 
     const router = useMemo(() => {
         const baseRoutes = isAuthenticated
-            ? [...privateRoutes, ...commonRoutes, { path: '*', element: <Navigate to="/" replace /> }]
-            : [...publicRoutes, ...commonRoutes, { path: '*', element: <Navigate to="/auth/login" replace /> }];
+            ? [...privateRoutes, ...commonRoutes, { path: '*', element: <Navigate to={ROUTES.root} replace /> }]
+            : [...publicRoutes, ...commonRoutes, { path: '*', element: <Navigate to={ROUTES.auth.login} replace /> }];
 
         const wrappedRoutes = [
             {

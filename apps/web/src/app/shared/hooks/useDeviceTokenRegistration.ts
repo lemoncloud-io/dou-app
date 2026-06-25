@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-import { webClient } from '@chatic/bridges';
-import { useOnFetchFcmToken } from './useHandleAppMessage';
+import { appBridge, useOnFetchFcmToken } from '../../bridge';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useRegisterDeviceToken } from '@chatic/web-core';
-
-import { useDynamicDeviceId } from '@chatic/app-runtime';
+import { useDynamicDeviceId } from '@chatic/web-core';
 
 // TODO: @chatic/bridges에서 임포트할 logger 변수 임시 사용 또는 console 대체
 const appLogger = {
@@ -37,7 +35,7 @@ export const useDeviceTokenRegistration = () => {
 
         isHandlerReady.current = true;
         appLogger.info('DEVICE_TOKEN', '[DeviceToken] isAppEnv detected, requesting FetchFcmToken');
-        webClient.post({ type: 'FetchFcmToken', data: {} });
+        appBridge.fetchFcmToken();
     }, [isAuthenticated]);
 
     useOnFetchFcmToken(async message => {

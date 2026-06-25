@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/app-messages';
-import { isNative, webClient } from '@chatic/bridges';
-import { reportError, toError } from '@chatic/web-core';
+import { isNative } from '@chatic/bridges';
+import { reportError } from '@chatic/web-core';
+import { toError } from '../../../utils/errors';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -13,7 +14,7 @@ import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
 import { PermissionDeniedBanner } from './PermissionDeniedBanner';
-import { useOnGetContacts } from '../../../shared/hooks';
+import { appBridge, useOnGetContacts } from '../../../bridge';
 
 const inviteLogger = {
     error: (tag: string, msg: string, ...args: any[]) => console.error(`[${tag}] ${msg}`, ...args),
@@ -86,7 +87,7 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     // Request contacts when dialog opens (mobile only)
     useEffect(() => {
         if (open && isOnMobileApp && !hasRequestedContacts) {
-            webClient.post({ type: 'GetContacts', data: {} });
+            appBridge.getContacts();
             setHasRequestedContacts(true);
             setIsWaitingForContacts(true);
         }

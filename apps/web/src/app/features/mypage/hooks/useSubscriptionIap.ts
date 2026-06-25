@@ -1,7 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { webClient } from '@chatic/bridges';
 import {
     cloudsKeys,
     subscriptionKeys,
@@ -12,12 +11,13 @@ import {
 
 import type { AppMessageData, IapProductSubscription } from '@chatic/app-messages';
 import {
+    appBridge,
     useOnFetchCurrentPurchases,
     useOnFetchProducts,
     useOnFinishPurchaseTransaction,
     useOnPurchaseError,
     useOnPurchaseSuccess,
-} from '../../../shared/hooks';
+} from '../../../bridge';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
@@ -113,12 +113,9 @@ export const useSubscriptionIap = () => {
                     }
                 }, 60000);
 
-                webClient.post({
-                    type: 'Purchase',
-                    data: {
-                        id,
-                        ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
-                    },
+                appBridge.purchase({
+                    id,
+                    ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
                 });
 
                 const originalResolve = resolve;
@@ -178,7 +175,7 @@ export const useSubscriptionIap = () => {
         return new Promise(resolve => {
             finishResolverRef.current = { resolve };
 
-            webClient.post({ type: 'FinishPurchaseTransaction', data: { purchase: result } });
+            appBridge.finishPurchaseTransaction(result);
         });
     }, []);
 
@@ -186,7 +183,7 @@ export const useSubscriptionIap = () => {
     const fetchCurrentPurchases = useCallback((): Promise<NativePurchase[]> => {
         return new Promise(resolve => {
             currentPurchasesResolverRef.current = { resolve };
-            webClient.post({ type: 'FetchCurrentPurchases', data: {} });
+            appBridge.fetchCurrentPurchases();
         });
     }, []);
 
@@ -209,7 +206,7 @@ export const useSubscriptionIap = () => {
                     reject(reason);
                 },
             };
-            webClient.post({ type: 'FetchProducts', data: {} });
+            appBridge.fetchProducts();
         });
     }, []);
 
@@ -219,7 +216,7 @@ export const useSubscriptionIap = () => {
             const result = await purchase(product);
             await validate(result, email);
             await finishTransaction(result);
-            webClient.post({ type: 'FetchCurrentPurchases', data: {} });
+            appBridge.fetchCurrentPurchases();
 
             await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
@@ -244,7 +241,7 @@ export const useSubscriptionIap = () => {
         }
 
         if (restored > 0) {
-            webClient.post({ type: 'FetchCurrentPurchases', data: {} });
+            appBridge.fetchCurrentPurchases();
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 

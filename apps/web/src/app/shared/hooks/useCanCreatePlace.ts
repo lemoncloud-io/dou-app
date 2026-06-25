@@ -1,6 +1,5 @@
-import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
+import { useCloudSessionCatalog, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
-import { useCloudSession } from '@chatic/app-runtime';
 import { MAX_PLACES } from '../consts/limits';
 
 interface PlacesInfo {
@@ -9,11 +8,10 @@ interface PlacesInfo {
 }
 
 export const useCanCreatePlace = (placesInfo: PlacesInfo) => {
-    const { permissions } = useUserContext();
-    const { clouds } = useCloudSession();
-    const { profile } = useWebCoreStore();
+    const { permissions, activeProfile: profile } = useSessionIdentity();
+    const { clouds } = useCloudSessionCatalog();
+    const { selectedCloudId } = useSessionSelection();
 
-    const selectedCloudId = cloudCore.getSelectedCloudId();
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
     const myUserId = profile?.uid;
 

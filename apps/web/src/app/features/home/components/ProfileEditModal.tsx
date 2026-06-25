@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@chatic/ui-kit/components/ui/select';
 import { Separator } from '@chatic/ui-kit/components/ui/separator';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { useUpdateMyProfile } from '../hooks';
 
@@ -22,7 +22,7 @@ interface ProfileEditModalProps {
 
 export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => {
     const { t } = useTranslation();
-    const profile = useWebCoreStore(state => state.profile);
+    const { activeProfile: profile } = useSessionIdentity();
     const { updateProfile, isPending: isUpdatePending } = useUpdateMyProfile();
 
     const isLoading = isUpdatePending;

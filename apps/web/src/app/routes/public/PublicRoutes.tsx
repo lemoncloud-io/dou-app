@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
+import { ROUTES } from '../paths';
 
 export const publicRoutes = [
-    { path: '/', element: <Navigate to="/auth/login" replace /> },
-    { path: '*', element: <Navigate to="/auth/login" replace /> },
+    { path: ROUTES.root, element: <Navigate to={ROUTES.auth.login} replace /> },
+    { path: '*', element: <Navigate to={ROUTES.auth.login} replace /> },
 ];

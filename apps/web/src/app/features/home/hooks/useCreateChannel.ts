@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
 import { useChannelMutations } from '../../../shared/hooks';
-import { reportError, toError } from '@chatic/web-core';
+import { reportError } from '@chatic/web-core';
+import { toError } from '../../../utils/errors';
 
 import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';

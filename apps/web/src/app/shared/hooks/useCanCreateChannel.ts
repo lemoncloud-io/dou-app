@@ -1,6 +1,4 @@
-import { cloudCore, useUserContext, useWebCoreStore } from '@chatic/web-core';
-
-import { useCloudSession } from '@chatic/app-runtime';
+import { useCloudSessionCatalog, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
 interface ChannelsInfo {
     count: number;
@@ -8,11 +6,10 @@ interface ChannelsInfo {
 }
 
 export const useCanCreateChannel = (channelsInfo: ChannelsInfo) => {
-    const { permissions } = useUserContext();
-    const { profile } = useWebCoreStore();
-    const { clouds } = useCloudSession();
+    const { permissions, activeProfile: profile } = useSessionIdentity();
+    const { clouds } = useCloudSessionCatalog();
+    const { selectedCloudId } = useSessionSelection();
 
-    const selectedCloudId = cloudCore.getSelectedCloudId();
     const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
     const selectedCloud = clouds.find(c => c.id === selectedCloudId);
     const isMyCloud = selectedCloud ? selectedCloud.ownerId === profile?.uid : false;

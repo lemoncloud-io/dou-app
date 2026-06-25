@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 import type { DomainChat, DomainListResult } from '@chatic/data';
 import type { ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
-import { useDynamicProfile } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { ClientChatView } from '../types';
 
@@ -106,7 +106,7 @@ const mergeAndSortMessages = (existing: DomainChat[], incoming: DomainChat[]): D
 
 export const useChats = (initialParams: ChatFeedPayload) => {
     const { chat: chatRepository } = useRuntimeRepositories();
-    const profile = useDynamicProfile();
+    const { activeProfile: profile } = useSessionIdentity();
     const userId = profile?.uid;
     const targetChannelId = initialParams.channelId;
     const pageSize = initialParams.limit ?? DEFAULT_CHAT_LIMIT;

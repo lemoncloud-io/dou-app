@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { UserInvitePayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import { useDynamicProfile } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
@@ -13,7 +13,7 @@ type UserMutationAction = 'update-profile' | 'invite' | 'invite-batch';
  */
 export const useUserMutations = () => {
     const { user: userRepository } = useRuntimeRepositories();
-    const profile = useDynamicProfile();
+    const { activeProfile: profile } = useSessionIdentity();
     const myUserId = profile?.uid;
 
     const [pendingStates, setPendingStates] = useState<Record<UserMutationAction, boolean>>({

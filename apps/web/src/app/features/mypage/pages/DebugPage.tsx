@@ -19,6 +19,7 @@ import { useDeviceInfo } from '@chatic/device-utils';
 import { useLogout } from '@chatic/web-core';
 
 import { DEBUG_STORAGE_KEY } from '../consts';
+import { ROUTES } from '../../../routes/paths';
 
 export const DebugPage = () => {
     const navigate = useNavigateWithTransition();
@@ -28,13 +29,13 @@ export const DebugPage = () => {
 
     useEffect(() => {
         if (sessionStorage.getItem(DEBUG_STORAGE_KEY) !== 'true') {
-            navigate('/mypage', { replace: true });
+            navigate(ROUTES.mypage.root, { replace: true });
         }
     }, [navigate]);
 
     const handleDisableDebug = () => {
         sessionStorage.removeItem(DEBUG_STORAGE_KEY);
-        navigate('/mypage', { replace: true });
+        navigate(ROUTES.mypage.root, { replace: true });
     };
 
     return (
@@ -56,7 +57,7 @@ export const DebugPage = () => {
                 <div className="flex flex-col gap-3">
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            onClick={() => navigate('/mypage/debug/login')}
+                            onClick={() => navigate(ROUTES.mypage.debug.login)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -68,7 +69,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate('/mypage/debug/dashboard')}
+                            onClick={() => navigate(ROUTES.mypage.debug.dashboard)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -78,7 +79,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate('/mypage/debug/state')}
+                            onClick={() => navigate(ROUTES.mypage.debug.state)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -88,7 +89,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate('/mypage/debug/log-buffer')}
+                            onClick={() => navigate(ROUTES.mypage.debug.logBuffer)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -98,7 +99,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate('/mypage/debug/cache-test')}
+                            onClick={() => navigate(ROUTES.mypage.debug.cacheTest)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -108,7 +109,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate('/mypage/debug/upload-test')}
+                            onClick={() => navigate(ROUTES.mypage.debug.uploadTest)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -118,7 +119,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate('/mypage/debug/badge-count')}
+                            onClick={() => navigate(ROUTES.mypage.debug.badgeCount)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">

@@ -8,8 +8,9 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
-import { InviteCodeCard, VisibilityToggle } from '../../workspace/components';
+import { InviteCodeCard, VisibilityToggle } from '../components';
 import { useCreateChannel } from '../hooks/useCreateChannel';
+import { ROUTES } from '../../../routes/paths';
 
 interface CreateRoomSuccessProps {
     name: string;
@@ -95,12 +96,12 @@ export const CreateRoomPage = () => {
                 visibility={visibility}
                 inviteCode={inviteCode}
                 createdChannelId={createdChannelId}
-                onClose={() => navigate('/')}
+                onClose={() => navigate(ROUTES.root)}
                 onConfirm={() => {
                     if (createdChannelId) {
-                        navigate(`/chats/${createdChannelId}/room`);
+                        navigate(ROUTES.chats.room(createdChannelId));
                     } else {
-                        navigate('/');
+                        navigate(ROUTES.root);
                     }
                 }}
                 t={t}

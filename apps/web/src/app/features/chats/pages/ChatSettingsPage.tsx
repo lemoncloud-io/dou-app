@@ -7,7 +7,8 @@ import { useParams } from 'react-router-dom';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { reportError, toError, useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
+import { reportError, UserType, useSessionIdentity } from '@chatic/web-core';
+import { toError } from '../../../utils/errors';
 
 import { PageHeader } from '../../../shared/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -66,8 +67,7 @@ export const ChatSettingsPage = () => {
 
     const { toast } = useToast();
 
-    const profile = useDynamicProfile();
-    const { userType } = useUserContext();
+    const { activeProfile: profile, userType } = useSessionIdentity();
 
     const { channel, isError } = useChannel(channelId ?? null);
 

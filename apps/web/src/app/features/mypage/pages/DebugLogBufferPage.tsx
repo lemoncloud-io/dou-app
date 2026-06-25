@@ -1,15 +1,16 @@
 import { ChevronLeft, RefreshCw, Scissors, Trash2, Zap } from 'lucide-react';
 import { type ReactNode, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
 import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
 import { useNavigateWithTransition } from '@chatic/shared';
 import {
+    appBridge,
     useOnClearAppLogBuffer,
     useOnFetchAppLogBuffer,
     useOnFetchAppLogBufferSize,
     useOnPollAppLogBuffer,
-} from '../../../shared/hooks';
+} from '../../../bridge';
 
 const LOG_FETCH_LIMIT = 20;
 
@@ -176,7 +177,7 @@ export const DebugLogBufferPage = () => {
             setLimit(normalizedLimit);
             setIsFetchingLogs(true);
             markRequest(action, nonce);
-            webClient.post({ type: 'FetchAppLogBuffer', nonce, data: { count: normalizedLimit } });
+            appBridge.fetchAppLogBuffer(nonce, normalizedLimit);
         },
         [markRequest]
     );
@@ -207,19 +208,19 @@ export const DebugLogBufferPage = () => {
     const pollLogs = useCallback(() => {
         const nonce = createNonce('poll-log-buffer');
         markRequest('Poll', nonce);
-        webClient.post({ type: 'PollAppLogBuffer', nonce, data: { count: limit } });
+        appBridge.pollAppLogBuffer(nonce, limit);
     }, [limit, markRequest]);
 
     const clearLogs = useCallback(() => {
         const nonce = createNonce('clear-log-buffer');
         markRequest('Clear', nonce);
-        webClient.post({ type: 'ClearAppLogBuffer', data: { nonce } });
+        appBridge.clearAppLogBuffer(nonce);
     }, [markRequest]);
 
     const fetchSize = useCallback(() => {
         const nonce = createNonce('fetch-log-buffer-size');
         markRequest('Size', nonce);
-        webClient.post({ type: 'FetchAppLogBufferSize', data: { nonce } });
+        appBridge.fetchAppLogBufferSize(nonce);
     }, [markRequest]);
 
     const generateSampleLogs = useCallback(() => {

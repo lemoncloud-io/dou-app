@@ -26,7 +26,7 @@ import { useCloudSession } from '@chatic/app-runtime';
 import { BottomNavigation } from '../../../shared/components/BottomNavigation';
 import { CloudLogo } from '../../../shared/components/CloudLogo';
 import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
-import { SettingsDialog } from '../../../components/SettingsDialog';
+import { SettingsDialog } from '../../../shared/components/SettingsDialog';
 import { OnboardingModal } from '../../onboarding';
 import { SearchModal } from '../../search';
 import { ReportIssueDialog } from '../../../shared/components/ReportIssueDialog';

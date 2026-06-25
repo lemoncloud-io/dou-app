@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { isNative, webClient } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -73,7 +74,7 @@ export const SubscriptionPlansPage = () => {
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) webClient.post({ type: 'OpenURL', data: { url } });
+        if (isOnMobileApp) appBridge.openURL(url);
         else window.open(url, '_blank');
     };
 

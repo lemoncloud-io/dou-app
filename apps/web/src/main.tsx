@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import '@lemoncloud/page-transition-core/styles.css';
 
 import App from './app/app';
-import { initWebVitals } from './app/utils/webVitals';
+import { initWebVitals } from './app/monitoring';
 
 // Initialize Web Vitals monitoring
 initWebVitals();

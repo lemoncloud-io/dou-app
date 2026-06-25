@@ -7,6 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { SetPasswordPage } from '../components';
+import { ROUTES } from '../../../routes/paths';
 
 export const SignupPasswordPage = () => {
     const navigate = useNavigateWithTransition();
@@ -17,7 +18,7 @@ export const SignupPasswordPage = () => {
     const verifyAlias = useVerifyAlias();
 
     useEffect(() => {
-        if (!email) navigate('/account/signup', { replace: true });
+        if (!email) navigate(ROUTES.account.signup.root, { replace: true });
     }, [email, navigate]);
 
     const handleSubmit = async (password: string) => {
@@ -31,7 +32,7 @@ export const SignupPasswordPage = () => {
                 password,
             });
             toast({ title: t('signup.signupSuccess') });
-            setTimeout(() => navigate('/auth/login', { replace: true }), 1500);
+            setTimeout(() => navigate(ROUTES.auth.login, { replace: true }), 1500);
         } catch {
             toast({ title: t('signup.signupFailed'), variant: 'destructive' });
         }

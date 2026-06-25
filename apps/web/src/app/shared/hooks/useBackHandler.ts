@@ -2,8 +2,8 @@ import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-import { isNative, webClient } from '@chatic/bridges';
-import { useOnBackPressed } from './useHandleAppMessage';
+import { isNative } from '@chatic/bridges';
+import { appBridge, useOnBackPressed } from '../../bridge';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
@@ -28,7 +28,7 @@ export const useBackHandler = () => {
     useEffect(() => {
         if (!isOnMobileApp) return;
 
-        webClient.post({ type: 'SavePreference', data: { key: 'language', value: i18n.language } });
+        appBridge.savePreference({ key: 'language', value: i18n.language });
     }, [i18n.language, isOnMobileApp]);
 
     // Notify native app about navigation state changes
@@ -40,7 +40,7 @@ export const useBackHandler = () => {
             // Only report dialog state - native app tracks navigation history separately
             const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 
-            webClient.post({ type: 'SetCanGoBack', data: { canGoBack: hasOpenDialogs } });
+            appBridge.setCanGoBack(hasOpenDialogs);
         };
 
         // Initial check

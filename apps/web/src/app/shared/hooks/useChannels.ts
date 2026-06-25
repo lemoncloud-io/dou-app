@@ -8,7 +8,7 @@ import { cloudCore, useDynamicProfile, useUserContext } from '@chatic/web-core';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { ClientChannelView } from '../types';
 
-import { useChannelSyncStore } from '../stores/useChannelSyncStore';
+import { useChannelSyncStore } from '../../stores/useChannelSyncStore';
 import { useConnectionRecoverySync } from './useConnectionRecoverySync';
 
 const DEFAULT_CHANNEL_LIMIT = 100;

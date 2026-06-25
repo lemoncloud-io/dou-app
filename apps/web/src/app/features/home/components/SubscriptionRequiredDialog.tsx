@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { ROUTES } from '../../../routes/paths';
 
 interface SubscriptionRequiredDialogProps {
     open: boolean;
@@ -16,7 +17,7 @@ export const SubscriptionRequiredDialog = ({ open, onClose }: SubscriptionRequir
 
     const handleSubscribe = () => {
         onClose();
-        navigate('/mypage/subscription');
+        navigate(ROUTES.mypage.subscription.root);
     };
 
     return createPortal(

@@ -1,14 +1,15 @@
 import { BookUser, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
 
 export const PermissionDeniedBanner = () => {
     const { t } = useTranslation();
 
     const handleOpenSettings = () => {
         if (isNative()) {
-            webClient.post({ type: 'OpenSettings', data: {} });
+            appBridge.openSettings();
         }
     };
 

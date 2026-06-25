@@ -8,6 +8,7 @@ import { useWebSocketV2 } from '@chatic/socket';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { webCore, useWebCoreStore } from '@chatic/web-core';
+import { ROUTES } from '../../../routes/paths';
 
 const decodeJWT = (token: string) => {
     try {
@@ -85,7 +86,7 @@ export const TokenLoginPage = () => {
         return (
             <div className="flex h-full items-center justify-center">
                 <p className="text-[16px] text-[#FF4C35]">{t('auth.invalidAccess')}</p>
-                <Button onClick={() => navigate('/auth/login', { replace: true })}>{t('auth.goToLogin')}</Button>
+                <Button onClick={() => navigate(ROUTES.auth.login, { replace: true })}>{t('auth.goToLogin')}</Button>
             </div>
         );
     }

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
+import { appBridge } from '../../bridge';
 import { useInterval } from '@chatic/shared';
 import { useWebSocketV2Store } from '@chatic/socket';
 import type { DomainChannel, DomainChannelListPayload, DomainChat, DomainJoin } from '@chatic/data';
 import { cloudCore } from '@chatic/web-core';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { debounce } from '../utils/debounce';
+import { debounce } from '../../utils/debounce';
 
 const POLL_INTERVAL_MS = 30_000;
 const EVENT_DEBOUNCE_MS = 1_000;
@@ -44,7 +45,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
         if (lastNativeBadgeCountRef.current === count) return;
 
         lastNativeBadgeCountRef.current = count;
-        webClient.post({ type: 'SetBadgeCount', data: { count } });
+        appBridge.setBadgeCount(count);
     }, []);
 
     const fetchCounts = useCallback(async () => {

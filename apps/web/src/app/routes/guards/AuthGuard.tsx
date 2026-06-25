@@ -1,19 +1,20 @@
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/web-core';
+import { ROUTES } from '../paths';
 
 interface AuthGuardProps {
     children: React.ReactNode;
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-    const isAuthenticated = useWebCoreStore(state => state.isAuthenticated);
+    const { isAuthenticated } = useSessionAuth();
     const location = useLocation();
 
     logger.debug('AUTH', 'isAuthenticated', { isAuthenticated });
     if (!isAuthenticated) {
-        return <Navigate to="/auth/login" state={{ from: location.pathname }} replace />;
+        return <Navigate to={ROUTES.auth.login} state={{ from: location.pathname }} replace />;
     }
 
     return <>{children}</>;

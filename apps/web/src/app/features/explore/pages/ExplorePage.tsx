@@ -8,7 +8,7 @@ const mockRooms = [
     {
         id: '1',
         name: 'React 스터디',
-        workspace: '개발자 모임',
+        group: '개발자 모임',
         members: 24,
         category: '개발',
         image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300&h=200&fit=crop',
@@ -16,7 +16,7 @@ const mockRooms = [
     {
         id: '2',
         name: 'UI/UX 피드백',
-        workspace: '디자인 팀',
+        group: '디자인 팀',
         members: 15,
         category: '디자인',
         image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=300&h=200&fit=crop',
@@ -24,7 +24,7 @@ const mockRooms = [
     {
         id: '3',
         name: '매일 영어 읽기',
-        workspace: '독서 클럽',
+        group: '독서 클럽',
         members: 42,
         category: '독서',
         image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=300&h=200&fit=crop',
@@ -32,7 +32,7 @@ const mockRooms = [
     {
         id: '4',
         name: '주말 러닝 크루',
-        workspace: '운동 모임',
+        group: '운동 모임',
         members: 31,
         category: '운동',
         image: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=300&h=200&fit=crop',
@@ -40,7 +40,7 @@ const mockRooms = [
     {
         id: '5',
         name: 'TypeScript 심화',
-        workspace: '개발자 모임',
+        group: '개발자 모임',
         members: 18,
         category: '개발',
         image: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=300&h=200&fit=crop',
@@ -48,7 +48,7 @@ const mockRooms = [
     {
         id: '6',
         name: '기타 연습방',
-        workspace: '음악 모임',
+        group: '음악 모임',
         members: 9,
         category: '음악',
         image: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=300&h=200&fit=crop',
@@ -58,7 +58,6 @@ const mockRooms = [
 export const ExplorePage = () => {
     const { t } = useTranslation();
     const [activeCategory, setActiveCategory] = useState('all');
-    const [activeTab, setActiveTab] = useState<'rooms' | 'workspaces'>('rooms');
 
     const categoryMap: Record<string, string> = {
         all: t('explore.categories.all'),
@@ -104,23 +103,6 @@ export const ExplorePage = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="mb-4 flex gap-0 px-5">
-                {(['rooms', 'workspaces'] as const).map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`flex-1 border-b-2 py-2.5 text-sm font-semibold transition-colors ${
-                            activeTab === tab
-                                ? 'border-foreground text-foreground'
-                                : 'border-transparent text-muted-foreground'
-                        }`}
-                    >
-                        {tab === 'rooms' ? t('explore.tabs.rooms') : t('explore.tabs.workspaces')}
-                    </button>
-                ))}
-            </div>
-
             {/* Categories */}
             <div className="mb-4 px-5">
                 <div className="scrollbar-hide flex gap-2 overflow-x-auto">
@@ -152,7 +134,7 @@ export const ExplorePage = () => {
                         </div>
                         <div className="p-3">
                             <h3 className="truncate text-sm font-semibold text-foreground">{room.name}</h3>
-                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{room.workspace}</p>
+                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{room.group}</p>
                             <div className="mt-2 flex items-center gap-1">
                                 <Users size={12} className="text-muted-foreground" />
                                 <span className="text-[11px] text-muted-foreground">

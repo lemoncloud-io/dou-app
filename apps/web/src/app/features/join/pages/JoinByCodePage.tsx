@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { PageHeader } from '../../../shared/components';
+import { ROUTES } from '../../../routes/paths';
 
 export const JoinByCodePage = () => {
     const navigate = useNavigateWithTransition();
@@ -13,7 +14,6 @@ export const JoinByCodePage = () => {
     const [status, setStatus] = useState<'idle' | 'found' | 'notfound'>('idle');
 
     const mockResult = {
-        type: 'workspace' as const,
         name: '개발자 모임',
         members: 42,
         image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop',
@@ -73,9 +73,7 @@ export const JoinByCodePage = () => {
                                     />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-xs font-medium text-muted-foreground">
-                                        {mockResult.type === 'workspace' ? t('join.workspace') : t('join.chatRoom')}
-                                    </p>
+                                    <p className="text-xs font-medium text-muted-foreground">{t('join.chatRoom')}</p>
                                     <h3 className="text-lg font-bold text-foreground">{mockResult.name}</h3>
                                     <p className="mt-0.5 text-xs text-muted-foreground">
                                         {t('join.memberCount', { count: mockResult.members })}
@@ -84,7 +82,7 @@ export const JoinByCodePage = () => {
                             </div>
 
                             <button
-                                onClick={() => navigate('/chats')}
+                                onClick={() => navigate(ROUTES.chats.root)}
                                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
                             >
                                 <CheckCircle2 size={18} />

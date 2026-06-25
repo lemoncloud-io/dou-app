@@ -5,12 +5,15 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { isNative, logger, webClient } from '@chatic/bridges';
-import { reportError, toError } from '@chatic/web-core';
+import { isNative, logger } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
+import { reportError } from '@chatic/web-core';
+import { toError } from '../../../utils/errors';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/web-core';
 
 import { useSubscriptionIap } from '../hooks';
+import { ROUTES } from '../../../routes/paths';
 
 const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 
@@ -37,7 +40,7 @@ export const SubscriptionPage = () => {
     const hasPendingChange = !!membership?.pendingProductId;
 
     const handleViewPlans = () => {
-        navigate('/mypage/subscription/plans');
+        navigate(ROUTES.mypage.subscription.plans);
     };
 
     const handleRestore = async () => {
@@ -218,7 +221,7 @@ export const SubscriptionPage = () => {
                         {/* Manage / Restore */}
                         <div className="flex gap-2">
                             <button
-                                onClick={() => webClient.post({ type: 'OpenSubscriptionManagement', data: {} })}
+                                onClick={() => appBridge.openSubscriptionManagement()}
                                 className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
                             >
                                 {t('mypage.subscription.manageSubscription')}
@@ -265,7 +268,7 @@ export const SubscriptionPage = () => {
                             </span>
                         </div>
                         <button
-                            onClick={() => webClient.post({ type: 'OpenSubscriptionManagement', data: {} })}
+                            onClick={() => appBridge.openSubscriptionManagement()}
                             className="w-full rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
                         >
                             {t('mypage.subscription.manageSubscription')}
@@ -310,7 +313,7 @@ export const SubscriptionPage = () => {
                                                         ? 'https://app-dev.chatic.io/policy/terms'
                                                         : 'https://app.chatic.io/policy/terms';
                                                     if (isOnMobileApp) {
-                                                        webClient.post({ type: 'OpenURL', data: { url } });
+                                                        appBridge.openURL(url);
                                                     } else {
                                                         window.open(url, '_blank');
                                                     }

@@ -8,6 +8,7 @@ import { webCore, cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Input } from '@chatic/ui-kit/components/ui/input';
+import { ROUTES } from '../../../routes/paths';
 
 export const DebugLoginPage = () => {
     const navigate = useNavigateWithTransition();
@@ -32,7 +33,7 @@ export const DebugLoginPage = () => {
 
             setProfile(rest as Parameters<typeof setProfile>[0]);
             setIsAuthenticated(true);
-            window.location.href = '/';
+            window.location.href = ROUTES.root;
         } catch {
             toast({
                 title: t('mypageLogin.error'),
@@ -107,7 +108,7 @@ export const DebugLoginPage = () => {
                 <div className="mt-6 flex items-center justify-center gap-6">
                     <button
                         type="button"
-                        onClick={() => navigate('/account/signup')}
+                        onClick={() => navigate(ROUTES.account.signup.root)}
                         className="flex items-center gap-0.5 text-[15px] font-medium text-label"
                     >
                         {t('mypageLogin.signup')}
@@ -116,7 +117,7 @@ export const DebugLoginPage = () => {
                     <div className="h-[14px] w-px bg-input-border" />
                     <button
                         type="button"
-                        onClick={() => navigate('/account/reset-password')}
+                        onClick={() => navigate(ROUTES.account.resetPassword.root)}
                         className="flex items-center gap-0.5 text-[15px] font-medium text-label"
                     >
                         {t('mypageLogin.forgotPassword')}

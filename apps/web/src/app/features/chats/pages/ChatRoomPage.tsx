@@ -37,8 +37,9 @@ import { ReadStatus } from '../components/ReadStatus';
 import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPositions } from '../../../shared/hooks';
 import type { ClientChatView } from '../../../shared/types';
 import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
-import { debounce } from '../../../shared/utils/debounce';
+import { debounce } from '../../../utils/debounce';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
 const MAX_INPUT_LENGTH = 5000;
@@ -109,7 +110,7 @@ export const ChatRoomPage = () => {
     useEffect(() => {
         if (isChannelLoading) return;
         if (!channel || isChannelError) {
-            void navigate('/', { replace: true });
+            void navigate(ROUTES.root, { replace: true });
         }
     }, [channel, isChannelLoading, isChannelError, navigate]);
 
@@ -436,7 +437,7 @@ export const ChatRoomPage = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                                onClick={() => navigate(`/chats/${stableChannelId}/settings`)}
+                                onClick={() => navigate(ROUTES.chats.settings(stableChannelId))}
                                 className="cursor-pointer gap-2"
                             >
                                 <Settings size={16} />

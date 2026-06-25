@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useAppPreferenceStore, useUserContext } from '@chatic/web-core';
+import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
+import { useAppPreferenceStore } from '../../../stores/useAppPreferenceStore';
+import { ROUTES } from '../../../routes/paths';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -21,7 +23,7 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = useAppPreferenceStore(s => s.blurLastMessage);
-    const { currentWSS } = useUserContext();
+    const currentWSS = useGlobalSession().activeServer.kind;
     const unreadCount = channel.unreadCount ?? 0;
     const isSelf = channel.memberNo === 1;
 
@@ -37,7 +39,7 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
 
     return (
         <button
-            onClick={() => navigate(`/chats/${channel.id}/room`)}
+            onClick={() => navigate(ROUTES.chats.room(channel.id))}
             className="flex w-full items-start gap-2 rounded-[6px] px-[2px] py-2 text-left transition-colors active:bg-muted"
         >
             {/* Avatar */}

@@ -5,9 +5,11 @@ import { Loader2, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { isNative, webClient } from '@chatic/bridges';
-import { reportError, toError } from '@chatic/web-core';
+import { isNative } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
+import { reportError } from '@chatic/web-core';
 import { useProductPlans } from '@chatic/web-core';
+import { toError } from '../../../utils/errors';
 
 import { EmailVerifyDialog } from './EmailVerifyDialog';
 import { useSubscriptionIap } from '../../mypage/hooks/useSubscriptionIap';
@@ -78,7 +80,7 @@ export const SubscriptionSelectDialog = ({
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) webClient.post({ type: 'OpenURL', data: { url } });
+        if (isOnMobileApp) appBridge.openURL(url);
         else window.open(url, '_blank');
     };
 

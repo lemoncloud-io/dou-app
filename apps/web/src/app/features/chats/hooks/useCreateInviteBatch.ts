@@ -1,6 +1,6 @@
-import { cloudCore } from '@chatic/web-core';
-import { isNative, webClient } from '@chatic/bridges';
-import { useClouds } from '@chatic/web-core';
+import { isNative } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
+import { useClouds, useSessionSelection } from '@chatic/web-core';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import { useUserMutations } from '../../../shared/hooks';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -12,6 +12,7 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
  */
 export const useCreateInviteBatch = () => {
     const { data: cloudsData } = useClouds();
+    const { selectedCloudId } = useSessionSelection();
     const { requestInvite, requestInviteBatch, isPending } = useUserMutations();
 
     /**
@@ -35,7 +36,7 @@ export const useCreateInviteBatch = () => {
         }
 
         if (isNative()) {
-            await webClient.post({ type: 'OpenShareSheet', data: { url: location } });
+            appBridge.openShareSheet(location);
         } else {
             await copyMessageToClipboard(location);
         }
@@ -48,7 +49,6 @@ export const useCreateInviteBatch = () => {
         phones: string[];
         names?: string[];
     }): Promise<MyInviteView[]> => {
-        const selectedCloudId = cloudCore.getSelectedCloudId() ?? '';
         const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
 
         const payload: MyUserInviteBody = {

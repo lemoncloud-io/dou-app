@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 import type { ChatReadPayload, ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
-import { useDynamicProfile } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainChat } from '@chatic/data';
@@ -14,7 +14,7 @@ type ChatMutationAction = 'send' | 'read' | 'delete';
  */
 export const useChatMutations = () => {
     const { chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
-    const dynamicProfile = useDynamicProfile();
+    const { activeProfile: dynamicProfile } = useSessionIdentity();
     const userId = dynamicProfile?.uid;
 
     const [pendingStates, setPendingStates] = useState<Record<ChatMutationAction, boolean>>({

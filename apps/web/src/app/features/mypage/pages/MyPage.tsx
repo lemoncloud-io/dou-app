@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, webClient } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
@@ -25,6 +26,7 @@ import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../compon
 import { DEBUG_STORAGE_KEY } from '../consts';
 import { useCacheMutations } from '../../../shared/hooks/useCacheMutations';
 import type { AppIconOption } from '@chatic/app-messages';
+import { ROUTES } from '../../../routes/paths';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
@@ -129,7 +131,7 @@ export const MyPage = () => {
 
     const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
     const handleProfileClick = () => {
-        navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile');
+        navigate(isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.cloudProfile);
     };
 
     const handleThemeToggle = () => {
@@ -156,7 +158,7 @@ export const MyPage = () => {
 
         const isOnMobileApp = isNative();
         if (isOnMobileApp) {
-            webClient.post({ type: 'OpenURL', data: { url: storeUrl } });
+            appBridge.openURL(storeUrl);
         } else {
             window.open(storeUrl, '_blank');
         }
@@ -167,7 +169,7 @@ export const MyPage = () => {
             {/* Profile Section */}
             <div className="px-5 pb-3 pt-safe-top">
                 {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
-                    <button onClick={() => navigate('/mypage/login')} className="flex flex-col gap-1.5 text-left">
+                    <button onClick={() => navigate(ROUTES.mypage.login)} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                                 {t('mypage.loginPrompt')}
@@ -219,7 +221,7 @@ export const MyPage = () => {
                     userType === UserType.SOCIAL_NO_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            onClick={() => navigate('/mypage/account')}
+                            onClick={() => navigate(ROUTES.mypage.account.info)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <span className="text-[15px] font-medium text-foreground">
@@ -236,7 +238,7 @@ export const MyPage = () => {
                     userType === UserType.SOCIAL_NO_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            onClick={() => navigate('/mypage/subscription')}
+                            onClick={() => navigate(ROUTES.mypage.subscription.root)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <span className="text-[15px] font-medium text-foreground">
@@ -248,7 +250,7 @@ export const MyPage = () => {
                             <>
                                 <div className="h-2" />
                                 <button
-                                    onClick={() => navigate('/mypage/account-manage')}
+                                    onClick={() => navigate(ROUTES.mypage.account.manage)}
                                     className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                                 >
                                     <span className="text-[15px] font-medium text-foreground">
@@ -298,7 +300,7 @@ export const MyPage = () => {
                     <button
                         onClick={() => {
                             resetOnboarding();
-                            navigate('/', { replace: true });
+                            navigate(ROUTES.root, { replace: true });
                         }}
                         className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                     >
@@ -310,7 +312,7 @@ export const MyPage = () => {
                 {/* Policy and Version Card */}
                 <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                     <button
-                        onClick={() => navigate('/mypage/policy')}
+                        onClick={() => navigate(ROUTES.mypage.policy.root)}
                         className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                     >
                         <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
@@ -348,7 +350,7 @@ export const MyPage = () => {
                     {isDebugMode && (
                         <>
                             <button
-                                onClick={() => navigate('/mypage/debug')}
+                                onClick={() => navigate(ROUTES.mypage.debug.root)}
                                 className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                             >
                                 <span className="text-[15px] font-medium text-destructive">Debug Mode</span>

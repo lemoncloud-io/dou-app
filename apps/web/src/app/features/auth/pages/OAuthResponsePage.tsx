@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { logger } from '@chatic/bridges';
 import { LoadingFallback } from '@chatic/shared';
 import { createCredentialsByProvider, loginWithInviteCode, useWebCoreStore } from '@chatic/web-core';
+import { ROUTES } from '../../../routes/paths';
 
 export const OAuthResponsePage = () => {
     const { t } = useTranslation();
@@ -52,7 +53,7 @@ export const OAuthResponsePage = () => {
             }
 
             toast(t('oauth.error.general'));
-            navigate('/auth/login', { replace: true });
+            navigate(ROUTES.auth.login, { replace: true });
         };
 
         checkLoginResult();

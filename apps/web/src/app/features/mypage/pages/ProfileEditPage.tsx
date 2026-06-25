@@ -7,7 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore, useUpdateProfile } from '@chatic/web-core';
+import { useSessionIdentity, useUpdateProfile } from '@chatic/web-core';
 import { PageHeader } from '../../../shared/components';
 import { KeyboardAwareLayout } from '../../../shared/layouts';
 
@@ -16,7 +16,7 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const profile = useWebCoreStore(s => s.profile);
+    const { activeProfile: profile } = useSessionIdentity();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 

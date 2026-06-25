@@ -2,7 +2,8 @@ import { ChevronDown, ExternalLink, Github, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
 
 import { PageHeader } from '../../../shared/components';
 
@@ -20,7 +21,7 @@ const OpenSourceHero = () => {
 
     const handleGithubClick = () => {
         if (isNative()) {
-            webClient.post({ type: 'OpenURL', data: { url: GITHUB_URL } });
+            appBridge.openURL(GITHUB_URL);
         } else {
             window.open(GITHUB_URL, '_blank');
         }
