@@ -99,7 +99,7 @@ export const CreateRoomPage = () => {
                 onClose={() => navigate(ROUTES.root)}
                 onConfirm={() => {
                     if (createdChannelId) {
-                        navigate(ROUTES.chats.room(createdChannelId));
+                        navigate(ROUTES.channels.room(createdChannelId));
                     } else {
                         navigate(ROUTES.root);
                     }

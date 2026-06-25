@@ -82,7 +82,7 @@ export const JoinByCodePage = () => {
                             </div>
 
                             <button
-                                onClick={() => navigate(ROUTES.chats.root)}
+                                onClick={() => navigate(ROUTES.channels.root)}
                                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-accent-foreground transition-transform active:scale-[0.98]"
                             >
                                 <CheckCircle2 size={18} />

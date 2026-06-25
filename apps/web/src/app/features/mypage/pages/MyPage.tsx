@@ -238,7 +238,7 @@ export const MyPage = () => {
                     userType === UserType.SOCIAL_NO_CLOUD) && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            onClick={() => navigate(ROUTES.mypage.subscription.root)}
+                            onClick={() => navigate(ROUTES.subscription.root)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <span className="text-[15px] font-medium text-foreground">

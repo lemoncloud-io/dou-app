@@ -40,7 +40,7 @@ export const SubscriptionPage = () => {
     const hasPendingChange = !!membership?.pendingProductId;
 
     const handleViewPlans = () => {
-        navigate(ROUTES.mypage.subscription.plans);
+        navigate(ROUTES.subscription.plans);
     };
 
     const handleRestore = async () => {

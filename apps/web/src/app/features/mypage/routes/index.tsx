@@ -45,9 +45,16 @@ export const MyPageRoutes = () => {
             <Route path="policy/terms" element={<TermsPage />} />
             <Route path="policy/licenses" element={<LicensesPage />} />
             <Route path="policy/privacy" element={<PrivacyPage />} />
-            <Route path="subscription" element={<SubscriptionPage />} />
-            <Route path="subscription/plans" element={<SubscriptionPlansPage />} />
             <Route path="withdrawal" element={<WithdrawalPage />} />
+        </Routes>
+    );
+};
+
+export const SubscriptionRoutes = () => {
+    return (
+        <Routes>
+            <Route index element={<SubscriptionPage />} />
+            <Route path="plans" element={<SubscriptionPlansPage />} />
         </Routes>
     );
 };

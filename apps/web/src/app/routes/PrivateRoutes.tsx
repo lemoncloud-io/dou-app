@@ -7,6 +7,7 @@ const ChatRoutes = lazy(() => import('../features/chats').then(m => ({ default: 
 const ExploreRoutes = lazy(() => import('../features/explore').then(m => ({ default: m.ExploreRoutes })));
 const CreateRoomRoutes = lazy(() => import('../features/home').then(m => ({ default: m.CreateRoomRoutes })));
 const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.MyPageRoutes })));
+const SubscriptionRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.SubscriptionRoutes })));
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
 const NotificationsRoutes = lazy(() =>
     import('../features/notifications').then(m => ({ default: m.NotificationsRoutes }))
@@ -64,12 +65,13 @@ export const privateRoutes = [
             { index: true, element: <HomeRoutes /> },
             { path: 'explore/*', element: withSuspense(ExploreRoutes) },
             { path: 'mypage/*', element: withSuspense(MyPageRoutes) },
+            { path: 'subscription/*', element: withSuspense(SubscriptionRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },
-            { path: 'chats/*', element: withSuspense(ChatRoutes) },
+            { path: 'channels/create', element: withSuspense(CreateRoomRoutes) },
+            { path: 'channels/*', element: withSuspense(ChatRoutes) },
             { path: 'notifications/*', element: withSuspense(NotificationsRoutes) },
             { path: 'join/*', element: withSuspense(JoinRoutes) },
-            { path: 'create-room/*', element: withSuspense(CreateRoomRoutes) },
-            { path: 'places/*', element: withSuspense(PlaceRoutes) },
+            { path: 'place/*', element: withSuspense(PlaceRoutes) },
         ],
     },
 ];

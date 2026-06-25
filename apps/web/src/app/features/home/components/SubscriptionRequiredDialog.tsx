@@ -17,7 +17,7 @@ export const SubscriptionRequiredDialog = ({ open, onClose }: SubscriptionRequir
 
     const handleSubscribe = () => {
         onClose();
-        navigate(ROUTES.mypage.subscription.root);
+        navigate(ROUTES.subscription.root);
     };
 
     return createPortal(

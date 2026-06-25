@@ -92,7 +92,7 @@ export const PlaceOrderPage = () => {
     };
 
     const handleSettings = (place: DomainSite) => {
-        navigate(ROUTES.places.detail(place.id));
+        navigate(ROUTES.place.detail(place.id));
     };
 
     const handleDelete = (place: DomainSite) => {

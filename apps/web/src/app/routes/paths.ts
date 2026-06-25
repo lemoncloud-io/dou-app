@@ -38,21 +38,28 @@ export const ROUTES = {
 
     // ── Main entry (Private) ─────────────────────────────────────
     home: '/',
-    explore: '/explore',
-    notifications: '/notifications',
-    createRoom: '/create-room',
     join: '/join',
+    notifications: '/notifications',
 
-    // ── Domain detail (Private) ──────────────────────────────────
-    chats: {
-        root: '/chats',
-        room: (channelId: string) => `/chats/${channelId}/room`,
-        settings: (channelId: string) => `/chats/${channelId}/settings`,
-        roomNotifications: (channelId: string) => `/chats/${channelId}/settings/notifications`,
+    // ── Channel (Private) ────────────────────────────────────────
+    channels: {
+        root: '/channels',
+        create: '/channels/create',
+        room: (channelId: string) => `/channels/${channelId}/room`,
+        settings: (channelId: string) => `/channels/${channelId}/settings`,
+        roomNotifications: (channelId: string) => `/channels/${channelId}/settings/notifications`,
     },
-    places: {
-        order: '/places/order',
-        detail: (placeId: string) => `/places/${placeId}`,
+
+    // ── Place (Private) ──────────────────────────────────────────
+    place: {
+        order: '/place/order',
+        detail: (placeId: string) => `/place/${placeId}`,
+    },
+
+    // ── Subscription (Private) ───────────────────────────────────
+    subscription: {
+        root: '/subscription',
+        plans: '/subscription/plans',
     },
 
     // ── MyPage hub (Private) ─────────────────────────────────────
@@ -65,10 +72,6 @@ export const ROUTES = {
             edit: '/mypage/edit',
             cloudProfile: '/mypage/cloud-profile',
             withdrawal: '/mypage/withdrawal',
-        },
-        subscription: {
-            root: '/mypage/subscription',
-            plans: '/mypage/subscription/plans',
         },
         policy: {
             root: '/mypage/policy',

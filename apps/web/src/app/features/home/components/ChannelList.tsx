@@ -39,7 +39,7 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
 
     return (
         <button
-            onClick={() => navigate(ROUTES.chats.room(channel.id))}
+            onClick={() => navigate(ROUTES.channels.room(channel.id))}
             className="flex w-full items-start gap-2 rounded-[6px] px-[2px] py-2 text-left transition-colors active:bg-muted"
         >
             {/* Avatar */}

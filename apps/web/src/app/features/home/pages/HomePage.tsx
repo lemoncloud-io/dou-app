@@ -191,10 +191,6 @@ export const HomePage = () => {
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => navigate(ROUTES.notifications)} className="cursor-pointer">
-                                <Bell size={16} className="mr-2" />
-                                <span>{t('home.notifications')}</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setIsReportIssueOpen(true)} className="cursor-pointer">
                                 <CircleAlert size={16} className="mr-2" />
                                 <span>{t('home.reportIssue')}</span>
@@ -221,7 +217,7 @@ export const HomePage = () => {
                     isLoading={placesResult.isLoading}
                     isError={placesResult.isError}
                     onRefreshPlaces={placesResult.refresh}
-                    onNavigateToOrder={() => navigate(ROUTES.places.order)}
+                    onNavigateToOrder={() => navigate(ROUTES.place.order)}
                     onCreatePlace={handleCreatePlace}
                     isGuest={userType === UserType.TEMP_ACCOUNT}
                     placeUnreadCounts={placeUnreadCounts}

@@ -4,9 +4,7 @@ describe('ROUTES constants', () => {
     it('exposes the root and main entry paths', () => {
         expect(ROUTES.root).toBe('/');
         expect(ROUTES.home).toBe('/');
-        expect(ROUTES.explore).toBe('/explore');
         expect(ROUTES.notifications).toBe('/notifications');
-        expect(ROUTES.createRoom).toBe('/create-room');
         expect(ROUTES.join).toBe('/join');
     });
 
@@ -25,12 +23,18 @@ describe('ROUTES constants', () => {
         expect(ROUTES.account.resetPassword.newPassword).toBe('/account/reset-password/new-password');
     });
 
-    it('exposes chats paths and constant root', () => {
-        expect(ROUTES.chats.root).toBe('/chats');
+    it('exposes channels paths and constant root', () => {
+        expect(ROUTES.channels.root).toBe('/channels');
+        expect(ROUTES.channels.create).toBe('/channels/create');
     });
 
-    it('exposes places.order constant', () => {
-        expect(ROUTES.places.order).toBe('/places/order');
+    it('exposes place.order constant', () => {
+        expect(ROUTES.place.order).toBe('/place/order');
+    });
+
+    it('exposes the subscription hub', () => {
+        expect(ROUTES.subscription.root).toBe('/subscription');
+        expect(ROUTES.subscription.plans).toBe('/subscription/plans');
     });
 
     it('exposes the mypage hub groups', () => {
@@ -41,8 +45,6 @@ describe('ROUTES constants', () => {
         expect(ROUTES.mypage.account.edit).toBe('/mypage/edit');
         expect(ROUTES.mypage.account.cloudProfile).toBe('/mypage/cloud-profile');
         expect(ROUTES.mypage.account.withdrawal).toBe('/mypage/withdrawal');
-        expect(ROUTES.mypage.subscription.root).toBe('/mypage/subscription');
-        expect(ROUTES.mypage.subscription.plans).toBe('/mypage/subscription/plans');
         expect(ROUTES.mypage.policy.root).toBe('/mypage/policy');
         expect(ROUTES.mypage.policy.terms).toBe('/mypage/policy/terms');
         expect(ROUTES.mypage.policy.licenses).toBe('/mypage/policy/licenses');
@@ -66,19 +68,19 @@ describe('ROUTES parameterized builders', () => {
         expect(ROUTES.auth.token('abc.def')).toBe('/auth/token/abc.def');
     });
 
-    it('builds chats paths from channelId', () => {
-        expect(ROUTES.chats.room('ch1')).toBe('/chats/ch1/room');
-        expect(ROUTES.chats.settings('ch1')).toBe('/chats/ch1/settings');
-        expect(ROUTES.chats.roomNotifications('ch1')).toBe('/chats/ch1/settings/notifications');
+    it('builds channels paths from channelId', () => {
+        expect(ROUTES.channels.room('ch1')).toBe('/channels/ch1/room');
+        expect(ROUTES.channels.settings('ch1')).toBe('/channels/ch1/settings');
+        expect(ROUTES.channels.roomNotifications('ch1')).toBe('/channels/ch1/settings/notifications');
     });
 
     it('builds place detail from placeId', () => {
-        expect(ROUTES.places.detail('p42')).toBe('/places/p42');
+        expect(ROUTES.place.detail('p42')).toBe('/place/p42');
     });
 
     it('interpolates exactly the given argument', () => {
         // Guards against accidental double-encoding or fixed segments.
-        expect(ROUTES.chats.room('a/b')).toBe('/chats/a/b/room');
+        expect(ROUTES.channels.room('a/b')).toBe('/channels/a/b/room');
     });
 });
 

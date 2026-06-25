@@ -437,7 +437,7 @@ export const ChatRoomPage = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                                onClick={() => navigate(ROUTES.chats.settings(stableChannelId))}
+                                onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
                                 className="cursor-pointer gap-2"
                             >
                                 <Settings size={16} />
