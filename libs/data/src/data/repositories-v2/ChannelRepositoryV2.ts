@@ -108,7 +108,13 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const requestContext = this.getRequestContext();
         const targetSid = query.sid ?? requestContext.sid;
         const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
-        const remote = await this.channelRemoteDataSource.fetchChannel(query, mappingContext);
+        const remote = await this.channelRemoteDataSource.fetchChannel(
+            {
+                ...query,
+                detail: true,
+            },
+            mappingContext
+        );
 
         const domainList = (remote.list || []).filter(item => !item.id || !this.leftChannelIds.has(item.id));
 

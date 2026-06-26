@@ -77,7 +77,13 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     public async refreshList(query: ChatUsersInput): Promise<void> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.userRemoteDataSource.fetchUsers(query, normalizedContext);
+        const remote = await this.userRemoteDataSource.fetchUsers(
+            {
+                ...query,
+                detail: true,
+            },
+            normalizedContext
+        );
         await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
     }
 
