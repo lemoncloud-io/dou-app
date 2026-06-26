@@ -21,7 +21,6 @@ export const ROUTES = {
         login: '/auth/login',
         logout: '/auth/logout',
         oauthResponse: '/auth/oauth-response',
-        token: (token: string) => `/auth/token/${token}`,
     },
     account: {
         signup: {
@@ -38,8 +37,6 @@ export const ROUTES = {
 
     // ── Main entry (Private) ─────────────────────────────────────
     home: '/',
-    join: '/join',
-    notifications: '/notifications',
 
     // ── Channel (Private) ────────────────────────────────────────
     channels: {
@@ -47,12 +44,10 @@ export const ROUTES = {
         create: '/channels/create',
         room: (channelId: string) => `/channels/${channelId}/room`,
         settings: (channelId: string) => `/channels/${channelId}/settings`,
-        roomNotifications: (channelId: string) => `/channels/${channelId}/settings/notifications`,
     },
 
     // ── Place (Private) ──────────────────────────────────────────
     place: {
-        order: '/place/order',
         detail: (placeId: string) => `/place/${placeId}`,
     },
 
@@ -79,16 +74,17 @@ export const ROUTES = {
             licenses: '/mypage/policy/licenses',
             privacy: '/mypage/policy/privacy',
         },
-        debug: {
-            root: '/mypage/debug',
-            login: '/mypage/debug/login',
-            dashboard: '/mypage/debug/dashboard',
-            state: '/mypage/debug/state',
-            logBuffer: '/mypage/debug/log-buffer',
-            cacheTest: '/mypage/debug/cache-test',
-            uploadTest: '/mypage/debug/upload-test',
-            badgeCount: '/mypage/debug/badge-count',
-        },
+    },
+
+    // ── Debug tools (Private, hidden) ────────────────────────────
+    debug: {
+        root: '/debug',
+        login: '/debug/login',
+        dashboard: '/debug/dashboard',
+        logBuffer: '/debug/log-buffer',
+        cacheTest: '/debug/cache-test',
+        uploadTest: '/debug/upload-test',
+        badgeCount: '/debug/badge-count',
     },
 } as const;
 

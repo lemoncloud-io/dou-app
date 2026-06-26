@@ -9,11 +9,8 @@ const SubscriptionRoutes = lazy(() =>
     import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
 );
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
-const NotificationsRoutes = lazy(() =>
-    import('../features/notifications').then(m => ({ default: m.NotificationsRoutes }))
-);
-const JoinRoutes = lazy(() => import('../features/join').then(m => ({ default: m.JoinRoutes })));
 const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default: m.PlaceRoutes })));
+const DebugRoutes = lazy(() => import('../features/debug').then(m => ({ default: m.DebugRoutes })));
 
 const RouteFallback = () => (
     <div className="flex h-full flex-col bg-background px-5 pt-safe-top">
@@ -67,9 +64,8 @@ export const privateRoutes = [
             { path: 'subscription/*', element: withSuspense(SubscriptionRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },
             { path: 'channels/*', element: withSuspense(ChannelRoutes) },
-            { path: 'notifications/*', element: withSuspense(NotificationsRoutes) },
-            { path: 'join/*', element: withSuspense(JoinRoutes) },
             { path: 'place/*', element: withSuspense(PlaceRoutes) },
+            { path: 'debug/*', element: withSuspense(DebugRoutes) },
         ],
     },
 ];

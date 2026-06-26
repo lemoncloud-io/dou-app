@@ -4,8 +4,6 @@ describe('ROUTES — 상수 경로', () => {
     it('root와 메인 진입 경로를 노출한다', () => {
         expect(ROUTES.root).toBe('/');
         expect(ROUTES.home).toBe('/');
-        expect(ROUTES.notifications).toBe('/notifications');
-        expect(ROUTES.join).toBe('/join');
     });
 
     it('auth 경로를 노출한다', () => {
@@ -28,10 +26,6 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.channels.create).toBe('/channels/create');
     });
 
-    it('place.order 상수를 노출한다', () => {
-        expect(ROUTES.place.order).toBe('/place/order');
-    });
-
     it('subscription 허브를 노출한다', () => {
         expect(ROUTES.subscription.root).toBe('/subscription');
         expect(ROUTES.subscription.plans).toBe('/subscription/plans');
@@ -51,27 +45,21 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.mypage.policy.privacy).toBe('/mypage/policy/privacy');
     });
 
-    it('debug 하위 트리를 노출한다', () => {
-        expect(ROUTES.mypage.debug.root).toBe('/mypage/debug');
-        expect(ROUTES.mypage.debug.login).toBe('/mypage/debug/login');
-        expect(ROUTES.mypage.debug.dashboard).toBe('/mypage/debug/dashboard');
-        expect(ROUTES.mypage.debug.state).toBe('/mypage/debug/state');
-        expect(ROUTES.mypage.debug.logBuffer).toBe('/mypage/debug/log-buffer');
-        expect(ROUTES.mypage.debug.cacheTest).toBe('/mypage/debug/cache-test');
-        expect(ROUTES.mypage.debug.uploadTest).toBe('/mypage/debug/upload-test');
-        expect(ROUTES.mypage.debug.badgeCount).toBe('/mypage/debug/badge-count');
+    it('debug 하위 트리를 최상위 /debug 경로로 노출한다', () => {
+        expect(ROUTES.debug.root).toBe('/debug');
+        expect(ROUTES.debug.login).toBe('/debug/login');
+        expect(ROUTES.debug.dashboard).toBe('/debug/dashboard');
+        expect(ROUTES.debug.logBuffer).toBe('/debug/log-buffer');
+        expect(ROUTES.debug.cacheTest).toBe('/debug/cache-test');
+        expect(ROUTES.debug.uploadTest).toBe('/debug/upload-test');
+        expect(ROUTES.debug.badgeCount).toBe('/debug/badge-count');
     });
 });
 
 describe('ROUTES — 파라미터 빌더', () => {
-    it('auth 토큰 경로를 생성한다', () => {
-        expect(ROUTES.auth.token('abc.def')).toBe('/auth/token/abc.def');
-    });
-
     it('channelId로 channels 경로를 생성한다', () => {
         expect(ROUTES.channels.room('ch1')).toBe('/channels/ch1/room');
         expect(ROUTES.channels.settings('ch1')).toBe('/channels/ch1/settings');
-        expect(ROUTES.channels.roomNotifications('ch1')).toBe('/channels/ch1/settings/notifications');
     });
 
     it('placeId로 place 상세 경로를 생성한다', () => {

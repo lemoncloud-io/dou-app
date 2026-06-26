@@ -137,7 +137,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const remote = await this.channelRemoteDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
 
         const domainList = (remote.list || []).filter(
-            item => !!item.sid && !!item.id && !this.leftChannelIds.has(item.id)
+            item => !!item.$?.sid && !!item.id && !this.leftChannelIds.has(item.id)
         );
 
         if (domainList.length > 0) {

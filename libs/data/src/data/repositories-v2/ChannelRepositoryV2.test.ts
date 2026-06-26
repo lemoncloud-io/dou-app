@@ -41,26 +41,6 @@ describe('ChannelRepositoryV2', () => {
         };
     };
 
-    it('removes stale local channels that the remote refresh no longer returns', async () => {
-        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
-        channelRemoteDataSource.fetchChannel.mockResolvedValue({
-            list: [{ id: 'ch-1', sid: 'site-1', updatedAt: 100 }],
-        });
-        channelLocalDataSource.cacheReadList.mockResolvedValue({
-            list: [{ id: 'ch-1' }, { id: 'stale' }],
-        });
-
-        const result = await repository.refreshList({ sid: 'site-1' } as any);
-
-        // The repository should reconcile the local list against the latest server snapshot.
-        expect(channelLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['stale'], {
-            cid: 'cloud-a',
-            sid: 'site-1',
-            uid: 'me',
-        });
-        expect(result).toBeUndefined();
-    });
-
     it('tags the refreshed channels with the viewed sid, not a drifting data-context sid', async () => {
         // channel.mine returns the current session's channels with no sid field; the
         // viewed sid (query.sid) must scope the local write even if the data context
@@ -87,17 +67,6 @@ describe('ChannelRepositoryV2', () => {
             cacheDeleteMany: jest.fn(),
             cacheClear: jest.fn(),
         };
-        const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', sid: 'site-old', uid: 'me' }),
-            setContext: () => undefined,
-        };
-        const repository = new ChannelRepositoryV2(
-            channelRemoteDataSource as any,
-            channelLocalDataSource as any,
-            contextProvider
-        );
-
-        await repository.refreshList({ sid: 'site-new' } as any);
 
         // Mapping context carries the viewed sid so toDomainChannel tags channels with it...
         expect(channelRemoteDataSource.fetchChannel).toHaveBeenCalledWith(

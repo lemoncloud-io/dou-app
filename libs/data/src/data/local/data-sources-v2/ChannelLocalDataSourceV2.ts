@@ -136,7 +136,7 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         for (const item of validItems) {
             const id = item.id!;
             const existing = existingMap.get(id);
-            const sid = item.sid || existing?.sid || context.sid;
+            const sid = item.sid || item.$?.sid || existing?.sid || context.sid;
 
             if (!sid) {
                 throw new Error('[ChannelLocalDataSourceV2] sid is required to sync/save channels.');
