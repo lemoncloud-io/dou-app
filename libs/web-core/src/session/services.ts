@@ -8,7 +8,6 @@ import {
     issueCloudDelegationToken,
     issueCloudToken,
     login as loginRelayRequest,
-    loginWithInviteCode as loginWithInviteCodeRequest,
     logout as logoutRelayRequest,
     refreshAuthToken,
     refreshCloudToken,
@@ -192,25 +191,6 @@ export const loginRelaySocial = async ({
     if (provider !== undefined) {
         identityCore.setOAuthProvider(provider);
     }
-    return await applyRelayProfile(tokenView);
-};
-
-/**
- * Logs into relay using an invite code and preserves the delegator identity required by the invite flow.
- */
-export const loginWithInviteCode = async ({
-    code,
-    delegatorId,
-    backend,
-}: {
-    code: string;
-    delegatorId: string;
-    backend?: string;
-}): Promise<UserTokenView> => {
-    const tokenView = await loginWithInviteCodeRequest(code, delegatorId, backend);
-    identityCore.setIsInvited(true);
-    identityCore.setOAuthProvider(null);
-    identityCore.setDelegatorId(delegatorId);
     return await applyRelayProfile(tokenView);
 };
 

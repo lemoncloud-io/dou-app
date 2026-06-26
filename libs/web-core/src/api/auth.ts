@@ -12,6 +12,7 @@ import {
 import type {
     CloudExchangeTokenBody,
     LoginUserBody,
+    MyInviteView,
     RegisterUserV2Body,
     UserBody,
     UserLogoutResult,
@@ -131,7 +132,7 @@ export const logout = async (): Promise<UserLogoutResult> => {
 };
 
 /**
- * Login with invite code
+ * Register with invite code
  * - Uses POST /oauth/login-invite endpoint
  * - Code format: invt:<id>:<code>
  * - Sends { code, delegatorId } in request body
@@ -145,14 +146,14 @@ export const logout = async (): Promise<UserLogoutResult> => {
  * @param backend - Optional backend endpoint override from deeplink
  * @returns Promise resolving to login response with identityToken
  */
-export const loginWithInviteCode = async (
+export const registerUserWithInviteCode = async (
     code: string,
     delegatorId: string,
     backend?: string
 ): Promise<UserTokenView> => {
     const endpoint = backend ?? getDynamicRelayBackend();
     const { data } = await webTransport
-        .buildSignedRequest({
+        .buildRequest({
             method: 'POST',
             baseURL: `${endpoint}/oauth/login-invite`,
         })
@@ -212,6 +213,18 @@ export const fetchProfile = async () => {
         MAX_RETRIES,
         'Profile fetch'
     );
+};
+
+export const fetchInviteInfoWithCode = async (code: string, backend: string): Promise<MyInviteView> => {
+    const { data } = await webTransport
+        .buildSignedRequest({
+            method: 'GET',
+            baseURL: `${backend}/hello/invite-code`,
+        })
+        .setParams({ code })
+        .execute<MyInviteView & { error?: string }>();
+
+    return throwIfApiError(data);
 };
 
 /**

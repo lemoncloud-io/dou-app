@@ -1,8 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
-
-import { loginWithInviteCode } from '../../../session';
 import { useSessionIdentity } from '../readers/useSessionIdentity';
+import { registerUserWithInviteCode } from '../../../api';
 
 interface InviteFlowArgs {
     code: string;
@@ -24,7 +23,7 @@ export const useInviteFlow = () => {
                 throw new Error('No delegatorId for invite flow');
             }
 
-            return loginWithInviteCode({ code, delegatorId, backend });
+            return registerUserWithInviteCode(code, delegatorId, backend);
         },
     });
 
