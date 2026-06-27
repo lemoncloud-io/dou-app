@@ -5,7 +5,6 @@ import {
     getSyncManager,
     useChannelSync,
     useChatSync,
-    useJoinSync,
     useRuntimeRepositories,
     useSocketState,
 } from '@chatic/app-runtime';
@@ -64,18 +63,16 @@ export const ChatRoomPage = () => {
     const forceBottomRef = useRef(false); // force bottom after our own send
     const pagingAnchorRef = useRef<number | null>(null); // pre-paging scrollHeight to anchor to
     const wasNearBottomRef = useRef(true); // user is near the bottom (follow new messages)
+    const usersSinceRef = useRef(0); // channel-users sync cursor (since); advances per sync
 
     if (!channelId) return null;
 
-    useRenderCount('ChatRoom');
+    useRenderCount('CreateChannel');
 
     // 채팅 메시지(실시간 append + 초기 prime)와 채널 메타를 sync 타깃으로 등록.
     // 초기 로딩 fetch는 sync 등록 계층이 소유하므로 페이지는 refreshList를 호출하지 않는다.
     useChatSync(channelId);
     useChannelSync(channelId);
-
-    // join(read-state) 등록 — 훅이 channelId로 내 joinId를 해석해 registerJoin 한다.
-    useJoinSync(channelId);
 
     // 채널 메타 구독 — register가 channel.get을 채워 넣고 polling으로 갱신한다.
     useEffect(() => {
@@ -88,6 +85,7 @@ export const ChatRoomPage = () => {
         lastReadSentRef.current = 0;
         forceBottomRef.current = false;
         pagingAnchorRef.current = null;
+        usersSinceRef.current = 0;
         setChats([]);
         setHasMore(true);
         setPageLimit(PAGE_SIZE);
@@ -109,14 +107,35 @@ export const ChatRoomPage = () => {
         return repos.user.observeList({ channelId }, r => setUsers(r?.list ?? []));
     }, [repos.user, channelId]);
 
-    // 채널 유저 목록 네트워크 로드(channel.listUser → user 캐시). 멤버 프로필 등록의 소스가 된다.
+    // 채널 유저 목록 네트워크 로드(channel.sync-users → user + join 캐시). since 커서를 관리해
+    // 증분 동기화하며, 응답에 내장된 $join도 함께 캐시에 적재되어 멤버별 읽음 상태가 채워진다.
     // 네트워크 콜은 현재 세션에 종속되므로 isVerified 후에 실행한다(재인증/재진입 시 자동 재시도).
+    useEffect(() => {
+        if (!isVerified) return;
+        // app-runtime/data의 dist 타입이 stale해 syncChannelUsers가 아직 안 보이므로(파일 상단
+        // repos 캐스팅과 동일 사유) user repo를 좁혀 캐스팅한다. 반환값은 다음 since(syncedAt)다.
+        const userRepo = repos.user as unknown as {
+            syncChannelUsers(payload: { channelId: string; since?: number }): Promise<number>;
+        };
+        void userRepo
+            .syncChannelUsers({ channelId, since: 0 })
+            .then(syncedAt => {
+                usersSinceRef.current = syncedAt;
+            })
+            .catch(() => {
+                // best-effort; 캐시 스트림은 실패해도 유지된다
+            });
+    }, [repos.user, channelId, isVerified]);
+
+    // 채팅방 입장 시 1회 전체 유저 스냅샷 로드(channel.listUser). syncChannelUsers(증분)와 별개로,
+    // 입장 시점의 전체 멤버 + 각자의 $join(read-state)을 한 번에 받아 user/join 캐시를 hydrate한다.
     useEffect(() => {
         if (!isVerified) return;
         void repos.user.refreshList({ channelId }).catch(() => {
             // best-effort; 캐시 스트림은 실패해도 유지된다
         });
     }, [repos.user, channelId, isVerified]);
+
     useEffect(() => {
         return repos.join.observeList({ channelId }, r => setJoins(r?.list ?? []));
     }, [repos.join, channelId]);
@@ -135,9 +154,41 @@ export const ChatRoomPage = () => {
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
     const profileMap = useMemo(() => new Map(profiles.map(p => [p.userId ?? p.uid, p])), [profiles]);
 
-    // 메시지별 "안읽은 인원수": 보낸이를 뺀 멤버 중 readNo가 해당 chatNo 미만인 수.
+    // 채팅방 전체 멤버(참여자) — source of truth는 channel.memberIds. 내 uid는 항상 포함한다.
+    const memberIds = useMemo(() => {
+        const set = new Set<string>(channel?.memberIds ?? []);
+        if (myUid) set.add(myUid);
+        return [...set];
+    }, [channel?.memberIds, myUid]);
+
+    // 멤버별 읽음 커서. API는 읽음 위치를 join.chatNo("last read chat number")에 담고(내 join만
+    // readChat이 readNo를 추가로 채움), join이 없는 멤버는 "들어왔지만 아무 행위 없음"이라 커서 0이다.
+    const cursorByUser = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const j of joins) {
+            if (!j.userId) continue;
+            map.set(j.userId, Math.max(j.readNo ?? 0, j.chatNo ?? 0));
+        }
+        return map;
+    }, [joins]);
+
+    // 메시지별 "안읽은 인원수": 전체 멤버 기준(join 없는 사람 = 커서 0 포함)으로 커서가 해당
+    // chatNo 미만인 사람 수. 단, 보낸이(본인)는 제외한다.
     const countUnread = (chat: DomainChat): number =>
-        joins.filter(j => j.userId !== chat.ownerId && (j.readNo ?? 0) < chat.chatNo).length;
+        memberIds.filter(uid => uid !== chat.ownerId && (cursorByUser.get(uid) ?? 0) < chat.chatNo).length;
+
+    // join(read-state) 플랜 등록 — 전체 멤버(channel.memberIds) 기준으로 `channelId@userId`마다 등록해
+    // 모든 멤버의 읽음 커서가 갱신되게 한다. profile 등록과 달리 sid에 의존하지 않으므로 별도 effect로
+    // 분리한다(예전엔 sid 게이트에 묶여 sid가 없으면 join이 통째로 등록되지 않았다). registerJoin은
+    // 키로 refcount하므로 useJoinSync의 내 join 등록과 dedup된다.
+    const memberKey = memberIds.join(',');
+    useEffect(() => {
+        if (!isVerified) return;
+        const sync = getSyncManager();
+        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
+        return () => disposers.forEach(dispose => dispose());
+        // memberKey가 멤버 집합을 대표한다(memberIds는 키당 1회 읽음).
+    }, [channelId, isVerified, memberKey]);
 
     useEffect(() => {
         if (!isVerified || !sid) return;
@@ -145,17 +196,8 @@ export const ChatRoomPage = () => {
         let disposers: Array<() => void> = [];
 
         void (async () => {
-            try {
-                await repos.user.refreshList({ channelId });
-            } catch {
-                // best-effort; cacheReadList below still uses whatever is locally available
-            }
-            try {
-                await repos.join.refreshList({ channelId, activeOnly: false });
-            } catch {
-                // best-effort; other sources below still participate
-            }
-
+            // 채널 유저/join 적재는 위의 syncChannelUsers 전용 effect가 소유한다.
+            // 여기서는 캐시에 이미 들어온 값만 읽어 profile 등록 대상을 추린다(best-effort).
             const [userResult, joinResult] = await Promise.all([
                 repos.user.cacheReadList({ channelId }),
                 repos.join.cacheReadList({ channelId, activeOnly: false }),
@@ -192,17 +234,11 @@ export const ChatRoomPage = () => {
 
             const sync = getSyncManager();
 
-            // Register a join (read-state) plan per member as `channelId@userId` so every member's
-            // read cursor stays live, not just my own. useJoinSync already registers my join with
-            // the same composite id; register() refcounts by target key, so it dedups. No explicit
-            // intervalMs — match useJoinSync's key so the dedup holds.
-            const joinDisposers = [...memberUserIds].map(userId => sync.registerJoin(`${channelId}@${userId}`));
-
-            const profileDisposers = profileTargetIds.map(profileId =>
+            // join(read-state) 등록은 위의 전용 effect(memberIds 기준, sid 무관)가 소유한다.
+            // 여기서는 profile sync만 등록한다.
+            disposers = profileTargetIds.map(profileId =>
                 sync.register({ type: 'profile', id: profileId, intervalMs: 5000 })
             );
-
-            disposers = [...joinDisposers, ...profileDisposers];
         })();
 
         return () => {

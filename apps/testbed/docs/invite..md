@@ -4,11 +4,11 @@ testbed에서 초대 생성 → 코드 복사 → 수락 → 타겟(cid/sid/chan
 
 ## 구성
 
-| 항목             | 위치                                                                 |
-| ---------------- | -------------------------------------------------------------------- |
-| 초대 코드 codec  | `features/invite/inviteCode.ts` (`encodeInvite`/`decodeInvite`)      |
-| 초대 생성 팝업   | `features/invite/InviteCreateDialog.tsx` (ChatRoom 헤더 "초대" 버튼) |
-| 초대 수락 페이지 | `pages/InvitePage.tsx` — 라우트 `/invite`                            |
+| 항목             | 위치                                                                      |
+| ---------------- | ------------------------------------------------------------------------- |
+| 초대 코드 codec  | `features/invite/inviteCode.ts` (`encodeInvite`/`decodeInvite`)           |
+| 초대 생성 팝업   | `features/invite/InviteCreateDialog.tsx` (CreateChannel 헤더 "초대" 버튼) |
+| 초대 수락 페이지 | `pages/InvitePage.tsx` — 라우트 `/invite`                                 |
 
 ## 초대 코드(번들) 형식
 
@@ -28,7 +28,7 @@ interface InvitePayload {
 
 `decodeInvite`는 base64/JSON 파싱 실패나 필수 필드(code/cid/sid/channelId) 누락 시 `null`을 반환해, 절반만 전환되는 상황을 막는다.
 
-## 1) 초대 생성 (ChatRoom)
+## 1) 초대 생성 (CreateChannel)
 
 1. 채팅방 헤더 "초대" → `InviteCreateDialog`.
 2. `name`, `phone` 입력 → `repos.user.requestInvite({ channelId, name, phone })`.
@@ -74,4 +74,4 @@ interface InvitePayload {
 ## 검증
 
 - 유닛: `inviteCode.test.ts` (라운드트립·가드).
-- 수동(2세션): A가 ChatRoom에서 코드 생성·복사 → B(게스트)가 `/invite`에서 붙여넣기·수락 → cid→sid→channelId 전환 후 방 입장, ChatHome 초대 클라우드 목록/`invitecloud` 캐시 확인.
+- 수동(2세션): A가 CreateChannel에서 코드 생성·복사 → B(게스트)가 `/invite`에서 붙여넣기·수락 → cid→sid→channelId 전환 후 방 입장, ChatHome 초대 클라우드 목록/`invitecloud` 캐시 확인.

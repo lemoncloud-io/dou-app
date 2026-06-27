@@ -195,7 +195,7 @@ apps/testbed/
       RuntimeOverlay.tsx
     pages/
       ChatHomePage.tsx
-      ChatRoomPage.tsx
+      CreateChannelPage.tsx
       SettingsPage.tsx
       LoginPage.tsx
 ```

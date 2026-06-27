@@ -141,8 +141,6 @@ export const ChatHomePage = () => {
             setChannels([]);
             return;
         }
-        console.log('TRACE ACTIVEID', activeSiteId);
-
         return repos.channel.observeList({ sid: activeSiteId }, result => {
             // On the relay/default cloud the channel cache read does NOT isolate by sid
             // (ChannelLocalDataSourceV2.cacheReadList bypasses the sid filter when cid==='default'),
@@ -150,7 +148,6 @@ export const ChatHomePage = () => {
             // active site here so a relay site switch never flashes the prior site's list. On a
             // cloud (cid!='default') the list is already sid-scoped, so this is a no-op.
             const list = (result?.list ?? []).filter(channel => channel.sid === activeSiteId);
-            console.log('TRACE CHANNEL', list);
             setChannels(list);
             metricsCollector.reportObservation('channel');
         });
