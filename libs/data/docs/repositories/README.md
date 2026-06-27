@@ -145,12 +145,12 @@ repository V2는 sync 스펙을 해석하는 계층입니다.
 - `refreshList`
 - `updateProfile`
 - `requestInvite`, `requestInviteBatch`
-- `refreshChannelUsers`
+- `syncChannelUsers`
 - `cache*`
 
 특징:
 
-- `refreshChannelUsers` 는 `channel.sync-users` 결과를 local에 반영한다.
+- `syncChannelUsers` 는 `channel.sync-users` 결과를 local에 반영한다.
 - **profile 관련 책임은 User에서 제거됐다.** 사이트 프로필 조회/저장/동기화는 전용 `ProfileRepositoryV2`(아래 Profile)가 담당한다. `updateProfile`(`user.update`)은 사용자 본인 계정 프로필 수정으로 site-profile과 별개다.
 - 따라서 user domain의 모든 메서드가 local-first sync로 동작한다고 가정하면 안 된다.
 
