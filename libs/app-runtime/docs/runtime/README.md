@@ -62,6 +62,7 @@ export interface RuntimeBinding {
 ## 관련 문서
 
 - [../architecture.md](../architecture.md)
-- [../socket/socket.md](../socket/socket.md)
+- [./session-lifecycle.md](./session-lifecycle.md) — Runner / Bootstrap 라이프사이클
+- [../socket/README.md](../socket/README.md)
 - [../sync/README.md](../sync/README.md)
-- [../data/data.md](../data/data.md)
+- [../data/README.md](../data/README.md)

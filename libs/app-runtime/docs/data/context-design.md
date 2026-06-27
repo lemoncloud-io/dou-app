@@ -1,6 +1,8 @@
-# Data Context Improvement
+# Data Context 설계 (전역/요청 context 분리)
 
-Date: 2026-06-23
+Date: 2026-06-23 · 상태: 확정 설계 (구현 진행 기준)
+
+> data context 모델을 전역 추적과 요청 단위 snapshot으로 분리하는 설계 결정 기록. site 전환 후 socket `auth:update` 재실행 규칙의 정본은 [../socket/README.md](../socket/README.md) 참조.
 
 ## Decision Summary
 
@@ -407,22 +409,7 @@ sequenceDiagram
     - `updateAuth()` 실패는 기존 401 복구 플로우와 동일한 복구 경로를 탄다.
     - 최종 실패 시 UI는 새 context를 보더라도 remote 기능은 보호 상태로 들어갈 수 있음을 명시한다.
 
-## 13. Validation
-
-이 문서는 아래 기준으로 자체 검증했다.
-
-- 문제와 목표가 현재 코드 구조에 직접 매핑되는가
-    - 예. `RuntimeDataBinder`, `DataManager`, `BaseRepositoryV2`, `BaseLocalDataSourceV2`를 근거로 작성했다.
-- 수동 주입 요구가 현재 public API에 없는 사실을 문서가 드러내는가
-    - 예. local layer의 `contextOverride` 지원과 repository surface 부재를 분리해서 명시했다.
-- 수동 주입의 사용 목적이 일반 기능이 아니라 debug 중심이라는 제약이 반영되었는가
-    - 예. goal, non-goal, facade 책임, rollout에 반영했다.
-- site 전환 후 `auth:update` 필요성이 구현 경로까지 연결되었는가
-    - 예. `RuntimeDataBinder`/`SocketBinder`의 현재 한계를 명시하고 `SocketAuthBinder` 권장안을 추가했다.
-- 모호한 부분이 남아 있는가
-    - 일부 있다. 아래 open question을 후속 승인 전에 정해야 한다.
-
-## 14. Open Questions
+## 13. Open Questions (미결정 사항)
 
 1. `withContext(context)`의 context는 완전한 snapshot만 허용할지, partial context도 허용할지 결정이 필요하다.
     - 현재 요구만 보면 "덮어쓰기" 의미가 강하므로 complete snapshot 강제가 더 안전하다.
@@ -430,8 +417,8 @@ sequenceDiagram
 3. observer API도 장기적으로 `withContext()` facade를 지원할지, 기본은 전역 재구독 전략으로 둘지 정해야 한다.
 4. `session-switch`를 새로운 auth reason으로 추가할지, 기존 `reconnect`를 재사용할지 결정이 필요하다.
 
-## 15. Approval Gate
+## 관련 문서
 
-이 문서 기준으로 승인하면, 다음 단계에서는 실제 코드 변경 범위를 `app-runtime data manager`, `repositories.withContext()`, `V2 repository request snapshot`, `tests` 순서로 구현한다.
-
-이 문서로 승인할까요? 승인하면 구현 단계로 넘어가서 실제 코드 변경을 시작하겠습니다.
+- [README.md](README.md) — data 도메인 스펙
+- [../socket/README.md](../socket/README.md) — site 전환 시 socket `auth:update` 재실행 규칙
+- [../runtime/README.md](../runtime/README.md) — `RuntimeDataBinder` / binder 역할

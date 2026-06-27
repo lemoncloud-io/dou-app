@@ -149,11 +149,7 @@ libs/app-runtime/src/socket/sync/
 
 ## 현재 코드와의 차이
 
-정렬 완료 (2026-06-24): `AppSyncRuntime`은 `SyncManager`로 재편되었다.
-
-- runtime attach/detach 책임이 `SyncManager`에 있다.
-- `createDeviceRuntime` 호출 위치가 `SyncManager` 내부다 (튜닝 옵션 `runtimeOptions` 주입 포함).
-- hook(`useChatSync`/`useChannelSync`/`usePlaceSync`)은 `getSyncManager()` 진입점만 사용한다.
+정렬 완료 (2026-06-24): `AppSyncRuntime`은 `SyncManager`로 재편되었다. 자세한 정렬 상태는 [../architecture.md](../architecture.md#현재-코드와의-차이) 참조.
 
 ## 구현 체크리스트
 
@@ -163,3 +159,10 @@ libs/app-runtime/src/socket/sync/
 4. `register()` 또는 `startSync()` public API 정리
 5. hook 호출부를 새 진입점으로 교체
 6. replay/ref count 정책 추가 여부 결정
+
+## 관련 문서
+
+- [usage.md](usage.md) — 앱 사용 패턴 (register / 수동 콜 / chat prime)
+- [library-internals.md](library-internals.md) — 라이브러리 내부 동작 (plan 패밀리·트리거 시점·함정)
+- [gateway-reference.md](gateway-reference.md) — 게이트웨이 요청/응답 레퍼런스
+- [../architecture.md](../architecture.md) — 전체 아키텍처·3축 소유 규칙

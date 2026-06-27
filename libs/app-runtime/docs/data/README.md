@@ -82,3 +82,9 @@ flowchart TD
 - 외부 세션 레이어가 필요 시 `DataManager.destroy()`를 호출한다.
 - data는 자기 리소스만 정리한다.
 - socket/session 상태를 직접 제어하지 않는다.
+
+## 관련 문서
+
+- [context-design.md](context-design.md) — 전역/요청 context 분리 설계
+- [../architecture.md](../architecture.md) — 전체 아키텍처·3축 소유 규칙
+- [../sync/README.md](../sync/README.md) — sync 결과의 cache 반영 경계

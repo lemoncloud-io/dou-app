@@ -138,10 +138,10 @@ export interface SocketSessionDelegate {
 
 ## 구현 메모
 
-정렬 완료 (2026-06-24): `ManagedSocketClientProxy`는 제거되었고 request facade(request/send/onType rebind + 401 재시도)는 `SocketManager`에 흡수되었다.
+정렬 완료 (2026-06-24): `ManagedSocketClientProxy`는 제거되었고 request facade(request/send/onType rebind + 401 재시도)는 `SocketManager`에 흡수되었다. 자세한 정렬 상태는 [../architecture.md](../architecture.md#현재-코드와의-차이) 참조.
 
-도달한 상태:
+## 관련 문서
 
-- gateway 참조점은 `SocketManager` 하나
-- 세션 참조점은 `SocketSessionController` 하나
-- 401 재시도 메커니즘은 `SocketManager.request`, 복구 정책은 주입된 핸들러(controller)
+- [../architecture.md](../architecture.md) — 전체 아키텍처·3축 소유 규칙
+- [../public-surface.md](../public-surface.md) — 공개 API 표면
+- [../runtime/README.md](../runtime/README.md) — composition root·binder 역할

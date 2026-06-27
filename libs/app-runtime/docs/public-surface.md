@@ -46,8 +46,7 @@ Status: Target Architecture
 
 주의:
 
-- `ManagedSocketClientProxy`는 제거되었다 (request facade는 `SocketManager`로 흡수).
-- `AppSyncRuntime`는 `SyncManager`로 재편되었다. 진입점은 `getSyncManager()`.
+- `ManagedSocketClientProxy`는 제거(request facade는 `SocketManager`로 흡수), `AppSyncRuntime`는 `SyncManager`로 재편(진입점 `getSyncManager()`)되었다. 정렬 상태 전체는 [architecture.md](./architecture.md#현재-코드와의-차이) 참조.
 
 ## 앱 조립 예시
 
@@ -82,7 +81,7 @@ const App = () => {
 ## 관련 문서
 
 - [architecture.md](./architecture.md)
-- [runtime/runtime.md](./runtime/runtime.md)
-- [socket/socket.md](./socket/socket.md)
+- [runtime/README.md](./runtime/README.md)
+- [socket/README.md](./socket/README.md)
 - [sync/README.md](./sync/README.md)
-- [data/data.md](./data/data.md)
+- [data/README.md](./data/README.md)
