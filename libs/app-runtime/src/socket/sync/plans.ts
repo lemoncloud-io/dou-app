@@ -80,9 +80,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 void join.cacheWrite(toDomainJoin(view, getContext()));
             },
             onRemove: target => {
-                if (!target.id) return;
-                const { join } = getRepositories();
-                void join.cacheDelete(target.id);
+                //TODO: Join 플랜 적용 개선필요
             },
         }),
     ];
