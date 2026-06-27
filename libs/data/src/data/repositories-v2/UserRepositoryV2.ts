@@ -5,8 +5,9 @@ import type {
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
-import type { DomainListResult, DomainUser } from '../domain';
-import type { IUserLocalDataSourceV2 } from '../local/data-sources-v2';
+import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
+import { toDomainJoinFromUser } from '../domain';
+import type { IJoinLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from '../repositories';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
@@ -19,7 +20,7 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser>;
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
     requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]>;
-    refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<void>;
+    syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;
@@ -34,6 +35,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
     constructor(
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
+        private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
         super(contextProvider);
@@ -84,7 +86,19 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
             },
             normalizedContext
         );
-        await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
+        const users = remote.list || [];
+        await this.userLocalDataSource.cacheWriteMany(users, requestContext);
+
+        // listUser 응답의 각 user에 read-state가 `$join`으로 실려온다(detail: true). user 캐시와
+        // 함께 join 캐시도 hydrate해, 멤버별 읽음 커서가 별도 join.get 없이 채워지게 한다.
+        const channelId = (query as { channelId?: string }).channelId;
+        const joins = users
+            .map(user => toDomainJoinFromUser(user, normalizedContext, channelId))
+            .filter((join): join is DomainJoin => !!join);
+
+        if (joins.length > 0) {
+            await this.joinLocalDataSource.cacheWriteMany(joins, requestContext);
+        }
     }
 
     public async updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser> {
@@ -117,10 +131,19 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         return result.list || [];
     }
 
-    public async refreshChannelUsers(payload: ChannelSyncUsersInput): Promise<void> {
+    public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.userRemoteDataSource.syncChannelUsers(payload, normalizedContext);
-        await this.userLocalDataSource.cacheWriteMany(remote.list || [], requestContext);
+
+        await this.userLocalDataSource.cacheWriteMany(remote.users, requestContext);
+        // Members arrive with their read-state embedded (`$join`); persist it so every
+        // member's join row is hydrated from the same response, not a separate join.get.
+        if (remote.joins.length > 0) {
+            await this.joinLocalDataSource.cacheWriteMany(remote.joins, requestContext);
+        }
+
+        // syncedAt is the cursor the caller passes back as `since` on the next sync.
+        return remote.syncedAt;
     }
 }

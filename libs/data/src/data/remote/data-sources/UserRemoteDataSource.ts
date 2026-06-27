@@ -1,10 +1,22 @@
 import type { ChannelUsersSyncView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import type { DomainListResult, DomainUser } from '../../domain';
-import { createDomainListResult, toDomainUser } from '../../domain';
+import type { DomainJoin, DomainListResult, DomainUser } from '../../domain';
+import { createDomainListResult, toDomainJoinFromUser, toDomainUser } from '../../domain';
 import type { DataContext } from '../../repositories';
 import type { UserDomainGateway } from '../gateways';
+
+/**
+ * Result of a channel user sync. Members arrive with their `$join` (read-state) embedded,
+ * so we surface joins alongside users; `syncedAt` is the cursor for the next `since`, and
+ * `ids` lists every currently-active member (for leave/kick detection).
+ */
+export interface ChannelUsersSyncResult {
+    users: DomainUser[];
+    joins: DomainJoin[];
+    ids: string[];
+    syncedAt: number;
+}
 
 export type UserFetchUsersInput = Parameters<UserDomainGateway['listUser']>[0];
 export type UserUpdateProfilePayload = Parameters<UserDomainGateway['update']>[0];
@@ -21,8 +33,8 @@ export interface IUserRemoteDataSource {
     requestInvite(payload: UserRequestInviteInput): Promise<MyInviteView>;
     /** 여러 사용자를 일괄 초대합니다. (도메인 user가 아닌 초대 뷰) */
     inviteBatch(payload: UserInviteBatchPayload): Promise<ListResult<MyInviteView>>;
-    /** 채널 멤버 동기화를 요청하고 도메인 모델 목록으로 반환합니다. */
-    syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<DomainListResult<DomainUser>>;
+    /** 채널 멤버를 since 기준으로 동기화하고, 유저 + 내장 join + 커서(syncedAt)를 반환합니다. */
+    syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<ChannelUsersSyncResult>;
 }
 
 /**
@@ -56,9 +68,17 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
     public async syncChannelUsers(
         payload: UserSyncChannelUsersInput,
         context: DataContext
-    ): Promise<DomainListResult<DomainUser>> {
+    ): Promise<ChannelUsersSyncResult> {
         const remote = await this.gateway.syncUsers<ChannelUsersSyncView>(payload);
-        const list = (remote?.list || []).map(item => toDomainUser(item, context));
-        return createDomainListResult(list, { total: list.length, source: 'remote' });
+        const rawList = remote?.list || [];
+        const channelId = (payload as { channelId?: string }).channelId;
+
+        const users = rawList.map(item => toDomainUser(item, context));
+        // Each member carries its read-state in `$join`; surface it alongside the users.
+        const joins = rawList
+            .map(item => toDomainJoinFromUser(item, context, channelId))
+            .filter((join): join is DomainJoin => !!join);
+
+        return { users, joins, ids: remote?.ids || [], syncedAt: remote?.syncedAt || 0 };
     }
 }

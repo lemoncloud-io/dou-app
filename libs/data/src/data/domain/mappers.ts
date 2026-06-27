@@ -127,6 +127,31 @@ export const toDomainJoin = (api: ApiInput<JoinView, DomainJoin>, context: DataC
 };
 
 /**
+ * Channel user views (listUser / sync-users) embed the member's read-state in `$join`.
+ * Extract it into a DomainJoin, backfilling channelId/userId/id from the request and the
+ * parent user when the embedded view omits them. Returns null when there is no `$join`.
+ */
+export const toDomainJoinFromUser = (
+    user: { id?: string; $join?: JoinView },
+    context: DataContext,
+    channelId?: string
+): DomainJoin | null => {
+    const join = user.$join;
+    if (!join) return null;
+    const joinChannelId = join.channelId || channelId;
+    const joinUserId = join.userId || user.id;
+    return toDomainJoin(
+        {
+            ...join,
+            channelId: joinChannelId,
+            userId: joinUserId,
+            id: join.id || (joinChannelId && joinUserId ? `${joinChannelId}@${joinUserId}` : undefined),
+        } as JoinView,
+        context
+    );
+};
+
+/**
  * API View -> DomainUser. Collects channel ids from the user's own `channelId`
  * and an optional embedded `$join`, neither of which is part of the typed UserView.
  */

@@ -72,5 +72,36 @@ describe('UserRemoteDataSource', () => {
 
             expect(domain).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
         });
+
+        it('syncChannelUsers 응답에서 user와 내장 $join을 분리해 변환하고 커서를 반환한다', async () => {
+            (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
+                list: [
+                    { id: 'u1', name: 'Alice', $join: { id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', chatNo: 9 } },
+                    { id: 'u2', name: 'Bob' }, // join 없음 → joins에서 제외
+                ],
+                ids: ['u1', 'u2'],
+                syncedAt: 1700,
+            });
+
+            const result = await dataSource.syncChannelUsers({ channelId: 'ch-1' } as any, context);
+
+            expect(result.users.map(u => u.id)).toEqual(['u1', 'u2']);
+            expect(result.joins).toHaveLength(1);
+            expect(result.joins[0]).toMatchObject({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', cid: 'cloud-a' });
+            expect(result.ids).toEqual(['u1', 'u2']);
+            expect(result.syncedAt).toBe(1700);
+        });
+
+        it('$join에 channelId/userId가 없으면 요청 channelId와 부모 user id로 보강한다', async () => {
+            (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
+                list: [{ id: 'u1', $join: { chatNo: 3 } }],
+                ids: ['u1'],
+                syncedAt: 1,
+            });
+
+            const result = await dataSource.syncChannelUsers({ channelId: 'ch-1' } as any, context);
+
+            expect(result.joins[0]).toMatchObject({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1' });
+        });
     });
 });
