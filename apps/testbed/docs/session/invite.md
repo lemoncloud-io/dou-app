@@ -75,3 +75,9 @@ interface InvitePayload {
 
 - 유닛: `inviteCode.test.ts` (라운드트립·가드).
 - 수동(2세션): A가 CreateChannel에서 코드 생성·복사 → B(게스트)가 `/invite`에서 붙여넣기·수락 → cid→sid→channelId 전환 후 방 입장, ChatHome 초대 클라우드 목록/`invitecloud` 캐시 확인.
+
+## 관련 문서
+
+- [README.md](README.md) — 설정/세션 제어 페이지
+- [../chat/README.md](../chat/README.md) — ChatHome에서 초대 클라우드 선택·입장
+- [../overlay/README.md](../overlay/README.md) — `invitecloud` 캐시 확인

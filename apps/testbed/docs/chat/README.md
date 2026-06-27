@@ -92,17 +92,9 @@
 
 ### 4.2 cloud 세션 상태에서 중계서버 클라우드(relay)로 복귀
 
-- 현재 cloud 세션 상태에서 기본(relay) 클라우드를 클릭하면 cloud 세션 로그아웃으로 처리한다
-- 구현: `useLogoutCloudSession()` hook의 `logoutCloudSession()` 호출
-- relay 세션은 유지된다
-- `logoutCloudSession()` 내부에서 `cloud.isActive`가 `false`로 변경되면
-  `resolveActiveServerContext`가 자동으로 `activeServer.kind = 'relay'`로 전환한다
-- `activeServer`가 relay로 바뀐 시점에 채팅 홈은 relay 기준으로 place / channel 목록을 재조회한다
-
-코드 근거:
-
-- `libs/web-core/src/hooks/session/actions/useLogoutCloudSession.ts` — cloud 세션 로그아웃 hook
-- `libs/web-core/src/session/contextStore.ts` — `resolveActiveServerContext` (cloud.isActive false → relay 자동 전환)
+- 현재 cloud 세션 상태에서 기본(relay) 클라우드를 클릭하면 cloud 세션 로그아웃으로 처리한다 (relay 세션은 유지)
+- `activeServer`가 relay로 자동 전환된 시점에 채팅 홈은 relay 기준으로 place / channel 목록을 재조회한다
+- cloud 로그아웃 메커니즘(`useLogoutCloudSession` / `resolveActiveServerContext` 자동 전환)과 코드 근거는 [../session/README.md](../session/README.md#cloud-로그아웃)가 정본이다.
 
 ### 4.3 내 클라우드 / 초대 클라우드 세션 로그아웃
 
@@ -135,3 +127,9 @@
 - relay 전환 직후 기존 cloud 기준 place/channel 목록이 즉시 폐기되고 relay 기준으로 재조회되어야 한다
 - place 전환 후 channel 목록이 캐싱 스트림 결과로 갱신되어야 한다
 - 활성 place가 없을 때 channel 빈 상태 문구가 노출되어야 한다
+
+## 관련 문서
+
+- [room.md](room.md) — 채널 상세 페이지
+- [../session/README.md](../session/README.md) — cloud/relay 로그아웃 정본
+- [../architecture.SPEC.md](../architecture.SPEC.md) — 전체 아키텍처·상태 전이

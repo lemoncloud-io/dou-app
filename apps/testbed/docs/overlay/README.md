@@ -190,3 +190,8 @@ repositories 타입-키 대응:
 - 행 단위 Delete 이후 해당 row가 결과 목록에서 즉시 사라져야 한다
 - Clear All 실행 후 해당 타입의 row count가 0이 되어야 한다
 - DB 조작 결과가 전역 스토어나 채팅 화면 상태에 영향을 주지 않아야 한다
+
+## 관련 문서
+
+- [../architecture.SPEC.md](../architecture.SPEC.md) — 전체 아키텍처·전역 UX 규칙
+- [../session/README.md](../session/README.md) — 로그인 이동·로그아웃 액션(오버레이는 조회 중심)

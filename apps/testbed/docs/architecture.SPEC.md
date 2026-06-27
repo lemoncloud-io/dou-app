@@ -181,11 +181,15 @@ apps/testbed/
   docs/
     README.md
     architecture.SPEC.md
-    overlay.SPEC.md
-    chat-home-page.SPEC.md
-    chat-room-page.SPEC.md
-    settings-page.SPEC.md
-    login-page.SPEC.md
+    chat/
+      README.md           # 채팅 홈
+      room.md             # 채널 상세
+    session/
+      README.md           # 설정 / 세션 제어
+      login.md            # 이메일 로그인
+      invite.md           # 초대 플로우
+    overlay/
+      README.md           # 전역 오버레이
   src/app/
     app.tsx
     routes.tsx
