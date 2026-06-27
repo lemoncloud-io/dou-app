@@ -2,18 +2,15 @@
 
 `web-core`는 웹 클라이언트가 공통으로 사용하는 런타임 경계입니다.
 
-## 문서 목록
+## 기능 폴더
 
-- [session/README.md](./session/README.md): `session` 계층의 역할과 경계
-- [session/context-model.md](./session/context-model.md): 컨텍스트 정의와 source of truth
-- [session/session-scenarios.md](./session/session-scenarios.md): 토큰 전환, 갱신, 소켓 인증, 초대 흐름
-- [session/public-api.md](./session/public-api.md): 공개 세션 API 계약
-- [transport/README.md](./transport/README.md): `transport` 계층의 역할과 경계
-- [transport/runtime-model.md](./transport/runtime-model.md): transport runtime 모델과 init 규칙
-- [transport/request-lifecycle.md](./transport/request-lifecycle.md): request builder와 auth 흐름
-- [hooks/README.md](./hooks/README.md): `hooks` 계층의 역할, 분류 원칙, 정리 방향
-- [hooks/public-surface.md](./hooks/public-surface.md): 외부 공개 hook / sessionContext surface 규칙 (로직 ↔ hook 매핑)
-- [hooks/orchestration.md](./hooks/orchestration.md): app lifecycle/loop hook의 동작 정책 (항시 로그인·병렬 리프레시·single-flight·디바이스 등록)
+`session`이 relay/cloud/identity를 묶는 통합 경계이므로 문서는 session부터 읽는 것을 권한다.
+
+| 폴더                                | 개요(README)                                                   | 그 외 문서                                                                                                                                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [session/](./session/README.md)     | 전역 세션 read model — relay/cloud/identity/active server 조합 | [context-model.md](./session/context-model.md) — 컨텍스트 정의·source of truth · [session-scenarios.md](./session/session-scenarios.md) — 전환/갱신/소켓 인증/초대 시나리오 · [public-api.md](./session/public-api.md) — 공개 세션 API 계약 |
+| [transport/](./transport/README.md) | transport 계층의 역할과 경계                                   | [runtime-model.md](./transport/runtime-model.md) — runtime 모델·init 규칙 · [request-lifecycle.md](./transport/request-lifecycle.md) — request builder·auth 흐름                                                                            |
+| [hooks/](./hooks/README.md)         | hook 분류 원칙·폴더 구조·정리 방향                             | [public-surface.md](./hooks/public-surface.md) — 공개 hook/surface 규칙(로직↔hook 매핑) · [orchestration.md](./hooks/orchestration.md) — lifecycle/loop hook 동작 정책                                                                     |
 
 ## 범위
 

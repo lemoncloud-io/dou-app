@@ -326,3 +326,9 @@ Cloud case:
 - `IdentityContext`에서 runtime 성격 필드를 분리해 `SessionRuntimeContext`로 정리
 - `IdentityContext`는 사용자 identity 및 permission 모델에 집중
 - `contextStore`는 저장소가 아니라 assembler 역할에 집중
+
+## 관련 문서
+
+- [README.md](./README.md) — session 계층의 역할과 경계
+- [public-api.md](./public-api.md) — 공개 세션 API 계약
+- [session-scenarios.md](./session-scenarios.md) — 전이 service 시나리오
