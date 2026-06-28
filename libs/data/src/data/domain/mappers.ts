@@ -83,7 +83,7 @@ export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, conte
         ...api,
         id: toStringSafe(api.id),
         cid,
-        sid: api.sid || context.sid || '',
+        sid: api.$?.sid || context.sid || '',
         isNotificationEnabled: toBooleanSafe(api.isNotificationEnabled, true),
         lastActivityAt: Math.max(lastChatAtMs, updatedAtMs),
     };

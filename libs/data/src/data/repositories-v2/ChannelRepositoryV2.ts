@@ -112,6 +112,7 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             {
                 ...query,
                 detail: true,
+                limit: 100,
             },
             mappingContext
         );
