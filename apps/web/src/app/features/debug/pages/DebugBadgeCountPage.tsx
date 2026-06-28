@@ -1,12 +1,10 @@
 import { Bell, ChevronLeft, Minus, Plus, RefreshCw, RotateCcw, Send } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { usePlaceUnreadCounts } from '../../../hooks/usePlaceUnreadCounts';
-
-type BadgeAction = 'fetch' | 'set' | 'clear' | 'sync';
+type BadgeAction = 'fetch' | 'set' | 'clear';
 type ActionStatus = 'idle' | 'pending' | 'success' | 'error';
 
 type ActionLog = {
@@ -26,17 +24,7 @@ const getResponseCount = (response: { data?: unknown }): number | null => {
 
 export const DebugBadgeCountPage = () => {
     const navigate = useNavigateWithTransition();
-    const placeUnreadCounts = usePlaceUnreadCounts();
     const isOnNative = isNative();
-
-    const unreadTotal = useMemo(
-        () => Object.values(placeUnreadCounts).reduce((sum, count) => sum + count, 0),
-        [placeUnreadCounts]
-    );
-    const placeUnreadEntries = useMemo(
-        () => Object.entries(placeUnreadCounts).sort(([a], [b]) => a.localeCompare(b)),
-        [placeUnreadCounts]
-    );
 
     const [inputCount, setInputCount] = useState('1');
     const [nativeBadgeCount, setNativeBadgeCount] = useState<number | null>(null);
@@ -112,15 +100,9 @@ export const DebugBadgeCountPage = () => {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-border bg-card p-4">
-                        <p className="text-[12px] font-medium text-muted-foreground">Unread Total</p>
-                        <p className="mt-2 text-[28px] font-semibold text-foreground">{unreadTotal}</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-card p-4">
-                        <p className="text-[12px] font-medium text-muted-foreground">Native Badge</p>
-                        <p className="mt-2 text-[28px] font-semibold text-foreground">{nativeBadgeCount ?? '-'}</p>
-                    </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-[12px] font-medium text-muted-foreground">Native Badge</p>
+                    <p className="mt-2 text-[28px] font-semibold text-foreground">{nativeBadgeCount ?? '-'}</p>
                 </div>
 
                 <div className="mt-4 rounded-lg border border-border bg-card p-4">
@@ -169,7 +151,7 @@ export const DebugBadgeCountPage = () => {
                         </button>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                         <button
                             type="button"
                             onClick={() => void runAction('set', parsedInputCount)}
@@ -188,33 +170,6 @@ export const DebugBadgeCountPage = () => {
                             <RotateCcw size={15} />
                             <span>Clear</span>
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => void runAction('sync', unreadTotal)}
-                            disabled={status === 'pending'}
-                            className="flex h-11 items-center justify-center gap-1 rounded-lg bg-muted px-3 text-[13px] font-semibold text-foreground disabled:opacity-50"
-                        >
-                            <Bell size={15} />
-                            <span>Sync</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                    <h2 className="text-[15px] font-semibold text-foreground">Place Unread Counts</h2>
-                    <div className="mt-3 flex flex-col gap-2">
-                        {placeUnreadEntries.length === 0 ? (
-                            <p className="text-[13px] text-muted-foreground">No unread places.</p>
-                        ) : (
-                            placeUnreadEntries.map(([placeId, count]) => (
-                                <div key={placeId} className="flex items-center justify-between gap-3 text-[13px]">
-                                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                                        {placeId}
-                                    </span>
-                                    <span className="font-semibold text-foreground">{count}</span>
-                                </div>
-                            ))
-                        )}
                     </div>
                 </div>
 

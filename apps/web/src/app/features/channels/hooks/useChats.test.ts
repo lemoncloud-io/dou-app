@@ -6,7 +6,10 @@ import type { DomainChat, DomainUser } from '@chatic/data';
 
 import { useChats } from './useChats';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useChatSync: jest.fn(),
+}));
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
 
 const chatObserveList = jest.fn();
@@ -30,6 +33,8 @@ const seedUsers = (users: Array<Partial<DomainUser>>) =>
 beforeEach(() => {
     jest.clearAllMocks();
     seedUsers([{ id: 'u1', name: 'Alice' }]);
+    // Always resolve so the entry refreshList's `.catch` chain is safe by default.
+    chatRefreshList.mockResolvedValue({ fetchedCount: 0 });
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         chat: { observeList: chatObserveList, refreshList: chatRefreshList },
         user: { observeList: userObserveList },
@@ -64,6 +69,14 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         expect(result.current.isEmpty).toBe(true);
     });
 
+    it('입장 시 직접 refreshList를 호출하지 않는다 (초기 로드는 sync 계층이 소유)', () => {
+        seedChats([]);
+        renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        // primeChatTarget(SyncManager)이 초기 fetch를 담당하므로 훅은 refreshList를 직접 호출하지 않는다.
+        expect(chatRefreshList).not.toHaveBeenCalled();
+    });
+
     it('loadMore: 가장 오래된 chatNo를 cursor로 넘기고, fetchedCount 0이면 hasMore=false', async () => {
         seedChats([chat({ id: 'a', chatNo: 5, ownerId: 'u1', createdAtMs: 100 })]);
         chatRefreshList.mockResolvedValue({ fetchedCount: 0, cursorNo: 5 });
@@ -76,5 +89,23 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
 
         expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 5, limit: 50 });
         await waitFor(() => expect(result.current.hasMore).toBe(false));
+    });
+
+    it('loadMore: 순서가 섞여 있어도 가장 작은 chatNo를 cursor로 넘긴다', async () => {
+        seedChats([
+            chat({ id: 'a', chatNo: 5, ownerId: 'u1', createdAtMs: 500 }),
+            chat({ id: 'b', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
+            chat({ id: 'c', chatNo: 8, ownerId: 'u1', createdAtMs: 800 }),
+        ]);
+        chatRefreshList.mockResolvedValue({ fetchedCount: 2, cursorNo: 3 });
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(async () => {
+            await result.current.loadMore();
+        });
+
+        // The oldest (smallest) chatNo is the page boundary, regardless of array order.
+        expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 3, limit: 50 });
     });
 });

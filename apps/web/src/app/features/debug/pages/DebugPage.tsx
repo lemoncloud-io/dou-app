@@ -4,7 +4,6 @@ import {
     LogOut,
     Mail,
     MessageSquare,
-    Database,
     FileText,
     HardDrive,
     XCircle,
@@ -16,25 +15,24 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { useLogout } from '@chatic/web-core';
 
-import { DEBUG_STORAGE_KEY } from '../consts';
+import { useDebugMode } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
 export const DebugPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { versionInfo } = useDeviceInfo();
-    const { mutate: logout } = useLogout();
+    const { isEnabled, disable } = useDebugMode();
 
     useEffect(() => {
-        if (sessionStorage.getItem(DEBUG_STORAGE_KEY) !== 'true') {
+        if (!isEnabled) {
             navigate(ROUTES.mypage.root, { replace: true });
         }
-    }, [navigate]);
+    }, [isEnabled, navigate]);
 
     const handleDisableDebug = () => {
-        sessionStorage.removeItem(DEBUG_STORAGE_KEY);
+        disable();
         navigate(ROUTES.mypage.root, { replace: true });
     };
 
@@ -57,7 +55,7 @@ export const DebugPage = () => {
                 <div className="flex flex-col gap-3">
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
-                            onClick={() => navigate(ROUTES.mypage.debug.login)}
+                            onClick={() => navigate(ROUTES.debug.login)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -69,7 +67,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate(ROUTES.mypage.debug.dashboard)}
+                            onClick={() => navigate(ROUTES.debug.dashboard)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -79,17 +77,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate(ROUTES.mypage.debug.state)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <div className="flex items-center gap-3">
-                                <Database size={18} className="text-muted-foreground" />
-                                <span className="text-[15px] font-medium text-foreground">State Info</span>
-                            </div>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </button>
-                        <button
-                            onClick={() => navigate(ROUTES.mypage.debug.logBuffer)}
+                            onClick={() => navigate(ROUTES.debug.logBuffer)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -99,7 +87,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate(ROUTES.mypage.debug.cacheTest)}
+                            onClick={() => navigate(ROUTES.debug.cacheTest)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -109,7 +97,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate(ROUTES.mypage.debug.uploadTest)}
+                            onClick={() => navigate(ROUTES.debug.uploadTest)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -119,7 +107,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => navigate(ROUTES.mypage.debug.badgeCount)}
+                            onClick={() => navigate(ROUTES.debug.badgeCount)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">
@@ -129,7 +117,7 @@ export const DebugPage = () => {
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
                         <button
-                            onClick={() => logout()}
+                            onClick={() => navigate(ROUTES.auth.logout)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                         >
                             <div className="flex items-center gap-3">

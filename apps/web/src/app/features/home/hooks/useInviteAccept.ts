@@ -1,29 +1,32 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useNavigateWithTransition } from '@chatic/shared';
-import { useInviteFlow } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
-import { useInviteCloudEntry } from './useInviteCloudEntry';
-import { ROUTES } from '../../../routes/paths';
-import type { InviteParams } from '../types';
+import { useEnterInvitedChannel } from './useEnterInvitedChannel';
+import { useEnterInvitedCloud } from './useEnterInvitedCloud';
+import { useEnterInvitedSite } from './useEnterInvitedSite';
+import type { InviteContext } from '../types';
+import { useInviteFlow } from '@chatic/web-core';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
 /**
- * Drives invite acceptance: logs in with the invite code via `useInviteFlow` (which returns the
- * token), then enters the cloud/site through `useInviteCloudEntry` using identifiers from that
- * token. No manual cloud/site state writes or sync flags — web-core owns that.
+ * Drives invite acceptance: logs in with the invite code via `useInviteFlow`, then enters the
+ * invite target in order — cloud → site → channel — using identifiers from `MyInviteView`. Each
+ * step no-ops when its identifier is absent; with no channel the channel step lands on home. No
+ * manual cloud/site state writes or sync flags — web-core owns that.
  */
-export const useInviteAccept = (params: InviteParams) => {
+export const useInviteAccept = ({ params, info }: InviteContext) => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const navigate = useNavigateWithTransition();
     const { runInviteFlow, isInviting } = useInviteFlow();
-    const { enterInvitedCloud, isEntering } = useInviteCloudEntry();
-
+    const { enterCloud, isEnteringCloud } = useEnterInvitedCloud();
+    const { enterSite, isEnteringSite } = useEnterInvitedSite();
+    const { enterChannel } = useEnterInvitedChannel();
+    const { cloud } = useRuntimeRepositories();
     const [missingDelegator, setMissingDelegator] = useState(false);
     const [hasError, setHasError] = useState(false);
 
@@ -36,10 +39,23 @@ export const useInviteAccept = (params: InviteParams) => {
         }
 
         try {
-            const token = await runInviteFlow({ code, backend });
+            await runInviteFlow({ code, backend });
 
-            await enterInvitedCloud(token);
-            navigate(ROUTES.home, { replace: true });
+            // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
+            // the cloud sheet. Skipped when the invite carries no cloudId.
+            if (info?.cloudId) {
+                await cloud.cacheWrite({
+                    id: info.cloudId,
+                    cid: info.cloudId,
+                    backend: info.$envs?.backend,
+                    wss: info.$envs?.wss,
+                    cloudType: 'invited',
+                });
+            }
+
+            await enterCloud(info);
+            await enterSite(info);
+            enterChannel(info);
         } catch (error) {
             const err = toError(error);
             logger.error('AUTH', '[useInviteAccept] accept failed', { error: err });
@@ -57,7 +73,12 @@ export const useInviteAccept = (params: InviteParams) => {
             }
             setHasError(true);
         }
-    }, [params, runInviteFlow, enterInvitedCloud, navigate, toast, t]);
+    }, [params, info, runInviteFlow, enterCloud, enterSite, enterChannel, toast, t]);
 
-    return { accept, isAccepting: isInviting || isEntering, missingDelegator, hasError };
+    return {
+        accept,
+        isAccepting: isInviting || isEnteringCloud || isEnteringSite,
+        missingDelegator,
+        hasError,
+    };
 };

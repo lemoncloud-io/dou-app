@@ -15,10 +15,11 @@ export interface InviteParams {
     version?: string;
 }
 
-/** Composed input for invite acceptance: URL params plus the fetched invite metadata. */
+/** Composed input for invite acceptance: URL params plus the fetched invite metadata.
+ * `cloudId` is included by the backend at runtime but not declared on the published `MyInviteView`. */
 export interface InviteContext {
     params: InviteParams;
-    info?: MyInviteView;
+    info?: MyInviteView & { cloudId?: string };
 }
 
 /** Extract invite parameters from a location search string (e.g. `location.search`). */

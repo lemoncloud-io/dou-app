@@ -13,13 +13,13 @@ import {
     User,
     X,
 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useDynamicProfile, UserType, useUserContext } from '@chatic/web-core';
+import { UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -29,15 +29,22 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '@chatic/app-runtime';
 
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
 import { ReadStatus } from '../components/ReadStatus';
-import { useChannel, useChannelMembers, useChatMutations, useChats, useJoinPositions } from '../../../hooks';
-import type { ClientChatView } from '../../../shared/types';
-import { FOREGROUND_RESYNC_EVENT_NAME } from '../../../shared/types';
-import { debounce } from '../../../utils/debounce';
+import {
+    useChannel,
+    useChannelMembers,
+    useChannelProfiles,
+    useChatMutations,
+    useChats,
+    useChatScroll,
+    useJoinPositions,
+    useReadMarker,
+} from '../hooks';
+import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { ROUTES } from '../../../routes/paths';
 
@@ -57,34 +64,30 @@ export const ChannelRoomPage = () => {
     const [openActionMessageKey, setOpenActionMessageKey] = useState<string | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
-    // DOM 접근을 위한 Ref
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    // DOM 접근을 위한 Ref (스크롤 컨테이너 ref는 useChatScroll이 소유)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // 중복 읽음 처리 방지
-    const lastReadChatNoRef = useRef<number | null>(null);
-    // loadMore 시 스크롤 위치 보존용
-    const scrollPreserveRef = useRef<number | null>(null);
-
-    const dynamicProfile = useDynamicProfile();
-    const { userType, currentWSS } = useUserContext();
-    const isDefaultCloud = currentWSS === 'relay';
+    const { activeProfile: dynamicProfile, userType } = useSessionIdentity();
+    const { selectedCloudId } = useSessionSelection();
+    const isDefaultCloud = selectedCloudId === 'default';
     const { isIOS } = useAppChecker();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const { isVerified } = useSocketState();
 
     // --- 데이터 패칭 Hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
-    const { members, total: membersTotal } = useChannelMembers({ channelId: stableChannelId, detail: true });
+    // Loads member user identities (name/avatar fallback) + join read-state into the cache and
+    // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.
+    const { activeMemberIds } = useChannelMembers({ channelId: stableChannelId, detail: true });
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
-    const memberCount = membersTotal || channel?.memberCount || 0;
 
-    const initialJoins = useMemo(
-        () => members.map(m => m.$join).filter((j): j is NonNullable<typeof j> => !!j),
-        [members]
-    );
-    const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, initialJoins);
+    // Header member count is a display value — keep it on the channel's embedded `memberIds`
+    // (total participants), separate from the active set that drives sync registration.
+    const memberCount = channel?.memberIds?.length || channel?.memberCount || 0;
+
+    const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
+    const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, activeMemberIds);
 
     const memoizedChatParams = useMemo(
         () => ({
@@ -114,114 +117,28 @@ export const ChannelRoomPage = () => {
         }
     }, [channel, isChannelLoading, isChannelError, navigate]);
 
-    const scrollToBottom = (smooth = false) => {
-        requestAnimationFrame(() => {
-            if (messagesEndRef.current) {
-                messagesEndRef.current.scrollTo({
-                    top: 0,
-                    behavior: smooth ? 'smooth' : 'auto',
-                });
-            }
-        });
-    };
-
-    // 1단계: 채널 진입 즉시 읽음 처리 — 메시지 로딩을 기다리지 않고 channel.chatNo로 바로 전송
+    // 읽음 처리 (1단계: 진입 즉시 channel.chatNo, 2단계: 메시지 로딩 후 보정/포그라운드 복귀)는
+    // useReadMarker가 소유한다. 전송 직후 읽음은 markSent로 처리한다.
     const channelChatNo = channel?.chatNo;
-    useEffect(() => {
-        if (!stableChannelId || !channelChatNo || !isVerified || document.visibilityState === 'hidden') return;
-        if (lastReadChatNoRef.current !== null && channelChatNo <= lastReadChatNoRef.current) return;
-
-        lastReadChatNoRef.current = channelChatNo;
-        readMessage({ channelId: stableChannelId, chatNo: channelChatNo }).catch(error => {
-            lastReadChatNoRef.current = null;
-            logger.error('CHAT', 'Failed to read on channel entry', {
-                error,
-                data: { channelId: stableChannelId, chatNo: channelChatNo },
-            });
-        });
-    }, [channelChatNo, stableChannelId, readMessage, isVerified]);
-
-    // 2단계: 메시지 로딩 후 더 높은 chatNo가 있으면 보정 + 포그라운드 복귀 대응
     const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
     const lastChatNo = lastMessage?.isPending || lastMessage?.isFailed ? undefined : lastMessage?.chatNo;
 
-    useEffect(() => {
-        if (!stableChannelId || lastChatNo === undefined || !isVerified) return;
+    const { markSent } = useReadMarker({
+        channelId: stableChannelId,
+        channelChatNo,
+        lastChatNo,
+        isVerified,
+        readMessage,
+    });
 
-        const handleAutoRead = () => {
-            if (document.visibilityState === 'hidden') return;
-            if (lastReadChatNoRef.current !== null && lastChatNo <= lastReadChatNoRef.current) return;
-
-            lastReadChatNoRef.current = lastChatNo;
-            readMessage({ channelId: stableChannelId, chatNo: lastChatNo }).catch(error => {
-                lastReadChatNoRef.current = null;
-                logger.error('CHAT', 'Failed to read latest message', {
-                    error,
-                    data: { channelId: stableChannelId, chatNo: lastChatNo },
-                });
-            });
-        };
-
-        const handleForegroundResync = () => {
-            handleAutoRead();
-            // sync 완료 후 새 메시지가 반영될 수 있으므로 지연 재시도
-            setTimeout(handleAutoRead, 1500);
-        };
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                // 포그라운드 복귀 시 ref 리셋 → 이전 요청이 유실됐을 경우 재전송 허용
-                lastReadChatNoRef.current = null;
-                handleAutoRead();
-            }
-        };
-
-        handleAutoRead();
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
-        };
-    }, [lastChatNo, stableChannelId, readMessage, isVerified]);
-
-    // loadMore 후 스크롤 위치 보정 — DOM 변경 직후, 브라우저 paint 전에 실행
-    // flex-col-reverse: scrollTop=0이 하단, 음수가 상단 방향
-    // 상단에 콘텐츠 추가 시 하단 앵커 기준 scrollTop을 그대로 복원하면 같은 위치 유지
-    useLayoutEffect(() => {
-        if (scrollPreserveRef.current === null) return;
-
-        const el = messagesEndRef.current;
-        if (!el) return;
-
-        el.scrollTop = scrollPreserveRef.current;
-        scrollPreserveRef.current = null;
-    }, [messages]);
-
-    const prevMessageCountRef = useRef(messages.length);
-    const prevLastMessageIdRef = useRef<string | undefined>(undefined);
-    useEffect(() => {
-        const lastMessage = messages[messages.length - 1];
-        if (messages.length > prevMessageCountRef.current && lastMessage?.id !== prevLastMessageIdRef.current) {
-            scrollToBottom(false);
-        }
-        prevLastMessageIdRef.current = lastMessage?.id;
-        prevMessageCountRef.current = messages.length;
-    }, [messages.length]);
-
-    useEffect(() => {
-        const handleScrollAdjust = () => setTimeout(() => scrollToBottom(), 150);
-        const input = inputRef.current;
-
-        window.addEventListener('resize', handleScrollAdjust);
-        input?.addEventListener('focus', handleScrollAdjust);
-
-        return () => {
-            window.removeEventListener('resize', handleScrollAdjust);
-            input?.removeEventListener('focus', handleScrollAdjust);
-        };
-    }, []);
+    // 스크롤(하단 자동 이동, loadMore 위치 보존, 리사이즈/포커스 보정, 무한 로딩)은 useChatScroll이 소유한다.
+    const { containerRef: messagesEndRef, debouncedHandleScroll } = useChatScroll({
+        messages,
+        hasMore,
+        isLoadingMore,
+        loadMore,
+        inputRef,
+    });
 
     useEffect(() => {
         if (inputRef.current) {
@@ -240,13 +157,7 @@ export const ChannelRoomPage = () => {
         sendMessage({ channelId: stableChannelId, content: trimmed })
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
-                    lastReadChatNoRef.current = newChat.chatNo;
-                    readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo }).catch(error => {
-                        logger.error('CHAT', 'Failed to read sent message', {
-                            error,
-                            data: { channelId: stableChannelId, chatNo: newChat.chatNo },
-                        });
-                    });
+                    markSent(newChat.chatNo);
                 }
             })
             .catch(error => {
@@ -266,13 +177,7 @@ export const ChannelRoomPage = () => {
             .then(() => sendMessage({ channelId: stableChannelId, content: message.content ?? '' }))
             .then(newChat => {
                 if (newChat && newChat.chatNo !== undefined) {
-                    lastReadChatNoRef.current = newChat.chatNo;
-                    readMessage({ channelId: stableChannelId, chatNo: newChat.chatNo }).catch(error => {
-                        logger.error('CHAT', 'Failed to read retried message', {
-                            error,
-                            data: { channelId: stableChannelId, chatNo: newChat.chatNo },
-                        });
-                    });
+                    markSent(newChat.chatNo);
                 }
             })
             .catch(error => {
@@ -313,26 +218,6 @@ export const ChannelRoomPage = () => {
             handleSend();
         }
     };
-
-    const handleScroll = useCallback(() => {
-        const el = messagesEndRef.current;
-        if (!el || !hasMore || isLoadingMore) return;
-
-        //스크롤 컨텐츠가 화면을 다 채우지 않은 경우 무한 로딩 방지
-        if (el.scrollHeight <= el.clientHeight) return;
-
-        const distanceFromTop = el.scrollHeight - el.clientHeight - Math.abs(el.scrollTop);
-        if (distanceFromTop < 200) {
-            scrollPreserveRef.current = el.scrollTop;
-            loadMore();
-        }
-    }, [hasMore, isLoadingMore, loadMore]);
-
-    // ref로 최신 handleScroll을 참조 — debounce 인스턴스를 재생성하지 않아 orphaned timer 방지
-    const handleScrollRef = useRef(handleScroll);
-    handleScrollRef.current = handleScroll;
-
-    const debouncedHandleScroll = useMemo(() => debounce(() => handleScrollRef.current(), 100), []);
 
     const formatTime = (date: Date) => {
         const hours = date.getHours();
@@ -543,6 +428,14 @@ export const ChannelRoomPage = () => {
                                                 message.id ||
                                                 `${message.chatNo ?? 'pending'}-${message.timestamp.getTime()}-${index}`;
 
+                                            // Site profile (nick/avatar) takes precedence over the
+                                            // user-cache name fallback computed in useChats.
+                                            const ownerProfile = message.ownerId
+                                                ? profileMap.get(message.ownerId)
+                                                : undefined;
+                                            const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
+                                            const ownerAvatar = ownerProfile?.thumbnail;
+
                                             return (
                                                 <div
                                                     key={message.id}
@@ -551,7 +444,17 @@ export const ChannelRoomPage = () => {
                                                     {!message.isOwner &&
                                                         (showProfileAndName ? (
                                                             <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                                <User className="size-4 text-muted-foreground" />
+                                                                {ownerAvatar ? (
+                                                                    <img
+                                                                        src={ownerAvatar}
+                                                                        alt={ownerDisplayName}
+                                                                        loading="lazy"
+                                                                        decoding="async"
+                                                                        className="size-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <User className="size-4 text-muted-foreground" />
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <div className="size-[39px] flex-shrink-0" />
@@ -561,7 +464,7 @@ export const ChannelRoomPage = () => {
                                                     >
                                                         {!message.isOwner && showProfileAndName && (
                                                             <span className="mb-1 text-xs text-muted-foreground">
-                                                                {message.ownerName}
+                                                                {ownerDisplayName}
                                                             </span>
                                                         )}
                                                         <div

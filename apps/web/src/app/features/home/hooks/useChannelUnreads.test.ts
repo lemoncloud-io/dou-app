@@ -38,14 +38,15 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         const channels = [
             channel('c1', { lastChat$: { chatNo: 7 } as DomainChannel['lastChat$'] }),
             channel('c2', { lastChat$: { chatNo: 8 } as DomainChannel['lastChat$'] }),
-            // no join for c3 → readNo defaults to 0
+            // no join for c3 → treated as 0 unread (a channel the user hasn't joined yet
+            // has no read boundary to count against, so it shows no badge by design)
             channel('c3', { lastChat$: { chatNo: 5 } as DomainChannel['lastChat$'] }),
         ];
 
         const { result } = renderHook(() => useChannelUnreads(channels));
 
-        expect(result.current.byChannel).toEqual({ c1: 4, c2: 0, c3: 5 });
-        expect(result.current.total).toBe(9);
+        expect(result.current.byChannel).toEqual({ c1: 4, c2: 0, c3: 0 });
+        expect(result.current.total).toBe(4);
     });
 
     it('lastChat이 없으면 channel.chatNo를 최신 번호로 사용한다', () => {

@@ -8,34 +8,15 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    useFetchActiveSubscriptions,
-    useFetchReceiptDetail,
-    useClouds,
-    useProductPlans,
-    useValidateApple,
-    useValidateGoogle,
-} from '@chatic/web-core';
+import { useClouds, useProductPlans } from '@chatic/web-core';
 
 import { useSubscriptionIap } from '../hooks';
 import { EmailVerifyDialog } from '../../home/components/EmailVerifyDialog';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
-import type { PurchaseProduct } from '../hooks/useSubscriptionIap';
-
-enum PageState {
-    Idle = 'idle',
-    Fetching = 'fetching',
-    Purchasing = 'purchasing',
-}
-
-const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
-const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
-const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
-// TODO: 추후 서버에서 노출할 상품 목록을 관리하는 방식으로 변경 예정
-const ALLOWED_PRODUCT_ID_IOS = IS_DEV ? '#pro_tier_01_dev' : '#pro_tier_01';
-const ALLOWED_PRODUCT_ID_ANDROID = IS_DEV ? '#pro-tier-01-dev' : '#pro-tier-01';
+import { PageState, type PurchaseProduct } from '../types';
+import { ALLOWED_PRODUCT_ID_ANDROID, ALLOWED_PRODUCT_ID_IOS, POLICY_BASE_URL } from '../consts';
 
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
@@ -60,14 +41,6 @@ export const SubscriptionPlansPage = () => {
     const [pageState, setPageState] = useState<PageState>(PageState.Idle);
     const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
 
-    // DEV test panel
-    const [devResult, setDevResult] = useState<string>('');
-    const validateGoogle = useValidateGoogle();
-    const validateApple = useValidateApple();
-    const fetchActive = useFetchActiveSubscriptions();
-    const fetchReceipt = useFetchReceiptDetail();
-    const [receiptId, setReceiptId] = useState('');
-
     const isBlocked = pageState !== PageState.Idle;
     const submitLabel =
         pageState === PageState.Purchasing ? t('mypage.subscription.purchasing') : t('mypage.subscription.subscribe');
@@ -76,16 +49,6 @@ export const SubscriptionPlansPage = () => {
         const url = `${POLICY_BASE_URL}${path}`;
         if (isOnMobileApp) appBridge.openURL(url);
         else window.open(url, '_blank');
-    };
-
-    const runDev = async (label: string, fn: () => Promise<unknown>) => {
-        setDevResult(`⏳ ${label}...`);
-        try {
-            const res = await fn();
-            setDevResult(JSON.stringify(res, null, 2));
-        } catch (e: unknown) {
-            setDevResult(`❌ ${e instanceof Error ? e.message : String(e)}`);
-        }
     };
 
     const handleSubscribe = async () => {
@@ -249,88 +212,6 @@ export const SubscriptionPlansPage = () => {
                                     </button>
                                 );
                             })}
-                        </div>
-                    )}
-
-                    {/* DEV Test Panel */}
-                    {IS_DEV && !isOnMobileApp && (
-                        <div className="mt-6 rounded-[12px] border border-dashed border-yellow-500/50 bg-yellow-500/5 p-4">
-                            <p className="mb-3 text-[13px] font-bold text-yellow-600">DEV API Tester</p>
-                            <div className="flex flex-col gap-2">
-                                <button
-                                    onClick={() =>
-                                        runDev('Validate Google', () =>
-                                            validateGoogle.mutateAsync({
-                                                body: {
-                                                    paymentType: 'google-inapp',
-                                                    appId: APP_ID,
-                                                    productId: 'test',
-                                                    purchaseToken: 'test-token',
-                                                    isSubscription: true,
-                                                },
-                                                params: { detail: 1 },
-                                            })
-                                        )
-                                    }
-                                    className="rounded-lg bg-yellow-600 px-3 py-2 text-[13px] font-medium text-white"
-                                >
-                                    #0 Validate Google (test)
-                                </button>
-                                <button
-                                    onClick={() =>
-                                        runDev('Validate Apple', () =>
-                                            validateApple.mutateAsync({
-                                                body: {
-                                                    paymentType: 'apple-inapp',
-                                                    appId: APP_ID,
-                                                    productId: 'test',
-                                                    purchaseToken: 'test-token',
-                                                    isSubscription: true,
-                                                },
-                                                params: { detail: 1 },
-                                            })
-                                        )
-                                    }
-                                    className="rounded-lg bg-yellow-600 px-3 py-2 text-[13px] font-medium text-white"
-                                >
-                                    #0 Validate Apple (test)
-                                </button>
-                                <button
-                                    onClick={() =>
-                                        runDev('Active Subscriptions', () => fetchActive.mutateAsync({ appId: APP_ID }))
-                                    }
-                                    className="rounded-lg bg-yellow-600 px-3 py-2 text-[13px] font-medium text-white"
-                                >
-                                    #1 활성 구독 확인
-                                </button>
-                                <div className="flex gap-2">
-                                    <input
-                                        value={receiptId}
-                                        onChange={e => setReceiptId(e.target.value)}
-                                        placeholder="receipt-id"
-                                        className="flex-1 rounded-lg border bg-background px-3 py-2 text-[13px]"
-                                    />
-                                    <button
-                                        onClick={() =>
-                                            runDev('Receipt Detail', () =>
-                                                fetchReceipt.mutateAsync({
-                                                    receiptId,
-                                                    params: { v: true, history: true },
-                                                })
-                                            )
-                                        }
-                                        disabled={!receiptId}
-                                        className="rounded-lg bg-yellow-600 px-3 py-2 text-[13px] font-medium text-white disabled:opacity-40"
-                                    >
-                                        #2 영수증 조회
-                                    </button>
-                                </div>
-                            </div>
-                            {devResult && (
-                                <pre className="mt-3 max-h-[300px] overflow-auto rounded-lg bg-black/80 p-3 text-[11px] text-green-400">
-                                    {devResult}
-                                </pre>
-                            )}
                         </div>
                     )}
 

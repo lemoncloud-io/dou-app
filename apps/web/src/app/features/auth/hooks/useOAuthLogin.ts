@@ -6,20 +6,24 @@ import { toast } from 'sonner';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { createCredentialsByProvider, loginWithInviteCode, useWebCoreStore } from '@chatic/web-core';
+import { createCredentialsByProvider, useRefreshRelaySession, useSessionIdentity } from '@chatic/web-core';
 
 import { ROUTES } from '../../../routes/paths';
 
 /**
  * Handles the OAuth provider redirect: reads `code`/`provider`/`state` from the URL, exchanges them
- * for credentials, marks the session authenticated, then navigates to the `state.from` target.
+ * for transport credentials, then hydrates the relay session before navigating to `state.from`.
+ *
+ * Credential exchange (createCredentialsByProvider / loginWithInviteCode) only builds transport
+ * credentials; `refreshRelaySession({ syncProfile: true })` hydrates identity + auth state.
  * Runs once on mount.
  */
 export const useOAuthLogin = (): void => {
     const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigateWithTransition();
-    const setIsAuthenticated = useWebCoreStore(state => state.setIsAuthenticated);
+    const { delegatorId } = useSessionIdentity();
+    const { refreshRelaySession } = useRefreshRelaySession();
     const handled = useRef(false);
 
     useEffect(() => {
@@ -41,11 +45,11 @@ export const useOAuthLogin = (): void => {
 
             // Invite provider logs in by code; other providers exchange the code for credentials.
             if (provider === 'invite') {
-                await loginWithInviteCode(code);
+                if (!delegatorId) throw new Error('No delegatorId for invite login');
             } else {
                 await createCredentialsByProvider(provider, code);
             }
-            setIsAuthenticated(true);
+            await refreshRelaySession({ syncProfile: true });
 
             let redirectTo = '/home';
             try {
@@ -59,5 +63,5 @@ export const useOAuthLogin = (): void => {
         };
 
         run();
-    }, [location.search, navigate, setIsAuthenticated, t]);
+    }, [location.search, navigate, delegatorId, refreshRelaySession, t]);
 };

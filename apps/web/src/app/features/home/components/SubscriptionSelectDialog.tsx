@@ -7,44 +7,23 @@ import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
-import { reportError } from '@chatic/web-core';
-import { useProductPlans } from '@chatic/web-core';
+import { reportError, useProductPlans } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { EmailVerifyDialog } from './EmailVerifyDialog';
-// FIXME(feature-boundary): IAP hook now lives in the `subscription` feature; this home dialog still consumes it.
 import { useSubscriptionIap } from '../../subscription/hooks/useSubscriptionIap';
+import {
+    ALLOWED_PRODUCT_ID_ANDROID,
+    ALLOWED_PRODUCT_ID_IOS,
+    POLICY_BASE_URL,
+    PageState,
+    PlanCard,
+    PolicyFooter,
+    buildPurchaseProduct,
+} from './subscription-select';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
-import type { PurchaseProduct } from '../../subscription/hooks/useSubscriptionIap';
-
-enum PageState {
-    Idle = 'idle',
-    Fetching = 'fetching',
-    Purchasing = 'purchasing',
-}
-
-const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
-const POLICY_BASE_URL = IS_DEV ? 'https://app-dev.chatic.io' : 'https://app.chatic.io';
-// TODO: 추후 서버에서 노출할 상품 목록을 관리하는 방식으로 변경 예정
-const ALLOWED_PRODUCT_ID_IOS = IS_DEV ? '#pro_tier_01_dev' : '#pro_tier_01';
-const ALLOWED_PRODUCT_ID_ANDROID = IS_DEV ? '#pro-tier-01-dev' : '#pro-tier-01';
-
-const buildPurchaseProduct = (matched: IapProductSubscription, isIOS: boolean): PurchaseProduct | null => {
-    const offerToken = matched.androidOfferToken?.freeTrial ?? matched.androidOfferToken?.base ?? undefined;
-    if (!isIOS && !offerToken) return null;
-    return isIOS
-        ? {
-              id: matched.id,
-              ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
-          }
-        : {
-              id: matched.id,
-              ...(matched.basePlanId && { newPlanId: matched.basePlanId }),
-              ...(offerToken && { offerToken }),
-          };
-};
 
 interface SubscriptionSelectDialogProps {
     open: boolean;
@@ -162,84 +141,19 @@ export const SubscriptionSelectDialog = ({
                                 ? Array.from({ length: 3 }).map((_, i) => (
                                       <div key={i} className="h-[80px] animate-pulse rounded-[16px] bg-muted" />
                                   ))
-                                : plans.map(product => {
-                                      const isSelected = selectedProduct?.id === product.id;
-                                      const hasTrial = (product.trialDays ?? 0) > 0;
-                                      const description = isKo ? product.desc : (product.descEn ?? product.desc);
-                                      const displayName = isKo
-                                          ? (product.name ?? product.id)
-                                          : (product.nameEn ?? product.name ?? product.id);
-                                      return (
-                                          <button
-                                              key={product.id}
-                                              onClick={() => !isBlocked && setSelectedProduct(product)}
-                                              disabled={isBlocked}
-                                              className={cn(
-                                                  'flex w-full items-center gap-[3px] rounded-[20px] border bg-white px-4 py-3 text-left shadow-[0px_2px_14px_0px_rgba(0,0,0,0.08)] transition-colors dark:bg-card',
-                                                  isSelected ? 'border-[#B0EA10]' : 'border-[#F4F5F5]',
-                                                  isBlocked && 'opacity-60'
-                                              )}
-                                          >
-                                              <div className="flex flex-1 flex-col gap-[4px]">
-                                                  <div className="flex items-center gap-2">
-                                                      <span className="text-[18px] font-semibold leading-[1.29] tracking-[-0.015em] text-[#222325] dark:text-foreground">
-                                                          {displayName}
-                                                      </span>
-                                                      {hasTrial && (
-                                                          <span className="rounded-full bg-[#B0EA10] px-2 py-0.5 text-[11px] font-semibold text-[#222325]">
-                                                              {product.trialDays}d Free
-                                                          </span>
-                                                      )}
-                                                  </div>
-                                                  {description && (
-                                                      <p className="text-[13px] leading-[1.4] tracking-[-0.02em] text-[#78828A]">
-                                                          {description}
-                                                      </p>
-                                                  )}
-                                                  {product.price != null && (
-                                                      <span className="text-[14px] font-medium text-[#222325] dark:text-foreground">
-                                                          {t('mypage.subscription.pricePerMonth', {
-                                                              price: `$${product.price}`,
-                                                          })}
-                                                          <span className="ml-1 text-[12px] text-[#78828A]">
-                                                              {t('mypage.subscription.vatIncluded')}
-                                                          </span>
-                                                      </span>
-                                                  )}
-                                              </div>
-                                              <div className="flex h-[25px] w-[25px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#CFD0D3]">
-                                                  {isSelected && (
-                                                      <div className="h-[13px] w-[13px] rounded-full bg-[#B0EA10]" />
-                                                  )}
-                                              </div>
-                                          </button>
-                                      );
-                                  })}
+                                : plans.map(product => (
+                                      <PlanCard
+                                          key={product.id}
+                                          product={product}
+                                          isSelected={selectedProduct?.id === product.id}
+                                          isBlocked={isBlocked}
+                                          isKo={isKo}
+                                          onSelect={setSelectedProduct}
+                                      />
+                                  ))}
                         </div>
 
-                        {/* 하단 규정 */}
-                        <div className="mt-4 rounded-[12px] bg-muted/50 px-4 py-3">
-                            <p className="text-[12px] leading-[1.6] text-muted-foreground">
-                                {t('mypage.subscription.autoRenewNotice')}
-                            </p>
-                            <div className="mt-2 flex items-center justify-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => openPolicyUrl('/policy/terms')}
-                                    className="text-[12px] font-medium text-foreground underline underline-offset-2"
-                                >
-                                    {t('mypage.subscription.termsOfService')}
-                                </button>
-                                <span className="text-[10px] text-muted-foreground/40">|</span>
-                                <button
-                                    type="button"
-                                    onClick={() => openPolicyUrl('/policy/privacy')}
-                                    className="text-[12px] font-medium text-foreground underline underline-offset-2"
-                                >
-                                    {t('mypage.subscription.privacyPolicy')}
-                                </button>
-                            </div>
-                        </div>
+                        <PolicyFooter onOpenPolicy={openPolicyUrl} />
                     </div>
 
                     {/* 하단 버튼 */}

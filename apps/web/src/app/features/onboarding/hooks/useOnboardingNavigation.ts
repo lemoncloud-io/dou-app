@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
-
-import { ONBOARDING_STEPS } from '../consts';
+import { ONBOARDING_STEPS } from '../types';
 
 export const useOnboardingNavigation = () => {
     const [currentStep, setCurrentStep] = useState(0);

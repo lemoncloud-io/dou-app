@@ -1,18 +1,18 @@
 import { useState } from 'react';
 
-import { useChannelMutations } from '../../../hooks';
 import { reportError } from '@chatic/web-core';
-import { toError } from '../../../utils/errors';
+import type { DomainChannel } from '@chatic/data';
+import type { ChannelCreateInput } from '@lemoncloud/chatic-sockets-api';
 
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
-import type { ChatStartPayload } from '@lemoncloud/chatic-sockets-api';
+import { toError } from '../../../utils/errors';
+import { useChannelMutations } from './useChannelMutations';
 
 export const useCreateChannel = () => {
     const { createChannel: socketCreateChannel, isPending } = useChannelMutations();
     const [isError, setIsError] = useState(false);
-    const [channel, setChannel] = useState<ChannelView | null>(null);
+    const [channel, setChannel] = useState<DomainChannel | null>(null);
 
-    const createChannel = async (payload: ChatStartPayload): Promise<ChannelView> => {
+    const createChannel = async (payload: ChannelCreateInput): Promise<DomainChannel> => {
         setIsError(false);
         try {
             const newChannel = await socketCreateChannel(payload);

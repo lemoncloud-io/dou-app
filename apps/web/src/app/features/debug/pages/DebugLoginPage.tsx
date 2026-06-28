@@ -2,9 +2,8 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { login } from '@chatic/web-core';
+import { useLogin } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { webCore, cloudCore, useWebCoreStore } from '@chatic/web-core';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -14,8 +13,7 @@ export const DebugLoginPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
-    const [isPending, setIsPending] = useState(false);
+    const { mutateAsync: login, isPending } = useLogin();
 
     const [uid, setUid] = useState('');
     const [pwd, setPwd] = useState('');
@@ -23,16 +21,9 @@ export const DebugLoginPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsPending(true);
         try {
-            const { Token, ...rest } = await login({ uid, pwd });
-            await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
-
-            // Clear previous cloud session data
-            cloudCore.clearSession();
-
-            setProfile(rest as Parameters<typeof setProfile>[0]);
-            setIsAuthenticated(true);
+            // loginRelayUser builds credentials and hydrates the session internally.
+            await login({ uid, pwd });
             window.location.href = ROUTES.root;
         } catch {
             toast({
@@ -40,8 +31,6 @@ export const DebugLoginPage = () => {
                 description: t('mypageLogin.errorDescription'),
                 variant: 'destructive',
             });
-        } finally {
-            setIsPending(false);
         }
     };
 

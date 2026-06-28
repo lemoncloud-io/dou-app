@@ -1,13 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
 import { useChannelProfiles } from './useChannelProfiles';
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
-    useSocketState: jest.fn(),
     getSyncManager: jest.fn(),
 }));
 
@@ -32,7 +31,6 @@ beforeEach(() => {
     seedObserve([]);
     cacheReadList.mockResolvedValue({ list: [] });
     (useRuntimeRepositories as jest.Mock).mockReturnValue({ profile: { observeList, cacheReadList } });
-    (useSocketState as jest.Mock).mockReturnValue({ isVerified: true });
     (getSyncManager as jest.Mock).mockReturnValue({ register });
 });
 
@@ -54,17 +52,6 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
         await waitFor(() => expect(register).toHaveBeenCalledTimes(1));
         expect(register).toHaveBeenCalledWith({ type: 'profile', id: 's1@u1', intervalMs: 5000 });
-    });
-
-    it('verified 전에는 등록하지 않는다', async () => {
-        (useSocketState as jest.Mock).mockReturnValue({ isVerified: false });
-        cacheReadList.mockResolvedValue({ list: [profile('u1')] });
-
-        renderHook(() => useChannelProfiles('s1', ['u1']));
-
-        // microtask 큐를 비운 뒤에도 등록이 없어야 한다
-        await Promise.resolve();
-        expect(register).not.toHaveBeenCalled();
     });
 
     it('sid가 없으면 구독/등록하지 않는다', () => {

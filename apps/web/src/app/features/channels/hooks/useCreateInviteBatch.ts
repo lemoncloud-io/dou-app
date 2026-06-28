@@ -1,8 +1,7 @@
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
-import { useClouds, useSessionSelection } from '@chatic/web-core';
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
-import { useUserMutations } from '../../../hooks';
+import { useUserMutations } from './useUserMutations';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
 /**
@@ -11,8 +10,6 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
  * - createBatchInvite: 여러 명 일괄 초대 (서버가 SMS 발송)
  */
 export const useCreateInviteBatch = () => {
-    const { data: cloudsData } = useClouds();
-    const { selectedCloudId } = useSessionSelection();
     const { requestInvite, requestInviteBatch, isPending } = useUserMutations();
 
     /**
@@ -49,14 +46,13 @@ export const useCreateInviteBatch = () => {
         phones: string[];
         names?: string[];
     }): Promise<MyInviteView[]> => {
-        const selectedCloud = cloudsData?.list?.find(c => c.id === selectedCloudId);
-
+        // MyUserInviteBody targets a single alias; join the phone list so the
+        // server fans out the SMS dispatch for all recipients.
         const payload: MyUserInviteBody = {
-            to: params.phones,
-            channelId: params.channelId,
-            cloudId: selectedCloudId,
-            cloudName: selectedCloud?.name ?? '',
+            alias: params.phones.join(','),
+            type: 'phone',
             name: params.names?.[0] ?? '',
+            channelId: params.channelId,
         };
 
         return requestInviteBatch(payload);

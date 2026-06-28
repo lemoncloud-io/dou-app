@@ -4,18 +4,16 @@ import { useParams } from 'react-router-dom';
 
 import { Calendar, Camera, Users } from 'lucide-react';
 
-import { useNavigateWithTransition, resizeImageToBase64 } from '@chatic/shared';
+import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { cloudCore } from '@chatic/web-core';
-
-import { PageHeader } from '../../../ui/components';
+import { PageHeader } from '../../../ui';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
-import { usePlaces } from '../../../hooks';
-import { useUpdateMyPlace } from '../../home/hooks/useUpdateMyPlace';
+import { useUpdatePlace } from '../../home';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const MAX_NAME_LENGTH = 20;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -25,8 +23,9 @@ export const PlaceInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { placeId } = useParams<{ placeId: string }>();
-    const { places } = usePlaces();
-    const { updatePlace, isPending } = useUpdateMyPlace();
+    const { place: placeRepo } = useRuntimeRepositories();
+
+    const { updatePlace, isPending } = useUpdatePlace();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [place, setPlace] = useState<MySiteView | null>(null);
@@ -34,27 +33,23 @@ export const PlaceInfoPage = () => {
     const [imageUrl, setImageUrl] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
 
-    const myId = cloudCore.getCloudToken()?.id;
-    const isOwner = !!(place && myId && (place as MySiteView & { ownerId?: string }).ownerId === myId);
-
     const initialName = place?.name ?? '';
     const initialThumbnail = place?.thumbnail ?? '';
 
     useEffect(() => {
-        if (placeId && places.length > 0) {
-            const found = places.find(p => p.id === placeId);
-            setPlace(found ?? null);
-            setName(found?.name ?? '');
-            setImageUrl(found?.thumbnail ?? '');
+        if (!placeId) {
+            setPlace(null);
+            return;
         }
-    }, [placeId, places]);
+        return placeRepo.observeItem(placeId, setPlace);
+    }, [placeRepo, placeId]);
 
     // owner가 아니면 뒤로 이동
     useEffect(() => {
-        if (place && myId && (place as MySiteView & { ownerId?: string }).ownerId !== myId) {
+        if (place && place.isOwner) {
             navigate(-1);
         }
-    }, [place, myId, navigate]);
+    }, [place, navigate]);
 
     const formatDate = useCallback(
         (timestamp?: number) => {

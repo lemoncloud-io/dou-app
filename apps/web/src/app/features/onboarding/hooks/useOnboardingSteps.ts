@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Images } from '@chatic/assets';
 
-import type { OnboardingStep } from '../consts';
+import type { OnboardingStep } from '../types';
 
 export const useOnboardingSteps = (): OnboardingStep[] => {
     const { i18n } = useTranslation();

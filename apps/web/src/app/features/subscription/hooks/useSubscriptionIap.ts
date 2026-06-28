@@ -9,25 +9,14 @@ import {
     useValidateMembership,
 } from '@chatic/web-core';
 
-import type { IapProductSubscription, WebMessageResponse } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/app-messages';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
-
-const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
-const APP_ID = IS_DEV ? 'io.chatic.dou.dev' : 'io.chatic.dou';
+import { APP_ID, IS_DEV } from '../consts';
+import type { NativePurchase, PurchaseError, PurchaseProduct } from '../types';
 
 const iapLogger = {
     warn: (tag: string, msg: string, ...args: any[]) => console.warn(`[${tag}] ${msg}`, ...args),
 };
-
-// Derive the native purchase type from the response contract to stay in sync
-type NativePurchase = WebMessageResponse<'FetchCurrentPurchases'>['data']['purchases'][number];
-type PurchaseError = { code: string; message?: string };
-
-export interface PurchaseProduct {
-    id: string;
-    newPlanId?: string;
-    offerToken?: string;
-}
 
 export const useSubscriptionIap = () => {
     const isIOS = typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
@@ -107,8 +96,14 @@ export const useSubscriptionIap = () => {
                 }, 60_000);
 
                 purchaseResolverRef.current = {
-                    resolve: value => { clearTimeout(timeout); resolve(value); },
-                    reject: reason => { clearTimeout(timeout); reject(reason); },
+                    resolve: value => {
+                        clearTimeout(timeout);
+                        resolve(value);
+                    },
+                    reject: reason => {
+                        clearTimeout(timeout);
+                        reject(reason);
+                    },
                 };
 
                 appBridge.purchase({
@@ -133,7 +128,9 @@ export const useSubscriptionIap = () => {
 
     /** Restore purchases: validate + finish each existing purchase. */
     const restorePurchases = useCallback(async (): Promise<number> => {
-        const { data: { purchases } } = await appBridge.fetchCurrentPurchases();
+        const {
+            data: { purchases },
+        } = await appBridge.fetchCurrentPurchases();
         let restored = 0;
 
         for (const p of purchases) {

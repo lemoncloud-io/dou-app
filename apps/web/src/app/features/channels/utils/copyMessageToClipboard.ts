@@ -1,4 +1,5 @@
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
+import { appBridge } from '../../../bridge';
 
 const writeWithBrowserClipboard = async (text: string) => {
     if (!navigator.clipboard?.writeText) {
@@ -17,17 +18,9 @@ export const copyMessageToClipboard = async (text: string) => {
     }
 
     try {
-        await webClient.request({
-            type: 'CopyToClipboard',
-            data: { text },
-        });
-        return true;
+        return await appBridge.copyClipBoard(text);
     } catch (error) {
         logger.error('CLIPBOARD', 'Native CopyToClipboard request failed', { error });
-
-        // Web can ship before the native app that supports this bridge message.
-        // Keep browser clipboard fallback here so newer web bundles degrade cleanly on old apps when available.
-        await writeWithBrowserClipboard(text);
-        return true;
+        return false;
     }
 };

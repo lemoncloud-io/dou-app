@@ -3,11 +3,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { setOAuthProvider, useWebCoreStore, webCore } from '@chatic/web-core';
+import { useLoginRelaySocial } from '@chatic/web-core';
 
 import { isNative, logger } from '@chatic/bridges';
-import { useVerifyNativeAppToken } from '@chatic/web-core';
-import type { LemonOAuthToken } from '@lemoncloud/lemon-web-core';
 
 import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
@@ -42,13 +40,12 @@ const AppleIcon = () => (
 export const LoginPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
-    const { mutateAsync: verifyNativeAppToken, isPending: isVerifyNativeAppTokenPending } = useVerifyNativeAppToken();
+    const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
 
     const handleOAuthLogin = async (provider: 'google' | 'apple') => {
         setIsOAuthPending(true);
@@ -66,12 +63,8 @@ export const LoginPage = () => {
                 return;
             }
 
-            const res = await verifyNativeAppToken(result);
-            const { Token, ...rest } = res;
-            await webCore.buildCredentialsByToken(Token as unknown as LemonOAuthToken);
-            setOAuthProvider(result.provider);
-            setProfile(rest as Parameters<typeof setProfile>[0]);
-            setIsAuthenticated(true);
+            // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
+            await loginRelaySocial({ body: result, provider: result.provider });
 
             // Clean up history stack: [/, /mypage, /mypage/login] → [/]
             // Going back to the first entry and replacing prevents a back-navigation loop
@@ -94,11 +87,11 @@ export const LoginPage = () => {
         }
     };
 
-    const isLoading = isOAuthPending || isVerifyNativeAppTokenPending;
+    const isLoading = isOAuthPending || isLoginRelaySocialPending;
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
-            <PageHeader />
+            <PageHeader title="" />
 
             <div className="flex flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">
                 <div className="flex flex-col items-center pb-10">

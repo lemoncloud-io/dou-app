@@ -5,9 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { cloudsKeys, useClouds, useDeleteCloud, useMembershipInfo } from '@chatic/web-core';
+import {
+    cloudsKeys,
+    useClouds,
+    useDeleteCloud,
+    useLogoutCloudSession,
+    useMembershipInfo,
+    useSessionSelection,
+} from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore } from '@chatic/web-core';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
@@ -20,7 +26,8 @@ export const AccountManagePage = () => {
     const clouds = data?.list ?? [];
     const { data: membership } = useMembershipInfo();
     const deleteCloud = useDeleteCloud();
-    const selectedCloudId = cloudCore.getSelectedCloudId();
+    const { logoutCloudSession } = useLogoutCloudSession();
+    const { selectedCloudId } = useSessionSelection();
 
     const [confirmCloud, setConfirmCloud] = useState<CloudView | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -39,7 +46,7 @@ export const AccountManagePage = () => {
             }));
             toast({ title: t('mypage.accountManage.deleteSuccess') });
             if (isDeletingSelectedCloud) {
-                cloudCore.clearSession();
+                await logoutCloudSession();
                 window.location.href = '/auth/login';
             }
         } catch {

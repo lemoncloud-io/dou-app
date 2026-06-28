@@ -58,7 +58,7 @@ export const DebugChatPage = () => {
             if (!activePlaceId) return;
 
             channelUnsubRef.current?.();
-            channelUnsubRef.current = channelRepository.subscribeList(
+            channelUnsubRef.current = channelRepository.observeList(
                 { placeId: activePlaceId, page: 0, limit: 100 } as any,
                 result => {
                     setChannelSnapshot(result);
@@ -85,7 +85,7 @@ export const DebugChatPage = () => {
 
     const createChannel = useCallback(async () => {
         const id = makeId('debug-channel');
-        await channelRepository.cacheCreate({
+        await channelRepository.cacheWrite({
             id,
             sid: placeId,
             placeId,
@@ -118,7 +118,7 @@ export const DebugChatPage = () => {
         }
 
         chatUnsubRef.current?.();
-        chatUnsubRef.current = chatRepository.subscribeList(channelId, result => {
+        chatUnsubRef.current = chatRepository.observeList({ channelId } as any, result => {
             setChatSnapshot(result);
             pushChatLog(`stream emit: ${result?.list.length ?? 0} chats`);
         });
@@ -150,7 +150,7 @@ export const DebugChatPage = () => {
 
         const chatNo = nextAutoChatNo;
         const id = makeId('debug-chat');
-        await chatRepository.cacheCreate({
+        await chatRepository.cacheWrite({
             id,
             channelId: selectedChannelId.trim(),
             chatNo,
@@ -178,7 +178,7 @@ export const DebugChatPage = () => {
             createdAt: now + index,
         }));
 
-        await chatRepository.cacheBulkCreate(items as any);
+        await chatRepository.cacheWriteMany(items as any);
         pushChatLog(`cacheBulkCreate chats: ${count} items (start chatNo=${baseNo})`);
     }, [chatRepository, nextAutoChatNo, pushChatLog, sampleCount, selectedChannelId]);
 
@@ -203,10 +203,11 @@ export const DebugChatPage = () => {
 
     const saveEditChat = useCallback(async () => {
         if (!editingChatId.trim()) return;
-        await chatRepository.cacheUpdate(editingChatId.trim(), {
+        await chatRepository.cacheWrite({
+            id: editingChatId.trim(),
             content: editingChatContent,
         } as any);
-        pushChatLog(`cacheUpdate content: ${editingChatId.trim()}`);
+        pushChatLog(`cacheWrite content: ${editingChatId.trim()}`);
         cancelEditChat();
     }, [cancelEditChat, chatRepository, editingChatContent, editingChatId, pushChatLog]);
 

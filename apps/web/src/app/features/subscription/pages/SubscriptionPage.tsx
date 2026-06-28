@@ -7,15 +7,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative, logger } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
-import { reportError } from '@chatic/web-core';
-import { toError } from '../../../utils/errors';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/web-core';
 
 import { useSubscriptionIap } from '../hooks';
+import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
-
-const IS_DEV = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
 
 const formatDate = (timestamp?: number | null): string => {
     if (!timestamp || timestamp <= 0) return '-';
@@ -55,7 +52,6 @@ export const SubscriptionPage = () => {
             });
         } catch (e) {
             logger.error('IAP', '[SubscriptionPage] restore failed', { error: e });
-            reportError(toError(e));
             toast({ title: t('mypage.subscription.restoreFailed'), variant: 'destructive' });
         } finally {
             setIsRestoring(false);
@@ -142,24 +138,6 @@ export const SubscriptionPage = () => {
                                                   : t('mypage.subscription.statusActive')}
                                         </span>
                                     </div>
-                                    {membership?.status$?.renewal && (
-                                        <div className="flex items-center gap-[18px]">
-                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
-                                                {t('mypage.subscription.renewal')}
-                                            </span>
-                                            <span
-                                                className={`text-[16px] font-medium ${
-                                                    membership.status$.renewal === 'auto'
-                                                        ? 'text-green-600 dark:text-green-400'
-                                                        : membership.status$.renewal === 'pending_cancel'
-                                                          ? 'text-yellow-600 dark:text-yellow-400'
-                                                          : 'text-red-600 dark:text-red-400'
-                                                }`}
-                                            >
-                                                {t(`mypage.subscription.renewal_${membership.status$.renewal}`)}
-                                            </span>
-                                        </div>
-                                    )}
                                     {membership?.platform && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
@@ -309,9 +287,7 @@ export const SubscriptionPage = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    const url = IS_DEV
-                                                        ? 'https://app-dev.chatic.io/policy/terms'
-                                                        : 'https://app.chatic.io/policy/terms';
+                                                    const url = `${POLICY_BASE_URL}/policy/terms`;
                                                     if (isOnMobileApp) {
                                                         appBridge.openURL(url);
                                                     } else {

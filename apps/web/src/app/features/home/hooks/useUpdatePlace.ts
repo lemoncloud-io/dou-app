@@ -1,13 +1,25 @@
-import { usePlaceMutations } from '../../../hooks';
+import { useState } from 'react';
 
-import type { UserUpdateSitePayload } from '@lemoncloud/chatic-sockets-api';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
-export const useUpdateMyPlace = () => {
-    const { updateSite, isPending } = usePlaceMutations();
+interface UpdatePlacePayload {
+    sid: string;
+    name?: string;
+    thumbnail?: string;
+}
 
-    const updatePlace = async (payload: UserUpdateSitePayload): Promise<void> => {
-        await updateSite(payload);
+export const useUpdatePlace = () => {
+    const { place } = useRuntimeRepositories();
+    const [isPending, setIsPending] = useState(false);
+
+    const updatePlace = async (payload: UpdatePlacePayload): Promise<void> => {
+        setIsPending(true);
+        try {
+            await place.updatePlace(payload as Parameters<typeof place.updatePlace>[0]);
+        } finally {
+            setIsPending(false);
+        }
     };
 
-    return { updatePlace, isPending: isPending['update-site'], isError: false };
+    return { updatePlace, isPending, isError: false };
 };

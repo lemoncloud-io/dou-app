@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useWebCoreStore } from '@chatic/web-core';
-
 import { DEBUG_STORAGE_KEY } from '../consts';
 
 const TAP_THRESHOLD = 10;
@@ -16,18 +14,12 @@ const readEnabled = () => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true';
  * - `registerTap`: tap the app version 10 times within 3s to unlock debug mode.
  * - `disable`: lock debug tools again.
  *
- * Debug mode is automatically cleared on logout.
+ * Debug mode is session-scoped (sessionStorage) so it clears when the tab closes.
  */
 export const useDebugMode = () => {
     const [isEnabled, setIsEnabled] = useState(readEnabled);
     const tapCountRef = useRef(0);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
-
-    useEffect(
-        () => registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY)),
-        [registerLogoutCallback]
-    );
 
     useEffect(() => {
         return () => {

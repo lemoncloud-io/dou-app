@@ -1,124 +1,52 @@
 import { ChevronRight, User } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { cloudCore, useDynamicProfile, UserType, useUserContext, useWebCoreStore } from '@chatic/web-core';
+import { UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
-import { useLogout } from '@chatic/web-core';
 
 import { BottomNavigation } from '../../../ui/components/BottomNavigation';
-import { useTotalUnreadCount } from '../../../hooks/useTotalUnreadCount';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
-import { DEBUG_STORAGE_KEY } from '../consts';
-import { useCacheMutations } from '../../../hooks/useCacheMutations';
-import type { AppIconOption } from '@chatic/app-messages';
+import { useAppIcon } from '../hooks';
+import { useDebugMode } from '../../debug';
 import { ROUTES } from '../../../routes/paths';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const { userType } = useUserContext();
-    const profile = useDynamicProfile();
-    const selectedCloudId = cloudCore.getSelectedCloudId() ?? 'default';
+    const { userType, activeProfile: profile } = useSessionIdentity();
+    const { selectedCloudId } = useSessionSelection();
 
-    const { mutate: logout } = useLogout();
-    const registerLogoutCallback = useWebCoreStore(s => s.registerLogoutCallback);
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding, blurLastMessage, setBlurLastMessage } = usePreferenceStore();
-    const { clearAllCache } = useCacheMutations();
-    const totalUnread = useTotalUnreadCount();
+    const { isEnabled: isDebugMode, registerTap } = useDebugMode();
+    const {
+        isSupported: isIconChangeSupported,
+        currentIcon,
+        availableIcons,
+        selectIcon,
+        currentIconLabel,
+    } = useAppIcon();
 
     const displayName = profile?.$user?.name;
     const displayImageUrl = profile?.$user?.photo;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
-    const [isDebugMode, setIsDebugMode] = useState(() => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true');
-    const tapCountRef = useRef(0);
-    const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const [isIconChangeSupported, setIsIconChangeSupported] = useState(false);
-    const [currentIcon, setCurrentIcon] = useState<string | null>('default');
-    const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
     const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
-
-    useEffect(() => {
-        if (isNative()) {
-            webClient
-                .request({ type: 'FetchAppIcon', data: {} })
-                .then(res => {
-                    if (res.success && res.data) {
-                        setIsIconChangeSupported(res.data.supported);
-                        setCurrentIcon(res.data.iconName);
-                    }
-                })
-                .catch(err => {
-                    console.error('Failed to fetch app icon status:', err);
-                });
-
-            webClient
-                .request({ type: 'FetchAppIconList', data: {} })
-                .then(res => {
-                    if (res.success && res.data) {
-                        setAvailableIcons(res.data.availableIcons);
-                    }
-                })
-                .catch(err => {
-                    console.error('Failed to fetch app icon list:', err);
-                });
-        }
-    }, []);
-
-    const handleIconSelect = async (iconId: string | null) => {
-        try {
-            const res = await webClient.request({
-                type: 'ChangeAppIcon',
-                data: { iconName: iconId },
-            });
-            if (res.success && res.data?.success) {
-                setCurrentIcon(res.data.iconName ?? 'default');
-                return true;
-            }
-        } catch (err) {
-            console.error('Failed to change app icon:', err);
-        }
-        return false;
-    };
-
-    const currentIconLabel = (() => {
-        const isDefault = currentIcon === null || currentIcon === 'default';
-        if (isDefault) return t('mypage.appIcon.default');
-
-        const found = availableIcons.find(icon => icon.id === currentIcon);
-        if (!found) return t('mypage.appIcon.default');
-
-        const translationKey = `mypage.appIcon.${found.id}`;
-        const translated = t(translationKey);
-        return translated !== translationKey ? translated : found.label;
-    })();
-
-    useEffect(() => {
-        return registerLogoutCallback(() => sessionStorage.removeItem(DEBUG_STORAGE_KEY));
-    }, [registerLogoutCallback]);
-
-    useEffect(() => {
-        return () => {
-            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-        };
-    }, []);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
 
+    // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
-        void clearAllCache();
-        logout();
+        navigate(ROUTES.auth.logout);
     };
 
     const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
@@ -128,20 +56,6 @@ export const MyPage = () => {
 
     const handleThemeToggle = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
-    };
-
-    const handleVersionTap = () => {
-        tapCountRef.current += 1;
-        if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-        tapTimerRef.current = setTimeout(() => {
-            tapCountRef.current = 0;
-        }, 3000);
-
-        if (tapCountRef.current >= 10) {
-            tapCountRef.current = 0;
-            sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
-            setIsDebugMode(true);
-        }
     };
 
     const handleUpdateClick = () => {
@@ -311,7 +225,7 @@ export const MyPage = () => {
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
                     <button
-                        onClick={handleVersionTap}
+                        onClick={registerTap}
                         className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
                     >
                         <div className="flex flex-col items-start gap-0.5">
@@ -342,7 +256,7 @@ export const MyPage = () => {
                     {isDebugMode && (
                         <>
                             <button
-                                onClick={() => navigate(ROUTES.mypage.debug.root)}
+                                onClick={() => navigate(ROUTES.debug.root)}
                                 className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                             >
                                 <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
@@ -365,7 +279,7 @@ export const MyPage = () => {
                 )}
             </div>
 
-            <BottomNavigation totalUnread={totalUnread} />
+            <BottomNavigation />
 
             {/* Logout Dialog */}
             <LogoutDialog
@@ -383,7 +297,7 @@ export const MyPage = () => {
                 onClose={() => setIsAppIconSheetOpen(false)}
                 currentIcon={currentIcon}
                 availableIcons={availableIcons}
-                onSelectIcon={handleIconSelect}
+                onSelectIcon={selectIcon}
             />
         </div>
     );

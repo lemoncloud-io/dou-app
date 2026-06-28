@@ -1,4 +1,4 @@
-import type { OnboardingStep } from '../consts';
+import type { OnboardingStep } from '../types';
 
 interface OnboardingContentProps {
     step: OnboardingStep;

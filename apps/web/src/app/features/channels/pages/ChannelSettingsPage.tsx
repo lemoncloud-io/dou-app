@@ -1,30 +1,24 @@
 import type { LucideIcon } from 'lucide-react';
-import { Bell, LogOut, Pencil, Trash2, UserPlus } from 'lucide-react';
-import { useState } from 'react';
+import { LogOut, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { reportError, UserType, useSessionIdentity } from '@chatic/web-core';
+import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
-import { ReportMemberDialog } from '../components/ReportMemberDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { useChannel, useChannelMembers, useChannelMutations } from '../../../hooks';
+import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'report' | 'block' | null;
-
-interface SelectedMember {
-    id: string;
-    name: string;
-}
+type DialogType = 'invite' | 'update' | 'delete' | 'leave' | null;
 
 interface ActionButtonProps {
     icon: LucideIcon;
@@ -64,11 +58,10 @@ export const ChannelSettingsPage = () => {
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
-    const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
 
     const { toast } = useToast();
 
-    const { activeProfile: profile, userType } = useSessionIdentity();
+    const { activeProfile: profile } = useSessionIdentity();
 
     const { channel, isError } = useChannel(channelId ?? null);
 
@@ -84,16 +77,12 @@ export const ChannelSettingsPage = () => {
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
     const memberCount = membersTotal || channel?.memberCount || 0;
 
-    const openDialog = (type: DialogType) => setActiveDialog(type);
-    const closeDialog = () => {
-        setActiveDialog(null);
-        setSelectedMember(null);
-    };
+    // Site profiles (nick/avatar) for the member list; same source as the room.
+    const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
+    const { profileMap } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
 
-    const openMemberDialog = (type: 'report' | 'block', member: SelectedMember) => {
-        setSelectedMember(member);
-        setActiveDialog(type);
-    };
+    const openDialog = (type: DialogType) => setActiveDialog(type);
+    const closeDialog = () => setActiveDialog(null);
 
     const handleLeaveRoom = async () => {
         if (!channelId) return;
@@ -123,26 +112,6 @@ export const ChannelSettingsPage = () => {
             reportError(toError(error));
             toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
         }
-    };
-
-    const handleReportMember = async (reason: string) => {
-        if (!selectedMember) return;
-
-        // TODO: Implement report member API call
-        // Example: await reportMember(channelId, selectedMember.id, reason);
-        logger.info('CHAT', 'Report member', { selectedMember, reason });
-        closeDialog();
-        toast({ title: t('chat.settings.reportSuccess') });
-    };
-
-    const handleBlockMember = async () => {
-        if (!selectedMember) return;
-
-        // TODO: Implement block member API call
-        // Example: await blockMember(selectedMember.id);
-        logger.info('CHAT', 'Block member', { selectedMember });
-        closeDialog();
-        toast({ title: t('chat.settings.blockSuccess') });
     };
 
     if (isError) {
@@ -187,21 +156,13 @@ export const ChannelSettingsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex items-start justify-center gap-6">
-                        {channel?.isOwner &&
-                            !channel?.isSelfChat &&
-                            userType !== UserType.TEMP_ACCOUNT &&
-                            userType !== UserType.SOCIAL_NO_CLOUD && (
-                                <ActionButton
-                                    icon={UserPlus}
-                                    label={t('chat.settings.inviteFriends')}
-                                    onClick={() => openDialog('invite')}
-                                />
-                            )}
-                        <ActionButton
-                            icon={Bell}
-                            label={t('chat.settings.notifications')}
-                            onClick={() => navigate(ROUTES.channels.roomNotifications(channelId ?? ''))}
-                        />
+                        {channel?.isOwner && !channel?.isSelfChat && (
+                            <ActionButton
+                                icon={UserPlus}
+                                label={t('chat.settings.inviteFriends')}
+                                onClick={() => openDialog('invite')}
+                            />
+                        )}
                         {!channel?.isSelfChat ? (
                             channel?.isOwner ? (
                                 <ActionButton
@@ -240,7 +201,13 @@ export const ChannelSettingsPage = () => {
                             ) : members.length > 0 ? (
                                 members.map(member => {
                                     const memberId = member.id ?? '';
-                                    const memberName = member.name || memberId || t('chat.settings.unknownUser');
+                                    // Site profile (nick/avatar) takes precedence over the user-cache name.
+                                    const memberProfile = memberId ? profileMap.get(memberId) : undefined;
+                                    const memberName =
+                                        memberProfile?.nick ||
+                                        member.name ||
+                                        memberId ||
+                                        t('chat.settings.unknownUser');
 
                                     const isMember = memberId === profile?.uid;
 
@@ -250,18 +217,11 @@ export const ChannelSettingsPage = () => {
                                             member={{
                                                 id: memberId,
                                                 name: memberName,
-                                                avatar: null,
+                                                avatar: memberProfile?.thumbnail ?? null,
                                             }}
                                             isMe={isMember}
                                             isOwner={memberId === channel?.ownerId}
                                             isPendingInvite={member.$join?.joined === 0}
-                                            showActions={!isMember}
-                                            onReport={() =>
-                                                openMemberDialog('report', { id: memberId, name: memberName })
-                                            }
-                                            onBlock={() =>
-                                                openMemberDialog('block', { id: memberId, name: memberName })
-                                            }
                                         />
                                     );
                                 })
@@ -276,13 +236,11 @@ export const ChannelSettingsPage = () => {
             </div>
 
             {/* Dialogs */}
-            {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && (
-                <InviteFriendsDialog
-                    open={activeDialog === 'invite'}
-                    onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
-                    channelId={channelId}
-                />
-            )}
+            <InviteFriendsDialog
+                open={activeDialog === 'invite'}
+                onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
+                channelId={channelId}
+            />
             <UpdateChannelDialog
                 open={activeDialog === 'update'}
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
@@ -307,21 +265,6 @@ export const ChannelSettingsPage = () => {
                 onConfirm={handleLeaveRoom}
                 isPending={isPending.leave}
                 variant="warning"
-            />
-            <ReportMemberDialog
-                open={activeDialog === 'report'}
-                onOpenChange={open => (open ? openDialog('report') : closeDialog())}
-                memberName={selectedMember?.name ?? ''}
-                onConfirm={handleReportMember}
-            />
-            <ConfirmDialog
-                open={activeDialog === 'block'}
-                onOpenChange={open => (open ? openDialog('block') : closeDialog())}
-                title={t('chat.settings.blockDialog.title')}
-                description={t('chat.settings.blockDialog.description')}
-                confirmLabel={t('chat.settings.blockDialog.confirm')}
-                onConfirm={handleBlockMember}
-                variant="danger"
             />
         </div>
     );

@@ -3,12 +3,6 @@ import { act, renderHook } from '@testing-library/react';
 import { useDebugMode } from './useDebugMode';
 import { DEBUG_STORAGE_KEY } from '../consts';
 
-// registerLogoutCallback is irrelevant to the gate logic; return a no-op unsubscribe.
-jest.mock('@chatic/web-core', () => ({
-    useWebCoreStore: (selector: (s: { registerLogoutCallback: () => () => void }) => unknown) =>
-        selector({ registerLogoutCallback: () => () => undefined }),
-}));
-
 const tap = (registerTap: () => void, times: number) =>
     act(() => {
         for (let i = 0; i < times; i++) registerTap();

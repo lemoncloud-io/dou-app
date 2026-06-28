@@ -1,61 +1,67 @@
 import { Camera, User } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    useRefreshCurrentCloudSession,
-    useSessionIdentity,
-    useSessionSelection,
-    useUpdateCloud,
-} from '@chatic/web-core';
+import { useMyProfile } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
-export const CloudProfileEditPage = () => {
+/**
+ * Edits the per-site profile (nick/thumbnail) for the ACTIVE site via ProfileRepositoryV2.
+ * Reached from the home header. Distinct from CloudProfileEditPage, which edits the cloud profile.
+ */
+export const SiteProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { selectedCloudId } = useSessionSelection();
-    const { cloudProfile } = useSessionIdentity();
-    const { mutateAsync: updateCloud, isPending } = useUpdateCloud();
-    const { refreshCurrentCloudSession } = useRefreshCurrentCloudSession();
+    const { profile: profileRepository } = useRuntimeRepositories();
+    // Source the current value from the V2 per-site profile (same source the header observes).
+    const { profile: myProfile } = useMyProfile();
 
-    // Read from the cloud profile so the relay photo does not bleed in.
-    const cloudUser = cloudProfile?.$user;
-    const cloudName = cloudUser?.name || '';
-    const cloudThumbnail = (cloudUser?.photo as string) || '';
-
-    const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudProfile });
-    const [name, setName] = useState(cloudName.slice(0, 30));
-    const [thumbnail, setThumbnail] = useState(cloudThumbnail);
+    const initialRef = useRef({ nick: '', thumbnail: '', initialized: false });
+    const [name, setName] = useState('');
+    const [thumbnail, setThumbnail] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
+    const [isPending, setIsPending] = useState(false);
 
-    const hasChanges = name !== initialRef.current.name || thumbnail !== initialRef.current.thumbnail;
+    // Fix the initial values and sync state once the profile loads (mirrors ProfileEditPage).
+    useEffect(() => {
+        if (myProfile && !initialRef.current.initialized) {
+            const initNick = myProfile.nick || '';
+            const initThumbnail = myProfile.thumbnail || '';
+            initialRef.current = { nick: initNick, thumbnail: initThumbnail, initialized: true };
+            setName(initNick.slice(0, 30));
+            setThumbnail(initThumbnail);
+        }
+    }, [myProfile]);
+
+    const hasChanges = name !== initialRef.current.nick || thumbnail !== initialRef.current.thumbnail;
     const isValid = name.trim().length > 0 && name.length <= 30;
 
     const handleSave = async () => {
-        if (!isValid || !hasChanges || !selectedCloudId) return;
+        if (!isValid || !hasChanges) return;
+        setIsPending(true);
         try {
-            // NOTE: server-side thumbnail update is deferred; only the name is persisted for now.
-            await updateCloud({ id: selectedCloudId, body: { name: name.trim() } });
+            // Persist nick + thumbnail to the per-site profile via ProfileRepositoryV2 (optimistic).
+            await profileRepository.setMyProfile({ nick: name.trim(), thumbnail });
 
-            // Re-issue the cloud token so the session-derived profile reflects the new name.
-            await refreshCurrentCloudSession();
-
-            toast({ title: t('profileEdit.cloudSaveSuccess') });
+            toast({ title: t('profileEdit.siteSaveSuccess') });
             navigate(-1);
         } catch (error) {
-            logger.error('PROFILE', 'Failed to update cloud profile', { error });
-            toast({ title: t('profileEdit.cloudSaveError'), variant: 'destructive' });
+            logger.error('PROFILE', 'Failed to update site profile', { error });
+            toast({ title: t('profileEdit.siteSaveError'), variant: 'destructive' });
+        } finally {
+            setIsPending(false);
         }
     };
 
@@ -82,7 +88,7 @@ export const CloudProfileEditPage = () => {
     return (
         <KeyboardAwareLayout
             className="fixed inset-0 overflow-hidden"
-            header={<PageHeader title={t('profileEdit.tabCloud')} />}
+            header={<PageHeader title={t('profileEdit.tabSite')} />}
             footer={
                 <div className="border-t border-border/50 bg-background px-5 py-4">
                     <button
@@ -103,10 +109,10 @@ export const CloudProfileEditPage = () => {
             <div className="px-5 pt-4">
                 <div className="mb-8">
                     <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.cloudDescription1')}
+                        {t('profileEdit.siteDescription1')}
                     </p>
                     <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.cloudDescription2')}
+                        {t('profileEdit.siteDescription2')}
                     </p>
                 </div>
 

@@ -61,7 +61,7 @@ const CreateRoomSuccess = ({ name, visibility, inviteCode, onClose, onConfirm, t
     );
 };
 
-export const CreateRoomPage = () => {
+export const CreateChannelPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { toast } = useToast();

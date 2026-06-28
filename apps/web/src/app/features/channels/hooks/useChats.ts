@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
@@ -32,6 +32,12 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     const { userId } = useSessionIdentity();
     const myUid = userId ?? '';
 
+    // Chat fetching is owned by the sync layer: useChatSync registers a 'chat' target, and
+    // SyncManager.primeChatTarget seeds the initial page (refreshList when the cache is cold)
+    // while ChatSyncPlan streams live + catches up on reconnect. So this hook never fetches on
+    // entry itself — it only observes the cache (no isVerified gate needed here).
+    useChatSync(channelId);
+
     const [chats, setChats] = useState<DomainChat[]>([]);
     const [users, setUsers] = useState<DomainUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -40,14 +46,18 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     const [hasMore, setHasMore] = useState(true);
     const [pageLimit, setPageLimit] = useState(limit);
 
-    // Reset paging/scroll guards on channel change — treat it as a fresh entry.
+    // Latest chats snapshot for loadMore — keeps the callback identity stable (a `chats`/`messages`
+    // dependency would rebuild loadMore on every live message append, re-attaching scroll listeners).
+    const chatsRef = useRef<DomainChat[]>(chats);
+    chatsRef.current = chats;
+
+    // Reset paging/scroll guards on channel change or window-size change — treat it as a fresh entry.
     useEffect(() => {
         setChats([]);
         setIsLoading(true);
         setHasMore(true);
         setPageLimit(limit);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [channelId]);
+    }, [channelId, limit]);
 
     // Widening pageLimit re-subscribes and re-reads cached older pages into view.
     useEffect(() => {
@@ -85,14 +95,20 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
 
     const loadMore = useCallback(async () => {
         if (!channelId || isLoadingMore || !hasMore) return;
-        const oldest = messages[0];
-        if (!oldest?.chatNo) return;
+        // Read the oldest cached row from the ref so the cursor reflects the live list without
+        // making `chats` a dependency. observeList is chat_no-descending, so the smallest chatNo
+        // is the page boundary to fetch before.
+        let oldestNo = Infinity;
+        for (const chat of chatsRef.current) {
+            if (chat.chatNo != null && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
+        }
+        if (!Number.isFinite(oldestNo)) return;
 
         setIsLoadingMore(true);
         try {
             const result = await chatRepository.refreshList({
                 channelId,
-                cursorNo: oldest.chatNo,
+                cursorNo: oldestNo,
                 limit: LOAD_MORE_SIZE,
             });
             if (result.fetchedCount === 0) {
@@ -105,7 +121,7 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
         } finally {
             setIsLoadingMore(false);
         }
-    }, [chatRepository, channelId, messages, isLoadingMore, hasMore]);
+    }, [chatRepository, channelId, isLoadingMore, hasMore]);
 
     return {
         messages,

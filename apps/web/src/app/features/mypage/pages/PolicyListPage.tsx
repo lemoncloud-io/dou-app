@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { PageHeader } from '../../../ui/components';
+import { PageHeader } from '../../../ui';
 import { ROUTES } from '../../../routes/paths';
 
 export const PolicyListPage = () => {
