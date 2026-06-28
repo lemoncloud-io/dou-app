@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 
 import { Sidebar } from '../components';
+import type { JSX } from 'react';
 
 /**
  * Private layout component for authenticated pages

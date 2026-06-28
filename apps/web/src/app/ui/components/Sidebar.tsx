@@ -1,18 +1,14 @@
 import { Globe, Home, LogOut, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useLocation } from 'react-router-dom';
-
-import { toast } from 'sonner';
-
-import { logger } from '@chatic/bridges';
 import { useTheme } from '@chatic/theme';
 
 import { CloudLogo } from './CloudLogo';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
-import { useLogout } from '@chatic/web-core';
 
 import type { JSX, ReactNode } from 'react';
+import { useSessionLogout } from '@chatic/web-core';
 
 interface NavItem {
     path: string;
@@ -33,11 +29,6 @@ export const Sidebar = (): JSX.Element => {
     const location = useLocation();
     const { theme, setTheme } = useTheme();
 
-    const { mutate: logout, isPending: isLoggingOut } = useLogout(undefined, error => {
-        logger.error('AUTH', 'Logout failed', { error });
-        toast.error(t('home.logoutFailed', 'Logout failed'));
-    });
-
     const isActive = (path: string): boolean => {
         if (path === '/') {
             return location.pathname === '/';
@@ -55,7 +46,7 @@ export const Sidebar = (): JSX.Element => {
     };
 
     const handleLogout = () => {
-        logout();
+        useSessionLogout();
     };
 
     return (
@@ -117,7 +108,6 @@ export const Sidebar = (): JSX.Element => {
                                     size="icon"
                                     className="h-9 w-9 text-destructive hover:text-destructive"
                                     onClick={handleLogout}
-                                    disabled={isLoggingOut}
                                 >
                                     <LogOut className="h-4 w-4" />
                                 </Button>

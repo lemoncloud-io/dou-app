@@ -35,15 +35,10 @@ const NAV_ITEMS = [
     { path: ROUTES.mypage.root, labelKey: 'bottomNav.my', Icon: IconMy },
 ] as const;
 
-interface BottomNavigationProps {
-    totalUnread: number;
-}
-
-export const BottomNavigation = ({ totalUnread }: BottomNavigationProps) => {
+export const BottomNavigation = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
-    const displayUnread = totalUnread > 999 ? '+999' : totalUnread > 0 ? String(totalUnread) : null;
 
     return (
         <div
@@ -71,11 +66,6 @@ export const BottomNavigation = ({ totalUnread }: BottomNavigationProps) => {
                                 )}
                             >
                                 <Icon color={iconColor ?? 'currentColor'} />
-                                {path === '/' && displayUnread && (
-                                    <span className="absolute -top-[3px] left-[22px] flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] border border-background bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
-                                        {displayUnread}
-                                    </span>
-                                )}
                                 <span
                                     className={cn(
                                         'text-[11px] leading-[1.09] tracking-[-0.009em] text-center w-full',
