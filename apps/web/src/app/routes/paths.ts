@@ -66,6 +66,7 @@ export const ROUTES = {
             manage: '/mypage/account-manage',
             edit: '/mypage/edit',
             cloudProfile: '/mypage/cloud-profile',
+            siteProfile: '/mypage/site-profile',
             withdrawal: '/mypage/withdrawal',
         },
         policy: {
