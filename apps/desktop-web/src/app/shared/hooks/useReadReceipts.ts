@@ -13,8 +13,7 @@ const DEBOUNCE_MS = 500;
 // messages advance the read position.
 const maxChatNoOf = (messages: DomainChat[]): number =>
     messages.reduce(
-        (max, m) =>
-            !m.isPending && m.chatNo && m.chatNo !== Number.MAX_SAFE_INTEGER && m.chatNo > max ? m.chatNo : max,
+        (max, m) => (!m.isPending && m.chatNo && m.chatNo !== Number.MAX_SAFE_INTEGER && m.chatNo > max ? m.chatNo : max),
         0
     );
 
