@@ -21,6 +21,12 @@
             "path": "../../libs/socket/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/users/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/auth/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {

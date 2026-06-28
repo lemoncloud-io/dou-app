@@ -8,7 +8,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudCore, reportError, toError } from '@chatic/web-core';
 import type { DomainSite } from '@chatic/data';
 
-import { useCloudSession, useRuntimeRepositories } from '@chatic/app-runtime';
+import { useCloudSession, useRepositories } from '@chatic/app-runtime';
 import { useSelectedChannelStore } from '../stores';
 import { authPlace, waitForVerified } from '../utils';
 
@@ -31,7 +31,7 @@ const resolveTargetPlace = (places: DomainSite[]): string | null => {
  */
 export const useCloudSwitchFlow = (options: UseCloudSwitchFlowOptions = {}) => {
     const { selectCloud, restoreInvitedCloud } = useCloudSession();
-    const { site: siteRepository, channel: channelRepository } = useRuntimeRepositories();
+    const { site: siteRepository, channel: channelRepository } = useRepositories();
     const setIsLoading = useLoaderStore(s => s.setIsLoading);
     const { t } = useTranslation();
     const { toast } = useToast();

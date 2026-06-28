@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 
-import { useRegisterUserV2 } from '@chatic/web-core';
+import { useRegisterUserV2 } from '@chatic/auth';
 import { reportError, toError } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {

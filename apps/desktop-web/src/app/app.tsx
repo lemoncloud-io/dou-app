@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { I18nextProvider } from 'react-i18next';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { useInitWebCore, useTokenRefresh, useWebCoreStore } from '@chatic/web-core';
-import { getRuntimeManager, WebSocketV2Connection, useAutoSelectCloud, useRuntimeBinding } from '@chatic/app-runtime';
+import { DataProvider, GlobalChatSync, WebSocketV2Connection, useAutoSelectCloud } from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { AppRouter } from './routes';
@@ -23,7 +23,7 @@ import {
     useUnreadStore,
 } from './shared';
 
-/** Mounts desktop OS-notification wiring inside the app runtime binder scope (needs engine repositories). */
+/** Mounts desktop OS-notification wiring inside DataProvider (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
     // Cross-cloud push: register this device's FCM token with the broker.
@@ -78,8 +78,6 @@ export function App() {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated, profile } = useWebCoreStore();
     const { isInitialized: isTokenInitialized, initStatus } = useTokenRefresh(isWebCoreReady);
-    const runtimeBinding = useRuntimeBinding();
-    const runtimeManager = getRuntimeManager();
 
     // Fast path mirrors apps/web: render once webCore is ready and either the
     // session is unauthenticated, a cached profile exists, or refresh resolved.
@@ -91,10 +89,6 @@ export function App() {
     // bare spinner) for better perceived performance; pre-auth keeps the plain loader.
     const BootFallback = isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />;
 
-    useLayoutEffect(() => {
-        runtimeManager.ensure(runtimeBinding);
-    }, [runtimeManager, runtimeBinding]);
-
     if (!canRenderApp) {
         return BootFallback;
     }
@@ -104,15 +98,18 @@ export function App() {
             <Suspense fallback={BootFallback}>
                 <QueryClientProvider client={queryClient}>
                     <ThemeProvider>
-                        {isAuthenticated && isWebCoreReady && <WebSocketV2Connection binding={runtimeBinding} />}
-                        {isAuthenticated && isWebCoreReady && <CloudBootstrap />}
-                        {isAuthenticated && isWebCoreReady && <DesktopNotifications />}
-                        {isAuthenticated && isWebCoreReady && <ShellUnreadSync />}
-                        {isAuthenticated && isWebCoreReady && <ConnectionBanner />}
-                        {/* Desktop auto-update banner — always mounted (no-op in browser). */}
-                        <UpdateBanner />
-                        <AppRouter />
-                        <Toaster />
+                        <DataProvider>
+                            {isAuthenticated && isWebCoreReady && <WebSocketV2Connection />}
+                            {isAuthenticated && isWebCoreReady && <GlobalChatSync />}
+                            {isAuthenticated && isWebCoreReady && <CloudBootstrap />}
+                            {isAuthenticated && isWebCoreReady && <DesktopNotifications />}
+                            {isAuthenticated && isWebCoreReady && <ShellUnreadSync />}
+                            {isAuthenticated && isWebCoreReady && <ConnectionBanner />}
+                            {/* Desktop auto-update banner — always mounted (no-op in browser). */}
+                            <UpdateBanner />
+                            <AppRouter />
+                            <Toaster />
+                        </DataProvider>
                     </ThemeProvider>
                 </QueryClientProvider>
             </Suspense>

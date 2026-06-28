@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { useRegisterDevice } from '@chatic/web-core';
+import { useRegisterDevice } from '@chatic/auth';
 import { useDynamicDeviceId } from '@chatic/app-runtime';
 import { cloudCore, reportError, startWebCoreInit, toError, useWebCoreStore, webCore } from '@chatic/web-core';
 

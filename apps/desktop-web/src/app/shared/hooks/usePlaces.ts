@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { DomainSite } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 
 /**
  * Tracer-bullet places hook. Loads the Site (place) list via the engine's
@@ -11,7 +11,7 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * `sid` for channel queries.
  */
 export const usePlaces = () => {
-    const { site: siteRepository } = useRuntimeRepositories();
+    const { site: siteRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const [places, setPlaces] = useState<DomainSite[]>([]);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 
 import { displayName } from '../utils';
 
@@ -36,7 +36,7 @@ const seedFromMemo = (ids: string[]): Map<string, string> => {
  * unresolved so the raw id never flashes as a name.
  */
 export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): ReadonlyMap<string, string> => {
-    const { user: userRepository } = useRuntimeRepositories();
+    const { user: userRepository } = useRepositories();
 
     // Stable, de-duped key so subscriptions only reset when the id set changes.
     const idsKey = useMemo(

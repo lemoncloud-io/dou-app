@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 
 const PAGE_SIZE = 50;
 
@@ -45,7 +45,7 @@ const mergeUnique = (...lists: DomainChat[][]): DomainChat[] => {
  * separately and merged in — live tail + accumulated history, de-duplicated.
  */
 export const useChats = (channelId: string | null) => {
-    const { chat: chatRepository } = useRuntimeRepositories();
+    const { chat: chatRepository } = useRepositories();
     const initial = channelId ? channelMemo.get(channelId) : undefined;
     const [live, setLive] = useState<DomainChat[] | null>(() => (channelId ? (initial?.live ?? null) : []));
     const [older, setOlder] = useState<DomainChat[]>(() => initial?.older ?? []);

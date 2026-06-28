@@ -11,14 +11,14 @@ import type {
 import type { JoinNotify } from '@lemoncloud/chatic-socials-api';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 
 /**
  * Desktop channel-write hook. Wraps the engine's channel repository for every
  * write the desktop UI needs (create / rename / delete / leave-kick / invite).
  *
  * WHY HERE (not libs/app-runtime): the engine already exposes the channel
- * repository via useRuntimeRepositories(); apps/web wraps it in its own feature-level
+ * repository via useRepositories(); apps/web wraps it in its own feature-level
  * useChannelMutations. We mirror that app-side convention rather than widen the
  * shared engine surface.
  *
@@ -26,7 +26,7 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * time (dialog/confirm flows), so per-op flags would be needless complexity.
  */
 export const useDesktopChannelMutations = () => {
-    const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, join: joinRepository } = useRepositories();
     const [isMutating, setIsMutating] = useState(false);
 
     const run = useCallback(<T>(op: () => Promise<T>): Promise<T> => {

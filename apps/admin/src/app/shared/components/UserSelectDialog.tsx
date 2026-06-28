@@ -6,7 +6,7 @@ import { deleteUndefinedProperty, useDebounce } from '@chatic/shared';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { useUsers } from '@chatic/web-core';
+import { useUsers } from '@chatic/users';
 
 import type { JSX } from 'react';
 

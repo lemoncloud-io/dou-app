@@ -5,7 +5,7 @@ import { useWebSocketV2Store } from '@chatic/socket';
 import { useWebCoreStore } from '@chatic/web-core';
 import type { DomainChannel, DomainChannelListPayload, DomainChat } from '@chatic/data';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 import { computeChannelUnread, mergeChannelsKeepingLatest, withIncomingChat } from '../utils';
 import { useReadCursorStore } from '../stores';
 
@@ -20,7 +20,7 @@ import { useReadCursorStore } from '../stores';
  * no 30s polling) — desktop relies on the always-connected socket for freshness.
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const cloudId = useWebSocketV2Store(s => s.cloudId);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);

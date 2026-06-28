@@ -4,7 +4,7 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useWebSocketV2Store } from '@chatic/socket';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 
 import { usePlaces } from './usePlaces';
 import { isMentioned, stripMarkdown } from '../utils';
@@ -49,7 +49,7 @@ const isViewing = (channelId: string): boolean =>
  * on channel events would drop the live stream after the first notification.
  */
 export const useDesktopNotifications = (): void => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const { places } = usePlaces();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const myId = useWebCoreStore(s => s.profile?.id);

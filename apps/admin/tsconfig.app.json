@@ -26,6 +26,12 @@
             "path": "../../assets/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/users/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {

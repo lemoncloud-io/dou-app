@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { isNative, webClient } from '@chatic/bridges';
 import { useWebCoreStore } from '@chatic/web-core';
 import { useDynamicDeviceId } from '@chatic/app-runtime';
-import { useRegisterDeviceToken } from '@chatic/web-core';
+import { useRegisterDeviceToken } from '@chatic/users';
 
 declare global {
     interface Window {

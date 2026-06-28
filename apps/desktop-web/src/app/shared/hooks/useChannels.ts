@@ -4,7 +4,7 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { useWebSocketV2Store } from '@chatic/socket';
 import { useWebCoreStore } from '@chatic/web-core';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRepositories } from '@chatic/app-runtime';
 import { computeChannelUnread, mergeChannelsKeepingLatest, withIncomingChat } from '../utils';
 import { useReadCursorStore } from '../stores';
 
@@ -28,7 +28,7 @@ const sortByName = (list: DomainChannel[]): DomainChannel[] =>
  * and the list is cleared on place switch so the previous place's channels don't flash.
  */
 export const useChannels = (placeId: string | undefined) => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
     const isVerified = useWebSocketV2Store(s => s.isVerified);
     const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
     const readCursors = useReadCursorStore(s => s.cursors);
