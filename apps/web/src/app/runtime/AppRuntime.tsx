@@ -5,6 +5,8 @@ import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
+import { DevMonitorOverlay } from '../dev/DevMonitorOverlay';
+import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { PreferenceLoader } from './PreferenceLoader';
 import { useSocketDelegate } from './useSocketDelegate';
 
@@ -26,6 +28,7 @@ export const AppRuntime = () => {
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
             <PreferenceLoader />
+            <BackgroundSyncRunner />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}
@@ -33,6 +36,7 @@ export const AppRuntime = () => {
                 onDismiss={dismissUpdate}
             />
             <Router />
+            <DevMonitorOverlay />
             <GlobalLoader />
             <SonnerToaster />
             <Toaster />

@@ -1,19 +1,21 @@
 import { useEffect } from 'react';
 import { isNative } from '@chatic/bridges';
-import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
-import { usePreferenceStore } from '../stores/usePreferenceStore';
+import { PREFERENCES } from '../stores/preferenceKeys';
+import { hasLocalPreference, usePreferenceStore } from '../stores/usePreferenceStore';
 
-// Keys managed by usePreferenceStore — only these are fetched on startup.
+// Keys managed by usePreferenceStore — only these are bridge-read on startup.
 // Theme and language are handled by their own providers (ThemeProvider, i18n).
-const MANAGED_KEYS: PreferenceKey[] = ['blurLastMessage', 'isFirstRun'];
+const MANAGED_KEYS = ['blurLastMessage', 'isFirstRun'] as const;
 
 /**
- * Fetches native preference values on mount and hydrates the preference store.
+ * Bridge fallback read: fills the store from native storage for any managed key
+ * that is not already in the local cache.
  *
- * Runs only on native: on web the store reads from localStorage synchronously
- * at init and no further loading step is needed.
+ * Runs only on native, and only for cache misses — a value already in
+ * localStorage wins and never triggers a bridge round-trip. When the bridge has
+ * no value either, the store keeps its synchronous default.
  *
  * Renders nothing; mounted once under AppRuntime beside NativeHandshake.
  */
@@ -22,8 +24,12 @@ export const PreferenceLoader = (): null => {
 
     useEffect(() => {
         if (!isNative()) return;
-        MANAGED_KEYS.forEach(key => {
-            appBridge.fetchPreference({ key }).then(preference => hydrate(preference.data.key, preference.data.value));
+        MANAGED_KEYS.forEach(name => {
+            if (hasLocalPreference(name)) return; // local cache wins — skip the bridge read
+            appBridge.fetchPreference({ key: PREFERENCES[name].nativeKey }).then(preference => {
+                // Only hydrate when the bridge actually holds a value; otherwise keep the default.
+                if (preference.data.value != null) hydrate(preference.data.key, preference.data.value);
+            });
         });
     }, []);
 
