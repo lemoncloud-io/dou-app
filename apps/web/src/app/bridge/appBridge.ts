@@ -50,6 +50,10 @@ export const appBridge = {
         webClient.post({ type: 'OpenSubscriptionManagement', data: {} });
     },
 
+    copyClipBoard(text: string) {
+        return webClient.request({ type: 'CopyToClipboard', data: { text } });
+    },
+
     // ---------------------------------------------------------------
     // Notification & device
     // ---------------------------------------------------------------
