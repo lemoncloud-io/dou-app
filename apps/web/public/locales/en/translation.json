@@ -586,7 +586,12 @@
         "cloudDescription2": "for Cloud",
         "thumbnailLabel": "Profile Image",
         "cloudSaveSuccess": "Cloud profile updated.",
-        "cloudSaveError": "Failed to update Cloud profile."
+        "cloudSaveError": "Failed to update Cloud profile.",
+        "tabSite": "Site Profile",
+        "siteDescription1": "Set your name and photo",
+        "siteDescription2": "for this site",
+        "siteSaveSuccess": "Profile updated.",
+        "siteSaveError": "Failed to update profile."
     },
     "mypageLogin": {
         "title": "Sign In",
@@ -784,7 +789,8 @@
         "decline": "Decline",
         "timeout": "Server response timed out. Please try again.",
         "networkError": "Please check your network connection and try again.",
-        "authVerifyFailed": "Authentication failed. Please try again."
+        "authVerifyFailed": "Authentication failed. Please try again.",
+        "invitedBy": "{{name}} invited you"
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",
