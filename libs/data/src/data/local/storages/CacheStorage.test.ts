@@ -13,21 +13,25 @@ describe('createCacheStorages', () => {
 
         const storages = createCacheStorages(contextProvider, storageFactory);
 
-        expect(storageFactory).toHaveBeenCalledTimes(6);
+        expect(storageFactory).toHaveBeenCalledTimes(8);
         expect(storageFactory).toHaveBeenNthCalledWith(1, 'channel', contextProvider);
         expect(storageFactory).toHaveBeenNthCalledWith(2, 'chat', contextProvider);
         expect(storageFactory).toHaveBeenNthCalledWith(3, 'invitecloud', contextProvider);
         expect(storageFactory).toHaveBeenNthCalledWith(4, 'join', contextProvider);
-        expect(storageFactory).toHaveBeenNthCalledWith(5, 'site', contextProvider);
-        expect(storageFactory).toHaveBeenNthCalledWith(6, 'user', contextProvider);
+        expect(storageFactory).toHaveBeenNthCalledWith(5, 'profile', contextProvider);
+        expect(storageFactory).toHaveBeenNthCalledWith(6, 'site', contextProvider);
+        expect(storageFactory).toHaveBeenNthCalledWith(7, 'user', contextProvider);
+        expect(storageFactory).toHaveBeenNthCalledWith(8, 'meta', contextProvider);
 
         expect(storages).toEqual({
             channel: storage,
             chat: storage,
             inviteCloud: storage,
             join: storage,
+            profile: storage,
             site: storage,
             user: storage,
+            meta: storage,
         });
     });
 });

@@ -1,70 +1,70 @@
+import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatSendPayload, ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
+import type { DomainChat } from '../../domain';
+import { toDomainChat } from '../../domain';
+import type { DataContext } from '../../repositories';
+import type { ChatDomainGateway } from '../gateways';
 
-export interface IChatRemoteDataSource {
-    /** 새로운 메시지를 서버로 전송합니다. */
-    sendChat(payload: ChatSendPayload, ref?: string): void;
-    /** 특정 채팅방의 이전 메시지 목록(피드)을 요청합니다. */
-    fetchChat(payload: ChatFeedPayload, ref?: string): void;
+export type ChatGetInput = Parameters<ChatDomainGateway['get']>[0];
+export type ChatUpdateInput = Parameters<ChatDomainGateway['update']>[0];
+export type ChatDeleteInput = Parameters<ChatDomainGateway['delete']>[0];
+
+/** Result of a chat feed: domain rows plus the server's pagination metadata. */
+export interface ChatFeedDomainResult {
+    list: DomainChat[];
+    cursorNo?: number;
+    readNo?: number;
+    total?: number;
 }
 
+export interface IChatRemoteDataSource {
+    /** 새로운 메시지를 서버로 전송하고 도메인 모델로 반환합니다. */
+    sendChat(payload: ChatSendInput, context: DataContext): Promise<DomainChat>;
+    /** 특정 채팅방의 이전 메시지 목록(피드)을 요청하고 도메인 모델로 반환합니다. */
+    fetchChat(payload: ChatFeedInput, context: DataContext): Promise<ChatFeedDomainResult>;
+    /** 단일 chat 엔티티를 조회합니다. */
+    getChat(payload: ChatGetInput, context: DataContext): Promise<DomainChat>;
+    /** 단일 chat 엔티티를 수정합니다. */
+    updateChat(payload: ChatUpdateInput, context: DataContext): Promise<DomainChat>;
+    /** 단일 chat 엔티티를 삭제합니다. */
+    deleteChat(payload: ChatDeleteInput, context: DataContext): Promise<DomainChat>;
+}
+
+/**
+ * Chat remote source. Single boundary where chat API views become domain
+ * models; callers receive domain shapes only. The request-time `context`
+ * is supplied by the caller to keep a late response on its original scope.
+ */
 export class ChatRemoteDataSource implements IChatRemoteDataSource {
-    constructor(
-        private readonly socketEventBus: IEventBus<SocketEventMap>,
-        private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly wssClient: IWebSocketClient
-    ) {
-        this.initializeListeners();
+    constructor(private readonly gateway: ChatDomainGateway) {}
+
+    public async sendChat(payload: ChatSendInput, context: DataContext): Promise<DomainChat> {
+        const remote = await this.gateway.send<ChatView>(payload);
+        return toDomainChat((remote || {}) as ChatView, context);
     }
 
-    private initializeListeners() {
-        this.socketEventBus.on('chat:create', detail => {
-            this.domainEventBus.emit('chat:create', {
-                data: detail.payload as ChatView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:feed', detail => {
-            this.domainEventBus.emit('chat:list', {
-                data: detail.payload as ChatFeedResult,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:delete', detail => {
-            this.domainEventBus.emit('chat:delete', {
-                data: detail.payload as ChatView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:update', detail => {
-            this.domainEventBus.emit('chat:update', {
-                data: detail.payload as ChatView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('chat:error', detail => {
-            this.domainEventBus.emit('error', {
-                domain: 'chat',
-                // payload 자체가 null인 에러 프레임도 reject 신호는 살려야 한다 —
-                // 여기서 throw하면 pending ref가 30s timeout까지 살아남는다.
-                message: detail.payload?.error || 'Unknown Chat Error',
-                ref: detail.ref,
-            });
-        });
+    public async fetchChat(payload: ChatFeedInput, context: DataContext): Promise<ChatFeedDomainResult> {
+        const remote = await this.gateway.feed<ChatFeedResult>(payload);
+        return {
+            list: ((remote?.list || []) as ChatView[]).map(item => toDomainChat(item, context)),
+            cursorNo: remote?.cursorNo,
+            readNo: remote?.readNo,
+            total: remote?.total,
+        };
     }
 
-    public sendChat(payload: ChatSendPayload, ref?: string) {
-        this.wssClient.send('chat', 'send', payload, ref);
+    public async getChat(payload: ChatGetInput, context: DataContext): Promise<DomainChat> {
+        const remote = await this.gateway.get<ChatView>(payload);
+        return toDomainChat((remote || {}) as ChatView, context);
     }
 
-    public fetchChat(payload: ChatFeedPayload, ref?: string) {
-        this.wssClient.send('chat', 'feed', payload, ref);
+    public async updateChat(payload: ChatUpdateInput, context: DataContext): Promise<DomainChat> {
+        const remote = await this.gateway.update<ChatView>(payload);
+        return toDomainChat((remote || {}) as ChatView, context);
+    }
+
+    public async deleteChat(payload: ChatDeleteInput, context: DataContext): Promise<DomainChat> {
+        const remote = await this.gateway.delete<ChatView>(payload);
+        return toDomainChat((remote || {}) as ChatView, context);
     }
 }

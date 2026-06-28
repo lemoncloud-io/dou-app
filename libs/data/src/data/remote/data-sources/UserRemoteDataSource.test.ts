@@ -1,68 +1,107 @@
 import { UserRemoteDataSource } from './UserRemoteDataSource';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatInvitePayload, ChatUsersPayload } from '@lemoncloud/chatic-sockets-api';
+import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
+import type { DataContext } from '../../repositories';
+import type {
+    ChannelSyncUsersInput,
+    ChatUsersInput,
+    UserInviteBatchInput,
+    UserInviteInput,
+    UserUpdateProfileInput,
+} from '@lemoncloud/chatic-sockets-api';
 
 describe('UserRemoteDataSource', () => {
-    let mockSocketEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
-    let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
-    let mockWssClient: jest.Mocked<IWebSocketClient>;
+    let mockGateways: MockRemoteGatewayBundle;
     let dataSource: UserRemoteDataSource;
-    let socketCallbacks: Record<string, (data: any) => void> = {};
+    const context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
 
     beforeEach(() => {
-        socketCallbacks = {};
-        mockSocketEventBus = {
-            emit: jest.fn(),
-            on: jest.fn().mockImplementation((event, callback) => {
-                socketCallbacks[event as string] = callback;
-                return jest.fn();
-            }),
-            onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<SocketEventMap>>;
-
-        mockDomainEventBus = { emit: jest.fn() } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
-        mockWssClient = { send: jest.fn() } as unknown as jest.Mocked<IWebSocketClient>;
-
-        dataSource = new UserRemoteDataSource(mockSocketEventBus, mockDomainEventBus, mockWssClient);
+        mockGateways = createMockRemoteGateways();
+        dataSource = new UserRemoteDataSource(mockGateways.user);
     });
 
-    it('fetchUsers 호출 시 chat 도메인의 users 액션으로 전송되어야 한다', () => {
-        const payload: ChatUsersPayload = { channelId: 'ch-1' } as any;
-        dataSource.fetchUsers(payload, 'ref-users');
+    describe('발신(Send) 파이프라인 검증 (Request)', () => {
+        it('fetchUsers 호출 시 channel.list-user 액션으로 request가 전송되어야 한다', async () => {
+            const payload: ChatUsersInput = { channelId: 'ch-1' } as any;
+            await dataSource.fetchUsers(payload, context);
+            expect(mockGateways.user.listUser).toHaveBeenCalledWith(payload);
+        });
 
-        expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'users', payload, 'ref-users');
+        it('updateProfile 호출 시 user.update-profile 액션으로 request가 전송되어야 한다', async () => {
+            const payload: UserUpdateProfileInput = { name: 'New Name' };
+            await dataSource.updateProfile(payload, context);
+            expect(mockGateways.user.update).toHaveBeenCalledWith(payload);
+        });
+
+        it('requestInvite 호출 시 user.invite 액션으로 request가 전송되어야 한다', async () => {
+            const payload: UserInviteInput = { name: 'Guest', phone: '01012345678' };
+            await dataSource.requestInvite(payload);
+            expect(mockGateways.user.invite).toHaveBeenCalledWith(payload);
+        });
+
+        it('inviteBatch 호출 시 user.invite-batch 액션으로 request가 전송되어야 한다', async () => {
+            const payload: UserInviteBatchInput = { to: ['01012345678'] };
+            await dataSource.inviteBatch(payload);
+            expect(mockGateways.user.inviteBatch).toHaveBeenCalledWith(payload);
+        });
+
+        it('syncChannelUsers 호출 시 channel.sync-users 액션으로 request가 전송되어야 한다', async () => {
+            const payload: ChannelSyncUsersInput = { channelId: 'ch-1' };
+            await dataSource.syncChannelUsers(payload, context);
+            expect(mockGateways.user.syncUsers).toHaveBeenCalledWith(payload);
+        });
     });
 
-    it('inviteUser 호출 시 chat 도메인의 invite 액션으로 전송되어야 한다', () => {
-        const payload: ChatInvitePayload = { channelId: 'ch-1', userIds: ['u-1'] };
-        dataSource.requestInvite(payload, 'ref-invite');
+    describe('수신(Receive) 매핑 검증 (View → Domain)', () => {
+        it('fetchUsers 응답을 도메인 user 목록으로 변환하고 context의 cid를 부여한다', async () => {
+            (mockGateways.user.listUser as jest.Mock).mockResolvedValue({
+                list: [{ id: 'user-1', channelId: 'ch-1' }],
+                total: 1,
+            });
 
-        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'invite', payload, 'ref-invite');
-    });
+            const result = await dataSource.fetchUsers({ channelId: 'ch-1' } as any, context);
 
-    it('updateProfile 호출 시 user 도메인의 update-profile 액션으로 전송되어야 한다', () => {
-        const payload = { name: 'Raine' };
-        dataSource.updateProfile(payload, 'ref-profile');
+            expect(result.list[0]).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
+            expect(result.list[0].channelIds).toContain('ch-1');
+            expect(result.meta.source).toBe('remote');
+        });
 
-        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'update-profile', payload, 'ref-profile');
-    });
+        it('updateProfile 응답을 단일 도메인 user로 변환한다', async () => {
+            (mockGateways.user.update as jest.Mock).mockResolvedValue({ id: 'user-1', name: 'New Name' });
 
-    it('requestInvite 호출 시 user 도메인의 invite 액션으로 전송되어야 한다', () => {
-        const payload = { name: 'Guest', phone: '01012345678', channelId: 'ch-1' };
-        dataSource.requestInvite(payload, 'ref-request-invite');
+            const domain = await dataSource.updateProfile({ name: 'New Name' }, context);
 
-        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'invite', payload, 'ref-request-invite');
-    });
+            expect(domain).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
+        });
 
-    it('user:create 수신 시 user:create 로 정제하여 발행해야 한다', () => {
-        const mockDetail = { ref: 'r-create', payload: { id: 'user-1', name: 'Guest' } };
-        socketCallbacks['user:create'](mockDetail);
+        it('syncChannelUsers 응답에서 user와 내장 $join을 분리해 변환하고 커서를 반환한다', async () => {
+            (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
+                list: [
+                    { id: 'u1', name: 'Alice', $join: { id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', chatNo: 9 } },
+                    { id: 'u2', name: 'Bob' }, // join 없음 → joins에서 제외
+                ],
+                ids: ['u1', 'u2'],
+                syncedAt: 1700,
+            });
 
-        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('user:create', {
-            data: mockDetail.payload,
-            ref: 'r-create',
+            const result = await dataSource.syncChannelUsers({ channelId: 'ch-1' } as any, context);
+
+            expect(result.users.map(u => u.id)).toEqual(['u1', 'u2']);
+            expect(result.joins).toHaveLength(1);
+            expect(result.joins[0]).toMatchObject({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', cid: 'cloud-a' });
+            expect(result.ids).toEqual(['u1', 'u2']);
+            expect(result.syncedAt).toBe(1700);
+        });
+
+        it('$join에 channelId/userId가 없으면 요청 channelId와 부모 user id로 보강한다', async () => {
+            (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
+                list: [{ id: 'u1', $join: { chatNo: 3 } }],
+                ids: ['u1'],
+                syncedAt: 1,
+            });
+
+            const result = await dataSource.syncChannelUsers({ channelId: 'ch-1' } as any, context);
+
+            expect(result.joins[0]).toMatchObject({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1' });
         });
     });
 });

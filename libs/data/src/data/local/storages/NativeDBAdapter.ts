@@ -42,7 +42,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 uid: scope.uid,
                 id,
                 item: withCacheMeta(this.type, item),
-            } as Extract<SaveCacheDataPayload, { type: TType }>,
+                // Double cast: the generic TType cannot narrow the discriminated payload union.
+            } as unknown as Extract<SaveCacheDataPayload, { type: TType }>,
         });
         return item;
     }
@@ -58,7 +59,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 cid: scope.cid,
                 uid: scope.uid,
                 items: items.map(item => withCacheMeta(this.type, item)),
-            } as Extract<SaveAllCacheDataPayload, { type: TType }>,
+                // Double cast: the generic TType cannot narrow the discriminated payload union.
+            } as unknown as Extract<SaveAllCacheDataPayload, { type: TType }>,
         });
         return items;
     }
@@ -77,7 +79,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         });
 
         const data = response?.data as Extract<OnFetchCacheDataPayload, { type: TType }> | undefined;
-        return data?.item ?? null;
+        return (data?.item ?? null) as CacheModelOf<TType> | null;
     }
 
     async loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]> {
@@ -99,7 +101,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         });
 
         const data = response?.data as Extract<OnFetchAllCacheDataPayload, { type: TType }> | undefined;
-        return data?.items ?? [];
+        return (data?.items ?? []) as CacheModelOf<TType>[];
     }
 
     async delete(id: string): Promise<void> {
