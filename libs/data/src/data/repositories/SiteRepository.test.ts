@@ -5,13 +5,9 @@ describe('SiteRepository', () => {
 
     const createRepository = ({ localResult }: { localResult: any | null }) => {
         const remote = {
-            fetchSite: jest.fn().mockResolvedValue({
-                list: [{ id: 's1', cid: 'cloud-a' }],
-                total: 1,
-            }),
+            fetchSite: jest.fn(),
             createSite: jest.fn(),
             updateSite: jest.fn(),
-            handleModelEvent: jest.fn(),
         };
 
         const local = {
@@ -27,6 +23,16 @@ describe('SiteRepository', () => {
             subscribeItem: jest.fn(() => () => undefined),
         };
 
+        const requestManager = {
+            request: jest.fn(async (sendAction: (ref: string) => void) => {
+                sendAction('ref-1');
+                return {
+                    list: [{ id: 's1', cid: 'cloud-a' }],
+                    total: 1,
+                };
+            }),
+        };
+
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }),
             setContext: () => undefined,
@@ -38,20 +44,27 @@ describe('SiteRepository', () => {
             onAny: jest.fn(() => () => undefined),
         };
 
-        const repository = new SiteRepository(remote as any, local as any, contextProvider, domainEventBus as any);
+        const repository = new SiteRepository(
+            remote as any,
+            local as any,
+            requestManager as any,
+            contextProvider,
+            domainEventBus as any
+        );
 
-        return { repository, remote, local };
+        return { repository, remote, local, requestManager };
     };
 
     it('returns local first for cache-first and runs remote refresh in background', async () => {
         const localResult = { list: [{ id: 's-local' }], meta: { total: 1, source: 'local' } };
-        const { repository, remote } = createRepository({ localResult });
+        const { repository, remote, requestManager } = createRepository({ localResult });
 
         const result = await repository.fetchSite(payload, { cachePolicy: 'cache-first' });
 
         expect(result).toEqual(localResult);
         await Promise.resolve();
         expect(remote.fetchSite).toHaveBeenCalledTimes(1);
+        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
     it('delegates subscribeList to local data source with repository context', () => {

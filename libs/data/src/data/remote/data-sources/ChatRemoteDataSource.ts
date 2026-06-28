@@ -1,36 +1,70 @@
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
-import type { ChatGateway } from '@lemoncloud/chatic-sockets-lib';
-import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
+import type { IEventBus } from '../../events/eventBus';
+import type { DomainEventMap, SocketEventMap } from '../../events/types';
+import type { IWebSocketClient } from '../clients';
+import type { ChatSendPayload, ChatFeedPayload } from '@lemoncloud/chatic-sockets-api';
 
 export interface IChatRemoteDataSource {
     /** 새로운 메시지를 서버로 전송합니다. */
-    sendChat(payload: ChatSendInput): Promise<ChatView>;
+    sendChat(payload: ChatSendPayload, ref?: string): void;
     /** 특정 채팅방의 이전 메시지 목록(피드)을 요청합니다. */
-    fetchChat(payload: ChatFeedInput): Promise<ChatFeedResult>;
-    /** 인바운드 모델 이벤트를 처리합니다. */
-    handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void;
+    fetchChat(payload: ChatFeedPayload, ref?: string): void;
 }
 
 export class ChatRemoteDataSource implements IChatRemoteDataSource {
     constructor(
+        private readonly socketEventBus: IEventBus<SocketEventMap>,
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly gateway: ChatGateway
-    ) {}
-
-    public async sendChat(payload: ChatSendInput): Promise<ChatView> {
-        return this.gateway.send(payload);
+        private readonly wssClient: IWebSocketClient
+    ) {
+        this.initializeListeners();
     }
 
-    public async fetchChat(payload: ChatFeedInput): Promise<ChatFeedResult> {
-        return this.gateway.feed(payload);
-    }
-
-    public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
-        const eventName = `chat:${action}` as 'chat:create' | 'chat:update' | 'chat:delete';
-        this.domainEventBus.emit(eventName, {
-            data,
+    private initializeListeners() {
+        this.socketEventBus.on('chat:create', detail => {
+            this.domainEventBus.emit('chat:create', {
+                data: detail.payload as ChatView,
+                ref: detail.ref,
+            });
         });
+
+        this.socketEventBus.on('chat:feed', detail => {
+            this.domainEventBus.emit('chat:list', {
+                data: detail.payload as ChatFeedResult,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('chat:delete', detail => {
+            this.domainEventBus.emit('chat:delete', {
+                data: detail.payload as ChatView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('chat:update', detail => {
+            this.domainEventBus.emit('chat:update', {
+                data: detail.payload as ChatView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('chat:error', detail => {
+            this.domainEventBus.emit('error', {
+                domain: 'chat',
+                // payload 자체가 null인 에러 프레임도 reject 신호는 살려야 한다 —
+                // 여기서 throw하면 pending ref가 30s timeout까지 살아남는다.
+                message: detail.payload?.error || 'Unknown Chat Error',
+                ref: detail.ref,
+            });
+        });
+    }
+
+    public sendChat(payload: ChatSendPayload, ref?: string) {
+        this.wssClient.send('chat', 'send', payload, ref);
+    }
+
+    public fetchChat(payload: ChatFeedPayload, ref?: string) {
+        this.wssClient.send('chat', 'feed', payload, ref);
     }
 }

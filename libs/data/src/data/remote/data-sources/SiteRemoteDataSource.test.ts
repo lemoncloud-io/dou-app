@@ -1,46 +1,73 @@
 import { SiteRemoteDataSource } from './SiteRemoteDataSource';
-import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
 import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
-import type { UserMySiteInput, UserMakeSiteInput, UserUpdateSiteInput } from '@lemoncloud/chatic-sockets-api';
+import type { DomainEventMap, SocketEventMap } from '../../events/types';
+import type { IWebSocketClient } from '../clients';
 
 describe('SiteRemoteDataSource', () => {
-    let mockGateways: MockRemoteGatewayBundle;
+    let mockSocketEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
     let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
+    let mockWssClient: jest.Mocked<IWebSocketClient>;
     let dataSource: SiteRemoteDataSource;
+    let socketCallbacks: Record<string, (data: any) => void> = {};
 
     beforeEach(() => {
-        mockGateways = createMockRemoteGateways();
-        mockDomainEventBus = {
+        socketCallbacks = {};
+        mockSocketEventBus = {
             emit: jest.fn(),
-            on: jest.fn(),
+            on: jest.fn().mockImplementation((event, callback) => {
+                socketCallbacks[event as string] = callback;
+                return jest.fn();
+            }),
             onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
+        } as unknown as jest.Mocked<IEventBus<SocketEventMap>>;
 
-        dataSource = new SiteRemoteDataSource(mockDomainEventBus, mockGateways.site);
+        mockDomainEventBus = { emit: jest.fn() } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
+        mockWssClient = { send: jest.fn() } as unknown as jest.Mocked<IWebSocketClient>;
+
+        dataSource = new SiteRemoteDataSource(mockSocketEventBus, mockDomainEventBus, mockWssClient);
     });
 
-    it('fetchSite 호출 시 user.my-site 액션으로 request가 전송되어야 한다', async () => {
-        const payload: UserMySiteInput = {};
-        await dataSource.fetchSite(payload);
-        expect(mockGateways.site.mySite).toHaveBeenCalledWith(payload);
+    it('site:read 수신 시 site:list 로 정제하여 발행해야 한다', () => {
+        const mockDetail = { ref: 'r-1', payload: { list: [], total: 0 } };
+        socketCallbacks['site:read'](mockDetail);
+
+        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('site:list', {
+            data: mockDetail.payload,
+            ref: 'r-1',
+        });
     });
 
-    it('createSite 호출 시 user.make-site 액션으로 request가 전송되어야 한다', async () => {
-        const payload: UserMakeSiteInput = { name: 'New Site' };
-        await dataSource.createSite(payload);
-        expect(mockGateways.site.makeSite).toHaveBeenCalledWith(payload);
+    it('site:create 수신 시 site:create 로 정제하여 발행해야 한다', () => {
+        const mockDetail = { ref: 'r-create', payload: { id: 'site-1', name: 'Workspace' } };
+        socketCallbacks['site:create'](mockDetail);
+
+        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('site:create', {
+            data: mockDetail.payload,
+            ref: 'r-create',
+        });
     });
 
-    it('updateSite 호출 시 user.update-site 액션으로 request가 전송되어야 한다', async () => {
-        const payload: UserUpdateSiteInput = { sid: 'site-1', name: 'Updated' };
-        await dataSource.updateSite(payload);
-        expect(mockGateways.site.updateSite).toHaveBeenCalledWith(payload);
+    it('fetchSite 호출 시 user 도메인의 my-site 액션으로 전송되어야 한다', () => {
+        const payload = { limit: 20 };
+
+        dataSource.fetchSite(payload, 'site-list-ref');
+
+        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'my-site', payload, 'site-list-ref');
     });
 
-    it('handleModelEvent("create", data) 호출 시 site:create를 emit 해야 한다', () => {
-        const data = { id: 'site-1', name: 'New Site' };
-        dataSource.handleModelEvent('create', data);
-        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('site:create', { data });
+    it('createSite 호출 시 user 도메인의 make-site 액션으로 전송되어야 한다', () => {
+        const payload = { name: 'Workspace' };
+
+        dataSource.createSite(payload, 'site-create-ref');
+
+        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'make-site', payload, 'site-create-ref');
+    });
+
+    it('updateSite 호출 시 user 도메인의 update-site 액션으로 전송되어야 한다', () => {
+        const payload = { sid: 'site-1', name: 'Renamed' };
+
+        dataSource.updateSite(payload, 'site-update-ref');
+
+        expect(mockWssClient.send).toHaveBeenCalledWith('user', 'update-site', payload, 'site-update-ref');
     });
 });

@@ -8,7 +8,15 @@ export type LocalStreamCallback<T> = (value: T) => void;
 /** LocalDataSource 공통 CRUD 계약입니다. */
 export interface ICrudLocalDataSource<TModel> {
     getById(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<TModel | null>;
-    upsert(item: Partial<TModel>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
+    /**
+     * @param emitStream 기본 true. false면 스트림 재방출을 생략 — optimistic→persisted
+     * 교체처럼 직후 다른 mutation이 최종 스냅샷을 emit할 때 중간 상태 깜빡임을 막습니다.
+     */
+    upsert(
+        item: Partial<TModel>,
+        contextOverride?: LocalDataSourceContextOverride,
+        emitStream?: boolean
+    ): Promise<void>;
     upsertMany(items: Array<Partial<TModel>>, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
     remove(id: string, contextOverride?: LocalDataSourceContextOverride): Promise<void>;
     removeMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<void>;

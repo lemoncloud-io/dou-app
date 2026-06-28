@@ -1,4 +1,4 @@
-import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
+import type { WSSPayload } from '@lemoncloud/chatic-sockets-api';
 import type { CacheStorage, CacheStorageItem } from '../storages';
 import {
     BaseLocalDataSource,
@@ -16,8 +16,8 @@ import { toDomainSite as toDomainSiteBase } from '../../domain';
 
 export interface ISiteLocalDataSource
     extends ICrudLocalDataSource<DomainSite>,
-        IListLocalDataSource<DomainSite, UserMySiteInput | undefined>,
-        IStreamLocalDataSource<DomainSite, UserMySiteInput | undefined, DomainListResult<DomainSite>> {}
+        IListLocalDataSource<DomainSite, WSSPayload | undefined>,
+        IStreamLocalDataSource<DomainSite, WSSPayload | undefined, DomainListResult<DomainSite>> {}
 
 type SiteCache = CacheStorageItem<'site'>;
 
@@ -125,7 +125,7 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
     // =========================================================================
 
     public async fetchList(
-        _query: UserMySiteInput | undefined,
+        _query: WSSPayload | undefined,
         _contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainSite> | null> {
         const sites = await this.cacheStorage.loadAll();
@@ -144,7 +144,7 @@ export class SiteLocalDataSource extends BaseLocalDataSource implements ISiteLoc
     }
 
     public subscribeList(
-        query: UserMySiteInput | undefined,
+        query: WSSPayload | undefined,
         callback: LocalStreamCallback<DomainListResult<DomainSite> | null>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalStreamUnsubscribe {

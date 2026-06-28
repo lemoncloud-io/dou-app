@@ -77,7 +77,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         });
 
         const data = response?.data as Extract<OnFetchCacheDataPayload, { type: TType }> | undefined;
-        return (data?.item ?? null) as CacheModelOf<TType> | null;
+        return data?.item ?? null;
     }
 
     async loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]> {
@@ -99,7 +99,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         });
 
         const data = response?.data as Extract<OnFetchAllCacheDataPayload, { type: TType }> | undefined;
-        return (data?.items ?? []) as CacheModelOf<TType>[];
+        return data?.items ?? [];
     }
 
     async delete(id: string): Promise<void> {

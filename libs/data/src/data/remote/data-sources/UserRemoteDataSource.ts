@@ -1,69 +1,98 @@
+import type { UserView } from '@lemoncloud/chatic-socials-api';
 import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
-import type {
-    ChannelSyncSiteProfileInput,
-    ChannelSyncUsersInput,
-    UserInviteBatchInput,
-    UserInviteInput,
-    UserUpdateProfileInput,
-} from '@lemoncloud/chatic-sockets-api';
-import type { ChannelUsersSyncView, SiteProfileSyncView, UserView } from '@lemoncloud/chatic-socials-api';
-import type { ChannelListUserInput } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import type { UserDomainGateway } from '../gateways';
+import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
+import type { IWebSocketClient } from '../clients';
+import type { ChatUsersPayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
+import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 
 export interface IUserRemoteDataSource {
     /** 특정 조건의 사용자 목록을 서버에 요청합니다. */
-    fetchUsers(payload: ChannelListUserInput): Promise<ListResult<UserView>>;
+    fetchUsers(payload: ChatUsersPayload, ref?: string): void;
+
     /** 내 프로필 정보 수정을 요청합니다. */
-    updateProfile(payload: UserUpdateProfileInput): Promise<UserView>;
+    updateProfile(payload: UserUpdateProfilePayload, ref?: string): void;
+
     /** 외부 사용자를 초대하고 초대 결과를 요청합니다. */
-    requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
+    requestInvite(payload: MyUserInviteBody, ref?: string): void;
+
     /** 여러 사용자를 일괄 초대합니다. */
-    inviteBatch(payload: UserInviteBatchInput): Promise<ListResult<MyInviteView>>;
-    /** 채널 멤버 동기화를 요청합니다. */
-    syncChannelUsers(payload: ChannelSyncUsersInput): Promise<ChannelUsersSyncView>;
-    /** 사이트 프로필 변경분 동기화를 요청합니다. */
-    syncSiteProfile(payload: ChannelSyncSiteProfileInput): Promise<SiteProfileSyncView>;
-    /** 인바운드 모델 이벤트를 처리합니다. */
-    handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void;
+    requestInviteBatch(payload: MyUserInviteBody, ref?: string): void;
 }
 
 export class UserRemoteDataSource implements IUserRemoteDataSource {
     constructor(
+        private readonly socketEventBus: IEventBus<SocketEventMap>,
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly gateway: UserDomainGateway
-    ) {}
-
-    public async fetchUsers(payload: ChannelListUserInput): Promise<ListResult<UserView>> {
-        return this.gateway.listUser(payload);
+        private readonly wssClient: IWebSocketClient
+    ) {
+        this.initializeListeners();
     }
 
-    public async updateProfile(payload: UserUpdateProfileInput): Promise<UserView> {
-        return this.gateway.updateProfile(payload);
-    }
-
-    public async requestInvite(payload: UserInviteInput): Promise<MyInviteView> {
-        return this.gateway.invite(payload);
-    }
-
-    public async inviteBatch(payload: UserInviteBatchInput): Promise<ListResult<MyInviteView>> {
-        return this.gateway.inviteBatch(payload);
-    }
-
-    public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<ChannelUsersSyncView> {
-        return this.gateway.syncUsers(payload);
-    }
-
-    public async syncSiteProfile(payload: ChannelSyncSiteProfileInput): Promise<SiteProfileSyncView> {
-        return this.gateway.syncProfile(payload);
-    }
-
-    public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
-        const eventName = `user:${action}` as 'user:create' | 'user:update' | 'user:delete';
-        this.domainEventBus.emit(eventName, {
-            data,
+    private initializeListeners() {
+        this.socketEventBus.on('user:create', detail => {
+            this.domainEventBus.emit('user:create', {
+                data: detail.payload as UserView,
+                ref: detail.ref,
+            });
         });
+
+        this.socketEventBus.on('user:update', detail => {
+            this.domainEventBus.emit('user:update', {
+                data: detail.payload as UserView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('user:read', detail => {
+            this.domainEventBus.emit('user:list', {
+                data: detail.payload as ListResult<UserView>,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('user:delete', detail => {
+            this.domainEventBus.emit('user:delete', {
+                data: detail.payload as UserView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('user:invite', detail => {
+            this.domainEventBus.emit('user:invite', {
+                data: detail.payload as MyInviteView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('user:invite-batch', detail => {
+            this.domainEventBus.emit('user:invite-batch', {
+                data: detail.payload as MyInviteView[],
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('user:error', detail => {
+            this.domainEventBus.emit('error', {
+                domain: 'user',
+                message: detail.payload.error || 'Unknown User Error',
+                ref: detail.ref,
+            });
+        });
+    }
+
+    public fetchUsers(payload: ChatUsersPayload, ref?: string) {
+        this.wssClient.send('chat', 'users', payload, ref);
+    }
+
+    public updateProfile(payload: UserUpdateProfilePayload, ref?: string) {
+        this.wssClient.send('user', 'update-profile', payload, ref);
+    }
+
+    public requestInvite(payload: MyUserInviteBody, ref?: string) {
+        this.wssClient.send('user', 'invite', payload, ref);
+    }
+
+    public requestInviteBatch(payload: MyUserInviteBody, ref?: string) {
+        this.wssClient.send('user', 'invite-batch', payload, ref);
     }
 }

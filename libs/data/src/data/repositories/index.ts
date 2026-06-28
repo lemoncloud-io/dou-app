@@ -2,6 +2,7 @@ import type { RemoteDataSources } from '../remote/data-sources';
 import type { LocalDataSources } from '../local/data-sources';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { IAuthRepository } from './AuthRepository';
 import { AuthRepository } from './AuthRepository';
 import type { IChannelRepository } from './ChannelRepository';
@@ -10,20 +11,14 @@ import type { IChatRepository } from './ChatRepository';
 import { ChatRepository } from './ChatRepository';
 import type { IJoinRepository } from './JoinRepository';
 import { JoinRepository } from './JoinRepository';
+import type { IProfileRepository } from './ProfileRepository';
+import { ProfileRepository } from './ProfileRepository';
 import type { IUserRepository } from './UserRepository';
 import { UserRepository } from './UserRepository';
 import type { ISiteRepository } from './SiteRepository';
 import { SiteRepository } from './SiteRepository';
 import type { IInviteCloudRepository } from './InviteCloudRepository';
 import { InviteCloudRepository } from './InviteCloudRepository';
-import type { IDeviceRepository } from './DeviceRepository';
-import { DeviceRepository } from './DeviceRepository';
-import type { ISocketsRepository } from './SocketsRepository';
-import { SocketsRepository } from './SocketsRepository';
-import type { ICloudRepository } from './CloudRepository';
-import { CloudRepository } from './CloudRepository';
-import type { IProfileRepository } from './ProfileRepository';
-import { ProfileRepository } from './ProfileRepository';
 import type { DataContextProvider } from './types';
 
 export * from './AuthRepository';
@@ -31,13 +26,11 @@ export * from './ChannelRepository';
 export * from './ChatRepository';
 export * from './InviteCloudRepository';
 export * from './JoinRepository';
-export * from './SiteRepository';
-export * from './UserRepository';
-export * from './DeviceRepository';
-export * from './SocketsRepository';
-export * from './CloudRepository';
 export * from './ProfileRepository';
+export * from './SiteRepository';
 export * from './types';
+export type { default as ISyncRepository } from './types';
+export * from './UserRepository';
 
 /**
  * Web 화면 계층에 노출되는 Repository 묶음입니다.
@@ -50,11 +43,8 @@ export interface DataRepositories {
     join: IJoinRepository;
     user: IUserRepository;
     site: ISiteRepository;
-    inviteCloud: IInviteCloudRepository;
-    device: IDeviceRepository;
-    sockets: ISocketsRepository;
-    cloud: ICloudRepository;
     profile: IProfileRepository;
+    inviteCloud: IInviteCloudRepository;
 }
 
 /**
@@ -66,21 +56,39 @@ export const createRepositories = ({
     localDataSources,
     context,
     domainEventBus,
+    requestManager,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSources;
     context: DataContextProvider;
     domainEventBus: IEventBus<DomainEventMap>;
+    requestManager: ISocketRequestManager;
 }): DataRepositories => ({
-    auth: new AuthRepository(remoteDataSources.auth, context, domainEventBus),
-    channel: new ChannelRepository(remoteDataSources.channel, localDataSources.channel, context, domainEventBus),
-    chat: new ChatRepository(remoteDataSources.chat, localDataSources.chat, context, domainEventBus),
-    join: new JoinRepository(remoteDataSources.join, localDataSources.join, context, domainEventBus),
-    site: new SiteRepository(remoteDataSources.site, localDataSources.site, context, domainEventBus),
-    user: new UserRepository(remoteDataSources.user, localDataSources.user, context, domainEventBus),
-    inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, context, domainEventBus),
-    device: new DeviceRepository(remoteDataSources.device, context, domainEventBus),
-    sockets: new SocketsRepository(remoteDataSources.sockets, context, domainEventBus),
-    cloud: new CloudRepository(remoteDataSources.cloud, context, domainEventBus),
-    profile: new ProfileRepository(remoteDataSources.profile, context, domainEventBus),
+    auth: new AuthRepository(remoteDataSources.auth, requestManager, context, domainEventBus),
+    channel: new ChannelRepository(
+        remoteDataSources.channel,
+        localDataSources.channel,
+        requestManager,
+        context,
+        domainEventBus
+    ),
+    chat: new ChatRepository(remoteDataSources.chat, localDataSources.chat, requestManager, context, domainEventBus),
+    join: new JoinRepository(remoteDataSources.join, localDataSources.join, requestManager, context, domainEventBus),
+    site: new SiteRepository(remoteDataSources.site, localDataSources.site, requestManager, context, domainEventBus),
+    profile: new ProfileRepository(
+        remoteDataSources.profile,
+        localDataSources.profile,
+        requestManager,
+        context,
+        domainEventBus
+    ),
+    user: new UserRepository(
+        remoteDataSources.user,
+        localDataSources.user,
+        requestManager,
+        context,
+        domainEventBus,
+        localDataSources.profile
+    ),
+    inviteCloud: new InviteCloudRepository(localDataSources.inviteCloud, requestManager, context, domainEventBus),
 });

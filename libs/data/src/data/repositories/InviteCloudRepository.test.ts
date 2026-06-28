@@ -14,6 +14,7 @@ describe('InviteCloudRepository', () => {
             subscribeItem: jest.fn(() => () => undefined),
         };
 
+        const requestManager = { request: jest.fn() };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }),
             setContext: () => undefined,
@@ -24,7 +25,12 @@ describe('InviteCloudRepository', () => {
             onAny: jest.fn(() => () => undefined),
         };
 
-        const repository = new InviteCloudRepository(local as any, contextProvider, domainEventBus as any);
+        const repository = new InviteCloudRepository(
+            local as any,
+            requestManager as any,
+            contextProvider,
+            domainEventBus as any
+        );
 
         return { repository, local };
     };

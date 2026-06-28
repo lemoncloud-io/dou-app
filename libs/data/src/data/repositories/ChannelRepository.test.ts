@@ -5,17 +5,12 @@ describe('ChannelRepository', () => {
 
     const createRepository = ({ localResult }: { localResult: any | null }) => {
         const remote = {
-            fetchChannel: jest.fn().mockResolvedValue({
-                list: [{ id: 'r1', sid: 'place-a', cid: 'cloud-a' }],
-                total: 1,
-            }),
-            syncChannel: jest.fn(),
+            fetchChannel: jest.fn(),
             updateChannel: jest.fn(),
             deleteChannel: jest.fn(),
             startChat: jest.fn(),
             inviteChannel: jest.fn(),
             leaveChannel: jest.fn(),
-            handleModelEvent: jest.fn(),
         };
 
         const local = {
@@ -30,6 +25,16 @@ describe('ChannelRepository', () => {
             subscribeItem: jest.fn(() => () => undefined),
         };
 
+        const requestManager = {
+            request: jest.fn(async (sendAction: (ref: string) => void) => {
+                sendAction('ref-1');
+                return {
+                    list: [{ id: 'r1', sid: 'place-a', cid: 'cloud-a' }],
+                    total: 1,
+                };
+            }),
+        };
+
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', uid: 'user-a', sid: 'place-a' }),
             setContext: () => undefined,
@@ -41,20 +46,28 @@ describe('ChannelRepository', () => {
             onAny: jest.fn(() => () => undefined),
         };
 
-        const repository = new ChannelRepository(remote as any, local as any, contextProvider, domainEventBus as any);
+        const repository = new ChannelRepository(
+            remote as any,
+            local as any,
+            requestManager as any,
+            contextProvider,
+            domainEventBus as any
+        );
 
-        return { repository, remote, local };
+        return { repository, remote, local, requestManager };
     };
 
     it('returns local first for cache-first and runs remote refresh in background', async () => {
+        // 💡 수정: 메타데이터 분리 규격 적용
         const localResult = { list: [{ id: 'l1' }], meta: { total: 1, source: 'local' } };
-        const { repository, remote } = createRepository({ localResult });
+        const { repository, remote, requestManager } = createRepository({ localResult });
 
         const result = await repository.fetchChannel(payload, { cachePolicy: 'cache-first' });
 
         expect(result).toEqual(localResult);
         await Promise.resolve();
         expect(remote.fetchChannel).toHaveBeenCalledTimes(1);
+        expect(requestManager.request).toHaveBeenCalledTimes(1);
     });
 
     it('delegates subscribeList to local data source with repository context', () => {

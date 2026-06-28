@@ -1,44 +1,69 @@
+import type { SiteView } from '@lemoncloud/chatic-socials-api';
 import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
-import type { SiteGateway } from '../gateways';
-import type { UserMakeSiteInput, UserMySiteInput, UserUpdateSiteInput } from '@lemoncloud/chatic-sockets-api';
-import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
+import type { IWebSocketClient } from '../clients';
+import type { UserMakeSitePayload, UserUpdateSitePayload } from '@lemoncloud/chatic-sockets-api';
 
 export interface ISiteRemoteDataSource {
     /** 사용자가 접근 가능한 사이트 목록을 요청합니다. */
-    fetchSite(payload?: UserMySiteInput): Promise<ListResult<MySiteView>>;
+    fetchSite(payload?: {}, ref?: string): void;
+
     /** 새 사이트 생성을 요청합니다. */
-    createSite(payload: UserMakeSiteInput): Promise<MySiteView>;
+    createSite(payload: UserMakeSitePayload, ref?: string): void;
+
     /** 사이트 정보 수정을 요청합니다. */
-    updateSite(payload: UserUpdateSiteInput): Promise<MySiteView>;
-    /** 인바운드 모델 이벤트를 처리합니다. */
-    handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void;
+    updateSite(payload: UserUpdateSitePayload, ref?: string): void;
 }
 
 export class SiteRemoteDataSource implements ISiteRemoteDataSource {
     constructor(
+        private readonly socketEventBus: IEventBus<SocketEventMap>,
         private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly gateway: SiteGateway
-    ) {}
-
-    public async fetchSite(payload?: UserMySiteInput): Promise<ListResult<MySiteView>> {
-        return this.gateway.mySite(payload ?? null);
+        private readonly wssClient: IWebSocketClient
+    ) {
+        this.initializeListeners();
     }
 
-    public async createSite(payload: UserMakeSiteInput): Promise<MySiteView> {
-        return this.gateway.makeSite(payload);
-    }
-
-    public async updateSite(payload: UserUpdateSiteInput): Promise<MySiteView> {
-        return this.gateway.updateSite(payload);
-    }
-
-    public handleModelEvent(action: 'create' | 'update' | 'delete', data: any): void {
-        if (action === 'delete') return; // site delete is not in DomainEventMap, but keep it safe
-        const eventName = `site:${action}` as 'site:create' | 'site:update';
-        this.domainEventBus.emit(eventName, {
-            data,
+    private initializeListeners() {
+        this.socketEventBus.on('site:create', detail => {
+            this.domainEventBus.emit('site:create', {
+                data: detail.payload as SiteView,
+                ref: detail.ref,
+            });
         });
+
+        this.socketEventBus.on('site:update', detail => {
+            this.domainEventBus.emit('site:update', {
+                data: detail.payload as SiteView,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('site:read', detail => {
+            this.domainEventBus.emit('site:list', {
+                data: detail.payload as ListResult<SiteView>,
+                ref: detail.ref,
+            });
+        });
+
+        this.socketEventBus.on('site:error', detail => {
+            this.domainEventBus.emit('error', {
+                domain: 'site',
+                message: detail.payload.error || 'Unknown Site Error',
+                ref: detail.ref,
+            });
+        });
+    }
+
+    public fetchSite(payload?: {}, ref?: string) {
+        this.wssClient.send('user', 'my-site', payload ?? {}, ref);
+    }
+
+    public createSite(payload: UserMakeSitePayload, ref?: string) {
+        this.wssClient.send('user', 'make-site', payload, ref);
+    }
+
+    public updateSite(payload: UserUpdateSitePayload, ref?: string) {
+        this.wssClient.send('user', 'update-site', payload, ref);
     }
 }

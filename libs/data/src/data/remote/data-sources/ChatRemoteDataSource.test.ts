@@ -1,47 +1,77 @@
 import { ChatRemoteDataSource } from './ChatRemoteDataSource';
-import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
 import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap } from '../../events/domain';
-import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
+import type { DomainEventMap, SocketEventMap } from '../../events/types';
+import type { IWebSocketClient } from '../clients';
+import type { ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatView } from '@lemoncloud/chatic-socials-api';
 
 describe('ChatRemoteDataSource', () => {
-    let mockGateways: MockRemoteGatewayBundle;
+    let mockSocketEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
     let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
+    let mockWssClient: jest.Mocked<IWebSocketClient>;
     let dataSource: ChatRemoteDataSource;
 
+    let socketCallbacks: Record<string, (data: any) => void> = {};
+
     beforeEach(() => {
-        mockGateways = createMockRemoteGateways();
+        socketCallbacks = {};
+        mockSocketEventBus = {
+            emit: jest.fn(),
+            on: jest.fn().mockImplementation((event, callback) => {
+                socketCallbacks[event as string] = callback;
+                return jest.fn();
+            }),
+            onAny: jest.fn(),
+        } as unknown as jest.Mocked<IEventBus<SocketEventMap>>;
+
         mockDomainEventBus = {
             emit: jest.fn(),
-            on: jest.fn(),
-            onAny: jest.fn(),
         } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
 
-        dataSource = new ChatRemoteDataSource(mockDomainEventBus, mockGateways.chat);
+        mockWssClient = { send: jest.fn() } as unknown as jest.Mocked<IWebSocketClient>;
+
+        dataSource = new ChatRemoteDataSource(mockSocketEventBus, mockDomainEventBus, mockWssClient);
     });
 
-    it('sendChat 호출 시 chat.send 액션으로 request가 전송되어야 한다', async () => {
-        const payload: ChatSendInput = {
+    it('chat:create 수신 시 데이터 모델을 { data, ref, cid } 형태로 래핑하여 emit 해야 한다', () => {
+        const mockDetail = {
+            ref: 'r-1',
+            payload: { id: 'msg-1', text: 'hello' } as ChatView,
+        };
+
+        socketCallbacks['chat:create'](mockDetail);
+
+        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('chat:create', {
+            data: mockDetail.payload,
+            ref: 'r-1',
+        });
+    });
+
+    it('sendChat 호출 시 주입된 ref를 포함하여 wssClient.send를 호출해야 한다', () => {
+        const payload: ChatSendPayload = {
             channelId: 'ch-1',
             content: 'hello',
             contentType: 'text',
         };
-        await dataSource.sendChat(payload);
-        expect(mockGateways.chat.send).toHaveBeenCalledWith(payload);
+        const mockRef = 'custom-ref-123';
+
+        dataSource.sendChat(payload, mockRef);
+
+        expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'send', payload, mockRef);
     });
 
-    it('fetchChat 호출 시 chat.feed 액션으로 request가 전송되어야 한다', async () => {
-        const payload: ChatFeedInput = {
-            channelId: 'ch-1',
-            limit: 20,
+    it('chat:error 수신 시 에러 전용 포맷으로 변환하여 emit 해야 한다', () => {
+        const mockDetail = {
+            ref: 'err-ref',
+            payload: { error: 'Message blocked' },
         };
-        await dataSource.fetchChat(payload);
-        expect(mockGateways.chat.feed).toHaveBeenCalledWith(payload);
-    });
 
-    it('handleModelEvent("create", data) 호출 시 chat:create를 emit 해야 한다', () => {
-        const data = { id: 'msg-1', content: 'hello' };
-        dataSource.handleModelEvent('create', data);
-        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('chat:create', { data });
+        socketCallbacks['chat:error'](mockDetail);
+
+        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('error', {
+            domain: 'chat',
+            message: 'Message blocked',
+            ref: 'err-ref',
+        });
     });
 });

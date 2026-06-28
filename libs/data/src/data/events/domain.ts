@@ -1,4 +1,17 @@
-import type { ChannelView, ChatView, JoinView, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { AuthPayload } from '@lemoncloud/chatic-sockets-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type {
+    ChannelView,
+    ChatFeedResult,
+    ChatView,
+    JoinView,
+    ProfileView,
+    SiteProfileSyncView,
+    SiteView,
+    UserView,
+} from '@lemoncloud/chatic-socials-api';
+
+import type { ChannelSyncView, ListResult } from './common';
 
 /**
  * 도메인 계층으로 전달되는 데이터를 위한 가벼운 래퍼(Wrapper)입니다.
@@ -24,6 +37,8 @@ export interface DomainEventMap {
     'chat:create': DomainPayload<ChatView>;
     'chat:update': DomainPayload<ChatView>;
     'chat:delete': DomainPayload<ChatView>;
+    /** 이전 대화 기록(피드) 조회 결과 */
+    'chat:list': DomainPayload<ChatFeedResult>;
 
     // ------------------------------------------
     // 2. Join Domain (참여 정보)
@@ -39,6 +54,10 @@ export interface DomainEventMap {
     'channel:create': DomainPayload<ChannelView>;
     'channel:update': DomainPayload<ChannelView>;
     'channel:delete': DomainPayload<ChannelView>;
+    /** 사용자가 참여 중인 채널 목록 조회 결과 (mine 대응) */
+    'channel:list': DomainPayload<ListResult<ChannelView>>;
+    /** 채널 동기화 결과 (channel.sync 대응) */
+    'channel:sync': DomainPayload<ChannelSyncView>;
 
     // ------------------------------------------
     // 4. User Domain (사용자)
@@ -46,41 +65,44 @@ export interface DomainEventMap {
     'user:create': DomainPayload<UserView>;
     'user:update': DomainPayload<UserView>;
     'user:delete': DomainPayload<UserView>;
+    'user:invite': DomainPayload<MyInviteView>;
+    'user:invite-batch': DomainPayload<MyInviteView[]>;
+    'user:list': DomainPayload<ListResult<UserView>>;
 
     // ------------------------------------------
     // 5. Site Domain (사이트=플레이스)
     // ------------------------------------------
     'site:create': DomainPayload<SiteView>;
     'site:update': DomainPayload<SiteView>;
-    'site:delete': DomainPayload<SiteView>;
+    'site:list': DomainPayload<ListResult<SiteView>>;
 
     // ------------------------------------------
-    // 6. Auth Domain (인증)
+    // 6. Profile Domain (플레이스별 표시 프로필)
     // ------------------------------------------
-    'auth:create': DomainPayload<any>;
-    'auth:update': DomainPayload<any>;
-    'auth:delete': DomainPayload<any>;
+    /** 본인 플레이스 프로필 조회 결과 (get-site-profile) */
+    'profile:get': DomainPayload<ProfileView>;
+    /** 본인 플레이스 프로필 변경 결과 (set-site-profile) */
+    'profile:update': DomainPayload<ProfileView>;
+    /** 도달 가능한 사용자들의 플레이스 프로필 동기화 delta (sync-site-profile) */
+    'profile:sync': DomainPayload<SiteProfileSyncView>;
 
     // ------------------------------------------
-    // 7. Device Domain (디바이스)
+    // 7. Auth Domain (인증)
     // ------------------------------------------
-    'device:create': DomainPayload<any>;
-    'device:update': DomainPayload<any>;
-    'device:delete': DomainPayload<any>;
+    /** 세션 갱신 등 인증 정보 업데이트 */
+    'auth:update': DomainPayload<AuthPayload>;
 
     // ------------------------------------------
-    // 8. Socket Domain (소켓)
+    // 7. Global Error (공통 예외 처리)
     // ------------------------------------------
-    'socket:create': DomainPayload<any>;
-    'socket:update': DomainPayload<any>;
-    'socket:delete': DomainPayload<any>;
-
-    // ------------------------------------------
-    // 9. Connection Domain (연결)
-    // ------------------------------------------
-    'connection:create': DomainPayload<any>;
-    'connection:update': DomainPayload<any>;
-    'connection:delete': DomainPayload<any>;
+    error: {
+        /** 에러가 발생한 도메인 명 (예: 'chat', 'auth') */
+        domain: string;
+        /** 에러 상세 메시지 */
+        message: string;
+        /** 추적 가능한 요청인 경우의 참조 번호 */
+        ref?: string;
+    };
 }
 
 export type DomainEventType = keyof DomainEventMap;

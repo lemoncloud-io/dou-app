@@ -1,3 +1,4 @@
+import type ISyncRepository from './types';
 import {
     BaseRepository,
     type DataContextProvider,
@@ -7,6 +8,7 @@ import {
 } from './types';
 import type { IChannelLocalDataSource } from '../local/data-sources';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
+import type { ISocketRequestManager } from '../remote/sockets/SocketRequestManager';
 import type { IEventBus } from '../events/eventBus';
 import type { DomainEventMap } from '../events/domain';
 import {
@@ -16,47 +18,39 @@ import {
     type DomainListResult,
     toDomainChannel,
 } from '../domain';
-import type { ChannelSyncView, ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, JoinView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelSyncView } from '../events/common';
 import type {
-    ChannelGetSelfInput,
-    ChannelUnreadsInput,
-    ChatDeleteChannelInput,
-    ChatInviteInput,
-    ChatLeaveInput,
-    ChannelMineInput,
-    ChatStartInput,
-    ChatUpdateChannelInput,
+    ChatDeleteChannelPayload,
+    ChatInvitePayload,
+    ChatLeavePayload,
+    ChatStartPayload,
+    ChatUpdateChannelPayload,
 } from '@lemoncloud/chatic-sockets-api';
-import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { ListResult } from '../events/common';
 
 /** 채널 도메인의 Repository 공개 계약입니다. */
 export interface IChannelRepository extends ILocalCacheMutationRepository<DomainChannel> {
     /** 내가 참여 중인 채널 목록을 조회합니다. */
     fetchChannel(
-        payload: ChannelMineInput,
+        payload: DomainChannelListPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainListResult<DomainChannel>>;
 
     /** 채널 이름/설정 등 채널 메타데이터를 수정합니다. */
-    updateChannel(payload: ChatUpdateChannelInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    updateChannel(payload: ChatUpdateChannelPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 채널 삭제 또는 종료 요청을 수행합니다. */
-    deleteChannel(payload: ChatDeleteChannelInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    deleteChannel(payload: ChatDeleteChannelPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 신규 채널을 생성하거나 대화를 시작합니다. */
-    createChannel(payload: ChatStartInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    createChannel(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 기존 채널에 사용자를 초대합니다. */
-    inviteChannel(payload: ChatInviteInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
+    inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 채널에서 나갑니다. */
-    leaveChannel(payload: ChatLeaveInput, options?: RepositoryRequestOptions): Promise<DomainChannel>;
-
-    /** 자신의 개인 채널 정보를 조회합니다. */
-    getSelfChannel(payload?: ChannelGetSelfInput, options?: RepositoryRequestOptions): Promise<unknown>;
-
-    /** 읽지 않은 메시지 통계를 조회합니다. */
-    getUnreads(payload?: ChannelUnreadsInput, options?: RepositoryRequestOptions): Promise<unknown>;
+    leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<DomainChannel>;
 
     /** 현재 스코프의 channel 로컬 캐시를 초기화합니다. */
     clearAll(): Promise<void>;
@@ -81,17 +75,23 @@ export interface IChannelRepository extends ILocalCacheMutationRepository<Domain
     syncChannels(since: number): Promise<{ syncedAt: number; updatedCount: number; removedCount: number }>;
 }
 
-export class ChannelRepository extends BaseRepository implements IChannelRepository {
+export class ChannelRepository extends BaseRepository implements IChannelRepository, ISyncRepository {
     private readonly leftChannelIds = new Set<string>();
 
     constructor(
         private readonly channelRemoteDataSource: IChannelRemoteDataSource,
         private readonly channelLocalDataSource: IChannelLocalDataSource,
+        requestManager: ISocketRequestManager,
         contextProvider: DataContextProvider,
         domainEventBus: IEventBus<DomainEventMap>
     ) {
-        super(contextProvider, domainEventBus);
+        super(requestManager, contextProvider, domainEventBus);
         this.initializeInternalListeners();
+    }
+
+    async sync(_id?: string, meta?: Record<string, unknown>): Promise<void> {
+        const since = (meta?.since as number) ?? 0;
+        await this.syncChannels(since);
     }
 
     // --- Remote API ---
@@ -110,20 +110,26 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
     }
 
     public async updateChannel(
-        payload: ChatUpdateChannelInput,
+        payload: ChatUpdateChannelPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainChannel> {
-        const channel = (await this.channelRemoteDataSource.updateChannel(payload)) as ChannelView;
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.updateChannel(payload, ref),
+            options
+        );
         const domainChannel = toDomainChannel(channel, this.getDomainScope());
         await this.channelLocalDataSource.upsert(domainChannel, this.getRepositoryContext());
         return domainChannel;
     }
 
     public async deleteChannel(
-        payload: ChatDeleteChannelInput,
+        payload: ChatDeleteChannelPayload,
         options?: RepositoryRequestOptions
     ): Promise<DomainChannel> {
-        const channel = (await this.channelRemoteDataSource.deleteChannel(payload)) as ChannelView;
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.deleteChannel(payload, ref),
+            options
+        );
         const domainChannel = toDomainChannel(channel, this.getDomainScope());
         await this.channelLocalDataSource.remove(
             domainChannel.id || payload.channelId || '',
@@ -132,27 +138,36 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return domainChannel;
     }
 
-    public async createChannel(payload: ChatStartInput, options?: RepositoryRequestOptions): Promise<DomainChannel> {
-        const channel = (await this.channelRemoteDataSource.createChannel(payload)) as ChannelView;
+    public async createChannel(payload: ChatStartPayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.startChat(payload, ref),
+            options
+        );
         const domainChannel = toDomainChannel(channel, this.getDomainScope());
         await this.channelLocalDataSource.upsert(domainChannel, this.getRepositoryContext());
         return domainChannel;
     }
 
-    public async inviteChannel(payload: ChatInviteInput, options?: RepositoryRequestOptions): Promise<DomainChannel> {
-        const channel = (await this.channelRemoteDataSource.inviteChannel(payload)) as ChannelView;
+    public async inviteChannel(payload: ChatInvitePayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+        const channel = await this.requestRemote<ChannelView>(
+            ref => this.channelRemoteDataSource.inviteChannel(payload, ref),
+            options
+        );
         const domainChannel = toDomainChannel(channel, this.getDomainScope());
         await this.channelLocalDataSource.upsert(domainChannel, this.getRepositoryContext());
         return domainChannel;
     }
 
-    public async leaveChannel(payload: ChatLeaveInput, options?: RepositoryRequestOptions): Promise<DomainChannel> {
+    public async leaveChannel(payload: ChatLeavePayload, options?: RepositoryRequestOptions): Promise<DomainChannel> {
         const channelId = payload.channelId || '';
         if (channelId) {
             this.leftChannelIds.add(channelId);
         }
         try {
-            const channel = (await this.channelRemoteDataSource.leaveChannel(payload)) as ChannelView;
+            const channel = await this.requestRemote<ChannelView>(
+                ref => this.channelRemoteDataSource.leaveChannel(payload, ref),
+                options
+            );
             const domainChannel = toDomainChannel(channel, this.getDomainScope());
             await this.channelLocalDataSource.remove(domainChannel.id || channelId, this.getRepositoryContext());
             return domainChannel;
@@ -160,14 +175,6 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
             this.leftChannelIds.delete(channelId);
             throw error;
         }
-    }
-
-    public async getSelfChannel(payload?: ChannelGetSelfInput, options?: RepositoryRequestOptions): Promise<unknown> {
-        return this.channelRemoteDataSource.getSelfChannel(payload ?? {});
-    }
-
-    public async getUnreads(payload?: ChannelUnreadsInput, options?: RepositoryRequestOptions): Promise<unknown> {
-        return this.channelRemoteDataSource.getUnreads(payload ?? {});
     }
 
     public clearAll(): Promise<void> {
@@ -230,7 +237,9 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const result = (await this.channelRemoteDataSource.syncChannel({ since })) as ChannelSyncView;
+        const result = await this.requestRemote<ChannelSyncView>(ref =>
+            this.channelRemoteDataSource.syncChannel({ since }, ref)
+        );
 
         // cloud 전환 감지 — cross-cloud 오염 방지
         const currentCid = this.getRepositoryContext().cid;
@@ -282,7 +291,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const requestScope = this.getDomainScope();
         const requestContext = this.getRepositoryContext();
 
-        const remote = (await this.channelRemoteDataSource.fetchChannel(payload)) as ListResult<ChannelView>;
+        const remote = await this.requestRemote<ListResult<ChannelView>>(
+            ref => this.channelRemoteDataSource.fetchChannel(payload, ref),
+            options
+        );
         // 서버 응답의 cid(e.g. "global")는 cloud 파티셔닝 기준과 다를 수 있으므로
         // requestScope.cid(= 요청 시점의 cloudId)로 강제 대체
         const domainList = (remote.list || []).map(item => ({
@@ -340,8 +352,12 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 'channel:delete'
             )
         );
+        // NOTE: channel:list 캐시 저장은 fetchFromRemoteAndCache에서 요청 시점 context를 캡처하여 처리함.
+        // 여기서 중복 upsertMany를 수행하면 cloud 전환 중 도착한 이전 cloud 응답이
+        // 현재 cloud의 캐시 파티션에 저장되는 cross-cloud 오염이 발생함.
 
         // 새 메시지 수신 시 해당 채널의 lastChat$/chatNo/unreadCount를 캐시에 즉시 반영
+        // useChannels가 unmount 상태(채팅방 진입 중)에서도 캐시가 갱신되어 복귀 시 stale 데이터 방지
         this.onDomainEvent('chat:create', detail => {
             const chat = detail.data as ChatView;
             const channelId = chat.channelId;
@@ -353,21 +369,26 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 if (!existing) return;
 
                 const isOwnMessage = !!context.uid && chat.ownerId === context.uid;
-                const prevUnread = existing.unreadCount ?? 0;
+                // join:update 핸들러와 동일한 절대식(lastChatNo − myReadNo)으로 통일 —
+                // prevUnread+1 누적은 중복/순서뒤바뀜 echo에서 drift함. 내 메시지면 0
+                // (computeChannelUnread의 "마지막이 내 메시지 → 0" 규칙과 일치).
+                const lastChatNo = chat.chatNo ?? existing.chatNo ?? 0;
+                const myReadNo = (existing.$join as { chatNo?: number } | undefined)?.chatNo ?? 0;
+                const unreadCount = isOwnMessage ? 0 : Math.max(0, lastChatNo - myReadNo);
 
                 await this.channelLocalDataSource.upsert(
                     {
                         id: channelId,
                         lastChat$: chat,
                         chatNo: chat.chatNo,
-                        unreadCount: isOwnMessage ? prevUnread : prevUnread + 1,
+                        unreadCount,
                     } as unknown as Partial<DomainChannel>,
                     context
                 );
             }, 'chat:create→channel:update');
         });
 
-        // 읽음 처리(join:update) 시 채널 캐시의 $join을 즉시 반영
+        // 읽음 처리(join:update) 시 채널 캐시의 $join을 즉시 반영하여 unreadCount 로컬 계산 정확도 보장
         this.onDomainEvent('join:update', detail => {
             const join = detail.data as JoinView;
             const channelId = (join as { channelId?: string }).channelId;

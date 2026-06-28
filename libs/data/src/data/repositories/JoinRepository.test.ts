@@ -2,11 +2,7 @@ import { JoinRepository } from './JoinRepository';
 
 describe('JoinRepository local-only fetchJoins', () => {
     const createRepository = () => {
-        const remote = {
-            readChat: jest.fn(),
-            updateJoin: jest.fn(),
-            handleModelEvent: jest.fn(),
-        };
+        const remote = { readChat: jest.fn(), updateJoin: jest.fn() };
         const local = {
             fetchList: jest.fn(),
             getById: jest.fn(),
@@ -19,6 +15,12 @@ describe('JoinRepository local-only fetchJoins', () => {
             subscribeItem: jest.fn(() => () => undefined),
         };
 
+        const requestManager = {
+            request: jest.fn(async (sendAction: (ref: string) => void) => {
+                sendAction('ref-1');
+                return {};
+            }),
+        };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', uid: 'user-a' }),
             setContext: () => undefined,
@@ -29,13 +31,19 @@ describe('JoinRepository local-only fetchJoins', () => {
             onAny: jest.fn(() => () => undefined),
         };
 
-        const repository = new JoinRepository(remote as any, local as any, contextProvider, domainEventBus as any);
+        const repository = new JoinRepository(
+            remote as any,
+            local as any,
+            requestManager as any,
+            contextProvider,
+            domainEventBus as any
+        );
 
-        return { repository, local };
+        return { repository, local, requestManager };
     };
 
     it('returns local joins for cache-first without remote call', async () => {
-        const { repository, local } = createRepository();
+        const { repository, local, requestManager } = createRepository();
         const mockResult = { list: [{ id: 'j-1', channelId: 'ch-1', joined: 1 }], meta: { total: 1, source: 'local' } };
         local.fetchList.mockResolvedValue(mockResult);
 
@@ -43,6 +51,7 @@ describe('JoinRepository local-only fetchJoins', () => {
 
         expect(local.fetchList).toHaveBeenCalledWith({ channelId: 'ch-1' }, { cid: 'cloud-a', uid: 'user-a' });
         expect(result).toMatchObject(mockResult);
+        expect(requestManager.request).not.toHaveBeenCalled();
     });
 
     it('uses active join local query when activeOnly is true', async () => {
@@ -61,13 +70,14 @@ describe('JoinRepository local-only fetchJoins', () => {
     });
 
     it('returns fallback for cache-only when local is empty', async () => {
-        const { repository, local } = createRepository();
+        const { repository, local, requestManager } = createRepository();
         local.fetchList.mockResolvedValue(null);
 
         const result = await repository.fetchJoins({ channelId: 'ch-1' }, { cachePolicy: 'cache-only' });
 
         expect(result.list).toEqual([]);
         expect(result.meta.total).toBe(0);
+        expect(requestManager.request).not.toHaveBeenCalled();
     });
 
     it('throws when remote fetch is required but fetchJoins is local-only', async () => {

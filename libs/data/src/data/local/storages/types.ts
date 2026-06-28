@@ -31,8 +31,8 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
     async clearByChannelId(channelId: string): Promise<void> {
         const items = await this.loadAll();
         const ids = items
-            .filter(item => (item as any).channelId === channelId)
-            .map(item => (item as any).id as string)
+            .filter(item => (item as Record<string, unknown>).channelId === channelId)
+            .map(item => (item as Record<string, unknown>).id as string)
             .filter(Boolean);
         if (ids.length > 0) {
             await this.deleteAll(ids);

@@ -1,13 +1,5 @@
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type {
-    ChannelView,
-    ChatView,
-    JoinView,
-    ProfileDisplay,
-    ProfileView,
-    SiteView,
-    UserView,
-} from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, JoinView, ProfileDisplay, SiteView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { CacheStorageItem } from '../local/storages';
 import type {
     DomainChannel,
@@ -133,30 +125,19 @@ export const toDomainSite = (
 };
 
 export const toDomainProfile = (
-    source: (ProfileView & Partial<ProfileDisplay>) | CacheStorageItem<'profile'> | Partial<DomainProfile>,
+    source: ProfileDisplay | CacheStorageItem<'profile'> | Partial<DomainProfile>,
     scope: DomainScope
 ): DomainProfile => {
-    // Profiles are stored with normalized sid/uid fields even when the payload still uses API keys.
-    const sid =
-        toStringSafe((source as { siteId?: string; sid?: string }).siteId || (source as { sid?: string }).sid) ||
-        scope.sid ||
-        '';
-    const uid =
-        toStringSafe((source as { uid?: string }).uid) ||
-        toStringSafe((source as { userId?: string }).userId) ||
-        scope.uid ||
-        '';
-    const updatedAtMs = toEpochMs((source as { updatedAt?: string | number }).updatedAt);
-    const id = toStringSafe((source as { id?: string }).id) || `${sid}:${uid}`;
+    const uid = toStringSafe((source as { uid?: string }).uid) || scope.uid || '';
+    const sid = toStringSafe((source as { sid?: string }).sid) || scope.sid || '';
+    const id = toStringSafe((source as { id?: string }).id) || `${sid}@${uid}`;
 
     return {
-        ...(source as ProfileView),
+        ...(source as ProfileDisplay),
         id,
         cid: toStringSafe((source as { cid?: string }).cid) || scope.cid,
-        sid,
+        sid: sid || undefined,
         uid,
-        userId: toStringSafe((source as { userId?: string }).userId) || uid,
-        updatedAtMs,
     };
 };
 
