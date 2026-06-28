@@ -1,0 +1,102 @@
+import { useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
+import { isNative } from '@chatic/bridges';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { appBridge, useOnBackPressed } from '../bridge';
+
+/** Selector for Radix UI overlay components that can be closed with back button */
+const OPEN_DIALOG_SELECTOR =
+    '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-state="open"][role="menu"], [data-state="open"][role="listbox"]';
+
+/**
+ * Hook to handle back button in hybrid app environment.
+ * - Syncs navigation state with native app
+ * - Handles native back button events
+ * - Supports `data-prevent-back-close` attribute to prevent back button from closing dialogs
+ */
+export const useBackHandler = () => {
+    const location = useLocation();
+    const navigate = useNavigateWithTransition();
+    const isOnMobileApp = isNative();
+
+    // Notify native app about navigation state changes
+    // Also watch for dialog state changes using MutationObserver
+    useEffect(() => {
+        if (!isOnMobileApp) return;
+
+        const checkCanGoBack = () => {
+            // Only report dialog state - native app tracks navigation history separately
+            const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
+
+            appBridge.setCanGoBack(hasOpenDialogs);
+        };
+
+        // Initial check
+        checkCanGoBack();
+
+        // Watch for dialog state changes (both attribute changes and DOM additions/removals)
+        const observer = new MutationObserver(() => {
+            checkCanGoBack();
+        });
+
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['data-state'],
+            childList: true,
+            subtree: true,
+        });
+
+        return () => observer.disconnect();
+    }, [location, isOnMobileApp]);
+
+    /**
+     * Handle back request from native app.
+     *
+     * Dialog detection relies on Radix UI's data-state="open" attribute.
+     * Ensure all dialogs/modals use Radix primitives for consistent behavior.
+     *
+     * To prevent back button from closing a dialog, add `data-prevent-back-close` attribute:
+     * <DialogContent data-prevent-back-close>
+     */
+    const handleNativeBack = useCallback(() => {
+        const openDialogs = document.querySelectorAll(OPEN_DIALOG_SELECTOR);
+
+        if (openDialogs.length > 0) {
+            // Get the topmost dialog (last in DOM order, highest z-index)
+            const topmostDialog = openDialogs[openDialogs.length - 1];
+
+            // Check if this dialog prevents back close
+            if (topmostDialog.hasAttribute('data-prevent-back-close')) {
+                // Dialog wants to prevent back close, do nothing
+                return;
+            }
+
+            // AlertDialog does NOT close on Escape by design (requires explicit user action)
+            // So we need to click a button inside the dialog to close it
+            if (topmostDialog.getAttribute('role') === 'alertdialog') {
+                // Find and click the first button (usually OK/Cancel)
+                const button = topmostDialog.querySelector('button');
+                if (button instanceof HTMLElement) {
+                    button.click();
+                }
+                return;
+            }
+
+            // For regular dialogs, dispatch Escape key on document (Radix listens on document level)
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            return;
+        }
+
+        // Only navigate back if there's history to go back to
+        const canGoBack = location.key !== 'default' && window.history.length > 1;
+        if (canGoBack) {
+            navigate(-1);
+        }
+    }, [navigate, location.key]);
+
+    // Listen for native back button message
+    useOnBackPressed(handleNativeBack);
+
+    return { handleNativeBack };
+};

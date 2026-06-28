@@ -1,1 +1,0 @@
-export { PointerTestPage } from './PointerTestPage';

@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronLeft, HelpCircle, Loader2, X, XCircle } from 'lucide-react';
-
-import { cn } from '@chatic/lib/utils';
-import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useVerifyEmail } from '@chatic/users';
+import { useVerifyEmail } from '@chatic/web-core';
 
-import { VerificationCodeInput } from '../../account/components/VerificationCodeInput';
-import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account/constants';
-import { formatTime, isValidEmail } from '../../account/utils';
+import { isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account';
+import { EmailStep, VerifyStep } from './email-verify';
 
 type Step = 'email' | 'verify';
 
@@ -109,12 +104,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified }: EmailVerif
         }
     };
 
-    useEffect(() => {
-        if (isCodeComplete && loadingState === 'idle' && timeLeft > 0) {
-            handleVerifyCode();
-        }
-    }, [isCodeComplete]);  
-
     const handleVerifyCode = async () => {
         setLoadingState('verifying');
         setVerifyError(false);
@@ -129,6 +118,17 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified }: EmailVerif
         }
     };
 
+    useEffect(() => {
+        if (isCodeComplete && loadingState === 'idle' && timeLeft > 0) {
+            handleVerifyCode();
+        }
+    }, [isCodeComplete]);
+
+    const handleCodeChange = (value: string) => {
+        setCode(value);
+        setVerifyError(false);
+    };
+
     return (
         <Dialog open={open} onOpenChange={open => !open && handleClose()}>
             <DialogContent className="h-full max-w-none rounded-none p-0 sm:rounded-none" hideClose>
@@ -136,182 +136,36 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified }: EmailVerif
                 <DialogDescription className="sr-only">{t('addAccount.title')}</DialogDescription>
 
                 {step === 'email' && (
-                    <div className="flex h-full flex-col p-6 pt-safe-top">
-                        <div className="flex flex-col gap-6">
-                            <div className="flex items-center justify-end">
-                                <button onClick={handleClose} className="rounded-full p-1">
-                                    <X size={24} strokeWidth={2} />
-                                </button>
-                            </div>
-                            <div className="flex flex-col items-center gap-[46px]">
-                                <img
-                                    src={isDarkTheme ? Logo.douWh : Logo.douBk}
-                                    alt="DoU"
-                                    className="h-[41px] object-contain"
-                                />
-
-                                <div className="flex w-full flex-col gap-6">
-                                    <div className="flex flex-col gap-[6px]">
-                                        <h2 className="text-[22px] font-bold leading-[1.35] tracking-[0.005em]">
-                                            {t('addAccount.emailTitle')}
-                                        </h2>
-                                        <p className="text-[16px] font-medium leading-[1.45] tracking-[-0.015em] text-[#9FA2A7]">
-                                            {t('addAccount.emailSubtitle')}
-                                        </p>
-                                    </div>
-
-                                    <div className="flex w-full flex-col gap-2">
-                                        <label className="text-[14px] font-semibold text-label">
-                                            {t('addAccount.emailLabel')}
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type="email"
-                                                value={email}
-                                                onChange={e => setEmail(e.target.value)}
-                                                onBlur={() => setTouched(true)}
-                                                placeholder={t('addAccount.emailPlaceholder')}
-                                                className={cn(
-                                                    'w-full rounded-[10px] border bg-surface p-3 px-4 pr-10 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
-                                                    hasError
-                                                        ? 'border-[1.5px] border-destructive'
-                                                        : 'border-input-border focus:border-[1.5px] focus:border-focus-border'
-                                                )}
-                                            />
-                                            {email.length > 0 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setEmail('')}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder"
-                                                >
-                                                    <XCircle size={20} fill="currentColor" stroke="white" />
-                                                </button>
-                                            )}
-                                        </div>
-                                        <p
-                                            className={cn(
-                                                'pl-[2px] text-[12px]',
-                                                hasError ? 'text-destructive' : 'text-description'
-                                            )}
-                                        >
-                                            {t('addAccount.emailDescription')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-auto px-0 pb-safe-bottom pt-5">
-                            <button
-                                onClick={handleSendCode}
-                                disabled={!isEmailValid || loading}
-                                className="flex w-full items-center justify-center rounded-full bg-foreground py-3 text-[16px] font-semibold text-background disabled:opacity-50"
-                            >
-                                {loading ? <Loader2 size={20} className="animate-spin" /> : t('addAccount.sendCode')}
-                            </button>
-                        </div>
-                    </div>
+                    <EmailStep
+                        email={email}
+                        hasError={hasError}
+                        isEmailValid={isEmailValid}
+                        loading={loading}
+                        isDarkTheme={isDarkTheme}
+                        onEmailChange={setEmail}
+                        onBlur={() => setTouched(true)}
+                        onClear={() => setEmail('')}
+                        onSendCode={handleSendCode}
+                        onClose={handleClose}
+                    />
                 )}
 
                 {step === 'verify' && (
-                    <div className="flex h-full flex-col p-6 pt-safe-top">
-                        <div className="flex flex-col gap-5">
-                            <button onClick={handleBackToEmail} className="-ml-2 self-start rounded-full p-1">
-                                <ChevronLeft size={24} strokeWidth={2} />
-                            </button>
-
-                            <div className="flex flex-col items-center pt-2">
-                                <img
-                                    src={isDarkTheme ? Logo.douWh : Logo.douBk}
-                                    alt="DoU"
-                                    className="h-[41px] object-contain"
-                                />
-                            </div>
-
-                            <div className="mt-[36px] flex flex-col gap-[6px]">
-                                <h2 className="text-[18px] font-bold">{t('addAccount.verificationTitle')}</h2>
-                                <p className="text-[14px] font-medium text-[#9FA2A7]">
-                                    {t('addAccount.verificationDescription')}
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col items-center gap-[22px]">
-                                <VerificationCodeInput
-                                    value={code}
-                                    onChange={v => {
-                                        setCode(v);
-                                        setVerifyError(false);
-                                    }}
-                                    hasError={verifyError}
-                                />
-
-                                {verifyError && (
-                                    <p className="text-center text-[14px] font-medium tracking-[0.005em] text-[#FF4C35]">
-                                        {t('addAccount.codeError')}
-                                    </p>
-                                )}
-
-                                <div className="flex w-full items-center justify-between px-1">
-                                    <div className="flex items-center gap-px">
-                                        <div className="flex items-center gap-[2px] text-[13px] font-medium text-label">
-                                            <span>{t('addAccount.timeRemaining')}</span>
-                                            <span className={cn('w-[40px]', timeLeft === 0 && 'text-[#FF4C35]')}>
-                                                {formatTime(timeLeft)}
-                                            </span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowTooltip(prev => !prev)}
-                                            className="text-description"
-                                        >
-                                            <HelpCircle size={16} />
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleResend}
-                                        disabled={loadingState === 'resending'}
-                                        className="text-[14px] font-semibold text-[#90C304] underline disabled:opacity-50"
-                                    >
-                                        {loadingState === 'resending' ? (
-                                            <Loader2 size={14} className="animate-spin" />
-                                        ) : (
-                                            t('addAccount.resend')
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {showTooltip && (
-                                <div className="relative rounded-[8px] bg-card px-[10px] py-[10px] pr-[16px] shadow-[0px_0px_3px_0px_rgba(0,0,0,0.18)]">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowTooltip(false)}
-                                        className="absolute right-[6px] top-[7px] text-[#9FA2A7]"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                    <p className="whitespace-pre-line text-[12px] font-medium leading-[1.45] text-label">
-                                        {t('addAccount.tooltip')}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="mt-auto px-0 pb-safe-bottom pt-5">
-                            <button
-                                onClick={handleVerifyCode}
-                                disabled={!isCodeComplete || loadingState === 'verifying' || timeLeft === 0}
-                                className="flex w-full items-center justify-center rounded-full bg-foreground py-3 text-[16px] font-semibold text-background disabled:opacity-50"
-                            >
-                                {loadingState === 'verifying' ? (
-                                    <Loader2 size={20} className="animate-spin" />
-                                ) : (
-                                    t('addAccount.complete')
-                                )}
-                            </button>
-                        </div>
-                    </div>
+                    <VerifyStep
+                        code={code}
+                        verifyError={verifyError}
+                        timeLeft={timeLeft}
+                        showTooltip={showTooltip}
+                        loadingState={loadingState}
+                        isCodeComplete={isCodeComplete}
+                        isDarkTheme={isDarkTheme}
+                        onCodeChange={handleCodeChange}
+                        onToggleTooltip={() => setShowTooltip(prev => !prev)}
+                        onCloseTooltip={() => setShowTooltip(false)}
+                        onResend={handleResend}
+                        onVerify={handleVerifyCode}
+                        onBack={handleBackToEmail}
+                    />
                 )}
             </DialogContent>
         </Dialog>

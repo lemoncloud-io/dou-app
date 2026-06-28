@@ -6,14 +6,16 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
-import { useUserMutations } from '../../../shared/hooks';
 import { cn } from '@chatic/lib/utils';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
-
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import {
+    useRefreshCurrentCloudSession,
+    useSessionIdentity,
+    useSessionSelection,
+    useUpdateCloud,
+} from '@chatic/web-core';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -22,14 +24,17 @@ export const CloudProfileEditPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { updateProfile, isPending } = useUserMutations();
+    const { selectedCloudId } = useSessionSelection();
+    const { cloudProfile } = useSessionIdentity();
+    const { mutateAsync: updateCloud, isPending } = useUpdateCloud();
+    const { refreshCurrentCloudSession } = useRefreshCurrentCloudSession();
 
-    // cloudToken에서 직접 읽어야 relay photo가 섞이지 않음
-    const cloudToken = cloudCore.getCloudToken();
-    const cloudName = cloudToken?.name || '';
-    const cloudThumbnail = ((cloudToken as Record<string, unknown>)?.photo as string) || '';
+    // Read from the cloud profile so the relay photo does not bleed in.
+    const cloudUser = cloudProfile?.$user;
+    const cloudName = cloudUser?.name || '';
+    const cloudThumbnail = (cloudUser?.photo as string) || '';
 
-    const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudToken });
+    const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudProfile });
     const [name, setName] = useState(cloudName.slice(0, 30));
     const [thumbnail, setThumbnail] = useState(cloudThumbnail);
     const [imageSizeError, setImageSizeError] = useState(false);
@@ -38,30 +43,13 @@ export const CloudProfileEditPage = () => {
     const isValid = name.trim().length > 0 && name.length <= 30;
 
     const handleSave = async () => {
-        if (!isValid || !hasChanges) return;
+        if (!isValid || !hasChanges || !selectedCloudId) return;
         try {
-            await updateProfile({
-                name: name.trim(),
-                thumbnail: thumbnail !== initialRef.current.thumbnail ? thumbnail : undefined,
-            });
+            // NOTE: server-side thumbnail update is deferred; only the name is persisted for now.
+            await updateCloud({ id: selectedCloudId, body: { name: name.trim() } });
 
-            // Sync cloudCore token so useDynamicProfile reads updated values
-            const currentToken = cloudCore.getCloudToken();
-            if (currentToken) {
-                cloudCore.saveCloudToken({
-                    ...currentToken,
-                    name: name.trim(),
-                    ...(thumbnail !== initialRef.current.thumbnail ? { thumbnail } : {}),
-                } as typeof currentToken);
-            }
-
-            // Sync webCoreStore to trigger re-render
-            const currentProfile = useWebCoreStore.getState().profile;
-            if (currentProfile) {
-                useWebCoreStore.getState().setProfile({
-                    ...currentProfile,
-                } as UserProfile$);
-            }
+            // Re-issue the cloud token so the session-derived profile reflects the new name.
+            await refreshCurrentCloudSession();
 
             toast({ title: t('profileEdit.cloudSaveSuccess') });
             navigate(-1);
@@ -99,10 +87,10 @@ export const CloudProfileEditPage = () => {
                 <div className="border-t border-border/50 bg-background px-5 py-4">
                     <button
                         onClick={handleSave}
-                        disabled={!isValid || !hasChanges || isPending['update-profile']}
+                        disabled={!isValid || !hasChanges || isPending}
                         className={cn(
                             'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                            isValid && hasChanges && !isPending['update-profile']
+                            isValid && hasChanges && !isPending
                                 ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
                                 : 'bg-muted text-muted-foreground'
                         )}

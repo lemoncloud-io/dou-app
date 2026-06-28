@@ -1,0 +1,7 @@
+export * from './DebugPage';
+export * from './DebugLoginPage';
+export * from './DebugChatPage';
+export * from './DebugLogBufferPage';
+export * from './DebugCacheTestPage';
+export * from './DebugUploadPage';
+export * from './DebugBadgeCountPage';

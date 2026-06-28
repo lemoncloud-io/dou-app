@@ -1,11 +1,14 @@
-import { RefreshCw, User, Users } from 'lucide-react';
+import { User, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useAppPreferenceStore, useUserContext } from '@chatic/web-core';
+import { useChannelSync } from '@chatic/app-runtime';
+import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
+import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { ROUTES } from '../../../routes/paths';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -17,13 +20,17 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
+const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: number }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const blurLastMessage = useAppPreferenceStore(s => s.blurLastMessage);
-    const { currentWSS } = useUserContext();
-    const unreadCount = channel.unreadCount ?? 0;
+    const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
+    const currentWSS = useGlobalSession().activeServer.kind;
     const isSelf = channel.memberNo === 1;
+
+    // Keep the channel metadata synced while rendered (unregisters on unmount). The read
+    // boundary (join) that drives the unread badge is synced at the home level for the whole
+    // active place via useMyJoinsSync, not per rendered row.
+    useChannelSync(channel.id);
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';
@@ -37,7 +44,7 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
 
     return (
         <button
-            onClick={() => navigate(`/chats/${channel.id}/room`)}
+            onClick={() => navigate(ROUTES.channels.room(channel.id))}
             className="flex w-full items-start gap-2 rounded-[6px] px-[2px] py-2 text-left transition-colors active:bg-muted"
         >
             {/* Avatar */}
@@ -83,9 +90,9 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
                     <span className="text-[12px] leading-[20px] tracking-[-0.015em] text-muted-foreground">
                         {formatTime(channel.lastChat$?.createdAt ?? channel.updatedAt)}
                     </span>
-                    {unreadCount > 0 && (
+                    {unread > 0 && (
                         <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
-                            {unreadCount > 999 ? '+999' : unreadCount}
+                            {unread > 999 ? '+999' : unread}
                         </span>
                     )}
                 </div>
@@ -96,26 +103,18 @@ const ChannelItem = ({ channel }: { channel: DomainChannel }) => {
 
 interface ChannelListProps {
     channels: DomainChannel[];
+    unreadByChannel: Record<string, number>;
     isLoading: boolean;
-    isSyncing: boolean;
-    isError: boolean;
-    errorMessage: string | null;
-    onRefreshChannels: () => void;
     showCreateButton?: boolean;
     onCreateChannel?: () => void;
-    channelLimit?: number;
 }
 
 export const ChannelList = ({
     channels,
+    unreadByChannel,
     isLoading,
-    isSyncing,
-    isError,
-    errorMessage,
-    onRefreshChannels: refresh,
     showCreateButton,
     onCreateChannel,
-    channelLimit,
 }: ChannelListProps) => {
     const { t } = useTranslation();
 
@@ -125,63 +124,32 @@ export const ChannelList = ({
                 <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
                     Chat
                 </span>
-                <button
-                    onClick={() => refresh()}
-                    disabled={isSyncing}
-                    className="flex h-[24px] w-[24px] items-center justify-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                >
-                    <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-                </button>
             </div>
             {showCreateButton && (
-                <div className="flex items-center gap-[6px]">
-                    {channelLimit != null && (
-                        <span className="text-[12px] font-medium text-muted-foreground">
-                            {channels.length}/{channelLimit}
-                        </span>
-                    )}
-                    <button
-                        onClick={onCreateChannel}
-                        className="flex h-[24px] w-[24px] items-center justify-center text-foreground"
-                    >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path
-                                d="M20.0871 12.3522C19.5183 16.7033 15.2147 20.2296 10.8257 20.2296H4.50289C3.96623 20.2299 3.4689 19.9482 3.19307 19.4879C2.91725 19.0275 2.90348 18.4561 3.15681 17.983L3.41276 17.4996C3.68766 17.0314 3.68766 16.451 3.41276 15.9828C1.25812 12.5793 1.59465 8.16472 4.24031 5.1271C6.88597 2.08948 11.2125 1.15009 14.8797 2.81708C18.5468 4.48406 20.6837 8.3616 20.1345 12.3522H20.0871Z"
-                                stroke="currentColor"
-                                strokeWidth="1.2"
-                            />
-                            <path
-                                d="M11.165 8V14.33M8 11.165H14.33"
-                                stroke="currentColor"
-                                strokeWidth="1.2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
-                        </svg>
-                    </button>
-                </div>
+                <button
+                    onClick={onCreateChannel}
+                    className="flex h-[24px] w-[24px] items-center justify-center text-foreground"
+                >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path
+                            d="M20.0871 12.3522C19.5183 16.7033 15.2147 20.2296 10.8257 20.2296H4.50289C3.96623 20.2299 3.4689 19.9482 3.19307 19.4879C2.91725 19.0275 2.90348 18.4561 3.15681 17.983L3.41276 17.4996C3.68766 17.0314 3.68766 16.451 3.41276 15.9828C1.25812 12.5793 1.59465 8.16472 4.24031 5.1271C6.88597 2.08948 11.2125 1.15009 14.8797 2.81708C18.5468 4.48406 20.6837 8.3616 20.1345 12.3522H20.0871Z"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                        />
+                        <path
+                            d="M11.165 8V14.33M8 11.165H14.33"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                </button>
             )}
         </div>
     );
 
-    if (isError) {
-        return (
-            <div className="flex flex-col items-center gap-2 py-8">
-                {header}
-                <p className="text-sm text-destructive">{t('channelList.errorLoading')}</p>
-                {errorMessage && (
-                    <p className="max-w-[280px] break-words text-center text-xs text-muted-foreground">
-                        {errorMessage}
-                    </p>
-                )}
-                <button onClick={() => refresh()} className="text-sm text-primary underline">
-                    {t('channelList.retry')}
-                </button>
-            </div>
-        );
-    }
-
-    if (!channels.length && (isLoading || isSyncing)) {
+    if (!channels.length && isLoading) {
         return (
             <div className="space-y-0">
                 {header}
@@ -207,7 +175,7 @@ export const ChannelList = ({
             <div className="flex-1 overflow-y-auto">
                 <div className="flex flex-col gap-[18px] px-1">
                     {channels.map((channel: DomainChannel) => (
-                        <ChannelItem key={channel.id} channel={channel} />
+                        <ChannelItem key={channel.id} channel={channel} unread={unreadByChannel[channel.id] ?? 0} />
                     ))}
                 </div>
             </div>

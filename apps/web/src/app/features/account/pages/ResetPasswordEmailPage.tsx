@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next';
 
-import { useFindAlias, useVerifyAlias } from '@chatic/auth';
+import { useFindAlias, useVerifyAlias } from '@chatic/web-core';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { EmailInputPage } from '../components';
+import { ROUTES } from '../../../routes/paths';
 
 export const ResetPasswordEmailPage = () => {
     const navigate = useNavigateWithTransition();
@@ -21,7 +22,7 @@ export const ResetPasswordEmailPage = () => {
                 return false;
             }
             await verifyAlias.mutateAsync({ type: 'email', mode: 'find', step: 'send', alias: email });
-            navigate('/account/reset-password/verify', { replace: true, state: { email } });
+            navigate(ROUTES.account.resetPassword.verify, { replace: true, state: { email } });
             return true;
         } catch {
             toast({ title: t('resetPassword.sendCodeFailed'), variant: 'destructive' });
