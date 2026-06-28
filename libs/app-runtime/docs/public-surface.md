@@ -1,7 +1,7 @@
 # App Runtime Public Surface
 
-Date: 2026-06-25
-Status: As-Built (현재 구현 기준)
+Date: 2026-06-24
+Status: Target Architecture
 
 ## 목적
 
@@ -15,24 +15,22 @@ Status: As-Built (현재 구현 기준)
 
 ## 공개 표면
 
-| 구분               | 심볼                                                                                                               | 설명                                                |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
-| 값 파생 훅         | `useRuntimeBinding()`                                                                                              | 활성 서버 기준 `RuntimeBinding` 파생                |
-| 값 파생 훅         | `useRuntimeRepositories()`                                                                                         | 현재 data context에 바인딩된 repository 조회        |
-| 값 파생 훅         | `useSocketState()`                                                                                                 | socket 연결/인증 상태 조회                          |
-| sync register 훅   | `useSyncTarget()` / `useChatSync()` / `useChannelSync()` / `usePlaceSync()` / `useProfileSync()` / `useJoinSync()` | 컴포넌트 lifetime 동안 `type+id` sync target on/off |
-| lifecycle 컴포넌트 | `<RuntimeConnectionHost>`                                                                                          | 런타임 조립 루트                                    |
-| lifecycle 컴포넌트 | `<TransportBootstrap>`                                                                                             | transport 초기화 게이트                             |
-| lifecycle 컴포넌트 | `<SessionBackgroundRunner>`                                                                                        | 백그라운드 세션 유지/리프레시                       |
-| lifecycle 컴포넌트 | `<RuntimeDataBinder>`                                                                                              | data context 동기화                                 |
-| lifecycle 컴포넌트 | `<SocketBinder>`                                                                                                   | socket config 동기화                                |
-| lifecycle 컴포넌트 | `<SocketAuthBinder>`                                                                                               | site/token 변경 시 auth 문맥 재동기화               |
-| delegate 계약      | `SocketSessionDelegate`                                                                                            | token 조회/refresh 주입 계약                        |
-| 편의 진입점        | `getRuntimeManager()`                                                                                              | runtime manager 접근                                |
-| 편의 진입점        | `getSocketRuntime()`                                                                                               | socket/session/sync 조립체 접근                     |
-| 편의 진입점        | `getSocketManager()` / `getSyncManager()`                                                                          | socket manager / sync manager 직접 접근             |
-| 편의 진입점        | `getDataRuntime()`                                                                                                 | data runtime 접근                                   |
-| 핵심 타입          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate`                     | 외부에서 알아야 하는 주요 타입                      |
+| 구분               | 심볼                                                                                           | 설명                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 값 파생 훅         | `useRuntimeBinding()`                                                                          | 활성 서버 기준 `RuntimeBinding` 파생         |
+| 값 파생 훅         | `useRuntimeRepositories()`                                                                     | 현재 data context에 바인딩된 repository 조회 |
+| 값 파생 훅         | `useSocketState()`                                                                             | socket 연결/인증 상태 조회                   |
+| lifecycle 컴포넌트 | `<RuntimeConnectionHost>`                                                                      | 런타임 조립 루트                             |
+| lifecycle 컴포넌트 | `<TransportBootstrap>`                                                                         | transport 초기화 게이트                      |
+| lifecycle 컴포넌트 | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 유지/리프레시                |
+| lifecycle 컴포넌트 | `<RuntimeDataBinder>`                                                                          | data context 동기화                          |
+| lifecycle 컴포넌트 | `<SocketBinder>`                                                                               | socket config 동기화                         |
+| lifecycle 컴포넌트 | `<SocketAuthBinder>`                                                                           | site/token 변경 시 auth 문맥 재동기화        |
+| delegate 계약      | `SocketSessionDelegate`                                                                        | token 조회/refresh 주입 계약                 |
+| 편의 진입점        | `getRuntimeManager()`                                                                          | runtime manager 접근                         |
+| 편의 진입점        | `getSocketRuntime()`                                                                           | socket/session/sync 조립체 접근              |
+| 편의 진입점        | `getDataRuntime()`                                                                             | data runtime 접근                            |
+| 핵심 타입          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate` | 외부에서 알아야 하는 주요 타입               |
 
 ## socket runtime 공개 규칙
 
@@ -48,8 +46,7 @@ Status: As-Built (현재 구현 기준)
 
 주의:
 
-- `ManagedSocketClientProxy`는 제거되었다 (request facade는 `SocketManager`로 흡수).
-- `AppSyncRuntime`는 `SyncManager`로 재편되었다. 진입점은 `getSyncManager()`.
+- `ManagedSocketClientProxy`는 제거(request facade는 `SocketManager`로 흡수), `AppSyncRuntime`는 `SyncManager`로 재편(진입점 `getSyncManager()`)되었다. 정렬 상태 전체는 [architecture.md](./architecture.md#현재-코드와의-차이) 참조.
 
 ## 앱 조립 예시
 
@@ -84,7 +81,7 @@ const App = () => {
 ## 관련 문서
 
 - [architecture.md](./architecture.md)
-- [runtime/runtime.md](./runtime/runtime.md)
-- [socket/socket.md](./socket/socket.md)
+- [runtime/README.md](./runtime/README.md)
+- [socket/README.md](./socket/README.md)
 - [sync/README.md](./sync/README.md)
-- [data/data.md](./data/data.md)
+- [data/README.md](./data/README.md)
