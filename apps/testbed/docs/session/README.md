@@ -39,10 +39,15 @@
 
 #### Cloud 로그아웃
 
-- 현재 cloud 세션만 종료한다 (`useLogoutCloudSession`)
+- 현재 cloud 세션만 종료한다 (`useLogoutCloudSession().logoutCloudSession()`)
 - relay 세션은 유지한다
-- `cloud.isActive`가 `false`로 변경되면 `activeServer`가 자동으로 `kind: 'relay'`로 전환된다
-- 결과적으로 채팅 홈은 relay 기준 상태로 자동 복귀한다
+- `logoutCloudSession()` 내부에서 `cloud.isActive`가 `false`로 변경되면 `resolveActiveServerContext`가 자동으로 `activeServer.kind = 'relay'`로 전환한다
+- 결과적으로 채팅 홈은 relay 기준 상태로 자동 복귀한다 (relay 전환 직후 기존 cloud 기준 place/channel 목록은 폐기·재조회)
+
+코드 근거:
+
+- `libs/web-core/src/hooks/session/actions/useLogoutCloudSession.ts` — cloud 세션 로그아웃 hook
+- `libs/web-core/src/session/contextStore.ts` — `resolveActiveServerContext` (cloud.isActive false → relay 자동 전환)
 
 #### Relay 로그아웃
 
@@ -62,3 +67,10 @@
 - cloud 로그아웃 후 relay 세션은 남아 있어야 한다
 - relay 로그아웃 후 cloud 상태가 같이 제거된 뒤 guest 세션이 다시 생성되어야 한다
 - 로그인 상태 요약이 오버레이의 session 상태와 일치해야 한다
+
+## 관련 문서
+
+- [login.md](login.md) — 이메일 로그인 페이지
+- [invite.md](invite.md) — 초대 생성·수락 플로우
+- [../architecture.SPEC.md](../architecture.SPEC.md) — 세션 상태 전이 전체 (§8)
+- [../overlay/README.md](../overlay/README.md) — 세션/소켓 상태 조회

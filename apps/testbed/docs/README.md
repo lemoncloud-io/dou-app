@@ -6,14 +6,17 @@
 이번 문서 세트는 기존 `web-core usecase` / `data` / `config` 검증 문서를
 사용자 흐름 기준으로 다시 정리한 버전이다.
 
-## 문서 구성
+## 시작 지점
 
-1. [전체 아키텍처](./architecture.SPEC.md)
-2. [전역 오버레이](./overlay.SPEC.md)
-3. [채팅 홈 페이지](./chat-home-page.SPEC.md)
-4. [채널 상세 페이지](./chat-room-page.SPEC.md)
-5. [설정 페이지](./settings-page.SPEC.md)
-6. [로그인 페이지](./login-page.SPEC.md)
+- [전체 아키텍처](./architecture.SPEC.md) — 계층 책임, 전역 UX 규칙, 라우트, 상태 전이 (**전체 그림은 여기부터**)
+
+## 기능 폴더
+
+| 폴더                            | 개요(README)                              | 그 외 문서                                                                                      |
+| ------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [chat/](./chat/README.md)       | 채팅 홈 — cloud/place/channel 탐색·전환   | [room.md](./chat/room.md) — 채널 상세(메시지 조회·페이징·전송)                                  |
+| [session/](./session/README.md) | 설정 — 세션 제어(cloud/relay 로그아웃)    | [login.md](./session/login.md) — 이메일 로그인 · [invite.md](./session/invite.md) — 초대 플로우 |
+| [overlay/](./overlay/README.md) | 전역 오버레이 — 세션/웹/DB/소켓 진단 패널 | —                                                                                               |
 
 ## 구현 순서 제안
 

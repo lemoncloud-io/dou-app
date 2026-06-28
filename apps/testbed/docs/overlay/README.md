@@ -74,13 +74,18 @@ DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
 - 캐싱 스트림이 실제 저장소에 반영되고 있는지 확인한다
 - 다른 cloud/place 데이터가 혼입되는지 빠르게 파악한다
 
-#### 3.3.2 쿼리 패널
+#### 3.3.2 쿼리 패널 및 실시간 감시
 
 테이블 선택 후 아래 흐름으로 동작한다.
 
+초기 로드:
+
+- 테이블(하위 섹션) 진입 시 바로 전체 데이터를 로드하기 위해 빈 쿼리(`{}`)로 초기 조회 및 감시(`observeList`)를 시작한다.
+- 그 이후 필터 값을 설정하면 입력한 필터 설정에 맞추어 `observeList` 쿼리를 갱신하여 재감시한다.
+
 쿼리 입력:
 
-- 타입별 추가 필터 (각 repository의 `cacheReadList(query)` query 파라미터 기준):
+- 타입별 추가 필터 (각 repository의 `observeList(query)` query 파라미터 기준):
     - `channel`: `sid` (사이트 필터), `keyword`
     - `chat`: `channelId`, `sort` (asc/desc), `limit`, `cursorNo`, `keyword`
     - `site`: `keyword`
@@ -88,11 +93,10 @@ DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
     - `profile`: `sid`
     - `user`, `inviteCloud`: 추가 필터 없음
 
-쿼리 실행:
+실시간 데이터 로드 및 감시:
 
-- `repositories.<type>.cacheReadList(query)` 호출
+- `repositories.<type>.observeList(query, callback)`를 호출하여 데이터 변경 사항을 실시간으로 UI에 동기화한다.
 - `useRuntimeRepositories()` hook으로 repositories 접근
-- 결과는 쿼리 결과 패널에 표시
 - 실행 중 로딩 표시, 오류 시 오류 메시지 표시
 
 현재 코드 근거:
@@ -112,18 +116,20 @@ DB Browser는 `ChaticWebCacheDB`(IndexedDB)의 `cache_store` 테이블을
 행 단위 액션:
 
 - **Delete**: 해당 row의 `id`로 `repositories.<type>.cacheDelete(id)` 호출
+    - UI는 `observeList`를 통해 감시 중이므로 삭제 완료 시 화면에 즉시 반영된다.
 
-#### 3.3.4 테이블 단위 액션
+#### 3.3.4 테이블 및 데이터 조작 액션
 
+- **Write (추가/수정)**: JSON 편집 영역을 제공하여 객체를 입력하고 `repositories.<type>.cacheWrite(item)`을 호출하여 캐시 데이터를 직접 조작할 수 있다.
 - **Clear All**: `repositories.<type>.cacheClear()` 호출 — 현재 context(cid/uid) 기준 해당 타입 전체 삭제
     - 파괴적 동작이므로 확인 다이얼로그를 반드시 거친다
-- **Refresh**: `cacheReadList`를 재실행하여 결과를 갱신한다
+- **Refresh**: `observeList` 구독을 다시 설정하거나 필요한 경우 캐시 갱신을 트리거한다.
 
 #### 3.3.5 구현 접근 방식
 
-- DB 데이터 접근은 반드시 `useRuntimeRepositories()` hook을 통해 얻은 `DataRepositoriesV2`를 사용한다
+- DB 데이터 접근 및 실시간 감시는 반드시 `useRuntimeRepositories()` hook을 통해 얻은 `DataRepositoriesV2`의 `observeList`를 사용한다.
 - 직접 IndexedDB API 호출 및 `CacheStorage<T>` 직접 접근을 금지한다
-- 쿼리 결과는 오버레이 내 로컬 상태로만 관리하며 전역 스토어에 반영하지 않는다
+- 쿼리 결과는 오버레이 내 로컬 상태로 관리하되 `observeList`를 통한 실시간 동기화 바인딩을 적용한다.
 
 repositories 타입-키 대응:
 
@@ -184,3 +190,8 @@ repositories 타입-키 대응:
 - 행 단위 Delete 이후 해당 row가 결과 목록에서 즉시 사라져야 한다
 - Clear All 실행 후 해당 타입의 row count가 0이 되어야 한다
 - DB 조작 결과가 전역 스토어나 채팅 화면 상태에 영향을 주지 않아야 한다
+
+## 관련 문서
+
+- [../architecture.SPEC.md](../architecture.SPEC.md) — 전체 아키텍처·전역 UX 규칙
+- [../session/README.md](../session/README.md) — 로그인 이동·로그아웃 액션(오버레이는 조회 중심)
