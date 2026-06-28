@@ -47,9 +47,9 @@ features/home/
   호출한다. 낙관적 sid 선반영·커밋·롤백은 `switchSite` 내부에 있다. 활성 사이트가 없으면
   목록의 첫 플레이스를 자동 선택한다. 선택 상태는 `useSessionSelection().selectedSiteId`에서 읽는다.
 - **동기화 등록** — 렌더되는 항목이 직접 sync 타깃을 등록한다(per-item):
-  - `PlaceItem` → `usePlaceSync(place.id)`
-  - `ChannelItem` → `useChannelSync(channel.id)` + `useJoinSync(channel.id)`
-  등록/해제는 마운트·언마운트에 따라 자동 처리되며 동기화 스케줄도 런타임이 알아서 돌린다.
+    - `PlaceItem` → `usePlaceSync(place.id)`
+    - `ChannelItem` → `useChannelSync(channel.id)` + `useJoinSync(channel.id)`
+      등록/해제는 마운트·언마운트에 따라 자동 처리되며 동기화 스케줄도 런타임이 알아서 돌린다.
 
 ## 미읽음 계산
 
@@ -86,9 +86,9 @@ unread(channel) = max(0, (channel.lastChat$?.chatNo ?? channel.chatNo ?? 0) - my
 
 home 피쳐 전체가 신규 런타임으로 마이그레이션되어 **타입체크 0 에러**다.
 
-- `CloudSessionSheet.tsx` 완료 → [cloud-session-sheet-plan.md](./cloud-session-sheet-plan.md)
+- `CloudSessionSheet.tsx` 완료 → [cloud-session-sheet-plan.md](cloud-session-sheet-plan.md)
 - `useUpdateMyProfile.ts` / `ProfileEditModal.tsx` 는 제거됨(old-stack, 사용처 없음)
-- components 폴더 구조/정리 → [components-structure.md](./components-structure.md)
+- components 폴더 구조/정리 → [components-structure.md](components-structure.md)
 
 ### 범위 외 (다른 피쳐)
 

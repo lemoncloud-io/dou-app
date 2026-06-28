@@ -292,7 +292,7 @@ function AppInner() {
 ## 7. 참조
 
 - 아키텍처/근거: [`runtime-migration.md`](./runtime-migration.md)
-- 참조 구현(필독): `apps/testbed/src/app/{app.tsx, hooks/useSocketDelegate.ts, pages/ChatHomePage.tsx, pages/ChatRoomPage.tsx}`
+- 참조 구현(필독): `apps/testbed/src/app/{app.tsx, hooks/useSocketDelegate.ts, pages/ChatHomePage.tsx, pages/CreateChannelPage.tsx}`
 - 신 API 소스: `libs/web-core/src/hooks/{session/readers, session/actions, auth, app}`, `libs/app-runtime/src/{connection, socket, runtime}`, `libs/data/src/data/repositories-v2`
 - 라이브러리 docs: `libs/web-core/docs`, `libs/app-runtime/docs`
 - 상세 진행 로그/베이스라인(266 에러): `~/.claude/plans/chatic-front/web-runtime-migration.md`

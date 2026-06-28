@@ -16,7 +16,7 @@
 이하는 구현 전 작성한 준비 내용(매핑·근거)이며 기록으로 보존한다.
 
 `features/home/components/CloudSessionSheet.tsx`를 신규 런타임으로 옮기기 위한 준비 문서.
-아직 구현하지 않았고, 방향과 매핑만 정리한다. [runtime-migration.md](./runtime-migration.md)의 후속.
+아직 구현하지 않았고, 방향과 매핑만 정리한다. [runtime-migration.md](runtime-migration.md)의 후속.
 
 ## 1. 목표
 
@@ -38,16 +38,17 @@ CloudSessionSheet의 클라우드 목록/전환/로그아웃을 구 스택(`clou
 
 현재 파일이 import하는 제거/삭제된 심볼과, 신규 런타임에서의 대체:
 
-| 현재 (broken) | 대체 (신규 런타임) | 비고 |
-|---|---|---|
-| `useWebCoreStore(s => s.profile)` (ProfileSection) | `useSessionIdentity().activeProfile` (`$user.name/email/photo`) | runtime-migration의 HomePage 헤더와 동일 소스 |
-| `useCloudSession()` → `{ clouds, isCloudsError, isFetchingClouds, refetchClouds, isPending }` | `useCloudSessionCatalog()` → `{ clouds, isCloudsError, isFetchingClouds, isPendingClouds, refetchClouds }` | 내가 만든(owned) 클라우드 카탈로그. testbed 사용 |
-| `useInviteClouds()` → `{ inviteClouds: DomainListResult }` | `repos.cloud.observeList(cb)` 구독 후 `cloudType === 'invited'` 필터 | 초대 클라우드는 캐시에 있고 카탈로그엔 없음 (testbed L69-74) |
-| `useCloudSwitchFlow().switchCloud` | `useSwitchCloudSession()` → `{ switchCloud, isPending }` | 클라우드 전환. testbed `handleCloudClick` |
-| `handleSwitchToDefault` (`cloudCore.clearDelegationToken` + `setIsVerified(false)`) | `useLogoutCloudSession()` → `{ logoutCloudSession, isLoggingOutCloudSession }` | **연결끊기 = 클라우드 세션 로그아웃**. relay 인증은 유지 |
-| `cloudCore.getSelectedCloudId()` (selectedId 초기값/비교) | `useSessionSelection().selectedCloudId` 또는 `useGlobalSession().activeServer`의 cid | 활성 클라우드. relay면 'default' |
+| 현재 (broken)                                                                                 | 대체 (신규 런타임)                                                                                         | 비고                                                         |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `useWebCoreStore(s => s.profile)` (ProfileSection)                                            | `useSessionIdentity().activeProfile` (`$user.name/email/photo`)                                            | runtime-migration의 HomePage 헤더와 동일 소스                |
+| `useCloudSession()` → `{ clouds, isCloudsError, isFetchingClouds, refetchClouds, isPending }` | `useCloudSessionCatalog()` → `{ clouds, isCloudsError, isFetchingClouds, isPendingClouds, refetchClouds }` | 내가 만든(owned) 클라우드 카탈로그. testbed 사용             |
+| `useInviteClouds()` → `{ inviteClouds: DomainListResult }`                                    | `repos.cloud.observeList(cb)` 구독 후 `cloudType === 'invited'` 필터                                       | 초대 클라우드는 캐시에 있고 카탈로그엔 없음 (testbed L69-74) |
+| `useCloudSwitchFlow().switchCloud`                                                            | `useSwitchCloudSession()` → `{ switchCloud, isPending }`                                                   | 클라우드 전환. testbed `handleCloudClick`                    |
+| `handleSwitchToDefault` (`cloudCore.clearDelegationToken` + `setIsVerified(false)`)           | `useLogoutCloudSession()` → `{ logoutCloudSession, isLoggingOutCloudSession }`                             | **연결끊기 = 클라우드 세션 로그아웃**. relay 인증은 유지     |
+| `cloudCore.getSelectedCloudId()` (selectedId 초기값/비교)                                     | `useSessionSelection().selectedCloudId` 또는 `useGlobalSession().activeServer`의 cid                       | 활성 클라우드. relay면 'default'                             |
 
 testbed의 owned/invited 분리(L198-200):
+
 ```
 const invitedCloudIds = new Set(invitedClouds.map(c => c.id ?? ''));
 const ownedClouds = clouds.filter(c => !invitedCloudIds.has(c.id ?? ''));
@@ -59,9 +60,9 @@ const ownedClouds = clouds.filter(c => !invitedCloudIds.has(c.id ?? ''));
   `repos.cloud.observeList`에서 `cloudType === 'invited'`. owned는 invited id를 제외(중복 방지).
   현재 시트의 `my`/`invited` 탭 구조에 그대로 매핑.
 - **전환/로그아웃을 testbed handleCloudClick과 동일 의미로** —
-  - 클라우드 항목 클릭 → `switchCloud(cloudId)` (초대 클라우드도 동일 경로; 캐시가 실제 cid 보유).
-  - "연결끊기" 버튼 → `logoutCloudSession()` (default/relay 복귀). 기존 `handleSwitchToDefault`의
-    `cloudCore`/`setIsVerified` 수동 처리 제거.
+    - 클라우드 항목 클릭 → `switchCloud(cloudId)` (초대 클라우드도 동일 경로; 캐시가 실제 cid 보유).
+    - "연결끊기" 버튼 → `logoutCloudSession()` (default/relay 복귀). 기존 `handleSwitchToDefault`의
+      `cloudCore`/`setIsVerified` 수동 처리 제거.
 - **활성 표시·낙관 상태** — `selectedId` 로컬 state 대신 `selectedCloudId`(세션)에서 파생.
   전환 pending은 `useSwitchCloudSession().isPending`, 로그아웃 pending은
   `useLogoutCloudSession().isLoggingOutCloudSession`로 버튼 disable.

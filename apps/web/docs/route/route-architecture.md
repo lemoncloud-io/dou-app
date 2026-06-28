@@ -30,7 +30,7 @@
 
 **제외 (그리고 왜)**
 
-- **라우트 트리 전면 매니페스트화**(타입·가드·lazy import까지 선언적 재설계)는 하지 않는다. 현재 3-tier 구조([routes/index.tsx](../src/app/routes/index.tsx))와 feature별 lazy 등록([PrivateRoutes.tsx](../src/app/routes/private/PrivateRoutes.tsx:63))은 이미 응집도가 좋고, 무너뜨리면 위험·비용이 크다.
+- **라우트 트리 전면 매니페스트화**(타입·가드·lazy import까지 선언적 재설계)는 하지 않는다. 현재 3-tier 구조([routes/index.tsx](../../src/app/routes/index.tsx))와 feature별 lazy 등록([PrivateRoutes.tsx](../src/app/routes/private/PrivateRoutes.tsx:63))은 이미 응집도가 좋고, 무너뜨리면 위험·비용이 크다.
 - **URL 자체 재편**: 페이지 유형 트리화는 `ROUTES` 객체의 네임스페이스 구조에만 적용하고, 실제 URL 문자열은 바꾸지 않는다(딥링크·네이티브 브릿지·외부 공유 링크 호환).
 - **feature 내부 `Route path`(상대 경로) 강제 치환**: 상대 경로는 이미 feature에 응집되어 산재 문제가 적다. 1차 범위 제외, `ROUTES`가 명세 역할(§4.3).
 
@@ -38,7 +38,7 @@
 
 ### 3.1 라우터 구조 (이미 중앙화됨 — 유지)
 
-- 라우터 생성·인증 분기·에러 처리: [routes/index.tsx:21-39](../src/app/routes/index.tsx)
+- 라우터 생성·인증 분기·에러 처리: [routes/index.tsx:21-39](../../src/app/routes/index.tsx)
 - 3-tier: `publicRoutes` / `commonRoutes` / `privateRoutes`
 - feature별 lazy 등록 + `path: 'xxx/*'` 매핑: [PrivateRoutes.tsx:63-81](../src/app/routes/private/PrivateRoutes.tsx)
 - 인증 가드: [guards/AuthGuard.tsx](../src/app/routes/guards/AuthGuard.tsx)
@@ -81,7 +81,7 @@
 - 경로 상수/빌더 파일: **없음**
 - 절대경로 하드코딩 네비게이션: 약 49곳. 대표 중복: `/auth/login`(5), `/chats`(3), `/mypage/edit`(2)
 - 파라미터 경로: `:channelId`(chats), `:placeId`(places), `:token`(auth), `:wsId`(workspace→제거) — 호출부마다 템플릿 수동 조립
-- 예: [HomePage.tsx:162](../src/app/features/home/pages/HomePage.tsx) `navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile')`
+- 예: [HomePage.tsx:162](../../src/app/features/home/pages/HomePage.tsx) `navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile')`
 
 ### 3.5 workspace 의존 지도 (제거 대상)
 
@@ -239,7 +239,7 @@ export const ROUTES = {
 
 **B. 빌더 도입** 4. `apps/web/src/app/routes/paths.ts`에 `ROUTES`/`ROUTE_PARAMS` 작성(영어 주석, §4.4 트리). 5. 유닛 테스트 `paths.spec.ts` — 모든 상수·빌더 함수가 기대 문자열을 내는지, 파라미터 삽입이 정확한지 검증. 6. 정합성 점검: `ROUTES`의 절대경로가 [PrivateRoutes.tsx](../src/app/routes/private/PrivateRoutes.tsx)·각 feature `routes/index.tsx`의 실제 path 조합과 1:1로 맞는지 대조.
 
-**C. 호출부 마이그레이션 (feature 단위 분할 커밋)** 7. `navigate(`, `<Navigate to=`, `<Link to=`, `redirect(`의 하드코딩 절대경로를 `ROUTES.*`로 치환. 라우터 코어([routes/index.tsx](../src/app/routes/index.tsx))의 `/`·`/auth/login` 포함. 8. `useParams<{ ... }>()` 제네릭을 `ROUTE_PARAMS` 기반으로 교체. 9. 회귀 확인: 전수 grep으로 잔여 하드코딩 절대경로 0건, `tsc` 통과, 주요 플로우 수동 확인.
+**C. 호출부 마이그레이션 (feature 단위 분할 커밋)** 7. `navigate(`, `<Navigate to=`, `<Link to=`, `redirect(`의 하드코딩 절대경로를 `ROUTES.*`로 치환. 라우터 코어([routes/index.tsx](../../src/app/routes/index.tsx))의 `/`·`/auth/login` 포함. 8. `useParams<{ ... }>()` 제네릭을 `ROUTE_PARAMS` 기반으로 교체. 9. 회귀 확인: 전수 grep으로 잔여 하드코딩 절대경로 0건, `tsc` 통과, 주요 플로우 수동 확인.
 
 ## 6. 리스크와 미지수
 

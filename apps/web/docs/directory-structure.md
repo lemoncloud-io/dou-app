@@ -79,13 +79,15 @@ features  ─────▶  횡단(ui/{components,layouts} · hooks · stores 
 features/<feature>/
   pages/        # 라우트 진입 화면
   components/   # 이 feature 전용 UI
-  hooks/        # 이 feature 전용 로직 훅 (web-core 호출을 감싸는 곳)
-  model/        # 도메인 타입 / 상태 (엔티티)
+  hooks/        # 이 feature 전용 로직 훅 (web-core 호출을 감싸는 곳) — 훅은 전부 여기로
+  types/        # 도메인 타입 / 상태 (엔티티) — 이 feature 전용 타입 전부
+  consts/       # 이 feature 전용 상수 (환경 분기·매직값·허용 목록 등)
   index.ts      # 공개 API barrel — 외부는 여기로만 import
 ```
 
-- **`api/` 디렉터리는 없다.** 서버 호출은 `@chatic/web-core`가 담당한다. feature는 `hooks/`에서 web-core 훅/함수를 감싸고, `model/`에는 도메인 타입·상태만 둔다.
-- **엔티티 = `model/`**. 별도 entities 레이어를 만들지 않는다. 한 feature 전용이면 `model/`, 2개 이상이 공유하면 횡단으로 승격한다.
+- **`api/` 디렉터리는 없다.** 서버 호출은 `@chatic/web-core`가 담당한다. feature는 `hooks/`에서 web-core 훅/함수를 감싸고, `types/`에는 도메인 타입·상태만 둔다.
+- **엔티티 = `types/`**. 별도 entities/`model` 레이어를 만들지 않는다. 한 feature 전용이면 `types/`, 2개 이상이 공유하면 횡단으로 승격한다. (도메인 타입은 `types/`로 통일 — 과거 `model/` 표기는 폐기.)
+- **훅은 `hooks/`로, 타입은 `types/`로, 상수는 `consts/`로 모은다.** 페이지·컴포넌트 파일에 도메인 타입/공용 상수를 인라인으로 흩지 않는다. feature 전용 상수(환경 분기·매직값)는 `consts/`에 두고 페이지·훅이 import한다.
 - **공개 경계 = `index.ts` barrel (feature만 강제)**. feature 외부에서는 `features/<feature>` (barrel)로만 import하고, 내부 파일을 직접 경로로 꺼내지 않는다. 횡단 디렉터리·runtime/bridge 등은 barrel 자유(필수 아님).
 - `app/ui/components`(횡단) 와 `features/<f>/components`(feature 전용)는 같은 이름이지만 경로로 스코프가 구분된다.
 
@@ -97,7 +99,7 @@ features/<feature>/
     // routes/PrivateRoutes.tsx
     const ChannelRoutes = lazy(() => import('../features/channels').then(m => ({ default: m.ChannelRoutes })));
     ```
-- **barrel 노출 범위는 최소로**: 보통 `<Feature>Routes`만, 드물게 다른 feature/routing이 정말 필요로 하는 공개 컴포넌트 한둘. pages/components/hooks/model 내부는 비공개. (feature 간 직접 import은 §2에서 금지 — barrel이 그 경계를 물리적으로 강제한다.)
+- **barrel 노출 범위는 최소로**: 보통 `<Feature>Routes`만, 드물게 다른 feature/routing이 정말 필요로 하는 공개 컴포넌트 한둘. pages/components/hooks/types/consts 내부는 비공개. (feature 간 직접 import은 §2에서 금지 — barrel이 그 경계를 물리적으로 강제한다.)
 
 ### data / sync 모듈은 feature hooks에서 wrapping (중앙 버킷 금지)
 
@@ -110,7 +112,7 @@ features/<feature>/
 ❌  app/hooks/useChats                       →  features 전부가 의존하는 중앙 버킷
 ```
 
-예외: 2개 이상 feature가 **동일한** 데이터 훅을 쓸 때만 횡단(`app/hooks`)이나 공유 `model`로 승격한다(§4-4 "두 번째 소비자" 트리거). 기본은 feature, 승격은 예외.
+예외: 2개 이상 feature가 **동일한** 데이터 훅을 쓸 때만 횡단(`app/hooks`)이나 공유 `types`로 승격한다(§4-4 "두 번째 소비자" 트리거). 기본은 feature, 승격은 예외.
 
 ### feature 내부: 화면별 colocation (fractal)
 
@@ -131,7 +133,8 @@ features/channels/
       InviteDialog.tsx         # 초대 — 설정에서만 열면 여기
   components/                  # 2개+ 화면이 공유하는 UI (MessageBubble 등)
   hooks/                       # 2개+ 화면이 공유하는 훅 (useChannelRoom 등)
-  model/                       # 도메인 타입/상태
+  types/                       # 도메인 타입/상태
+  consts/                      # feature 전용 상수
   index.ts
 ```
 
@@ -144,12 +147,12 @@ features/channels/
 
 → "초대"/"전송 팝업" 위치는 **누가 여느냐**로 갈린다: 한 화면만 열면 그 화면 폴더, 둘 이상이 열면 `components/`.
 
-**깊이는 필요할 때 자라게 둔다(YAGNI).** 화면이 단순하면 폴더 만들지 말고 `pages/ChannelRoomPage.tsx` 단일 파일로 시작 → 전용 부품이 생길 때 폴더로 승격. 빈 `components/`·`model/`을 미리 파지 않는다.
+**깊이는 필요할 때 자라게 둔다(YAGNI).** 화면이 단순하면 폴더 만들지 말고 `pages/ChannelRoomPage.tsx` 단일 파일로 시작 → 전용 부품이 생길 때 폴더로 승격. 빈 `components/`·`types/`·`consts/`를 미리 파지 않는다.
 
 ### 폴더 네이밍
 
 - **컴포넌트 1개를 감싸는 폴더(page-as-folder)**: 그 컴포넌트와 동일한 **PascalCase** (`ChannelRoomPage/ChannelRoomPage.tsx`). 폴더↔컴포넌트 1:1.
-- **도메인/레이어/표준 폴더**: **lowercase** (`channels/`, `pages/`, `components/`, `hooks/`, `model/`).
+- **도메인/레이어/표준 폴더**: **lowercase** (`channels/`, `pages/`, `components/`, `hooks/`, `types/`, `consts/`).
 - 대소문자는 한 번 정한 규칙을 일관되게 유지한다(리눅스 CI는 대소문자 구분; `git config core.ignorecase false` 권장).
 
 ---
@@ -160,9 +163,9 @@ features/channels/
 
 1. **앱 시작·플랫폼 연결인가?** (부트스트랩, 소켓/세션, 네이티브 브릿지, 계측, 라우팅)
    → `runtime` / `bridge` / `monitoring` / `routes`
-2. **한 도메인에서만 쓰는가?** → `features/<feature>/` 의 해당 하위(`pages`/`components`/`hooks`/`model`)
+2. **한 도메인에서만 쓰는가?** → `features/<feature>/` 의 해당 하위(`pages`/`components`/`hooks`/`types`/`consts`)
 3. **2개 이상 feature가 공유하는가?** → 횡단(`ui/{components,layouts}` · `hooks` · `stores` · `utils`)
-4. **애매하면** feature 안에 두고, **두 번째 소비자가 생길 때** 횡단(또는 `model`)으로 승격한다.
+4. **애매하면** feature 안에 두고, **두 번째 소비자가 생길 때** 횡단(또는 `types`)으로 승격한다.
 
 > 도메인 훅(`useChannels`, `useChats`, `usePlaces` …)은 **2번**이다 — `features/<feature>/hooks`. `app/hooks`(횡단)에 두지 않는다.
 

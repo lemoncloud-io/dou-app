@@ -116,7 +116,7 @@ useEffect(() => {
 
 **채팅방**: 초기 메시지 로딩 fetch는 sync 등록 계층(`useChatSync`)이 소유한다. 페이지는 `chat.refreshList`를 초기 로딩용으로 부르지 않고, `observeList({channelId, limit})`만 구독한다. **과거 페이징만** `repos.chat.refreshList({channelId, cursorNo, limit})`를 명시 호출하고 observe 윈도우(limit)를 넓힌다.
 
-근거: `apps/testbed/src/app/pages/ChatRoomPage.tsx:72-132,258-286`, `libs/app-runtime/docs/sync/domain-sync-and-plans.md`
+근거: `apps/testbed/src/app/pages/CreateChannelPage.tsx:72-132,258-286`, `libs/app-runtime/docs/sync/domain-sync-and-plans.md`
 
 ---
 
@@ -135,7 +135,7 @@ useEffect(() => {
 
 > `auth:update` 송신은 데이터 쓰기가 아니라 재인증이며 `SocketAuthBinder`가 자동 처리한다 — 앱에서 보내지 않는다.
 
-근거: `apps/testbed/src/app/pages/ChatRoomPage.tsx:299-313`, `libs/data/src/data/repositories-v2/*`
+근거: `apps/testbed/src/app/pages/CreateChannelPage.tsx:299-313`, `libs/data/src/data/repositories-v2/*`
 
 ---
 
@@ -285,5 +285,5 @@ web-core 로그아웃 훅은 **세션 전이만** 수행하고 app-runtime/data�
 - `apps/testbed/src/app/app.tsx` — 부트스트랩
 - `apps/testbed/src/app/hooks/useSocketDelegate.ts` — 소켓 delegate
 - `apps/testbed/src/app/pages/ChatHomePage.tsx` — observe/sync/리프레시 타이밍 종합 레퍼런스
-- `apps/testbed/src/app/pages/ChatRoomPage.tsx` — 채팅 sync/prime/페이징/전송
+- `apps/testbed/src/app/pages/CreateChannelPage.tsx` — 채팅 sync/prime/페이징/전송
 - `libs/app-runtime/docs/` · `libs/web-core/docs/` — 라이브러리 공식 가이드

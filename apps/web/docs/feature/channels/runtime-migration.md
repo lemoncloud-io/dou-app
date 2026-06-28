@@ -5,7 +5,7 @@
 `apps/web/src/app/features/channels`의 데이터 레이어를 구 소켓 스택(`@chatic/socket` +
 `@lemoncloud/*-api` 직접 의존)에서 신규 런타임(`@chatic/app-runtime` repos/sync +
 `@chatic/data` Domain + `@chatic/web-core` 세션 훅)으로 재구축한 작업 기록.
-참조 구현은 `apps/testbed/src/app/pages/ChatRoomPage.tsx`.
+참조 구현은 `apps/testbed/src/app/pages/CreateChannelPage.tsx`.
 
 ## 배경
 

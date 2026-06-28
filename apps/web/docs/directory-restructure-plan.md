@@ -12,36 +12,35 @@
 
 ## 2. route ↔ feature 정합 분석 (근거)
 
-| paths.ts 그룹 | route | 현재 소유 | 조치 |
-|---|---|---|---|
-| auth | /auth/* | `features/auth` | 유지 |
-| account | /account/* | `features/account` | 유지 |
-| home | / | `features/home` | CreateRoom 분리 후 유지 |
-| join | /join | `features/join` | 유지 |
-| notifications | /notifications | `features/notifications` | 유지 |
-| mypage | /mypage/* | `features/mypage` | subscription 분리 후 유지 |
-| **channels** | /channels/{create,room,settings,…} | **chats(room/settings) + home(create) 분산** | **→ `features/channels` 통합** |
-| **place** | /place/* | `features/places` | **→ `features/place` 개명** |
-| **subscription** | /subscription/* | **mypage 안** | **→ `features/subscription` 분리** |
-| (없음) | /explore/* | `features/explore` | **제거**(규격 외 라우트) |
+| paths.ts 그룹    | route                              | 현재 소유                                    | 조치                               |
+| ---------------- | ---------------------------------- | -------------------------------------------- | ---------------------------------- |
+| auth             | /auth/\*                           | `features/auth`                              | 유지                               |
+| account          | /account/\*                        | `features/account`                           | 유지                               |
+| home             | /                                  | `features/home`                              | CreateRoom 분리 후 유지            |
+| join             | /join                              | `features/join`                              | 유지                               |
+| notifications    | /notifications                     | `features/notifications`                     | 유지                               |
+| mypage           | /mypage/\*                         | `features/mypage`                            | subscription 분리 후 유지          |
+| **channels**     | /channels/{create,room,settings,…} | **chats(room/settings) + home(create) 분산** | **→ `features/channels` 통합**     |
+| **place**        | /place/\*                          | `features/places`                            | **→ `features/place` 개명**        |
+| **subscription** | /subscription/\*                   | **mypage 안**                                | **→ `features/subscription` 분리** |
+| (없음)           | /explore/\*                        | `features/explore`                           | **제거**(규격 외 라우트)           |
 
 외부 배럴 importer 확인: `features/chats`·`features/places`·home의 `CreateRoomRoutes`·mypage의 `SubscriptionRoutes` 모두 **`routes/PrivateRoutes.tsx` 한 곳**에서만 소비 → 이동 안전.
 
 ## 3. 범위
 
 **포함 (중점 = route 기반 재배치)**
+
 1. `routes/` 디렉터리명 **유지**(개명 안 함, 범위 결정) + `directory-structure.md`를 `routes` 기준으로 갱신.
 2. `explore` 제거(feature + route + UnifiedLayout 참조).
 3. `chats` → `channels` 통합 + home의 `CreateRoomPage`/`CreateRoomRoutes` 흡수.
 4. `places` → `place` 개명.
 5. `subscription`을 mypage에서 `features/subscription`으로 분리(+`useSubscriptionIap` 훅 동반 이동).
 
-**포함 (부수)**
-6. 깨진 `../shared/*` import 수리(타깃이 `ui/`·`stores/`·`utils/`에 실존하는 것만 repoint).
-7. dead code 삭제(§6 후보 → 승인 후).
-8. **디바이스 토큰 등록 재작성**(사용자 지정) — 죽은 로컬 `useDeviceTokenRegistration`을 web-core `useRegisterDeviceToken`으로 교체 + 실제 마운트. (구조 패스 중 유일한 **로직 변경** — 사용자 명시 요청으로 in-scope.)
+**포함 (부수)** 6. 깨진 `../shared/*` import 수리(타깃이 `ui/`·`stores/`·`utils/`에 실존하는 것만 repoint). 7. dead code 삭제(§6 후보 → 승인 후). 8. **디바이스 토큰 등록 재작성**(사용자 지정) — 죽은 로컬 `useDeviceTokenRegistration`을 web-core `useRegisterDeviceToken`으로 교체 + 실제 마운트. (구조 패스 중 유일한 **로직 변경** — 사용자 명시 요청으로 in-scope.)
 
 **제외 (그리고 왜)**
+
 - socket→runtime 로직 마이그레이션(범위 결정 1, playbook 소유).
 - 최상위 `hooks/` 도메인 훅 분산(범위 결정 2 — 깨진 socket 의존, 마이그레이션 ride-along).
 - 타깃이 삭제된 socket-결합 import(`waitForVerified`/`shared/types`/`chats/apis/invite-api`) — deferred 마이그레이션 소유, 건드리지 않음.
@@ -61,45 +60,45 @@
 각 단계 후 repo 루트에서 `npx tsc -p apps/web/tsconfig.app.json --noEmit 2>&1 | grep -cE "error TS"`로 **증가 없음** 확인. **순수 이동/개명 커밋과 삭제/로직 커밋 분리**(disciplined).
 
 1. **`routes/` 유지 + 문서 갱신(개명 없음).**
-   - 디렉터리/import 변경 없음(26파일 churn 회피).
-   - `directory-structure.md`의 `routing/` 표기를 `routes/`로 변경: §1 레이아웃 주석, §5의 "routes/ → routing/ 개명" 항목 제거, §3 라우트 소유 예시(`routing/private/PrivateRoutes.tsx`→`routes/PrivateRoutes.tsx`).
-   - **문서 커밋.**
+    - 디렉터리/import 변경 없음(26파일 churn 회피).
+    - `directory-structure.md`의 `routing/` 표기를 `routes/`로 변경: §1 레이아웃 주석, §5의 "routes/ → routing/ 개명" 항목 제거, §3 라우트 소유 예시(`routing/private/PrivateRoutes.tsx`→`routes/PrivateRoutes.tsx`).
+    - **문서 커밋.**
 2. **`explore` 제거.**
-   - `git rm -r features/explore`; PrivateRoutes의 `ExploreRoutes` lazy import + `explore/*` 라우트 제거; UnifiedLayout `MAIN_VARIANT_PATHS`에서 `/explore` 제거.
-   - **삭제 커밋.**
+    - `git rm -r features/explore`; PrivateRoutes의 `ExploreRoutes` lazy import + `explore/*` 라우트 제거; UnifiedLayout `MAIN_VARIANT_PATHS`에서 `/explore` 제거.
+    - **삭제 커밋.**
 3. **`chats` → `channels` 통합 + CreateRoom 흡수.**
-   - `git mv features/chats features/channels`(components/hooks/utils/pages 동반).
-   - **Chat* → Channel* 심볼 전부 개명**: `ChatRoutes`→`ChannelRoutes`, `ChatRoomPage`→`ChannelRoomPage`, `ChatSettingsPage`→`ChannelSettingsPage` 등 페이지·route 심볼 일괄(파일명·export·내부 import 동반). URL 리터럴(paths.ts)은 불변.
-   - `CreateRoomPage.tsx`를 home/pages → channels/pages 이동(같은 깊이). `create` 라우트를 `ChannelRoutes` 안에 합침(상대 `<Route path="create">` + `:channelId/...`).
-   - home `index.ts`/`routes`/`pages`에서 CreateRoom 제거. PrivateRoutes: `channels/create`(home) + `channels/*`(chats) 두 줄 → channels 하나로 통합 lazy import.
-   - `chats/apis/invite-api`를 import하는 auth/LoginPage 경로를 `channels/apis`로 갱신(파일은 deferred, 경로만).
-   - **순수 이동 커밋.**
+    - `git mv features/chats features/channels`(components/hooks/utils/pages 동반).
+    - **Chat* → Channel* 심볼 전부 개명**: `ChatRoutes`→`ChannelRoutes`, `CreateChannelPage`→`ChannelRoomPage`, `ChatSettingsPage`→`ChannelSettingsPage` 등 페이지·route 심볼 일괄(파일명·export·내부 import 동반). URL 리터럴(paths.ts)은 불변.
+    - `CreateRoomPage.tsx`를 home/pages → channels/pages 이동(같은 깊이). `create` 라우트를 `ChannelRoutes` 안에 합침(상대 `<Route path="create">` + `:channelId/...`).
+    - home `index.ts`/`routes`/`pages`에서 CreateRoom 제거. PrivateRoutes: `channels/create`(home) + `channels/*`(chats) 두 줄 → channels 하나로 통합 lazy import.
+    - `chats/apis/invite-api`를 import하는 auth/LoginPage 경로를 `channels/apis`로 갱신(파일은 deferred, 경로만).
+    - **순수 이동 커밋.**
 4. **`places` → `place` 개명.**
-   - `git mv features/places features/place`; PrivateRoutes의 `PlaceRoutes` import 경로 갱신.
-   - **순수 이동 커밋.**
+    - `git mv features/places features/place`; PrivateRoutes의 `PlaceRoutes` import 경로 갱신.
+    - **순수 이동 커밋.**
 5. **`subscription` 분리.**
-   - `features/subscription/{pages,hooks,routes,index.ts}` 신설.
-   - `SubscriptionPage.tsx`·`SubscriptionPlansPage.tsx`(pages) + `useSubscriptionIap.ts`(hook) 이동. mypage `routes`/`pages`/`hooks` 배럴에서 제거, `SubscriptionRoutes`를 subscription/routes로 이전.
-   - PrivateRoutes: `SubscriptionRoutes`를 `features/subscription`에서 lazy import.
-   - **순수 이동 커밋.** (EmailVerifyDialog 위반은 §6 flag로 남김.)
+    - `features/subscription/{pages,hooks,routes,index.ts}` 신설.
+    - `SubscriptionPage.tsx`·`SubscriptionPlansPage.tsx`(pages) + `useSubscriptionIap.ts`(hook) 이동. mypage `routes`/`pages`/`hooks` 배럴에서 제거, `SubscriptionRoutes`를 subscription/routes로 이전.
+    - PrivateRoutes: `SubscriptionRoutes`를 `features/subscription`에서 lazy import.
+    - **순수 이동 커밋.** (EmailVerifyDialog 위반은 §6 flag로 남김.)
 6. **(부수) 깨진 `../shared/*` import 수리.** 타깃이 `ui/`·`stores/`·`utils/`에 실존하는 것만 repoint(`SettingsDialog`·`ServiceUnavailableOverlay`는 필요 시 `ui/components` 배럴 추가). socket-결합 깨진 import는 제외.
 7. **(부수) dead code 삭제(승인 후).** §6 후보. **삭제 커밋(분리).**
 8. **디바이스 토큰 등록 재작성(로직, 사용자 지정).**
-   - 죽은 [hooks/useDeviceTokenRegistration.ts](../src/app/hooks/useDeviceTokenRegistration.ts) 제거. 신 훅을 `bridge/`에 신설(native push + `appBridge` 사용처라 bridge 레이어가 적합).
-   - 패턴: `isAuthenticated`(`useSessionAuth`) + 앱 환경 게이트 → `appBridge.fetchFcmToken()`으로 토큰 수신 → `useRegisterDeviceToken({ deviceToken, platform, installId, application })` 에 body로 전달(`deviceId`는 web-core 훅이 내부 주입, 중복 제거는 `identityCore`가 담당 → 기존 localStorage `chatic-device-token` dedup 제거).
-   - 제거 심볼 정리: `useWebCoreStore`→`useSessionAuth`, `libs/web-core/src` 딥 import→`@chatic/web-core`.
-   - `GlobalBridgeListener`(app.tsx:67 이미 마운트)에서 호출 → 현재 미마운트로 동작 안 하던 등록을 실제 활성화.
-   - **영어 주석 + 유닛 테스트(disciplined)**: `appBridge.fetchFcmToken`·`useRegisterDeviceToken` 모킹, 토큰 수신→body 전달/게이트(미인증·비앱환경 skip) 검증. **로직 커밋(분리).**
+    - 죽은 [hooks/useDeviceTokenRegistration.ts](../src/app/hooks/useDeviceTokenRegistration.ts) 제거. 신 훅을 `bridge/`에 신설(native push + `appBridge` 사용처라 bridge 레이어가 적합).
+    - 패턴: `isAuthenticated`(`useSessionAuth`) + 앱 환경 게이트 → `appBridge.fetchFcmToken()`으로 토큰 수신 → `useRegisterDeviceToken({ deviceToken, platform, installId, application })` 에 body로 전달(`deviceId`는 web-core 훅이 내부 주입, 중복 제거는 `identityCore`가 담당 → 기존 localStorage `chatic-device-token` dedup 제거).
+    - 제거 심볼 정리: `useWebCoreStore`→`useSessionAuth`, `libs/web-core/src` 딥 import→`@chatic/web-core`.
+    - `GlobalBridgeListener`(app.tsx:67 이미 마운트)에서 호출 → 현재 미마운트로 동작 안 하던 등록을 실제 활성화.
+    - **영어 주석 + 유닛 테스트(disciplined)**: `appBridge.fetchFcmToken`·`useRegisterDeviceToken` 모킹, 토큰 수신→body 전달/게이트(미인증·비앱환경 skip) 검증. **로직 커밋(분리).**
 
 ## 6. dead code 후보 (승인 후 삭제) · flag
 
-| 대상 | importer | 판단 |
-|---|---|---|
-| `features/explore/**` | PrivateRoutes·UnifiedLayout만 | **제거**(§5-2, 규격 외 라우트) |
-| `hooks/useSocketAuth.ts` | 0 | **삭제 완료**(playbook §C, SocketAuthBinder 자동) |
-| ~~`utils/consts.ts`~~ | — | **삭제 취소** — MyPage·DebugPage·onboarding이 사용(`utils/index.ts` 배럴 경유). 살아있음 |
-| `hooks/index.ts`의 `./useForegroundResync` 라인 | — | **라인 삭제 완료**(파일 이미 없음) |
-| `hooks/useDeviceTokenRegistration.ts` | 0 | **삭제 후 재작성**(§5-8) — web-core `useRegisterDeviceToken` 기반 신 훅으로 교체 + `GlobalBridgeListener` 마운트. 단순 삭제 아님 |
+| 대상                                            | importer                      | 판단                                                                                                                             |
+| ----------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `features/explore/**`                           | PrivateRoutes·UnifiedLayout만 | **제거**(§5-2, 규격 외 라우트)                                                                                                   |
+| `hooks/useSocketAuth.ts`                        | 0                             | **삭제 완료**(playbook §C, SocketAuthBinder 자동)                                                                                |
+| ~~`utils/consts.ts`~~                           | —                             | **삭제 취소** — MyPage·DebugPage·onboarding이 사용(`utils/index.ts` 배럴 경유). 살아있음                                         |
+| `hooks/index.ts`의 `./useForegroundResync` 라인 | —                             | **라인 삭제 완료**(파일 이미 없음)                                                                                               |
+| `hooks/useDeviceTokenRegistration.ts`           | 0                             | **삭제 후 재작성**(§5-8) — web-core `useRegisterDeviceToken` 기반 신 훅으로 교체 + `GlobalBridgeListener` 마운트. 단순 삭제 아님 |
 
 **flag(이번 패스 비강제):** `SubscriptionPlansPage → home/components/EmailVerifyDialog` feature 위반. 해소하려면 `EmailVerifyDialog`를 `ui/components`로 승격해야 하나, 기존 위반이고 churn이라 옵션으로 남김.
 
@@ -123,7 +122,7 @@
 - **tsc: 256 → 217** (−39). 재배치는 depth-preserving이라 무회귀, `../shared/{components,layouts}`→`ui/` repoint 21파일로 구조 에러 대량 해소. 잔여는 socket-로직(shared/types·waitForVerified·removed-symbol) — 범위 외.
 - **`@chatic/socket` import 파일 수 14 불변**(이 패스 socket 미접촉, 확인됨).
 - **jest: 7 suites / 52 tests pass** — 신규 `useDeviceTokenRegistration.test`(3) + 이동된 `paths`·`copyMessageToClipboard`(channels로 이동)·`usePreferenceStore`·`AppReadyGate`·`appBridge` 통과.
-  - ⚠️ `usePlaceUnreadCounts.test`는 **pre-existing 실패**(소스의 `import ... from 'libs/shared/src'`·`@chatic/socket` 딥 import를 jest가 해석 못 함). 이 패스에서 미수정 파일이며 socket 마이그레이션이 소유.
+    - ⚠️ `usePlaceUnreadCounts.test`는 **pre-existing 실패**(소스의 `import ... from 'libs/shared/src'`·`@chatic/socket` 딥 import를 jest가 해석 못 함). 이 패스에서 미수정 파일이며 socket 마이그레이션이 소유.
 - feature 디렉터리 = paths.ts top-level 그룹과 1:1 정렬: `account auth channels home join mypage notifications onboarding place subscription`.
 - 남은 flag(feature→feature, 비강제): `home/CreateChannelDialog`→`channels/useCreateChannel`, `home/SubscriptionSelectDialog`→`subscription/useSubscriptionIap`, `SubscriptionPlansPage`→`home/EmailVerifyDialog`. 모두 `// FIXME(feature-boundary)` 주석 표기.
 - **커밋은 사용자 요청 시 분리 커밋으로 진행**(이동/삭제/로직). 현재는 작업 트리에만 반영.

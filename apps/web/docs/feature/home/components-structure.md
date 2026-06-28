@@ -1,6 +1,6 @@
 # Home components 폴더 구조 / 정리
 
-> 작성일: 2026-06-25 · [runtime-migration.md](./runtime-migration.md)의 후속 정리
+> 작성일: 2026-06-25 · [runtime-migration.md](runtime-migration.md)의 후속 정리
 
 런타임 마이그레이션 이후 `apps/web/src/app/features/home/components` 폴더를 정리한 결과.
 긴 파일을 책임 단위로 쪼개고, deprecated 타입과 `any` 캐스트, 마이그레이션 잔재(TODO/FIXME)를 제거했다.
@@ -48,14 +48,14 @@ components/
 ## 정리 항목
 
 - **파일 분할** — 길고 복잡하던 파일을 책임 단위로 분리.
-  - `CloudSessionSheet.tsx` 526 → 272줄 (`cloud-session/` 6개 파일)
-  - `EmailVerifyDialog.tsx` 323 → 173줄 (`email-verify/` 2개 단계)
-  - `SubscriptionSelectDialog.tsx` 266 → 176줄 (`subscription-select/` 3개 파일)
+    - `CloudSessionSheet.tsx` 526 → 272줄 (`cloud-session/` 6개 파일)
+    - `EmailVerifyDialog.tsx` 323 → 173줄 (`email-verify/` 2개 단계)
+    - `SubscriptionSelectDialog.tsx` 266 → 176줄 (`subscription-select/` 3개 파일)
 - **타입 정리**
-  - deprecated `DomainInviteCloud` → `DomainCloud`
-  - `CloudNameEditDialog.onSuccess`의 `(old: any)`/`(c: any)` → `setQueriesData<ListResult<CloudView>>`
-  - 인라인 `Tab` → 공용 `CloudTab`
-  - 정리 후 home 피쳐에 `any`/`as unknown`/`as any` 캐스트 없음(테스트 제외)
+    - deprecated `DomainInviteCloud` → `DomainCloud`
+    - `CloudNameEditDialog.onSuccess`의 `(old: any)`/`(c: any)` → `setQueriesData<ListResult<CloudView>>`
+    - 인라인 `Tab` → 공용 `CloudTab`
+    - 정리 후 home 피쳐에 `any`/`as unknown`/`as any` 캐스트 없음(테스트 제외)
 - **TODO/FIXME 제거** — `SubscriptionSelectDialog`의 feature-boundary FIXME, 상품목록 TODO 삭제.
   home 피쳐에 잔여 TODO/FIXME/@deprecated 없음.
 
