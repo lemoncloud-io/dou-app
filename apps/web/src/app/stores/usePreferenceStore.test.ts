@@ -1,4 +1,4 @@
-import { usePreferenceStore } from './usePreferenceStore';
+import { hasLocalPreference, usePreferenceStore } from './usePreferenceStore';
 import { appBridge } from '../bridge';
 
 // Mock isNative so we can test both branches without a real native environment.
@@ -107,9 +107,9 @@ describe('usePreferenceStore — native 환경', () => {
             });
         });
 
-        it('native 환경에서는 localStorage에 쓰지 않는다', () => {
+        it('native 환경에서도 localStorage 캐시에 함께 쓴다 (write-through)', () => {
             usePreferenceStore.getState().setBlurLastMessage(true);
-            expect(localStorage.getItem('chatic-blur-last-message')).toBeNull();
+            expect(localStorage.getItem('chatic-blur-last-message')).toBe('true');
         });
 
         it('상태는 bridge 호출과 무관하게 즉시 업데이트된다', () => {
@@ -129,9 +129,9 @@ describe('usePreferenceStore — native 환경', () => {
             expect(usePreferenceStore.getState().isFirstRun).toBe(false);
         });
 
-        it('native 환경에서는 localStorage에 쓰지 않는다', () => {
+        it('native 환경에서도 localStorage 캐시에 함께 쓴다 (write-through)', () => {
             usePreferenceStore.getState().completeOnboarding();
-            expect(localStorage.getItem('chatic-onboarding-completed')).toBeNull();
+            expect(localStorage.getItem('chatic-onboarding-completed')).toBe('true');
         });
     });
 });
@@ -163,5 +163,28 @@ describe('usePreferenceStore — hydrate', () => {
         const before = usePreferenceStore.getState().blurLastMessage;
         usePreferenceStore.getState().hydrate('theme', 'dark');
         expect(usePreferenceStore.getState().blurLastMessage).toBe(before);
+    });
+
+    it('hydrate는 로컬 캐시도 함께 seeding한다 (다음 읽기는 동기적으로 캐시 hit)', () => {
+        usePreferenceStore.getState().hydrate('blurLastMessage', true);
+        expect(localStorage.getItem('chatic-blur-last-message')).toBe('true');
+        expect(hasLocalPreference('blurLastMessage')).toBe(true);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// hasLocalPreference (PreferenceLoader가 bridge fallback 여부를 판단하는 경로)
+// ---------------------------------------------------------------------------
+
+describe('hasLocalPreference — 로컬 캐시 존재 여부', () => {
+    beforeEach(resetStore);
+
+    it('캐시가 비어있으면 false를 반환한다', () => {
+        expect(hasLocalPreference('blurLastMessage')).toBe(false);
+    });
+
+    it('값이 쓰여지면 true를 반환한다', () => {
+        usePreferenceStore.getState().setBlurLastMessage(true);
+        expect(hasLocalPreference('blurLastMessage')).toBe(true);
     });
 });

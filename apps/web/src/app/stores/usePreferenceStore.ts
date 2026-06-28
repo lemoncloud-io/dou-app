@@ -6,46 +6,50 @@ import { appBridge } from '../bridge';
 import { PREFERENCES } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
-// Read helper
+// Storage model
 //
-// Read priority:
-//   1. localStorage / sessionStorage  (synchronous — avoids initial flash)
-//   2. defaultValue from PREFERENCES  (native values arrive later via PreferenceLoader)
+// localStorage / sessionStorage is a synchronous L1 cache; the native bridge
+// is the persistent store that survives a WebView cache wipe. The two layers
+// are no longer either/or — a write goes to both, a read prefers the cache.
+//
+//   Write:  update store -> write local cache -> (if bridge) push to bridge
+//   Read:   local cache -> (missing && bridge) fetch from bridge -> default
 // ---------------------------------------------------------------------------
 
-const readPreference = (name: keyof typeof PREFERENCES): string => {
-    if (typeof window === 'undefined') return PREFERENCES[name].defaultValue;
+/** Raw stored string for a key, or null when nothing is cached locally yet. */
+const readLocalPreference = (name: keyof typeof PREFERENCES): string | null => {
+    if (typeof window === 'undefined') return null;
     const config = PREFERENCES[name];
-    if (config.strategy === 'session') {
-        return sessionStorage.getItem(config.sessionKey) ?? config.defaultValue;
-    }
-    return localStorage.getItem(config.localKey) ?? config.defaultValue;
+    if (config.strategy === 'session') return sessionStorage.getItem(config.sessionKey);
+    return localStorage.getItem(config.localKey);
 };
 
-// ---------------------------------------------------------------------------
-// Write helper
-//
-// Write flow:
-//   1. Caller updates Zustand store with set() (in-memory source of truth)
-//   2. This function persists to the correct backend:
-//        native+local on native  → native bridge (native storage is authoritative)
-//        native+local on web     → localStorage
-//        local                   → localStorage
-//        session                 → sessionStorage
-// ---------------------------------------------------------------------------
+/** Synchronous initial value: local cache when present, otherwise the default. */
+const readPreference = (name: keyof typeof PREFERENCES): string =>
+    readLocalPreference(name) ?? PREFERENCES[name].defaultValue;
 
+/** Whether a value is already cached locally — used to decide bridge fallback reads. */
+export const hasLocalPreference = (name: keyof typeof PREFERENCES): boolean => readLocalPreference(name) !== null;
+
+/** Write a value into the local cache only (no bridge round-trip). */
+const cacheLocalPreference = (name: keyof typeof PREFERENCES, value: string): void => {
+    if (typeof window === 'undefined') return;
+    const config = PREFERENCES[name];
+    if (config.strategy === 'session') sessionStorage.setItem(config.sessionKey, value);
+    else localStorage.setItem(config.localKey, value);
+};
+
+/**
+ * Persist a write to every backing layer:
+ *   1. local cache (synchronous source for the next read)
+ *   2. native bridge — only for native+local keys when running on native, so
+ *      the value survives a WebView cache wipe.
+ */
 const persistPreference = (name: keyof typeof PREFERENCES, value: string): void => {
     const config = PREFERENCES[name];
-    if (config.strategy === 'native+local') {
-        if (isNative()) {
-            appBridge.savePreference({ key: config.nativeKey, value });
-        } else {
-            localStorage.setItem(config.localKey, value);
-        }
-    } else if (config.strategy === 'local') {
-        localStorage.setItem(config.localKey, value);
-    } else if (config.strategy === 'session') {
-        sessionStorage.setItem(config.sessionKey, value);
+    cacheLocalPreference(name, value);
+    if (config.strategy === 'native+local' && isNative()) {
+        appBridge.savePreference({ key: config.nativeKey, value });
     }
 };
 
@@ -64,47 +68,45 @@ interface PreferenceActions {
     completeOnboarding: () => void;
     resetOnboarding: () => void;
     /**
-     * Override store values from an external source (native FetchPreference response).
-     * Called by PreferenceLoader on app startup; do not call in product code.
+     * Override store values from the bridge fallback read (native FetchPreference).
+     * Called by PreferenceLoader only when the local cache is empty; also seeds the
+     * local cache so subsequent reads are synchronous. Do not call in product code.
      */
     hydrate: (key: PreferenceKey, value: unknown) => void;
 }
 
 export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(set => ({
-    // Initial values read from localStorage synchronously.
-    // On native, PreferenceLoader hydrates these with native values shortly after mount.
+    // Initial values read from the local cache synchronously (avoids initial flash).
+    // On native, PreferenceLoader fills in any key missing from the cache from the bridge.
     blurLastMessage: readPreference('blurLastMessage') === 'true',
 
     // isFirstRun is the inverse of the 'completed' flag stored in localStorage.
     isFirstRun: readPreference('isFirstRun') !== 'true',
 
     setBlurLastMessage: (value: boolean) => {
-        // 1. Write to store
         set({ blurLastMessage: value });
-        // 2. Persist to backend
         persistPreference('blurLastMessage', value ? 'true' : 'false');
     },
 
     completeOnboarding: () => {
-        // 1. Write to store
         set({ isFirstRun: false });
-        // 2. Persist to backend
         persistPreference('isFirstRun', 'true');
     },
 
     resetOnboarding: () => {
-        // 1. Write to store
         set({ isFirstRun: true });
-        // 2. Persist to backend
         persistPreference('isFirstRun', 'false');
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {
-        // Native values arrive here via PreferenceLoader after fetchPreference.
+        // Bridge fallback values arrive here via PreferenceLoader when the local cache was empty.
+        const bool = value === true || value === 'true';
         if (key === PREFERENCES.blurLastMessage.nativeKey) {
-            set({ blurLastMessage: value === true || value === 'true' });
+            set({ blurLastMessage: bool });
+            cacheLocalPreference('blurLastMessage', bool ? 'true' : 'false');
         } else if (key === PREFERENCES.isFirstRun.nativeKey) {
-            set({ isFirstRun: value === true || value === 'true' });
+            set({ isFirstRun: bool });
+            cacheLocalPreference('isFirstRun', bool ? 'true' : 'false');
         }
     },
 }));
