@@ -45,16 +45,13 @@ export function ThemeProvider({
         root.classList.add(theme);
     }, [theme]);
 
-    // Sync theme with native app (following SetLanguage pattern)
+    // Sync theme preference to native storage.
     useEffect(() => {
         if (!isOnMobileApp) return;
 
         webClient.post({
             type: 'SavePreference',
-            data: {
-                key: 'theme',
-                value: theme,
-            },
+            data: { key: 'theme', value: theme },
         });
     }, [theme, isOnMobileApp]);
 

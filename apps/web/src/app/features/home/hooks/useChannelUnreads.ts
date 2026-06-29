@@ -33,8 +33,6 @@ export const useChannelUnreads = (channels: DomainChannel[]): ChannelUnreads => 
 
                 if (!mine) return;
                 const readNo = mine.chatNo ?? 0;
-                console.log('RAIME', mine, mine.readNo);
-
                 setReadNoByChannel(prev => (prev[ch.id] === readNo ? prev : { ...prev, [ch.id]: readNo }));
             })
         );
