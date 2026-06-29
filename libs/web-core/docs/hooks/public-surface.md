@@ -125,3 +125,9 @@ flowchart LR
 - 외부 소비자가 정말 필요한 hook만 남겼는지
 - hook 이름이 session service naming과 일치하는지
 - hook이 읽기 API인지, 요청 API인지 역할이 명확한지
+
+## 관련 문서
+
+- [README.md](./README.md) — hook 분류·폴더 구조
+- [orchestration.md](./orchestration.md) — lifecycle/loop hook 동작 정책
+- [../session/public-api.md](../session/public-api.md) — 세션 공개 API 계약

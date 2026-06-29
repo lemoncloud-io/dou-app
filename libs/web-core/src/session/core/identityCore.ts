@@ -11,6 +11,7 @@ const CLOUD_PROFILE_KEY = 'chatic-cloud-profile-cache';
 const DELEGATOR_ID_KEY = 'chatic-delegator-id';
 const DEVICE_ID_KEY = 'chatic-device-id';
 const REGISTERED_DEVICE_TOKEN_KEY = 'chatic-registered-device-token';
+const IS_GUEST_KEY = 'chatic-is-guest';
 
 interface IdentityCore {
     getIsInvited(): boolean;
@@ -27,6 +28,8 @@ interface IdentityCore {
     setRelayProfile(profile: UserProfile$ | null): void;
     getCloudProfile(): UserProfile$ | null;
     setCloudProfile(profile: UserProfile$ | null): void;
+    getIsGuest(): boolean;
+    setIsGuest(value: boolean): void;
     clearIdentity(): void;
 }
 
@@ -102,12 +105,41 @@ export const identityCore: IdentityCore = {
         writeLocalJson(CLOUD_PROFILE_KEY, profile);
         notifySessionStateChanged();
     },
+    getIsGuest: (): boolean => {
+        try {
+            if (localStorage.getItem(IS_GUEST_KEY) === 'true') return true;
+        } catch {
+            // ignore
+        }
+        return false;
+    },
+    setIsGuest: (value: boolean): void => {
+        if (value) {
+            try {
+                localStorage.setItem(IS_GUEST_KEY, 'true');
+            } catch {
+                // ignore
+            }
+        } else {
+            try {
+                localStorage.removeItem(IS_GUEST_KEY);
+            } catch {
+                // ignore
+            }
+        }
+        notifySessionStateChanged();
+    },
     clearIdentity: (): void => {
         storage.remove(INVITED_SESSION_KEY);
         storage.remove(OAUTH_PROVIDER_KEY);
         storage.remove(DELEGATOR_ID_KEY);
         writeLocalJson(RELAY_PROFILE_KEY, null);
         writeLocalJson(CLOUD_PROFILE_KEY, null);
+        try {
+            localStorage.removeItem(IS_GUEST_KEY);
+        } catch {
+            // ignore
+        }
         notifySessionStateChanged();
     },
 };
