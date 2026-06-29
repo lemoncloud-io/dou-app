@@ -91,7 +91,10 @@ describe('getRouteStateFromDeepLinkPath', () => {
         expect(state).toBeDefined();
         expect(state.routes[0].name).toBe('Main');
         expect(state.routes[0].state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].params.url).toContain('/auth/login?code=invt%3A910001%3Atest');
+        // Invite links now resolve to the home route (not /auth/login) with the invite marker.
+        expect(state.routes[0].state.routes[0].params.url).toContain('/?code=invt%3A910001%3Atest');
+        expect(state.routes[0].state.routes[0].params.url).toContain('provider=invite');
+        expect(state.routes[0].state.routes[0].params.url).not.toContain('/auth/login');
     });
 
     it('should route natively to Debug screens when target=native is specified', () => {
@@ -138,6 +141,9 @@ describe('getRouteStateFromDeepLinkPath', () => {
         expect(state).toBeDefined();
         expect(state.routes[0].name).toBe('Main');
         expect(state.routes[0].state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].params.url).toContain('/auth/login?code=invt%3A910001%3Atest');
+        // Invite links now resolve to the home route (not /auth/login) with the invite marker.
+        expect(state.routes[0].state.routes[0].params.url).toContain('/?code=invt%3A910001%3Atest');
+        expect(state.routes[0].state.routes[0].params.url).toContain('provider=invite');
+        expect(state.routes[0].state.routes[0].params.url).not.toContain('/auth/login');
     });
 });
