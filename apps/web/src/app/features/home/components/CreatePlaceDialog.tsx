@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { Loader2, X } from 'lucide-react';
 
-import { useCreatePlace } from '../hooks/useCreatePlace';
+import { useCreatePlace } from '../hooks';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 

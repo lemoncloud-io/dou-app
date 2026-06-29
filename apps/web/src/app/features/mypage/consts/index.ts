@@ -1,1 +1,2 @@
-export const DEBUG_STORAGE_KEY = 'chatic-debug-mode';
+export type { PolicyContent, PolicySection, PolicyVersion, SupportedLanguage } from '@chatic/policy-content';
+export { TERMS_CONTENTS, PRIVACY_CONTENTS } from '@chatic/policy-content';

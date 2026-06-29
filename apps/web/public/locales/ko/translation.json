@@ -586,7 +586,12 @@
         "cloudDescription2": "사진을 설정해 주세요",
         "thumbnailLabel": "프로필 이미지",
         "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
-        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
+        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다.",
+        "tabSite": "사이트 프로필",
+        "siteDescription1": "이 사이트에서 사용할 이름과",
+        "siteDescription2": "사진을 설정해 주세요",
+        "siteSaveSuccess": "프로필이 수정되었습니다.",
+        "siteSaveError": "프로필 수정에 실패했습니다."
     },
     "mypageLogin": {
         "title": "로그인하기",
@@ -784,7 +789,8 @@
         "decline": "거절하기",
         "timeout": "서버 응답 시간이 초과되었습니다. 다시 시도해 주세요.",
         "networkError": "네트워크 연결을 확인한 후 다시 시도해 주세요.",
-        "authVerifyFailed": "인증에 실패했습니다. 다시 시도해 주세요."
+        "authVerifyFailed": "인증에 실패했습니다. 다시 시도해 주세요.",
+        "invitedBy": "{{name}}님이 초대했습니다"
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",

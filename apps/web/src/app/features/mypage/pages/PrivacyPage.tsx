@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { PageHeader } from '../../../shared/components';
-import { type SupportedLanguage, PRIVACY_CONTENTS } from '../constants';
+import { PageHeader } from '../../../ui/components';
+import { type SupportedLanguage, PRIVACY_CONTENTS } from '../consts';
 
 export const PrivacyPage = () => {
     const { t, i18n } = useTranslation();

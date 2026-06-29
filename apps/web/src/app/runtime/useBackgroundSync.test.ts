@@ -1,0 +1,142 @@
+import { act, renderHook } from '@testing-library/react';
+import { useIsMutating } from '@tanstack/react-query';
+
+import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
+
+import { useBackgroundSync } from './useBackgroundSync';
+
+jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useSocketState: jest.fn() }));
+jest.mock('@chatic/web-core', () => ({
+    useGlobalSession: jest.fn(),
+    useSessionSelection: jest.fn(),
+    // The hook imports these key constants; mocking the module drops the real exports.
+    SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
+    SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
+}));
+
+const refreshList = jest.fn();
+const syncChannels = jest.fn();
+const syncProfiles = jest.fn();
+const getSyncedAt = jest.fn();
+const setSyncedAt = jest.fn();
+
+const setVerified = (isVerified: boolean) => (useSocketState as jest.Mock).mockReturnValue({ isVerified });
+const setSwitching = (switching: boolean) => (useIsMutating as jest.Mock).mockReturnValue(switching ? 1 : 0);
+const setSession = (cid: string, selectedSiteId: string | null) => {
+    (useGlobalSession as jest.Mock).mockReturnValue({
+        activeServer: cid === 'default' ? { kind: 'relay' } : { kind: 'cloud', cloudId: cid },
+    });
+    (useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId });
+};
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    refreshList.mockResolvedValue(undefined);
+    syncChannels.mockResolvedValue({ syncedAt: 100 });
+    syncProfiles.mockResolvedValue({ syncedAt: 200 });
+    getSyncedAt.mockResolvedValue(0);
+    setSyncedAt.mockResolvedValue(undefined);
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+        place: { refreshList },
+        channel: { syncChannels },
+        profile: { syncProfiles },
+        syncMeta: { getSyncedAt, setSyncedAt },
+    });
+    setSwitching(false);
+    setSession('default', 's1');
+});
+
+describe('useBackgroundSync — 백그라운드 동기화', () => {
+    it('verified 상승 엣지(false→true)에서 1회 동기화한다', async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        expect(refreshList).not.toHaveBeenCalled(); // false 유지 중에는 미실행
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshList).toHaveBeenCalledTimes(1);
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('verified 유지 시 주기 타이머마다 다시 동기화한다', async () => {
+        jest.useFakeTimers();
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+
+        await act(async () => undefined); // 마운트 상승 엣지 flush
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+        expect(syncChannels).toHaveBeenCalledTimes(2);
+
+        jest.useRealTimers();
+    });
+
+    it('전환 진행 중이면 주기 타이머를 건너뛴다', async () => {
+        jest.useFakeTimers();
+        setVerified(true);
+        setSwitching(true);
+        renderHook(() => useBackgroundSync());
+
+        await act(async () => undefined);
+        const afterMount = syncChannels.mock.calls.length;
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+        expect(syncChannels).toHaveBeenCalledTimes(afterMount); // 타이머가 호출을 추가하지 않음
+
+        jest.useRealTimers();
+    });
+
+    it('워터마크를 get→sync→set 순서로, cid 키로 전진시킨다', async () => {
+        getSyncedAt.mockResolvedValue(50);
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(getSyncedAt).toHaveBeenCalledWith('channel-sync:default');
+        expect(syncChannels).toHaveBeenCalledWith(50);
+        expect(setSyncedAt).toHaveBeenCalledWith('channel-sync:default', 100);
+        expect(getSyncedAt).toHaveBeenCalledWith('profile-sync:default:s1');
+        expect(syncProfiles).toHaveBeenCalledWith(50);
+        expect(setSyncedAt).toHaveBeenCalledWith('profile-sync:default:s1', 200);
+    });
+
+    it('활성 사이트가 없으면 프로필 동기화를 건너뛴다', async () => {
+        setSession('default', null);
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(syncProfiles).not.toHaveBeenCalled();
+    });
+
+    it('sync 실패 시 해당 워터마크를 전진시키지 않는다', async () => {
+        syncChannels.mockRejectedValue(new Error('boom'));
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(setSyncedAt).not.toHaveBeenCalledWith('channel-sync:default', expect.anything());
+        // 채널 실패가 프로필 동기화를 막지는 않는다
+        expect(syncProfiles).toHaveBeenCalledTimes(1);
+    });
+});

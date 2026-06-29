@@ -1,0 +1,157 @@
+import { webClient } from '@chatic/bridges';
+import type { WebMessageData, WebMessageResponse, WebMessageType } from '@chatic/app-messages';
+
+/**
+ * Centralized outbound bridge API (Web -> Native).
+ *
+ * Every `webClient.post(...)` call that was previously scattered across features
+ * lives here as a single semantic method. Call sites should never construct the
+ * `{ type, data }` message literal themselves — this keeps message-type strings
+ * and payload shapes in one place and decouples features from the raw bridge.
+ *
+ * Inbound subscription (App -> Web) stays in `useHandleAppMessage`.
+ */
+
+/** Convenience alias for a given message type's `data` payload. */
+type Payload<K extends WebMessageType> = WebMessageData<K>['data'];
+
+export const appBridge = {
+    // ---------------------------------------------------------------
+    // System & navigation
+    // ---------------------------------------------------------------
+
+    /** Notify native shell that the web app has mounted and is ready. */
+    notifyWebAppReady(): void {
+        webClient.post({ type: 'WebAppReady', data: {} });
+    },
+
+    /** Ask native to dismiss the resume/cold-start overlay. */
+    dismissResumeOverlay(): void {
+        webClient.post({ type: 'DismissResumeOverlay', data: {} });
+    },
+
+    /** Open an external URL in the native browser. */
+    openURL(url: string): void {
+        webClient.post({ type: 'OpenURL', data: { url } });
+    },
+
+    /** Open the native OS app-settings screen. */
+    openSettings(): void {
+        webClient.post({ type: 'OpenSettings', data: {} });
+    },
+
+    /** Open the native share sheet for the given URL. */
+    openShareSheet(url: string): void {
+        webClient.post({ type: 'OpenShareSheet', data: { url } });
+    },
+
+    /** Open the platform subscription-management screen. */
+    openSubscriptionManagement(): void {
+        webClient.post({ type: 'OpenSubscriptionManagement', data: {} });
+    },
+
+    copyClipBoard(text: string) {
+        return webClient.request({ type: 'CopyToClipboard', data: { text } });
+    },
+
+    // ---------------------------------------------------------------
+    // Notification & device
+    // ---------------------------------------------------------------
+
+    /** Request the current FCM device token from native. */
+    fetchFcmToken(): Promise<WebMessageResponse<'FetchFcmToken'>> {
+        return webClient.request({ type: 'FetchFcmToken', data: {} });
+    },
+
+    /** Set the app icon badge count. */
+    setBadgeCount(count: number): void {
+        webClient.post({ type: 'SetBadgeCount', data: { count } });
+    },
+
+    // ---------------------------------------------------------------
+    // Preference & back handling
+    // ---------------------------------------------------------------
+
+    /** Persist a preference key/value in native storage. */
+    savePreference(data: Payload<'SavePreference'>): void {
+        webClient.post({ type: 'SavePreference', data });
+    },
+
+    /** Request the current value of a preference key from native storage. */
+    fetchPreference: (data: Payload<'FetchPreference'>): Promise<WebMessageResponse<'FetchPreference'>> => {
+        return webClient.request({ type: 'FetchPreference', data });
+    },
+
+    /** Report whether the in-web back action can still go back (dialog open). */
+    setCanGoBack(canGoBack: boolean): void {
+        webClient.post({ type: 'SetCanGoBack', data: { canGoBack } });
+    },
+
+    // ---------------------------------------------------------------
+    // Auth
+    // ---------------------------------------------------------------
+
+    /** Start a native OAuth login flow for the given provider. */
+    oauthLogin(provider: Payload<'OAuthLogin'>['provider']): Promise<WebMessageResponse<'OAuthLogin'>> {
+        return webClient.request({ type: 'OAuthLogin', data: { provider } });
+    },
+
+    // ---------------------------------------------------------------
+    // Contacts
+    // ---------------------------------------------------------------
+
+    /** Request the device contact list from native. */
+    getContacts(): Promise<WebMessageResponse<'GetContacts'>> {
+        return webClient.request({ type: 'GetContacts', data: {} });
+    },
+
+    // ---------------------------------------------------------------
+    // In-app purchase
+    // ---------------------------------------------------------------
+
+    /** Initiate a native purchase flow. Result arrives as OnPurchaseSuccess / OnPurchaseError push events. */
+    purchase(data: Payload<'Purchase'>): void {
+        webClient.post({ type: 'Purchase', data });
+    },
+
+    /** Finish/acknowledge a completed purchase transaction. */
+    finishPurchaseTransaction(
+        purchase: Payload<'FinishPurchaseTransaction'>['purchase']
+    ): Promise<WebMessageResponse<'FinishPurchaseTransaction'>> {
+        return webClient.request({ type: 'FinishPurchaseTransaction', data: { purchase } });
+    },
+
+    /** Request the current set of native purchases. */
+    fetchCurrentPurchases(): Promise<WebMessageResponse<'FetchCurrentPurchases'>> {
+        return webClient.request({ type: 'FetchCurrentPurchases', data: {} });
+    },
+
+    /** Request the native product catalog. */
+    fetchProducts(timeoutMs = 10_000): Promise<WebMessageResponse<'FetchProducts'>> {
+        return webClient.request({ type: 'FetchProducts', data: {} }, { timeoutMs });
+    },
+
+    // ---------------------------------------------------------------
+    // App log buffer (debug)
+    // ---------------------------------------------------------------
+
+    /** Fetch a page of the native app log buffer. */
+    fetchAppLogBuffer(nonce: string, count: number): Promise<WebMessageResponse<'FetchAppLogBuffer'>> {
+        return webClient.request({ type: 'FetchAppLogBuffer', nonce, data: { count } });
+    },
+
+    /** Poll the native app log buffer for the latest entries. */
+    pollAppLogBuffer(nonce: string, count: number): Promise<WebMessageResponse<'PollAppLogBuffer'>> {
+        return webClient.request({ type: 'PollAppLogBuffer', nonce, data: { count } });
+    },
+
+    /** Clear the native app log buffer. */
+    clearAppLogBuffer(nonce: string): Promise<WebMessageResponse<'ClearAppLogBuffer'>> {
+        return webClient.request({ type: 'ClearAppLogBuffer', data: { nonce } });
+    },
+
+    /** Fetch the current size of the native app log buffer. */
+    fetchAppLogBufferSize(nonce: string): Promise<WebMessageResponse<'FetchAppLogBufferSize'>> {
+        return webClient.request({ type: 'FetchAppLogBufferSize', data: { nonce } });
+    },
+};
