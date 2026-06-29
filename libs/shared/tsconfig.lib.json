@@ -19,9 +19,6 @@
             "path": "../ui-kit/tsconfig.lib.json"
         },
         {
-            "path": "../web-core/tsconfig.lib.json"
-        },
-        {
             "path": "../device-utils/tsconfig.lib.json"
         }
     ]
