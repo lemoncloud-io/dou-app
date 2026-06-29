@@ -1,125 +1,119 @@
 import { ChannelRemoteDataSource } from './ChannelRemoteDataSource';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
+import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
+import type { DataContext } from '../../repositories-v2/types';
 import type {
-    ChatMinePayload,
-    ChatUpdateChannelPayload,
-    ChatDeleteChannelPayload,
-    ChatStartPayload,
-    ChatInvitePayload,
-    ChatLeavePayload,
+    ChatMineInput,
+    ChannelSyncInput,
+    ChatUpdateChannelInput,
+    ChatDeleteChannelInput,
+    ChatStartInput,
+    ChatInviteInput,
+    ChatLeaveInput,
+    ChannelGetSelfInput,
+    ChannelUnreadsInput,
 } from '@lemoncloud/chatic-sockets-api';
-import type { ChannelView } from '@lemoncloud/chatic-socials-api';
 
 describe('ChannelRemoteDataSource', () => {
-    let mockSocketEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
-    let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
-    let mockWssClient: jest.Mocked<IWebSocketClient>;
+    let mockGateways: MockRemoteGatewayBundle;
     let dataSource: ChannelRemoteDataSource;
-
-    let socketCallbacks: Record<string, (data: any) => void> = {};
+    const context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
 
     beforeEach(() => {
-        socketCallbacks = {};
-
-        mockSocketEventBus = {
-            emit: jest.fn(),
-            on: jest.fn().mockImplementation((event, callback) => {
-                socketCallbacks[event as string] = callback;
-                return jest.fn(); // unsubscribe dummy
-            }),
-            onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<SocketEventMap>>;
-
-        mockDomainEventBus = {
-            emit: jest.fn(),
-            on: jest.fn(),
-            onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
-
-        // IWebSocketClient 인터페이스 스펙에 맞게 send만 Mocking
-        mockWssClient = {
-            send: jest.fn(),
-        } as unknown as jest.Mocked<IWebSocketClient>;
-
-        dataSource = new ChannelRemoteDataSource(mockSocketEventBus, mockDomainEventBus, mockWssClient);
+        mockGateways = createMockRemoteGateways();
+        dataSource = new ChannelRemoteDataSource(mockGateways.channel);
     });
 
-    describe('수신(Receive) 파이프라인 검증 (Socket -> Domain)', () => {
-        it('channel:create 소켓 이벤트 수신 시 domainEventBus 로 매핑하여 emit 해야 한다', () => {
-            const mockDetail = {
-                ref: 'ref-1',
-                payload: { id: 'ch-1', name: 'General' } as ChannelView,
-            };
-
-            socketCallbacks['channel:create'](mockDetail);
-
-            expect(mockDomainEventBus.emit).toHaveBeenCalledWith('channel:create', {
-                data: mockDetail.payload,
-                ref: 'ref-1',
-            });
+    describe('발신(Send) 파이프라인 검증 (Request)', () => {
+        it('fetchChannel 호출 시 channel.mine 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChatMineInput = { limit: 20 } as any;
+            await dataSource.fetchChannel(payload, context);
+            expect(mockGateways.channel.mine).toHaveBeenCalledWith(payload);
         });
 
-        it('channel:error 소켓 이벤트 수신 시 표준 공통 error 규격으로 매핑하여 emit 해야 한다', () => {
-            const mockDetail = {
-                ref: 'ref-err',
-                payload: { error: 'Not Found' },
-            };
+        it('syncChannel 호출 시 channel.sync 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChannelSyncInput = { since: 123456 };
+            await dataSource.syncChannel(payload, context);
+            expect(mockGateways.channel.sync).toHaveBeenCalledWith(payload);
+        });
 
-            socketCallbacks['channel:error'](mockDetail);
+        it('updateChannel 호출 시 channel.update 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChatUpdateChannelInput = { channelId: 'ch-1', name: 'New Name' } as any;
+            await dataSource.updateChannel(payload, context);
+            expect(mockGateways.channel.update).toHaveBeenCalledWith(payload);
+        });
 
-            expect(mockDomainEventBus.emit).toHaveBeenCalledWith('error', {
-                domain: 'channel',
-                message: 'Not Found',
-                ref: 'ref-err',
-            });
+        it('deleteChannel 호출 시 channel.delete 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChatDeleteChannelInput = { channelId: 'ch-1' } as any;
+            await dataSource.deleteChannel(payload, context);
+            expect(mockGateways.channel.delete).toHaveBeenCalledWith(payload);
+        });
+
+        it('createChannel 호출 시 channel.create 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChatStartInput = { stereo: 'group', name: 'General' } as any;
+            await dataSource.createChannel(payload, context);
+            expect(mockGateways.channel.create).toHaveBeenCalledWith(payload);
+        });
+
+        it('inviteChannel 호출 시 channel.invite 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChatInviteInput = { channelId: 'ch-1', userIds: ['user-2'] } as any;
+            await dataSource.inviteChannel(payload, context);
+            expect(mockGateways.channel.invite).toHaveBeenCalledWith(payload);
+        });
+
+        it('leaveChannel 호출 시 channel.leave 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChatLeaveInput = { channelId: 'ch-1' } as any;
+            await dataSource.leaveChannel(payload, context);
+            expect(mockGateways.channel.leave).toHaveBeenCalledWith(payload);
+        });
+
+        it('getSelfChannel 호출 시 channel.get-self 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChannelGetSelfInput = {};
+            await dataSource.getSelfChannel(payload);
+            expect(mockGateways.channel.getSelf).toHaveBeenCalledWith(payload);
+        });
+
+        it('getUnreads 호출 시 channel.unreads 액션으로 request를 전송해야 한다', async () => {
+            const payload: ChannelUnreadsInput = {};
+            await dataSource.getUnreads(payload);
+            expect(mockGateways.channel.unreads).toHaveBeenCalledWith(payload);
         });
     });
 
-    describe('발신(Send) 파이프라인 검증 (Domain -> Socket)', () => {
-        it('fetchChannel 호출 시 chat 도메인의 mine 액션으로 전송되어야 한다', () => {
-            const payload: ChatMinePayload = { limit: 20 } as any;
-            dataSource.fetchChannel(payload, 'ref-mine');
+    describe('수신(Receive) 매핑 검증 (View → Domain)', () => {
+        it('fetchChannel 응답을 도메인 모델 목록으로 변환하고 context의 cid를 부여한다', async () => {
+            (mockGateways.channel.mine as jest.Mock).mockResolvedValue({
+                list: [{ id: 'ch-1', sid: 'site-1', updatedAt: 1000 }],
+                total: 1,
+            });
 
-            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'mine', payload, 'ref-mine');
+            const result = await dataSource.fetchChannel({} as any, context);
+
+            expect(result.list).toHaveLength(1);
+            expect(result.list[0]).toMatchObject({ id: 'ch-1', cid: 'cloud-a', sid: 'site-1' });
+            expect(result.meta.source).toBe('remote');
         });
 
-        it('updateChannel 호출 시 chat 도메인의 update-channel 액션으로 전송되어야 한다', () => {
-            // TS2741 수정: channelId 필수 규격 준수
-            const payload: ChatUpdateChannelPayload = { channelId: 'ch-1', name: 'New Name' } as any;
-            dataSource.updateChannel(payload, 'ref-update');
+        it('createChannel 응답을 단일 도메인 채널로 변환한다', async () => {
+            (mockGateways.channel.create as jest.Mock).mockResolvedValue({ id: 'ch-9', sid: 'site-1' });
 
-            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'update-channel', payload, 'ref-update');
+            const domain = await dataSource.createChannel({} as any, context);
+
+            expect(domain).toMatchObject({ id: 'ch-9', cid: 'cloud-a', sid: 'site-1' });
+            expect(domain.isNotificationEnabled).toBe(true);
         });
 
-        it('deleteChannel 호출 시 chat 도메인의 delete-channel 액션으로 전송되어야 한다', () => {
-            const payload: ChatDeleteChannelPayload = { channelId: 'ch-1' } as any;
-            dataSource.deleteChannel(payload, 'ref-del');
+        it('syncChannel 응답에서 도메인 목록과 ids/syncedAt 메타를 보존한다', async () => {
+            (mockGateways.channel.sync as jest.Mock).mockResolvedValue({
+                list: [{ id: 'ch-1', sid: 'site-1' }],
+                ids: ['ch-1', 'ch-2'],
+                syncedAt: 555,
+            });
 
-            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'delete-channel', payload, 'ref-del');
-        });
+            const result = await dataSource.syncChannel({ since: 0 }, context);
 
-        it('startChat 호출 시 chat 도메인의 start 액션으로 전송되어야 한다', () => {
-            // TS2353 수정: 불필요한 type 속성 제거 후 스펙 준수
-            const payload: ChatStartPayload = { users: ['user-1'] } as any;
-            dataSource.startChat(payload, 'ref-start');
-
-            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'start', payload, 'ref-start');
-        });
-
-        it('inviteChannel 호출 시 chat 도메인의 invite 액션으로 전송되어야 한다', () => {
-            const payload: ChatInvitePayload = { channelId: 'ch-1', users: ['user-2'] } as any;
-            dataSource.inviteChannel(payload, 'ref-invite');
-
-            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'invite', payload, 'ref-invite');
-        });
-
-        it('leaveChannel 호출 시 chat 도메인의 leave 액션으로 전송되어야 한다', () => {
-            const payload: ChatLeavePayload = { channelId: 'ch-1' } as any;
-            dataSource.leaveChannel(payload, 'ref-leave');
-
-            expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'leave', payload, 'ref-leave');
+            expect(result.list[0]).toMatchObject({ id: 'ch-1', cid: 'cloud-a' });
+            expect(result.ids).toEqual(['ch-1', 'ch-2']);
+            expect(result.syncedAt).toBe(555);
         });
     });
 });

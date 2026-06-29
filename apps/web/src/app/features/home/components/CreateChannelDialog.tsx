@@ -7,7 +7,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
-import { useCreateChannel } from '../hooks/useCreateChannel';
+import { useCreateChannel } from '../../channels/hooks';
 
 interface CreateChannelDialogProps {
     open: boolean;
@@ -100,28 +100,6 @@ export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateCh
                                     )}
                                 </div>
                             </div>
-
-                            {/* Room Image Section */}
-                            {/* <div className="flex flex-col gap-1.5 px-[18px]">
-                                <Label className="text-[14px] font-semibold leading-[1.571] tracking-[0.005em] text-[#9FA2A7]">
-                                    방 이미지 [선택]
-                                </Label>
-                                <div className="flex flex-col justify-center items-center gap-1.5">
-                                    <div className="relative w-[114px] h-[114px]">
-                                        <div className="flex items-center justify-center w-[114px] h-[114px] bg-[#F7F7F7] rounded-[14px]">
-                                            <div className="w-14 h-14 rounded-full bg-[#53555B]" />
-                                        </div>
-                                        <div className="absolute bottom-0 right-0 flex items-center justify-center w-[34px] h-[34px] bg-[#B0EA10] rounded-full">
-                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                                <path
-                                                    d="M0.833984 12.5L2.50065 10.8333L7.50065 15.8333L17.5007 5.83333L19.1673 7.5L7.50065 19.1667L0.833984 12.5Z"
-                                                    fill="white"
-                                                />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> */}
                         </div>
                     </div>
 

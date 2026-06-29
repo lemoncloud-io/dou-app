@@ -1,6 +1,6 @@
 import { NativeDBAdapter } from './NativeDBAdapter';
 import type { IWebBridgeClient } from '@chatic/bridges';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 
 // 캐시 메타 주입 유틸리티 모킹 (페이로드 검증을 단순화하기 위함)
 jest.mock('./utils', () => {

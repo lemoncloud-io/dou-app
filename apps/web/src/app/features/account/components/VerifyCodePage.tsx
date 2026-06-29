@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../constants';
 import { formatTime } from '../utils';
 import { DouLogo } from './DouLogo';
@@ -74,7 +74,7 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
         if (isComplete && loadingState === 'idle') {
             handleComplete();
         }
-    }, [isComplete]);  
+    }, [isComplete]);
 
     return (
         <KeyboardAwareLayout

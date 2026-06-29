@@ -1,6 +1,8 @@
 // src/types/model/preference.ts
 
-export type PreferenceKey = 'isFirstRun' | 'theme' | 'language' | 'debugSettings';
+// 'blurLastMessage' added: web-only preference that also needs native persistence
+// so it survives webview cache clears on mobile.
+export type PreferenceKey = 'isFirstRun' | 'theme' | 'language' | 'debugSettings' | 'blurLastMessage';
 
 export type FetchPreferencePayload = {
     key: PreferenceKey;

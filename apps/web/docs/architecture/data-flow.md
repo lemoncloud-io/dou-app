@@ -1,0 +1,159 @@
+# 데이터 흐름 (observe / sync / refresh)
+
+> 참조 구현: `apps/testbed/src/app/pages/{ChatHomePage,CreateChannelPage}.tsx`
+
+앱은 데이터를 **repository observe로 읽고, sync로 갱신을 등록하고, 쓰기는 repository로** 한다. 수동 폴링·`isConnected`/`isVerified` 게이팅은 쓰지 않는다.
+
+---
+
+## 1. 부트스트랩 — `RuntimeConnectionHost`
+
+`app.tsx`는 선언형 provider `RuntimeConnectionHost`로 런타임을 조립한다. 내부에서 `TransportBootstrap`/`SessionBackgroundRunner`/`RuntimeDataBinder`/`SocketBinder`/`SocketAuthBinder`를 묶으므로, 앱이 init/keepalive/token-refresh를 수동 마운트할 필요가 없다.
+
+```tsx
+function AppInner() {
+    const binding = useRuntimeBinding(); // web-core activeServer/identity 관측 → cid/sid/uid + socket config
+    const delegate = useSocketDelegate(); // 토큰 getter/refresh
+
+    return (
+        <RuntimeConnectionHost binding={binding} delegate={delegate}>
+            <BrowserRouter>
+                <Routes />
+            </BrowserRouter>
+        </RuntimeConnectionHost>
+    );
+}
+```
+
+`useSocketDelegate`는 토큰 공급만 한다 — `getSocketToken`은 `getActiveServerIdentityToken()`, `refreshSocketToken`은 활성 site 세션을 갱신 후 토큰을 반환한다.
+
+**재인증은 자동이다.** 사이트/클라우드 전환으로 `sid`/토큰이 바뀌면 `SocketAuthBinder`가 감지해 `updateAuth('session-switch')`를 호출한다. 앱이 수동으로 `auth:update`를 보내면 안 된다(이중 발화).
+
+근거: `apps/testbed/src/app/{app.tsx, hooks/useSocketDelegate.ts}`, `libs/app-runtime/docs/runtime/session-runner.md`
+
+---
+
+## 2. 연결/세션 상태 읽기
+
+상태는 두 출처에서 파생한다 — 소켓 상태는 `@chatic/app-runtime`, 세션/선택 상태는 `@chatic/web-core`.
+
+| 필요한 값                                            | 출처                                                         |
+| ---------------------------------------------------- | ------------------------------------------------------------ |
+| `isVerified`, `isConnected`, `state`, `connectionId` | `useSocketState()` (`@chatic/app-runtime`)                   |
+| `selectedSiteId`(=selectedPlaceId)                   | `useSessionSelection().selectedSiteId` (`@chatic/web-core`)  |
+| `selectedCloudId`(=cloudId)                          | `useSessionSelection().selectedCloudId` ('default' fallback) |
+| `wssType`(relay/cloud)                               | `useGlobalSession().activeServer.kind`                       |
+
+> `isVerified`는 "이 연결에 대해 `auth.update`가 ok된 시점"이다. 소켓 게이트웨이를 거치는 호출(목록 fetch 등)은 `isVerified` 이후에 실행해야 새 세션 기준으로 동작한다.
+
+근거: `libs/app-runtime/docs/socket/socket.md`, `libs/web-core/docs/session/public-api.md`
+
+---
+
+## 3. 데이터 읽기 — observe 구독 + sync 등록
+
+- **observe**: UI는 `repos.<entity>.observeList(query, cb)` / `observeItem(id, cb)`만 구독한다. 캐시가 바뀌면(스스로의 refresh로든 sync push로든) 콜백이 다시 불린다.
+- **sync 등록**: 화면 수명에 맞춰 sync 타깃을 등록하면 polling + push + 재연결 catch-up이 자동으로 돈다.
+    - 단일 고정 id: `useChatSync(channelId)` / `useChannelSync(channelId)` / `usePlaceSync(placeId)` / `useProfileSync(profileId)` / `useJoinSync(channelId)`
+    - 동적 목록: `getSyncManager().registerChannel(id)` / `registerPlace(id)`를 id 배열에 등록하고 dispose 반환값으로 정리
+
+```tsx
+// 동적 목록 등록 예
+useEffect(() => {
+    if (siteIds.length === 0) return;
+    const sync = getSyncManager();
+    const disposers = siteIds.map(id => sync.registerPlace(id));
+    return () => disposers.forEach(d => d());
+}, [siteIdsKey]);
+```
+
+**채팅방**: 초기 메시지 로딩 fetch는 sync 등록 계층(`useChatSync`)이 소유한다. 페이지는 `observeList({channelId, limit})`만 구독한다. **과거 페이징만** `repos.chat.refreshList({channelId, cursorNo, limit})`를 명시 호출하고 observe 윈도우(limit)를 넓힌다.
+
+---
+
+## 4. 데이터 쓰기 — 전부 repository 경유
+
+직접 socket `send`/`emit`/`emitAuthenticated`는 금지. 모든 쓰기는 `useRuntimeRepositories()`의 repository 메서드로 한다.
+
+| 작업                            | repository 메서드                                                                            |
+| ------------------------------- | -------------------------------------------------------------------------------------------- |
+| 메시지 전송                     | `repos.chat.sendChat({ channelId, content })`                                                |
+| 읽음 처리                       | `repos.join.readChat({ channelId, chatNo })`                                                 |
+| 채널 생성/수정/초대/나가기/삭제 | `repos.channel.createChannel`/`updateChannel`/`inviteChannel`/`leaveChannel`/`deleteChannel` |
+| Place(site) 생성/수정/삭제      | `repos.place.createPlace`/`updatePlace`/`deletePlace`                                        |
+| 프로필 수정                     | `repos.user.updateProfile(...)` 또는 `repos.profile.setMyProfile(...)`                       |
+
+> `auth:update` 송신은 데이터 쓰기가 아니라 재인증이며 `SocketAuthBinder`가 자동 처리한다 — 앱에서 보내지 않는다.
+
+근거: `libs/data/src/data/repositories-v2/*`
+
+---
+
+## 5. 리프레시 타이밍 ⭐
+
+sync 런타임은 소켓 교체(재연결/재인증) 시에만 등록 타깃을 자동 replay하고, `sid`/`cid` 컨텍스트 변경만으로는 자동 재fetch하지 않는다. 따라서 (a)·(b)는 **명시적 `refresh*` 호출이 필수**다.
+
+리프레시 묶음(`refreshActiveLists`) — channel/profile은 **syncMeta 델타 동기화**(§6)를 쓴다.
+
+```ts
+const refreshActiveLists = useCallback(async () => {
+    void repos.place.refreshList().catch(() => {}); // place는 델타 게이트웨이 없음 → full
+    if (!activeSiteId) return;
+    await syncChannelsDelta(cid); // channel 델타
+    await syncProfilesDelta(cid, activeSiteId); // profile 델타 (sid 스코프)
+}, [repos, cid, activeSiteId]);
+```
+
+### (a) 앱 진입 + (b) 사이트/클라우드 전환 확정 — `isVerified` 상승 엣지
+
+둘 다 **`useSocketState().isVerified`의 false→true 상승 엣지** 하나로 포착한다. 전환은 재인증을 거치므로 `isVerified`가 하강 후 재상승한다 = "전환 확정 완료". 상승 엣지에서만 부르므로, 전환 낙관 구간(아직 옛 세션이 `verified=true`)에는 fetch하지 않아 이전 데이터가 새 `sid`/`cid`로 오염되지 않는다.
+
+```ts
+const prevVerifiedRef = useRef(false);
+useEffect(() => {
+    const becameVerified = !prevVerifiedRef.current && isVerified;
+    prevVerifiedRef.current = isVerified;
+    if (becameVerified) refreshActiveLists();
+}, [isVerified, refreshActiveLists]);
+```
+
+### (c) 주기 폴링 — 두 계층
+
+1. **리스트 발견 폴링** — `setInterval`로 `refreshActiveLists` 재호출(추가/삭제된 목록 항목 재발견). **전환 진행 중(`isSwitching`/`isSiteSwitching`)에는 skip**(낙관 구간 stale fetch 방지).
+2. **per-item 실시간 폴링** — 보이는 항목별 `sync.registerChannel(id)`/`registerPlace(id)` 등록(기본 5s, idle backoff 60s). `lastChat$`·메타 등 항목 내부 변화를 실시간 갱신.
+
+> **mis-tag 주의**: 전환 직후 observe 콜백은 비동기라 잠시 이전 사이트 채널을 들고 있을 수 있다. 반드시 `channel.sid === activeSiteId`로 필터하고 **활성 사이트 채널만 sync 등록**한다 — 아니면 sync push가 이전 채널을 새 `sid`로 mis-tag해 목록이 오염된다.
+
+---
+
+## 6. channel / profile 델타 동기화 (syncMeta)
+
+channel·profile은 full fetch 대신 **syncMeta cursor 기반 델타 동기화**를 쓴다. cursor를 `syncMeta` 레포에 저장해 매번 증분만 받는다.
+
+```ts
+// channel: 클라우드 전역 델타
+const kind = `channel-sync:${cid}`;
+const since = await repos.syncMeta.getSyncedAt(kind);
+const { syncedAt } = await repos.channel.syncChannels(since);
+await repos.syncMeta.setSyncedAt(kind, syncedAt);
+
+// profile: sid 스코프 델타
+const pKind = `profile-sync:${cid}:${sid}`;
+const pSince = await repos.syncMeta.getSyncedAt(pKind);
+const { syncedAt: pAt } = await repos.profile.syncProfiles(pSince);
+await repos.syncMeta.setSyncedAt(pKind, pAt);
+```
+
+- cursor kind 키는 스코프를 반영: channel은 `${cid}`, profile은 `${cid}:${sid}`. 전환 시 키가 새 cid/sid로 바뀌어 교차 오염을 막는다.
+- `syncChannels`는 클라우드 전역 델타(캐시는 cloud-wide), sid 스코프 UI는 `observeList({sid})`가 필터한다.
+- place는 델타 게이트웨이가 없어 `place.refreshList`(full)을 유지한다.
+
+근거: `libs/data/src/data/repositories-v2/{SyncMetaRepositoryV2,ChannelRepositoryV2,ProfileRepositoryV2}.ts`
+
+---
+
+## 7. 로그아웃 캐시 클리어
+
+web-core 로그아웃 훅은 **세션 전이만** 수행하고 app-runtime/data·react-query 캐시는 비우지 않는다. 로그아웃 완료 후 앱이 직접 `DataManager.destroy()` + 쿼리 캐시 클리어를 해야 이전 클라우드 데이터가 남지 않는다.
+
+근거: `libs/web-core/docs/session/session-scenarios.md`

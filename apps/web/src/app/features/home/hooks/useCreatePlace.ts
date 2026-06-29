@@ -1,13 +1,12 @@
-import { usePlaceMutations } from '../../../shared/hooks';
-
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 export const useCreatePlace = () => {
-    const { makeSite, isPending } = usePlaceMutations();
+    const { place } = useRuntimeRepositories();
 
     const createPlace = async (name: string): Promise<MySiteView> => {
-        return await makeSite({ name, stereo: 'work' });
+        return await place.createPlace({ name });
     };
 
-    return { createPlace, isLoading: isPending['make-site'], isError: false, place: null };
+    return { createPlace };
 };

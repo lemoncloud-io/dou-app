@@ -1,5 +1,5 @@
 import type { CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { CacheStorage } from './types';
 
 export * from './types';
@@ -23,6 +23,7 @@ export interface LocalCacheStorages {
     profile: CacheStorage<'profile'>;
     site: CacheStorage<'site'>;
     user: CacheStorage<'user'>;
+    meta: CacheStorage<'meta'>;
 }
 
 export const createCacheStorages = (
@@ -36,4 +37,5 @@ export const createCacheStorages = (
     profile: storageFactory('profile', contextProvider),
     site: storageFactory('site', contextProvider),
     user: storageFactory('user', contextProvider),
+    meta: storageFactory('meta', contextProvider),
 });

@@ -1,17 +1,9 @@
 import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '../databases';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../databases';
 import { createTtlMeta, withCacheMeta } from './utils';
 import { BaseDbAdapter } from './types';
-
-/** IndexedDB signals an over-quota write as a QuotaExceededError DOMException (legacy code 22). */
-const isQuotaExceeded = (error: unknown): boolean =>
-    error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
-
-// On a quota overflow, drop this share of the scope's chats (but at least this many).
-const CHAT_EVICT_FRACTION = 0.2;
-const CHAT_EVICT_MIN = 50;
 
 /**
  * IndexedDB를 저장소로 사용하는 개별 캐시 스토리지 어댑터 클래스입니다.
@@ -60,8 +52,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
 
     async save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>> {
         const scope = this.getScope();
-        const row = this.createSchema(scope.cid, scope.uid, id, item);
-        await this.writeWithQuotaGuard(() => this.db.save(row));
+        await this.db.save(this.createSchema(scope.cid, scope.uid, id, item));
         return item;
     }
 
@@ -76,43 +67,8 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
             })
             .filter((row): row is IndexedDbRow<TType> => row !== null);
 
-        await this.writeWithQuotaGuard(() => this.db.saveAll(rows));
+        await this.db.saveAll(rows);
         return items;
-    }
-
-    /**
-     * Run an IndexedDB write; on QuotaExceededError, emergency-evict the oldest
-     * chats for the current scope and retry once. The chat cache is the unbounded
-     * bulk consumer (TTL is effectively permanent, no eviction strategy on web),
-     * so dropping its oldest rows is what frees space — even for a non-chat write.
-     * Scroll-up refetches the dropped history from the network. A second failure
-     * propagates so the caller surfaces it instead of looping. See ADR-0006.
-     */
-    private async writeWithQuotaGuard(write: () => Promise<void>): Promise<void> {
-        try {
-            await write();
-        } catch (error) {
-            if (!isQuotaExceeded(error)) throw error;
-            await this.evictOldestChats();
-            await write();
-        }
-    }
-
-    /**
-     * Delete the oldest chats (by chat_no) for the current scope to reclaim space.
-     * Always targets 'chat' rows regardless of this adapter's own type — chat is the
-     * unbounded bulk consumer, so freeing chats is what makes room for any write.
-     */
-    private async evictOldestChats(): Promise<void> {
-        const scope = this.getScope();
-        const rows = await this.db.loadAll<'chat'>(TYPE_CID_UID_INDEX, ['chat', scope.cid, scope.uid]);
-        if (rows.length === 0) return;
-        const oldestFirst = [...rows].sort((a, b) => (a.chat_no ?? 0) - (b.chat_no ?? 0));
-        const count = Math.min(
-            oldestFirst.length,
-            Math.max(CHAT_EVICT_MIN, Math.floor(oldestFirst.length * CHAT_EVICT_FRACTION))
-        );
-        await this.db.deleteAll(oldestFirst.slice(0, count).map(row => row.key));
     }
 
     async load(id: string): Promise<CacheModelOf<TType> | null> {

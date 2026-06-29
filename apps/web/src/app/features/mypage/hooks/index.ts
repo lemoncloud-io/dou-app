@@ -1,1 +1,1 @@
-export * from './useSubscriptionIap';
+export * from './useAppIcon';

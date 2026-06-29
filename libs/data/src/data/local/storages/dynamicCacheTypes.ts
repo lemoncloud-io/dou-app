@@ -67,7 +67,7 @@ export type CacheErrorReporter = (error: unknown, context: CacheErrorContext) =>
 
 /** Stampede 가드의 timeout을 caller가 식별할 수 있는 Error 클래스 */
 export class StampedeTimeoutError extends Error {
-    readonly name = 'StampedeTimeoutError';
+    override readonly name = 'StampedeTimeoutError';
     constructor(
         public readonly queryKey: string,
         public readonly elapsedMs: number

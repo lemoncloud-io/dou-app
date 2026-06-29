@@ -17,15 +17,14 @@ import {
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { generateToken } from '../apis';
-
-import type { TokenGeneratorFormState } from '../types';
+import type { TokenGenerateRequest, TokenGenerateResponse, TokenGeneratorFormState } from '../types';
 import type { JSX } from 'react';
 
 interface TokenGeneratorModalProps {
     isOpen: boolean;
     onClose: () => void;
     onTokenGenerated?: (token: string) => void;
+    onGenerateToken: (request: TokenGenerateRequest) => Promise<TokenGenerateResponse>;
     UserSelectDialog?: React.ComponentType<{
         isOpen: boolean;
         onClose: () => void;
@@ -87,6 +86,7 @@ export const TokenGeneratorModal = ({
     isOpen,
     onClose,
     onTokenGenerated,
+    onGenerateToken,
     UserSelectDialog,
 }: TokenGeneratorModalProps): JSX.Element => {
     const { t } = useTranslation();
@@ -134,7 +134,7 @@ export const TokenGeneratorModal = ({
                 ...(formData.gid.trim() && { gid: formData.gid.trim() }),
             };
 
-            const response = await generateToken(request);
+            const response = await onGenerateToken(request);
             setGeneratedToken(response.token);
         } catch (error) {
             logger.error('TOKEN_GENERATOR', '[TokenGenerator] Failed to generate token', { error });
@@ -142,7 +142,7 @@ export const TokenGeneratorModal = ({
         } finally {
             setIsLoading(false);
         }
-    }, [formData, validateForm, t]);
+    }, [formData, onGenerateToken, validateForm, t]);
 
     const handleCopy = useCallback(async () => {
         if (!generatedToken) return;

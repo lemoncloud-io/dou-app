@@ -1,98 +1,84 @@
-import type { UserView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, ListResult, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatUsersPayload, UserUpdateProfilePayload } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { ChannelUsersSyncView, UserView } from '@lemoncloud/chatic-socials-api';
+import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
+import type { DomainJoin, DomainListResult, DomainUser } from '../../domain';
+import { createDomainListResult, toDomainJoinFromUser, toDomainUser } from '../../domain';
+import type { DataContext } from '../../repositories-v2/types';
+import type { UserDomainGateway } from '../gateways';
 
-export interface IUserRemoteDataSource {
-    /** 특정 조건의 사용자 목록을 서버에 요청합니다. */
-    fetchUsers(payload: ChatUsersPayload, ref?: string): void;
-
-    /** 내 프로필 정보 수정을 요청합니다. */
-    updateProfile(payload: UserUpdateProfilePayload, ref?: string): void;
-
-    /** 외부 사용자를 초대하고 초대 결과를 요청합니다. */
-    requestInvite(payload: MyUserInviteBody, ref?: string): void;
-
-    /** 여러 사용자를 일괄 초대합니다. */
-    requestInviteBatch(payload: MyUserInviteBody, ref?: string): void;
+/**
+ * Result of a channel user sync. Members arrive with their `$join` (read-state) embedded,
+ * so we surface joins alongside users; `syncedAt` is the cursor for the next `since`, and
+ * `ids` lists every currently-active member (for leave/kick detection).
+ */
+export interface ChannelUsersSyncResult {
+    users: DomainUser[];
+    joins: DomainJoin[];
+    ids: string[];
+    syncedAt: number;
 }
 
+export type UserFetchUsersInput = Parameters<UserDomainGateway['listUser']>[0];
+export type UserUpdateProfilePayload = Parameters<UserDomainGateway['update']>[0];
+export type UserRequestInviteInput = Parameters<UserDomainGateway['invite']>[0];
+export type UserInviteBatchPayload = Parameters<UserDomainGateway['inviteBatch']>[0];
+export type UserSyncChannelUsersInput = Parameters<UserDomainGateway['syncUsers']>[0];
+
+export interface IUserRemoteDataSource {
+    /** 특정 조건의 사용자 목록을 서버에 요청하고 도메인 모델로 반환합니다. */
+    fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<DomainListResult<DomainUser>>;
+    /** 내 프로필 정보 수정을 요청합니다. */
+    updateProfile(payload: UserUpdateProfilePayload, context: DataContext): Promise<DomainUser>;
+    /** 외부 사용자를 초대하고 초대 결과를 요청합니다. (도메인 user가 아닌 초대 뷰) */
+    requestInvite(payload: UserRequestInviteInput): Promise<MyInviteView>;
+    /** 여러 사용자를 일괄 초대합니다. (도메인 user가 아닌 초대 뷰) */
+    inviteBatch(payload: UserInviteBatchPayload): Promise<ListResult<MyInviteView>>;
+    /** 채널 멤버를 since 기준으로 동기화하고, 유저 + 내장 join + 커서(syncedAt)를 반환합니다. */
+    syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<ChannelUsersSyncResult>;
+}
+
+/**
+ * User remote source. Single boundary where user API views become domain
+ * models; callers receive domain shapes only. The request-time `context`
+ * is supplied by the caller to keep a late response on its original scope.
+ * Invite endpoints return invite views (not cached users) and stay raw.
+ */
 export class UserRemoteDataSource implements IUserRemoteDataSource {
-    constructor(
-        private readonly socketEventBus: IEventBus<SocketEventMap>,
-        private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly wssClient: IWebSocketClient
-    ) {
-        this.initializeListeners();
+    constructor(private readonly gateway: UserDomainGateway) {}
+
+    public async fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<DomainListResult<DomainUser>> {
+        const remote = await this.gateway.listUser<ListResult<UserView>>(payload);
+        const list = (remote?.list || []).map(item => toDomainUser(item, context));
+        return createDomainListResult(list, { total: remote?.total ?? list.length, source: 'remote' });
     }
 
-    private initializeListeners() {
-        this.socketEventBus.on('user:create', detail => {
-            this.domainEventBus.emit('user:create', {
-                data: detail.payload as UserView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('user:update', detail => {
-            this.domainEventBus.emit('user:update', {
-                data: detail.payload as UserView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('user:read', detail => {
-            this.domainEventBus.emit('user:list', {
-                data: detail.payload as ListResult<UserView>,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('user:delete', detail => {
-            this.domainEventBus.emit('user:delete', {
-                data: detail.payload as UserView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('user:invite', detail => {
-            this.domainEventBus.emit('user:invite', {
-                data: detail.payload as MyInviteView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('user:invite-batch', detail => {
-            this.domainEventBus.emit('user:invite-batch', {
-                data: detail.payload as MyInviteView[],
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('user:error', detail => {
-            this.domainEventBus.emit('error', {
-                domain: 'user',
-                message: detail.payload.error || 'Unknown User Error',
-                ref: detail.ref,
-            });
-        });
+    public async updateProfile(payload: UserUpdateProfilePayload, context: DataContext): Promise<DomainUser> {
+        const remote = await this.gateway.update<UserView>(payload);
+        return toDomainUser((remote || {}) as UserView, context);
     }
 
-    public fetchUsers(payload: ChatUsersPayload, ref?: string) {
-        this.wssClient.send('chat', 'users', payload, ref);
+    public async requestInvite(payload: UserRequestInviteInput): Promise<MyInviteView> {
+        return this.gateway.invite(payload);
     }
 
-    public updateProfile(payload: UserUpdateProfilePayload, ref?: string) {
-        this.wssClient.send('user', 'update-profile', payload, ref);
+    public async inviteBatch(payload: UserInviteBatchPayload): Promise<ListResult<MyInviteView>> {
+        return this.gateway.inviteBatch(payload);
     }
 
-    public requestInvite(payload: MyUserInviteBody, ref?: string) {
-        this.wssClient.send('user', 'invite', payload, ref);
-    }
+    public async syncChannelUsers(
+        payload: UserSyncChannelUsersInput,
+        context: DataContext
+    ): Promise<ChannelUsersSyncResult> {
+        const remote = await this.gateway.syncUsers<ChannelUsersSyncView>(payload);
+        const rawList = remote?.list || [];
+        const channelId = (payload as { channelId?: string }).channelId;
 
-    public requestInviteBatch(payload: MyUserInviteBody, ref?: string) {
-        this.wssClient.send('user', 'invite-batch', payload, ref);
+        const users = rawList.map(item => toDomainUser(item, context));
+        // Each member carries its read-state in `$join`; surface it alongside the users.
+        const joins = rawList
+            .map(item => toDomainJoinFromUser(item, context, channelId))
+            .filter((join): join is DomainJoin => !!join);
+
+        return { users, joins, ids: remote?.ids || [], syncedAt: remote?.syncedAt || 0 };
     }
 }

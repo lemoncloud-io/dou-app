@@ -147,7 +147,7 @@ apps/web/src/app/
 ├── routes/             인증 분기 라우팅 (private/, public/, guards/)
 ├── features/           기능별 모듈
 │   ├── home/           홈 (PlaceList + ChannelList)
-│   ├── chats/          채팅 (ChatRoomPage, ChatSettingsPage)
+│   ├── chats/          채팅 (CreateChannelPage, ChatSettingsPage)
 │   ├── places/         플레이스 정보/순서
 │   ├── search/         검색
 │   ├── mypage/         마이페이지
@@ -264,9 +264,9 @@ Repository 이벤트 구독(`onChannelCreated` 등)으로 실시간 갱신도 �
 
 ---
 
-### ChatRoomPage — 채팅방
+### CreateChannelPage — 채팅방
 
-**파일**: `features/chats/pages/ChatRoomPage.tsx`
+**파일**: `features/chats/pages/CreateChannelPage.tsx`
 
 | 훅                                   | 역할                                          |
 | ------------------------------------ | --------------------------------------------- |

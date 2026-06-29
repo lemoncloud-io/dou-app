@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { MIN_PASSWORD_LENGTH } from '../constants';
 import { FloatingButton } from './FloatingButton';
 

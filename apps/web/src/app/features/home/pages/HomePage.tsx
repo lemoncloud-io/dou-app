@@ -1,11 +1,11 @@
-import { ArrowLeftRight, Bell, Bug, ChevronDown, CircleAlert, EllipsisVertical, Search, User } from 'lucide-react';
+import { ArrowLeftRight, CircleAlert, EllipsisVertical, User } from 'lucide-react';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { useCloudSessionCatalog, UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,89 +13,73 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useOnboardingStore, useDynamicProfile, useUserContext, UserType, cloudCore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useLogout } from '@chatic/auth';
 
-import { useCanCreateChannel } from '../../../shared/hooks/useCanCreateChannel';
-import { useCanCreatePlace } from '../../../shared/hooks/useCanCreatePlace';
-import { usePlaces } from '../../../shared/hooks/usePlaces';
-import { usePlaceUnreadCounts } from '../../../shared/hooks/usePlaceUnreadCounts';
-import { useChannels } from '../../../shared/hooks/useChannels';
-import { useCloudSession } from '@chatic/app-runtime';
-import { BottomNavigation } from '../../../shared/components/BottomNavigation';
-import { CloudLogo } from '../../../shared/components/CloudLogo';
-import { LimitExceededDialog } from '../../../shared/components/LimitExceededDialog';
-import { SettingsDialog } from '../../../components/SettingsDialog';
+import { useMyProfile } from '../../../hooks';
+import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { ROUTES } from '../../../routes/paths';
+import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
-import { SearchModal } from '../../search';
-import { ReportIssueDialog } from '../../../shared/components/ReportIssueDialog';
-import { ChannelList } from '../components/ChannelList';
-import { CloudSessionSheet } from '../components/CloudSessionSheet';
-import { CreateChannelDialog } from '../components/CreateChannelDialog';
-import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
-import { PlaceList } from '../components/PlaceList';
-
-const IS_LOCAL = import.meta.env.VITE_ENV === 'LOCAL';
-const IS_DEV = import.meta.env.VITE_ENV !== 'PROD';
+import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
+import {
+    useChannelUnreads,
+    useHomeChannels,
+    useHomePlaces,
+    useInvitedClouds,
+    useMyJoinsSync,
+    useSwitchPlace,
+} from '../hooks';
+import { InviteDialog } from '../components';
 
 export const HomePage = () => {
     const { t } = useTranslation();
-    const profile = useDynamicProfile();
-    const { userType } = useUserContext();
-
-    const isInvited = userType === UserType.INVITED || userType === UserType.INVITED_WITH_CLOUD;
-    const { mutate: logout } = useLogout();
     const navigate = useNavigateWithTransition();
 
-    // === 데이터: 단일 소스 — usePlaces/useChannels를 한 번만 호출 ===
-    const placesResult = usePlaces();
-    const selectedPlaceId = useWebSocketV2Store(s => s.selectedPlaceId);
-    const storeCloudId = useWebSocketV2Store(s => s.cloudId);
-    const wssType = useWebSocketV2Store(s => s.wssType);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const channelsResult = useChannels({ sid: selectedPlaceId || '', detail: true });
-    const placeUnreadCounts = usePlaceUnreadCounts();
+    const identity = useSessionIdentity();
+    const { userType, permissions } = identity;
+    // Use the authoritative guest flag, not `userType === TEMP_ACCOUNT`: getUserType() falls back
+    // to TEMP_ACCOUNT whenever the active profile / userRole isn't resolved yet, which would wrongly
+    // hide cloud-only UI (e.g. the cloud-switch button) for a real, non-guest user mid-load.
+    const isGuest = identity.isGuest;
+    // A guest who has accepted a cloud invite stays userType === TEMP_ACCOUNT, but holds invited
+    // clouds in the cache. This "invited guest" must be able to switch into those clouds, so the
+    // cloud-switch UI is offered to them even though they are still a guest.
+    // useInvitedClouds hides clouds the signed-in account now owns, so an invited cloud that became
+    // owned (guest → owner) no longer counts here and is shown only as an owned cloud.
+    const { hasInvitedClouds } = useInvitedClouds();
+    const isInvitedGuest = isGuest && hasInvitedClouds;
+    const canSwitchCloud = !isGuest || isInvitedGuest;
+    const { selectedCloudId } = useSessionSelection();
+    const isDefaultCloud = selectedCloudId === 'default';
+    const { isCloudsError } = useCloudSessionCatalog();
 
-    // 파생 데이터
-    const {
-        canCreate: _canCreateChannel,
-        isDefaultCloud,
-        isLimitReached: isChannelLimitReached,
-        isLoading: isChannelsLoading,
-        currentCount: channelCount,
-        maxCount: maxChannels,
-        isMyCloud: isMyCloudForChannel,
-    } = useCanCreateChannel({ count: channelsResult.channels.length, isLoading: channelsResult.isLoading });
-    const {
-        isLimitReached: isPlaceLimitReached,
-        isLoading: isPlacesLoading,
-        maxCount: maxPlaces,
-        isMyCloud,
-    } = useCanCreatePlace({ count: placesResult.places.length, isLoading: placesResult.isLoading });
-    const { isCompleted, completeOnboarding } = useOnboardingStore();
-    const { isCloudsError } = useCloudSession();
+    // === Data: place list, active place, channel list, unread ===
+    const { places, isLoading: isPlacesLoading } = useHomePlaces();
+    const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
+    const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
+    // Register my join (read-state) sync for every channel in the active place — keeps the
+    // unread badges live across the whole list, not just the rows scrolled into view.
+    useMyJoinsSync(channels.map(c => c.id));
+    const { byChannel: unreadByChannel } = useChannelUnreads(channels);
 
-    const totalUnread = useMemo(
-        () => channelsResult.channels.reduce((sum, ch) => sum + ((ch.unreadCount as number) ?? 0), 0),
-        [channelsResult.channels]
-    );
+    // When a site is active, prefer the V2 per-site profile (nick/thumbnail) so an edit-screen
+    // save reflects immediately; fall back to session-derived values otherwise (default cloud).
+    const { profile: myProfile } = useMyProfile();
+    const displayName =
+        (!isDefaultCloud && myProfile?.nick) || identity.activeProfile?.$user?.name || identity.userName || '-';
+    const displayImageUrl = (!isDefaultCloud && myProfile?.thumbnail) || identity.activeProfile?.$user?.photo;
 
-    const displayName = profile?.$user?.name ?? '-';
-    const displayImageUrl = profile?.$user?.photo;
+    // On an active site everyone has an editable site profile (incl. invited-cloud users), so show
+    // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
+    // it for guests / invited users who have no editable relay profile.
+    const showProfileButton = !isDefaultCloud || (!isGuest && userType !== UserType.INVITED);
+    const profileTarget = isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.siteProfile;
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
-    const [isDebugOpen, setIsDebugOpen] = useState(false);
-    const [limitDialogType, setLimitDialogType] = useState<'place' | 'channel' | null>(null);
 
-    const handleLogout = () => {
-        logout();
-    };
-
+    const { isFirstRun, completeOnboarding } = usePreferenceStore();
     const { toast } = useToast();
 
     const handleComplete = () => {
@@ -103,65 +87,23 @@ export const HomePage = () => {
     };
 
     const handleCreatePlace = () => {
-        if (!isMyCloud) {
+        if (!permissions.canCreatePlace) {
             toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
             return;
         }
-        if (isPlaceLimitReached) {
-            setLimitDialogType('place');
-        } else {
-            setIsPlaceDialogOpen(true);
-        }
+        setIsPlaceDialogOpen(true);
     };
 
-    const handleCreateChannel = () => {
-        if (isChannelLimitReached) {
-            setLimitDialogType('channel');
-        } else {
-            setIsDialogOpen(true);
-        }
-    };
+    const handleCreateChannel = () => setIsDialogOpen(true);
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-background pb-[98px] pt-4">
             {/* Header */}
             <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
+                {!showProfileButton ? (
                     <CloudLogo />
-                ) : IS_LOCAL ? (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-[9px]">
-                                <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                                    {displayImageUrl ? (
-                                        <img
-                                            src={displayImageUrl}
-                                            alt="Profile"
-                                            className="h-full w-full object-cover"
-                                        />
-                                    ) : (
-                                        <User size={20} className="text-muted-foreground" />
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <span className="max-w-[100px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                        {displayName}
-                                    </span>
-                                    <ChevronDown size={18} className="text-muted-foreground" />
-                                </div>
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
-                            <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="cursor-pointer">
-                                <span>{t('home.settings')}</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
                 ) : (
-                    <button
-                        onClick={() => navigate(isDefaultCloud ? '/mypage/edit' : '/mypage/cloud-profile')}
-                        className="flex items-center gap-[9px]"
-                    >
+                    <button onClick={() => navigate(profileTarget)} className="flex items-center gap-[9px]">
                         <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                             {displayImageUrl ? (
                                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
@@ -175,14 +117,11 @@ export const HomePage = () => {
                     </button>
                 )}
                 <div className="flex items-center gap-4">
-                    {userType !== UserType.TEMP_ACCOUNT && (
+                    {canSwitchCloud && (
                         <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
                             <ArrowLeftRight size={22} className="text-foreground" />
                         </button>
                     )}
-                    <button onClick={() => setIsSearchOpen(true)} className="p-1">
-                        <Search size={22} className="text-foreground" />
-                    </button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="p-1">
@@ -190,10 +129,6 @@ export const HomePage = () => {
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => navigate('/notifications')} className="cursor-pointer">
-                                <Bell size={16} className="mr-2" />
-                                <span>{t('home.notifications')}</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setIsReportIssueOpen(true)} className="cursor-pointer">
                                 <CircleAlert size={16} className="mr-2" />
                                 <span>{t('home.reportIssue')}</span>
@@ -204,7 +139,7 @@ export const HomePage = () => {
             </header>
 
             {/* Cloud Error Banner */}
-            {userType !== UserType.TEMP_ACCOUNT && isCloudsError && (
+            {!isGuest && isCloudsError && (
                 <button
                     onClick={() => setIsCloudSessionOpen(true)}
                     className="mx-5 mb-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-left text-sm text-destructive"
@@ -216,14 +151,13 @@ export const HomePage = () => {
             {/* Place List */}
             <section className="pb-4 pt-2">
                 <PlaceList
-                    places={placesResult.places}
-                    isLoading={placesResult.isLoading}
-                    isError={placesResult.isError}
-                    onRefreshPlaces={placesResult.refresh}
-                    onNavigateToOrder={() => navigate('/places/order')}
+                    places={places}
+                    selectedPlaceId={selectedPlaceId}
+                    isLoading={isPlacesLoading}
+                    isSwitching={isSwitching}
+                    onSelectPlace={switchPlace}
                     onCreatePlace={handleCreatePlace}
-                    isGuest={userType === UserType.TEMP_ACCOUNT}
-                    placeUnreadCounts={placeUnreadCounts}
+                    isGuest={isGuest}
                 />
             </section>
 
@@ -233,193 +167,22 @@ export const HomePage = () => {
             <section className="flex min-h-0 flex-1 flex-col px-4 pt-[18px]">
                 {selectedPlaceId ? (
                     <ChannelList
-                        channels={channelsResult.channels}
-                        isLoading={channelsResult.isLoading}
-                        isSyncing={channelsResult.isSyncing}
-                        isError={channelsResult.isError}
-                        errorMessage={channelsResult.errorMessage}
-                        onRefreshChannels={channelsResult.refresh}
-                        showCreateButton={!isChannelsLoading && (isMyCloud || (isDefaultCloud && channelCount === 0))}
+                        channels={channels}
+                        unreadByChannel={unreadByChannel}
+                        isLoading={isChannelsLoading}
+                        showCreateButton={!isChannelsLoading && permissions.canCreateChannel}
                         onCreateChannel={handleCreateChannel}
-                        channelLimit={maxChannels}
-                        placeName={placesResult.places.find(p => p.id === selectedPlaceId)?.name}
                     />
                 ) : null}
             </section>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
-            <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
-            <OnboardingModal open={!isCompleted} onComplete={completeOnboarding} />
-            {isSearchOpen && <SearchModal open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
+            <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
-            <LimitExceededDialog
-                open={limitDialogType !== null}
-                onOpenChange={open => !open && setLimitDialogType(null)}
-                type={limitDialogType ?? 'place'}
-                maxCount={limitDialogType === 'channel' ? maxChannels : maxPlaces}
-            />
-            {IS_DEV && (
-                <>
-                    <button
-                        onClick={() => setIsDebugOpen(true)}
-                        className="fixed bottom-[110px] right-4 z-50 flex h-8 w-8 items-center justify-center rounded-full bg-muted/80 text-muted-foreground shadow-md backdrop-blur-sm active:bg-muted"
-                    >
-                        <Bug size={14} />
-                    </button>
-                    <Dialog open={isDebugOpen} onOpenChange={setIsDebugOpen}>
-                        <DialogContent className="max-h-[80vh] overflow-y-auto">
-                            <DialogTitle>Debug Info</DialogTitle>
-                            <DialogDescription className="sr-only">Development debug information</DialogDescription>
-                            <div className="space-y-4 font-mono text-[12px] leading-[1.6] text-muted-foreground">
-                                {/* Session */}
-                                <div>
-                                    <div className="mb-1 font-sans text-[13px] font-semibold text-foreground">
-                                        Session
-                                    </div>
-                                    <div>
-                                        cloudId(store):{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {storeCloudId || '(null)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        cloudId(core):{' '}
-                                        <span
-                                            className={`font-semibold ${cloudCore.getSelectedCloudId() !== storeCloudId ? 'text-destructive' : 'text-foreground'}`}
-                                        >
-                                            {cloudCore.getSelectedCloudId() || '(null)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        wssType:{' '}
-                                        <span className="font-semibold text-foreground">{wssType || '(null)'}</span>
-                                    </div>
-                                    <div>
-                                        isVerified:{' '}
-                                        <span
-                                            className={`font-semibold ${isVerified ? 'text-foreground' : 'text-destructive'}`}
-                                        >
-                                            {String(isVerified)}
-                                        </span>
-                                    </div>
-                                </div>
-                                {/* Place */}
-                                <div>
-                                    <div className="mb-1 font-sans text-[13px] font-semibold text-foreground">
-                                        Place ({placesResult.places.length})
-                                    </div>
-                                    <div>
-                                        selectedPlaceId(store):{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {selectedPlaceId || '(null)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        selectedPlaceId(core):{' '}
-                                        <span
-                                            className={`font-semibold ${cloudCore.getSelectedPlaceId() !== selectedPlaceId ? 'text-destructive' : 'text-foreground'}`}
-                                        >
-                                            {cloudCore.getSelectedPlaceId() || '(null)'}
-                                        </span>
-                                    </div>
-                                    {placesResult.places.map(p => {
-                                        const cid = (p as unknown as { cid?: string }).cid;
-                                        const mismatch = cid && storeCloudId && cid !== storeCloudId;
-                                        return (
-                                            <div
-                                                key={p.id}
-                                                className={`pl-2 ${mismatch ? 'font-semibold text-destructive' : ''}`}
-                                            >
-                                                {mismatch ? '[X] ' : ''}id={p.id} name={p.name} cid={cid || '?'}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {/* Channel */}
-                                <div>
-                                    <div className="mb-1 font-sans text-[13px] font-semibold text-foreground">
-                                        Channel ({channelsResult.channels.length})
-                                    </div>
-                                    <div>
-                                        sid(param):{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {selectedPlaceId || '(empty)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        isLoading:{' '}
-                                        <span
-                                            className={`font-semibold ${channelsResult.isLoading ? 'text-yellow-600' : 'text-foreground'}`}
-                                        >
-                                            {String(channelsResult.isLoading)}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        isError:{' '}
-                                        <span
-                                            className={`font-semibold ${channelsResult.isError ? 'text-destructive' : 'text-foreground'}`}
-                                        >
-                                            {String(channelsResult.isError)}
-                                            {channelsResult.errorMessage ? ` (${channelsResult.errorMessage})` : ''}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        cloudId(channel):{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {channelsResult.debugInfo?.cloudId || '(null)'}
-                                        </span>
-                                    </div>
-                                    <div className="mt-1 text-[11px] opacity-70">--- fetch ---</div>
-                                    <div>
-                                        fetchCount:{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {channelsResult.debugInfo?.fetchCount}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        lastFetchAt:{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {channelsResult.debugInfo?.lastFetchAt?.split('T')[1] ?? '(never)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        lastFetchResult:{' '}
-                                        <span
-                                            className={`font-semibold ${channelsResult.debugInfo?.lastFetchResultCount === 0 ? 'text-yellow-600' : 'text-foreground'}`}
-                                        >
-                                            {channelsResult.debugInfo?.lastFetchResultCount ?? '(none)'}
-                                        </span>
-                                    </div>
-                                    <div className="mt-1 text-[11px] opacity-70">--- subscribe ---</div>
-                                    <div>
-                                        subscribeCount:{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {channelsResult.debugInfo?.subscribeCount}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        lastSubscribeAt:{' '}
-                                        <span className="font-semibold text-foreground">
-                                            {channelsResult.debugInfo?.lastSubscribeAt?.split('T')[1] ?? '(never)'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        lastSubscribeResult:{' '}
-                                        <span
-                                            className={`font-semibold ${channelsResult.debugInfo?.lastSubscribeResultCount === 0 ? 'text-yellow-600' : 'text-foreground'}`}
-                                        >
-                                            {channelsResult.debugInfo?.lastSubscribeResultCount ?? '(none)'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
-                </>
-            )}
-            <BottomNavigation totalUnread={totalUnread} />
+            <InviteDialog />
+            <BottomNavigation />
         </div>
     );
 };

@@ -2,22 +2,23 @@ import { User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useDynamicProfile } from '@chatic/web-core';
-import { useLogout } from '@chatic/auth';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { useSessionIdentity } from '@chatic/web-core';
 
-import { PageHeader } from '../../../shared/components';
-import { KeyboardAwareLayout } from '../../../shared/layouts';
+import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { WithdrawalDialog } from '../components/WithdrawalDialog';
+import { ROUTES } from '../../../routes/paths';
 
 export const WithdrawalPage = () => {
     const { t } = useTranslation();
-    const profile = useDynamicProfile();
-    const { mutate: logout } = useLogout();
+    const navigate = useNavigateWithTransition();
+    const { activeProfile: profile } = useSessionIdentity();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const userName = profile?.$user?.name || 'User';
-    const userImageUrl = profile?.$user?.imageUrl;
+    const userImageUrl = profile?.$user?.photo;
 
     const handleConfirmClick = () => {
         setIsDialogOpen(true);
@@ -25,7 +26,7 @@ export const WithdrawalPage = () => {
 
     const handleWithdrawal = () => {
         // TODO: Implement actual withdrawal API call
-        logout();
+        navigate(ROUTES.auth.logout);
     };
 
     return (

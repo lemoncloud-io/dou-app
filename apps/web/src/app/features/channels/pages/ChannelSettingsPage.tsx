@@ -1,0 +1,271 @@
+import type { LucideIcon } from 'lucide-react';
+import { LogOut, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
+
+import { logger } from '@chatic/bridges';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { reportError, useSessionIdentity } from '@chatic/web-core';
+import { toError } from '../../../utils/errors';
+
+import { PageHeader } from '../../../ui/components';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
+import { MemberListItem } from '../components/MemberListItem';
+import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
+import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles } from '../hooks';
+import { ROUTES } from '../../../routes/paths';
+
+type DialogType = 'invite' | 'update' | 'delete' | 'leave' | null;
+
+interface ActionButtonProps {
+    icon: LucideIcon;
+    label: string;
+    onClick?: () => void;
+    variant?: 'default' | 'danger';
+}
+
+const ActionButton = ({ icon: Icon, label, onClick, variant = 'default' }: ActionButtonProps) => (
+    <button onClick={onClick} className="flex flex-col items-center gap-2">
+        <Icon size={24} className={variant === 'danger' ? 'text-destructive' : 'text-muted-foreground'} />
+        <span className="text-[13px] font-medium leading-[1.3] text-muted-foreground">{label}</span>
+    </button>
+);
+
+const ChatProfileIcon = ({ thumbnail }: { thumbnail?: string }) => (
+    <div className="flex size-14 items-center justify-center overflow-hidden rounded-full bg-muted">
+        {thumbnail ? (
+            <img src={thumbnail} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+        ) : (
+            <svg width="32" height="32" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M28 8C16.954 8 8 16.954 8 28C8 32.944 9.712 37.486 12.586 41.04L10.5 46L16.5 44.5C20.054 46.988 24.328 48 28 48C39.046 48 48 39.046 48 28C48 16.954 39.046 8 28 8Z"
+                    className="stroke-foreground"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                />
+            </svg>
+        )}
+    </div>
+);
+
+export const ChannelSettingsPage = () => {
+    const navigate = useNavigateWithTransition();
+    const { t } = useTranslation();
+    const { channelId } = useParams<{ channelId: string }>();
+    const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+
+    const { toast } = useToast();
+
+    const { activeProfile: profile } = useSessionIdentity();
+
+    const { channel, isError } = useChannel(channelId ?? null);
+
+    const {
+        members,
+        total: membersTotal,
+        isLoading: isMembersLoading,
+    } = useChannelMembers({
+        channelId: channelId || '',
+        detail: true,
+    });
+
+    const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
+    const memberCount = membersTotal || channel?.memberCount || 0;
+
+    // Site profiles (nick/avatar) for the member list; same source as the room.
+    const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
+    const { profileMap } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
+
+    const openDialog = (type: DialogType) => setActiveDialog(type);
+    const closeDialog = () => setActiveDialog(null);
+
+    const handleLeaveRoom = async () => {
+        if (!channelId) return;
+
+        try {
+            await leaveChannel({ channelId });
+            closeDialog();
+            toast({ title: t('chat.settings.leftRoom') });
+            navigate(ROUTES.root, { replace: true });
+        } catch (error) {
+            logger.error('CHAT', 'Failed to leave room', { error, data: { channelId } });
+            reportError(toError(error));
+            toast({ title: t('chat.settings.leaveFailed'), variant: 'destructive' });
+        }
+    };
+
+    const handleDeleteRoom = async () => {
+        if (!channelId) return;
+
+        try {
+            await deleteChannel({ channelId });
+            closeDialog();
+            toast({ title: t('chat.settings.deletedRoom') });
+            navigate(ROUTES.root, { replace: true });
+        } catch (error) {
+            logger.error('CHAT', 'Failed to delete room', { error, data: { channelId } });
+            reportError(toError(error));
+            toast({ title: t('chat.settings.deleteFailed'), variant: 'destructive' });
+        }
+    };
+
+    if (isError) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <div className="text-center">
+                    <div className="text-sm text-destructive">{t('chat.settings.error')}</div>
+                    <button onClick={() => navigate(-1)} className="mt-2 text-sm text-primary underline">
+                        {t('chat.settings.goBack')}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+            <PageHeader title={t('chat.settings.title')} />
+
+            {/* Content */}
+            <div className="flex flex-col items-center gap-[25px] px-4 py-2.5">
+                {/* Room Info */}
+                <div className="flex flex-col items-center gap-[19px]">
+                    {/* Room Icon & Name */}
+                    <div className="flex flex-col items-center gap-2">
+                        <ChatProfileIcon thumbnail={channel?.thumbnail} />
+                        <div className="flex flex-col items-center gap-1">
+                            {channel?.isOwner && !channel?.isSelfChat ? (
+                                <button onClick={() => openDialog('update')} className="flex items-center gap-1.5">
+                                    <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
+                                        {channel?.name || t('chat.settings.roomName')}
+                                    </h2>
+                                    <Pencil size={14} className="text-muted-foreground" />
+                                </button>
+                            ) : (
+                                <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
+                                    {channel?.name || t('chat.settings.roomName')}
+                                </h2>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-start justify-center gap-6">
+                        {channel?.isOwner && !channel?.isSelfChat && (
+                            <ActionButton
+                                icon={UserPlus}
+                                label={t('chat.settings.inviteFriends')}
+                                onClick={() => openDialog('invite')}
+                            />
+                        )}
+                        {!channel?.isSelfChat ? (
+                            channel?.isOwner ? (
+                                <ActionButton
+                                    icon={Trash2}
+                                    label={t('chat.settings.deleteRoom')}
+                                    onClick={() => openDialog('delete')}
+                                    variant="danger"
+                                />
+                            ) : (
+                                <ActionButton
+                                    icon={LogOut}
+                                    label={t('chat.settings.leaveRoom')}
+                                    onClick={() => openDialog('leave')}
+                                />
+                            )
+                        ) : null}
+                    </div>
+                </div>
+
+                {/* Members List */}
+                {!channel?.isSelfChat && (
+                    <div className="flex w-full flex-col gap-[18px]">
+                        <div className="flex items-center gap-1 px-[18px]">
+                            <span className="text-[16px] font-semibold leading-[1.5] tracking-[-0.32px] text-foreground">
+                                {t('chat.settings.roomMembers')}
+                            </span>
+                            <span className="text-[16px] font-semibold leading-[1.5] text-muted-foreground">
+                                {memberCount}
+                            </span>
+                        </div>
+                        <div className="flex flex-col gap-[14px] px-4">
+                            {isMembersLoading ? (
+                                <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {t('chat.settings.loading')}
+                                </div>
+                            ) : members.length > 0 ? (
+                                members.map(member => {
+                                    const memberId = member.id ?? '';
+                                    // Site profile (nick/avatar) takes precedence over the user-cache name.
+                                    const memberProfile = memberId ? profileMap.get(memberId) : undefined;
+                                    const memberName =
+                                        memberProfile?.nick ||
+                                        member.name ||
+                                        memberId ||
+                                        t('chat.settings.unknownUser');
+
+                                    const isMember = memberId === profile?.uid;
+
+                                    return (
+                                        <MemberListItem
+                                            key={memberId}
+                                            member={{
+                                                id: memberId,
+                                                name: memberName,
+                                                avatar: memberProfile?.thumbnail ?? null,
+                                            }}
+                                            isMe={isMember}
+                                            isOwner={memberId === channel?.ownerId}
+                                            isPendingInvite={member.$join?.joined === 0}
+                                        />
+                                    );
+                                })
+                            ) : (
+                                <div className="py-4 text-center text-sm text-muted-foreground">
+                                    {t('chat.settings.noMembers', 'No members')}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Dialogs */}
+            <InviteFriendsDialog
+                open={activeDialog === 'invite'}
+                onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
+                channelId={channelId}
+            />
+            <UpdateChannelDialog
+                open={activeDialog === 'update'}
+                onOpenChange={open => (open ? openDialog('update') : closeDialog())}
+                channelId={channelId}
+            />
+            <ConfirmDialog
+                open={activeDialog === 'delete'}
+                onOpenChange={open => (open ? openDialog('delete') : closeDialog())}
+                title={t('chat.settings.deleteDialog.title')}
+                description={t('chat.settings.deleteDialog.description')}
+                confirmLabel={t('chat.settings.deleteDialog.confirm')}
+                onConfirm={handleDeleteRoom}
+                isPending={isPending.delete}
+                variant="danger"
+            />
+            <ConfirmDialog
+                open={activeDialog === 'leave'}
+                onOpenChange={open => (open ? openDialog('leave') : closeDialog())}
+                title={t('chat.settings.leaveDialog.title')}
+                description={t('chat.settings.leaveDialog.description')}
+                confirmLabel={t('chat.settings.leaveDialog.confirm')}
+                onConfirm={handleLeaveRoom}
+                isPending={isPending.leave}
+                variant="warning"
+            />
+        </div>
+    );
+};

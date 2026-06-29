@@ -272,7 +272,8 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
 
             const frontendDomain = getFrontendDomainForUrl(url);
             const frontendBaseUrl = `https://${frontendDomain}`;
-            let expandedUrl = `${frontendBaseUrl}/auth/login?code=${encodeURIComponent(code)}&provider=invite&version=2`;
+            // Invite handling lives on the home route now; send params to root and let home detect them.
+            let expandedUrl = `${frontendBaseUrl}/?code=${encodeURIComponent(code)}&provider=invite&version=2`;
 
             if (backend) {
                 expandedUrl += `&_backend=${encodeURIComponent(backend)}`;

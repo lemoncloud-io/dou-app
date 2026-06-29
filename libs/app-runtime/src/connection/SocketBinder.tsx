@@ -1,0 +1,28 @@
+import { useEffect, useRef } from 'react';
+import { getSocketManager, getSocketRuntime } from '../socket/runtime';
+import type { RuntimeBinding } from '../runtime';
+
+export interface SocketBinderProps {
+    binding: RuntimeBinding;
+}
+
+export const SocketBinder = ({ binding }: SocketBinderProps) => {
+    const socketRuntime = getSocketRuntime();
+    const socketManager = getSocketManager();
+    const prevSocketRef = useRef<string>('');
+
+    useEffect(() => {
+        const currentSocketStr = JSON.stringify(binding.socket);
+        if (prevSocketRef.current !== currentSocketStr) {
+            prevSocketRef.current = currentSocketStr;
+            if (!binding.socket) {
+                socketRuntime.sessionController.destroy();
+                socketManager.destroy();
+            } else {
+                void socketRuntime.sessionController.bootstrap(binding.socket.config);
+            }
+        }
+    }, [binding.socket, socketManager, socketRuntime.sessionController]);
+
+    return null;
+};

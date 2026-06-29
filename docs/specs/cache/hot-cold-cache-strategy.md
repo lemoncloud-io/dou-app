@@ -737,7 +737,7 @@ flowchart TD
     DC -->|"write: Hot 반영"| HOT["Hot: IndexedDB"]
     DC -->|"read: Hot 먼저"| HOT
     DC -.->|"Hot miss → fallback"| COLD
-    UI["ChatRoomPage"] -->|"loadMore"| CR
+    UI["CreateChannelPage"] -->|"loadMore"| CR
     CR -->|"stream notify"| UI
 ```
 
@@ -750,7 +750,7 @@ sequenceDiagram
     participant DC as DynamicCacheStorage
     participant Cold as Cold (NativeDB)
     participant Hot as Hot (IndexedDB)
-    participant UI as ChatRoomPage
+    participant UI as CreateChannelPage
 
     WS->>CR: chat:create (새 메시지)
     CR->>DC: save(id, chat)
@@ -765,7 +765,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant UI as ChatRoomPage
+    participant UI as CreateChannelPage
     participant CR as ChatRepository
     participant DC as DynamicCacheStorage
     participant Hot as Hot (IndexedDB)
@@ -789,7 +789,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant UI as ChatRoomPage
+    participant UI as CreateChannelPage
     participant CR as ChatRepository
     participant DC as DynamicCacheStorage
     participant Hot as Hot (IndexedDB)
