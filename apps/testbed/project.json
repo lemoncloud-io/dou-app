@@ -1,0 +1,17 @@
+{
+    "name": "testbed",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/testbed/src",
+    "projectType": "application",
+    "tags": [],
+    "targets": {
+        "build": {
+            "defaultConfiguration": "production",
+            "configurations": {
+                "development": {
+                    "mode": "development"
+                }
+            }
+        }
+    }
+}
