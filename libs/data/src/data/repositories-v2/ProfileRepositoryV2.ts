@@ -148,7 +148,7 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
     public setMyProfile(body: ProfileBody): Promise<DomainProfile> {
         const normalizedContext = this.getNormalizedContext();
         const sid = this.assertRequiredString(normalizedContext.sid, 'sid');
-        return this.setProfile({ ...body, siteId: sid } as ProfileSetInput);
+        return this.setProfile({ ...body, siteId: sid, active: true } as ProfileSetInput);
     }
 
     public async syncProfiles(since: number): Promise<ProfileSyncResult> {
