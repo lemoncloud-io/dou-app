@@ -63,7 +63,7 @@ visibilitychange ──→│  pause() / resume()         │
                                  │ subscribe
                                  ▼
                     ┌─────────────────────────────┐
-                    │   ChatRoom UI               │
+                    │   CreateChannel UI               │
                     │                             │
                     │   status === 'syncing'      │
                     │     → "동기화 중..." 표시     │
@@ -312,7 +312,7 @@ export const useChatSync = (channels: SyncableChannel[]) => {
 ### 7. 채팅방에서 동기화 상태 표시
 
 ```typescript
-// ChatRoom 컴포넌트
+// CreateChannel 컴포넌트
 const syncStatus = useChatSyncStore(s => s.states[channelId]?.status);
 const syncState = useChatSyncStore(s => s.states[channelId]);
 
@@ -359,7 +359,7 @@ ch3: status='syncing' → limit=200, 6회 요청 (500ms 간격) → status='sync
 ```
 ch2 syncing 중 (200/500 fetched) → 사용자가 ch2 채팅방 진입
   ↓
-ChatRoom UI:
+CreateChannel UI:
   - 이미 캐시된 200개 메시지 즉시 표시
   - "동기화 중... (200/500)" 배너 표시
   ↓

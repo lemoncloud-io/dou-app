@@ -12,4 +12,4 @@ The platform-agnostic chat engine — data repositories, real-time sync (`ChatSy
 
 - The boundary is explicit: **engine is shared, UI is per-platform.** A page belongs in a client app, not in `app-runtime`. Only genuinely identical, complex feature pages get extracted to a lib case-by-case.
 - The extraction touches the live `apps/web`. It must proceed without regressing the production app — engine files move behind their existing public surface, web keeps booting throughout.
-- Mobile-coupled god-components (e.g. `ChatRoomPage`, 815 lines) must have their data/state logic pulled into runtime hooks during extraction; their presentation does not move.
+- Mobile-coupled god-components (e.g. `CreateChannelPage`, 815 lines) must have their data/state logic pulled into runtime hooks during extraction; their presentation does not move.
