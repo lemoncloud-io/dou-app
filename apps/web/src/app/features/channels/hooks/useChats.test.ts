@@ -73,7 +73,7 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         seedChats([]);
         renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
-        // primeChatTarget(SyncManager)이 초기 fetch를 담당하므로 훅은 refreshList를 직접 호출하지 않는다.
+        // useChatSync(here mocked) owns the initial prime fetch, so useChats never calls refreshList on entry.
         expect(chatRefreshList).not.toHaveBeenCalled();
     });
 

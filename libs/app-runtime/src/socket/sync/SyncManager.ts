@@ -7,7 +7,6 @@ import type {
 import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
-import { getRepositories } from '../../data/runtime';
 import type { ISocketManager } from '../types';
 import { createSyncPlans } from './plans';
 import type { ISyncManager, SyncManagerDeps, SyncRuntimeOptions, SyncWatchEntry } from './types';
@@ -167,39 +166,13 @@ export class SyncManager implements ISyncManager {
                 data: { target },
             });
         }
-
-        this.primeChatTarget(target);
     }
 
-    // Chat plans have a no-op `run`, so a mid-session register loads nothing. We align the
-    // plan baseline to what the (durable) chat cache already holds — its max chatNo is the
-    // cursor — via `updateLocalSnapshot`, then only fetch a first page when the cache is empty.
-    // Deeper gaps are caught up by ChatSyncPlan.onConnected on the next (re)connect.
-    private primeChatTarget(target: SyncTargetDescriptor): void {
-        if (target.type !== 'chat' || !target.id) return;
-        const runtime = this.runtime;
-        if (!runtime) return;
-        const channelId = target.id;
-
-        void (async () => {
-            const repos = getRepositories();
-            const cached = await repos.chat.cacheReadList({ channelId });
-            const lastNo = (cached?.list ?? []).reduce((max, chat) => (chat.chatNo > max ? chat.chatNo : max), 0);
-
-            runtime.updateLocalSnapshot(
-                { type: 'chat', id: channelId },
-                { id: channelId, lastNo, minNo: 0, messages: [] }
-            );
-
-            if (lastNo === 0) {
-                await repos.chat.refreshList({ channelId });
-            }
-        })().catch(error => {
-            logger.warn('SOCKET', '[SyncManager] Failed to prime chat target', {
-                error,
-                data: { channelId },
-            });
-        });
+    // Domain-agnostic pass-through to the runtime's baseline bridge. Chat prime (cold fetch +
+    // baseline align) is owned by the `useChatSync` hook, not here — SyncManager stays domain
+    // unaware. A no-op until a runtime exists, so callers (hooks) don't have to gate on it.
+    public updateLocalSnapshot(...args: Parameters<ClientSocketRuntime['updateLocalSnapshot']>): void {
+        this.runtime?.updateLocalSnapshot(...args);
     }
 
     private stopTarget(target: SyncTargetDescriptor): void {
