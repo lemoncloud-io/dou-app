@@ -1,5 +1,45 @@
 # Changelog
 
+## [2026-06-29] - root@0.37.0, @chatic/web@0.33.0
+
+### Features
+
+- update dependencies for sockets and model
+- update mobile app to handle invite links at root
+- (channels) refactor channel management and routing
+- (testbed) refactor docs structure and add invite flow
+- (data) remove legacy v1 data sources and repositories
+- (app-runtime) refactor socket and sync layers for v2
+- (app-runtime) refactor sync and socket layers for v2
+- refactor socket and sync layers for v2 (main)
+- (app-runtime) refactor socket and sync layers for v2
+- (data) refactor remote data sources and repositories
+- (testbed) implement testbed application structure and routing
+- (app-runtime) implement core runtime and session management
+- (web-core) add auth and user hooks, refactor session layer
+
+### Bug Fixes
+
+- normalize profile IDs and improve sync handling
+
+### Documentation
+
+- update README for @chatic/data module
+- add API infrastructure specification
+- (web-core) migrate socket dependencies to app-runtime and data
+- (data) restructure libs/data docs to match current architecture
+- remove outdated documentation files
+
+### Refactor
+
+- remove unused event bus and repository types
+- simplify localFactory for V2 data migration
+- streamline web-core and remove unused code
+- refactor web-core-module
+- add 'meta' cache type and update views
+- remove unused chat API and hooks The `libs/chats` library, including its API endpoints and React hooks, is no longer in use and has been removed. This cleans up the codebase by eliminating dead code.
+- consolidate API and hook exports
+
 ## [2026-06-17] - root@0.36.0, @chatic/desktop-web@0.1.0
 
 ### Features
