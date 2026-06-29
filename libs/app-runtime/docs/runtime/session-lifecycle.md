@@ -65,5 +65,5 @@ flowchart TD
 ## 관련 문서
 
 - [../architecture.md](../architecture.md) — 전체 아키텍처 아웃라인 및 오케스트레이션 매핑
-- [./runtime.md](./runtime.md) — Binder 컴포넌트 및 `useRuntimeBinding` 파생 규칙
-- [../socket/socket.md](../socket/socket.md) — 소켓 401 재인증 복구 매커니즘
+- [./README.md](./README.md) — Binder 컴포넌트 및 `useRuntimeBinding` 파생 규칙
+- [../socket/README.md](../socket/README.md) — 소켓 401 재인증 복구 매커니즘

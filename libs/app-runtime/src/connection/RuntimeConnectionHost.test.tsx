@@ -1,7 +1,6 @@
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { RuntimeConnectionHost } from './RuntimeConnectionHost';
-import { getSocketRuntime, getSocketManager } from '../socket/runtime';
+import { getSocketManager, getSocketRuntime } from '../socket/runtime';
 import { getDataManager } from '../data/runtime';
 import type { SocketSessionDelegate } from '../socket/types';
 
@@ -18,17 +17,19 @@ jest.mock('../socket/runtime', () => {
         setDelegate: jest.fn(),
         bootstrap: jest.fn(),
         destroy: jest.fn(),
+        updateAuth: jest.fn(),
     };
     const mockManager = {
         ensure: jest.fn(),
         destroy: jest.fn(),
         connect: jest.fn(),
         getClient: jest.fn(),
+        markUnverified: jest.fn(),
     };
     return {
         getSocketRuntime: jest.fn().mockReturnValue({
-            controller: mockController,
-            proxy: {},
+            sessionController: mockController,
+            syncManager: {},
         }),
         getSocketManager: jest.fn().mockReturnValue(mockManager),
     };
@@ -54,10 +55,15 @@ describe('RuntimeConnectionHost', () => {
         };
     });
 
-    it('마운트 시 SocketSessionController에 delegate가 올바르게 주입되어야 한다', async () => {
+    it('injects the delegate into SocketSessionController on mount', async () => {
         const binding = {
             context: { cid: 'default' },
             socket: null,
+            auth: {
+                kind: 'relay' as const,
+                identityToken: undefined,
+                siteId: undefined,
+            },
         };
 
         render(
@@ -68,15 +74,20 @@ describe('RuntimeConnectionHost', () => {
 
         await waitFor(() => {
             const socketRuntime = getSocketRuntime();
-            expect(socketRuntime.controller.setDelegate).toHaveBeenCalledWith(delegate);
+            expect(socketRuntime.sessionController.setDelegate).toHaveBeenCalledWith(delegate);
         });
     });
 
-    it('binding context와 socket 변경 시 각 binder가 ensure를 올바르게 트리거해야 한다', async () => {
+    it('triggers data and socket binders when the binding changes', async () => {
         const binding = {
             context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             socket: {
                 config: { url: 'wss://test.com', deviceId: 'device-1' },
+            },
+            auth: {
+                kind: 'cloud' as const,
+                identityToken: 'token-1',
+                siteId: 'site-1',
             },
         };
 
@@ -93,13 +104,18 @@ describe('RuntimeConnectionHost', () => {
             expect(dataManager.ensure).toHaveBeenCalledWith(binding.context);
         });
         await waitFor(() => {
-            expect(socketRuntime.controller.bootstrap).toHaveBeenCalledWith(binding.socket.config);
+            expect(socketRuntime.sessionController.bootstrap).toHaveBeenCalledWith(binding.socket.config);
         });
 
         // 변경 테스트
         const newBinding = {
             context: { cid: 'my-cloud', sid: 'site-2', uid: 'user-1' },
             socket: null,
+            auth: {
+                kind: 'cloud' as const,
+                identityToken: 'token-2',
+                siteId: 'site-2',
+            },
         };
 
         rerender(
@@ -112,11 +128,66 @@ describe('RuntimeConnectionHost', () => {
             expect(dataManager.ensure).toHaveBeenCalledWith(newBinding.context);
         });
         await waitFor(() => {
-            expect(socketRuntime.controller.destroy).toHaveBeenCalled();
+            expect(socketRuntime.sessionController.destroy).toHaveBeenCalled();
         });
         const socketManager = getSocketManager();
         await waitFor(() => {
             expect(socketManager.destroy).toHaveBeenCalled();
         });
+    });
+
+    it('keeps the same socket but reauthenticates when the auth session changes', async () => {
+        const binding = {
+            context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
+            socket: {
+                config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const },
+            },
+            auth: {
+                kind: 'cloud' as const,
+                identityToken: 'token-1',
+                siteId: 'site-1',
+            },
+        };
+
+        const { rerender } = render(
+            <RuntimeConnectionHost binding={binding} delegate={delegate}>
+                <div>Children</div>
+            </RuntimeConnectionHost>
+        );
+
+        const socketRuntime = getSocketRuntime();
+        const socketManager = getSocketManager();
+
+        await waitFor(() => {
+            expect(socketRuntime.sessionController.bootstrap).toHaveBeenCalledWith(binding.socket.config);
+        });
+
+        jest.clearAllMocks();
+
+        const nextBinding = {
+            context: { cid: 'my-cloud', sid: 'site-2', uid: 'user-1' },
+            socket: {
+                config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const },
+            },
+            auth: {
+                kind: 'cloud' as const,
+                identityToken: 'token-2',
+                siteId: 'site-2',
+            },
+        };
+
+        rerender(
+            <RuntimeConnectionHost binding={nextBinding} delegate={delegate}>
+                <div>Children</div>
+            </RuntimeConnectionHost>
+        );
+
+        await waitFor(() => {
+            expect(socketManager.markUnverified).toHaveBeenCalled();
+        });
+        await waitFor(() => {
+            expect(socketRuntime.sessionController.updateAuth).toHaveBeenCalledWith('session-switch');
+        });
+        expect(socketRuntime.sessionController.bootstrap).not.toHaveBeenCalled();
     });
 });

@@ -18,7 +18,12 @@ describe('SocketSessionController', () => {
             onType: jest.fn(),
             onState: jest.fn(),
             onError: jest.fn(),
-            onMessage: jest.fn(),
+            // Bootstrap waits for the device.save ack before auth.update; deliver it
+            // synchronously on subscribe so the wait resolves without the timeout.
+            onMessage: jest.fn().mockImplementation((listener: (event: { message: { type: string } }) => void) => {
+                listener({ message: { type: 'device.save:ok' } });
+                return jest.fn();
+            }),
             destroy: jest.fn(),
         } as unknown as jest.Mocked<ClientSocketV2>;
 
@@ -29,11 +34,11 @@ describe('SocketSessionController', () => {
                 state: 'connected',
                 isConnected: true,
                 isVerified: false,
-                isDeviceRegistered: false,
                 connectionId: null,
             }),
             subscribe: jest.fn(),
             subscribeClient: jest.fn(),
+            markVerified: jest.fn(),
             markUnverified: jest.fn(),
             connect: jest.fn().mockResolvedValue(undefined),
             destroy: jest.fn(),
@@ -57,18 +62,33 @@ describe('SocketSessionController', () => {
     });
 
     describe('bootstrap', () => {
-        it('bootstrap 시 connect, device.save, auth.update 가 올바르게 실행되어야 한다', async () => {
+        it('bootstrap 시 connect, auth.update 가 올바르게 실행되어야 한다', async () => {
             const config = { url: 'wss://test.com', deviceId: 'device-123', wssType: 'cloud' as const };
 
             await controller.bootstrap(config);
 
             expect(manager.ensure).toHaveBeenCalledWith(config);
             expect(manager.connect).toHaveBeenCalled();
-            expect(client.request).toHaveBeenCalledWith('device.save', {
-                id: 'device-123',
-                platform: 'web',
-            });
             expect(delegate.getSocketToken).toHaveBeenCalled();
+            expect(client.request).toHaveBeenCalledWith('auth.update', { token: 'test-token' });
+            // device.save is owned by the sync runtime now; bootstrap only verifies auth.
+            expect(client.request).not.toHaveBeenCalledWith('device.save', expect.anything());
+            // Verified flag comes from request success, not from onType (responses settle by mid).
+            expect(manager.markVerified).toHaveBeenCalled();
+        });
+
+        it('device.save ack 가 오지 않아도 타임아웃 후 auth.update 를 진행해야 한다', async () => {
+            // No device.save ack is ever delivered.
+            client.onMessage = jest.fn().mockReturnValue(jest.fn());
+
+            const config = { url: 'wss://test.com', deviceId: 'device-123', wssType: 'cloud' as const };
+            const pending = controller.bootstrap(config);
+
+            // Let connect() settle, then exhaust the device-register wait timeout.
+            await Promise.resolve();
+            await jest.advanceTimersByTimeAsync(5000);
+            await pending;
+
             expect(client.request).toHaveBeenCalledWith('auth.update', { token: 'test-token' });
         });
     });
@@ -79,7 +99,6 @@ describe('SocketSessionController', () => {
                 state: 'connected',
                 isConnected: true,
                 isVerified: true,
-                isDeviceRegistered: true,
                 connectionId: 'conn-1',
             });
 
@@ -101,7 +120,6 @@ describe('SocketSessionController', () => {
                 state: 'connected',
                 isConnected: true,
                 isVerified: true,
-                isDeviceRegistered: true,
                 connectionId: 'conn-1',
             });
 

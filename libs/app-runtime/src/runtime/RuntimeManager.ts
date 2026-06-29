@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { DataRepositories } from '@chatic/data';
+import type { DataRepositoriesV2 } from '@chatic/data';
 
 import { getDataManager } from '../data/runtime';
 import type { IDataManager } from '../data/types';
@@ -10,7 +10,7 @@ import type { RuntimeBinding } from './useRuntimeBinding';
 export interface IRuntimeManager {
     ensure(binding: RuntimeBinding): void;
     bootstrap(binding: RuntimeBinding): Promise<void>;
-    getRepositories(): DataRepositories;
+    getRepositories(): DataRepositoriesV2;
 }
 
 export class RuntimeManager implements IRuntimeManager {
@@ -42,7 +42,7 @@ export class RuntimeManager implements IRuntimeManager {
 
         try {
             const socketRuntime = getSocketRuntime();
-            await socketRuntime.controller.bootstrap(socketBinding.config);
+            await socketRuntime.sessionController.bootstrap(socketBinding.config);
         } catch (error) {
             logger.error('RUNTIME', '[RuntimeManager] Failed to bootstrap runtime binding', {
                 error,
@@ -51,7 +51,7 @@ export class RuntimeManager implements IRuntimeManager {
         }
     }
 
-    public getRepositories(): DataRepositories {
+    public getRepositories(): DataRepositoriesV2 {
         return this.dataManager.getRepositories();
     }
 

@@ -5,10 +5,10 @@ import {
     type CacheStorageFactory,
     type CapacityPolicy,
     createCacheStorages,
-    createLocalDataSources as createDataLocalDataSources,
     type DataContextProvider,
     type EvictionStrategy,
-    type LocalDataSources,
+    createLocalDataSourcesV2 as createDataLocalDataSources,
+    type LocalDataSourcesV2,
     type PolicyResolver,
 } from '@chatic/data';
 import {
@@ -60,8 +60,17 @@ export const createLocalDataSources = ({
 }: {
     contextProvider: DataContextProvider;
     cacheStorageFactory?: CacheStorageFactory;
-}): LocalDataSources => {
+}): LocalDataSourcesV2 => {
     const storages = createCacheStorages(contextProvider, cacheStorageFactory);
 
-    return createDataLocalDataSources(contextProvider, storages);
+    return createDataLocalDataSources(contextProvider, {
+        channel: storages.channel,
+        chat: storages.chat,
+        inviteCloud: storages.inviteCloud,
+        join: storages.join,
+        profile: storages.profile,
+        site: storages.site,
+        user: storages.user,
+        meta: storages.meta,
+    });
 };
