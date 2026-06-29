@@ -43,9 +43,6 @@
             "path": "./libs/auth"
         },
         {
-            "path": "./libs/chats"
-        },
-        {
             "path": "./apps/landing"
         },
         {
@@ -65,6 +62,9 @@
         },
         {
             "path": "./apps/desktop-web"
+        },
+        {
+            "path": "./apps/testbed"
         }
     ]
 }
