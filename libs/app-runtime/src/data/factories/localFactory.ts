@@ -11,13 +11,7 @@ import {
     type LocalDataSourcesV2,
     type PolicyResolver,
 } from '@chatic/data';
-import {
-    AppPolicyResolver,
-    type CacheStorageStrategy,
-    HotColdCacheStorageStrategy,
-    IndexedDbOnlyCacheStorageStrategy,
-} from '../cacheStorageStrategies';
-import { webClient } from '@chatic/bridges';
+import { type CacheStorageStrategy, IndexedDbOnlyCacheStorageStrategy } from '../cacheStorageStrategies';
 
 export const isNativeApp = (): boolean => {
     return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
@@ -30,19 +24,12 @@ export interface CacheFactoryOptions {
     reporter?: CacheErrorReporter;
 }
 
-const appPolicyResolver = new AppPolicyResolver();
-
-const selectStrategy = (options?: CacheFactoryOptions): CacheStorageStrategy => {
-    if (!isNativeApp()) {
-        return new IndexedDbOnlyCacheStorageStrategy();
-    }
-
-    return new HotColdCacheStorageStrategy(webClient, {
-        policyResolver: options?.policyResolver ?? appPolicyResolver,
-        evictionStrategy: options?.evictionStrategy,
-        capacityPolicy: options?.capacityPolicy,
-        reporter: options?.reporter,
-    });
+const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy => {
+    // TODO: Re-enable the Hot(IndexedDB)+Cold(NativeDB) strategy once the native
+    // caching domains are registered on the bridge. Until then the NativeDB cold
+    // tier would conflict with unregistered cache types, so we run IndexedDB-only
+    // in every environment (including the native WebView).
+    return new IndexedDbOnlyCacheStorageStrategy();
 };
 
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
