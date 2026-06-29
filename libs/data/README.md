@@ -1,359 +1,245 @@
-# @chatic/data (데이터 싱크 & 아키텍처 가이드)
+# @chatic/data
 
-`@chatic/data`는 WebSocket 기반 gateway 호출, IndexedDB/Native SQLite 로컬 파티션 캐싱, 그리고 sync orchestrator가 호출하는 repository 계약을 제공하는 데이터 레이어입니다. UI 계층은 repository만 사용하고, socket lifecycle과 sync 정책은 상위 런타임이 담당합니다.
+`@chatic/data`는 remote data source · local data source · repository를 조립해 앱이 사용할 **headless data layer**를 제공한다.
+
+핵심 원칙은 하나다.
+
+- **읽기는 항상 local stream** — UI는 `observe*` 만 구독한다.
+- **remote는 side-effect command** — write/refresh는 명시적 메서드 호출이다.
+- **UI는 네트워크를 직접 호출하지 않는다.**
+
+socket 연결의 생애주기(연결/재인증/sync 타이밍)는 이 라이브러리가 소유하지 않는다. 외부 sync orchestrator(`libs/app-runtime`)가 repository의 `refresh*` / `cacheWrite*`를 호출하면, repository가 그 결과를 local cache에 반영하고 stream으로 재방출한다.
+
+> 상세 문서는 [`docs/`](./docs/README.md) 트리를 참조한다. 이 README는 전체 그림과 진입점만 다룬다.
 
 ---
 
-## 1. 디렉토리 구조 (Directory Structure)
+## 1. 디렉토리 구조
 
-실제 데이터 관련 핵심 인프라 및 비즈니스 핵심 로직은 `libs/data/src/data` 아래의 **Clean Architecture** 원칙에 따라 레이어별로 철저하게 분리되어 있습니다.
+핵심 로직은 `libs/data/src/data` 아래 레이어별로 분리되어 있다.
 
 ```text
 libs/data/src/
 ├── data/
-│   ├── domain/           # 도메인 모델 정의 및 데이터 매핑 (Raw View -> Domain Entity)
-│   ├── local/            # 로컬 데이터 인프라 (Adapters, Databases, LocalDataSources)
-│   ├── remote/           # 원격 데이터 통신 (Socket proxy, Gateways, RemoteDataSources)
-│   ├── repositories/     # 단일 진실 공급원 (Single Source of Truth - 캐시 정책 및 비즈니스 중재)
-│   └── events/           # 레거시 repository/event bus 지원용 Type 및 Engine
-└── index.ts              # Public API 진입점
+│   ├── domain/            # 도메인 모델 + 매퍼 (서버 view → local read-model)
+│   ├── local/             # 로컬 인프라 (storages 어댑터, databases, data-sources-v2)
+│   ├── remote/            # 원격 통신 (gateways, data-sources, sockets 최소 계약)
+│   ├── repositories-v2/   # data facade (현행 repository)
+│   ├── repositories/      # 공유 계약만 보관 (DataContext / DataContextProvider)
+│   └── events/            # 도메인 이벤트 타입 + EventBus (V2 미사용, 아래 주의 참조)
+└── index.ts               # Public API 진입점
 ```
+
+> **V1은 제거됐다.** 도메인 repository / local data source는 모두 `repositories-v2` · `local/data-sources-v2`에 있다. `repositories/`는 이제 `DataContext` 계약만 re-export하고, `events/`의 EventBus는 V2 경로에서 쓰지 않는다.
 
 ---
 
-## 2. 모듈 의존성 및 구조 (Layered Architecture Map)
+## 2. 레이어 의존성
 
-각 레이어는 엄격하게 단방향 의존성을 유지하며, 최상위 `Repository` 계층이 `Local`과 `Remote` 데이터 인프라를 지휘합니다. V2 계약에서는 sync orchestrator가 repository 메서드를 직접 호출하며, repository 자체는 socket event를 구독하지 않습니다.
+repository가 local·remote 인프라를 지휘한다. V2 계약에서 repository는 socket event를 직접 구독하지 않는다 — 외부 sync orchestrator가 repository 메서드를 호출한다.
 
 ```mermaid
 flowchart TD
-    %% Styling
     classDef repository fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef local fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef remote fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
     classDef domain fill:#f9f0ff,stroke:#d3adf7,stroke-width:2px,color:#22075e;
-    classDef events fill:#fff0f6,stroke:#ffadd2,stroke-width:2px,color:#7c0a35;
-    classDef ui fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
+    classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    %% Elements
-    UI["UI Layer (React Hooks / Component)"]:::ui
+    UI["UI Layer (React Hooks)"]:::ext
+    Sync["Sync Orchestrator<br/>(libs/app-runtime)"]:::ext
 
-    Repo["Repository Layer<br/>(ChatRepository, etc.)<br/><i>* Single Source of Truth & Cache Policy *</i>"]:::repository
+    Repo["RepositoryV2<br/><i>data facade</i>"]:::repository
+    Local["LocalDataSourceV2 + CacheStorage<br/><i>snapshot 저장 · stream 발행</i>"]:::local
+    Remote["RemoteDataSource + Gateways<br/><i>outbound gateway thin wrapper</i>"]:::remote
+    Domain["Domain<br/><i>models · mappers</i>"]:::domain
 
-    Local["Local Storage Layer<br/>(LocalDataSources & DB Adapters)<br/><i>* IndexedDB / SQLite Partitions *</i>"]:::local
+    UI -->|"observe* (읽기 stream)"| Repo
+    UI -->|"write command"| Repo
+    Sync -.->|"refresh* / cacheWrite*"| Repo
 
-    Remote["Remote Network Layer<br/>(RemoteDataSources & SocketManager)<br/><i>* WebSocket RPC & Outbound Actions *</i>"]:::remote
+    Repo -->|"local write/read + observe"| Local
+    Repo -->|"outbound command"| Remote
 
-    EventBus["Legacy Event Layer<br/>(for v1 repositories)<br/><i>* Compatibility Only *</i>"]:::events
-
-    Domain["Domain Layer<br/>(Models, Mappers & DomainScope)<br/><i>* Core Entities & Scope Validation *</i>"]:::domain
-
-    %% Simple, Linear Flow
-    UI <-->|Queries & Mutations| Repo
-
-    Repo -->|1. Direct Write/Read| Local
-    Repo -->|2. Async Socket RPC| Remote
-
-    %% Event loop (Asynchronous Feedback Loop)
-    UI -.->|Sync orchestration trigger| Repo
-
-    %% Base foundation
-    Repo & Local & Remote -->|Define & Map Entities| Domain
+    Repo & Local & Remote -->|"map entities"| Domain
 ```
 
 ---
 
-## 3. 상세 클래스 상속 및 인터페이스 구조 (Class Inheritance & Interface Relationships)
-
-`@chatic/data` 내부는 다형성과 확장성을 보장하기 위해 추상 클래스(Abstract Class)와 명확한 인터페이스 계약(Interface Contract)을 바탕으로 구현되어 있습니다.
+## 3. 핵심 클래스 / 인터페이스
 
 ```mermaid
 classDiagram
-    %% -----------------------------------------
-    %% 1. Repository Layer Classes
-    %% -----------------------------------------
     class DataContextProvider {
         <<interface>>
         +getContext() DataContext
-        +setContext(context DataContext) void
+        +setContext(context) void
     }
 
-    class BaseRepository {
+    class BaseRepositoryV2 {
         <<abstract>>
-        #requestManager: ISocketRequestManager
-        #context: DataContextProvider
-        #domainEventBus: IEventBus
-        #requestRemote(sendAction, options) Promise
-        #getRepositoryContext() DataContext
-        #getDomainScope() DomainScope
+        #getRequestContext() DataContext
+        #getNormalizedContext(context) DataContext
         #runInBackground(task, label) void
-        #resolveCachePolicy(options) RepositoryCachePolicy
-        #fetchWithCachePolicy(params) Promise
-        #onDomainEvent(event, callback) function
+        #runInBackgroundSerial(key, task, label) void
+        +dispose() void
     }
 
-    class ILocalCacheMutationRepository {
+    class IChatRepositoryV2 {
         <<interface>>
-        +cacheCreate(item) Promise
-        +cacheUpdate(id, patch) Promise
-        +cacheDelete(id) Promise
-        +cacheBulkCreate(items) Promise
-        +cacheBulkUpdate(items) Promise
+        +observeList(query, cb) Unsubscribe
+        +observeItem(id, cb) Unsubscribe
+        +refreshList(query) Promise
+        +sendChat(payload) Promise
+        +cacheClearByChannelId(channelId) Promise
     }
+    class ChatRepositoryV2
 
-    class IChatRepository {
+    BaseRepositoryV2 <|-- ChatRepositoryV2
+    IChatRepositoryV2 <|.. ChatRepositoryV2
+    DataContextProvider <.. BaseRepositoryV2
+
+    class ILocalDataSourceV2 {
         <<interface>>
-        +sendChat(payload, options) Promise
-        +fetchChat(payload, options) Promise
-        +clearAll() Promise
-        +clearByChannelId(channelId) Promise
-        +onChatCreated(callback) function
-        +onChatUpdated(callback) function
-        +onChatDeleted(callback) function
-        +subscribeList(channelId, callback) function
-        +subscribeItem(id, callback) function
+        +cacheRead(id, override) Promise
+        +cacheReadList(query, override) Promise
+        +observeItem(id, cb, override) Unsubscribe
+        +observeList(query, cb, override) Unsubscribe
+        +cacheWrite(item, override) Promise
+        +cacheDelete(id, override) Promise
+        +cacheClear(override) Promise
     }
 
-    class ChatRepository {
-        -chatRemoteDataSource: IChatRemoteDataSource
-        -chatLocalDataSource: IChatLocalDataSource
-        +sendChat(payload, options) Promise
-        +fetchChat(payload, options) Promise
-        +clearAll() Promise
-        +clearByChannelId(channelId) Promise
-    }
-
-    BaseRepository <|-- ChatRepository
-    ILocalCacheMutationRepository <|-- IChatRepository
-    IChatRepository <|.. ChatRepository
-
-    %% -----------------------------------------
-    %% 2. Local Data Source Layer Classes
-    %% -----------------------------------------
-    class BaseLocalDataSource {
+    class BaseLocalDataSourceV2 {
         <<abstract>>
-        #contextProvider: DataContextProvider
-        #getContext(override) DataContext
-        #getUid(override) string
-        #getCid(override) string
-        #getSid(override) string
-        #subscribeQueryStream(query, callback) function
-        #debouncedEmitAllStreams() void
+        #getScopeKey(override) string
+        #createListObserverKey(parts, override) string
+        #scheduleItemReemit(ids) void
+        #scheduleListReemit(prefixes) void
+        #scheduleFullReemit() void
     }
+    class ChatLocalDataSourceV2
 
-    class ICrudLocalDataSource {
-        <<interface>>
-        +getById(id, override) Promise
-    }
+    BaseLocalDataSourceV2 <|-- ChatLocalDataSourceV2
+    ILocalDataSourceV2 <|.. ChatLocalDataSourceV2
 
-    class IListLocalDataSource {
-        <<interface>>
-        +fetchList(query, override) Promise
-    }
-
-    class IStreamLocalDataSource {
-        <<interface>>
-        +subscribeItem(id, callback, override) function
-        +subscribeList(query, callback, override) function
-    }
-
-    class IChatLocalDataSource {
-        <<interface>>
-        +clearByChannelId(channelId, override) Promise
-    }
-
-    class ChatLocalDataSource {
-        #cacheStorage: CacheStorage
-        +getById(id) Promise
-        +upsert(chat) Promise
-        +fetchList(payload) Promise
-        +subscribeList(channelId, callback) function
-    }
-
-    ICrudLocalDataSource <|-- IChatLocalDataSource
-    IListLocalDataSource <|-- IChatLocalDataSource
-    IStreamLocalDataSource <|-- IChatLocalDataSource
-    BaseLocalDataSource <|-- ChatLocalDataSource
-    IChatLocalDataSource <|.. ChatLocalDataSource
-
-    %% -----------------------------------------
-    %% 3. DB Adapter & Storages Layer Classes
-    %% -----------------------------------------
     class CacheStorage {
         <<interface>>
         +save(id, item) Promise
-        +saveAll(items) Promise
         +load(id) Promise
         +loadAll(options) Promise
         +delete(id) Promise
-        +deleteAll(ids) Promise
         +clearAll() Promise
         +clearByChannelId(channelId) Promise
     }
-
     class BaseDbAdapter {
         <<abstract>>
-        #type: CacheType
-        #contextProvider: DataContextProvider
         #getScope() Scope
-        +save(id, item)* Promise
-        +saveAll(items)* Promise
-        +load(id)* Promise
-        +loadAll(options)* Promise
-        +delete(id)* Promise
-        +deleteAll(ids)* Promise
-        +clearAll()* Promise
-        +clearByChannelId(channelId) Promise
     }
-
-    class IndexedDBAdapter {
-        -db: IIndexedDB
-        -executor: IndexedDbQueryExecutor
-        +save(id, item) Promise
-        +load(id) Promise
-        +loadAll(options) Promise
-    }
-
-    class NativeDBAdapter {
-        -bridge: IWebBridgeClient
-        +save(id, item) Promise
-        +load(id) Promise
-        +loadAll(options) Promise
-    }
+    class IndexedDBAdapter
+    class NativeDBAdapter
+    class DynamicCacheStorage
 
     CacheStorage <|.. BaseDbAdapter
     BaseDbAdapter <|-- IndexedDBAdapter
     BaseDbAdapter <|-- NativeDBAdapter
+    CacheStorage <|.. DynamicCacheStorage
 ```
 
 ---
 
-## 4. 핵심 아키텍처 데이터 흐름 (Core Data Flow)
+## 4. 데이터 흐름
 
-`@chatic/data` 라이브러리가 복잡한 비동기 비즈니스 시나리오를 어떻게 처리하는지 세 가지 주요 흐름을 통해 확인하실 수 있습니다.
+### 4.1 읽기 (local-first stream)
 
 ```mermaid
-%% Slide 1: Query Flow (cache-first)
 sequenceDiagram
     autonumber
-    actor UI as React Hook (UI)
-    participant Repo as ChatRepository
-    participant LDS as ChatLocalDataSource
-    participant RDS as ChatRemoteDataSource
-    participant Socket as SocketRequestManager
-    participant DB as IndexedDB/SQLite
+    actor UI as React Hook
+    participant Repo as ChatRepositoryV2
+    participant LDS as ChatLocalDataSourceV2
+    participant DB as CacheStorage
 
-    UI->>Repo: fetchChat(payload, cachePolicy: 'cache-first')
-    Repo->>LDS: fetchList(payload)
-    LDS->>DB: Query by Scope Partition (cid, uid)
-    DB-->>LDS: Return Cached Items
-    LDS-->>Repo: Return Local Items
-    Repo-->>UI: Return Local Items (Fast UI render!)
-
-    Note over Repo, RDS: Local data is valid -> Trigger Background Remote Sync
-    rect rgb(240, 248, 255)
-        Repo->>Repo: runInBackground(fetchRemote)
-        Repo->>Socket: request(ref, sendAction)
-        Socket->>RDS: fetchChat(payload, ref)
-        RDS-->>Socket: Socket Action Sent
-        Note over Socket: Awaiting incoming server response with matching ref...
-        RDS-->>Socket: Server Response (data, ref)
-        Socket-->>Repo: Resolve Promise (Server Data)
-        Repo->>LDS: upsertMany(Server Data)
-        LDS->>DB: Write & Update Cache
-        Repo-)UI: Emit Event / Trigger re-render with fresh Server data
-    end
+    UI->>Repo: observeList(query, cb)
+    Repo->>LDS: observeList(query, cb)
+    LDS->>DB: scope 파티션 조회 (cid/sid/uid)
+    DB-->>LDS: snapshot
+    LDS-->>UI: 즉시 1회 발행 (구독 시작)
+    Note over LDS,UI: 이후 local이 바뀌면 영향받은 observer만 재발행
 ```
 
-<!-- slide -->
+### 4.2 쓰기 (optimistic command)
 
 ```mermaid
-%% Slide 2: Mutation Flow (Optimistic Update)
 sequenceDiagram
     autonumber
-    actor UI as React Hook (UI)
-    participant Repo as ChatRepository
-    participant LDS as ChatLocalDataSource
+    actor UI as React Hook
+    participant Repo as ChatRepositoryV2
+    participant LDS as ChatLocalDataSourceV2
     participant RDS as ChatRemoteDataSource
-    participant Socket as SocketRequestManager
-    participant DB as IndexedDB/SQLite
 
     UI->>Repo: sendChat(payload)
+    Note over Repo,LDS: optimistic pending message 생성
+    Repo->>LDS: cacheWrite(pendingChat)
+    LDS-->>UI: observe* stream 재발행 (Pending 표시)
 
-    %% Optimistic update
-    Note over Repo, LDS: Create optimistic chat (isPending: true, tempId)
-    Repo->>LDS: upsert(optimisticChat)
-    LDS->>DB: Save to Cache
-    Repo-->>UI: Instantly updates local list (Message shows as Pending!)
-
-    %% Remote request
-    Repo->>Socket: requestRemote(ref, sendChat)
-    Socket->>RDS: sendChat(payload, ref)
-    Note over Socket: Awaiting server ACK for sent message...
-    RDS-->>Socket: Server ACK (data, ref)
-    Socket-->>Repo: Resolve Promise (Confirmed Server Chat)
-
-    %% Success cache sync
-    Repo->>LDS: upsert(domainChat, isPending: false)
-    LDS->>DB: Save persistent Chat
-    Repo->>LDS: remove(optimisticChat.id)
-    LDS->>DB: Delete temp optimistic Chat
-    Repo-->>UI: Resolve Promise (Pending -> Confirmed state!)
+    Repo->>RDS: send() (gateway 호출)
+    RDS-->>Repo: 서버 확정 chat
+    Repo->>LDS: cacheWrite(confirmed) / 실패 시 isFailed 마킹
+    LDS-->>UI: stream 재발행 (Pending → Confirmed)
 ```
 
-<!-- slide -->
+### 4.3 서버 변경분 반영 (sync orchestrator)
 
 ```mermaid
-%% Slide 3: Real-time Event Push Flow (WebSocket Broadcast)
 sequenceDiagram
     autonumber
-    participant Server as WebSocket Server
-    participant Handler as ChatHandler
-    participant Bus as EventBus (IEventBus)
-    participant Repo as ChatRepository
-    participant LDS as ChatLocalDataSource
-    participant UI as React Hook / UI
+    participant Sync as Sync Orchestrator (app-runtime)
+    participant Repo as ChannelRepositoryV2
+    participant LDS as ChannelLocalDataSourceV2
+    participant UI as React Hook
 
-    Server-)Handler: WebSocket Event Received (e.g., chat:create)
-    Handler->>Bus: Publish Domain Event ('chat:create', detail)
-
-    %% Repository intercepts and updates cache
-    rect rgb(255, 240, 245)
-        Bus->>Repo: Internal Listener triggered ('chat:create')
-        Repo->>LDS: upsert(detail.data)
-        LDS->>IndexedDB/SQLite: Persist in correct partition (cid, uid)
-    end
-
-    %% Hook receives event to trigger UI refresh
-    Bus->>UI: Subscriber notified
-    UI->>LDS: Query updated state
-    LDS-->>UI: Return fresh records
-    UI->>UI: Re-render screen in Real-Time!
+    Sync->>Repo: syncChannels(since)
+    Note over Repo: channel.sync 결과 해석
+    Repo->>LDS: cacheWriteMany(list) / cacheDelete(stale ids)
+    LDS-->>UI: 구독 중인 observe* stream 재발행
 ```
+
+> 서버→클라이언트 push 신호(`domain.sync` 등) 자체는 repository가 구독하지 않는다. orchestrator가 신호를 해석해 위 `refresh*` / `sync*` 경로로 변환한다.
 
 ---
 
-## 5. 아키텍처 핵심 메커니즘 (Key Architectural Mechanisms)
+## 5. 핵심 메커니즘
 
-### 5.1 DataContext & Dynamic Scoping
+### 5.1 DataContext & dynamic scoping
 
-리포지토리 인스턴스는 한 번 생성되면 메모리에 영구 유지되지만, 사용자가 **Cloud(cid)** 를 바꾸거나 **계정(uid)** 을 로그아웃/로그인하더라도 재생성할 필요가 없습니다.
+repository 인스턴스는 한 번 생성되면 유지된다. cloud(`cid`)·계정(`uid`)·place(`sid`)가 바뀌어도 재생성하지 않는다.
 
-- `DataContextProvider` 인터페이스를 통해 Repository가 비동기 런타임에 항상 **최신 컨텍스트**(`cid`, `uid`, `sid`)를 조회하도록 설계되었습니다.
-- 모든 로컬 캐시 쿼리 및 DB 저장은 컨텍스트 파티션 포맷(`type:cid:uid:id`)을 타며, Cloud 전환 중 이전 네트워크의 응답이 늦게 오더라도 현재 활성화된 `cid`와 비교 검증하여 **Cross-Cloud 데이터 오염을 완벽히 격리**합니다.
+- `DataContextProvider`(`DataContextHolder`)를 통해 repository는 매 호출마다 **최신 context**를 읽는다.
+- repository는 remote 응답 적재 전 `getRequestContext()`로 요청 시점 scope를 **캡처**한다. cloud 전환 중 늦게 온 응답이 현재 scope를 오염시키지 않도록 격리한다.
+- local 캐시 저장은 scope 파티션을 타며, observer는 `cid`/`sid`/`uid` 튜플 해시로 격리된다.
 
-### 5.2 SocketRequestManager (WebSocket 기반 RPC)
+### 5.2 stream 재발행 (BaseLocalDataSourceV2)
 
-HTTP 연결을 맺지 않고 WebSocket 하나만을 사용하여 단방향 푸시뿐만 아니라 **요청-응답 패러다임**을 구현합니다.
+UI는 항상 `observe*`만 본다. mutation 후 전체 재발행이 아니라 영향 범위만 다시 계산한다 — item id별(`scheduleItemReemit`), list prefix별(`scheduleListReemit`), 전체(`scheduleFullReemit`). 재발행은 50ms로 debounce된다.
 
-- `requestRemote` 호출 시 유니크한 `ref`(Correlation ID)를 발급하여 발신 액션을 소켓에 싣습니다.
-- `SocketRequestManager`는 내부 맵에 `Promise`의 `resolve/reject` 핸들러를 `ref` 키에 매핑하여 등록하고 대기합니다.
-- 인바운드 소켓 핸들러에 동일한 `ref`를 포함하는 메시지가 수신되면, 해당하는 `Promise`를 깨워 비동기 처리를 완료합니다.
+### 5.3 events / EventBus (V2 미사용)
 
-### 5.3 EventBus & Loosely Coupled UI Reactivity
+`events/`의 `DomainEventMap` · `EventBusEngine`은 제거된 V1 `BaseRepository`가 쓰던 경로다. **V2는 EventBus 기반 자동 반영을 쓰지 않는다.** V2의 local 반영은 repository의 명시적 메서드(`cacheWrite*` / `cacheDelete*`) 호출로만 이뤄진다.
 
-`@chatic/data` 내부와 외부 UI 계층은 직접적인 콜백 참조 대신 `IEventBus<AppEventMap>`를 통한 **이벤트 브로커 패턴**으로 엮입니다.
+---
 
-- 인바운드 소켓 이벤트(`chat:create`, `channel:delete` 등)는 핸들러를 거쳐 EventBus로 퍼블리시됩니다.
-- 리포지토리들은 내부 리스너를 통해 이벤트를 잡아내어 즉시 로컬 캐시를 갱신(Self-Healing Local DB)합니다.
-- React Hook 계층은 해당 이벤트를 감지해 리액티브하게 상태를 업데이트하므로 데이터 무결성과 초고속 실시간 화면 갱신이 동시에 보장됩니다.
+## 6. Public API
+
+진입점은 [`src/index.ts`](./src/index.ts)다. domain · local(data-sources-v2 / storages / databases) · remote(gateways / sockets / data-sources) · repositories(계약) · repositories-v2를 re-export한다.
+
+---
+
+## 7. 더 읽기
+
+| 문서                                                | 내용                                                   |
+| --------------------------------------------------- | ------------------------------------------------------ |
+| [docs/README.md](./docs/README.md)                  | 전체 개요 · 데이터 흐름 · domain·events                |
+| [docs/remote/](./docs/remote/README.md)             | gateway 매핑 · DataSource 호출 · 요청 제한             |
+| [docs/repositories/](./docs/repositories/README.md) | V2 facade 계약 · 도메인별 메서드 · sync 해석           |
+| [docs/local/](./docs/local/README.md)               | stream 모델 · scope · storages/databases · chat cursor |
