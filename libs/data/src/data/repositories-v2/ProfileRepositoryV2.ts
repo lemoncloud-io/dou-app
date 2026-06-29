@@ -3,7 +3,7 @@ import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 import type { DomainListResult, DomainProfile, DomainProfileListPayload } from '../domain';
 import type { IProfileLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IProfileRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ProfileSyncResult {

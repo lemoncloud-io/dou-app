@@ -7,7 +7,7 @@ import type {
     ProfileView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
-import type { DataContext } from '../repositories';
+import type { DataContext } from '../repositories-v2/types';
 import type {
     DomainChannel,
     DomainChat,

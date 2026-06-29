@@ -1,6 +1,6 @@
 import { PlaceRemoteDataSource } from './PlaceRemoteDataSource';
 import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('PlaceRemoteDataSource', () => {

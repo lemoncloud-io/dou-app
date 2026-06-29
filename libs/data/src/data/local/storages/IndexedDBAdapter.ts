@@ -1,5 +1,5 @@
 import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '../databases';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../databases';
 import { createTtlMeta, withCacheMeta } from './utils';

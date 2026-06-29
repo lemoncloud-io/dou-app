@@ -1,5 +1,5 @@
 import type { CacheModelMap, CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 
 const GLOBAL_CID = 'global';
 const GLOBAL_UID = 'global';

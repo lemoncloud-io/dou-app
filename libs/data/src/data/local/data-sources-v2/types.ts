@@ -1,4 +1,4 @@
-import type { DataContext, DataContextProvider } from '../../repositories';
+import type { DataContext, DataContextProvider } from '../../repositories-v2/types';
 import { stableHash } from '../storages';
 
 export type LocalDataSourceV2ContextOverride = Partial<DataContext>;

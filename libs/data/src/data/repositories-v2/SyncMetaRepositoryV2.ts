@@ -1,5 +1,5 @@
 import type { ISyncMetaLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ISyncMetaRepositoryV2 extends DisposableRepositoryV2 {

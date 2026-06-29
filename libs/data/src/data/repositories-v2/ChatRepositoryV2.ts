@@ -2,7 +2,7 @@ import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-ap
 import type { DomainChat, DomainListResult } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { ChatDeleteInput, ChatGetInput, ChatUpdateInput, IChatRemoteDataSource } from '../remote/data-sources';
-import type { DataContext, DataContextProvider } from '../repositories';
+import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ChatRefreshResult {

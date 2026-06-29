@@ -3,7 +3,7 @@ import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainJoin, DomainListResult, DomainUser } from '../../domain';
 import { createDomainListResult, toDomainJoinFromUser, toDomainUser } from '../../domain';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { UserDomainGateway } from '../gateways';
 
 /**

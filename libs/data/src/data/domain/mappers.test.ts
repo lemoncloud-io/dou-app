@@ -1,4 +1,4 @@
-import type { DataContext } from '../repositories';
+import type { DataContext } from '../repositories-v2/types';
 import {
     toDomainChannel,
     toDomainChat,

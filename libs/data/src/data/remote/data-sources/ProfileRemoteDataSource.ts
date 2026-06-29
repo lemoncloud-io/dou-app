@@ -7,7 +7,7 @@ import type {
 } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainProfile } from '../../domain';
 import { toDomainProfile } from '../../domain';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { ProfileDomainGateway } from '../gateways';
 
 /** Result of a profile sync: domain upserts, ids to remove, and the server cursor. */

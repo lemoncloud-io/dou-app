@@ -1,5 +1,3 @@
-export * from './data/events/eventBus';
-export * from './data/events/types';
 export * from './data/domain';
 export * from './data/local/data-sources-v2';
 export * from './data/local/storages';
@@ -7,5 +5,4 @@ export * from './data/local/databases';
 export * from './data/remote/gateways';
 export * from './data/remote/sockets/clients';
 export * from './data/remote/data-sources';
-export * from './data/repositories';
 export * from './data/repositories-v2';

@@ -15,7 +15,7 @@ import type { ChannelSyncView, ChannelView, UnreadsSummaryView } from '@lemonclo
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
 import type { DomainChannel, DomainListResult } from '../../domain';
 import { createDomainListResult, toDomainChannel } from '../../domain';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { ChannelDomainGateway } from '../gateways';
 
 /** Result of a channel sync: domain rows plus the server's active-id/cursor metadata. */

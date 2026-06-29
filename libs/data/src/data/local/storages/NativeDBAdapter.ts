@@ -13,7 +13,7 @@ import type {
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
 } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import { withCacheMeta } from './utils';
 import { BaseDbAdapter } from './types';
 

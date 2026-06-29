@@ -2,7 +2,7 @@ import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import type { DomainChat, DomainListResult } from '../../domain';
 import { createDomainListResult } from '../../domain';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,

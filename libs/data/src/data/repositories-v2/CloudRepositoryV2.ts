@@ -3,7 +3,7 @@ import type { DomainCloud, DomainListResult } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { ICloudLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { CloudDeleteInput, CloudGetInput, ICloudRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface ICloudRepositoryV2 extends DisposableRepositoryV2 {

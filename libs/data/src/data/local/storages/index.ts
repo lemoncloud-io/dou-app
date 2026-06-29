@@ -1,5 +1,5 @@
 import type { CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { CacheStorage } from './types';
 
 export * from './types';

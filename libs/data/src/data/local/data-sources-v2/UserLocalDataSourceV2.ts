@@ -1,7 +1,7 @@
 import type { ChatUsersInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainUser } from '../../domain';
 import { createDomainListResult } from '../../domain';
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,

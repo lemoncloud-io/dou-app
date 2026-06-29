@@ -2,7 +2,7 @@ import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-ap
 import type { ChatFeedResult, ChatView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChat } from '../../domain';
 import { toDomainChat } from '../../domain';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { ChatDomainGateway } from '../gateways';
 
 export type ChatGetInput = Parameters<ChatDomainGateway['get']>[0];

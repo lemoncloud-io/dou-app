@@ -2,7 +2,7 @@ import type { CloudUpdateInput } from '@lemoncloud/chatic-sockets-api';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { DomainCloud } from '../../domain';
 import { toDomainCloud } from '../../domain';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { CloudDomainGateway } from '../gateways';
 
 export type CloudGetInput = Parameters<CloudDomainGateway['get']>[0];

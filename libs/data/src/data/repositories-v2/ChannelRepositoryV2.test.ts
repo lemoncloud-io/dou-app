@@ -67,10 +67,22 @@ describe('ChannelRepositoryV2', () => {
             cacheDeleteMany: jest.fn(),
             cacheClear: jest.fn(),
         };
+        // Live data context still points at the previously selected site (site-old).
+        const contextProvider = {
+            getContext: () => ({ cid: 'cloud-a', sid: 'site-old', uid: 'me' }),
+            setContext: () => undefined,
+        };
+        const repository = new ChannelRepositoryV2(
+            channelRemoteDataSource as any,
+            channelLocalDataSource as any,
+            contextProvider
+        );
+
+        await repository.refreshList({ sid: 'site-new' });
 
         // Mapping context carries the viewed sid so toDomainChannel tags channels with it...
         expect(channelRemoteDataSource.fetchChannel).toHaveBeenCalledWith(
-            { sid: 'site-new' },
+            { sid: 'site-new', detail: true, limit: 100 },
             { cid: 'cloud-a', sid: 'site-new', uid: 'me' }
         );
         // ...but the cache write runs under the LIVE context so the list re-emit reaches

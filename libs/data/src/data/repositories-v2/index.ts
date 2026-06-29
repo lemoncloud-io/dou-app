@@ -8,7 +8,7 @@ import { ProfileRepositoryV2, type IProfileRepositoryV2 } from './ProfileReposit
 import { PlaceRepositoryV2, type IPlaceRepositoryV2 } from './PlaceRepositoryV2';
 import { SyncMetaRepositoryV2, type ISyncMetaRepositoryV2 } from './SyncMetaRepositoryV2';
 import { UserRepositoryV2, type IUserRepositoryV2 } from './UserRepositoryV2';
-import type { DataContext, DataContextProvider } from '../repositories';
+import type { DataContext, DataContextProvider } from './types';
 import { createSnapshotDataContextProvider } from './types';
 
 export * from './types';

@@ -1,4 +1,4 @@
-import type { DataContextProvider } from '../../repositories';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import type { CacheStorage } from '../storages';
 import { ChannelLocalDataSourceV2, type IChannelLocalDataSourceV2 } from './ChannelLocalDataSourceV2';
 import { ChatLocalDataSourceV2, type IChatLocalDataSourceV2 } from './ChatLocalDataSourceV2';

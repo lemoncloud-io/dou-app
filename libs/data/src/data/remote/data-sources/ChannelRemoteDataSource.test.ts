@@ -1,6 +1,6 @@
 import { ChannelRemoteDataSource } from './ChannelRemoteDataSource';
 import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type {
     ChatMineInput,
     ChannelSyncInput,

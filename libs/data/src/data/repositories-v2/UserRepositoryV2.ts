@@ -9,7 +9,7 @@ import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
 import { toDomainJoinFromUser } from '../domain';
 import type { IJoinLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface IUserRepositoryV2 extends DisposableRepositoryV2 {

@@ -5,7 +5,7 @@ import type { JoinGetInput } from '@lemoncloud/chatic-sockets-lib';
 import type { JoinUpdateInput } from 'node_modules/@lemoncloud/chatic-sockets-lib/dist/lib/join/types';
 import type { DomainJoin } from '../../domain';
 import { toDomainJoin } from '../../domain';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 
 export interface IJoinRemoteDataSource {
     /** 단일 join 스냅샷을 조회합니다(`join.get`). JoinSyncPlan polling과 refresh 경로가 사용합니다. */

@@ -1,6 +1,6 @@
 import { JoinRemoteDataSource } from './JoinRemoteDataSource';
 import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
-import type { DataContext } from '../../repositories';
+import type { DataContext } from '../../repositories-v2/types';
 import type { ChannelJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('JoinRemoteDataSource', () => {

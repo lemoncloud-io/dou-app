@@ -3,7 +3,7 @@ import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../dom
 import { createDomainListResult } from '../domain';
 import type { IJoinLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 import type { JoinGetInput, JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
 

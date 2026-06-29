@@ -13,7 +13,7 @@ import type { ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import type { IChannelLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface SyncChannelsResult {

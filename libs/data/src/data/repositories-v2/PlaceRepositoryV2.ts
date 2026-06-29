@@ -8,7 +8,7 @@ import type {
     PlaceGetInput,
     PlaceUpdateInput,
 } from '../remote/data-sources';
-import type { DataContextProvider } from '../repositories';
+import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
