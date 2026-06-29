@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
+import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isDndActive } from '../utils';
@@ -39,7 +39,7 @@ export const useCrossCloudPushToast = (): void => {
             if (isDndActive(useNotificationPrefsStore.getState())) return;
 
             const data = notification?.data ?? {};
-            const myUid = useWebCoreStore.getState().profile?.uid;
+            const myUid = getGlobalSessionContext().identity.userId;
             if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
             const activeChannelId = useSelectedChannelStore.getState().selectedChannelId;
             if (data.channelId && String(data.channelId) === String(activeChannelId)) return; // already open

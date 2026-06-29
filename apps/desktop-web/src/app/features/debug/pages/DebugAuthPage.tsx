@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { useDebugLogin } from '../../auth/hooks';
 
@@ -18,8 +18,9 @@ const inputClass = cn(
  * jump to e.g. developer@lemoncloud.io to test cross-user notification delivery.
  */
 export const DebugAuthPage = () => {
-    const currentUid = useWebCoreStore(s => s.profile?.uid ?? '—');
-    const currentName = useWebCoreStore(s => s.profile?.$user?.name ?? '');
+    const { activeProfile } = useSessionIdentity();
+    const currentUid = activeProfile?.uid ?? '—';
+    const currentName = activeProfile?.$user?.name ?? '';
     const { submit, isSubmitting, isError } = useDebugLogin();
     const [uid, setUid] = useState('developer@lemoncloud.io');
     const [pwd, setPwd] = useState('');

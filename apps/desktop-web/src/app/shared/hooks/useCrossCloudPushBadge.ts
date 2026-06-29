@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { getGlobalSessionContext, useGlobalSession } from '@chatic/web-core';
+import { useSocketState } from '@chatic/app-runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
@@ -21,8 +22,10 @@ import { resolvePushCloudId } from '../utils';
  * — no badge is better than a wrong badge. No-op in a plain browser.
  */
 export const useCrossCloudPushBadge = (): void => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
+    const session = useGlobalSession();
+    const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
+    const { isVerified } = useSocketState();
     const mark = useCloudPushBadgeStore(s => s.mark);
     const clear = useCloudPushBadgeStore(s => s.clear);
 
@@ -33,8 +36,11 @@ export const useCrossCloudPushBadge = (): void => {
             if (!data) return;
             const apply = (cid: string | null | undefined) => {
                 if (!cid) return;
-                // The active cloud's unread is owned by the live socket pipeline.
-                if (cid === useWebSocketV2Store.getState().cloudId) return;
+                // The active cloud's unread is owned by the live socket pipeline. Read the
+                // current active cloud imperatively (the effect closure is registered once).
+                const activeServer = getGlobalSessionContext().activeServer;
+                const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
+                if (cid === activeCloudId) return;
                 mark(cid);
             };
             if (data.cid) {

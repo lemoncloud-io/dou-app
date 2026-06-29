@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
-import { cloudCore } from '@chatic/web-core';
-import { useCloudSession } from '@chatic/app-runtime';
+import { useCloudSessionCatalog } from '@chatic/web-core';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useDeleteCloud } from '@chatic/subscriptions';
 
 import { useJoinedCloudsStore } from '../stores';
@@ -15,24 +15,27 @@ import { useJoinedCloudsStore } from '../stores';
  */
 export const useRemoveCloud = () => {
     const removeJoinedCloud = useJoinedCloudsStore(s => s.removeJoinedCloud);
-    const { refetchClouds } = useCloudSession();
+    const { cloud: cloudRepository } = useRuntimeRepositories();
+    const { refetchClouds } = useCloudSessionCatalog();
     const { mutateAsync: deleteCloudMutation, isPending: isDeleting } = useDeleteCloud();
 
     const removeInvitedCloud = useCallback(
         (cloudId: string) => {
             removeJoinedCloud(cloudId);
-            cloudCore.clearInvitedCloud(cloudId);
+            // Forget the invited cloud's local cache row (the v2 equivalent of the old
+            // captured re-entry bundle) so it stops surfacing in the rail.
+            void cloudRepository.cacheDelete(cloudId).catch(() => undefined);
         },
-        [removeJoinedCloud]
+        [removeJoinedCloud, cloudRepository]
     );
 
     const deleteOwnedCloud = useCallback(
         async (cloudId: string) => {
             await deleteCloudMutation({ id: cloudId, params: { cascade: 1 } });
-            cloudCore.clearInvitedCloud(cloudId);
+            void cloudRepository.cacheDelete(cloudId).catch(() => undefined);
             await refetchClouds();
         },
-        [deleteCloudMutation, refetchClouds]
+        [deleteCloudMutation, refetchClouds, cloudRepository]
     );
 
     return { removeInvitedCloud, deleteOwnedCloud, isDeleting };

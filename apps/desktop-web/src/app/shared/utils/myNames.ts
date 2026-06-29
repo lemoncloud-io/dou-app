@@ -1,4 +1,4 @@
-import { useWebCoreStore } from '@chatic/web-core';
+import { getIdentityContext } from '@chatic/web-core';
 
 import { useSiteProfilesStore } from '../stores';
 
@@ -9,7 +9,7 @@ import { useSiteProfilesStore } from '../stores';
  * capture, so both decide "does this @-mention me" identically.
  */
 export const resolveMyMentionNames = (): Array<string | undefined> => {
-    const profile = useWebCoreStore.getState().profile;
+    const profile = getIdentityContext().activeProfile;
     const placeProfiles = useSiteProfilesStore.getState().profiles;
     const uid = profile?.uid;
     const id = profile?.id;

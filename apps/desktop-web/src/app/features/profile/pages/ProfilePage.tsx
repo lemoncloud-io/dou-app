@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ChevronLeft } from 'lucide-react';
 
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -59,7 +59,7 @@ const SectionTitle = ({ children }: { children: string }) => (
 export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const profile = useWebCoreStore(s => s.profile);
+    const { activeProfile: profile } = useSessionIdentity();
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const { start: startSocialLogin } = useSocialLogin();

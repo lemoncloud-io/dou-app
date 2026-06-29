@@ -1,38 +1,28 @@
 import { useCallback, useState } from 'react';
 
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-
 import { logger } from '@chatic/bridges';
-import { useRegisterDevice } from '@chatic/auth';
-import { useDynamicDeviceId } from '@chatic/app-runtime';
-import { cloudCore, reportError, startWebCoreInit, toError, useWebCoreStore, webCore } from '@chatic/web-core';
+import { reportError, startWebCoreInit, useDynamicDeviceId, useLoginRelayGuestByDevice } from '@chatic/web-core';
+
+import { toError } from '../../../shared';
 
 /**
- * Guest-session bootstrap — mirrors apps/web LoginPage.handleDeviceRegistration:
- * register the device against the broker (no Invite Code, no email), build
- * credentials, default to the relay Cloud ('default'), then authenticate. Lands
- * the user in the Default Cloud's Self Channel. Distinct from useInviteLogin,
- * which additionally exchanges an Invite Code for a cloud-scoped token.
+ * Guest-session bootstrap — mirrors apps/web's relay guest login: register the
+ * device against the broker (no Invite Code, no email) via
+ * `useLoginRelayGuestByDevice`, which builds credentials, persists the device id
+ * and hydrates the relay identity. Lands the user in the Default Cloud's Self
+ * Channel. Distinct from useInviteLogin, which additionally exchanges an Invite
+ * Code for a cloud-scoped token.
  */
 export const useGuestLogin = () => {
     const { deviceId } = useDynamicDeviceId();
-    const { mutateAsync: registerDevice } = useRegisterDevice();
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { mutateAsync: loginGuest, isPending } = useLoginRelayGuestByDevice();
     const [isError, setIsError] = useState(false);
 
     const submit = useCallback(async (): Promise<boolean> => {
-        setIsSubmitting(true);
         setIsError(false);
         try {
             await startWebCoreInit();
-            const { Token, ...rest } = await registerDevice(deviceId);
-            if (!Token.identityToken) throw new Error('No identityToken in device registration');
-            await webCore.buildCredentialsByToken(Token);
-            setProfile(rest as unknown as UserProfile$);
-            // Default to the relay/Default Cloud unless a prior cloud is persisted.
-            if (!cloudCore.getSelectedCloudId()) cloudCore.saveSelectedCloudId('default');
-            setIsAuthenticated(true);
+            await loginGuest(deviceId);
             return true;
         } catch (error) {
             const err = toError(error);
@@ -40,10 +30,8 @@ export const useGuestLogin = () => {
             reportError(err);
             setIsError(true);
             return false;
-        } finally {
-            setIsSubmitting(false);
         }
-    }, [deviceId, registerDevice, setProfile, setIsAuthenticated]);
+    }, [deviceId, loginGuest]);
 
-    return { submit, isSubmitting, isError };
+    return { submit, isSubmitting: isPending, isError };
 };

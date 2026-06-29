@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/web-core';
 
 import { AppShellSkeleton, usePendingOpenStore } from './shared';
 
@@ -46,7 +46,7 @@ const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ defa
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
 
 export const AppRouter = () => {
-    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
+    const { isAuthenticated } = useSessionAuth();
 
     return (
         <Router>

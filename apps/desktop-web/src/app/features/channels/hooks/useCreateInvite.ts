@@ -2,23 +2,24 @@ import { useCallback, useState } from 'react';
 
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 
-import { cloudCore } from '@chatic/web-core';
-import { useRepositories } from '@chatic/app-runtime';
+import { useSessionSelection } from '@chatic/web-core';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { buildInviteLink } from '../utils/buildInviteLink';
 
 /**
  * Generate a shareable invite link for a channel by inviting a phone number.
  *
- * Mirrors apps/web useCreateInviteBatch + the server contract
- * (chatic-sockets-api user.invite-batch → POST /users/0/invite-bulk?sms):
- * the body REQUIRES `to: string[]` (phone list); channelId/cloudId are optional.
- * The server returns `ListResult<MyInviteView>` ({ total, list }); the first
- * entry carries the fully-formed `Location` deep link (the same form our
- * invite-login parser consumes), which we return.
+ * Mirrors apps/web useCreateInviteBatch + the v2 server contract: the engine's
+ * `requestInviteBatch` derives the recipient list from `alias` (phone), so the
+ * body carries `alias`/`type`/`channelId`. The server returns
+ * `ListResult<MyInviteView>` ({ total, list }); the first entry carries the
+ * fully-formed `Location` deep link (the same form our invite-login parser
+ * consumes), which we return.
  */
 export const useCreateInvite = () => {
-    const { user: userRepository } = useRepositories();
+    const { user: userRepository } = useRuntimeRepositories();
+    const { selectedCloudId } = useSessionSelection();
     const [isCreating, setIsCreating] = useState(false);
 
     const createInvite = useCallback(
@@ -29,10 +30,15 @@ export const useCreateInvite = () => {
 
             setIsCreating(true);
             try {
-                const cloudId = cloudCore.getSelectedCloudId() ?? undefined;
-                // The installed MyUserInviteBody type lags the server contract (it lacks
-                // `to`, which user.invite-batch requires). Cast — same as apps/web does.
-                const body = { to: [to], channelId, cloudId } as unknown as MyUserInviteBody;
+                // The installed MyUserInviteBody type lags the server contract; cast —
+                // same as apps/web does. The engine reads `alias` to build the SMS list.
+                const body = {
+                    alias: to,
+                    type: 'phone',
+                    name: '',
+                    channelId,
+                    cloudId: selectedCloudId,
+                } as unknown as MyUserInviteBody;
                 const res = await userRepository.requestInviteBatch(body);
 
                 // Server returns ListResult { total, list }; the engine mis-types it as
@@ -51,7 +57,7 @@ export const useCreateInvite = () => {
                 setIsCreating(false);
             }
         },
-        [userRepository]
+        [userRepository, selectedCloudId]
     );
 
     return { createInvite, isCreating };

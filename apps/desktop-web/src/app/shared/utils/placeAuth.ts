@@ -1,49 +1,17 @@
-import { useWebSocketV2Store } from '@chatic/socket';
-import { cloudCore, useWebCoreStore } from '@chatic/web-core';
-import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
+import { useCallback } from 'react';
 
-import { waitForVerified } from './waitForVerified';
+import { useSiteSwitch } from '@chatic/web-core';
 
 /**
- * Switch the active place (site). In relay mode this just records the selection;
- * in cloud mode it refreshes the per-place token (`uid@placeId`), updates the
- * profile, and re-runs the socket auth handshake before resolving.
+ * Place (site) auth for desktop. In v2 the per-place token refresh + socket re-auth is owned
+ * entirely by the session service behind the `useSiteSwitch` hook (`switchSite`): it pre-applies
+ * the target sid optimistically, commits via the cloud/relay token refresh, and rolls the sid back
+ * on failure. There is no public imperative entry point, so the old standalone `authPlace` util is
+ * replaced by this hook — mirrors apps/web `useSwitchPlace`.
  *
- * Mirrors apps/web PlaceList cloud-mode logic so desktop place switching stays
- * in sync with the engine instead of only mutating local UI state.
+ * Returns an `authPlace(placeId)` callback that resolves once the new place session is committed.
  */
-export const authPlace = async (placeId: string): Promise<void> => {
-    const wssType = useWebSocketV2Store.getState().wssType;
-
-    if (wssType !== 'cloud') {
-        cloudCore.saveSelectedSiteId(placeId);
-        useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
-        return;
-    }
-
-    const uid = cloudCore.getCloudToken()?.id;
-    if (!uid) throw new Error('No cloud token uid for place auth');
-
-    const refreshed = await cloudCore.refreshToken(`${uid}@${placeId}`);
-    cloudCore.saveSelectedSiteId(placeId);
-    useWebSocketV2Store.getState().setSelectedPlaceId(placeId);
-
-    const currentProfile = useWebCoreStore.getState().profile;
-    const { Token: _token, ...cloudProfile } = refreshed;
-    // The refreshed token is a flat UserView (id/name/…), not a UserProfile$. Preserve
-    // the structured identity (uid/$user) so a null/partial currentProfile (boot
-    // auto-select race, first login) never collapses the profile surface to "-" until a
-    // hard refresh re-fetches it. Cast needed until UserProfile$ relaxes the token fields.
-    useWebCoreStore.getState().setProfile({
-        ...currentProfile,
-        ...cloudProfile,
-        uid: currentProfile?.uid ?? (cloudProfile as { id?: string }).id,
-        $user: currentProfile?.$user ?? (cloudProfile as unknown as UserView),
-    } as unknown as UserProfile$);
-
-    // useCloudTokenRefresh observes isVerified=false → emits auth:update.
-    useWebSocketV2Store.getState().setIsVerified(false);
-
-    const ok = await waitForVerified(5000);
-    if (!ok) throw new Error('Place auth timeout');
+export const useAuthPlace = (): ((placeId: string) => Promise<void>) => {
+    const { switchSite } = useSiteSwitch();
+    return useCallback((placeId: string) => switchSite(placeId), [switchSite]);
 };

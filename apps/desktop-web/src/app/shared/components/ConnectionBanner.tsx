@@ -2,25 +2,27 @@ import { useTranslation } from 'react-i18next';
 
 import { useGlobalLoader } from '@chatic/shared';
 import { cn } from '@chatic/lib/utils';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSocketState } from '@chatic/app-runtime';
 
 /**
- * App-shell connection status bar. The socket's connectionStatus already exists
- * in the store (previously only the debug page read it) — surface it everywhere
- * so a dropped/reconnecting socket is visible regardless of route or open channel.
+ * App-shell connection status bar. The runtime socket state exposes the raw
+ * transport state + verification flag — surface them everywhere so a
+ * dropped/reconnecting socket is visible regardless of route or open channel.
  * Hidden while healthy (connected + verified).
  */
 export const ConnectionBanner = () => {
     const { t } = useTranslation();
-    const status = useWebSocketV2Store(s => s.connectionStatus);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const { state, isConnected, isVerified } = useSocketState();
     // A cloud/place switch intentionally tears the socket down and re-verifies;
     // SwitchingOverlay already shows that progress. Surfacing "Reconnecting…" on
     // top reads as a failure, so stay quiet while a deliberate switch is in flight.
     const isSwitching = useGlobalLoader().isLoading;
 
-    const offline = status === 'disconnected' || status === 'error';
-    const reconnecting = status === 'connecting' || (status === 'connected' && !isVerified);
+    // ClientSocketState: 'idle' | 'connecting' | 'connected' | 'closing' | 'closed'.
+    // A closed transport is offline; 'idle' is the pre-connect boot state, so it stays
+    // quiet. Reconnecting covers (re)dialing and the connected-but-unverified handshake.
+    const offline = state === 'closed';
+    const reconnecting = state === 'connecting' || state === 'closing' || (isConnected && !isVerified);
     if (isSwitching || (!offline && !reconnecting)) return null;
 
     return (

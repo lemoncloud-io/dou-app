@@ -13,3 +13,4 @@ export * from './stripMarkdown';
 export * from './dmDisplay';
 export * from './resolvePushCloudId';
 export * from './getAppVersion';
+export * from './errors';

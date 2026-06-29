@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { useWebCoreStore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSessionAuth, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSocketState } from '@chatic/app-runtime';
 
 import { useChannels, useClouds, usePlaces, useSelectedChannelStore, useSelectedPlaceStore } from '../../../shared';
 
@@ -21,9 +21,10 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 
 /** Dev-only session/state inspector (desktop equivalent of apps/web DebugStatePage). */
 export const DebugStatePage = () => {
-    const profile = useWebCoreStore(s => s.profile);
-    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
-    const { cloudId, selectedPlaceId, isConnected, isVerified, connectionStatus } = useWebSocketV2Store();
+    const { activeProfile: profile } = useSessionIdentity();
+    const { isAuthenticated } = useSessionAuth();
+    const { isConnected, isVerified, state } = useSocketState();
+    const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const { clouds, activeCloudId } = useClouds();
     const { places } = usePlaces();
     const storePlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
@@ -44,9 +45,9 @@ export const DebugStatePage = () => {
                 <Section title="Socket">
                     <Row label="Verified" value={isVerified} />
                     <Row label="Connected" value={isConnected} />
-                    <Row label="Status" value={connectionStatus} />
-                    <Row label="Socket cloudId" value={cloudId} />
-                    <Row label="Socket placeId" value={selectedPlaceId} />
+                    <Row label="Status" value={state} />
+                    <Row label="Session cloudId" value={selectedCloudId} />
+                    <Row label="Session siteId" value={selectedSiteId} />
                 </Section>
 
                 <Section title="Selection">

@@ -1,12 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { DomainJoin, DomainUser } from '@chatic/data';
-import { useWebSocketV2Store } from '@chatic/socket';
-
-import { useRepositories } from '@chatic/app-runtime';
-
-const MEMBER_LIMIT = 100;
-const REFETCH_DEBOUNCE_MS = 500;
+import type { DomainUser } from '@chatic/data';
+import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
 
 export interface ChannelMember extends DomainUser {
     /** True when this member is the channel owner (matched against ownerId). */
@@ -14,23 +9,31 @@ export interface ChannelMember extends DomainUser {
 }
 
 /**
- * Channel member list. Fetches participants via user.fetchUsers({channelId,
- * detail:true}) so each member carries its `$join`. Owner is flagged by
- * comparing the member id against the channel's ownerId (pass it in — usually
- * from the selected channel); the flag is applied off the network path so an
- * ownerId change never re-fetches.
+ * Channel member list (mirrors apps/web useChannelMembers). Observes the user
+ * cache (member identity + embedded `$join` read-state) and, gated on socket
+ * verification, hydrates it via two complementary network paths:
+ *  - `refreshList`: one-shot full snapshot of members + their `$join`.
+ *  - `syncChannelUsers`: incremental delta keyed by a `since` cursor, advanced per sync.
  *
- * Live updates: re-fetches on user:update / join:update events (member profile
- * edits, reads, joins/leaves), debounced so a burst coalesces into one fetch.
- * join:update events are filtered to this channel. Subscriptions are cleaned up
- * on unmount/switch.
+ * The member list has no background sync plan in the runtime, so these two loads
+ * are the only paths that hydrate members. The `isVerified` gate is load-bearing:
+ * it defers the fetch until the session is verified (avoiding a stale, mis-scoped
+ * read mid switch) and, as a dependency, re-fetches on the false→true edge after
+ * reconnect/switch.
+ *
+ * Owner is flagged off the network path by comparing the member id against the
+ * channel's ownerId (pass it in — usually from the selected channel), so an
+ * ownerId change never re-fetches.
  */
 export const useChannelMembers = (channelId: string | null, ownerId?: string) => {
-    const { user: userRepository, join: joinRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const { user: userRepository } = useRuntimeRepositories();
+    const { isVerified } = useSocketState();
     const [rawMembers, setRawMembers] = useState<DomainUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
+
+    // Incremental channel-users sync cursor (since). Reset per channel; advanced per sync.
+    const sinceRef = useRef(0);
 
     useEffect(() => {
         if (!channelId) {
@@ -38,69 +41,33 @@ export const useChannelMembers = (channelId: string | null, ownerId?: string) =>
             setIsLoading(false);
             return;
         }
-
-        let active = true;
-        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-        // Once the authoritative network roster lands, ignore a slower cache read so
-        // it can't clobber freshly-fetched names back to a blank cached record.
-        let networkSettled = false;
         setIsLoading(true);
+        return userRepository.observeList({ channelId, detail: true }, result => {
+            setRawMembers(result?.list ?? []);
+            setIsLoading(false);
+        });
+    }, [userRepository, channelId]);
+
+    // Reset the incremental cursor when the channel changes so a new room starts fresh.
+    useEffect(() => {
+        sinceRef.current = 0;
+    }, [channelId]);
+
+    useEffect(() => {
+        if (!channelId || !isVerified) return;
         setError(null);
-
-        const applyResult = (list: DomainUser[], fromNetwork: boolean) => {
-            if (!active || (!fromNetwork && networkSettled)) return;
-            if (fromNetwork) networkSettled = true;
-            setRawMembers(list);
-        };
-
-        // Cache-first paints the roster instantly (a local read needs no socket) so
-        // members render right away, but it is only a *fallback* for author names —
-        // useAuthorNames resolves seen authors from the user cache without waiting
-        // on this. isLoading (the name skeleton) is cleared only when the network
-        // roster lands, so an author the roster hasn't confirmed yet shows a skeleton
-        // rather than flashing "Unknown". Already-resolved names ignore isLoading, so
-        // this never adds a skeleton to a name we can already show.
-        const fetchMembers = (cachePolicy: 'cache-first' | 'network-only') => {
-            const fromNetwork = cachePolicy === 'network-only';
-            userRepository
-                .fetchUsers({ channelId, detail: true, limit: MEMBER_LIMIT }, { cachePolicy })
-                .then(result => {
-                    applyResult(result.list ?? [], fromNetwork);
-                    if (fromNetwork && active) setError(null);
-                })
-                .catch((err: unknown) => {
-                    if (active && fromNetwork) setError(err instanceof Error ? err : new Error(String(err)));
-                })
-                .finally(() => {
-                    // Only the network result clears loading — the cache paint keeps it up.
-                    if (active && fromNetwork) setIsLoading(false);
-                });
-        };
-
-        const scheduleRefetch = () => {
-            if (debounceTimer) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => fetchMembers('network-only'), REFETCH_DEBOUNCE_MS);
-        };
-
-        const onJoin = (join: DomainJoin) => {
-            if (join.channelId && join.channelId !== channelId) return;
-            scheduleRefetch();
-        };
-
-        fetchMembers('cache-first');
-        fetchMembers('network-only');
-
-        const unsubs = [userRepository.onUserUpdated(scheduleRefetch), joinRepository.onJoinUpdated(onJoin)];
-
-        return () => {
-            active = false;
-            if (debounceTimer) clearTimeout(debounceTimer);
-            unsubs.forEach(fn => fn());
-        };
-        // isVerified is a dep (not read in the body): the initial fetch is
-        // cache-first and runs before the socket connects, so re-running once the
-        // socket verifies kicks the network refresh that couldn't fire offline.
-    }, [channelId, isVerified, userRepository, joinRepository]);
+        // Full snapshot of the current members + their embedded `$join` read-state.
+        void userRepository
+            .refreshList({ channelId, detail: true })
+            .catch((err: unknown) => setError(err instanceof Error ? err : new Error(String(err))));
+        // Incremental delta from the last cursor; advance `since` with the returned syncedAt.
+        void userRepository
+            .syncChannelUsers({ channelId, since: sinceRef.current })
+            .then(syncedAt => {
+                sinceRef.current = syncedAt;
+            })
+            .catch(() => undefined);
+    }, [userRepository, channelId, isVerified]);
 
     const members = useMemo<ChannelMember[]>(
         () => rawMembers.map(user => ({ ...user, isOwner: !!ownerId && user.id === ownerId })),

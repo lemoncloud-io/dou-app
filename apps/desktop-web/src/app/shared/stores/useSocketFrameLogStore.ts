@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { useWebSocketV2Store } from '@chatic/socket';
+import { getSocketManager } from '@chatic/app-runtime';
 
 const CAP = 200;
 
@@ -35,22 +35,22 @@ export const useSocketFrameLogStore = create<SocketFrameLogState>(set => ({
 
 let seq = 0;
 
-// Self-subscribe once: push every inbound envelope into the ring buffer.
-useWebSocketV2Store.subscribe(
-    s => s.lastMessage,
-    msg => {
-        if (!msg || useSocketFrameLogStore.getState().paused) return;
-        // WSSEnvelope: { type=domain, action, payload, meta:{ref} } — read loosely.
-
-        const m = msg as any;
-        const frame: SocketFrame = {
-            seq: ++seq,
-            at: Date.now(),
-            domain: m?.type ?? '?',
-            action: m?.action ?? '',
-            chatNo: m?.payload?.chatNo ?? m?.payload?.chat_no ?? null,
-            raw: m,
-        };
-        useSocketFrameLogStore.setState(state => ({ frames: [frame, ...state.frames].slice(0, CAP) }));
-    }
-);
+// Self-subscribe once to the v2 socket manager: push every inbound envelope into the
+// ring buffer. The v2 SocketMessage encodes the domain+action in a single dotted `type`
+// (e.g. `chat.feed`, `chat.create:ok`) and carries the payload on `data` — split the type
+// for the debug display and read the chat number loosely.
+getSocketManager().onMessage(({ message }) => {
+    if (useSocketFrameLogStore.getState().paused) return;
+    const m = message as { type?: string; data?: { chatNo?: number; chat_no?: number } | null };
+    const type = m?.type ?? '?';
+    const dot = type.indexOf('.');
+    const frame: SocketFrame = {
+        seq: ++seq,
+        at: Date.now(),
+        domain: dot >= 0 ? type.slice(0, dot) : type,
+        action: dot >= 0 ? type.slice(dot + 1) : '',
+        chatNo: m?.data?.chatNo ?? m?.data?.chat_no ?? null,
+        raw: message,
+    };
+    useSocketFrameLogStore.setState(state => ({ frames: [frame, ...state.frames].slice(0, CAP) }));
+});

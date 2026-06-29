@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useGlobalLoader } from '@chatic/shared';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
 import {
@@ -31,7 +31,6 @@ import {
     useSelectPlace,
     useSelectedChannelStore,
     useSelectedPlaceStore,
-    useSiteProfileSync,
     useSiteProfiles,
     useUnreadStore,
 } from '../../../shared';
@@ -73,9 +72,9 @@ export const HomePage = () => {
     const { isLoading: isSwitching } = useGlobalLoader();
 
     // Place Profiles: mirror the current place's overrides into the store (one
-    // subscription) and pull deltas on place-switch / verified / reconnect.
+    // subscription). Delta pulls are owned by the runtime (useBackgroundSync +
+    // useRealtimeProfileSync), so no per-page sync hook is needed here.
     useSiteProfiles();
-    useSiteProfileSync();
 
     const { channels, isLoading } = useChannels(selectedPlaceId ?? undefined);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
@@ -101,7 +100,7 @@ export const HomePage = () => {
     const debugEnabled = useDebugModeStore(s => s.enabled);
     const debugPanelOpen = useDebugModeStore(s => s.overlayOpen);
     const showDebugPanel = (import.meta.env.DEV || debugEnabled) && debugPanelOpen;
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const myUid = useSessionIdentity().userId;
     // Default Cloud (relay / Guest Session): no joinable places — force the
     // 'default' place so the Self Channel loads; the sidebar hides the switcher.
     // activeCloudId (from useClouds) already resolves socket → persisted → fallback.

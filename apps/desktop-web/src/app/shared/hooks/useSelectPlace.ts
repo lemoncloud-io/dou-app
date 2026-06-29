@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useLoaderStore } from '@chatic/shared';
-import { reportError, toError } from '@chatic/web-core';
+import { reportError } from '@chatic/web-core';
 
 import { useSelectedPlaceStore } from '../stores';
-import { authPlace } from '../utils';
+import { toError, useAuthPlace } from '../utils';
 
 /**
  * Switch the active place: run the engine place auth (token refresh + re-verify
@@ -17,6 +17,7 @@ export const useSelectPlace = () => {
     const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
     const commitPlace = useSelectedPlaceStore(s => s.selectPlace);
     const setIsLoading = useLoaderStore(s => s.setIsLoading);
+    const authPlace = useAuthPlace();
     const { t } = useTranslation();
     const switchingRef = useRef(false);
 
@@ -36,7 +37,7 @@ export const useSelectPlace = () => {
                 setIsLoading(false);
             }
         },
-        [selectedPlaceId, commitPlace, setIsLoading, t]
+        [selectedPlaceId, commitPlace, setIsLoading, authPlace, t]
     );
 
     return { switchPlace };

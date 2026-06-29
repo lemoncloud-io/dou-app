@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -15,7 +15,7 @@ const nowLabel = (): string => new Date().toLocaleTimeString();
  * watch optimistic IndexedDB writes + event broadcasts. Ported from apps/web.
  */
 export const DebugChatPage = () => {
-    const { channel: channelRepository, chat: chatRepository } = useRepositories();
+    const { channel: channelRepository, chat: chatRepository } = useRuntimeRepositories();
 
     const [placeId] = useState(() => makeId('debug-place'));
 
@@ -64,7 +64,7 @@ export const DebugChatPage = () => {
 
         channelUnsubRef.current?.();
 
-        channelUnsubRef.current = channelRepository.subscribeList(
+        channelUnsubRef.current = channelRepository.observeList(
             { placeId: activePlaceId, page: 0, limit: 100 } as any,
             result => {
                 setChannelSnapshot(result);
@@ -87,7 +87,7 @@ export const DebugChatPage = () => {
 
     const createChannel = useCallback(async () => {
         const id = makeId('debug-channel');
-        await channelRepository.cacheCreate({
+        await channelRepository.cacheWrite({
             id,
             sid: placeId,
             placeId,
@@ -117,7 +117,7 @@ export const DebugChatPage = () => {
         if (!channelId) return;
 
         chatUnsubRef.current?.();
-        chatUnsubRef.current = chatRepository.subscribeList(channelId, result => {
+        chatUnsubRef.current = chatRepository.observeList({ channelId } as any, result => {
             setChatSnapshot(result);
             pushChatLog(`stream emit: ${result?.list.length ?? 0} chats`);
         });
@@ -145,7 +145,7 @@ export const DebugChatPage = () => {
         if (!selectedChannelId.trim()) return;
         const chatNo = nextAutoChatNo;
         const id = makeId('debug-chat');
-        await chatRepository.cacheCreate({
+        await chatRepository.cacheWrite({
             id,
             channelId: selectedChannelId.trim(),
             chatNo,
@@ -168,8 +168,8 @@ export const DebugChatPage = () => {
             createdAt: now + index,
         }));
 
-        await chatRepository.cacheBulkCreate(items as any);
-        pushChatLog(`cacheBulkCreate chats: ${count} items (start chatNo=${baseNo})`);
+        await chatRepository.cacheWriteMany(items as any);
+        pushChatLog(`cacheWriteMany chats: ${count} items (start chatNo=${baseNo})`);
     }, [chatRepository, nextAutoChatNo, pushChatLog, sampleCount, selectedChannelId]);
 
     const deleteChat = useCallback(
@@ -184,8 +184,8 @@ export const DebugChatPage = () => {
     const saveEditChat = useCallback(async () => {
         if (!editingChatId.trim()) return;
 
-        await chatRepository.cacheUpdate(editingChatId.trim(), { content: editingChatContent } as any);
-        pushChatLog(`cacheUpdate content: ${editingChatId.trim()}`);
+        await chatRepository.cacheWrite({ id: editingChatId.trim(), content: editingChatContent } as any);
+        pushChatLog(`cacheWrite content: ${editingChatId.trim()}`);
         setEditingChatId('');
         setEditingChatContent('');
     }, [chatRepository, editingChatContent, editingChatId, pushChatLog]);

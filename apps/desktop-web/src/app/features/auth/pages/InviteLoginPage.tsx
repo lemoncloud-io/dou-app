@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionAuth } from '@chatic/web-core';
 
 import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';
@@ -12,7 +12,7 @@ import { inviteLoginErrorText } from '../utils';
 export const InviteLoginPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
+    const { isAuthenticated } = useSessionAuth();
     const { login, isSubmitting, error } = useInviteLogin();
     const [code, setCode] = useState('');
 

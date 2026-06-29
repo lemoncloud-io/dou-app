@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useWebCoreStore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSessionIdentity } from '@chatic/web-core';
+import { useSocketState } from '@chatic/app-runtime';
 
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -39,7 +39,7 @@ interface ChatPaneProps {
 export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const myUid = useSessionIdentity().userId;
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
@@ -63,7 +63,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // footer is correct. Replies still arrive in the cache via chat:create.
     const topLevel = useMemo(() => messages.filter(m => !m.parentId), [messages]);
     const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const { isVerified } = useSocketState();
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's

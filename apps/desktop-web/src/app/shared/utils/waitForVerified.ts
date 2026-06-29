@@ -1,4 +1,4 @@
-import { useWebSocketV2Store } from '@chatic/socket';
+import { getSocketManager } from '@chatic/app-runtime';
 
 /**
  * Resolves once the socket reports `isVerified` (auth:update acknowledged), or
@@ -7,7 +7,8 @@ import { useWebSocketV2Store } from '@chatic/socket';
  */
 export const waitForVerified = (timeoutMs = 5000): Promise<boolean> =>
     new Promise(resolve => {
-        if (useWebSocketV2Store.getState().isVerified) {
+        const manager = getSocketManager();
+        if (manager.getSnapshot().isVerified) {
             resolve(true);
             return;
         }
@@ -17,14 +18,11 @@ export const waitForVerified = (timeoutMs = 5000): Promise<boolean> =>
             resolve(false);
         }, timeoutMs);
 
-        const unsub = useWebSocketV2Store.subscribe(
-            s => s.isVerified,
-            verified => {
-                if (verified) {
-                    clearTimeout(timer);
-                    unsub();
-                    resolve(true);
-                }
+        const unsub = manager.subscribe(state => {
+            if (state.isVerified) {
+                clearTimeout(timer);
+                unsub();
+                resolve(true);
             }
-        );
+        });
     });

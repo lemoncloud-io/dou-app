@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 
-import type { ChatSendPayload } from '@lemoncloud/chatic-sockets-api';
+import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
 import type { DomainChat } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 /**
  * Tracer-bullet send. Posts a message through the engine's chat repository,
@@ -11,11 +11,11 @@ import { useRepositories } from '@chatic/app-runtime';
  * delete are deferred to a later phase.
  */
 export const useChatMutations = () => {
-    const { chat: chatRepository } = useRepositories();
+    const { chat: chatRepository } = useRuntimeRepositories();
     const [isSending, setIsSending] = useState(false);
 
     const sendMessage = useCallback(
-        (payload: ChatSendPayload): Promise<DomainChat> => {
+        (payload: ChatSendInput): Promise<DomainChat> => {
             if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
             if (!payload.content) return Promise.reject(new Error('content is required'));
 

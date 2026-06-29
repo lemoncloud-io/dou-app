@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
-import { useDynamicDeviceId } from '@chatic/app-runtime';
+import { useDynamicDeviceId, useSessionAuth } from '@chatic/web-core';
 import { useRegisterDeviceToken } from '@chatic/users';
 
 declare global {
@@ -36,7 +35,7 @@ declare global {
 const REREGISTER_THROTTLE_MS = 60_000;
 
 export const useDeviceTokenRegistration = (): void => {
-    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
+    const { isAuthenticated } = useSessionAuth();
     const { deviceId } = useDynamicDeviceId();
     const { mutateAsync: registerDeviceToken } = useRegisterDeviceToken();
     const requestedRef = useRef(false);

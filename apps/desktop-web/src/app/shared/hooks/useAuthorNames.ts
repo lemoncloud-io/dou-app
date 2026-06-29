@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { displayName } from '../utils';
 
@@ -9,7 +9,7 @@ import { displayName } from '../utils';
  * a parallel data store — it only mirrors names already resolved from the `user`
  * cache so a re-render (e.g. switching channels and back) can paint the name
  * synchronously on the first frame, instead of waiting a tick for the async
- * `subscribeItem` emission and flashing a skeleton. It is never persisted.
+ * `observeItem` emission and flashing a skeleton. It is never persisted.
  */
 const nameMemo = new Map<string, string>();
 
@@ -29,14 +29,14 @@ const seedFromMemo = (ids: string[]): Map<string, string> => {
  * from the channel-roster fetch so a previously-seen author paints with their
  * real name on the first frame — no "Unknown"/skeleton flicker while the roster
  * reloads. The session memo is read synchronously during render (so switching
- * channels and back is instant), and `subscribeItem` streams the persisted record
+ * channels and back is instant), and `observeItem` streams the persisted record
  * plus live updates into the memo, bumping a tick to surface a newly-resolved name.
  * Only an author the cache has never held stays unresolved (the roster fetch fills
  * the cache, which this hook then surfaces). A bare id (no name/nick) counts as
  * unresolved so the raw id never flashes as a name.
  */
 export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): ReadonlyMap<string, string> => {
-    const { user: userRepository } = useRepositories();
+    const { user: userRepository } = useRuntimeRepositories();
 
     // Stable, de-duped key so subscriptions only reset when the id set changes.
     const idsKey = useMemo(
@@ -52,7 +52,7 @@ export const useAuthorNames = (ownerIds: readonly (string | undefined)[]): Reado
     useEffect(() => {
         if (ids.length === 0) return;
         const unsubs = ids.map(id =>
-            userRepository.subscribeItem(id, user => {
+            userRepository.observeItem(id, user => {
                 if (!user) return;
                 const name = displayName(user);
                 // displayName falls back to the raw id — treat that as unresolved.

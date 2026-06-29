@@ -5,7 +5,6 @@ export * from './useNotificationPrefsStore';
 export * from './useComposerDraftStore';
 export * from './useJoinedCloudsStore';
 export * from './useSiteProfilesStore';
-export * from './useSiteProfileCursorStore';
 export * from './useMyCloudUidStore';
 export * from './useUnreadStore';
 export * from './usePendingOpenStore';

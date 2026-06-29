@@ -11,18 +11,30 @@ vi.mock('@chatic/bridges', () => ({
     isNative: vi.fn(() => true),
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-vi.mock('@chatic/socket', async () => {
+// v2: socket verification comes from app-runtime's `useSocketState()` (reactive) and
+// `getSocketManager().getSnapshot()` (imperative, re-checked inside the grace timer) —
+// back both with one zustand store so they stay consistent. Auth is `useSessionAuth()`.
+vi.mock('@chatic/app-runtime', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
-    return { useWebSocketV2Store: create(() => ({ isVerified: false })) };
+    const socketStore = create(() => ({ isVerified: false }));
+    return {
+        useSocketState: socketStore,
+        getSocketManager: () => ({ getSnapshot: () => socketStore.getState() }),
+    };
 });
 vi.mock('@chatic/web-core', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
-    return { useWebCoreStore: create(() => ({ isAuthenticated: false })) };
+    return { useSessionAuth: create(() => ({ isAuthenticated: false })) };
 });
 
 import { isNative } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSocketState } from '@chatic/app-runtime';
+import { useSessionAuth } from '@chatic/web-core';
+
+// The mocked exports ARE zustand stores (hook + setState); cast for the test driver.
+type MockStore<T> = { getState: () => T; setState: (partial: Partial<T>) => void };
+const socketStore = useSocketState as unknown as MockStore<{ isVerified: boolean }>;
+const authStore = useSessionAuth as unknown as MockStore<{ isAuthenticated: boolean }>;
 
 import { useSocketWedgeReload } from './useSocketWedgeReload';
 
@@ -33,8 +45,8 @@ const BASE = new Date('2026-06-19T00:00:00.000Z').getTime();
 
 let reloadMock: ReturnType<typeof vi.fn>;
 
-const setVerified = (isVerified: boolean) => act(() => useWebSocketV2Store.setState({ isVerified }));
-const setAuthenticated = (isAuthenticated: boolean) => act(() => useWebCoreStore.setState({ isAuthenticated }));
+const setVerified = (isVerified: boolean) => act(() => socketStore.setState({ isVerified }));
+const setAuthenticated = (isAuthenticated: boolean) => act(() => authStore.setState({ isAuthenticated }));
 const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
 // Drive the hook to the armed state: native + authenticated + verified once, then
@@ -51,8 +63,8 @@ beforeEach(() => {
     vi.setSystemTime(BASE);
     sessionStorage.clear();
     vi.mocked(isNative).mockReturnValue(true);
-    useWebSocketV2Store.setState({ isVerified: false });
-    useWebCoreStore.setState({ isAuthenticated: false });
+    socketStore.setState({ isVerified: false });
+    authStore.setState({ isAuthenticated: false });
     reloadMock = vi.fn();
     Object.defineProperty(window, 'location', {
         configurable: true,

@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
-import { useRepositories } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { useMyCloudUidStore } from '../stores/useMyCloudUidStore';
 import { useSelectedPlaceStore } from '../stores/useSelectedPlaceStore';
@@ -25,10 +24,11 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
  * work — cache-first, no per-mount async flash.
  */
 export const useSiteProfiles = (): void => {
-    const { profile: profileRepository } = useRepositories();
+    const { profile: profileRepository } = useRuntimeRepositories();
     const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
-    const cid = useWebSocketV2Store(s => s.cloudId) ?? 'default';
-    const accountUid = useWebCoreStore(s => s.profile?.uid ?? '');
+    const session = useGlobalSession();
+    const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
+    const accountUid = useSessionIdentity().userId ?? '';
     const setAll = useSiteProfilesStore(s => s.setAll);
     const reset = useSiteProfilesStore(s => s.reset);
     const cloudUid = useMyCloudUidStore(s => (selectedPlaceId ? s.byPlace[`${cid}:${selectedPlaceId}`] : undefined));
@@ -53,7 +53,7 @@ export const useSiteProfiles = (): void => {
 
     useEffect(() => {
         reset();
-        const unsubscribe = profileRepository.subscribeList(undefined, result => {
+        const unsubscribe = profileRepository.observeList(undefined, result => {
             const next: Record<string, PlaceProfileEntry> = {};
             for (const item of result?.list ?? []) {
                 if (item.uid) next[item.uid] = { nick: item.nick, thumbnail: item.thumbnail };
