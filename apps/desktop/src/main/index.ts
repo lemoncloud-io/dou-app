@@ -11,6 +11,7 @@ import {
     type MenuItemConstructorOptions,
     nativeImage,
     Notification,
+    powerMonitor,
     screen,
     shell,
     Tray,
@@ -477,21 +478,48 @@ const createWindow = (): BrowserWindow => {
 
     win.once('ready-to-show', () => win.show());
 
-    // In dev the local web server (desktop-web on :5005) may still be booting, so `desktop:start`
-    // can launch the shell and the server in any order. Retry connection failures silently there;
-    // for a packaged build (or any other failure) show a visible, retryable error page instead of
-    // a blank window — e.g. an unresolved host when the desktop web isn't deployed yet.
+    // Connection failures are retried with bounded backoff before the error page shows, so a
+    // transient outage recovers on its own: in dev the local web server (desktop-web on :5005)
+    // may still be booting, and a cold launch right after boot/login (or a wake from sleep) hits
+    // the network before it's ready (-106 ERR_INTERNET_DISCONNECTED). Only once the budget is
+    // exhausted do we fall through to a visible, retryable error page — e.g. an unresolved host
+    // when the desktop web isn't deployed yet.
     const RETRYABLE_LOAD_ERRORS = new Set([-102, -106, -105, -118]);
+    const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 15000, 15000, 15000];
+    let loadRetries = 0;
+    let onErrorPage = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
         if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
         if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
-        if (!app.isPackaged && RETRYABLE_LOAD_ERRORS.has(errorCode)) {
-            setTimeout(() => win.loadURL(DESKTOP_WEB_URL), 700);
+        if (RETRYABLE_LOAD_ERRORS.has(errorCode) && loadRetries < RETRY_DELAYS_MS.length) {
+            const delay = RETRY_DELAYS_MS[loadRetries];
+            loadRetries += 1;
+            if (retryTimer) clearTimeout(retryTimer);
+            retryTimer = setTimeout(() => void win.loadURL(DESKTOP_WEB_URL), delay);
             return;
         }
+        onErrorPage = true;
         if (!win.isVisible()) win.show();
         void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
     });
+    // A successful load of the trusted web clears the retry budget + error state.
+    win.webContents.on('did-finish-load', () => {
+        if (isTrustedUrl(win.webContents.getURL())) {
+            loadRetries = 0;
+            onErrorPage = false;
+        }
+    });
+    // Wake from sleep: if the window got stranded on the error page while the network was down,
+    // reconnect automatically once the OS reports the machine resumed.
+    if (!powerResumeBound) {
+        powerResumeBound = true;
+        powerMonitor.on('resume', () => {
+            if (!onErrorPage) return;
+            loadRetries = 0;
+            void win.loadURL(DESKTOP_WEB_URL);
+        });
+    }
 
     // Paint an instant splash so the window shows a branded loader immediately
     // instead of staying hidden while the remote web bundle downloads/parses.
@@ -516,6 +544,8 @@ const createWindow = (): BrowserWindow => {
 let deeplinkHost: AppBridgeHost | null = null;
 let deeplinkWindow: BrowserWindow | null = null;
 let pendingDeeplink: string | null = null;
+// powerMonitor is app-level; bind its resume handler once even though createWindow can re-run.
+let powerResumeBound = false;
 
 const handleDeeplink = (url: string): void => {
     if (deeplinkHost && deeplinkWindow) {
