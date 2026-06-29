@@ -106,3 +106,9 @@ getGlobalSessionContext(): GlobalSessionContext
 1. `getGlobalSessionContext()`를 문서상 기본 조회 계약으로 고정
 2. 타입 수준에서 `IdentityContext`와 `SessionRuntimeContext` 분리
 3. 의도적으로 공개할 API가 아니면 내부 store utility 재노출 축소
+
+## 관련 문서
+
+- [README.md](./README.md) — session 계층의 역할과 경계
+- [context-model.md](./context-model.md) — 컨텍스트 정의와 source of truth
+- [session-scenarios.md](./session-scenarios.md) — 전이 service 시나리오

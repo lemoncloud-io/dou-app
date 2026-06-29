@@ -142,3 +142,8 @@ transport 계층은 로그아웃 query param이 있는 경우 token 관련 stora
 - logout token 정리가 transport bootstrap 시점에 있는 것이 적절한지
 - storage adapter 선택이 session 정책과 충분히 분리되어 있는지
 - `api/utils/request.ts`를 transport 하위로 이동해도 경계가 더 명확해지는지
+
+## 관련 문서
+
+- [README.md](./README.md) — transport 계층의 역할과 경계
+- [request-lifecycle.md](./request-lifecycle.md) — request builder와 auth 흐름

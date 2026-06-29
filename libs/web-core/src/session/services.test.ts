@@ -39,12 +39,16 @@ const mockGetBackend = jest.fn();
 const mockGetWss = jest.fn();
 
 const mockRelayClearSelectedSite = jest.fn();
+const mockRelaySaveRelayToken = jest.fn();
 
 const mockIdentitySetIsInvited = jest.fn();
 const mockIdentitySetOAuthProvider = jest.fn();
 const mockIdentityGetOAuthProvider = jest.fn();
 const mockIdentitySetDelegatorId = jest.fn();
 const mockIdentitySetDeviceId = jest.fn();
+const mockIdentitySetIsGuest = jest.fn();
+const mockIdentityGetIsGuest = jest.fn();
+const mockIdentityGetRelayProfile = jest.fn();
 
 const mockSetSessionIdentityState = jest.fn();
 const mockSetSessionProfile = jest.fn();
@@ -116,9 +120,13 @@ jest.mock('./core', () => ({
         getOAuthProvider: (...args: unknown[]) => mockIdentityGetOAuthProvider(...args),
         setDelegatorId: (...args: unknown[]) => mockIdentitySetDelegatorId(...args),
         setDeviceId: (...args: unknown[]) => mockIdentitySetDeviceId(...args),
+        setIsGuest: (...args: unknown[]) => mockIdentitySetIsGuest(...args),
+        getIsGuest: (...args: unknown[]) => mockIdentityGetIsGuest(...args),
+        getRelayProfile: (...args: unknown[]) => mockIdentityGetRelayProfile(...args),
     },
     relayCore: {
         clearSelectedSite: (...args: unknown[]) => mockRelayClearSelectedSite(...args),
+        saveRelayToken: (...args: unknown[]) => mockRelaySaveRelayToken(...args),
     },
     startWebCoreInit: (...args: unknown[]) => mockStartWebCoreInit(...args),
     resetWebCoreInit: (...args: unknown[]) => mockResetWebCoreInit(...args),
@@ -131,6 +139,7 @@ jest.mock('./contextStore', () => ({
     setSessionCloudProfile: (...args: unknown[]) => mockSetSessionCloudProfile(...args),
     setSelectedCloudId: (...args: unknown[]) => mockSetSelectedCloudId(...args),
     setSelectedSiteId: (...args: unknown[]) => mockSetSelectedSiteId(...args),
+    getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearSessionProfile: (...args: unknown[]) => mockClearSessionProfile(...args),
     clearSessionCloudProfile: (...args: unknown[]) => mockClearSessionCloudProfile(...args),
 }));
@@ -168,6 +177,7 @@ import {
     refreshCloudSession,
     refreshRelaySession,
     switchCloudSession,
+    switchSiteSession,
 } from './services';
 
 describe('session/services', () => {
@@ -368,6 +378,42 @@ describe('session/services', () => {
         });
     });
 
+    it('pre-applies the target cid before the token exchange (optimistic)', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        // Capture the optimistic cid that is already committed by the time the exchange runs.
+        let cidAtExchange: string | undefined;
+        mockIssueCloudDelegationToken.mockImplementation(async () => {
+            cidAtExchange = mockSaveSelectedCloudId.mock.calls.at(-1)?.[0] as string | undefined;
+            return {
+                backend: 'https://cloud.example.com',
+                wss: 'wss://cloud.example.com',
+                delegationToken: 'delegation-token',
+            };
+        });
+        mockIssueCloudToken.mockResolvedValue({
+            Token: { identityToken: 'cloud-token' },
+            id: 'cloud-user',
+            uid: 'cloud-user',
+        } as unknown as UserTokenView);
+
+        await switchCloudSession({ cloudId: 'cloud-new' });
+
+        expect(cidAtExchange).toBe('cloud-new');
+        expect(mockClearSelectedSite).toHaveBeenCalled();
+    });
+
+    it('rolls cid and sid back to the previous cloud when the exchange fails', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        mockGetSelectedSiteId.mockReturnValue('site-old');
+        mockIssueCloudDelegationToken.mockRejectedValue(new Error('exchange failed'));
+
+        await expect(switchCloudSession({ cloudId: 'cloud-new' })).rejects.toThrow('exchange failed');
+
+        const cidCalls = mockSaveSelectedCloudId.mock.calls.map(c => c[0]);
+        expect(cidCalls).toEqual(['cloud-new', 'cloud-old']); // optimistic then rollback
+        expect(mockSaveSelectedSiteId).toHaveBeenCalledWith('site-old'); // previous sid restored
+    });
+
     it('refreshes cloud session through API inputs and persists merged cloud token state', async () => {
         mockGetCloudToken.mockReturnValue({
             id: 'cloud-user',
@@ -406,6 +452,81 @@ describe('session/services', () => {
             identityToken: 'identity-token',
             backend: 'https://cloud.example.com',
             wss: 'wss://cloud.example.com',
+        });
+    });
+
+    describe('switchSiteSession (optimistic + rollback)', () => {
+        const setupCloud = () => {
+            mockGetCloudToken.mockReturnValue({ id: 'cloud-user', Token: { identityToken: 'old' } });
+            mockGetBackend.mockReturnValue('https://cloud.example.com');
+            mockGetSelectedCloudId.mockReturnValue('cloud-1');
+        };
+
+        it('pre-applies the target sid and notifies before committing', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-old');
+            setupCloud();
+            mockRefreshCloudToken.mockResolvedValue({ id: 'cloud-user', Token: { identityToken: 'new' } });
+
+            await switchSiteSession('site-new');
+
+            // optimistic pre-apply + notify, then commit; no rollback
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
+            expect(mockSetSelectedSiteId).not.toHaveBeenCalledWith('site-old');
+            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+            expect(mockRefreshCloudToken).toHaveBeenCalledWith(
+                expect.objectContaining({ target: 'cloud-user@site-new' })
+            );
+        });
+
+        it('rolls the sid back to the previous site when the commit fails', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-old');
+            setupCloud();
+            mockRefreshCloudToken.mockRejectedValue(new Error('boom'));
+
+            await expect(switchSiteSession('site-new')).rejects.toThrow('boom');
+
+            const calls = mockSetSelectedSiteId.mock.calls.map(c => c[0]);
+            expect(calls).toEqual(['site-new', 'site-old']); // optimistic then rollback
+            expect(mockNotifySessionStateChanged).toHaveBeenCalledTimes(2);
+        });
+
+        it('no-ops when switching to the already-selected site', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-1');
+
+            await switchSiteSession('site-1');
+
+            expect(mockSetSelectedSiteId).not.toHaveBeenCalled();
+            expect(mockNotifySessionStateChanged).not.toHaveBeenCalled();
+            expect(mockRefreshCloudToken).not.toHaveBeenCalled();
+        });
+
+        it('commits a relay site switch through refreshRelaySession (no cloud token required)', async () => {
+            // Relay-only session: no cloud is selected and no cloud token exists.
+            mockGetSelectedSiteId.mockReturnValue('site-old');
+            mockGetSelectedCloudId.mockReturnValue('default');
+            mockGetCloudToken.mockReturnValue(null);
+            mockIdentityGetRelayProfile.mockReturnValue({ uid: 'relay-user' });
+            mockRefreshAuthToken.mockResolvedValue({ identityToken: 'relay-token' });
+
+            await switchSiteSession('site-new');
+
+            // Routes to the relay refresh with a uid@sid target — never the cloud refresh.
+            expect(mockRefreshAuthToken).toHaveBeenCalledWith('relay-user@site-new');
+            expect(mockRefreshCloudToken).not.toHaveBeenCalled();
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
+        });
+
+        it('rolls back and throws when a relay switch has no relay profile uid', async () => {
+            mockGetSelectedSiteId.mockReturnValue('site-old');
+            mockGetSelectedCloudId.mockReturnValue('default');
+            mockGetCloudToken.mockReturnValue(null);
+            mockIdentityGetRelayProfile.mockReturnValue(null);
+
+            await expect(switchSiteSession('site-new')).rejects.toThrow('No relay profile uid for site auth');
+
+            const calls = mockSetSelectedSiteId.mock.calls.map(c => c[0]);
+            expect(calls).toEqual(['site-new', 'site-old']); // optimistic then rollback
+            expect(mockRefreshAuthToken).not.toHaveBeenCalled();
         });
     });
 

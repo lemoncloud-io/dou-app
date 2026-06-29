@@ -54,7 +54,7 @@ const GUEST_MAX_CHANNELS = 3;
 const MAX_CHANNELS_PER_PLACE = 100;
 
 export const getUserType = (profile: UserProfile$ | null, isInvited: boolean, hasCloudToken: boolean): UserType => {
-    const userRole = (profile?.$user as { userRole?: string })?.userRole;
+    const userRole = (profile?.$user as { userRole?: string })?.userRole ?? (profile as any)?.userRole;
 
     if (isInvited) {
         return userRole === 'user' ? UserType.INVITED_WITH_CLOUD : UserType.INVITED;

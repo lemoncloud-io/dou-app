@@ -8,7 +8,6 @@ import {
     issueCloudDelegationToken,
     issueCloudToken,
     login as loginRelayRequest,
-    loginWithInviteCode as loginWithInviteCodeRequest,
     logout as logoutRelayRequest,
     refreshAuthToken,
     refreshCloudToken,
@@ -23,6 +22,7 @@ import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, sta
 import {
     clearSessionCloudProfile,
     clearSessionProfile,
+    getSelectedSiteId,
     setSelectedCloudId,
     setSelectedSiteId,
     setSessionAuthenticated,
@@ -100,12 +100,23 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
     };
 };
 
-/**
- * Applies the relay-facing profile fields returned alongside a relay token issuance response.
- */
-const applyRelayProfile = (tokenView: UserTokenView): UserTokenView => {
+const applyRelayProfile = async (tokenView: UserTokenView): Promise<UserTokenView> => {
+    if (tokenView.Token) {
+        await webTransport.buildCredentialsByToken(tokenView.Token);
+        relayCore.saveRelayToken(tokenView);
+    }
     const { Token: _token, ...profile } = tokenView;
+
+    // Detect and persist user role from the profile
+    const userRole = (profile as any)?.$user?.userRole ?? (profile as any)?.userRole;
+    if (userRole === 'guest') {
+        identityCore.setIsGuest(true);
+    } else if (userRole === 'user') {
+        identityCore.setIsGuest(false);
+    }
+
     setSessionProfile(profile as unknown as UserProfile$);
+    setSessionAuthenticated(true);
     return tokenView;
 };
 
@@ -148,7 +159,7 @@ export const loginRelayGuestByDevice = async (deviceId: string): Promise<UserTok
     persistDeviceId(deviceId);
     identityCore.setIsInvited(false);
     identityCore.setOAuthProvider(null);
-    return applyRelayProfile(await registerDevice(deviceId));
+    return await applyRelayProfile(await registerDevice(deviceId));
 };
 
 /**
@@ -162,7 +173,7 @@ export const loginRelayUser = async ({
     email?: boolean;
 }): Promise<UserTokenView> => {
     identityCore.setIsInvited(false);
-    return applyRelayProfile(await loginRelayRequest(body, email));
+    return await applyRelayProfile(await loginRelayRequest(body, email));
 };
 
 /**
@@ -180,26 +191,7 @@ export const loginRelaySocial = async ({
     if (provider !== undefined) {
         identityCore.setOAuthProvider(provider);
     }
-    return applyRelayProfile(tokenView);
-};
-
-/**
- * Logs into relay using an invite code and preserves the delegator identity required by the invite flow.
- */
-export const loginWithInviteCode = async ({
-    code,
-    delegatorId,
-    backend,
-}: {
-    code: string;
-    delegatorId: string;
-    backend?: string;
-}): Promise<UserTokenView> => {
-    const tokenView = await loginWithInviteCodeRequest(code, delegatorId, backend);
-    identityCore.setIsInvited(true);
-    identityCore.setOAuthProvider(null);
-    identityCore.setDelegatorId(delegatorId);
-    return applyRelayProfile(tokenView);
+    return await applyRelayProfile(tokenView);
 };
 
 const relayRefreshFlight = createSerializedSingleFlight<UserProfile$ | null>();
@@ -394,25 +386,36 @@ export const updateRelayProfile = async (uid: string, user: Record<string, unkno
 /**
  * Switches the active cloud session by exchanging a delegation token for a cloud token.
  *
- * TODO(optimistic): pre-apply the new cid before the exchange so app-runtime can show cached data
- * immediately, and roll the cid/sid back to the previous value if the exchange fails. Tokens are
- * persisted only on success, so the previous cloud's tokens stay valid on rollback.
+ * The cid is pre-applied optimistically before the exchange so app-runtime's cid-scoped
+ * cache observers re-subscribe to the target cloud immediately (mirrors the optimistic sid
+ * in switchSiteSession). Tokens are persisted only on success, so a failed exchange rolls
+ * cid/sid back to the previous cloud and the previous cloud's tokens stay valid.
  */
 export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Promise<CloudSessionSnapshot> => {
+    const previousCloudId = cloudCore.getSelectedCloudId();
+    const previousSiteId = cloudCore.getSelectedSiteId();
+    const isCloudChange = previousCloudId !== cloudId;
+
+    // Optimistic cid pre-apply: flip the selected cloud (and drop the previous site) before
+    // the token exchange. activeServer keeps the old socket until the new tokens commit, but
+    // cid-derived observers swap to the target cloud's cache right away.
+    if (isCloudChange) {
+        cloudCore.saveSelectedCloudId(cloudId);
+        cloudCore.clearSelectedSite();
+    }
+
     try {
-        const previousCloudId = cloudCore.getSelectedCloudId();
         const cloudDelegationToken = await issueCloudDelegationToken(cloudId);
         const userToken = await issueCloudToken(cloudDelegationToken.backend as string, {
             delegationToken: cloudDelegationToken.delegationToken,
         });
 
         cloudCore.saveDelegationToken(cloudDelegationToken);
-        const existingToken = previousCloudId === cloudId ? cloudCore.getCloudToken() : null;
+        const existingToken = isCloudChange ? null : cloudCore.getCloudToken();
         cloudCore.saveCloudToken(existingToken ? ({ ...existingToken, ...userToken } as typeof userToken) : userToken);
         cloudCore.saveSelectedCloudId(cloudId);
 
-        if (previousCloudId !== cloudId) {
-            cloudCore.clearSelectedSite();
+        if (isCloudChange) {
             cloudCore.clearPlaceOrder(cloudId);
         }
 
@@ -422,6 +425,16 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
 
         return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudId, cloudCore.getSelectedSiteId());
     } catch (error) {
+        // Roll the optimistic cid/sid back. Tokens were never overwritten on failure, so the
+        // previous cloud session is still intact and usable.
+        if (isCloudChange) {
+            cloudCore.saveSelectedCloudId(previousCloudId ?? 'default');
+            if (previousSiteId) {
+                cloudCore.saveSelectedSiteId(previousSiteId);
+            } else {
+                cloudCore.clearSelectedSite();
+            }
+        }
         logger.error('SESSION', '[service] switchCloudSession failed', { error, data: { cloudId } });
         throw error;
     }
@@ -437,8 +450,57 @@ const cloudRefreshFlight = createSerializedSingleFlight<CloudSessionSnapshot>();
 export const refreshCloudSession = ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> =>
     cloudRefreshFlight(siteId, () => runRefreshCloudSession({ siteId }));
 
-// TODO(optimistic): pre-apply the target sid before the refresh so cached data shows immediately,
-// and roll the sid back if the refresh fails (mirror the relay-site path in runRefreshRelaySession).
+/**
+ * User-initiated site switch.
+ *
+ * Pre-applies the target sid (optimistic) and notifies so `activeServer.siteId` flips
+ * immediately — cached channel streams swap to the new site without waiting for the
+ * network. Commits via `refreshCloudSession`; on failure rolls the sid back to the
+ * previous site. The committed cloud token only changes after a successful refresh
+ * (see runRefreshCloudSession), so a failed switch leaves the real session intact and
+ * only the optimistic sid needs reverting.
+ */
+export const switchSiteSession = async (siteId: string): Promise<void> => {
+    const prevSiteId = getSelectedSiteId();
+    if (siteId === prevSiteId) return;
+
+    setSelectedSiteId(siteId);
+    notifySessionStateChanged();
+
+    try {
+        await commitSiteSwitch(siteId);
+    } catch (error) {
+        setSelectedSiteId(prevSiteId);
+        notifySessionStateChanged();
+        throw error;
+    }
+};
+
+/**
+ * Commits a site switch against whichever server is active.
+ *
+ * A cloud-active session re-scopes the cloud token (`uid@sid`); a relay-only session
+ * re-scopes the relay OAuth token instead. Routing a relay switch through the cloud
+ * path throws "No cloud token uid for site auth" because there is no cloud token — the
+ * active server determines which refresh applies.
+ */
+const commitSiteSwitch = async (siteId: string): Promise<void> => {
+    const isCloudActive = cloudCore.getSelectedCloudId() !== 'default' && !!cloudCore.getCloudToken();
+    if (isCloudActive) {
+        await refreshCloudSession({ siteId });
+        return;
+    }
+
+    // Relay site switch: re-issue the relay token scoped to the target site. The relay
+    // profile uid pairs with the site to form the `uid@sid` target. syncProfile is off —
+    // the relay profile does not change across sites, so skip the extra profile fetch.
+    const uid = identityCore.getRelayProfile()?.uid;
+    if (!uid) {
+        throw new Error('No relay profile uid for site auth');
+    }
+    await refreshRelaySession({ target: `${uid}@${siteId}`, syncProfile: false });
+};
+
 const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
     const cloudToken = cloudCore.getCloudToken();
     const uid = cloudToken?.id;

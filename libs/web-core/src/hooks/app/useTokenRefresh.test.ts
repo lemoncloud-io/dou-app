@@ -50,7 +50,7 @@ describe('useTokenRefresh — parallel cloud refresh', () => {
         jest.clearAllMocks();
         // isAuthenticated:false → skip the mount initialize effect so we can drive refreshToken directly
         mockUseSessionAuth.mockReturnValue({ isAuthenticated: false });
-        mockUseSessionIdentity.mockReturnValue({ relayProfile: null, isInvited: false });
+        mockUseSessionIdentity.mockReturnValue({ relayProfile: null, isInvited: false, isGuest: false });
         mockRefreshRelaySession.mockResolvedValue(null);
         mockRefreshActiveCloudSession.mockResolvedValue(undefined);
         mockClassifyError.mockReturnValue({ shouldLogout: false });
