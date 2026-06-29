@@ -2,12 +2,13 @@ import { useCallback, useEffect } from 'react';
 import { AppState } from 'react-native';
 
 import { logger } from '@chatic/bridges';
-import { webTransport } from '@chatic/web-core';
+import { useWebCoreStore, webCore } from '@chatic/web-core';
 
 // import { useWebSocket } from './useWebSocket';
 import { useWebSocketWorker } from './useWebSocketWorker';
-import type { WebSocketMessage } from '../stores/useWebSocketStore';
 import { useWebSocketStore } from '../stores/useWebSocketStore';
+
+import type { WebSocketMessage } from '../stores/useWebSocketStore';
 
 const WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
 
@@ -52,6 +53,7 @@ const parseWebSocketMessage = (data: unknown): WebSocketMessage | null => {
  * - Items messages: ID starts with ITEM*
  */
 export const useInitWebSocket = (sessionId?: string, channels?: string) => {
+    const { isAuthenticated } = useWebCoreStore();
     const setId = useWebSocketStore(state => state.setId);
     const setConnectionStatus = useWebSocketStore(state => state.setConnectionStatus);
     const broadcastMessage = useWebSocketStore(state => state.broadcastMessage);
@@ -59,7 +61,7 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
 
     const tokenProvider = useCallback(async (): Promise<string | null> => {
         try {
-            const tokenData = await webTransport.getTokenSignature();
+            const tokenData = await webCore.getTokenSignature();
             return tokenData?.originToken?.identityToken || null;
         } catch (error) {
             logger.error('SOCKET', '[WebSocket] Failed to get token', { error });
@@ -98,16 +100,14 @@ export const useInitWebSocket = (sessionId?: string, channels?: string) => {
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        /**
-         *   const cleanup = (): void => {
-         *             disconnect();
-         *             reset();
-         *         };
-         *
-         *         const unregister = useWebCoreStore.getState().registerLogoutCallback(cleanup);
-         *
-         *         return unregister;
-         */
+        const cleanup = (): void => {
+            disconnect();
+            reset();
+        };
+
+        const unregister = useWebCoreStore.getState().registerLogoutCallback(cleanup);
+
+        return unregister;
     }, [isAuthenticated, disconnect, reset]);
 
     // Handle AppState changes - disconnect when background, reconnect when foreground
