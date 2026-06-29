@@ -1,41 +1,18 @@
-import type { CloudView } from '@lemoncloud/chatic-backend-api';
-import type { ChannelView, UserView, ChatView, JoinView, ProfileDisplay, SiteView } from '@lemoncloud/chatic-socials-api';
-import type { ChatMinePayload } from '@lemoncloud/chatic-sockets-api';
+import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
+import type { ChatMineInput } from '@lemoncloud/chatic-sockets-api';
+import type {
+    CacheChannelView,
+    CacheChatView,
+    CacheCloudView,
+    CacheJoinView,
+    CacheProfileView,
+    CacheSiteView,
+    CacheUserView,
+} from '@chatic/app-messages';
 
-export interface DomainScope {
-    cid: string;
-    uid?: string;
-    sid?: string;
-}
-
-export interface DomainChannel extends ChannelView {
-    id: string;
-    cid: string;
-    sid: string;
-    isNotificationEnabled: boolean;
-    lastActivityAt: number;
-}
-
-export interface DomainChat extends ChatView {
-    id: string;
-    cid: string;
-    channelId: string;
-    chatNo: number;
-    isPending: boolean;
-    isFailed: boolean;
-    createdAtMs: number;
-    updatedAtMs: number;
-    tempId?: string;
-}
-
-export interface DomainJoin extends JoinView {
-    id: string;
-    cid: string;
-    channelId: string;
-    userId: string;
-    joined: number;
-    readNo: number;
-}
+export type DomainChannel = CacheChannelView;
+export type DomainChat = CacheChatView;
+export type DomainJoin = CacheJoinView;
 
 /** join 목록 조회 시 Repository에서 사용하는 local 전용 payload입니다. */
 export interface DomainJoinListPayload {
@@ -43,36 +20,33 @@ export interface DomainJoinListPayload {
     activeOnly?: boolean;
 }
 
-export interface DomainChannelListPayload extends ChatMinePayload {
-    /** 타겟 사이트/플레이스 아이디  (값이 없을 경우; */
+export interface DomainChannelListPayload extends ChatMineInput {
+    /** 타겟 사이트/플레이스 아이디  (값이 없을 경우); */
     sid?: string;
 }
 
-export interface DomainUser extends UserView {
-    id: string;
-    cid: string;
-}
+export type DomainUser = CacheUserView;
+export type DomainPlace = CacheSiteView;
 
-export interface DomainSite extends SiteView {
-    id: string;
-    cid: string;
-    order: number;
-}
+/** @deprecated Use {@link DomainPlace}. Site was consolidated into the Place domain. */
+export type DomainSite = DomainPlace;
 
-export interface DomainProfile extends ProfileDisplay {
-    id: string;
-    cid: string;
+export type DomainProfile = CacheProfileView;
+
+export interface DomainProfileListPayload {
+    /** V2 prefers `sid`/`uid` but still accepts API-shaped aliases. */
     sid?: string;
-    uid: string;
+    uid?: string;
+    siteId?: string;
+    userId?: string;
 }
 
-export interface DomainInviteCloud extends CloudView {
-    id: string;
-    cid: string;
-    name?: string;
-    backend?: string;
-    wss?: string;
-}
+export type SiteProfileBody = ProfileBody;
+export type SiteProfileView = DomainProfile;
+export type DomainCloud = CacheCloudView;
+
+/** @deprecated Use {@link DomainCloud}. InviteCloud was consolidated into the Cloud domain. */
+export type DomainInviteCloud = DomainCloud;
 
 /**
  * 도메인 리스트 표준 래퍼입니다.

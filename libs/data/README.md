@@ -1,6 +1,6 @@
 # @chatic/data (데이터 싱크 & 아키텍처 가이드)
 
-`@chatic/data`는 WebSocket을 통한 실시간 서버 동기화, IndexedDB/Native SQLite를 활용한 로컬 파티션 캐싱, 그리고 이벤트 버스 기반의 모듈 간 디커플링을 완벽하게 오케스트레이션하는 데이터 싱크 라이브러리입니다. UI(Hook) 계층과 비즈니스 로직, 그리고 인프라 환경을 느슨하게 연결하여 고성능 실시간 메신저 환경을 선사합니다.
+`@chatic/data`는 WebSocket 기반 gateway 호출, IndexedDB/Native SQLite 로컬 파티션 캐싱, 그리고 sync orchestrator가 호출하는 repository 계약을 제공하는 데이터 레이어입니다. UI 계층은 repository만 사용하고, socket lifecycle과 sync 정책은 상위 런타임이 담당합니다.
 
 ---
 
@@ -13,9 +13,9 @@ libs/data/src/
 ├── data/
 │   ├── domain/           # 도메인 모델 정의 및 데이터 매핑 (Raw View -> Domain Entity)
 │   ├── local/            # 로컬 데이터 인프라 (Adapters, Databases, LocalDataSources)
-│   ├── remote/           # 원격 데이터 통신 (Clients, SocketRequestManager, RemoteDataSources, Handlers)
+│   ├── remote/           # 원격 데이터 통신 (Socket proxy, Gateways, RemoteDataSources)
 │   ├── repositories/     # 단일 진실 공급원 (Single Source of Truth - 캐시 정책 및 비즈니스 중재)
-│   └── events/           # 모듈 간 디커플링을 위한 통합 EventBus 및 Type 정의
+│   └── events/           # 레거시 repository/event bus 지원용 Type 및 Engine
 └── index.ts              # Public API 진입점
 ```
 
@@ -23,7 +23,7 @@ libs/data/src/
 
 ## 2. 모듈 의존성 및 구조 (Layered Architecture Map)
 
-각 레이어는 엄격하게 단방향 의존성을 유지하며, 최상위 `Repository` 계층이 `Local`과 `Remote` 데이터 인프라를 지휘하고 `Event Bus`를 통해 비동기 피드백 루프를 형성합니다.
+각 레이어는 엄격하게 단방향 의존성을 유지하며, 최상위 `Repository` 계층이 `Local`과 `Remote` 데이터 인프라를 지휘합니다. V2 계약에서는 sync orchestrator가 repository 메서드를 직접 호출하며, repository 자체는 socket event를 구독하지 않습니다.
 
 ```mermaid
 flowchart TD
@@ -44,7 +44,7 @@ flowchart TD
 
     Remote["Remote Network Layer<br/>(RemoteDataSources & SocketManager)<br/><i>* WebSocket RPC & Outbound Actions *</i>"]:::remote
 
-    EventBus["Event Bus Layer<br/>(IEventBus Engine)<br/><i>* Decoupled Event Broker *</i>"]:::events
+    EventBus["Legacy Event Layer<br/>(for v1 repositories)<br/><i>* Compatibility Only *</i>"]:::events
 
     Domain["Domain Layer<br/>(Models, Mappers & DomainScope)<br/><i>* Core Entities & Scope Validation *</i>"]:::domain
 
@@ -55,8 +55,7 @@ flowchart TD
     Repo -->|2. Async Socket RPC| Remote
 
     %% Event loop (Asynchronous Feedback Loop)
-    Remote -.->|Inbound socket push| EventBus
-    EventBus -.->|Internal self-healing updates| Repo
+    UI -.->|Sync orchestration trigger| Repo
 
     %% Base foundation
     Repo & Local & Remote -->|Define & Map Entities| Domain

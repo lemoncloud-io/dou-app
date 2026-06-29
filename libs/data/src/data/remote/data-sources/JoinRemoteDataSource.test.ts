@@ -1,47 +1,56 @@
 import { JoinRemoteDataSource } from './JoinRemoteDataSource';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatReadPayload } from '@lemoncloud/chatic-sockets-api';
+import { createMockRemoteGateways, type MockRemoteGatewayBundle } from '../gateways/__mocks__/MockRemoteGateways';
+import type { DataContext } from '../../repositories';
+import type { ChannelJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 
 describe('JoinRemoteDataSource', () => {
-    let mockSocketEventBus: jest.Mocked<IEventBus<SocketEventMap>>;
-    let mockDomainEventBus: jest.Mocked<IEventBus<DomainEventMap>>;
-    let mockWssClient: jest.Mocked<IWebSocketClient>;
+    let mockGateways: MockRemoteGatewayBundle;
     let dataSource: JoinRemoteDataSource;
-    let socketCallbacks: Record<string, (data: any) => void> = {};
+    const context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'user-1' };
 
     beforeEach(() => {
-        socketCallbacks = {};
-        mockSocketEventBus = {
-            emit: jest.fn(),
-            on: jest.fn().mockImplementation((event, callback) => {
-                socketCallbacks[event as string] = callback;
-                return jest.fn();
-            }),
-            onAny: jest.fn(),
-        } as unknown as jest.Mocked<IEventBus<SocketEventMap>>;
-
-        mockDomainEventBus = { emit: jest.fn() } as unknown as jest.Mocked<IEventBus<DomainEventMap>>;
-        mockWssClient = { send: jest.fn() } as unknown as jest.Mocked<IWebSocketClient>;
-
-        dataSource = new JoinRemoteDataSource(mockSocketEventBus, mockDomainEventBus, mockWssClient);
+        mockGateways = createMockRemoteGateways();
+        dataSource = new JoinRemoteDataSource(mockGateways.join);
     });
 
-    it('chat:read 소켓 이벤트가 도메인의 join:update 로 통합 매핑되어야 한다', () => {
-        const mockDetail = { cid: 'c-1', ref: 'r-1', payload: { id: 'join-1' } };
-        socketCallbacks['chat:read'](mockDetail);
+    describe('발신(Send) 파이프라인 검증 (Request)', () => {
+        it('getJoin 호출 시 join.get 액션으로 request가 전송되어야 한다', async () => {
+            const payload = { id: 'ch-1@user-1' };
+            await dataSource.getJoin(payload, context);
+            expect(mockGateways.join.get).toHaveBeenCalledWith(payload);
+        });
 
-        expect(mockDomainEventBus.emit).toHaveBeenCalledWith('join:update', {
-            data: mockDetail.payload,
-            ref: 'r-1',
+        it('readChat 호출 시 chat.read 액션으로 request가 전송되어야 한다', async () => {
+            const payload: ChatReadInput = { channelId: 'ch-1', readNo: 5 } as any;
+            await dataSource.readChat(payload, context);
+            expect(mockGateways.join.read).toHaveBeenCalledWith(payload);
+        });
+
+        it('updateJoin 호출 시 join.update 액션으로 request가 전송되어야 한다', async () => {
+            const payload = { id: 'ch-1@user-1', nick: 'new-nick' };
+            await dataSource.updateJoin(payload, context);
+            expect(mockGateways.join.update).toHaveBeenCalledWith(payload);
+        });
+
+        it('joinChannel 호출 시 channel.join 액션으로 request가 전송되어야 한다', async () => {
+            const payload: ChannelJoinInput = { channelId: 'ch-1' };
+            await dataSource.joinChannel(payload, context);
+            expect(mockGateways.join.join).toHaveBeenCalledWith(payload);
         });
     });
 
-    it('readChat 호출 시 chat 도메인의 read 액션으로 전송되어야 한다', () => {
-        const payload: ChatReadPayload = { channelId: 'ch-1', messageId: 'msg-1' } as any;
-        dataSource.readChat(payload, 'ref-read');
+    describe('수신(Receive) 매핑 검증 (View → Domain)', () => {
+        it('getJoin 응답을 도메인 join으로 변환하고 context의 cid를 부여한다', async () => {
+            (mockGateways.join.get as jest.Mock).mockResolvedValue({
+                id: 'ch-1@user-1',
+                channelId: 'ch-1',
+                userId: 'user-1',
+                readNo: 4,
+            });
 
-        expect(mockWssClient.send).toHaveBeenCalledWith('chat', 'read', payload, 'ref-read');
+            const domain = await dataSource.getJoin({ id: 'ch-1@user-1' }, context);
+
+            expect(domain).toMatchObject({ id: 'ch-1@user-1', cid: 'cloud-a', channelId: 'ch-1', readNo: 4 });
+        });
     });
 });

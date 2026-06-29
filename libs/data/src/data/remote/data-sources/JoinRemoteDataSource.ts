@@ -1,70 +1,48 @@
+import type { JoinDomainGateway } from '../gateways';
+import type { ChannelJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
-import type { IEventBus } from '../../events/eventBus';
-import type { DomainEventMap, SocketEventMap } from '../../events/types';
-import type { IWebSocketClient } from '../clients';
-import type { ChatReadPayload, ChatUpdateJoinPayload } from '@lemoncloud/chatic-sockets-api';
+import type { JoinGetInput } from '@lemoncloud/chatic-sockets-lib';
+import type { JoinUpdateInput } from 'node_modules/@lemoncloud/chatic-sockets-lib/dist/lib/join/types';
+import type { DomainJoin } from '../../domain';
+import { toDomainJoin } from '../../domain';
+import type { DataContext } from '../../repositories';
 
 export interface IJoinRemoteDataSource {
+    /** 단일 join 스냅샷을 조회합니다(`join.get`). JoinSyncPlan polling과 refresh 경로가 사용합니다. */
+    getJoin(payload: JoinGetInput, context: DataContext): Promise<DomainJoin>;
     /** 특정 메시지까지 읽었음을 서버에 알리고 참여 정보를 동기화합니다. */
-    readChat(payload: ChatReadPayload, ref?: string): void;
-
+    readChat(payload: ChatReadInput, context: DataContext): Promise<DomainJoin>;
     /** 참여 정보(예: 알림 설정 변경)를 수정합니다. */
-    updateJoin(payload: ChatUpdateJoinPayload, ref?: string): void;
+    updateJoin(payload: JoinUpdateInput, context: DataContext): Promise<DomainJoin>;
+    /** 채널에 참여 요청을 보냅니다. */
+    joinChannel(payload: ChannelJoinInput, context: DataContext): Promise<DomainJoin>;
 }
 
+/**
+ * Join remote source. Single boundary where join API views become domain
+ * models; callers receive domain shapes only. The request-time `context`
+ * is supplied by the caller to keep a late response on its original scope.
+ */
 export class JoinRemoteDataSource implements IJoinRemoteDataSource {
-    constructor(
-        private readonly socketEventBus: IEventBus<SocketEventMap>,
-        private readonly domainEventBus: IEventBus<DomainEventMap>,
-        private readonly wssClient: IWebSocketClient
-    ) {
-        this.initializeListeners();
+    constructor(private readonly gateway: JoinDomainGateway) {}
+
+    public async getJoin(payload: JoinGetInput, context: DataContext): Promise<DomainJoin> {
+        const remote = await this.gateway.get<JoinView>(payload);
+        return toDomainJoin((remote || {}) as JoinView, context);
     }
 
-    private initializeListeners() {
-        // chat:read 이벤트는 도메인 계층에서 join:update 로직으로 통합 처리됩니다.
-        this.socketEventBus.on('chat:read', detail => {
-            this.domainEventBus.emit('join:update', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:create', detail => {
-            this.domainEventBus.emit('join:create', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:update', detail => {
-            this.domainEventBus.emit('join:update', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:delete', detail => {
-            this.domainEventBus.emit('join:delete', {
-                data: detail.payload as JoinView,
-                ref: detail.ref,
-            });
-        });
-
-        this.socketEventBus.on('join:error', detail => {
-            this.domainEventBus.emit('error', {
-                domain: 'join',
-                message: detail.payload.error || 'Join Error',
-                ref: detail.ref,
-            });
-        });
+    public async readChat(payload: ChatReadInput, context: DataContext): Promise<DomainJoin> {
+        const remote = await this.gateway.read<JoinView>(payload);
+        return toDomainJoin((remote || {}) as JoinView, context);
     }
 
-    public readChat(payload: ChatReadPayload, ref?: string) {
-        this.wssClient.send('chat', 'read', payload, ref);
+    public async updateJoin(payload: JoinUpdateInput, context: DataContext): Promise<DomainJoin> {
+        const remote = await this.gateway.update<JoinView>(payload);
+        return toDomainJoin((remote || {}) as JoinView, context);
     }
 
-    public updateJoin(payload: ChatUpdateJoinPayload, ref?: string) {
-        this.wssClient.send('chat', 'update-join', payload, ref);
+    public async joinChannel(payload: ChannelJoinInput, context: DataContext): Promise<DomainJoin> {
+        const remote = await this.gateway.join<JoinView>(payload);
+        return toDomainJoin((remote || {}) as JoinView, context);
     }
 }

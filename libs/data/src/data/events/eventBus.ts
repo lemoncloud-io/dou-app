@@ -1,12 +1,12 @@
 import { logger } from '@chatic/bridges';
 
-import type { DomainEventMap, SocketEventMap } from './types';
+import type { DomainEventMap } from './types';
 
 /**
  * 시스템 내의 모든 이벤트 레지스트리를 하나로 묶어 관리하는 통합 타입입니다.
  * 이벤트 버스가 처리할 수 있는 이벤트 맵의 허용 범위를 제한하여 타입 안정성을 보장합니다.
  */
-export type AppEventMap = SocketEventMap | DomainEventMap;
+export type AppEventMap = DomainEventMap;
 
 /**
  * 제네릭 제약 조건이 적용된 범용 이벤트 버스 인터페이스입니다.

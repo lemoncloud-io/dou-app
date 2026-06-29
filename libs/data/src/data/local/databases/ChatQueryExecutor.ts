@@ -1,6 +1,6 @@
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from './types';
 import type { ChatQueryOptions } from '@chatic/app-messages';
-import { CHAT_PAGINATION_INDEX } from './IndexedDBDatabase';
+import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from './IndexedDBDatabase';
 
 /**
  * 채팅 도메인('chat') 전용 쿼리 실행기 구현체입니다.
@@ -13,8 +13,8 @@ export class ChatQueryExecutor implements IndexedDbQueryExecutor<'chat'> {
         options?: ChatQueryOptions
     ): Promise<IndexedDbRow<'chat'>[]> {
         if (!options || !options.channelId) {
-            // 채널 ID가 없는 경우 조회할 수 없으므로 빈 배열을 반환합니다.
-            return [];
+            // 채널 ID가 없는 경우 전체 조회를 허용합니다.
+            return db.loadAll<'chat'>(TYPE_CID_UID_INDEX, [scope.type, scope.cid, scope.uid]);
         }
 
         const limit = options.limit || 20;
