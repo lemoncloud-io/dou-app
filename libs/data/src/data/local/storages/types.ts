@@ -1,5 +1,5 @@
 import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '../../repositories/types';
+import type { DataContextProvider } from '../../repositories-v2/types';
 import { resolveScopedContext } from './utils';
 
 /**

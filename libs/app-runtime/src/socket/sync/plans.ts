@@ -66,6 +66,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
         new ChatSyncPlan({
             onApply: (_target, applied) => {
+                console.log('RAINE', applied);
                 if (!applied.length) return;
                 const { chat } = getRepositories();
                 const scope = getContext();

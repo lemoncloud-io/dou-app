@@ -163,6 +163,11 @@ export class ProfileRepositoryV2 extends BaseRepositoryV2 implements IProfileRep
             await this.profileLocalDataSource.cacheWriteMany(upserts, requestContext);
         }
 
+        // Null deltas are resets: drop the corresponding cache entries under the live context.
+        if (removals.length > 0) {
+            await this.profileLocalDataSource.cacheDeleteMany(removals, requestContext);
+        }
+
         return { syncedAt: syncedAt ?? since, updatedCount: upserts.length, removedCount: removals.length };
     }
 

@@ -20,7 +20,7 @@ describe('ProfileRemoteDataSource', () => {
 
     describe('발신(Send) 파이프라인 검증 (Request)', () => {
         it('get 호출 시 profile.get 액션으로 request가 전송되어야 한다', async () => {
-            const payload: ProfileGetInput = { id: 'site-1:user-1' };
+            const payload: ProfileGetInput = { id: 'site-1@user-1' };
             mockGateways.profile.get.mockResolvedValue({ siteId: 'site-1', userId: 'user-1', nick: 'nick-1' } as any);
             await dataSource.get(payload, context);
             expect(mockGateways.profile.get).toHaveBeenCalledWith(payload);
@@ -49,12 +49,12 @@ describe('ProfileRemoteDataSource', () => {
     });
 
     describe('수신(Receive) 매핑 검증 (View → Domain)', () => {
-        it('get 응답을 sid:uid 식별자의 도메인 프로필로 변환한다', async () => {
+        it('get 응답을 sid@uid 식별자의 도메인 프로필로 변환한다', async () => {
             mockGateways.profile.get.mockResolvedValue({ siteId: 'site-1', userId: 'user-1', nick: 'nick-1' } as any);
 
-            const domain = await dataSource.get({ id: 'site-1:user-1' }, context);
+            const domain = await dataSource.get({ id: 'site-1@user-1' }, context);
 
-            expect(domain).toMatchObject({ id: 'site-1:user-1', cid: 'cloud-a', sid: 'site-1', uid: 'user-1' });
+            expect(domain).toMatchObject({ id: 'site-1@user-1', cid: 'cloud-a', sid: 'site-1', uid: 'user-1' });
         });
 
         it('view에 식별자가 없으면 context의 sid/uid로 보정한다', async () => {
@@ -62,7 +62,7 @@ describe('ProfileRemoteDataSource', () => {
 
             const domain = await dataSource.getMine({}, context);
 
-            expect(domain).toMatchObject({ id: 'site-1:me', sid: 'site-1', uid: 'me' });
+            expect(domain).toMatchObject({ id: 'site-1@me', sid: 'site-1', uid: 'me' });
         });
 
         it('sync 응답의 delta를 도메인 upserts와 removals로 분리한다', async () => {
@@ -76,8 +76,8 @@ describe('ProfileRemoteDataSource', () => {
 
             const result = await dataSource.sync({ since: 0 }, context);
 
-            expect(result.upserts).toEqual([expect.objectContaining({ id: 'site-1:user-1', cid: 'cloud-a' })]);
-            expect(result.removals).toEqual(['site-1:user-2']);
+            expect(result.upserts).toEqual([expect.objectContaining({ id: 'site-1@user-1', cid: 'cloud-a' })]);
+            expect(result.removals).toEqual(['site-1@user-2']);
             expect(result.syncedAt).toBe(123);
         });
     });

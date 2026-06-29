@@ -75,9 +75,9 @@ describe('ProfileLocalDataSourceV2', () => {
         } as any);
 
         // Read back through the derived key to prove the normalization path is stable.
-        const loaded = await dataSource.cacheRead('site-1:user-1');
+        const loaded = await dataSource.cacheRead('site-1@user-1');
 
-        expect(loaded?.id).toBe('site-1:user-1');
+        expect(loaded?.id).toBe('site-1@user-1');
         expect(loaded?.sid).toBe('site-1');
         expect(loaded?.uid).toBe('user-1');
         expect(loaded?.nick).toBe('Alice');
@@ -109,7 +109,7 @@ describe('ProfileLocalDataSourceV2', () => {
 
         unsubscribe();
 
-        expect(emissions).toEqual([[], ['site-1:user-1']]);
+        expect(emissions).toEqual([[], ['site-1@user-1']]);
     });
 
     it('filters profile lists by site and user so display lookups stay scoped to the active target', async () => {
@@ -125,7 +125,7 @@ describe('ProfileLocalDataSourceV2', () => {
         const result = await dataSource.cacheReadList({ siteId: 'site-1', userId: 'user-2' });
 
         // Cross-site rows must not bleed into the active place/profile lookup.
-        expect(result?.list.map(item => item.id)).toEqual(['site-1:user-2']);
+        expect(result?.list.map(item => item.id)).toEqual(['site-1@user-2']);
     });
 
     it('accepts sid and uid aliases when filtering the cached profile list', async () => {
@@ -139,7 +139,7 @@ describe('ProfileLocalDataSourceV2', () => {
 
         const result = await dataSource.cacheReadList({ sid: 'site-1', uid: 'user-1' });
 
-        expect(result?.list.map(item => item.id)).toEqual(['site-1:user-1']);
+        expect(result?.list.map(item => item.id)).toEqual(['site-1@user-1']);
     });
 
     it('throws when cacheWrite cannot resolve sid and uid', async () => {

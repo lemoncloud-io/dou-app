@@ -17,6 +17,7 @@ jest.mock('@chatic/web-core', () => ({
 }));
 
 const refreshList = jest.fn();
+const refreshChannelList = jest.fn();
 const syncChannels = jest.fn();
 const syncProfiles = jest.fn();
 const getSyncedAt = jest.fn();
@@ -34,13 +35,14 @@ const setSession = (cid: string, selectedSiteId: string | null) => {
 beforeEach(() => {
     jest.clearAllMocks();
     refreshList.mockResolvedValue(undefined);
+    refreshChannelList.mockResolvedValue(undefined);
     syncChannels.mockResolvedValue({ syncedAt: 100 });
     syncProfiles.mockResolvedValue({ syncedAt: 200 });
     getSyncedAt.mockResolvedValue(0);
     setSyncedAt.mockResolvedValue(undefined);
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { refreshList },
-        channel: { syncChannels },
+        channel: { refreshList: refreshChannelList, syncChannels },
         profile: { syncProfiles },
         syncMeta: { getSyncedAt, setSyncedAt },
     });

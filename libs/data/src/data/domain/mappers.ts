@@ -83,7 +83,9 @@ export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, conte
         ...api,
         id: toStringSafe(api.id),
         cid,
-        sid: api.$?.sid || context.sid || '',
+        // Channel view sid: top-level field first, then the nested `$.sid`, then context.
+        // Mirrors ChannelLocalDataSourceV2's precedence so a view's own site wins over context.
+        sid: api.sid || api.$?.sid || context.sid || '',
         isNotificationEnabled: toBooleanSafe(api.isNotificationEnabled, true),
         lastActivityAt: Math.max(lastChatAtMs, updatedAtMs),
     };

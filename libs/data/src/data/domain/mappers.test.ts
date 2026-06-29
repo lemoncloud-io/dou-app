@@ -83,10 +83,10 @@ describe('domain 매퍼 (API View → Domain)', () => {
     });
 
     describe('toDomainProfile', () => {
-        it('id가 없으면 sid:uid로 합성하고 siteId/userId를 정규화한다', () => {
+        it('id가 없으면 sid@uid로 합성하고 siteId/userId를 정규화한다', () => {
             const domain = toDomainProfile({ siteId: 'site-1', userId: 'user-1' } as any, context);
             expect(domain).toMatchObject({
-                id: 'site-1:user-1',
+                id: 'site-1@user-1',
                 cid: 'cloud-a',
                 sid: 'site-1',
                 uid: 'user-1',
@@ -96,7 +96,7 @@ describe('domain 매퍼 (API View → Domain)', () => {
 
         it('view에 식별자가 없으면 context의 sid/uid를 따른다', () => {
             const domain = toDomainProfile({ nick: 'me' } as any, context);
-            expect(domain).toMatchObject({ id: 'site-1:user-1', sid: 'site-1', uid: 'user-1' });
+            expect(domain).toMatchObject({ id: 'site-1@user-1', sid: 'site-1', uid: 'user-1' });
         });
     });
 

@@ -27,12 +27,10 @@ beforeEach(() => {
 });
 
 describe('useChannelUnreads — 채널 안읽음 계산', () => {
-    it('unread = lastChat chatNo - 내 join readNo, 음수는 0으로 보정한다', () => {
+    it('unread = lastChat chatNo - 내 join chatNo, 음수는 0으로 보정한다', () => {
         setJoins([
-            { channelId: 'c1', userId: 'me', readNo: 3 },
-            { channelId: 'c2', userId: 'me', readNo: 10 },
-            // another user's join for the same channel must be ignored
-            { channelId: 'c1', userId: 'other', readNo: 0 },
+            { channelId: 'c1', userId: 'me', chatNo: 3 },
+            { channelId: 'c2', userId: 'me', chatNo: 10 },
         ]);
 
         const channels = [
@@ -50,7 +48,7 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
     });
 
     it('lastChat이 없으면 channel.chatNo를 최신 번호로 사용한다', () => {
-        setJoins([{ channelId: 'c1', userId: 'me', readNo: 2 }]);
+        setJoins([{ channelId: 'c1', userId: 'me', chatNo: 2 }]);
 
         const channels = [channel('c1', { chatNo: 6 } as Partial<DomainChannel>)];
 

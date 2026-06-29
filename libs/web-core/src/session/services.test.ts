@@ -4,7 +4,6 @@ const mockFetchProfile = jest.fn();
 const mockIssueCloudDelegationToken = jest.fn();
 const mockIssueCloudToken = jest.fn();
 const mockLoginRelayRequest = jest.fn();
-const mockLoginWithInviteCodeRequest = jest.fn();
 const mockLogoutRelayRequest = jest.fn();
 const mockRefreshAuthToken = jest.fn();
 const mockRefreshCloudToken = jest.fn();
@@ -70,7 +69,6 @@ jest.mock('../api', () => ({
     issueCloudDelegationToken: (...args: unknown[]) => mockIssueCloudDelegationToken(...args),
     issueCloudToken: (...args: unknown[]) => mockIssueCloudToken(...args),
     login: (...args: unknown[]) => mockLoginRelayRequest(...args),
-    loginWithInviteCode: (...args: unknown[]) => mockLoginWithInviteCodeRequest(...args),
     logout: (...args: unknown[]) => mockLogoutRelayRequest(...args),
     refreshAuthToken: (...args: unknown[]) => mockRefreshAuthToken(...args),
     refreshCloudToken: (...args: unknown[]) => mockRefreshCloudToken(...args),
@@ -170,7 +168,6 @@ import {
     loginRelayGuestByDevice,
     loginRelayUser,
     loginRelaySocial,
-    loginWithInviteCode,
     logoutCloudSession,
     persistDeviceId,
     refreshActiveCloudSession,
@@ -283,30 +280,6 @@ describe('session/services', () => {
             uid: 'user-2',
             $user: { userRole: 'user', name: 'Relay User' },
         });
-    });
-
-    it('preserves invite identity state during invite login', async () => {
-        const tokenView = {
-            Token: { identityToken: 'relay-token' },
-            uid: 'invite-user',
-            $user: { userRole: 'user', name: 'Invite User' },
-        } as unknown as UserTokenView;
-        mockLoginWithInviteCodeRequest.mockResolvedValue(tokenView);
-
-        await loginWithInviteCode({
-            code: 'invt:1:abc',
-            delegatorId: 'guest-42',
-            backend: 'https://relay.example.com',
-        });
-
-        expect(mockLoginWithInviteCodeRequest).toHaveBeenCalledWith(
-            'invt:1:abc',
-            'guest-42',
-            'https://relay.example.com'
-        );
-        expect(mockIdentitySetIsInvited).toHaveBeenCalledWith(true);
-        expect(mockIdentitySetOAuthProvider).toHaveBeenCalledWith(null);
-        expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith('guest-42');
     });
 
     it('refreshes relay session and updates selected site when target is provided', async () => {
