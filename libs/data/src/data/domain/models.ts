@@ -14,6 +14,11 @@ export type DomainChannel = CacheChannelView;
 export type DomainChat = CacheChatView;
 export type DomainJoin = CacheJoinView;
 
+// Re-export the chat enums so apps reference `subType`/`stereo` values through the data layer
+// rather than reaching into the upstream socials-api package. The fields themselves already flow
+// onto DomainChat/DomainChannel via ChatView/ChannelView inheritance.
+export type { ChatStereo, ChatSubType } from '@lemoncloud/chatic-socials-api';
+
 /** join 목록 조회 시 Repository에서 사용하는 local 전용 payload입니다. */
 export interface DomainJoinListPayload {
     channelId?: string;
