@@ -28,8 +28,8 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
     const isSelf = channel.memberNo === 1;
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
-    // boundary (join) that drives the unread badge is synced at the home level for the whole
-    // active place via useMyJoinsSync, not per rendered row.
+    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, so
+    // this channel sync is the only registration needed per row.
     useChannelSync(channel.id);
 
     const formatTime = (dateValue?: string | number) => {

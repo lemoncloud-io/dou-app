@@ -20,14 +20,7 @@ import { ROUTES } from '../../../routes/paths';
 import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
-import {
-    useChannelUnreads,
-    useHomeChannels,
-    useHomePlaces,
-    useInvitedClouds,
-    useMyJoinsSync,
-    useSwitchPlace,
-} from '../hooks';
+import { useChannelUnreads, useHomeChannels, useHomePlaces, useInvitedClouds, useSwitchPlace } from '../hooks';
 import { InviteDialog } from '../components';
 
 export const HomePage = () => {
@@ -56,9 +49,8 @@ export const HomePage = () => {
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
-    // Register my join (read-state) sync for every channel in the active place — keeps the
-    // unread badges live across the whole list, not just the rows scrolled into view.
-    useMyJoinsSync(channels.map(c => c.id));
+    // Unread badges derive from each channel's embedded `$join.chatNo` (kept live by the channel
+    // sync), so no separate per-channel join sync is registered here.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels);
 
     // When a site is active, prefer the V2 per-site profile (nick/thumbnail) so an edit-screen

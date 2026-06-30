@@ -7,6 +7,5 @@ export * from './useHomeChannels';
 export * from './useHomePlaces';
 export * from './useInviteAccept';
 export * from './useInvitedClouds';
-export * from './useMyJoinsSync';
 export * from './useSwitchPlace';
 export * from './useUpdatePlace';

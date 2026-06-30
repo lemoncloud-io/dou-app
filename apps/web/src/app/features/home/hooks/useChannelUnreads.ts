@@ -1,51 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
 import type { ChannelUnreads } from '../types';
 
 /**
- * Derives per-channel unread counts for the current user.
+ * Derives per-channel unread counts for the current user, straight from each channel row.
  *
  * unread(channel) = max(0, latestChatNo - myReadNo), where latestChatNo is the channel's last
- * chat number (lastChat$.chatNo, falling back to channel.chatNo) and myReadNo is the current
- * user's read boundary from their join row. Join queries are channelId-scoped, so we observe
- * each channel's join list and pick our own row; the readNo stays live via the join syncs
- * registered in useMyJoinsSync. A channel with no join row yet has no read boundary, so it
- * shows no badge (left undefined, counted as 0) by design.
+ * chat number (lastChat$.chatNo, falling back to channel.chatNo) and myReadNo is my read
+ * boundary carried inline on the channel as `$join.chatNo`. Channel sync responses embed the
+ * current user's `$join`, so we read it directly instead of observing the join cache and
+ * registering a separate per-channel join sync. Presence of `$join` is the "has a read
+ * boundary" signal: a channel whose `$join` hasn't synced yet shows no badge (undefined,
+ * counted as 0) by design, while a synced `$join` with no chatNo reads as 0 (all unread).
+ *
+ * No join subscription is needed here: a read advances the server's `$join.chatNo` on the next
+ * channel sync (sending the read triggers one), so the badge clears on its own.
  */
 export const useChannelUnreads = (channels: DomainChannel[]): ChannelUnreads => {
-    const { join } = useRuntimeRepositories();
-    const { userId } = useSessionIdentity();
-
-    const [readNoByChannel, setReadNoByChannel] = useState<Record<string, number>>({});
-
-    // Re-subscribe only when the set of channel ids changes, not on every new array identity.
-    const channelKey = channels.map(c => c.id).join(',');
-
-    useEffect(() => {
-        if (!userId) return;
-        const disposers = channels.map(ch =>
-            join.observeList({ channelId: ch.id }, result => {
-                const mine = (result?.list ?? []).find(j => j.userId === userId && j.channelId === ch.id);
-
-                if (!mine) return;
-                const readNo = mine.chatNo ?? 0;
-                setReadNoByChannel(prev => (prev[ch.id] === readNo ? prev : { ...prev, [ch.id]: readNo }));
-            })
-        );
-        return () => disposers.forEach(dispose => dispose());
-        // channelKey captures the channel id set; channels is read once per key.
-    }, [join, userId, channelKey]);
-
     return useMemo(() => {
         const byChannel: Record<string, number> = {};
         let total = 0;
         for (const ch of channels) {
             const latestChatNo = ch.lastChat$?.chatNo ?? ch.chatNo ?? 0;
-            const readNo = readNoByChannel[ch.id];
+            // Distinguish "no read boundary yet" (no $join → no badge) from "joined, read up to
+            // chatNo (default 0)" so an unsynced channel never flashes a full-count badge.
+            const readNo = ch.$join ? (ch.$join.chatNo ?? 0) : undefined;
 
             const unread = readNo === undefined ? 0 : Math.max(0, latestChatNo - readNo);
             byChannel[ch.id] = unread;
@@ -53,5 +34,5 @@ export const useChannelUnreads = (channels: DomainChannel[]): ChannelUnreads => 
         }
 
         return { byChannel, total };
-    }, [channels, readNoByChannel]);
+    }, [channels]);
 };
