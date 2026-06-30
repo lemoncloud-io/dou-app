@@ -21,18 +21,24 @@ const STORE_NAME = 'cache_store';
 interface CachedRecord {
     type?: string;
     cid?: string;
-    data?: { id?: string; sid?: string; name?: string };
+    data?: { id?: string; sid?: string; name?: string; $join?: { userId?: string } };
 }
 
 export interface PushChannelHint {
     channelId?: string;
     sid?: string;
     channelName?: string;
+    /**
+     * The receiving user's id in the SOURCE cloud (the push's `data.uid`). The signed-in user
+     * has a distinct id per cloud, so this attributes the push to its cloud even when the
+     * channelId reverse-lookup is ambiguous — channel ids are per-cloud sequential and collide
+     * across clouds, and the push carries neither `sid` nor `channelName` to disambiguate.
+     */
+    uid?: string;
 }
 
 export const resolvePushCloudId = async (hint: PushChannelHint): Promise<string | null> => {
-    const channelId = hint.channelId;
-    if (!channelId || typeof indexedDB === 'undefined') return null;
+    if ((!hint.channelId && !hint.uid) || typeof indexedDB === 'undefined') return null;
     try {
         const db = await new Promise<IDBDatabase>((resolve, reject) => {
             const request = indexedDB.open(DB_NAME);
@@ -45,10 +51,28 @@ export const resolvePushCloudId = async (hint: PushChannelHint): Promise<string 
                 request.onsuccess = () => resolve(request.result ?? []);
                 request.onerror = () => reject(request.error);
             });
+            const channels = records.filter(r => r.type === 'channel');
 
-            let candidates = records.filter(r => r.type === 'channel' && r.data?.id === channelId);
-            // Each narrowing filter only applies when it leaves at least one
-            // candidate — a stale cached name must not erase a true match.
+            // Primary: the source-cloud uid. Every cached channel of the source cloud carries
+            // `$join.userId === uid` (the user's id in that cloud), so this resolves the cloud
+            // uniquely even when channel ids collide across clouds.
+            if (hint.uid) {
+                const byUid = [
+                    ...new Set(
+                        channels
+                            .filter(r => r.data?.$join?.userId === hint.uid)
+                            .map(r => r.cid)
+                            .filter(Boolean)
+                    ),
+                ] as string[];
+                if (byUid.length === 1) return byUid[0];
+            }
+
+            // Fallback: reverse-look the channel id up, narrowed by sid/name when present. Each
+            // narrowing filter only applies when it leaves a candidate — a stale cached name must
+            // not erase a true match.
+            if (!hint.channelId) return null;
+            let candidates = channels.filter(r => r.data?.id === hint.channelId);
             if (hint.sid) {
                 const bySid = candidates.filter(r => r.data?.sid === hint.sid);
                 if (bySid.length > 0) candidates = bySid;

@@ -51,6 +51,9 @@ export const useCrossCloudPushBadge = (): void => {
                 channelId: data.channelId,
                 sid: data.sid,
                 channelName: data.channelName,
+                // `data.uid` is the user's id in the SOURCE cloud — unique per cloud, so it
+                // resolves the cloud when the channelId reverse-lookup is ambiguous.
+                uid: data.uid,
             }).then(apply);
         });
     }, [mark]);
