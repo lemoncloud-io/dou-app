@@ -1,0 +1,17 @@
+{
+    "name": "admin-v2",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/admin-v2/src",
+    "projectType": "application",
+    "tags": [],
+    "targets": {
+        "build": {
+            "defaultConfiguration": "production",
+            "configurations": {
+                "development": {
+                    "mode": "development"
+                }
+            }
+        }
+    }
+}
