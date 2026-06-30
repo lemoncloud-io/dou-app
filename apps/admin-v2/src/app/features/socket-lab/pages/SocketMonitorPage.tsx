@@ -18,7 +18,7 @@ const FALLBACK_WS = 'wss://ws.lemoncloud.io/socket';
 /** Socket Monitor 셸 — 사이드바 + 헤더(탭) + Observe/Probe 콘텐츠 + 검색 모달. */
 export const SocketMonitorPage = () => {
     const liveMotion = true;
-    const wl = useWatchlist(liveMotion);
+    const wl = useWatchlist();
     const canary = useCanarySim(liveMotion);
     const load = useLoadTest();
 
@@ -57,7 +57,7 @@ export const SocketMonitorPage = () => {
                         badgeColor={badgeColor}
                     />
                     <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-                        {tab === 'observe' ? <ObserveTab wl={wl} /> : <ProbeTab canary={canary} load={load} />}
+                        {tab === 'observe' ? <ObserveTab wl={wl} /> : <ProbeTab canary={canary} load={load} endpoint={endpoint} />}
                     </div>
                 </main>
                 {wl.searchOpen ? <UserSearchModal wl={wl} /> : null}

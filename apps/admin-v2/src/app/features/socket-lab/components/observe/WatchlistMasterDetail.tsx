@@ -12,7 +12,11 @@ export interface WatchlistMasterDetailProps {
 /** 마스터(관측 유저 한 줄 목록) + 디테일(선택 유저 디바이스 목록 + reload). */
 export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps) {
     const [hoverId, setHoverId] = useState<string | null>(null);
+    const [dragId, setDragId] = useState<string | null>(null);
+    const [dragOverId, setDragOverId] = useState<string | null>(null);
     const { observed, selectedUserId, selected } = wl;
+    // 유저 마지막 활동 = 디바이스 중 가장 최근(min lastActiveAt). 디바이스 없으면 null.
+    const userLastActive = selected && selected.devices.length ? Math.min(...selected.devices.map(d => d.lastActiveAt)) : null;
 
     return (
         <div
@@ -69,9 +73,25 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             return (
                                 <div
                                     key={u.id}
+                                    draggable
                                     onClick={() => wl.selectUser(u.id)}
                                     onMouseEnter={() => setHoverId(u.id)}
                                     onMouseLeave={() => setHoverId(null)}
+                                    onDragStart={() => setDragId(u.id)}
+                                    onDragEnd={() => {
+                                        setDragId(null);
+                                        setDragOverId(null);
+                                    }}
+                                    onDragOver={e => {
+                                        e.preventDefault();
+                                        if (dragId && dragOverId !== u.id) setDragOverId(u.id);
+                                    }}
+                                    onDrop={e => {
+                                        e.preventDefault();
+                                        if (dragId) wl.reorderUser(dragId, u.id);
+                                        setDragId(null);
+                                        setDragOverId(null);
+                                    }}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -84,7 +104,9 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                             : hoverId === u.id
                                               ? '#11161f'
                                               : 'transparent',
-                                        cursor: 'pointer',
+                                        cursor: dragId ? 'grabbing' : 'grab',
+                                        opacity: dragId === u.id ? 0.4 : 1,
+                                        boxShadow: dragOverId === u.id && dragId !== u.id ? `inset 0 2px 0 ${ACCENT}` : 'none',
                                     }}
                                 >
                                     <span
@@ -211,42 +233,41 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                         flexShrink: 0,
                     }}
                 >
-                    <span
-                        style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: '.05em',
-                            color: '#6b747f',
-                            textTransform: 'uppercase',
-                        }}
-                    >
-                        Devices
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#7d8590' }}>
-                            {selected ? selected.devices.length : 0}
-                        </span>
-                        {selected ? (
-                            <button
-                                onClick={wl.reloadDevices}
-                                title="디바이스 목록 새로고침"
-                                aria-label="디바이스 목록 새로고침"
-                                style={{
-                                    appearance: 'none',
-                                    background: '#11161f',
-                                    border: '1px solid #1c2530',
-                                    borderRadius: 6,
-                                    cursor: 'pointer',
-                                    color: '#9aa4af',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '4px 6px',
-                                }}
-                            >
-                                <RotateCw size={12} />
-                            </button>
-                        ) : null}
-                    </div>
+                    {selected ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <span style={{ width: 9, height: 9, borderRadius: '50%', background: presenceColor(selected.presence), flexShrink: 0 }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                                <span style={{ fontWeight: 600, fontSize: 13, color: '#e6edf3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selected.name}</span>
+                                <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: '#5a636e' }}>
+                                    {selected.id}
+                                    {selected.code ? ` · ${selected.code}` : ''} · active {userLastActive != null ? ago(userLastActive) : '—'}
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', color: '#6b747f', textTransform: 'uppercase' }}>User</span>
+                    )}
+                    {selected ? (
+                        <button
+                            onClick={wl.reloadDevices}
+                            title="디바이스 목록 새로고침"
+                            aria-label="디바이스 목록 새로고침"
+                            style={{
+                                appearance: 'none',
+                                background: '#11161f',
+                                border: '1px solid #1c2530',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                color: '#9aa4af',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '4px 6px',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <RotateCw size={12} />
+                        </button>
+                    ) : null}
                 </div>
 
                 {selected ? (
@@ -255,25 +276,15 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 9,
-                                padding: '12px 16px',
+                                gap: 8,
+                                padding: '9px 16px',
                                 borderBottom: '1px solid #1a212c',
                                 background: '#0b0f16',
                                 flexShrink: 0,
                             }}
                         >
-                            <span
-                                style={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    background: presenceColor(selected.presence),
-                                }}
-                            />
-                            <span style={{ fontWeight: 600, color: '#e6edf3' }}>{selected.name}</span>
-                            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: '#5a636e' }}>
-                                관측 대상 · {selected.id}
-                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', color: '#6b747f', textTransform: 'uppercase' }}>Devices</span>
+                            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#7d8590' }}>{selected.devices.length}</span>
                         </div>
                         {selected.devices.length ? (
                             <div style={{ display: 'flex', flexDirection: 'column' }}>

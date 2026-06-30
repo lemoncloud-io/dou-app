@@ -1,19 +1,14 @@
 /**
  * `hooks/use-watchlist.ts`
- * - Observe 워치리스트 상태 + 검색 + 디바이스 reload. 디자인 seed/tick/search 포팅.
- * - Phase 2: INITIAL_OBSERVED/SEARCH_POOL/reload를 서버 `UserView.Devices` 구독으로 교체.
+ * - Observe 워치리스트 상태 + 실 유저 검색(`fetchObservedUsers`) + presence(디바이스) 조회.
+ * - 유저 선택/추가/reload 시 `fetchUserPresence`로 최신화. 순서는 드래그로 변경.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
-import {
-    INITIAL_OBSERVED,
-    makeUserFromSearch,
-    reloadUserDevices,
-    SEARCH_POOL,
-    type ObservedUser,
-    type SearchUser,
-    type UserSearchType,
-} from '../mock/observed-users';
+import { fetchObservedUsers, fetchUserPresence } from '../api/userApi';
+import type { ObservedUser, UserSearchType } from '../mock/observed-users';
+
+const PAGE_SIZE = 10;
 
 export interface Watchlist {
     observed: ObservedUser[];
@@ -22,7 +17,9 @@ export interface Watchlist {
     observedIds: Set<string>;
     selectUser(id: string): void;
     removeUser(id: string): void;
+    reorderUser(fromId: string, toId: string): void;
     reloadDevices(): void;
+    reloading: boolean;
     // search
     searchOpen: boolean;
     openSearch(): void;
@@ -32,97 +29,121 @@ export interface Watchlist {
     searchQuery: string;
     setSearchQuery(q: string): void;
     runSearch(): void;
-    searchShown: SearchUser[];
+    searchShown: ObservedUser[];
     searchTotal: number;
+    searchLoading: boolean;
+    searchError: string | null;
     canLoadMore: boolean;
     loadMore(): void;
-    addUser(u: SearchUser): void;
+    addUser(u: ObservedUser): void;
 }
 
-export const useWatchlist = (liveMotion: boolean): Watchlist => {
-    const [observed, setObserved] = useState<ObservedUser[]>(INITIAL_OBSERVED);
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(INITIAL_OBSERVED[0]?.id ?? null);
+export const useWatchlist = (): Watchlist => {
+    const [observed, setObserved] = useState<ObservedUser[]>([]);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [reloading, setReloading] = useState(false);
+
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchType, setSearchType] = useState<UserSearchType>('id');
     const [searchQuery, setSearchQuery] = useState('');
-    const [appliedQuery, setAppliedQuery] = useState('');
-    const [searchLoaded, setSearchLoaded] = useState(10);
+    const [searchList, setSearchList] = useState<ObservedUser[]>([]);
+    const [searchTotal, setSearchTotal] = useState(0);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
 
-    // 디바이스 활동 시뮬 — green 디바이스 tick/lastActive 갱신(1s).
-    useEffect(() => {
-        if (liveMotion === false) return;
-        const timer = setInterval(() => {
-            setObserved(prev =>
-                prev.map(u => ({
-                    ...u,
-                    devices: u.devices.map(d => {
-                        let { tick, lastActiveAt } = d;
-                        lastActiveAt += 1;
-                        if (d.status === 'green' && Math.random() < 0.5) {
-                            tick += 1;
-                            if (Math.random() < 0.6) lastActiveAt = 0;
-                        }
-                        return { ...d, tick, lastActiveAt };
-                    }),
-                }))
-            );
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [liveMotion]);
+    const applied = useRef<{ type: UserSearchType; query: string; page: number }>({ type: 'id', query: '', page: 0 });
+
+    const loadPage = useCallback(async (append: boolean) => {
+        setSearchLoading(true);
+        setSearchError(null);
+        try {
+            const { type, query, page } = applied.current;
+            const res = await fetchObservedUsers({ type, query, page, limit: PAGE_SIZE });
+            setSearchList(prev => (append ? [...prev, ...res.list] : res.list));
+            setSearchTotal(res.total);
+        } catch (e) {
+            setSearchError(e instanceof Error ? e.message : `${e}`);
+            if (!append) setSearchList([]);
+        } finally {
+            setSearchLoading(false);
+        }
+    }, []);
+
+    // 선택/추가/reload 공용 — id로 presence(디바이스) 최신화 후 해당 유저만 갱신.
+    const refreshPresence = useCallback(
+        (id: string) =>
+            fetchUserPresence(id)
+                .then(p => setObserved(prev => prev.map(u => (u.id === id ? { ...u, presence: p.presence, devices: p.devices } : u))))
+                .catch(() => undefined),
+        [],
+    );
 
     const observedIds = useMemo(() => new Set(observed.map(u => u.id)), [observed]);
     const selected = observed.find(u => u.id === selectedUserId) ?? null;
-
-    const filteredPool = useMemo(() => {
-        const q = appliedQuery.trim().toLowerCase();
-        if (!q) return SEARCH_POOL;
-        return SEARCH_POOL.filter(u => (searchType === 'name' ? u.display : u.id).toLowerCase().includes(q));
-    }, [appliedQuery, searchType]);
-    const searchShown = filteredPool.slice(0, searchLoaded);
-
-    const applyQuery = () => {
-        setAppliedQuery(searchQuery);
-        setSearchLoaded(10);
-    };
 
     return {
         observed,
         selectedUserId,
         selected,
         observedIds,
-        selectUser: id => setSelectedUserId(id),
+        selectUser: id => {
+            setSelectedUserId(id);
+            void refreshPresence(id); // 전환 시에도 presence 호출
+        },
         removeUser: id =>
             setObserved(prev => {
                 const next = prev.filter(u => u.id !== id);
-                setSelectedUserId(sel => (sel === id ? (next[0]?.id ?? null) : sel));
+                setSelectedUserId(sel => (sel === id ? next[0]?.id ?? null : sel));
                 return next;
             }),
-        reloadDevices: () =>
-            setObserved(prev =>
-                prev.map(u => (u.id === selectedUserId ? { ...u, devices: reloadUserDevices(u.devices) } : u))
-            ),
+        reorderUser: (fromId, toId) =>
+            setObserved(prev => {
+                if (fromId === toId) return prev;
+                const from = prev.findIndex(u => u.id === fromId);
+                const to = prev.findIndex(u => u.id === toId);
+                if (from < 0 || to < 0) return prev;
+                const next = [...prev];
+                const [moved] = next.splice(from, 1);
+                next.splice(to, 0, moved);
+                return next;
+            }),
+        reloadDevices: () => {
+            const id = selectedUserId;
+            if (!id) return;
+            setReloading(true);
+            void refreshPresence(id).finally(() => setReloading(false));
+        },
+        reloading,
         searchOpen,
         openSearch: () => {
             setSearchOpen(true);
             setSearchQuery('');
-            setAppliedQuery('');
-            setSearchLoaded(10);
+            applied.current = { type: searchType, query: '', page: 0 };
+            void loadPage(false);
         },
         closeSearch: () => setSearchOpen(false),
         searchType,
         setSearchType,
         searchQuery,
         setSearchQuery,
-        runSearch: applyQuery,
-        searchShown,
-        searchTotal: filteredPool.length,
-        canLoadMore: searchShown.length < filteredPool.length,
-        loadMore: () => setSearchLoaded(n => n + 10),
+        runSearch: () => {
+            applied.current = { type: searchType, query: searchQuery, page: 0 };
+            void loadPage(false);
+        },
+        searchShown: searchList,
+        searchTotal,
+        searchLoading,
+        searchError,
+        canLoadMore: searchList.length < searchTotal,
+        loadMore: () => {
+            applied.current = { ...applied.current, page: applied.current.page + 1 };
+            void loadPage(true);
+        },
         addUser: u => {
             if (observedIds.has(u.id)) return;
-            const nu = makeUserFromSearch(u);
-            setObserved(prev => [...prev, nu]);
-            setSelectedUserId(nu.id);
+            setObserved(prev => [...prev, u]);
+            setSelectedUserId(u.id);
+            void refreshPresence(u.id); // 추가 직후 presence 최신화
         },
     };
 };
