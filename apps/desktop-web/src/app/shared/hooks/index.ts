@@ -1,6 +1,7 @@
 export * from './usePlaces';
 export * from './useCurrentPlace';
 export * from './useChannels';
+export * from './useChannelReadCursors';
 export * from './useChats';
 export * from './useChannelChatFeeds';
 export * from './useChatMutations';

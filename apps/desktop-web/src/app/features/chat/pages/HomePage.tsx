@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useGlobalLoader } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
 import {
@@ -30,7 +29,6 @@ import {
     useReadCursorStore,
     useSelectPlace,
     useSelectedChannelStore,
-    useSelectedPlaceStore,
     useSiteProfiles,
     useUnreadStore,
 } from '../../../shared';
@@ -43,7 +41,6 @@ import {
     PlaceRail,
     ShortcutsDialog,
     SidebarHeader,
-    SwitchingOverlay,
     SavedPanel,
     MentionsPanel,
     ThreadPanel,
@@ -63,13 +60,19 @@ export const HomePage = () => {
     // received cross-cloud push marks its source cloud's tile instead.
     const badgedClouds = useCloudPushBadgeStore(s => s.badged);
 
-    const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
-    const selectPlace = useSelectedPlaceStore(s => s.selectPlace);
-    const { switchPlace } = useSelectPlace();
-    const { switchCloud } = useCloudSwitchFlow({ onPlaceSelected: selectPlace });
-    // True while a cloud/place switch handshake is in flight — disables the rail
-    // cloud buttons so a second switch can't be fired mid-pipeline.
-    const { isLoading: isSwitching } = useGlobalLoader();
+    // The active place IS the session's selected site. The Default Cloud (relay / Guest
+    // Session) has no joinable places, so pin the 'default' sentinel there so the Self
+    // Channel loads (the sidebar hides the switcher in that mode). activeCloudId (from
+    // useClouds) already resolves socket → persisted → fallback.
+    const isDefaultMode = (activeCloudId ?? 'default') === 'default';
+    const { selectedSiteId } = useSessionSelection();
+    const selectedPlaceId = isDefaultMode ? 'default' : selectedSiteId;
+
+    const { switchPlace, isSwitching: isPlaceSwitching } = useSelectPlace();
+    const { switchCloud, isSwitching: isCloudSwitching } = useCloudSwitchFlow();
+    // True while a cloud/place switch handshake is in flight — disables the rail tiles and
+    // suppresses the idle auto-select so it can't thrash against a mid-switch selection.
+    const isSwitching = isPlaceSwitching || isCloudSwitching;
 
     // Place Profiles: mirror the current place's overrides into the store (one
     // subscription). Delta pulls are owned by the runtime (useBackgroundSync +
@@ -101,10 +104,6 @@ export const HomePage = () => {
     const debugPanelOpen = useDebugModeStore(s => s.overlayOpen);
     const showDebugPanel = (import.meta.env.DEV || debugEnabled) && debugPanelOpen;
     const myUid = useSessionIdentity().userId;
-    // Default Cloud (relay / Guest Session): no joinable places — force the
-    // 'default' place so the Self Channel loads; the sidebar hides the switcher.
-    // activeCloudId (from useClouds) already resolves socket → persisted → fallback.
-    const isDefaultMode = (activeCloudId ?? 'default') === 'default';
 
     const [query, setQuery] = useState('');
     // A channel to open once its place's channels have loaded (notification click
@@ -128,7 +127,7 @@ export const HomePage = () => {
             // top-level message scrolls the main feed. Never both.
             pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
             pendingJumpRef.current = !threadRootId && chatNo != null ? { channelId, chatNo } : null;
-            void switchPlace(placeId);
+            switchPlace(placeId);
             return;
         }
         selectChannel(channelId);
@@ -153,7 +152,7 @@ export const HomePage = () => {
         const { placeId, channelId } = pendingOpen;
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
-            void switchPlace(placeId);
+            switchPlace(placeId);
         } else {
             selectChannel(channelId);
         }
@@ -161,31 +160,26 @@ export const HomePage = () => {
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
     }, [pendingOpen?.nonce]);
 
-    // Default Cloud: pin the 'default' place (Self Channel). Otherwise select the
-    // first place whenever the current selection isn't in the loaded list — covers
-    // initial load AND a cloud switch / invite-join where the prior place (e.g.
-    // 'default') doesn't exist in the newly-loaded cloud.
+    // Default Cloud pins the derived 'default' place (Self Channel) — nothing to select.
+    // Otherwise select the first place whenever the session's selected site isn't in the
+    // loaded list — covers initial load (sid null), a cloud switch, or an invite-join where
+    // the prior site doesn't exist in the newly-loaded cloud.
     useEffect(() => {
-        if (isDefaultMode) {
-            if (selectedPlaceId !== 'default') selectPlace('default');
-            return;
-        }
-        // A cloud/place switch already owns place selection (useCloudSwitchFlow /
-        // useSelectPlace commit the target). Don't auto-correct while one is in
-        // flight: `places` and selectedPlaceId update on independent async timelines,
-        // so a transient mismatch here would fire switchPlace() against a stale /
-        // other-cloud place and thrash the channel list. Only act when idle.
+        if (isDefaultMode) return;
+        // A cloud/place switch already owns selection. Don't auto-correct while one is in
+        // flight: `places` and selectedSiteId update on independent async timelines, so a
+        // transient mismatch here would fire switchPlace() against a stale / other-cloud
+        // place and thrash the channel list. Only act when idle.
         if (isSwitching) return;
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
             const firstId = places[0]?.id;
-            // Use switchPlace (runs authPlace) — not the raw setter — so the first
-            // place gets its per-place token in cloud mode; otherwise the channel
-            // fetch hits an unauthed place and the shell stays stuck on the empty
-            // state after a cloud-account login.
-            if (firstId) void switchPlace(firstId);
+            // switchPlace → switchSite gives the first place its per-place token + socket
+            // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
+            // stuck on the empty state after a cloud-account login.
+            if (firstId) switchPlace(firstId);
         }
-    }, [isDefaultMode, isSwitching, places, selectedPlaceId, selectPlace, switchPlace]);
+    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
     // The profile panel follows for a clean pane handoff.
@@ -339,7 +333,7 @@ export const HomePage = () => {
                         unreadByPlace={unreadByPlace}
                         isDefaultMode={isDefaultMode}
                         isSwitching={isSwitching}
-                        onSelectPlace={placeId => void switchPlace(placeId)}
+                        onSelectPlace={placeId => switchPlace(placeId)}
                     />
                 }
                 sidebar={
@@ -404,7 +398,6 @@ export const HomePage = () => {
                         />
                     ) : undefined
                 }
-                overlay={<SwitchingOverlay />}
             />
             <CreateChannelDialog />
             <JoinWithInviteDialog />

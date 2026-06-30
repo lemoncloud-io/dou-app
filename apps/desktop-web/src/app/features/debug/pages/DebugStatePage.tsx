@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useSessionAuth, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 import { useSocketState } from '@chatic/app-runtime';
 
-import { useChannels, useClouds, usePlaces, useSelectedChannelStore, useSelectedPlaceStore } from '../../../shared';
+import { useChannels, useClouds, usePlaces, useSelectedChannelStore } from '../../../shared';
 
 const Row = ({ label, value }: { label: string; value: string | number | boolean | null | undefined }) => (
     <div className="flex flex-col gap-0.5 py-1.5">
@@ -27,9 +27,8 @@ export const DebugStatePage = () => {
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const { clouds, activeCloudId } = useClouds();
     const { places } = usePlaces();
-    const storePlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
-    const { channels } = useChannels(storePlaceId ?? undefined);
+    const { channels } = useChannels(selectedSiteId ?? undefined);
 
     return (
         <div className="mx-auto w-full max-w-4xl p-6">
@@ -52,7 +51,6 @@ export const DebugStatePage = () => {
 
                 <Section title="Selection">
                     <Row label="Active cloudId" value={activeCloudId} />
-                    <Row label="Selected placeId" value={storePlaceId} />
                     <Row label="Selected channelId" value={selectedChannelId} />
                 </Section>
 

@@ -4,8 +4,9 @@ import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 
-import { computeChannelUnread } from '../utils';
+import { computeChannelUnread, resolveReadNo } from '../utils';
 import { useReadCursorStore } from '../stores';
+import { useChannelReadCursors } from './useChannelReadCursors';
 
 // Fixed alphabetical order (Slack-style) so the list doesn't jump on every new
 // message; unread is surfaced by the row badge, not by reordering.
@@ -54,15 +55,20 @@ export const useChannels = (placeId: string | undefined) => {
         });
     }, [channelRepository, placeId]);
 
-    // Derive unread from the local read cursor too, so reading a channel clears
-    // its badge immediately without waiting for a server-cursor refresh.
+    // Read boundary from my synced+observed join row, with the local cursor layered on so reading
+    // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
+    const serverReadNo = useChannelReadCursors(rawChannels);
     const channels = useMemo(
         () =>
             rawChannels.map(c => ({
                 ...c,
-                unreadCount: computeChannelUnread(c, myUid ?? null, readCursors[c.id ?? '']),
+                unreadCount: computeChannelUnread(
+                    c,
+                    myUid ?? null,
+                    resolveReadNo(c.id ?? '', serverReadNo, readCursors)
+                ),
             })),
-        [rawChannels, myUid, readCursors]
+        [rawChannels, myUid, readCursors, serverReadNo]
     );
 
     return { channels, isLoading };

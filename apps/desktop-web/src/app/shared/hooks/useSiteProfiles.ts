@@ -4,7 +4,6 @@ import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { useMyCloudUidStore } from '../stores/useMyCloudUidStore';
-import { useSelectedPlaceStore } from '../stores/useSelectedPlaceStore';
 import { type PlaceProfileEntry, useSiteProfilesStore } from '../stores/useSiteProfilesStore';
 import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
 
@@ -25,9 +24,10 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
  */
 export const useSiteProfiles = (): void => {
     const { profile: profileRepository } = useRuntimeRepositories();
-    const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
     const session = useGlobalSession();
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
+    // The active place IS the session's selected site (null in the Default Cloud).
+    const selectedPlaceId = session.activeServer.siteId ?? null;
     const accountUid = useSessionIdentity().userId ?? '';
     const setAll = useSiteProfilesStore(s => s.setAll);
     const reset = useSiteProfilesStore(s => s.reset);

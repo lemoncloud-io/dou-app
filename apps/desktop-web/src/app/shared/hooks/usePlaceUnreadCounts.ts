@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
+import { useGlobalSession, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
-import { computeChannelUnread } from '../utils';
+import { computeChannelUnread, resolveReadNo } from '../utils';
 import { useReadCursorStore } from '../stores';
+import { useChannelReadCursors } from './useChannelReadCursors';
 
 /**
  * Aggregates unread message counts per place for the active cloud, keyed by
@@ -25,6 +26,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
     const session = useGlobalSession();
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = useSessionIdentity();
+    const { selectedSiteId } = useSessionSelection();
     const readCursors = useReadCursorStore(s => s.cursors);
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
@@ -36,20 +38,30 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
 
     useEffect(() => {
         if (!isVerified) return;
-        // Observe every cached channel for the active cloud (all places — empty query).
-        // The cache is scoped to the active cloud context, so a switch re-emits the new
-        // cloud's set; cloudId stays in the deps to re-subscribe across switches.
-        return channelRepository.observeList({}, result => {
+        // Observe every cached channel of the active cloud across ALL places. An empty
+        // query falls back to the active place's sid (both the cache filter and the
+        // observer scope), so it would only ever surface the active place — breaking the
+        // per-place aggregation. `sid: ''` is falsy, so the local data source returns the
+        // full channel set; the observer still lives in the active scope (no context
+        // override), so realtime channel writes reemit it. `selectedSiteId` is in the deps
+        // to re-scope the observer on a place switch (scope is keyed by the active sid).
+        return channelRepository.observeList({ sid: '' }, result => {
             setChannels((result?.list ?? []) as DomainChannel[]);
         });
-    }, [channelRepository, isVerified, cloudId]);
+    }, [channelRepository, isVerified, cloudId, selectedSiteId]);
+
+    // Read boundary per channel from the synced+observed join rows (server unreadCount lags and
+    // never clears, so it isn't trusted); the local cursor is layered on for instant clearing.
+    const serverReadNo = useChannelReadCursors(channels);
 
     return useMemo(() => {
         const grouped: Record<string, number> = {};
         for (const ch of channels) {
             if (!ch.sid) continue;
-            grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, readCursors[ch.id ?? '']);
+            grouped[ch.sid] =
+                (grouped[ch.sid] ?? 0) +
+                computeChannelUnread(ch, myUid, resolveReadNo(ch.id ?? '', serverReadNo, readCursors));
         }
         return grouped;
-    }, [channels, myUid, readCursors]);
+    }, [channels, myUid, readCursors, serverReadNo]);
 };

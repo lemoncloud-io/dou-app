@@ -1,28 +1,17 @@
 import { useEffect, useRef } from 'react';
 
-import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 
 import { usePlaces } from './usePlaces';
-import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
+import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
 import { isDndActive, isMentioned, resolveMyMentionNames, stripMarkdown } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
-// A chat's ownerId is the author's global uid (same space as profile.uid — see
-// ChatRepository's optimistic `ownerId: domainScope.uid` and the `ownerId === uid`
-// self-checks in ChannelRepository / channelUnread). Do NOT use owner$.id: that's a
-// place-scoped member id that collides across places and with profile.id, which
-// silently suppressed real messages whose author's member id matched mine.
-const chatAuthorUid = (chat: DomainChat): string | undefined => chat.ownerId;
-const maxChatNo = (list: DomainChat[]): number => list.reduce((max, c) => Math.max(max, c.chatNo ?? 0), 0);
-// The observe list isn't guaranteed chronological, so the newest message is
-// the one with the highest chatNo — not the last array element.
-const newestChat = (list: DomainChat[]): DomainChat =>
-    list.reduce((newest, c) => ((c.chatNo ?? 0) > (newest.chatNo ?? 0) ? c : newest));
 // DMs have no channel name — title with the sender instead.
-const notificationTitle = (channel: DomainChannel, latest: DomainChat): string =>
+const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat): string =>
     channel.name ?? latest.owner$?.name ?? 'New message';
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
@@ -57,12 +46,14 @@ export const useDesktopNotifications = (): void => {
     // OS-notification policy on each channel's genuinely-new messages. The shared hook already
     // dropped optimistic own sentinels and skipped the cache warm-up baseline, so `chats` are
     // persisted messages strictly above the previous high-water mark.
-    useChannelChatFeeds(({ placeId, channel, chats }: ChannelChatFeed) => {
+    useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
         // No-op outside the Desktop Shell — the renderer must never raise an OS banner in a
         // plain browser (webClient would NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
         if (!isNative()) return;
 
-        const top = maxChatNo(chats);
+        // The channel watermark gives us the latest message (chat content streams only for the
+        // focused room in v2, so background notifications ride the channel record instead).
+        const top = chat.chatNo ?? 0;
         // Respect the user's notification preferences (global off / channel mode).
         const prefs = useNotificationPrefsStore.getState();
         // Global do-not-disturb (snooze / quiet hours) silences every banner.
@@ -75,22 +66,19 @@ export const useDesktopNotifications = (): void => {
         const cursor = useReadCursorStore.getState().cursors[channel.id] ?? 0;
         if (top <= cursor) return;
 
-        const latest = newestChat(chats);
-        const authorUid = chatAuthorUid(latest);
-        if (authorUid && authorUid === myUidRef.current) return;
+        // ownerId is the author's global uid (same space as profile.uid). Don't notify my own.
+        if (chat.ownerId && chat.ownerId === myUidRef.current) return;
 
         // Mentions-only channels: drop anything that doesn't @-mention me
         // (global profile name + this place's nick, plus @channel/@here).
-        if (notifyMode === 'mention') {
-            if (!isMentioned(latest.content ?? '', resolveMyMentionNames())) return;
-        }
+        if (notifyMode === 'mention' && !isMentioned(chat.content ?? '', resolveMyMentionNames())) return;
 
         void webClient
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, latest),
-                    body: stripMarkdown(latest.content ?? ''),
+                    title: notificationTitle(channel, chat),
+                    body: stripMarkdown(chat.content ?? ''),
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel).
                     deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
@@ -129,9 +117,7 @@ export const useDesktopNotifications = (): void => {
         const ensureJoinSub = (channel: DomainChannel) => {
             if (!channel.id || subs.has(channel.id)) return;
             const channelId = channel.id;
-            const unsubJoin = joinRepository.observeList({ channelId }, result =>
-                mirrorJoinNotify(result?.list ?? [])
-            );
+            const unsubJoin = joinRepository.observeList({ channelId }, result => mirrorJoinNotify(result?.list ?? []));
             subs.set(channelId, unsubJoin);
         };
 

@@ -7,10 +7,21 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
+import { getActiveServerContext } from '@chatic/web-core';
+
 import { threadRootId, type MessageGroup } from '../utils';
-import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore, useSelectedPlaceStore } from '../../../shared';
+import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { RichText } from './RichText';
+
+// Active place id (with the relay 'default' sentinel), read at call time so a saved item is
+// tagged with the place it was captured in. Non-reactive on purpose: this value is only needed
+// inside the save onClick, so a per-row session subscription would re-render every row on
+// unrelated session changes for nothing.
+const currentPlaceId = (): string | undefined => {
+    const server = getActiveServerContext();
+    return server.kind === 'cloud' ? (server.siteId ?? undefined) : 'default';
+};
 
 /** A thread reply author, display-resolved (Place Profile / roster / viewer). */
 export interface ThreadReplierView {
@@ -100,7 +111,6 @@ export const MessageRow = memo(
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
         const savedItems = useSavedItemsStore(s => s.items);
         const toggleSaved = useSavedItemsStore(s => s.toggle);
-        const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
         // Blank the avatar initial while the name resolves so "U" (Unknown) never flashes.
         const initial = group.namePending ? '' : group.ownerName.charAt(0).toUpperCase() || '?';
@@ -260,7 +270,7 @@ export const MessageRow = memo(
                                                             avatar: group.avatar,
                                                             colorSeed: group.colorSeed,
                                                             ownerId: group.ownerId,
-                                                            placeId: selectedPlaceId ?? undefined,
+                                                            placeId: currentPlaceId(),
                                                             parentId: message.parentId,
                                                         })
                                                     }

@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { useIsMutating } from '@tanstack/react-query';
 
-import { useGlobalLoader } from '@chatic/shared';
 import { cn } from '@chatic/lib/utils';
 import { useSocketState } from '@chatic/app-runtime';
+import { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from '@chatic/web-core';
 
 /**
  * App-shell connection status bar. The runtime socket state exposes the raw
@@ -13,10 +14,13 @@ import { useSocketState } from '@chatic/app-runtime';
 export const ConnectionBanner = () => {
     const { t } = useTranslation();
     const { state, isConnected, isVerified } = useSocketState();
-    // A cloud/place switch intentionally tears the socket down and re-verifies;
-    // SwitchingOverlay already shows that progress. Surfacing "Reconnecting…" on
-    // top reads as a failure, so stay quiet while a deliberate switch is in flight.
-    const isSwitching = useGlobalLoader().isLoading;
+    // A cloud/place switch intentionally tears the socket down and re-verifies; surfacing
+    // "Reconnecting…" during a deliberate switch reads as a failure, so stay quiet while one
+    // is in flight (detected via the switch mutations, the same signal useBackgroundSync uses).
+    const isSwitching =
+        useIsMutating({ mutationKey: SWITCH_SITE_MUTATION_KEY }) +
+            useIsMutating({ mutationKey: SWITCH_CLOUD_MUTATION_KEY }) >
+        0;
 
     // ClientSocketState: 'idle' | 'connecting' | 'connected' | 'closing' | 'closed'.
     // A closed transport is offline; 'idle' is the pre-connect boot state, so it stays
@@ -34,9 +38,7 @@ export const ConnectionBanner = () => {
                 offline ? 'bg-destructive text-destructive-foreground' : 'bg-warning/15 text-warning-foreground'
             )}
         >
-            {!offline && (
-                <span className="h-2 w-2 animate-pulse rounded-full bg-current" aria-hidden />
-            )}
+            {!offline && <span className="h-2 w-2 animate-pulse rounded-full bg-current" aria-hidden />}
             {offline ? t('connection.offline') : t('connection.reconnecting')}
         </div>
     );
