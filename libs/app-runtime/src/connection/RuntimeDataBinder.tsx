@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getDataManager } from '../data/runtime';
-import type { RuntimeBinding } from '../runtime/useRuntimeBinding';
+import type { RuntimeBinding } from '../runtime';
 
 export interface RuntimeDataBinderProps {
     binding: RuntimeBinding;
