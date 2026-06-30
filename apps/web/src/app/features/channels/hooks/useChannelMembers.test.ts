@@ -12,7 +12,6 @@ jest.mock('@chatic/app-runtime', () => ({
 
 const userObserveList = jest.fn();
 const joinObserveList = jest.fn();
-const refreshList = jest.fn();
 const syncChannelUsers = jest.fn();
 
 const join = (userId: string, joined: number, fields: Partial<DomainJoin> = {}): DomainJoin =>
@@ -34,21 +33,19 @@ beforeEach(() => {
     jest.clearAllMocks();
     seedUsers([]);
     seedJoins([]);
-    refreshList.mockResolvedValue(undefined);
     syncChannelUsers.mockResolvedValue(42);
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
-        user: { observeList: userObserveList, refreshList, syncChannelUsers },
+        user: { observeList: userObserveList, syncChannelUsers },
         join: { observeList: joinObserveList },
     });
     (useSocketState as jest.Mock).mockReturnValue({ isVerified: true });
 });
 
 describe('useChannelMembers — 멤버 적재 + active 파생', () => {
-    it('isVerified면 refreshList와 syncChannelUsers를 모두 호출한다', async () => {
+    it('isVerified면 syncChannelUsers만으로 입장 시 전체 스냅샷을 since:0으로 로드한다', async () => {
         renderHook(() => useChannelMembers({ channelId: 'c1', detail: true }));
 
         await waitFor(() => expect(syncChannelUsers).toHaveBeenCalledTimes(1));
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'c1', detail: true });
         expect(syncChannelUsers).toHaveBeenCalledWith({ channelId: 'c1', since: 0 });
     });
 
@@ -57,7 +54,6 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
 
         renderHook(() => useChannelMembers({ channelId: 'c1' }));
 
-        expect(refreshList).not.toHaveBeenCalled();
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 

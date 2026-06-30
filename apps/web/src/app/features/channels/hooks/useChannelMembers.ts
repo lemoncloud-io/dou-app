@@ -14,11 +14,13 @@ interface UseChannelMembersParams {
  * Channel participants for a channel. Observes the user cache (identity) and the
  * join cache (per-member read-state/role), merging them by user id.
  *
- * Hydration runs on two complementary paths, both gated on `isVerified` (so they
- * never run against a stale session and auto-retry on the false→true edge after
- * re-auth), mirroring testbed's channel-user load:
- *  - `refreshList`: one-shot full snapshot of members + their embedded `$join`.
- *  - `syncChannelUsers`: incremental delta keyed by a `since` cursor, advanced per sync.
+ * Hydration runs through `syncChannelUsers` alone, gated on `isVerified` (so it never runs
+ * against a stale session and auto-retries on the false→true edge after re-auth):
+ *  - `since: 0` returns the full member snapshot (guaranteed by the backend), so the first
+ *    sync seeds the complete roster + each member's embedded `$join` read-state.
+ *  - subsequent calls send the advanced `since` cursor for an incremental delta.
+ * `refreshList` (channel.listUser) is intentionally not called: syncChannelUsers returns the
+ * same users + `$join` from one response, so a separate full-snapshot fetch would be redundant.
  *
  * `activeMemberIds` is derived here (the single owner of member/join hydration) as the
  * authoritative active-membership set — join rows with `joined !== 0`. Callers feed it to
@@ -64,16 +66,15 @@ export const useChannelMembers = ({ channelId, detail = true }: UseChannelMember
     }, [channelId]);
 
     // Member (user) list has NO background sync plan in the runtime (unlike chat/channel/profile/
-    // join), so these two network loads are the only paths that hydrate members — they cannot be
+    // join), so this network load is the only path that hydrates members — it cannot be
     // centralized into the sync layer. The isVerified gate is load-bearing: it defers the fetch
     // until the session is verified (avoiding a stale-session, mis-scoped read during a site/cloud
     // switch) and, because isVerified is a dependency, re-fetches on the false→true edge after
     // reconnect/switch.
     useEffect(() => {
         if (!channelId || !isVerified) return;
-        // Full snapshot of the current members + their embedded `$join` read-state.
-        void userRepository.refreshList({ channelId, detail }).catch(() => undefined);
-        // Incremental delta from the last cursor; advance `since` with the returned syncedAt.
+        // since:0 returns the full snapshot, larger cursors an incremental delta; advance `since`
+        // with the returned syncedAt.
         // The data dist types are stale (syncChannelUsers not yet surfaced on IUserRepositoryV2),
         // so narrow-cast the user repo to reach it — mirrors testbed ChatRoomPage.
         const userRepoWithSync = userRepository as unknown as {
