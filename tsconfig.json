@@ -71,6 +71,9 @@
         },
         {
             "path": "./libs/logger"
+        },
+        {
+            "path": "./apps/admin-v2"
         }
     ]
 }
