@@ -164,6 +164,7 @@ libs/app-runtime/src/socket/sync/
 ## 관련 문서
 
 - [usage.md](usage.md) — 앱 사용 패턴 (register / 수동 콜 / chat prime)
+- [screen-registration-map.md](screen-registration-map.md) — 화면별(전역/홈/채팅방) sync 등록 지도
 - [library-internals.md](library-internals.md) — 라이브러리 내부 동작 (plan 패밀리·트리거 시점·함정)
 - [gateway-reference.md](gateway-reference.md) — 게이트웨이 요청/응답 레퍼런스
 - [../architecture.md](../architecture.md) — 전체 아키텍처·3축 소유 규칙
