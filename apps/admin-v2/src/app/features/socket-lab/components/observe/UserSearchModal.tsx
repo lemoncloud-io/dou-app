@@ -142,7 +142,11 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                 </div>
 
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {shown.length ? (
+                    {wl.searchLoading && !shown.length ? (
+                        <div style={{ padding: '40px 18px', textAlign: 'center', color: '#5a636e', fontSize: 12.5 }}>불러오는 중…</div>
+                    ) : wl.searchError ? (
+                        <div style={{ padding: '40px 18px', textAlign: 'center', color: '#f85149', fontSize: 12.5 }}>{wl.searchError}</div>
+                    ) : shown.length ? (
                         <div>
                             {shown.map(u => {
                                 const added = wl.observedIds.has(u.id);
@@ -187,7 +191,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                                     textOverflow: 'ellipsis',
                                                 }}
                                             >
-                                                {u.display}
+                                                {u.name}
                                             </span>
                                             <span
                                                 style={{
@@ -199,7 +203,8 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                                     textOverflow: 'ellipsis',
                                                 }}
                                             >
-                                                {u.id.slice(0, 10)} · {u.code} · {u.devCount} dev
+                                                {u.id.slice(0, 10)}
+                                                {u.code ? ` · ${u.code}` : ''} · {u.devices.length} dev
                                             </span>
                                         </div>
                                         <button
