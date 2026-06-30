@@ -14,6 +14,7 @@ import {
     useDeviceTokenRegistration,
     useMentionCapture,
     usePlaceUnreadCounts,
+    useRefreshOnPush,
     useRetainLeavingCloudBadge,
     useSocketWedgeReload,
     useUnreadStore,
@@ -36,6 +37,9 @@ const DesktopNotifications = () => {
     useCrossCloudPushBadge();
     // Capture @me messages across all channels into the device-local Activity inbox.
     useMentionCapture();
+    // A push means new activity the v2 socket won't stream for background channels — re-pull the
+    // active cloud's channels so the unread badges update at push time, not 60s later.
+    useRefreshOnPush();
     // Self-heal a socket left unverified after sleep/wake (cloud-token 400 loop)
     // by reloading the Electron renderer — automatic equivalent of a manual ctrl+r.
     useSocketWedgeReload();

@@ -4,7 +4,7 @@ import { webClient } from '@chatic/bridges';
 import { getGlobalSessionContext, useGlobalSession } from '@chatic/web-core';
 import { useSocketState } from '@chatic/app-runtime';
 
-import { useCloudPushBadgeStore } from '../stores';
+import { useCloudPushBadgeStore, useMyCloudUidStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
 
 /**
@@ -54,7 +54,21 @@ export const useCrossCloudPushBadge = (): void => {
                 // `data.uid` is the user's id in the SOURCE cloud — unique per cloud, so it
                 // resolves the cloud when the channelId reverse-lookup is ambiguous.
                 uid: data.uid,
-            }).then(apply);
+            }).then(cid => {
+                if (cid) {
+                    apply(cid);
+                    return;
+                }
+                // Fallback when the source cloud's channels aren't cached: the persisted per-cloud
+                // uid map. `data.uid` is my id in the SOURCE cloud, so the cloud whose stored
+                // place-uid equals it is the source.
+                if (data.uid) {
+                    const entry = Object.entries(useMyCloudUidStore.getState().byPlace).find(
+                        ([, uid]) => uid === data.uid
+                    );
+                    if (entry) apply(entry[0].split(':')[0]);
+                }
+            });
         });
     }, [mark]);
 

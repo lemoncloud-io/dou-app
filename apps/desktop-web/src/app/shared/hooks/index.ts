@@ -25,6 +25,7 @@ export * from './useCopyToClipboard';
 export * from './useDesktopBadge';
 export * from './usePanelWidth';
 export * from './useCrossCloudPushBadge';
+export * from './useRefreshOnPush';
 export * from './useRetainLeavingCloudBadge';
 export * from './useAppUpdate';
 export * from './useAccountResetOnLogout';
