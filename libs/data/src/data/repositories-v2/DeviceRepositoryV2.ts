@@ -1,0 +1,32 @@
+import type { ViewingType } from '@lemoncloud/chatic-sockets-lib';
+import type { IDeviceRemoteDataSource } from '../remote/data-sources';
+import type { DataContextProvider } from './types';
+import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+
+export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
+    /**
+     * device.sync — notify which target the current device is viewing.
+     * Fire-and-forget and tick-neutral (the server owns `tick`). Always send the pair:
+     * `notifyViewing('channel', id)` on enter, `notifyViewing('', '')` to clear.
+     */
+    syncDevice(viewingType: ViewingType, viewingId: string): void;
+}
+
+/**
+ * Viewing notification is a tick-neutral, fire-and-forget signal, so this repository keeps no
+ * local cache — it only forwards the current viewing target to the live socket. (Reading other
+ * devices' state would need a cache; that is intentionally out of scope here.)
+ */
+export class DeviceRepositoryV2 extends BaseRepositoryV2 implements IDeviceRepositoryV2 {
+    constructor(
+        private readonly deviceRemoteDataSource: IDeviceRemoteDataSource,
+        contextProvider: DataContextProvider
+    ) {
+        super(contextProvider);
+    }
+
+    public syncDevice(viewingType: ViewingType, viewingId: string): void {
+        // `tick` is server-owned and must never be sent from the client; forward only the pair.
+        this.deviceRemoteDataSource.syncDevice({ viewingType, viewingId });
+    }
+}

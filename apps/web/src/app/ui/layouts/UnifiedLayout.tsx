@@ -5,7 +5,7 @@ import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 
 import { useOnNavigate } from '../../bridge';
-import { useBackHandler } from '../../hooks';
+import { useBackHandler, useDeviceSync } from '../../hooks';
 
 const MAIN_VARIANT_PATHS = ['/'];
 
@@ -16,6 +16,8 @@ const isMainVariant = (pathname: string): boolean =>
 
 export const UnifiedLayout = (): JSX.Element => {
     useBackHandler();
+    // Notify the device's viewing target from the current route (channel room → clear elsewhere).
+    useDeviceSync();
 
     const navigate = useNavigate();
     useOnNavigate(message => {

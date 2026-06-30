@@ -9,12 +9,6 @@ import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 import { SyncManager } from './SyncManager';
 import type { ISocketManager, SocketClientListener } from '../types';
 
-const mockRefreshList = jest.fn().mockResolvedValue(undefined);
-const mockCacheReadList = jest.fn().mockResolvedValue({ list: [] });
-jest.mock('../../data/runtime', () => ({
-    getRepositories: () => ({ chat: { refreshList: mockRefreshList, cacheReadList: mockCacheReadList } }),
-}));
-
 // Keep the real lib (plan classes, types) but stub createDeviceRuntime so the
 // default createRuntime path can be asserted without spinning a real engine.
 jest.mock('@lemoncloud/chatic-sockets-lib', () => {
@@ -23,8 +17,6 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
 });
 
 const mockedCreateDeviceRuntime = createDeviceRuntime as jest.MockedFunction<typeof createDeviceRuntime>;
-
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('SyncManager', () => {
     let listener: SocketClientListener | null = null;
@@ -59,8 +51,6 @@ describe('SyncManager', () => {
         } as unknown as jest.Mocked<ClientSocketRuntime>;
 
         runtimeFactory = jest.fn().mockReturnValue(runtime);
-        mockRefreshList.mockClear();
-        mockCacheReadList.mockClear().mockResolvedValue({ list: [] });
         mockedCreateDeviceRuntime.mockReset().mockReturnValue(runtime as any);
     });
 
@@ -99,55 +89,36 @@ describe('SyncManager', () => {
         expect(runtime.stopSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
     });
 
-    it('sets the chat plan baseline from cache max chatNo and fetches a first page only when empty', async () => {
-        mockCacheReadList.mockResolvedValue({ list: [] });
+    it('updateLocalSnapshot을 활성 runtime에 그대로 위임한다', () => {
         const syncManager = new SyncManager(manager, {
             buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
         listener?.({ state: 'idle' } as ClientSocketV2);
 
-        syncManager.registerChat('ch-1');
-        await flush();
-
-        // empty cache → baseline lastNo 0 + first-page fetch
-        expect(runtime.updateLocalSnapshot).toHaveBeenCalledWith(
+        syncManager.updateLocalSnapshot(
             { type: 'chat', id: 'ch-1' },
-            { id: 'ch-1', lastNo: 0, minNo: 0, messages: [] }
+            { id: 'ch-1', lastNo: 9, minNo: 0, messages: [] }
         );
-        expect(mockRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1' });
-    });
-
-    it('aligns the baseline to cached chatNo without refetching when the cache is warm', async () => {
-        mockCacheReadList.mockResolvedValue({ list: [{ chatNo: 5 }, { chatNo: 9 }, { chatNo: 7 }] });
-        const syncManager = new SyncManager(manager, {
-            buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
-            createRuntime: runtimeFactory,
-        });
-        listener?.({ state: 'idle' } as ClientSocketV2);
-
-        syncManager.registerChat('ch-1');
-        await flush();
 
         expect(runtime.updateLocalSnapshot).toHaveBeenCalledWith(
             { type: 'chat', id: 'ch-1' },
             { id: 'ch-1', lastNo: 9, minNo: 0, messages: [] }
         );
-        expect(mockRefreshList).not.toHaveBeenCalled();
     });
 
-    it('does not prime non-chat targets', async () => {
+    it('runtime이 없으면 updateLocalSnapshot은 no-op이다', () => {
         const syncManager = new SyncManager(manager, {
-            buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+            buildSyncPlans: () => [{ domain: 'chat' } as DomainSyncPlan],
             createRuntime: runtimeFactory,
         });
-        listener?.({ state: 'idle' } as ClientSocketV2);
-
-        syncManager.registerChannel('ch-1');
-        await flush();
-
-        expect(mockCacheReadList).not.toHaveBeenCalled();
-        expect(mockRefreshList).not.toHaveBeenCalled();
+        // No client emitted → no runtime attached; the pass-through must not throw.
+        expect(() =>
+            syncManager.updateLocalSnapshot(
+                { type: 'chat', id: 'ch-1' },
+                { id: 'ch-1', lastNo: 0, minNo: 0, messages: [] }
+            )
+        ).not.toThrow();
         expect(runtime.updateLocalSnapshot).not.toHaveBeenCalled();
     });
 

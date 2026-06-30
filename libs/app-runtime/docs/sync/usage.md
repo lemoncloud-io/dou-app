@@ -92,7 +92,7 @@ chat은 `run`이 no-op이라 **세션 중 방 진입 시 register만으로는 �
     - 최신 → fetch 생략.
 - **어느 경우든 `updateLocalSnapshot({ lastNo: 캐시 max chatNo })`로 plan 기준선을 세운다.**
 
-> ✅ 정렬 완료 (2026-06-24): `SyncManager.primeChatTarget`이 캐시 max chatNo로 `updateLocalSnapshot`을 호출하고, 캐시가 비었을 때만 첫 페이지를 fetch한다.
+> ✅ prime 소유 (2026-06-29): prime은 `useChatSync` 훅이 소유한다 — 캐시 max chatNo로 `updateLocalSnapshot`을 호출하고, 캐시가 비었을 때만 첫 페이지를 fetch한다. `SyncManager`는 도메인 무지한 `updateLocalSnapshot` pass-through만 제공한다. 분업 상세는 [chat-sync.md](chat-sync.md).
 
 ---
 
@@ -144,7 +144,7 @@ lastSyncedAt = delta.syncedAt; // 다음 since 기준선 저장
 
 1. **channel: per-channel register + 수동 `channel.sync`** — 목록은 register로 실시간 유지, 발견/델타는 재접속·sid 변경 시 `refreshListSince(cursor)` 수동 호출.
 2. **place: per-place register + `place.refreshList` 발견** — place엔 list-delta 게이트웨이가 없어 목록 발견은 `place.refreshList`(full), 각 place 메타는 `registerPlace`로 실시간 유지.
-3. **chat prime → 캐시 max chatNo 기반 + `updateLocalSnapshot`** — 무조건 refetch 제거, 캐시가 곧 커서.
+3. **chat prime → 캐시 max chatNo 기반 + `updateLocalSnapshot`** — 무조건 refetch 제거, 캐시가 곧 커서. 소유는 `useChatSync` 훅([chat-sync.md](chat-sync.md)).
 4. **`updateLocalSnapshot` 경로를 `SyncManager` 계층에 추가** — 수동/초기 로딩 후 기준선 정렬.
 5. **profile/join/device plan·register 보존** — 곧 사용. (channel·chat·place는 활성 소비자.)
 

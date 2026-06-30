@@ -3304,10 +3304,10 @@
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.0.tgz#e5e3fb2eafb2f4ca4861980aed7fb459434cff13"
-  integrity sha512-0Hhs8WFuWBg+LmCfmiV/dUsivJJfkQ7iFnI3Su0Cap9pjyhPy9Q7vVMI8DXDsbiIcduo2x8Q6OYLUew/Rx6zEA==
+"@lemoncloud/chatic-sockets-lib@0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.2.tgz#5052408982c0fc7a3053e0ef6ccbf9927102481d"
+  integrity sha512-8BY70QqQt2KpI+za63/26vu7AB31PHKNxenUThWAIyPkyI/++KjNYH4q6R+Y0yGpaC5sPg2DXt7s2r473W8oig==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"

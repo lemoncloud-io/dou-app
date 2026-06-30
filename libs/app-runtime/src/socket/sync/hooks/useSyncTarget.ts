@@ -2,7 +2,11 @@ import { useEffect } from 'react';
 
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
+import { logger } from '@chatic/bridges';
+
 import { getSyncManager } from '../../runtime';
+import { useSocketState } from '../../hooks/useSocketState';
+import { getRepositories } from '../../../data/runtime';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
     target ? `${target.type}:${target.id ?? ''}:${target.intervalMs ?? ''}` : null;
@@ -23,8 +27,57 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null): void => {
     }, [key]);
 };
 
-export const useChatSync = (channelId?: string, intervalMs?: number): void =>
+/**
+ * Chat plans have a no-op `run`, so registering a chat target loads nothing on its own. Prime the
+ * room: align the plan baseline to the durable cache's max chatNo (its cursor) via
+ * updateLocalSnapshot, then fetch a first page only when the cache is cold. The plan never
+ * backfills past history, so a cold room needs this explicit first page to render anything.
+ *
+ * Gated on isVerified so it (re)runs after auth/reconnect — this replaces the SyncManager replay
+ * path that used to re-prime on a client swap.
+ */
+const usePrimeChat = (channelId?: string): void => {
+    const { isVerified } = useSocketState();
+
+    useEffect(() => {
+        if (!isVerified || !channelId) return;
+        let cancelled = false;
+
+        void (async () => {
+            const repos = getRepositories();
+            const cached = await repos.chat.cacheReadList({ channelId });
+            if (cancelled) return;
+            const lastNo = (cached?.list ?? []).reduce((max, chat) => (chat.chatNo > max ? chat.chatNo : max), 0);
+
+            // Tell the plan our newest chatNo so the next onConnected/push doesn't catch up from 0.
+            getSyncManager().updateLocalSnapshot(
+                { type: 'chat', id: channelId },
+                { id: channelId, lastNo, minNo: 0, messages: [] }
+            );
+
+            // Cold cache: only here do we fetch — a warm room reads from cache and streams via push.
+            if (lastNo === 0) {
+                await repos.chat.refreshList({ channelId });
+            }
+        })().catch(error => {
+            logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', {
+                error,
+                data: { channelId },
+            });
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isVerified, channelId]);
+};
+
+// Register the chat target (live push + reconnect catch-up) and prime it (baseline + cold fetch).
+// useSyncTarget's effect runs first, so startSync precedes the prime's updateLocalSnapshot.
+export const useChatSync = (channelId?: string, intervalMs?: number): void => {
     useSyncTarget(channelId ? { type: 'chat', id: channelId, ...(intervalMs ? { intervalMs } : {}) } : null);
+    usePrimeChat(channelId);
+};
 
 export const useChannelSync = (channelId?: string, intervalMs?: number): void =>
     useSyncTarget(channelId ? { type: 'channel', id: channelId, ...(intervalMs ? { intervalMs } : {}) } : null);

@@ -51,10 +51,6 @@ export const useBackgroundSync = (): void => {
             /* best-effort */
         });
 
-        void repos.channel.refreshList({}).catch(() => {
-            /* best-effort */
-        });
-
         // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
         // Each channel is stored tagged with its own sid, so this is correct across site switches.
         try {

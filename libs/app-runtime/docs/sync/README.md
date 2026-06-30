@@ -131,10 +131,11 @@ flowchart TD
 - target registry
 - replay
 - ref count
-- chat prime
-- snapshot baseline 보정
+- snapshot baseline 보정 — `SyncManager`는 도메인 무지한 `updateLocalSnapshot` pass-through만 제공한다.
 
-위 정책은 모두 `SyncManager`에 점진적으로 흡수한다.
+위 정책은 `SyncManager`에 점진적으로 흡수한다. 단 **chat prime(콜드 fetch + 기준선 정렬)은
+`SyncManager`가 아니라 `useChatSync` 훅이 소유한다** — chat 전용 정책 + repository 의존이라
+도메인 무지 경계를 깨지 않기 위해서다. 분업은 [chat-sync.md](chat-sync.md).
 
 ## 계획된 모듈 구조
 
@@ -163,6 +164,7 @@ libs/app-runtime/src/socket/sync/
 ## 관련 문서
 
 - [usage.md](usage.md) — 앱 사용 패턴 (register / 수동 콜 / chat prime)
+- [screen-registration-map.md](screen-registration-map.md) — 화면별(전역/홈/채팅방) sync 등록 지도
 - [library-internals.md](library-internals.md) — 라이브러리 내부 동작 (plan 패밀리·트리거 시점·함정)
 - [gateway-reference.md](gateway-reference.md) — 게이트웨이 요청/응답 레퍼런스
 - [../architecture.md](../architecture.md) — 전체 아키텍처·3축 소유 규칙

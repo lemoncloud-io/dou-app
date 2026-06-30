@@ -37,6 +37,9 @@ export interface ISyncManager {
     registerPlace(id: string, intervalMs?: number): () => void;
     registerProfile(id: string, intervalMs?: number): () => void;
     registerJoin(id: string, intervalMs?: number): () => void;
+    // Generic baseline bridge — delegates to the active runtime (no-op when none). Domain-shaped
+    // snapshots (chat `{ lastNo }`, others `{ updatedAt }`/`{ tick }`) are built by the caller.
+    updateLocalSnapshot(...args: Parameters<ClientSocketRuntime['updateLocalSnapshot']>): void;
     listTargets(): SyncTargetDescriptor[];
     destroy(): void;
 }
