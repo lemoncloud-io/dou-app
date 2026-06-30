@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
+import { useSessionAuth } from '@chatic/web-core';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 
 import { AppRouter } from '../routes';
@@ -47,6 +48,17 @@ const DesktopNotifications = () => {
 };
 
 /**
+ * Gate the notification wiring on a live session. The Electron FCM receiver keeps running and the
+ * device stays registered after logout, so without this the previous user's pushes would still
+ * raise toasts/badges/OS banners on the logged-out shell. Unmounting drops the OnReceiveNotification
+ * listeners so a logged-out app silently ignores inbound pushes; it re-registers on the next login.
+ */
+const AuthedNotifications = () => {
+    const { isAuthenticated } = useSessionAuth();
+    return isAuthenticated ? <DesktopNotifications /> : null;
+};
+
+/**
  * Always-mounted unread sync: runs the per-place unread aggregation once and publishes it to
  * useUnreadStore, then mirrors the total onto the OS badge and the window title. Lives here
  * (not in HomePage) so the badge/title keep updating on /profile and /settings where HomePage
@@ -84,7 +96,7 @@ export const DesktopRuntime = () => {
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
             <BackgroundSyncRunner />
-            <DesktopNotifications />
+            <AuthedNotifications />
             <ShellUnreadSync />
             <ConnectionBanner />
             {/* Desktop auto-update banner — always mounted (no-op in browser). */}

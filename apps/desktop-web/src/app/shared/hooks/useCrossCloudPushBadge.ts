@@ -15,11 +15,19 @@ import { resolvePushCloudId } from '../utils';
  * cloud becomes the verified active one (covers switch, boot auto-select, and
  * invite entry alike).
  *
- * Source cloud: `data.cid` when the backend stamps it; the deployed backends
- * send `""`, so fall back to reverse-looking the push's channel up in the
- * per-cloud cache (resolvePushCloudId — unique match only). Deeplink-only
- * events (toast clicks) carry neither cid nor channelId and resolve to nothing
- * — no badge is better than a wrong badge. No-op in a plain browser.
+ * Source cloud — which id space? The rail keys tiles (and the active highlight,
+ * and `clear` below) by the RELAY cloud id (`session.activeServer.cloudId`, e.g.
+ * `1000004`). But an invited cloud's data — channel records, the push — is stamped
+ * with the backend AWS account-no (e.g. `543182730172`), a DIFFERENT id, and
+ * invited clouds aren't in the relay catalog so there's no `$envs.accountNo` bridge.
+ * Marking the account-no would never match a rail tile (the dot never renders).
+ *
+ * The reliable bridge is `data.uid` — my id in the SOURCE cloud. `useMyCloudUidStore`
+ * keys `${relayCloudId}:${sid}` → that uid (written by `useSiteProfiles`, whose `cid`
+ * IS the relay id), so reverse it to the relay id every rail surface uses. Fall back
+ * to `data.cid` (when a backend finally stamps it) and last to the channel-cache
+ * reverse-lookup. Deeplink-only events carry no uid/cid/channelId and resolve to
+ * nothing — no badge beats a wrong badge. No-op in a plain browser.
  */
 export const useCrossCloudPushBadge = (): void => {
     // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
@@ -43,32 +51,30 @@ export const useCrossCloudPushBadge = (): void => {
                 if (cid === activeCloudId) return;
                 mark(cid);
             };
+
+            // Primary: `data.uid` (my id in the source cloud) reverse-mapped through the
+            // persisted per-cloud uid map to the RELAY cloud id the rail keys tiles by.
+            if (data.uid) {
+                const entry = Object.entries(useMyCloudUidStore.getState().byPlace).find(([, uid]) => uid === data.uid);
+                if (entry) {
+                    apply(entry[0].split(':')[0]);
+                    return;
+                }
+            }
+            // A backend that stamps `data.cid` — already a usable cloud id.
             if (data.cid) {
                 apply(data.cid);
                 return;
             }
+            // Last resort: reverse-look the channel up in the per-cloud cache. Returns the
+            // backend account-no, which only matches the rail for catalog clouds whose relay
+            // id equals their account-no — but better than nothing when the uid map is cold.
             void resolvePushCloudId({
                 channelId: data.channelId,
                 sid: data.sid,
                 channelName: data.channelName,
-                // `data.uid` is the user's id in the SOURCE cloud — unique per cloud, so it
-                // resolves the cloud when the channelId reverse-lookup is ambiguous.
                 uid: data.uid,
-            }).then(cid => {
-                if (cid) {
-                    apply(cid);
-                    return;
-                }
-                // Fallback when the source cloud's channels aren't cached: the persisted per-cloud
-                // uid map. `data.uid` is my id in the SOURCE cloud, so the cloud whose stored
-                // place-uid equals it is the source.
-                if (data.uid) {
-                    const entry = Object.entries(useMyCloudUidStore.getState().byPlace).find(
-                        ([, uid]) => uid === data.uid
-                    );
-                    if (entry) apply(entry[0].split(':')[0]);
-                }
-            });
+            }).then(apply);
         });
     }, [mark]);
 
