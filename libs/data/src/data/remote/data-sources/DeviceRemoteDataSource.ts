@@ -1,4 +1,7 @@
-import type { DeviceReadInput, DeviceSaveInput, DeviceSyncInput, DeviceView } from '@lemoncloud/chatic-sockets-api';
+// Device types come from chatic-sockets-lib — the package whose DeviceGateway this wraps.
+// The chatic-sockets-api copy of DeviceSyncRequestData lags behind (no viewingType/viewingId),
+// so importing from it would drop the viewing fields the live gateway accepts.
+import type { DeviceReadInput, DeviceSaveInput, DeviceSyncInput, DeviceView } from '@lemoncloud/chatic-sockets-lib';
 import type { DeviceDomainGateway } from '../gateways';
 
 export interface IDeviceRemoteDataSource {
