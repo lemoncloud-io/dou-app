@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-06-30] - root@0.38.0, @chatic/web@0.34.0
+
+### Features
+
+- implement route-based device viewing sync
+- add DeviceRepositoryV2 for device viewing sync Introduces `DeviceRepositoryV2` to manage device viewing synchronization. This repository forwards viewing type and ID to the remote data source, allowing the server to track which target a device is currently viewing.
+
+### Bug Fixes
+
+- set active to true for setMyProfile
+
+### Documentation
+
+- add screen-registration-map.md for sync registration
+
+### Refactor
+
+- simplify channel member hydration
+- update import paths for RuntimeBinding and SocketSessionDelegate This commit updates the import paths for `RuntimeBinding` and `SocketSessionDelegate`. Previously, these types were imported from `../runtime/useRuntimeBinding` and `../socket/types` respectively. They have now been moved to `../runtime` and `../socket`.
+- remove useMyJoinsSync hook and related logic
+- refactor chat sync plan
+- remove console log from sync plans
+
+### Chores
+
+- (deps) update chatic-sockets-lib to 0.4.2
+
 ## [2026-06-29] - root@0.37.0, @chatic/web@0.33.0
 
 ### Features
