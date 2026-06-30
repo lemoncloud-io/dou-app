@@ -70,6 +70,7 @@ export interface ISocketManager {
     // Gateways bind to these instead of a raw ClientSocketV2 so socket replacement
     // stays invisible to them.
     setRecoveryHandler(handler: SocketRecoveryHandler | null): void;
+    setReconnectHandler(handler: (() => Promise<void>) | null): void;
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;

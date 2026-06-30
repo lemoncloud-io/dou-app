@@ -56,6 +56,8 @@ export class SocketManager implements ISocketManager {
     private readonly typeListeners = new Set<TypeListenerEntry>();
     // Recovery policy is injected by the session layer (see SocketRecoveryHandler).
     private recoveryHandler: SocketRecoveryHandler | null = null;
+    // Reconnect policy for a disconnected socket (503 SOCKET NOT CONNECTED), injected by the session layer.
+    private reconnectHandler: (() => Promise<void>) | null = null;
     private unsubscribes: Array<() => void> = [];
 
     /**
@@ -190,6 +192,14 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * Injects the reconnect policy for a disconnected socket. Wired at the composition root to the
+     * session controller so a request that hits a dead socket triggers a reconnect + retry.
+     */
+    public setReconnectHandler(handler: (() => Promise<void>) | null): void {
+        this.reconnectHandler = handler;
+    }
+
+    /**
      * Stable request facade. Routes to the current client; on a 401 it invokes the
      * injected recovery handler and retries once against the (possibly replaced) client.
      */
@@ -206,8 +216,23 @@ export class SocketManager implements ISocketManager {
                     return await (retryClient.request(type as any, data as any, options) as Promise<T>);
                 }
             }
+            // A request against a socket left disconnected (e.g. a bootstrap race on invite entry /
+            // rapid cloud switches) throws `503 SOCKET NOT CONNECTED`. Reconnect and retry once so the
+            // send isn't silently lost — instead of waiting up to a minute for the periodic heal.
+            if (this.reconnectHandler && this.isDisconnectedError(error)) {
+                logger.info('SOCKET', '[SocketManager] request hit a disconnected socket, reconnecting', { type });
+                await this.reconnectHandler();
+                if (this.state.isConnected) {
+                    const retryClient = this.requireClient(`retry request(${type})`);
+                    return await (retryClient.request(type as any, data as any, options) as Promise<T>);
+                }
+            }
             throw error;
         }
+    }
+
+    private isDisconnectedError(error: any): boolean {
+        return (error?.message || '').includes('SOCKET NOT CONNECTED');
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {

@@ -10,6 +10,9 @@ export class SocketSessionController {
     private delegate: SocketSessionDelegate | null = null;
     private refreshInterval: ReturnType<typeof setInterval> | null = null;
     private reauthPromise: Promise<boolean> | null = null;
+    private healPromise: Promise<void> | null = null;
+    /** Last config bootstrapped — used to re-establish a socket left disconnected. */
+    private lastConfig: SocketBindingConfig | null = null;
 
     constructor(private readonly manager: ISocketManager) {}
 
@@ -22,6 +25,7 @@ export class SocketSessionController {
     }
 
     public async bootstrap(config: SocketBindingConfig): Promise<void> {
+        this.lastConfig = config;
         const client = this.manager.ensure(config);
         this.startPeriodicRefresh();
 
@@ -160,6 +164,35 @@ export class SocketSessionController {
         this.reauthPromise = null;
     }
 
+    /**
+     * Re-establishes a socket left disconnected. A rapid sequence of binding changes (the invite
+     * flow's loginGuest → switchCloud → switchSite, or quick cloud switches) can race the bootstrap
+     * connect so the final client never finishes connecting — and nothing recovers it, since the
+     * periodic refresh used to merely skip auth:update while disconnected. The result is a session
+     * stuck with a dead socket: every `*.send`/`request` throws `503 SOCKET NOT CONNECTED` and
+     * messages are silently lost until a manual cloud re-switch. Reconnecting the current client
+     * (idempotent — a no-op when already open) and re-authing self-heals that state.
+     */
+    public async recoverConnection(reason: string): Promise<void> {
+        if (this.healPromise) return this.healPromise;
+        if (!this.lastConfig) return;
+        this.healPromise = (async () => {
+            try {
+                logger.info('SOCKET', '[SocketSessionController] socket disconnected, reconnecting', { reason });
+                this.manager.ensure(this.lastConfig as SocketBindingConfig);
+                await this.manager.connect();
+                if (this.manager.getSnapshot().isConnected) {
+                    await this.updateAuth(reason);
+                }
+            } catch (error) {
+                logger.warn('SOCKET', '[SocketSessionController] reconnect heal failed', { error, reason });
+            } finally {
+                this.healPromise = null;
+            }
+        })();
+        return this.healPromise;
+    }
+
     private startPeriodicRefresh() {
         this.stopPeriodicRefresh();
         this.refreshInterval = setInterval(() => {
@@ -167,6 +200,10 @@ export class SocketSessionController {
             // 소켓이 연결되어 있을 때만 업데이트를 수행하고, 세션 유무는 updateAuth 내부에서 토큰 획득 여부로 판단합니다.
             if (state.isConnected) {
                 void this.updateAuth('periodic-refresh');
+            } else {
+                // Self-heal a socket left disconnected (e.g. a bootstrap race on invite entry) instead
+                // of skipping forever — otherwise the session is wedged with a dead socket.
+                void this.recoverConnection('periodic-heal');
             }
         }, 60000); // 1 minute
     }

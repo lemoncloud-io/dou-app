@@ -29,6 +29,7 @@ export const createSocketRuntime = (): SocketRuntime => {
     // The request facade lives in SocketManager but the recovery policy lives in the
     // session controller — wire them here to avoid a hard manager→controller dependency.
     socketManager.setRecoveryHandler(() => sessionController.handle401Recovery());
+    socketManager.setReconnectHandler(() => sessionController.recoverConnection('request-retry'));
     const syncManager = new SyncManager(socketManager, { runtimeOptions: DEFAULT_SYNC_RUNTIME_OPTIONS });
 
     return {
