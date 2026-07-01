@@ -12,8 +12,24 @@ import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/
 import type { DataRepositoriesV2, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';
+import { NameFormDialog } from '../features/manage/NameFormDialog';
+import {
+    buildChannelCreate,
+    buildChannelUpdate,
+    buildPlaceCreate,
+    buildPlaceUpdate,
+} from '../features/manage/payloads';
 
 const DEFAULT_CLOUD_ID = 'default';
+
+// Which name create/edit dialog is open. A single discriminated state keeps only one modal at a
+// time and carries the target id/name for the edit flows.
+type ManageDialog =
+    | { kind: 'createPlace' }
+    | { kind: 'editPlace'; id: string; name: string }
+    | { kind: 'createChannel' }
+    | { kind: 'editChannel'; id: string; name: string }
+    | null;
 
 // Interval for the periodic list refresh (site/profile/channel). Tunable — individual items
 // poll faster via their own sync targets; this only re-discovers added/removed list entries.
@@ -52,6 +68,7 @@ export const ChatHomePage = () => {
     // Invited clouds live in the cloud cache (cloudType 'invited'); they are NOT in the
     // relay catalog (useCloudSessionCatalog = owned clouds), so render them straight from cache.
     const [invitedClouds, setInvitedClouds] = useState<DomainCloud[]>([]);
+    const [manageDialog, setManageDialog] = useState<ManageDialog>(null);
     const siteIds = sites.map(site => site.id);
     const siteIdsKey = siteIds.join(',');
     // Only channels that truly belong to the active site may be sync-registered. During a
@@ -192,6 +209,26 @@ export const ChatHomePage = () => {
         await switchSite(siteId);
     };
 
+    // Write handlers for the manage dialogs. Each repo call cache-writes the result, so the
+    // observeList subscriptions above re-emit and the lists refresh without a manual fetch. The
+    // builders re-validate defensively (the dialog already gates empty names) and no-op on null.
+    const handleCreatePlace = async (name: string) => {
+        const payload = buildPlaceCreate(name);
+        if (payload) await repos.place.createPlace(payload);
+    };
+    const handleEditPlace = (id: string) => async (name: string) => {
+        const payload = buildPlaceUpdate(id, name);
+        if (payload) await repos.place.updatePlace(payload);
+    };
+    const handleCreateChannel = async (name: string) => {
+        const payload = buildChannelCreate(name);
+        if (payload) await repos.channel.createChannel(payload);
+    };
+    const handleEditChannel = (id: string) => async (name: string) => {
+        const payload = buildChannelUpdate(id, name);
+        if (payload) await repos.channel.updateChannel(payload);
+    };
+
     // Owned clouds come from the relay catalog, minus any that are also in the invite cache.
     const invitedCloudIds = new Set(invitedClouds.map(c => c.id ?? ''));
     const ownedClouds = clouds.filter(c => !invitedCloudIds.has(c.id ?? ''));
@@ -247,25 +284,41 @@ export const ChatHomePage = () => {
 
             {/* Place 목록 */}
             <section>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">사이트 (Place)</p>
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">사이트 (Place)</p>
+                    <button
+                        onClick={() => setManageDialog({ kind: 'createPlace' })}
+                        className="text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-primary/10"
+                    >
+                        + 새 플레이스
+                    </button>
+                </div>
                 {sites.length === 0 ? (
                     <p className="text-xs text-muted-foreground">현재 클라우드에 연결 가능한 사이트가 없습니다</p>
                 ) : (
                     <div className="space-y-1">
                         {sites.map(s => (
-                            <button
-                                key={s.id}
-                                onClick={() => void handleSiteClick(s.id)}
-                                disabled={isSiteSwitching}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors ${
-                                    activeSiteId === s.id
-                                        ? 'border-primary bg-primary/10 text-primary'
-                                        : 'border-border bg-card hover:bg-accent'
-                                }`}
-                            >
-                                <p className="font-medium">{s.name ?? s.id}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{s.id}</p>
-                            </button>
+                            <div key={s.id} className="flex items-center gap-1">
+                                <button
+                                    onClick={() => void handleSiteClick(s.id)}
+                                    disabled={isSiteSwitching}
+                                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm border transition-colors ${
+                                        activeSiteId === s.id
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border bg-card hover:bg-accent'
+                                    }`}
+                                >
+                                    <p className="font-medium">{s.name ?? s.id}</p>
+                                    <p className="text-xs text-muted-foreground font-mono">{s.id}</p>
+                                </button>
+                                <button
+                                    onClick={() => setManageDialog({ kind: 'editPlace', id: s.id, name: s.name ?? '' })}
+                                    className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+                                    title="이름 수정"
+                                >
+                                    ✎
+                                </button>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -273,7 +326,17 @@ export const ChatHomePage = () => {
 
             {/* Channel 목록 */}
             <section>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">채널</p>
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">채널</p>
+                    <button
+                        onClick={() => setManageDialog({ kind: 'createChannel' })}
+                        disabled={!activeSiteId}
+                        className="text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-primary/10 disabled:opacity-50"
+                        title={activeSiteId ? '새 채널' : '사이트를 먼저 선택하세요'}
+                    >
+                        + 새 채널
+                    </button>
+                </div>
 
                 {/* 현재 플레이스 정보 요약 */}
                 {activeSite && (
@@ -300,45 +363,93 @@ export const ChatHomePage = () => {
                             const lastChat = ch.lastChat$;
                             const unread = ch.unreadCount ?? 0;
                             return (
-                                <button
-                                    key={ch.id}
-                                    onClick={() => navigate(`/chat/channels/${ch.id}`)}
-                                    className="w-full text-left px-3 py-2 rounded-lg text-sm border border-border bg-card hover:bg-accent transition-colors"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <p className="font-medium truncate flex-1">{ch.name ?? ch.id}</p>
-                                        {lastChat?.createdAt != null && (
-                                            <span className="text-[10px] text-muted-foreground shrink-0">
-                                                {formatChatTime(lastChat.createdAt)}
-                                            </span>
-                                        )}
-                                        {unread > 0 && (
-                                            <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                                                {unread}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {lastChat && (
-                                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                            {(lastChat.owner$?.name ?? lastChat.ownerId) && (
-                                                <span className="font-medium">
-                                                    {lastChat.owner$?.name ?? lastChat.ownerId}:{' '}
+                                <div key={ch.id} className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => navigate(`/chat/channels/${ch.id}`)}
+                                        className="flex-1 text-left px-3 py-2 rounded-lg text-sm border border-border bg-card hover:bg-accent transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium truncate flex-1">{ch.name ?? ch.id}</p>
+                                            {lastChat?.createdAt != null && (
+                                                <span className="text-[10px] text-muted-foreground shrink-0">
+                                                    {formatChatTime(lastChat.createdAt)}
                                                 </span>
                                             )}
-                                            {lastChat.content ?? ''}
-                                        </p>
-                                    )}
-                                    <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
-                                        <span>#{ch.chatNo ?? 0}</span>
-                                        {ch.memberNo != null && <span>멤버 {ch.memberNo}</span>}
-                                        <span className="truncate">{ch.id}</span>
-                                    </div>
-                                </button>
+                                            {unread > 0 && (
+                                                <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                                                    {unread}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {lastChat && (
+                                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                                {(lastChat.owner$?.name ?? lastChat.ownerId) && (
+                                                    <span className="font-medium">
+                                                        {lastChat.owner$?.name ?? lastChat.ownerId}:{' '}
+                                                    </span>
+                                                )}
+                                                {lastChat.content ?? ''}
+                                            </p>
+                                        )}
+                                        <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
+                                            <span>#{ch.chatNo ?? 0}</span>
+                                            {ch.memberNo != null && <span>멤버 {ch.memberNo}</span>}
+                                            <span className="truncate">{ch.id}</span>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            setManageDialog({ kind: 'editChannel', id: ch.id, name: ch.name ?? '' })
+                                        }
+                                        className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+                                        title="이름 수정"
+                                    >
+                                        ✎
+                                    </button>
+                                </div>
                             );
                         })}
                     </div>
                 )}
             </section>
+
+            {/* 생성/이름수정 다이얼로그 — 한 번에 하나만 연다 */}
+            {manageDialog?.kind === 'createPlace' && (
+                <NameFormDialog
+                    title="새 플레이스"
+                    label="플레이스 이름"
+                    submitLabel="생성"
+                    onSubmit={handleCreatePlace}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
+            {manageDialog?.kind === 'editPlace' && (
+                <NameFormDialog
+                    title="플레이스 이름 수정"
+                    label="플레이스 이름"
+                    initialValue={manageDialog.name}
+                    onSubmit={handleEditPlace(manageDialog.id)}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
+            {manageDialog?.kind === 'createChannel' && (
+                <NameFormDialog
+                    title="새 채널"
+                    label="채널 이름"
+                    submitLabel="생성"
+                    onSubmit={handleCreateChannel}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
+            {manageDialog?.kind === 'editChannel' && (
+                <NameFormDialog
+                    title="채널 이름 수정"
+                    label="채널 이름"
+                    initialValue={manageDialog.name}
+                    onSubmit={handleEditChannel(manageDialog.id)}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
         </div>
     );
 };

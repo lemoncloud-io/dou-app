@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
-import { useSocketState, getSyncManager, useRuntimeRepositories, useProfileFacts } from '@chatic/app-runtime';
+import { useSocketState, getSyncManager, useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
@@ -70,7 +70,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
     const { relay, cloud, identity, activeServer } = session;
     // Profile facts (guest/role/type/name) now track the cached profile, not the session payload.
-    const facts = useProfileFacts();
+    const facts = useSessionProfile();
 
     return (
         <div
@@ -152,9 +152,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
                         <Section title="Socket">
                             <Row label="state" value={socketState.state} />
-                            <Row label="isConnected" value={String(socketState.isConnected)} />
                             <Row label="isVerified" value={String(socketState.isVerified)} />
-                            <Row label="connectionId" value={socketState.connectionId} />
                         </Section>
                     </>
                 )}

@@ -11,6 +11,7 @@
 1. [전체 아키텍처](./architecture.SPEC.md)
 2. [전역 오버레이](./overlay.SPEC.md)
 3. [채팅 홈 페이지](./chat-home-page.SPEC.md)
+    - [채널 / 플레이스 관리 (생성·이름수정)](./channel-place-management.SPEC.md)
 4. [채널 상세 페이지](./chat-room-page.SPEC.md)
 5. [설정 페이지](./settings-page.SPEC.md)
 6. [로그인 페이지](./login-page.SPEC.md)
