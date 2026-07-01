@@ -27,7 +27,6 @@ export interface ErrorReportPayload {
         isAuthenticated: boolean;
         isGuest: boolean;
         isCloudUser: boolean;
-        isInvited: boolean;
     };
     // 클라우드
     cloud: {
