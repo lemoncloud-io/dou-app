@@ -19,7 +19,7 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -29,7 +29,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
-import { useSocketState } from '@chatic/app-runtime';
+import { useSocketState, useSessionProfile } from '@chatic/app-runtime';
 
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
@@ -68,7 +68,8 @@ export const ChannelRoomPage = () => {
     // DOM 접근을 위한 Ref (스크롤 컨테이너 ref는 useChatScroll이 소유)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    const { activeProfile: dynamicProfile, userType } = useSessionIdentity();
+    const { userId } = useSessionIdentity();
+    const { isGuest, isCloudActive } = useSessionProfile();
     const { selectedCloudId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     const { isIOS } = useAppChecker();
@@ -362,9 +363,9 @@ export const ChannelRoomPage = () => {
                                     </div>
                                 </>
                             ) : (
-                                channel?.ownerId === dynamicProfile?.uid &&
-                                userType !== UserType.TEMP_ACCOUNT &&
-                                userType !== UserType.SOCIAL_NO_CLOUD && (
+                                channel?.ownerId === userId &&
+                                !isGuest &&
+                                isCloudActive && (
                                     <>
                                         <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
                                             <p>{t('chat.room.emptyState.line1')}</p>
@@ -658,7 +659,7 @@ export const ChannelRoomPage = () => {
                 )}
             </div>
 
-            {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && !channel?.isSelfChat && (
+            {!isGuest && isCloudActive && !channel?.isSelfChat && (
                 <InviteFriendsDialog
                     open={inviteDialogOpen}
                     onOpenChange={setInviteDialogOpen}

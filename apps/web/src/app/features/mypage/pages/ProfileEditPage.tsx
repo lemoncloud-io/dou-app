@@ -7,7 +7,8 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
-import { useSessionIdentity, useUpdateProfile } from '@chatic/web-core';
+import { useUpdateProfile } from '../hooks';
+import { useMyUser } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 
@@ -16,20 +17,20 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const { activeProfile: profile } = useSessionIdentity();
+    const profile = useMyUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
     const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
-    const [name, setName] = useState((profile?.$user?.name || '').slice(0, 30));
-    const [imageUrl, setImageUrl] = useState(profile?.$user?.photo || '');
+    const [name, setName] = useState((profile?.name || '').slice(0, 30));
+    const [imageUrl, setImageUrl] = useState(profile?.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
     // profile 로드 시 초기값 고정 및 state 동기화
     useEffect(() => {
-        if (profile?.$user && !initialRef.current.initialized) {
-            const initName = profile.$user.name || '';
-            const initImage = profile.$user.photo || '';
+        if (profile && !initialRef.current.initialized) {
+            const initName = profile.name || '';
+            const initImage = profile.photo || '';
             initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
             if (!name && initName) setName(initName.slice(0, 30));
             if (!imageUrl && initImage) setImageUrl(initImage);

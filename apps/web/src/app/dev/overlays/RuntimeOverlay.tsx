@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
-import { useSocketState, getSyncManager, useRuntimeRepositories } from '@chatic/app-runtime';
+import { useSocketState, getSyncManager, useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
@@ -64,6 +64,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     };
 
     const { relay, cloud, identity, activeServer } = session;
+    const facts = useSessionProfile();
 
     return (
         <div
@@ -108,14 +109,11 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                         <Section title="Session">
                             <Row label="initialized" value={String(isInitialized)} />
                             <Row label="authenticated" value={String(isAuthenticated)} />
-                            <Row label="isGuest" value={String(identity.isGuest)} />
-                            <Row label="isInvited" value={String(identity.isInvited)} />
-                            <Row label="userType" value={identity.userType} />
+                            <Row label="isGuest" value={String(facts.isGuest)} />
                             <Row label="userId" value={identity.userId} />
                             <Row label="delegatorId" value={identity.delegatorId} />
-                            <Row label="userName" value={identity.userName} />
-                            <Row label="userRole" value={identity.userRole} />
-                            <Row label="oAuthProvider" value={identity.oAuthProvider} />
+                            <Row label="userName" value={facts.userName} />
+                            <Row label="userRole" value={facts.userRole} />
                             <Row label="error" value={identity.error?.message ?? null} />
                         </Section>
 
