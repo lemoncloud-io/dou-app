@@ -117,13 +117,10 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                             <Row label="initialized" value={String(isInitialized)} />
                             <Row label="authenticated" value={String(isAuthenticated)} />
                             <Row label="isGuest" value={String(facts.isGuest)} />
-                            <Row label="isInvited" value={String(identity.isInvited)} />
-                            <Row label="userType" value={facts.userType} />
                             <Row label="userId" value={identity.userId} />
                             <Row label="delegatorId" value={identity.delegatorId} />
                             <Row label="userName" value={facts.userName} />
                             <Row label="userRole" value={facts.userRole} />
-                            <Row label="oAuthProvider" value={identity.oAuthProvider} />
                             <Row label="error" value={identity.error?.message ?? null} />
                         </Section>
 
