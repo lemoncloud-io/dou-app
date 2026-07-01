@@ -14,8 +14,15 @@ export default function LoadRunning({ load }: LoadRunningProps) {
     const runPct = Math.min(100, Math.round((run.elapsed / Math.max(1, config.duration)) * 100));
 
     const tile = (label: string, value: string) => (
-        <div style={{ background: '#0e131b', border: '1px solid #1a212c', borderRadius: 10, padding: '14px 16px' }}>
-            <div style={{ fontSize: 11, color: '#7d8590', marginBottom: 8 }}>{label}</div>
+        <div
+            style={{
+                background: 'var(--sm-panel)',
+                border: '1px solid var(--sm-border)',
+                borderRadius: 10,
+                padding: '14px 16px',
+            }}
+        >
+            <div style={{ fontSize: 11, color: 'var(--sm-text-4)', marginBottom: 8 }}>{label}</div>
             <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 22, fontWeight: 600, lineHeight: 1 }}>
                 {value}
             </div>
@@ -26,7 +33,7 @@ export default function LoadRunning({ load }: LoadRunningProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div
                 style={{
-                    background: '#0e131b',
+                    background: 'var(--sm-panel)',
                     border: `1px solid ${hexToRgba(ACCENT, 0.25)}`,
                     borderRadius: 10,
                     padding: '16px 18px',
@@ -68,7 +75,7 @@ export default function LoadRunning({ load }: LoadRunningProps) {
                         ■ Abort
                     </button>
                 </div>
-                <div style={{ height: 8, background: '#11161f', borderRadius: 5, overflow: 'hidden' }}>
+                <div style={{ height: 8, background: 'var(--sm-panel-2)', borderRadius: 5, overflow: 'hidden' }}>
                     <div
                         style={{
                             height: '100%',
@@ -86,10 +93,10 @@ export default function LoadRunning({ load }: LoadRunningProps) {
                         gap: 18,
                         fontFamily: "'Geist Mono',monospace",
                         fontSize: 12,
-                        color: '#9aa4af',
+                        color: 'var(--sm-text-3)',
                     }}
                 >
-                    <span style={{ color: '#e6edf3', fontWeight: 500 }}>
+                    <span style={{ color: 'var(--sm-text)', fontWeight: 500 }}>
                         {run.elapsed}s / {config.duration}s
                     </span>
                     <span>
@@ -100,26 +107,31 @@ export default function LoadRunning({ load }: LoadRunningProps) {
                         established
                     </span>
                     <span>
-                        sent <span style={{ color: '#c2cad3' }}>{run.sent.toLocaleString()}</span>
+                        sent <span style={{ color: 'var(--sm-text-2)' }}>{run.sent.toLocaleString()}</span>
                     </span>
                     <span>
-                        recv <span style={{ color: '#c2cad3' }}>{run.recv.toLocaleString()}</span>
+                        recv <span style={{ color: 'var(--sm-text-2)' }}>{run.recv.toLocaleString()}</span>
                     </span>
                 </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', gap: 14 }}>
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     <div
                         style={{
                             padding: '11px 16px',
-                            borderBottom: '1px solid #1a212c',
-                            background: '#0e131b',
+                            borderBottom: '1px solid var(--sm-border)',
+                            background: 'var(--sm-panel)',
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '.05em',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             textTransform: 'uppercase',
                         }}
                     >
@@ -143,16 +155,23 @@ export default function LoadRunning({ load }: LoadRunningProps) {
                     {tile('Max latency', live.length ? Math.max(...live) + ' ms' : '—')}
                 </div>
             </div>
-            <div style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}>
+            <div
+                style={{
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                }}
+            >
                 <div
                     style={{
                         padding: '11px 16px',
-                        borderBottom: '1px solid #1a212c',
-                        background: '#0e131b',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
                         fontSize: 11,
                         fontWeight: 600,
                         letterSpacing: '.05em',
-                        color: '#6b747f',
+                        color: 'var(--sm-text-5)',
                         textTransform: 'uppercase',
                     }}
                 >

@@ -18,7 +18,7 @@ export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, 
     const [focused, setFocused] = useState(false);
     const tabBtn = (key: Tab, label: string) => {
         const active = tab === key;
-        const color = active ? '#e6edf3' : '#6b747f';
+        const color = active ? 'var(--sm-text)' : 'var(--sm-text-5)';
         return (
             <button
                 onClick={() => setTab(key)}
@@ -50,12 +50,12 @@ export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, 
             style={{
                 height: 54,
                 flexShrink: 0,
-                borderBottom: '1px solid #161c25',
+                borderBottom: '1px solid var(--sm-raised-3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0 22px',
-                background: '#0a0d12',
+                background: 'var(--sm-bg)',
             }}
         >
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: '100%' }}>
@@ -64,7 +64,7 @@ export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, 
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <span style={{ fontSize: 10, color: '#4b545f', letterSpacing: '.05em' }}>WS</span>
+                    <span style={{ fontSize: 10, color: 'var(--sm-text-7)', letterSpacing: '.05em' }}>WS</span>
                     <input
                         value={endpoint}
                         onChange={e => setEndpoint(e.target.value)}
@@ -75,9 +75,9 @@ export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, 
                         style={{
                             fontFamily: "'Geist Mono',monospace",
                             fontSize: 11.5,
-                            color: focused ? '#e6edf3' : '#9aa4af',
-                            background: '#11161f',
-                            border: `1px solid ${focused ? ACCENT : '#1c2530'}`,
+                            color: focused ? 'var(--sm-text)' : 'var(--sm-text-3)',
+                            background: 'var(--sm-panel-2)',
+                            border: `1px solid ${focused ? ACCENT : 'var(--sm-border-2)'}`,
                             borderRadius: 6,
                             padding: '5px 10px',
                             width: 248,

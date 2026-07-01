@@ -35,11 +35,11 @@ export default function AreaTime({ series, target, w, h, accent, label }: AreaTi
             x2={w - padR}
             y1={ty}
             y2={ty}
-            stroke="#7d8590"
+            style={{ stroke: 'var(--sm-text-4)' }}
             strokeWidth={1.4}
             strokeDasharray="5 4"
         />,
-        <text key="tt" x={w - padR} y={ty - 4} fontSize={8.5} fill="#9aa4af" textAnchor="end">
+        <text key="tt" x={w - padR} y={ty - 4} fontSize={8.5} style={{ fill: 'var(--sm-text-3)' }} textAnchor="end">
             {label || 'target'}
         </text>,
     ];
@@ -50,7 +50,7 @@ export default function AreaTime({ series, target, w, h, accent, label }: AreaTi
                 x={padL - 6}
                 y={Y(v) + 3}
                 fontSize={9}
-                fill="#5a636e"
+                style={{ fill: 'var(--sm-text-6)' }}
                 textAnchor="end"
                 fontFamily="Geist Mono, monospace"
             >

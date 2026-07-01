@@ -32,12 +32,17 @@ export default function ObserveTab({ wl }: ObserveTabProps) {
                 >
                     LIVE
                 </span>
-                <span style={{ fontSize: 11.5, color: '#5a636e' }}>
+                <span style={{ fontSize: 11.5, color: 'var(--sm-text-6)' }}>
                     특정 유저를 관측 대상으로 추가해 디바이스 상태·presence 추적 (users/0/list)
                 </span>
             </div>
 
-            <SummaryStrip observedCount={wl.observed.length} userCounts={userCounts} deviceCount={devices.length} deviceCounts={deviceCounts} />
+            <SummaryStrip
+                observedCount={wl.observed.length}
+                userCounts={userCounts}
+                deviceCount={devices.length}
+                deviceCounts={deviceCounts}
+            />
 
             <WatchlistMasterDetail wl={wl} />
         </div>

@@ -12,13 +12,13 @@ export default function FanoutHero({ series, probeOpacity }: FanoutHeroProps) {
     const p95 = Math.round(pct(series, 95));
     const status = statusOf('fanout', p95);
     const color = statusColor(status);
-    const valColor = status === 'green' ? '#e6edf3' : color;
-    const border = status === 'green' ? '#1a212c' : hexToRgba(color, 0.35);
+    const valColor = status === 'green' ? 'var(--sm-text)' : color;
+    const border = status === 'green' ? 'var(--sm-border)' : hexToRgba(color, 0.35);
 
     return (
         <div
             style={{
-                background: '#0e131b',
+                background: 'var(--sm-panel)',
                 border: `1px solid ${border}`,
                 borderRadius: 12,
                 padding: '20px 22px',
@@ -31,7 +31,7 @@ export default function FanoutHero({ series, probeOpacity }: FanoutHeroProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.02em', color: '#c2cad3' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.02em', color: 'var(--sm-text-2)' }}>
                         Fan-out latency
                     </span>
                     <span
@@ -59,9 +59,11 @@ export default function FanoutHero({ series, probeOpacity }: FanoutHeroProps) {
                             }}
                         >
                             {p50}
-                            <span style={{ fontSize: 18, color: '#5a636e', fontWeight: 400 }}> ms</span>
+                            <span style={{ fontSize: 18, color: 'var(--sm-text-6)', fontWeight: 400 }}> ms</span>
                         </span>
-                        <span style={{ fontSize: 10.5, color: '#5a636e', letterSpacing: '.04em', marginTop: 4 }}>
+                        <span
+                            style={{ fontSize: 10.5, color: 'var(--sm-text-6)', letterSpacing: '.04em', marginTop: 4 }}
+                        >
                             p50 · pub → sub
                         </span>
                     </div>
@@ -72,13 +74,15 @@ export default function FanoutHero({ series, probeOpacity }: FanoutHeroProps) {
                                 fontSize: 26,
                                 fontWeight: 500,
                                 lineHeight: 1,
-                                color: '#9aa4af',
+                                color: 'var(--sm-text-3)',
                             }}
                         >
                             {p95}
-                            <span style={{ fontSize: 13, color: '#5a636e' }}> ms</span>
+                            <span style={{ fontSize: 13, color: 'var(--sm-text-6)' }}> ms</span>
                         </span>
-                        <span style={{ fontSize: 10.5, color: '#5a636e', letterSpacing: '.04em', marginTop: 4 }}>
+                        <span
+                            style={{ fontSize: 10.5, color: 'var(--sm-text-6)', letterSpacing: '.04em', marginTop: 4 }}
+                        >
                             p95
                         </span>
                     </div>

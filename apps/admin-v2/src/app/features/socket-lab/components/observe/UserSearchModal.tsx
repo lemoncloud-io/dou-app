@@ -33,8 +33,8 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                 style={{
                     width: 560,
                     maxWidth: '92vw',
-                    background: '#0e131b',
-                    border: '1px solid #232c38',
+                    background: 'var(--sm-panel)',
+                    border: '1px solid var(--sm-border-3)',
                     borderRadius: 14,
                     boxShadow: '0 24px 64px rgba(0,0,0,.55)',
                     overflow: 'hidden',
@@ -49,7 +49,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '15px 18px',
-                        borderBottom: '1px solid #1a212c',
+                        borderBottom: '1px solid var(--sm-border)',
                     }}
                 >
                     <span style={{ fontSize: 14, fontWeight: 600 }}>관측할 유저 검색</span>
@@ -61,7 +61,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                             background: 'none',
                             border: 'none',
                             cursor: 'pointer',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             fontSize: 18,
                             padding: '0 4px',
                         }}
@@ -70,16 +70,23 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                     </button>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, padding: '14px 18px', borderBottom: '1px solid #1a212c' }}>
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: 8,
+                        padding: '14px 18px',
+                        borderBottom: '1px solid var(--sm-border)',
+                    }}
+                >
                     <select
                         value={wl.searchType}
                         onChange={e => wl.setSearchType(e.target.value as UserSearchType)}
                         style={{
                             appearance: 'none',
-                            background: '#11161f',
-                            border: '1px solid #232c38',
+                            background: 'var(--sm-panel-2)',
+                            border: '1px solid var(--sm-border-3)',
                             borderRadius: 8,
-                            color: '#c2cad3',
+                            color: 'var(--sm-text-2)',
                             fontFamily: 'inherit',
                             fontSize: 12.5,
                             padding: '0 12px',
@@ -100,10 +107,10 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                         placeholder="검색어 입력…"
                         style={{
                             flex: 1,
-                            background: '#11161f',
-                            border: '1px solid #232c38',
+                            background: 'var(--sm-panel-2)',
+                            border: '1px solid var(--sm-border-3)',
                             borderRadius: 8,
-                            color: '#e6edf3',
+                            color: 'var(--sm-text)',
                             fontFamily: "'Geist Mono',monospace",
                             fontSize: 12.5,
                             padding: '9px 12px',
@@ -127,13 +134,13 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                         }}
                     >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <circle cx="7" cy="7" r="5" stroke="#0a0d12" strokeWidth="1.8" />
+                            <circle cx="7" cy="7" r="5" stroke="var(--sm-bg)" strokeWidth="1.8" />
                             <line
                                 x1="11"
                                 y1="11"
                                 x2="14.5"
                                 y2="14.5"
-                                stroke="#0a0d12"
+                                stroke="var(--sm-bg)"
                                 strokeWidth="1.8"
                                 strokeLinecap="round"
                             />
@@ -143,9 +150,20 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
 
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {wl.searchLoading && !shown.length ? (
-                        <div style={{ padding: '40px 18px', textAlign: 'center', color: '#5a636e', fontSize: 12.5 }}>불러오는 중…</div>
+                        <div
+                            style={{
+                                padding: '40px 18px',
+                                textAlign: 'center',
+                                color: 'var(--sm-text-6)',
+                                fontSize: 12.5,
+                            }}
+                        >
+                            불러오는 중…
+                        </div>
                     ) : wl.searchError ? (
-                        <div style={{ padding: '40px 18px', textAlign: 'center', color: '#f85149', fontSize: 12.5 }}>{wl.searchError}</div>
+                        <div style={{ padding: '40px 18px', textAlign: 'center', color: '#f85149', fontSize: 12.5 }}>
+                            {wl.searchError}
+                        </div>
                     ) : shown.length ? (
                         <div>
                             {shown.map(u => {
@@ -160,8 +178,8 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                             alignItems: 'center',
                                             gap: 11,
                                             padding: '11px 18px',
-                                            borderBottom: '1px solid #141a23',
-                                            background: hoverId === u.id ? '#11161f' : 'transparent',
+                                            borderBottom: '1px solid var(--sm-raised-2)',
+                                            background: hoverId === u.id ? 'var(--sm-panel-2)' : 'transparent',
                                         }}
                                     >
                                         <span
@@ -185,7 +203,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                             <span
                                                 style={{
                                                     fontWeight: 500,
-                                                    color: '#e6edf3',
+                                                    color: 'var(--sm-text)',
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -197,7 +215,7 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                                 style={{
                                                     fontFamily: "'Geist Mono',monospace",
                                                     fontSize: 10.5,
-                                                    color: '#5a636e',
+                                                    color: 'var(--sm-text-6)',
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
@@ -218,9 +236,9 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                                 fontWeight: 600,
                                                 borderRadius: 6,
                                                 padding: '6px 13px',
-                                                background: added ? '#11161f' : hexToRgba(ACCENT, 0.12),
-                                                border: `1px solid ${added ? '#1c2530' : hexToRgba(ACCENT, 0.35)}`,
-                                                color: added ? '#4b545f' : ACCENT,
+                                                background: added ? 'var(--sm-panel-2)' : hexToRgba(ACCENT, 0.12),
+                                                border: `1px solid ${added ? 'var(--sm-border-2)' : hexToRgba(ACCENT, 0.35)}`,
+                                                color: added ? 'var(--sm-text-7)' : ACCENT,
                                                 flexShrink: 0,
                                             }}
                                         >
@@ -238,11 +256,11 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                                         width: '100%',
                                         fontFamily: 'inherit',
                                         fontSize: 12,
-                                        color: '#9aa4af',
+                                        color: 'var(--sm-text-3)',
                                         background: 'none',
                                         border: 'none',
                                         padding: 14,
-                                        borderTop: '1px solid #141a23',
+                                        borderTop: '1px solid var(--sm-raised-2)',
                                     }}
                                 >
                                     더 보기 ({shown.length}/{wl.searchTotal})
@@ -250,7 +268,14 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                             ) : null}
                         </div>
                     ) : (
-                        <div style={{ padding: '40px 18px', textAlign: 'center', color: '#5a636e', fontSize: 12.5 }}>
+                        <div
+                            style={{
+                                padding: '40px 18px',
+                                textAlign: 'center',
+                                color: 'var(--sm-text-6)',
+                                fontSize: 12.5,
+                            }}
+                        >
                             검색 결과 없음
                         </div>
                     )}

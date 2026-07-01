@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { RotateCw } from 'lucide-react';
 
-import { ACCENT, ago, hexToRgba, presenceColor } from '../../lib/stats';
+import { ACCENT, ago, dur, hexToRgba, presenceColor } from '../../lib/stats';
 import type { Watchlist } from '../../hooks/use-watchlist';
 
 export interface WatchlistMasterDetailProps {
@@ -16,7 +16,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
     const [dragOverId, setDragOverId] = useState<string | null>(null);
     const { observed, selectedUserId, selected } = wl;
     // 유저 마지막 활동 = 디바이스 중 가장 최근(min lastActiveAt). 디바이스 없으면 null.
-    const userLastActive = selected && selected.devices.length ? Math.min(...selected.devices.map(d => d.lastActiveAt)) : null;
+    const userLastActive =
+        selected && selected.devices.length ? Math.min(...selected.devices.map(d => d.lastActiveAt)) : null;
 
     return (
         <div
@@ -32,8 +33,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
             {/* MASTER */}
             <div
                 style={{
-                    background: '#0c1118',
-                    border: '1px solid #1a212c',
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
                     borderRadius: 10,
                     overflow: 'hidden',
                     display: 'flex',
@@ -46,8 +47,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '11px 14px',
-                        borderBottom: '1px solid #1a212c',
-                        background: '#0e131b',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
                         flexShrink: 0,
                     }}
                 >
@@ -56,13 +57,13 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '.05em',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             textTransform: 'uppercase',
                         }}
                     >
                         Observed Users
                     </span>
-                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#7d8590' }}>
+                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: 'var(--sm-text-4)' }}>
                         {observed.length}
                     </span>
                 </div>
@@ -97,16 +98,17 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                         alignItems: 'center',
                                         gap: 10,
                                         padding: '12px 14px 12px 13px',
-                                        borderBottom: '1px solid #141a23',
+                                        borderBottom: '1px solid var(--sm-raised-2)',
                                         borderLeft: `3px solid ${sel ? ACCENT : 'transparent'}`,
                                         background: sel
                                             ? hexToRgba(ACCENT, 0.12)
                                             : hoverId === u.id
-                                              ? '#11161f'
+                                              ? 'var(--sm-panel-2)'
                                               : 'transparent',
                                         cursor: dragId ? 'grabbing' : 'grab',
                                         opacity: dragId === u.id ? 0.4 : 1,
-                                        boxShadow: dragOverId === u.id && dragId !== u.id ? `inset 0 2px 0 ${ACCENT}` : 'none',
+                                        boxShadow:
+                                            dragOverId === u.id && dragId !== u.id ? `inset 0 2px 0 ${ACCENT}` : 'none',
                                     }}
                                 >
                                     <span
@@ -130,7 +132,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                         <span
                                             style={{
                                                 fontWeight: 500,
-                                                color: '#e6edf3',
+                                                color: 'var(--sm-text)',
                                                 whiteSpace: 'nowrap',
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
@@ -142,7 +144,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                             style={{
                                                 fontFamily: "'Geist Mono',monospace",
                                                 fontSize: 10,
-                                                color: '#5a636e',
+                                                color: 'var(--sm-text-6)',
                                                 whiteSpace: 'nowrap',
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
@@ -162,7 +164,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                             background: 'none',
                                             border: 'none',
                                             cursor: 'pointer',
-                                            color: '#4b545f',
+                                            color: 'var(--sm-text-7)',
                                             fontSize: 14,
                                             padding: '2px 4px',
                                             flexShrink: 0,
@@ -178,18 +180,18 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             style={{
                                 padding: '36px 18px',
                                 textAlign: 'center',
-                                color: '#5a636e',
+                                color: 'var(--sm-text-6)',
                                 fontSize: 12,
                                 lineHeight: 1.6,
                             }}
                         >
                             관측할 유저를 추가하세요
                             <br />
-                            <span style={{ color: '#3f4751', fontSize: 11 }}>아래 + 추가 버튼을 누르세요</span>
+                            <span style={{ color: 'var(--sm-text-8)', fontSize: 11 }}>아래 + 추가 버튼을 누르세요</span>
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '11px 14px', borderTop: '1px solid #1a212c', flexShrink: 0 }}>
+                <div style={{ padding: '11px 14px', borderTop: '1px solid var(--sm-border)', flexShrink: 0 }}>
                     <button
                         onClick={wl.openSearch}
                         style={{
@@ -214,8 +216,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
             {/* DETAIL */}
             <div
                 style={{
-                    background: '#0c1118',
-                    border: '1px solid #1a212c',
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
                     borderRadius: 10,
                     overflow: 'hidden',
                     display: 'flex',
@@ -228,24 +230,60 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '11px 14px',
-                        borderBottom: '1px solid #1a212c',
-                        background: '#0e131b',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
                         flexShrink: 0,
                     }}
                 >
                     {selected ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                            <span style={{ width: 9, height: 9, borderRadius: '50%', background: presenceColor(selected.presence), flexShrink: 0 }} />
+                            <span
+                                style={{
+                                    width: 9,
+                                    height: 9,
+                                    borderRadius: '50%',
+                                    background: presenceColor(selected.presence),
+                                    flexShrink: 0,
+                                }}
+                            />
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                                <span style={{ fontWeight: 600, fontSize: 13, color: '#e6edf3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selected.name}</span>
-                                <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: '#5a636e' }}>
+                                <span
+                                    style={{
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        color: 'var(--sm-text)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}
+                                >
+                                    {selected.name}
+                                </span>
+                                <span
+                                    style={{
+                                        fontFamily: "'Geist Mono',monospace",
+                                        fontSize: 10.5,
+                                        color: 'var(--sm-text-6)',
+                                    }}
+                                >
                                     {selected.id}
-                                    {selected.code ? ` · ${selected.code}` : ''} · active {userLastActive != null ? ago(userLastActive) : '—'}
+                                    {selected.code ? ` · ${selected.code}` : ''} · active{' '}
+                                    {userLastActive != null ? ago(userLastActive) : '—'}
                                 </span>
                             </div>
                         </div>
                     ) : (
-                        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', color: '#6b747f', textTransform: 'uppercase' }}>User</span>
+                        <span
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: '.05em',
+                                color: 'var(--sm-text-5)',
+                                textTransform: 'uppercase',
+                            }}
+                        >
+                            User
+                        </span>
                     )}
                     {selected ? (
                         <button
@@ -254,11 +292,11 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             aria-label="디바이스 목록 새로고침"
                             style={{
                                 appearance: 'none',
-                                background: '#11161f',
-                                border: '1px solid #1c2530',
+                                background: 'var(--sm-panel-2)',
+                                border: '1px solid var(--sm-border-2)',
                                 borderRadius: 6,
                                 cursor: 'pointer',
-                                color: '#9aa4af',
+                                color: 'var(--sm-text-3)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 padding: '4px 6px',
@@ -278,13 +316,31 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                 alignItems: 'center',
                                 gap: 8,
                                 padding: '9px 16px',
-                                borderBottom: '1px solid #1a212c',
-                                background: '#0b0f16',
+                                borderBottom: '1px solid var(--sm-border)',
+                                background: 'var(--sm-bg-deepest)',
                                 flexShrink: 0,
                             }}
                         >
-                            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', color: '#6b747f', textTransform: 'uppercase' }}>Devices</span>
-                            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#7d8590' }}>{selected.devices.length}</span>
+                            <span
+                                style={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    letterSpacing: '.05em',
+                                    color: 'var(--sm-text-5)',
+                                    textTransform: 'uppercase',
+                                }}
+                            >
+                                Devices
+                            </span>
+                            <span
+                                style={{
+                                    fontFamily: "'Geist Mono',monospace",
+                                    fontSize: 11,
+                                    color: 'var(--sm-text-4)',
+                                }}
+                            >
+                                {selected.devices.length}
+                            </span>
                         </div>
                         {selected.devices.length ? (
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -293,7 +349,10 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                     return (
                                         <div
                                             key={d.id}
-                                            style={{ padding: '14px 16px', borderBottom: '1px solid #141a23' }}
+                                            style={{
+                                                padding: '14px 16px',
+                                                borderBottom: '1px solid var(--sm-raised-2)',
+                                            }}
                                         >
                                             <div
                                                 style={{
@@ -303,21 +362,35 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                     marginBottom: 6,
                                                 }}
                                             >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 9,
+                                                        minWidth: 0,
+                                                        flex: 1,
+                                                    }}
+                                                >
                                                     <span
                                                         style={{
                                                             width: 8,
                                                             height: 8,
                                                             borderRadius: '50%',
                                                             background: dc,
+                                                            flexShrink: 0,
                                                         }}
                                                     />
                                                     <span
+                                                        title={d.name}
                                                         style={{
                                                             fontWeight: 500,
                                                             fontFamily: "'Geist Mono',monospace",
                                                             fontSize: 12.5,
-                                                            color: '#e6edf3',
+                                                            color: 'var(--sm-text)',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            minWidth: 0,
                                                         }}
                                                     >
                                                         {d.name}
@@ -332,6 +405,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                         background: hexToRgba(dc, 0.13),
                                                         borderRadius: 5,
                                                         padding: '2px 8px',
+                                                        flexShrink: 0,
+                                                        marginLeft: 8,
                                                     }}
                                                 >
                                                     {d.status.toUpperCase()}
@@ -341,20 +416,50 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                 style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: 6,
+                                                    justifyContent: 'space-between',
+                                                    gap: 8,
                                                     marginBottom: 5,
                                                     fontSize: 12,
-                                                    color: d.viewing ? ACCENT : '#5a636e',
                                                 }}
                                             >
-                                                <span style={{ fontSize: 9 }}>●</span>
-                                                {d.viewing ? `보는 중 ${d.viewing}` : '보는 채널 없음'}
+                                                <span
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 6,
+                                                        minWidth: 0,
+                                                        color: d.viewing ? ACCENT : 'var(--sm-text-6)',
+                                                    }}
+                                                >
+                                                    <span style={{ fontSize: 9 }}>●</span>
+                                                    <span
+                                                        style={{
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                        }}
+                                                    >
+                                                        {d.viewing ? `채널 ${d.viewing} 보는 중` : '보는 채널 없음'}
+                                                    </span>
+                                                </span>
+                                                {d.viewing && d.viewingFor != null ? (
+                                                    <span
+                                                        style={{
+                                                            fontFamily: "'Geist Mono',monospace",
+                                                            fontSize: 10.5,
+                                                            color: 'var(--sm-text-4)',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        체류 {dur(d.viewingFor)}
+                                                    </span>
+                                                ) : null}
                                             </div>
                                             <div
                                                 style={{
                                                     fontFamily: "'Geist Mono',monospace",
                                                     fontSize: 10.5,
-                                                    color: '#5a636e',
+                                                    color: 'var(--sm-text-6)',
                                                 }}
                                             >
                                                 {d.platform} · tick {d.tick} · active {ago(d.lastActiveAt)}
@@ -364,7 +469,14 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                 })}
                             </div>
                         ) : (
-                            <div style={{ padding: '40px 18px', textAlign: 'center', color: '#5a636e', fontSize: 12 }}>
+                            <div
+                                style={{
+                                    padding: '40px 18px',
+                                    textAlign: 'center',
+                                    color: 'var(--sm-text-6)',
+                                    fontSize: 12,
+                                }}
+                            >
                                 이 유저의 디바이스 없음
                             </div>
                         )}
@@ -376,7 +488,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#5a636e',
+                            color: 'var(--sm-text-6)',
                             fontSize: 12,
                         }}
                     >

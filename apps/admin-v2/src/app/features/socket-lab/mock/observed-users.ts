@@ -11,7 +11,8 @@ export interface ObservedDevice {
     platform: string;
     status: Presence;
     tick: number;
-    viewing: string | null; // 예: '#ch-general' | null
+    viewing: string | null; // 보는 중인 channelId (없으면 null)
+    viewingFor: number | null; // 해당 채널 체류 시간(초). 미상 시 null
     lastActiveAt: number; // 마지막 활동 후 경과 초
 }
 

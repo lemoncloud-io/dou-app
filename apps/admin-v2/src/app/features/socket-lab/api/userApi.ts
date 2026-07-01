@@ -15,10 +15,11 @@ interface DeviceViewRaw {
     platform?: string;
     status?: Presence;
     tick?: number;
-    viewingType?: string;
+    viewingType?: string; // 서버 미제공(현재 presence 응답에 viewing 필드 없음) — 추가 시 대비
     viewingId?: string;
     connId?: string;
     connectedAt?: number;
+    lastActiveAt?: number; // 마지막 활동 시각(절대 ms)
     updatedAt?: number;
 }
 interface UserViewRaw {
@@ -45,15 +46,20 @@ export interface UserSearchPage {
 /** users API base = VITE_BACKEND_ENDPOINT에서 stage suffix(/d1) 제거 후 /skt-d1 경로(deviceApi와 동일 패턴). */
 const getUsersEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
 
-const mapDevice = (d: DeviceViewRaw, now: number): ObservedDevice => ({
-    id: `${d.id ?? ''}`,
-    name: d.name || `${d.id ?? 'device'}`,
-    platform: d.platform || '-',
-    status: d.status ?? 'green',
-    tick: d.tick ?? 0,
-    viewing: d.viewingType === 'channel' && d.viewingId ? `#${d.viewingId}` : null,
-    lastActiveAt: d.updatedAt ? Math.max(0, Math.round((now - d.updatedAt) / 1000)) : 0,
-});
+const mapDevice = (d: DeviceViewRaw, now: number): ObservedDevice => {
+    const viewing = d.viewingType === 'channel' && d.viewingId ? `${d.viewingId}` : null;
+    const activeAt = d.lastActiveAt ?? d.updatedAt;
+    return {
+        id: `${d.id ?? ''}`,
+        name: d.name || `${d.id ?? 'device'}`,
+        platform: d.platform || '-',
+        status: d.status ?? 'green',
+        tick: d.tick ?? 0,
+        viewing,
+        viewingFor: null, // 서버가 viewing 시작시각을 안 줘서 체류시간 산출 불가(서버 지원 시 재개)
+        lastActiveAt: activeAt ? Math.max(0, Math.round((now - activeAt) / 1000)) : 0,
+    };
+};
 
 const mapUser = (u: UserViewRaw, now: number): ObservedUser => ({
     id: `${u.id ?? ''}`,
@@ -71,7 +77,12 @@ export interface FetchObservedUsersParams {
 }
 
 /** 관측 유저 목록 조회(디바이스/presence 포함). type=id→param id(uid), type=name→param keyword. */
-export const fetchObservedUsers = async ({ type = 'id', query = '', page = 0, limit = 10 }: FetchObservedUsersParams = {}): Promise<UserSearchPage> => {
+export const fetchObservedUsers = async ({
+    type = 'id',
+    query = '',
+    page = 0,
+    limit = 10,
+}: FetchObservedUsersParams = {}): Promise<UserSearchPage> => {
     const q = query.trim();
     const search = q ? (type === 'name' ? { keyword: q } : { id: q }) : {};
     const { data } = await webTransport
