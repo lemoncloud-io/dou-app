@@ -1,27 +1,6 @@
 /**
  * `model/monitor-types.ts` — Socket Monitor 공용 도메인 타입.
  */
-import type { MetricKey } from '../lib/stats';
-
-export interface MetricSeries {
-    series: number[];
-    unit: string;
-}
-export type MetricsMap = Record<MetricKey, MetricSeries>;
-
-export type ConnStatus = 'idle' | 'connecting' | 'connected' | 'error';
-
-export interface CanaryEvent {
-    id: string;
-    t: string; // HH:MM:SS
-    dir: 'pub' | 'sub';
-    type: string;
-    seq: number;
-    latency: number | null;
-    level: 'info' | 'warn' | 'error';
-    label?: string;
-}
-
 export type RampMode = 'instant' | 'staged';
 
 export interface LoadConfig {

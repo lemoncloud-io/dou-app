@@ -1,14 +1,16 @@
 import { ACCENT, hexToRgba } from '../../lib/stats';
 
-export type ProbeMode = 'canary' | 'load';
+export type ProbeMode = 'sandbox' | 'load';
 
 export interface ModeToggleProps {
     mode: ProbeMode;
     setMode(m: ProbeMode): void;
+    /** Sandbox 점 — 활성 클라(verified/connecting) 있으면 green 맥동. */
+    sandboxActive: boolean;
 }
 
-/** Canary | Load test 모드 토글. */
-export default function ModeToggle({ mode, setMode }: ModeToggleProps) {
+/** Sandbox | Load test 모드 토글. */
+export default function ModeToggle({ mode, setMode, sandboxActive }: ModeToggleProps) {
     const style = (on: boolean) => ({
         appearance: 'none' as const,
         cursor: 'pointer',
@@ -25,19 +27,19 @@ export default function ModeToggle({ mode, setMode }: ModeToggleProps) {
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
-                onClick={() => setMode('canary')}
-                style={{ ...style(mode === 'canary'), display: 'flex', alignItems: 'center', gap: 8 }}
+                onClick={() => setMode('sandbox')}
+                style={{ ...style(mode === 'sandbox'), display: 'flex', alignItems: 'center', gap: 8 }}
             >
                 <span
                     style={{
                         width: 7,
                         height: 7,
                         borderRadius: '50%',
-                        background: '#3fb950',
-                        animation: 'scPulse 1.4s ease-in-out infinite',
+                        background: sandboxActive ? '#3fb950' : 'var(--sm-text-6)',
+                        animation: sandboxActive ? 'scPulse 1.4s ease-in-out infinite' : 'none',
                     }}
                 />
-                Canary <span style={{ color: 'var(--sm-text-6)', fontSize: 11 }}>(live)</span>
+                Sandbox <span style={{ color: 'var(--sm-text-6)', fontSize: 11 }}>(gateway)</span>
             </button>
             <button onClick={() => setMode('load')} style={style(mode === 'load')}>
                 Load test <span style={{ color: 'var(--sm-text-6)', fontSize: 11 }}>(on-demand)</span>

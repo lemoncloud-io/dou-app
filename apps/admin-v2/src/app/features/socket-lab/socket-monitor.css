@@ -59,6 +59,10 @@
     --sm-text-7: #4b545f;
     --sm-text-8: #3f4751;
     --sm-red-bg: #1b0f12;
+    --sm-deep: #0b0f16;
+    --sm-hover: #131a24;
+    --sm-border-hover: #2c3947;
+    --sm-on-accent: #0a0d12;
 
     height: 100vh;
     width: 100%;
@@ -102,6 +106,10 @@
     --sm-text-7: #9aa4af;
     --sm-text-8: #afb8c1;
     --sm-red-bg: #ffebe9;
+    --sm-deep: #f6f8fa;
+    --sm-hover: #f0f3f6;
+    --sm-border-hover: #c0c8d0;
+    --sm-on-accent: #052e2b;
 }
 
 .sm-root ::-webkit-scrollbar {
