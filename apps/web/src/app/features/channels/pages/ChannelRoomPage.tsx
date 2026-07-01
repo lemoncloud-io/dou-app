@@ -46,6 +46,7 @@ import {
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
@@ -394,6 +395,25 @@ export const ChannelRoomPage = () => {
                                     <div key={dateKey} className="flex flex-col-reverse gap-3">
                                         {reversedMessages.map((message, index) => {
                                             if (message.isSystem) {
+                                                // New model: system messages carry no text — render the
+                                                // localized clause from `subType` with the subject's name
+                                                // (profile nick preferred) as a bold prefix.
+                                                const suffixKey = systemMessageSuffixKey(message.subType);
+                                                if (suffixKey) {
+                                                    const systemProfile = message.ownerId
+                                                        ? profileMap.get(message.ownerId)
+                                                        : undefined;
+                                                    const systemName = systemProfile?.nick ?? message.ownerName;
+                                                    return (
+                                                        <div key={message.id} className="flex justify-center py-1">
+                                                            <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                                <span className="font-semibold">{systemName}</span>
+                                                                {t(suffixKey)}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                }
+                                                // Legacy fallback: older rows stored the full sentence in content.
                                                 const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
                                                 return (
                                                     <div key={message.id} className="flex justify-center py-1">
