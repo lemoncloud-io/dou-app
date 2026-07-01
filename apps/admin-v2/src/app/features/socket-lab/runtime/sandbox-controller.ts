@@ -110,9 +110,18 @@ export class SandboxController {
         });
         this.container.subscribe(ev => {
             if (ev.type === 'recv') this.onRecvFrame(ev.from, ev.seq, ev.latencyMs);
+            else if (ev.type === 'log') this.onContainerLog(ev.entry.level, ev.entry.label, ev.entry.detail);
         });
         // collector 샘플(rAF 배치) 도착 시 지표 갱신 통지
         this.container.collector.subscribe(() => this.notify());
+    }
+
+    /** SDK 내부 프레임(실제 요청/응답/sync)을 이벤트 로그에 그대로 노출 — 실동작 가시성. */
+    private onContainerLog(level: LogRow['level'], label: string, detail?: string) {
+        // 응답/수신 계열은 rx(▼), 그 외는 tx(▲)로 표기.
+        const rx = /\.ok$|\.apply$|\.update$|\.sync|socket\.state|request\.ok/.test(label);
+        this.logRow(rx ? 'rx' : 'tx', label, level, null, detail ?? '');
+        this.notify();
     }
 
     subscribe(fn: () => void): () => void {
@@ -139,6 +148,7 @@ export class SandboxController {
     }
 
     private onRecvFrame(from: string, seq: number, latencyMs: number) {
+        if (from === this.letter) return; // 자기 송신이 chat.feed poll로 돌아온 것 — 수신 아님
         this.rx += 1;
         const last = this.lastSeqFrom[from] ?? 0;
         if (last !== 0 && seq > last + 1) this.lossCount += seq - last - 1;
@@ -171,6 +181,7 @@ export class SandboxController {
     }
     setActiveChannel(ch: string) {
         this.activeChannel = ch;
+        this.applyViewing();
         this.notify();
     }
 
@@ -181,7 +192,6 @@ export class SandboxController {
         const t0 = performance.now();
         this.status = 'connecting';
         this.err = null;
-        this.logRow('tx', 'ws.connect', 'info', null, 'handshake 시작');
         this.notify();
         try {
             await this.container.connect();
@@ -189,11 +199,9 @@ export class SandboxController {
             this.handshakeMs = performance.now() - t0;
             this.deviceId = this.container.deviceId;
             this.status = 'connected';
-            this.logRow('rx', 'device.save:ok', 'info', this.handshakeMs, this.deviceId);
         } catch (e) {
             this.status = 'error';
             this.err = e instanceof Error ? e.message : `${e}`;
-            this.logRow('rx', 'connect:err', 'error', null, this.err);
         }
         this.notify();
     }
@@ -202,8 +210,6 @@ export class SandboxController {
     async authenticate() {
         if (this.status !== 'connected' && this.status !== 'verified') return;
         if (!this.token.trim()) return;
-        const t0 = performance.now();
-        this.logRow('tx', 'auth.update', 'info', null, '');
         this.notify();
         const res = await this.container.updateAuth(this.token.trim());
         if (res?.state === 'authenticated') {
@@ -211,18 +217,15 @@ export class SandboxController {
             this.err = null;
             this.userId = `${res.memberId ?? res.member$?.id ?? ''}` || null;
             this.deviceId = res.deviceId ?? this.deviceId;
-            this.logRow('rx', 'auth.update:ok', 'info', performance.now() - t0, 'verified');
         } else {
             // 인증 실패 시 연결은 유지(토큰 고쳐 재시도) — status는 connected 유지, 에러만 표시.
             this.status = 'connected';
             this.err = res?.error || `auth ${res?.state ?? 'failed'}`;
-            this.logRow('rx', 'auth.update:err', 'error', null, this.err);
         }
         this.notify();
     }
 
     async disconnect() {
-        this.logRow('tx', 'ws.close', 'info', null, '');
         await this.container.disconnect().catch(() => undefined);
         this.status = 'idle';
         this.userId = null;
@@ -234,27 +237,32 @@ export class SandboxController {
     }
 
     // ---- gateway actions ----
-    private async gwCall<T>(type: string, fn: () => Promise<T>, label = ''): Promise<T | undefined> {
+    private async gwCall<T>(type: string, fn: () => Promise<T>, _label = ''): Promise<T | undefined> {
         if (this.status !== 'verified') return undefined;
-        const t0 = performance.now();
         this.tx += 1;
-        this.logRow('tx', type, 'info', null, label);
         this.notify();
         try {
             const r = await fn();
-            this.logRow('rx', `${type}:ok`, 'info', performance.now() - t0, '');
             this.notify();
             return r;
-        } catch (e) {
-            this.logRow('rx', `${type}:err`, 'error', null, e instanceof Error ? e.message : `${e}`);
+        } catch {
             this.notify();
             return undefined;
         }
     }
+    /** 활성 채널 viewing 선언 — 서버가 viewing 중인 디바이스에만 chat.sync를 푸시하므로 수신에 필수. */
+    private applyViewing() {
+        if (this.status !== 'verified') return;
+        const ch = this.syncOn ? this.activeChannel : null;
+        this.container.notifyViewing(ch);
+    }
     private joinLocal(ch: string) {
         if (!this.channels.includes(ch)) this.channels = [...this.channels, ch];
         this.activeChannel = ch;
-        if (this.syncOn) this.container.startChannelSync(ch);
+        if (this.syncOn) {
+            this.container.startChannelSync(ch);
+            this.applyViewing();
+        }
     }
     async create() {
         const ch = this.channelInput.trim();
@@ -283,6 +291,7 @@ export class SandboxController {
             if (this.syncOn) this.container.startChannelSync(ch);
             else this.container.stopChannelSync(ch);
         }
+        this.applyViewing();
         this.notify();
     }
     async send() {
@@ -292,12 +301,8 @@ export class SandboxController {
         const seq = this.seq;
         this.tx += 1;
         const content = `${this.chatInput || ''}${encodeE2eMarker(performance.now(), performance.timeOrigin, this.letter, seq)}`;
-        this.logRow('tx', 'chat.send', 'info', null, `${ch} · "${this.chatInput || ''}"`);
         this.notify();
-        const t0 = performance.now();
-        const view = await this.container.sendChat(ch, content);
-        if (view) this.logRow('rx', 'chat.send:ack', 'info', performance.now() - t0, `seq ${seq}`);
-        else this.logRow('rx', 'chat.send:err', 'error', null, '');
+        await this.container.sendChat(ch, content);
         this.notify();
     }
     saveDevice() {

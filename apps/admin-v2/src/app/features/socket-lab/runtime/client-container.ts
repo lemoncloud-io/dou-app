@@ -172,6 +172,50 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         emit({ type: 'sync-targets', targets: runtime ? runtime.listSyncTargets() : [] });
     };
 
+    // ---- recv E2E: 수신 메시지에서 마커 파싱 → recv 이벤트(중복 chatNo 방지) ----
+    const recvSeen = new Set<string>();
+    const emitRecvForMessages = (channelId: string, msgs: Array<Record<string, unknown>>) => {
+        for (const m of msgs) {
+            const chatNo = typeof m?.chatNo === 'number' ? m.chatNo : undefined;
+            const key = `${channelId}:${chatNo ?? ''}`;
+            if (chatNo !== undefined) {
+                if (recvSeen.has(key)) continue;
+                recvSeen.add(key);
+            }
+            const field = parseE2eMarker(m?.content);
+            if (!field) continue;
+            const originOk = Math.abs(field.origin - performance.timeOrigin) < 1;
+            collector.markReceive(field.sentAt, originOk);
+            if (originOk)
+                {emit({
+                    type: 'recv',
+                    from: field.from,
+                    seq: field.seq,
+                    latencyMs: Math.max(0, performance.now() - field.sentAt),
+                });}
+        }
+    };
+
+    // ---- 채널 sync가 chatNo 증가를 감지하면 chat.feed로 당겨오는 브릿지 ----
+    // 서버가 chat.sync를 push하지 않는 환경에서도 수신이 되도록(지연 ≈ 채널 폴링 주기).
+    const pulledChatNo = new Map<string, number>();
+    const pullChatIfNew = (channelId: string, chatNo?: number) => {
+        if (!runtime || !channelId || !chatNo) return;
+        const last = pulledChatNo.get(channelId) ?? 0;
+        if (chatNo <= last) return;
+        pulledChatNo.set(channelId, chatNo);
+        void createChatGateway(runtime.client)
+            .feed({ channelId, limit: 20 } as never)
+            .then(result => {
+                const list = ((result as { list?: DemoChatView[] })?.list ?? []).filter(m => (m.chatNo ?? 0) > last);
+                if (!list.length) return;
+                applyChatMessages(chatStore, channelId, list, chatNo);
+                log('info', 'chat.sync.apply', `${channelId} +${list.length} chatNo=${chatNo}`);
+                emitRecvForMessages(channelId, list as unknown as Array<Record<string, unknown>>);
+            })
+            .catch(() => undefined);
+    };
+
     const buildClient = () => {
         const client = createClientSocketV2({
             url: endpoint.trim(),
@@ -250,6 +294,8 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                                 view: next,
                             });
                             log('info', 'channel.sync.update', next.id);
+                            // 브릿지: chatNo 증가 시 chat.feed로 새 메시지 당겨오기(서버 chat.sync push 폴백)
+                            pullChatIfNew(next.id, next.chatNo);
                         },
                         onRemove: target => {
                             const cid = `${target.id ?? ''}`.trim();
@@ -268,20 +314,13 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                                 snapshot.lastNo
                             );
                             log('info', 'chat.sync.apply', `${channelId} +${applied.length} lastNo=${snapshot.lastNo}`);
-                            for (const m of applied as unknown as Array<Record<string, unknown>>) {
-                                const field = parseE2eMarker(m?.content);
-                                if (!field) continue;
-                                const originOk = Math.abs(field.origin - performance.timeOrigin) < 1;
-                                collector.markReceive(field.sentAt, originOk);
-                                if (originOk) {
-                                    emit({
-                                        type: 'recv',
-                                        from: field.from,
-                                        seq: field.seq,
-                                        latencyMs: Math.max(0, performance.now() - field.sentAt),
-                                    });
-                                }
+                            if (channelId) {
+                                pulledChatNo.set(
+                                    channelId,
+                                    Math.max(pulledChatNo.get(channelId) ?? 0, snapshot.lastNo)
+                                );
                             }
+                            emitRecvForMessages(channelId, applied as unknown as Array<Record<string, unknown>>);
                         },
                     }),
                 ],
