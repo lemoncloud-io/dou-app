@@ -1,9 +1,9 @@
 import { User } from 'lucide-react';
 
-import { useSessionIdentity } from '@chatic/web-core';
+import { useMyUser } from '../../../../hooks';
 
 export const ProfileSection = () => {
-    const user = useSessionIdentity().activeProfile?.$user;
+    const user = useMyUser();
 
     const name = user?.name;
     const email = user?.email ?? '';

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useUpdateCloud } from '@chatic/web-core';
+import { useUpdateCloud } from '../hooks';
 
 interface CloudNameEditDialogProps {
     open: boolean;

@@ -14,13 +14,14 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile } from '../../../hooks';
+import { useMyProfile, useMyUser } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
 import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
 import { useChannelUnreads, useHomeChannels, useHomePlaces, useInvitedClouds, useSwitchPlace } from '../hooks';
+import { resolveHeaderProfile } from '../lib';
 import { InviteDialog } from '../components';
 
 export const HomePage = () => {
@@ -48,17 +49,26 @@ export const HomePage = () => {
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
+
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
     // Unread badges derive from each channel's embedded `$join.chatNo` (kept live by the channel
     // sync), so no separate per-channel join sync is registered here.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels);
 
-    // When a site is active, prefer the V2 per-site profile (nick/thumbnail) so an edit-screen
-    // save reflects immediately; fall back to session-derived values otherwise (default cloud).
+    // Header profile is resolved by tier (site → user account → setup prompt). The site profile
+    // (V2 per-site nick/thumbnail) only applies off the default cloud; an edit-screen save reflects
+    // immediately via the observed cache. `identity.userName` is intentionally excluded — it defaults
+    // to 'Unknown', which would mask the empty-account state that should show the setup prompt.
     const { profile: myProfile } = useMyProfile();
-    const displayName =
-        (!isDefaultCloud && myProfile?.nick) || identity.activeProfile?.$user?.name || identity.userName || '-';
-    const displayImageUrl = (!isDefaultCloud && myProfile?.thumbnail) || identity.activeProfile?.$user?.photo;
+    const myUser = useMyUser();
+    const headerProfile = resolveHeaderProfile({
+        siteName: !isDefaultCloud ? myProfile?.nick : undefined,
+        siteImageUrl: !isDefaultCloud ? myProfile?.thumbnail : undefined,
+        accountName: myUser?.name,
+        accountImageUrl: myUser?.photo,
+    });
+    const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
+    const displayImageUrl = headerProfile.kind === 'setup' ? undefined : headerProfile.imageUrl;
 
     // On an active site everyone has an editable site profile (incl. invited-cloud users), so show
     // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
