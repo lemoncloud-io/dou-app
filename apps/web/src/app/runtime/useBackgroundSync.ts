@@ -51,6 +51,14 @@ export const useBackgroundSync = (): void => {
             /* best-effort */
         });
 
+        // Refresh the current-session user profile (User domain) and let the repository cache the
+        // embedded $site into the place store. Keeps the account profile + active site fresh.
+        try {
+            await repos.user.getMyProfile();
+        } catch {
+            // best-effort: a failed profile refresh leaves the previous cache intact
+        }
+
         // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
         // Each channel is stored tagged with its own sid, so this is correct across site switches.
         try {
@@ -74,7 +82,7 @@ export const useBackgroundSync = (): void => {
         } catch {
             // best-effort: on failure the watermark is not advanced → retried with the same since next tick
         }
-    }, [repos.place, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
+    }, [repos.place, repos.user, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
 
     // Trigger 1 — rising edge of isVerified (app entry / reconnect / switch completion).
     const prevVerifiedRef = useRef(false);
