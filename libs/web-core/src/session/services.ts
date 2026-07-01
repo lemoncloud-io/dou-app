@@ -87,23 +87,18 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
 
 /**
  * Applies a relay token view as the active session: builds AWS credentials, persists the token (the
- * auth anchor + uid/profile-seed source), derives the delegator id from the token role, and marks
- * the session authenticated. Profile shaping is gone — profile facts are tracked from the token +
- * user cache by app-runtime's useProfileFacts.
+ * auth anchor + uid/profile-seed source), and marks the session authenticated. Profile shaping is
+ * gone — profile facts are tracked from the token + user cache by app-runtime's useSessionProfile.
+ *
+ * Note: this deliberately does NOT touch delegatorId. delegatorId is set once at guest login and
+ * must survive every relay refresh / cloud switch that also runs through here, so it is owned by
+ * loginRelayGuestByDevice (set) and clearRelaySession (cleared on relay logout) only.
  */
 const applyRelaySession = async (tokenView: UserTokenView): Promise<UserTokenView> => {
     if (tokenView.Token) {
         await webTransport.buildCredentialsByToken(tokenView.Token);
         relayCore.saveRelayToken(tokenView);
     }
-
-    // A guest relay session delegates as its own uid (consumed by invite-acceptance flows). Derived
-    // straight from the token role/uid — the only reason we still inspect the token's user fields.
-    const { Token: _token, ...view } = tokenView as UserTokenView & Record<string, unknown>;
-    const flat = view as { uid?: string; id?: string; userRole?: string; $user?: { userRole?: string } };
-    const userRole = flat.userRole ?? flat.$user?.userRole;
-    const uid = flat.uid ?? flat.id;
-    identityCore.setDelegatorId(userRole === 'guest' && uid ? uid : null);
 
     setSessionAuthenticated(true);
     return tokenView;
@@ -146,7 +141,18 @@ export const persistDeviceId = (deviceId: string): string => {
  */
 export const loginRelayGuestByDevice = async (deviceId: string): Promise<UserTokenView> => {
     persistDeviceId(deviceId);
-    return await applyRelaySession(await registerDevice(deviceId));
+    const tokenView = await registerDevice(deviceId);
+
+    // A fresh guest session delegates as its own uid for invite acceptance. Set delegatorId ONCE
+    // here: it must persist across relay refreshes / cloud switches / cloud logout, and is only
+    // replaced by the next guest login (a relay logout clears it via clearRelaySession).
+    const { Token: _token, ...view } = tokenView as UserTokenView & Record<string, unknown>;
+    const uid = (view as { uid?: string; id?: string }).uid ?? (view as { id?: string }).id;
+    if (uid) {
+        identityCore.setDelegatorId(uid);
+    }
+
+    return await applyRelaySession(tokenView);
 };
 
 /**

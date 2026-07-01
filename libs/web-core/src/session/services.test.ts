@@ -230,8 +230,9 @@ describe('session/services', () => {
         });
 
         expect(mockVerifyNativeAppToken).toHaveBeenCalledWith({ accessToken: 'token' });
-        // provider is accepted but no longer stored; non-guest role → delegator id cleared; authed.
-        expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith(null);
+        // provider is accepted but no longer stored; a social login does not touch delegatorId
+        // (only guest login sets it / relay logout clears it).
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
 
@@ -250,7 +251,8 @@ describe('session/services', () => {
 
         expect(result).toBe(tokenView);
         expect(mockLoginRelayRequest).toHaveBeenCalledWith({ loginId: 'user@example.com', password: 'pw' }, true);
-        expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith(null);
+        // A user login does not touch delegatorId (only guest login sets it).
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
 
@@ -269,12 +271,13 @@ describe('session/services', () => {
         });
 
         expect(mockRefreshAuthToken).toHaveBeenCalledWith('user-1@site-7');
-        // Credentials + delegator id are derived from the refresh response's token (no profile GET,
-        // no profile shaping). syncProfile=true re-applies the session; the call returns void.
+        // Credentials are rebuilt from the refresh response's token (no profile GET, no profile
+        // shaping). syncProfile=true re-applies the session; the call returns void.
         expect(mockBuildCredentialsByToken).toHaveBeenCalledWith({ identityToken: 'relay-token' });
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
         expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-7');
-        expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith(null);
+        // A relay refresh must NOT touch delegatorId — it persists from guest login through refreshes.
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
         expect(result).toBeUndefined();
     });
 

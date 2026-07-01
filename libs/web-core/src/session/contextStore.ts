@@ -212,8 +212,11 @@ export const rebuildSessionIdentity = (): void => {
 
 // Tears down the relay session: drops the relay token (the auth anchor) so token-derived auth
 // (buildRelayContext, module init) clears in-session, then rebuilds identity as unauthenticated.
+// Also clears the guest delegatorId — it's a relay-guest concept and must only be re-established by
+// the next guest login (relay logout is the sole reset boundary).
 export const clearRelaySession = (): void => {
     relayCore.clearToken();
+    identityCore.setDelegatorId(null);
     const state = readSessionIdentityState();
     sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: false }));
     notifySessionStateChanged();
