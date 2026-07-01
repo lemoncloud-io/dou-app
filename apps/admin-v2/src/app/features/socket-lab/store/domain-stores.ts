@@ -1,7 +1,5 @@
 /**
  * `store/domain-stores.ts`
- * - device/channel/chat 도메인별 store. 공통 `Store<T>` 위에 도메인 스냅샷 타입만 다르게.
- * - 스냅샷 스키마는 도메인별로 상이 — 단일 스키마 강제하지 않는다.
  */
 import type { DeviceView } from '@lemoncloud/chatic-sockets-lib';
 import type { DemoChannelView, DemoChatView } from '../demo-model';
@@ -39,7 +37,6 @@ export const createChatStore = (backing?: StoreBacking<ChatSnap>): Store<ChatSna
 
 const chatKey = (m: DemoChatView): string => `${m.id ?? m.chatNo ?? ''}`;
 
-/** ChatSyncPlan.onApply 용: 채널 메시지 윈도우에 applied 병합(중복 제거 + chatNo 정렬) */
 export const applyChatMessages = (
     store: Store<ChatSnap>,
     channelId: string,

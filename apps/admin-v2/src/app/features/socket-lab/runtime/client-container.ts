@@ -1,8 +1,6 @@
 /**
  * `runtime/client-container.ts`
- * - 클라 1개의 React 밖 상태 컨테이너: client + runtime + gateways + store 3종 + collector 조립/파괴.
- * - 구 demo-client-panel.tsx의 connect()(L240-408) 로직을 plain 팩토리로 이관.
- * - dev 전용 — prod/쓰기 가드 개념 없음.
+ * - 클라 1개의 React 밖 상태 컨테이너: client + runtime + gateways + store 3종 + collector
  */
 import {
     ChannelSyncPlan,
@@ -172,7 +170,7 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         emit({ type: 'sync-targets', targets: runtime ? runtime.listSyncTargets() : [] });
     };
 
-    // ---- recv E2E: 수신 메시지에서 마커 파싱 → recv 이벤트(중복 chatNo 방지) ----
+    // 수신 메시지 content 마커 파싱 → recv 이벤트(중복 chatNo 방지)
     const recvSeen = new Set<string>();
     const emitRecvForMessages = (channelId: string, msgs: Array<Record<string, unknown>>) => {
         for (const m of msgs) {
@@ -186,18 +184,19 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             if (!field) continue;
             const originOk = Math.abs(field.origin - performance.timeOrigin) < 1;
             collector.markReceive(field.sentAt, originOk);
-            if (originOk)
-                {emit({
+            if (originOk) {
+                emit({
                     type: 'recv',
                     from: field.from,
                     seq: field.seq,
                     latencyMs: Math.max(0, performance.now() - field.sentAt),
-                });}
+                });
+            }
         }
     };
 
-    // ---- 채널 sync가 chatNo 증가를 감지하면 chat.feed로 당겨오는 브릿지 ----
-    // 서버가 chat.sync를 push하지 않는 환경에서도 수신이 되도록(지연 ≈ 채널 폴링 주기).
+    // 채널 sync가 chatNo 증가를 감지하면 chat.feed로 당겨오는 브릿지 —
+    // 서버가 chat.sync를 push하지 않는 환경에서도 수신되도록(지연 ≈ 채널 폴링 주기).
     const pulledChatNo = new Map<string, number>();
     const pullChatIfNew = (channelId: string, chatNo?: number) => {
         if (!runtime || !channelId || !chatNo) return;
@@ -294,7 +293,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                                 view: next,
                             });
                             log('info', 'channel.sync.update', next.id);
-                            // 브릿지: chatNo 증가 시 chat.feed로 새 메시지 당겨오기(서버 chat.sync push 폴백)
                             pullChatIfNew(next.id, next.chatNo);
                         },
                         onRemove: target => {

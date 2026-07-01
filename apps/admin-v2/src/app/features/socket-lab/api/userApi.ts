@@ -1,25 +1,22 @@
 /**
  * `api/userApi.ts`
- * - 관측 유저 목록(실데이터). chatic-sockets-api: GET /skt-d1/users/0/list?detail
- *   params: limit, page, id(uid), keyword(name) → ListResult<UserView> + UserView.Devices + presence.
- * - signed REST(webTransport) — 로그인 토큰으로 인증(WS와 무관). 조회 전용.
+ * - 관측 유저 목록(실데이터).
  */
 import { webTransport } from '@chatic/web-core';
 
 import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
 
-/** 서버 UserView.Devices 항목(0.26.525엔 타입 미포함 → 로컬 정의, 방어적 optional). */
 interface DeviceViewRaw {
     id?: string;
     name?: string | null;
     platform?: string;
     status?: Presence;
     tick?: number;
-    viewingType?: string; // 서버 미제공(현재 presence 응답에 viewing 필드 없음) — 추가 시 대비
+    viewingType?: string;
     viewingId?: string;
     connId?: string;
     connectedAt?: number;
-    lastActiveAt?: number; // 마지막 활동 시각(절대 ms)
+    lastActiveAt?: number;
     updatedAt?: number;
 }
 interface UserViewRaw {
@@ -43,7 +40,6 @@ export interface UserSearchPage {
     page: number;
 }
 
-/** users API base = VITE_BACKEND_ENDPOINT에서 stage suffix(/d1) 제거 후 /skt-d1 경로(deviceApi와 동일 패턴). */
 const getUsersEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
 
 const mapDevice = (d: DeviceViewRaw, now: number): ObservedDevice => {
@@ -56,7 +52,7 @@ const mapDevice = (d: DeviceViewRaw, now: number): ObservedDevice => {
         status: d.status ?? 'green',
         tick: d.tick ?? 0,
         viewing,
-        viewingFor: null, // 서버가 viewing 시작시각을 안 줘서 체류시간 산출 불가(서버 지원 시 재개)
+        viewingFor: null,
         lastActiveAt: activeAt ? Math.max(0, Math.round((now - activeAt) / 1000)) : 0,
     };
 };
@@ -76,7 +72,6 @@ export interface FetchObservedUsersParams {
     limit?: number;
 }
 
-/** 관측 유저 목록 조회(디바이스/presence 포함). type=id→param id(uid), type=name→param keyword. */
 export const fetchObservedUsers = async ({
     type = 'id',
     query = '',
@@ -108,7 +103,6 @@ export interface UserPresence {
     devices: ObservedDevice[];
 }
 
-/** 단일 유저 디바이스/presence 조회 — GET /skt-d1/users/<id>/presence. 추가/reload 시 사용. */
 export const fetchUserPresence = async (userId: string): Promise<UserPresence> => {
     const { data } = await webTransport
         .buildSignedRequest({

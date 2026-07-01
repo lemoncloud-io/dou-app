@@ -78,7 +78,6 @@ export function useSandbox(endpoint: string): Sandbox {
         ctrlRef.current?.forEach(c => void c.disconnect());
     }, []);
 
-    // 초기 2개 생성 + 언마운트 시 전체 dispose
     useEffect(() => {
         if (ctrlRef.current && ctrlRef.current.size === 0) {
             addClient();

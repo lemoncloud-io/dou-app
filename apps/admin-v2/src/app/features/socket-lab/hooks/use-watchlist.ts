@@ -1,7 +1,5 @@
 /**
  * `hooks/use-watchlist.ts`
- * - Observe 워치리스트 상태 + 실 유저 검색(`fetchObservedUsers`) + presence(디바이스) 조회.
- * - 유저 선택/추가/reload 시 `fetchUserPresence`로 최신화. 순서는 드래그로 변경.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 
@@ -73,9 +71,13 @@ export const useWatchlist = (): Watchlist => {
     const refreshPresence = useCallback(
         (id: string) =>
             fetchUserPresence(id)
-                .then(p => setObserved(prev => prev.map(u => (u.id === id ? { ...u, presence: p.presence, devices: p.devices } : u))))
+                .then(p =>
+                    setObserved(prev =>
+                        prev.map(u => (u.id === id ? { ...u, presence: p.presence, devices: p.devices } : u))
+                    )
+                )
                 .catch(() => undefined),
-        [],
+        []
     );
 
     const observedIds = useMemo(() => new Set(observed.map(u => u.id)), [observed]);
@@ -93,7 +95,7 @@ export const useWatchlist = (): Watchlist => {
         removeUser: id =>
             setObserved(prev => {
                 const next = prev.filter(u => u.id !== id);
-                setSelectedUserId(sel => (sel === id ? next[0]?.id ?? null : sel));
+                setSelectedUserId(sel => (sel === id ? (next[0]?.id ?? null) : sel));
                 return next;
             }),
         reorderUser: (fromId, toId) =>
@@ -143,7 +145,7 @@ export const useWatchlist = (): Watchlist => {
             if (observedIds.has(u.id)) return;
             setObserved(prev => [...prev, u]);
             setSelectedUserId(u.id);
-            void refreshPresence(u.id); // 추가 직후 presence 최신화
+            void refreshPresence(u.id);
         },
     };
 };

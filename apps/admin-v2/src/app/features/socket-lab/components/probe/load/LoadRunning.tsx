@@ -6,7 +6,6 @@ export interface LoadRunningProps {
     load: LoadTest;
 }
 
-/** Load test running — 진행 바 + 라이브 fan-out + ramp/timeline 차트. */
 export default function LoadRunning({ load }: LoadRunningProps) {
     const { run, config, pct } = load;
     const live = run.live;

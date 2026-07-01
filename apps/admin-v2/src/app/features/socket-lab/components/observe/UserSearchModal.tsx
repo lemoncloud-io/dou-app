@@ -8,7 +8,6 @@ export interface UserSearchModalProps {
     wl: Watchlist;
 }
 
-/** 관측 유저 검색 모달 — id/name 드롭다운 + 입력 + 돋보기 + 페이지네이션. */
 export default function UserSearchModal({ wl }: UserSearchModalProps) {
     const [hoverId, setHoverId] = useState<string | null>(null);
     const shown = wl.searchShown;

@@ -59,7 +59,6 @@ const PRESET_META = [
     { key: 'soak', title: 'Soak', desc: '낮은 rate, 긴 duration · 누수' },
 ];
 
-/** Load test idle — 설정 폼 + 프리셋 + 예상 부하 + Run. */
 export default function LoadConfig({ load }: LoadConfigProps) {
     const cfg = load.config;
     const seg = (on: boolean) => ({

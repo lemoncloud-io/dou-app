@@ -58,7 +58,6 @@ export interface SandboxControllerOptions {
     letter: string;
     color: string;
     wsUrl: string;
-    /** cross-client 매트릭스 갱신용(수신 시 from→this.letter). */
     onRecv?: (from: string, to: string, latencyMs: number) => void;
 }
 
@@ -112,7 +111,6 @@ export class SandboxController {
             if (ev.type === 'recv') this.onRecvFrame(ev.from, ev.seq, ev.latencyMs);
             else if (ev.type === 'log') this.onContainerLog(ev.entry.level, ev.entry.label, ev.entry.detail);
         });
-        // collector 샘플(rAF 배치) 도착 시 지표 갱신 통지
         this.container.collector.subscribe(() => this.notify());
     }
 
@@ -158,7 +156,6 @@ export class SandboxController {
         this.notify();
     }
 
-    // ---- setters (입력) ----
     setName(v: string) {
         this.name = v;
         this.notify();
@@ -185,7 +182,6 @@ export class SandboxController {
         this.notify();
     }
 
-    // ---- lifecycle ----
     /** WS 연결만(device.save 포함). 인증은 별도(authenticate) — 토큰 불필요. */
     async connectWs() {
         if (this.status === 'connecting' || this.status === 'connected' || this.status === 'verified') return;
@@ -236,7 +232,6 @@ export class SandboxController {
         this.notify();
     }
 
-    // ---- gateway actions ----
     private async gwCall<T>(type: string, fn: () => Promise<T>, _label = ''): Promise<T | undefined> {
         if (this.status !== 'verified') return undefined;
         this.tx += 1;

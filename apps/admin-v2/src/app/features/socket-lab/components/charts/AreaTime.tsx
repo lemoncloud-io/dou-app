@@ -11,7 +11,6 @@ export interface AreaTimeProps {
     label?: string;
 }
 
-/** 시간축 영역 차트 + target 기준선(ramp/timeline/throughput 공용). 디자인 areaTime 포팅. */
 export default function AreaTime({ series, target, w, h, accent, label }: AreaTimeProps) {
     const padL = 40;
     const padT = 12;

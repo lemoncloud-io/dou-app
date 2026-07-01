@@ -5,11 +5,9 @@ export type ProbeMode = 'sandbox' | 'load';
 export interface ModeToggleProps {
     mode: ProbeMode;
     setMode(m: ProbeMode): void;
-    /** Sandbox 점 — 활성 클라(verified/connecting) 있으면 green 맥동. */
     sandboxActive: boolean;
 }
 
-/** Sandbox | Load test 모드 토글. */
 export default function ModeToggle({ mode, setMode, sandboxActive }: ModeToggleProps) {
     const style = (on: boolean) => ({
         appearance: 'none' as const,

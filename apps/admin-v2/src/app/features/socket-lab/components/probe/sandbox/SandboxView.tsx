@@ -17,7 +17,6 @@ const cellStyle = (v: number | 'loss' | undefined, self: boolean) => {
     return { txt: `${v}ms`, color: c, bg: hexToRgba(c, 0.12) };
 };
 
-/** Gateway Sandbox — 툴바 + 클라 그리드(최대4) + cross-client latency 매트릭스. */
 export default function SandboxView({ sandbox }: SandboxViewProps) {
     const { clients, controllers, matrix, showMatrix } = sandbox;
     const gridCols = clients.length <= 1 ? '1fr' : '1fr 1fr';

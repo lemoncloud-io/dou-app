@@ -76,11 +76,6 @@ export interface DemoPanelDescriptor {
     device: DeviceDraft;
 }
 
-/**
- * 앱 레벨 device 레지스트리 엔트리.
- * - 목록(id/name/연결여부)은 앱이 집계하지만, status/viewing 값은 roster가 read()로 서버에서 받아 표시한다.
- * - read는 해당 패널의 runtime을 통해 device.read({ id })로 서버 왕복한다.
- */
 export interface DeviceRegistryEntry {
     panelId: string;
     deviceId: string;
@@ -97,7 +92,6 @@ export interface DemoLogEntry {
     at: string;
 }
 
-/** 기본 WS URL — 명시 쿼리(?wsUrl/?ws)가 있으면 그것, 없으면 배포 env(VITE_WS_ENDPOINT). local mock 없음. */
 export const buildDefaultWsUrl = (options: { search?: string } = {}): string => {
     const params = new URLSearchParams(options.search ?? '');
     const explicit = params.get('wsUrl') || params.get('ws');
@@ -217,7 +211,6 @@ export const formatDeviceSummary = (view?: DeviceView | null): string => {
     return `id=${id} tick=${tick} status=${status} pos=${point}`;
 };
 
-/** viewing 값을 자연어로: channel이면 "📺 #channel:<id> 보는 중", 비우면 "유휴" */
 export const formatViewing = (view?: DeviceView | null): string => {
     if (!view) return '유휴';
     const type = `${view.viewingType ?? ''}`.trim();
@@ -226,7 +219,6 @@ export const formatViewing = (view?: DeviceView | null): string => {
     return `📺 #${type}:${id} 보는 중`;
 };
 
-/** epoch(ms) 기준 상대시간: "방금", "12초 전", "3분 전", "2시간 전" */
 export const formatRelativeTime = (at?: number, now: number = Date.now()): string => {
     if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) return '-';
     const deltaSec = Math.max(0, Math.round((now - at) / 1000));

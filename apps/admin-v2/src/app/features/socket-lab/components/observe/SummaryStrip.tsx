@@ -60,7 +60,6 @@ const breakdownTile = (label: string, c: StatusCounts) => (
     </div>
 );
 
-/** 워치리스트 상단 집계 — 유저/디바이스 수 + presence/status 브레이크다운. */
 export default function SummaryStrip({ observedCount, userCounts, deviceCount, deviceCounts }: SummaryStripProps) {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>

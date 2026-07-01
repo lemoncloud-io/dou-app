@@ -22,8 +22,6 @@ const Loading = () => (
     </div>
 );
 
-// Relay session init + token refresh gate (mirrors testbed/app-runtime SessionBackgroundRunner,
-// inlined so admin-v2 stays free of the socket runtime deps).
 const AppInner = () => {
     const isWebCoreReady = useInitWebCore();
     const { isAuthenticated } = useSessionAuth();

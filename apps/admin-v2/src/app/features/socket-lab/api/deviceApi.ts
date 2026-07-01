@@ -1,7 +1,6 @@
 /**
  * `api/deviceApi.ts`
- * - 실제 서버 디바이스 목록(signed). web-core가 device list API를 제공하지 않아 admin 패턴을
- *   webTransport.buildSignedRequest로 재현. 조회 전용.
+ * - 실제 서버 디바이스 목록(signed).
  */
 import { webTransport } from '@chatic/web-core';
 
@@ -32,7 +31,6 @@ export interface FetchDeviceListParams {
     status?: DeviceStatus;
 }
 
-/** socket API base = VITE_BACKEND_ENDPOINT에서 stage suffix(/d1) 제거 후 /skt-d1 경로 사용(admin과 동일). */
 const getSocketApiEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
 
 export const fetchDeviceList = async ({

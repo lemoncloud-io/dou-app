@@ -16,7 +16,6 @@ export interface HistogramProps {
     pcs?: PctMarker[];
 }
 
-/** latency 분포 히스토그램(26 bins + 퍼센타일 수직선). 디자인 histogram 포팅. */
 export default function Histogram({ samples, w, h, accent, pcs }: HistogramProps) {
     const padL = 8;
     const padT = 14;
