@@ -52,7 +52,8 @@ import type { Store } from '../store/store';
 export type ContainerEvent =
     | { type: 'state'; state: ClientSocketState }
     | { type: 'log'; entry: DemoLogEntry }
-    | { type: 'sync-targets'; targets: SyncTargetDescriptor[] };
+    | { type: 'sync-targets'; targets: SyncTargetDescriptor[] }
+    | { type: 'recv'; from: string; seq: number; latencyMs: number };
 
 export interface ClientContainerOptions {
     id: string;
@@ -99,6 +100,25 @@ export interface ClientContainer {
     armGapDrop(count?: number): void;
 }
 
+/**
+ * recv E2E 마커 — 서버가 custom field(_demoSentAt)를 echo하지 않으므로(검증 완료), 항상 전달되는
+ * content 끝에 송신 시각+송신자+seq를 임베드해 수신측이 파싱. 같은 브라우저(timeOrigin 동일)에서만 시계 비교 유효.
+ * 포맷: `⟦E2E <sentAt> <origin> <from> <seq>⟧`. from/seq는 cross-client 매트릭스·유실 검출용.
+ */
+const E2E_RE = /⟦E2E ([\d.]+) ([\d.]+) (\S+) (\d+)⟧/;
+export const encodeE2eMarker = (sentAt: number, origin: number, from = '-', seq = 0): string =>
+    ` ⟦E2E ${sentAt} ${origin} ${from || '-'} ${seq}⟧`;
+export const stripE2eMarker = (content: unknown): string => `${content ?? ''}`.replace(E2E_RE, '').trimEnd();
+const parseE2eMarker = (content: unknown): { sentAt: number; origin: number; from: string; seq: number } | null => {
+    if (typeof content !== 'string') return null;
+    const m = E2E_RE.exec(content);
+    if (!m) return null;
+    const sentAt = Number(m[1]);
+    const origin = Number(m[2]);
+    const seq = Number(m[4]);
+    return Number.isFinite(sentAt) && Number.isFinite(origin) ? { sentAt, origin, from: m[3], seq } : null;
+};
+
 const mapChannelView = (view: unknown): DemoChannelView => {
     const v = (view ?? {}) as Record<string, unknown>;
     return {
@@ -130,9 +150,9 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
 
     let runtime: DeviceSocketRuntime | null = null;
     let state: ClientSocketState = 'idle';
-    let endpoint = connectionDraft.wsUrl; // 미연결 시 변경 가능
+    let endpoint = connectionDraft.wsUrl;
     const cleanups: Array<() => void> = [];
-    let gapDropCounter = 0; // shouldHandleMessage가 읽는 chat.sync 유실 카운터
+    let gapDropCounter = 0;
 
     const deviceKey = (target?: DeviceSyncTarget, view?: DeviceView): string =>
         `${view?.id ?? target?.id ?? deviceId ?? 'current'}`;
@@ -157,7 +177,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             url: endpoint.trim(),
             requestTimeoutMs: 5000,
             device: toDeviceSeed(deviceDraft),
-            /** gap-drop 시뮬: 예약된 만큼 수신 chat.sync를 버려 WS 유실 재현 → catch-up 발동 */
             shouldHandleMessage: ({ message }) => {
                 if (message?.type === 'chat.sync' && gapDropCounter > 0) {
                     gapDropCounter -= 1;
@@ -171,7 +190,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             reconnect: false,
         });
 
-        // request 래핑 — RTT 계측 + 로그 (send E2E는 sendChat에서 별도)
         const $request = client.request.bind(client);
         client.request = (async (type: unknown, data?: unknown, options?: unknown) => {
             const startedAt = performance.now();
@@ -180,7 +198,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                 const result = await $request(type as never, data as never, options as never);
                 const elapsed = performance.now() - startedAt;
                 collector.markRtt(elapsed);
-                // 옛 데모처럼 성공 요청도 로그 → ping·sync 폴링이 Event Log에 보인다
                 log('info', 'request.ok', `${typeName} ${Math.round(elapsed)}ms`);
                 return result;
             } catch (error) {
@@ -240,7 +257,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                             refreshSyncTargets();
                         },
                     }),
-                    /** 수신 메시지(다른 클라) — payload 직접 적용 + (보너스) 수신 E2E */
                     new ChatSyncPlan({
                         onApply: (target, applied, snapshot) => {
                             if (!applied.length) return;
@@ -252,13 +268,18 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                                 snapshot.lastNo
                             );
                             log('info', 'chat.sync.apply', `${channelId} +${applied.length} lastNo=${snapshot.lastNo}`);
-                            // 수신 E2E(보너스): 송신측이 임베드한 sentAt + timeOrigin을 서버가 echo한 경우만.
-                            // 같은 브라우저(=timeOrigin 동일)일 때만 의미. mock은 미echo라 보통 0건.
                             for (const m of applied as unknown as Array<Record<string, unknown>>) {
-                                const sentAt = m?._demoSentAt;
-                                const to = m?._demoTo;
-                                if (typeof sentAt === 'number' && typeof to === 'number') {
-                                    collector.markReceive(sentAt, Math.abs(to - performance.timeOrigin) < 1);
+                                const field = parseE2eMarker(m?.content);
+                                if (!field) continue;
+                                const originOk = Math.abs(field.origin - performance.timeOrigin) < 1;
+                                collector.markReceive(field.sentAt, originOk);
+                                if (originOk) {
+                                    emit({
+                                        type: 'recv',
+                                        from: field.from,
+                                        seq: field.seq,
+                                        latencyMs: Math.max(0, performance.now() - field.sentAt),
+                                    });
                                 }
                             }
                         },
@@ -287,8 +308,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             state = client.state;
             emit({ type: 'state', state });
             log('info', 'connect.ready', 'runtime started');
-            // device를 연결에 먼저 링크(await) → 그 다음 sync 시작. 안 그러면 첫 device.read가
-            // "no device linked"(400)로 실패한다(save와 read race). 그 후 현재 device sync 자동 시작.
             try {
                 const view = await next.device.save(toDeviceBody(deviceDraft));
                 next.updateLocalSnapshot({ type: 'device' }, { tick: view?.tick, lastAppliedTick: view?.tick, view });
@@ -326,7 +345,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         return runtime;
     };
 
-    /** 옛 데모 패턴: 액션 전 device를 저장해 연결-device 링크를 갱신(no device linked 방지) */
     const ensureDevice = async (rt: DeviceSocketRuntime): Promise<void> => {
         try {
             const view = await rt.device.save(toDeviceBody(deviceDraft));
@@ -370,9 +388,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
         connect,
         disconnect,
         dispose: async () => {
-            // listeners는 각 구독자가 cleanup에서 스스로 unsubscribe함. 여기서 clear()하면
-            // StrictMode(dev) 더블마운트 시 unmount의 비동기 dispose가 remount의 재구독을
-            // microtask로 덮어써 구독자가 이벤트를 영영 못 받게 됨 → clear 금지.
             await disconnect();
         },
         saveDevice: async body => {
@@ -417,7 +432,11 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             await ensureDevice(rt);
             try {
                 const res = await createAuthGateway(rt.client).update({ token });
-                log('info', 'auth.update.ok', `authId=${res?.authId ?? '-'} state=${res?.state ?? '-'}`);
+                log(
+                    res?.state === 'authenticated' ? 'info' : 'warn',
+                    'auth.update.ok',
+                    `authId=${res?.authId ?? '-'} state=${res?.state ?? '-'}${res?.error ? ` error=${res.error}` : ''}`
+                );
                 return res;
             } catch (error) {
                 log('error', 'auth.update.fail', `${error instanceof Error ? error.message : error}`);
@@ -430,7 +449,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             await ensureDevice(rt);
             const token = collector.markSend(); // t0
             try {
-                // 수신 E2E(보너스)용 임베드 — 서버가 echo하면 수신측이 읽는다(미echo면 무시).
                 const embed = { _demoSentAt: performance.now(), _demoTo: performance.timeOrigin };
                 const view = (await createChatGateway(rt.client).send({
                     channelId,
@@ -438,7 +456,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
                     ...embed,
                 } as never)) as DemoChatView;
                 collector.markSendAck(token); // t1 = 응답 resolve, rAF로 t2
-                // 송신자는 broadcast 제외 → 응답 view를 직접 store에 반영(렌더 시 t2 캡처)
                 applyChatMessages(chatStore, channelId, [view], view.chatNo ?? 0);
                 log('info', 'chat.send.ok', `${channelId} chatNo=${view.chatNo ?? '-'}`);
                 return view;
@@ -453,8 +470,9 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             await ensureDevice(rt);
             try {
                 const view = mapChannelView(await createChannelGateway(rt.client).create({ stereo, name } as never));
-                if (view.id)
-                    {channelStore.upsert(view.id, { id: view.id, chatNo: view.chatNo, memberIds: view.memberIds, view });}
+                if (view.id) {
+                    channelStore.upsert(view.id, { id: view.id, chatNo: view.chatNo, memberIds: view.memberIds, view });
+                }
                 log('info', 'channel.create.ok', `${view.id ?? '-'}`);
                 return view;
             } catch (error) {
@@ -522,8 +540,9 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             await ensureDevice(rt);
             try {
                 const view = mapChannelView(await createChannelGateway(rt.client).getSelf());
-                if (view.id)
-                    {channelStore.upsert(view.id, { id: view.id, chatNo: view.chatNo, memberIds: view.memberIds, view });}
+                if (view.id) {
+                    channelStore.upsert(view.id, { id: view.id, chatNo: view.chatNo, memberIds: view.memberIds, view });
+                }
                 log('info', 'channel.get-self.ok', `${view.id ?? '-'}`);
                 return view;
             } catch (error) {
@@ -597,7 +616,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
             if (!rt) return;
             const view = await rt.device.save({ ...toDeviceSeed(deviceDraft), posX, posY }).catch(() => undefined);
             if (view) {
-                // 내 포인터 점은 save 응답으로 즉시 갱신(120ms throttle) — sync 폴링(2s) 끊김 제거
                 rt.updateLocalSnapshot({ type: 'device' }, { tick: view.tick, lastAppliedTick: view.tick, view });
                 upsertDevice({ type: 'device' }, view);
             }
@@ -609,7 +627,6 @@ export const createClientContainer = (opts: ClientContainerOptions): ClientConta
     };
 };
 
-/** 미연결 상태에서 device 게터 접근 시 안전한 no-op 게이트웨이 */
 const createDeviceGatewayStub = (): DeviceGateway =>
     ({
         save: async () => undefined as unknown as DeviceView,
@@ -617,5 +634,4 @@ const createDeviceGatewayStub = (): DeviceGateway =>
         sync: () => void 0,
     }) as unknown as DeviceGateway;
 
-// re-export 편의: 외부에서 SocketMessage 타입 참조 시
 export type { SocketMessage, Store };
