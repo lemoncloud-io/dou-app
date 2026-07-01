@@ -32,7 +32,7 @@ export const useRuntimeBinding = (): RuntimeBinding => {
         const selectedCloudId = cloud?.cloudId ?? undefined;
         const cid = selectedCloudId && selectedCloudId !== 'default' ? selectedCloudId : 'default';
         const sid = activeServer.siteId ?? undefined;
-        const uid = identity.activeProfile?.uid ?? undefined;
+        const uid = identity.userId ?? undefined;
         const endpoint = activeServer.wss;
         const wssType = activeServer.kind;
 

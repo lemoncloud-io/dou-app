@@ -4,7 +4,7 @@ import type { DataRepositoriesV2 } from '@chatic/data';
 import { getDataManager } from '../data/runtime';
 import type { IDataManager } from '../data/types';
 import { getSocketManager, getSocketRuntime } from '../socket/runtime';
-import type { ISocketManager } from '../socket/types';
+import type { ISocketManager } from '../socket';
 import type { RuntimeBinding } from './useRuntimeBinding';
 
 export interface IRuntimeManager {

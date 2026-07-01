@@ -3,5 +3,6 @@
 export * from './socket';
 export { getSocketManager } from './socket/runtime';
 export { getSyncManager } from './socket/runtime';
-export { getRuntimeManager, useRuntimeBinding, useRuntimeRepositories } from './runtime';
+export { getRuntimeManager, useRuntimeBinding, useRuntimeRepositories, useSessionProfile } from './runtime';
+export type { SessionProfile } from './runtime';
 export * from './connection';
