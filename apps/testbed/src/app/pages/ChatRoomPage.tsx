@@ -19,6 +19,8 @@ import type {
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';
 import { InviteCreateDialog } from '../features/invite/InviteCreateDialog';
+import { SystemSendPanel } from '../features/system-message/SystemSendPanel';
+import { countUnreadMembers, formatSystemChatLabel, isSystemChat } from '../features/system-message/systemChat';
 
 // Messages per page. The observe window grows by this on each older-page load so the
 // cache-scoped observeList (which returns only the newest `limit`) widens to include them.
@@ -55,6 +57,7 @@ export const ChatRoomPage = () => {
     const [hasMore, setHasMore] = useState(true);
     const [pageLimit, setPageLimit] = useState(PAGE_SIZE); // observe window size, grows on loadMore
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [isSystemSendOpen, setIsSystemSendOpen] = useState(false);
 
     const listRef = useRef<HTMLDivElement>(null);
     // Per-room scroll/read guards (reset on channel change):
@@ -118,22 +121,13 @@ export const ChatRoomPage = () => {
             syncChannelUsers(payload: { channelId: string; since?: number }): Promise<number>;
         };
         void userRepo
-            .syncChannelUsers({ channelId, since: 0 })
+            .syncChannelUsers({ channelId, since: usersSinceRef.current })
             .then(syncedAt => {
                 usersSinceRef.current = syncedAt;
             })
             .catch(() => {
                 // best-effort; 캐시 스트림은 실패해도 유지된다
             });
-    }, [repos.user, channelId, isVerified]);
-
-    // 채팅방 입장 시 1회 전체 유저 스냅샷 로드(channel.listUser). syncChannelUsers(증분)와 별개로,
-    // 입장 시점의 전체 멤버 + 각자의 $join(read-state)을 한 번에 받아 user/join 캐시를 hydrate한다.
-    useEffect(() => {
-        if (!isVerified) return;
-        void repos.user.refreshList({ channelId }).catch(() => {
-            // best-effort; 캐시 스트림은 실패해도 유지된다
-        });
     }, [repos.user, channelId, isVerified]);
 
     useEffect(() => {
@@ -173,9 +167,9 @@ export const ChatRoomPage = () => {
     }, [joins]);
 
     // 메시지별 "안읽은 인원수": 전체 멤버 기준(join 없는 사람 = 커서 0 포함)으로 커서가 해당
-    // chatNo 미만인 사람 수. 단, 보낸이(본인)는 제외한다.
-    const countUnread = (chat: DomainChat): number =>
-        memberIds.filter(uid => uid !== chat.ownerId && (cursorByUser.get(uid) ?? 0) < chat.chatNo).length;
+    // chatNo 미만인 사람 수(보낸이 제외). 시스템 메시지(입퇴장)는 안읽은 수에 넣지 않으므로
+    // 헬퍼가 0을 반환한다.
+    const countUnread = (chat: DomainChat): number => countUnreadMembers(chat, memberIds, cursorByUser);
 
     // join(read-state) 플랜 등록 — 전체 멤버(channel.memberIds) 기준으로 `channelId@userId`마다 등록해
     // 모든 멤버의 읽음 커서가 갱신되게 한다. profile 등록과 달리 sid에 의존하지 않으므로 별도 effect로
@@ -365,6 +359,12 @@ export const ChatRoomPage = () => {
                     <p className="text-xs text-muted-foreground font-mono truncate">{channelId}</p>
                 </div>
                 <button
+                    onClick={() => setIsSystemSendOpen(true)}
+                    className="shrink-0 px-3 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground"
+                >
+                    시스템
+                </button>
+                <button
                     onClick={() => setIsInviteOpen(true)}
                     className="shrink-0 px-3 py-1 text-xs rounded border border-primary text-primary hover:bg-primary/10"
                 >
@@ -373,6 +373,7 @@ export const ChatRoomPage = () => {
             </div>
 
             {isInviteOpen && <InviteCreateDialog channelId={channelId} onClose={() => setIsInviteOpen(false)} />}
+            {isSystemSendOpen && <SystemSendPanel channelId={channelId} onClose={() => setIsSystemSendOpen(false)} />}
 
             {/* 메시지 목록 */}
             <div ref={listRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
@@ -383,9 +384,16 @@ export const ChatRoomPage = () => {
                 {chats.length === 0 ? (
                     <p className="text-center text-xs text-muted-foreground py-8">메시지가 없습니다</p>
                 ) : (
-                    [...chats]
-                        .reverse()
-                        .map(chat => (
+                    [...chats].reverse().map(chat =>
+                        // System messages (join/leave) render as a centered pill, not a chat bubble.
+                        isSystemChat(chat) ? (
+                            <SystemChatBubble
+                                key={chat.id}
+                                chat={chat}
+                                user={userMap.get(chat.ownerId ?? '') ?? null}
+                                profile={profileMap.get(chat.ownerId ?? '') ?? null}
+                            />
+                        ) : (
                             <ChatBubble
                                 key={chat.id}
                                 chat={chat}
@@ -394,7 +402,8 @@ export const ChatRoomPage = () => {
                                 profile={profileMap.get(chat.ownerId ?? '') ?? null}
                                 unreadCount={countUnread(chat)}
                             />
-                        ))
+                        )
+                    )
                 )}
             </div>
 
@@ -435,6 +444,29 @@ const Avatar = ({ thumbnail, label }: { thumbnail?: string; label: string }) => 
     return (
         <div className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center shrink-0">
             {label.slice(0, 1).toUpperCase()}
+        </div>
+    );
+};
+
+interface SystemChatBubbleProps {
+    chat: DomainChat;
+    user: DomainUser | null;
+    profile: DomainProfile | null;
+}
+
+// Renders a join/leave system message. The server stores no text, so we derive the label from
+// `subType` + the subject's name. The raw subType code is shown for debugging in the testbed.
+const SystemChatBubble = ({ chat, user, profile }: SystemChatBubbleProps) => {
+    const name = profile?.nick ?? user?.name ?? chat.owner$?.name ?? chat.ownerId ?? '—';
+    const label = formatSystemChatLabel(chat.subType, name);
+    const time = formatChatTime(chat.createdAtMs);
+    return (
+        <div className="flex justify-center py-1">
+            <span className="rounded-full bg-muted px-3 py-1 text-[11px] text-muted-foreground">
+                {label}
+                <span className="ml-1.5 font-mono text-[10px] opacity-60">[{chat.subType || 'system'}]</span>
+                {time && <span className="ml-1.5 font-mono text-[10px] opacity-60">{time}</span>}
+            </span>
         </div>
     );
 };
