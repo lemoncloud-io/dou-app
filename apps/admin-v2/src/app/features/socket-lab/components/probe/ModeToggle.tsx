@@ -18,8 +18,8 @@ export default function ModeToggle({ mode, setMode }: ModeToggleProps) {
         borderRadius: 8,
         padding: '8px 15px',
         background: on ? hexToRgba(ACCENT, 0.12) : 'transparent',
-        border: `1px solid ${on ? hexToRgba(ACCENT, 0.35) : '#1c2530'}`,
-        color: on ? '#e6edf3' : '#7d8590',
+        border: `1px solid ${on ? hexToRgba(ACCENT, 0.35) : 'var(--sm-border-2)'}`,
+        color: on ? 'var(--sm-text)' : 'var(--sm-text-4)',
     });
 
     return (
@@ -37,10 +37,10 @@ export default function ModeToggle({ mode, setMode }: ModeToggleProps) {
                         animation: 'scPulse 1.4s ease-in-out infinite',
                     }}
                 />
-                Canary <span style={{ color: '#5a636e', fontSize: 11 }}>(live)</span>
+                Canary <span style={{ color: 'var(--sm-text-6)', fontSize: 11 }}>(live)</span>
             </button>
             <button onClick={() => setMode('load')} style={style(mode === 'load')}>
-                Load test <span style={{ color: '#5a636e', fontSize: 11 }}>(on-demand)</span>
+                Load test <span style={{ color: 'var(--sm-text-6)', fontSize: 11 }}>(on-demand)</span>
             </button>
         </div>
     );

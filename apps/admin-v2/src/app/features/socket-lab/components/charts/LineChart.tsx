@@ -34,14 +34,24 @@ export default function LineChart({ curve, w, h, accent, baseline, kneeN }: Line
     for (let g = 0; g <= 4; g++) {
         const yv = (yMax * g) / 4;
         const yy = Y(yv);
-        els.push(<line key={'g' + g} x1={padL} x2={w - padR} y1={yy} y2={yy} stroke="#161c25" strokeWidth={1} />);
+        els.push(
+            <line
+                key={'g' + g}
+                x1={padL}
+                x2={w - padR}
+                y1={yy}
+                y2={yy}
+                style={{ stroke: 'var(--sm-raised-3)' }}
+                strokeWidth={1}
+            />
+        );
         els.push(
             <text
                 key={'gl' + g}
                 x={padL - 6}
                 y={yy + 3}
                 fontSize={9.5}
-                fill="#5a636e"
+                style={{ fill: 'var(--sm-text-6)' }}
                 textAnchor="end"
                 fontFamily="Geist Mono, monospace"
             >
@@ -56,7 +66,7 @@ export default function LineChart({ curve, w, h, accent, baseline, kneeN }: Line
                 x={X(n)}
                 y={h - 9}
                 fontSize={9.5}
-                fill="#5a636e"
+                style={{ fill: 'var(--sm-text-6)' }}
                 textAnchor="middle"
                 fontFamily="Geist Mono, monospace"
             >
@@ -109,7 +119,7 @@ export default function LineChart({ curve, w, h, accent, baseline, kneeN }: Line
                 key="bl"
                 points={pl(baseline, 'p95')}
                 fill="none"
-                stroke="#7d8590"
+                style={{ stroke: 'var(--sm-text-4)' }}
                 strokeWidth={1.6}
                 strokeDasharray="5 4"
             />

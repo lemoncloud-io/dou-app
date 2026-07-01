@@ -38,11 +38,33 @@
 }
 
 .sm-root {
+    /* 팔레트 토큰(다크 기본값 = 기존 하드코딩값 그대로). 상태색(green/yellow/red)·accent(teal)는 테마 공통이라 미토큰화. */
+    --sm-bg: #0a0d12;
+    --sm-bg-deepest: #0b0f16;
+    --sm-sidebar: #0c1118;
+    --sm-panel: #0e131b;
+    --sm-panel-2: #11161f;
+    --sm-raised: #121821;
+    --sm-raised-2: #141a23;
+    --sm-raised-3: #161c25;
+    --sm-border: #1a212c;
+    --sm-border-2: #1c2530;
+    --sm-border-3: #232c38;
+    --sm-text: #e6edf3;
+    --sm-text-2: #c2cad3;
+    --sm-text-3: #9aa4af;
+    --sm-text-4: #7d8590;
+    --sm-text-5: #6b747f;
+    --sm-text-6: #5a636e;
+    --sm-text-7: #4b545f;
+    --sm-text-8: #3f4751;
+    --sm-red-bg: #1b0f12;
+
     height: 100vh;
     width: 100%;
     display: flex;
-    background: #0a0d12;
-    color: #e6edf3;
+    background: var(--sm-bg);
+    color: var(--sm-text);
     font-family:
         'Geist',
         -apple-system,
@@ -58,14 +80,38 @@
     box-sizing: border-box;
 }
 
+/* 라이트 테마 오버라이드 — 토큰만 교체(GitHub Primer light 매핑). */
+.sm-root.sm-light {
+    --sm-bg: #f6f8fa;
+    --sm-bg-deepest: #eef1f4;
+    --sm-sidebar: #ffffff;
+    --sm-panel: #ffffff;
+    --sm-panel-2: #f6f8fa;
+    --sm-raised: #eef1f4;
+    --sm-raised-2: #eaeef2;
+    --sm-raised-3: #e4e9ee;
+    --sm-border: #d0d7de;
+    --sm-border-2: #d8dee4;
+    --sm-border-3: #ccd3da;
+    --sm-text: #1f2328;
+    --sm-text-2: #32383f;
+    --sm-text-3: #57606a;
+    --sm-text-4: #656d76;
+    --sm-text-5: #6e7781;
+    --sm-text-6: #838d97;
+    --sm-text-7: #9aa4af;
+    --sm-text-8: #afb8c1;
+    --sm-red-bg: #ffebe9;
+}
+
 .sm-root ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 .sm-root ::-webkit-scrollbar-thumb {
-    background: #222b36;
+    background: var(--sm-border-3);
     border-radius: 6px;
-    border: 2px solid #0a0d12;
+    border: 2px solid var(--sm-bg);
 }
 .sm-root ::-webkit-scrollbar-track {
     background: transparent;
@@ -76,7 +122,7 @@
     appearance: none;
     height: 4px;
     border-radius: 3px;
-    background: #1c2530;
+    background: var(--sm-border-2);
     outline: none;
 }
 .sm-root input[type='range']::-webkit-slider-thumb {
@@ -86,7 +132,7 @@
     border-radius: 50%;
     background: #2dd4bf;
     cursor: pointer;
-    border: 2px solid #0a0d12;
+    border: 2px solid var(--sm-bg);
 }
 .sm-root input[type='range']::-moz-range-thumb {
     width: 15px;
@@ -94,7 +140,7 @@
     border-radius: 50%;
     background: #2dd4bf;
     cursor: pointer;
-    border: 2px solid #0a0d12;
+    border: 2px solid var(--sm-bg);
 }
 
 /* 모달은 .sm-root 밖(fixed overlay)일 수 있으나 페이지 내부에 렌더하므로 스코프 유지. */

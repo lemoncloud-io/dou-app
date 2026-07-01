@@ -37,15 +37,15 @@ export default function SliTileGrid({ metrics, probeOpacity }: SliTileGridProps)
                 const refVal = t.pct ? p95 : last;
                 const st = statusOf(t.k, refVal);
                 const dot = statusColor(st);
-                const valColor = st === 'green' ? '#e6edf3' : dot;
+                const valColor = st === 'green' ? 'var(--sm-text)' : dot;
                 const bigNum = t.pct ? String(p50) : isLoss ? last.toFixed(2) : String(Math.round(last));
                 const sub = t.pct ? `p95 ${p95} ${mm.unit}` : t.sub;
                 return (
                     <div
                         key={t.k}
                         style={{
-                            background: '#0e131b',
-                            border: '1px solid #1a212c',
+                            background: 'var(--sm-panel)',
+                            border: '1px solid var(--sm-border)',
                             borderRadius: 10,
                             padding: '14px 16px',
                         }}
@@ -58,7 +58,9 @@ export default function SliTileGrid({ metrics, probeOpacity }: SliTileGridProps)
                                 marginBottom: 10,
                             }}
                         >
-                            <span style={{ fontSize: 11.5, fontWeight: 500, color: '#9aa4af' }}>{t.label}</span>
+                            <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--sm-text-3)' }}>
+                                {t.label}
+                            </span>
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot }} />
                         </div>
                         <div
@@ -75,9 +77,12 @@ export default function SliTileGrid({ metrics, probeOpacity }: SliTileGridProps)
                                     }}
                                 >
                                     {bigNum}
-                                    <span style={{ fontSize: 12, color: '#5a636e', fontWeight: 400 }}> {mm.unit}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--sm-text-6)', fontWeight: 400 }}>
+                                        {' '}
+                                        {mm.unit}
+                                    </span>
                                 </span>
-                                <span style={{ fontSize: 10.5, color: '#5a636e', marginTop: 5 }}>{sub}</span>
+                                <span style={{ fontSize: 10.5, color: 'var(--sm-text-6)', marginTop: 5 }}>{sub}</span>
                             </div>
                             <div style={{ flexShrink: 0 }}>
                                 <Sparkline series={ser} color={st === 'green' ? ACCENT : dot} w={96} h={34} />

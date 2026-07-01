@@ -8,7 +8,7 @@ export interface EventStreamProps {
 }
 
 const Row = ({ e }: { e: CanaryEvent }) => {
-    const lc = e.level === 'error' ? '#f85149' : e.level === 'warn' ? '#d29922' : '#c2cad3';
+    const lc = e.level === 'error' ? '#f85149' : e.level === 'warn' ? '#d29922' : 'var(--sm-text-2)';
     const bg =
         e.level === 'error' ? 'rgba(248,81,73,0.06)' : e.level === 'warn' ? 'rgba(210,153,34,0.05)' : 'transparent';
     return (
@@ -19,27 +19,27 @@ const Row = ({ e }: { e: CanaryEvent }) => {
                 alignItems: 'center',
                 gap: 8,
                 padding: '7px 14px',
-                borderBottom: '1px solid #121821',
+                borderBottom: '1px solid var(--sm-raised)',
                 background: bg,
                 fontFamily: "'Geist Mono',monospace",
                 fontSize: 11.5,
                 animation: 'scFade .2s ease',
             }}
         >
-            <span style={{ color: '#5a636e' }}>{e.t}</span>
+            <span style={{ color: 'var(--sm-text-6)' }}>{e.t}</span>
             <span
                 style={{
-                    color: e.level === 'info' ? '#9aa4af' : lc,
+                    color: e.level === 'info' ? 'var(--sm-text-3)' : lc,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                 }}
             >
                 {e.type}
-                {e.label ? <span style={{ color: '#6b747f' }}> · {e.label}</span> : null}
+                {e.label ? <span style={{ color: 'var(--sm-text-5)' }}> · {e.label}</span> : null}
             </span>
-            <span style={{ color: '#6b747f' }}>seq {e.seq}</span>
-            <span style={{ color: e.latency != null ? '#c2cad3' : '#3f4751', textAlign: 'right' }}>
+            <span style={{ color: 'var(--sm-text-5)' }}>seq {e.seq}</span>
+            <span style={{ color: e.latency != null ? 'var(--sm-text-2)' : 'var(--sm-text-8)', textAlign: 'right' }}>
                 {e.latency != null ? e.latency + ' ms' : '—'}
             </span>
         </div>
@@ -59,8 +59,8 @@ const ClientStream = ({
 }) => (
     <div
         style={{
-            background: '#0b0f16',
-            border: '1px solid #1a212c',
+            background: 'var(--sm-bg-deepest)',
+            border: '1px solid var(--sm-border)',
             borderRadius: 8,
             overflow: 'hidden',
             display: 'flex',
@@ -73,8 +73,8 @@ const ClientStream = ({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '9px 14px',
-                borderBottom: '1px solid #1a212c',
-                background: '#0e131b',
+                borderBottom: '1px solid var(--sm-border)',
+                background: 'var(--sm-panel)',
             }}
         >
             <span
@@ -85,13 +85,13 @@ const ClientStream = ({
                     fontSize: 11,
                     fontWeight: 600,
                     letterSpacing: '.04em',
-                    color: '#9aa4af',
+                    color: 'var(--sm-text-3)',
                 }}
             >
                 <span style={{ color: arrowColor }}>{arrow}</span>
                 {title}
             </span>
-            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: '#5a636e' }}>
+            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: 'var(--sm-text-6)' }}>
                 {rows.length}
             </span>
         </div>
@@ -99,7 +99,7 @@ const ClientStream = ({
             {rows.length ? (
                 rows.map(e => <Row key={e.id} e={e} />)
             ) : (
-                <div style={{ padding: '28px 14px', textAlign: 'center', color: '#3f4751', fontSize: 11.5 }}>
+                <div style={{ padding: '28px 14px', textAlign: 'center', color: 'var(--sm-text-8)', fontSize: 11.5 }}>
                     이벤트 없음
                 </div>
             )}
@@ -113,15 +113,22 @@ export default function EventStream({ events, paused, togglePause }: EventStream
     const subRows = events.filter(e => e.dir === 'sub');
 
     return (
-        <div style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}>
+        <div
+            style={{
+                background: 'var(--sm-sidebar)',
+                border: '1px solid var(--sm-border)',
+                borderRadius: 10,
+                overflow: 'hidden',
+            }}
+        >
             <div
                 style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '11px 16px',
-                    borderBottom: '1px solid #1a212c',
-                    background: '#0e131b',
+                    borderBottom: '1px solid var(--sm-border)',
+                    background: 'var(--sm-panel)',
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -130,13 +137,13 @@ export default function EventStream({ events, paused, togglePause }: EventStream
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '.05em',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             textTransform: 'uppercase',
                         }}
                     >
                         Frame Stream
                     </span>
-                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#5a636e' }}>
+                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: 'var(--sm-text-6)' }}>
                         {events.length} events · 클라이언트별 분리
                     </span>
                 </div>
@@ -150,9 +157,9 @@ export default function EventStream({ events, paused, togglePause }: EventStream
                         fontWeight: 600,
                         borderRadius: 6,
                         padding: '5px 11px',
-                        background: paused ? hexToRgba(ACCENT, 0.12) : '#11161f',
-                        border: `1px solid ${paused ? hexToRgba(ACCENT, 0.35) : '#1c2530'}`,
-                        color: paused ? ACCENT : '#9aa4af',
+                        background: paused ? hexToRgba(ACCENT, 0.12) : 'var(--sm-panel-2)',
+                        border: `1px solid ${paused ? hexToRgba(ACCENT, 0.35) : 'var(--sm-border-2)'}`,
+                        color: paused ? ACCENT : 'var(--sm-text-3)',
                     }}
                 >
                     {paused ? '▶ 재개' : '❚❚ 일시정지'}
@@ -160,7 +167,7 @@ export default function EventStream({ events, paused, togglePause }: EventStream
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: 12 }}>
                 <ClientStream title="PUB CLIENT" arrow="▲" arrowColor={ACCENT} rows={pubRows} />
-                <ClientStream title="SUB CLIENT" arrow="▼" arrowColor="#7d8590" rows={subRows} />
+                <ClientStream title="SUB CLIENT" arrow="▼" arrowColor="var(--sm-text-4)" rows={subRows} />
             </div>
         </div>
     );

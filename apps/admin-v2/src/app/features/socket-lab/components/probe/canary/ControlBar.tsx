@@ -14,7 +14,7 @@ export interface ControlBarProps {
 }
 
 const stColor = (st: ConnStatus): string =>
-    st === 'connected' ? '#3fb950' : st === 'error' ? '#f85149' : st === 'connecting' ? '#d29922' : '#5a636e';
+    st === 'connected' ? '#3fb950' : st === 'error' ? '#f85149' : st === 'connecting' ? '#d29922' : 'var(--sm-text-6)';
 const stLabel = (st: ConnStatus): string =>
     st === 'connected' ? 'connected' : st === 'error' ? 'error' : st === 'connecting' ? 'connecting…' : 'idle';
 
@@ -33,17 +33,19 @@ export default function ControlBar({
     const conn = (label: string, st: ConnStatus) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: stColor(st) }} />
-            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11.5, color: '#9aa4af' }}>
+            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11.5, color: 'var(--sm-text-3)' }}>
                 {label} <span style={{ color: stColor(st) }}>{stLabel(st)}</span>
             </span>
         </div>
     );
     const stat = (value: string, label: string) => (
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
-            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 13, color: '#e6edf3', fontWeight: 500 }}>
+            <span
+                style={{ fontFamily: "'Geist Mono',monospace", fontSize: 13, color: 'var(--sm-text)', fontWeight: 500 }}
+            >
                 {value}
             </span>
-            <span style={{ fontSize: 10, color: '#5a636e', letterSpacing: '.04em' }}>{label}</span>
+            <span style={{ fontSize: 10, color: 'var(--sm-text-6)', letterSpacing: '.04em' }}>{label}</span>
         </div>
     );
 
@@ -53,8 +55,8 @@ export default function ControlBar({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: '#0e131b',
-                border: '1px solid #1a212c',
+                background: 'var(--sm-panel)',
+                border: '1px solid var(--sm-border)',
                 borderRadius: 10,
                 padding: '13px 18px',
                 flexWrap: 'wrap',
@@ -83,11 +85,13 @@ export default function ControlBar({
                     </>
                 ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#5a636e' }} />
-                        <span style={{ fontWeight: 600, letterSpacing: '.06em', fontSize: 12, color: '#7d8590' }}>
+                        <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--sm-text-6)' }} />
+                        <span
+                            style={{ fontWeight: 600, letterSpacing: '.06em', fontSize: 12, color: 'var(--sm-text-4)' }}
+                        >
                             IDLE
                         </span>
-                        <span style={{ fontSize: 11.5, color: '#5a636e' }}>
+                        <span style={{ fontSize: 11.5, color: 'var(--sm-text-6)' }}>
                             canary pub·sub 미연결 — 시작하면 __canary__ 채널에 2개 연결 후 측정
                         </span>
                     </div>
@@ -98,7 +102,7 @@ export default function ControlBar({
                     <>
                         {conn('pub', pubStatus)}
                         {conn('sub', subStatus)}
-                        <div style={{ width: 1, height: 20, background: '#1c2530' }} />
+                        <div style={{ width: 1, height: 20, background: 'var(--sm-border-2)' }} />
                         <button
                             onClick={toggleGapDrop}
                             style={{
@@ -109,9 +113,9 @@ export default function ControlBar({
                                 fontWeight: 600,
                                 borderRadius: 7,
                                 padding: '7px 13px',
-                                background: gapDrop ? 'rgba(210,153,34,0.14)' : '#11161f',
-                                border: `1px solid ${gapDrop ? 'rgba(210,153,34,0.4)' : '#1c2530'}`,
-                                color: gapDrop ? '#d29922' : '#9aa4af',
+                                background: gapDrop ? 'rgba(210,153,34,0.14)' : 'var(--sm-panel-2)',
+                                border: `1px solid ${gapDrop ? 'rgba(210,153,34,0.4)' : 'var(--sm-border-2)'}`,
+                                color: gapDrop ? '#d29922' : 'var(--sm-text-3)',
                             }}
                         >
                             {gapDrop ? 'gap-drop 시뮬 ON' : 'gap-drop 시뮬'}
@@ -146,7 +150,7 @@ export default function ControlBar({
                             borderRadius: 8,
                             padding: '9px 18px',
                             background: ACCENT,
-                            color: '#0a0d12',
+                            color: 'var(--sm-bg)',
                             border: 'none',
                         }}
                     >

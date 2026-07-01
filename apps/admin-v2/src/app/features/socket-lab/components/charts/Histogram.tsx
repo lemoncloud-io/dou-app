@@ -77,7 +77,7 @@ export default function Histogram({ samples, w, h, accent, pcs }: HistogramProps
                 x={x}
                 y={h - 8}
                 fontSize={8.5}
-                fill="#5a636e"
+                style={{ fill: 'var(--sm-text-6)' }}
                 textAnchor="middle"
                 fontFamily="Geist Mono, monospace"
             >

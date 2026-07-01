@@ -4,6 +4,7 @@ import { pct, THRESHOLDS } from '../lib/stats';
 import { DEFAULT_WS_URL } from '../model/endpoint-presets';
 import { useCanarySim } from '../hooks/use-canary-sim';
 import { useLoadTest } from '../hooks/use-load-test';
+import { useTheme } from '../hooks/use-theme';
 import { useWatchlist } from '../hooks/use-watchlist';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Header, { type Tab } from '../components/shell/Header';
@@ -18,6 +19,7 @@ const FALLBACK_WS = 'wss://ws.lemoncloud.io/socket';
 /** Socket Monitor 셸 — 사이드바 + 헤더(탭) + Observe/Probe 콘텐츠 + 검색 모달. */
 export const SocketMonitorPage = () => {
     const liveMotion = true;
+    const { theme, toggle } = useTheme();
     const wl = useWatchlist();
     const canary = useCanarySim(liveMotion);
     const load = useLoadTest();
@@ -45,8 +47,8 @@ export const SocketMonitorPage = () => {
 
     return (
         <ErrorBoundary>
-            <div className="sm-root">
-                <Sidebar endpoint={endpoint} />
+            <div className={theme === 'light' ? 'sm-root sm-light' : 'sm-root'}>
+                <Sidebar endpoint={endpoint} theme={theme} onToggleTheme={toggle} />
                 <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <Header
                         tab={tab}
@@ -57,7 +59,11 @@ export const SocketMonitorPage = () => {
                         badgeColor={badgeColor}
                     />
                     <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-                        {tab === 'observe' ? <ObserveTab wl={wl} /> : <ProbeTab canary={canary} load={load} endpoint={endpoint} />}
+                        {tab === 'observe' ? (
+                            <ObserveTab wl={wl} />
+                        ) : (
+                            <ProbeTab canary={canary} load={load} endpoint={endpoint} />
+                        )}
                     </div>
                 </main>
                 {wl.searchOpen ? <UserSearchModal wl={wl} /> : null}

@@ -14,12 +14,12 @@ const row = (label: string, hint: string, control: ReactNode, last = false) => (
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '14px 0',
-            borderBottom: last ? 'none' : '1px solid #141a23',
+            borderBottom: last ? 'none' : '1px solid var(--sm-raised-2)',
         }}
     >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 12.5, color: '#c2cad3', fontWeight: 500 }}>{label}</span>
-            <span style={{ fontSize: 10.5, color: '#5a636e' }}>{hint}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--sm-text-2)', fontWeight: 500 }}>{label}</span>
+            <span style={{ fontSize: 10.5, color: 'var(--sm-text-6)' }}>{hint}</span>
         </div>
         {control}
     </div>
@@ -39,10 +39,10 @@ const numInput = (
         onChange={e => onChange(e.target.value)}
         style={{
             width: 84,
-            background: '#11161f',
-            border: '1px solid #1c2530',
+            background: 'var(--sm-panel-2)',
+            border: '1px solid var(--sm-border-2)',
             borderRadius: 7,
-            color: '#e6edf3',
+            color: 'var(--sm-text)',
             fontFamily: "'Geist Mono',monospace",
             fontSize: 12.5,
             padding: '7px 10px',
@@ -63,22 +63,29 @@ const PRESET_META = [
 export default function LoadConfig({ load }: LoadConfigProps) {
     const cfg = load.config;
     const seg = (on: boolean) => ({
-        background: on ? hexToRgba(ACCENT, 0.12) : '#11161f',
-        color: on ? ACCENT : '#9aa4af',
+        background: on ? hexToRgba(ACCENT, 0.12) : 'var(--sm-panel-2)',
+        color: on ? ACCENT : 'var(--sm-text-3)',
     });
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 14, alignItems: 'start' }}>
             {/* CONFIG */}
-            <div style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}>
+            <div
+                style={{
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                }}
+            >
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '11px 16px',
-                        borderBottom: '1px solid #1a212c',
-                        background: '#0e131b',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
                     }}
                 >
                     <span
@@ -86,7 +93,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '.05em',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             textTransform: 'uppercase',
                         }}
                     >
@@ -96,9 +103,9 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                         style={{
                             fontFamily: "'Geist Mono',monospace",
                             fontSize: 10.5,
-                            color: '#7d8590',
-                            background: '#11161f',
-                            border: '1px solid #1c2530',
+                            color: 'var(--sm-text-4)',
+                            background: 'var(--sm-panel-2)',
+                            border: '1px solid var(--sm-border-2)',
                             borderRadius: 6,
                             padding: '4px 9px',
                         }}
@@ -124,7 +131,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                                     fontFamily: "'Geist Mono',monospace",
                                     fontSize: 14,
                                     fontWeight: 600,
-                                    color: '#e6edf3',
+                                    color: 'var(--sm-text)',
                                     width: 32,
                                     textAlign: 'right',
                                 }}
@@ -160,7 +167,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                         <div
                             style={{
                                 display: 'flex',
-                                border: '1px solid #1c2530',
+                                border: '1px solid var(--sm-border-2)',
                                 borderRadius: 7,
                                 overflow: 'hidden',
                             }}
@@ -190,7 +197,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                                     borderTop: 'none',
                                     borderRight: 'none',
                                     borderBottom: 'none',
-                                    borderLeft: '1px solid #1c2530',
+                                    borderLeft: '1px solid var(--sm-border-2)',
                                     ...seg(cfg.ramp === 'staged'),
                                 }}
                             >
@@ -216,7 +223,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                                 fontWeight: 600,
                                 borderRadius: 7,
                                 padding: '7px 13px',
-                                border: `1px solid ${cfg.gapDrop ? hexToRgba(ACCENT, 0.35) : '#1c2530'}`,
+                                border: `1px solid ${cfg.gapDrop ? hexToRgba(ACCENT, 0.35) : 'var(--sm-border-2)'}`,
                                 ...seg(cfg.gapDrop),
                             }}
                         >
@@ -247,17 +254,22 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                     browser-bound · 1탭 기준 최대 ~50 conns. 풀 로드테스트가 아닌 스케일 스모크 테스트.
                 </div>
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     <div
                         style={{
                             padding: '11px 16px',
-                            borderBottom: '1px solid #1a212c',
-                            background: '#0e131b',
+                            borderBottom: '1px solid var(--sm-border)',
+                            background: 'var(--sm-panel)',
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '.05em',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             textTransform: 'uppercase',
                         }}
                     >
@@ -273,8 +285,8 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                                     cursor: 'pointer',
                                     textAlign: 'left',
                                     fontFamily: 'inherit',
-                                    background: '#11161f',
-                                    border: '1px solid #1c2530',
+                                    background: 'var(--sm-panel-2)',
+                                    border: '1px solid var(--sm-border-2)',
                                     borderRadius: 8,
                                     padding: '11px 12px',
                                     display: 'flex',
@@ -282,16 +294,20 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                                     gap: 4,
                                 }}
                             >
-                                <span style={{ fontSize: 12.5, fontWeight: 600, color: '#e6edf3' }}>{p.title}</span>
-                                <span style={{ fontSize: 10.5, color: '#6b747f', lineHeight: 1.4 }}>{p.desc}</span>
+                                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--sm-text)' }}>
+                                    {p.title}
+                                </span>
+                                <span style={{ fontSize: 10.5, color: 'var(--sm-text-5)', lineHeight: 1.4 }}>
+                                    {p.desc}
+                                </span>
                             </button>
                         ))}
                     </div>
                 </div>
                 <div
                     style={{
-                        background: '#0e131b',
-                        border: '1px solid #1a212c',
+                        background: 'var(--sm-panel)',
+                        border: '1px solid var(--sm-border)',
                         borderRadius: 10,
                         padding: '14px 16px',
                         display: 'flex',
@@ -299,7 +315,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                         gap: 4,
                     }}
                 >
-                    <span style={{ fontSize: 11, color: '#7d8590' }}>예상 부하</span>
+                    <span style={{ fontSize: 11, color: 'var(--sm-text-4)' }}>예상 부하</span>
                     <span
                         style={{
                             fontFamily: "'Geist Mono',monospace",
@@ -310,9 +326,9 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                         }}
                     >
                         {(cfg.pubs * cfg.rate * cfg.subs).toLocaleString()}{' '}
-                        <span style={{ fontSize: 12, color: '#5a636e', fontWeight: 400 }}>deliveries/s</span>
+                        <span style={{ fontSize: 12, color: 'var(--sm-text-6)', fontWeight: 400 }}>deliveries/s</span>
                     </span>
-                    <span style={{ fontSize: 11, color: '#5a636e', fontFamily: "'Geist Mono',monospace" }}>
+                    <span style={{ fontSize: 11, color: 'var(--sm-text-6)', fontFamily: "'Geist Mono',monospace" }}>
                         {cfg.subs} subs × {cfg.rate} msg/s × {cfg.pubs} pub
                     </span>
                 </div>
@@ -327,7 +343,7 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                         borderRadius: 9,
                         padding: 14,
                         background: ACCENT,
-                        color: '#0a0d12',
+                        color: 'var(--sm-bg)',
                         border: 'none',
                     }}
                 >

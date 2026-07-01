@@ -12,11 +12,11 @@ const panelHead = (title: React.ReactNode) => (
     <div
         style={{
             padding: '11px 16px',
-            borderBottom: '1px solid #1a212c',
-            background: '#0e131b',
+            borderBottom: '1px solid var(--sm-border)',
+            background: 'var(--sm-panel)',
             fontSize: 12,
             fontWeight: 600,
-            color: '#c2cad3',
+            color: 'var(--sm-text-2)',
         }}
     >
         {title}
@@ -32,13 +32,20 @@ export default function LoadReport({ load }: LoadReportProps) {
     const { savedRuns, compareId } = load;
     const cmp = compareId ? (savedRuns.find(r => r.id === compareId) ?? null) : null;
 
-    const vc = rep.aborted ? '#7d8590' : verdictColorOf(rep.verdict);
+    const vc = rep.aborted ? 'var(--sm-text-4)' : verdictColorOf(rep.verdict);
     const verdictBg = hexToRgba(vc, 0.1);
     const verdictBorder = hexToRgba(vc, 0.3);
 
     const kpi = (label: string, value: string | number, color?: string) => (
-        <div style={{ background: '#0e131b', border: '1px solid #1a212c', borderRadius: 10, padding: '12px 14px' }}>
-            <div style={{ fontSize: 10.5, color: '#7d8590', marginBottom: 7 }}>{label}</div>
+        <div
+            style={{
+                background: 'var(--sm-panel)',
+                border: '1px solid var(--sm-border)',
+                borderRadius: 10,
+                padding: '12px 14px',
+            }}
+        >
+            <div style={{ fontSize: 10.5, color: 'var(--sm-text-4)', marginBottom: 7 }}>{label}</div>
             <div
                 style={{
                     fontFamily: "'Geist Mono',monospace",
@@ -84,7 +91,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                     >
                         {rep.aborted ? 'ABORTED' : rep.verdict}
                     </span>
-                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 12.5, color: '#c2cad3' }}>
+                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 12.5, color: 'var(--sm-text-2)' }}>
                         fan-out p95 {rep.fanoutP95}ms @ N={rep.peakN} · SLO&lt;{rep.slo}ms
                     </span>
                 </div>
@@ -99,9 +106,9 @@ export default function LoadReport({ load }: LoadReportProps) {
                             fontWeight: 600,
                             borderRadius: 7,
                             padding: '8px 14px',
-                            background: '#11161f',
-                            border: '1px solid #1c2530',
-                            color: '#c2cad3',
+                            background: 'var(--sm-panel-2)',
+                            border: '1px solid var(--sm-border-2)',
+                            color: 'var(--sm-text-2)',
                         }}
                     >
                         Save run
@@ -129,29 +136,36 @@ export default function LoadReport({ load }: LoadReportProps) {
             {/* KPI 6 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
                 {kpi('Peak N', rep.peakN)}
-                {kpi('Fan-out p95', rep.fanoutP95 + ' ms', rep.fanoutP95 < rep.slo ? '#e6edf3' : '#f85149')}
+                {kpi('Fan-out p95', rep.fanoutP95 + ' ms', rep.fanoutP95 < rep.slo ? 'var(--sm-text)' : '#f85149')}
                 {kpi('Max latency', rep.maxLat + ' ms')}
                 {kpi(
                     'Throughput',
                     `${rep.throughputAchieved.toLocaleString()} / ${rep.throughputTarget.toLocaleString()}`
                 )}
-                {kpi('Loss', rep.lossPct.toFixed(2) + ' %', rep.lossPct > 1 ? '#d29922' : '#e6edf3')}
-                {kpi('Connect fail', rep.connFail, rep.connFail > 0 ? '#f85149' : '#e6edf3')}
+                {kpi('Loss', rep.lossPct.toFixed(2) + ' %', rep.lossPct > 1 ? '#d29922' : 'var(--sm-text)')}
+                {kpi('Connect fail', rep.connFail, rep.connFail > 0 ? '#f85149' : 'var(--sm-text)')}
             </div>
 
             {/* HEADLINE */}
-            <div style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}>
+            <div
+                style={{
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                }}
+            >
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '11px 16px',
-                        borderBottom: '1px solid #1a212c',
-                        background: '#0e131b',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
                     }}
                 >
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#c2cad3' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sm-text-2)' }}>
                         Fan-out latency vs 구독자 수{' '}
                         <span
                             style={{
@@ -165,7 +179,15 @@ export default function LoadReport({ load }: LoadReportProps) {
                             ★ HEADLINE
                         </span>
                     </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 10.5, color: '#7d8590' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 14,
+                            fontSize: 10.5,
+                            color: 'var(--sm-text-4)',
+                        }}
+                    >
                         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                             <span style={{ width: 14, height: 2, background: ACCENT }} />
                             p95
@@ -176,7 +198,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                         </span>
                         {cmp ? (
                             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <span style={{ width: 14, height: 0, borderTop: '2px dashed #7d8590' }} />
+                                <span style={{ width: 14, height: 0, borderTop: '2px dashed var(--sm-text-4)' }} />
                                 baseline
                             </span>
                         ) : null}
@@ -192,7 +214,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                         kneeN={rep.kneeN}
                     />
                 </div>
-                <div style={{ padding: '0 16px 13px', fontSize: 11.5, color: '#9aa4af' }}>
+                <div style={{ padding: '0 16px 13px', fontSize: 11.5, color: 'var(--sm-text-3)' }}>
                     {rep.kneeN ? `knee 관측: N=${rep.kneeN} 부근에서 p95 급증` : 'knee 미관측 — 측정 범위 내 안정적'}
                 </div>
                 {cmp ? (
@@ -201,7 +223,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                             padding: '0 16px 13px',
                             fontFamily: "'Geist Mono',monospace",
                             fontSize: 11,
-                            color: '#7d8590',
+                            color: 'var(--sm-text-4)',
                         }}
                     >
                         baseline: {cmp.label} (p95 {cmp.p95}ms) → 현재 {rep.fanoutP95}ms · Δ{' '}
@@ -213,12 +235,19 @@ export default function LoadReport({ load }: LoadReportProps) {
             {/* 분포 + 공정성 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     {panelHead(
                         <>
                             Latency 분포{' '}
-                            <span style={{ color: '#5a636e', fontSize: 10.5, fontWeight: 400 }}>(p50 / p95 / p99)</span>
+                            <span style={{ color: 'var(--sm-text-6)', fontSize: 10.5, fontWeight: 400 }}>
+                                (p50 / p95 / p99)
+                            </span>
                         </>
                     )}
                     <div style={{ padding: '14px 16px' }}>
@@ -236,7 +265,12 @@ export default function LoadReport({ load }: LoadReportProps) {
                     </div>
                 </div>
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     {panelHead('구독자별 tail / 공정성')}
                     <div style={{ padding: 16 }}>
@@ -259,13 +293,21 @@ export default function LoadReport({ load }: LoadReportProps) {
                             style={{
                                 fontFamily: "'Geist Mono',monospace",
                                 fontSize: 11,
-                                color: '#9aa4af',
+                                color: 'var(--sm-text-3)',
                                 lineHeight: 1.5,
                             }}
                         >
                             worst/median {rep.fairness}× · 최악 {rep.worst}ms / 중앙값 {rep.median}ms
                         </div>
-                        <div style={{ display: 'flex', gap: 14, marginTop: 10, fontSize: 10.5, color: '#5a636e' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                gap: 14,
+                                marginTop: 10,
+                                fontSize: 10.5,
+                                color: 'var(--sm-text-6)',
+                            }}
+                        >
                             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                                 <span style={{ width: 9, height: 9, borderRadius: 2, background: '#3fb950' }} />
                                 &lt;0.7×SLO
@@ -286,12 +328,19 @@ export default function LoadReport({ load }: LoadReportProps) {
             {/* throughput + completeness */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     {panelHead(
                         <>
                             Throughput — 목표 vs 실측{' '}
-                            <span style={{ color: '#5a636e', fontSize: 10.5, fontWeight: 400 }}>deliveries/s</span>
+                            <span style={{ color: 'var(--sm-text-6)', fontSize: 10.5, fontWeight: 400 }}>
+                                deliveries/s
+                            </span>
                         </>
                     )}
                     <div style={{ padding: '14px 16px' }}>
@@ -306,7 +355,12 @@ export default function LoadReport({ load }: LoadReportProps) {
                     </div>
                 </div>
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     {panelHead('Delivery completeness')}
                     <div style={{ padding: 16 }}>
@@ -319,7 +373,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                                 />
                             ))}
                         </div>
-                        <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#9aa4af' }}>
+                        <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: 'var(--sm-text-3)' }}>
                             평균 수신율 {rep.avgComp.toFixed(1)}% · 유실 {rep.lossPct.toFixed(2)}%
                         </div>
                     </div>
@@ -327,11 +381,18 @@ export default function LoadReport({ load }: LoadReportProps) {
             </div>
 
             {/* connection */}
-            <div style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}>
+            <div
+                style={{
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                }}
+            >
                 {panelHead(
                     <>
                         Connection establishment{' '}
-                        <span style={{ color: '#5a636e', fontSize: 10.5, fontWeight: 400 }}>
+                        <span style={{ color: 'var(--sm-text-6)', fontSize: 10.5, fontWeight: 400 }}>
                             handshake latency 분포 · 동시 connect
                         </span>
                     </>
@@ -353,7 +414,7 @@ export default function LoadReport({ load }: LoadReportProps) {
                         padding: '0 16px 13px',
                         fontFamily: "'Geist Mono',monospace",
                         fontSize: 11,
-                        color: '#9aa4af',
+                        color: 'var(--sm-text-3)',
                     }}
                 >
                     connect p50 {rep.connP50}ms · p95 {rep.connP95}ms · 실패 {rep.connFail}
@@ -363,17 +424,22 @@ export default function LoadReport({ load }: LoadReportProps) {
             {/* saved runs */}
             {savedRuns.length ? (
                 <div
-                    style={{ background: '#0c1118', border: '1px solid #1a212c', borderRadius: 10, overflow: 'hidden' }}
+                    style={{
+                        background: 'var(--sm-sidebar)',
+                        border: '1px solid var(--sm-border)',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                    }}
                 >
                     <div
                         style={{
                             padding: '11px 16px',
-                            borderBottom: '1px solid #1a212c',
-                            background: '#0e131b',
+                            borderBottom: '1px solid var(--sm-border)',
+                            background: 'var(--sm-panel)',
                             fontSize: 11,
                             fontWeight: 600,
                             letterSpacing: '.05em',
-                            color: '#6b747f',
+                            color: 'var(--sm-text-5)',
                             textTransform: 'uppercase',
                         }}
                     >
@@ -391,15 +457,15 @@ export default function LoadReport({ load }: LoadReportProps) {
                                         alignItems: 'center',
                                         gap: 10,
                                         padding: '11px 16px',
-                                        borderBottom: '1px solid #141a23',
+                                        borderBottom: '1px solid var(--sm-raised-2)',
                                         fontFamily: "'Geist Mono',monospace",
                                         fontSize: 11.5,
                                     }}
                                 >
-                                    <span style={{ color: '#e6edf3' }}>{r.label}</span>
-                                    <span style={{ color: '#5a636e' }}>{r.time}</span>
-                                    <span style={{ color: '#9aa4af' }}>N={r.peakN}</span>
-                                    <span style={{ color: '#c2cad3' }}>{r.p95}ms</span>
+                                    <span style={{ color: 'var(--sm-text)' }}>{r.label}</span>
+                                    <span style={{ color: 'var(--sm-text-6)' }}>{r.time}</span>
+                                    <span style={{ color: 'var(--sm-text-3)' }}>N={r.peakN}</span>
+                                    <span style={{ color: 'var(--sm-text-2)' }}>{r.p95}ms</span>
                                     <div
                                         style={{
                                             display: 'flex',
@@ -421,9 +487,9 @@ export default function LoadReport({ load }: LoadReportProps) {
                                                 fontWeight: 600,
                                                 borderRadius: 5,
                                                 padding: '4px 8px',
-                                                background: '#11161f',
-                                                border: '1px solid #1c2530',
-                                                color: active ? ACCENT : '#9aa4af',
+                                                background: 'var(--sm-panel-2)',
+                                                border: '1px solid var(--sm-border-2)',
+                                                color: active ? ACCENT : 'var(--sm-text-3)',
                                             }}
                                         >
                                             {active ? '비교 해제' : 'Compare'}
