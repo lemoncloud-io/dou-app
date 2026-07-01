@@ -11,16 +11,18 @@ Status: Target Architecture
 
 ## 결정 요약
 
-`app-runtime`의 transport 계층은 아래 3축으로 정리한다.
+`app-runtime`의 transport 계층은 아래 2개 manager 축으로 정리한다.
 
-1. `SocketManager`
-2. `SocketSessionController`
-3. `SyncManager`
+1. `SocketManager` — 소켓 생성/교체/상태
+2. `SyncManager` — sync runtime 생성/조작
+
+인증 수명주기는 별도 축(과거 `SocketSessionController`)이 아니라 **SDK `AuthController`(`client.auth`)** 가 소유하고, bootstrap 시퀀싱은 `SocketBinder`가 호출하는 순수 함수가 담당한다([auth/README.md](./auth/README.md)).
 
 핵심 원칙:
 
 - `createClientSocketV2`의 생성 책임은 `SocketManager`에만 둔다.
 - `createDeviceRuntime`의 생성 책임은 `SyncManager`에만 둔다.
+- 인증(만료 refresh·재연결 재인증·switch·백오프)은 SDK `AuthController`가 소유한다. app-runtime은 register/ready·구독만 배선한다.
 - gateway는 raw client가 아니라 `SocketManager`의 stable socket API를 사용한다.
 - sync는 raw runtime이 아니라 `SyncManager`를 통해서만 조작한다.
 - `createSocketRuntime()`는 객체 조립만 담당하는 composition root로 유지한다.
@@ -34,16 +36,17 @@ flowchart TD
   Bootstrap --> Runner["SessionBackgroundRunner"]
   Bootstrap --> DataBinder["RuntimeDataBinder"]
   Bootstrap --> SocketBinder["SocketBinder"]
-  Bootstrap --> AuthBinder["SocketAuthBinder"]
 
   Binding["useRuntimeBinding()"] --> Host
 
   DataBinder --> DataManager["DataManager"]
   SocketBinder --> SocketManager["SocketManager"]
-  AuthBinder --> Session["SocketSessionController"]
+  SocketBinder --> Bootstrap2["bootstrapSocketConnection()"]
 
-  SocketManager --> Client["createClientSocketV2(...)"]
-  Session --> SocketManager
+  SocketManager --> Client["createClientSocketV2({ auth })"]
+  Client --> Auth["client.auth: AuthController (SDK)"]
+  Bootstrap2 --> Auth
+  Bootstrap2 --> SocketManager
   SyncManager["SyncManager"] --> SocketManager
   SyncManager --> DeviceRuntime["createDeviceRuntime({ client, extraSyncPlans })"]
   SyncManager --> Plans["Domain Sync Plans"]
@@ -74,24 +77,25 @@ flowchart TD
 - 과거의 `ManagedSocketClientProxy` 역할은 별도 클래스로 두지 않고 `SocketManager`로 흡수한다.
 - 외부 gateway는 socket 교체 여부를 몰라도 되어야 한다.
 
-### 2. `SocketSessionController`
+### 2. 인증: SDK `AuthController` + `bootstrapSocketConnection()`
 
-책임:
+인증 수명주기는 SDK `AuthController`(`client.auth`)가 소유한다. 과거 `SocketSessionController`(수동 auth 엔진)는 **제거**되고, 남는 오케스트레이션은 `SocketBinder`가 호출하는 순수 함수 `bootstrapSocketConnection(...)`로 흡수한다.
 
-- bootstrap sequence
-- `device.save` acknowledgement 대기 후 `auth.update`
-- 주기적 auth refresh
-- 401 recovery
+`bootstrapSocketConnection({ manager, config, delegate })` 책임:
 
-비책임:
+- bootstrap sequence — `ensure` → `connect` → `device.save` ack 대기 → `client.auth.register({ token, authId, sign })` + `await client.auth.ready()`
+- SDK 인증 구독 배선: `onAuthState` → `manager.setVerified`, `onTokenRefresh` → `delegate.commitRefreshedToken`, `expired` → `delegate.onAuthExpired`
 
-- socket client 생성/교체
-- sync plan 조립
+SDK `AuthController`가 소유(app-runtime 비책임):
+
+- 토큰 획득/갱신 타이밍·만료 refresh·재연결 재인증·401 백오프·site switch
 
 설계 의도:
 
-- 세션/인증 정책은 transport 객체에서 분리한다.
-- `SocketSessionDelegate`를 통해 상위 세션 레이어(`@chatic/web-core`)와 결합한다.
+- 인증 수명주기는 SDK가 SSoT로 소유하고, app-runtime은 register/ready·구독만 배선한다. 상태를 들고 있는 별도 controller 클래스를 두지 않는다.
+- `device.save` ack 게이팅(서버가 device 링크 전 auth.update 거부)은 SDK가 알 수 없는 앱 오케스트레이션이므로 bootstrap 함수가 시퀀싱한다.
+- `SocketSessionDelegate`를 통해 상위 세션 레이어(`@chatic/web-core`)의 active-server-aware register/sign/writeback 헬퍼와 결합한다.
+- 인증 소유 경계·상태 머신·서명 계약은 [auth/README.md](./auth/README.md)·[auth/usage.md](./auth/usage.md)·[auth/signing.md](./auth/signing.md) 참조.
 
 ### 3. `SyncManager`
 
@@ -132,14 +136,13 @@ flowchart TD
 
 ```ts
 const socketManager = new SocketManager();
-const sessionController = new SocketSessionController(socketManager);
-// request facade는 SocketManager가, 복구 정책은 controller가 — 주입으로 잇는다.
-socketManager.setRecoveryHandler(() => sessionController.handle401Recovery());
 const syncManager = new SyncManager(socketManager, { runtimeOptions: DEFAULT_SYNC_RUNTIME_OPTIONS });
+// 인증 수명주기(만료 refresh·재연결 재인증·401 백오프)는 SDK AuthController가 소유한다.
+// bootstrap 시퀀싱(register/ready + onAuthState/onTokenRefresh 배선)은 SocketBinder가
+// bootstrapSocketConnection(...)로 수행한다 — 별도 controller 인스턴스는 없다.
 
 return {
     socketManager,
-    sessionController,
     syncManager,
 };
 ```
@@ -158,8 +161,8 @@ return {
 
 ### auth/session binding
 
-- `SocketSessionController`만 사용한다.
-- `SocketAuthBinder`가 site/token 변경 시 `updateAuth()`를 호출한다.
+- 인증 수명주기는 SDK `AuthController`(`client.auth`)가 소유한다. `SocketBinder`가 `bootstrapSocketConnection(...)`으로 register/ready·구독을 배선하며, 상태를 들고 있는 controller 클래스는 없다.
+- 토큰/site 변경은 별도 binder 없이 SDK가 담당한다 — 만료·재연결은 자동, site 전환은 `client.auth.switch(`${uid}@${siteId}`)`, 갱신 결과는 `onTokenRefresh` → web-core writeback.
 
 ## 모듈 구조
 
@@ -169,7 +172,6 @@ libs/app-runtime/src/
     RuntimeConnectionHost.tsx
     RuntimeDataBinder.tsx
     SocketBinder.tsx
-    SocketAuthBinder.tsx
     SessionBackgroundRunner.tsx
     TransportBootstrap.tsx
   runtime/
@@ -177,7 +179,7 @@ libs/app-runtime/src/
     useRuntimeBinding.ts
   socket/
     SocketManager.ts
-    SocketSessionController.ts
+    bootstrapSocketConnection.ts
     runtime.ts
     types.ts
     sync/
@@ -221,10 +223,12 @@ libs/app-runtime/src/
 남은 후속:
 
 - runtime 튜닝 값의 외부 config(connectionDraft류) 연결 — 현재는 composition root의 기본 상수(빈 값=엔진 기본 유지). 주입 표면은 준비됨.
+- **인증 SDK 도입(진행 트랙)** — 위 §2는 목표(SDK `AuthController` 소유 + `bootstrapSocketConnection` 함수) 기준이다. 현재 코드는 아직 `SocketSessionController`가 수동 인증(`updateAuth`·주기 refresh·single-flight 401 recovery)을 수행하고 `SocketAuthBinder`가 `updateAuth('session-switch')`를 호출한다. 도입은 (1) 수동 auth 경로 제거, (2) `SocketSessionController` 클래스 **삭제** + bootstrap 로직을 `bootstrapSocketConnection`으로 이관, (3) `SocketAuthBinder` 삭제, (4) `getSocketRuntime()` 공개 표면에서 `sessionController` 제거. 단계·서명/writeback 계약은 [auth/usage.md](./auth/usage.md) §3, [auth/signing.md](./auth/signing.md) 참조.
 
 ## 완료 기준
 
 - gateway가 `ManagedSocketClientProxy` 없이 동작한다.
 - sync 관련 생성 책임이 `SyncManager` 하나로 모인다.
 - `createClientSocketV2`와 `createDeviceRuntime`이 외부 호출부에서 사라진다.
-- socket/session/sync 책임이 문서와 코드에서 동일하게 보인다.
+- 인증은 SDK `AuthController`가 소유하고, `SocketSessionController`/`SocketAuthBinder`가 코드에서 사라진다(bootstrap은 `bootstrapSocketConnection` 함수).
+- socket/sync 책임과 인증 소유 경계가 문서와 코드에서 동일하게 보인다.

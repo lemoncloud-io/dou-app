@@ -39,11 +39,9 @@ export interface RuntimeBinding {
 ### `SocketBinder`
 
 - `binding.socket.config`를 `SocketManager.ensure()`에 반영한다.
+- active server 종류가 바뀌어(`relay`↔`cloud`) wss URL이 달라지면 새 소켓 생성/재부팅(register)으로 처리한다.
 
-### `SocketAuthBinder`
-
-- 물리 소켓 재생성이 없어도 auth 문맥이 바뀌는 경우를 담당한다.
-- site/token 변경 시 `SocketSessionController.updateAuth(...)`를 호출한다.
+> 별도 `SocketAuthBinder`는 두지 않는다. 물리 소켓 재생성 없이 auth 문맥만 바뀌는 경우(만료 refresh·재연결 재인증·같은 소켓 내 site 전환)는 SDK `AuthController`가 담당한다 — 만료·재연결은 자동, site 전환은 `client.auth.switch(`${uid}@${siteId}`)`([../auth/usage.md](../auth/usage.md) §1.4). 이전 구현의 `SocketAuthBinder`(identity token 변경 관측 → `updateAuth('session-switch')`)는 SDK 도입 시 삭제된다.
 
 ## 조립 규칙
 
@@ -55,9 +53,10 @@ export interface RuntimeBinding {
 `runtime`이 조립하는 것:
 
 - `SocketManager`
-- `SocketSessionController`
 - `SyncManager`
 - `DataManager`
+
+인증은 별도 조립 객체 없이 SDK `AuthController`(`client.auth`)가 소유하고, bootstrap 시퀀싱은 `SocketBinder`가 `bootstrapSocketConnection(...)` 함수로 수행한다.
 
 ## 관련 문서
 
