@@ -1,4 +1,4 @@
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { cloudCore, identityCore, relayCore } from './core';
 import type {
@@ -9,12 +9,7 @@ import type {
     IdentityContext,
     RelayContext,
 } from './types';
-import { getPermissions, getUserType } from './types';
 import { notifySessionStateChanged, registerSessionCacheInvalidator } from './utils';
-
-interface UserViewExtended {
-    userRole?: string;
-}
 
 type SessionIdentityState = Pick<IdentityContext, 'isInitialized' | 'isAuthenticated' | 'error'>;
 
@@ -23,7 +18,7 @@ const buildRelayContext = (): RelayContext => ({
     wss: relayCore.getWss(),
     identityToken: relayCore.getIdentityToken(),
     siteId: relayCore.getSelectedSiteId(),
-    isAuthenticated: !!identityCore.getRelayProfile(),
+    isAuthenticated: !!relayCore.getRelayToken(),
 });
 
 const buildCloudContext = (): CloudContext => {
@@ -44,33 +39,36 @@ const buildCloudContext = (): CloudContext => {
     };
 };
 
+// The active session token (cloud wins when a cloud session is active, mirroring activeServer
+// resolution). The full UserProfile$ payload is no longer stored — the raw token is already
+// persisted for auth (relayCore/cloudCore), and uid + the profile seed derive from it on demand.
+const getActiveSessionToken = (): UserTokenView | null => {
+    const cloudActive = buildCloudContext().isActive;
+    return (cloudActive ? cloudCore.getCloudToken() : relayCore.getRelayToken()) ?? null;
+};
+
+/**
+ * The active token's user fields ({ userRole, name, photo, ... }) — the synchronous seed for
+ * `useProfileFacts` (guard flash prevention). Strips the `Token` carrier; prefers an embedded
+ * `$user`, else the flat token view. Returns null when there is no session.
+ */
+export const getActiveSessionUser = (): Record<string, unknown> | null => {
+    const token = getActiveSessionToken();
+    if (!token) return null;
+    const { Token: _token, ...view } = token as unknown as Record<string, unknown> & { Token?: unknown };
+    return ((view as { $user?: Record<string, unknown> }).$user ?? view) as Record<string, unknown>;
+};
+
 const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
-    const relayProfile = identityCore.getRelayProfile();
-    const cloudProfile = identityCore.getCloudProfile();
-    const isInvited = identityCore.getIsInvited();
-    const cloudToken = cloudCore.getCloudToken();
-    const activeProfile = cloudProfile ?? relayProfile;
-    const userRole =
-        (activeProfile?.$user as { userRole?: string } | undefined)?.userRole ??
-        (activeProfile as { userRole?: string } | undefined)?.userRole ??
-        null;
-    const isGuest = identityCore.getIsGuest() || userRole === 'guest';
-    const userType = getUserType(activeProfile, isInvited, !!cloudToken);
+    // Pure state store: the uid (for cache observing) + session flags. Profile facts
+    // (userRole/isGuest/userType/permissions/name) are tracked from the cached profile via
+    // useProfileFacts (@chatic/app-runtime); the profile payload is not stored here.
+    const token = getActiveSessionToken() as { uid?: string; id?: string } | null;
 
     return {
         ...state,
-        relayProfile,
-        cloudProfile,
-        activeProfile,
-        userId: activeProfile?.uid ?? null,
+        userId: token?.uid ?? token?.id ?? null,
         delegatorId: identityCore.getDelegatorId(),
-        userRole,
-        isInvited,
-        isGuest,
-        userName: activeProfile?.$user?.name || 'Unknown',
-        oAuthProvider: identityCore.getOAuthProvider(),
-        userType,
-        permissions: getPermissions(userType),
     };
 };
 
@@ -106,7 +104,7 @@ const resolveActiveServerContext = (relay: RelayContext, cloud: CloudContext): A
 
 let identityState = buildIdentityContext({
     isInitialized: false,
-    isAuthenticated: !!identityCore.getRelayProfile(),
+    isAuthenticated: !!relayCore.getRelayToken(),
     error: null,
 });
 
@@ -119,8 +117,8 @@ registerSessionCacheInvalidator(() => {
 });
 
 const getSessionAuthSnapshotRaw = () => {
-    const { isInitialized, isAuthenticated, error, activeProfile } = identityState;
-    return { isInitialized, isAuthenticated, error, activeProfile };
+    const { isInitialized, isAuthenticated, error } = identityState;
+    return { isInitialized, isAuthenticated, error };
 };
 
 const getGlobalSessionContext = (): GlobalSessionContext => {
@@ -202,38 +200,22 @@ export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
     notifySessionStateChanged();
 };
 
-export const setSessionProfile = (profile: UserProfile$): void => {
-    identityCore.setRelayProfile(profile);
-    const userRoleGuest =
-        (profile.$user as UserViewExtended)?.userRole === 'guest' || (profile as any)?.userRole === 'guest';
-    if (userRoleGuest && profile.uid) {
-        identityCore.setDelegatorId(profile.uid);
-    } else {
-        identityCore.setDelegatorId(null);
-    }
+// Rebuilds identity from the current token/flag storage and notifies subscribers. Call after a
+// caller changes the underlying session tokens (relay/cloud) so token-derived fields (uid,
+// delegatorId, flags) refresh. Profile payloads are no longer stored, so there is nothing to set
+// beyond re-deriving from state.
+export const rebuildSessionIdentity = (): void => {
     const state = readSessionIdentityState();
-    sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: true }));
+    sessionContextStore.setIdentityState(buildIdentityContext(state));
     notifySessionStateChanged();
 };
 
-export const clearSessionProfile = (): void => {
-    identityCore.setRelayProfile(null);
+// Tears down the relay session: drops the relay token (the auth anchor) so token-derived auth
+// (buildRelayContext, module init) clears in-session, then rebuilds identity as unauthenticated.
+export const clearRelaySession = (): void => {
+    relayCore.clearToken();
     const state = readSessionIdentityState();
     sessionContextStore.setIdentityState(buildIdentityContext({ ...state, isAuthenticated: false }));
-    notifySessionStateChanged();
-};
-
-export const setSessionCloudProfile = (profile: UserProfile$ | null): void => {
-    identityCore.setCloudProfile(profile);
-    const state = readSessionIdentityState();
-    sessionContextStore.setIdentityState(buildIdentityContext(state));
-    notifySessionStateChanged();
-};
-
-export const clearSessionCloudProfile = (): void => {
-    identityCore.setCloudProfile(null);
-    const state = readSessionIdentityState();
-    sessionContextStore.setIdentityState(buildIdentityContext(state));
     notifySessionStateChanged();
 };
 
