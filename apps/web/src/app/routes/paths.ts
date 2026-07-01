@@ -86,6 +86,7 @@ export const ROUTES = {
         cacheTest: '/debug/cache-test',
         uploadTest: '/debug/upload-test',
         badgeCount: '/debug/badge-count',
+        inviteRedirect: '/debug/invite-redirect',
     },
 } as const;
 

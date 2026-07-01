@@ -4,6 +4,7 @@ import {
     DebugBadgeCountPage,
     DebugCacheTestPage,
     DebugChatPage,
+    DebugInviteRedirectPage,
     DebugLogBufferPage,
     DebugLoginPage,
     DebugPage,
@@ -20,6 +21,7 @@ export const DebugRoutes = () => {
             <Route path="cache-test" element={<DebugCacheTestPage />} />
             <Route path="upload-test" element={<DebugUploadPage />} />
             <Route path="badge-count" element={<DebugBadgeCountPage />} />
+            <Route path="invite-redirect" element={<DebugInviteRedirectPage />} />
         </Routes>
     );
 };
