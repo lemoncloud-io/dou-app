@@ -1,6 +1,5 @@
 /**
  * `hooks/use-client-container.ts`
- * - ContainerEvent(state/log/sync-targets)를 React state로 브리지.
  */
 import { useEffect, useState } from 'react';
 import type { ClientSocketState, SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';

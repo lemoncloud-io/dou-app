@@ -13,7 +13,6 @@ export interface HeaderProps {
     badgeColor: string;
 }
 
-/** 디자인 셸 헤더 — 탭(Observe/Probe) + 편집 가능 endpoint input + 전역 상태 배지. */
 export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, badgeColor }: HeaderProps) {
     const [focused, setFocused] = useState(false);
     const tabBtn = (key: Tab, label: string) => {

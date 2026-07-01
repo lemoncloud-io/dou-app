@@ -1,5 +1,5 @@
 /**
- * `model/monitor-types.ts` — Socket Monitor 공용 도메인 타입.
+ * `model/monitor-types.ts`
  */
 export type RampMode = 'instant' | 'staged';
 

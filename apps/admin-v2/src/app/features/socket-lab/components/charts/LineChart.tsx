@@ -12,7 +12,6 @@ export interface LineChartProps {
     kneeN?: number | null;
 }
 
-/** Fan-out latency vs 구독자 수 라인 차트(gridline/SLO/knee/baseline 오버레이). 디자인 lineChart 포팅. */
 export default function LineChart({ curve, w, h, accent, baseline, kneeN }: LineChartProps) {
     const padL = 42;
     const padT = 16;

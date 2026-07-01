@@ -11,7 +11,6 @@ export interface SidebarProps {
     onToggleTheme: () => void;
 }
 
-/** 디자인 셸 사이드바 — 브랜드 + nav 1 + 푸터(테마/계정/로그아웃/엔드포인트/build). */
 export default function Sidebar({ endpoint, theme, onToggleTheme }: SidebarProps) {
     const identity = useSessionIdentity();
     const logout = useSessionLogout();

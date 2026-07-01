@@ -6,7 +6,6 @@ export interface ObserveTabProps {
     wl: Watchlist;
 }
 
-/** Observe 탭 — User Watchlist(요약 + 마스터-디테일). */
 export default function ObserveTab({ wl }: ObserveTabProps) {
     const devices = wl.observed.flatMap(u => u.devices);
     const deviceCounts = { green: 0, yellow: 0, red: 0 };

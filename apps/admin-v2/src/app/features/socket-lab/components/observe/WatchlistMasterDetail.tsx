@@ -9,7 +9,6 @@ export interface WatchlistMasterDetailProps {
     wl: Watchlist;
 }
 
-/** 마스터(관측 유저 한 줄 목록) + 디테일(선택 유저 디바이스 목록 + reload). */
 export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps) {
     const [hoverId, setHoverId] = useState<string | null>(null);
     const [dragId, setDragId] = useState<string | null>(null);

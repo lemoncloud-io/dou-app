@@ -1,11 +1,7 @@
 /**
  * `store/store.ts`
- * - socket sync ↔ UI 사이의 단일 경계(seam). 프론트가 캐시 DB를 주입하는 지점.
- * - UI 읽기는 동기 in-memory mirror가 정본. 캐시 DB는 비동기 write-through sink(선택).
- * - 도메인별 스냅샷 스키마는 서로 다르므로 단일 스키마를 강제하지 않고 T로 받는다.
  */
 
-/** UI가 동기로 읽는 store 경계. useSyncExternalStore 연결을 위해 version()을 노출한다. */
 export interface Store<T> {
     upsert(key: string, value: T): void;
     read(key: string): T | undefined;
@@ -18,7 +14,6 @@ export interface Store<T> {
     clear(): void;
 }
 
-/** 프론트 캐시 DB 주입점: 비동기 sink. mirror 갱신과 별개로 write-through. */
 export interface StoreBacking<T> {
     write(key: string, value: T): Promise<void>;
     remove?(key: string): Promise<void>;

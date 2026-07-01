@@ -1,6 +1,5 @@
 /**
- * socket-monitor.css — Socket Monitor 전역 스타일.
- * 인라인 스타일로 못 푸는 것만 여기서 처리(폰트/keyframes/스크롤바/range). `.sm-root` 스코프로 auth 페이지 누수 방지.
+ * socket-monitor.css
  */
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
 
@@ -38,7 +37,6 @@
 }
 
 .sm-root {
-    /* 팔레트 토큰(다크 기본값 = 기존 하드코딩값 그대로). 상태색(green/yellow/red)·accent(teal)는 테마 공통이라 미토큰화. */
     --sm-bg: #0a0d12;
     --sm-bg-deepest: #0b0f16;
     --sm-sidebar: #0c1118;
@@ -84,7 +82,6 @@
     box-sizing: border-box;
 }
 
-/* 라이트 테마 오버라이드 — 토큰만 교체(GitHub Primer light 매핑). */
 .sm-root.sm-light {
     --sm-bg: #f6f8fa;
     --sm-bg-deepest: #eef1f4;
@@ -150,5 +147,3 @@
     cursor: pointer;
     border: 2px solid var(--sm-bg);
 }
-
-/* 모달은 .sm-root 밖(fixed overlay)일 수 있으나 페이지 내부에 렌더하므로 스코프 유지. */

@@ -1,7 +1,6 @@
 /**
  * `hooks/use-load-test.ts`
- * - Probe/Load test 시뮬레이션. 디자인 tickLoad/computeReport/applyPreset 포팅(500ms 틱).
- * - Phase 2: tickLoad의 latency 수식과 computeReport 집계를 실 N-client 측정으로 교체.
+ * - Probe/Load test 시뮬레이션
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -193,11 +192,12 @@ export const useLoadTest = (): LoadTest => {
         const r: RunState = { ...prev, ramp: [...prev.ramp], live: [...prev.live] };
         r.elapsed += 1;
         if (cfg.ramp === 'instant') r.conns = cfg.subs;
-        else
-            {r.conns = Math.min(
+        else {
+            r.conns = Math.min(
                 cfg.subs,
                 Math.round(cfg.subs * Math.min(1, r.elapsed / Math.max(1, cfg.duration * 0.6)))
-            );}
+            );
+        }
         r.ramp.push(r.conns);
         r.sent += cfg.pubs * cfg.rate;
         r.recv += cfg.pubs * cfg.rate * r.conns;

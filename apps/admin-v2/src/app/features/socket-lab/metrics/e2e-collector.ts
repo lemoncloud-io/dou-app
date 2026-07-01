@@ -1,10 +1,6 @@
 /**
  * `metrics/e2e-collector.ts`
- * - React 밖 plain collector. 클라 1개당 1개 보유.
- * - 송신 E2E(헤드라인): 송신자는 자기 chat.sync broadcast에서 제외되므로 onApply가 안 fire.
- *   → t0=send, t1=chat.send 응답 resolve, t2=응답 렌더 후 rAF.
- * - 수신 E2E(보너스, 멀티패널): 임베드 sentAt=t0, onApply=t1, t2=rAF. 공유 시계 전제.
- * - 고빈도 샘플이 React 리렌더 폭주를 일으키지 않도록 통지는 rAF 1회 배치.
+ * - React 밖 plain collector. 클라 1개당 1개 보유함.
  */
 /** 정렬 후 ratio 분위수(올림). 빈 배열은 0. */
 const percentile = (values: number[], ratio: number): number => {
@@ -39,9 +35,7 @@ export interface MetricsSummary {
 }
 
 export interface E2ECollectorOptions {
-    /** 테스트 주입용. 기본 performance.now */
     now?: () => number;
-    /** 테스트 주입용. 기본 requestAnimationFrame */
     scheduleFrame?: (cb: () => void) => void;
 }
 
@@ -71,14 +65,12 @@ export class E2ECollector {
         this.scheduleFrame = opts.scheduleFrame ?? defaultFrame;
     }
 
-    /** chat.send 직전. t0 기록 + 상관 토큰 반환 */
     markSend(): number {
         const token = (this.seq += 1);
         this.pendingSend.set(token, this.now());
         return token;
     }
 
-    /** chat.send 응답 resolve 시점 = t1. 렌더 후 rAF로 t2 확정 */
     markSendAck(token: number): void {
         const t0 = this.pendingSend.get(token);
         if (t0 === undefined) return;
@@ -91,7 +83,6 @@ export class E2ECollector {
         });
     }
 
-    /** 수신 E2E(보너스): 다른 클라가 보낸 메시지 onApply에서 호출. originOk=같은 시계(timeOrigin) 검증 결과 */
     markReceive(sentAt: number, originOk: boolean): void {
         if (!originOk || !Number.isFinite(sentAt)) return;
         const t1 = this.now();
@@ -129,7 +120,6 @@ export class E2ECollector {
         return () => this.listeners.delete(fn);
     }
 
-    /** rAF 1회 배치 통지 — 같은 프레임 내 다중 샘플은 setState 1회로 합쳐진다 */
     private scheduleNotify(): void {
         if (this.notifyScheduled) return;
         this.notifyScheduled = true;

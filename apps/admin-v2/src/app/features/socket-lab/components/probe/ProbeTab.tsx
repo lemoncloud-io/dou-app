@@ -11,7 +11,6 @@ export interface ProbeTabProps {
     load: LoadTest;
 }
 
-/** Probe 탭 — Gateway Sandbox / Load test(on-demand) 모드 전환. */
 export default function ProbeTab({ sandbox, load }: ProbeTabProps) {
     const [mode, setMode] = useState<ProbeMode>('sandbox');
     const sandboxActive = sandbox.clients.some(

@@ -15,7 +15,6 @@ import '../socket-monitor.css';
 
 const FALLBACK_WS = 'wss://ws.lemoncloud.io/socket';
 
-/** Socket Monitor 셸 — 사이드바 + 헤더(탭) + Observe/Probe 콘텐츠 + 검색 모달. */
 export const SocketMonitorPage = () => {
     const { theme, toggle } = useTheme();
     const [tab, setTab] = useState<Tab>('observe');
@@ -25,7 +24,6 @@ export const SocketMonitorPage = () => {
     const sandbox = useSandbox(endpoint);
     const load = useLoadTest();
 
-    // 전역 상태 배지 — 워치리스트 디바이스 status 종합.
     const counts = { green: 0, yellow: 0, red: 0 };
     wl.observed.forEach(u => u.devices.forEach(d => (counts[d.status] += 1)));
     let badgeColor = '#3fb950';

@@ -49,7 +49,6 @@ const ctrlBtn = {
     color: 'var(--sm-text-2)',
 };
 
-/** Gateway Sandbox 클라 1개 패널 — 헤더/인증/게이트웨이 액션/지표/로그. */
 export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
     const dot = STATUS_COLOR[c.status];
     const pulsing = c.status === 'connecting' || c.status === 'reconnecting';

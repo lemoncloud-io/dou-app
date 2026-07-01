@@ -8,7 +8,6 @@ interface State {
     info?: string;
 }
 
-/** 렌더 크래시를 화면에 노출 — 콘솔 없이도 원인 파악용. */
 export default class ErrorBoundary extends Component<Props, State> {
     override state: State = {};
 

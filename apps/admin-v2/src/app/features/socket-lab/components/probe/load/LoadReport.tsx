@@ -25,7 +25,6 @@ const panelHead = (title: React.ReactNode) => (
 
 const verdictColorOf = (v: string) => (v === 'PASS' ? '#3fb950' : v === 'WARN' ? '#d29922' : '#f85149');
 
-/** Load test 리포트 — Verdict + KPI + headline 곡선 + 분포/공정성/throughput/완전성/connect + 회귀 비교. */
 export default function LoadReport({ load }: LoadReportProps) {
     const rep = load.report;
     if (!rep) return null;

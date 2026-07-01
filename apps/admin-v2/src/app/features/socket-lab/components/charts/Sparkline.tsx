@@ -7,7 +7,6 @@ export interface SparklineProps {
     h?: number;
 }
 
-/** 작은 시계열 추이선(영역 + 라인 + 끝점). 디자인 sparkEl 포팅. */
 export default function Sparkline({ series, color, w = 132, h = 38 }: SparklineProps) {
     if (!series || series.length < 2) return null;
     const min = Math.min(...series);

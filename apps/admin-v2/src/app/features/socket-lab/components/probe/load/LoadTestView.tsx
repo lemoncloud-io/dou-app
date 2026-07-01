@@ -7,7 +7,6 @@ export interface LoadTestViewProps {
     load: LoadTest;
 }
 
-/** Load test 모드 — idle / running / done 3-state 전환. */
 export default function LoadTestView({ load }: LoadTestViewProps) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
