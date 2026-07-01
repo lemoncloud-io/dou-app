@@ -25,7 +25,7 @@ export type SocketDomainGateway = Pick<DomainGateway, 'request'>;
 export type CloudDomainGateway = Pick<CloudGateway, 'update' | 'get' | 'delete'>;
 export type ProfileDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' | 'set' | 'sync'>;
 export type UserDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
-    Pick<UserGateway, 'update' | 'invite' | 'inviteBatch'>;
+    Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch'>;
 
 export interface RemoteGatewayBundle {
     auth: AuthDomainGateway;
