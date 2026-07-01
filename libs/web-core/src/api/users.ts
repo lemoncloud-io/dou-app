@@ -1,7 +1,6 @@
 import { executeSignedRelayRequest, getCoreEndpoint } from '../transport';
 
 import type {
-    CloudBody,
     CloudDelegationTokenView,
     CloudVerifyEmailBody,
     CloudVerifyEmailView,
@@ -32,14 +31,6 @@ export const fetchClouds = async (params: Params = {}): Promise<ListResult<Cloud
         method: 'GET',
         baseURL: `${CORE_ENDPOINT}/clouds/0/list`,
         params: { ...params, view: 'mine' },
-    });
-};
-
-export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
-    return executeSignedRelayRequest<CloudView, CloudBody>({
-        method: 'PUT',
-        baseURL: `${CORE_ENDPOINT}/clouds/${cloudId}`,
-        body,
     });
 };
 

@@ -34,7 +34,9 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
         const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = getGlobalSessionContext();
-        const userRole = (state.identity.activeProfile?.$user as any)?.userRole;
+        // Read identity facts off the derived session fields, not activeProfile directly:
+        // activeProfile is state storage; its display data is consumed via user.observeItem(uid).
+        const userRole = state.identity.userRole ?? undefined;
 
         const cloudState = state.cloud;
         const cloudToken = cloudState.cloudToken;
@@ -68,8 +70,8 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent,
             user: {
-                uid: state.identity.activeProfile?.uid,
-                name: state.identity.activeProfile?.$user?.name,
+                uid: state.identity.userId ?? undefined,
+                name: state.identity.userName,
                 role: userRole,
                 isAuthenticated: state.identity.isAuthenticated,
                 isGuest: state.identity.isGuest,
@@ -124,7 +126,9 @@ export const reportIssue = async (title: string, message: string): Promise<void>
         const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = getGlobalSessionContext();
-        const userRole = (state.identity.activeProfile?.$user as any)?.userRole;
+        // Read identity facts off the derived session fields, not activeProfile directly:
+        // activeProfile is state storage; its display data is consumed via user.observeItem(uid).
+        const userRole = state.identity.userRole ?? undefined;
 
         const cloudState = state.cloud;
         const cloudToken = cloudState.cloudToken;
@@ -139,8 +143,8 @@ export const reportIssue = async (title: string, message: string): Promise<void>
             url: window.location.href,
             timestamp: new Date().toISOString(),
             user: {
-                uid: state.identity.activeProfile?.uid,
-                name: state.identity.activeProfile?.$user?.name,
+                uid: state.identity.userId ?? undefined,
+                name: state.identity.userName,
                 role: userRole,
                 isAuthenticated: state.identity.isAuthenticated,
             },

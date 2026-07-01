@@ -16,7 +16,6 @@ import type {
     RegisterUserV2Body,
     UserBody,
     UserLogoutResult,
-    UserProfile$,
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
@@ -184,34 +183,23 @@ export const refreshAuthToken = async (target?: string) => {
                 })
                 .setParams({ token: 1 })
                 .setBody({ current, signature, ...(target ? { target } : {}) })
-                .execute<LemonOAuthToken & { error?: string }>();
+                .execute<UserTokenView & { error?: string }>();
 
             throwIfApiError(response.data);
 
-            const tokenData = {
-                identityPoolId: originToken.identityPoolId,
-                ...(response.data.Token ? response.data.Token : response.data),
-            };
-            return validateTokenResponse(tokenData);
+            // Return the full relay token view (profile fields + Token) so callers can derive the
+            // session profile from the refresh response — no separate `/users/0/profile` GET.
+            const view = response.data as UserTokenView;
+            const token = view.Token
+                ? ({ identityPoolId: originToken.identityPoolId, ...view.Token } as UserTokenView['Token'])
+                : view.Token;
+            const nextView = { ...view, Token: token } as UserTokenView;
+            // Throws if the identityToken is missing from the refresh response.
+            validateTokenResponse(nextView.Token ?? nextView);
+            return nextView;
         },
         MAX_RETRIES,
         'Token refresh'
-    );
-};
-
-export const fetchProfile = async () => {
-    return await withRetry(
-        async () => {
-            const { data } = await webTransport
-                .buildSignedRequest({
-                    method: 'GET',
-                    baseURL: `${getOAuthEndpoint()}/users/0/profile`,
-                })
-                .execute<UserProfile$ & { error?: string }>();
-            return throwIfApiError(data);
-        },
-        MAX_RETRIES,
-        'Profile fetch'
     );
 };
 
@@ -225,43 +213,6 @@ export const fetchInviteInfoWithCode = async (code: string, backend: string): Pr
         .execute<MyInviteView & { error?: string }>();
 
     return throwIfApiError(data);
-};
-
-/**
- * 낙관적 프로필 조회 — retry/auth error handling 없음.
- * 토큰 갱신과 병렬 실행용: 현재 토큰이 아직 유효하면 즉시 프로필 반환.
- * 실패 시 null 반환 (alert/redirect 없음).
- */
-export const tryFetchProfile = async (): Promise<UserProfile$ | null> => {
-    try {
-        const { data } = await webTransport
-            .buildSignedRequest({
-                method: 'GET',
-                baseURL: `${getOAuthEndpoint()}/users/0/profile`,
-            })
-            .execute<UserProfile$ & { error?: string }>();
-        return data?.error ? null : data;
-    } catch {
-        return null;
-    }
-};
-
-export const updateProfile = async (uid: string, body: Record<string, unknown>) => {
-    const endpoint = getDynamicRelayBackend();
-    return withRetry(
-        async () => {
-            const { data } = await webTransport
-                .buildSignedRequest({
-                    method: 'PUT',
-                    baseURL: `${endpoint}/users/${uid}`,
-                })
-                .setBody(body as Record<string, unknown>)
-                .execute<UserProfile$ & { error?: string }>();
-            return throwIfApiError(data);
-        },
-        MAX_RETRIES,
-        'Profile update'
-    );
 };
 
 const validateTokenResponse = (tokenData: any): LemonOAuthToken => {
