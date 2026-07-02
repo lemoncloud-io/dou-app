@@ -22,6 +22,7 @@ import {
 import { useActiveCloudChannels } from '../features/unread/useActiveCloudChannels';
 import { useHomeUnreads } from '../features/unread/useHomeUnreads';
 import { readCloudUnreadSnapshot, writeCloudUnread } from '../features/unread/cloudUnreadSnapshot';
+import { useLastChat } from './useLastChat';
 
 const DEFAULT_CLOUD_ID = 'default';
 
@@ -38,7 +39,7 @@ type ManageDialog =
 // poll faster via their own sync targets; this only re-discovers added/removed list entries.
 const LIST_REFRESH_POLL_MS = 30_000;
 
-// lastChat$.createdAt is a raw epoch (ms); render a short HH:MM, tolerating missing/odd values.
+// A chat's createdAt is a raw epoch (ms); render a short HH:MM, tolerating missing/odd values.
 const formatChatTime = (createdAt?: number): string => {
     if (!createdAt) return '';
     const date = new Date(createdAt);
@@ -390,58 +391,18 @@ export const ChatHomePage = () => {
                     </p>
                 ) : (
                     <div className="space-y-1">
-                        {channels.map(ch => {
-                            const lastChat = ch.lastChat$;
-                            // Client-computed unread (user messages only) — replaces the raw server
-                            // unreadCount so system join/leave messages don't inflate the badge.
-                            const unread = unreads.byChannel[ch.id] ?? 0;
-                            return (
-                                <div key={ch.id} className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => navigate(`/chat/channels/${ch.id}`)}
-                                        className="flex-1 text-left px-3 py-2 rounded-lg text-sm border border-border bg-card hover:bg-accent transition-colors"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-medium truncate flex-1">{ch.name ?? ch.id}</p>
-                                            {lastChat?.createdAt != null && (
-                                                <span className="text-[10px] text-muted-foreground shrink-0">
-                                                    {formatChatTime(lastChat.createdAt)}
-                                                </span>
-                                            )}
-                                            {unread > 0 && (
-                                                <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                                                    {unread}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {lastChat && (
-                                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                                {(lastChat.owner$?.name ?? lastChat.ownerId) && (
-                                                    <span className="font-medium">
-                                                        {lastChat.owner$?.name ?? lastChat.ownerId}:{' '}
-                                                    </span>
-                                                )}
-                                                {lastChat.content ?? ''}
-                                            </p>
-                                        )}
-                                        <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
-                                            <span>#{ch.chatNo ?? 0}</span>
-                                            {ch.memberNo != null && <span>멤버 {ch.memberNo}</span>}
-                                            <span className="truncate">{ch.id}</span>
-                                        </div>
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            setManageDialog({ kind: 'editChannel', id: ch.id, name: ch.name ?? '' })
-                                        }
-                                        className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
-                                        title="이름 수정"
-                                    >
-                                        ✎
-                                    </button>
-                                </div>
-                            );
-                        })}
+                        {/* Unread is client-computed (user messages only) so system join/leave events
+                            don't inflate the badge; the last-message preview comes from ChannelRow's
+                            own chat sync (server no longer embeds lastChat$). */}
+                        {channels.map(ch => (
+                            <ChannelRow
+                                key={ch.id}
+                                channel={ch}
+                                unread={unreads.byChannel[ch.id] ?? 0}
+                                onOpen={() => navigate(`/chat/channels/${ch.id}`)}
+                                onEdit={() => setManageDialog({ kind: 'editChannel', id: ch.id, name: ch.name ?? '' })}
+                            />
+                        ))}
                     </div>
                 )}
             </section>
@@ -515,3 +476,59 @@ const CloudItem = ({ id, name, isActive, isPending, isInvited, hasUnread, onClic
         <p className="text-xs text-muted-foreground font-mono">{id}</p>
     </button>
 );
+
+interface ChannelRowProps {
+    channel: DomainChannel;
+    unread: number;
+    onOpen: () => void;
+    onEdit: () => void;
+}
+
+// A single channel row. Extracted so it can register + prime a per-row chat sync via useLastChat and
+// read the channel's latest cached message — the last-message preview source now that the server no
+// longer embeds lastChat$ on the channel. Registration unregisters on unmount (row leaves the list).
+const ChannelRow = ({ channel, unread, onOpen, onEdit }: ChannelRowProps) => {
+    const lastChat = useLastChat(channel.id);
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                onClick={onOpen}
+                className="flex-1 text-left px-3 py-2 rounded-lg text-sm border border-border bg-card hover:bg-accent transition-colors"
+            >
+                <div className="flex items-center gap-2">
+                    <p className="font-medium truncate flex-1">{channel.name ?? channel.id}</p>
+                    {lastChat?.createdAt != null && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                            {formatChatTime(lastChat.createdAt)}
+                        </span>
+                    )}
+                    {unread > 0 && (
+                        <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                            {unread}
+                        </span>
+                    )}
+                </div>
+                {lastChat && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {(lastChat.owner$?.name ?? lastChat.ownerId) && (
+                            <span className="font-medium">{lastChat.owner$?.name ?? lastChat.ownerId}: </span>
+                        )}
+                        {lastChat.content ?? ''}
+                    </p>
+                )}
+                <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
+                    <span>#{channel.chatNo ?? 0}</span>
+                    {channel.memberNo != null && <span>멤버 {channel.memberNo}</span>}
+                    <span className="truncate">{channel.id}</span>
+                </div>
+            </button>
+            <button
+                onClick={onEdit}
+                className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+                title="이름 수정"
+            >
+                ✎
+            </button>
+        </div>
+    );
+};

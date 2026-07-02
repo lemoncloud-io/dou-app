@@ -40,17 +40,19 @@ repository observe + per-item sync 등록 모델([architecture/data-flow.md](../
 - **플레이스 목록** — `useHomePlaces`가 `repos.place.observeList`를 구독한다. 활성 클라우드(cid)가 바뀌면 재구독하고 이전 클라우드 행을 폐기한다. `isVerified`가 되면 `place.refreshList()`로 스냅샷을 당겨온다(전환 낙관 구간 stale fetch 회피).
 - **채널 목록** — `useHomeChannels(sid)`가 `repos.channel.observeList({ sid })`를 구독한다. relay 클라우드 캐시는 sid 격리가 안 되므로 결과를 `sid`로 한 번 더 필터한다(전환 직후 이전 사이트 채널 깜빡임 방지).
 - **플레이스 전환** — `useSwitchPlace`가 `useSiteSwitch().switchSite`를 호출한다(낙관 선반영·커밋·롤백 내장). 활성 사이트가 없으면 목록 첫 플레이스를 자동 선택. 선택 상태는 `useSessionSelection().selectedSiteId`에서 읽는다.
-- **동기화 등록** — 렌더되는 항목이 직접 등록: `PlaceItem` → `usePlaceSync`, `ChannelItem` → `useChannelSync` + `useJoinSync`. 마운트/언마운트에 따라 자동 정리된다.
+- **동기화 등록** — 렌더되는 항목이 직접 등록: `PlaceItem` → `usePlaceSync`, `ChannelItem` → `useChannelSync` + `useLastChat`(마지막 메시지 미리보기용 chat 동기화, → [last-chat.md](./last-chat.md)). 마운트/언마운트에 따라 자동 정리된다.
 
 ## 미읽음 계산
 
-채널 단위 미읽음 = **channel과 join의 chatNo 차분**:
+채널 단위 미읽음 = **channel의 최신 chatNo와 내 읽음 커서(`$join.chatNo`)의 차분**(시스템 메시지 보정 포함):
 
 ```
-unread(channel) = max(0, (channel.lastChat$?.chatNo ?? channel.chatNo ?? 0) - myJoin.readNo)
+unread(channel) = max(0, (channel.chatNo ?? 0) - ($join.chatNo ?? 0) - systemInWindow)
 ```
 
-`useChannelUnreads(channels)`가 `repos.join.observeList({})`를 한 번 구독해(현재 유저로 필터) 채널별 unread map과 총합을 도출한다. readNo는 per-channel `useJoinSync`로 실시간 동기화된다.
+`useChannelUnreads(channels)`가 각 채널에 **임베드된 `$join.chatNo`**에서 파생한다 — 별도 join 구독은 없다. 읽음을 보내면 다음 channel sync에서 서버가 `$join.chatNo`를 전진시켜 배지가 스스로 지워진다. 최신 번호는 서버가 계속 보내는 `channel.chatNo`를 쓴다(예전 `lastChat$.chatNo`는 서버가 더 이상 전송하지 않음). 시스템(join/leave) 메시지는 `channel.metaNo`로 윈도우에서 제외해 사용자 메시지만 센다.
+
+> 마지막 메시지 **미리보기**(내용/시간)는 안읽음과 분리돼 chat 동기화에서 온다 — [last-chat.md](./last-chat.md).
 
 ## 클라우드 전환 시트 (CloudSessionSheet)
 
