@@ -3,7 +3,6 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
-import type { SetNotificationPrefsPayload } from '@chatic/app-messages';
 import {
     app,
     BrowserWindow,
@@ -18,7 +17,6 @@ import {
     shell,
     Tray,
 } from 'electron';
-import { isBannerSuppressed } from './dnd';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
@@ -193,17 +191,11 @@ const pushDeeplink = (host: AppBridgeHost, url: string): void => {
  * already emits at most one notification per cache snapshot (newest chat only),
  * so dropping the close() bounds stacking without losing messages.
  */
-// Renderer-mirrored notification prefs (SetNotificationPrefs). DND/global-switch
-// state lives in the web, but cross-cloud FCM banners are raised here in main —
-// gate them on the same prefs so quiet hours/snooze also silence the shell.
-let notificationPrefs: SetNotificationPrefsPayload | null = null;
-
 const showOsNotification = (
     host: AppBridgeHost,
     win: BrowserWindow,
     params: { title: string; body: string; deeplink?: string }
 ): void => {
-    if (isBannerSuppressed(notificationPrefs)) return;
     const { title, body, deeplink } = params;
     if (Notification.isSupported()) {
         const notification = new Notification({ title, body });
@@ -278,13 +270,6 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
     host.registerHandler('FetchFcmToken', async () => {
         const token = await awaitFcmToken();
         return { type: 'OnFetchFcmToken', success: true, data: { token } };
-    });
-
-    // SetNotificationPrefs: the web mirrors its DND/global-switch prefs so the
-    // main-process FCM banners honor them (see showOsNotification).
-    host.registerHandler('SetNotificationPrefs', message => {
-        notificationPrefs = message.data;
-        return { type: 'OnSetNotificationPrefs', success: true, data: { success: true } };
     });
 
     // SetBadgeCount: unread badge. macOS/Linux use the dock badge; Windows has none,
@@ -474,22 +459,10 @@ const createWindow = (): BrowserWindow => {
             host.pushEvent({ type: 'OnFetchFcmToken', success: true, data: { token } });
         },
         onPush: push => {
-            // A silent/data-only push has no notification block (no title/body) — it
-            // must update badges via the data forward below, never pop a banner.
-            const hasBanner = !!(push.title || push.body);
-            // macOS drops focused-app banners itself; Windows/Linux don't, and the
-            // renderer already toasts when focused — skip the banner to avoid doubles.
-            const focusedElsewhere = win.isFocused() && process.platform !== 'darwin';
-            if (hasBanner && !focusedElsewhere) {
-                showOsNotification(host, win, {
-                    title: push.title ?? 'DoU',
-                    body: push.body ?? '',
-                    deeplink: push.deeplink,
-                });
-            }
-            // Also forward to the renderer for an in-app toast: macOS suppresses OS
-            // banners from the focused app, so a cross-cloud push that lands while DoU
-            // is active would otherwise be invisible.
+            // Forward-only: the renderer owns the whole presentation decision (DND,
+            // own-message, focus → toast vs ShowNotification banner), the same way it
+            // owns same-cloud live-WS banners. Raising a banner here would need the
+            // renderer's prefs mirrored into the shell and a second focus source.
             host.pushEvent({
                 type: 'OnReceiveNotification',
                 success: true,

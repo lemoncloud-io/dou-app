@@ -9,7 +9,6 @@ export const toError = (e: unknown): Error => (e instanceof Error ? e : new Erro
 
 const DEFAULT_ERROR_MESSAGE = '알 수 없는 오류가 발생했습니다';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- error shapes are heterogeneous (Error | axios | string | api payload)
 export const extractErrorMessage = (error: any): string => {
     if (!error) {
         return DEFAULT_ERROR_MESSAGE;

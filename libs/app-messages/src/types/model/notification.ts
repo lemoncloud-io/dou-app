@@ -51,25 +51,6 @@ export type OnSetBadgeCountPayload = {
 };
 
 /**
- * [요청] 알림 설정 스냅샷 동기화 페이로드 (web -> app, desktop 전용).
- * 크로스클라우드 FCM 배너는 main 프로세스가 직접 띄우므로, 렌더러의 DND/전역 스위치
- * 상태를 셸로 미러링해 main도 같은 기준으로 배너를 억제할 수 있게 합니다.
- */
-export type SetNotificationPrefsPayload = {
-    /** OS 알림 전역 스위치 (useNotificationPrefsStore.desktopEnabled). */
-    enabled: boolean;
-    /** 스누즈 종료 epoch ms; null = 스누즈 아님. */
-    snoozeUntil: number | null;
-    /** 반복 조용시간 "HH:MM" 24h (자정 통과 허용); null = 꺼짐. */
-    quietHours: { start: string; end: string } | null;
-};
-
-/** [응답] 알림 설정 동기화 결과 페이로드 */
-export type OnSetNotificationPrefsPayload = {
-    success: boolean;
-};
-
-/**
  * [요청] OS 알림 표시 페이로드 (web -> app).
  * 데스크탑은 FCM이 없어 살아있는 WS가 새 메시지를 감지하면 셸에 OS 알림을 요청합니다.
  */

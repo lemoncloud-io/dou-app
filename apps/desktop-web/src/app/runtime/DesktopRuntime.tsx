@@ -9,7 +9,7 @@ import {
     ConnectionBanner,
     UpdateBanner,
     useCrossCloudPushBadge,
-    useCrossCloudPushToast,
+    useCrossCloudPushNotifications,
     useDesktopBadge,
     useDesktopNotifications,
     useDeviceTokenRegistration,
@@ -18,7 +18,6 @@ import {
     useRefreshOnPush,
     useRetainLeavingCloudBadge,
     useSocketWedgeReload,
-    useSyncNotificationPrefsToShell,
     useUnreadStore,
 } from '../shared';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
@@ -33,8 +32,8 @@ const DesktopNotifications = () => {
     useRealtimeProfileSync();
     // Cross-cloud push: register this device's FCM token with the broker.
     useDeviceTokenRegistration();
-    // Cross-cloud push: in-app toast when focused (macOS hides OS banners then).
-    useCrossCloudPushToast();
+    // Cross-cloud push: toast when focused, OS banner when not (the shell only forwards).
+    useCrossCloudPushNotifications();
     // Cross-cloud push: mark the source cloud's rail tile until it's visited.
     useCrossCloudPushBadge();
     // Capture @me messages across all channels into the device-local Activity inbox.
@@ -93,10 +92,6 @@ const ShellUnreadSync = () => {
 export const DesktopRuntime = () => {
     const binding = useRuntimeBinding();
     const delegate = useSocketDelegate();
-    // Mirror DND/global-switch prefs to the Electron main process, which raises
-    // cross-cloud FCM banners itself. Always mounted (not auth-gated): DND must
-    // keep gating shell banners on the logged-out screen too.
-    useSyncNotificationPrefsToShell();
 
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>

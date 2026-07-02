@@ -9,16 +9,8 @@ const DEVICE_REGISTER_TIMEOUT_MS = 5000;
 /** How the connect-driven device.save settled (see waitForDeviceRegistered). */
 type DeviceRegisterOutcome = 'ok' | 'error' | 'timeout';
 
-/**
- * The server's auth.update resolves `:ok` even when authentication FAILED — the
- * failure only shows in the payload (`state: 'failed'`, plus `error`). Treat only
- * an explicit non-authenticated state as failure; a missing `state` (older server)
- * keeps the legacy resolved-means-verified behaviour.
- */
-const isAuthAccepted = (response: unknown): boolean => {
-    const state = (response as { state?: string } | null | undefined)?.state;
-    return state == null || state === 'authenticated';
-};
+/** auth.update response `state` — the only field that reveals a resolved-but-failed auth. */
+const authState = (response: unknown): string | undefined => (response as { state?: string } | null | undefined)?.state;
 
 export class SocketSessionController {
     private delegate: SocketSessionDelegate | null = null;
@@ -129,17 +121,7 @@ export class SocketSessionController {
 
         logger.info('SOCKET', '[SocketSessionController] sending auth:update', { reason });
         try {
-            const response = await client.request('auth.update', { token });
-            if (!isAuthAccepted(response)) {
-                // Resolved `:ok` but the payload says the auth failed — recovering here
-                // instead of markVerified() keeps a rejected token from masquerading as
-                // an authenticated socket.
-                logger.warn('SOCKET', '[SocketSessionController] auth.update resolved with a failed state', {
-                    reason,
-                    state: (response as { state?: string } | null | undefined)?.state,
-                });
-                return this.handle401Recovery();
-            }
+            await this.requestAuthUpdate(client, token);
             this.manager.markVerified();
             return true;
         } catch (error) {
@@ -148,6 +130,20 @@ export class SocketSessionController {
                 reason,
             });
             return this.handle401Recovery();
+        }
+    }
+
+    /**
+     * auth.update that treats a resolved-but-failed payload as an error. The server
+     * responds `:ok` with `state: 'failed'` when it rejects the token, and trusting
+     * the resolve alone would mark an unauthenticated socket verified. A missing
+     * `state` (older server) keeps the legacy resolved-means-verified behaviour.
+     */
+    private async requestAuthUpdate(client: ClientSocketV2, token: string): Promise<void> {
+        const response = await client.request('auth.update', { token });
+        const state = authState(response);
+        if (state != null && state !== 'authenticated') {
+            throw new Error(`auth.update rejected the token (state: ${state})`);
         }
     }
 
@@ -176,14 +172,7 @@ export class SocketSessionController {
                     throw new Error('Socket client is not available');
                 }
 
-                const response = await client.request('auth.update', { token });
-                if (!isAuthAccepted(response)) {
-                    throw new Error(
-                        `auth.update rejected the refreshed token (state: ${
-                            (response as { state?: string } | null | undefined)?.state
-                        })`
-                    );
-                }
+                await this.requestAuthUpdate(client, token);
                 this.manager.markVerified();
                 logger.info('SOCKET', '[SocketSessionController] 401 recovery authentication successful');
                 return true;
