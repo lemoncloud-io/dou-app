@@ -400,7 +400,13 @@ const createWindow = (): BrowserWindow => {
         backgroundColor: '#0b0d10',
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
-            additionalArguments: [`--chatic-device-id=${getOrCreateDeviceId()}`],
+            // Preload runs without the shell's env (and npm_package_version is undefined in a
+            // packaged app), so bake stage + real version in here for the CHATIC_APP_* globals.
+            additionalArguments: [
+                `--chatic-device-id=${getOrCreateDeviceId()}`,
+                `--chatic-stage=${IS_DEV_CHANNEL ? 'dev' : 'prod'}`,
+                `--chatic-app-version=${app.getVersion()}`,
+            ],
             contextIsolation: true,
             nodeIntegration: false,
             // contextIsolation + nodeIntegration:false is the isolation boundary. sandbox stays

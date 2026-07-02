@@ -10,21 +10,29 @@ const TO_APP_CHANNEL = 'chatic-bridge:to-app';
  * Mirrors the keys the mobile native side injects via getDeviceInfoScript()
  * (apps/mobile/src/app/webview/utils/injectionScripts.ts). Platform is 'desktop'.
  */
-// Stable device id injected by main via additionalArguments (--chatic-device-id=...).
-const deviceIdArg = process.argv.find(arg => arg.startsWith('--chatic-device-id='));
-const deviceId = deviceIdArg ? deviceIdArg.slice('--chatic-device-id='.length) : '';
+// Values injected by main via additionalArguments — the preload has no shell env, and
+// npm_package_version is undefined in a packaged app (it used to fall back to '0.0.1'
+// and stage to 'dev' in production).
+const argValue = (name: string): string => {
+    const prefix = `--${name}=`;
+    const arg = process.argv.find(a => a.startsWith(prefix));
+    return arg ? arg.slice(prefix.length) : '';
+};
+const deviceId = argValue('chatic-device-id');
+const stage = argValue('chatic-stage') || 'dev';
+const appVersion = argValue('chatic-app-version') || '0.0.1';
 
 const deviceInfo = {
     CHATIC_APP_PLATFORM: 'desktop',
     CHATIC_APP_APPLICATION: 'chatic-desktop',
-    CHATIC_APP_STAGE: process.env.VITE_DESKTOP_STAGE ?? 'dev',
+    CHATIC_APP_STAGE: stage,
     CHATIC_APP_DEVICE_ID: deviceId,
     CHATIC_APP_DEVICE_MODEL: process.platform,
-    CHATIC_APP_CURRENT_VERSION: process.env.npm_package_version ?? '0.0.1',
+    CHATIC_APP_CURRENT_VERSION: appVersion,
     CHATIC_APP_BUILD_NUMBER: '1',
     CHATIC_APP_CURRENT_LANGUAGE: process.env.VITE_DESKTOP_LANGUAGE ?? 'en',
     CHATIC_APP_INSTALLATION_ID: deviceId,
-    CHATIC_APP_LATEST_VERSION: process.env.npm_package_version ?? '0.0.1',
+    CHATIC_APP_LATEST_VERSION: appVersion,
     CHATIC_APP_SHOULD_UPDATE: 'false',
 } as const;
 
@@ -42,7 +50,7 @@ contextBridge.exposeInMainWorld('ChaticMessageHandler', {
  * Used by desktop-web to display version info in settings and debug pages.
  */
 contextBridge.exposeInMainWorld('electronAPI', {
-    appVersion: process.env.npm_package_version ?? '0.0.1',
+    appVersion,
     platform: process.platform,
 });
 

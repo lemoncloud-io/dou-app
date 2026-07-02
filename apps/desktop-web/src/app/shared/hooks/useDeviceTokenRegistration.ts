@@ -7,6 +7,7 @@ declare global {
     interface Window {
         CHATIC_APP_PLATFORM?: string;
         CHATIC_APP_INSTALLATION_ID?: string;
+        CHATIC_APP_STAGE?: string;
     }
 }
 
@@ -58,8 +59,12 @@ export const useDeviceTokenRegistration = (): void => {
             platform: window.CHATIC_APP_PLATFORM ?? 'desktop',
             installId: window.CHATIC_APP_INSTALLATION_ID,
             application: 'chatic',
+            // Without an explicit stage the broker defaults to ITS default ('dev'),
+            // registering a production desktop into the chatic-desktop-dev SNS app.
+            stage: window.CHATIC_APP_STAGE,
             force: true,
-        }).catch(() => {
+        }).catch(error => {
+            console.warn('[push] device token registration failed', error);
             lastRegisterAtRef.current = 0; // allow an immediate retry
         });
     }, [isAuthenticated, deviceId, registerDeviceToken]);
