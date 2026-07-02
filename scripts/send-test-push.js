@@ -23,11 +23,14 @@ Options:
   --type <type>        Push message type (default: "chat")
   --channel <id>       Notification Channel ID (default: "dou_chat")
                        Options: dou_chat, dou_chat_muted, dou_notice, dou_marketing, dou_cloud
-  --link <url>         Target deep link URL (default: "channel?channelId=room_123")
+  --room <id>          Chat room / channelId (default: "room_123"); also builds the default link
+  --link <url>         Target deep link URL (default: "/channels/<room>/room")
+  --cid <id>           Cloud id in custom payload (default: "cloud_test_id")
+  --sid <id>           Site id in custom payload (default: "site_test_id")
+  --uid <id>           User id in custom payload (default: "user_test_id")
   --title <text>       Sender name / Title argument (default: "홍길동")
   --body <text>        Message content / Body argument (default: "오늘 회의 참석하시나요?")
-  --silent             Send as a silent background push (no banner/sound)
-  --badge <number>     Set app icon badge count (default: 1)
+  --silent             Send as a silent background push (NO banner — wakes app only; see notes)
   --prod               (iOS only) Target APNs Production instead of Sandbox (uses Production AuthKey & Bundle ID)
   --key-file <file>    (iOS only) Override the path to the APNs .p8 key file
   --key-id <id>        (iOS only) Override the APNs Key ID (e.g. 5P79KV86A5)
@@ -41,12 +44,21 @@ APNs AuthKey Naming Convention (Auto-detected in root folder):
 FCM Service Account Naming:
   - serviceAccountKey.json (in root folder)
 
+Background Delivery Notes (iOS):
+  - A --silent push (content-available) shows NO banner and does NOT run the
+    Notification Service Extension; it only wakes the app for background work.
+    iOS also will NOT deliver it if the app was force-quit (swiped away).
+  - To show a banner while the app is backgrounded or closed, send WITHOUT
+    --silent (alert push: mutable-content + alert -> NSE localizes via loc keys).
+  - Sandbox vs Production must match the installed build: Xcode/dev builds use
+    sandbox (default); TestFlight/App Store builds require --prod.
+
 Sample Commands:
   # 1. Android FCM - Default Chat Push
   node scripts/send-test-push.js android fcm_token_here
 
   # 2. Android FCM - Custom Chat Message & Room Deep Link
-  node scripts/send-test-push.js android fcm_token_here --title "이영희" --body "회의 문서 준비되었습니다." --link "channel?channelId=room_456"
+  node scripts/send-test-push.js android fcm_token_here --title "이영희" --body "회의 문서 준비되었습니다." --room room_456
 
   # 3. Android FCM - Service Notice Push (dou_notice channel)
   node scripts/send-test-push.js android fcm_token_here --channel dou_notice --title "공지사항" --body "새로운 서비스 업데이트가 완료되었습니다."
@@ -88,11 +100,18 @@ function getOptionValue(flag, defaultValue) {
 
 const pushType = getOptionValue('--type', 'chat');
 const channelId = getOptionValue('--channel', 'dou_chat');
-const link = getOptionValue('--link', 'channel?channelId=room_123');
+// Chat room id, used both as the deep-link target and as the payload `channelId`.
+const roomId = getOptionValue('--room', '1000095');
+// Deep-link spec: canonical path `/channels/{channelId}/room`. The leading slash is
+// required so the mobile DeeplinkService can normalize it to the custom scheme.
+const link = getOptionValue('--link', `/channels/${roomId}/room`);
 const titleArg = getOptionValue('--title', '홍길동');
 const bodyArg = getOptionValue('--body', '오늘 회의 참석하시나요?');
+// Server-context ids carried inside the custom payload (cloud / site / user).
+const cid = getOptionValue('--cid', '1000001');
+const sid = getOptionValue('--sid', '10024');
+const uid = getOptionValue('--uid', 'user_test_id');
 const isSilent = args.includes('--silent');
-const badge = parseInt(getOptionValue('--badge', '1'), 10);
 const isProd = args.includes('--prod');
 
 // Resolve iOS config dynamically if platform is iOS
@@ -154,10 +173,13 @@ Token:         ${deviceToken.substring(0, 15)}...
 Type:          ${pushType}
 Channel ID:    ${channelId}
 Link:          ${link}
+Room (chan):   ${roomId}
+Cloud (cid):   ${cid}
+Site (sid):    ${sid}
+User (uid):    ${uid}
 Title Arg:     ${titleArg}
 Body Arg:      ${bodyArg}
 Silent Push:   ${isSilent}
-Badge Count:   ${badge}
 ${
     platform === 'ios'
         ? `
@@ -202,12 +224,12 @@ async function sendAndroidPush() {
                 loc_args: JSON.stringify([bodyArg]),
                 silent: String(isSilent),
                 payload: JSON.stringify({
-                    cid: 'cloud_test_id',
-                    uid: 'user_test_id',
-                    channelId: 'room_123',
+                    cid,
+                    sid,
+                    uid,
+                    channelId: roomId,
                     chatId: 'msg_test_id',
                     content: bodyArg,
-                    badge: badge,
                 }),
             },
         };
@@ -274,7 +296,6 @@ function sendIosPush() {
                 body: '메시지가 도착했습니다.',
             };
             aps.sound = channelId === 'dou_chat_muted' || channelId === 'dou_marketing' ? null : 'default';
-            aps.badge = badge;
         }
 
         const payload = {
@@ -290,12 +311,12 @@ function sendIosPush() {
             loc_args: JSON.stringify([bodyArg]),
             silent: isSilent,
             payload: {
-                cid: 'cloud_test_id',
-                uid: 'user_test_id',
-                channelId: 'room_123',
+                cid,
+                sid,
+                uid,
+                channelId: roomId,
                 chatId: 'msg_test_id',
                 content: bodyArg,
-                badge: badge,
             },
         };
 
@@ -315,7 +336,9 @@ function sendIosPush() {
             'apns-topic': bundleId,
             'apns-push-type': isSilent ? 'background' : 'alert',
             'apns-priority': isSilent ? '5' : '10',
-            'apns-expiration': '0',
+            // Store-and-retry for up to 1h instead of `0` (deliver-once-or-discard),
+            // so a briefly-offline device still receives the push after reconnecting.
+            'apns-expiration': String(Math.floor(Date.now() / 1000) + 3600),
         });
 
         req.setEncoding('utf8');
@@ -355,6 +378,6 @@ if (platform === 'android') {
     sendIosPush();
 }
 
-// node scripts/send-test-push.js android cn-2idVgRZKYV_XteuR08d:APA91bGroRY76hRNPhZaoedE8Yg_eS4QTocxxrPnkd-0WknzLWsU4EEbYWQXVq8yZW6nlthF3vsBqbbFsA7AciJhd17-TbO343ZoKZN_Bw2PKRlArZjobzg --title "이영희" --body "회의 문서 준비되었습니다." --link "channel?channelId=room_456"
+// node scripts/send-test-push.js android cn-2idVgRZKYV_XteuR08d:APA91bGroRY76hRNPhZaoedE8Yg_eS4QTocxxrPnkd-0WknzLWsU4EEbYWQXVq8yZW6nlthF3vsBqbbFsA7AciJhd17-TbO343ZoKZN_Bw2PKRlArZjobzg --title "이영희" --body "회의 문서 준비되었습니다." --room room_456
 
 // node scripts/send-test-push.js ios
