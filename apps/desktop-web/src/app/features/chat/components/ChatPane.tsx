@@ -119,7 +119,9 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
         );
     };
 
-    const memberCount = channel.memberNo ?? 0;
+    // memberNo is deprecated server-side (back-filled from memberIds for compat) —
+    // count the ids directly, as the settings panel already does.
+    const memberCount = channel.memberIds?.length ?? channel.memberNo ?? 0;
     const desc = channel.desc?.trim();
     // DM headers carry the other party's name (roster is already loaded here);
     // the self channel reads as "You".

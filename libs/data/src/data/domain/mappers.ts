@@ -124,7 +124,10 @@ export const toDomainJoin = (api: ApiInput<JoinView, DomainJoin>, context: DataC
         channelId,
         userId,
         joined: toNumberSafe(api.joined, 1),
-        readNo: toNumberSafe(api.readNo, 0),
+        // The server join's read cursor is `chatNo` — JoinView never carries a
+        // `readNo` field, so without the fallback every server-mapped join
+        // reported readNo 0 and only the raw chatNo passthrough was usable.
+        readNo: toNumberSafe(api.readNo ?? api.chatNo, 0),
     };
 };
 
