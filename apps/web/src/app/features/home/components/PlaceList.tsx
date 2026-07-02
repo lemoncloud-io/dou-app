@@ -6,6 +6,8 @@ import { PlaceItem } from './PlaceItem';
 interface PlaceListProps {
     places: DomainPlace[];
     selectedPlaceId: string | null;
+    /** unread sum per place id — a place with > 0 shows a presence dot. */
+    unreadByPlace?: Record<string, number>;
     isLoading: boolean;
     isSwitching?: boolean;
     onSelectPlace: (placeId: string) => void;
@@ -39,6 +41,7 @@ const AddPlaceButton = ({ onClick }: { onClick: () => void }) => {
 export const PlaceList = ({
     places: rawPlaces,
     selectedPlaceId,
+    unreadByPlace,
     isLoading,
     isSwitching,
     onSelectPlace,
@@ -83,6 +86,7 @@ export const PlaceList = ({
                         place={place}
                         isSelected={selectedPlaceId === place.id}
                         isDisabled={!!isSwitching}
+                        unreadCount={unreadByPlace?.[place.id]}
                         onSelectPlace={onSelectPlace}
                     />
                 ))}

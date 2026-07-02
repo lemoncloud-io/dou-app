@@ -59,6 +59,19 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(result.current.byChannel.c1).toBe(5);
     });
 
+    it('byPlace는 사이트(sid)별로 안읽음을 합산한다', () => {
+        const channels = [
+            channel('c1', { sid: 's1', lastChat$: lastChat(10), $join: withJoin(7) }), // 3
+            channel('c2', { sid: 's1', lastChat$: lastChat(5), $join: withJoin(1) }), // 4
+            channel('c3', { sid: 's2', lastChat$: lastChat(8), $join: withJoin(6) }), // 2
+        ];
+
+        const { result } = renderHook(() => useChannelUnreads(channels));
+
+        expect(result.current.byPlace).toEqual({ s1: 7, s2: 2 });
+        expect(result.current.total).toBe(9);
+    });
+
     describe('시스템 메시지 보정 (metaNo)', () => {
         it('읽음 이후 생긴 시스템 메시지는 안읽음에서 뺀다', () => {
             // latest=10, read=3 → raw 7. 읽음 시점 meta=1, 현재 meta=3 → 윈도우 내 시스템 2건 → 5.

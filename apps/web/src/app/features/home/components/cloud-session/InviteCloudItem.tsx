@@ -9,10 +9,18 @@ interface InviteCloudItemProps {
     inviteCloud: DomainCloud;
     isSelected: boolean;
     isDisabled: boolean;
+    /** presence dot: any unread across this cloud's places (last-visited snapshot). */
+    hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
 }
 
-export const InviteCloudItem = ({ inviteCloud, isSelected, isDisabled, onSelectCloud }: InviteCloudItemProps) => {
+export const InviteCloudItem = ({
+    inviteCloud,
+    isSelected,
+    isDisabled,
+    hasUnread,
+    onSelectCloud,
+}: InviteCloudItemProps) => {
     const displayName = inviteCloud.name ?? inviteCloud.id ?? '';
     const disabled = isDisabled || isSelected;
 
@@ -36,9 +44,12 @@ export const InviteCloudItem = ({ inviteCloud, isSelected, isDisabled, onSelectC
                     <User size={16} className="text-placeholder" />
                 </div>
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                        {displayName}
-                    </span>
+                    <div className="flex items-center gap-[6px]">
+                        <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                            {displayName}
+                        </span>
+                        {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
+                    </div>
                     <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
                         ID: {inviteCloud.id}
                     </span>

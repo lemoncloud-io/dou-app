@@ -26,6 +26,7 @@ import type { ChannelUnreads } from '../types';
 export const useChannelUnreads = (channels: DomainChannel[]): ChannelUnreads => {
     return useMemo(() => {
         const byChannel: Record<string, number> = {};
+        const byPlace: Record<string, number> = {};
         let total = 0;
         for (const ch of channels) {
             const latestChatNo = ch.lastChat$?.chatNo ?? ch.chatNo ?? 0;
@@ -42,8 +43,12 @@ export const useChannelUnreads = (channels: DomainChannel[]): ChannelUnreads => 
 
             byChannel[ch.id] = unread;
             total += unread;
+            // Bucket by owning site so a place shows a dot when any of its channels is unread.
+            if (ch.sid) {
+                byPlace[ch.sid] = (byPlace[ch.sid] ?? 0) + unread;
+            }
         }
 
-        return { byChannel, total };
+        return { byChannel, byPlace, total };
     }, [channels]);
 };

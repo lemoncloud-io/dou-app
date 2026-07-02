@@ -5,6 +5,8 @@ import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
 import { useRuntimeMetrics } from '../metrics/useRuntimeMetrics';
+import { useActiveCloudChannels, useChannelUnreads } from '../../features/home/hooks';
+import { readCloudUnreadSnapshot, sumSnapshot } from '../../features/home/lib';
 
 interface Props {
     onClose: () => void;
@@ -28,7 +30,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
     const socketState = useSocketState();
-    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필'>('상태');
+    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
 
     // Floating draggable panel: start near the top-right so it doesn't cover the header.
     const panelRef = useRef<HTMLDivElement>(null);
@@ -88,7 +90,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
             <div className="overflow-y-auto p-4 space-y-3">
                 <div className="flex gap-1 mb-3">
-                    {(['상태', 'DB', '성능', '프로필'] as const).map(t => (
+                    {(['상태', 'DB', '성능', '프로필', '안읽음'] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -104,6 +106,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                 {tab === 'DB' && <DBBrowser />}
                 {tab === '프로필' && <ProfileTab />}
                 {tab === '성능' && <PerfTab socketStateLabel={socketState.state} />}
+                {tab === '안읽음' && <UnreadTab />}
                 {tab === '상태' && (
                     <>
                         <Section title="Session">
@@ -265,6 +268,55 @@ const ProfileTab = () => {
                     {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
                 </div>
             </div>
+        </div>
+    );
+};
+
+// Unread inspector: observes the active cloud's full channel list and shows the same aggregates the
+// home surface / app badge use — cloud total, per-site sums, and the per-channel unread list — plus
+// the persisted per-cloud snapshot that feeds inactive-cloud dots and the badge sum. Read-only.
+const UnreadTab = () => {
+    const channels = useActiveCloudChannels();
+    const { byChannel, byPlace, total } = useChannelUnreads(channels);
+    const nameById = new Map(channels.map(ch => [ch.id, ch.name ?? ch.id]));
+    const snapshot = readCloudUnreadSnapshot();
+
+    // "안읽음 목록" — only entries with unread > 0.
+    const unreadPlaces = Object.entries(byPlace).filter(([, count]) => count > 0);
+    const unreadChannels = Object.entries(byChannel).filter(([, count]) => count > 0);
+    const snapshotClouds = Object.entries(snapshot).filter(([, count]) => count > 0);
+
+    return (
+        <div className="space-y-3">
+            <Section title="전체">
+                <Row label="활성 클라우드 안읽음 합계" value={total} />
+                <Row label="관측 채널 수" value={channels.length} />
+                <Row label="앱 뱃지 (방문 클라우드 합)" value={sumSnapshot(snapshot)} />
+            </Section>
+
+            <Section title={`사이트별 안읽음 (${unreadPlaces.length})`}>
+                {unreadPlaces.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">안읽음이 있는 사이트가 없습니다</p>
+                ) : (
+                    unreadPlaces.map(([sid, count]) => <Row key={sid} label={sid} value={count} />)
+                )}
+            </Section>
+
+            <Section title={`채널별 안읽음 (${unreadChannels.length})`}>
+                {unreadChannels.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">안읽은 채널이 없습니다</p>
+                ) : (
+                    unreadChannels.map(([id, count]) => <Row key={id} label={nameById.get(id) || id} value={count} />)
+                )}
+            </Section>
+
+            <Section title="클라우드 스냅샷">
+                {snapshotClouds.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">기록된 클라우드가 없습니다</p>
+                ) : (
+                    snapshotClouds.map(([cid, count]) => <Row key={cid} label={cid} value={count} />)
+                )}
+            </Section>
         </div>
     );
 };

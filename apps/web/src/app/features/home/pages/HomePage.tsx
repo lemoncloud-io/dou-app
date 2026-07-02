@@ -21,7 +21,14 @@ import { ROUTES } from '../../../routes/paths';
 import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
-import { useChannelUnreads, useHomeChannels, useHomePlaces, useInvitedClouds, useSwitchPlace } from '../hooks';
+import {
+    useActiveCloudChannels,
+    useChannelUnreads,
+    useHomeChannels,
+    useHomePlaces,
+    useInvitedClouds,
+    useSwitchPlace,
+} from '../hooks';
 import { resolveHeaderProfile } from '../lib';
 import { InviteDialog } from '../components';
 
@@ -50,9 +57,12 @@ export const HomePage = () => {
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
-    // Unread badges derive from each channel's embedded `$join.chatNo` (kept live by the channel
-    // sync), so no separate per-channel join sync is registered here.
-    const { byChannel: unreadByChannel } = useChannelUnreads(channels);
+    // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
+    // sites, not just the selected one. Unread derives from each channel's embedded `$join`/`metaNo`
+    // (kept live by the background channel sync) — no per-channel join sync here. The app-icon badge
+    // is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
+    const cloudChannels = useActiveCloudChannels();
+    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels);
 
     // Header profile is resolved by tier (site → user account → setup prompt). The site profile
     // (V2 per-site nick/thumbnail) only applies off the default cloud; an edit-screen save reflects
@@ -154,6 +164,7 @@ export const HomePage = () => {
                 <PlaceList
                     places={places}
                     selectedPlaceId={selectedPlaceId}
+                    unreadByPlace={unreadByPlace}
                     isLoading={isPlacesLoading}
                     isSwitching={isSwitching}
                     onSelectPlace={switchPlace}

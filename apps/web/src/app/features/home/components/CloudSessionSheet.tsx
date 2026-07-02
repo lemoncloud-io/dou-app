@@ -20,6 +20,7 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 
 import { useInvitedClouds } from '../hooks';
+import { readCloudUnreadSnapshot } from '../lib';
 import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
@@ -59,6 +60,13 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
+
+    // Presence dots read the per-cloud unread snapshot (write-through by HomePage, active cloud
+    // included). Refreshed when the sheet opens — enough for a "has unread" indicator.
+    const [cloudUnread, setCloudUnread] = useState<Record<string, number>>(() => readCloudUnreadSnapshot());
+    useEffect(() => {
+        if (open) setCloudUnread(readCloudUnreadSnapshot());
+    }, [open]);
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
@@ -187,6 +195,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                                 cloud={cloud}
                                                 isSelected={selectedId === cloud.id}
                                                 isDisabled={isSwitching}
+                                                hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0}
                                                 onSelectCloud={handleSelectCloud}
                                                 onErrorClick={() =>
                                                     toast({
@@ -212,6 +221,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                             inviteCloud={inviteCloud}
                                             isSelected={selectedId === inviteCloud.id}
                                             isDisabled={isSwitching}
+                                            hasUnread={(cloudUnread[inviteCloud.id ?? ''] ?? 0) > 0}
                                             onSelectCloud={handleSelectCloud}
                                         />
                                     ))}
