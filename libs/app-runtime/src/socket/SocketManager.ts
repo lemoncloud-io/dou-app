@@ -410,7 +410,10 @@ export class SocketManager implements ISocketManager {
         const code = error.code || error.errorCode || error.statusCode || (error.response && error.response.status);
         if (code === 401 || code === '401') return true;
         const msg = error.message || '';
-        return msg.includes('401') || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
+        // The socket lib drops the server's errorCode on settle, leaving only strings like
+        // '401 UNAUTHORIZED - auth.update(...)'. Match 401 as a standalone token so an id or
+        // count containing "401" can't spoof an auth failure into a token-refresh loop.
+        return /\b401\b/.test(msg) || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
     }
 
     private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {
