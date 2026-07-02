@@ -19,7 +19,7 @@ export interface SyncWatchEntry {
  */
 export type SyncRuntimeOptions = Pick<
     CreateDeviceRuntimeOptions,
-    'keepAliveOptions' | 'reconnectOptions' | 'rotationOptions' | 'devicePlanOptions'
+    'keepAliveOptions' | 'reconnectOptions' | 'rotationOptions' | 'devicePlanOptions' | 'gateSyncOnAuth'
 >;
 
 export interface SyncManagerDeps {
