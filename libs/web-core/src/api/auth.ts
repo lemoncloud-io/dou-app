@@ -16,6 +16,7 @@ import type {
     RegisterUserV2Body,
     UserBody,
     UserLogoutResult,
+    UserProfile$,
     UserTokenView,
     UserView,
 } from '@lemoncloud/chatic-backend-api';
@@ -128,6 +129,65 @@ export const logout = async (): Promise<UserLogoutResult> => {
         baseURL: `${getCoreEndpoint()}/users/logout`,
         body: {},
     });
+};
+
+/**
+ * Fetches the active relay user's profile (GET /users/0/profile) with auth-error retry.
+ */
+export const fetchProfile = async (): Promise<UserProfile$> => {
+    return await withRetry(
+        async () => {
+            const { data } = await webTransport
+                .buildSignedRequest({
+                    method: 'GET',
+                    baseURL: `${getOAuthEndpoint()}/users/0/profile`,
+                })
+                .execute<UserProfile$ & { error?: string }>();
+            return throwIfApiError(data);
+        },
+        MAX_RETRIES,
+        'Profile fetch'
+    );
+};
+
+/**
+ * Optimistic profile fetch — no retry / auth-error handling. Meant to run in parallel with a token
+ * refresh: returns the profile immediately if the current token is still valid, or null on failure
+ * (no alert/redirect).
+ */
+export const tryFetchProfile = async (): Promise<UserProfile$ | null> => {
+    try {
+        const { data } = await webTransport
+            .buildSignedRequest({
+                method: 'GET',
+                baseURL: `${getOAuthEndpoint()}/users/0/profile`,
+            })
+            .execute<UserProfile$ & { error?: string }>();
+        return data?.error ? null : data;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Updates the relay user's profile (PUT /users/{uid}) with auth-error retry.
+ */
+export const updateProfile = async (uid: string, body: Record<string, unknown>) => {
+    const endpoint = getDynamicRelayBackend();
+    return withRetry(
+        async () => {
+            const { data } = await webTransport
+                .buildSignedRequest({
+                    method: 'PUT',
+                    baseURL: `${endpoint}/users/${uid}`,
+                })
+                .setBody(body as Record<string, unknown>)
+                .execute<UserProfile$ & { error?: string }>();
+            return throwIfApiError(data);
+        },
+        MAX_RETRIES,
+        'Profile update'
+    );
 };
 
 /**

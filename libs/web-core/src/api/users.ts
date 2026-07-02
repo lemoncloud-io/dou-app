@@ -1,6 +1,7 @@
 import { executeSignedRelayRequest, getCoreEndpoint } from '../transport';
 
 import type {
+    CloudBody,
     CloudDelegationTokenView,
     CloudVerifyEmailBody,
     CloudVerifyEmailView,
@@ -76,6 +77,17 @@ export const verifyEmail = async (
         method: 'POST',
         baseURL: `${CORE_ENDPOINT}/clouds/0/verify-email`,
         params: { ...params },
+        body,
+    });
+};
+
+/**
+ * Updates a cloud entity (PUT /clouds/{cloudId}) via a signed relay request.
+ */
+export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
+    return executeSignedRelayRequest<CloudView, CloudBody>({
+        method: 'PUT',
+        baseURL: `${CORE_ENDPOINT}/clouds/${cloudId}`,
         body,
     });
 };
