@@ -1,10 +1,9 @@
 import type { JSX } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
-import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 
-import { useOnNavigate } from '../../bridge';
+import { useHandlePushNavigation } from '../../bridge';
 import { useBackHandler, useDeviceSync } from '../../hooks';
 
 const MAIN_VARIANT_PATHS = ['/'];
@@ -18,17 +17,8 @@ export const UnifiedLayout = (): JSX.Element => {
     useBackHandler();
     // Notify the device's viewing target from the current route (channel room → clear elsewhere).
     useDeviceSync();
-
-    const navigate = useNavigate();
-    useOnNavigate(message => {
-        const { path, replace } = message.data;
-        logger.info('ROUTER', `Received OnNavigate event from native: ${path}`, { replace });
-        try {
-            navigate(path, { replace: !!replace });
-        } catch (error) {
-            logger.error('ROUTER', `Failed to navigate to: ${path}`, { error });
-        }
-    });
+    // Handle native-driven navigation (push taps / deep links), incl. cross-cloud/site switches.
+    useHandlePushNavigation();
 
     const { pathname } = useLocation();
     const isMain = isMainVariant(pathname);
