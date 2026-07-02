@@ -29,7 +29,6 @@ import {
 } from './editor';
 
 interface ComposerProps {
-    disabled: boolean;
     onSend: (content: string) => void;
     /** Channel the draft belongs to — preserves unsent text across switches. */
     channelId: string;
@@ -39,7 +38,7 @@ interface ComposerProps {
     mentionables?: Mentionable[];
 }
 
-const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
+const ComposerInner = ({ onSend, channelId, placeholder, mentionables = [] }: ComposerProps) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
     const setDraft = useComposerDraftStore(s => s.setDraft);
@@ -67,7 +66,7 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
             .getEditorState()
             .read(() => $convertToMarkdownString(COMPOSER_TRANSFORMERS, undefined, true))
             .trim();
-        if (!markdown || disabled) return;
+        if (!markdown) return;
         onSend(markdown);
         // Clearing the document fires handleChange, which drops the draft.
         editor.update(
@@ -86,7 +85,7 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
             // can keep typing without re-clicking the input.
             { onUpdate: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }) }
         );
-    }, [editor, disabled, onSend]);
+    }, [editor, onSend]);
 
     const insertEmoji = (emoji: string) => {
         editor.update(() => {
@@ -103,7 +102,7 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
                     'focus-within:ring-2 focus-within:ring-primary/40'
                 )}
             >
-                <ComposerToolbar disabled={disabled} />
+                <ComposerToolbar />
                 <div className="flex items-end gap-2">
                     <div className="relative flex-1">
                         <RichTextPlugin
@@ -121,12 +120,7 @@ const ComposerInner = ({ disabled, onSend, channelId, placeholder, mentionables 
                             ErrorBoundary={LexicalErrorBoundary}
                         />
                     </div>
-                    <ComposerActions
-                        disabled={disabled}
-                        canSend={hasText && !disabled}
-                        onEmoji={insertEmoji}
-                        onSend={submit}
-                    />
+                    <ComposerActions canSend={hasText} onEmoji={insertEmoji} onSend={submit} />
                 </div>
             </div>
             <p className="mt-1 px-1 text-caption text-muted-foreground">{t('chat.composer.hint')}</p>
@@ -154,8 +148,8 @@ export const Composer = (props: ComposerProps) => (
             theme: COMPOSER_THEME,
             nodes: COMPOSER_NODES,
             // Always editable — sending never makes the input non-editable, so the
-            // caret stays put (Slack-style continuous focus). `disabled` (isSending)
-            // only gates the send button + submit, not the contentEditable.
+            // caret stays put (Slack-style continuous focus). Sends aren't gated on
+            // each other either: the optimistic insert gives instant feedback.
             editable: true,
             onError: (error: Error) => console.error('[composer]', error),
         }}

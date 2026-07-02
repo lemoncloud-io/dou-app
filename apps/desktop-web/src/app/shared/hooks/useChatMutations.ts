@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
@@ -6,21 +6,20 @@ import type { DomainChat } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 /**
- * Tracer-bullet send. Posts a message through the engine's chat repository,
- * which handles optimistic insertion + socket dispatch. Read receipts and
- * delete are deferred to a later phase.
+ * Message send/retry/discard through the engine's chat repository, which
+ * handles optimistic insertion + socket dispatch. Sends are NOT serialized —
+ * the optimistic row is the feedback, and a slow ack must not block the next
+ * message; per-message state lives on the rows themselves (isPending/isFailed).
  */
 export const useChatMutations = () => {
     const { chat: chatRepository } = useRuntimeRepositories();
-    const [isSending, setIsSending] = useState(false);
 
     const sendMessage = useCallback(
         (payload: ChatSendInput): Promise<DomainChat> => {
             if (!payload.channelId) return Promise.reject(new Error('channelId is required'));
             if (!payload.content) return Promise.reject(new Error('content is required'));
 
-            setIsSending(true);
-            return chatRepository.sendChat(payload).finally(() => setIsSending(false));
+            return chatRepository.sendChat(payload);
         },
         [chatRepository]
     );
@@ -34,7 +33,6 @@ export const useChatMutations = () => {
             }
             const staleId = message.id ?? message.tempId;
             if (staleId) void chatRepository.cacheDelete(staleId);
-            setIsSending(true);
             // Preserve parentId so retrying a failed thread reply re-sends it into
             // the same thread. The server takes the parent's FULL id
             // `<channelId>:<chatNo>` — rows stranded by the old chatNo-send bug
@@ -44,9 +42,7 @@ export const useChatMutations = () => {
                     ? message.parentId
                     : `${message.channelId}:${message.parentId}`
                 : undefined;
-            return chatRepository
-                .sendChat({ channelId: message.channelId, content: message.content, parentId })
-                .finally(() => setIsSending(false));
+            return chatRepository.sendChat({ channelId: message.channelId, content: message.content, parentId });
         },
         [chatRepository]
     );
@@ -63,5 +59,5 @@ export const useChatMutations = () => {
         [chatRepository]
     );
 
-    return { sendMessage, retryMessage, discardMessage, isSending };
+    return { sendMessage, retryMessage, discardMessage };
 };

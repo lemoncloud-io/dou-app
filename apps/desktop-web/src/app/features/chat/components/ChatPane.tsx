@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useSessionIdentity } from '@chatic/web-core';
 import { useSocketState } from '@chatic/app-runtime';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -44,7 +44,11 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
-    const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
+    const { sendMessage, retryMessage, discardMessage } = useChatMutations();
+    // Stable identities: MessageRow is memo'd, and an inline closure here would
+    // re-render every visible row on each ChatPane render.
+    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
+    const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const openThread = useThreadStore(s => s.open);
     // Saved-item / search jump: forward a target to MessageList only when it
@@ -169,8 +173,8 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 membersLoading={membersLoading}
                 baselineReadNo={baselineReadNo}
                 onRetry={retryMessage}
-                onDiscard={message => void discardMessage(message)}
-                onLoadOlder={() => void loadOlder()}
+                onDiscard={handleDiscard}
+                onLoadOlder={handleLoadOlder}
                 hasMore={hasMore}
                 isLoadingOlder={isLoadingOlder}
                 scrollSignal={sendTick}
@@ -180,7 +184,6 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 onJumpConsumed={clearJump}
             />
             <Composer
-                disabled={isSending}
                 onSend={handleSend}
                 channelId={channelId}
                 placeholder={t('chat.composer.placeholderChannel', { name: headerName })}
