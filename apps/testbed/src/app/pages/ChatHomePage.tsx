@@ -19,6 +19,9 @@ import {
     buildPlaceCreate,
     buildPlaceUpdate,
 } from '../features/manage/payloads';
+import { useActiveCloudChannels } from '../features/unread/useActiveCloudChannels';
+import { useHomeUnreads } from '../features/unread/useHomeUnreads';
+import { readCloudUnreadSnapshot, writeCloudUnread } from '../features/unread/cloudUnreadSnapshot';
 
 const DEFAULT_CLOUD_ID = 'default';
 
@@ -69,6 +72,21 @@ export const ChatHomePage = () => {
     // relay catalog (useCloudSessionCatalog = owned clouds), so render them straight from cache.
     const [invitedClouds, setInvitedClouds] = useState<DomainCloud[]>([]);
     const [manageDialog, setManageDialog] = useState<ManageDialog>(null);
+
+    // Unread aggregation over the active cloud's FULL channel list (every site), the source for the
+    // per-channel numbers, per-place dots, and the cloud total. This is a cache observe only — no
+    // per-channel realtime registration — so it doesn't add sync cost per channel; freshness rides
+    // the periodic syncChannels delta below.
+    const cloudChannels = useActiveCloudChannels();
+    const { aggregates: unreads } = useHomeUnreads(cloudChannels);
+
+    // Per-cloud presence for the cloud dots. The active cloud shows its live total; other clouds
+    // can't be observed here (different cid scope), so they fall back to the last-visited snapshot.
+    const [cloudUnread, setCloudUnread] = useState(() => readCloudUnreadSnapshot());
+    useEffect(() => {
+        setCloudUnread(writeCloudUnread(cid, unreads.total));
+    }, [cid, unreads.total]);
+
     const siteIds = sites.map(site => site.id);
     const siteIdsKey = siteIds.join(',');
     // Only channels that truly belong to the active site may be sync-registered. During a
@@ -237,6 +255,10 @@ export const ChatHomePage = () => {
     // Currently selected place (for the "현재 플레이스" summary) and a per-place channel count.
     const activeSite = sites.find(s => s.id === activeSiteId) ?? null;
 
+    // Cloud dot: the active cloud uses its live total; other clouds fall back to the last-visited
+    // snapshot (their channels aren't observed under the current cid scope).
+    const cloudHasUnread = (id: string): boolean => (id === cid ? unreads.total : (cloudUnread[id] ?? 0)) > 0;
+
     return (
         <div className="p-4 space-y-5">
             {/* Cloud 영역 */}
@@ -248,6 +270,7 @@ export const ChatHomePage = () => {
                         name="기본 (relay)"
                         isActive={isRelayMode}
                         isPending={isSwitching}
+                        hasUnread={cloudHasUnread(DEFAULT_CLOUD_ID)}
                         onClick={() => void handleCloudClick(DEFAULT_CLOUD_ID)}
                     />
                     {ownedClouds.map(c => (
@@ -257,6 +280,7 @@ export const ChatHomePage = () => {
                             name={c.name ?? c.id ?? '—'}
                             isActive={cid === c.id}
                             isPending={isSwitching}
+                            hasUnread={cloudHasUnread(c.id ?? '')}
                             onClick={() => void handleCloudClick(c.id ?? '')}
                         />
                     ))}
@@ -274,6 +298,7 @@ export const ChatHomePage = () => {
                                     isActive={cid === c.id}
                                     isPending={isSwitching}
                                     isInvited
+                                    hasUnread={cloudHasUnread(c.id ?? '')}
                                     onClick={() => void handleCloudClick(c.id ?? '')}
                                 />
                             ))}
@@ -308,7 +333,13 @@ export const ChatHomePage = () => {
                                             : 'border-border bg-card hover:bg-accent'
                                     }`}
                                 >
-                                    <p className="font-medium">{s.name ?? s.id}</p>
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="font-medium">{s.name ?? s.id}</p>
+                                        {/* presence dot: any unread channel in this place */}
+                                        {(unreads.byPlace[s.id] ?? 0) > 0 && (
+                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                                        )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground font-mono">{s.id}</p>
                                 </button>
                                 <button
@@ -361,7 +392,9 @@ export const ChatHomePage = () => {
                     <div className="space-y-1">
                         {channels.map(ch => {
                             const lastChat = ch.lastChat$;
-                            const unread = ch.unreadCount ?? 0;
+                            // Client-computed unread (user messages only) — replaces the raw server
+                            // unreadCount so system join/leave messages don't inflate the badge.
+                            const unread = unreads.byChannel[ch.id] ?? 0;
                             return (
                                 <div key={ch.id} className="flex items-center gap-1">
                                     <button
@@ -460,10 +493,11 @@ interface CloudItemProps {
     isActive: boolean;
     isPending: boolean;
     isInvited?: boolean;
+    hasUnread?: boolean;
     onClick: () => void;
 }
 
-const CloudItem = ({ id, name, isActive, isPending, isInvited, onClick }: CloudItemProps) => (
+const CloudItem = ({ id, name, isActive, isPending, isInvited, hasUnread, onClick }: CloudItemProps) => (
     <button
         onClick={onClick}
         disabled={isPending}
@@ -473,6 +507,8 @@ const CloudItem = ({ id, name, isActive, isPending, isInvited, onClick }: CloudI
     >
         <div className="flex items-center gap-2">
             <p className="font-medium flex-1">{name}</p>
+            {/* presence dot: any unread across this cloud's places */}
+            {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
             {isInvited && <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">초대</span>}
             {isActive && <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">활성</span>}
         </div>

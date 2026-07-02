@@ -478,8 +478,9 @@ const SiteProfileSection = () => {
     );
 };
 
-// Subscribes every site's channels to realtime sync and shows the unread counts derived from the
-// synced $join/$lastChat: cloud total, per-site sums, and per-channel counts.
+// Shows the unread counts derived from each channel's synced $join/lastChat/metaNo: cloud total,
+// per-site sums, and per-channel counts. Freshness comes from the home page's periodic
+// syncChannels delta, not per-channel registration.
 const UnreadTab = () => {
     const channels = useActiveCloudChannels();
     const { aggregates } = useHomeUnreads(channels);
