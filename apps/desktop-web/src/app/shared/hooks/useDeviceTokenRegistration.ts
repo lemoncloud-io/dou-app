@@ -73,7 +73,8 @@ export const useDeviceTokenRegistration = (): void => {
     useEffect(() => {
         if (!isAuthenticated || !isNative() || requestedRef.current) return;
         requestedRef.current = true;
-        webClient.post('FetchFcmToken', {});
+        // Object form — the two-arg form silently no-ops (post() reads message.type).
+        webClient.post({ type: 'FetchFcmToken', data: {} });
     }, [isAuthenticated]);
 
     // Cache the returned token and register it (launch path).

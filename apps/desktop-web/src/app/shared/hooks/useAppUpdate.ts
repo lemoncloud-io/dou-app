@@ -22,8 +22,10 @@ export const useAppUpdate = () => {
         });
     }, [set]);
 
-    const startDownload = useCallback(() => webClient.post('StartUpdateDownload', {}), []);
-    const restart = useCallback(() => webClient.post('RestartToUpdate', {}), []);
+    // post() takes ONE {type, data} object — the two-arg form type-errors and, worse,
+    // silently no-ops at runtime (message.type reads undefined, no handler matches).
+    const startDownload = useCallback(() => webClient.post({ type: 'StartUpdateDownload', data: {} }), []);
+    const restart = useCallback(() => webClient.post({ type: 'RestartToUpdate', data: {} }), []);
 
     return { startDownload, restart };
 };

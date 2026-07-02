@@ -12,11 +12,21 @@ type DeviceRegisterOutcome = 'ok' | 'error' | 'timeout';
 /** auth.update response `state` — the only field that reveals a resolved-but-failed auth. */
 const authState = (response: unknown): string | undefined => (response as { state?: string } | null | undefined)?.state;
 
+/**
+ * Backoff ladder for consecutive failed recoveries, indexed by failure count (capped).
+ * The periodic refresh retries every 60s; without this a permanently revoked session
+ * would mint a fresh token (a real relay round-trip) once a minute, forever.
+ */
+const RECOVERY_BACKOFF_MS = [0, 60_000, 120_000, 300_000, 600_000, 900_000];
+
 export class SocketSessionController {
     private delegate: SocketSessionDelegate | null = null;
     private refreshInterval: ReturnType<typeof setInterval> | null = null;
     private reauthPromise: Promise<boolean> | null = null;
     private healPromise: Promise<void> | null = null;
+    /** Consecutive failed recoveries → backoff (see RECOVERY_BACKOFF_MS). */
+    private recoveryFailures = 0;
+    private recoveryBlockedUntil = 0;
     /** Last config bootstrapped — used to re-establish a socket left disconnected. */
     private lastConfig: SocketBindingConfig | null = null;
 
@@ -123,6 +133,8 @@ export class SocketSessionController {
         try {
             await this.requestAuthUpdate(client, token);
             this.manager.markVerified();
+            this.recoveryFailures = 0;
+            this.recoveryBlockedUntil = 0;
             return true;
         } catch (error) {
             logger.error('SOCKET', '[SocketSessionController] auth.update failed, triggering recovery', {
@@ -157,6 +169,15 @@ export class SocketSessionController {
             return this.reauthPromise;
         }
 
+        // Repeated failures (e.g. the server keeps answering state:'failed') back off
+        // instead of re-minting a token on every 60s periodic tick.
+        if (Date.now() < this.recoveryBlockedUntil) {
+            logger.info('SOCKET', '[SocketSessionController] recovery backing off after repeated failures', {
+                retryInMs: this.recoveryBlockedUntil - Date.now(),
+            });
+            return false;
+        }
+
         this.reauthPromise = (async () => {
             logger.info('SOCKET', '[SocketSessionController] Starting 401 recovery sequence');
             this.manager.markUnverified();
@@ -174,9 +195,14 @@ export class SocketSessionController {
 
                 await this.requestAuthUpdate(client, token);
                 this.manager.markVerified();
+                this.recoveryFailures = 0;
+                this.recoveryBlockedUntil = 0;
                 logger.info('SOCKET', '[SocketSessionController] 401 recovery authentication successful');
                 return true;
             } catch (error) {
+                this.recoveryFailures += 1;
+                const step = Math.min(this.recoveryFailures, RECOVERY_BACKOFF_MS.length - 1);
+                this.recoveryBlockedUntil = Date.now() + RECOVERY_BACKOFF_MS[step];
                 logger.error('SOCKET', '[SocketSessionController] 401 recovery sequence failed', { error });
                 if (this.delegate?.onRefreshFailed) {
                     try {
@@ -199,6 +225,8 @@ export class SocketSessionController {
     public destroy(): void {
         this.stopPeriodicRefresh();
         this.reauthPromise = null;
+        this.recoveryFailures = 0;
+        this.recoveryBlockedUntil = 0;
     }
 
     /**

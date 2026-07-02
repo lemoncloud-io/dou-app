@@ -5,13 +5,7 @@ import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isDndActive } from '../utils';
-import { useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
-
-interface PushNotification {
-    title?: string;
-    body?: string;
-    data?: Record<string, string>;
-}
+import { channelNotifyMode, useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
 
 /**
  * Cross-cloud push presenter — in-app toast when focused, OS banner when not.
@@ -33,7 +27,7 @@ interface PushNotification {
 export const useCrossCloudPushNotifications = (): void => {
     useEffect(() => {
         return webClient.onEvent('OnReceiveNotification', message => {
-            const notification = (message?.data as { notification?: PushNotification })?.notification;
+            const notification = message.data?.notification;
             const title = notification?.title;
             const body = notification?.body;
             // Silent/data-only pushes and click-routing events (pushDeeplink) carry no
@@ -46,6 +40,8 @@ export const useCrossCloudPushNotifications = (): void => {
             const data = notification?.data ?? {};
             const myUid = getGlobalSessionContext().identity.userId;
             if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
+            // Per-channel mute — same prefs the same-cloud banner path honors.
+            if (data.channelId && channelNotifyMode(prefs, String(data.channelId)) === 'none') return;
 
             const focused = typeof document !== 'undefined' && document.hasFocus();
             if (!focused) {

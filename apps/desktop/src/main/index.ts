@@ -497,71 +497,7 @@ const createWindow = (): BrowserWindow => {
 
     win.once('ready-to-show', () => win.show());
 
-    // Connection failures are retried with bounded backoff before the error page shows, so a
-    // transient outage recovers on its own: in dev the local web server (desktop-web on :5005)
-    // may still be booting, and a cold launch right after boot/login (or a wake from sleep) hits
-    // the network before it's ready (-106 ERR_INTERNET_DISCONNECTED). Only once the budget is
-    // exhausted do we fall through to a visible, retryable error page — e.g. an unresolved host
-    // when the desktop web isn't deployed yet.
-    const RETRYABLE_LOAD_ERRORS = new Set([-102, -106, -105, -118]);
-    const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 15000, 15000, 15000];
-    let loadRetries = 0;
-    let onErrorPage = false;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
-        if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
-        if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
-        if (RETRYABLE_LOAD_ERRORS.has(errorCode) && loadRetries < RETRY_DELAYS_MS.length) {
-            const delay = RETRY_DELAYS_MS[loadRetries];
-            loadRetries += 1;
-            if (retryTimer) clearTimeout(retryTimer);
-            retryTimer = setTimeout(() => void win.loadURL(DESKTOP_WEB_URL), delay);
-            return;
-        }
-        onErrorPage = true;
-        if (!win.isVisible()) win.show();
-        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
-    });
-    // A successful load of the trusted web clears the retry budget + error state.
-    win.webContents.on('did-finish-load', () => {
-        if (isTrustedUrl(win.webContents.getURL())) {
-            loadRetries = 0;
-            onErrorPage = false;
-        }
-    });
-    // A crashed or OOM-killed renderer otherwise leaves a blank window with no recovery
-    // (did-fail-load only covers LOAD failures). Reload the trusted web; a repeat crash
-    // falls into the same handler again, and the load-retry budget above stays intact.
-    win.webContents.on('render-process-gone', (_event, details) => {
-        if (details.reason === 'clean-exit') return;
-        console.warn('[shell] renderer process gone, reloading', details);
-        loadRetries = 0;
-        void win.loadURL(DESKTOP_WEB_URL);
-    });
-    // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
-    // their own and 'responsive' cancels the timer) — losing in-flight state is better
-    // than a permanently frozen window.
-    let unresponsiveTimer: ReturnType<typeof setTimeout> | undefined;
-    win.webContents.on('unresponsive', () => {
-        console.warn('[shell] renderer unresponsive');
-        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
-        unresponsiveTimer = setTimeout(() => void win.loadURL(DESKTOP_WEB_URL), 15_000);
-    });
-    win.webContents.on('responsive', () => {
-        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
-        unresponsiveTimer = undefined;
-    });
-
-    // Wake from sleep: if the window got stranded on the error page while the network was down,
-    // reconnect automatically once the OS reports the machine resumed.
-    if (!powerResumeBound) {
-        powerResumeBound = true;
-        powerMonitor.on('resume', () => {
-            if (!onErrorPage) return;
-            loadRetries = 0;
-            void win.loadURL(DESKTOP_WEB_URL);
-        });
-    }
+    bindLoadRecovery(win);
 
     // Paint an instant splash so the window shows a branded loader immediately
     // instead of staying hidden while the remote web bundle downloads/parses.
@@ -580,6 +516,104 @@ const createWindow = (): BrowserWindow => {
     deeplinkWindow = win;
 
     return win;
+};
+
+// Load-recovery state for the CURRENT window. Module-scoped (not closed over) because
+// the app-lifetime powerMonitor 'resume' handler must always act on the live window —
+// a closure over the first window would target a destroyed one after a macOS
+// re-activate recreates it, and silently stop covering the new one.
+let recoveryWindow: BrowserWindow | null = null;
+let onErrorPage = false;
+let resetLoadRetries: () => void = () => undefined;
+
+/**
+ * Retry/recovery listeners for the remote web load: bounded backoff on load failures
+ * before the branded error page, renderer crash + persistent-hang reloads, and the
+ * wake-from-sleep reconnect. Re-binding on each createWindow() repoints the
+ * module-level state at the new window.
+ */
+const bindLoadRecovery = (win: BrowserWindow): void => {
+    recoveryWindow = win;
+    onErrorPage = false;
+
+    // Connection failures are retried with bounded backoff before the error page shows, so a
+    // transient outage recovers on its own: in dev the local web server (desktop-web on :5005)
+    // may still be booting, and a cold launch right after boot/login (or a wake from sleep) hits
+    // the network before it's ready (-106 ERR_INTERNET_DISCONNECTED). Only once the budget is
+    // exhausted do we fall through to a visible, retryable error page — e.g. an unresolved host
+    // when the desktop web isn't deployed yet.
+    const RETRYABLE_LOAD_ERRORS = new Set([-102, -106, -105, -118]);
+    const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 15000, 15000, 15000];
+    let loadRetries = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let unresponsiveTimer: ReturnType<typeof setTimeout> | undefined;
+    resetLoadRetries = () => {
+        loadRetries = 0;
+    };
+    const reloadWeb = (): void => {
+        if (!win.isDestroyed()) void win.loadURL(DESKTOP_WEB_URL);
+    };
+
+    win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
+        if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
+        if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
+        if (RETRYABLE_LOAD_ERRORS.has(errorCode) && loadRetries < RETRY_DELAYS_MS.length) {
+            const delay = RETRY_DELAYS_MS[loadRetries];
+            loadRetries += 1;
+            if (retryTimer) clearTimeout(retryTimer);
+            retryTimer = setTimeout(reloadWeb, delay);
+            return;
+        }
+        onErrorPage = true;
+        if (!win.isVisible()) win.show();
+        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
+    });
+    // A successful load of the trusted web clears the retry budget + error state.
+    win.webContents.on('did-finish-load', () => {
+        if (isTrustedUrl(win.webContents.getURL())) {
+            loadRetries = 0;
+            onErrorPage = false;
+        }
+    });
+    // A crashed or OOM-killed renderer otherwise leaves a blank window with no recovery
+    // (did-fail-load only covers LOAD failures). Reload the trusted web with a refilled
+    // retry budget — a crash usually needs the full backoff ladder again (e.g. OOM during
+    // a flaky network); a hard crash loop is bounded by the user quitting from the tray.
+    win.webContents.on('render-process-gone', (_event, details) => {
+        if (details.reason === 'clean-exit') return;
+        console.warn('[shell] renderer process gone, reloading', details);
+        loadRetries = 0;
+        reloadWeb();
+    });
+    // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
+    // their own and 'responsive' cancels the timer) — losing in-flight state is better
+    // than a permanently frozen window.
+    win.webContents.on('unresponsive', () => {
+        console.warn('[shell] renderer unresponsive');
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = setTimeout(reloadWeb, 15_000);
+    });
+    win.webContents.on('responsive', () => {
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = undefined;
+    });
+    // Pending timers outlive the window (its webContents listeners don't) — drop them.
+    win.on('closed', () => {
+        if (retryTimer) clearTimeout(retryTimer);
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+    });
+
+    // Wake from sleep: if the window got stranded on the error page while the network was
+    // down, reconnect automatically once the OS reports the machine resumed. App-level and
+    // bound once; reads the module state so it follows a recreated window.
+    if (!powerResumeBound) {
+        powerResumeBound = true;
+        powerMonitor.on('resume', () => {
+            if (!onErrorPage || !recoveryWindow || recoveryWindow.isDestroyed()) return;
+            resetLoadRetries();
+            void recoveryWindow.loadURL(DESKTOP_WEB_URL);
+        });
+    }
 };
 
 // Deeplink plumbing — app-level url/argv events resolve before/after the window exists.
