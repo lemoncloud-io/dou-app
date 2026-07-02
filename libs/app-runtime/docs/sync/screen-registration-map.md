@@ -55,14 +55,17 @@ Date: 2026-06-30
 
 ### 🏠 홈 화면
 
-| 무엇           | 메커니즘                                                                                            | 진입점                                                      |
-| -------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| place 실시간   | `usePlaceSync(place.id)` — 렌더된 place row마다 `registerPlace`                                     | `apps/web/src/app/features/home/components/PlaceItem.tsx`   |
-| channel 실시간 | `useChannelSync(channel.id)` — 렌더된 channel row마다 `registerChannel` (메타데이터 + `$join` 갱신) | `apps/web/src/app/features/home/components/ChannelList.tsx` |
-| 안읽음 계산    | `useChannelUnreads` — **sync 등록 없이** `channel.$join.chatNo`에서 파생                            | `apps/web/src/app/features/home/hooks/useChannelUnreads.ts` |
+| 무엇           | 메커니즘                                                                                                                | 진입점                                                              |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| place 실시간   | `usePlaceSync(place.id)` — 렌더된 place row마다 `registerPlace`                                                         | `apps/web/src/app/features/home/components/PlaceItem.tsx`           |
+| channel 실시간 | `useChannelSync(channel.id)` — 렌더된 channel row마다 `registerChannel` (메타데이터 + `$join` 갱신)                     | `apps/web/src/app/features/home/components/ChannelList.tsx`         |
+| 마지막 메시지  | `useLastChat(channel.id)` — 렌더된 channel row마다 `registerChat` + prime 후 chat 캐시의 max chatNo 관측(미리보기 소스) | `apps/web/src/app/features/home/hooks/useLastChat.ts` (ChannelItem) |
+| 안읽음 계산    | `useChannelUnreads` — **join 등록 없이** `channel.$join.chatNo`에서 파생                                                | `apps/web/src/app/features/home/hooks/useChannelUnreads.ts`         |
 
-> 홈은 채널별 join 타깃을 **등록하지 않는다.** 읽음 경계는 채널에 임베드된 `$join`을 타고 오고,
-> 읽음 전송 시 ChannelPlan으로 채널 동기화가 자동 트리거되어 `$join.chatNo`가 갱신된다.
+> 홈은 채널별 **join** 타깃은 등록하지 않는다 — 읽음 경계는 채널에 임베드된 `$join`을 타고 오고, 읽음
+> 전송 시 ChannelPlan으로 채널 동기화가 트리거되어 `$join.chatNo`가 갱신된다. 단 **chat** 타깃은 마지막
+> 메시지 미리보기를 위해 렌더된 행마다 등록한다(서버가 `lastChat$`를 더 이상 내려주지 않음 →
+> [chat-sync.md](chat-sync.md), 소비처는 apps/web `feature/home/last-chat.md`).
 
 ### 💬 채팅방 화면 (`apps/web/src/app/features/channels/pages/ChannelRoomPage.tsx`)
 
@@ -94,10 +97,10 @@ Date: 2026-06-30
 
 읽음 상태는 join의 `chatNo`(마지막 읽은 번호)에 담긴다. 화면별로 소스가 다르다.
 
-| 화면               | 소스                                                                       | 공식                                                                             |
-| ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 홈 채널별 배지     | `channel.$join.chatNo` (채널에 임베드, ChannelPlan/백그라운드 sync가 갱신) | `max(0, (lastChat$?.chatNo ?? chatNo) - $join.chatNo)`; `$join` 없으면 배지 없음 |
-| 채팅방 멤버별 읽음 | join 캐시(멤버별 `registerJoin` + `syncChannelUsers`의 `$join`)            | 멤버 커서 = `max(readNo, chatNo)`                                                |
+| 화면               | 소스                                                                               | 공식                                                                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 홈 채널별 배지     | `channel.chatNo` + 채널 임베드 `$join.chatNo` (ChannelPlan/백그라운드 sync가 갱신) | `max(0, (channel.chatNo ?? 0) - $join.chatNo - systemInWindow)`; `$join` 없으면 배지 없음. `systemInWindow`는 `metaNo` 기반 시스템(join/leave) 메시지 보정. (구 `lastChat$.chatNo`는 서버 미전송) |
+| 채팅방 멤버별 읽음 | join 캐시(멤버별 `registerJoin` + `syncChannelUsers`의 `$join`)                    | 멤버 커서 = `max(readNo, chatNo)`                                                                                                                                                                 |
 
 > 홈은 별도 join 타깃 등록 없이 채널 한 곳에서 파생하고, 채팅방은 멤버별 join을 등록해 실시간
 > 읽음 인원을 센다. 읽음 경계의 단일 출처는 양쪽 모두 join의 `chatNo`다.
