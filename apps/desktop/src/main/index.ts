@@ -14,6 +14,7 @@ import {
     Notification,
     powerMonitor,
     screen,
+    session,
     shell,
     Tray,
 } from 'electron';
@@ -232,8 +233,15 @@ const onFcmToken = (token: string): void => {
 const awaitFcmToken = (): Promise<string> => {
     if (fcmToken) return Promise.resolve(fcmToken);
     return new Promise(resolve => {
-        fcmTokenWaiters.push(resolve);
-        setTimeout(() => resolve(fcmToken ?? ''), 30_000);
+        const timer = setTimeout(() => {
+            fcmTokenWaiters = fcmTokenWaiters.filter(waiter => waiter !== entry);
+            resolve(fcmToken ?? '');
+        }, 30_000);
+        const entry = (token: string): void => {
+            clearTimeout(timer);
+            resolve(token);
+        };
+        fcmTokenWaiters.push(entry);
     });
 };
 
@@ -342,13 +350,22 @@ const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
 // Branded error page shown when the remote web fails to load, so a failure is a visible,
 // actionable screen instead of a blank window or a raw Chromium error. The retry link points
 // at the trusted web URL — will-navigate allows that origin, so a click simply reloads it.
+// This page shows exactly when the web layer (which owns i18n) is unavailable, so pick the
+// strings here from the OS locale.
+const ERROR_STRINGS = {
+    ko: { title: '연결할 수 없습니다', body: '데스크톱 웹을 불러오지 못했습니다.', retry: '다시 시도' },
+    en: { title: 'Unable to connect', body: 'The desktop web could not be loaded.', retry: 'Retry' },
+} as const;
+
 const renderErrorHtml = (code: number, desc: string): string => {
     // Strip HTML-significant chars before interpolating into the data: URL. desc is a Chromium
     // error enum (low risk), but escaping it keeps the page injection-safe as a matter of course.
     const sanitize = (value: string): string => String(value).replace(/[<>"]/g, '');
     const target = sanitize(DESKTOP_WEB_URL);
     const safeDesc = sanitize(desc);
-    return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+    const lang = app.getLocale().startsWith('ko') ? 'ko' : 'en';
+    const strings = ERROR_STRINGS[lang];
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
   html,body{margin:0;height:100%;background:#0b0d10;color:#e6e8eb;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
   .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;box-sizing:border-box;text-align:center}
   h1{font-size:17px;margin:0;font-weight:600}
@@ -356,9 +373,9 @@ const renderErrorHtml = (code: number, desc: string): string => {
   code{color:#9aa0a6}
   a{margin-top:8px;display:inline-block;padding:10px 22px;border-radius:8px;background:#8fbf2e;color:#0b0d10;font-weight:600;font-size:14px;text-decoration:none}
 </style></head><body><div class="wrap">
-  <h1>연결할 수 없습니다</h1>
-  <p>데스크톱 웹을 불러오지 못했습니다.<br><code>${target}</code><br>(${code} ${safeDesc})</p>
-  <a href="${target}">다시 시도</a>
+  <h1>${strings.title}</h1>
+  <p>${strings.body}<br><code>${target}</code><br>(${code} ${safeDesc})</p>
+  <a href="${target}">${strings.retry}</a>
 </div></body></html>`;
 };
 
@@ -539,6 +556,29 @@ const createWindow = (): BrowserWindow => {
             onErrorPage = false;
         }
     });
+    // A crashed or OOM-killed renderer otherwise leaves a blank window with no recovery
+    // (did-fail-load only covers LOAD failures). Reload the trusted web; a repeat crash
+    // falls into the same handler again, and the load-retry budget above stays intact.
+    win.webContents.on('render-process-gone', (_event, details) => {
+        if (details.reason === 'clean-exit') return;
+        console.warn('[shell] renderer process gone, reloading', details);
+        loadRetries = 0;
+        void win.loadURL(DESKTOP_WEB_URL);
+    });
+    // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
+    // their own and 'responsive' cancels the timer) — losing in-flight state is better
+    // than a permanently frozen window.
+    let unresponsiveTimer: ReturnType<typeof setTimeout> | undefined;
+    win.webContents.on('unresponsive', () => {
+        console.warn('[shell] renderer unresponsive');
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = setTimeout(() => void win.loadURL(DESKTOP_WEB_URL), 15_000);
+    });
+    win.webContents.on('responsive', () => {
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = undefined;
+    });
+
     // Wake from sleep: if the window got stranded on the error page while the network was down,
     // reconnect automatically once the OS reports the machine resumed.
     if (!powerResumeBound) {
@@ -619,6 +659,12 @@ if (!singleInstanceLock) {
     });
 
     app.whenReady().then(() => {
+        // The renderer is REMOTE-loaded web content — deny every permission request
+        // except what the app actually uses, instead of Electron's allow-all default.
+        session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+            callback(permission === 'notifications' || permission === 'clipboard-sanitized-write');
+        });
+
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();
 
