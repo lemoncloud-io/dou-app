@@ -12,6 +12,7 @@ import {
     displayName,
     isDmChannel,
     isSelfChannel,
+    lastChatNoOf,
     useAuthorNames,
     useChatMutations,
     useChats,
@@ -43,7 +44,11 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
-    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
+    // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
+    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(
+        channelId,
+        channel ? lastChatNoOf(channel) : undefined
+    );
     const { sendMessage, retryMessage, discardMessage } = useChatMutations();
     // Stable identities: MessageRow is memo'd, and an inline closure here would
     // re-render every visible row on each ChatPane render.

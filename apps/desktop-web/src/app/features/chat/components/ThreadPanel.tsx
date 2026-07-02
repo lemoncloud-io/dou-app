@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
+import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
@@ -39,7 +39,8 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
         storageKey: 'chatic.threadPanel.width',
         defaultWidth: 384,
     });
-    const { messages } = useChats(channelId);
+    // Freshness bridge: new replies land via the channel record's chatNo (see useChats).
+    const { messages } = useChats(channelId, lastChatNoOf(channel));
     const { sendMessage, retryMessage, discardMessage } = useChatMutations();
     // Stable identity — MessageRow is memo'd; an inline closure would re-render
     // every visible thread row on each panel render.

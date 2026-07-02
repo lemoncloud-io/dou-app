@@ -34,12 +34,19 @@ const sortByChatNo = (messages: DomainChat[]): DomainChat[] =>
 /**
  * Message stream for a channel (mirrors apps/web useChats). Chat fetching is owned
  * by the sync layer — `useChatSync` registers a 'chat' target and the SyncManager
- * seeds the first page (when the cache is cold) and streams live + catches up on
- * reconnect — so this hook never fetches on entry; it only observes the cache.
+ * seeds the first page (when the cache is cold) — plus the freshness bridge below;
  * `loadOlder` fetches the next older page by cursor and widens the window so the
  * cache re-emits with the older page included. Rows are sorted oldest→newest.
+ *
+ * `latestChatNo` is the channel record's newest message number (lastChatNoOf).
+ * It is the feed's only RELIABLE freshness signal: the engine's chat sync cannot
+ * deliver mid-session messages — the live sync frame arrives as `channel.sync`
+ * (routed to the channel target only), the chat plan's periodic `run()` is a
+ * no-op, and its `onConnected` catch-up never fires for a target registered
+ * while already connected. The channel record, by contrast, is kept live by the
+ * channel plan's poll — so when it runs ahead of the cache, fetch the newest page.
  */
-export const useChats = (channelId: string | null) => {
+export const useChats = (channelId: string | null, latestChatNo?: number) => {
     const { chat: chatRepository } = useRuntimeRepositories();
 
     useChatSync(channelId ?? undefined);
@@ -94,6 +101,23 @@ export const useChats = (channelId: string | null) => {
             setIsLoading(false);
         });
     }, [chatRepository, channelId, pageLimit]);
+
+    // Freshness bridge (see the hook doc): when the channel record's newest chatNo
+    // runs ahead of what the cache holds, pull the newest feed page. Guarded per
+    // (channel, chatNo) so an already-fetched target (e.g. a deleted or
+    // thread-only message the feed can't surface) isn't re-fetched every render.
+    const freshnessRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
+    useEffect(() => {
+        if (!channelId || !latestChatNo) return;
+        let cachedNewest = 0;
+        for (const chat of chats) {
+            if (chat.chatNo != null && chat.chatNo > cachedNewest) cachedNewest = chat.chatNo;
+        }
+        if (latestChatNo <= cachedNewest) return;
+        if (freshnessRef.current.id === channelId && freshnessRef.current.no >= latestChatNo) return;
+        freshnessRef.current = { id: channelId, no: latestChatNo };
+        void chatRepository.refreshList({ channelId, limit: PAGE_SIZE }).catch(() => undefined);
+    }, [chatRepository, channelId, latestChatNo, chats]);
 
     const messages = useMemo(() => sortByChatNo(chats), [chats]);
 

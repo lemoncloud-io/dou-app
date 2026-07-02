@@ -5,7 +5,21 @@ import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isDndActive } from '../utils';
-import { channelNotifyMode, useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
+import { channelNotifyMode, useMyCloudUidStore, useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
+
+/**
+ * Resolve which relay cloud a push came from: `data.uid` is MY uid in the source
+ * cloud, reverse-mapped through the persisted per-cloud uid map (the same chain
+ * useCrossCloudPushBadge uses); `data.cid` when a backend stamps it. Null when
+ * unresolvable.
+ */
+const resolveSourceCloudId = (data: Record<string, string>): string | null => {
+    if (data.uid) {
+        const entry = Object.entries(useMyCloudUidStore.getState().byPlace).find(([, uid]) => uid === data.uid);
+        if (entry) return entry[0].split(':')[0];
+    }
+    return data.cid || null;
+};
 
 /**
  * Cross-cloud push presenter — in-app toast when focused, OS banner when not.
@@ -47,6 +61,14 @@ export const useCrossCloudPushNotifications = (): void => {
             if (!focused) {
                 // The OS-notification master switch gates banners only; toasts are in-app.
                 if (!prefs.desktopEnabled) return;
+                // The backend fans FCM out for the ACTIVE cloud too, but the live-WS path
+                // (useDesktopNotifications) already banners those — showing this one as
+                // well double-banners every same-cloud message. Unresolvable source →
+                // banner anyway: a duplicate beats silence for a cross-cloud message.
+                const sourceCloudId = resolveSourceCloudId(data);
+                const activeServer = getGlobalSessionContext().activeServer;
+                const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
+                if (sourceCloudId && activeCloudId && String(sourceCloudId) === String(activeCloudId)) return;
                 void webClient
                     .request({
                         type: 'ShowNotification',
