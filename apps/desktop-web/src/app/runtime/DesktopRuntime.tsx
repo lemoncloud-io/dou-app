@@ -18,6 +18,7 @@ import {
     useRefreshOnPush,
     useRetainLeavingCloudBadge,
     useSocketWedgeReload,
+    useSyncNotificationPrefsToShell,
     useUnreadStore,
 } from '../shared';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
@@ -92,6 +93,10 @@ const ShellUnreadSync = () => {
 export const DesktopRuntime = () => {
     const binding = useRuntimeBinding();
     const delegate = useSocketDelegate();
+    // Mirror DND/global-switch prefs to the Electron main process, which raises
+    // cross-cloud FCM banners itself. Always mounted (not auth-gated): DND must
+    // keep gating shell banners on the logged-out screen too.
+    useSyncNotificationPrefsToShell();
 
     return (
         <RuntimeConnectionHost binding={binding} delegate={delegate}>

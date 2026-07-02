@@ -28,4 +28,5 @@ export * from './useCrossCloudPushBadge';
 export * from './useRefreshOnPush';
 export * from './useRetainLeavingCloudBadge';
 export * from './useAppUpdate';
+export * from './useSyncNotificationPrefsToShell';
 export * from './useAccountResetOnLogout';

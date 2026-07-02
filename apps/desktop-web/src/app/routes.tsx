@@ -4,13 +4,15 @@ import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'r
 import { isNative, webClient } from '@chatic/bridges';
 import { useSessionAuth } from '@chatic/web-core';
 
-import { AppShellSkeleton, usePendingOpenStore } from './shared';
+import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
  * Desktop-shell OS-notification click handler. Mounted inside the Router (so it
  * can navigate) and route-independent, so a click works from /profile or
  * /settings — not just the home route. Routes home and stashes the target;
- * HomePage applies it once its channels load.
+ * HomePage applies it once its channels load. Handles both the same-cloud
+ * `chatic-open:` deeplink and the server FCM `channel?channelId=` link (which
+ * carries no place — HomePage then selects the channel within the loaded ones).
  */
 const NotificationOpenListener = () => {
     const navigate = useNavigate();
@@ -20,12 +22,9 @@ const NotificationOpenListener = () => {
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;
-            if (!deeplink?.startsWith('chatic-open:')) return;
-            const [rawPlace, rawChannel] = deeplink.slice('chatic-open:'.length).split('|');
-            const placeId = rawPlace ? decodeURIComponent(rawPlace) : '';
-            const channelId = rawChannel ? decodeURIComponent(rawChannel) : '';
-            if (!channelId) return;
-            request(placeId, channelId);
+            const target = parsePushDeeplink(deeplink);
+            if (!target) return;
+            request(target.placeId, target.channelId);
             navigate('/');
         });
     }, [navigate, request]);

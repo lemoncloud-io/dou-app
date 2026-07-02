@@ -34,6 +34,7 @@ import type {
     SendSmsPayload,
     SetBadgeCountPayload,
     SetCanGoBackPayload,
+    SetNotificationPrefsPayload,
     RequestFileUploadPayload,
     PauseFileUploadPayload,
     ResumeFileUploadPayload,
@@ -104,6 +105,7 @@ export type WebMessagePayloadMap = {
     FetchFcmToken: FetchFcmTokenPayload;
     FetchBadgeCount: FetchBadgeCountPayload;
     SetBadgeCount: SetBadgeCountPayload;
+    SetNotificationPrefs: SetNotificationPrefsPayload;
     ShowNotification: ShowNotificationPayload;
     FetchUrlMetadata: FetchUrlMetadataPayload;
 

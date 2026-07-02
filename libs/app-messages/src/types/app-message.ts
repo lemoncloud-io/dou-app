@@ -65,6 +65,7 @@ import type {
     OnSendLogPayload,
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
+    OnSetNotificationPrefsPayload,
     OnShowNotificationPayload,
     OnFetchUrlMetadataPayload,
     OnSetCanGoBackPayload,
@@ -123,6 +124,7 @@ export type AppMessageDataMap = {
     OnReceiveNotification: OnNotificationPayload;
     OnFetchBadgeCount: OnFetchBadgeCountPayload;
     OnSetBadgeCount: OnSetBadgeCountPayload;
+    OnSetNotificationPrefs: OnSetNotificationPrefsPayload;
     OnShowNotification: OnShowNotificationPayload;
     OnFetchUrlMetadata: OnFetchUrlMetadataPayload;
 

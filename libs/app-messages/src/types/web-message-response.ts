@@ -39,6 +39,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
     SetBadgeCount: 'OnSetBadgeCount',
+    SetNotificationPrefs: 'OnSetNotificationPrefs',
     ShowNotification: 'OnShowNotification',
     FetchUrlMetadata: 'OnFetchUrlMetadata',
     FetchProducts: 'OnFetchProducts',
