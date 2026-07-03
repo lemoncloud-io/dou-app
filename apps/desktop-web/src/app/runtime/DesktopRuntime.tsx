@@ -16,6 +16,7 @@ import {
     useMentionCapture,
     usePlaceUnreadCounts,
     useRefreshOnPush,
+    useCloudPushBadgeStore,
     useRetainLeavingCloudBadge,
     useSocketWedgeReload,
     useUnreadStore,
@@ -73,11 +74,19 @@ const ShellUnreadSync = () => {
 
     const total = Object.values(byPlace).reduce((sum, n) => sum + n, 0);
     // Keep a cloud's rail dot when switching away from it with unread still pending.
+    // Operates on the active-cloud total (its own concern), not the cross-cloud sum.
     useRetainLeavingCloudBadge(total);
-    useDesktopBadge(total);
+
+    // The live socket only counts the active cloud; other clouds surface as boolean
+    // push badges (no count). Fold each into the OS dock badge as +1 so the dock
+    // reflects cross-cloud activity instead of reading 0 while other clouds wait —
+    // an approximation (cloud count, not message count), same as the rail dots.
+    const crossCloudCount = useCloudPushBadgeStore(s => Object.keys(s.badged).length);
+    const badgeTotal = total + crossCloudCount;
+    useDesktopBadge(badgeTotal);
     useEffect(() => {
-        document.title = total > 0 ? `(${total > 99 ? '99+' : total}) DoU` : 'DoU';
-    }, [total]);
+        document.title = badgeTotal > 0 ? `(${badgeTotal > 99 ? '99+' : badgeTotal}) DoU` : 'DoU';
+    }, [badgeTotal]);
 
     return null;
 };

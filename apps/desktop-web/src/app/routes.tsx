@@ -24,7 +24,7 @@ const NotificationOpenListener = () => {
                 ?.deeplink;
             const target = parsePushDeeplink(deeplink);
             if (!target) return;
-            request(target.placeId, target.channelId);
+            request(target.placeId, target.channelId, target.cloudId);
             navigate('/');
         });
     }, [navigate, request]);

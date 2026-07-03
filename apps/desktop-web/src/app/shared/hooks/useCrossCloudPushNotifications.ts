@@ -4,7 +4,7 @@ import { webClient } from '@chatic/bridges';
 import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isDndActive } from '../utils';
+import { isDndActive, isMentioned, resolveMyMentionNames } from '../utils';
 import { channelNotifyMode, useMyCloudUidStore, useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
 
 /**
@@ -19,6 +19,20 @@ const resolveSourceCloudId = (data: Record<string, string>): string | null => {
         if (entry) return entry[0].split(':')[0];
     }
     return data.cid || null;
+};
+
+/**
+ * Deeplink for the OS banner click. When the source cloud resolves, encode
+ * `chatic-open:<cloudId>|<sid>|<channelId>` so the click switches cloud → place →
+ * channel (parsePushDeeplink + HomePage). Otherwise fall back to the server's own
+ * `channel?channelId=` link — best-effort, opens in the current cloud only.
+ */
+const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, string>): string | undefined => {
+    if (cloudId && data.channelId) {
+        const enc = encodeURIComponent;
+        return `chatic-open:${enc(cloudId)}|${enc(data.sid ?? '')}|${enc(data.channelId)}`;
+    }
+    return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
 
 /**
@@ -54,8 +68,15 @@ export const useCrossCloudPushNotifications = (): void => {
             const data = notification?.data ?? {};
             const myUid = getGlobalSessionContext().identity.userId;
             if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
-            // Per-channel mute — same prefs the same-cloud banner path honors.
-            if (data.channelId && channelNotifyMode(prefs, String(data.channelId)) === 'none') return;
+            // Per-channel notify mode — same policy the same-cloud path honors: muted
+            // channels stay silent, mention-only channels drop non-@me messages. Uses the
+            // raw `data.content` (the localized `body` isn't the original text).
+            if (data.channelId) {
+                const mode = channelNotifyMode(prefs, String(data.channelId));
+                if (mode === 'none') return;
+                if (mode === 'mention' && !isMentioned(String(data.content ?? body ?? ''), resolveMyMentionNames()))
+                    {return;}
+            }
 
             const focused = typeof document !== 'undefined' && document.hasFocus();
             if (!focused) {
@@ -76,9 +97,7 @@ export const useCrossCloudPushNotifications = (): void => {
                             title: title ?? 'DoU',
                             body: body ?? '',
                             channelId: data.channelId,
-                            // Server FCM links arrive as `channel?channelId=` — the click
-                            // listener parses that alongside chatic-open: (parsePushDeeplink).
-                            deeplink: data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined),
+                            deeplink: buildCrossCloudDeeplink(sourceCloudId, data),
                         },
                     })
                     // Degrade gracefully on older shells / transient bridge errors — a

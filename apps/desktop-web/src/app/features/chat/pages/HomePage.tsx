@@ -109,6 +109,9 @@ export const HomePage = () => {
     // A channel to open once its place's channels have loaded (notification click
     // across places: switchPlace resets selection, so we re-apply it here).
     const pendingChannelRef = useRef<string | null>(null);
+    // A place to land once a cross-cloud notification switch loads the new cloud's
+    // places — the auto-select-first effect honors this instead of the first place.
+    const pendingPlaceRef = useRef<string | null>(null);
     // A message to scroll to once a cross-place jump's channel has loaded (paired
     // with pendingChannelRef when the saved item lives in another place).
     const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
@@ -149,8 +152,16 @@ export const HomePage = () => {
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { placeId, channelId } = pendingOpen;
-        if (placeId && placeId !== selectedPlaceId) {
+        const { cloudId, placeId, channelId } = pendingOpen;
+        const activeCloud = activeCloudId ?? 'default';
+        if (cloudId && cloudId !== activeCloud) {
+            // Cross-cloud: switch cloud first. The target place lands via the
+            // auto-select effect (pendingPlaceRef), then the channel via the
+            // pending-channel effect — each once its data loads.
+            pendingChannelRef.current = channelId;
+            pendingPlaceRef.current = placeId || null;
+            switchCloud(cloudId);
+        } else if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
             switchPlace(placeId);
         } else {
@@ -171,6 +182,19 @@ export const HomePage = () => {
         // transient mismatch here would fire switchPlace() against a stale / other-cloud
         // place and thrash the channel list. Only act when idle.
         if (isSwitching) return;
+        // A cross-cloud notification switch wants a SPECIFIC place — land it once the new
+        // cloud's places load, ahead of the first-place fallback below.
+        const wantedPlace = pendingPlaceRef.current;
+        if (wantedPlace) {
+            if (places.some(p => p.id === wantedPlace)) {
+                pendingPlaceRef.current = null;
+                if (wantedPlace !== selectedPlaceId) switchPlace(wantedPlace);
+                return;
+            }
+            // Places loaded but the target isn't among them (stale/left) — drop it and
+            // fall through to the first place instead of waiting forever.
+            if (places.length > 0) pendingPlaceRef.current = null;
+        }
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
             const firstId = places[0]?.id;

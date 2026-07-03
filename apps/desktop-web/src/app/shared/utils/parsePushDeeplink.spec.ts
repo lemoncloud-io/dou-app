@@ -14,6 +14,26 @@ describe('parsePushDeeplink', () => {
         expect(parsePushDeeplink('chatic-open:|c1')).toEqual({ placeId: '', channelId: 'c1' });
     });
 
+    it('parses the cross-cloud chatic-open format with cloud, place and channel', () => {
+        expect(parsePushDeeplink('chatic-open:1000004|site%201|chan%2F1')).toEqual({
+            cloudId: '1000004',
+            placeId: 'site 1',
+            channelId: 'chan/1',
+        });
+    });
+
+    it('omits cloudId when the leading segment is empty in the 3-part form', () => {
+        expect(parsePushDeeplink('chatic-open:|site1|c1')).toEqual({
+            cloudId: undefined,
+            placeId: 'site1',
+            channelId: 'c1',
+        });
+    });
+
+    it('rejects the 3-part form without a channel', () => {
+        expect(parsePushDeeplink('chatic-open:cloud|place|')).toBeNull();
+    });
+
     it('rejects chatic-open without a channel', () => {
         expect(parsePushDeeplink('chatic-open:place|')).toBeNull();
         expect(parsePushDeeplink('chatic-open:')).toBeNull();
