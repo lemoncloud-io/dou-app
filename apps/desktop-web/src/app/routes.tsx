@@ -7,16 +7,25 @@ import { useSessionAuth } from '@chatic/web-core';
 import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
- * Desktop-shell OS-notification click handler. Mounted inside the Router (so it
- * can navigate) and route-independent, so a click works from /profile or
- * /settings — not just the home route. Routes home and stashes the target;
- * HomePage applies it once its channels load. Handles both the same-cloud
- * `chatic-open:` deeplink and the server FCM `channel?channelId=` link (which
- * carries no place — HomePage then selects the channel within the loaded ones).
+ * Desktop notification-open router. Mounted inside the Router (so it can
+ * navigate) and route-independent, so opening works from /profile or /settings —
+ * not just home. Two entry points feed the same pending-open store:
+ *   - the OS-banner click, delivered as an `OnReceiveNotification` deeplink
+ *     (both the same-cloud `chatic-open:` and cross-cloud 3-segment forms), and
+ *   - the in-app toast click (foreground), which sets the store directly.
+ * Whenever a target is set it routes home; HomePage applies the cloud/place/
+ * channel target once each loads.
  */
 const NotificationOpenListener = () => {
     const navigate = useNavigate();
     const request = usePendingOpenStore(s => s.request);
+    const pendingNonce = usePendingOpenStore(s => s.target?.nonce);
+    // Any open request (banner OR toast) routes home. Guard on a live target so
+    // HomePage clearing it back to null doesn't re-navigate.
+    useEffect(() => {
+        if (pendingNonce == null) return;
+        navigate('/');
+    }, [pendingNonce, navigate]);
     useEffect(() => {
         if (!isNative()) return;
         return webClient.onEvent('OnReceiveNotification', message => {
@@ -25,9 +34,8 @@ const NotificationOpenListener = () => {
             const target = parsePushDeeplink(deeplink);
             if (!target) return;
             request(target.placeId, target.channelId, target.cloudId);
-            navigate('/');
         });
-    }, [navigate, request]);
+    }, [request]);
     return null;
 };
 

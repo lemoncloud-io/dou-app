@@ -5,7 +5,13 @@ import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isDndActive, isMentioned, resolveMyMentionNames } from '../utils';
-import { channelNotifyMode, useMyCloudUidStore, useNotificationPrefsStore, useSelectedChannelStore } from '../stores';
+import {
+    channelNotifyMode,
+    useMyCloudUidStore,
+    useNotificationPrefsStore,
+    usePendingOpenStore,
+    useSelectedChannelStore,
+} from '../stores';
 
 /**
  * Resolve which relay cloud a push came from: `data.uid` is MY uid in the source
@@ -74,9 +80,12 @@ export const useCrossCloudPushNotifications = (): void => {
             if (data.channelId) {
                 const mode = channelNotifyMode(prefs, String(data.channelId));
                 if (mode === 'none') return;
-                if (mode === 'mention' && !isMentioned(String(data.content ?? body ?? ''), resolveMyMentionNames()))
-                    {return;}
+                if (mode === 'mention' && !isMentioned(String(data.content ?? body ?? ''), resolveMyMentionNames())) {
+                    return;
+                }
             }
+
+            const sourceCloudId = resolveSourceCloudId(data);
 
             const focused = typeof document !== 'undefined' && document.hasFocus();
             if (!focused) {
@@ -86,7 +95,6 @@ export const useCrossCloudPushNotifications = (): void => {
                 // (useDesktopNotifications) already banners those — showing this one as
                 // well double-banners every same-cloud message. Unresolvable source →
                 // banner anyway: a duplicate beats silence for a cross-cloud message.
-                const sourceCloudId = resolveSourceCloudId(data);
                 const activeServer = getGlobalSessionContext().activeServer;
                 const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
                 if (sourceCloudId && activeCloudId && String(sourceCloudId) === String(activeCloudId)) return;
@@ -109,9 +117,21 @@ export const useCrossCloudPushNotifications = (): void => {
             const activeChannelId = useSelectedChannelStore.getState().selectedChannelId;
             if (data.channelId && String(data.channelId) === String(activeChannelId)) return; // already open
 
+            // Clicking the toast opens the message like the OS-banner click: set the
+            // pending-open target (NotificationOpenListener routes home, HomePage
+            // switches cloud/place → channel). Passing the source cloud is a no-op when
+            // it's already active.
+            const channelId = data.channelId;
             toast({
                 title: data.channelName ? `#${data.channelName}` : title,
                 description: title && body ? `${title}: ${body}` : body || title,
+                className: channelId ? 'cursor-pointer' : undefined,
+                onClick: channelId
+                    ? () =>
+                          usePendingOpenStore
+                              .getState()
+                              .request(data.sid ?? '', String(channelId), sourceCloudId ?? undefined)
+                    : undefined,
             });
         });
     }, []);
