@@ -15,9 +15,9 @@ export interface PushDeeplinkTarget {
  * - `chatic-open:<cloudId>|<placeId>|<channelId>` — cross-cloud FCM banners
  *   (useCrossCloudPushNotifications), carrying the source cloud so the consumer
  *   can switch cloud → place → channel. All segments are URI-encoded.
- * - `channel?channelId=<id>` — the raw pushes-api `PushData.link` fallback when
- *   the source cloud couldn't be resolved; no place/cloud, best-effort open in
- *   the currently loaded places.
+ * - `channel?channelId=<id>` or `/channels/<id>/room` — the raw pushes-api link
+ *   fallback when the source cloud couldn't be resolved; no place/cloud,
+ *   best-effort open in the currently loaded places.
  *
  * Anything else (OAuth deeplinks, malformed input) → null.
  */
@@ -34,6 +34,12 @@ export const parsePushDeeplink = (deeplink: string | undefined | null): PushDeep
         const channelId = dec(parts[1]);
         if (!channelId) return null;
         return { placeId: dec(parts[0]), channelId };
+    }
+    // Server path form `/channels/<channelId>/room`.
+    const pathMatch = /\/channels\/([^/?#]+)/.exec(deeplink);
+    if (pathMatch) {
+        const channelId = dec(pathMatch[1]);
+        return channelId ? { placeId: '', channelId } : null;
     }
     const queryStart = deeplink.indexOf('?');
     const query = queryStart >= 0 ? deeplink.slice(queryStart + 1) : deeplink;

@@ -64,6 +64,30 @@ const saveCreds = (creds: SavedCreds): void => {
     }
 };
 
+/** Parse a JSON-object string (the backend nests chat fields under `data.payload`). */
+const parseJsonObject = (raw: string | undefined): Record<string, string> => {
+    if (!raw) return {};
+    try {
+        const value = JSON.parse(raw) as unknown;
+        if (!value || typeof value !== 'object') return {};
+        // Coerce every field to a string so the flattened data stays Record<string,string>.
+        return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, String(v)]));
+    } catch {
+        return {};
+    }
+};
+
+/** First element of a JSON-array string (FCM loc args, e.g. `["name"]` / `["message"]`). */
+const firstArrayItem = (raw: string | undefined): string | undefined => {
+    if (!raw) return undefined;
+    try {
+        const value = JSON.parse(raw) as unknown;
+        return Array.isArray(value) && value.length > 0 ? String(value[0]) : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 const appDataToObject = (appData: PushReceiverMessage['appData'] = []): Record<string, string> =>
     appData.reduce<Record<string, string>>((out, kv) => {
         if (kv?.key) out[kv.key] = kv.value;
@@ -207,14 +231,23 @@ export const startFcm = async (
                 saveCreds(session);
             }
             const data = appDataToObject(message.appData);
-            // The backend sends FCM *notification* fields, which push-receiver surfaces as
-            // `gcm.notification.*` data keys (alongside `content`/`link`). Fall back to the
-            // plain keys for test/non-backend payloads.
+            // The backend nests the chat fields (cid, channelId, uid, ownerId, content, sid,
+            // channelName, chatId) inside a JSON string under `data.payload`, and delivers the
+            // title/body as localization args (`title_loc_args`/`loc_args`) rather than plain
+            // `gcm.notification.*`. Flatten the payload so downstream reads `data.channelId`
+            // etc directly, and derive title/body from the loc args (falling back to the plain
+            // keys for test/non-backend payloads).
+            const payload = parseJsonObject(data.payload);
             handlers.onPush({
-                title: data['gcm.notification.title'] || data.title,
-                body: data['gcm.notification.body'] || data.content || data.body,
+                title: data['gcm.notification.title'] || firstArrayItem(data.title_loc_args) || data.title,
+                body:
+                    data['gcm.notification.body'] ||
+                    firstArrayItem(data.loc_args) ||
+                    payload.content ||
+                    data.content ||
+                    data.body,
                 deeplink: data.link || data.deeplink || data.url,
-                data,
+                data: { ...data, ...payload },
             });
         });
 

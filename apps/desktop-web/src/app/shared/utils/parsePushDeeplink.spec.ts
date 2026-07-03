@@ -51,6 +51,10 @@ describe('parsePushDeeplink', () => {
         expect(parsePushDeeplink('channel?channelId=a%3A1')).toEqual({ placeId: '', channelId: 'a:1' });
     });
 
+    it('parses the server path form /channels/<id>/room', () => {
+        expect(parsePushDeeplink('/channels/1000002/room')).toEqual({ placeId: '', channelId: '1000002' });
+    });
+
     it('ignores unrelated deeplinks', () => {
         expect(parsePushDeeplink('chatic://oauth?code=xyz')).toBeNull();
         expect(parsePushDeeplink('https://example.com')).toBeNull();

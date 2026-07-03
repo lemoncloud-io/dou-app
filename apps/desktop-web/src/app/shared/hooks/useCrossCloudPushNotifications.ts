@@ -46,16 +46,16 @@ const presentPush = async (
         if (mode === 'mention' && !isMentioned(String(data.content ?? body ?? ''), resolveMyMentionNames())) return;
     }
 
-    // Resolve the source cloud from the CHANNEL cache — the reliable signal. A push's
-    // `data.uid` is the account id (identical across your own clouds), so it can't
-    // attribute a cloud; resolvePushCloudId returns the relay cloud id the session/rail
-    // use (or trusts uid only when it maps to a single cloud, for invited clouds).
-    const sourceCloudId = await resolvePushCloudId({
-        channelId: data.channelId,
-        sid: data.sid,
-        channelName: data.channelName,
-        uid: data.uid,
-    });
+    // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
+    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
+    const sourceCloudId =
+        data.cid ||
+        (await resolvePushCloudId({
+            channelId: data.channelId,
+            sid: data.sid,
+            channelName: data.channelName,
+            uid: data.uid,
+        }));
     const activeServer = getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
 
