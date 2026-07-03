@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { resizeImageToBase64 } from '@chatic/shared';
 import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
@@ -31,11 +32,11 @@ export const EditPlaceProfileDialog = () => {
     const { placeName } = useCurrentPlace();
     const placeLabel = placeName || t('profile.thisPlaceFallback');
 
-    const { activeProfile: profile } = useSessionIdentity();
-    const myUid = profile?.uid ?? '';
-    const rawName = profile?.$user?.name ?? '';
-    const globalName = isPlaceholderName(rawName) ? '' : rawName;
-    const globalPhoto = profile?.$user?.photo ?? '';
+    const { userId } = useSessionIdentity();
+    const { userName, photo } = useSessionProfile();
+    const myUid = userId ?? '';
+    const globalName = isPlaceholderName(userName) ? '' : userName;
+    const globalPhoto = photo ?? '';
 
     const [nick, setNick] = useState('');
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);

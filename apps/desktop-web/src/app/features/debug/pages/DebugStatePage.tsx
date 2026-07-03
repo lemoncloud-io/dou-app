@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { useSessionAuth, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
-import { useSocketState } from '@chatic/app-runtime';
+import { getActiveSessionUser, useSessionAuth, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionProfile, useSocketState } from '@chatic/app-runtime';
 
 import { useChannels, useClouds, usePlaces, useSelectedChannelStore } from '../../../shared';
 
@@ -21,7 +21,9 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 
 /** Dev-only session/state inspector (desktop equivalent of apps/web DebugStatePage). */
 export const DebugStatePage = () => {
-    const { activeProfile: profile } = useSessionIdentity();
+    const { userId } = useSessionIdentity();
+    const { userName } = useSessionProfile();
+    const accountUser = getActiveSessionUser() as { email?: string } | null;
     const { isAuthenticated } = useSessionAuth();
     const { isConnected, isVerified, state } = useSocketState();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
@@ -36,9 +38,9 @@ export const DebugStatePage = () => {
             <div className="grid gap-4">
                 <Section title="Session">
                     <Row label="Authenticated" value={isAuthenticated} />
-                    <Row label="UID" value={profile?.uid} />
-                    <Row label="Name" value={profile?.$user?.name} />
-                    <Row label="Email" value={profile?.$user?.email} />
+                    <Row label="UID" value={userId} />
+                    <Row label="Name" value={userName} />
+                    <Row label="Email" value={accountUser?.email} />
                 </Section>
 
                 <Section title="Socket">

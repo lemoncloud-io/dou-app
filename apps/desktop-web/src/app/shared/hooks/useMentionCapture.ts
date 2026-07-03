@@ -27,7 +27,7 @@ export const useMentionCapture = (): void => {
 
         const identity = getGlobalSessionContext().identity;
         const authorId = chatAuthorId(chat);
-        const isMe = !!authorId && (authorId === identity.activeProfile?.identityId || authorId === identity.userId);
+        const isMe = !!authorId && authorId === identity.userId;
         // Precedence: own message → not-a-mention → already-read → capture.
         if (isMe) return;
         if (!isMentioned(content, resolveMyMentionNames())) return;

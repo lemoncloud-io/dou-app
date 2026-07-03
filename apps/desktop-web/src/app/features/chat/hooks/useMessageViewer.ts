@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useSessionIdentity } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 
 import { isPlaceholderName } from '../../../shared';
 import type { MessageViewer } from '../utils';
@@ -12,10 +13,9 @@ import type { MessageViewer } from '../utils';
  * (UUID) is dropped so own messages fall back to "You" rather than the raw id.
  */
 export const useMessageViewer = (channel: DomainChannel | undefined): MessageViewer => {
-    const identity = useSessionIdentity();
-    const myUid = identity.userId;
-    const rawMyName = identity.activeProfile?.$user?.name ?? '';
-    const myName = isPlaceholderName(rawMyName) ? '' : rawMyName;
+    const { userId: myUid } = useSessionIdentity();
+    const { userName } = useSessionProfile();
+    const myName = isPlaceholderName(userName) ? '' : userName;
     const cloudUid = channel?.$join?.userId ?? null;
     return useMemo(() => ({ uid: myUid, name: myName, cloudUid }), [myUid, myName, cloudUid]);
 };

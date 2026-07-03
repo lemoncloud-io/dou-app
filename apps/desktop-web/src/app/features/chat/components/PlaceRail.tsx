@@ -8,6 +8,7 @@ import { Home, User } from 'lucide-react';
 import type { DomainSite } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { useSessionIdentity, useSessionLogout } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 
 import { useJoinDialogStore } from '../../auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -113,18 +114,14 @@ export const PlaceRail = ({
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
-    const { activeProfile: profile } = useSessionIdentity();
+    const { userId } = useSessionIdentity();
+    const { userName, photo } = useSessionProfile();
     const logout = useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
-    const rawName = profile?.$user?.name ?? '';
-    const globalName = isPlaceholderName(rawName) ? '' : rawName;
-    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(
-        profile?.uid ?? '',
-        globalName,
-        profile?.$user?.photo ?? undefined
-    );
+    const globalName = isPlaceholderName(userName) ? '' : userName;
+    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', globalName, photo);
     const userInitial = selfName.charAt(0).toUpperCase();
 
     // Hidden gesture: tap the rail divider 7× (within 1.5s between taps) to toggle

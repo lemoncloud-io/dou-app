@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { ChevronLeft } from 'lucide-react';
 
-import { useSessionIdentity } from '@chatic/web-core';
+import { getActiveSessionUser, useSessionIdentity } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -59,7 +60,11 @@ const SectionTitle = ({ children }: { children: string }) => (
 export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { activeProfile: profile } = useSessionIdentity();
+    // Identity is uid-only now; profile facts (name/photo) come from useSessionProfile
+    // and the account email from the active session token.
+    const { userId } = useSessionIdentity();
+    const { userName, photo } = useSessionProfile();
+    const accountUser = getActiveSessionUser() as { email?: string } | null;
     const [copied, copy] = useCopyToClipboard();
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const { start: startSocialLogin } = useSocialLogin();
@@ -71,31 +76,30 @@ export const ProfilePage = () => {
     const { placeName } = useCurrentPlace();
     const placeLabel = placeName || t('profile.thisPlaceFallback');
     // Whether I have an active per-place override here (vs falling back to the
-    // account). useSiteProfiles mirrors my own entry under the account uid, so the
-    // account-uid lookup resolves self from cache (no async self read here).
-    const hasPlaceProfile = !!useSiteProfileMap()[profile?.uid ?? ''];
+    // account). Resolved from the display store (fed by useSiteProfiles) by my
+    // account uid.
+    const hasPlaceProfile = !!useSiteProfileMap()[userId ?? ''];
 
-    const user = profile?.$user;
     const fallback = t('profile.unknown');
-    const name = user?.name ?? fallback;
-    const email = user?.email || t('profile.notSet');
-    const uid = profile?.uid ?? fallback;
+    const name = userName || fallback;
+    const email = accountUser?.email || t('profile.notSet');
+    const uid = userId ?? fallback;
     // No email on the account ⇒ a Guest Session (Social Login backfills the
     // email) — offer the in-app Google link (ADR 0009; replaces the session).
     // Dev-only until the backend can restore joined clouds (see oauth.ts).
-    const showSocialLogin = !user?.email && isSocialLoginEnabled();
+    const showSocialLogin = !accountUser?.email && isSocialLoginEnabled();
 
     // Effective display = my Place Profile when active, else the global identity.
-    const globalName = isPlaceholderName(user?.name) ? '' : (user?.name ?? '');
+    const globalName = isPlaceholderName(userName) ? '' : userName;
     const { name: displayName, thumbnail: displayPhoto } = useDisplayProfile(
-        profile?.uid ?? '',
+        userId ?? '',
         globalName || fallback,
-        user?.photo ?? undefined
+        photo
     );
     const initial = displayName.charAt(0).toUpperCase() || '?';
 
     const handleCopyUid = () => {
-        if (profile?.uid) copy(profile.uid);
+        if (userId) copy(userId);
     };
 
     return (
@@ -121,7 +125,7 @@ export const ProfilePage = () => {
                             )}
                             <AvatarFallback
                                 className="rounded-xl text-xl font-semibold"
-                                style={avatarStyle(profile?.uid || displayName)}
+                                style={avatarStyle(userId || displayName)}
                             >
                                 {initial}
                             </AvatarFallback>
@@ -154,7 +158,7 @@ export const ProfilePage = () => {
                         <ProfileField
                             label={t('profile.id')}
                             value={uid}
-                            onCopy={profile?.uid ? handleCopyUid : undefined}
+                            onCopy={userId ? handleCopyUid : undefined}
                             copied={copied}
                             copyLabel={t('profile.copy')}
                             copiedLabel={t('profile.copied')}
