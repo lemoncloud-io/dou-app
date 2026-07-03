@@ -21,23 +21,6 @@ const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, st
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
 
-/**
- * Cross-cloud push presenter — in-app toast when focused, OS banner when not.
- *
- * The shell raises no banner for FCM pushes itself; it forwards every push as
- * `OnReceiveNotification` and this hook owns the whole decision (DND, global
- * switch, own-message, focus), exactly as useDesktopNotifications owns it for
- * same-cloud live-WS messages. Keeping the policy here means DND lives in one
- * place and ships with the web (no shell reinstall), and focus is judged from
- * a single source (document.hasFocus()) instead of main and renderer each
- * guessing at it.
- *
- * Focused → toast (macOS drops focused-app OS banners, so a banner would be
- * invisible there anyway). Unfocused → OS banner through the same
- * ShowNotification bridge the same-cloud path uses.
- *
- * No-op in a plain browser (the shell never emits the event).
- */
 /** Present one forwarded FCM push as a toast (focused) or an OS banner (unfocused). */
 const presentPush = async (
     notification: { title?: string; body?: string; data?: Record<string, string> } | undefined
@@ -118,6 +101,16 @@ const presentPush = async (
     });
 };
 
+/**
+ * Cross-cloud push presenter. The shell raises no banner for FCM pushes itself; it
+ * forwards every push as `OnReceiveNotification` and this hook owns the whole
+ * decision (DND, global switch, own-message, focus) — exactly as
+ * useDesktopNotifications owns it for same-cloud live-WS messages — so DND lives in
+ * one place, ships with the web (no shell reinstall), and focus is judged from a
+ * single source (document.hasFocus()). Focused → toast (macOS drops focused-app OS
+ * banners); unfocused → OS banner via the same ShowNotification bridge. No-op in a
+ * plain browser (the shell never emits the event).
+ */
 export const useCrossCloudPushNotifications = (): void => {
     useEffect(() => {
         return webClient.onEvent('OnReceiveNotification', message => {
