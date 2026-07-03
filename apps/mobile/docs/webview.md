@@ -2,6 +2,8 @@
 
 WebView는 웹 앱과 모바일 shell의 경계다. 웹 앱은 typed message를 보내고, 모바일은 handler/service/native module을 통해 결과를 반환한다.
 
+> 웹뷰 로그·에러를 코드 레벨까지 관측하려면(Safari Web Inspector / `chrome://inspect`) [webview-debugging.md](./webview-debugging.md) 참고.
+
 ## 주요 파일
 
 | 파일                                           | 역할                                                         |
@@ -65,10 +67,11 @@ WebView load 전에 다음 runtime data가 script로 주입된다.
 
 - safe area inset
 - keyboard height
-- device/platform/app version/build number
-- Firebase installation id
-- latest version check result
+- device id (`CHATIC_APP_DEVICE_ID` = `deviceId:firebaseInstallId` 조합) / platform / app version / build number
+- installation id (`CHATIC_APP_INSTALLATION_ID` = 원시 device id) / latest version check result
 - console override script
+
+> device id는 원시 `DeviceInfo.getUniqueId`에 Firebase installation id를 이어붙인 값이다([`buildInjectedUniqueId.ts`](../src/app/webview/utils/buildInjectedUniqueId.ts)). Firebase id는 비동기 조회([`useFirebaseInstallId.ts`](../src/app/webview/hooks/useFirebaseInstallId.ts))라 아직 없으면 원시 device id만 들어간다.
 
 ## 변경 체크리스트
 

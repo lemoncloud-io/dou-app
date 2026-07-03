@@ -9,8 +9,9 @@ import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
+import { buildInjectedUniqueId } from './utils/buildInjectedUniqueId';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
-import { useVersionCheckHandler } from './hooks';
+import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
@@ -49,7 +50,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         webViewRef.current?.reload();
     }, []);
 
-    const uniqueId = DeviceInfo.getUniqueIdSync();
+    const deviceId = DeviceInfo.getUniqueIdSync();
+    const firebaseInstallId = useFirebaseInstallId();
+    // Push testing targets a device by `deviceId:firebaseInstallId`; until the async Firebase id
+    // resolves this falls back to the bare device id (see buildInjectedUniqueId).
+    const uniqueId = buildInjectedUniqueId(deviceId, firebaseInstallId);
     const versionCheck = getVersionCheckResult();
     const syncInjectionScript = getSyncInjectionScript({
         insets,
@@ -63,7 +68,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             appVersion: DeviceInfo.getVersion(),
             buildNumber: DeviceInfo.getBuildNumber(),
             appLanguage: getAppLanguage(),
-            installationId: uniqueId,
+            installationId: deviceId,
             latestVersion: versionCheck?.latestVersion ?? '',
             shouldUpdate: versionCheck?.hasUpdate ?? false,
         },
@@ -102,6 +107,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 allowFileAccess={true}
                 allowFileAccessFromFileURLs={true}
                 allowUniversalAccessFromFileURLs={true}
+                webviewDebuggingEnabled={__DEV__}
                 mixedContentMode="always"
                 cacheEnabled={true}
                 cacheMode="LOAD_DEFAULT"
