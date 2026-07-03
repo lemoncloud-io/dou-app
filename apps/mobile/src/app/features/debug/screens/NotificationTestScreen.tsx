@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { AuthorizationStatus } from '@react-native-firebase/messaging';
 import { useServices } from '../../../hooks';
+import { formatLogForCopy } from '../lib/formatLogForCopy';
 import { useDebugTheme } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -312,6 +313,17 @@ export const NotificationTestScreen = () => {
         }
     }, [addLog]);
 
+    /**
+     * Copy a log line to the clipboard on tap. We show a brief Alert as
+     * confirmation but intentionally skip addLog() here: appending a "copied"
+     * entry on every tap would spam the list and scroll it out from under the
+     * finger that just tapped.
+     */
+    const handleCopyLog = useCallback((item: LogItem) => {
+        Clipboard.setString(formatLogForCopy(item));
+        Alert.alert('Copied', 'Log copied to clipboard');
+    }, []);
+
     const renderLogItem = ({ item }: { item: LogItem }) => {
         let color = '#888';
         if (item.type === 'success') color = '#50E3C2';
@@ -320,10 +332,10 @@ export const NotificationTestScreen = () => {
         if (item.type === 'info') color = '#4A90E2';
 
         return (
-            <View style={styles.logRow}>
+            <TouchableOpacity style={styles.logRow} activeOpacity={0.6} onPress={() => handleCopyLog(item)}>
                 <Text style={styles.logTime}>[{item.timestamp}]</Text>
                 <Text style={[styles.logText, { color }]}>{item.message}</Text>
-            </View>
+            </TouchableOpacity>
         );
     };
 
