@@ -142,10 +142,7 @@ export const useWebViewDeepLink = (
     const navigateToPath = useCallback(
         (path: string, reason: 'warm-start' | 'cold-start') => {
             if (options?.bridge) {
-                logger.info(
-                    'DEEPLINK',
-                    `[useWebViewDeepLink] Pushing OnNavigate event via bridge (${reason}): ${path}`
-                );
+                logger.info('DEEPLINK', '[useWebViewDeepLink] OnNavigate → bridge', { path, reason });
                 options.bridge.pushEvent({
                     type: 'OnNavigate',
                     success: true,

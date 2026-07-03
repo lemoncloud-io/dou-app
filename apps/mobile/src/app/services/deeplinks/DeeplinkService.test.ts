@@ -120,12 +120,14 @@ describe('getRouteStateFromDeepLinkPath', () => {
         expect(state.routes[0].state.routes[0].params).toEqual({ url: 'https://chatic.io' });
     });
 
-    it('should convert custom schemes to frontend https:// URLs for webview routing', () => {
+    it('should pass custom scheme URLs through unchanged (toLocalUrl normalizes host at consumption)', () => {
+        // Host rewriting moved to toLocalUrl; the route param now carries the raw scheme URL so the
+        // WebView layer resolves it against WEBVIEW_URL. This removes the duplicated domain heuristic.
         const state = getRouteStateFromDeepLinkPath('chatic-dev://auth/login?code=123');
         expect(state).toBeDefined();
         expect(state.routes[0].name).toBe('Main');
         expect(state.routes[0].state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].params.url).toBe('https://dou-dev.chatic.io/auth/login?code=123');
+        expect(state.routes[0].state.routes[0].params.url).toBe('chatic-dev://auth/login?code=123');
     });
 
     it('should fallback to MainScreen for completely unknown native routes when target=native', () => {

@@ -36,7 +36,7 @@ const linking: LinkingOptions<any> = {
     },
     getStateFromPath(path: string) {
         logger.info('DEEPLINK', '[AppLinking] getStateFromPath called', { path });
-        const state = getRouteStateFromDeepLinkPath(path);
+        const state = getRouteStateFromDeepLinkPath(path, logger);
         logger.info('DEEPLINK', '[AppLinking] getStateFromPath result', {
             path,
             rootRoute: state?.routes?.[0]?.name,
