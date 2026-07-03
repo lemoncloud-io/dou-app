@@ -53,6 +53,11 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         val payload = data["data"] ?: data["payload"] ?: ""
         val silent = data["silent"]?.toBoolean() ?: false
 
+        // Fold cid/sid from the payload into the link's query so a tapped notification carries
+        // cloud/site context to the web. RN Linking only surfaces the intent URI (not the payload
+        // extra), so for Android data-only pushes this native merge is the only place it can happen.
+        val navClickAction = mergeContextIntoLink(clickAction, payload)
+
         // 1. Resolve and translate title & body dynamically
         val lang = resolveLanguage()
         val i18nJson = loadI18nJson(this, lang)
@@ -85,11 +90,37 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                     channelId = channelId,
                     title = finalTitle,
                     body = finalBody,
-                    clickAction = clickAction,
+                    clickAction = navClickAction,
                     payload = payload,
                     i18nJson = i18nJson
                 )
             }
+        }
+    }
+
+    /**
+     * Merges cloud/site context (cid/sid) from the push payload into the click-through link's query.
+     *
+     * Per the push spec, cid/sid live inside the `payload` JSON, separate from `link`, while the web
+     * reads them from the navigation query. Existing query values on the link are never overridden.
+     * Returns the original link untouched on empty input or malformed payload JSON.
+     */
+    private fun mergeContextIntoLink(clickAction: String, payload: String): String {
+        if (clickAction.isEmpty() || payload.isEmpty()) return clickAction
+        return try {
+            val json = JSONObject(payload)
+            val cid = json.optString("cid").takeIf { it.isNotEmpty() }
+            val sid = json.optString("sid").takeIf { it.isNotEmpty() }
+            if (cid == null && sid == null) return clickAction
+
+            val uri = android.net.Uri.parse(clickAction)
+            val builder = uri.buildUpon()
+            if (cid != null && uri.getQueryParameter("cid") == null) builder.appendQueryParameter("cid", cid)
+            if (sid != null && uri.getQueryParameter("sid") == null) builder.appendQueryParameter("sid", sid)
+            builder.build().toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to merge cid/sid into click action: $clickAction", e)
+            clickAction
         }
     }
 

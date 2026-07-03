@@ -37,6 +37,13 @@ export const useHandlePushNavigation = (): void => {
                 replace,
             });
 
+            console.log('ROUTER', `Received OnNavigate event from native: ${path}`, {
+                target,
+                cid,
+                sid,
+                replace,
+            });
+
             try {
                 // Cloud first (it clears the selected site), then site, then route.
                 if (cid && cid !== selectedCloudId) await switchCloud(cid);

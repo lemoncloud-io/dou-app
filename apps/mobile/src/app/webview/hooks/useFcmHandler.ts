@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
-import { deeplinkService, logger, notificationService, pushEventManager } from '../../services';
+import { logger, notificationService, pushEventManager } from '../../services';
+import { resolvePushPath, type PushNavigationData } from './resolvePushPath';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
@@ -135,27 +136,31 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             }
         });
 
-        // Helper to extract and route URL from notification payload
+        // Resolve a WebView-relative path (with cid/sid merged from payload) and push it straight to
+        // the web via the bridge. This replaces the old Linking.openURL round-trip: the bridge already
+        // buffers events until WebAppReady, so cold-start taps are delivered once the handshake lands.
         const routeNotification = (data: Record<string, string | object> | undefined) => {
-            if (!data) return;
-            const rawUrl = data.link || data.clickAction || data.deeplink || data.url;
-            if (typeof rawUrl === 'string' && rawUrl.trim().length > 0) {
-                void deeplinkService.handleUrl(rawUrl);
-            }
+            const path = resolvePushPath(data as PushNavigationData | undefined);
+            if (!path) return;
+
+            logger.info('NOTIFICATION', `[useFcmHandler] Routing notification tap via OnNavigate: ${path}`);
+            bridge.pushEvent<'OnNavigate'>({
+                type: 'OnNavigate',
+                success: true,
+                data: { path, replace: false },
+            });
         };
 
-        // App background notification click -> route via deeplinkService
+        // App background notification click -> forward to web via OnNavigate
         const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
             routeNotification(remoteMessage.data);
         });
 
-        // App killed (Cold Start) notification click -> route via deeplinkService
+        // App killed (cold start) notification click -> forward to web via OnNavigate.
+        // No startup delay needed: the bridge buffers the event until the web handshake completes.
         notificationService.getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
-                // A brief delay to allow App state / DeepLinkManager to start up
-                setTimeout(() => {
-                    routeNotification(remoteMessage.data);
-                }, 1000);
+                routeNotification(remoteMessage.data);
             }
         });
 
