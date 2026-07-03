@@ -4,7 +4,6 @@ export * from './useNotificationPrefsStore';
 export * from './useComposerDraftStore';
 export * from './useJoinedCloudsStore';
 export * from './useSiteProfilesStore';
-export * from './useMyCloudUidStore';
 export * from './useUnreadStore';
 export * from './usePendingOpenStore';
 export * from './useMessageJumpStore';

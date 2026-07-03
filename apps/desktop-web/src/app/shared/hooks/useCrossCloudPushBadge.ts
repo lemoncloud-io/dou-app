@@ -4,7 +4,7 @@ import { webClient } from '@chatic/bridges';
 import { getGlobalSessionContext, useGlobalSession } from '@chatic/web-core';
 import { useSocketState } from '@chatic/app-runtime';
 
-import { useCloudPushBadgeStore, useMyCloudUidStore } from '../stores';
+import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
 
 /**
@@ -16,18 +16,16 @@ import { resolvePushCloudId } from '../utils';
  * invite entry alike).
  *
  * Source cloud — which id space? The rail keys tiles (and the active highlight,
- * and `clear` below) by the RELAY cloud id (`session.activeServer.cloudId`, e.g.
- * `1000004`). But an invited cloud's data — channel records, the push — is stamped
- * with the backend AWS account-no (e.g. `543182730172`), a DIFFERENT id, and
- * invited clouds aren't in the relay catalog so there's no `$envs.accountNo` bridge.
- * Marking the account-no would never match a rail tile (the dot never renders).
- *
- * The reliable bridge is `data.uid` — my id in the SOURCE cloud. `useMyCloudUidStore`
- * keys `${relayCloudId}:${sid}` → that uid (written by `useSiteProfiles`, whose `cid`
- * IS the relay id), so reverse it to the relay id every rail surface uses. Fall back
- * to `data.cid` (when a backend finally stamps it) and last to the channel-cache
- * reverse-lookup. Deeplink-only events carry no uid/cid/channelId and resolve to
- * nothing — no badge beats a wrong badge. No-op in a plain browser.
+ * and `clear` below) by the RELAY cloud id (`session.activeServer.cloudId`). The
+ * reliable resolver is `resolvePushCloudId`: the engine partitions the channel
+ * cache by that same relay cloud id (`useRuntimeBinding` cid = selectedCloudId),
+ * so a channel-cache reverse-lookup returns the rail's id directly. It also
+ * handles invited clouds via the source-cloud uid when that uid is UNIQUE to one
+ * cloud. (A push's `data.uid` is the account id — identical across your own
+ * catalog clouds — so it can NOT be reverse-mapped through a per-cloud uid store;
+ * `resolvePushCloudId` only trusts uid when it resolves to exactly one cloud.)
+ * `data.cid` short-circuits when a backend finally stamps it. Deeplink-only events
+ * carry no channelId and resolve to nothing. No-op in a plain browser.
  */
 export const useCrossCloudPushBadge = (): void => {
     // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
@@ -52,23 +50,13 @@ export const useCrossCloudPushBadge = (): void => {
                 mark(cid);
             };
 
-            // Primary: `data.uid` (my id in the source cloud) reverse-mapped through the
-            // persisted per-cloud uid map to the RELAY cloud id the rail keys tiles by.
-            if (data.uid) {
-                const entry = Object.entries(useMyCloudUidStore.getState().byPlace).find(([, uid]) => uid === data.uid);
-                if (entry) {
-                    apply(entry[0].split(':')[0]);
-                    return;
-                }
-            }
             // A backend that stamps `data.cid` — already a usable cloud id.
             if (data.cid) {
                 apply(data.cid);
                 return;
             }
-            // Last resort: reverse-look the channel up in the per-cloud cache. Returns the
-            // backend account-no, which only matches the rail for catalog clouds whose relay
-            // id equals their account-no — but better than nothing when the uid map is cold.
+            // Resolve the source cloud from the channel cache (returns the relay cloud id
+            // the rail keys by), trusting `data.uid` only when it maps to a single cloud.
             void resolvePushCloudId({
                 channelId: data.channelId,
                 sid: data.sid,
