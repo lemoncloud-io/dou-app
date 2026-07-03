@@ -7,31 +7,26 @@
 
 ## 주요 파일
 
-| 파일                                                | 역할                                                                             |
-| --------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `src/app/services/deeplinks/DeepLinkManager.ts`     | OS 딥링크 URL 캡처 (cold start 초기 URL + warm start 이벤트 구독)                |
-| `src/app/services/deeplinks/DeeplinkService.ts`     | 딥링크 진입점. 상대 경로를 커스텀 스킴으로 정규화 후 `Linking.openURL` (로컬/디버그 트리거) |
-| `src/app/services/deeplinks/deeplinkUtils.ts`       | 검증, 초대 링크 변환(`convertShortUrlWithEnvsSync`), 네비게이션 라우트 상태 매핑 |
-| `src/app/webview/hooks/useWebViewDeepLink.ts`       | 라우트 파라미터를 `OnNavigate`로 발행. `toLocalUrl`로 경로를 `WEBVIEW_URL` 기준으로 정규화 |
-| `src/app/webview/hooks/resolvePushPath.ts`          | 푸시 탭용 경로 빌더. `link` + `payload`의 `cid`/`sid`를 쿼리로 병합 ([`push.md`](./push.md) 참고) |
-| `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (웹) `OnNavigate` 경로에서 `cid`/`sid`를 추출·제거하고 클라우드/사이트를 전환      |
+| 파일                                                      | 역할                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/services/deeplinks/DeepLinkManager.ts`           | OS 딥링크 URL 캡처 (cold start 초기 URL + warm start 이벤트 구독)                                                               |
+| `src/app/services/deeplinks/DeeplinkService.ts`           | 단일 해석기. `resolveInbound(url)`(web/native/invalid) · `resolvePushTap(data)`. `handleUrl`은 로컬/디버그 트리거               |
+| `src/app/services/deeplinks/deeplinkUtils.ts`             | 순수 헬퍼: 검증, 초대 변환(`convertShortUrlWithEnvsSync`), 상대경로 축약(`resolveDeepLink`), cid/sid 병합(`resolvePushTapPath`) |
+| `src/app/webview/hooks/useDeepLinkNavigation.ts`          | 인바운드 네비게이션 단일 소유자. OS 딥링크·초대링크·푸시 탭 캡처 → `OnNavigate`(web) / `navigationRef`(native) / 에러           |
+| `src/app/features/core/navigation/navigationRef.ts`       | `target=native` 라우트 적용을 위한 공유 navigation ref ([`push.md`](./push.md) 참고)                                            |
+| `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (웹) `OnNavigate` 경로에서 `cid`/`sid`를 추출·제거하고 클라우드/사이트를 전환                                                   |
 
 ## 구조
 
 ```mermaid
 flowchart TD
     OS["OS deep link / universal link"] --> Manager["DeepLinkManager"]
-    Manager --> Linking["React Navigation linking config"]
-    Linking --> RouteState["getRouteStateFromDeepLinkPath"]
-    RouteState -->|"target=native"| Native["Debug / Modal 네이티브 라우트"]
-    RouteState -->|"web (default)"| Convert["convertShortUrlWithEnvsSync"]
-    Convert --> Param["MainScreen route param (url)"]
-    Param --> Hook["useWebViewDeepLink → toLocalUrl"]
-
-    Push["푸시 탭 (useFcmHandler)"] --> ResolvePush["resolvePushPath"]
-
-    Hook --> Navigate["bridge.pushEvent(OnNavigate, { path })"]
-    ResolvePush --> Navigate
+    Push["푸시 탭 (onNotificationOpenedApp / getInitialNotification)"] --> Coord
+    Manager --> Coord["useDeepLinkNavigation"]
+    Coord --> Resolve["DeeplinkService.resolveInbound / resolvePushTap"]
+    Resolve -->|"native (target=native)"| Native["navigationRef.reset (Debug/Modal)"]
+    Resolve -->|"web / 푸시 탭"| Navigate["bridge.pushEvent(OnNavigate, { path })"]
+    Resolve -->|"invalid"| Error["deepLinkError 화면"]
     Navigate --> Web["WebView (resolvePushNavigation)"]
 ```
 
@@ -55,7 +50,7 @@ flowchart TD
 
 - **형태**: `pathname + search + hash` (도메인 없는 상대 경로). 웹뷰의 base는 항상 `WEBVIEW_URL`이다.
 - **`cid`/`sid`**: 쿼리 파라미터로 싣는다. 웹(`resolvePushNavigation`)이 이를 읽어 클라우드/사이트를 전환한 뒤 쿼리에서 제거하고 라우팅한다. 즉 `cid`/`sid`는 라우트 파라미터가 아니라 세션 컨텍스트다.
-- 딥링크 경로(`useWebViewDeepLink` → `toLocalUrl`)와 푸시 경로(`resolvePushPath`)가 동일한 `OnNavigate` 계약으로 수렴한다.
+- 딥링크 경로와 푸시 탭 경로가 모두 `DeeplinkService`(→ `useDeepLinkNavigation`)를 거쳐 동일한 `OnNavigate` 계약으로 수렴한다.
 
 ## ⚠️ React Native URL 함정 (회귀 주의)
 
@@ -71,7 +66,7 @@ React Native 내장 `URL`(`react-native/Libraries/Blob/URL.js`)의 `.search` 게
 ## 변경 체크리스트
 
 - 새 경로/쿼리 조립이 RN `URL`의 `searchParams.set()`+`.search` 패턴에 의존하지 않는가? (위 함정 참고)
-- 새 딥링크 유형이 `getRouteStateFromDeepLinkPath`에 반영됐는가? (네이티브 라우팅 vs 웹 라우팅)
+- 새 딥링크 유형이 `resolveInbound`(웹) / `buildNativeRouteState`(네이티브)에 반영됐는가?
 - 초대 링크 출력이 도메인 없는 상대 경로인가? 프론트 도메인이 `WEBVIEW_URL` 외의 곳에서 재계산되지 않는가?
 - `OnNavigate`의 `path`가 `pathname+search+hash` 형태이고, `cid`/`sid`가 쿼리에 실리는가?
 - 웹의 `resolvePushNavigation` 계약(`cid`/`sid`를 쿼리에서 읽고 제거)과 어긋나지 않는가?

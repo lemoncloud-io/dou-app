@@ -1,14 +1,16 @@
 import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { logger, notificationService, pushEventManager } from '../../services';
-import { resolvePushPath, type PushNavigationData } from './resolvePushPath';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
 /**
- * Hook that integrates FCM push notifications, badge counts, and deep link routing inside the WebView.
- * Handles FetchFcmToken, FetchBadgeCount, and SetBadgeCount requests from the Web,
- * and orchestrates native notification click/receive flows.
+ * Hook that integrates FCM foreground push and badge/token bridge requests inside the WebView.
+ * Handles FetchFcmToken, FetchBadgeCount, and SetBadgeCount requests from the Web, and forwards
+ * foreground push receipts to the web as OnReceiveNotification (via PushEventManager).
+ *
+ * Notification-tap navigation is intentionally NOT handled here — it lives in useDeepLinkNavigation
+ * so taps and deep links converge on a single OnNavigate owner. Push keeps foreground receipt only.
  *
  * @param bridge
  */
@@ -136,39 +138,13 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             }
         });
 
-        // Resolve a WebView-relative path (with cid/sid merged from payload) and push it straight to
-        // the web via the bridge. This replaces the old Linking.openURL round-trip: the bridge already
-        // buffers events until WebAppReady, so cold-start taps are delivered once the handshake lands.
-        const routeNotification = (data: Record<string, string | object> | undefined) => {
-            const path = resolvePushPath(data as PushNavigationData | undefined);
-            if (!path) return;
-
-            logger.info('NOTIFICATION', `[useFcmHandler] Routing notification tap via OnNavigate: ${path}`);
-            bridge.pushEvent<'OnNavigate'>({
-                type: 'OnNavigate',
-                success: true,
-                data: { path, replace: false },
-            });
-        };
-
-        // App background notification click -> forward to web via OnNavigate
-        const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
-            routeNotification(remoteMessage.data);
-        });
-
-        // App killed (cold start) notification click -> forward to web via OnNavigate.
-        // No startup delay needed: the bridge buffers the event until the web handshake completes.
-        notificationService.getInitialNotification().then(remoteMessage => {
-            if (remoteMessage) {
-                routeNotification(remoteMessage.data);
-            }
-        });
+        // Notification-tap navigation (onNotificationOpenedApp / getInitialNotification) is owned by
+        // useDeepLinkNavigation. This hook only forwards foreground receipts as OnReceiveNotification.
 
         return () => {
             unsubscribeReceive();
             unsubscribeOnMessage();
             foregroundPushSubscription.remove();
-            unsubscribeOnOpened();
         };
     }, [bridge]);
 

@@ -2,7 +2,6 @@ import { Linking } from 'react-native';
 import { DeeplinkService } from './DeeplinkService';
 import type { ILogService } from '../log';
 import type { DeepLinkManager } from './DeepLinkManager';
-import { getRouteStateFromDeepLinkPath } from './deeplinkUtils';
 
 // Mock react-native
 jest.mock('react-native', () => ({
@@ -85,67 +84,52 @@ describe('DeeplinkService', () => {
     });
 });
 
-describe('getRouteStateFromDeepLinkPath', () => {
-    it('should default to WebView MainScreen routing for standard deep links', () => {
-        const state = getRouteStateFromDeepLinkPath('chatic://s?code=invt:910001:test&api=dev');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].name).toBe('Main');
-        // Invite links now resolve to the home route (not /auth/login) with the invite marker.
-        expect(state.routes[0].state.routes[0].params.url).toContain('/?code=invt%3A910001%3Atest');
-        expect(state.routes[0].state.routes[0].params.url).toContain('provider=invite');
-        expect(state.routes[0].state.routes[0].params.url).not.toContain('/auth/login');
+describe('DeeplinkService.resolveInbound', () => {
+    const service = new DeeplinkService(dummyManager, dummyLogger);
+
+    it('초대 링크를 web 결과(provider=invite 포함)로 위임 해석한다', () => {
+        const result = service.resolveInbound('chatic://s?code=invt:910001:test&api=dev');
+
+        expect(result.kind).toBe('web');
+        if (result.kind === 'web') {
+            expect(result.path).toContain('/?code=invt%3A910001%3Atest');
+            expect(result.path).toContain('provider=invite');
+        }
     });
 
-    it('should route natively to Debug screens when target=native is specified', () => {
-        const state = getRouteStateFromDeepLinkPath('chatic://debug/DeeplinkTest?target=native&param1=hello');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Debug');
-        expect(state.routes[0].state.routes[0].name).toBe('DeeplinkTest');
-        expect(state.routes[0].state.routes[0].params).toEqual({ param1: 'hello' });
+    it('커스텀 스킴 웹 링크를 host 없는 상대 경로로 축약한다', () => {
+        const result = service.resolveInbound('chatic-dev://auth/login?code=123');
+        expect(result).toEqual({ kind: 'web', path: '/auth/login?code=123' });
     });
 
-    it('should fallback to Home screen for unknown debug screens when target=native', () => {
-        const state = getRouteStateFromDeepLinkPath('chatic://debug/UnknownScreen?target=native');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Debug');
-        expect(state.routes[0].state.routes[0].name).toBe('Home');
+    it('target=native 디버그 링크를 native 상태로 해석한다', () => {
+        const result = service.resolveInbound('chatic://debug/DeeplinkTest?target=native&param1=hello');
+
+        expect(result.kind).toBe('native');
+        if (result.kind === 'native') {
+            expect(result.state.routes[0].name).toBe('Debug');
+        }
     });
 
-    it('should route natively to Modal in Main stack when specified', () => {
-        const state = getRouteStateFromDeepLinkPath('chatic://main/modal?target=native&url=https://chatic.io');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].name).toBe('Modal');
-        expect(state.routes[0].state.routes[0].params).toEqual({ url: 'https://chatic.io' });
+    it('유효하지 않은 스킴은 invalid를 반환한다', () => {
+        const result = service.resolveInbound('unsupported://xyz');
+        expect(result.kind).toBe('invalid');
+    });
+});
+
+describe('DeeplinkService.resolvePushTap', () => {
+    const service = new DeeplinkService(dummyManager, dummyLogger);
+
+    it('link와 payload의 cid/sid를 병합한 상대 경로를 반환한다', () => {
+        const path = service.resolvePushTap({
+            link: 'channel?channelId=room_1',
+            payload: { cid: 'c1', sid: 's1' },
+        });
+
+        expect(path).toBe('/channel?channelId=room_1&cid=c1&sid=s1');
     });
 
-    it('should pass custom scheme URLs through unchanged (toLocalUrl normalizes host at consumption)', () => {
-        // Host rewriting moved to toLocalUrl; the route param now carries the raw scheme URL so the
-        // WebView layer resolves it against WEBVIEW_URL. This removes the duplicated domain heuristic.
-        const state = getRouteStateFromDeepLinkPath('chatic-dev://auth/login?code=123');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].params.url).toBe('chatic-dev://auth/login?code=123');
-    });
-
-    it('should fallback to MainScreen for completely unknown native routes when target=native', () => {
-        const state = getRouteStateFromDeepLinkPath('chatic://completelyUnknownRoute?target=native');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].params).toBeUndefined();
-    });
-
-    it('should correctly parse leading-slash paths passed by React Navigation on warm start', () => {
-        const state = getRouteStateFromDeepLinkPath('/s?code=invt:910001:test&api=dev');
-        expect(state).toBeDefined();
-        expect(state.routes[0].name).toBe('Main');
-        expect(state.routes[0].state.routes[0].name).toBe('Main');
-        // Invite links now resolve to the home route (not /auth/login) with the invite marker.
-        expect(state.routes[0].state.routes[0].params.url).toContain('/?code=invt%3A910001%3Atest');
-        expect(state.routes[0].state.routes[0].params.url).toContain('provider=invite');
-        expect(state.routes[0].state.routes[0].params.url).not.toContain('/auth/login');
+    it('link가 없으면 null을 반환해 강제 네비게이션을 막는다', () => {
+        expect(service.resolvePushTap({ payload: { cid: 'c1' } })).toBeNull();
     });
 });

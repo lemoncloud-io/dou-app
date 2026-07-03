@@ -1,6 +1,6 @@
 # Push
 
-Push architecture owns FCM/APNs permission, token registration, notification channel setup, badge count, foreground delivery to WebView, and notification-tap navigation.
+Push architecture owns FCM/APNs permission, token registration, notification channel setup, badge count, and foreground delivery to WebView. Notification-tap navigation is delegated to the deep link coordinator (`useDeepLinkNavigation`) so taps and deep links share one `OnNavigate` owner — see Click Routing.
 
 The current architecture does not use a JS `setBackgroundMessageHandler` or `OfflinePushQueue`. Android background/killed delivery is handled by a native `FirebaseMessagingService`; iOS background/killed banners are localized by a native `Notification Service Extension`, while foreground and notification-tap APNs events are forwarded through `PushNotificationIOS`.
 
@@ -8,17 +8,17 @@ Background chat pushes also increment the app-icon badge natively (the socket/we
 
 ## Key Files
 
-| File                                                                             | Role                                                                                                            |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `src/app/App.tsx`                                                                | creates Android notification channels on app mount                                                              |
-| `src/app/services/notification/NotificationService.ts`                           | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                               |
-| `src/app/services/notification/PushEventManager.ts`                              | in-memory foreground event broker between OS/native events and WebView bridge                                   |
-| `src/app/webview/hooks/useFcmHandler.ts`                                         | WebView bridge handler for token, badge, foreground push events, and notification-tap navigation                |
-| `src/app/webview/hooks/resolvePushPath.ts`                                       | builds the WebView-relative `OnNavigate` path, merging `cid`/`sid` from the payload into the navigation query   |
-| `android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt` | Android native FCM receiver, localized notification builder, foreground native-to-JS emitter, `cid`/`sid`→link merge |
-| `ios/Chatic/AppDelegate.swift`                                                   | iOS APNs delegate bridge into `RNCPushNotificationIOS`; suppresses foreground system banner                     |
-| `ios/ChaticNotificationServiceExtension/NotificationService.swift`               | iOS background/killed banner localizer; resolves `loc_key`/`loc_args` from `assets/locales/{lang}.json`, accepting loc-args as a native array or JSON string |
-| `src/app/features/debug/screens/NotificationTestScreen.tsx`                      | manual diagnostics for permission, token, badge, and listener behavior                                          |
+| File                                                                             | Role                                                                                                                                                            |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/App.tsx`                                                                | creates Android notification channels on app mount                                                                                                              |
+| `src/app/services/notification/NotificationService.ts`                           | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                               |
+| `src/app/services/notification/PushEventManager.ts`                              | in-memory foreground event broker between OS/native events and WebView bridge                                                                                   |
+| `src/app/webview/hooks/useFcmHandler.ts`                                         | WebView bridge handler for token, badge, and foreground push (`OnReceiveNotification`) only                                                                     |
+| `src/app/webview/hooks/useDeepLinkNavigation.ts`                                 | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `deeplinkUtils`: `resolvePushTapPath` / `resolveDeepLink`) |
+| `android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt` | Android native FCM receiver, localized notification builder, foreground native-to-JS emitter, `cid`/`sid`→link merge                                            |
+| `ios/Chatic/AppDelegate.swift`                                                   | iOS APNs delegate bridge into `RNCPushNotificationIOS`; suppresses foreground system banner                                                                     |
+| `ios/ChaticNotificationServiceExtension/NotificationService.swift`               | iOS background/killed banner localizer; resolves `loc_key`/`loc_args` from `assets/locales/{lang}.json`, accepting loc-args as a native array or JSON string    |
+| `src/app/features/debug/screens/NotificationTestScreen.tsx`                      | manual diagnostics for permission, token, badge, and listener behavior                                                                                          |
 
 ## Structure
 
@@ -43,7 +43,8 @@ flowchart TD
     NotificationService --> FcmHandler
     FcmHandler --> PushEventManager["PushEventManager"]
     PushEventManager --> WebView["WebView OnReceiveNotification"]
-    FcmHandler -->|"notification tap"| Navigate["bridge.pushEvent(OnNavigate)"]
+    NotificationService -->|"notification tap"| DeepLinkNav["useDeepLinkNavigation"]
+    DeepLinkNav --> Navigate["bridge.pushEvent(OnNavigate)"]
     Navigate --> WebView
 ```
 
@@ -51,18 +52,18 @@ flowchart TD
 
 `ChaticFirebaseMessagingService` receives data messages and resolves these fields:
 
-| Payload field                    | Meaning                                                                       |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `id` / `messageId`               | notification identity                                                         |
-| `type`                           | app-level notification type                                                   |
-| `channel_id` / `channelId`       | Android notification channel, default `dou_chat`                              |
-| `link` / `clickAction`           | URL routed when the user opens the notification                               |
-| `title_loc_key`, `titleLocKey`   | localized title key                                                           |
-| `title_loc_args`, `titleLocArgs` | localized title args                                                          |
-| `loc_key`, `bodyLocKey`          | localized body key                                                            |
-| `loc_args`, `bodyLocArgs`        | localized body args                                                           |
+| Payload field                    | Meaning                                                                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `id` / `messageId`               | notification identity                                                                                                         |
+| `type`                           | app-level notification type                                                                                                   |
+| `channel_id` / `channelId`       | Android notification channel, default `dou_chat`                                                                              |
+| `link` / `clickAction`           | URL routed when the user opens the notification                                                                               |
+| `title_loc_key`, `titleLocKey`   | localized title key                                                                                                           |
+| `title_loc_args`, `titleLocArgs` | localized title args                                                                                                          |
+| `loc_key`, `bodyLocKey`          | localized body key                                                                                                            |
+| `loc_args`, `bodyLocArgs`        | localized body args                                                                                                           |
 | `data` / `payload`               | custom JSON metadata (incl. `cid`/`sid`); forwarded to JS foreground events, and its `cid`/`sid` are merged into the tap link |
-| `silent`                         | skips native banner when app is background/killed                             |
+| `silent`                         | skips native banner when app is background/killed                                                                             |
 
 ```mermaid
 sequenceDiagram
@@ -92,6 +93,8 @@ sequenceDiagram
 `AppDelegate` sets `UNUserNotificationCenter.current().delegate` and forwards APNs callbacks to `RNCPushNotificationIOS`.
 
 Foreground APNs notifications are passed to JS with `RNCPushNotificationIOS.didReceiveRemoteNotification(...)`, then the system foreground presentation callback receives `[]`, so iOS does not show a system banner while the app is active.
+
+A **notification tap** takes a _different_ JS event than a foreground receipt. iOS delivers the tap as a `UNNotificationResponse`, which `AppDelegate.userNotificationCenter(_:didReceive:)` forwards via `RNCPushNotificationIOS.didReceive(response)`. On the JS side this surfaces as the **`localNotification`** event — **not** the `notification` event (foreground receipt) and **not** FCM's `onNotificationOpenedApp` (FCM never sees the tap, because the delegate is wired manually). `NotificationService.onNotificationOpenedApp` therefore subscribes to `localNotification` on iOS; without that branch, iOS background/warm taps are silently dropped and never reach `OnNavigate`. Cold-start taps come through `getInitialNotification()` instead.
 
 Background/killed non-silent pushes (sent with `mutable-content: 1`) are intercepted by the **Notification Service Extension** (`ChaticNotificationServiceExtension/NotificationService.swift`) before the banner is shown. It reads `title_loc_key`/`loc_key` and `title_loc_args`/`loc_args`, resolves the template from `assets/locales/{lang}.json`, substitutes `{0}` placeholders, and rewrites the banner title/body (it also silences sound for `dou_chat_muted`/`dou_marketing`). Silent pushes do **not** run the Extension.
 
@@ -126,19 +129,21 @@ sequenceDiagram
 | `FetchBadgeCount` | returns native launcher badge count                                                           |
 | `SetBadgeCount`   | sets native launcher badge count                                                              |
 
-It also subscribes to:
+It also subscribes to (foreground receipt only):
 
 - `notificationService.onMessage(...)`
-- `notificationService.onNotificationOpenedApp(...)`
-- `notificationService.getInitialNotification()`
 - `DeviceEventEmitter.addListener('onForegroundPushReceived', ...)`
 - `pushEventManager.onReceiveNotification(...)`
 
+Notification taps (`onNotificationOpenedApp`, `getInitialNotification`) are subscribed by `useDeepLinkNavigation`, not here.
+
 ## Click Routing
 
-Notification-tap navigation is owned by `useFcmHandler`. On tap it resolves a WebView-relative path with `resolvePushPath` and emits it straight to the web as an `OnNavigate` bridge event — there is **no** `Linking.openURL` round-trip. `AppBridgeHost` buffers events until `WebAppReady`, so a cold-start tap is delivered as soon as the web handshake completes (no startup delay needed).
+Notification-tap navigation is owned by `useDeepLinkNavigation` (not the push handler). On tap it resolves a WebView-relative path with `deeplinkService.resolvePushTap` (implemented by `resolvePushTapPath`) and emits it straight to the web as an `OnNavigate` bridge event — there is **no** `Linking.openURL` round-trip. `AppBridgeHost` buffers events until `WebAppReady`, so a cold-start tap is delivered as soon as the web handshake completes (no startup delay needed).
 
-`resolvePushPath` takes the notification `link` (fallback `clickAction`) and merges `cid`/`sid` from the `payload` into the query, because the web reads cloud/site context from the navigation query (see the web-side `resolvePushNavigation`). It returns `null` when there is no link, in which case the tap simply foregrounds the app. On Android the merge already happened natively (see Android Delivery), so the payload merge in `resolvePushPath` is primarily the iOS path.
+`resolvePushTapPath` takes the notification `link` (fallback `clickAction`) and merges `cid`/`sid` from the `payload` into the query, because the web reads cloud/site context from the navigation query (see the web-side `resolvePushNavigation`). It returns `null` when there is no link, in which case the tap simply foregrounds the app. On Android the merge already happened natively (see Android Delivery), so the payload merge in `resolvePushTapPath` is primarily the iOS path.
+
+Per-platform, the tap reaches `useDeepLinkNavigation` differently: Android warm/background taps arrive through FCM's `onNotificationOpenedApp`, while iOS warm/background taps arrive via the `localNotification` event (see iOS Delivery). Cold-start taps use `getInitialNotification()` on both platforms.
 
 See [`deeplink.md`](./deeplink.md) for the shared `OnNavigate` path contract that both push taps and deep links feed into.
 
@@ -146,8 +151,8 @@ See [`deeplink.md`](./deeplink.md) for the shared `OnNavigate` path contract tha
 sequenceDiagram
     participant OS as OS notification tap
     participant Service as NotificationService
-    participant Handler as useFcmHandler
-    participant Resolve as resolvePushPath
+    participant Handler as useDeepLinkNavigation
+    participant Resolve as resolvePushTapPath
     participant Bridge as AppBridgeHost
 
     OS->>Service: onNotificationOpenedApp or getInitialNotification

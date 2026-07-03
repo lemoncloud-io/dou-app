@@ -5,12 +5,9 @@ export type RootStackParamList = {
 };
 
 export type MainStackParamList = {
-    Main:
-        | {
-              url?: string;
-              error?: string;
-          }
-        | undefined;
+    // The Main screen no longer receives deep link data via route params — inbound navigation is
+    // delivered to the WebView through OnNavigate (see useDeepLinkNavigation).
+    Main: undefined;
 };
 
 export type ModalScreenParams = {
