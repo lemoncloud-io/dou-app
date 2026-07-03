@@ -60,6 +60,7 @@ export interface ISocketManager {
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;
     subscribeClient(listener: SocketClientListener): () => void;
+    waitUntilVerified(timeoutMs?: number): Promise<boolean>;
     markVerified(): void;
     markUnverified(): void;
     connect(): Promise<void>;
