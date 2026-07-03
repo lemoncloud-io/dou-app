@@ -1,5 +1,56 @@
 # Changelog
 
+## [2026-07-03] - root@0.39.0, @chatic/web@0.35.0
+
+### Features
+
+- (web-core/api) introduce user and cloud profile API calls
+- (last-chat) introduce useLastChat hook for message preview
+- (app-runtime/socket) introduce gateSyncOnAuth option
+- (home/unread) introduce unread dots and global app badge
+- (testbed/unread) introduce cloud unread snapshots and dots
+- (bridge/navigation) handle native push navigation (raine-auth)
+- (testbed/manage) introduce place and channel management
+- (app/profile) introduce profile update hooks and migrate app
+- (app/runtime) add MyUserSeedRunner to prevent profile flashes
+- (app/hooks) introduce app-level user profile and permissions
+- (app-runtime) introduce useSessionProfile hook
+- (testbed) implement unread counts and profile management
+- (home) improve profile display and unread count accuracy
+- (i18n) add system message and profile setup translations
+- (testbed) add system message sending and display
+- add invite link converter debug tool
+- add system message suffix key mapping
+- refresh user profile in background sync
+- add profile to remote user gateway factory
+- implement getMyProfile and cache site data
+- add profile to UserDomainGateway and MockRemoteGateways
+- add getMyProfile to UserRemoteDataSource
+- re-export chat enums from socials-api Re-exports `ChatStereo` and `ChatSubType` from the `@lemoncloud/chatic-socials-api` package. This allows applications to reference these enum values through the data layer, rather than directly importing from the upstream socials-api package. The fields are already inherited by `DomainChat` and `DomainChannel`.
+
+### Documentation
+
+- (app-runtime/sync) update screen registration map for last chat & unread
+- (auth) document SDK AuthController impl. and multi-socket design
+- (notifications) document push notification and deep link navigation
+- (auth) document SDK AuthController adoption and architecture
+- (channels) document system messages (join/leave)
+
+### Refactor
+
+- (session) clarify delegatorId lifecycle and management
+- (api/telemetry) streamline identity reporting
+- (auth) streamline token refresh and session init
+- (session) streamline identity state and profile management
+- (testbed) remove deprecated identity fields from RuntimeOverlay
+- (users) remove deprecated cloud update functions
+- (web-core) streamline auth and identity data access
+- (web-core) remove deprecated user hooks
+
+### Chores
+
+- update dependencies
+
 ## [2026-06-30] - root@0.38.0, @chatic/web@0.34.0
 
 ### Features
