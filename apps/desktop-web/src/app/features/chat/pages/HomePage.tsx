@@ -21,6 +21,7 @@ import {
     useClouds,
     useCloudSwitchFlow,
     useMessageJumpStore,
+    useOpenAtBottomStore,
     usePendingOpenStore,
     usePlaces,
     useProfilePanelStore,
@@ -115,6 +116,10 @@ export const HomePage = () => {
     // A message to scroll to once a cross-place jump's channel has loaded (paired
     // with pendingChannelRef when the saved item lives in another place).
     const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
+    // Set when the deferred open is a NOTIFICATION click (not a saved jump): the
+    // channel should land at its latest message once it loads (requestOpenAtBottom).
+    const pendingOpenAtBottomRef = useRef<string | null>(null);
+    const requestOpenAtBottom = useOpenAtBottomStore(s => s.request);
     // A thread to open once its channel is selected + loaded. Deferred (not opened
     // inline) because selecting a different channel runs closeThread() on its way
     // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
@@ -154,6 +159,8 @@ export const HomePage = () => {
         if (!pendingOpen?.channelId) return;
         const { cloudId, placeId, channelId } = pendingOpen;
         const activeCloud = activeCloudId ?? 'default';
+        // A notification click opens the pinged (latest) message → land at the bottom.
+        pendingOpenAtBottomRef.current = channelId;
         if (cloudId && cloudId !== activeCloud) {
             // Cross-cloud: switch cloud first. The target place lands via the
             // auto-select effect (pendingPlaceRef), then the channel via the
@@ -166,6 +173,8 @@ export const HomePage = () => {
             switchPlace(placeId);
         } else {
             selectChannel(channelId);
+            requestOpenAtBottom(channelId);
+            pendingOpenAtBottomRef.current = null;
         }
         clearPendingOpen();
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
@@ -270,6 +279,11 @@ export const HomePage = () => {
         if (pending && channels.some(channel => channel.id === pending)) {
             pendingChannelRef.current = null;
             selectChannel(pending);
+            // A deferred notification open lands at the latest message.
+            if (pendingOpenAtBottomRef.current === pending) {
+                pendingOpenAtBottomRef.current = null;
+                requestOpenAtBottom(pending);
+            }
             // A deferred cross-place saved jump: now scroll to its message.
             const jump = pendingJumpRef.current;
             if (jump && jump.channelId === pending) {
@@ -287,7 +301,7 @@ export const HomePage = () => {
             const firstId = channels[0]?.id;
             if (firstId) selectChannel(firstId);
         }
-    }, [channels, selectedChannelId, selectChannel, requestMessageJump]);
+    }, [channels, selectedChannelId, selectChannel, requestMessageJump, requestOpenAtBottom]);
 
     // Open a deferred thread (saved / mention click on a reply) once its channel is
     // the selected one and present in the loaded list. Declared after the

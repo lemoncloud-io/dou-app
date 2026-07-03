@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useSessionIdentity } from '@chatic/web-core';
@@ -17,6 +17,7 @@ import {
     useChatMutations,
     useChats,
     useMessageJumpStore,
+    useOpenAtBottomStore,
     useReadCursorStore,
     useReadReceipts,
 } from '../../../shared';
@@ -105,6 +106,15 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
 
+    // A notification click asks this channel to open at its latest message (the pinged
+    // one) rather than the unread divider. Read the one-shot flag for THIS channel and
+    // clear it once consumed so a later plain open keeps the divider behaviour.
+    const openAtBottom = useOpenAtBottomStore(s => s.channelId === channelId && !!channelId);
+    const clearOpenAtBottom = useOpenAtBottomStore(s => s.clear);
+    useEffect(() => {
+        if (openAtBottom) clearOpenAtBottom();
+    }, [openAtBottom, clearOpenAtBottom]);
+
     if (!channelId || !channel) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
@@ -185,6 +195,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 hasMore={hasMore}
                 isLoadingOlder={isLoadingOlder}
                 scrollSignal={sendTick}
+                openAtBottom={openAtBottom}
                 threadMeta={threadIndex}
                 onOpenThread={openThread}
                 jumpTarget={jumpTarget}

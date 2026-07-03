@@ -21,13 +21,9 @@ const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, st
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
 
-/** Headline for a push/toast: the channel (`#name`) when known, else the sender / app name. */
+/** Headline for a push/toast: the channel (`#name`) when known, else the app name. */
 const headline = (channelName: string | undefined, fallback: string): string =>
     channelName ? `#${channelName}` : fallback;
-
-/** Body line: `sender: message` when both are present, else whichever exists. */
-const senderLine = (sender: string | undefined, message: string | undefined): string =>
-    sender && message ? `${sender}: ${message}` : message || sender || '';
 
 /** Present one forwarded FCM push as a toast (focused) or an OS banner (unfocused). */
 const presentPush = async (
@@ -79,10 +75,11 @@ const presentPush = async (
             .request({
                 type: 'ShowNotification',
                 data: {
-                    // Same shape as the focused toast: headline is the channel, body is
-                    // "sender: message" — so channel, sender and message all show.
-                    title: headline(data.channelName, title ?? 'DoU'),
-                    body: senderLine(title, body),
+                    // Cross-cloud pushes show channel + message only: the sender name
+                    // baked by the backend is unreliable and the sender's per-place nick
+                    // can't be resolved across clouds (id-space partitioning), so omit it.
+                    title: headline(data.channelName, 'DoU'),
+                    body: body ?? '',
                     channelId: data.channelId,
                     deeplink: buildCrossCloudDeeplink(sourceCloudId, data),
                 },
@@ -101,8 +98,8 @@ const presentPush = async (
     // cloud/place → channel). The resolved source cloud is a no-op when already active.
     const channelId = data.channelId;
     toast({
-        title: headline(data.channelName, title ?? 'DoU'),
-        description: senderLine(title, body),
+        title: headline(data.channelName, 'DoU'),
+        description: body ?? '',
         className: channelId ? 'cursor-pointer' : undefined,
         onClick: channelId
             ? () =>

@@ -32,6 +32,8 @@ interface MessageListProps {
     isLoadingOlder?: boolean;
     /** Increment to force a jump to the latest message (e.g. after you send). */
     scrollSignal?: number;
+    /** Open pinned to the latest message, skipping the unread-divider landing (notification click). */
+    openAtBottom?: boolean;
     /** root id → loaded reply aggregate; root rows render a thread footer. */
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open a thread; wired only for the main channel feed (not the thread panel). */
@@ -70,6 +72,7 @@ export const MessageList = ({
     hasMore,
     isLoadingOlder,
     scrollSignal,
+    openAtBottom,
     threadMeta,
     onOpenThread,
     jumpTarget,
@@ -78,6 +81,25 @@ export const MessageList = ({
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    // Latched at mount (MessageList remounts per channel via its key), so a later
+    // store clear can't flip it before the first fill lands.
+    const openAtBottomRef = useRef(openAtBottom);
+    const pinRafRef = useRef(0);
+
+    // Pin the viewport to the bottom every frame for a short window. A single scroll
+    // lands short: the list keeps reflowing (avatars, wrapping, optimistic→server
+    // swap, older-page auto-fill), each nudging the viewport off the bottom. Pinning
+    // the whole window rides through all of them — reliable where scrollIntoView isn't.
+    const pinToBottom = () => {
+        cancelAnimationFrame(pinRafRef.current);
+        const deadline = performance.now() + 600;
+        const snap = () => {
+            const el = scrollRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            if (performance.now() < deadline) pinRafRef.current = requestAnimationFrame(snap);
+        };
+        pinRafRef.current = requestAnimationFrame(snap);
+    };
     const [atBottom, setAtBottom] = useState(true);
     // When a prepend (older page) is in flight, remember the scroll metrics so we
     // can keep the viewport anchored instead of jumping to the top.
@@ -255,11 +277,19 @@ export const MessageList = ({
             return;
         }
         // First fill of this channel: land on the unread divider if there is one,
-        // otherwise the bottom. Subsequent updates use the follow-below logic.
+        // otherwise the bottom. A notification-click open (openAtBottom) skips the
+        // divider and pins to the latest — the message the user was pinged about —
+        // riding the post-mount reflow so it lands ON the bottom, not a row short.
         if (firstFill && !didInitRef.current) {
             didInitRef.current = true;
-            if (unreadRef.current) unreadRef.current.scrollIntoView({ block: 'center' });
-            else bottomRef.current?.scrollIntoView({ block: 'end' });
+            if (openAtBottomRef.current) {
+                setAtBottom(true);
+                pinToBottom();
+            } else if (unreadRef.current) {
+                unreadRef.current.scrollIntoView({ block: 'center' });
+            } else {
+                bottomRef.current?.scrollIntoView({ block: 'end' });
+            }
             return;
         }
         // New tail message while pinned to bottom → follow it. Setting scrollTop
@@ -284,19 +314,8 @@ export const MessageList = ({
         // Sending means you're caught up — clear the "New messages" divider after
         // a short linger (advances to the latest real chatNo at timeout).
         scheduleDividerClear();
-        // Pin to the bottom every frame for a short window: a single scroll lands
-        // short because the list keeps reflowing after the send (optimistic message
-        // render, optimistic→server swap, height change), each nudging the viewport
-        // off the bottom. Pinning the whole window rides through all of them.
-        const deadline = performance.now() + 600;
-        let raf = 0;
-        const snap = () => {
-            const el = scrollRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
-            if (performance.now() < deadline) raf = requestAnimationFrame(snap);
-        };
-        raf = requestAnimationFrame(snap);
-        return () => cancelAnimationFrame(raf);
+        pinToBottom();
+        return () => cancelAnimationFrame(pinRafRef.current);
     }, [scrollSignal]);
 
     // Drive a jump request: center the target message's DOM node and flash it.
@@ -353,6 +372,7 @@ export const MessageList = ({
         () => () => {
             clearTimeout(highlightTimer.current ?? undefined);
             clearTimeout(dividerClearTimer.current ?? undefined);
+            cancelAnimationFrame(pinRafRef.current);
         },
         []
     );
