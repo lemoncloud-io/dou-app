@@ -31,19 +31,26 @@ export const useSiteProfiles = (): void => {
     const accountUid = useSessionIdentity().userId ?? '';
     const setAll = useSiteProfilesStore(s => s.setAll);
     const reset = useSiteProfilesStore(s => s.reset);
-    const cloudUid = useMyCloudUidStore(s => (selectedPlaceId ? s.byPlace[`${cid}:${selectedPlaceId}`] : undefined));
+    // My canonical cloud uid for this cloud — read the place-specific key, falling
+    // back to the site-less key written before a site commits (see the effect below).
+    const cloudUid = useMyCloudUidStore(s => s.byPlace[`${cid}:${selectedPlaceId ?? ''}`] ?? s.byPlace[`${cid}:`]);
     const setMyCloudUid = useMyCloudUidStore(s => s.setUid);
 
-    // Resolve + persist my canonical cloud uid for this place once. Only the self
-    // read returns it; persisting means later loads mirror self from cache with no
-    // network wait. Fail-soft: a miss just leaves self on the Global fallback.
+    // Learn + persist my canonical cloud uid (the id space of a push's `data.uid`) so
+    // useCrossCloudPushBadge can attribute cross-cloud pushes to this cloud. Fire it
+    // whenever a cloud is active — NOT gated on a selected site. `siteId` is null right
+    // after entering a cloud (e.g. via a cross-cloud push deeplink), the exact window a
+    // just-arrived push must resolve, and the uid is per-cloud so get-mine returns it
+    // regardless of which site. Gating this on `selectedPlaceId` (as before) skipped
+    // those clouds and the badge never showed. Keyed by place when known; the badge
+    // reverse-map only reads the cid. Fail-soft: a miss leaves self on the Global fallback.
     useEffect(() => {
-        if (!selectedPlaceId || cloudUid) return;
+        if (cid === 'default' || cloudUid) return;
         let cancelled = false;
         void profileRepository
             .getMyProfile()
             .then(view => {
-                if (!cancelled && view?.userId) setMyCloudUid(cid, selectedPlaceId, view.userId);
+                if (!cancelled && view?.userId) setMyCloudUid(cid, selectedPlaceId ?? '', view.userId);
             })
             .catch(() => undefined);
         return () => {
