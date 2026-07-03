@@ -201,7 +201,37 @@ export class NotificationService implements INotificationService {
      */
     onNotificationOpenedApp(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void {
         this.clearBadge();
-        return messaging().onNotificationOpenedApp(callback);
+
+        // Android/FCM: taps arrive through FCM's own handler.
+        const unsubscribeFCM = messaging().onNotificationOpenedApp(callback);
+
+        // iOS: a banner tap is delivered by the OS as a UNNotificationResponse, which the native
+        // AppDelegate forwards via RNCPushNotificationIOS.didReceive(response). On the JS side that
+        // surfaces as the `localNotification` event — NOT the `notification` event and NOT FCM's
+        // onNotificationOpenedApp (FCM never sees the tap here). Without this branch iOS taps are lost.
+        if (Platform.OS === 'ios') {
+            const handleTap = (notification: any) => {
+                const normalizedMessage = {
+                    notification: {
+                        title: notification.getTitle(),
+                        body: notification.getMessage(),
+                    },
+                    data: notification.getData() as Record<string, string>,
+                    sentTime: Date.now(),
+                } as FirebaseMessagingTypes.RemoteMessage;
+
+                callback(normalizedMessage);
+            };
+
+            PushNotificationIOS.addEventListener('localNotification', handleTap);
+
+            return () => {
+                unsubscribeFCM();
+                PushNotificationIOS.removeEventListener('localNotification');
+            };
+        }
+
+        return unsubscribeFCM;
     }
 
     /**
