@@ -84,7 +84,12 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             if (silent) {
                 Log.d(TAG, "Silent push received in background. Skipping notification banner.")
             } else {
-                Log.d(TAG, "App is in background/killed. Displaying native notification banner.")
+                // Background chat pushes bump the app-icon badge: the socket (and the web that owns
+                // the badge) is suspended here, so this native handler is the only place a
+                // backgrounded message can move the count. Non-chat channels (notice/marketing/cloud)
+                // are excluded to stay consistent with the web's chat-only unread total.
+                val badgeCount = if (isChatChannel(channelId)) BadgeStore.increment(this) else null
+                Log.d(TAG, "App is in background/killed. Displaying native notification banner. badge=$badgeCount")
                 displayNotification(
                     messageId = messageId,
                     channelId = channelId,
@@ -92,7 +97,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                     body = finalBody,
                     clickAction = navClickAction,
                     payload = payload,
-                    i18nJson = i18nJson
+                    i18nJson = i18nJson,
+                    badgeCount = badgeCount
                 )
             }
         }
@@ -123,6 +129,10 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             clickAction
         }
     }
+
+    /** Chat channels contribute to the unread badge; notice/marketing/cloud pushes do not. */
+    private fun isChatChannel(channelId: String): Boolean =
+        channelId == "dou_chat" || channelId == "dou_chat_muted"
 
     private fun resolveLanguage(): String {
         val defaultLang = Locale.getDefault().language
@@ -256,7 +266,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         body: String,
         clickAction: String,
         payload: String,
-        i18nJson: JSONObject
+        i18nJson: JSONObject,
+        badgeCount: Int? = null
     ) {
         // Ensure the notification channel is created
         createNotificationChannel(this, channelId, i18nJson)
@@ -295,6 +306,13 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+
+        // Drive the launcher app-icon badge count where the launcher supports numeric badges.
+        // Badge fidelity is launcher-dependent on Android (same limitation as notifee): launchers
+        // that only render a dot ignore the number, but the dot still appears from the notification.
+        if (badgeCount != null && badgeCount > 0) {
+            notificationBuilder.setNumber(badgeCount)
+        }
 
         // Apply sound and priority according to the channel settings
         when (channelId) {

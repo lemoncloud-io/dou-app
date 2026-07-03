@@ -93,8 +93,36 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
+    // MARK: - Badge counter (shared with the Notification Service Extension via App Group)
+
+    /// App Group id shared between the app and the NSE so both read/write the same badge counter.
+    /// Must match the `com.apple.security.application-groups` entitlement on both targets.
+    private static let appGroupId = "group.io.chatic.dou"
+    private static let badgeCountKey = "badge_count"
+    /// Whether the app is currently in the foreground. The NSE reads this to avoid double-counting:
+    /// while the app is active the web (over the live socket) already owns the badge, so a push that
+    /// also runs the NSE must not increment.
+    private static let appActiveKey = "app_active"
+
+    private var sharedDefaults: UserDefaults? {
+        UserDefaults(suiteName: AppDelegate.appGroupId)
+    }
+
     func applicationDidBecomeActive(_ application: UIApplication) {
+        // Clear the visible badge on entry (existing behavior); the web re-aggregates and re-sets the
+        // true count shortly after (see the web UnreadBadgeRunner foreground reconcile).
         UIApplication.shared.applicationIconBadgeNumber = 0
+        // Mark foreground so the NSE stops incrementing while the socket-driven web owns the badge.
+        sharedDefaults?.set(true, forKey: AppDelegate.appActiveKey)
+    }
+
+    func applicationWillResignActive(_ application: UIApplication) {
+        guard let defaults = sharedDefaults else { return }
+        // Handing the badge over to the NSE: capture the current true count (only the app process can
+        // read the live icon badge — the NSE cannot) so background pushes increment from truth, and
+        // flip the foreground flag off.
+        defaults.set(false, forKey: AppDelegate.appActiveKey)
+        defaults.set(UIApplication.shared.applicationIconBadgeNumber, forKey: AppDelegate.badgeCountKey)
     }
 
     // MARK: - Push Notifications (APNs)

@@ -15,14 +15,15 @@
 
 ## 모듈 매핑
 
-| 기능            | TypeScript                | Android                                                                   | iOS                                                    |
-| --------------- | ------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Upload          | `UploadManagerBridge.ts`  | `UploadManagerModule.kt`, `UploadBackgroundService.kt`, `UploadWorker.kt` | `Upload/UploadManager.swift`, `Upload/UploadManager.m` |
-| File            | `FileManagerBridge.ts`    | `FileManagerModule.kt`                                                    | `FileManager.m`                                        |
-| App icon        | `AppIconBridge.ts`        | `AppIconManagerModule.kt`                                                 | `AppIconManager.m`                                     |
-| System bars     | `SystemBarsBridge.ts`     | `SystemBarsModule.kt`                                                     | platform-specific native behavior                      |
-| Back navigation | `BackNavigationBridge.ts` | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                     | platform-specific native behavior                      |
-| Push delivery   | n/a                       | `push/ChaticFirebaseMessagingService.kt`                                  | `AppDelegate.swift` + `RNCPushNotificationIOS`         |
+| 기능            | TypeScript                | Android                                                                   | iOS                                                      |
+| --------------- | ------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Upload          | `UploadManagerBridge.ts`  | `UploadManagerModule.kt`, `UploadBackgroundService.kt`, `UploadWorker.kt` | `Upload/UploadManager.swift`, `Upload/UploadManager.m`   |
+| File            | `FileManagerBridge.ts`    | `FileManagerModule.kt`                                                    | `FileManager.m`                                          |
+| App icon        | `AppIconBridge.ts`        | `AppIconManagerModule.kt`                                                 | `AppIconManager.m`                                       |
+| System bars     | `SystemBarsBridge.ts`     | `SystemBarsModule.kt`                                                     | platform-specific native behavior                        |
+| Back navigation | `BackNavigationBridge.ts` | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                     | platform-specific native behavior                        |
+| Push delivery   | n/a                       | `push/ChaticFirebaseMessagingService.kt`                                  | `AppDelegate.swift` + `RNCPushNotificationIOS`           |
+| Badge sync      | `BadgeSyncBridge.ts`      | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                | App Group via `AppDelegate.swift` + NSE (RN module 없음) |
 
 ## 호출 흐름
 

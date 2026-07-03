@@ -4,6 +4,8 @@ Push architecture owns FCM/APNs permission, token registration, notification cha
 
 The current architecture does not use a JS `setBackgroundMessageHandler` or `OfflinePushQueue`. Android background/killed delivery is handled by a native `FirebaseMessagingService`; iOS background/killed banners are localized by a native `Notification Service Extension`, while foreground and notification-tap APNs events are forwarded through `PushNotificationIOS`.
 
+Background chat pushes also increment the app-icon badge natively (the socket/web is suspended then), and the web re-aggregates the true count on the next foreground. That badge lifecycle — foreground aggregation, background increment, and reconcile — is documented separately in [badge.md](./badge.md).
+
 ## Key Files
 
 | File                                                                             | Role                                                                                                            |

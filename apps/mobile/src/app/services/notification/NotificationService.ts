@@ -5,6 +5,7 @@ import notifee, { AndroidImportance } from '@notifee/react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import type { INotificationService } from './types';
 import type { ILogService } from '../log';
+import { BadgeSyncBridge } from '../../bridge';
 import { t } from '../../utils';
 
 /**
@@ -219,6 +220,9 @@ export class NotificationService implements INotificationService {
     async setBadgeCount(count: number): Promise<void> {
         try {
             await notifee.setBadgeCount(count);
+            // Mirror the authoritative total into native storage so a background push (handled while
+            // the socket/web is suspended) can increment from the truth. No-op on iOS — see BadgeSyncBridge.
+            await BadgeSyncBridge.setBase(count);
         } catch (e) {
             this.logger.error('NOTIFICATION', 'Set badge error.', e);
         }
@@ -230,6 +234,8 @@ export class NotificationService implements INotificationService {
     async clearBadge(): Promise<void> {
         try {
             await notifee.setBadgeCount(0);
+            // Keep the native base in sync so a subsequent background push starts counting from 0.
+            await BadgeSyncBridge.setBase(0);
         } catch (e) {
             this.logger.error('NOTIFICATION', 'Clear badge error.', e);
         }

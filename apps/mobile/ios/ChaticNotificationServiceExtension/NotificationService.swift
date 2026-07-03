@@ -44,7 +44,13 @@ class NotificationService: UNNotificationServiceExtension {
             if channelId == "dou_chat_muted" || channelId == "dou_marketing" {
                 bestAttemptContent.sound = nil
             }
-            
+
+            // Bump the app-icon badge for background chat pushes. The app/socket is suspended here,
+            // so this extension is the only place a backgrounded message can move the count: we read
+            // the base the app captured on backgrounding and increment it, and the app re-aggregates
+            // the true total on the next foreground.
+            applyBadgeIncrementIfNeeded(channelId: channelId, content: bestAttemptContent)
+
             contentHandler(bestAttemptContent)
         }
     }
@@ -54,7 +60,29 @@ class NotificationService: UNNotificationServiceExtension {
             contentHandler(bestAttemptContent)
         }
     }
-    
+
+    // MARK: - Badge counter (shared with the main app via App Group)
+
+    /// App Group id shared with the main app; must match the entitlement on both targets.
+    private static let appGroupId = "group.io.chatic.dou"
+    private static let badgeCountKey = "badge_count"
+    private static let appActiveKey = "app_active"
+
+    /// Increments the shared badge counter for a background chat push and writes it onto the banner.
+    /// No-ops for non-chat channels (to match the web's chat-only unread total) and while the app is
+    /// active (the web owns the badge over the socket then, so incrementing would double-count).
+    private func applyBadgeIncrementIfNeeded(channelId: String, content: UNMutableNotificationContent) {
+        let isChatChannel = channelId == "dou_chat" || channelId == "dou_chat_muted"
+        guard isChatChannel else { return }
+
+        guard let defaults = UserDefaults(suiteName: NotificationService.appGroupId) else { return }
+        if defaults.bool(forKey: NotificationService.appActiveKey) { return }
+
+        let next = defaults.integer(forKey: NotificationService.badgeCountKey) + 1
+        defaults.set(next, forKey: NotificationService.badgeCountKey)
+        content.badge = NSNumber(value: next)
+    }
+
     // MARK: - Localization Helpers
     
     private func resolveLanguage() -> String {
