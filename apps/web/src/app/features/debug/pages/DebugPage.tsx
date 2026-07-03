@@ -1,29 +1,45 @@
 import {
+    Bell,
+    BellRing,
     ChevronLeft,
     ChevronRight,
+    Copy,
+    FileText,
+    HardDrive,
+    Link2,
     LogOut,
     Mail,
     MessageSquare,
-    FileText,
-    HardDrive,
-    XCircle,
+    Smartphone,
     Upload,
-    Bell,
-    Link2,
+    XCircle,
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { isNative } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useDeviceInfo } from '@chatic/device-utils';
 
+import { appBridge } from '../../../bridge';
+import { buildDeviceInfoRows } from '../lib';
 import { useDebugMode } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
+
+/** Copy a value using the native bridge inside the app shell, else the Clipboard API. */
+const copyText = (value: string | null) => {
+    if (!value) return;
+    if (isNative()) {
+        void appBridge.copyClipBoard(value);
+        return;
+    }
+    void navigator.clipboard?.writeText(value);
+};
 
 export const DebugPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const { versionInfo } = useDeviceInfo();
+    const { versionInfo, deviceInfo } = useDeviceInfo();
     const { isEnabled, disable } = useDebugMode();
 
     useEffect(() => {
@@ -50,6 +66,28 @@ export const DebugPage = () => {
                 <div className="mb-6 mt-6">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">Debug Mode</h1>
                     <p className="mt-1 text-[13px] text-muted-foreground">v{versionInfo?.webVersion ?? '?'}</p>
+                </div>
+
+                {/* Device Info — deviceId/installId/platform injected by the native shell */}
+                <div className="mb-4 rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
+                    <div className="mb-2 flex items-center gap-2">
+                        <Smartphone size={16} className="text-muted-foreground" />
+                        <span className="text-[13px] font-semibold text-foreground">Device Info</span>
+                    </div>
+                    <dl className="flex flex-col gap-1.5">
+                        {buildDeviceInfoRows(deviceInfo).map(row => (
+                            <button
+                                key={row.label}
+                                type="button"
+                                onClick={() => copyText(row.copyValue)}
+                                className="flex items-start justify-between gap-2 text-left"
+                            >
+                                <dt className="w-[92px] shrink-0 text-[12px] text-muted-foreground">{row.label}</dt>
+                                <dd className="flex-1 break-all text-[12px] font-medium text-foreground">{row.value}</dd>
+                                {row.copyValue && <Copy size={13} className="mt-0.5 shrink-0 text-muted-foreground" />}
+                            </button>
+                        ))}
+                    </dl>
                 </div>
 
                 {/* Debug Menu */}
@@ -114,6 +152,16 @@ export const DebugPage = () => {
                             <div className="flex items-center gap-3">
                                 <Bell size={18} className="text-muted-foreground" />
                                 <span className="text-[15px] font-medium text-foreground">Badge Count Test</span>
+                            </div>
+                            <ChevronRight size={18} className="text-muted-foreground" />
+                        </button>
+                        <button
+                            onClick={() => navigate(ROUTES.debug.push)}
+                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
+                        >
+                            <div className="flex items-center gap-3">
+                                <BellRing size={18} className="text-muted-foreground" />
+                                <span className="text-[15px] font-medium text-foreground">Push (Token &amp; Receive)</span>
                             </div>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
