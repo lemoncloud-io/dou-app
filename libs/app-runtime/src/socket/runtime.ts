@@ -1,8 +1,8 @@
 import { SocketManager } from './SocketManager';
 import { SocketSessionController } from './SocketSessionController';
 import { SyncManager } from './sync/SyncManager';
-import type { SyncRuntimeOptions } from './sync/types';
 import type { ISocketManager } from './types';
+import type { SyncRuntimeOptions } from './sync/types';
 
 export interface SocketRuntime {
     socketManager: ISocketManager;
@@ -17,7 +17,7 @@ let socketRuntimeSingleton: SocketRuntime | null = null;
  * defaults (behavior-preserving). The injection point exists so external config
  * (connectionDraft-style) can override these later without touching SyncManager.
  */
-const DEFAULT_SYNC_RUNTIME_OPTIONS: SyncRuntimeOptions = {};
+const DEFAULT_SYNC_RUNTIME_OPTIONS: SyncRuntimeOptions = { gateSyncOnAuth: false };
 
 /**
  * Creates a fresh socket runtime assembly. Composition root only: wires objects and

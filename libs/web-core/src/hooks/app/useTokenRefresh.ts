@@ -5,17 +5,13 @@ import { logger } from '@chatic/bridges';
 import { reportError } from '../../api';
 import type { ErrorClassification } from '../../transport/error';
 import { classifyError, toError } from '../../transport/error';
-import { loadRelayProfile, refreshActiveCloudSession, refreshRelaySession, tryLoadRelayProfile } from '../../session';
-import { useSessionLogout } from '../session';
-import { useSessionAuth } from '../session/readers/useSessionAuth';
-import { useSessionIdentity } from '../session/readers/useSessionIdentity';
+import { refreshActiveCloudSession, refreshRelaySession } from '../../session';
+import { useSessionAuth, useSessionLogout } from '../session';
 
 type InitializationStatus = 'pending' | 'success' | 'failed';
 
 const REFRESH_INTERVAL = 1000 * 60;
 const MIN_REFRESH_GAP = 5000;
-const MAX_NETWORK_RETRIES = 3;
-const NETWORK_RETRY_BASE_MS = 2000;
 
 const isInviteFlow = (): boolean => {
     const params = new URLSearchParams(window.location.search);
@@ -27,7 +23,6 @@ const isInviteFlow = (): boolean => {
  */
 export const useTokenRefresh = (webCoreReady: boolean) => {
     const { isAuthenticated } = useSessionAuth();
-    const { relayProfile, isInvited } = useSessionIdentity();
     const logout = useSessionLogout();
 
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -56,21 +51,17 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         );
 
         try {
-            await refreshRelaySession({ syncProfile: false });
+            // Refresh the relay token AND hydrate the profile from the same response (no profile GET).
+            await refreshRelaySession({ syncProfile: true });
             return true;
         } catch (error) {
             logger.error('AUTH', 'Token refresh failed', { error });
             reportError(toError(error));
             const errorClassification: ErrorClassification = classifyError(error);
             if (errorClassification.shouldLogout) {
-                if (isInvited) {
-                    logger.warn(
-                        'AUTH',
-                        'Token expired in invite session, skipping auto-logout to preserve cloud state'
-                    );
-                    return false;
-                }
                 logger.info('AUTH', 'Token completely expired or invalid - logging out');
+                // Preserve the URL when the CURRENT navigation is an invite deep-link (URL-based, via
+                // wasInviteFlowRef) so the invite params survive the logout redirect.
                 await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
                 return false;
             }
@@ -79,7 +70,7 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
         } finally {
             isRefreshingRef.current = false;
         }
-    }, [isInvited, logout]);
+    }, [logout]);
 
     const startInterval = useCallback(() => {
         if (intervalRef.current) {
@@ -111,96 +102,22 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
             return;
         }
 
-        logger.info('AUTH', '[tokenRefresh] Initializing: checking token validity');
-        try {
-            const hasCachedProfile = !!relayProfile;
-            const [refreshSuccess, optimisticProfile] = await Promise.all([refreshToken(), tryLoadRelayProfile()]);
-
-            if (!refreshSuccess) {
-                logger.warn('AUTH', '[tokenRefresh] token refresh failed, marking as failed');
-                hasFailedRef.current = true;
-                setInitStatus('failed');
-                return;
-            }
-
-            if (optimisticProfile) {
-                logger.info('AUTH', '[tokenRefresh] parallel init succeeded');
-                isInitializedRef.current = true;
-                networkRetryRef.current = 0;
-                setInitStatus('success');
-                return;
-            }
-
-            if (hasCachedProfile) {
-                logger.info('AUTH', '[tokenRefresh] using cached profile, background refresh');
-                isInitializedRef.current = true;
-                networkRetryRef.current = 0;
-                setInitStatus('success');
-                loadRelayProfile().catch(e =>
-                    logger.warn('AUTH', '[tokenRefresh] bg profile refresh failed', { error: e })
-                );
-                return;
-            }
-
-            logger.info('AUTH', '[tokenRefresh] token refreshed, fetching profile');
-            await loadRelayProfile();
-
-            isInitializedRef.current = true;
-            networkRetryRef.current = 0;
-            setInitStatus('success');
-        } catch (error: unknown) {
-            logger.error('PROFILE', 'Profile fetch failed', { error });
-            reportError(toError(error));
-
-            const errorClassification: ErrorClassification = classifyError(error);
-
-            if (errorClassification.shouldLogout) {
-                logger.info('AUTH', 'Profile fetch got auth error, refreshing token once more');
-                const refreshSuccess = await refreshToken();
-                if (refreshSuccess) {
-                    try {
-                        await loadRelayProfile();
-                        isInitializedRef.current = true;
-                        setInitStatus('success');
-                        logger.info('AUTH', 'Initialization succeeded after additional token refresh');
-                        return;
-                    } catch (retryError) {
-                        logger.error('PROFILE', 'Profile fetch failed even after token refresh', { error: retryError });
-                        const retryErrorClassification: ErrorClassification = classifyError(retryError);
-                        if (retryErrorClassification.shouldLogout) {
-                            hasFailedRef.current = true;
-                            setInitStatus('failed');
-                            if (isInvited) {
-                                logger.warn('AUTH', 'Profile fetch failing in invite session, skipping auto-logout');
-                                return;
-                            }
-                            logger.info('AUTH', 'Profile fetch still failing with auth error - logging out');
-                            await logout(wasInviteFlowRef.current ? { preserveUrl: true } : undefined);
-                            return;
-                        }
-                    }
-                }
-            }
-
-            if (networkRetryRef.current < MAX_NETWORK_RETRIES) {
-                networkRetryRef.current++;
-                const delay = NETWORK_RETRY_BASE_MS * networkRetryRef.current;
-                logger.info('AUTH', 'Network error, retrying initialization', {
-                    delay,
-                    retryCount: networkRetryRef.current,
-                    maxRetries: MAX_NETWORK_RETRIES,
-                });
-                await new Promise(resolve => setTimeout(resolve, delay));
-                hasFailedRef.current = false;
-                await initialize();
-                return;
-            }
-
+        logger.info('AUTH', '[tokenRefresh] Initializing: refreshing token + profile');
+        // A single relay refresh refreshes the token AND hydrates the profile from the same
+        // response (no separate profile GET). refreshToken() classifies errors and performs
+        // hard-expiry logout internally, returning false only when the session is unrecoverable.
+        const refreshSuccess = await refreshToken();
+        if (!refreshSuccess) {
+            logger.warn('AUTH', '[tokenRefresh] token refresh failed, marking as failed');
             hasFailedRef.current = true;
             setInitStatus('failed');
-            logger.info('AUTH', 'Initialization failed after all network retries');
+            return;
         }
-    }, [isAuthenticated, isInvited, logout, refreshToken, relayProfile, webCoreReady]);
+
+        isInitializedRef.current = true;
+        networkRetryRef.current = 0;
+        setInitStatus('success');
+    }, [isAuthenticated, webCoreReady, refreshToken]);
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {

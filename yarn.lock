@@ -3283,10 +3283,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-socials-api@^0.26.407":
-  version "0.26.407"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.407.tgz#6b48af0e962f04c2ec484fd21c3ba36264510bf3"
-  integrity sha512-Vo8Wo1uC/94gMIEQEwQkwmT0aN1GEgrBXrkARAyQ+xJ1Xx+CFO1lry2YjUBkE3RVxZ5hu51WwSxwA+AtTbEZCQ==
+"@lemoncloud/chatic-socials-api@^0.26.412":
+  version "0.26.412"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.412.tgz#6a4bdb51e74389b60acb7e56d93103de870eac2f"
+  integrity sha512-M4XjL1T6Y3B5lxAqGgtPmkmLtio5pFejV60SZfO74dJHDe2XHap4xwcxAgWDdxyCxm4tulblYquNnoRb8MWobQ==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -3297,17 +3297,17 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@0.26.525":
-  version "0.26.525"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.525.tgz#67167727b511f994c2ee7cdfe1f466c5f94cc061"
-  integrity sha512-4Ohc/i3yvRE9i0hCAfmniMF5Op1Lp/Hwbx5gcuH4HF+UWK7cNuuOwPYrhnk1jgARFGEpRNKWTudeE4NrA1N60w==
+"@lemoncloud/chatic-sockets-api@0.26.603":
+  version "0.26.603"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.603.tgz#9f862aec2d49a3c469bbd53e4ada23a9c54ccd6e"
+  integrity sha512-5NMeaTDektLNJwevpo+tXV4EhoPVqsE/e/uqbLMMYNWHdqgNLJ/zaxH4oKhCAD6U8BO0DuKr9ayv21KrNqsqFA==
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.4.2":
-  version "0.4.2"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.2.tgz#5052408982c0fc7a3053e0ef6ccbf9927102481d"
-  integrity sha512-8BY70QqQt2KpI+za63/26vu7AB31PHKNxenUThWAIyPkyI/++KjNYH4q6R+Y0yGpaC5sPg2DXt7s2r473W8oig==
+"@lemoncloud/chatic-sockets-lib@0.4.5":
+  version "0.4.5"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.5.tgz#d0692a6d6e9ea37f18ea4dc49ce8b1472a24f3c1"
+  integrity sha512-WoF16fYMDvJy3xea2eYBjFCzE11zAtVqMzK2dihdtYz5ady9M/ZRLCdSnsagjp3ZrsJe0lvQ7GYrID3SwwTyfw==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"

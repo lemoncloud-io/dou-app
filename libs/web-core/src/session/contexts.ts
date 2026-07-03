@@ -1,5 +1,5 @@
 import { cloudCore } from './core';
-import { clearSessionCloudProfile } from './contextStore';
+import { getActiveSessionUser, rebuildSessionIdentity } from './contextStore';
 import type {
     ActiveServerContext,
     CloudContext,
@@ -27,7 +27,10 @@ export const getGlobalSessionContext = (): GlobalSessionContext => sessionContex
 export const getActiveServerIdentityToken = (): string | null =>
     sessionContextStore.getGlobalSessionContext().activeServer.identityToken;
 
+// The active session token's user fields — the synchronous seed for useProfileFacts.
+export { getActiveSessionUser };
+
 export const clearCloudSession = (): void => {
     cloudCore.clearSession();
-    clearSessionCloudProfile();
+    rebuildSessionIdentity();
 };

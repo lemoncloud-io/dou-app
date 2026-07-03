@@ -1,6 +1,6 @@
 import { DOU_ENDPOINT, ENV } from '../session/core';
 import { webTransport } from '../transport';
-import { getGlobalSessionContext } from '../session';
+import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { isNative, logger } from '@chatic/bridges';
 
 import type { SlackReportBody } from '@lemoncloud/chatic-backend-api';
@@ -34,7 +34,11 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
         const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = getGlobalSessionContext();
-        const userRole = (state.identity.activeProfile?.$user as any)?.userRole;
+        // Error telemetry is synchronous (not a hook), so it can't observe the profile cache.
+        // Read the role/name straight off the active session token payload; the app UI uses the
+        // reactive useProfileFacts hook instead.
+        const sessionUser = getActiveSessionUser() as { userRole?: string; name?: string } | null;
+        const userRole = sessionUser?.userRole;
 
         const cloudState = state.cloud;
         const cloudToken = cloudState.cloudToken;
@@ -68,13 +72,12 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent,
             user: {
-                uid: state.identity.activeProfile?.uid,
-                name: state.identity.activeProfile?.$user?.name,
+                uid: state.identity.userId ?? undefined,
+                name: sessionUser?.name,
                 role: userRole,
                 isAuthenticated: state.identity.isAuthenticated,
-                isGuest: state.identity.isGuest,
-                isCloudUser: state.identity.cloudProfile !== null,
-                isInvited: state.identity.isInvited,
+                isGuest: userRole === 'guest',
+                isCloudUser: state.cloud.isActive,
             },
             cloud: {
                 connected: hasCloud,
@@ -124,7 +127,11 @@ export const reportIssue = async (title: string, message: string): Promise<void>
         const app: AppType = isNative() ? 'mobile' : 'web';
 
         const state = getGlobalSessionContext();
-        const userRole = (state.identity.activeProfile?.$user as any)?.userRole;
+        // Error telemetry is synchronous (not a hook), so it can't observe the profile cache.
+        // Read the role/name straight off the active session token payload; the app UI uses the
+        // reactive useProfileFacts hook instead.
+        const sessionUser = getActiveSessionUser() as { userRole?: string; name?: string } | null;
+        const userRole = sessionUser?.userRole;
 
         const cloudState = state.cloud;
         const cloudToken = cloudState.cloudToken;
@@ -139,8 +146,8 @@ export const reportIssue = async (title: string, message: string): Promise<void>
             url: window.location.href,
             timestamp: new Date().toISOString(),
             user: {
-                uid: state.identity.activeProfile?.uid,
-                name: state.identity.activeProfile?.$user?.name,
+                uid: state.identity.userId ?? undefined,
+                name: sessionUser?.name,
                 role: userRole,
                 isAuthenticated: state.identity.isAuthenticated,
             },

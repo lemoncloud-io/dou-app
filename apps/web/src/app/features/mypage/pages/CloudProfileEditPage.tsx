@@ -8,12 +8,9 @@ import { resizeImageToBase64 } from '@chatic/shared';
 
 import { cn } from '@chatic/lib/utils';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    useRefreshCurrentCloudSession,
-    useSessionIdentity,
-    useSessionSelection,
-    useUpdateCloud,
-} from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/web-core';
+import { useUpdateCloudProfile } from '../hooks';
+import { useMyUser } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 
@@ -25,16 +22,15 @@ export const CloudProfileEditPage = () => {
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { selectedCloudId } = useSessionSelection();
-    const { cloudProfile } = useSessionIdentity();
-    const { mutateAsync: updateCloud, isPending } = useUpdateCloud();
-    const { refreshCurrentCloudSession } = useRefreshCurrentCloudSession();
+    // Current cloud-session user from the data layer (socket user.profile) — the socket is bound to
+    // the active cloud here, so this is the cloud profile.
+    const cloudUser = useMyUser();
+    const { mutateAsync: updateCloudProfile, isPending } = useUpdateCloudProfile();
 
-    // Read from the cloud profile so the relay photo does not bleed in.
-    const cloudUser = cloudProfile?.$user;
     const cloudName = cloudUser?.name || '';
     const cloudThumbnail = (cloudUser?.photo as string) || '';
 
-    const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudProfile });
+    const initialRef = useRef({ name: cloudName, thumbnail: cloudThumbnail, initialized: !!cloudUser });
     const [name, setName] = useState(cloudName.slice(0, 30));
     const [thumbnail, setThumbnail] = useState(cloudThumbnail);
     const [imageSizeError, setImageSizeError] = useState(false);
@@ -45,11 +41,12 @@ export const CloudProfileEditPage = () => {
     const handleSave = async () => {
         if (!isValid || !hasChanges || !selectedCloudId) return;
         try {
-            // NOTE: server-side thumbnail update is deferred; only the name is persisted for now.
-            await updateCloud({ id: selectedCloudId, body: { name: name.trim() } });
-
-            // Re-issue the cloud token so the session-derived profile reflects the new name.
-            await refreshCurrentCloudSession();
+            // Updates the current cloud-session profile via the User domain action;
+            // the hook re-issues the cloud token so the session profile reflects it.
+            await updateCloudProfile({
+                name: name.trim(),
+                photo: thumbnail !== initialRef.current.thumbnail ? thumbnail : undefined,
+            });
 
             toast({ title: t('profileEdit.cloudSaveSuccess') });
             navigate(-1);

@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
-import { useSocketState, getSyncManager, useRuntimeRepositories } from '@chatic/app-runtime';
-import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
+import { useSocketState, getSyncManager, useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
+import type { DataRepositoriesV2, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
 import { useRuntimeMetrics } from '../metrics/useRuntimeMetrics';
+import { useUpdateUserProfile } from '../features/user-profile/useUpdateUserProfile';
+import { useActiveCloudChannels } from '../features/unread/useActiveCloudChannels';
+import { useHomeUnreads } from '../features/unread/useHomeUnreads';
+import { useUpdateCloud } from '../features/cloud/useUpdateCloud';
+import { normalizeName } from '../features/naming';
 
 interface Props {
     onClose: () => void;
@@ -28,7 +33,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
     const socketState = useSocketState();
-    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필'>('상태');
+    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
 
     // Floating draggable panel: start near the top-right so it doesn't cover the header.
     const panelRef = useRef<HTMLDivElement>(null);
@@ -64,6 +69,8 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     };
 
     const { relay, cloud, identity, activeServer } = session;
+    // Profile facts (guest/role/type/name) now track the cached profile, not the session payload.
+    const facts = useSessionProfile();
 
     return (
         <div
@@ -87,7 +94,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
             <div className="overflow-y-auto p-4 space-y-3">
                 <div className="flex gap-1 mb-3">
-                    {(['상태', 'DB', '성능', '프로필'] as const).map(t => (
+                    {(['상태', 'DB', '성능', '프로필', '안읽음'] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -102,20 +109,18 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
                 {tab === 'DB' && <DBBrowser />}
                 {tab === '프로필' && <ProfileTab />}
+                {tab === '안읽음' && <UnreadTab />}
                 {tab === '성능' && <PerfTab socketStateLabel={socketState.state} />}
                 {tab === '상태' && (
                     <>
                         <Section title="Session">
                             <Row label="initialized" value={String(isInitialized)} />
                             <Row label="authenticated" value={String(isAuthenticated)} />
-                            <Row label="isGuest" value={String(identity.isGuest)} />
-                            <Row label="isInvited" value={String(identity.isInvited)} />
-                            <Row label="userType" value={identity.userType} />
+                            <Row label="isGuest" value={String(facts.isGuest)} />
                             <Row label="userId" value={identity.userId} />
                             <Row label="delegatorId" value={identity.delegatorId} />
-                            <Row label="userName" value={identity.userName} />
-                            <Row label="userRole" value={identity.userRole} />
-                            <Row label="oAuthProvider" value={identity.oAuthProvider} />
+                            <Row label="userName" value={facts.userName} />
+                            <Row label="userRole" value={facts.userRole} />
                             <Row label="error" value={identity.error?.message ?? null} />
                         </Section>
 
@@ -147,9 +152,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
                         <Section title="Socket">
                             <Row label="state" value={socketState.state} />
-                            <Row label="isConnected" value={String(socketState.isConnected)} />
                             <Row label="isVerified" value={String(socketState.isVerified)} />
-                            <Row label="connectionId" value={socketState.connectionId} />
                         </Section>
                     </>
                 )}
@@ -158,9 +161,213 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     );
 };
 
+// Profile tab: cloud name + account-wide user profile (active-server scoped) + the site profile.
+const ProfileTab = () => (
+    <div className="space-y-4">
+        <CloudNameSection />
+        <UserProfileSection />
+        <SiteProfileSection />
+    </div>
+);
+
+// Renames the active cloud through repos.cloud.updateCloud and observes the cloud cache so the
+// displayed name tracks the change reactively (cacheWrite re-emits to observeItem subscribers).
+const CloudNameSection = () => {
+    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const { activeServer } = useGlobalSession();
+    const updateCloud = useUpdateCloud();
+    const cloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : '';
+
+    const [current, setCurrent] = useState<DomainCloud | null>(null);
+    const [name, setName] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
+    const prefilledRef = useRef(false);
+
+    // Observe the cloud so the form reflects synced/optimistic name changes from the cache stream.
+    useEffect(() => {
+        if (!cloudId) {
+            setCurrent(null);
+            return;
+        }
+        return repos.cloud.observeItem(cloudId, setCurrent);
+    }, [repos.cloud, cloudId]);
+
+    useEffect(() => {
+        prefilledRef.current = false;
+    }, [cloudId]);
+    useEffect(() => {
+        if (current && !prefilledRef.current) {
+            prefilledRef.current = true;
+            setName(current.name ?? '');
+        }
+    }, [current]);
+
+    const handleSave = async () => {
+        const normalized = normalizeName(name, 2);
+        if (!normalized) {
+            setError('클라우드 이름은 2자 이상이어야 합니다.');
+            return;
+        }
+        setError(null);
+        setSaved(false);
+        setSaving(true);
+        try {
+            await updateCloud(cloudId, normalized);
+            setSaved(true);
+        } catch (e: any) {
+            setError(e?.message ?? String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!cloudId) {
+        return (
+            <Section title="클라우드 이름">
+                <p className="text-xs text-muted-foreground">클라우드 서버가 활성일 때만 이름을 변경할 수 있습니다.</p>
+            </Section>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <Section title="클라우드 이름">
+                <Row label="cloudId" value={cloudId} />
+                <Row label="현재 이름" value={current?.name ?? '—'} />
+            </Section>
+            <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-muted-foreground">name</label>
+                <input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="클라우드 이름"
+                    className="border border-border bg-background rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => void handleSave()}
+                    disabled={saving}
+                    className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
+                >
+                    {saving ? '저장 중...' : '저장'}
+                </button>
+                {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
+            </div>
+        </div>
+    );
+};
+
+// Edits the account-wide user profile (name/photo) through repos.user.updateProfile, then
+// re-issues the active server session. The displayed name is observed from the user cache (not the
+// static session identity) so it tracks the change reactively; getMyProfile hydrates the cache.
+const UserProfileSection = () => {
+    const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
+    const identity = useSessionIdentity();
+    const updateUserProfile = useUpdateUserProfile();
+    const uid = identity.userId ?? '';
+
+    const [current, setCurrent] = useState<DomainUser | null>(null);
+    const [name, setName] = useState('');
+    const [photo, setPhoto] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
+    const prefilledRef = useRef(false);
+
+    // Observe the user cache so the current name updates live after a save (cacheWrite re-emits).
+    useEffect(() => {
+        if (!uid) {
+            setCurrent(null);
+            return;
+        }
+        // Hydrate the cache once so the observer has a row even before the first edit.
+        void repos.user.getMyProfile().catch(() => undefined);
+        return repos.user.observeItem(uid, setCurrent);
+    }, [repos.user, uid]);
+
+    // Prefill once from the observed user (fall back to the session identity name).
+    useEffect(() => {
+        prefilledRef.current = false;
+    }, [uid]);
+    useEffect(() => {
+        if (!prefilledRef.current && current?.name) {
+            prefilledRef.current = true;
+            setName(current.name);
+        }
+    }, [current]);
+
+    const handleSave = async () => {
+        const normalized = normalizeName(name);
+        if (!normalized) {
+            setError('이름을 입력해 주세요.');
+            return;
+        }
+        setError(null);
+        setSaved(false);
+        setSaving(true);
+        try {
+            await updateUserProfile({
+                name: normalized,
+                ...(photo.trim() ? { photo: photo.trim() } : {}),
+            });
+            setSaved(true);
+        } catch (e: any) {
+            setError(e?.message ?? String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!identity.userId) {
+        return <p className="text-xs text-muted-foreground">로그인 후 유저 프로필을 변경할 수 있습니다.</p>;
+    }
+
+    return (
+        <div className="space-y-2">
+            <Section title="유저 프로필 (활성 서버)">
+                <Row label="userId" value={identity.userId} />
+                <Row label="현재 name" value={current?.name ?? '—'} />
+            </Section>
+            <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-muted-foreground">name</label>
+                <input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="유저 이름"
+                    className="border border-border bg-background rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+            </div>
+            <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-muted-foreground">photo (URL 또는 base64)</label>
+                <input
+                    value={photo}
+                    onChange={e => setPhoto(e.target.value)}
+                    placeholder="https://... 또는 data:image/..."
+                    className="border border-border bg-background rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => void handleSave()}
+                    disabled={saving}
+                    className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
+                >
+                    {saving ? '저장 중...' : '저장'}
+                </button>
+                {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
+            </div>
+        </div>
+    );
+};
+
 // Edits the current user's site profile (nick/thumbnail) for the active place. Writes via
 // repos.profile.setMyProfile (optimistic cache + profile.set), which uses the live sid/uid.
-const ProfileTab = () => {
+const SiteProfileSection = () => {
     const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
     const { activeServer } = useGlobalSession();
     const identity = useSessionIdentity();
@@ -267,6 +474,44 @@ const ProfileTab = () => {
                     {saved && <span className="text-xs text-muted-foreground">저장됨 ✓</span>}
                 </div>
             </div>
+        </div>
+    );
+};
+
+// Shows the unread counts derived from each channel's synced $join/lastChat/metaNo: cloud total,
+// per-site sums, and per-channel counts. Freshness comes from the home page's periodic
+// syncChannels delta, not per-channel registration.
+const UnreadTab = () => {
+    const channels = useActiveCloudChannels();
+    const { aggregates } = useHomeUnreads(channels);
+    const { byChannel, byPlace, total } = aggregates;
+
+    const channelById = new Map(channels.map(ch => [ch.id, ch]));
+
+    return (
+        <div className="space-y-3">
+            <Section title="전체">
+                <Row label="cloud 안읽음 합계" value={total} />
+                <Row label="구독 채널 수" value={channels.length} />
+            </Section>
+
+            <Section title="사이트별">
+                {Object.keys(byPlace).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">안읽음이 있는 사이트가 없습니다</p>
+                ) : (
+                    Object.entries(byPlace).map(([sid, count]) => <Row key={sid} label={sid} value={count} />)
+                )}
+            </Section>
+
+            <Section title="채널별">
+                {channels.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">구독된 채널이 없습니다</p>
+                ) : (
+                    Object.entries(byChannel).map(([id, count]) => (
+                        <Row key={id} label={channelById.get(id)?.name || id} value={count} />
+                    ))
+                )}
+            </Section>
         </div>
     );
 };

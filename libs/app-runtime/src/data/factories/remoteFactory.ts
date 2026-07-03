@@ -52,6 +52,7 @@ export const createRemoteDataSources = () => {
         },
         user: {
             update: userGateway.update,
+            profile: userGateway.profile,
             listUser: channelGateway.listUser,
             invite: userGateway.invite,
             inviteBatch: userGateway.inviteBatch,

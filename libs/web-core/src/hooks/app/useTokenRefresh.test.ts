@@ -2,20 +2,15 @@ import { renderHook } from '@testing-library/react';
 
 const mockRefreshRelaySession = jest.fn();
 const mockRefreshActiveCloudSession = jest.fn();
-const mockLoadRelayProfile = jest.fn();
-const mockTryLoadRelayProfile = jest.fn();
 const mockReportError = jest.fn();
 const mockClassifyError = jest.fn();
 const mockToError = jest.fn((e: unknown) => e);
 const mockLogout = jest.fn();
 const mockUseSessionAuth = jest.fn();
-const mockUseSessionIdentity = jest.fn();
 
 jest.mock('../../session', () => ({
     refreshRelaySession: (...args: unknown[]) => mockRefreshRelaySession(...args),
     refreshActiveCloudSession: (...args: unknown[]) => mockRefreshActiveCloudSession(...args),
-    loadRelayProfile: (...args: unknown[]) => mockLoadRelayProfile(...args),
-    tryLoadRelayProfile: (...args: unknown[]) => mockTryLoadRelayProfile(...args),
 }));
 
 jest.mock('../../api', () => ({
@@ -27,16 +22,10 @@ jest.mock('../../transport/error', () => ({
     toError: (...args: unknown[]) => mockToError(...args),
 }));
 
+// useTokenRefresh imports both useSessionAuth and useSessionLogout from the `../session` barrel.
 jest.mock('../session', () => ({
-    useSessionLogout: () => mockLogout,
-}));
-
-jest.mock('../session/readers/useSessionAuth', () => ({
     useSessionAuth: () => mockUseSessionAuth(),
-}));
-
-jest.mock('../session/readers/useSessionIdentity', () => ({
-    useSessionIdentity: () => mockUseSessionIdentity(),
+    useSessionLogout: () => mockLogout,
 }));
 
 jest.mock('@chatic/bridges', () => ({
@@ -50,7 +39,6 @@ describe('useTokenRefresh — parallel cloud refresh', () => {
         jest.clearAllMocks();
         // isAuthenticated:false → skip the mount initialize effect so we can drive refreshToken directly
         mockUseSessionAuth.mockReturnValue({ isAuthenticated: false });
-        mockUseSessionIdentity.mockReturnValue({ relayProfile: null, isInvited: false, isGuest: false });
         mockRefreshRelaySession.mockResolvedValue(null);
         mockRefreshActiveCloudSession.mockResolvedValue(undefined);
         mockClassifyError.mockReturnValue({ shouldLogout: false });
@@ -61,7 +49,7 @@ describe('useTokenRefresh — parallel cloud refresh', () => {
 
         await result.current.refreshToken();
 
-        expect(mockRefreshRelaySession).toHaveBeenCalledWith({ syncProfile: false });
+        expect(mockRefreshRelaySession).toHaveBeenCalledWith({ syncProfile: true });
         expect(mockRefreshActiveCloudSession).toHaveBeenCalledTimes(1);
     });
 

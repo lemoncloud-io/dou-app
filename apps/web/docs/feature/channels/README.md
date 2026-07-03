@@ -29,7 +29,7 @@ features/channels/
 
 ## 데이터 흐름
 
-repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md).
+repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md).
 
 요약:
 

@@ -66,7 +66,7 @@ viewing 통지는 **쓰기(write)** 다 — sync target 등록(`register*`, 자�
 - **API**: `DeviceRemoteDataSource.syncDevice` (이미 존재) 를 재사용.
 - **repository**: `DeviceRepositoryV2.notifyViewing(viewingType, viewingId)` — 캐시 없는 thin
   passthrough. `DataRepositoriesV2.device`로 노출되어 UI는 `useRuntimeRepositories().device`라는
-  매니저 surface만 만진다(3축 규칙). [DeviceRepositoryV2.ts](../../../data/src/data/repositories-v2/DeviceRepositoryV2.ts)
+  매니저 surface만 만진다(매니저 surface 규칙). [DeviceRepositoryV2.ts](../../../data/src/data/repositories-v2/DeviceRepositoryV2.ts)
 - **트리거 소유**: 컴포넌트 lifecycle이 아니라 **전역 라우트 관측**. apps/web `useDeviceViewing`이
   `UnifiedLayout`(RouterProvider 안)에 마운트되어 `useMatch('/channels/:channelId/room')`로 현재
   채널을 도출, 전환마다 1회 통지(미인증 보류 → 재인증 시 재assert). viewing은 **채널 룸에서만**;

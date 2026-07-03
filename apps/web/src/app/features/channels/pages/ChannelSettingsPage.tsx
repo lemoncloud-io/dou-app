@@ -61,7 +61,7 @@ export const ChannelSettingsPage = () => {
 
     const { toast } = useToast();
 
-    const { activeProfile: profile } = useSessionIdentity();
+    const { userId } = useSessionIdentity();
 
     const { channel, isError } = useChannel(channelId ?? null);
 
@@ -209,7 +209,7 @@ export const ChannelSettingsPage = () => {
                                         memberId ||
                                         t('chat.settings.unknownUser');
 
-                                    const isMember = memberId === profile?.uid;
+                                    const isMember = memberId === userId;
 
                                     return (
                                         <MemberListItem

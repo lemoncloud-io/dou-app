@@ -9,20 +9,23 @@ import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { useTheme } from '@chatic/theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
 import { BottomNavigation } from '../../../ui/components/BottomNavigation';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
+import { useMyUser } from '../../../hooks';
 import { useDebugMode } from '../../debug';
 import { ROUTES } from '../../../routes/paths';
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const { userType, activeProfile: profile } = useSessionIdentity();
+    const { isGuest, isCloudActive } = useSessionProfile();
     const { selectedCloudId } = useSessionSelection();
+    const myUser = useMyUser();
 
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
@@ -36,8 +39,8 @@ export const MyPage = () => {
         currentIconLabel,
     } = useAppIcon();
 
-    const displayName = profile?.$user?.name;
-    const displayImageUrl = profile?.$user?.photo;
+    const displayName = myUser?.name;
+    const displayImageUrl = myUser?.photo;
     const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
     const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
     const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
@@ -74,7 +77,9 @@ export const MyPage = () => {
         <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 overflow-y-auto">
             {/* Profile Section */}
             <div className="px-5 pb-3 pt-safe-top">
-                {userType === UserType.TEMP_ACCOUNT || userType === UserType.INVITED ? (
+                {/* Show the sign-in prompt only for guests; once a real relay login exists
+                    (userRole 'user' → isGuest false), show the profile instead of "Sign in". */}
+                {isGuest ? (
                     <button onClick={() => navigate(ROUTES.mypage.login)} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
@@ -97,7 +102,7 @@ export const MyPage = () => {
                             <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                                 {displayName}
                             </h2>
-                            <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
+                            <p className="text-[14px] text-muted-foreground">{myUser?.email}</p>
                         </div>
                     </div>
                 ) : (
@@ -113,7 +118,7 @@ export const MyPage = () => {
                             <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                                 {displayName}
                             </h2>
-                            <p className="text-[14px] text-muted-foreground">{profile?.$user?.email}</p>
+                            <p className="text-[14px] text-muted-foreground">{myUser?.email}</p>
                         </div>
                     </button>
                 )}
@@ -122,9 +127,7 @@ export const MyPage = () => {
             {/* Menu Cards Container */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
                 {/* My Info Card */}
-                {(userType === UserType.SOCIAL_WITH_CLOUD ||
-                    userType === UserType.INVITED_WITH_CLOUD ||
-                    userType === UserType.SOCIAL_NO_CLOUD) && (
+                {!isGuest && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate(ROUTES.mypage.account.info)}
@@ -139,9 +142,7 @@ export const MyPage = () => {
                 )}
 
                 {/* Subscription & Account Management Card - Cloud user only */}
-                {(userType === UserType.SOCIAL_WITH_CLOUD ||
-                    userType === UserType.INVITED_WITH_CLOUD ||
-                    userType === UserType.SOCIAL_NO_CLOUD) && (
+                {!isGuest && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => navigate(ROUTES.subscription.root)}
@@ -152,7 +153,7 @@ export const MyPage = () => {
                             </span>
                             <ChevronRight size={18} className="text-muted-foreground" />
                         </button>
-                        {(userType === UserType.SOCIAL_WITH_CLOUD || userType === UserType.INVITED_WITH_CLOUD) && (
+                        {!isGuest && isCloudActive && (
                             <>
                                 <div className="h-2" />
                                 <button
@@ -267,7 +268,7 @@ export const MyPage = () => {
                 </div>
 
                 {/* Logout */}
-                {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.INVITED && (
+                {!isGuest && (
                     <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                         <button
                             onClick={() => setIsLogoutDialogOpen(true)}

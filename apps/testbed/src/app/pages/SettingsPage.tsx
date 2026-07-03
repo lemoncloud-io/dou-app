@@ -7,13 +7,14 @@ import {
     useSessionIdentity,
     useSessionSelection,
 } from '@chatic/web-core';
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 
 export const SettingsPage = () => {
     const navigate = useNavigate();
     const session = useGlobalSession();
     const identity = useSessionIdentity();
+    const facts = useSessionProfile();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const logout = useSessionLogout();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
@@ -75,9 +76,9 @@ export const SettingsPage = () => {
                     <StatusRow
                         label="사용자"
                         value={
-                            identity.isGuest
+                            facts.isGuest
                                 ? `게스트 (${identity.userId?.slice(0, 12) ?? '—'})`
-                                : `${identity.userName} (${identity.userRole})`
+                                : `${facts.userName} (${facts.userRole})`
                         }
                     />
                     <StatusRow

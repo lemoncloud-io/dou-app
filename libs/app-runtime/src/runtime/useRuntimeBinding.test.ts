@@ -23,7 +23,7 @@ describe('useRuntimeBinding', () => {
             },
             cloud: { cloudId: 'my-cloud-id' },
             identity: {
-                activeProfile: { uid: 'user-123' },
+                userId: 'user-123',
             },
         });
 
@@ -57,7 +57,7 @@ describe('useRuntimeBinding', () => {
             },
             cloud: { cloudId: 'default' },
             identity: {
-                activeProfile: { uid: 'user-456' },
+                userId: 'user-456',
             },
         });
 
@@ -92,7 +92,7 @@ describe('useRuntimeBinding', () => {
             },
             cloud: { cloudId: null },
             identity: {
-                activeProfile: null,
+                userId: null,
             },
         });
 
@@ -117,7 +117,7 @@ describe('useRuntimeBinding', () => {
             },
             cloud: { cloudId: 'target-cloud' },
             identity: {
-                activeProfile: { uid: 'user-789' },
+                userId: 'user-789',
             },
         });
 

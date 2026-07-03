@@ -35,14 +35,6 @@ export const fetchClouds = async (params: Params = {}): Promise<ListResult<Cloud
     });
 };
 
-export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
-    return executeSignedRelayRequest<CloudView, CloudBody>({
-        method: 'PUT',
-        baseURL: `${CORE_ENDPOINT}/clouds/${cloudId}`,
-        body,
-    });
-};
-
 export const issueCloudDelegationToken = async (target: string): Promise<CloudDelegationTokenView> => {
     if (isAwsAccountNo(target)) {
         throw new Error(`issueCloudDelegationToken: refusing AWS account-no as cloud target: ${target}`);
@@ -85,6 +77,17 @@ export const verifyEmail = async (
         method: 'POST',
         baseURL: `${CORE_ENDPOINT}/clouds/0/verify-email`,
         params: { ...params },
+        body,
+    });
+};
+
+/**
+ * Updates a cloud entity (PUT /clouds/{cloudId}) via a signed relay request.
+ */
+export const updateCloud = async (cloudId: string, body: CloudBody): Promise<CloudView> => {
+    return executeSignedRelayRequest<CloudView, CloudBody>({
+        method: 'PUT',
+        baseURL: `${CORE_ENDPOINT}/clouds/${cloudId}`,
         body,
     });
 };

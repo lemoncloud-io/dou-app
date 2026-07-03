@@ -1,92 +1,8 @@
-import type { CloudDelegationTokenView, UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
-import type { OAuthLoginProvider } from '@chatic/app-messages';
+import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-export enum UserType {
-    TEMP_ACCOUNT = 'temp_account',
-    SOCIAL_NO_CLOUD = 'social_no_cloud',
-    SOCIAL_WITH_CLOUD = 'social_with_cloud',
-    INVITED = 'invited',
-    INVITED_WITH_CLOUD = 'invited_with_cloud',
-}
-
-export interface UserPermissions {
-    canCreateChannel: boolean;
-    canCreatePlace: boolean;
-    maxChannels: number;
-    useCloudProfile: boolean;
-    canSelectCloud: boolean;
-}
-
-export const DEFAULT_PERMISSIONS: Record<UserType, Omit<UserPermissions, 'maxChannels'>> = {
-    [UserType.TEMP_ACCOUNT]: {
-        canCreateChannel: true,
-        canCreatePlace: false,
-        useCloudProfile: false,
-        canSelectCloud: true,
-    },
-    [UserType.SOCIAL_NO_CLOUD]: {
-        canCreateChannel: true,
-        canCreatePlace: false,
-        useCloudProfile: false,
-        canSelectCloud: true,
-    },
-    [UserType.SOCIAL_WITH_CLOUD]: {
-        canCreateChannel: true,
-        canCreatePlace: true,
-        useCloudProfile: true,
-        canSelectCloud: true,
-    },
-    [UserType.INVITED]: {
-        canCreateChannel: false,
-        canCreatePlace: false,
-        useCloudProfile: false,
-        canSelectCloud: false,
-    },
-    [UserType.INVITED_WITH_CLOUD]: {
-        canCreateChannel: true,
-        canCreatePlace: true,
-        useCloudProfile: true,
-        canSelectCloud: true,
-    },
-};
-
-const GUEST_MAX_CHANNELS = 3;
-const MAX_CHANNELS_PER_PLACE = 100;
-
-export const getUserType = (profile: UserProfile$ | null, isInvited: boolean, hasCloudToken: boolean): UserType => {
-    const userRole = (profile?.$user as { userRole?: string })?.userRole ?? (profile as any)?.userRole;
-
-    if (isInvited) {
-        return userRole === 'user' ? UserType.INVITED_WITH_CLOUD : UserType.INVITED;
-    }
-
-    if (userRole === 'guest' && !hasCloudToken) {
-        return UserType.TEMP_ACCOUNT;
-    }
-
-    if (userRole === 'user' && !hasCloudToken) {
-        return UserType.SOCIAL_NO_CLOUD;
-    }
-
-    if (userRole === 'user' && hasCloudToken) {
-        return UserType.SOCIAL_WITH_CLOUD;
-    }
-
-    return UserType.TEMP_ACCOUNT;
-};
-
-export const getPermissions = (userType: UserType): UserPermissions => {
-    const basePermissions = DEFAULT_PERMISSIONS[userType];
-    const maxChannels =
-        userType === UserType.INVITED || userType === UserType.TEMP_ACCOUNT
-            ? GUEST_MAX_CHANNELS
-            : MAX_CHANNELS_PER_PLACE;
-
-    return {
-        ...basePermissions,
-        maxChannels,
-    };
-};
+// User classification (userType) and permission policy no longer live in web-core. They are derived
+// in the app layer from the raw identity facts (userRole / isGuest / isCloudActive) exposed by
+// app-runtime's useProfileFacts — see apps/web's useUserPermissions.
 
 export interface BaseServerContext {
     backend: string | null;
@@ -106,22 +22,21 @@ export interface CloudContext extends BaseServerContext {
     isActive: boolean;
 }
 
+/**
+ * Session identity is state storage only. It carries the `uid` (derived from the active session
+ * token, for cache observing) and the `delegatorId` (a guest's own uid, for invite acceptance). The
+ * profile payload (UserProfile$) is NOT stored — the raw token is persisted for auth, and profile
+ * facts (userRole / isGuest / userType / permissions / name / photo) are tracked from the cached
+ * profile via `useProfileFacts` (@chatic/app-runtime), seeded synchronously from the active token's
+ * user fields (`getActiveSessionUser`). Invited-ness lives in the cached cloud (`cloudType:
+ * 'invited'`), and the OAuth provider is no longer session state.
+ */
 export interface IdentityContext {
     isInitialized: boolean;
     isAuthenticated: boolean;
     error: Error | null;
-    relayProfile: UserProfile$ | null;
-    cloudProfile: UserProfile$ | null;
-    activeProfile: UserProfile$ | null;
     userId: string | null;
     delegatorId: string | null;
-    userRole: string | null;
-    isInvited: boolean;
-    isGuest: boolean;
-    userName: string;
-    oAuthProvider: OAuthLoginProvider | null;
-    readonly userType: UserType;
-    readonly permissions: UserPermissions;
 }
 
 export type ActiveServerContext =

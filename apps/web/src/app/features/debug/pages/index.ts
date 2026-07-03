@@ -5,3 +5,4 @@ export * from './DebugLogBufferPage';
 export * from './DebugCacheTestPage';
 export * from './DebugUploadPage';
 export * from './DebugBadgeCountPage';
+export * from './DebugInviteRedirectPage';

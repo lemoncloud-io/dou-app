@@ -314,6 +314,8 @@ await contextual.chat.refreshList(query);
 
 ## 12. Site Switch Auth Update Design
 
+> ⚠️ **대체됨 (SDK `AuthController` 도입)** — 아래 §12의 권장안(B안: `SocketAuthBinder` + `updateAuth('session-switch')`)은 SDK `AuthController` 도입으로 폐기된다. 같은 소켓 내 site 전환은 별도 binder 없이 `client.auth.switch(`${uid}@${siteId}`)`로 처리하고(만료·재연결 재인증은 SDK 자동), active server 종류 변경(relay↔cloud)만 `SocketBinder`가 새 소켓 재부팅으로 처리한다. 아래 문제 서술과 A/B 분석은 히스토리로 남긴다. 최신 계약 → [../auth/usage.md](../auth/usage.md) §1.4, [../auth/signing.md](../auth/signing.md).
+
 ### 문제
 
 - 현재 `RuntimeDataBinder`는 `binding.context` 변경만 감지한다.
@@ -363,51 +365,37 @@ await contextual.chat.refreshList(query);
 
 - 바인더 하나가 추가된다.
 
-### 권장안
+### 권장안 (갱신됨: SDK `AuthController`)
 
-- **B안 권장**
+- 위 A/B안은 모두 폐기. 같은 소켓 내 site 전환은 **`client.auth.switch(`${uid}@${siteId}`)`** 일회성 호출로 처리한다.
 - 이유:
-    - 현재 문제는 socket 재생성이 아니라 auth 문맥 재동기화다.
-    - 따라서 물리 연결 binder와 auth binder를 분리하는 편이 설계 의도를 드러내기 쉽다.
-    - 이후 relay/cloud token 갱신, site 전환, reconnect 후 auth 보강 같은 요구도 같은 binder에서 다룰 수 있다.
+    - 만료 refresh·재연결 재인증·site 전환·백오프는 모두 SDK가 소유하므로 별도 auth binder가 불필요하다.
+    - 종류 변경(relay↔cloud)으로 wss URL이 달라지는 경우만 물리 재생성이며, 이는 `SocketBinder`가 config 변경으로 재부팅(register)한다.
+    - switch 실패는 타입드 에러(`AuthSwitchError.phase`)로만 받고 기존 sid는 보존된다 — 주기 백오프·`expired` 경로로 넘어가지 않는다.
 
-### 권장 시퀀스
+### 갱신 시퀀스
 
 ```mermaid
 sequenceDiagram
-  participant UI as UI
+  participant UI as UI/feature
+  participant AC as client.auth (AuthController)
+  participant WIRE as onTokenRefresh 배선 (bootstrapSocketConnection)
   participant WC as web-core
-  participant RB as RuntimeBinding
-  participant DB as RuntimeDataBinder
-  participant AB as SocketAuthBinder
-  participant SC as SocketSessionController
   participant S as Socket Server
 
-  UI->>WC: refreshCloudSession(siteId)
-  WC-->>RB: activeServer.siteId / identityToken updated
-  RB-->>DB: binding.context changed
-  DB->>DB: dataManager.ensure(newContext)
-  RB-->>AB: auth session key changed
-  AB->>SC: updateAuth("session-switch")
-  SC->>S: auth.update(new identityToken)
-  S-->>SC: auth.update:ok
+  UI->>AC: client.auth.switch("uid@siteId")
+  AC->>AC: sign()  (active-server-aware, signing.md)
+  AC->>S: auth.switch { current, signature, authId, target }
+  S-->>AC: :ok (새 token SSoT)
+  AC-->>WIRE: onTokenRefresh(view)
+  WIRE->>WC: delegate.commitRefreshedToken(view)  (단방향 writeback)
 ```
 
 ### 구현 포인트
 
-1. `RuntimeBinding` 또는 binder 입력에서 다음 값을 안정적으로 비교 가능해야 한다.
-    - `activeServer.kind`
-    - `activeServer.siteId`
-    - `activeServer.identityToken`
-2. `SocketSessionController.updateAuth()` reason enum에 `session-switch`를 추가하는 안을 우선 검토한다.
-    - 최소 변경을 원하면 기존 `reconnect` reason 재사용도 가능하다.
-3. `SocketAuthBinder`는 아래 조건을 만족해야 한다.
-    - `binding.socket === null`이면 no-op
-    - 첫 mount 때는 중복 `auth:update`를 피하도록 bootstrap과 충돌하지 않게 조정
-    - site 전환으로 auth key가 바뀐 경우에만 실행
-4. 실패 시 정책:
-    - `updateAuth()` 실패는 기존 401 복구 플로우와 동일한 복구 경로를 탄다.
-    - 최종 실패 시 UI는 새 context를 보더라도 remote 기능은 보호 상태로 들어갈 수 있음을 명시한다.
+1. 종류 변경(relay↔cloud) 판단은 `SocketBinder`가 한다 — wss URL이 달라지면 switch가 아니라 새 소켓 재부팅.
+2. 같은 소켓 내 site 전환만 `client.auth.switch()`로 처리하고, 성공분은 `onTokenRefresh` → `commitRefreshedToken`으로 web-core에 writeback한다.
+3. switch 실패(`AuthSwitchError`) 시 기존 토큰/sid는 보존되며 writeback을 수행하지 않는다([../auth/signing.md](../auth/signing.md) §4).
 
 ## 13. Open Questions (미결정 사항)
 
@@ -415,10 +403,11 @@ sequenceDiagram
     - 현재 요구만 보면 "덮어쓰기" 의미가 강하므로 complete snapshot 강제가 더 안전하다.
 2. `destroy()`를 context reset으로 둘지, 실제 cache dispose/clear까지 확장할지 결정이 필요하다.
 3. observer API도 장기적으로 `withContext()` facade를 지원할지, 기본은 전역 재구독 전략으로 둘지 정해야 한다.
-4. `session-switch`를 새로운 auth reason으로 추가할지, 기존 `reconnect`를 재사용할지 결정이 필요하다.
+4. ~~`session-switch`를 새로운 auth reason으로 추가할지, 기존 `reconnect`를 재사용할지~~ — 해결됨: SDK `AuthController` 도입으로 site 전환은 `client.auth.switch()`가 담당(§12 대체됨).
 
 ## 관련 문서
 
 - [README.md](README.md) — data 도메인 스펙
-- [../socket/README.md](../socket/README.md) — site 전환 시 socket `auth:update` 재실행 규칙
+- [../socket/README.md](../socket/README.md) — site 전환 규칙(`client.auth.switch`) · SDK 인증 배선
+- [../auth/README.md](../auth/README.md) — 인증 소유 경계 · 상태 머신 · 서명/writeback 계약
 - [../runtime/README.md](../runtime/README.md) — `RuntimeDataBinder` / binder 역할

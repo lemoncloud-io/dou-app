@@ -55,6 +55,18 @@ describe('useHomeChannels — 채널 목록 구독', () => {
         expect(refreshListMock).not.toHaveBeenCalled();
     });
 
+    it('사이트 전환(sid 변경) 시 재구독한다', () => {
+        const dispose = emit([channel('c1', 's1')]);
+
+        const { rerender } = renderHook(({ sid }) => useHomeChannels(sid), { initialProps: { sid: 's1' } });
+        expect(observeListMock).toHaveBeenCalledTimes(1);
+
+        rerender({ sid: 's2' });
+
+        expect(dispose).toHaveBeenCalledTimes(1);
+        expect(observeListMock).toHaveBeenCalledTimes(2);
+    });
+
     it('언마운트 시 구독을 해제한다', () => {
         const dispose = emit([channel('c1', 's1')]);
 

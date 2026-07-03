@@ -1,6 +1,5 @@
-import type { UserProfile$, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-const mockFetchProfile = jest.fn();
 const mockIssueCloudDelegationToken = jest.fn();
 const mockIssueCloudToken = jest.fn();
 const mockLoginRelayRequest = jest.fn();
@@ -8,8 +7,6 @@ const mockLogoutRelayRequest = jest.fn();
 const mockRefreshAuthToken = jest.fn();
 const mockRefreshCloudToken = jest.fn();
 const mockRegisterDevice = jest.fn();
-const mockTryFetchProfile = jest.fn();
-const mockUpdateProfile = jest.fn();
 const mockVerifyNativeAppToken = jest.fn();
 
 const mockSetUseXLemonLanguage = jest.fn();
@@ -39,24 +36,17 @@ const mockGetWss = jest.fn();
 
 const mockRelayClearSelectedSite = jest.fn();
 const mockRelaySaveRelayToken = jest.fn();
+const mockRelayGetRelayToken = jest.fn();
 
-const mockIdentitySetIsInvited = jest.fn();
-const mockIdentitySetOAuthProvider = jest.fn();
-const mockIdentityGetOAuthProvider = jest.fn();
 const mockIdentitySetDelegatorId = jest.fn();
 const mockIdentitySetDeviceId = jest.fn();
-const mockIdentitySetIsGuest = jest.fn();
-const mockIdentityGetIsGuest = jest.fn();
-const mockIdentityGetRelayProfile = jest.fn();
 
 const mockSetSessionIdentityState = jest.fn();
-const mockSetSessionProfile = jest.fn();
 const mockSetSessionAuthenticated = jest.fn();
-const mockSetSessionCloudProfile = jest.fn();
 const mockSetSelectedCloudId = jest.fn();
 const mockSetSelectedSiteId = jest.fn();
-const mockClearSessionProfile = jest.fn();
-const mockClearSessionCloudProfile = jest.fn();
+const mockClearRelaySession = jest.fn();
+const mockRebuildSessionIdentity = jest.fn();
 
 const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
@@ -65,7 +55,6 @@ const mockLoggerInfo = jest.fn();
 const mockLoggerError = jest.fn();
 
 jest.mock('../api', () => ({
-    fetchProfile: (...args: unknown[]) => mockFetchProfile(...args),
     issueCloudDelegationToken: (...args: unknown[]) => mockIssueCloudDelegationToken(...args),
     issueCloudToken: (...args: unknown[]) => mockIssueCloudToken(...args),
     login: (...args: unknown[]) => mockLoginRelayRequest(...args),
@@ -73,8 +62,6 @@ jest.mock('../api', () => ({
     refreshAuthToken: (...args: unknown[]) => mockRefreshAuthToken(...args),
     refreshCloudToken: (...args: unknown[]) => mockRefreshCloudToken(...args),
     registerDevice: (...args: unknown[]) => mockRegisterDevice(...args),
-    tryFetchProfile: (...args: unknown[]) => mockTryFetchProfile(...args),
-    updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
     verifyNativeAppToken: (...args: unknown[]) => mockVerifyNativeAppToken(...args),
 }));
 
@@ -113,18 +100,13 @@ jest.mock('./core', () => ({
         getWss: (...args: unknown[]) => mockGetWss(...args),
     },
     identityCore: {
-        setIsInvited: (...args: unknown[]) => mockIdentitySetIsInvited(...args),
-        setOAuthProvider: (...args: unknown[]) => mockIdentitySetOAuthProvider(...args),
-        getOAuthProvider: (...args: unknown[]) => mockIdentityGetOAuthProvider(...args),
         setDelegatorId: (...args: unknown[]) => mockIdentitySetDelegatorId(...args),
         setDeviceId: (...args: unknown[]) => mockIdentitySetDeviceId(...args),
-        setIsGuest: (...args: unknown[]) => mockIdentitySetIsGuest(...args),
-        getIsGuest: (...args: unknown[]) => mockIdentityGetIsGuest(...args),
-        getRelayProfile: (...args: unknown[]) => mockIdentityGetRelayProfile(...args),
     },
     relayCore: {
         clearSelectedSite: (...args: unknown[]) => mockRelayClearSelectedSite(...args),
         saveRelayToken: (...args: unknown[]) => mockRelaySaveRelayToken(...args),
+        getRelayToken: (...args: unknown[]) => mockRelayGetRelayToken(...args),
     },
     startWebCoreInit: (...args: unknown[]) => mockStartWebCoreInit(...args),
     resetWebCoreInit: (...args: unknown[]) => mockResetWebCoreInit(...args),
@@ -132,14 +114,12 @@ jest.mock('./core', () => ({
 
 jest.mock('./contextStore', () => ({
     setSessionIdentityState: (...args: unknown[]) => mockSetSessionIdentityState(...args),
-    setSessionProfile: (...args: unknown[]) => mockSetSessionProfile(...args),
     setSessionAuthenticated: (...args: unknown[]) => mockSetSessionAuthenticated(...args),
-    setSessionCloudProfile: (...args: unknown[]) => mockSetSessionCloudProfile(...args),
     setSelectedCloudId: (...args: unknown[]) => mockSetSelectedCloudId(...args),
     setSelectedSiteId: (...args: unknown[]) => mockSetSelectedSiteId(...args),
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
-    clearSessionProfile: (...args: unknown[]) => mockClearSessionProfile(...args),
-    clearSessionCloudProfile: (...args: unknown[]) => mockClearSessionCloudProfile(...args),
+    clearRelaySession: (...args: unknown[]) => mockClearRelaySession(...args),
+    rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
 }));
 
 jest.mock('./utils', () => ({
@@ -231,12 +211,9 @@ describe('session/services', () => {
 
         expect(result).toBe(tokenView);
         expect(localStorage.getItem('chatic-device-id')).toBe('device-1');
-        expect(mockIdentitySetIsInvited).toHaveBeenCalledWith(false);
-        expect(mockIdentitySetOAuthProvider).toHaveBeenCalledWith(null);
-        expect(mockSetSessionProfile).toHaveBeenCalledWith({
-            uid: 'guest-1',
-            $user: { userRole: 'guest', name: 'Guest' },
-        });
+        // Guest role → delegator id is the guest's own uid (for invite acceptance); session authed.
+        expect(mockIdentitySetDelegatorId).toHaveBeenCalledWith('guest-1');
+        expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
 
     it('applies social relay login and provider state', async () => {
@@ -253,12 +230,10 @@ describe('session/services', () => {
         });
 
         expect(mockVerifyNativeAppToken).toHaveBeenCalledWith({ accessToken: 'token' });
-        expect(mockIdentitySetIsInvited).toHaveBeenCalledWith(false);
-        expect(mockIdentitySetOAuthProvider).toHaveBeenCalledWith('google');
-        expect(mockSetSessionProfile).toHaveBeenCalledWith({
-            uid: 'user-1',
-            $user: { userRole: 'user', name: 'User' },
-        });
+        // provider is accepted but no longer stored; a social login does not touch delegatorId
+        // (only guest login sets it / relay logout clears it).
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
+        expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
 
     it('logs into relay with the generic relay login endpoint', async () => {
@@ -276,31 +251,34 @@ describe('session/services', () => {
 
         expect(result).toBe(tokenView);
         expect(mockLoginRelayRequest).toHaveBeenCalledWith({ loginId: 'user@example.com', password: 'pw' }, true);
-        expect(mockSetSessionProfile).toHaveBeenCalledWith({
-            uid: 'user-2',
-            $user: { userRole: 'user', name: 'Relay User' },
-        });
+        // A user login does not touch delegatorId (only guest login sets it).
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
+        expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
 
-    it('refreshes relay session and updates selected site when target is provided', async () => {
-        const profile = {
-            uid: 'user-1',
-            $user: { userRole: 'user', name: 'Relay User' },
-        } as unknown as UserProfile$;
-        mockRefreshAuthToken.mockResolvedValue({ identityToken: 'relay-token' });
-        mockTryFetchProfile.mockResolvedValue(profile);
+    it('refreshes relay session, re-applies it from the refresh response, and updates selected site', async () => {
+        // The refresh response is a full relay token view (flat profile fields + Token).
+        const refreshView = {
+            id: 'user-1',
+            name: 'Relay User',
+            userRole: 'user',
+            Token: { identityToken: 'relay-token' },
+        } as unknown as UserTokenView;
+        mockRefreshAuthToken.mockResolvedValue(refreshView);
 
         const result = await refreshRelaySession({
             target: 'user-1@site-7',
         });
 
-        expect(result).toBe(profile);
         expect(mockRefreshAuthToken).toHaveBeenCalledWith('user-1@site-7');
+        // Credentials are rebuilt from the refresh response's token (no profile GET, no profile
+        // shaping). syncProfile=true re-applies the session; the call returns void.
         expect(mockBuildCredentialsByToken).toHaveBeenCalledWith({ identityToken: 'relay-token' });
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
         expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-7');
-        expect(mockSetSessionProfile).toHaveBeenCalledWith(profile);
-        expect(mockFetchProfile).not.toHaveBeenCalled();
+        // A relay refresh must NOT touch delegatorId — it persists from guest login through refreshes.
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
+        expect(result).toBeUndefined();
     });
 
     it('switches cloud session and clears site state when moving to another cloud', async () => {
@@ -329,18 +307,8 @@ describe('session/services', () => {
         expect(mockSaveCloudToken).toHaveBeenCalled();
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
         expect(mockClearPlaceOrder).toHaveBeenCalledWith('cloud-new');
-        expect(mockSetSessionCloudProfile).toHaveBeenCalledWith({
-            id: 'cloud-user',
-            uid: 'cloud-user',
-            name: 'Cloud User',
-            photo: 'photo',
-            $user: {
-                id: 'cloud-user',
-                uid: 'cloud-user',
-                name: 'Cloud User',
-                photo: 'photo',
-            },
-        });
+        // Cloud token saved above; identity is rebuilt (uid re-derives from the active cloud token).
+        expect(mockRebuildSessionIdentity).toHaveBeenCalled();
         expect(mockSetSelectedCloudId).toHaveBeenCalledWith('cloud-new');
         expect(result).toEqual({
             cloudId: 'cloud-1',
@@ -478,7 +446,7 @@ describe('session/services', () => {
             mockGetSelectedSiteId.mockReturnValue('site-old');
             mockGetSelectedCloudId.mockReturnValue('default');
             mockGetCloudToken.mockReturnValue(null);
-            mockIdentityGetRelayProfile.mockReturnValue({ uid: 'relay-user' });
+            mockRelayGetRelayToken.mockReturnValue({ uid: 'relay-user' });
             mockRefreshAuthToken.mockResolvedValue({ identityToken: 'relay-token' });
 
             await switchSiteSession('site-new');
@@ -489,13 +457,34 @@ describe('session/services', () => {
             expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
         });
 
-        it('rolls back and throws when a relay switch has no relay profile uid', async () => {
+        it('site switch (syncProfile=false) persists the site-scoped token, builds creds, authes, keeps delegatorId', async () => {
+            const refreshed = {
+                Token: { identityToken: 'site-scoped-token' },
+                uid: 'relay-user',
+                userRole: 'user',
+            } as unknown as UserTokenView;
+            mockRefreshAuthToken.mockResolvedValue(refreshed);
+
+            await refreshRelaySession({ target: 'relay-user@site-9', syncProfile: false });
+
+            expect(mockRefreshAuthToken).toHaveBeenCalledWith('relay-user@site-9');
+            expect(mockBuildCredentialsByToken).toHaveBeenCalledWith({ identityToken: 'site-scoped-token' });
+            // The new site-scoped token is persisted — it carries the new site's identityToken and is
+            // the source of truth for uid/auth. (Regression guard: this was previously dropped.)
+            expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(refreshed);
+            expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-9');
+            // Identity is unchanged across sites — delegatorId is NOT re-derived on a site switch.
+            expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
+        });
+
+        it('rolls back and throws when a relay switch has no relay token uid', async () => {
             mockGetSelectedSiteId.mockReturnValue('site-old');
             mockGetSelectedCloudId.mockReturnValue('default');
             mockGetCloudToken.mockReturnValue(null);
-            mockIdentityGetRelayProfile.mockReturnValue(null);
+            mockRelayGetRelayToken.mockReturnValue(null);
 
-            await expect(switchSiteSession('site-new')).rejects.toThrow('No relay profile uid for site auth');
+            await expect(switchSiteSession('site-new')).rejects.toThrow('No relay token uid for site auth');
 
             const calls = mockSetSelectedSiteId.mock.calls.map(c => c[0]);
             expect(calls).toEqual(['site-new', 'site-old']); // optimistic then rollback
@@ -503,13 +492,16 @@ describe('session/services', () => {
         });
     });
 
-    it('clears only cloud-scoped state during cloud logout', () => {
+    it('fully clears the cloud session (returns to default) during cloud logout, leaving relay intact', () => {
         logoutCloudSession();
 
-        expect(mockClearDelegationToken).toHaveBeenCalledTimes(1);
-        expect(mockClearSessionCloudProfile).toHaveBeenCalledTimes(1);
+        // Clears the whole cloud session (delegation + cloud token + selected cloud/site) so
+        // cloud.isActive → false and uid/activeServer fall back to relay.
+        expect(mockClearSession).toHaveBeenCalledTimes(1);
+        expect(mockRebuildSessionIdentity).toHaveBeenCalledTimes(1);
         expect(mockNotifySessionStateChanged).toHaveBeenCalledTimes(1);
-        expect(mockClearSessionProfile).not.toHaveBeenCalled();
+        // Relay session is untouched during cloud logout.
+        expect(mockClearRelaySession).not.toHaveBeenCalled();
     });
 
     // ⑪ device registration: deviceId persisted to identityCore (and localStorage)

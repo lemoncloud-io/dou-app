@@ -9,6 +9,7 @@ import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
+import { useLastChat } from '../hooks/useLastChat';
 
 const ChannelSkeleton = () => (
     <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
@@ -28,9 +29,11 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
     const isSelf = channel.memberNo === 1;
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
-    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, so
-    // this channel sync is the only registration needed per row.
+    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
     useChannelSync(channel.id);
+    // Last-message preview source: the server no longer embeds `lastChat$`, so register + prime a
+    // chat target for this visible row and read its latest cached message (live via ChatSyncPlan).
+    const lastChat = useLastChat(channel.id);
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';
@@ -81,14 +84,14 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
                     <p
                         className={`mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground${blurLastMessage ? ' select-none blur-[5px]' : ''}`}
                     >
-                        {channel.lastChat$?.content || channel.desc || t('channelList.noDescription')}
+                        {lastChat?.content || channel.desc || t('channelList.noDescription')}
                     </p>
                 </div>
 
                 {/* Time + Unread */}
                 <div className="flex h-[45px] flex-shrink-0 flex-col items-end gap-1">
                     <span className="text-[12px] leading-[20px] tracking-[-0.015em] text-muted-foreground">
-                        {formatTime(channel.lastChat$?.createdAt ?? channel.updatedAt)}
+                        {formatTime(lastChat?.createdAt ?? channel.updatedAt)}
                     </span>
                     {unread > 0 && (
                         <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">

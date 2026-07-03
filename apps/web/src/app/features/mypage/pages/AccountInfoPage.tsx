@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { useSessionIdentity } from '@chatic/web-core';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
+import { useUserPermissions } from '../../../hooks';
 
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const { permissions } = useSessionIdentity();
+    const permissions = useUserPermissions();
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">

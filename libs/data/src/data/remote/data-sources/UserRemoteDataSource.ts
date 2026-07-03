@@ -1,8 +1,8 @@
 import type { ChannelUsersSyncView, UserView } from '@lemoncloud/chatic-socials-api';
 import type { ListResult } from '@lemoncloud/chatic-socials-api/dist/cores/types';
-import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import type { DomainJoin, DomainListResult, DomainUser } from '../../domain';
-import { createDomainListResult, toDomainJoinFromUser, toDomainUser } from '../../domain';
+import type { MyInviteView, MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import type { DomainJoin, DomainListResult, DomainPlace, DomainUser } from '../../domain';
+import { createDomainListResult, toDomainJoinFromUser, toDomainPlace, toDomainUser } from '../../domain';
 import type { DataContext } from '../../repositories-v2/types';
 import type { UserDomainGateway } from '../gateways';
 
@@ -18,6 +18,16 @@ export interface ChannelUsersSyncResult {
     syncedAt: number;
 }
 
+/**
+ * Result of a current-session profile fetch. `user.profile` returns a `UserProfile$` wrapper, so
+ * we surface the mapped user alongside the embedded current site (`$site`) for the caller to cache
+ * into the place store. `site` is null when the profile carries no site (e.g. on the default cloud).
+ */
+export interface UserProfileResult {
+    user: DomainUser;
+    site: DomainPlace | null;
+}
+
 export type UserFetchUsersInput = Parameters<UserDomainGateway['listUser']>[0];
 export type UserUpdateProfilePayload = Parameters<UserDomainGateway['update']>[0];
 export type UserRequestInviteInput = Parameters<UserDomainGateway['invite']>[0];
@@ -27,6 +37,8 @@ export type UserSyncChannelUsersInput = Parameters<UserDomainGateway['syncUsers'
 export interface IUserRemoteDataSource {
     /** 특정 조건의 사용자 목록을 서버에 요청하고 도메인 모델로 반환합니다. */
     fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<DomainListResult<DomainUser>>;
+    /** 현재 세션 본인 프로필을 요청하고, 도메인 user와 내장 $site(place)를 함께 반환합니다. (랠리·클라우드 공통) */
+    getMyProfile(context: DataContext): Promise<UserProfileResult>;
     /** 내 프로필 정보 수정을 요청합니다. */
     updateProfile(payload: UserUpdateProfilePayload, context: DataContext): Promise<DomainUser>;
     /** 외부 사용자를 초대하고 초대 결과를 요청합니다. (도메인 user가 아닌 초대 뷰) */
@@ -50,6 +62,16 @@ export class UserRemoteDataSource implements IUserRemoteDataSource {
         const remote = await this.gateway.listUser<ListResult<UserView>>(payload);
         const list = (remote?.list || []).map(item => toDomainUser(item, context));
         return createDomainListResult(list, { total: remote?.total ?? list.length, source: 'remote' });
+    }
+
+    public async getMyProfile(context: DataContext): Promise<UserProfileResult> {
+        const remote = ((await this.gateway.profile<UserProfile$>()) || {}) as UserProfile$;
+        // user.profile returns a UserProfile$ wrapper: the user lives under `$user` and the current
+        // site under `$site`. Fall back to the raw payload if it ever arrives as a flat user view.
+        const userView = (remote.$user ?? (remote as unknown)) as UserView;
+        const user = toDomainUser((userView || {}) as UserView, context);
+        const site = remote.$site ? toDomainPlace(remote.$site as unknown as MySiteView, context) : null;
+        return { user, site };
     }
 
     public async updateProfile(payload: UserUpdateProfilePayload, context: DataContext): Promise<DomainUser> {

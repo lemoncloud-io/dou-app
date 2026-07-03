@@ -19,7 +19,7 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -29,7 +29,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
-import { useSocketState } from '@chatic/app-runtime';
+import { useSocketState, useSessionProfile } from '@chatic/app-runtime';
 
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
@@ -46,6 +46,7 @@ import {
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
@@ -67,7 +68,8 @@ export const ChannelRoomPage = () => {
     // DOM 접근을 위한 Ref (스크롤 컨테이너 ref는 useChatScroll이 소유)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    const { activeProfile: dynamicProfile, userType } = useSessionIdentity();
+    const { userId } = useSessionIdentity();
+    const { isGuest, isCloudActive } = useSessionProfile();
     const { selectedCloudId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     const { isIOS } = useAppChecker();
@@ -361,9 +363,9 @@ export const ChannelRoomPage = () => {
                                     </div>
                                 </>
                             ) : (
-                                channel?.ownerId === dynamicProfile?.uid &&
-                                userType !== UserType.TEMP_ACCOUNT &&
-                                userType !== UserType.SOCIAL_NO_CLOUD && (
+                                channel?.ownerId === userId &&
+                                !isGuest &&
+                                isCloudActive && (
                                     <>
                                         <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
                                             <p>{t('chat.room.emptyState.line1')}</p>
@@ -394,6 +396,25 @@ export const ChannelRoomPage = () => {
                                     <div key={dateKey} className="flex flex-col-reverse gap-3">
                                         {reversedMessages.map((message, index) => {
                                             if (message.isSystem) {
+                                                // New model: system messages carry no text — render the
+                                                // localized clause from `subType` with the subject's name
+                                                // (profile nick preferred) as a bold prefix.
+                                                const suffixKey = systemMessageSuffixKey(message.subType);
+                                                if (suffixKey) {
+                                                    const systemProfile = message.ownerId
+                                                        ? profileMap.get(message.ownerId)
+                                                        : undefined;
+                                                    const systemName = systemProfile?.nick ?? message.ownerName;
+                                                    return (
+                                                        <div key={message.id} className="flex justify-center py-1">
+                                                            <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
+                                                                <span className="font-semibold">{systemName}</span>
+                                                                {t(suffixKey)}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                }
+                                                // Legacy fallback: older rows stored the full sentence in content.
                                                 const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
                                                 return (
                                                     <div key={message.id} className="flex justify-center py-1">
@@ -638,7 +659,7 @@ export const ChannelRoomPage = () => {
                 )}
             </div>
 
-            {userType !== UserType.TEMP_ACCOUNT && userType !== UserType.SOCIAL_NO_CLOUD && !channel?.isSelfChat && (
+            {!isGuest && isCloudActive && !channel?.isSelfChat && (
                 <InviteFriendsDialog
                     open={inviteDialogOpen}
                     onOpenChange={setInviteDialogOpen}

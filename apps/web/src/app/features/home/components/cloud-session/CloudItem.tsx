@@ -33,6 +33,8 @@ interface CloudItemProps {
     cloud: CloudView;
     isSelected: boolean;
     isDisabled: boolean;
+    /** presence dot: any unread across this cloud's places (last-visited snapshot). */
+    hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
     onErrorClick: () => void;
     onEditCloud?: (cloud: CloudView) => void;
@@ -42,6 +44,7 @@ export const CloudItem = ({
     cloud,
     isSelected,
     isDisabled,
+    hasUnread,
     onSelectCloud,
     onErrorClick,
     onEditCloud,
@@ -88,6 +91,7 @@ export const CloudItem = ({
                             <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                                 {displayName}
                             </span>
+                            {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
                             {isActive && onEditCloud && (
                                 <button
                                     type="button"

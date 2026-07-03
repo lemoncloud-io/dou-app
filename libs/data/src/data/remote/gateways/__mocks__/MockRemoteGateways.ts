@@ -53,6 +53,7 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
         user: {
             listUser: jest.fn(),
             update: jest.fn(),
+            profile: jest.fn(),
             invite: jest.fn(),
             inviteBatch: jest.fn(),
             syncUsers: jest.fn(),

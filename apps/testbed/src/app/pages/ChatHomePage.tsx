@@ -12,14 +12,34 @@ import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/
 import type { DataRepositoriesV2, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';
+import { NameFormDialog } from '../features/manage/NameFormDialog';
+import {
+    buildChannelCreate,
+    buildChannelUpdate,
+    buildPlaceCreate,
+    buildPlaceUpdate,
+} from '../features/manage/payloads';
+import { useActiveCloudChannels } from '../features/unread/useActiveCloudChannels';
+import { useHomeUnreads } from '../features/unread/useHomeUnreads';
+import { readCloudUnreadSnapshot, writeCloudUnread } from '../features/unread/cloudUnreadSnapshot';
+import { useLastChat } from './useLastChat';
 
 const DEFAULT_CLOUD_ID = 'default';
+
+// Which name create/edit dialog is open. A single discriminated state keeps only one modal at a
+// time and carries the target id/name for the edit flows.
+type ManageDialog =
+    | { kind: 'createPlace' }
+    | { kind: 'editPlace'; id: string; name: string }
+    | { kind: 'createChannel' }
+    | { kind: 'editChannel'; id: string; name: string }
+    | null;
 
 // Interval for the periodic list refresh (site/profile/channel). Tunable — individual items
 // poll faster via their own sync targets; this only re-discovers added/removed list entries.
 const LIST_REFRESH_POLL_MS = 30_000;
 
-// lastChat$.createdAt is a raw epoch (ms); render a short HH:MM, tolerating missing/odd values.
+// A chat's createdAt is a raw epoch (ms); render a short HH:MM, tolerating missing/odd values.
 const formatChatTime = (createdAt?: number): string => {
     if (!createdAt) return '';
     const date = new Date(createdAt);
@@ -52,6 +72,22 @@ export const ChatHomePage = () => {
     // Invited clouds live in the cloud cache (cloudType 'invited'); they are NOT in the
     // relay catalog (useCloudSessionCatalog = owned clouds), so render them straight from cache.
     const [invitedClouds, setInvitedClouds] = useState<DomainCloud[]>([]);
+    const [manageDialog, setManageDialog] = useState<ManageDialog>(null);
+
+    // Unread aggregation over the active cloud's FULL channel list (every site), the source for the
+    // per-channel numbers, per-place dots, and the cloud total. This is a cache observe only — no
+    // per-channel realtime registration — so it doesn't add sync cost per channel; freshness rides
+    // the periodic syncChannels delta below.
+    const cloudChannels = useActiveCloudChannels();
+    const { aggregates: unreads } = useHomeUnreads(cloudChannels);
+
+    // Per-cloud presence for the cloud dots. The active cloud shows its live total; other clouds
+    // can't be observed here (different cid scope), so they fall back to the last-visited snapshot.
+    const [cloudUnread, setCloudUnread] = useState(() => readCloudUnreadSnapshot());
+    useEffect(() => {
+        setCloudUnread(writeCloudUnread(cid, unreads.total));
+    }, [cid, unreads.total]);
+
     const siteIds = sites.map(site => site.id);
     const siteIdsKey = siteIds.join(',');
     // Only channels that truly belong to the active site may be sync-registered. During a
@@ -192,6 +228,26 @@ export const ChatHomePage = () => {
         await switchSite(siteId);
     };
 
+    // Write handlers for the manage dialogs. Each repo call cache-writes the result, so the
+    // observeList subscriptions above re-emit and the lists refresh without a manual fetch. The
+    // builders re-validate defensively (the dialog already gates empty names) and no-op on null.
+    const handleCreatePlace = async (name: string) => {
+        const payload = buildPlaceCreate(name);
+        if (payload) await repos.place.createPlace(payload);
+    };
+    const handleEditPlace = (id: string) => async (name: string) => {
+        const payload = buildPlaceUpdate(id, name);
+        if (payload) await repos.place.updatePlace(payload);
+    };
+    const handleCreateChannel = async (name: string) => {
+        const payload = buildChannelCreate(name);
+        if (payload) await repos.channel.createChannel(payload);
+    };
+    const handleEditChannel = (id: string) => async (name: string) => {
+        const payload = buildChannelUpdate(id, name);
+        if (payload) await repos.channel.updateChannel(payload);
+    };
+
     // Owned clouds come from the relay catalog, minus any that are also in the invite cache.
     const invitedCloudIds = new Set(invitedClouds.map(c => c.id ?? ''));
     const ownedClouds = clouds.filter(c => !invitedCloudIds.has(c.id ?? ''));
@@ -199,6 +255,10 @@ export const ChatHomePage = () => {
 
     // Currently selected place (for the "현재 플레이스" summary) and a per-place channel count.
     const activeSite = sites.find(s => s.id === activeSiteId) ?? null;
+
+    // Cloud dot: the active cloud uses its live total; other clouds fall back to the last-visited
+    // snapshot (their channels aren't observed under the current cid scope).
+    const cloudHasUnread = (id: string): boolean => (id === cid ? unreads.total : (cloudUnread[id] ?? 0)) > 0;
 
     return (
         <div className="p-4 space-y-5">
@@ -211,6 +271,7 @@ export const ChatHomePage = () => {
                         name="기본 (relay)"
                         isActive={isRelayMode}
                         isPending={isSwitching}
+                        hasUnread={cloudHasUnread(DEFAULT_CLOUD_ID)}
                         onClick={() => void handleCloudClick(DEFAULT_CLOUD_ID)}
                     />
                     {ownedClouds.map(c => (
@@ -220,6 +281,7 @@ export const ChatHomePage = () => {
                             name={c.name ?? c.id ?? '—'}
                             isActive={cid === c.id}
                             isPending={isSwitching}
+                            hasUnread={cloudHasUnread(c.id ?? '')}
                             onClick={() => void handleCloudClick(c.id ?? '')}
                         />
                     ))}
@@ -237,6 +299,7 @@ export const ChatHomePage = () => {
                                     isActive={cid === c.id}
                                     isPending={isSwitching}
                                     isInvited
+                                    hasUnread={cloudHasUnread(c.id ?? '')}
                                     onClick={() => void handleCloudClick(c.id ?? '')}
                                 />
                             ))}
@@ -247,25 +310,47 @@ export const ChatHomePage = () => {
 
             {/* Place 목록 */}
             <section>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">사이트 (Place)</p>
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">사이트 (Place)</p>
+                    <button
+                        onClick={() => setManageDialog({ kind: 'createPlace' })}
+                        className="text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-primary/10"
+                    >
+                        + 새 플레이스
+                    </button>
+                </div>
                 {sites.length === 0 ? (
                     <p className="text-xs text-muted-foreground">현재 클라우드에 연결 가능한 사이트가 없습니다</p>
                 ) : (
                     <div className="space-y-1">
                         {sites.map(s => (
-                            <button
-                                key={s.id}
-                                onClick={() => void handleSiteClick(s.id)}
-                                disabled={isSiteSwitching}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors ${
-                                    activeSiteId === s.id
-                                        ? 'border-primary bg-primary/10 text-primary'
-                                        : 'border-border bg-card hover:bg-accent'
-                                }`}
-                            >
-                                <p className="font-medium">{s.name ?? s.id}</p>
-                                <p className="text-xs text-muted-foreground font-mono">{s.id}</p>
-                            </button>
+                            <div key={s.id} className="flex items-center gap-1">
+                                <button
+                                    onClick={() => void handleSiteClick(s.id)}
+                                    disabled={isSiteSwitching}
+                                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm border transition-colors ${
+                                        activeSiteId === s.id
+                                            ? 'border-primary bg-primary/10 text-primary'
+                                            : 'border-border bg-card hover:bg-accent'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="font-medium">{s.name ?? s.id}</p>
+                                        {/* presence dot: any unread channel in this place */}
+                                        {(unreads.byPlace[s.id] ?? 0) > 0 && (
+                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground font-mono">{s.id}</p>
+                                </button>
+                                <button
+                                    onClick={() => setManageDialog({ kind: 'editPlace', id: s.id, name: s.name ?? '' })}
+                                    className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+                                    title="이름 수정"
+                                >
+                                    ✎
+                                </button>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -273,7 +358,17 @@ export const ChatHomePage = () => {
 
             {/* Channel 목록 */}
             <section>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">채널</p>
+                <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground">채널</p>
+                    <button
+                        onClick={() => setManageDialog({ kind: 'createChannel' })}
+                        disabled={!activeSiteId}
+                        className="text-xs px-2 py-1 rounded border border-primary text-primary hover:bg-primary/10 disabled:opacity-50"
+                        title={activeSiteId ? '새 채널' : '사이트를 먼저 선택하세요'}
+                    >
+                        + 새 채널
+                    </button>
+                </div>
 
                 {/* 현재 플레이스 정보 요약 */}
                 {activeSite && (
@@ -296,49 +391,59 @@ export const ChatHomePage = () => {
                     </p>
                 ) : (
                     <div className="space-y-1">
-                        {channels.map(ch => {
-                            const lastChat = ch.lastChat$;
-                            const unread = ch.unreadCount ?? 0;
-                            return (
-                                <button
-                                    key={ch.id}
-                                    onClick={() => navigate(`/chat/channels/${ch.id}`)}
-                                    className="w-full text-left px-3 py-2 rounded-lg text-sm border border-border bg-card hover:bg-accent transition-colors"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <p className="font-medium truncate flex-1">{ch.name ?? ch.id}</p>
-                                        {lastChat?.createdAt != null && (
-                                            <span className="text-[10px] text-muted-foreground shrink-0">
-                                                {formatChatTime(lastChat.createdAt)}
-                                            </span>
-                                        )}
-                                        {unread > 0 && (
-                                            <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                                                {unread}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {lastChat && (
-                                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                            {(lastChat.owner$?.name ?? lastChat.ownerId) && (
-                                                <span className="font-medium">
-                                                    {lastChat.owner$?.name ?? lastChat.ownerId}:{' '}
-                                                </span>
-                                            )}
-                                            {lastChat.content ?? ''}
-                                        </p>
-                                    )}
-                                    <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
-                                        <span>#{ch.chatNo ?? 0}</span>
-                                        {ch.memberNo != null && <span>멤버 {ch.memberNo}</span>}
-                                        <span className="truncate">{ch.id}</span>
-                                    </div>
-                                </button>
-                            );
-                        })}
+                        {/* Unread is client-computed (user messages only) so system join/leave events
+                            don't inflate the badge; the last-message preview comes from ChannelRow's
+                            own chat sync (server no longer embeds lastChat$). */}
+                        {channels.map(ch => (
+                            <ChannelRow
+                                key={ch.id}
+                                channel={ch}
+                                unread={unreads.byChannel[ch.id] ?? 0}
+                                onOpen={() => navigate(`/chat/channels/${ch.id}`)}
+                                onEdit={() => setManageDialog({ kind: 'editChannel', id: ch.id, name: ch.name ?? '' })}
+                            />
+                        ))}
                     </div>
                 )}
             </section>
+
+            {/* 생성/이름수정 다이얼로그 — 한 번에 하나만 연다 */}
+            {manageDialog?.kind === 'createPlace' && (
+                <NameFormDialog
+                    title="새 플레이스"
+                    label="플레이스 이름"
+                    submitLabel="생성"
+                    onSubmit={handleCreatePlace}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
+            {manageDialog?.kind === 'editPlace' && (
+                <NameFormDialog
+                    title="플레이스 이름 수정"
+                    label="플레이스 이름"
+                    initialValue={manageDialog.name}
+                    onSubmit={handleEditPlace(manageDialog.id)}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
+            {manageDialog?.kind === 'createChannel' && (
+                <NameFormDialog
+                    title="새 채널"
+                    label="채널 이름"
+                    submitLabel="생성"
+                    onSubmit={handleCreateChannel}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
+            {manageDialog?.kind === 'editChannel' && (
+                <NameFormDialog
+                    title="채널 이름 수정"
+                    label="채널 이름"
+                    initialValue={manageDialog.name}
+                    onSubmit={handleEditChannel(manageDialog.id)}
+                    onClose={() => setManageDialog(null)}
+                />
+            )}
         </div>
     );
 };
@@ -349,10 +454,11 @@ interface CloudItemProps {
     isActive: boolean;
     isPending: boolean;
     isInvited?: boolean;
+    hasUnread?: boolean;
     onClick: () => void;
 }
 
-const CloudItem = ({ id, name, isActive, isPending, isInvited, onClick }: CloudItemProps) => (
+const CloudItem = ({ id, name, isActive, isPending, isInvited, hasUnread, onClick }: CloudItemProps) => (
     <button
         onClick={onClick}
         disabled={isPending}
@@ -362,9 +468,67 @@ const CloudItem = ({ id, name, isActive, isPending, isInvited, onClick }: CloudI
     >
         <div className="flex items-center gap-2">
             <p className="font-medium flex-1">{name}</p>
+            {/* presence dot: any unread across this cloud's places */}
+            {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
             {isInvited && <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">초대</span>}
             {isActive && <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">활성</span>}
         </div>
         <p className="text-xs text-muted-foreground font-mono">{id}</p>
     </button>
 );
+
+interface ChannelRowProps {
+    channel: DomainChannel;
+    unread: number;
+    onOpen: () => void;
+    onEdit: () => void;
+}
+
+// A single channel row. Extracted so it can register + prime a per-row chat sync via useLastChat and
+// read the channel's latest cached message — the last-message preview source now that the server no
+// longer embeds lastChat$ on the channel. Registration unregisters on unmount (row leaves the list).
+const ChannelRow = ({ channel, unread, onOpen, onEdit }: ChannelRowProps) => {
+    const lastChat = useLastChat(channel.id);
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                onClick={onOpen}
+                className="flex-1 text-left px-3 py-2 rounded-lg text-sm border border-border bg-card hover:bg-accent transition-colors"
+            >
+                <div className="flex items-center gap-2">
+                    <p className="font-medium truncate flex-1">{channel.name ?? channel.id}</p>
+                    {lastChat?.createdAt != null && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                            {formatChatTime(lastChat.createdAt)}
+                        </span>
+                    )}
+                    {unread > 0 && (
+                        <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                            {unread}
+                        </span>
+                    )}
+                </div>
+                {lastChat && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {(lastChat.owner$?.name ?? lastChat.ownerId) && (
+                            <span className="font-medium">{lastChat.owner$?.name ?? lastChat.ownerId}: </span>
+                        )}
+                        {lastChat.content ?? ''}
+                    </p>
+                )}
+                <div className="flex gap-2 mt-1 text-[10px] text-muted-foreground font-mono">
+                    <span>#{channel.chatNo ?? 0}</span>
+                    {channel.memberNo != null && <span>멤버 {channel.memberNo}</span>}
+                    <span className="truncate">{channel.id}</span>
+                </div>
+            </button>
+            <button
+                onClick={onEdit}
+                className="shrink-0 px-2 py-2 text-sm text-muted-foreground hover:text-foreground"
+                title="이름 수정"
+            >
+                ✎
+            </button>
+        </div>
+    );
+};

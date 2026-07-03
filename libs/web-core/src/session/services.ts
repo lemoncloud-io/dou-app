@@ -1,10 +1,9 @@
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import type { UserProfile$, UserTokenView, UserView } from '@lemoncloud/chatic-backend-api';
+import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import {
-    fetchProfile,
     issueCloudDelegationToken,
     issueCloudToken,
     login as loginRelayRequest,
@@ -12,23 +11,19 @@ import {
     refreshAuthToken,
     refreshCloudToken,
     registerDevice,
-    tryFetchProfile,
-    updateProfile,
     verifyNativeAppToken,
 } from '../api';
 import { clearRelayTransportOverrides, webTransport } from '../transport';
 import { getCloudSessionSnapshot } from './contexts';
 import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, startWebCoreInit } from './core';
 import {
-    clearSessionCloudProfile,
-    clearSessionProfile,
+    clearRelaySession,
     getSelectedSiteId,
+    rebuildSessionIdentity,
     setSelectedCloudId,
     setSelectedSiteId,
     setSessionAuthenticated,
-    setSessionCloudProfile,
     setSessionIdentityState,
-    setSessionProfile,
 } from './contextStore';
 import type { CloudSessionSnapshot } from './types';
 import { notifySessionStateChanged } from './utils';
@@ -80,16 +75,6 @@ const parseTargetSiteId = (target?: string): string | null => {
     return target.slice(separatorIndex + 1);
 };
 
-/**
- * Builds a cloud-scoped profile view from token payload fields without mutating relay profile data.
- */
-const toCloudProfile = (cloudUser: Partial<UserView>): UserProfile$ =>
-    ({
-        ...cloudUser,
-        uid: (cloudUser as { uid?: string; id?: string }).uid ?? (cloudUser as { id?: string }).id,
-        $user: cloudUser as UserView,
-    }) as unknown as UserProfile$;
-
 const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSessionSnapshot => {
     return {
         cloudId,
@@ -100,22 +85,21 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
     };
 };
 
-const applyRelayProfile = async (tokenView: UserTokenView): Promise<UserTokenView> => {
+/**
+ * Applies a relay token view as the active session: builds AWS credentials, persists the token (the
+ * auth anchor + uid/profile-seed source), and marks the session authenticated. Profile shaping is
+ * gone — profile facts are tracked from the token + user cache by app-runtime's useSessionProfile.
+ *
+ * Note: this deliberately does NOT touch delegatorId. delegatorId is set once at guest login and
+ * must survive every relay refresh / cloud switch that also runs through here, so it is owned by
+ * loginRelayGuestByDevice (set) and clearRelaySession (cleared on relay logout) only.
+ */
+const applyRelaySession = async (tokenView: UserTokenView): Promise<UserTokenView> => {
     if (tokenView.Token) {
         await webTransport.buildCredentialsByToken(tokenView.Token);
         relayCore.saveRelayToken(tokenView);
     }
-    const { Token: _token, ...profile } = tokenView;
 
-    // Detect and persist user role from the profile
-    const userRole = (profile as any)?.$user?.userRole ?? (profile as any)?.userRole;
-    if (userRole === 'guest') {
-        identityCore.setIsGuest(true);
-    } else if (userRole === 'user') {
-        identityCore.setIsGuest(false);
-    }
-
-    setSessionProfile(profile as unknown as UserProfile$);
     setSessionAuthenticated(true);
     return tokenView;
 };
@@ -157,9 +141,18 @@ export const persistDeviceId = (deviceId: string): string => {
  */
 export const loginRelayGuestByDevice = async (deviceId: string): Promise<UserTokenView> => {
     persistDeviceId(deviceId);
-    identityCore.setIsInvited(false);
-    identityCore.setOAuthProvider(null);
-    return await applyRelayProfile(await registerDevice(deviceId));
+    const tokenView = await registerDevice(deviceId);
+
+    // A fresh guest session delegates as its own uid for invite acceptance. Set delegatorId ONCE
+    // here: it must persist across relay refreshes / cloud switches / cloud logout, and is only
+    // replaced by the next guest login (a relay logout clears it via clearRelaySession).
+    const { Token: _token, ...view } = tokenView as UserTokenView & Record<string, unknown>;
+    const uid = (view as { uid?: string; id?: string }).uid ?? (view as { id?: string }).id;
+    if (uid) {
+        identityCore.setDelegatorId(uid);
+    }
+
+    return await applyRelaySession(tokenView);
 };
 
 /**
@@ -172,8 +165,7 @@ export const loginRelayUser = async ({
     body: Parameters<typeof loginRelayRequest>[0];
     email?: boolean;
 }): Promise<UserTokenView> => {
-    identityCore.setIsInvited(false);
-    return await applyRelayProfile(await loginRelayRequest(body, email));
+    return await applyRelaySession(await loginRelayRequest(body, email));
 };
 
 /**
@@ -181,27 +173,24 @@ export const loginRelayUser = async ({
  */
 export const loginRelaySocial = async ({
     body,
-    provider,
 }: {
     body: VerifyNativeTokenBody;
+    // `provider` is still accepted for caller compatibility but no longer stored — the OAuth provider
+    // is no longer session state (native OAuth logout is an app/bridge concern; see logoutRelaySession).
     provider?: OAuthLoginProvider | null;
 }): Promise<UserTokenView> => {
     const tokenView = await verifyNativeAppToken(body);
-    identityCore.setIsInvited(false);
-    if (provider !== undefined) {
-        identityCore.setOAuthProvider(provider);
-    }
-    return await applyRelayProfile(tokenView);
+    return await applyRelaySession(tokenView);
 };
 
-const relayRefreshFlight = createSerializedSingleFlight<UserProfile$ | null>();
+const relayRefreshFlight = createSerializedSingleFlight<void>();
 
 /**
  * Refreshes the relay OAuth session and optionally switches the active relay site via `uid@sid`.
  *
  * Serialized with a service-level single-flight so the periodic refresh loop and site switch never race.
  */
-export const refreshRelaySession = (options: RefreshRelaySessionOptions = {}): Promise<UserProfile$ | null> =>
+export const refreshRelaySession = (options: RefreshRelaySessionOptions = {}): Promise<void> =>
     relayRefreshFlight(options.target ?? '', () => runRefreshRelaySession(options));
 
 // TODO(optimistic): for a relay site switch (target = uid@sid), pre-apply the sid before the refresh
@@ -209,10 +198,10 @@ export const refreshRelaySession = (options: RefreshRelaySessionOptions = {}): P
 const runRefreshRelaySession = async ({
     target,
     syncProfile = true,
-}: RefreshRelaySessionOptions = {}): Promise<UserProfile$ | null> => {
-    const refreshedToken = await refreshAuthToken(target);
-    await webTransport.buildCredentialsByToken(refreshedToken);
-    setSessionAuthenticated(true);
+}: RefreshRelaySessionOptions = {}): Promise<void> => {
+    // The refresh response is a full relay token view carrying the identity fields, so the session is
+    // re-applied from it (via applyRelaySession) — no separate `/users/0/profile` GET.
+    const refreshed = await refreshAuthToken(target);
 
     const selectedSiteId = parseTargetSiteId(target);
     if (selectedSiteId) {
@@ -220,53 +209,18 @@ const runRefreshRelaySession = async ({
     }
 
     if (!syncProfile) {
-        return null;
+        // Relay site switch: the target's identity is unchanged, so keep the delegator id. Still
+        // persist the site-scoped token (it carries the new site's identityToken that activeServer /
+        // socket auth read) and refresh credentials + auth flag — the token is the source of truth.
+        if (refreshed.Token) {
+            await webTransport.buildCredentialsByToken(refreshed.Token);
+            relayCore.saveRelayToken(refreshed);
+        }
+        setSessionAuthenticated(true);
+        return;
     }
 
-    const profile = (await tryFetchProfile()) ?? (await fetchProfile());
-    setSessionProfile(profile as unknown as UserProfile$);
-    return profile as unknown as UserProfile$;
-};
-
-/**
- * Loads the active relay profile and writes it into session identity state.
- */
-export const loadRelayProfile = async (): Promise<UserProfile$> => {
-    const profile = (await fetchProfile()) as unknown as UserProfile$;
-    setSessionProfile(profile);
-    return profile;
-};
-
-/**
- * Optimistically loads the active relay profile without throwing on auth failures.
- */
-export const tryLoadRelayProfile = async (): Promise<UserProfile$ | null> => {
-    const profile = (await tryFetchProfile()) as UserProfile$ | null;
-    if (profile) {
-        setSessionProfile(profile);
-    }
-    return profile;
-};
-
-/**
- * Applies a shallow patch to the current relay profile and rehydrates session identity state.
- */
-export const patchRelayProfile = (patch: Record<string, unknown>): UserProfile$ | null => {
-    const currentProfile = identityCore.getRelayProfile();
-    if (!currentProfile) {
-        return null;
-    }
-
-    const nextProfile = {
-        ...currentProfile,
-        $user: {
-            ...currentProfile.$user,
-            ...patch,
-        },
-    } as UserProfile$;
-
-    setSessionProfile(nextProfile);
-    return nextProfile;
+    await applyRelaySession(refreshed);
 };
 
 /**
@@ -288,13 +242,9 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
     });
     logoutCallbacks.clear();
 
-    const oauthProvider = identityCore.getOAuthProvider();
-    const isOnMobileApp = isNative();
-    if (oauthProvider && isOnMobileApp) {
-        webClient.post({ type: 'OAuthLogout', data: { provider: oauthProvider as OAuthLoginProvider } });
-    }
-    identityCore.setOAuthProvider(null);
-
+    // Native OAuth logout is no longer handled here: the OAuth provider is no longer session state.
+    // A native shell that needs to sign out of the provider SDK should register that via
+    // registerSessionLogoutCallback (it owns the provider it logged in with).
     await webTransport.logout();
     cloudCore.clearSession();
     relayCore.clearSelectedSite();
@@ -302,9 +252,9 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
     resetWebCoreInit();
     localStorage.removeItem('chatic-device-token');
 
-    setSessionAuthenticated(false);
-    clearSessionCloudProfile();
-    clearSessionProfile();
+    // Cloud tokens were dropped by cloudCore.clearSession() above; clearRelaySession drops the relay
+    // token and rebuilds identity as unauthenticated (uid → null).
+    clearRelaySession();
     notifySessionStateChanged();
 
     let targetUrl = '/auth/login?logout=1';
@@ -338,8 +288,12 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
  * Clears the active cloud session while keeping relay authentication intact.
  */
 export const logoutCloudSession = (): void => {
-    cloudCore.clearDelegationToken();
-    clearSessionCloudProfile();
+    // Fully leave the cloud: clear the delegation + cloud token AND the selected cloud/site so
+    // `cloud.isActive` flips to false and uid / activeServer fall back to relay ("return to default
+    // cloud, keep relay"). Clearing only the delegation token left cloud.isActive true — the session
+    // stayed pinned to the cloud (stale uid/activeServer). Re-entry re-issues fresh tokens anyway.
+    cloudCore.clearSession();
+    rebuildSessionIdentity();
     notifySessionStateChanged();
 };
 
@@ -349,7 +303,7 @@ export const logoutCloudSession = (): void => {
 export const selectDefaultCloudSession = (): void => {
     setSelectedCloudId('default');
     setSelectedSiteId(null);
-    clearSessionCloudProfile();
+    rebuildSessionIdentity();
     notifySessionStateChanged();
 };
 
@@ -359,28 +313,6 @@ export const selectDefaultCloudSession = (): void => {
 export const registerSessionLogoutCallback = (callback: () => void): (() => void) => {
     logoutCallbacks.add(callback);
     return () => logoutCallbacks.delete(callback);
-};
-
-/**
- * Updates the canonical relay profile record on the backend.
- */
-export const updateRelayProfile = async (uid: string, user: Record<string, unknown>): Promise<void> => {
-    try {
-        await updateProfile(uid, user);
-    } catch (error: any) {
-        const is403 =
-            error?.status === 403 ||
-            error?.response?.status === 403 ||
-            (error?.message && error.message.includes('403'));
-
-        if (!is403) {
-            throw error;
-        }
-
-        logger.info('PROFILE', 'Profile update got 403, attempting relay refresh before retry');
-        await refreshRelaySession({ syncProfile: false });
-        await updateProfile(uid, user);
-    }
 };
 
 /**
@@ -419,8 +351,8 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
             cloudCore.clearPlaceOrder(cloudId);
         }
 
-        const { Token: _token, ...cloudProfileUser } = userToken;
-        setSessionCloudProfile(toCloudProfile(cloudProfileUser));
+        // Cloud token is saved above; rebuild identity so uid re-derives from the now-active cloud.
+        rebuildSessionIdentity();
         setSelectedCloudId(cloudId);
 
         return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudId, cloudCore.getSelectedSiteId());
@@ -491,12 +423,13 @@ const commitSiteSwitch = async (siteId: string): Promise<void> => {
         return;
     }
 
-    // Relay site switch: re-issue the relay token scoped to the target site. The relay
-    // profile uid pairs with the site to form the `uid@sid` target. syncProfile is off —
-    // the relay profile does not change across sites, so skip the extra profile fetch.
-    const uid = identityCore.getRelayProfile()?.uid;
+    // Relay site switch: re-issue the relay token scoped to the target site. The relay token uid
+    // pairs with the site to form the `uid@sid` target. syncProfile is off — the relay identity
+    // does not change across sites, so skip the extra profile fetch.
+    const relayToken = relayCore.getRelayToken() as { uid?: string; id?: string } | null;
+    const uid = relayToken?.uid ?? relayToken?.id;
     if (!uid) {
-        throw new Error('No relay profile uid for site auth');
+        throw new Error('No relay token uid for site auth');
     }
     await refreshRelaySession({ target: `${uid}@${siteId}`, syncProfile: false });
 };
@@ -522,8 +455,8 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
     cloudCore.saveSelectedSiteId(siteId);
     setSelectedSiteId(siteId);
 
-    const { Token: _token, ...cloudProfileUser } = merged;
-    setSessionCloudProfile(toCloudProfile(cloudProfileUser));
+    // Cloud token refreshed; rebuild identity so uid re-derives from the updated cloud token.
+    rebuildSessionIdentity();
 
     return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudCore.getSelectedCloudId() ?? 'default', siteId);
 };

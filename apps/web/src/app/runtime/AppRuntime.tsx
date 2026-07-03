@@ -6,7 +6,9 @@ import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
 import { DevMonitorOverlay } from '../dev/DevMonitorOverlay';
+import { UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
+import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
 import { useSocketDelegate } from './useSocketDelegate';
 
@@ -29,6 +31,8 @@ export const AppRuntime = () => {
         <RuntimeConnectionHost binding={binding} delegate={delegate}>
             <PreferenceLoader />
             <BackgroundSyncRunner />
+            <UnreadBadgeRunner />
+            <MyUserSeedRunner />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}

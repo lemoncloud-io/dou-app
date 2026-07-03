@@ -3,22 +3,22 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionIdentity } from '@chatic/web-core';
 
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { WithdrawalDialog } from '../components/WithdrawalDialog';
+import { useMyUser } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 
 export const WithdrawalPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const { activeProfile: profile } = useSessionIdentity();
+    const profile = useMyUser();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    const userName = profile?.$user?.name || 'User';
-    const userImageUrl = profile?.$user?.photo;
+    const userName = profile?.name || 'User';
+    const userImageUrl = profile?.photo;
 
     const handleConfirmClick = () => {
         setIsDialogOpen(true);

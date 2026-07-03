@@ -15,22 +15,21 @@ Status: Target Architecture
 
 ## 공개 표면
 
-| 구분               | 심볼                                                                                           | 설명                                         |
-| ------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| 값 파생 훅         | `useRuntimeBinding()`                                                                          | 활성 서버 기준 `RuntimeBinding` 파생         |
-| 값 파생 훅         | `useRuntimeRepositories()`                                                                     | 현재 data context에 바인딩된 repository 조회 |
-| 값 파생 훅         | `useSocketState()`                                                                             | socket 연결/인증 상태 조회                   |
-| lifecycle 컴포넌트 | `<RuntimeConnectionHost>`                                                                      | 런타임 조립 루트                             |
-| lifecycle 컴포넌트 | `<TransportBootstrap>`                                                                         | transport 초기화 게이트                      |
-| lifecycle 컴포넌트 | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 유지/리프레시                |
-| lifecycle 컴포넌트 | `<RuntimeDataBinder>`                                                                          | data context 동기화                          |
-| lifecycle 컴포넌트 | `<SocketBinder>`                                                                               | socket config 동기화                         |
-| lifecycle 컴포넌트 | `<SocketAuthBinder>`                                                                           | site/token 변경 시 auth 문맥 재동기화        |
-| delegate 계약      | `SocketSessionDelegate`                                                                        | token 조회/refresh 주입 계약                 |
-| 편의 진입점        | `getRuntimeManager()`                                                                          | runtime manager 접근                         |
-| 편의 진입점        | `getSocketRuntime()`                                                                           | socket/session/sync 조립체 접근              |
-| 편의 진입점        | `getDataRuntime()`                                                                             | data runtime 접근                            |
-| 핵심 타입          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate` | 외부에서 알아야 하는 주요 타입               |
+| 구분               | 심볼                                                                                           | 설명                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 값 파생 훅         | `useRuntimeBinding()`                                                                          | 활성 서버 기준 `RuntimeBinding` 파생                  |
+| 값 파생 훅         | `useRuntimeRepositories()`                                                                     | 현재 data context에 바인딩된 repository 조회          |
+| 값 파생 훅         | `useSocketState()`                                                                             | socket 연결/인증 상태 조회                            |
+| lifecycle 컴포넌트 | `<RuntimeConnectionHost>`                                                                      | 런타임 조립 루트                                      |
+| lifecycle 컴포넌트 | `<TransportBootstrap>`                                                                         | transport 초기화 게이트                               |
+| lifecycle 컴포넌트 | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 유지/리프레시                         |
+| lifecycle 컴포넌트 | `<RuntimeDataBinder>`                                                                          | data context 동기화                                   |
+| lifecycle 컴포넌트 | `<SocketBinder>`                                                                               | socket config 동기화                                  |
+| delegate 계약      | `SocketSessionDelegate`                                                                        | active-server-aware register/sign/writeback 주입 계약 |
+| 편의 진입점        | `getRuntimeManager()`                                                                          | runtime manager 접근                                  |
+| 편의 진입점        | `getSocketRuntime()`                                                                           | socket/session/sync 조립체 접근                       |
+| 편의 진입점        | `getDataRuntime()`                                                                             | data runtime 접근                                     |
+| 핵심 타입          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate` | 외부에서 알아야 하는 주요 타입                        |
 
 ## socket runtime 공개 규칙
 
@@ -39,10 +38,11 @@ Status: Target Architecture
 ```ts
 {
   socketManager,
-  sessionController,
   syncManager,
 }
 ```
+
+> 인증은 SDK `AuthController`(`client.auth`)가 소유하므로 조립체에 `sessionController`를 두지 않는다. bootstrap 시퀀싱은 `SocketBinder`가 `bootstrapSocketConnection(...)`로 수행한다.
 
 주의:
 
@@ -66,7 +66,8 @@ const App = () => {
 
 설명:
 
-- `RuntimeConnectionHost` 내부에서 `TransportBootstrap`, `SessionBackgroundRunner`, `RuntimeDataBinder`, `SocketBinder`, `SocketAuthBinder`를 조립한다.
+- `RuntimeConnectionHost` 내부에서 `TransportBootstrap`, `SessionBackgroundRunner`, `RuntimeDataBinder`, `SocketBinder`를 조립한다.
+- 인증 문맥(토큰/site) 변경은 별도 binder 없이 SDK `AuthController`가 담당한다(만료·재연결 자동, site 전환은 `client.auth.switch`). 이전 구현의 `<SocketAuthBinder>`는 SDK 도입 시 삭제된다.
 - sync는 별도 binder를 두지 않고 `SyncManager` 내부 서비스로 동작한다.
 
 ## 외부에서 알 필요 없는 것

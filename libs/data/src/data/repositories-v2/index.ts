@@ -50,7 +50,13 @@ const buildRepositories = (
         join: new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context),
         profile: new ProfileRepositoryV2(remoteDataSources.profile, localDataSources.profile, context),
         place: new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context),
-        user: new UserRepositoryV2(remoteDataSources.user, localDataSources.user, localDataSources.join, context),
+        user: new UserRepositoryV2(
+            remoteDataSources.user,
+            localDataSources.user,
+            localDataSources.join,
+            localDataSources.place,
+            context
+        ),
         syncMeta: new SyncMetaRepositoryV2(localDataSources.syncMeta, context),
     };
 };

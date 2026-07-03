@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useCloudSessionCatalog, UserType, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 
 import {
     DropdownMenu,
@@ -14,25 +15,31 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile } from '../../../hooks';
+import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
 import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
-import { useChannelUnreads, useHomeChannels, useHomePlaces, useInvitedClouds, useSwitchPlace } from '../hooks';
+import {
+    useActiveCloudChannels,
+    useChannelUnreads,
+    useHomeChannels,
+    useHomePlaces,
+    useInvitedClouds,
+    useSwitchPlace,
+} from '../hooks';
+import { resolveHeaderProfile } from '../lib';
 import { InviteDialog } from '../components';
 
 export const HomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
 
-    const identity = useSessionIdentity();
-    const { userType, permissions } = identity;
-    // Use the authoritative guest flag, not `userType === TEMP_ACCOUNT`: getUserType() falls back
-    // to TEMP_ACCOUNT whenever the active profile / userRole isn't resolved yet, which would wrongly
-    // hide cloud-only UI (e.g. the cloud-switch button) for a real, non-guest user mid-load.
-    const isGuest = identity.isGuest;
+    // Profile facts track the cached profile (seeded synchronously from the active session payload,
+    // then reactive on cache emits), so a profile edit fans out here without a session refresh.
+    const { isGuest } = useSessionProfile();
+    const permissions = useUserPermissions();
     // A guest who has accepted a cloud invite stays userType === TEMP_ACCOUNT, but holds invited
     // clouds in the cache. This "invited guest" must be able to switch into those clouds, so the
     // cloud-switch UI is offered to them even though they are still a guest.
@@ -48,22 +55,34 @@ export const HomePage = () => {
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
-    const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
-    // Unread badges derive from each channel's embedded `$join.chatNo` (kept live by the channel
-    // sync), so no separate per-channel join sync is registered here.
-    const { byChannel: unreadByChannel } = useChannelUnreads(channels);
 
-    // When a site is active, prefer the V2 per-site profile (nick/thumbnail) so an edit-screen
-    // save reflects immediately; fall back to session-derived values otherwise (default cloud).
+    const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
+    // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
+    // sites, not just the selected one. Unread derives from each channel's embedded `$join`/`metaNo`
+    // (kept live by the background channel sync) — no per-channel join sync here. The app-icon badge
+    // is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
+    const cloudChannels = useActiveCloudChannels();
+    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels);
+
+    // Header profile is resolved by tier (site → user account → setup prompt). The site profile
+    // (V2 per-site nick/thumbnail) only applies off the default cloud; an edit-screen save reflects
+    // immediately via the observed cache. `identity.userName` is intentionally excluded — it defaults
+    // to 'Unknown', which would mask the empty-account state that should show the setup prompt.
     const { profile: myProfile } = useMyProfile();
-    const displayName =
-        (!isDefaultCloud && myProfile?.nick) || identity.activeProfile?.$user?.name || identity.userName || '-';
-    const displayImageUrl = (!isDefaultCloud && myProfile?.thumbnail) || identity.activeProfile?.$user?.photo;
+    const myUser = useMyUser();
+    const headerProfile = resolveHeaderProfile({
+        siteName: !isDefaultCloud ? myProfile?.nick : undefined,
+        siteImageUrl: !isDefaultCloud ? myProfile?.thumbnail : undefined,
+        accountName: myUser?.name,
+        accountImageUrl: myUser?.photo,
+    });
+    const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
+    const displayImageUrl = headerProfile.kind === 'setup' ? undefined : headerProfile.imageUrl;
 
     // On an active site everyone has an editable site profile (incl. invited-cloud users), so show
     // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
     // it for guests / invited users who have no editable relay profile.
-    const showProfileButton = !isDefaultCloud || (!isGuest && userType !== UserType.INVITED);
+    const showProfileButton = !isDefaultCloud || !isGuest;
     const profileTarget = isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.siteProfile;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -145,6 +164,7 @@ export const HomePage = () => {
                 <PlaceList
                     places={places}
                     selectedPlaceId={selectedPlaceId}
+                    unreadByPlace={unreadByPlace}
                     isLoading={isPlacesLoading}
                     isSwitching={isSwitching}
                     onSelectPlace={switchPlace}

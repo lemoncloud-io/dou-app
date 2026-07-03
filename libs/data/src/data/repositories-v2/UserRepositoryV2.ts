@@ -7,7 +7,7 @@ import type {
 import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
 import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
 import { toDomainJoinFromUser } from '../domain';
-import type { IJoinLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
+import type { IJoinLocalDataSourceV2, IPlaceLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
@@ -16,7 +16,7 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainUser | null) => void): () => void;
 
-    refreshList(query: ChatUsersInput): Promise<void>;
+    getMyProfile(): Promise<DomainUser>;
     updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser>;
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
     requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]>;
@@ -36,6 +36,7 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         private readonly userRemoteDataSource: IUserRemoteDataSource,
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
+        private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
         contextProvider: DataContextProvider
     ) {
         super(contextProvider);
@@ -99,6 +100,21 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         if (joins.length > 0) {
             await this.joinLocalDataSource.cacheWriteMany(joins, requestContext);
         }
+    }
+
+    public async getMyProfile(): Promise<DomainUser> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const { user, site } = await this.userRemoteDataSource.getMyProfile(normalizedContext);
+        // Hydrate the user cache so observeItem subscribers see the fetched profile.
+
+        await this.userLocalDataSource.cacheWrite(user, requestContext);
+        // The profile embeds the current site ($site); persist it into the place cache so the active
+        // site is present even before a full place list refresh. (Mirrors the embedded $join write.)
+        if (site) {
+            await this.placeLocalDataSource.cacheWrite(site, requestContext);
+        }
+        return user;
     }
 
     public async updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser> {

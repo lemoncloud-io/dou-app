@@ -26,6 +26,11 @@ describe('UserRemoteDataSource', () => {
             expect(mockGateways.user.listUser).toHaveBeenCalledWith(payload);
         });
 
+        it('getMyProfile 호출 시 user.profile 액션으로 request가 전송되어야 한다', async () => {
+            await dataSource.getMyProfile(context);
+            expect(mockGateways.user.profile).toHaveBeenCalledTimes(1);
+        });
+
         it('updateProfile 호출 시 user.update-profile 액션으로 request가 전송되어야 한다', async () => {
             const payload: UserUpdateProfileInput = { name: 'New Name' };
             await dataSource.updateProfile(payload, context);
@@ -63,6 +68,40 @@ describe('UserRemoteDataSource', () => {
             expect(result.list[0]).toMatchObject({ id: 'user-1', cid: 'cloud-a' });
             expect(result.list[0].channelIds).toContain('ch-1');
             expect(result.meta.source).toBe('remote');
+        });
+
+        it('getMyProfile: UserProfile$ 래퍼의 $user를 도메인 user로, $site를 도메인 place로 변환한다', async () => {
+            (mockGateways.user.profile as jest.Mock).mockResolvedValue({
+                uid: 'me',
+                $user: { id: 'me', name: 'Me' },
+                $site: { id: 'site-1', name: 'My Site' },
+            });
+
+            const { user, site } = await dataSource.getMyProfile(context);
+
+            expect(user).toMatchObject({ id: 'me', cid: 'cloud-a' });
+            expect(site).toMatchObject({ id: 'site-1', cid: 'cloud-a' });
+        });
+
+        it('getMyProfile: $site가 없으면 site는 null이다', async () => {
+            (mockGateways.user.profile as jest.Mock).mockResolvedValue({ $user: { id: 'me' } });
+
+            const { user, site } = await dataSource.getMyProfile(context);
+
+            expect(user).toMatchObject({ id: 'me', cid: 'cloud-a' });
+            expect(site).toBeNull();
+        });
+
+        it('getMyProfile: 응답이 평탄한 user view로 와도(또는 비어도) 안전하게 변환한다', async () => {
+            (mockGateways.user.profile as jest.Mock).mockResolvedValue({ id: 'me', name: 'Me' });
+            const flat = await dataSource.getMyProfile(context);
+            expect(flat.user).toMatchObject({ id: 'me', cid: 'cloud-a' });
+            expect(flat.site).toBeNull();
+
+            (mockGateways.user.profile as jest.Mock).mockResolvedValue(undefined);
+            const empty = await dataSource.getMyProfile(context);
+            expect(empty.user).toMatchObject({ cid: 'cloud-a' });
+            expect(empty.site).toBeNull();
         });
 
         it('updateProfile 응답을 단일 도메인 user로 변환한다', async () => {

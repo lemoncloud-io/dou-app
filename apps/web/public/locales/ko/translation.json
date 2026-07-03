@@ -270,6 +270,7 @@
     "homePage": {
         "places": "플레이스",
         "roomCreated": "채팅방이 생성되었습니다",
+        "setupProfile": "프로필을 설정해주세요",
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
         "selectCloud": "클라우드 선택하기",
         "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요"
@@ -387,6 +388,10 @@
             "dateFormat": "{{year}}년 {{month}}월 {{day}}일 {{weekday}}",
             "today": "오늘",
             "yesterday": "어제",
+            "system": {
+                "join": "님이 들어왔습니다",
+                "leave": "님이 나갔습니다"
+            },
             "emptyState": {
                 "line1": "친구를 초대하여",
                 "line2": "채팅을 시작해 보세요.",

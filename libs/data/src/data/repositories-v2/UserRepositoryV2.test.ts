@@ -5,6 +5,7 @@ describe('UserRepositoryV2', () => {
         // User repository mixes cache writes and helper passthroughs, so keep each collaborator fully isolated.
         const userRemoteDataSource = {
             fetchUsers: jest.fn(),
+            getMyProfile: jest.fn(),
             updateProfile: jest.fn(),
             requestInvite: jest.fn(),
             inviteBatch: jest.fn(),
@@ -30,6 +31,16 @@ describe('UserRepositoryV2', () => {
             cacheDelete: jest.fn(),
             cacheClear: jest.fn(),
         };
+        const placeLocalDataSource = {
+            observeList: jest.fn(() => () => undefined),
+            observeItem: jest.fn(() => () => undefined),
+            cacheRead: jest.fn(),
+            cacheReadList: jest.fn(),
+            cacheWrite: jest.fn(),
+            cacheWriteMany: jest.fn(),
+            cacheDelete: jest.fn(),
+            cacheClear: jest.fn(),
+        };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
             setContext: () => undefined,
@@ -40,11 +51,13 @@ describe('UserRepositoryV2', () => {
                 userRemoteDataSource as any,
                 userLocalDataSource as any,
                 joinLocalDataSource as any,
+                placeLocalDataSource as any,
                 contextProvider
             ),
             userRemoteDataSource,
             userLocalDataSource,
             joinLocalDataSource,
+            placeLocalDataSource,
         };
     };
 
@@ -104,6 +117,37 @@ describe('UserRepositoryV2', () => {
             [expect.objectContaining({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1' })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
+    });
+
+    it('hydrates the user cache and caches the embedded $site into the place store', async () => {
+        const { repository, userRemoteDataSource, userLocalDataSource, placeLocalDataSource } = createRepository();
+        userRemoteDataSource.getMyProfile.mockResolvedValue({
+            user: { id: 'me', cid: 'cloud-a', name: 'Me' },
+            site: { id: 'site-1', cid: 'cloud-a', name: 'My Site' },
+        });
+
+        const profile = await repository.getMyProfile();
+
+        // The mapped user is returned and written so observeItem subscribers see it.
+        expect(profile).toMatchObject({ id: 'me', cid: 'cloud-a' });
+        expect(userLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'me', cid: 'cloud-a' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        // The embedded $site is persisted to the place cache under the active scope.
+        expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'site-1', cid: 'cloud-a' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+    });
+
+    it('skips the place cache write when the profile carries no $site', async () => {
+        const { repository, userRemoteDataSource, placeLocalDataSource } = createRepository();
+        userRemoteDataSource.getMyProfile.mockResolvedValue({ user: { id: 'me', cid: 'cloud-a' }, site: null });
+
+        await repository.getMyProfile();
+
+        expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 
     it('rolls back an optimistic profile patch when updateProfile fails', async () => {

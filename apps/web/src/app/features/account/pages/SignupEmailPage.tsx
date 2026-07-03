@@ -12,8 +12,7 @@ export const SignupEmailPage = () => {
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { t } = useTranslation();
-    const { activeProfile: profile } = useSessionIdentity();
-    const userId = profile?.uid ?? '';
+    const userId = useSessionIdentity().userId ?? '';
     const verifyAlias = useVerifyAlias();
 
     const handleSubmit = async (email: string) => {
