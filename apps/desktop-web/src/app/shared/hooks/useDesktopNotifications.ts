@@ -10,9 +10,10 @@ import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from 
 import { isDndActive, isMentioned, resolveMyMentionNames, stripMarkdown } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
-// DMs have no channel name — title with the sender instead.
+// DMs have no channel name — title with the sender instead. Named channels read as
+// `#name`, matching the cross-cloud push banner.
 const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat): string =>
-    channel.name ?? latest.owner$?.name ?? 'New message';
+    channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
 const isViewing = (channelId: string): boolean =>
@@ -73,12 +74,16 @@ export const useDesktopNotifications = (): void => {
         // (global profile name + this place's nick, plus @channel/@here).
         if (notifyMode === 'mention' && !isMentioned(chat.content ?? '', resolveMyMentionNames())) return;
 
+        // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
+        // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
+        const sender = chat.owner$?.name;
+        const message = stripMarkdown(chat.content ?? '');
         void webClient
             .request({
                 type: 'ShowNotification',
                 data: {
                     title: notificationTitle(channel, chat),
-                    body: stripMarkdown(chat.content ?? ''),
+                    body: channel.name && sender ? `${sender}: ${message}` : message,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel).
                     deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,

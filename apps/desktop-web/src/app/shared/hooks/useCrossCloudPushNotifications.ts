@@ -21,6 +21,14 @@ const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, st
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
 
+/** Headline for a push/toast: the channel (`#name`) when known, else the sender / app name. */
+const headline = (channelName: string | undefined, fallback: string): string =>
+    channelName ? `#${channelName}` : fallback;
+
+/** Body line: `sender: message` when both are present, else whichever exists. */
+const senderLine = (sender: string | undefined, message: string | undefined): string =>
+    sender && message ? `${sender}: ${message}` : message || sender || '';
+
 /** Present one forwarded FCM push as a toast (focused) or an OS banner (unfocused). */
 const presentPush = async (
     notification: { title?: string; body?: string; data?: Record<string, string> } | undefined
@@ -71,8 +79,10 @@ const presentPush = async (
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: title ?? 'DoU',
-                    body: body ?? '',
+                    // Same shape as the focused toast: headline is the channel, body is
+                    // "sender: message" — so channel, sender and message all show.
+                    title: headline(data.channelName, title ?? 'DoU'),
+                    body: senderLine(title, body),
                     channelId: data.channelId,
                     deeplink: buildCrossCloudDeeplink(sourceCloudId, data),
                 },
@@ -91,8 +101,8 @@ const presentPush = async (
     // cloud/place → channel). The resolved source cloud is a no-op when already active.
     const channelId = data.channelId;
     toast({
-        title: data.channelName ? `#${data.channelName}` : title,
-        description: title && body ? `${title}: ${body}` : body || title,
+        title: headline(data.channelName, title ?? 'DoU'),
+        description: senderLine(title, body),
         className: channelId ? 'cursor-pointer' : undefined,
         onClick: channelId
             ? () =>
