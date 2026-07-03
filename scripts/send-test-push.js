@@ -31,6 +31,8 @@ Options:
   --title <text>       Sender name / Title argument (default: "홍길동")
   --body <text>        Message content / Body argument (default: "오늘 회의 참석하시나요?")
   --silent             Send as a silent background push (NO banner — wakes app only; see notes)
+  --loc-args-array     (iOS only) Send loc_args/title_loc_args as a native JSON array
+                       (reproduces the real backend) instead of a JSON-encoded string
   --prod               (iOS only) Target APNs Production instead of Sandbox (uses Production AuthKey & Bundle ID)
   --key-file <file>    (iOS only) Override the path to the APNs .p8 key file
   --key-id <id>        (iOS only) Override the APNs Key ID (e.g. 5P79KV86A5)
@@ -113,6 +115,11 @@ const sid = getOptionValue('--sid', '10024');
 const uid = getOptionValue('--uid', 'user_test_id');
 const isSilent = args.includes('--silent');
 const isProd = args.includes('--prod');
+// The production backend delivers loc-args to APNs as a native JSON array
+// (e.g. ["Raine"]); this flag reproduces that shape so we can exercise the iOS
+// Notification Service Extension. Default stays a JSON-encoded string, matching
+// FCM (whose data values must be strings). iOS only — ignored for Android.
+const useArrayLocArgs = args.includes('--loc-args-array');
 
 // Resolve iOS config dynamically if platform is iOS
 let keyFile = getOptionValue('--key-file', null);
@@ -184,6 +191,7 @@ ${
     platform === 'ios'
         ? `
 APNs Env:      ${isProd ? 'PRODUCTION' : 'SANDBOX'}
+Loc-args fmt:  ${useArrayLocArgs ? 'native array' : 'JSON string'}
 Key File:      ${keyFile}
 Key ID:        ${keyId || 'Not Specified (Check Naming Convention!)'}
 Team ID:       ${teamId}
@@ -306,9 +314,11 @@ function sendIosPush() {
             link: link,
             timestamp: String(Date.now()),
             title_loc_key: 'push_chat_message_title',
-            title_loc_args: JSON.stringify([titleArg]),
+            // Native array when --loc-args-array (matches the real backend), else a
+            // JSON-encoded string. The Extension must handle both interchangeably.
+            title_loc_args: useArrayLocArgs ? [titleArg] : JSON.stringify([titleArg]),
             loc_key: 'push_chat_message_body',
-            loc_args: JSON.stringify([bodyArg]),
+            loc_args: useArrayLocArgs ? [bodyArg] : JSON.stringify([bodyArg]),
             silent: isSilent,
             payload: {
                 cid,
