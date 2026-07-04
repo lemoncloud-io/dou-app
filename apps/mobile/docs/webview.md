@@ -6,14 +6,14 @@ WebView는 웹 앱과 모바일 shell의 경계다. 웹 앱은 typed message를 
 
 ## 주요 파일
 
-| 파일                                           | 역할                                                         |
-| ---------------------------------------------- | ------------------------------------------------------------ |
-| `src/app/webview/AppWebView.tsx`               | WebView render, runtime script injection, readiness handling |
-| `src/app/webview/core/bridge.ts`               | low-level JSON post/receive helper                           |
-| `src/app/webview/hooks/useWebMessageRouter.ts` | central message router                                       |
-| `src/app/webview/hooks/*Handler.ts`            | domain-specific handlers                                     |
-| `src/app/webview/utils/injectionScripts.ts`    | safe area, device info, console override injection           |
-| `src/app/webview/hooks/useAppBridge.ts`        | bridge creation and WebView message binding                  |
+| 파일                                           | 역할                                               |
+| ---------------------------------------------- | -------------------------------------------------- |
+| `src/app/webview/AppWebView.tsx`               | WebView 렌더, 런타임 스크립트 주입, readiness 처리 |
+| `src/app/webview/core/bridge.ts`               | low-level JSON post/receive 헬퍼                   |
+| `src/app/webview/hooks/useWebMessageRouter.ts` | 중앙 message router                                |
+| `src/app/webview/hooks/*Handler.ts`            | 도메인별 핸들러                                    |
+| `src/app/webview/utils/injectionScripts.ts`    | safe area, device info, console override 주입      |
+| `src/app/webview/hooks/useAppBridge.ts`        | bridge 생성과 WebView message 바인딩               |
 
 ## 구조
 

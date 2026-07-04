@@ -1,15 +1,15 @@
 # Cache
 
-Cache 문서는 모바일 앱의 local persistence 구조를 설명한다. 기존 `docs/specs/cache/*` 문서는 제거 대상이 아니며 상세/레거시 참고 문서로 유지한다.
+Cache 문서는 모바일 앱의 local persistence 구조를 설명한다.
 
 ## 저장소 구분
 
-| 저장소        | 위치                      | 용도                                                   |
-| ------------- | ------------------------- | ------------------------------------------------------ |
-| SQLite        | `src/app/database/sqlite` | structured records, cache tables, upload task state    |
-| MMKV          | `src/app/database/mmkv`   | small key-value state, preferences, lightweight queues |
-| Data source   | `src/app/data/cache`      | table/domain-specific SQL access                       |
-| Cache service | `src/app/services/cache`  | WebView-facing CRUD/search API                         |
+| 저장소        | 위치                      | 용도                                             |
+| ------------- | ------------------------- | ------------------------------------------------ |
+| SQLite        | `src/app/database/sqlite` | structured record, 캐시 테이블, 업로드 task 상태 |
+| MMKV          | `src/app/database/mmkv`   | 작은 key-value 상태, preference, 가벼운 queue    |
+| Data source   | `src/app/data/cache`      | 테이블/도메인별 SQL 접근                         |
+| Cache service | `src/app/services/cache`  | WebView용 CRUD/search API                        |
 
 ## 구조
 
@@ -70,4 +70,3 @@ sequenceDiagram
 - schema, data source, service가 같은 domain naming을 쓰는가?
 - cid/uid scope가 필요한 데이터에서 누락되지 않았는가?
 - WebView cache handler가 SQL detail을 알지 않도록 유지되는가?
-- `docs/specs/cache/*`와 충돌하는 정책 변경이면 해당 spec도 함께 갱신할 것인가?

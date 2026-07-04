@@ -20,8 +20,8 @@
 | Upload          | `UploadManagerBridge.ts`  | `UploadManagerModule.kt`, `UploadBackgroundService.kt`, `UploadWorker.kt` | `Upload/UploadManager.swift`, `Upload/UploadManager.m`   |
 | File            | `FileManagerBridge.ts`    | `FileManagerModule.kt`                                                    | `FileManager.m`                                          |
 | App icon        | `AppIconBridge.ts`        | `AppIconManagerModule.kt`                                                 | `AppIconManager.m`                                       |
-| System bars     | `SystemBarsBridge.ts`     | `SystemBarsModule.kt`                                                     | platform-specific native behavior                        |
-| Back navigation | `BackNavigationBridge.ts` | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                     | platform-specific native behavior                        |
+| System bars     | `SystemBarsBridge.ts`     | `SystemBarsModule.kt`                                                     | 플랫폼별 네이티브 동작                                   |
+| Back navigation | `BackNavigationBridge.ts` | `BackNavigationModule.kt`, `BackNavigationHandler.kt`                     | 플랫폼별 네이티브 동작                                   |
 | Push delivery   | n/a                       | `push/ChaticFirebaseMessagingService.kt`                                  | `AppDelegate.swift` + `RNCPushNotificationIOS`           |
 | Badge sync      | `BadgeSyncBridge.ts`      | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                | App Group via `AppDelegate.swift` + NSE (RN module 없음) |
 
@@ -50,7 +50,7 @@ sequenceDiagram
 - service는 native module을 직접 호출해도 되지만 WebView handler가 native module을 직접 호출하지 않도록 유지한다.
 - Android/iOS 중 한쪽만 구현된 기능은 문서와 handler에서 명시적으로 fallback 또는 unsupported error를 다룬다.
 - background 작업은 OS lifecycle 제약을 우선 고려한다. upload처럼 장시간 실행되는 기능은 service와 repository에 복구 상태를 남긴다.
-- Push delivery is a native lifecycle concern: Android uses `ChaticFirebaseMessagingService`, while iOS forwards APNs callbacks from `AppDelegate` into `RNCPushNotificationIOS`.
+- push 전달은 네이티브 lifecycle 문제다: Android는 `ChaticFirebaseMessagingService`를 쓰고, iOS는 `AppDelegate`가 APNs 콜백을 `RNCPushNotificationIOS`로 포워딩한다.
 
 ## 변경 체크리스트
 
