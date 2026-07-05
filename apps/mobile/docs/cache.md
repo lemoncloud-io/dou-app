@@ -32,6 +32,8 @@ flowchart TD
 | `JoinDataSource.ts`        | channel-user membership |
 | `SiteDataSource.ts`        | site/place records      |
 | `UserDataSource.ts`        | user profile records    |
+| `ProfileDataSource.ts`     | site display profiles   |
+| `MetaDataSource.ts`        | sync cursors (meta)     |
 | `InviteCloudDataSource.ts` | invite cloud records    |
 | `TestRecordDataSource.ts`  | debug/test records      |
 
