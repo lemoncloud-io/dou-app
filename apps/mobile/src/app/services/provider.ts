@@ -36,6 +36,8 @@ import {
     JoinDataSource,
     SiteDataSource,
     UserDataSource,
+    ProfileDataSource,
+    MetaDataSource,
     TestRecordDataSource,
 } from '../data/cache';
 import { TestRecordService } from './cache/TestRecordService';
@@ -105,6 +107,8 @@ class DependencyProvider {
         const siteDataSource = new SiteDataSource(this.sqliteDatabase, TABLES.SITES);
         const userDataSource = new UserDataSource(this.sqliteDatabase, TABLES.USERS);
         const inviteCloudDataSource = new InviteCloudDataSource(this.sqliteDatabase, TABLES.INVITE_CLOUDS);
+        const profileDataSource = new ProfileDataSource(this.sqliteDatabase, TABLES.PROFILES);
+        const metaDataSource = new MetaDataSource(this.sqliteDatabase, TABLES.METAS);
 
         // Cache Services
         this.cacheCrudService = new CacheCrudService(
@@ -114,7 +118,9 @@ class DependencyProvider {
             joinDataSource,
             siteDataSource,
             userDataSource,
-            inviteCloudDataSource
+            inviteCloudDataSource,
+            profileDataSource,
+            metaDataSource
         );
         this.uploadService = new UploadService(this.logService, uploadTaskDataSource);
         this.pushEventManager = new PushEventManager(this.logService);

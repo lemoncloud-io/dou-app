@@ -245,5 +245,35 @@ export const MIGRATIONS: Record<number, string[]> = {
         );`,
         `CREATE INDEX IF NOT EXISTS idx_upload_tasks_status_updated ON ${TABLES.UPLOAD_TASKS} (status, updated_at DESC);`,
     ],
+    8: [
+        /**
+         * Profile — site-scoped display profiles.
+         * The web layer keys each row by `${sid}@${uid}` and filters by `sid`
+         * in memory after loadAll, so native only needs the shared (cid, uid, id)
+         * partition used by every other domain; no dedicated `sid` column here.
+         */
+        `CREATE TABLE IF NOT EXISTS ${TABLES.PROFILES} (
+        cid TEXT NOT NULL,
+        uid TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (cid, uid, id)
+    );`,
+    ],
+    9: [
+        /**
+         * Meta — sync cursors (e.g. 'channel-sync' -> syncedAt), cid/uid/id scoped.
+         * The original `metas` table (a query->ids index) was dropped in migration 5;
+         * this recreates it with the standard domain schema so native can persist the
+         * web sync-cursor `meta` cache. `id` holds the cursor kind.
+         */
+        `CREATE TABLE IF NOT EXISTS ${TABLES.METAS} (
+        cid TEXT NOT NULL,
+        uid TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (cid, uid, id)
+    );`,
+    ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;

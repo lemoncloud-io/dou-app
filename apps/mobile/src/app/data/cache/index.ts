@@ -3,6 +3,8 @@ export * from './ChatDataSource';
 export * from './JoinDataSource';
 export * from './SiteDataSource';
 export * from './UserDataSource';
+export * from './ProfileDataSource';
+export * from './MetaDataSource';
 export * from './InviteCloudDataSource';
 export * from './TestRecordDataSource';
 export * from './types';
