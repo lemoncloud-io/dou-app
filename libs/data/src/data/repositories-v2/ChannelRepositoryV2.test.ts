@@ -64,6 +64,58 @@ describe('ChannelRepositoryV2', () => {
         });
     });
 
+    it('refreshList — fetchChannel 스냅샷을 로컬 캐시에 병합한다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        channelRemoteDataSource.fetchChannel.mockResolvedValue({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-2', sid: 'site-1' },
+            ],
+        });
+
+        await repository.refreshList({ sid: 'site-1', detail: true, limit: 100 } as any);
+
+        expect(channelRemoteDataSource.fetchChannel).toHaveBeenCalledWith(
+            { sid: 'site-1', detail: true, limit: 100 },
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-2', sid: 'site-1' },
+            ],
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+    });
+
+    it('refreshList — 나간 채널과 id 없는 행은 병합에서 제외한다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        // Leaving marks the channel locally; a lagging server snapshot must not resurrect it.
+        channelRemoteDataSource.leaveChannel.mockResolvedValue({ id: 'ch-left' });
+        await repository.leaveChannel({ channelId: 'ch-left' } as any);
+        channelLocalDataSource.cacheWriteMany.mockClear();
+
+        channelRemoteDataSource.fetchChannel.mockResolvedValue({
+            list: [{ id: 'ch-left', sid: 'site-1' }, { sid: 'site-1' }, { id: 'ch-3', sid: 'site-1' }],
+        });
+
+        await repository.refreshList({ sid: 'site-1' } as any);
+
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'ch-3', sid: 'site-1' }],
+            expect.anything()
+        );
+    });
+
+    it('refreshList — 빈 스냅샷이면 캐시를 건드리지 않는다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        channelRemoteDataSource.fetchChannel.mockResolvedValue({ list: [] });
+
+        await repository.refreshList();
+
+        expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+    });
+
     it('passes through remote helper commands that do not mutate local cache themselves', async () => {
         const { repository, channelRemoteDataSource } = createRepository();
         channelRemoteDataSource.getSelfChannel.mockResolvedValue({ id: 'self-channel' });

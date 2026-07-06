@@ -20,6 +20,7 @@ const refreshList = jest.fn();
 const refreshChannelList = jest.fn();
 const syncChannels = jest.fn();
 const syncProfiles = jest.fn();
+const getMyProfile = jest.fn();
 const getSyncedAt = jest.fn();
 const setSyncedAt = jest.fn();
 
@@ -40,10 +41,12 @@ beforeEach(() => {
     syncProfiles.mockResolvedValue({ syncedAt: 200 });
     getSyncedAt.mockResolvedValue(0);
     setSyncedAt.mockResolvedValue(undefined);
+    getMyProfile.mockResolvedValue(undefined);
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { refreshList },
         channel: { refreshList: refreshChannelList, syncChannels },
         profile: { syncProfiles },
+        user: { getMyProfile },
         syncMeta: { getSyncedAt, setSyncedAt },
     });
     setSwitching(false);
@@ -126,6 +129,63 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
 
         expect(syncChannels).toHaveBeenCalledTimes(1);
         expect(syncProfiles).not.toHaveBeenCalled();
+    });
+
+    it('verified 상승 엣지에서 활성 사이트 채널 스냅샷을 1회 풀 리프레시한다', async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        expect(refreshChannelList).not.toHaveBeenCalled();
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's1', detail: true, limit: 100 });
+    });
+
+    it('주기 타이머 틱에서는 채널 풀 리프레시를 실행하지 않는다', async () => {
+        jest.useFakeTimers();
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+
+        await act(async () => undefined); // mount rising edge
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            jest.advanceTimersByTime(60_000);
+        });
+        // The tick only runs delta syncs; the snapshot stays a rising-edge-only fetch.
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(syncChannels).toHaveBeenCalledTimes(2);
+
+        jest.useRealTimers();
+    });
+
+    it('활성 사이트가 없으면 채널 풀 리프레시를 건너뛴다', async () => {
+        setSession('default', null);
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshChannelList).not.toHaveBeenCalled();
+    });
+
+    it('채널 풀 리프레시 실패가 다른 동기화를 막지 않는다', async () => {
+        refreshChannelList.mockRejectedValue(new Error('boom'));
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
 
     it('sync 실패 시 해당 워터마크를 전진시키지 않는다', async () => {
