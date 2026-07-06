@@ -31,15 +31,23 @@ FCM(Android)과 APNs(iOS)에서 사용하는 공통 데이터 규격입니다.
 | **`channel_id`**         | String              | 필수      | Android 알림 채널 매핑 ID 및 iOS 채널 전략 매핑용.                                                                                                                                                                                                | `"dou_chat"`                                                                                                       |
 | **`link`** (생략가능)    | String              | 옵션      | 딥링크/URL 정보. 없을 경우 메인 화면으로 이동함.<br>• relative path로 전달될 경우 앱 내에서 환경별(dev/prod) 스키마를 붙여 라우팅함.<br>• **dev**: `chatic-dev://app-dev.chatic.io/<주소정보>`<br>• **prod**: `chatic://app.chatic.io/<주소정보>` | `"channel?channelId=room_123"`                                                                                     |
 | **`timestamp`**          | String              | 필수      | 서버 발송 일시 (Epoch Milliseconds).                                                                                                                                                                                                              | `"1718012345000"`                                                                                                  |
-| **`title_loc_key`**      | String              | 필수      | 다국어 지원용 제목 번역 키. (채팅 유형의 경우 보내는 사람의 이름)                                                                                                                                                                                 | `"notification.chat.title"`                                                                                        |
-| **`title_loc_args`**     | String (JSON Array) | 필수      | 제목 번역 템플릿에 주입할 변수 리스트.                                                                                                                                                                                                            | `"[\"홍길동\"]"`                                                                                                   |
-| **`loc_key`**            | String              | 필수      | 다국어 지원용 본문 번역 키. (채팅 유형의 경우 메시지 본문 내용)                                                                                                                                                                                   | `"notification.chat.message"`                                                                                      |
-| **`loc_args`**           | String (JSON Array) | 필수      | 본문 번역 템플릿에 주입할 변수 리스트.                                                                                                                                                                                                            | `"[\"오늘 회의 참석하시나요?\"]"`                                                                                  |
+| **`title_loc_key`**      | String              | 필수      | 다국어 지원용 제목 번역 키. (채팅 유형의 경우 보내는 사람의 이름)                                                                                                                                                                                 | `"push_chat_message_title"`                                                                                        |
+| **`title_loc_args`**     | JSON Array 또는 문자열 | 필수      | 제목 번역 템플릿에 주입할 변수 리스트.                                                                                                                                                                                                            | `"[\"홍길동\"]"`                                                                                                   |
+| **`loc_key`**            | String              | 필수      | 다국어 지원용 본문 번역 키. (채팅 유형의 경우 메시지 본문 내용)                                                                                                                                                                                   | `"push_chat_message_body"`                                                                                      |
+| **`loc_args`**           | JSON Array 또는 문자열 | 필수      | 본문 번역 템플릿에 주입할 변수 리스트.                                                                                                                                                                                                            | `"[\"오늘 회의 참석하시나요?\"]"`                                                                                  |
 | **`silent`** (생략가능)  | Boolean             | 옵션      | 무음 푸시(Silent Push) 여부. 기본값은 `false` 이며, `true`일 경우 백그라운드/종료 상태에서 시스템 노티 배너를 띄우지 않습니다.                                                                                                                    | `false`                                                                                                            |
 | **`payload`** (생략가능) | String (JSON Map)   | 필수      | 푸시 수신 시 혹은 클릭 진입 시 웹뷰(React) 비즈니스 로직에 전달해 줄 메타데이터 보관 객체. (상세 내역 아래 참고)                                                                                                                                  | `{"cid":"cloud_1","uid":"user_456","channelId":"room_123","chatId":"msg_789","content":"오늘 회의 참석하시나요?"}` |
 
 > [!NOTE]
 > FCM의 최상위 데이터 전송 객체인 `data`와 필드명이 겹치는 혼선을 피하기 위해 메타데이터 객체의 Key를 **`payload`**로 정의합니다.
+
+> [!IMPORTANT]
+> **`loc_args`/`title_loc_args`의 전달 형태는 플랫폼별로 다릅니다.**
+>
+> - **APNs(iOS)**: 페이로드가 임의 JSON이므로 백엔드는 **네이티브 배열**(`["홍길동"]`)로 전송합니다.
+> - **FCM(Android)**: `data` 값이 모두 문자열이어야 하므로 **JSON 문자열**(`"[\"홍길동\"]"`)로 전송합니다.
+>
+> iOS Notification Service Extension은 **배열·문자열 두 형태를 모두 허용**하여 파싱합니다. (과거 문자열만 허용해 APNs 네이티브 배열을 버리면서 배너에 `{0}`이 그대로 노출되던 버그를 수정함.) Android는 FCM 제약상 항상 JSON 문자열만 수신하므로 문자열을 파싱합니다.
 
 ### 2.1. `payload` 메타데이터 객체 세부 규격 (채팅 수신 시나리오 기준)
 
@@ -116,9 +124,9 @@ iOS는 안드로이드와 같이 별도의 시스템 채널 설정이 존재하�
             "channel_id": "dou_chat",
             "link": "channel?channelId=room_123",
             "timestamp": "1718012345000",
-            "title_loc_key": "notification.chat.title",
+            "title_loc_key": "push_chat_message_title",
             "title_loc_args": "[\"홍길동\"]",
-            "loc_key": "notification.chat.message",
+            "loc_key": "push_chat_message_body",
             "loc_args": "[\"오늘 회의 참석하시나요?\"]",
             "silent": "false",
             "payload": "{\"cid\":\"cloud_1\",\"uid\":\"user_456\",\"channelId\":\"room_123\",\"chatId\":\"msg_789\",\"content\":\"오늘 회의 참석하시나요?\"}"
@@ -148,10 +156,10 @@ iOS는 안드로이드와 같이 별도의 시스템 채널 설정이 존재하�
     "channel_id": "dou_chat",
     "link": "channel?channelId=room_123",
     "timestamp": "1718012345000",
-    "title_loc_key": "notification.chat.title",
-    "title_loc_args": "[\"홍길동\"]",
-    "loc_key": "notification.chat.message",
-    "loc_args": "[\"오늘 회의 참석하시나요?\"]",
+    "title_loc_key": "push_chat_message_title",
+    "title_loc_args": ["홍길동"],
+    "loc_key": "push_chat_message_body",
+    "loc_args": ["오늘 회의 참석하시나요?"],
     "silent": false,
     "payload": {
         "cid": "cloud_1",
@@ -169,25 +177,17 @@ iOS는 안드로이드와 같이 별도의 시스템 채널 설정이 존재하�
 
 클라이언트는 다국어 리소스(`ko.json`, `en.json`)의 아래 키 구조를 참조하여 네이티브 단에서 푸시 내용을 치환합니다.
 
-### 5.1. 다국어 리소스 예시 (`ko.json`)
+### 6.1. 다국어 리소스 예시 (`ko.json` / `en.json`)
+
+> 리졸버는 dot-notation(`a.b.c`) 중첩 키도 지원하지만, 현재 채팅 푸시는 아래와 같이 **flat 키**를 사용합니다. 제목/본문 템플릿은 `{0}` pass-through이며, 실제 표시 내용은 `loc_args[0]`로 주입됩니다.
 
 ```json
 {
-    "notification": {
-        "channel": {
-            "chat": "새 메시지",
-            "notice": "서비스 공지사항",
-            "marketing": "이벤트 및 혜택",
-            "cloud": "클라우드"
-        },
-        "chat": {
-            "title": "{0}",
-            "message": "{0}"
-        }
-    }
+    "push_chat_message_title": "{0}",
+    "push_chat_message_body": "{0}"
 }
 ```
 
 - **결과 조립 예시**:
-    - 제목 (`title_loc_key` = `"notification.chat.title"`, `title_loc_args` = `["홍길동"]`) ➡️ **"홍길동"**
-    - 본문 (`loc_key` = `"notification.chat.message"`, `loc_args` = `["오늘 회의 참석하시나요?"]`) ➡️ **"오늘 회의 참석하시나요?"**
+    - 제목 (`title_loc_key` = `"push_chat_message_title"`, `title_loc_args` = `["홍길동"]`) ➡️ **"홍길동"**
+    - 본문 (`loc_key` = `"push_chat_message_body"`, `loc_args` = `["오늘 회의 참석하시나요?"]`) ➡️ **"오늘 회의 참석하시나요?"**

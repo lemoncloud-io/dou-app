@@ -2,6 +2,7 @@ import { Linking } from 'react-native';
 import Config from 'react-native-config';
 
 import type { DeepLinkManager } from './DeepLinkManager';
+import { resolveDeepLink, resolvePushTapPath, type DeepLinkResolution, type PushNavigationData } from './deeplinkUtils';
 import type { ILogService } from '../log';
 
 /**
@@ -14,6 +15,8 @@ export interface IDeeplinkService {
     subscribe(listener: (url: string) => void): () => void;
     waitForColdStart(): Promise<void>;
     handleUrl(url: string): Promise<void>;
+    resolveInbound(url: string): DeepLinkResolution;
+    resolvePushTap(data: PushNavigationData | null | undefined): string | null;
 }
 
 /**
@@ -89,5 +92,22 @@ export class DeeplinkService implements IDeeplinkService {
         } catch (error) {
             this.logger.error('DEEPLINK', `[DeeplinkService] Failed to open URL: ${targetUrl}`, error);
         }
+    }
+
+    /**
+     * Resolves an inbound deep link (OS universal link / custom scheme / invite link) into a routing
+     * decision. The coordinator applies `web` results via an OnNavigate bridge event and `native`
+     * results imperatively through navigationRef; `invalid` surfaces the deep link error screen.
+     */
+    resolveInbound(url: string): DeepLinkResolution {
+        return resolveDeepLink(url, this.logger);
+    }
+
+    /**
+     * Resolves a push notification tap payload into a WEBVIEW_URL-relative path (cid/sid merged from
+     * the payload), or null when the payload carries no link. Shares the deep link OnNavigate contract.
+     */
+    resolvePushTap(data: PushNavigationData | null | undefined): string | null {
+        return resolvePushTapPath(data);
     }
 }

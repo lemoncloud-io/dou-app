@@ -121,6 +121,59 @@ describe('SocketManager onType rebinding', () => {
     });
 });
 
+describe('SocketManager waitUntilVerified', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('resolves true immediately when already verified', async () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG);
+        manager.markVerified();
+
+        await expect(manager.waitUntilVerified(1000)).resolves.toBe(true);
+    });
+
+    it('resolves true once the socket becomes verified before the timeout', async () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG);
+
+        const pending = manager.waitUntilVerified(1000);
+        manager.markVerified();
+
+        await expect(pending).resolves.toBe(true);
+    });
+
+    it('resolves false when the handshake does not complete before the timeout', async () => {
+        jest.useFakeTimers();
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG);
+
+        const pending = manager.waitUntilVerified(1000);
+        jest.advanceTimersByTime(1000);
+
+        await expect(pending).resolves.toBe(false);
+        jest.useRealTimers();
+    });
+
+    it('does not flip to false after resolving true, even past the timeout window', async () => {
+        jest.useFakeTimers();
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG);
+
+        const pending = manager.waitUntilVerified(1000);
+        manager.markVerified();
+        jest.advanceTimersByTime(5000);
+
+        await expect(pending).resolves.toBe(true);
+        jest.useRealTimers();
+    });
+});
+
 describe('SocketManager subscribeClient', () => {
     beforeEach(() => {
         mockedCreate.mockReset();

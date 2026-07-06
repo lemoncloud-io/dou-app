@@ -13,5 +13,9 @@
 		<string>applinks:app.chatic.io</string>
 		<string>applinks:app-dev.chatic.io</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.io.chatic.dou</string>
+	</array>
 </dict>
 </plist>

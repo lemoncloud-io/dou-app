@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
 import { Image, StyleSheet, View } from 'react-native';
 
-import { useWebViewDeepLink } from '../../../webview/hooks/useWebViewDeepLink';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
+import { useDeepLinkNavigation } from '../../../webview/hooks/useDeepLinkNavigation';
 import { AppWebView } from '../../../webview';
 import { DeepLinkErrorView, ResumeOverlay } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
@@ -30,12 +30,11 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
 
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
-    const { source, handleWebViewLoad, deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting } =
-        useWebViewDeepLink(route, {
-            webViewBaseUrl,
-            reloadToken: webViewReloadToken,
-            bridge,
-        });
+    // Single owner of inbound navigation: OS deep links, invite links, and notification taps → OnNavigate.
+    const { deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting, handleWebViewLoad } =
+        useDeepLinkNavigation(bridge);
+    // The WebView always loads the base URL; deep link destinations arrive via OnNavigate, not the source.
+    const [source] = useState<{ uri: string }>(() => ({ uri: webViewBaseUrl }));
 
     const handleWebViewLoadStart = useCallback(() => {
         // 이미 웹앱 준비 완료 상태인 경우(SPA 네비게이션 등), 상태를 다시 준비중(false)으로 되돌리지 않습니다.

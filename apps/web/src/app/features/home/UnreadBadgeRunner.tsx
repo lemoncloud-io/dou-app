@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { useSessionSelection } from '@chatic/web-core';
 
 import { appBridge } from '../../bridge/appBridge';
+import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
 import { useActiveCloudChannels, useChannelUnreads } from './hooks';
 import { sumSnapshot, writeCloudUnread } from './lib';
 
@@ -21,10 +22,25 @@ export const UnreadBadgeRunner = (): null => {
     const { total } = useChannelUnreads(cloudChannels);
     const { selectedCloudId } = useSessionSelection();
 
-    useEffect(() => {
+    // Write-through the active cloud's total into the snapshot, then push the cross-cloud sum to
+    // the native badge.
+    const pushBadge = useCallback(() => {
         const snapshot = writeCloudUnread(selectedCloudId, total);
         appBridge.setBadgeCount(sumSnapshot(snapshot));
     }, [selectedCloudId, total]);
+
+    useEffect(() => {
+        pushBadge();
+    }, [pushBadge]);
+
+    // Foreground reconcile: re-assert the authoritative count even when `total` has not changed.
+    // While backgrounded the native badge drifts away from the truth — iOS zeroes it on becomeActive
+    // and both platforms increment it per push — so the effect above (which only fires on a `total`
+    // change) is not enough to correct it. Re-pushing here overwrites the drift and resets the
+    // native increment base for the next background session.
+    useOnBackgroundStatusChanged(message => {
+        if (message.data.isForeground) pushBadge();
+    });
 
     return null;
 };

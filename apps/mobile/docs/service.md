@@ -19,17 +19,17 @@ flowchart TD
 
 주요 instance:
 
-| Instance                                                               | 책임                                                                |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `logService`, `consoleLogger`, `logBufferService`                      | app logging and in-app log buffer                                   |
-| `keyValueStorage`                                                      | MMKV key-value storage                                              |
-| `sqliteDatabase`                                                       | SQLite access                                                       |
-| `cacheCrudService`, `cacheSearchService`                               | local cache bridge-facing API                                       |
-| `uploadService`                                                        | upload lifecycle orchestration                                      |
-| `notificationService`, `pushEventManager`                              | push notification permission, token, badge, foreground event broker |
-| `deeplinkManager`, `deeplinkService`                                   | OS URL capture and routing                                          |
-| `deviceService`, `clipboardService`, `smsService`, `permissionService` | device capability wrappers                                          |
-| `oauthService`, `subscriptionIapService`                               | account/payment integrations                                        |
+| Instance                                                               | 책임                                          |
+| ---------------------------------------------------------------------- | --------------------------------------------- |
+| `logService`, `consoleLogger`, `logBufferService`                      | 앱 로깅과 인앱 로그 버퍼                      |
+| `keyValueStorage`                                                      | MMKV key-value 저장                           |
+| `sqliteDatabase`                                                       | SQLite 접근                                   |
+| `cacheCrudService`, `cacheSearchService`                               | WebView용 로컬 캐시 API                       |
+| `uploadService`                                                        | 업로드 lifecycle orchestration                |
+| `notificationService`, `pushEventManager`                              | push 권한·토큰·뱃지, 포그라운드 이벤트 broker |
+| `deeplinkManager`, `deeplinkService`                                   | OS URL 캡처와 라우팅                          |
+| `deviceService`, `clipboardService`, `smsService`, `permissionService` | 기기 기능 wrapper                             |
+| `oauthService`, `subscriptionIapService`                               | 계정/결제 연동                                |
 
 ## Service 추가 시나리오
 

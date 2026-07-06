@@ -3,49 +3,20 @@ import { View } from 'react-native';
 import Config from 'react-native-config';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import type { LinkingOptions } from '@react-navigation/native';
-import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 
-import { getRouteStateFromDeepLinkPath } from './services/deeplinks/deeplinkUtils';
-import type { RootStackParamList } from './features/core/navigation';
-import { RootNavigator } from './features/core/navigation';
+import { RootNavigator, navigationRef } from './features/core/navigation';
 import { useAppVersionCheck, useResolvedTheme } from './hooks';
-import { deeplinkService, logger, notificationService } from './services';
+import { notificationService } from './services';
 import { FloatingMenu, SystemBars } from './features/core/components';
 import { DebugOverlay } from './features/debug';
 import type { DebugOverlayEntryKey } from './features/debug/debugMenu';
 
-const navigationRef = createNavigationContainerRef<RootStackParamList>();
+// Deep link / invite link / notification-tap capture is owned by useDeepLinkNavigation (mounted in
+// MainScreen): it resolves each via DeeplinkService and emits OnNavigate (web) or drives navigationRef
+// (native). React Navigation's linking config is intentionally unused, removing the getStateFromPath
+// URL-transport hop and its triple normalization.
 const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
-
-// React Navigation Linking Configuration
-const linking: LinkingOptions<any> = {
-    prefixes: [
-        'chatic://',
-        'chatic-dev://',
-        'https://app.chatic.io',
-        'https://app-dev.chatic.io',
-        'https://dou.chatic.io',
-        'https://dou-dev.chatic.io',
-    ],
-    async getInitialURL() {
-        return deeplinkService.getInitialUrl();
-    },
-    subscribe(listener: (url: string) => void) {
-        return deeplinkService.subscribe(listener);
-    },
-    getStateFromPath(path: string) {
-        logger.info('DEEPLINK', '[AppLinking] getStateFromPath called', { path });
-        const state = getRouteStateFromDeepLinkPath(path);
-        logger.info('DEEPLINK', '[AppLinking] getStateFromPath result', {
-            path,
-            rootRoute: state?.routes?.[0]?.name,
-            nestedRoute: state?.routes?.[0]?.state?.routes?.[0]?.name,
-            nestedParams: state?.routes?.[0]?.state?.routes?.[0]?.params,
-        });
-        return state;
-    },
-};
 
 export const App = () => {
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
@@ -74,7 +45,7 @@ export const App = () => {
     return (
         <SafeAreaProvider style={{ backgroundColor }}>
             <SystemBars />
-            <NavigationContainer ref={navigationRef} linking={linking}>
+            <NavigationContainer ref={navigationRef}>
                 <View style={{ flex: 1, backgroundColor }}>
                     <RootNavigator />
                     {SHOW_DEBUG_MENU && !isDebugOverlayVisible && <FloatingMenu onOpenDebug={openDebugOverlay} />}

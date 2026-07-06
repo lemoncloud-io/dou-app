@@ -17,6 +17,10 @@
 | `DebugCacheTestPage`  | `/debug/cache-test`    | SQLite 브릿지 벤치마크(저장/조회·동시성·flood, 레이턴시 통계) |
 | `DebugUploadPage`     | `/debug/upload-test`   | 멀티파일 청크 업로드 컨트롤러(pause/resume/cancel/retry)      |
 | `DebugBadgeCountPage` | `/debug/badge-count`   | 앱 배지 카운트 fetch/set/clear                                |
+| `DebugInviteRedirectPage` | `/debug/invite-redirect` | 공유 링크 → 초대 리다이렉트 URL 변환기                    |
+| `DebugPushPage`       | `/debug/push`          | 푸시 토큰 서버 등록여부 확인 + 포그라운드 수신 목록           |
+
+`DebugPage`(허브) 상단에는 **Device Info** 블록이 있어 네이티브가 주입한 `deviceId`/`installId`/`platform`을 표시한다(탭하여 복사). 푸시 검증 절차는 [push-verification](./push-verification.md) 참고.
 
 ## 게이팅 — 런타임 언락
 
@@ -29,8 +33,9 @@ env/빌드 플래그가 아니라 **런타임 제스처**로 연다. `DebugPage`
 
 ```
 features/debug/
-  pages/      # 위 7개 화면
-  hooks/      # useDebugMode — sessionStorage 언락 게이트 (registerTap/disable/isEnabled)
+  pages/      # 위 화면들
+  hooks/      # useDebugMode(언락 게이트), usePushRegistration(등록 확인), useReceivedPushLog(수신 기록)
+  lib/        # 순수 헬퍼 — buildDeviceInfoRows, summarizeRegisterResult, normalizeReceivedPush
   consts/     # DEBUG_STORAGE_KEY = 'chatic-debug-mode'
   routes/     # DebugRoutes
   index.ts    # DebugRoutes, useDebugMode

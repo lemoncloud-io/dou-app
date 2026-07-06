@@ -1,13 +1,16 @@
 import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
-import { deeplinkService, logger, notificationService, pushEventManager } from '../../services';
+import { logger, notificationService, pushEventManager } from '../../services';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
 /**
- * Hook that integrates FCM push notifications, badge counts, and deep link routing inside the WebView.
- * Handles FetchFcmToken, FetchBadgeCount, and SetBadgeCount requests from the Web,
- * and orchestrates native notification click/receive flows.
+ * Hook that integrates FCM foreground push and badge/token bridge requests inside the WebView.
+ * Handles FetchFcmToken, FetchBadgeCount, and SetBadgeCount requests from the Web, and forwards
+ * foreground push receipts to the web as OnReceiveNotification (via PushEventManager).
+ *
+ * Notification-tap navigation is intentionally NOT handled here — it lives in useDeepLinkNavigation
+ * so taps and deep links converge on a single OnNavigate owner. Push keeps foreground receipt only.
  *
  * @param bridge
  */
@@ -135,35 +138,13 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             }
         });
 
-        // Helper to extract and route URL from notification payload
-        const routeNotification = (data: Record<string, string | object> | undefined) => {
-            if (!data) return;
-            const rawUrl = data.link || data.clickAction || data.deeplink || data.url;
-            if (typeof rawUrl === 'string' && rawUrl.trim().length > 0) {
-                void deeplinkService.handleUrl(rawUrl);
-            }
-        };
-
-        // App background notification click -> route via deeplinkService
-        const unsubscribeOnOpened = notificationService.onNotificationOpenedApp(remoteMessage => {
-            routeNotification(remoteMessage.data);
-        });
-
-        // App killed (Cold Start) notification click -> route via deeplinkService
-        notificationService.getInitialNotification().then(remoteMessage => {
-            if (remoteMessage) {
-                // A brief delay to allow App state / DeepLinkManager to start up
-                setTimeout(() => {
-                    routeNotification(remoteMessage.data);
-                }, 1000);
-            }
-        });
+        // Notification-tap navigation (onNotificationOpenedApp / getInitialNotification) is owned by
+        // useDeepLinkNavigation. This hook only forwards foreground receipts as OnReceiveNotification.
 
         return () => {
             unsubscribeReceive();
             unsubscribeOnMessage();
             foregroundPushSubscription.remove();
-            unsubscribeOnOpened();
         };
     }, [bridge]);
 

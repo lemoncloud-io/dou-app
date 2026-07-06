@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
 import { useSocketState, getSyncManager, useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
+import { useDeviceInfo } from '@chatic/device-utils';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
 import { useRuntimeMetrics } from '../metrics/useRuntimeMetrics';
 import { useActiveCloudChannels, useChannelUnreads } from '../../features/home/hooks';
 import { readCloudUnreadSnapshot, sumSnapshot } from '../../features/home/lib';
+import { usePushRegistration, useReceivedPushLog } from '../../features/debug/hooks';
+import { buildDeviceInfoRows, formatRegisteredAt } from '../../features/debug/lib';
 
 interface Props {
     onClose: () => void;
@@ -30,7 +33,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
     const socketState = useSocketState();
-    const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
+    const [tab, setTab] = useState<'상태' | '디바이스' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
 
     // Floating draggable panel: start near the top-right so it doesn't cover the header.
     const panelRef = useRef<HTMLDivElement>(null);
@@ -90,7 +93,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
             <div className="overflow-y-auto p-4 space-y-3">
                 <div className="flex gap-1 mb-3">
-                    {(['상태', 'DB', '성능', '프로필', '안읽음'] as const).map(t => (
+                    {(['상태', '디바이스', 'DB', '성능', '프로필', '안읽음'] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -104,6 +107,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
                 </div>
 
                 {tab === 'DB' && <DBBrowser />}
+                {tab === '디바이스' && <DeviceTab />}
                 {tab === '프로필' && <ProfileTab />}
                 {tab === '성능' && <PerfTab socketStateLabel={socketState.state} />}
                 {tab === '안읽음' && <UnreadTab />}
@@ -387,5 +391,64 @@ const PerfTab = ({ socketStateLabel }: { socketStateLabel: string }) => {
                 <Row label="in state for" value={sinceSec != null ? `${sinceSec}s` : null} />
             </Section>
         </>
+    );
+};
+
+// deviceId / push-token server registration / foreground push receipts — surfaced in the
+// same overlay as the rest of runtime state. Reuses the debug feature's tested hooks & lib.
+const DeviceTab = () => {
+    const { deviceInfo } = useDeviceInfo();
+    const { state, token, summary, error, check } = usePushRegistration();
+    const { entries, clear } = useReceivedPushLog();
+
+    return (
+        <div className="space-y-3">
+            <Section title="Device Info">
+                {buildDeviceInfoRows(deviceInfo).map(row => (
+                    <Row key={row.label} label={row.label} value={row.value} />
+                ))}
+            </Section>
+
+            <Section title="Push 등록">
+                <div className="flex items-center gap-2 pb-1">
+                    <button
+                        onClick={() => void check()}
+                        disabled={state === 'checking'}
+                        className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-80"
+                    >
+                        {state === 'checking' ? '확인 중...' : '서버 등록 확인'}
+                    </button>
+                    <span className="text-xs font-mono text-muted-foreground">{state}</span>
+                </div>
+                <Row label="token" value={token} />
+                {summary && <Row label="registered" value={summary.registered ? 'yes' : 'no'} />}
+                {summary?.status && <Row label="status" value={summary.status} />}
+                {summary?.endpoint && <Row label="endpoint" value={summary.endpoint} />}
+                <Row label="registeredAt" value={formatRegisteredAt(summary?.registeredAt)} />
+                {error && <p className="text-xs text-destructive">{error}</p>}
+            </Section>
+
+            <Section title={`수신 (${entries.length})`}>
+                {entries.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">수신한 푸시가 없습니다</p>
+                ) : (
+                    entries.map(entry => (
+                        <Row
+                            key={entry.id}
+                            label={new Date(entry.receivedAt).toLocaleTimeString()}
+                            value={`${entry.title} — ${entry.body}`}
+                        />
+                    ))
+                )}
+                {entries.length > 0 && (
+                    <button
+                        onClick={clear}
+                        className="mt-1 px-2 py-0.5 text-xs rounded bg-muted text-muted-foreground hover:text-foreground"
+                    >
+                        clear
+                    </button>
+                )}
+            </Section>
+        </div>
     );
 };

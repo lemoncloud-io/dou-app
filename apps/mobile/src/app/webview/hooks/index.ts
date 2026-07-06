@@ -14,6 +14,7 @@ export * from './useSubscriptionIapHandler';
 export * from './usePreferenceCacheHandler';
 export * from './useOAuthHandler';
 export * from './useVersionCheckHandler';
+export * from './useFirebaseInstallId';
 export * from './useLogHandler';
 export * from './useLogBufferHandler';
 export * from './useUploadHandler';

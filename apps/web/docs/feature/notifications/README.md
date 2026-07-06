@@ -1,6 +1,6 @@
 # notifications
 
-> 대상: `apps/web/src/app/bridge/navigation` · 관련: [architecture/bridge.md](../../architecture/bridge.md), [architecture/routing.md](../../architecture/routing.md)
+> 대상: `apps/web/src/app/bridge/navigation` · 관련: [device-token](./device-token.md), [debug/push-verification](../debug/push-verification.md), [architecture/bridge.md](../../architecture/bridge.md), [architecture/routing.md](../../architecture/routing.md)
 
 ## 책임
 
@@ -56,21 +56,18 @@ bridge/navigation/
 | `useSwitchCloudSession().switchCloud(cid)` | 클라우드 전환 (위임 토큰 교환, 사이트 clear)   |
 | `useSiteSwitch().switchSite(sid)`          | 사이트 전환 (`uid@sid` 토큰 갱신)              |
 
-## 모바일 탭 라우팅 (검증 결과)
+## 모바일 탭 라우팅
 
-신규 하이브리드 푸시는 **data-only FCM**(notification 객체 없음)이고, 배너는 네이티브가 조립한다. 배너 탭 → 웹 `OnNavigate`까지의 경로를 검증한 결과:
+Android는 **data-only FCM**(notification 객체 없음)이고 배너는 네이티브가 조립한다. 배너 탭 → 웹 `OnNavigate`까지:
 
-- **Android 콜드스타트(종료 상태) 탭**: 런치 인텐트 → `Linking.getInitialURL()` → `DeepLinkManager` → OnNavigate. ✅
-- **Android warm-start(백그라운드) 탭**: 네이티브 서비스가 `action=ACTION_VIEW` + `data=Uri.parse(link)`로 `PendingIntent`를 세팅([`ChaticFirebaseMessagingService.kt`](../../../../mobile/android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt)) → RN(`0.83`)의 `ReactActivity.onNewIntent`가 `Linking` `'url'` 이벤트를 자동 emit → `DeepLinkManager.subscribe`가 수신 → OnNavigate. **`MainActivity`의 추가 오버라이드 불필요.** ✅
-- **Foreground**: 네이티브 이벤트 → `OnReceiveNotification`(배너만, 네비게이션 없음 — 웹 미구현, 후속 과제).
-- **cid/sid 쿼리 보존**: 모바일 `toLocalUrl`이 `pathname+search+hash`를 보존하므로 링크 쿼리가 웹까지 온다([`useWebViewDeepLink.ts`](../../../../mobile/src/app/webview/hooks/useWebViewDeepLink.ts)).
+- **Android(백그라운드/콜드스타트) 탭**: 네이티브 서비스가 `payload`의 `cid`/`sid`를 링크 쿼리에 병합한 뒤 `action=ACTION_VIEW` + `data=Uri.parse(link)`로 `PendingIntent`를 세팅한다([`ChaticFirebaseMessagingService.kt`](../../../../mobile/android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt)). 탭 시 RN(`0.83`)이 `Linking` `'url'` 이벤트를 자동 emit → `DeepLinkManager` → `useWebViewDeepLink` → OnNavigate. 콜드스타트는 `Linking.getInitialURL()` 경로. **`MainActivity` 추가 오버라이드 불필요.** ✅
+- **iOS 탭**: iOS는 `aps.alert` + `mutable-content:1`이라 RNFirebase `onNotificationOpenedApp` / `getInitialNotification`([`useFcmHandler.ts`](../../../../mobile/src/app/webview/hooks/useFcmHandler.ts))이 발화한다. `resolvePushPath`가 `link` + `payload`의 `cid`/`sid`를 경로 쿼리로 합쳐 `OnNavigate`를 브릿지로 **직접 발행**한다(`Linking.openURL` 왕복 없음). 콜드스타트는 브릿지 버퍼가 `WebAppReady`까지 보관 후 전달. 실기기 검증 권장.
+- **Foreground**: 네이티브 이벤트 → `OnReceiveNotification`(배너만, 네비게이션 없음). 프로덕션 toast/nav는 미구현이나, 디버그 소비처 [`useReceivedPushLog`](../../../src/app/features/debug/hooks/useReceivedPushLog.ts)가 수신을 기록·로깅한다 → [device-token](./device-token.md).
+- **cid/sid 전달**: `cid`/`sid`는 `payload`에 있고 `link`와 별개다. 모바일이 이를 `OnNavigate` 경로 쿼리로 병합해 웹까지 넘긴다 — Android는 네이티브에서 링크 URI에, iOS는 `resolvePushPath`에서. 웹은 위 [경로 계약](#경로-계약)대로 쿼리에서 읽어 전환·제거한다. 모바일 상세: [mobile/docs/push.md](../../../../mobile/docs/push.md), [mobile/docs/deeplink.md](../../../../mobile/docs/deeplink.md).
 
-### 주의
-
-- RNFirebase `onNotificationOpenedApp` / `getInitialNotification`([`useFcmHandler.ts`](../../../../mobile/src/app/webview/hooks/useFcmHandler.ts))은 **data-only에서 발화하지 않는다**(알려진 제약). 탭 라우팅은 위 네이티브 인텐트 → `Linking` 경로가 담당하며, 이 RNFirebase 콜백은 data-only에서 죽은 코드다(무해, 후속 정리 대상).
-- **iOS**: 스펙상 순수 data-only가 아니라 `aps.alert` + `mutable-content:1`이라 표준 탭 경로가 발화할 것으로 보이나, 실기기 검증 권장.
+> data-only인 Android 탭은 RNFirebase 콜백을 발화시키지 않으므로 네이티브 인텐트 → `Linking` 경로가 담당하고, iOS는 반대로 RNFirebase 콜백 경로를 쓴다. 두 경로 모두 동일한 `OnNavigate { path }` 계약으로 수렴한다.
 
 ## 미구현(의도적 부재)
 
-- **Foreground 인앱 알림**: `OnReceiveNotification` 수신 시 토스트 + 탭 네비게이션. 현재 웹 소비처 없음.
+- **Foreground 인앱 알림(프로덕션)**: `OnReceiveNotification` 수신 시 토스트 + 탭 네비게이션. 프로덕션 소비처는 아직 없다. (디버그 전용 소비처 `useReceivedPushLog`는 존재 — 수신 기록·로깅만, [debug/push-verification](../debug/push-verification.md).)
 - **배지 최종 반영**: `payload.badge` + 활성 채팅방·unread 조합. 별도 과제.

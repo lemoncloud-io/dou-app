@@ -31,6 +31,9 @@ const initialState = (): SocketState => ({
     connectionId: null,
 });
 
+/** Default upper bound for waitUntilVerified when a caller does not pass one. */
+const DEFAULT_VERIFY_TIMEOUT_MS = 10_000;
+
 /**
  * SocketManager wraps a single ClientSocketV2 instance and owns the comprehensive,
  * observable socket state (connection + handshake). The socket is always 1:1 with
@@ -108,6 +111,35 @@ export class SocketManager implements ISocketManager {
         return () => {
             this.stateListeners.delete(listener);
         };
+    }
+
+    /**
+     * Resolves once the current socket is auth-verified (handshake complete), or after
+     * `timeoutMs` elapses. Resolves `true` when verified and `false` on timeout — it never
+     * rejects, so callers gating an action can fall back to best-effort behavior. Resolves
+     * synchronously when the socket is already verified.
+     */
+    public waitUntilVerified(timeoutMs: number = DEFAULT_VERIFY_TIMEOUT_MS): Promise<boolean> {
+        if (this.state.isVerified) {
+            return Promise.resolve(true);
+        }
+        return new Promise<boolean>(resolve => {
+            let settled = false;
+            let unsubscribe: (() => void) | null = null;
+            const finish = (verified: boolean) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                unsubscribe?.();
+                resolve(verified);
+            };
+            const timer = setTimeout(() => finish(false), timeoutMs);
+            // subscribe() fires immediately with the current snapshot; the early return above
+            // guarantees that first call carries isVerified === false, so it is a no-op here.
+            unsubscribe = this.subscribe(state => {
+                if (state.isVerified) finish(true);
+            });
+        });
     }
 
     /**
