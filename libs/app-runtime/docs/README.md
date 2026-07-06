@@ -20,6 +20,7 @@ transport 계층은 2개 manager 축으로 정리된다 — `SocketManager`(소�
 | [auth/](./auth/README.md)       | SDK `AuthController`(`client.auth`) 소유·표면·내부동작, 도입(migration)     | [usage.md](./auth/usage.md) — 사용 패턴/도입/트러블슈팅 · [signing.md](./auth/signing.md) — active-server-aware authId/sign/writeback 계약                                                                              |
 | [sync/](./sync/README.md)       | sync 도메인 스펙, `SyncManager` 소유 경계                                   | [usage.md](./sync/usage.md) · [chat-sync.md](./sync/chat-sync.md) · [device-sync.md](./sync/device-sync.md) · [library-internals.md](./sync/library-internals.md) · [gateway-reference.md](./sync/gateway-reference.md) |
 | [data/](./data/README.md)       | repository / local·remote data source 조립                                  | [context-design.md](./data/context-design.md) — 전역/요청 context 분리 설계                                                                                                                                             |
+| [push/](./push/README.md)       | 디바이스 토큰 등록 훅, `DeviceTokenDelegate` 주입 계약, force+스로틀 전략   | —                                                                                                                                                                                                                       |
 
 ## 문서 규칙
 

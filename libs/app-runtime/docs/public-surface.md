@@ -25,7 +25,9 @@ Status: Target Architecture
 | lifecycle 컴포넌트 | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 유지/리프레시                         |
 | lifecycle 컴포넌트 | `<RuntimeDataBinder>`                                                                          | data context 동기화                                   |
 | lifecycle 컴포넌트 | `<SocketBinder>`                                                                               | socket config 동기화                                  |
+| lifecycle 훅       | `useDeviceTokenRegistration(delegate)`                                                         | 네이티브 셸 푸시 토큰 force 등록 (스로틀·재시도)      |
 | delegate 계약      | `SocketSessionDelegate`                                                                        | active-server-aware register/sign/writeback 주입 계약 |
+| delegate 계약      | `DeviceTokenDelegate`                                                                          | 셸별 푸시 토큰 획득/식별자 주입 계약                  |
 | 편의 진입점        | `getRuntimeManager()`                                                                          | runtime manager 접근                                  |
 | 편의 진입점        | `getSocketRuntime()`                                                                           | socket/session/sync 조립체 접근                       |
 | 편의 진입점        | `getDataRuntime()`                                                                             | data runtime 접근                                     |

@@ -1,55 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 
-import type { RegisterDeviceTokenBody } from '@lemoncloud/chatic-backend-api';
-import { useRegisterDeviceToken, useSessionAuth } from '@chatic/web-core';
+import type { DeviceTokenDelegate } from '@chatic/app-runtime';
+import { useDeviceTokenRegistration as useRuntimeDeviceTokenRegistration } from '@chatic/app-runtime';
 
 import { appBridge } from './appBridge';
-
-// web-core's useRegisterDeviceToken injects `deviceId` internally, so the app only
-// supplies the rest of the payload.
-type DeviceTokenBody = Omit<RegisterDeviceTokenBody, 'deviceId'>;
 
 const APPLICATION = 'chatic';
 
 /**
- * Bridge-side push device-token registration.
+ * Bridge-side adapter for app-runtime's push registration.
  *
- * Only the native app shell can resolve an FCM token, so this fetches it via
- * `appBridge.fetchFcmToken()` once the session is authenticated, then hands the
- * payload to web-core's `useRegisterDeviceToken`. web-core performs the actual
- * registration and de-dupes by the token stored in identityCore, so re-renders
- * and unchanged tokens are no-ops (no manual localStorage bookkeeping needed).
+ * Only the native app shell can resolve an FCM token, so this wires
+ * `appBridge.fetchFcmToken()` into the runtime's DeviceTokenDelegate. All
+ * registration policy (auth gating, force re-register, throttle, retry) lives
+ * in app-runtime — this file only supplies the shell-specific pieces: the
+ * token fetch and the window-injected platform/install identifiers.
+ *
+ * Outside the native shell (no CHATIC_APP_PLATFORM) the delegate is null and
+ * the runtime hook is a no-op.
  */
 export const useDeviceTokenRegistration = (): void => {
-    const { isAuthenticated } = useSessionAuth();
-    const [body, setBody] = useState<DeviceTokenBody | null>(null);
-
-    useEffect(() => {
+    // Shell globals are injected before the web app boots, so resolving once is safe.
+    const delegate = useMemo<DeviceTokenDelegate | null>(() => {
         const platform = typeof window !== 'undefined' ? window.CHATIC_APP_PLATFORM : undefined;
-        // Skip outside the native shell or before authentication.
-        if (!isAuthenticated || !platform) return;
-
-        let cancelled = false;
-        appBridge
-            .fetchFcmToken()
-            .then(response => {
-                const deviceToken = response.data.token;
-                if (cancelled || !deviceToken) return;
-                setBody({
-                    deviceToken,
-                    platform,
-                    installId: window.CHATIC_APP_INSTALLATION_ID,
-                    application: APPLICATION,
-                });
-            })
-            .catch(() => {
-                // Token fetch can fail (e.g. permission denied); nothing to register.
-            });
-
-        return () => {
-            cancelled = true;
+        if (!platform) return null;
+        return {
+            fetchDeviceToken: () =>
+                appBridge
+                    .fetchFcmToken()
+                    .then(response => response.data?.token ?? null)
+                    // Token fetch can fail (e.g. permission denied); the runtime retries later.
+                    .catch(() => null),
+            platform,
+            installId: window.CHATIC_APP_INSTALLATION_ID,
+            application: APPLICATION,
         };
-    }, [isAuthenticated]);
+    }, []);
 
-    useRegisterDeviceToken(body);
+    useRuntimeDeviceTokenRegistration(delegate);
 };
