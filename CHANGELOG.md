@@ -1,5 +1,39 @@
 # Changelog
 
+## [2026-07-06] - No version updates
+
+### Features
+
+- (mobile/push-ios) capture iOS notification taps
+- (web/push-nav) await socket handshake before cloud/site switch
+- (badge) background push increment + foreground reconcile
+- (web/debug) add Push (token & receive) debug page and device info
+- (mobile/debug) tap notification test log rows to copy
+- (mobile/webview) compose uniqueId from device + Firebase install id
+- (mobile/push) route notification taps to WebView via OnNavigate with cid/sid
+- (scripts) enhance test push script with payload options
+
+### Bug Fixes
+
+- (ios/push) accept loc-args as native array or JSON string in NSE
+- (mobile/deeplink) build invite query as string to keep params on device
+
+### Documentation
+
+- (mobile/docs) translate mobile app documentation to Korean
+
+### Refactor
+
+- (mobile/push-deeplink) converge inbound navigation on DeeplinkService + OnNavigate
+
+### Chores
+
+- (mobile/webview) reorder import in FirebaseInstallId test
+
+### Other
+
+- build: (mobile) bump mobile app version to 0.17.0
+
 ## [2026-07-03] - root@0.39.0, @chatic/web@0.35.0
 
 ### Features
