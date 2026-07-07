@@ -108,6 +108,7 @@
         "@dnd-kit/modifiers": "^9.0.0",
         "@dnd-kit/sortable": "^10.0.0",
         "@dnd-kit/utilities": "^3.2.2",
+        "@dr.pogodin/react-native-fs": "^2.39.2",
         "@dr.pogodin/react-native-static-server": "^0.27.0",
         "@hookform/resolvers": "^3.9.1",
         "@lemoncloud/chatic-backend-api": "^0.26.405",

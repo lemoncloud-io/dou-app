@@ -34,6 +34,7 @@
         "react-native-webview": "*",
         "react-native-zip-archive": "*",
         "@dr.pogodin/react-native-static-server": "*",
+        "@dr.pogodin/react-native-fs": "*",
         "vite": "*",
         "zustand": "*",
         "@lemoncloud/lemon-web-core": "*",
