@@ -18,9 +18,15 @@ export type DeviceInfo = {
     platform: Platform;
     application: string; // 앱 패키지명/번들ID
     deviceToken?: string; // 푸시용 토큰 (FCM/APNS)
+    /** @deprecated Composite `deviceId:firebaseInstallId`; use `uniqueDeviceId` + `firebaseInstallationId`. */
     deviceId?: string | null;
     deviceModel?: string | null;
+    /** @deprecated Carries the bare device id despite the name; use `uniqueDeviceId`. */
     installId?: string | null;
+    /** Bare unique device id, stable across app reinstalls. */
+    uniqueDeviceId?: string | null;
+    /** Firebase installation id; changes on app reinstall. */
+    firebaseInstallationId?: string | null;
     lang?: PageLanguage;
 };
 

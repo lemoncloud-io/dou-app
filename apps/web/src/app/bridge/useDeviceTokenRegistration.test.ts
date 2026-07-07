@@ -26,7 +26,6 @@ describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', (
     beforeEach(() => {
         jest.clearAllMocks();
         delete window.CHATIC_APP_PLATFORM;
-        delete window.CHATIC_APP_INSTALLATION_ID;
         mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
     });
 
@@ -36,19 +35,20 @@ describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', (
         expect(mockRuntimeHook).toHaveBeenLastCalledWith(null);
     });
 
-    it('앱 환경에서는 platform/installId/application을 담은 델리게이트를 넘긴다', () => {
+    it('앱 환경에서는 platform/application을 담은 델리게이트를 넘긴다', () => {
         window.CHATIC_APP_PLATFORM = 'ios';
-        window.CHATIC_APP_INSTALLATION_ID = 'inst-1';
 
         renderHook(() => useDeviceTokenRegistration());
 
         expect(lastDelegate()).toEqual(
             expect.objectContaining({
                 platform: 'ios',
-                installId: 'inst-1',
                 application: 'chatic',
             })
         );
+        // Device identity (deviceId / installId) is resolved inside the runtime
+        // via useDynamicDeviceId — the adapter must not supply its own.
+        expect(lastDelegate().installId).toBeUndefined();
     });
 
     it('델리게이트의 fetchDeviceToken은 브리지 응답의 토큰을 반환한다', async () => {

@@ -14,7 +14,9 @@ const APPLICATION = 'chatic';
  * `appBridge.fetchFcmToken()` into the runtime's DeviceTokenDelegate. All
  * registration policy (auth gating, force re-register, throttle, retry) lives
  * in app-runtime — this file only supplies the shell-specific pieces: the
- * token fetch and the window-injected platform/install identifiers.
+ * token fetch and the window-injected platform identifier. Device identity
+ * (deviceId / firebase installation id) is resolved inside the runtime via
+ * useDynamicDeviceId, the single source shared with the socket side.
  *
  * Outside the native shell (no CHATIC_APP_PLATFORM) the delegate is null and
  * the runtime hook is a no-op.
@@ -32,7 +34,6 @@ export const useDeviceTokenRegistration = (): void => {
                     // Token fetch can fail (e.g. permission denied); the runtime retries later.
                     .catch(() => null),
             platform,
-            installId: window.CHATIC_APP_INSTALLATION_ID,
             application: APPLICATION,
         };
     }, []);

@@ -15,7 +15,11 @@ export interface DeviceTokenDelegate {
     fetchDeviceToken: () => Promise<string | null>;
     /** Shell platform identifier sent to the push broker (e.g. 'ios' | 'android' | 'desktop'). */
     platform: string;
-    /** Firebase installation id, when the shell exposes one. */
+    /**
+     * @deprecated The Firebase installation id is resolved from useDynamicDeviceId
+     * (the shared device-identity source). Supply only when a shell cannot inject
+     * the CHATIC_APP_* globals; a provided value still wins.
+     */
     installId?: string;
     /** SNS application name; defaults to 'chatic'. */
     application?: string;
@@ -45,7 +49,7 @@ const REREGISTER_THROTTLE_MS = 60_000;
  */
 export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null): void => {
     const { isAuthenticated } = useSessionAuth();
-    const { deviceId } = useDynamicDeviceId();
+    const { deviceId, firebaseInstallationId } = useDynamicDeviceId();
     const { mutateAsync } = useRegisterDeviceTokenMutation();
 
     // Latest-value refs keep `register` stable even when callers rebuild the
@@ -56,6 +60,8 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
     isAuthenticatedRef.current = isAuthenticated;
     const deviceIdRef = useRef(deviceId);
     deviceIdRef.current = deviceId;
+    const firebaseInstallationIdRef = useRef(firebaseInstallationId);
+    firebaseInstallationIdRef.current = firebaseInstallationId;
     const mutateRef = useRef(mutateAsync);
     mutateRef.current = mutateAsync;
 
@@ -78,10 +84,12 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
                 // fall through to the catch so the next trigger retries immediately.
                 if (!deviceToken) throw new Error('empty device token');
                 return mutateRef.current({
+                    // useDynamicDeviceId is the single device-identity source shared
+                    // with the socket side — registration must never derive its own.
                     deviceId: deviceIdRef.current ?? undefined,
                     deviceToken,
                     platform: currentDelegate.platform,
-                    installId: currentDelegate.installId,
+                    installId: currentDelegate.installId ?? firebaseInstallationIdRef.current,
                     application: currentDelegate.application ?? DEFAULT_APPLICATION,
                     force: true,
                 });
