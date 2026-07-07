@@ -200,6 +200,20 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * Renderer-facing recovery trigger for a socket that went dead without a request to
+     * carry it back — sleep/wake or a network drop, where no send runs the reconnect+retry
+     * path and the periodic heal is up to ~60s away. Runs the same reconnect + re-auth the
+     * request path uses. No-op if no reconnect handler is wired. A genuinely expired token
+     * still fails re-auth here and falls through to the wedge reload; this only accelerates
+     * the still-valid-token case.
+     */
+    public async recover(reason: string): Promise<void> {
+        if (!this.reconnectHandler) return;
+        logger.info('SOCKET', '[SocketManager] external recovery trigger', { reason });
+        await this.reconnectHandler();
+    }
+
+    /**
      * Stable request facade. Routes to the current client; on a 401 it invokes the
      * injected recovery handler and retries once against the (possibly replaced) client.
      */

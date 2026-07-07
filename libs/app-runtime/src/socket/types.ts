@@ -71,6 +71,7 @@ export interface ISocketManager {
     // stays invisible to them.
     setRecoveryHandler(handler: SocketRecoveryHandler | null): void;
     setReconnectHandler(handler: (() => Promise<void>) | null): void;
+    recover(reason: string): Promise<void>;
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;

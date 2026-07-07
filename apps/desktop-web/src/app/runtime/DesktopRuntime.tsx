@@ -18,6 +18,7 @@ import {
     useRefreshOnPush,
     useCloudPushBadgeStore,
     useRetainLeavingCloudBadge,
+    useSocketWakeRecovery,
     useSocketWedgeReload,
     useUnreadStore,
 } from '../shared';
@@ -42,6 +43,9 @@ const DesktopNotifications = () => {
     // A push means new activity the v2 socket won't stream for background channels — re-pull the
     // active cloud's channels so the unread badges update at push time, not 60s later.
     useRefreshOnPush();
+    // On wake/refocus/online, reconnect + re-auth the live WS immediately (still-valid
+    // token case) instead of waiting on the ~60s periodic heal.
+    useSocketWakeRecovery();
     // Self-heal a socket left unverified after sleep/wake (cloud-token 400 loop)
     // by reloading the Electron renderer — automatic equivalent of a manual ctrl+r.
     useSocketWedgeReload();

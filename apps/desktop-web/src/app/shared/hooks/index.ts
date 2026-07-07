@@ -8,6 +8,7 @@ export * from './useChatMutations';
 export * from './useChannelMutations';
 export * from './useReadReceipts';
 export * from './useDesktopNotifications';
+export * from './useSocketWakeRecovery';
 export * from './useSocketWedgeReload';
 export * from './useMentionCapture';
 export * from './useDeviceTokenRegistration';
