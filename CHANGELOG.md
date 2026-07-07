@@ -1,5 +1,76 @@
 # Changelog
 
+## [2026-07-07] - root@0.40.0, @chatic/desktop-web@0.2.0
+
+### Features
+
+- (desktop-web) reconnect the live socket on wake/refocus/online
+- (desktop-web) scroll to latest on notification open; drop cross-cloud sender name
+- (desktop-web) foreground toast click opens the channel too
+- (desktop-web) cross-cloud push click navigation, mention-mode + dock badge
+- (desktop-web) migrate app layer to v2 engine (socket + cache/sync)
+- (desktop-web) reset account-scoped stores and caches on logout
+- (desktop-web) dev-only account switcher in debug panel
+- (desktop-web) global DND/snooze/quiet-hours + device-local mentions inbox
+
+### Bug Fixes
+
+- (web-core) recover the cloud session on a wake-expired refresh instead of wedging
+- (desktop-web) stop the channel skeleton spinning forever on a wake-wedged socket
+- (desktop-web) await socket handshake before push-open cloud/place switch
+- (desktop-web) restore self profile display — read facts from useSessionProfile
+- (desktop-web) show channel, sender and message in every notification
+- (desktop-web) show channel-list skeleton instead of a false "No channels yet"
+- (desktop) parse the nested push payload — server moved chat fields into data.payload
+- (desktop-web) cross-cloud push + badge — resolve source cloud by channel, not uid
+- (desktop-web) restore cross-cloud badge — learn cloud uid without a selected site
+- (desktop-web) unstick the open channel's feed; drop the duplicate same-cloud banner
+- (desktop) review fixes — dead bridge posts, window-lifetime guards, recovery backoff
+- (data) map the join read cursor from the server's chatNo field
+- (desktop) permission gating, renderer crash recovery, timer hygiene, error-page locale
+- (desktop) inject real stage/version into the renderer, register push with stage
+- (app-runtime) stop treating failed socket auth as verified
+- (desktop) notification fixes — FCM click routing, silent-push banner, DND gate, focused doubles
+- (app-runtime) self-heal a socket left disconnected so sends aren't lost
+- (desktop-web) cross-cloud badge id-space + phantom place badge
+- (desktop-web) update unread badges on push, attribute cross-cloud by uid map
+- (desktop-web) resolve cross-cloud push to its cloud by source-cloud uid
+- (desktop-web) harden v2 desktop — switching, unread badge, notifications, boot crashes
+- (desktop) auto-recover from network-down load failures on boot/wake
+- (desktop-web) restore last-selected place and channel on refresh
+- (desktop-web) make @-mention autocomplete work with Korean IME
+- (desktop-web) auto-load older history when the feed underfills the viewport
+- (desktop-web) select @-mention on Enter, not send
+- (desktop-web) open thread panel when jumping to a thread-reply mention/saved item
+- (desktop-web) auto-reload renderer when socket wedged after sleep/wake
+- (desktop-web) send bridge requests in object form, not positional
+- (desktop-web) clear the unread divider on refocus, in step with the badge
+- (desktop-web) deliver same-cloud OS notifications for live messages
+- (desktop) refresh FCM token on launch + periodically to keep push alive
+- (profiles) stop global nick clobbering place profile on member fetch
+
+### Documentation
+
+- (desktop-web) tidy the cross-cloud push presenter comment
+- (audit) postmortem on channel-specific push broadcast gap
+
+### Refactor
+
+- (desktop) renderer owns cross-cloud banner decision; dedupe auth-state check
+- (desktop-web) harden @-mention typeahead from code review
+
+### Chores
+
+- (docs) drop docs from this PR
+- (desktop-web) temp diagnostic log for mention-capture gate
+- (desktop) bump version to 0.0.13
+- (desktop) drop per-channel banner coalescing
+
+### Other
+
+- perf: (desktop-web) restore MessageRow memoization, unserialize sends
+- test: (desktop-web) cover socket wedge-reload self-heal logic
+
 ## [2026-07-07] - No version updates
 
 ### Features
