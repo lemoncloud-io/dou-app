@@ -7,7 +7,6 @@ import type {
 import type {
     ChannelCreateInput,
     ChannelDeleteInput,
-    ChannelMineInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
@@ -38,11 +37,6 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     // Cloud-wide delta sync (channel.sync) — pulls channels changed since the cursor across all
     // places and advances syncedAt. Named like profile.syncProfiles for consistency.
     syncChannels(since: number): Promise<SyncChannelsResult>;
-
-    // Full snapshot refresh (channel.mine) — merges the server's channel list for a site into
-    // the cache. Named like place.refreshList; removal is left to syncChannels' `ids` cleanup.
-    refreshList(payload?: ChannelMineInput): Promise<void>;
-
     createChannel(payload: ChannelCreateInput): Promise<DomainChannel>;
     updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel>;
     inviteChannel(payload: ChatInviteInput): Promise<DomainChannel>;
@@ -178,18 +172,6 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             syncedAt: remote.syncedAt,
             removedCount,
         };
-    }
-
-    public async refreshList(payload?: ChannelMineInput): Promise<void> {
-        const requestContext = this.getRequestContext();
-        const normalizedContext = this.getNormalizedContext(requestContext);
-        const remote = await this.channelRemoteDataSource.fetchChannel(payload ?? {}, normalizedContext);
-        // Same guard as syncChannels: a snapshot may still list a channel the user just left
-        // (server-side lag), and re-writing it would resurrect the optimistically removed row.
-        const domainList = (remote.list || []).filter(item => !!item.id && !this.leftChannelIds.has(item.id));
-        if (domainList.length > 0) {
-            await this.channelLocalDataSource.cacheWriteMany(domainList, requestContext);
-        }
     }
 
     public async createChannel(payload: ChannelCreateInput): Promise<DomainChannel> {

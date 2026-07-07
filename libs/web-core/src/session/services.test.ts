@@ -53,6 +53,7 @@ const mockNotifySessionStateChanged = jest.fn();
 const mockIsNative = jest.fn();
 const mockLoggerInfo = jest.fn();
 const mockLoggerError = jest.fn();
+const mockLoggerWarn = jest.fn();
 
 jest.mock('../api', () => ({
     issueCloudDelegationToken: (...args: unknown[]) => mockIssueCloudDelegationToken(...args),
@@ -137,6 +138,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: {
         info: (...args: unknown[]) => mockLoggerInfo(...args),
         error: (...args: unknown[]) => mockLoggerError(...args),
+        warn: (...args: unknown[]) => mockLoggerWarn(...args),
     },
     webClient: {
         post: (...args: unknown[]) => mockPost(...args),
@@ -159,7 +161,10 @@ import {
 
 describe('session/services', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        // resetAllMocks (not clearAllMocks): also wipes mockResolvedValue/mockRejectedValue
+        // implementations so a per-test rejection cannot leak into the next test. The defaults
+        // below are re-established afterward.
+        jest.resetAllMocks();
         localStorage.clear();
 
         mockIsNative.mockReturnValue(false);
@@ -422,6 +427,14 @@ describe('session/services', () => {
         it('rolls the sid back to the previous site when the commit fails', async () => {
             mockGetSelectedSiteId.mockReturnValue('site-old');
             setupCloud();
+            // refreshCloudToken always rejects, so the failure-only re-bootstrap retry runs once:
+            // its switchCloudSession must succeed (below) before the second refresh re-rejects and
+            // 'boom' finally propagates.
+            mockIssueCloudDelegationToken.mockResolvedValue({
+                backend: 'https://cloud.example.com',
+                delegationToken: 'delegation-token',
+            });
+            mockIssueCloudToken.mockResolvedValue({ id: 'cloud-user', Token: { identityToken: 'new' } });
             mockRefreshCloudToken.mockRejectedValue(new Error('boom'));
 
             await expect(switchSiteSession('site-new')).rejects.toThrow('boom');

@@ -7,7 +7,7 @@ export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
     /**
      * device.sync — notify which target the current device is viewing.
      * Fire-and-forget and tick-neutral (the server owns `tick`). Always send the pair:
-     * `notifyViewing('channel', id)` on enter, `notifyViewing('', '')` to clear.
+     * `syncDevice('channel', id)` on enter, `syncDevice('', '')` to clear.
      */
     syncDevice(viewingType: ViewingType, viewingId: string): void;
 }

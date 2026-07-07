@@ -18,7 +18,7 @@ const useMatchMock = useMatch as jest.Mock;
 const useRuntimeRepositoriesMock = useRuntimeRepositories as jest.Mock;
 const useSocketStateMock = useSocketState as jest.Mock;
 
-const notifyViewing = jest.fn();
+const syncDevice = jest.fn();
 
 // Drive the hook by the channel currently matched by the route.
 const setChannel = (channelId: string | null) =>
@@ -26,7 +26,7 @@ const setChannel = (channelId: string | null) =>
 
 beforeEach(() => {
     jest.clearAllMocks();
-    useRuntimeRepositoriesMock.mockReturnValue({ device: { notifyViewing } });
+    useRuntimeRepositoriesMock.mockReturnValue({ device: { syncDevice } });
     useSocketStateMock.mockReturnValue({ isVerified: true });
     setChannel(null);
 });
@@ -35,7 +35,7 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
     it('비채널 라우트에서 시작하면 통지하지 않는다 (clear할 이전 값 없음)', () => {
         renderHook(() => useDeviceSync());
 
-        expect(notifyViewing).not.toHaveBeenCalled();
+        expect(syncDevice).not.toHaveBeenCalled();
     });
 
     it('채널 룸 진입 시 channel 짝으로, 목록 복귀 시 빈 짝으로 통지한다', () => {
@@ -44,24 +44,24 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
         // home → channel A
         setChannel('A');
         rerender();
-        expect(notifyViewing).toHaveBeenNthCalledWith(1, 'channel', 'A');
+        expect(syncDevice).toHaveBeenNthCalledWith(1, 'channel', 'A');
 
         // channel A → home (clear)
         setChannel(null);
         rerender();
-        expect(notifyViewing).toHaveBeenNthCalledWith(2, '', '');
-        expect(notifyViewing).toHaveBeenCalledTimes(2);
+        expect(syncDevice).toHaveBeenNthCalledWith(2, '', '');
+        expect(syncDevice).toHaveBeenCalledTimes(2);
     });
 
     it('채널 A→B 전환은 중간 clear 없이 B만 통지한다', () => {
         setChannel('A');
         const { rerender } = renderHook(() => useDeviceSync());
-        expect(notifyViewing).toHaveBeenNthCalledWith(1, 'channel', 'A');
+        expect(syncDevice).toHaveBeenNthCalledWith(1, 'channel', 'A');
 
         setChannel('B');
         rerender();
-        expect(notifyViewing).toHaveBeenNthCalledWith(2, 'channel', 'B');
-        expect(notifyViewing).toHaveBeenCalledTimes(2);
+        expect(syncDevice).toHaveBeenNthCalledWith(2, 'channel', 'B');
+        expect(syncDevice).toHaveBeenCalledTimes(2);
     });
 
     it('같은 채널로 재렌더되면 중복 통지하지 않는다', () => {
@@ -70,18 +70,18 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
         rerender();
         rerender();
 
-        expect(notifyViewing).toHaveBeenCalledTimes(1);
+        expect(syncDevice).toHaveBeenCalledTimes(1);
     });
 
     it('미인증 상태에서는 통지를 보류하고, 재인증되면 현재 채널을 통지한다', () => {
         useSocketStateMock.mockReturnValue({ isVerified: false });
         setChannel('A');
         const { rerender } = renderHook(() => useDeviceSync());
-        expect(notifyViewing).not.toHaveBeenCalled();
+        expect(syncDevice).not.toHaveBeenCalled();
 
         // re-auth while still in channel A → re-assert viewing
         useSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
-        expect(notifyViewing).toHaveBeenCalledWith('channel', 'A');
+        expect(syncDevice).toHaveBeenCalledWith('channel', 'A');
     });
 });
