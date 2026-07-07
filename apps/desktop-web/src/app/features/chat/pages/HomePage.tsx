@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { getSocketManager } from '@chatic/app-runtime';
+import { getSocketManager, useSocketState } from '@chatic/app-runtime';
 import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
@@ -87,6 +87,14 @@ export const HomePage = () => {
     // True while a cloud/place switch handshake is in flight — disables the rail tiles and
     // suppresses the idle auto-select so it can't thrash against a mid-switch selection.
     const isSwitching = isPlaceSwitching || isCloudSwitching;
+    // The token-exchange promise resolves BEFORE the socket rebinds and the new cloud's data
+    // loads. Rapidly switching again in that gap races the sockets (the outgoing one still feeds
+    // frames), which flickers the channel list. Keep the cloud rail locked until the socket has
+    // re-verified on the new cloud — i.e. its data has actually loaded — not just until the
+    // exchange resolves. isVerified is true whenever a cloud is settled, so this only bites during
+    // the switch/reconnect window.
+    const { isVerified } = useSocketState();
+    const railLocked = isSwitching || !isVerified;
 
     // Place Profiles: mirror the current place's overrides into the store (one
     // subscription). Delta pulls are owned by the runtime (useBackgroundSync +
@@ -375,7 +383,7 @@ export const HomePage = () => {
                         hasUnread={cloudHasUnread}
                         badgedClouds={badgedClouds}
                         onSelectCloud={cloudId => void switchCloud(cloudId)}
-                        isSwitching={isSwitching}
+                        isSwitching={railLocked}
                     />
                 }
                 rail2={
