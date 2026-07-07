@@ -7,6 +7,7 @@ import {
     ProfileSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
+import { isCloudSwitchInFlight } from '@chatic/web-core';
 import { getDataManager, getRepositories } from '../../data/runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -21,12 +22,20 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
  */
 const getContext = () => getDataManager().getContext();
 
+// During a cloud switch the cache cid is flipped to the target cloud optimistically while
+// the outgoing cloud's socket is still delivering frames — writing those under the new cid
+// poisons the target partition (the previous cloud's channels flash after the switch). Drop
+// socket-driven cache mutations while the switch is committing; the target cloud's own sync
+// repopulates it correctly once the switch lands.
+const dropDuringSwitch = (): boolean => isCloudSwitchInFlight();
+
 // DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
 // DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
 export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
         new ChannelSyncPlan<ChannelView>({
             onUpdate: (_target, view) => {
+                if (dropDuringSwitch()) return;
                 const { channel } = getRepositories();
                 void channel.cacheWrite(toDomainChannel(view, getContext()));
             },
@@ -41,6 +50,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // bare SyncableView (id/updatedAt only).
         new PlaceSyncPlan<MySiteView>({
             onUpdate: (_target, view) => {
+                if (dropDuringSwitch()) return;
                 const { place } = getRepositories();
                 void place.cacheWrite(toDomainPlace(view, getContext()));
             },
@@ -52,6 +62,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         }),
         new ProfileSyncPlan<ProfileView>({
             onUpdate: (_target, view) => {
+                if (dropDuringSwitch()) return;
                 const { profile } = getRepositories();
                 void profile.cacheWrite(toDomainProfile(view, getContext()));
             },
@@ -66,6 +77,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
         new ChatSyncPlan({
             onApply: (_target, applied) => {
+                if (dropDuringSwitch()) return;
                 if (!applied.length) return;
                 const { chat } = getRepositories();
                 const scope = getContext();
@@ -76,6 +88,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
         new JoinSyncPlan({
             onUpdate: (_target, view) => {
+                if (dropDuringSwitch()) return;
                 const { join } = getRepositories();
                 void join.cacheWrite(toDomainJoin(view, getContext()));
             },

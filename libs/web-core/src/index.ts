@@ -12,4 +12,5 @@ export * from './hooks';
 export * from './api';
 export * from './session/contexts';
 export * from './session/types';
+export { isCloudSwitchInFlight } from './session/services';
 export { LANGUAGE_KEY } from './session/core';

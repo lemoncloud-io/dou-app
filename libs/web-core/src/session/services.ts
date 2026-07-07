@@ -315,6 +315,14 @@ export const registerSessionLogoutCallback = (callback: () => void): (() => void
     return () => logoutCallbacks.delete(callback);
 };
 
+// True while a cloud switch is committing (optimistic cid flipped, tokens not yet exchanged).
+// The socket sync plans read this to drop cache writes during that window so the outgoing
+// cloud's in-flight frames aren't written under the incoming cloud's cid. See switchCloudSession.
+let cloudSwitchInFlight = false;
+
+/** Whether a cloud switch is mid-commit — socket-driven cache writes must be dropped meanwhile. */
+export const isCloudSwitchInFlight = (): boolean => cloudSwitchInFlight;
+
 /**
  * Switches the active cloud session by exchanging a delegation token for a cloud token.
  *
@@ -328,10 +336,14 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
     const previousSiteId = cloudCore.getSelectedSiteId();
     const isCloudChange = previousCloudId !== cloudId;
 
-    // Optimistic cid pre-apply: flip the selected cloud (and drop the previous site) before
-    // the token exchange. activeServer keeps the old socket until the new tokens commit, but
-    // cid-derived observers swap to the target cloud's cache right away.
+    // Optimistic cid pre-apply flips the cache scope to the target cloud before the token
+    // exchange, but the OLD cloud's socket keeps delivering frames until the new tokens
+    // commit — those frames would be written under the target cid and poison its partition
+    // (the previous cloud's channels flash after a switch). This flag marks the window so
+    // the socket sync plans drop cache writes until the switch commits; the target cloud's
+    // own sync repopulates it correctly on the far side.
     if (isCloudChange) {
+        cloudSwitchInFlight = true;
         cloudCore.saveSelectedCloudId(cloudId);
         cloudCore.clearSelectedSite();
     }
@@ -369,6 +381,8 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
         }
         logger.error('SESSION', '[service] switchCloudSession failed', { error, data: { cloudId } });
         throw error;
+    } finally {
+        cloudSwitchInFlight = false;
     }
 };
 
