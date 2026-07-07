@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { FOREGROUND_RESYNC_EVENT_NAME } from '../types';
-
 interface UseReadMarkerParams {
     channelId: string;
     // channel.chatNo — the room's latest chat number, available before messages load.
@@ -19,7 +17,8 @@ interface UseReadMarkerParams {
  * as early as possible:
  *  1. On entry, send `channel.chatNo` immediately — no need to wait for messages to load.
  *  2. After messages load, correct upward to the latest committed message, and re-mark on
- *     foreground return (visibilitychange) / post-sync resync events.
+ *     foreground return (visibilitychange). Messages surfaced by the foreground refetch
+ *     (useForegroundChatRefresh) advance `lastChatNo`, which re-runs this effect.
  *
  * `lastReadChatNoRef` dedups redundant reads (never send a chatNo we've already marked) and is
  * reset to null on failure so the next opportunity retries. `markSent` is exposed for the send
@@ -68,12 +67,6 @@ export const useReadMarker = ({
             });
         };
 
-        const handleForegroundResync = () => {
-            handleAutoRead();
-            // A sync after foreground return may surface newer messages; retry shortly after.
-            setTimeout(handleAutoRead, 1500);
-        };
-
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 // Reset the guard on foreground so a request lost while hidden is re-sent.
@@ -84,11 +77,9 @@ export const useReadMarker = ({
 
         handleAutoRead();
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener(FOREGROUND_RESYNC_EVENT_NAME, handleForegroundResync);
         };
     }, [lastChatNo, channelId, readMessage, isVerified]);
 

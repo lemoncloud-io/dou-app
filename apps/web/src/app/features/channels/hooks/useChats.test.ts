@@ -11,6 +11,8 @@ jest.mock('@chatic/app-runtime', () => ({
     useChatSync: jest.fn(),
 }));
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
+// Covered by its own test file; isolate useChats from the foreground-refresh side effects.
+jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.fn() }));
 
 const chatObserveList = jest.fn();
 const chatRefreshList = jest.fn();

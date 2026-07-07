@@ -108,13 +108,18 @@ const refreshActiveLists = useCallback(async () => {
 
 둘 다 **`useSocketState().isVerified`의 false→true 상승 엣지** 하나로 포착한다. 전환은 재인증을 거치므로 `isVerified`가 하강 후 재상승한다 = "전환 확정 완료". 상승 엣지에서만 부르므로, 전환 낙관 구간(아직 옛 세션이 `verified=true`)에는 fetch하지 않아 이전 데이터가 새 `sid`/`cid`로 오염되지 않는다.
 
+상승 엣지에서는 `refreshActiveLists`(델타)와 함께 **활성 사이트 채널 풀 스냅샷**(`channel.refreshList` = `channel.mine`)도 1회 실행한다. 델타 sync는 변경분만 나르므로, 진입/재연결/전환 시점에 스냅샷으로 보이는 목록을 재고정한다. 매 60초 틱에는 풀 fetch 비용을 내지 않는다 — 전환도 재인증(상승 엣지)을 거치므로 이 경로 하나로 충분하다.
+
 ```ts
 const prevVerifiedRef = useRef(false);
 useEffect(() => {
     const becameVerified = !prevVerifiedRef.current && isVerified;
     prevVerifiedRef.current = isVerified;
-    if (becameVerified) refreshActiveLists();
-}, [isVerified, refreshActiveLists]);
+    if (becameVerified) {
+        refreshActiveLists();
+        refreshChannelSnapshot(); // channel.mine { sid: activeSiteId, detail: true }
+    }
+}, [isVerified, refreshActiveLists, refreshChannelSnapshot]);
 ```
 
 ### (c) 주기 폴링 — 두 계층
@@ -123,6 +128,14 @@ useEffect(() => {
 2. **per-item 실시간 폴링** — 보이는 항목별 `sync.registerChannel(id)`/`registerPlace(id)` 등록(기본 5s, idle backoff 60s). `lastChat$`·메타 등 항목 내부 변화를 실시간 갱신.
 
 > **mis-tag 주의**: 전환 직후 observe 콜백은 비동기라 잠시 이전 사이트 채널을 들고 있을 수 있다. 반드시 `channel.sid === activeSiteId`로 필터하고 **활성 사이트 채널만 sync 등록**한다 — 아니면 sync push가 이전 채널을 새 `sid`로 mis-tag해 목록이 오염된다.
+
+### (d) 앱 포그라운드 복귀 — `useAppForeground`
+
+WebView가 백그라운드에서 suspend되면 폴링 타이머가 얼고 소켓 push를 놓칠 수 있다. 소켓이 살아남아 재연결(=상승 엣지)이 없으면 그 갭을 메울 경로가 없으므로, **포그라운드 복귀를 명시적 리프레시 트리거로 쓴다.**
+
+- **감지**: `apps/web/src/app/bridge/useAppForeground` — 네이티브 `OnBackgroundStatusChanged(isForeground=true)` + 웹 폴백 `visibilitychange→visible`을 합치고 ~1초 dedup한 단일 신호. (GlobalBridgeListener의 resume 오버레이 dismiss도 같은 훅을 쓴다.)
+- **목록**: `useBackgroundSync` 트리거 3 — verified·비전환 중이면 `refreshActiveLists()` + 채널 스냅샷 실행.
+- **채팅 피드**: `useForegroundChatRefresh(channelId)` — chat 플랜은 폴링이 없어(라이브 push + 재연결 catch-up뿐) 놓친 push는 자동 복구되지 않는다. 이 훅은 `usePrimeChat`(cold일 때만 fetch)의 **의도적 보완**으로, **warm 캐시일 때만** 베이스라인 재정렬 후 최신 페이지를 refetch한다 — 진입 시(푸시 탭: 방 마운트 전에 포그라운드 신호가 지나가는 케이스) + 복귀 시. 두 정책은 거울상이므로 한쪽을 바꾸면 반드시 같이 바꾼다.
 
 ---
 
@@ -147,6 +160,14 @@ await repos.syncMeta.setSyncedAt(pKind, pAt);
 - cursor kind 키는 스코프를 반영: channel은 `${cid}`, profile은 `${cid}:${sid}`. 전환 시 키가 새 cid/sid로 바뀌어 교차 오염을 막는다.
 - `syncChannels`는 클라우드 전역 델타(캐시는 cloud-wide), sid 스코프 UI는 `observeList({sid})`가 필터한다.
 - place는 델타 게이트웨이가 없어 `place.refreshList`(full)을 유지한다.
+
+### cursor TTL — 1일 지나면 전량 재동기화
+
+cursor는 **TTL 1일**을 가진다(`meta` 캐시 TTL). sync 성공마다 `setSyncedAt`으로 재저장되어 TTL이 갱신되므로, 실사용 중에는 만료되지 않는다. **앱을 1일 이상 켜지 않아 cursor가 만료되면 `getSyncedAt`이 0을 반환**하고, 다음 sync가 `since=0` 전량 재동기화로 동작한다 — 오래 방치된 cursor로 서버 델타 히스토리 범위를 넘겨 removal을 놓치는 것을 막는 안전장치다.
+
+만료 판정은 저장된 `expiresAt`이 아니라 **읽기 시점에** `__cacheMeta.lastSyncedAt + TTL`로 계산한다. 과거 "never expire" 정책으로 저장된 행에도 현재 TTL이 소급 적용된다.
+
+근거: `libs/data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts`, `libs/data/src/data/local/storages/utils.ts`
 
 근거: `libs/data/src/data/repositories-v2/{SyncMetaRepositoryV2,ChannelRepositoryV2,ProfileRepositoryV2}.ts`
 

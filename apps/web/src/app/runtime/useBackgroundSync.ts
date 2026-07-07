@@ -9,9 +9,15 @@ import {
     useSessionSelection,
 } from '@chatic/web-core';
 
+import { useAppForeground } from '../bridge';
+
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
 // only re-discover added/removed entries here, so a coarse cadence is intentional.
 const BACKGROUND_SYNC_POLL_MS = 60_000;
+
+// channel.mine snapshot size, mirroring desktop-web useChannels. `detail: true` is required
+// so the snapshot carries lastChat$ and the mapper can derive lastActivityAt.
+const CHANNEL_SNAPSHOT_LIMIT = 100;
 
 /**
  * Global background sync — keeps place/channel/profile lists fresh regardless of route.
@@ -84,13 +90,29 @@ export const useBackgroundSync = (): void => {
         }
     }, [repos.place, repos.user, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
 
+    // Full channel snapshot (channel.mine) for the active site. Delta sync above only carries
+    // changed rows, so the snapshot re-anchors the visible list. Runs on the rising edge only —
+    // site/cloud switches re-authenticate the socket, so every context change hits this path
+    // without paying a full fetch on each 60s tick.
+    const refreshChannelSnapshot = useCallback(async () => {
+        if (!activeSiteId) return;
+        try {
+            await repos.channel.refreshList({ sid: activeSiteId, detail: true, limit: CHANNEL_SNAPSHOT_LIMIT });
+        } catch {
+            // best-effort: the delta sync keeps the list converging until the next rising edge
+        }
+    }, [repos.channel, activeSiteId]);
+
     // Trigger 1 — rising edge of isVerified (app entry / reconnect / switch completion).
     const prevVerifiedRef = useRef(false);
     useEffect(() => {
         const becameVerified = !prevVerifiedRef.current && isVerified;
         prevVerifiedRef.current = isVerified;
-        if (becameVerified) void refreshActiveLists();
-    }, [isVerified, refreshActiveLists]);
+        if (becameVerified) {
+            void refreshActiveLists();
+            void refreshChannelSnapshot();
+        }
+    }, [isVerified, refreshActiveLists, refreshChannelSnapshot]);
 
     // Trigger 2 — periodic poll while verified, skipped during an in-flight switch (the optimistic
     // window can leave the old session briefly verified=true; the rising edge handles completion).
@@ -99,4 +121,14 @@ export const useBackgroundSync = (): void => {
         const timer = setInterval(() => void refreshActiveLists(), BACKGROUND_SYNC_POLL_MS);
         return () => clearInterval(timer);
     }, [isVerified, isSwitching, refreshActiveLists]);
+
+    // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended
+    // and pushes may have been missed; if the socket survived (no rising edge), nothing else
+    // re-syncs, so refresh immediately. Same gates as the timer: skip mid-switch and unverified
+    // (a reconnect after suspension re-verifies and lands on Trigger 1 instead).
+    useAppForeground(() => {
+        if (!isVerified || isSwitching) return;
+        void refreshActiveLists();
+        void refreshChannelSnapshot();
+    });
 };

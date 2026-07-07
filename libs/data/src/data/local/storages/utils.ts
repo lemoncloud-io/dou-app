@@ -14,7 +14,9 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     profile: 30 * MINUTE_MS,
     site: 30 * MINUTE_MS,
     user: 30 * MINUTE_MS,
-    meta: 100 * 12 * 30 * DAY_MS, // sync cursors are permanent; never expire
+    // Sync cursors expire after a day: a watermark idle beyond the server's delta-history
+    // window would silently miss removals, so an expired cursor forces a full re-sync (since=0).
+    meta: 1 * DAY_MS,
 };
 
 /** 어댑터 공통 스코프 표현입니다. */

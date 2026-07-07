@@ -4,12 +4,6 @@ import type { DomainChannel, DomainChat, DomainJoin, DomainUser } from '@chatic/
 export type { DomainChannel, DomainChat, DomainJoin, DomainUser };
 
 /**
- * Window event fired when the native shell returns to foreground and the room
- * must re-run its read/sync side effects. Dormant until a dispatcher emits it.
- */
-export const FOREGROUND_RESYNC_EVENT_NAME = 'chatic:foreground-resync';
-
-/**
  * A chat message enriched for rendering: owner identity, a parsed `Date`, and
  * derived ownership/system flags layered on top of the cached domain model.
  */
