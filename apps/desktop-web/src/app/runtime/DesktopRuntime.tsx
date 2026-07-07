@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
-import { useSessionAuth } from '@chatic/web-core';
+import { useGlobalSession, useSessionAuth } from '@chatic/web-core';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 
 import { AppRouter } from '../routes';
@@ -85,7 +85,13 @@ const ShellUnreadSync = () => {
     // push badges (no count). Fold each into the OS dock badge as +1 so the dock
     // reflects cross-cloud activity instead of reading 0 while other clouds wait —
     // an approximation (cloud count, not message count), same as the rail dots.
-    const crossCloudCount = useCloudPushBadgeStore(s => Object.keys(s.badged).length);
+    // Exclude the active cloud: its unread is already in `total`, so a stray self-mark
+    // (a push attributed to it during a relay-fallback window) must not double-count as
+    // a permanent +1 — the reason the dock badge could stick at 1 with everything read.
+    const session = useGlobalSession();
+    const activeCloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
+    const badgedClouds = useCloudPushBadgeStore(s => s.badged);
+    const crossCloudCount = Object.keys(badgedClouds).filter(id => id !== activeCloudId).length;
     const badgeTotal = total + crossCloudCount;
     useDesktopBadge(badgeTotal);
     useEffect(() => {
