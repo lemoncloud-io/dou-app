@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { getGlobalSessionContext, useGlobalSession } from '@chatic/web-core';
+import { useSocketState } from '@chatic/app-runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
@@ -14,15 +15,23 @@ import { resolvePushCloudId } from '../utils';
  * cloud becomes the verified active one (covers switch, boot auto-select, and
  * invite entry alike).
  *
- * Source cloud: `data.cid` when the backend stamps it; the deployed backends
- * send `""`, so fall back to reverse-looking the push's channel up in the
- * per-cloud cache (resolvePushCloudId — unique match only). Deeplink-only
- * events (toast clicks) carry neither cid nor channelId and resolve to nothing
- * — no badge is better than a wrong badge. No-op in a plain browser.
+ * Source cloud — which id space? The rail keys tiles (and the active highlight,
+ * and `clear` below) by the RELAY cloud id (`session.activeServer.cloudId`). The
+ * reliable resolver is `resolvePushCloudId`: the engine partitions the channel
+ * cache by that same relay cloud id (`useRuntimeBinding` cid = selectedCloudId),
+ * so a channel-cache reverse-lookup returns the rail's id directly. It also
+ * handles invited clouds via the source-cloud uid when that uid is UNIQUE to one
+ * cloud. (A push's `data.uid` is the account id — identical across your own
+ * catalog clouds — so it can NOT be reverse-mapped through a per-cloud uid store;
+ * `resolvePushCloudId` only trusts uid when it resolves to exactly one cloud.)
+ * `data.cid` short-circuits when a backend finally stamps it. Deeplink-only events
+ * carry no channelId and resolve to nothing. No-op in a plain browser.
  */
 export const useCrossCloudPushBadge = (): void => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
+    const session = useGlobalSession();
+    const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
+    const { isVerified } = useSocketState();
     const mark = useCloudPushBadgeStore(s => s.mark);
     const clear = useCloudPushBadgeStore(s => s.clear);
 
@@ -33,18 +42,26 @@ export const useCrossCloudPushBadge = (): void => {
             if (!data) return;
             const apply = (cid: string | null | undefined) => {
                 if (!cid) return;
-                // The active cloud's unread is owned by the live socket pipeline.
-                if (cid === useWebSocketV2Store.getState().cloudId) return;
+                // The active cloud's unread is owned by the live socket pipeline. Read the
+                // current active cloud imperatively (the effect closure is registered once).
+                const activeServer = getGlobalSessionContext().activeServer;
+                const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
+                if (cid === activeCloudId) return;
                 mark(cid);
             };
+
+            // A backend that stamps `data.cid` — already a usable cloud id.
             if (data.cid) {
                 apply(data.cid);
                 return;
             }
+            // Resolve the source cloud from the channel cache (returns the relay cloud id
+            // the rail keys by), trusting `data.uid` only when it maps to a single cloud.
             void resolvePushCloudId({
                 channelId: data.channelId,
                 sid: data.sid,
                 channelName: data.channelName,
+                uid: data.uid,
             }).then(apply);
         });
     }, [mark]);

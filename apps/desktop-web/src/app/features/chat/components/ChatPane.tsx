@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useWebCoreStore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useSessionIdentity } from '@chatic/web-core';
+import { useSocketState } from '@chatic/app-runtime';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -12,10 +12,12 @@ import {
     displayName,
     isDmChannel,
     isSelfChannel,
+    lastChatNoOf,
     useAuthorNames,
     useChatMutations,
     useChats,
     useMessageJumpStore,
+    useOpenAtBottomStore,
     useReadCursorStore,
     useReadReceipts,
 } from '../../../shared';
@@ -39,12 +41,20 @@ interface ChatPaneProps {
 export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const myUid = useSessionIdentity().userId;
     // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
     // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
-    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId);
-    const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
+    // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
+    const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(
+        channelId,
+        channel ? lastChatNoOf(channel) : undefined
+    );
+    const { sendMessage, retryMessage, discardMessage } = useChatMutations();
+    // Stable identities: MessageRow is memo'd, and an inline closure here would
+    // re-render every visible row on each ChatPane render.
+    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
+    const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const openThread = useThreadStore(s => s.open);
     // Saved-item / search jump: forward a target to MessageList only when it
@@ -63,7 +73,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // footer is correct. Replies still arrive in the cache via chat:create.
     const topLevel = useMemo(() => messages.filter(m => !m.parentId), [messages]);
     const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
+    const { isVerified } = useSocketState();
     const [sendTick, setSendTick] = useState(0);
 
     // Snapshot the read position when the channel opens, before HomePage's
@@ -96,6 +106,15 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
 
+    // A notification click asks this channel to open at its latest message (the pinged
+    // one) rather than the unread divider. Read the one-shot flag for THIS channel and
+    // clear it once consumed so a later plain open keeps the divider behaviour.
+    const openAtBottom = useOpenAtBottomStore(s => s.channelId === channelId && !!channelId);
+    const clearOpenAtBottom = useOpenAtBottomStore(s => s.clear);
+    useEffect(() => {
+        if (openAtBottom) clearOpenAtBottom();
+    }, [openAtBottom, clearOpenAtBottom]);
+
     if (!channelId || !channel) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
@@ -115,7 +134,9 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
         );
     };
 
-    const memberCount = channel.memberNo ?? 0;
+    // memberNo is deprecated server-side (back-filled from memberIds for compat) —
+    // count the ids directly and keep memberNo as the last resort.
+    const memberCount = channel.memberIds?.length ?? channel.memberNo ?? 0;
     const desc = channel.desc?.trim();
     // DM headers carry the other party's name (roster is already loaded here);
     // the self channel reads as "You".
@@ -169,18 +190,18 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 membersLoading={membersLoading}
                 baselineReadNo={baselineReadNo}
                 onRetry={retryMessage}
-                onDiscard={message => void discardMessage(message)}
-                onLoadOlder={() => void loadOlder()}
+                onDiscard={handleDiscard}
+                onLoadOlder={handleLoadOlder}
                 hasMore={hasMore}
                 isLoadingOlder={isLoadingOlder}
                 scrollSignal={sendTick}
+                openAtBottom={openAtBottom}
                 threadMeta={threadIndex}
                 onOpenThread={openThread}
                 jumpTarget={jumpTarget}
                 onJumpConsumed={clearJump}
             />
             <Composer
-                disabled={isSending}
                 onSend={handleSend}
                 channelId={channelId}
                 placeholder={t('chat.composer.placeholderChannel', { name: headerName })}

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { extractErrorMessage } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-import { useDesktopChannelMutations } from '../../../shared';
+import { extractErrorMessage, useDesktopChannelMutations } from '../../../shared';
 
 interface RenameChannelDialogProps {
     open: boolean;

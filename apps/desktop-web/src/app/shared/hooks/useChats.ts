@@ -2,26 +2,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { useRepositories } from '@chatic/app-runtime';
+import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 
 const PAGE_SIZE = 50;
+// Each older page widens the observe window by this much. `observeList` returns
+// only the newest `limit` rows (chat_no-descending cursor paging), so revealing
+// older history means growing the window to re-include the freshly cached page.
+const LOAD_MORE_SIZE = 50;
 
 /**
- * Session-scoped, in-memory memo of each channel's loaded state — the live tail
- * page, the scrolled-up `older` history, and the pagination cursor. NOT a
- * parallel store: it only mirrors what the engine already streamed/fetched, so
- * re-opening a channel restores exactly what was on screen (including history
- * you scrolled up to load) instead of reloading from scratch. Never persisted;
- * the engine cache stays the source of truth.
+ * Session-scoped, in-memory memo of each channel's expanded observe window and
+ * whether older history is exhausted. NOT a parallel store: it only records how
+ * far the user paged so re-opening a channel restores the same scroll depth
+ * (mirrors apps/web's growing-window paging) instead of resetting to one page.
+ * The engine cache stays the source of truth; this is never persisted.
  */
-interface ChannelState {
-    live: DomainChat[] | null;
-    older: DomainChat[];
-    feedCursorNo?: number;
+interface ChannelWindow {
+    pageLimit: number;
+    hasMore: boolean;
 }
-const channelMemo = new Map<string, ChannelState>();
+const channelMemo = new Map<string, ChannelWindow>();
 
-const sortByChatNo = (messages: DomainChat[]) =>
+const sortByChatNo = (messages: DomainChat[]): DomainChat[] =>
     [...messages].sort((a, b) => {
         const aNo = a.chatNo ?? Number.MAX_SAFE_INTEGER;
         const bNo = b.chatNo ?? Number.MAX_SAFE_INTEGER;
@@ -29,106 +31,129 @@ const sortByChatNo = (messages: DomainChat[]) =>
         return (a.createdAt ?? 0) - (b.createdAt ?? 0);
     });
 
-const keyOf = (m: DomainChat): string => m.id ?? m.tempId ?? String(m.chatNo);
-
-/** Merge message lists, de-duplicating by id/tempId/chatNo, sorted oldest→newest. */
-const mergeUnique = (...lists: DomainChat[][]): DomainChat[] => {
-    const map = new Map<string, DomainChat>();
-    for (const list of lists) for (const m of list) map.set(keyOf(m), m);
-    return sortByChatNo([...map.values()]);
-};
-
 /**
- * Message stream for a channel. The engine's local subscription streams the
- * latest page live (GlobalChatSync drives background sync). `subscribeList` is
- * capped at the most recent page, so older history fetched on scroll-up is held
- * separately and merged in — live tail + accumulated history, de-duplicated.
+ * Message stream for a channel (mirrors apps/web useChats). Chat fetching is owned
+ * by the sync layer — `useChatSync` registers a 'chat' target and the SyncManager
+ * seeds the first page (when the cache is cold) — plus the freshness bridge below;
+ * `loadOlder` fetches the next older page by cursor and widens the window so the
+ * cache re-emits with the older page included. Rows are sorted oldest→newest.
+ *
+ * `latestChatNo` is the channel record's newest message number (lastChatNoOf).
+ * It is the feed's only RELIABLE freshness signal: the engine's chat sync cannot
+ * deliver mid-session messages — the live sync frame arrives as `channel.sync`
+ * (routed to the channel target only), the chat plan's periodic `run()` is a
+ * no-op, and its `onConnected` catch-up never fires for a target registered
+ * while already connected. The channel record, by contrast, is kept live by the
+ * channel plan's poll — so when it runs ahead of the cache, fetch the newest page.
  */
-export const useChats = (channelId: string | null) => {
-    const { chat: chatRepository } = useRepositories();
-    const initial = channelId ? channelMemo.get(channelId) : undefined;
-    const [live, setLive] = useState<DomainChat[] | null>(() => (channelId ? (initial?.live ?? null) : []));
-    const [older, setOlder] = useState<DomainChat[]>(() => initial?.older ?? []);
-    // Server's authoritative older-cursor (mirrors apps/web useChats): the next
-    // page is fetched with `cursorNo`, and the engine returns `cursorNo <= 1` once
-    // no older history remains. Trust it instead of guessing from page length.
-    const [feedCursorNo, setFeedCursorNo] = useState<number | undefined>(initial?.feedCursorNo);
-    const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-    // Tracks the channel the hook is currently bound to, so an in-flight
-    // loadOlder() that resolves after a channel switch can bail instead of
-    // merging the previous channel's history into the new one.
-    const channelIdRef = useRef(channelId);
+export const useChats = (channelId: string | null, latestChatNo?: number) => {
+    const { chat: chatRepository } = useRuntimeRepositories();
 
-    // Adjust state synchronously when the channel changes (React's "derive state
-    // from props" pattern) so the new channel paints in the same render. Restore
-    // the full saved state — live tail + scrolled-up history + cursor — so a
-    // revisited channel shows exactly what was there, with no loading skeleton or
-    // re-scroll; a never-opened one resets to a fresh load.
+    useChatSync(channelId ?? undefined);
+
+    const initial = channelId ? channelMemo.get(channelId) : undefined;
+    const [chats, setChats] = useState<DomainChat[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [pageLimit, setPageLimit] = useState(initial?.pageLimit ?? PAGE_SIZE);
+    const [hasMore, setHasMore] = useState(initial?.hasMore ?? true);
+    const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+
+    // Tracks the channel the hook is bound to, so an in-flight loadOlder() that
+    // resolves after a channel switch can bail instead of paging the wrong channel.
+    const channelIdRef = useRef(channelId);
+    // Latest chats for loadOlder's cursor — keeps the callback identity stable (a
+    // `chats` dependency would rebuild it on every live append, re-attaching listeners).
+    const chatsRef = useRef<DomainChat[]>(chats);
+    chatsRef.current = chats;
+
+    // Adjust state synchronously on channel switch (React's "derive state from
+    // props" pattern) so the new channel paints in the same render. Restore the
+    // saved window so a revisited channel shows its prior scroll depth.
     const [renderedChannel, setRenderedChannel] = useState(channelId);
     if (renderedChannel !== channelId) {
         setRenderedChannel(channelId);
         const restored = channelId ? channelMemo.get(channelId) : undefined;
-        setLive(channelId ? (restored?.live ?? null) : []);
-        setOlder(restored?.older ?? []);
-        setFeedCursorNo(restored?.feedCursorNo);
+        setChats([]);
+        setIsLoading(true);
+        setPageLimit(restored?.pageLimit ?? PAGE_SIZE);
+        setHasMore(restored?.hasMore ?? true);
         setIsLoadingOlder(false);
     }
 
-    // Persist the channel's loaded state so re-opening restores it instead of
-    // reloading. Keeps the scrolled-up history and pagination cursor across switches.
-    // Skip the null (not-yet-loaded) state so it never overwrites a saved entry.
-    useEffect(() => {
-        if (channelId && live !== null) channelMemo.set(channelId, { live, older, feedCursorNo });
-    }, [channelId, live, older, feedCursorNo]);
-
     useEffect(() => {
         channelIdRef.current = channelId;
-        if (!channelId) return;
+    }, [channelId]);
 
-        const unsubscribe = chatRepository.subscribeList(channelId, result => setLive(result?.list ?? []));
+    // Persist the channel's window so re-opening restores its scroll depth.
+    useEffect(() => {
+        if (channelId) channelMemo.set(channelId, { pageLimit, hasMore });
+    }, [channelId, pageLimit, hasMore]);
 
-        // Only hit the network the first time this channel is opened this session.
-        // On revisit the cached pages are restored from memo and the socket keeps
-        // the live tail fresh, so skip the redundant reload.
-        if (!channelMemo.get(channelId)?.live) {
-            void chatRepository
-                .fetchChat({ channelId, limit: PAGE_SIZE }, { cachePolicy: 'cache-first' })
-                .then(result => {
-                    if (channelId === channelIdRef.current) setFeedCursorNo(result.meta?.cursorNo);
-                })
-                .catch(() => undefined);
+    // Widening pageLimit re-subscribes and re-reads cached older pages into view.
+    useEffect(() => {
+        if (!channelId) {
+            setChats([]);
+            setIsLoading(false);
+            return;
         }
+        return chatRepository.observeList({ channelId, limit: pageLimit }, result => {
+            setChats(result?.list ?? []);
+            setIsLoading(false);
+        });
+    }, [chatRepository, channelId, pageLimit]);
 
-        return () => unsubscribe();
-    }, [channelId, chatRepository]);
+    // Freshness bridge (see the hook doc): when the channel record's newest chatNo
+    // runs ahead of what the cache holds, pull the newest feed page. Guarded per
+    // (channel, chatNo) so an already-fetched target (e.g. a deleted or
+    // thread-only message the feed can't surface) isn't re-fetched every render.
+    const freshnessRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
+    useEffect(() => {
+        if (!channelId || !latestChatNo) return;
+        let cachedNewest = 0;
+        for (const chat of chats) {
+            if (chat.chatNo != null && chat.chatNo > cachedNewest) cachedNewest = chat.chatNo;
+        }
+        if (latestChatNo <= cachedNewest) return;
+        if (freshnessRef.current.id === channelId && freshnessRef.current.no >= latestChatNo) return;
+        freshnessRef.current = { id: channelId, no: latestChatNo };
+        void chatRepository.refreshList({ channelId, limit: PAGE_SIZE }).catch(() => undefined);
+    }, [chatRepository, channelId, latestChatNo, chats]);
 
-    const messages = useMemo(() => mergeUnique(live ?? [], older), [live, older]);
-
-    const hasMore = feedCursorNo !== undefined && feedCursorNo > 1;
+    const messages = useMemo(() => sortByChatNo(chats), [chats]);
 
     const loadOlder = useCallback(async () => {
-        if (!channelId || isLoadingOlder || feedCursorNo === undefined || feedCursorNo <= 1) return;
+        if (!channelId || isLoadingOlder || !hasMore) return;
+        // Read the oldest cached row from the ref so the cursor reflects the live
+        // list without making `chats` a dependency. observeList is chat_no-descending,
+        // so the smallest chatNo is the page boundary to fetch before.
+        let oldestNo = Infinity;
+        for (const chat of chatsRef.current) {
+            if (chat.chatNo != null && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
+        }
+        if (!Number.isFinite(oldestNo)) return;
+
         const reqChannel = channelId;
         setIsLoadingOlder(true);
         try {
-            const result = await chatRepository.fetchChat(
-                { channelId: reqChannel, cursorNo: feedCursorNo, limit: PAGE_SIZE },
-                { cachePolicy: 'network-only' }
-            );
+            const result = await chatRepository.refreshList({
+                channelId: reqChannel,
+                cursorNo: oldestNo,
+                limit: LOAD_MORE_SIZE,
+            });
             // Channel switched while the request was in flight — drop the result.
             if (reqChannel !== channelIdRef.current) return;
-            setOlder(prev => mergeUnique(prev, result.list ?? []));
-            setFeedCursorNo(result.meta?.cursorNo);
+            if (result.fetchedCount === 0) setHasMore(false);
+            else setPageLimit(prev => prev + LOAD_MORE_SIZE);
         } catch {
-            // Leave feedCursorNo set so a later scroll retries.
+            // Leave hasMore set so a later scroll retries.
         } finally {
             if (reqChannel === channelIdRef.current) setIsLoadingOlder(false);
         }
-    }, [channelId, chatRepository, feedCursorNo, isLoadingOlder]);
+    }, [chatRepository, channelId, isLoadingOlder, hasMore]);
 
     return {
         messages,
-        isLoading: live === null,
+        isLoading,
         loadOlder,
         hasMore,
         isLoadingOlder,

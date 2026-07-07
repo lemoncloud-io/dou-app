@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useGlobalLoader } from '@chatic/shared';
-import { useWebCoreStore } from '@chatic/web-core';
+import { getSocketManager } from '@chatic/app-runtime';
+import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
 import {
@@ -22,15 +22,15 @@ import {
     useClouds,
     useCloudSwitchFlow,
     useMessageJumpStore,
+    useOpenAtBottomStore,
     usePendingOpenStore,
     usePlaces,
     useProfilePanelStore,
     useSavedPanelStore,
+    useMentionsPanelStore,
     useReadCursorStore,
     useSelectPlace,
     useSelectedChannelStore,
-    useSelectedPlaceStore,
-    useSiteProfileSync,
     useSiteProfiles,
     useUnreadStore,
 } from '../../../shared';
@@ -43,14 +43,26 @@ import {
     PlaceRail,
     ShortcutsDialog,
     SidebarHeader,
-    SwitchingOverlay,
     SavedPanel,
+    MentionsPanel,
     ThreadPanel,
 } from '../components';
 import { useThreadStore } from '../stores';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
+
+/** Upper bound for awaiting the socket handshake before a push-driven cloud/place switch. */
+const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+// A cloud/place switch re-issues tokens against the active server, so firing it over a
+// half-open socket (cold start / just-refocused window) races the connection, fails, and
+// rolls the selection back — stranding the notification target unopened. Wait for the base
+// handshake first; on timeout fire anyway (best-effort, no worse than an immediate switch).
+const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
+    await getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+    doSwitch();
+};
 
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
@@ -62,18 +74,24 @@ export const HomePage = () => {
     // received cross-cloud push marks its source cloud's tile instead.
     const badgedClouds = useCloudPushBadgeStore(s => s.badged);
 
-    const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
-    const selectPlace = useSelectedPlaceStore(s => s.selectPlace);
-    const { switchPlace } = useSelectPlace();
-    const { switchCloud } = useCloudSwitchFlow({ onPlaceSelected: selectPlace });
-    // True while a cloud/place switch handshake is in flight — disables the rail
-    // cloud buttons so a second switch can't be fired mid-pipeline.
-    const { isLoading: isSwitching } = useGlobalLoader();
+    // The active place IS the session's selected site. The Default Cloud (relay / Guest
+    // Session) has no joinable places, so pin the 'default' sentinel there so the Self
+    // Channel loads (the sidebar hides the switcher in that mode). activeCloudId (from
+    // useClouds) already resolves socket → persisted → fallback.
+    const isDefaultMode = (activeCloudId ?? 'default') === 'default';
+    const { selectedSiteId } = useSessionSelection();
+    const selectedPlaceId = isDefaultMode ? 'default' : selectedSiteId;
+
+    const { switchPlace, isSwitching: isPlaceSwitching } = useSelectPlace();
+    const { switchCloud, isSwitching: isCloudSwitching } = useCloudSwitchFlow();
+    // True while a cloud/place switch handshake is in flight — disables the rail tiles and
+    // suppresses the idle auto-select so it can't thrash against a mid-switch selection.
+    const isSwitching = isPlaceSwitching || isCloudSwitching;
 
     // Place Profiles: mirror the current place's overrides into the store (one
-    // subscription) and pull deltas on place-switch / verified / reconnect.
+    // subscription). Delta pulls are owned by the runtime (useBackgroundSync +
+    // useRealtimeProfileSync), so no per-page sync hook is needed here.
     useSiteProfiles();
-    useSiteProfileSync();
 
     const { channels, isLoading } = useChannels(selectedPlaceId ?? undefined);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
@@ -84,42 +102,63 @@ export const HomePage = () => {
     const settingsChannelId = useChannelSettingsStore(s => s.openChannelId);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThreadRootId = useThreadStore(s => s.openRootId);
+    const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
     const closeProfile = useProfilePanelStore(s => s.close);
     const savedOpen = useSavedPanelStore(s => s.isOpen);
     const closeSaved = useSavedPanelStore(s => s.close);
     const openSaved = useSavedPanelStore(s => s.open);
+    const activityOpen = useMentionsPanelStore(s => s.isOpen);
+    const closeActivity = useMentionsPanelStore(s => s.close);
+    const openActivity = useMentionsPanelStore(s => s.open);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
     const debugPanelOpen = useDebugModeStore(s => s.overlayOpen);
     const showDebugPanel = (import.meta.env.DEV || debugEnabled) && debugPanelOpen;
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
-    // Default Cloud (relay / Guest Session): no joinable places — force the
-    // 'default' place so the Self Channel loads; the sidebar hides the switcher.
-    // activeCloudId (from useClouds) already resolves socket → persisted → fallback.
-    const isDefaultMode = (activeCloudId ?? 'default') === 'default';
+    const myUid = useSessionIdentity().userId;
 
     const [query, setQuery] = useState('');
     // A channel to open once its place's channels have loaded (notification click
     // across places: switchPlace resets selection, so we re-apply it here).
     const pendingChannelRef = useRef<string | null>(null);
+    // A place to land once a cross-cloud notification switch loads the new cloud's
+    // places — the auto-select-first effect honors this instead of the first place.
+    const pendingPlaceRef = useRef<string | null>(null);
     // A message to scroll to once a cross-place jump's channel has loaded (paired
     // with pendingChannelRef when the saved item lives in another place).
     const pendingJumpRef = useRef<{ channelId: string; chatNo: number } | null>(null);
+    // Set when the deferred open is a NOTIFICATION click (not a saved jump): the
+    // channel should land at its latest message once it loads (requestOpenAtBottom).
+    const pendingOpenAtBottomRef = useRef<string | null>(null);
+    const requestOpenAtBottom = useOpenAtBottomStore(s => s.request);
+    // A thread to open once its channel is selected + loaded. Deferred (not opened
+    // inline) because selecting a different channel runs closeThread() on its way
+    // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
+    const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
     // Open a saved item: when it lives in another place, switch place first and
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
-    const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string) => {
+    const jumpToSaved = (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => {
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
-            pendingJumpRef.current = chatNo != null ? { channelId, chatNo } : null;
-            void switchPlace(placeId);
+            // A thread reply opens the thread panel once its channel loads; a
+            // top-level message scrolls the main feed. Never both.
+            pendingThreadRef.current = threadRootId ? { channelId, rootId: threadRootId } : null;
+            pendingJumpRef.current = !threadRootId && chatNo != null ? { channelId, chatNo } : null;
+            switchPlace(placeId);
             return;
         }
         selectChannel(channelId);
+        if (threadRootId) {
+            // Same channel → open now (nothing switches it shut). Switching channels
+            // runs closeThread() on the way in, so defer past that via the ref.
+            if (channelId === selectedChannelId) openThread(threadRootId);
+            else pendingThreadRef.current = { channelId, rootId: threadRootId };
+            return;
+        }
         if (chatNo != null) requestMessageJump(channelId, chatNo);
     };
 
@@ -131,42 +170,63 @@ export const HomePage = () => {
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { placeId, channelId } = pendingOpen;
-        if (placeId && placeId !== selectedPlaceId) {
+        const { cloudId, placeId, channelId } = pendingOpen;
+        const activeCloud = activeCloudId ?? 'default';
+        // A notification click opens the pinged (latest) message → land at the bottom.
+        pendingOpenAtBottomRef.current = channelId;
+        if (cloudId && cloudId !== activeCloud) {
+            // Cross-cloud: switch cloud first. The target place lands via the
+            // auto-select effect (pendingPlaceRef), then the channel via the
+            // pending-channel effect — each once its data loads. Refs are set now
+            // (before the awaited switch) so the deferred landing is armed regardless.
             pendingChannelRef.current = channelId;
-            void switchPlace(placeId);
+            pendingPlaceRef.current = placeId || null;
+            void switchAfterHandshake(() => switchCloud(cloudId));
+        } else if (placeId && placeId !== selectedPlaceId) {
+            pendingChannelRef.current = channelId;
+            void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
+            requestOpenAtBottom(channelId);
+            pendingOpenAtBottomRef.current = null;
         }
         clearPendingOpen();
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
     }, [pendingOpen?.nonce]);
 
-    // Default Cloud: pin the 'default' place (Self Channel). Otherwise select the
-    // first place whenever the current selection isn't in the loaded list — covers
-    // initial load AND a cloud switch / invite-join where the prior place (e.g.
-    // 'default') doesn't exist in the newly-loaded cloud.
+    // Default Cloud pins the derived 'default' place (Self Channel) — nothing to select.
+    // Otherwise select the first place whenever the session's selected site isn't in the
+    // loaded list — covers initial load (sid null), a cloud switch, or an invite-join where
+    // the prior site doesn't exist in the newly-loaded cloud.
     useEffect(() => {
-        if (isDefaultMode) {
-            if (selectedPlaceId !== 'default') selectPlace('default');
-            return;
-        }
-        // A cloud/place switch already owns place selection (useCloudSwitchFlow /
-        // useSelectPlace commit the target). Don't auto-correct while one is in
-        // flight: `places` and selectedPlaceId update on independent async timelines,
-        // so a transient mismatch here would fire switchPlace() against a stale /
-        // other-cloud place and thrash the channel list. Only act when idle.
+        if (isDefaultMode) return;
+        // A cloud/place switch already owns selection. Don't auto-correct while one is in
+        // flight: `places` and selectedSiteId update on independent async timelines, so a
+        // transient mismatch here would fire switchPlace() against a stale / other-cloud
+        // place and thrash the channel list. Only act when idle.
         if (isSwitching) return;
+        // A cross-cloud notification switch wants a SPECIFIC place — land it once the new
+        // cloud's places load, ahead of the first-place fallback below.
+        const wantedPlace = pendingPlaceRef.current;
+        if (wantedPlace) {
+            if (places.some(p => p.id === wantedPlace)) {
+                pendingPlaceRef.current = null;
+                if (wantedPlace !== selectedPlaceId) switchPlace(wantedPlace);
+                return;
+            }
+            // Places loaded but the target isn't among them (stale/left) — drop it and
+            // fall through to the first place instead of waiting forever.
+            if (places.length > 0) pendingPlaceRef.current = null;
+        }
         const inList = !!selectedPlaceId && places.some(p => p.id === selectedPlaceId);
         if (!inList && places.length > 0) {
             const firstId = places[0]?.id;
-            // Use switchPlace (runs authPlace) — not the raw setter — so the first
-            // place gets its per-place token in cloud mode; otherwise the channel
-            // fetch hits an unauthed place and the shell stays stuck on the empty
-            // state after a cloud-account login.
-            if (firstId) void switchPlace(firstId);
+            // switchPlace → switchSite gives the first place its per-place token + socket
+            // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
+            // stuck on the empty state after a cloud-account login.
+            if (firstId) switchPlace(firstId);
         }
-    }, [isDefaultMode, isSwitching, places, selectedPlaceId, selectPlace, switchPlace]);
+    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
     // The profile panel follows for a clean pane handoff.
@@ -176,43 +236,56 @@ export const HomePage = () => {
         closeProfile();
     }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
 
-    // Settings, thread, and profile share the one trailing pane — opening any
-    // closes the others so the pane never has two owners (each effect fires on
-    // its own opener only, so the last one opened wins).
+    // The one trailing pane has five possible owners (thread, settings, profile,
+    // saved, activity) — opening any closes the others so the pane never has two
+    // owners (each effect fires on its own opener only, so the last one opened wins).
     useEffect(() => {
         if (openThreadRootId) {
             closeSettings();
             closeProfile();
             closeSaved();
+            closeActivity();
         }
-    }, [openThreadRootId, closeSettings, closeProfile, closeSaved]);
+    }, [openThreadRootId, closeSettings, closeProfile, closeSaved, closeActivity]);
     useEffect(() => {
         if (settingsChannelId) {
             closeThread();
             closeProfile();
             closeSaved();
+            closeActivity();
         }
-    }, [settingsChannelId, closeThread, closeProfile, closeSaved]);
+    }, [settingsChannelId, closeThread, closeProfile, closeSaved, closeActivity]);
     useEffect(() => {
         if (profileTarget) {
             closeThread();
             closeSettings();
             closeSaved();
+            closeActivity();
         }
-    }, [profileTarget, closeThread, closeSettings, closeSaved]);
+    }, [profileTarget, closeThread, closeSettings, closeSaved, closeActivity]);
     useEffect(() => {
         if (savedOpen) {
             closeThread();
             closeSettings();
             closeProfile();
+            closeActivity();
         }
-    }, [savedOpen, closeThread, closeSettings, closeProfile]);
+    }, [savedOpen, closeThread, closeSettings, closeProfile, closeActivity]);
+    useEffect(() => {
+        if (activityOpen) {
+            closeThread();
+            closeSettings();
+            closeProfile();
+            closeSaved();
+        }
+    }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved]);
 
-    // The saved panel's rows belong to the place you opened it from — close it on
-    // any place or cloud switch so it never shows another place's items.
+    // The saved + activity panes' rows belong to the place you opened them from —
+    // close both on any place or cloud switch so they never show another place's items.
     useEffect(() => {
         closeSaved();
-    }, [selectedPlaceId, activeCloudId, closeSaved]);
+        closeActivity();
+    }, [selectedPlaceId, activeCloudId, closeSaved, closeActivity]);
 
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads.
@@ -220,6 +293,11 @@ export const HomePage = () => {
         if (pending && channels.some(channel => channel.id === pending)) {
             pendingChannelRef.current = null;
             selectChannel(pending);
+            // A deferred notification open lands at the latest message.
+            if (pendingOpenAtBottomRef.current === pending) {
+                pendingOpenAtBottomRef.current = null;
+                requestOpenAtBottom(pending);
+            }
             // A deferred cross-place saved jump: now scroll to its message.
             const jump = pendingJumpRef.current;
             if (jump && jump.channelId === pending) {
@@ -237,7 +315,21 @@ export const HomePage = () => {
             const firstId = channels[0]?.id;
             if (firstId) selectChannel(firstId);
         }
-    }, [channels, selectedChannelId, selectChannel, requestMessageJump]);
+    }, [channels, selectedChannelId, selectChannel, requestMessageJump, requestOpenAtBottom]);
+
+    // Open a deferred thread (saved / mention click on a reply) once its channel is
+    // the selected one and present in the loaded list. Declared after the
+    // selectedChannelId cleanup effect so its closeThread() runs first on a switch —
+    // this open then wins. Cross-place clicks land here too: the channel-apply effect
+    // above selects the channel, flipping selectedChannelId and firing this.
+    useEffect(() => {
+        const pending = pendingThreadRef.current;
+        if (!pending) return;
+        if (selectedChannelId === pending.channelId && channels.some(channel => channel.id === pending.channelId)) {
+            pendingThreadRef.current = null;
+            openThread(pending.rootId);
+        }
+    }, [channels, selectedChannelId, openThread]);
 
     const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
@@ -293,7 +385,7 @@ export const HomePage = () => {
                         unreadByPlace={unreadByPlace}
                         isDefaultMode={isDefaultMode}
                         isSwitching={isSwitching}
-                        onSelectPlace={placeId => void switchPlace(placeId)}
+                        onSelectPlace={placeId => switchPlace(placeId)}
                     />
                 }
                 sidebar={
@@ -307,6 +399,7 @@ export const HomePage = () => {
                             onCreateChannel={openCreateChannel}
                             onEditPlaceProfile={openEditPlaceProfile}
                             onOpenSaved={openSaved}
+                            onOpenActivity={openActivity}
                         />
                         <div className="flex-1 overflow-y-auto scrollbar-hide">
                             <ChannelList
@@ -348,9 +441,15 @@ export const HomePage = () => {
                             currentPlaceId={selectedPlaceId ?? undefined}
                             onSelect={jumpToSaved}
                         />
+                    ) : activityOpen ? (
+                        <MentionsPanel
+                            channels={channels}
+                            places={places}
+                            currentPlaceId={selectedPlaceId ?? undefined}
+                            onSelect={jumpToSaved}
+                        />
                     ) : undefined
                 }
-                overlay={<SwitchingOverlay />}
             />
             <CreateChannelDialog />
             <JoinWithInviteDialog />

@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
+import type { DomainChannel } from '@chatic/data';
+import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
-import { computeChannelUnread, mergeChannelsKeepingLatest, withIncomingChat } from '../utils';
+import { computeChannelUnread, resolveReadNo } from '../utils';
 import { useReadCursorStore } from '../stores';
-
-const CHANNEL_LIMIT = 100;
+import { useChannelReadCursors } from './useChannelReadCursors';
 
 // Fixed alphabetical order (Slack-style) so the list doesn't jump on every new
 // message; unread is surfaced by the row badge, not by reordering.
@@ -17,83 +15,94 @@ const channelLabel = (channel: DomainChannel): string => (channel.name ?? channe
 const sortByName = (list: DomainChannel[]): DomainChannel[] =>
     [...list].sort((a, b) => channelLabel(a).localeCompare(channelLabel(b)));
 
+// How long a verified socket may report an empty list before we trust it as truly
+// empty — covers list discovery's round trip so the empty state never flashes first.
+const EMPTY_SETTLE_MS = 600;
+// Hard ceiling for an UNVERIFIED socket. After a sleep/wake wedge the socket can sit
+// unverified indefinitely (the cloud-token refresh 400s and never re-verifies), which
+// must never pin the skeleton forever — observeList already streams the cache without
+// the socket, so once this elapses we trust the cached-or-empty list instead.
+const EMPTY_WEDGE_CEILING_MS = 4000;
+
 /**
- * Streams the channel list for a place via the engine repositories. Initial load
- * is cache-first; channel/chat/join events trigger a network-only refetch so
- * unread badges stay fresh — a new message from another user fires chat:create
- * (and join:update), not channel:update, so those must be subscribed too or the
- * channel row's unread count never moves. Being invited to a brand-new channel
- * fires join:create (a new membership, via the model push) — subscribe it too or
- * the channel never appears until a manual refresh. Results are sorted by recency
- * and the list is cleared on place switch so the previous place's channels don't flash.
+ * Streams the channel list for a place from the engine's channel cache (mirrors
+ * apps/web useHomeChannels). List discovery + per-channel realtime sync are owned
+ * globally by the runtime (useBackgroundSync / the sync layer), so this hook only
+ * observes the cache: a new message, an invite, or a read updates the cached
+ * channel record and re-emits here, keeping unread badges fresh without a manual
+ * refetch. The relay cache is not sid-isolated, so results are filtered to the
+ * active place and the list is reset on place switch so the previous place's
+ * channels don't flash.
  */
 export const useChannels = (placeId: string | undefined) => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const { channel: channelRepository } = useRuntimeRepositories();
+    const { userId: myUid } = useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
+    const { isVerified } = useSocketState();
     const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [rawLoading, setRawLoading] = useState(true);
 
     // Render-phase reset on place switch (mirrors apps/web useChannels): drop the
-    // old list immediately rather than waiting for the next fetch to resolve.
+    // old list immediately rather than waiting for the next emit to resolve.
     const [prevPlaceId, setPrevPlaceId] = useState(placeId);
     if (placeId !== prevPlaceId) {
         setPrevPlaceId(placeId);
         setRawChannels([]);
-        setIsLoading(true);
+        setRawLoading(true);
     }
 
     useEffect(() => {
-        if (!placeId || !isVerified) return;
+        if (!placeId) {
+            setRawChannels([]);
+            setRawLoading(false);
+            return;
+        }
+        setRawLoading(true);
+        return channelRepository.observeList({ sid: placeId }, result => {
+            const list = (result?.list ?? []).filter(c => c.sid === placeId);
+            setRawChannels(sortByName(list));
+            setRawLoading(false);
+        });
+    }, [channelRepository, placeId]);
 
-        let active = true;
-        setIsLoading(true);
-
-        const fetchChannels = (cachePolicy: 'cache-first' | 'network-only') => {
-            channelRepository
-                .fetchChannel({ sid: placeId, detail: true, limit: CHANNEL_LIMIT }, { cachePolicy })
-                .then(result => {
-                    if (!active) return;
-                    const next = (result.list ?? []) as DomainChannel[];
-                    setRawChannels(prev => sortByName(mergeChannelsKeepingLatest(prev, next)));
-                })
-                .finally(() => {
-                    if (active) setIsLoading(false);
-                });
-        };
-
-        // A new message bumps the channel's last message + unread badge. Apply it
-        // locally from the live chat event rather than refetching: the channel
-        // endpoint lags, so a refetch here would race the event and reset the badge.
-        const applyIncomingChat = (chat: DomainChat) => {
-            if (active) setRawChannels(prev => withIncomingChat(prev, chat));
-        };
-
-        fetchChannels('cache-first');
-        const refresh = () => fetchChannels('network-only');
-
-        const unsubs = [
-            channelRepository.onChannelCreated(refresh),
-            channelRepository.onChannelUpdated(refresh),
-            channelRepository.onChannelDeleted(refresh),
-            chatRepository.onChatCreated(applyIncomingChat),
-            joinRepository.onJoinCreated(refresh),
-            joinRepository.onJoinUpdated(refresh),
-        ];
-
-        return () => {
-            active = false;
-            unsubs.forEach(fn => fn());
-        };
-    }, [channelRepository, chatRepository, joinRepository, placeId, isVerified]);
-
-    // Derive unread from the local read cursor too, so reading a channel clears
-    // its badge immediately without waiting for a server-cursor refetch.
+    // Read boundary from my synced+observed join row, with the local cursor layered on so reading
+    // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
+    const serverReadNo = useChannelReadCursors(rawChannels);
     const channels = useMemo(
-        () => rawChannels.map(c => ({ ...c, unreadCount: computeChannelUnread(c, myUid, readCursors[c.id ?? '']) })),
-        [rawChannels, myUid, readCursors]
+        () =>
+            rawChannels.map(c => ({
+                ...c,
+                unreadCount: computeChannelUnread(
+                    c,
+                    myUid ?? null,
+                    resolveReadNo(c.id ?? '', serverReadNo, readCursors)
+                ),
+            })),
+        [rawChannels, myUid, readCursors, serverReadNo]
     );
+
+    // The channel cache emits an empty list immediately on a cold boot / post-switch
+    // reset, *before* list discovery (a sync plan that runs on a verified socket)
+    // writes it — so a raw empty result flashes "No channels yet" for a frame, most
+    // visibly on a warm reconnect where the socket is already verified at mount.
+    // There's no per-place "list fetched" signal to key off, so hold the skeleton over
+    // an empty result for a settle window (discovery's round trip). A verified socket
+    // gets a short window; an unverified one gets a longer ceiling so a wake-wedged
+    // socket (never re-verifies) resolves to the empty state instead of spinning
+    // forever. A populated list is never masked (guarded on length === 0) — it clears
+    // the flag the moment it arrives.
+    const [confidentEmpty, setConfidentEmpty] = useState(false);
+    useEffect(() => {
+        if (rawLoading || rawChannels.length > 0) {
+            setConfidentEmpty(false);
+            return;
+        }
+        const settle = isVerified ? EMPTY_SETTLE_MS : EMPTY_WEDGE_CEILING_MS;
+        const timer = setTimeout(() => setConfidentEmpty(true), settle);
+        return () => clearTimeout(timer);
+    }, [rawLoading, isVerified, rawChannels.length]);
+
+    const isLoading = rawLoading || (rawChannels.length === 0 && !confidentEmpty);
 
     return { channels, isLoading };
 };

@@ -19,7 +19,7 @@ export const DebugBadgeCountPage = () => {
             return;
         }
         try {
-            const res = await webClient.request('SetBadgeCount', { count: value });
+            const res = await webClient.request({ type: 'SetBadgeCount', data: { count: value } });
 
             push(`SetBadgeCount(${value}) → ${JSON.stringify((res as any)?.data ?? res)}`);
         } catch (error) {

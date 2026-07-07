@@ -8,14 +8,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 import { EmojiPicker } from '../EmojiPicker';
 
 interface ComposerActionsProps {
-    disabled: boolean;
     canSend: boolean;
     onEmoji: (emoji: string) => void;
     onSend: () => void;
 }
 
 /** Emoji picker + send button, right of the input. */
-export const ComposerActions = ({ disabled, canSend, onEmoji, onSend }: ComposerActionsProps) => {
+export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsProps) => {
     const { t } = useTranslation();
     return (
         <>
@@ -23,7 +22,6 @@ export const ComposerActions = ({ disabled, canSend, onEmoji, onSend }: Composer
                 <PopoverTrigger asChild>
                     <button
                         type="button"
-                        disabled={disabled}
                         title={t('chat.composer.emoji')}
                         aria-label={t('chat.composer.emoji')}
                         className="focus-ring tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50"

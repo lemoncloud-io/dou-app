@@ -1,10 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { extractErrorMessage } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useDesktopChannelMutations } from '../../../shared';
+import { extractErrorMessage, useDesktopChannelMutations } from '../../../shared';
 
 export type ChannelDialogKind = 'rename' | 'invite' | 'delete' | 'leave' | 'kick' | null;
 

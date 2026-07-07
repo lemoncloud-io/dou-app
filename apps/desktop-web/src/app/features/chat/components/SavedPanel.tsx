@@ -80,8 +80,9 @@ interface SavedPanelProps {
     places: DomainSite[];
     /** The active place — its group sorts to the top. */
     currentPlaceId?: string;
-    /** Jump to the saved message: select its place + channel, then scroll to it. */
-    onSelect: (channelId: string, chatNo?: number, placeId?: string) => void;
+    /** Jump to the saved message: select its place + channel, then scroll to it
+     *  (or open the thread panel when it's a reply — 4th arg = root chatNo string). */
+    onSelect: (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => void;
 }
 
 /**
@@ -116,19 +117,16 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
     // catch-all "Other workspace" group (key '').
     const groups = useMemo(() => {
         const sorted = Object.values(items).sort((a, b) => b.savedAt - a.savedAt);
-        const order: string[] = [];
         const byPlace = new Map<string, SavedItem[]>();
         for (const item of sorted) {
             const key = item.placeId ?? '';
             const list = byPlace.get(key);
             if (list) list.push(item);
-            else {
-                byPlace.set(key, [item]);
-                order.push(key);
-            }
+            else byPlace.set(key, [item]);
         }
-        order.sort((a, b) => (a === currentPlaceId ? -1 : b === currentPlaceId ? 1 : 0));
-        return order.map(key => ({ key, items: byPlace.get(key) ?? [] }));
+        // Map keeps first-seen (recency) order; float the active place to the top.
+        const keys = [...byPlace.keys()].sort((a, b) => (a === currentPlaceId ? -1 : b === currentPlaceId ? 1 : 0));
+        return keys.map(key => ({ key, items: byPlace.get(key) ?? [] }));
     }, [items, currentPlaceId]);
 
     return (
@@ -186,7 +184,7 @@ export const SavedPanel = ({ channels, places, currentPlaceId, onSelect }: Saved
                                     channelName={channelName(item.channelId)}
                                     removeLabel={t('saved.remove')}
                                     onOpen={() => {
-                                        onSelect(item.channelId, item.chatNo, item.placeId);
+                                        onSelect(item.channelId, item.chatNo, item.placeId, item.parentId);
                                         close();
                                     }}
                                     onRemove={() => remove(item.id)}

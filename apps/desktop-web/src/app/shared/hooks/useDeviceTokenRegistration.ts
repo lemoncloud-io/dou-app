@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
-import { useDynamicDeviceId } from '@chatic/app-runtime';
-import { useRegisterDeviceToken } from '@chatic/users';
+import { useDynamicDeviceId, useRegisterDeviceTokenMutation, useSessionAuth } from '@chatic/web-core';
 
 declare global {
     interface Window {
         CHATIC_APP_PLATFORM?: string;
         CHATIC_APP_INSTALLATION_ID?: string;
+        CHATIC_APP_STAGE?: string;
     }
 }
 
@@ -36,9 +35,12 @@ declare global {
 const REREGISTER_THROTTLE_MS = 60_000;
 
 export const useDeviceTokenRegistration = (): void => {
-    const isAuthenticated = useWebCoreStore(s => s.isAuthenticated);
+    const { isAuthenticated } = useSessionAuth();
     const { deviceId } = useDynamicDeviceId();
-    const { mutateAsync: registerDeviceToken } = useRegisterDeviceToken();
+    // The v2 web-core `useRegisterDeviceToken` takes a body and self-dedups by token, which can't
+    // honour this hook's force/throttle re-register-on-focus contract (SNS endpoint re-enable).
+    // Use the underlying mutation directly and keep driving registration ourselves.
+    const { mutateAsync: registerDeviceToken } = useRegisterDeviceTokenMutation();
     const requestedRef = useRef(false);
     const tokenRef = useRef<string | null>(null);
     const lastRegisterAtRef = useRef(0);
@@ -57,8 +59,12 @@ export const useDeviceTokenRegistration = (): void => {
             platform: window.CHATIC_APP_PLATFORM ?? 'desktop',
             installId: window.CHATIC_APP_INSTALLATION_ID,
             application: 'chatic',
+            // Without an explicit stage the broker defaults to ITS default ('dev'),
+            // registering a production desktop into the chatic-desktop-dev SNS app.
+            stage: window.CHATIC_APP_STAGE,
             force: true,
-        }).catch(() => {
+        }).catch(error => {
+            console.warn('[push] device token registration failed', error);
             lastRegisterAtRef.current = 0; // allow an immediate retry
         });
     }, [isAuthenticated, deviceId, registerDeviceToken]);
@@ -67,7 +73,8 @@ export const useDeviceTokenRegistration = (): void => {
     useEffect(() => {
         if (!isAuthenticated || !isNative() || requestedRef.current) return;
         requestedRef.current = true;
-        webClient.post('FetchFcmToken', {});
+        // Object form — the two-arg form silently no-ops (post() reads message.type).
+        webClient.post({ type: 'FetchFcmToken', data: {} });
     }, [isAuthenticated]);
 
     // Cache the returned token and register it (launch path).

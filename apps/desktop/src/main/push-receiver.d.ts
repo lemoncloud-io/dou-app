@@ -9,8 +9,27 @@ declare module '@liamcottle/push-receiver' {
             gcmSenderId: string,
             gmsAppId: string,
             androidPackageName: string,
-            androidPackageCert: string,
+            androidPackageCert: string
         ): Promise<{ gcm: { androidId: string; securityToken: string }; fcm: { token: string } }>;
+        /** Creates a Firebase installation; returns its short-lived auth token (feeds registerRequest). */
+        installRequest(
+            apiKey: string,
+            projectId: string,
+            gmsAppId: string,
+            androidPackageName: string,
+            androidPackageCert: string
+        ): Promise<string>;
+        /** Mints an FCM token for an existing GCM checkin identity; returns the token string. */
+        registerRequest(
+            androidId: string,
+            securityToken: string,
+            installationAuthToken: string,
+            apiKey: string,
+            gcmSenderId: string,
+            gmsAppId: string,
+            androidPackageName: string,
+            androidPackageCert: string
+        ): Promise<string>;
     };
 
     export interface PushReceiverMessage {
@@ -25,7 +44,7 @@ declare module '@liamcottle/push-receiver' {
         constructor(androidId: string, securityToken: string, persistentIds: string[]);
         on(event: 'ON_DATA_RECEIVED', cb: (message: PushReceiverMessage) => void): void;
         on(event: 'connect' | 'disconnect', cb: () => void): void;
-        connect(): void;
+        connect(): Promise<void>;
         destroy(): void;
     }
 }

@@ -56,6 +56,8 @@ export class SocketManager implements ISocketManager {
     private readonly typeListeners = new Set<TypeListenerEntry>();
     // Recovery policy is injected by the session layer (see SocketRecoveryHandler).
     private recoveryHandler: SocketRecoveryHandler | null = null;
+    // Reconnect policy for a disconnected socket (503 SOCKET NOT CONNECTED), injected by the session layer.
+    private reconnectHandler: (() => Promise<void>) | null = null;
     private unsubscribes: Array<() => void> = [];
 
     /**
@@ -190,6 +192,28 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * Injects the reconnect policy for a disconnected socket. Wired at the composition root to the
+     * session controller so a request that hits a dead socket triggers a reconnect + retry.
+     */
+    public setReconnectHandler(handler: (() => Promise<void>) | null): void {
+        this.reconnectHandler = handler;
+    }
+
+    /**
+     * Renderer-facing recovery trigger for a socket that went dead without a request to
+     * carry it back — sleep/wake or a network drop, where no send runs the reconnect+retry
+     * path and the periodic heal is up to ~60s away. Runs the same reconnect + re-auth the
+     * request path uses. No-op if no reconnect handler is wired. A genuinely expired token
+     * still fails re-auth here and falls through to the wedge reload; this only accelerates
+     * the still-valid-token case.
+     */
+    public async recover(reason: string): Promise<void> {
+        if (!this.reconnectHandler) return;
+        logger.info('SOCKET', '[SocketManager] external recovery trigger', { reason });
+        await this.reconnectHandler();
+    }
+
+    /**
      * Stable request facade. Routes to the current client; on a 401 it invokes the
      * injected recovery handler and retries once against the (possibly replaced) client.
      */
@@ -206,8 +230,23 @@ export class SocketManager implements ISocketManager {
                     return await (retryClient.request(type as any, data as any, options) as Promise<T>);
                 }
             }
+            // A request against a socket left disconnected (e.g. a bootstrap race on invite entry /
+            // rapid cloud switches) throws `503 SOCKET NOT CONNECTED`. Reconnect and retry once so the
+            // send isn't silently lost — instead of waiting up to a minute for the periodic heal.
+            if (this.reconnectHandler && this.isDisconnectedError(error)) {
+                logger.info('SOCKET', '[SocketManager] request hit a disconnected socket, reconnecting', { type });
+                await this.reconnectHandler();
+                if (this.state.isConnected) {
+                    const retryClient = this.requireClient(`retry request(${type})`);
+                    return await (retryClient.request(type as any, data as any, options) as Promise<T>);
+                }
+            }
             throw error;
         }
+    }
+
+    private isDisconnectedError(error: any): boolean {
+        return (error?.message || '').includes('SOCKET NOT CONNECTED');
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
@@ -385,7 +424,10 @@ export class SocketManager implements ISocketManager {
         const code = error.code || error.errorCode || error.statusCode || (error.response && error.response.status);
         if (code === 401 || code === '401') return true;
         const msg = error.message || '';
-        return msg.includes('401') || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
+        // The socket lib drops the server's errorCode on settle, leaving only strings like
+        // '401 UNAUTHORIZED - auth.update(...)'. Match 401 as a standalone token so an id or
+        // count containing "401" can't spoof an auth failure into a token-refresh loop.
+        return /\b401\b/.test(msg) || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
     }
 
     private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {

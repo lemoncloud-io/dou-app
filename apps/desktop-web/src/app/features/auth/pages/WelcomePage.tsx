@@ -57,6 +57,19 @@ export const WelcomePage = () => {
                 >
                     {t('welcome.haveInvite')}
                 </button>
+                {/* Dev-only email/password sign-in. Gated on import.meta.env.DEV so it's
+                    dead-code-eliminated from production builds — mirrors the /auth/debug
+                    route guard in routes.tsx; never ships in the installed app. */}
+                {import.meta.env.DEV && (
+                    <button
+                        type="button"
+                        onClick={() => navigate('/auth/debug')}
+                        disabled={isSubmitting}
+                        className="h-11 rounded-full border border-dashed border-border text-sm font-medium text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                    >
+                        디버그 로그인
+                    </button>
+                )}
             </div>
         </AuthCard>
     );

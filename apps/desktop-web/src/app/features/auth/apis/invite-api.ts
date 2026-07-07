@@ -1,4 +1,4 @@
-import { webCore } from '@chatic/web-core';
+import { fetchInviteInfoWithCode } from '@chatic/web-core';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
@@ -6,16 +6,9 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
  * Non-consuming invite-code lookup (no expiry/consume stamp).
  * GET <backend>/hello/invite-code?code=<code>
  * Used to resolve $envs.wss / cloudId / siteId for the target deployment.
- * Replicated from apps/web (chats/apis/invite-api) since that lives in the web app, not a lib.
+ *
+ * v2: delegates to web-core's `fetchInviteInfoWithCode` (the same signed GET, now
+ * shipped in the lib). Kept as a feature-local wrapper so call sites stay stable.
  */
-export const fetchInviteCodeInfo = async (code: string, backend: string): Promise<MyInviteView> => {
-    const { data } = await webCore
-        .buildSignedRequest({
-            method: 'GET',
-            baseURL: `${backend}/hello/invite-code`,
-        })
-        .setParams({ code })
-        .execute<MyInviteView>();
-
-    return data;
-};
+export const fetchInviteCodeInfo = (code: string, backend: string): Promise<MyInviteView> =>
+    fetchInviteInfoWithCode(code, backend);

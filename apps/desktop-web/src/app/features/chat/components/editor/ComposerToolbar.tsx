@@ -49,7 +49,7 @@ const readActiveFormats = (): ActiveFormats => {
 };
 
 /** Formatting row above the input — applies live formats and highlights the selection's active ones. */
-export const ComposerToolbar = ({ disabled }: { disabled: boolean }) => {
+export const ComposerToolbar = () => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
     const [active, setActive] = useState<ActiveFormats>({});
@@ -70,7 +70,6 @@ export const ComposerToolbar = ({ disabled }: { disabled: boolean }) => {
                 <button
                     key={key}
                     type="button"
-                    disabled={disabled}
                     aria-pressed={!!active[key]}
                     title={t(`chat.composer.format.${key}`)}
                     aria-label={t(`chat.composer.format.${key}`)}

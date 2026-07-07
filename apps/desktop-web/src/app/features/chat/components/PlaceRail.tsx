@@ -7,7 +7,8 @@ import { Home, User } from 'lucide-react';
 
 import type { DomainSite } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionIdentity, useSessionLogout } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
 
 import { useJoinDialogStore } from '../../auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
@@ -20,7 +21,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isPlaceholderName, useDebugModeStore, useDisplayProfile } from '../../../shared';
+import { isPlaceholderName, useAccountResetOnLogout, useDebugModeStore, useDisplayProfile } from '../../../shared';
 
 interface PlaceRailProps {
     places: DomainSite[];
@@ -113,17 +114,14 @@ export const PlaceRail = ({
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
-    const profile = useWebCoreStore(s => s.profile);
-    const logout = useWebCoreStore(s => s.logout);
+    const { userId } = useSessionIdentity();
+    const { userName, photo } = useSessionProfile();
+    const logout = useSessionLogout();
+    const { resetAccount } = useAccountResetOnLogout();
 
     // Self Display Profile: show my Place nick/photo here when set for this place.
-    const rawName = profile?.$user?.name ?? '';
-    const globalName = isPlaceholderName(rawName) ? '' : rawName;
-    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(
-        profile?.uid ?? '',
-        globalName,
-        profile?.$user?.photo ?? undefined
-    );
+    const globalName = isPlaceholderName(userName) ? '' : userName;
+    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', globalName, photo);
     const userInitial = selfName.charAt(0).toUpperCase();
 
     // Hidden gesture: tap the rail divider 7× (within 1.5s between taps) to toggle
@@ -207,7 +205,9 @@ export const PlaceRail = ({
                         <DropdownMenuItem onClick={() => openDebugPanel(true)}>{t('rail.menu.debug')}</DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void logout()}>{t('rail.menu.logout')}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void resetAccount().finally(() => logout())}>
+                        {t('rail.menu.logout')}
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { useWebSocketV2Store } from '@chatic/socket';
+import { useGlobalSession } from '@chatic/web-core';
 
 import { useCloudPushBadgeStore } from '../stores';
 
@@ -16,7 +16,9 @@ import { useCloudPushBadgeStore } from '../stores';
  * it on the verified switch.
  */
 export const useRetainLeavingCloudBadge = (unreadTotal: number): void => {
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
+    // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
+    const session = useGlobalSession();
+    const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const mark = useCloudPushBadgeStore(s => s.mark);
     const prev = useRef<{ id: string | null; unread: number }>({ id: null, unread: 0 });
 

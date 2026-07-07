@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 export interface ChannelSearchResult {
     channel: DomainChannel;
@@ -21,12 +21,11 @@ const MAX_CHANNELS = 30;
 /**
  * Local message search over the engine's chat cache (no search endpoint exists
  * server-side — same approach as apps/web). Each channel's most recent cached
- * page is scanned with `cache-only`, so typing never fans out network feeds;
- * a channel with an empty cache may still warm up via one remote fetch
- * (repository fallback). Results are best-effort: bounded by what's cached.
+ * page is read with `cacheReadList` (local only), so typing never fans out
+ * network feeds. Results are best-effort: bounded by what's already cached.
  */
 export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
-    const { chat: chatRepository } = useRepositories();
+    const { chat: chatRepository } = useRuntimeRepositories();
     const [results, setResults] = useState<ChannelSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -44,7 +43,7 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
                 channels.slice(0, MAX_CHANNELS).map(async channel => {
                     if (!channel.id) return null;
                     const page = await chatRepository
-                        .fetchChat({ channelId: channel.id, limit: PER_CHANNEL_LIMIT }, { cachePolicy: 'cache-only' })
+                        .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
                         .catch(() => null);
                     const all = (page?.list ?? []).filter(c => (c.content ?? '').toLowerCase().includes(q));
                     if (all.length === 0) return null;

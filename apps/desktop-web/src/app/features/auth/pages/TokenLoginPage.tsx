@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-
 import { logger } from '@chatic/bridges';
-import { useWebCoreStore, webCore } from '@chatic/web-core';
+import { useRefreshRelaySession, webTransport } from '@chatic/web-core';
 
 const decodeJWT = (token: string): Record<string, unknown> | null => {
     try {
@@ -29,7 +27,7 @@ export const TokenLoginPage = () => {
     const { t } = useTranslation();
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
+    const { refreshRelaySession } = useRefreshRelaySession();
     const [isInvalid, setIsInvalid] = useState(false);
 
     useEffect(() => {
@@ -40,19 +38,10 @@ export const TokenLoginPage = () => {
             if (!decoded) return setIsInvalid(true);
 
             try {
-                await webCore.buildCredentialsByToken({ identityToken: token } as Parameters<
-                    typeof webCore.buildCredentialsByToken
-                >[0]);
-
-                const user = decoded.User as { name?: string; nick?: string } | undefined;
-                if (user) {
-                    setProfile({
-                        id: decoded.uid as string,
-                        name: user.name,
-                        nick: user.nick,
-                    } as unknown as UserProfile$);
-                    setIsAuthenticated(true);
-                }
+                await webTransport.buildCredentialsByToken({ identityToken: token });
+                // Credential build only seeds transport — hydrate identity + auth
+                // state from the relay session (syncProfile).
+                await refreshRelaySession({ syncProfile: true });
                 navigate('/', { replace: true });
             } catch (error) {
                 logger.error('AUTH', '[TokenLoginPage] token login failed', { error });
@@ -61,7 +50,7 @@ export const TokenLoginPage = () => {
         };
 
         void run();
-    }, [token, setProfile, setIsAuthenticated, navigate]);
+    }, [token, refreshRelaySession, navigate]);
 
     if (isInvalid) {
         return (

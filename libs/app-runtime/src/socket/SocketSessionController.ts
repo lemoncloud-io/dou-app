@@ -6,10 +6,29 @@ import type { ISocketManager, SocketBindingConfig, SocketSessionDelegate } from 
 /** Max wait for the connect-driven device.save ack before bootstrap proceeds anyway. */
 const DEVICE_REGISTER_TIMEOUT_MS = 5000;
 
+/** How the connect-driven device.save settled (see waitForDeviceRegistered). */
+type DeviceRegisterOutcome = 'ok' | 'error' | 'timeout';
+
+/** auth.update response `state` — the only field that reveals a resolved-but-failed auth. */
+const authState = (response: unknown): string | undefined => (response as { state?: string } | null | undefined)?.state;
+
+/**
+ * Backoff ladder for consecutive failed recoveries, indexed by failure count (capped).
+ * The periodic refresh retries every 60s; without this a permanently revoked session
+ * would mint a fresh token (a real relay round-trip) once a minute, forever.
+ */
+const RECOVERY_BACKOFF_MS = [0, 60_000, 120_000, 300_000, 600_000, 900_000];
+
 export class SocketSessionController {
     private delegate: SocketSessionDelegate | null = null;
     private refreshInterval: ReturnType<typeof setInterval> | null = null;
     private reauthPromise: Promise<boolean> | null = null;
+    private healPromise: Promise<void> | null = null;
+    /** Consecutive failed recoveries → backoff (see RECOVERY_BACKOFF_MS). */
+    private recoveryFailures = 0;
+    private recoveryBlockedUntil = 0;
+    /** Last config bootstrapped — used to re-establish a socket left disconnected. */
+    private lastConfig: SocketBindingConfig | null = null;
 
     constructor(private readonly manager: ISocketManager) {}
 
@@ -22,6 +41,7 @@ export class SocketSessionController {
     }
 
     public async bootstrap(config: SocketBindingConfig): Promise<void> {
+        this.lastConfig = config;
         const client = this.manager.ensure(config);
         this.startPeriodicRefresh();
 
@@ -32,7 +52,15 @@ export class SocketSessionController {
             // before connect to avoid missing it) and only then run auth.update.
             const registered = this.waitForDeviceRegistered(client);
             await this.manager.connect();
-            await registered;
+            const outcome = await registered;
+            if (outcome === 'error') {
+                // The save failed, so auth.update would predictably fail with
+                // 'no device linked' — skip that round-trip and go straight to recovery
+                // (which re-runs auth.update after a fresh token, by which time the
+                // runtime has retried the save).
+                await this.handle401Recovery();
+                return;
+            }
             await this.updateAuth('bootstrap');
         } catch (error) {
             logger.error('SOCKET', '[SocketSessionController] failed during bootstrap sequence', { error });
@@ -42,32 +70,41 @@ export class SocketSessionController {
     /**
      * Resolves once the connection's device.save has been acknowledged. createDeviceRuntime
      * issues device.save on `connected`, and its `:ok` / `:error` response is delivered to
-     * every onMessage listener. Resolves on any `device.save:` response, or after a timeout
-     * so a missing/failed save cannot wedge bootstrap (auth.update then fails into recovery).
+     * every onMessage listener. Resolves with how it settled — an explicit `:error` used to
+     * be treated as success and bootstrap would run an auth.update doomed to fail with
+     * 'no device linked'. Times out so a missing save cannot wedge bootstrap.
      */
-    private waitForDeviceRegistered(client: ClientSocketV2, timeoutMs = DEVICE_REGISTER_TIMEOUT_MS): Promise<void> {
-        return new Promise<void>(resolve => {
+    private waitForDeviceRegistered(
+        client: ClientSocketV2,
+        timeoutMs = DEVICE_REGISTER_TIMEOUT_MS
+    ): Promise<DeviceRegisterOutcome> {
+        return new Promise<DeviceRegisterOutcome>(resolve => {
             let settled = false;
             let unsubscribe: (() => void) | null = null;
             let timer: ReturnType<typeof setTimeout> | null = null;
 
-            const finish = () => {
+            const finish = (outcome: DeviceRegisterOutcome) => {
                 if (settled) return;
                 settled = true;
                 unsubscribe?.();
                 if (timer) clearTimeout(timer);
-                resolve();
+                resolve(outcome);
             };
 
             unsubscribe = client.onMessage(({ message }) => {
-                if (typeof message?.type === 'string' && message.type.startsWith('device.save:')) {
-                    finish();
+                if (typeof message?.type !== 'string') return;
+                if (message.type === 'device.save:ok') finish('ok');
+                else if (message.type === 'device.save:error') {
+                    logger.warn('SOCKET', '[SocketSessionController] device.save failed', {
+                        error: (message as { error?: string }).error,
+                    });
+                    finish('error');
                 }
             });
 
             timer = setTimeout(() => {
                 logger.warn('SOCKET', '[SocketSessionController] device.save ack not observed before timeout');
-                finish();
+                finish('timeout');
             }, timeoutMs);
         });
     }
@@ -94,8 +131,10 @@ export class SocketSessionController {
 
         logger.info('SOCKET', '[SocketSessionController] sending auth:update', { reason });
         try {
-            await client.request('auth.update', { token });
+            await this.requestAuthUpdate(client, token);
             this.manager.markVerified();
+            this.recoveryFailures = 0;
+            this.recoveryBlockedUntil = 0;
             return true;
         } catch (error) {
             logger.error('SOCKET', '[SocketSessionController] auth.update failed, triggering recovery', {
@@ -103,6 +142,20 @@ export class SocketSessionController {
                 reason,
             });
             return this.handle401Recovery();
+        }
+    }
+
+    /**
+     * auth.update that treats a resolved-but-failed payload as an error. The server
+     * responds `:ok` with `state: 'failed'` when it rejects the token, and trusting
+     * the resolve alone would mark an unauthenticated socket verified. A missing
+     * `state` (older server) keeps the legacy resolved-means-verified behaviour.
+     */
+    private async requestAuthUpdate(client: ClientSocketV2, token: string): Promise<void> {
+        const response = await client.request('auth.update', { token });
+        const state = authState(response);
+        if (state != null && state !== 'authenticated') {
+            throw new Error(`auth.update rejected the token (state: ${state})`);
         }
     }
 
@@ -114,6 +167,15 @@ export class SocketSessionController {
 
         if (this.reauthPromise) {
             return this.reauthPromise;
+        }
+
+        // Repeated failures (e.g. the server keeps answering state:'failed') back off
+        // instead of re-minting a token on every 60s periodic tick.
+        if (Date.now() < this.recoveryBlockedUntil) {
+            logger.info('SOCKET', '[SocketSessionController] recovery backing off after repeated failures', {
+                retryInMs: this.recoveryBlockedUntil - Date.now(),
+            });
+            return false;
         }
 
         this.reauthPromise = (async () => {
@@ -131,11 +193,16 @@ export class SocketSessionController {
                     throw new Error('Socket client is not available');
                 }
 
-                await client.request('auth.update', { token });
+                await this.requestAuthUpdate(client, token);
                 this.manager.markVerified();
+                this.recoveryFailures = 0;
+                this.recoveryBlockedUntil = 0;
                 logger.info('SOCKET', '[SocketSessionController] 401 recovery authentication successful');
                 return true;
             } catch (error) {
+                this.recoveryFailures += 1;
+                const step = Math.min(this.recoveryFailures, RECOVERY_BACKOFF_MS.length - 1);
+                this.recoveryBlockedUntil = Date.now() + RECOVERY_BACKOFF_MS[step];
                 logger.error('SOCKET', '[SocketSessionController] 401 recovery sequence failed', { error });
                 if (this.delegate?.onRefreshFailed) {
                     try {
@@ -158,6 +225,37 @@ export class SocketSessionController {
     public destroy(): void {
         this.stopPeriodicRefresh();
         this.reauthPromise = null;
+        this.recoveryFailures = 0;
+        this.recoveryBlockedUntil = 0;
+    }
+
+    /**
+     * Re-establishes a socket left disconnected. A rapid sequence of binding changes (the invite
+     * flow's loginGuest → switchCloud → switchSite, or quick cloud switches) can race the bootstrap
+     * connect so the final client never finishes connecting — and nothing recovers it, since the
+     * periodic refresh used to merely skip auth:update while disconnected. The result is a session
+     * stuck with a dead socket: every `*.send`/`request` throws `503 SOCKET NOT CONNECTED` and
+     * messages are silently lost until a manual cloud re-switch. Reconnecting the current client
+     * (idempotent — a no-op when already open) and re-authing self-heals that state.
+     */
+    public async recoverConnection(reason: string): Promise<void> {
+        if (this.healPromise) return this.healPromise;
+        if (!this.lastConfig) return;
+        this.healPromise = (async () => {
+            try {
+                logger.info('SOCKET', '[SocketSessionController] socket disconnected, reconnecting', { reason });
+                this.manager.ensure(this.lastConfig as SocketBindingConfig);
+                await this.manager.connect();
+                if (this.manager.getSnapshot().isConnected) {
+                    await this.updateAuth(reason);
+                }
+            } catch (error) {
+                logger.warn('SOCKET', '[SocketSessionController] reconnect heal failed', { error, reason });
+            } finally {
+                this.healPromise = null;
+            }
+        })();
+        return this.healPromise;
     }
 
     private startPeriodicRefresh() {
@@ -167,6 +265,10 @@ export class SocketSessionController {
             // 소켓이 연결되어 있을 때만 업데이트를 수행하고, 세션 유무는 updateAuth 내부에서 토큰 획득 여부로 판단합니다.
             if (state.isConnected) {
                 void this.updateAuth('periodic-refresh');
+            } else {
+                // Self-heal a socket left disconnected (e.g. a bootstrap race on invite entry) instead
+                // of skipping forever — otherwise the session is wedged with a dead socket.
+                void this.recoverConnection('periodic-heal');
             }
         }, 60000); // 1 minute
     }

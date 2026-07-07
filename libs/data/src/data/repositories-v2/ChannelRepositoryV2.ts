@@ -28,6 +28,12 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     ): () => void;
     observeItem(id: string, callback: (item: DomainChannel | null) => void): () => void;
 
+    refreshList(query: DomainChannelListPayload): Promise<void>;
+    // Fetch the channel list (with detail) straight from the server WITHOUT touching the cache.
+    // The cache keys channels by `cid:uid:id` with no sid and channel ids collide across places, so
+    // it can only hold one place's channels at a time; a flat returned list lets a caller aggregate
+    // unread across every place at once (the per-place badges).
+    fetchList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel>>;
     // Cloud-wide delta sync (channel.sync) — pulls channels changed since the cursor across all
     // places and advances syncedAt. Named like profile.syncProfiles for consistency.
     syncChannels(since: number): Promise<SyncChannelsResult>;
@@ -94,6 +100,46 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public cacheClear(): Promise<void> {
         return this.channelLocalDataSource.cacheClear(this.getRepositoryContext());
+    }
+
+    public async refreshList(query: DomainChannelListPayload): Promise<void> {
+        // `channel.mine` does not filter by sid — the server returns every channel for
+        // the current session's site. Two distinct concerns must NOT be conflated:
+        //   1. each channel's `sid` field (used by the local sid filter) must be the
+        //      viewed site → tag it via the mapping context.
+        //   2. the cache write/read/delete must run under the LIVE context so the list
+        //      re-emit lands on the same scope key observers subscribed with; tagging the
+        //      write context with query.sid instead would silently miss those observers.
+        const requestContext = this.getRequestContext();
+        const targetSid = query.sid ?? requestContext.sid;
+        const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
+        const remote = await this.channelRemoteDataSource.fetchChannel(
+            {
+                ...query,
+                detail: true,
+                limit: 100,
+            },
+            mappingContext
+        );
+
+        const domainList = (remote.list || []).filter(item => !item.id || !this.leftChannelIds.has(item.id));
+
+        await this.channelLocalDataSource.cacheWriteMany(domainList, requestContext);
+
+        const serverIds = new Set(domainList.map(item => item.id).filter(Boolean));
+        const localResult = await this.channelLocalDataSource.cacheReadList(query, requestContext);
+        const staleIds = (localResult?.list || [])
+            .map(item => item.id)
+            .filter((id): id is string => !!id && !serverIds.has(id));
+        if (staleIds.length > 0) {
+            await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
+        }
+    }
+
+    public async fetchList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel>> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        return this.channelRemoteDataSource.fetchChannel({ ...query, detail: true }, normalizedContext);
     }
 
     public async syncChannels(since: number): Promise<SyncChannelsResult> {

@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 
-import type { ProfileBody, ProfileView } from '@lemoncloud/chatic-socials-api';
+import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 
 import { logger } from '@chatic/bridges';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
+import type { DomainProfile } from '@chatic/data';
 
 /**
  * My Place Profile (current place) — load the editable setting and save it.
@@ -18,8 +19,8 @@ import { useRepositories } from '@chatic/app-runtime';
  * relay, where these ops are unverified.
  */
 export const useMyProfile = () => {
-    const { profile: profileRepository } = useRepositories();
-    const [profile, setProfile] = useState<ProfileView | null>(null);
+    const { profile: profileRepository } = useRuntimeRepositories();
+    const [profile, setProfile] = useState<DomainProfile | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -39,7 +40,7 @@ export const useMyProfile = () => {
     }, [profileRepository]);
 
     const save = useCallback(
-        async (body: ProfileBody): Promise<ProfileView> => {
+        async (body: ProfileBody): Promise<DomainProfile> => {
             setIsSaving(true);
             try {
                 const result = await profileRepository.setMyProfile(body);

@@ -1,6 +1,7 @@
 import type { DomainSite } from '@chatic/data';
 
-import { useSelectedPlaceStore } from '../stores/useSelectedPlaceStore';
+import { useSessionSelection } from '@chatic/web-core';
+
 import { usePlaces } from './usePlaces';
 
 interface CurrentPlace {
@@ -18,8 +19,9 @@ interface CurrentPlace {
  */
 export const useCurrentPlace = (): CurrentPlace => {
     const { places } = usePlaces();
-    const placeId = useSelectedPlaceStore(s => s.selectedPlaceId);
-    const place = places.find(p => p.id === placeId);
+    // The active place IS the session's selected site (null in the Default Cloud → no place).
+    const { selectedSiteId } = useSessionSelection();
+    const place = places.find(p => p.id === selectedSiteId);
     const placeName = place?.name?.trim() || place?.id || '';
-    return { place, placeName, placeId };
+    return { place, placeName, placeId: selectedSiteId };
 };

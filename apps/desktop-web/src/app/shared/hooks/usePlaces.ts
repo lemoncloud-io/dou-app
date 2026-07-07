@@ -1,53 +1,35 @@
 import { useEffect, useState } from 'react';
 
 import type { DomainSite } from '@chatic/data';
-import { useWebSocketV2Store } from '@chatic/socket';
-
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useGlobalSession } from '@chatic/web-core';
 
 /**
- * Tracer-bullet places hook. Loads the Site (place) list via the engine's
- * site repository and exposes them. The first place is used as the default
- * `sid` for channel queries.
+ * Places (sites) for the active cloud. List discovery (fetch / delta sync) is owned globally by
+ * the runtime background sync (`place.refreshList`), so this hook only observes the place cache
+ * and exposes the rows. The first place is used as the default `sid` for channel queries.
+ *
+ * The subscription is re-created whenever the active cloud (cid) changes so the previous cloud's
+ * rows are discarded at once rather than lingering until the next sync resolves — otherwise
+ * HomePage reads a stale list as "the current cloud's places" and auto-selects a place from the
+ * wrong cloud, thrashing the channel list during the switch.
  */
 export const usePlaces = () => {
-    const { site: siteRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
+    const { place: placeRepository } = useRuntimeRepositories();
+    const session = useGlobalSession();
+    const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const [places, setPlaces] = useState<DomainSite[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Render-phase reset on cloud switch (mirrors useChannels): drop the previous
-    // cloud's places at once. Otherwise the stale list lingers until the refetch
-    // resolves, and HomePage reads it as "the current cloud's places" — auto-selecting
-    // a place from the wrong cloud and thrashing the channel list during the switch.
-    const [prevCloudId, setPrevCloudId] = useState(cloudId);
-    if (cloudId !== prevCloudId) {
-        setPrevCloudId(cloudId);
+    // Re-subscribe on cloud change and drop the prior cloud's rows.
+    useEffect(() => {
         setPlaces([]);
         setIsLoading(true);
-    }
-
-    useEffect(() => {
-        if (!isVerified) return;
-
-        let active = true;
-        setIsLoading(true);
-
-        siteRepository
-            .fetchSite({}, { cachePolicy: 'cache-first' })
-            .then(result => {
-                if (!active) return;
-                setPlaces(result.list ?? []);
-            })
-            .finally(() => {
-                if (active) setIsLoading(false);
-            });
-
-        return () => {
-            active = false;
-        };
-    }, [siteRepository, isVerified, cloudId]);
+        return placeRepository.observeList(undefined, result => {
+            setPlaces(result?.list ?? []);
+            setIsLoading(false);
+        });
+    }, [placeRepository, cid]);
 
     return { places, isLoading };
 };

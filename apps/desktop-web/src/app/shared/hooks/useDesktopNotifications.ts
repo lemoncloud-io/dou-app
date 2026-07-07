@@ -1,33 +1,19 @@
 import { useEffect, useRef } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { isNative, webClient } from '@chatic/bridges';
-import { useWebCoreStore } from '@chatic/web-core';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { usePlaces } from './usePlaces';
-import { isMentioned, stripMarkdown } from '../utils';
-import {
-    channelNotifyMode,
-    useNotificationPrefsStore,
-    useReadCursorStore,
-    useSelectedChannelStore,
-    useSiteProfilesStore,
-} from '../stores';
+import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
+import { isDndActive, isMentioned, resolveMyMentionNames, stripMarkdown } from '../utils';
+import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
-const CHANNEL_LIMIT = 100;
-
-const chatAuthorId = (chat: DomainChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
-const maxChatNo = (list: DomainChat[]): number => list.reduce((max, c) => Math.max(max, c.chatNo ?? 0), 0);
-// The subscription list isn't guaranteed chronological, so the newest message is
-// the one with the highest chatNo — not the last array element.
-const newestChat = (list: DomainChat[]): DomainChat =>
-    list.reduce((newest, c) => ((c.chatNo ?? 0) > (newest.chatNo ?? 0) ? c : newest));
-// DMs have no channel name — title with the sender instead.
-const notificationTitle = (channel: DomainChannel, latest: DomainChat): string =>
-    channel.name ?? latest.owner$?.name ?? 'New message';
-const channelPlaceId = (channel: DomainChannel): string => channel.placeId ?? channel.sid ?? '';
+// DMs have no channel name — title with the sender instead. Named channels read as
+// `#name`, matching the cross-cloud push banner.
+const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat): string =>
+    channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
 
 /** Suppress only when you're actively looking at that channel in a focused window. */
 const isViewing = (channelId: string): boolean =>
@@ -37,149 +23,132 @@ const isViewing = (channelId: string): boolean =>
     useSelectedChannelStore.getState().selectedChannelId === channelId;
 
 /**
- * Desktop-only OS notifications. The live WS streams every channel into the engine cache;
- * when a newer message from someone else arrives while the window is hidden, ask the shell
- * to show an OS notification. Covers channels across every place the user belongs to.
- * No-op outside the Desktop Shell (isNative() false) and swallows NATIVE_NOT_SUPPORTED so
- * plain-browser / older-shell runs degrade gracefully (ADR-0001).
+ * Desktop-only OS notifications. The shared chat-feed engine (useChannelChatFeeds) streams every
+ * registered channel's genuinely-new messages here; when a newer message from someone else
+ * arrives while the window is hidden, ask the shell to show an OS notification. Covers channels
+ * across every place the user belongs to. No-op outside the Desktop Shell (isNative() false) and
+ * swallows NATIVE_NOT_SUPPORTED so plain-browser / older-shell runs degrade gracefully (ADR-0001).
  *
- * Subscriptions are added INCREMENTALLY (one chat stream per channel, deduped) and torn
- * down only when the place/cloud set changes — never per channel event. GlobalChatSync
- * refetches the channel list on every incoming message, so tearing down + re-subscribing
- * on channel events would drop the live stream after the first notification.
+ * The per-channel notify mode is reverse-synced separately (`join.observeList`): another device
+ * changing join.notify lands here as a join cache update — mirrored into the local prefs (which
+ * win at notify time) so devices don't drift.
  */
 export const useDesktopNotifications = (): void => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
+    const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
     const { places } = usePlaces();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const myId = useWebCoreStore(s => s.profile?.id);
-    const myUid = useWebCoreStore(s => s.profile?.uid);
+    const { isVerified } = useSocketState();
+    const { userId: myUid } = useSessionIdentity();
 
-    const seen = useRef<Map<string, number>>(new Map());
-    // channelId → chat-stream unsub. Added incrementally; torn down only on real
-    // teardown (place/cloud change), so each live stream keeps delivering messages.
-    const chatSubs = useRef<Map<string, () => void>>(new Map());
-    // Read identity at notify time via refs so a changing profile object doesn't
-    // re-run the effect (which would drop every live subscription).
-    const myIdRef = useRef(myId);
-    myIdRef.current = myId;
+    // Read identity at notify/mirror time via a ref so a changing profile doesn't re-run the
+    // join effect (which would drop every live join subscription).
     const myUidRef = useRef(myUid);
     myUidRef.current = myUid;
+
+    // OS-notification policy on each channel's genuinely-new messages. The shared hook already
+    // dropped optimistic own sentinels and skipped the cache warm-up baseline, so `chats` are
+    // persisted messages strictly above the previous high-water mark.
+    useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
+        // No-op outside the Desktop Shell — the renderer must never raise an OS banner in a
+        // plain browser (webClient would NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
+        if (!isNative()) return;
+
+        // The channel watermark gives us the latest message (chat content streams only for the
+        // focused room in v2, so background notifications ride the channel record instead).
+        const top = chat.chatNo ?? 0;
+        // Respect the user's notification preferences (global off / channel mode).
+        const prefs = useNotificationPrefsStore.getState();
+        // Global do-not-disturb (snooze / quiet hours) silences every banner.
+        if (isDndActive(prefs)) return;
+        const notifyMode = channelNotifyMode(prefs, channel.id);
+        if (!prefs.desktopEnabled || notifyMode === 'none') return;
+        // Don't notify for a channel you're actively viewing (you can see it).
+        if (isViewing(channel.id)) return;
+        // Don't re-notify a message already marked read (e.g. resync redelivery).
+        const cursor = useReadCursorStore.getState().cursors[channel.id] ?? 0;
+        if (top <= cursor) return;
+
+        // ownerId is the author's global uid (same space as profile.uid). Don't notify my own.
+        if (chat.ownerId && chat.ownerId === myUidRef.current) return;
+
+        // Mentions-only channels: drop anything that doesn't @-mention me
+        // (global profile name + this place's nick, plus @channel/@here).
+        if (notifyMode === 'mention' && !isMentioned(chat.content ?? '', resolveMyMentionNames())) return;
+
+        // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
+        // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
+        const sender = chat.owner$?.name;
+        const message = stripMarkdown(chat.content ?? '');
+        void webClient
+            .request({
+                type: 'ShowNotification',
+                data: {
+                    title: notificationTitle(channel, chat),
+                    body: channel.name && sender ? `${sender}: ${message}` : message,
+                    channelId: channel.id,
+                    // Clicking the notification routes here (place + channel).
+                    deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
+                },
+            })
+            // Degrade gracefully on older shells (NATIVE_NOT_SUPPORTED) or transient bridge
+            // errors — a dropped OS banner must never break the renderer.
+            .catch(() => undefined);
+    });
 
     // Join the place ids into a stable dependency so the effect re-runs only when the set changes.
     const placeIds = places.map(p => p.id).join(',');
 
+    // Reverse-sync the per-channel notify mode. Native-only (mirrors the old setup gate): another
+    // device changing join.notify lands as a join cache update — mirror it into the local prefs
+    // (which win at notify time). Guarded on change: read receipts remap to join updates
+    // constantly. The shared chat-feed hook already registers each channel's sync target (which
+    // streams these join updates into the cache), so this only needs to observe the join cache.
     useEffect(() => {
         if (!isNative() || !isVerified || places.length === 0) return;
         let active = true;
 
-        const notifyFromList = (placeId: string, channel: DomainChannel, list: DomainChat[]) => {
-            if (list.length === 0) return;
+        // channelId → join observe teardown.
+        const subs = new Map<string, () => void>();
+        const byPlace = new Map<string, Set<string>>();
 
-            const top = maxChatNo(list);
-            const prev = seen.current.get(channel.id);
-            // Monotonic: a partial snapshot (resync, page-limited cache read) must not
-            // regress the baseline, or the next full snapshot reads as "new" messages.
-            if (prev === undefined || top > prev) seen.current.set(channel.id, top);
-
-            // Skip the first snapshot (cache warm-up) — only notify on a real increase.
-            if (prev === undefined || top <= prev) return;
-            // Respect the user's notification preferences (global off / channel mode).
+        const mirrorJoinNotify = (list: DomainJoin[]) => {
+            const uid = myUidRef.current;
+            const mine = uid ? list.find(j => j.userId === uid) : undefined;
+            const notify = mine?.notify;
+            if (!mine?.channelId || (notify !== 'all' && notify !== 'mention' && notify !== 'none')) return;
             const prefs = useNotificationPrefsStore.getState();
-            const notifyMode = channelNotifyMode(prefs, channel.id);
-            if (!prefs.desktopEnabled || notifyMode === 'none') return;
-            // Don't notify for a channel you're actively viewing (you can see it).
-            if (isViewing(channel.id)) return;
-            // Don't re-notify a message already marked read (e.g. resync redelivery).
-            if (top <= (useReadCursorStore.getState().cursors[channel.id] ?? 0)) return;
-
-            const latest = newestChat(list);
-            const authorId = chatAuthorId(latest);
-            if (authorId && (authorId === myIdRef.current || authorId === myUidRef.current)) return;
-
-            // Mentions-only channels: drop anything that doesn't @-mention me
-            // (global profile name + this place's nick, plus @channel/@here).
-            if (notifyMode === 'mention') {
-                const placeProfiles = useSiteProfilesStore.getState().profiles;
-                const myNames = [
-                    useWebCoreStore.getState().profile?.$user?.name,
-                    myUidRef.current ? placeProfiles[myUidRef.current]?.nick : undefined,
-                    myIdRef.current ? placeProfiles[myIdRef.current]?.nick : undefined,
-                ];
-                if (!isMentioned(latest.content ?? '', myNames)) return;
-            }
-
-            void webClient
-                .request('ShowNotification', {
-                    title: notificationTitle(channel, latest),
-                    body: stripMarkdown(latest.content ?? ''),
-                    channelId: channel.id,
-                    // Clicking the notification routes here (place + channel).
-                    deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
-                })
-                .catch(() => undefined);
+            if (prefs.channelNotify[mine.channelId] !== notify) prefs.setChannelNotify(mine.channelId, notify);
         };
 
-        // Subscribe a channel's chat stream once. Deduped, so the per-message channel
-        // refetch (GlobalChatSync) re-firing onChannelCreated can't thrash subscriptions.
-        const ensureSub = (channel: DomainChannel) => {
-            if (!channel.id || chatSubs.current.has(channel.id)) return;
-            const placeId = channelPlaceId(channel) || places[0]?.id || '';
-            const unsub = chatRepository.subscribeList(channel.id, result =>
-                notifyFromList(placeId, channel, result?.list ?? [])
-            );
-            chatSubs.current.set(channel.id, unsub);
+        const ensureJoinSub = (channel: DomainChannel) => {
+            if (!channel.id || subs.has(channel.id)) return;
+            const channelId = channel.id;
+            const unsubJoin = joinRepository.observeList({ channelId }, result => mirrorJoinNotify(result?.list ?? []));
+            subs.set(channelId, unsubJoin);
         };
 
-        // Initial channel set across all places.
-        void Promise.all(
-            places.map(place =>
-                channelRepository
-                    .fetchChannel({ sid: place.id, limit: CHANNEL_LIMIT }, { cachePolicy: 'cache-first' })
-                    .then(result => (result.list ?? []) as DomainChannel[])
-                    .catch(() => [] as DomainChannel[])
-            )
-        ).then(lists => {
-            if (active) lists.flat().forEach(ensureSub);
-        });
-
-        // Channels that appear later (e.g. after a cloud switch) get a stream added;
-        // deleted channels release theirs. No teardown of the rest.
-        const offCreated = channelRepository.onChannelCreated(channel => {
-            if (active) ensureSub(channel);
-        });
-        const offDeleted = channelRepository.onChannelDeleted(channel => {
-            const unsub = channel.id ? chatSubs.current.get(channel.id) : undefined;
-            if (unsub) {
-                unsub();
-                chatSubs.current.delete(channel.id);
-            }
-        });
-
-        // Reverse-sync the per-channel notify mode: another device changing
-        // join.notify lands here as join:update — mirror it into the local
-        // prefs (which win at notify time) so devices don't drift. Guarded on
-        // change: read receipts also remap to join:update constantly.
-        const offJoinUpdated = joinRepository.onJoinUpdated(join => {
-            const notify = join.notify;
-            if (!join.channelId || (notify !== 'all' && notify !== 'mention' && notify !== 'none')) return;
-            const prefs = useNotificationPrefsStore.getState();
-            if (prefs.channelNotify[join.channelId] !== notify) prefs.setChannelNotify(join.channelId, notify);
-        });
+        const channelObservers = places.map(place =>
+            channelRepository.observeList({ sid: place.id }, result => {
+                if (!active) return;
+                const list = ((result?.list ?? []) as DomainChannel[]).filter(c => c.sid === place.id);
+                const nextIds = new Set(list.map(c => c.id).filter((id): id is string => !!id));
+                const prevIds = byPlace.get(place.id) ?? new Set<string>();
+                for (const id of prevIds) {
+                    if (!nextIds.has(id)) {
+                        subs.get(id)?.();
+                        subs.delete(id);
+                    }
+                }
+                list.forEach(ensureJoinSub);
+                byPlace.set(place.id, nextIds);
+            })
+        );
 
         return () => {
             active = false;
-            offCreated();
-            offDeleted();
-            offJoinUpdated();
-            chatSubs.current.forEach(fn => fn());
-            chatSubs.current.clear();
-            // Channel ids are per-cloud sequential numbers and collide across clouds,
-            // so a baseline kept across a cloud switch can be regressed by the other
-            // cloud's same-id channel — resurfacing an already-read message as an OS
-            // banner on the way back. Drop baselines with the subs; the first-snapshot
-            // guard re-establishes them on the next run.
-            seen.current.clear();
+            channelObservers.forEach(unsub => unsub());
+            subs.forEach(fn => fn());
+            subs.clear();
+            byPlace.clear();
         };
-    }, [channelRepository, chatRepository, joinRepository, isVerified, placeIds]);
+    }, [channelRepository, joinRepository, isVerified, placeIds]);
 };

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { useTick } from '@chatic/shared';
-import { useWebCoreStore } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
@@ -59,7 +59,7 @@ export const ChannelList = ({
     isDefaultMode,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const myUid = useSessionIdentity().userId;
     const placeProfiles = useSiteProfileMap();
     // Tick once a minute so the relative "11m" preview times stay current.
     useTick(60_000);

@@ -1,12 +1,12 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
+import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
@@ -39,8 +39,12 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
         storageKey: 'chatic.threadPanel.width',
         defaultWidth: 384,
     });
-    const { messages } = useChats(channelId);
-    const { sendMessage, retryMessage, discardMessage, isSending } = useChatMutations();
+    // Freshness bridge: new replies land via the channel record's chatNo (see useChats).
+    const { messages } = useChats(channelId, lastChatNoOf(channel));
+    const { sendMessage, retryMessage, discardMessage } = useChatMutations();
+    // Stable identity — MessageRow is memo'd; an inline closure would re-render
+    // every visible thread row on each panel render.
+    const handleDiscard = useCallback((message: DomainChat) => void discardMessage(message), [discardMessage]);
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -64,7 +68,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const handleReply = (content: string) => {
         // The server takes the parent's FULL id and 404s on a bare chatNo (it
         // normalises to chatNo itself on store) — so send root.id, not rootId.
-        // Unreachable when !root (Composer is disabled then); type guard only.
+        // Unreachable when !root (Composer isn't rendered then); type guard only.
         if (!root?.id) return;
         void sendMessage({ channelId, content, parentId: root.id }).catch(() =>
             toast({ variant: 'destructive', description: t('toast.messageFailed') })
@@ -112,7 +116,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                     membersLoading={membersLoading}
                     threadReplyCount={replyCount}
                     onRetry={retryMessage}
-                    onDiscard={message => void discardMessage(message)}
+                    onDiscard={handleDiscard}
                 />
             ) : (
                 <div
@@ -127,7 +131,6 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                 is always editable, so a disabled-looking one would be typeable-but-dead). */}
             {root && (
                 <Composer
-                    disabled={isSending}
                     onSend={handleReply}
                     channelId={`${channelId}::thread::${rootId}`}
                     placeholder={t('chat.thread.composerPlaceholder')}

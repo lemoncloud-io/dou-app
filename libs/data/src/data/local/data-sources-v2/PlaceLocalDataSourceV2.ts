@@ -2,6 +2,7 @@ import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContextProvider } from '../../repositories-v2/types';
+import { stableHash } from '../storages';
 import type { CacheStorage } from '../storages';
 import {
     BaseLocalDataSourceV2,
@@ -22,6 +23,21 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         private readonly cacheStorage: CacheStorage<'site'>
     ) {
         super(contextProvider);
+    }
+
+    /**
+     * Place/site is a cloud-level entity (still isolated per cloud by `cid`), but the base observer
+     * scope additionally keys by `sid`. On a cloud switch the active sid is cleared and re-selected
+     * on a separate timeline, so a place write made under one sid never reemits an observer that
+     * subscribed under a different sid — the rail then stays empty even though the rows are cached
+     * (observed live: placeCache>0 yet usePlaces sees nothing). The storage layer already partitions
+     * places by {cid, uid} only (resolveScopedContext), so drop sid from the observer scope to match:
+     * every place observer for a cloud is reemitted regardless of the transient active place. `cid`
+     * remains in the key, so clouds stay isolated (no cross-cloud bleed).
+     */
+    protected override getScopeKey(contextOverride?: LocalDataSourceV2ContextOverride): string {
+        const context = this.getContext(contextOverride);
+        return stableHash({ cid: context.cid || 'default', sid: '', uid: context.uid || 'default' });
     }
 
     public async cacheRead(

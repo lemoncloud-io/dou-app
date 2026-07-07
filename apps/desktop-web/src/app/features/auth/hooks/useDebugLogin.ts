@@ -1,36 +1,26 @@
 import { useCallback, useState } from 'react';
 
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-
 import { logger } from '@chatic/bridges';
-import { login } from '@chatic/auth';
-import { cloudCore, reportError, startWebCoreInit, toError, useWebCoreStore, webCore } from '@chatic/web-core';
+import { reportError, useLogin } from '@chatic/web-core';
+
+import { toError } from '../../../shared';
 
 /**
  * Debug-only email/password sign-in (mirrors apps/web DebugLoginPage): exchange
- * credentials for a token, build webCore credentials, clear any prior cloud
- * session, then mark authenticated. Bypasses the invite-code flow — intended for
+ * credentials for a token via `useLogin`, which builds relay credentials and
+ * hydrates the session internally. Bypasses the invite-code flow — intended for
  * local development, surfaced only in dev builds.
  */
 export const useDebugLogin = () => {
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { mutateAsync: login, isPending } = useLogin();
     const [isError, setIsError] = useState(false);
 
     const submit = useCallback(
         async (uid: string, pwd: string): Promise<boolean> => {
-            setIsSubmitting(true);
             setIsError(false);
             try {
-                await startWebCoreInit();
-                const { Token, ...rest } = await login({ uid, pwd });
-                await webCore.buildCredentialsByToken(Token as Parameters<typeof webCore.buildCredentialsByToken>[0]);
-                cloudCore.clearSession();
-                // `rest` is the login response minus Token; it carries the UserProfile$
-                // fields. Mirrors apps/web DebugLoginPage — the API types don't overlap
-                // structurally, so the double cast is the documented escape hatch.
-                setProfile(rest as unknown as UserProfile$);
-                setIsAuthenticated(true);
+                // loginRelayUser builds credentials and hydrates the session internally.
+                await login({ uid, pwd });
                 return true;
             } catch (error) {
                 const err = toError(error);
@@ -38,12 +28,10 @@ export const useDebugLogin = () => {
                 reportError(err);
                 setIsError(true);
                 return false;
-            } finally {
-                setIsSubmitting(false);
             }
         },
-        [setProfile, setIsAuthenticated]
+        [login]
     );
 
-    return { submit, isSubmitting, isError };
+    return { submit, isSubmitting: isPending, isError };
 };

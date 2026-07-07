@@ -1,11 +1,12 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, Plus, Search, UserPen } from 'lucide-react';
+import { AtSign, Bookmark, Plus, Search, UserPen } from 'lucide-react';
 
 import { Input } from '@chatic/ui-kit/components/ui/input';
 
-import { Skeleton } from '../../../shared';
+import { Skeleton, unreadMentionCount, useMentionsStore } from '../../../shared';
+import { NotificationSnoozeButton } from './NotificationSnoozeButton';
 
 interface SidebarHeaderProps {
     /** Display name of the active place (place switching now lives in the place rail). */
@@ -20,6 +21,8 @@ interface SidebarHeaderProps {
     onEditPlaceProfile: () => void;
     /** Open the device-local Saved-items trailing pane. */
     onOpenSaved: () => void;
+    /** Open the device-local mentions inbox (Activity) trailing pane. */
+    onOpenActivity: () => void;
 }
 
 /**
@@ -36,8 +39,11 @@ export const SidebarHeader = ({
     onCreateChannel,
     onEditPlaceProfile,
     onOpenSaved,
+    onOpenActivity,
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
+    // Select the boolean, not the count — the dot only re-renders on false↔true.
+    const hasMentionUnread = useMentionsStore(s => unreadMentionCount(s.items) > 0);
     const showPlaceSkeleton = isLoading && !placeName && !isDefaultMode;
     // ⌘K now opens the QuickSwitcher (see QuickSwitcher.tsx); the inline filter
     // below stays click-to-use.
@@ -64,6 +70,21 @@ export const SidebarHeader = ({
                         <UserPen size={16} aria-hidden />
                     </button>
                 )}
+                <NotificationSnoozeButton />
+                <button
+                    onClick={onOpenActivity}
+                    title={t('activity.title')}
+                    aria-label={t('activity.title')}
+                    className="focus-ring tactile relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                >
+                    <AtSign size={16} aria-hidden />
+                    {hasMentionUnread && (
+                        <span
+                            aria-hidden
+                            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
+                        />
+                    )}
+                </button>
                 <button
                     onClick={onOpenSaved}
                     title={t('saved.title')}

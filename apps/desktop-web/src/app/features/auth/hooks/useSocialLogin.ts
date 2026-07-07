@@ -1,18 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 
-import type { UserProfile$ } from '@lemoncloud/chatic-backend-api';
-
 import { isNative, logger } from '@chatic/bridges';
 import {
-    cloudCore,
     createCredentialsByProvider,
-    fetchProfile,
+    getIdentityContext,
     reportError,
     startWebCoreInit,
-    toError,
-    useWebCoreStore,
+    useRefreshRelaySession,
 } from '@chatic/web-core';
 
+import { toError } from '../../../shared';
 import { buildAuthorizeUrl } from '../utils';
 
 /**
@@ -20,11 +17,12 @@ import { buildAuthorizeUrl } from '../utils';
  * real browser — in the shell via window.open (the window-open handler routes
  * untrusted https to the system browser; in-window navigation is blocked by
  * will-navigate), in a plain browser by direct navigation (admin pattern).
- * `complete` exchanges the relay code for credentials and replaces whatever
- * session (e.g. a Guest Session) was on the device — mirrors useDebugLogin.
+ * `complete` exchanges the relay code for credentials then hydrates the relay
+ * session — replacing whatever session (e.g. a Guest Session) was on the device.
+ * Mirrors apps/web useOAuthLogin (createCredentialsByProvider + refreshRelaySession).
  */
 export const useSocialLogin = () => {
-    const { setProfile, setIsAuthenticated } = useWebCoreStore();
+    const { refreshRelaySession } = useRefreshRelaySession();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isError, setIsError] = useState(false);
     // The relay code is single-use: guard against double completion
@@ -46,15 +44,14 @@ export const useSocialLogin = () => {
             // In-app login (e.g. a Guest Session linking from the Profile page)
             // swaps the live session — reload so the whole engine (socket, caches,
             // cloud rail) re-bootstraps from the new credentials.
-            const wasAuthenticated = useWebCoreStore.getState().isAuthenticated;
+            const wasAuthenticated = getIdentityContext().isAuthenticated;
             try {
                 await startWebCoreInit();
                 await createCredentialsByProvider(provider, code);
-                // Social Login replaces any prior (guest/cloud) session on this device.
-                cloudCore.clearSession();
-                const profile = await fetchProfile();
-                setProfile(profile as unknown as UserProfile$);
-                setIsAuthenticated(true);
+                // Credential exchange only builds transport credentials — refresh the
+                // relay session (syncProfile) to hydrate identity + auth state. Social
+                // Login replaces any prior (guest/cloud) session on this device.
+                await refreshRelaySession({ syncProfile: true });
                 if (wasAuthenticated) window.location.replace('/');
                 return true;
             } catch (error) {
@@ -68,7 +65,7 @@ export const useSocialLogin = () => {
                 setIsSubmitting(false);
             }
         },
-        [setProfile, setIsAuthenticated]
+        [refreshRelaySession]
     );
 
     return { start, complete, isSubmitting, isError };

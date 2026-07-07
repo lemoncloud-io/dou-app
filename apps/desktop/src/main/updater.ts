@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, powerMonitor } from 'electron';
 import electronUpdater from 'electron-updater';
 
 import type { AppBridgeHost } from '@chatic/bridges';
@@ -71,4 +71,7 @@ export const startUpdater = (host: AppBridgeHost, beforeQuit: () => void): void 
     };
     check();
     setInterval(check, CHECK_INTERVAL_MS);
+    // A machine asleep across the whole interval would otherwise wait for the
+    // next tick — re-check on resume so it discovers updates promptly.
+    powerMonitor.on('resume', check);
 };

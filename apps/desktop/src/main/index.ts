@@ -11,7 +11,9 @@ import {
     type MenuItemConstructorOptions,
     nativeImage,
     Notification,
+    powerMonitor,
     screen,
+    session,
     shell,
     Tray,
 } from 'electron';
@@ -176,16 +178,18 @@ const pushDeeplink = (host: AppBridgeHost, url: string): void => {
 };
 
 // Last OS notification shown per channel (keyed by deeplink). Electron's
-// Notification has no web-style `tag`, so we coalesce by closing the prior toast
-// for the same channel before showing a new one — rapid messages replace instead
-// of stacking.
-const activeNotifications = new Map<string, Notification>();
-
 /**
- * Raise an OS notification (coalesced per channel/deeplink) and draw attention
- * when unfocused. Shared by the web→app `ShowNotification` bridge (live-WS,
- * same-cloud) and the FCM receiver (cross-cloud push). Click reshows the window
- * and routes the deeplink into the web.
+ * Raise an OS notification and draw attention when unfocused. Shared by the
+ * web→app `ShowNotification` bridge (live-WS, same-cloud) and the FCM receiver
+ * (cross-cloud push). Click reshows the window and routes the deeplink into the
+ * web.
+ *
+ * Each call shows its own banner. A prior "coalesce" closed the last toast for
+ * the same channel before showing the next — but on macOS that close() raced
+ * with the immediate show() and dropped the new banner under rapid bursts, so a
+ * busy channel went silent while a slow-drip one delivered fine. The renderer
+ * already emits at most one notification per cache snapshot (newest chat only),
+ * so dropping the close() bounds stacking without losing messages.
  */
 const showOsNotification = (
     host: AppBridgeHost,
@@ -194,13 +198,7 @@ const showOsNotification = (
 ): void => {
     const { title, body, deeplink } = params;
     if (Notification.isSupported()) {
-        const key = deeplink || title;
-        activeNotifications.get(key)?.close();
         const notification = new Notification({ title, body });
-        activeNotifications.set(key, notification);
-        notification.on('close', () => {
-            if (activeNotifications.get(key) === notification) activeNotifications.delete(key);
-        });
         notification.on('click', () => {
             if (win.isMinimized()) win.restore();
             win.show();
@@ -227,8 +225,15 @@ const onFcmToken = (token: string): void => {
 const awaitFcmToken = (): Promise<string> => {
     if (fcmToken) return Promise.resolve(fcmToken);
     return new Promise(resolve => {
-        fcmTokenWaiters.push(resolve);
-        setTimeout(() => resolve(fcmToken ?? ''), 30_000);
+        const timer = setTimeout(() => {
+            fcmTokenWaiters = fcmTokenWaiters.filter(waiter => waiter !== entry);
+            resolve(fcmToken ?? '');
+        }, 30_000);
+        const entry = (token: string): void => {
+            clearTimeout(timer);
+            resolve(token);
+        };
+        fcmTokenWaiters.push(entry);
     });
 };
 
@@ -330,13 +335,22 @@ const SPLASH_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
 // Branded error page shown when the remote web fails to load, so a failure is a visible,
 // actionable screen instead of a blank window or a raw Chromium error. The retry link points
 // at the trusted web URL — will-navigate allows that origin, so a click simply reloads it.
+// This page shows exactly when the web layer (which owns i18n) is unavailable, so pick the
+// strings here from the OS locale.
+const ERROR_STRINGS = {
+    ko: { title: '연결할 수 없습니다', body: '데스크톱 웹을 불러오지 못했습니다.', retry: '다시 시도' },
+    en: { title: 'Unable to connect', body: 'The desktop web could not be loaded.', retry: 'Retry' },
+} as const;
+
 const renderErrorHtml = (code: number, desc: string): string => {
     // Strip HTML-significant chars before interpolating into the data: URL. desc is a Chromium
     // error enum (low risk), but escaping it keeps the page injection-safe as a matter of course.
     const sanitize = (value: string): string => String(value).replace(/[<>"]/g, '');
     const target = sanitize(DESKTOP_WEB_URL);
     const safeDesc = sanitize(desc);
-    return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+    const lang = app.getLocale().startsWith('ko') ? 'ko' : 'en';
+    const strings = ERROR_STRINGS[lang];
+    return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
   html,body{margin:0;height:100%;background:#0b0d10;color:#e6e8eb;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
   .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;box-sizing:border-box;text-align:center}
   h1{font-size:17px;margin:0;font-weight:600}
@@ -344,9 +358,9 @@ const renderErrorHtml = (code: number, desc: string): string => {
   code{color:#9aa0a6}
   a{margin-top:8px;display:inline-block;padding:10px 22px;border-radius:8px;background:#8fbf2e;color:#0b0d10;font-weight:600;font-size:14px;text-decoration:none}
 </style></head><body><div class="wrap">
-  <h1>연결할 수 없습니다</h1>
-  <p>데스크톱 웹을 불러오지 못했습니다.<br><code>${target}</code><br>(${code} ${safeDesc})</p>
-  <a href="${target}">다시 시도</a>
+  <h1>${strings.title}</h1>
+  <p>${strings.body}<br><code>${target}</code><br>(${code} ${safeDesc})</p>
+  <a href="${target}">${strings.retry}</a>
 </div></body></html>`;
 };
 
@@ -388,7 +402,13 @@ const createWindow = (): BrowserWindow => {
         backgroundColor: '#0b0d10',
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
-            additionalArguments: [`--chatic-device-id=${getOrCreateDeviceId()}`],
+            // Preload runs without the shell's env (and npm_package_version is undefined in a
+            // packaged app), so bake stage + real version in here for the CHATIC_APP_* globals.
+            additionalArguments: [
+                `--chatic-device-id=${getOrCreateDeviceId()}`,
+                `--chatic-stage=${IS_DEV_CHANNEL ? 'dev' : 'prod'}`,
+                `--chatic-app-version=${app.getVersion()}`,
+            ],
             contextIsolation: true,
             nodeIntegration: false,
             // contextIsolation + nodeIntegration:false is the isolation boundary. sandbox stays
@@ -431,16 +451,18 @@ const createWindow = (): BrowserWindow => {
     // broker via FetchFcmToken→reg-dev) and surface incoming pushes as OS
     // notifications. Best-effort — failure degrades to the live-WS same-cloud path.
     void startFcm(readFcmConfig(), {
-        onToken: onFcmToken,
+        onToken: token => {
+            onFcmToken(token);
+            // Proactively push the (re-minted) token so the renderer re-registers it
+            // with the broker. Its OnFetchFcmToken listener handles this beyond its
+            // own one-shot FetchFcmToken request; buffered until the web frame is ready.
+            host.pushEvent({ type: 'OnFetchFcmToken', success: true, data: { token } });
+        },
         onPush: push => {
-            showOsNotification(host, win, {
-                title: push.title ?? 'DoU',
-                body: push.body ?? '',
-                deeplink: push.deeplink,
-            });
-            // Also forward to the renderer for an in-app toast: macOS suppresses OS
-            // banners from the focused app, so a cross-cloud push that lands while DoU
-            // is active would otherwise be invisible.
+            // Forward-only: the renderer owns the whole presentation decision (DND,
+            // own-message, focus → toast vs ShowNotification banner), the same way it
+            // owns same-cloud live-WS banners. Raising a banner here would need the
+            // renderer's prefs mirrored into the shell and a second focus source.
             host.pushEvent({
                 type: 'OnReceiveNotification',
                 success: true,
@@ -475,21 +497,7 @@ const createWindow = (): BrowserWindow => {
 
     win.once('ready-to-show', () => win.show());
 
-    // In dev the local web server (desktop-web on :5005) may still be booting, so `desktop:start`
-    // can launch the shell and the server in any order. Retry connection failures silently there;
-    // for a packaged build (or any other failure) show a visible, retryable error page instead of
-    // a blank window — e.g. an unresolved host when the desktop web isn't deployed yet.
-    const RETRYABLE_LOAD_ERRORS = new Set([-102, -106, -105, -118]);
-    win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
-        if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
-        if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
-        if (!app.isPackaged && RETRYABLE_LOAD_ERRORS.has(errorCode)) {
-            setTimeout(() => win.loadURL(DESKTOP_WEB_URL), 700);
-            return;
-        }
-        if (!win.isVisible()) win.show();
-        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
-    });
+    bindLoadRecovery(win);
 
     // Paint an instant splash so the window shows a branded loader immediately
     // instead of staying hidden while the remote web bundle downloads/parses.
@@ -510,10 +518,110 @@ const createWindow = (): BrowserWindow => {
     return win;
 };
 
+// Load-recovery state for the CURRENT window. Module-scoped (not closed over) because
+// the app-lifetime powerMonitor 'resume' handler must always act on the live window —
+// a closure over the first window would target a destroyed one after a macOS
+// re-activate recreates it, and silently stop covering the new one.
+let recoveryWindow: BrowserWindow | null = null;
+let onErrorPage = false;
+let resetLoadRetries: () => void = () => undefined;
+
+/**
+ * Retry/recovery listeners for the remote web load: bounded backoff on load failures
+ * before the branded error page, renderer crash + persistent-hang reloads, and the
+ * wake-from-sleep reconnect. Re-binding on each createWindow() repoints the
+ * module-level state at the new window.
+ */
+const bindLoadRecovery = (win: BrowserWindow): void => {
+    recoveryWindow = win;
+    onErrorPage = false;
+
+    // Connection failures are retried with bounded backoff before the error page shows, so a
+    // transient outage recovers on its own: in dev the local web server (desktop-web on :5005)
+    // may still be booting, and a cold launch right after boot/login (or a wake from sleep) hits
+    // the network before it's ready (-106 ERR_INTERNET_DISCONNECTED). Only once the budget is
+    // exhausted do we fall through to a visible, retryable error page — e.g. an unresolved host
+    // when the desktop web isn't deployed yet.
+    const RETRYABLE_LOAD_ERRORS = new Set([-102, -106, -105, -118]);
+    const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 15000, 15000, 15000];
+    let loadRetries = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let unresponsiveTimer: ReturnType<typeof setTimeout> | undefined;
+    resetLoadRetries = () => {
+        loadRetries = 0;
+    };
+    const reloadWeb = (): void => {
+        if (!win.isDestroyed()) void win.loadURL(DESKTOP_WEB_URL);
+    };
+
+    win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
+        if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
+        if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
+        if (RETRYABLE_LOAD_ERRORS.has(errorCode) && loadRetries < RETRY_DELAYS_MS.length) {
+            const delay = RETRY_DELAYS_MS[loadRetries];
+            loadRetries += 1;
+            if (retryTimer) clearTimeout(retryTimer);
+            retryTimer = setTimeout(reloadWeb, delay);
+            return;
+        }
+        onErrorPage = true;
+        if (!win.isVisible()) win.show();
+        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
+    });
+    // A successful load of the trusted web clears the retry budget + error state.
+    win.webContents.on('did-finish-load', () => {
+        if (isTrustedUrl(win.webContents.getURL())) {
+            loadRetries = 0;
+            onErrorPage = false;
+        }
+    });
+    // A crashed or OOM-killed renderer otherwise leaves a blank window with no recovery
+    // (did-fail-load only covers LOAD failures). Reload the trusted web with a refilled
+    // retry budget — a crash usually needs the full backoff ladder again (e.g. OOM during
+    // a flaky network); a hard crash loop is bounded by the user quitting from the tray.
+    win.webContents.on('render-process-gone', (_event, details) => {
+        if (details.reason === 'clean-exit') return;
+        console.warn('[shell] renderer process gone, reloading', details);
+        loadRetries = 0;
+        reloadWeb();
+    });
+    // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
+    // their own and 'responsive' cancels the timer) — losing in-flight state is better
+    // than a permanently frozen window.
+    win.webContents.on('unresponsive', () => {
+        console.warn('[shell] renderer unresponsive');
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = setTimeout(reloadWeb, 15_000);
+    });
+    win.webContents.on('responsive', () => {
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = undefined;
+    });
+    // Pending timers outlive the window (its webContents listeners don't) — drop them.
+    win.on('closed', () => {
+        if (retryTimer) clearTimeout(retryTimer);
+        if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+    });
+
+    // Wake from sleep: if the window got stranded on the error page while the network was
+    // down, reconnect automatically once the OS reports the machine resumed. App-level and
+    // bound once; reads the module state so it follows a recreated window.
+    if (!powerResumeBound) {
+        powerResumeBound = true;
+        powerMonitor.on('resume', () => {
+            if (!onErrorPage || !recoveryWindow || recoveryWindow.isDestroyed()) return;
+            resetLoadRetries();
+            void recoveryWindow.loadURL(DESKTOP_WEB_URL);
+        });
+    }
+};
+
 // Deeplink plumbing — app-level url/argv events resolve before/after the window exists.
 let deeplinkHost: AppBridgeHost | null = null;
 let deeplinkWindow: BrowserWindow | null = null;
 let pendingDeeplink: string | null = null;
+// powerMonitor is app-level; bind its resume handler once even though createWindow can re-run.
+let powerResumeBound = false;
 
 const handleDeeplink = (url: string): void => {
     if (deeplinkHost && deeplinkWindow) {
@@ -558,6 +666,12 @@ if (!singleInstanceLock) {
     });
 
     app.whenReady().then(() => {
+        // The renderer is REMOTE-loaded web content — deny every permission request
+        // except what the app actually uses, instead of Electron's allow-all default.
+        session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+            callback(permission === 'notifications' || permission === 'clipboard-sanitized-write');
+        });
+
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();
 

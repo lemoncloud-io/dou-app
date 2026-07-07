@@ -1,43 +1,25 @@
-import { useCallback, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useCallback } from 'react';
 
-import { logger } from '@chatic/bridges';
-import { useLoaderStore } from '@chatic/shared';
-import { reportError, toError } from '@chatic/web-core';
-
-import { useSelectedPlaceStore } from '../stores';
-import { authPlace } from '../utils';
+import { useSessionSelection, useSiteSwitch } from '@chatic/web-core';
 
 /**
- * Switch the active place: run the engine place auth (token refresh + re-verify
- * in cloud mode) then commit the selection to the UI store. Guarded against
- * rapid re-entry and ignores re-selecting the current place.
+ * Switch the active place. The place IS the session's selected site, so this just forwards to
+ * the engine's `switchSite`, which optimistically pre-applies the sid (cached channels swap
+ * instantly), commits via the cloud-session refresh in the background, and rolls the sid back
+ * on failure — no app-side loader or manual rollback. Mirrors apps/web `useSwitchPlace`.
+ * `isSwitching` is exposed so the rail can disable the place tiles during a switch.
  */
 export const useSelectPlace = () => {
-    const selectedPlaceId = useSelectedPlaceStore(s => s.selectedPlaceId);
-    const commitPlace = useSelectedPlaceStore(s => s.selectPlace);
-    const setIsLoading = useLoaderStore(s => s.setIsLoading);
-    const { t } = useTranslation();
-    const switchingRef = useRef(false);
+    const { selectedSiteId } = useSessionSelection();
+    const { switchSite, isSwitching } = useSiteSwitch();
 
     const switchPlace = useCallback(
-        async (placeId: string) => {
-            if (switchingRef.current || placeId === selectedPlaceId) return;
-            switchingRef.current = true;
-            setIsLoading(true, t('place.switching'));
-            try {
-                await authPlace(placeId);
-                commitPlace(placeId);
-            } catch (e) {
-                logger.error('SESSION', '[useSelectPlace] failed', { error: e });
-                reportError(toError(e));
-            } finally {
-                switchingRef.current = false;
-                setIsLoading(false);
-            }
+        (placeId: string) => {
+            if (isSwitching || placeId === selectedSiteId) return;
+            void switchSite(placeId);
         },
-        [selectedPlaceId, commitPlace, setIsLoading, t]
+        [switchSite, selectedSiteId, isSwitching]
     );
 
-    return { switchPlace };
+    return { switchPlace, isSwitching };
 };

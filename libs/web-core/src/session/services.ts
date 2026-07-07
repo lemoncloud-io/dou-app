@@ -434,7 +434,7 @@ const commitSiteSwitch = async (siteId: string): Promise<void> => {
     await refreshRelaySession({ target: `${uid}@${siteId}`, syncProfile: false });
 };
 
-const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
+const performCloudRefresh = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
     const cloudToken = cloudCore.getCloudToken();
     const uid = cloudToken?.id;
     if (!uid) {
@@ -459,6 +459,29 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
     rebuildSessionIdentity();
 
     return getCloudSessionSnapshot() ?? buildSnapshotFallback(cloudCore.getSelectedCloudId() ?? 'default', siteId);
+};
+
+const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> => {
+    try {
+        return await performCloudRefresh({ siteId });
+    } catch (error) {
+        // The cloud refresh POST is signed with the persisted cloud credential + identity JWT.
+        // After a long sleep both are expired, so it 400s and — with no recovery — the socket can
+        // never re-verify (previously only a manual reload fixed it). Reproduce what the reload does,
+        // without reloading: re-mint the relay web-core creds, then re-exchange a fresh cloud token
+        // (relay-signed, so it succeeds even when the cloud credential itself is dead), and retry
+        // once. This is failure-only, so the periodic 60s happy path pays nothing.
+        const cloudId = cloudCore.getSelectedCloudId();
+        if (!cloudId || cloudId === 'default') throw error;
+        logger.warn('SESSION', '[service] cloud refresh failed — re-bootstrapping creds, retrying once', {
+            error,
+            data: { cloudId, siteId },
+        });
+        resetWebCoreInit();
+        await startWebCoreInit();
+        await switchCloudSession({ cloudId });
+        return await performCloudRefresh({ siteId });
+    }
 };
 
 /**

@@ -1,82 +1,106 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { logger } from '@chatic/bridges';
-import { useWebSocketV2Store } from '@chatic/socket';
-import { useWebCoreStore } from '@chatic/web-core';
-import type { DomainChannel, DomainChannelListPayload, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
+import { webClient } from '@chatic/bridges';
+import { getSocketManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
 
-import { useRepositories } from '@chatic/app-runtime';
-import { computeChannelUnread, mergeChannelsKeepingLatest, withIncomingChat } from '../utils';
+import { computeChannelUnread } from '../utils';
 import { useReadCursorStore } from '../stores';
 
+const REFETCH_DEBOUNCE_MS = 300;
+
 /**
- * Aggregates unread message counts per place for the active cloud, keyed by
- * place id. Fetches all of the current cloud's channels (`hasSite: false`),
- * computes unread client-side (server unreadCount lags), and sums per `sid`.
- * Refetches on verify + channel/chat/join events; re-derives instantly when the
- * local read cursor advances so a place badge clears the moment you read.
+ * Per-place unread counts for the active cloud, keyed by sid.
  *
- * Trimmed desktop port of apps/web usePlaceUnreadCounts (no native badge sync,
- * no 30s polling) — desktop relies on the always-connected socket for freshness.
+ * Fetches every channel of the active cloud into a flat in-memory list (`channel.fetchList`,
+ * `hasSite: false`, with detail) and derives unread client-side — the pre-v2 desktop approach. It
+ * deliberately does NOT read the engine cache: the cache keys channels by `cid:uid:id` with no sid,
+ * and channel ids collide across places, so the cache can only hold one place's channels at a time.
+ * A flat array sidesteps that — it can hold every place's channels at once.
+ *
+ * Client derivation also avoids the server `channel.unreads` summary's quirk of counting the
+ * sender's own not-yet-read-acked messages as unread (the server doesn't advance the sender's read
+ * cursor on send): `computeChannelUnread` returns 0 when the latest message is mine, so the place
+ * you just posted in never shows a phantom badge.
+ *
+ * Refetched on the signals that change unread: socket verify / cloud switch, an inbound push or
+ * socket chat frame. The local read cursor re-derives instantly (no refetch) so a badge clears the
+ * moment you read.
  */
 export const usePlaceUnreadCounts = (): Record<string, number> => {
-    const { channel: channelRepository, chat: chatRepository, join: joinRepository } = useRepositories();
-    const isVerified = useWebSocketV2Store(s => s.isVerified);
-    const cloudId = useWebSocketV2Store(s => s.cloudId);
-    const myUid = useWebCoreStore(s => s.profile?.uid ?? null);
+    const { channel: channelRepository } = useRuntimeRepositories();
+    const { isVerified } = useSocketState();
+    const session = useGlobalSession();
+    const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
+    const { userId: myUid } = useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
+    // Drops a late response from a superseded fetch (cloud switch / newer trigger).
     const seqRef = useRef(0);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const fetchCounts = useCallback(async () => {
-        if (!useWebSocketV2Store.getState().isVerified) return;
+        if (!isVerified) return;
         const seq = ++seqRef.current;
-        try {
-            const result = await channelRepository.fetchChannel(
-                // `hasSite` is a runtime-only field the engine forwards verbatim but the
-                // generated DomainChannelListPayload type omits — cast until upstream adds it.
-                { hasSite: false, detail: true, limit: 500 } as unknown as DomainChannelListPayload,
-                { cachePolicy: 'network-only' }
-            );
-            if (seqRef.current !== seq) return;
-            const next = (result.list ?? []) as DomainChannel[];
-            // Don't let the lagging channel endpoint regress a just-arrived unread.
-            setChannels(prev => mergeChannelsKeepingLatest(prev, next));
-        } catch (error) {
-            if (seqRef.current === seq) logger.error('PLACE_UNREAD', '[usePlaceUnreadCounts] failed', { error });
-        }
-    }, [channelRepository]);
+        const result = await channelRepository
+            .fetchList({ hasSite: false, limit: 500 } as DomainChannelListPayload)
+            .catch(() => null);
+        if (seqRef.current !== seq || !result) return;
+        setChannels((result.list ?? []) as DomainChannel[]);
+    }, [channelRepository, isVerified]);
 
-    // Reset on cloud change to avoid showing the previous cloud's badges.
+    const schedule = useCallback(() => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => void fetchCounts(), REFETCH_DEBOUNCE_MS);
+    }, [fetchCounts]);
+
+    // Reset on cloud change so the previous cloud's badges don't linger mid-switch.
     useEffect(() => {
         setChannels([]);
         ++seqRef.current;
     }, [cloudId]);
 
+    // Fetch on verify / cloud switch (isVerified dips then rises on a switch, after the socket
+    // re-auths to the new cloud — so the list is for the right cloud).
     useEffect(() => {
         if (isVerified) void fetchCounts();
     }, [isVerified, cloudId, fetchCounts]);
 
+    // Refetch on inbound activity — an FCM push or a raw socket chat frame both mean a channel's
+    // unread may have changed. onMessage needs a live client, so bind through subscribeClient.
     useEffect(() => {
-        // A new message updates unread locally from the live event (the channel
-        // refetch lags and would reset the place badge); other events refetch.
-        const onIncomingChat = (chat: DomainChat) => setChannels(prev => withIncomingChat(prev, chat));
-        const unsubs = [
-            channelRepository.onChannelCreated(() => void fetchCounts()),
-            channelRepository.onChannelUpdated(() => void fetchCounts()),
-            channelRepository.onChannelDeleted(() => void fetchCounts()),
-            chatRepository.onChatCreated(onIncomingChat),
-            joinRepository.onJoinUpdated(() => void fetchCounts()),
-        ];
-        return () => unsubs.forEach(fn => fn());
-    }, [channelRepository, chatRepository, joinRepository, fetchCounts]);
+        const offPush = webClient.onEvent('OnReceiveNotification', schedule);
+        const manager = getSocketManager();
+        let offMessage: (() => void) | undefined;
+        const offClient = manager.subscribeClient(client => {
+            offMessage?.();
+            offMessage = undefined;
+            if (!client) return;
+            offMessage = manager.onMessage(({ message }) => {
+                const type = (message as { type?: string })?.type ?? '';
+                if (type.startsWith('chat')) schedule();
+            });
+        });
+        return () => {
+            offPush();
+            offMessage?.();
+            offClient();
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, [schedule]);
 
     return useMemo(() => {
         const grouped: Record<string, number> = {};
         for (const ch of channels) {
             if (!ch.sid) continue;
+            // Read boundary: the local cursor (clears instantly on read), with the channel's own
+            // `$join.chatNo` as the persisted fallback inside computeChannelUnread.
             grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, readCursors[ch.id ?? '']);
+        }
+        for (const sid of Object.keys(grouped)) {
+            if (!grouped[sid]) delete grouped[sid];
         }
         return grouped;
     }, [channels, myUid, readCursors]);
