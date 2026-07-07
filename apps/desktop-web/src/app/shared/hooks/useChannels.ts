@@ -5,7 +5,7 @@ import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
 import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
 
 import { computeChannelUnread, resolveReadNo } from '../utils';
-import { useReadCursorStore } from '../stores';
+import { useCloudChannelsStore, useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 
 // Fixed alphabetical order (Slack-style) so the list doesn't jump on every new
@@ -74,22 +74,6 @@ export const useChannels = (placeId: string | undefined) => {
         // cloud's cache partition even when the colliding sid leaves placeId unchanged.
     }, [channelRepository, placeId, activeCid]);
 
-    // Read boundary from my synced+observed join row, with the local cursor layered on so reading
-    // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
-    const serverReadNo = useChannelReadCursors(rawChannels);
-    const channels = useMemo(
-        () =>
-            rawChannels.map(c => ({
-                ...c,
-                unreadCount: computeChannelUnread(
-                    c,
-                    myUid ?? null,
-                    resolveReadNo(c.id ?? '', serverReadNo, readCursors)
-                ),
-            })),
-        [rawChannels, myUid, readCursors, serverReadNo]
-    );
-
     // The channel cache emits an empty list immediately on a cold boot / post-switch
     // reset, *before* list discovery (a sync plan that runs on a verified socket)
     // writes it — so a raw empty result flashes "No channels yet" for a frame, most
@@ -138,7 +122,38 @@ export const useChannels = (placeId: string | undefined) => {
     }, [settling]);
     const holdForSwitch = settling && !settleExpired;
 
-    const isLoading = rawLoading || holdForSwitch || (rawChannels.length === 0 && !confidentEmpty);
+    // Per-cloud snapshot: keep each cloud's last verified list so switching back and forth
+    // shows that cloud's channels INSTANTLY — no skeleton, no flash of the other cloud's rows.
+    // While a switch is settling we render this cloud's snapshot (if any) instead of the live
+    // rows, which may still be the previous cloud's; once verified, the fresh list takes over
+    // and refreshes the snapshot. First-ever visit (no snapshot) still shows the skeleton.
+    const snapshot = useCloudChannelsStore(s => s.byCloud[activeCid]);
+    const rememberChannels = useCloudChannelsStore(s => s.remember);
+    useEffect(() => {
+        if (!settling && !rawLoading) rememberChannels(activeCid, rawChannels);
+    }, [settling, rawLoading, rawChannels, activeCid, rememberChannels]);
+
+    const sourceChannels = settling && snapshot ? snapshot : rawChannels;
+
+    // Read boundary from my synced+observed join row, with the local cursor layered on so reading
+    // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
+    const serverReadNo = useChannelReadCursors(sourceChannels);
+    const channels = useMemo(
+        () =>
+            sourceChannels.map(c => ({
+                ...c,
+                unreadCount: computeChannelUnread(
+                    c,
+                    myUid ?? null,
+                    resolveReadNo(c.id ?? '', serverReadNo, readCursors)
+                ),
+            })),
+        [sourceChannels, myUid, readCursors, serverReadNo]
+    );
+
+    // A snapshot means this cloud has been shown before — render it immediately (never a
+    // skeleton on a revisit). Only the first visit falls back to the load/settle gates.
+    const isLoading = snapshot ? false : rawLoading || holdForSwitch || (rawChannels.length === 0 && !confidentEmpty);
 
     return { channels, isLoading };
 };
