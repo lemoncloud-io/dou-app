@@ -69,6 +69,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
             buildNumber: DeviceInfo.getBuildNumber(),
             appLanguage: getAppLanguage(),
             installationId: deviceId,
+            // Migration targets: web registers devices with `uniqueDeviceId` once app
+            // versions carrying these fields are prevalent; the deprecated
+            // uniqueId/installationId stay injected for older web bundles.
+            uniqueDeviceId: deviceId,
+            firebaseInstallationId: firebaseInstallId ?? '',
             latestVersion: versionCheck?.latestVersion ?? '',
             shouldUpdate: versionCheck?.hasUpdate ?? false,
         },

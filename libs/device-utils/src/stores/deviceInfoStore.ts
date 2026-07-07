@@ -10,13 +10,17 @@ declare global {
         CHATIC_APP_APPLICATION?: string;
         CHATIC_APP_STAGE?: string;
         CHATIC_APP_DEVICE_TOKEN?: string;
+        /** @deprecated Composite `deviceId:firebaseInstallId`; use CHATIC_APP_UNIQUE_DEVICE_ID + CHATIC_APP_FIREBASE_INSTALLATION_ID. */
         CHATIC_APP_DEVICE_ID?: string;
         CHATIC_APP_DEVICE_MODEL?: string;
         CHATIC_APP_CURRENT_VERSION?: string;
         CHATIC_APP_LATEST_VERSION?: string;
         CHATIC_APP_SHOULD_UPDATE?: string;
         CHATIC_APP_CURRENT_LANGUAGE?: string;
+        /** @deprecated Carries the bare device id despite the name; use CHATIC_APP_UNIQUE_DEVICE_ID. */
         CHATIC_APP_INSTALLATION_ID?: string;
+        CHATIC_APP_UNIQUE_DEVICE_ID?: string;
+        CHATIC_APP_FIREBASE_INSTALLATION_ID?: string;
     }
 }
 
@@ -42,6 +46,10 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         const shouldUpdate = window.CHATIC_APP_SHOULD_UPDATE === 'true';
         const appLang = window.CHATIC_APP_CURRENT_LANGUAGE as PageLanguage | undefined;
         const installId = window.CHATIC_APP_INSTALLATION_ID || '';
+        // Older app shells only inject INSTALLATION_ID, which carries the same bare
+        // device id — fall back to it so the new field is populated either way.
+        const uniqueDeviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || window.CHATIC_APP_INSTALLATION_ID || '';
+        const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || '';
 
         const webVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
         const appVersion = currentVersion || webVersion;
@@ -54,6 +62,8 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
             deviceToken,
             platform,
             installId,
+            uniqueDeviceId,
+            firebaseInstallationId,
             lang: appLang,
         };
         const versionInfo: VersionInfo = {

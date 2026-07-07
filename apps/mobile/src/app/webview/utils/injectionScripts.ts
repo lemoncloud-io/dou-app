@@ -7,12 +7,25 @@ export interface DeviceInfoParams {
     platform: string;
     applicationName: string;
     stage: string;
+    /**
+     * @deprecated Composite `deviceId:firebaseInstallId` string. Kept injected for
+     * older web bundles; use `uniqueDeviceId` + `firebaseInstallationId` instead.
+     */
     uniqueId: string;
     deviceModel: string;
     appVersion: string;
     buildNumber: string;
     appLanguage: string;
+    /**
+     * @deprecated Confusing name — this has always carried the bare unique device id,
+     * not a Firebase installation id. Kept injected for older web bundles; use
+     * `uniqueDeviceId` instead.
+     */
     installationId: string;
+    /** Bare unique device id (DeviceInfo.getUniqueIdSync()), stable across app reinstalls on iOS keychain / Android SSAID semantics. */
+    uniqueDeviceId: string;
+    /** Firebase installation id; empty string until the async Firebase lookup resolves. */
+    firebaseInstallationId: string;
     latestVersion: string;
     shouldUpdate: boolean;
 }
@@ -54,6 +67,8 @@ export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
     window.CHATIC_APP_BUILD_NUMBER = '${params.buildNumber}';
     window.CHATIC_APP_CURRENT_LANGUAGE = '${params.appLanguage}';
     window.CHATIC_APP_INSTALLATION_ID = '${params.installationId}';
+    window.CHATIC_APP_UNIQUE_DEVICE_ID = '${params.uniqueDeviceId}';
+    window.CHATIC_APP_FIREBASE_INSTALLATION_ID = '${params.firebaseInstallationId}';
     window.CHATIC_APP_LATEST_VERSION = '${params.latestVersion}';
     window.CHATIC_APP_SHOULD_UPDATE = '${params.shouldUpdate}';
 

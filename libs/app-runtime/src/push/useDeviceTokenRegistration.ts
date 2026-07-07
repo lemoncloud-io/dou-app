@@ -15,6 +15,12 @@ export interface DeviceTokenDelegate {
     fetchDeviceToken: () => Promise<string | null>;
     /** Shell platform identifier sent to the push broker (e.g. 'ios' | 'android' | 'desktop'). */
     platform: string;
+    /**
+     * Device identifier to register with, when the shell exposes one. Preferred over
+     * the runtime's dynamic device id (a composite `deviceId:firebaseInstallId`) so
+     * shells can register with a bare, reinstall-stable device id.
+     */
+    deviceId?: string;
     /** Firebase installation id, when the shell exposes one. */
     installId?: string;
     /** SNS application name; defaults to 'chatic'. */
@@ -78,7 +84,9 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
                 // fall through to the catch so the next trigger retries immediately.
                 if (!deviceToken) throw new Error('empty device token');
                 return mutateRef.current({
-                    deviceId: deviceIdRef.current ?? undefined,
+                    // Delegate-provided id wins; the dynamic (composite) id remains the
+                    // fallback for shells that don't inject a bare device id yet.
+                    deviceId: currentDelegate.deviceId ?? deviceIdRef.current ?? undefined,
                     deviceToken,
                     platform: currentDelegate.platform,
                     installId: currentDelegate.installId,

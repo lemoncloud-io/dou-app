@@ -84,6 +84,14 @@ describe('useDeviceTokenRegistration — 공용 디바이스 토큰 등록', () 
         });
     });
 
+    it('delegate가 deviceId를 주면 동적(복합) id 대신 그것으로 등록한다', async () => {
+        renderHook(() => useDeviceTokenRegistration(makeDelegate({ deviceId: 'bare-device-1' })));
+        await flush();
+
+        // 'device-1' comes from useDynamicDeviceId; the shell-provided bare id must win.
+        expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ deviceId: 'bare-device-1' }));
+    });
+
     it('delegate의 application이 있으면 기본값 대신 그것을 쓴다', async () => {
         renderHook(() => useDeviceTokenRegistration(makeDelegate({ application: 'custom-app' })));
         await flush();

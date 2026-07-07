@@ -32,6 +32,12 @@ export const useDeviceTokenRegistration = (): void => {
                     // Token fetch can fail (e.g. permission denied); the runtime retries later.
                     .catch(() => null),
             platform,
+            // Register with a bare, reinstall-stable device id — never the composite
+            // `deviceId:firebaseInstallId` the runtime would fall back to. Older app
+            // shells don't inject UNIQUE_DEVICE_ID yet, but INSTALLATION_ID has always
+            // carried the same bare id, so it covers them. Once app versions carrying
+            // UNIQUE_DEVICE_ID are prevalent, drop the INSTALLATION_ID fallback.
+            deviceId: window.CHATIC_APP_UNIQUE_DEVICE_ID || window.CHATIC_APP_INSTALLATION_ID || undefined,
             installId: window.CHATIC_APP_INSTALLATION_ID,
             application: APPLICATION,
         };
