@@ -8,9 +8,13 @@ import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnNavigate } from '../useHandleAppMessage';
 import { resolvePushNavigation } from './resolvePushNavigation';
+import { ROUTES } from '../../routes/paths';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+/** Strips query/hash so push targets can be compared against the current pathname. */
+const toPathname = (target: string): string => target.split(/[?#]/)[0];
 
 /**
  * Centralizes active navigation driven by the native `OnNavigate` bridge event
@@ -27,6 +31,11 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * rolls the selection back. We therefore wait for the handshake (`isVerified`) before switching;
  * if it does not complete within the timeout we skip the switch and navigate best-effort.
  *
+ * Push-driven navigation also normalizes the history stack instead of plainly pushing:
+ * repeated push taps used to stack room entries (`[home, roomA, roomB, ...]`) so "back" walked
+ * through stale rooms instead of leaving the chat. The rule here is the messenger convention —
+ * entering via a push deep link always means back = home. See `navigateNormalized`.
+ *
  * Must be used within the router tree (relies on `useNavigate`).
  */
 export const useHandlePushNavigation = (): void => {
@@ -35,10 +44,39 @@ export const useHandlePushNavigation = (): void => {
     const { switchCloud } = useSwitchCloudSession();
     const { switchSite } = useSiteSwitch();
 
+    /**
+     * Navigates to a push target with the back stack normalized to `[..., home, target]`.
+     *
+     * - Already on the target screen: skip entirely — re-navigating would remount the page
+     *   (scroll/input reset) and stack a duplicate history entry for the same room.
+     * - Otherwise rebase the *current* entry to home (`replace`) before pushing the target,
+     *   so back always lands on home no matter how deep the user was when tapping the push.
+     *
+     * The current pathname is read from `window.location` (not `useLocation`) because this
+     * runs after async cloud/site switches and must see the location at call time, not the
+     * one captured when the handler was created. Safe under `createBrowserRouter`.
+     */
+    const navigateNormalized = useCallback(
+        (target: string) => {
+            const currentPathname = window.location.pathname;
+            if (currentPathname === toPathname(target)) {
+                logger.info('ROUTER', `Already at push target; skipping navigation: ${target}`);
+                return;
+            }
+            if (currentPathname !== ROUTES.root) {
+                navigate(ROUTES.root, { replace: true });
+            }
+            navigate(target);
+        },
+        [navigate]
+    );
+
     const handleNavigate = useCallback(
         async (message: AppMessageData<'OnNavigate'>) => {
             const { path, replace } = message.data;
             const { target, cid, sid } = resolvePushNavigation(path);
+            // `replace` is still logged for diagnostics but no longer drives the route change:
+            // history normalization (rebase-to-home) supersedes the native flag either way.
             logger.info('ROUTER', `Received OnNavigate event from native: ${path}`, {
                 target,
                 cid,
@@ -58,21 +96,21 @@ export const useHandlePushNavigation = (): void => {
                             cid,
                             sid,
                         });
-                        navigate(target, { replace: !!replace });
+                        navigateNormalized(target);
                         return;
                     }
                     // Cloud first (it clears the selected site), then site, then route.
                     if (cid && cid !== selectedCloudId) await switchCloud(cid);
                     if (sid && sid !== selectedSiteId) await switchSite(sid);
                 }
-                navigate(target, { replace: !!replace });
+                navigateNormalized(target);
             } catch (error) {
                 logger.error('ROUTER', `Failed to navigate to: ${target}`, { error });
                 // Best-effort: attempt the route anyway so a switch failure doesn't strand the user.
-                navigate(target, { replace: !!replace });
+                navigateNormalized(target);
             }
         },
-        [navigate, selectedCloudId, selectedSiteId, switchCloud, switchSite]
+        [navigateNormalized, selectedCloudId, selectedSiteId, switchCloud, switchSite]
     );
 
     useOnNavigate(handleNavigate);
