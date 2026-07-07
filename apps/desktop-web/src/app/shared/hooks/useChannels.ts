@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
 
 import { computeChannelUnread, resolveReadNo } from '../utils';
-import { useReadCursorStore } from '../stores';
+import { useCloudChannelsStore, useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 
 // Fixed alphabetical order (Slack-style) so the list doesn't jump on every new
@@ -70,12 +70,24 @@ export const useChannels = (placeId: string | undefined) => {
         });
     }, [channelRepository, placeId]);
 
+    // Per-cloud snapshot: remember each cloud's last NON-EMPTY list and render it while the live
+    // list is momentarily empty during a switch (the target cloud passes through empty/relay frames
+    // before it settles). Cross-cloud writes are already rejected at the engine, so the snapshot is
+    // this cloud's own real list — showing it keeps the sidebar stable instead of blinking empty.
+    const activeCid = useGlobalSession().cloud?.cloudId ?? 'default';
+    const snapshot = useCloudChannelsStore(s => s.byCloud[activeCid]);
+    const rememberChannels = useCloudChannelsStore(s => s.remember);
+    useEffect(() => {
+        if (!rawLoading && rawChannels.length > 0) rememberChannels(activeCid, rawChannels);
+    }, [rawLoading, rawChannels, activeCid, rememberChannels]);
+    const sourceChannels = rawChannels.length > 0 ? rawChannels : (snapshot ?? rawChannels);
+
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
-    const serverReadNo = useChannelReadCursors(rawChannels);
+    const serverReadNo = useChannelReadCursors(sourceChannels);
     const channels = useMemo(
         () =>
-            rawChannels.map(c => ({
+            sourceChannels.map(c => ({
                 ...c,
                 unreadCount: computeChannelUnread(
                     c,
@@ -83,7 +95,7 @@ export const useChannels = (placeId: string | undefined) => {
                     resolveReadNo(c.id ?? '', serverReadNo, readCursors)
                 ),
             })),
-        [rawChannels, myUid, readCursors, serverReadNo]
+        [sourceChannels, myUid, readCursors, serverReadNo]
     );
 
     // The channel cache emits an empty list immediately on a cold boot / post-switch
@@ -107,7 +119,9 @@ export const useChannels = (placeId: string | undefined) => {
         return () => clearTimeout(timer);
     }, [rawLoading, isVerified, rawChannels.length]);
 
-    const isLoading = rawLoading || (rawChannels.length === 0 && !confidentEmpty);
+    // Content from the snapshot counts as loaded — only show the skeleton when there is genuinely
+    // nothing to render yet (first visit, no snapshot) and the settle window hasn't resolved.
+    const isLoading = sourceChannels.length === 0 && (rawLoading || !confidentEmpty);
 
     return { channels, isLoading };
 };
