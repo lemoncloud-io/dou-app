@@ -20,6 +20,9 @@ const httpUrlError = (value: string): string | null => {
     return isValidHttpUrl(trimmed) ? null : 'http 또는 https URL만 사용할 수 있습니다.';
 };
 
+// PoC 편의: 커스텀 web zip 입력칸 기본값 (검증용 샘플 번들)
+const DEFAULT_CUSTOM_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
+
 interface EnvironmentSettingsScreenProps {
     onCloseAfterWebViewReload?: () => void;
 }
@@ -39,7 +42,7 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
     const { status: zipStatus, error: zipError, applyZip, disableZip } = useCustomZipLoader();
 
     const [baseUrlInput, setBaseUrlInput] = useState(webviewBaseUrlOverride ?? '');
-    const [zipUrlInput, setZipUrlInput] = useState('');
+    const [zipUrlInput, setZipUrlInput] = useState(DEFAULT_CUSTOM_ZIP_URL);
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {
