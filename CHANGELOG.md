@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-07-07] - No version updates
+
+### Features
+
+- (web/sync) refresh chat feed and lists on app foreground return
+- (app/sync) full channel snapshot on rising edge + 1-day sync cursor TTL
+
+### Documentation
+
+- (web/data-flow) document foreground-return refresh trigger
+- (web/data-flow) document channel snapshot on rising edge and sync cursor TTL
+
 ## [2026-07-07] - root@0.40.0, @chatic/desktop-web@0.2.0
 
 ### Features
