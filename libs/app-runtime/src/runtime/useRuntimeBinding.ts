@@ -45,6 +45,7 @@ export const useRuntimeBinding = (): RuntimeBinding => {
                               url: endpoint,
                               deviceId,
                               wssType,
+                              cid,
                           },
                       }
                     : null,

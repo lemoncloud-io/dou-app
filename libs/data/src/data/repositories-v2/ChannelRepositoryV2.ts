@@ -111,6 +111,17 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         //      re-emit lands on the same scope key observers subscribed with; tagging the
         //      write context with query.sid instead would silently miss those observers.
         const requestContext = this.getRequestContext();
+        // The socket that answers `channel.mine` may still serve the OUTGOING cloud during a
+        // switch (cache cid already flipped). Writing its list under the new cid poisons the
+        // target partition, so skip when the socket's bound cloud differs from the active cid.
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+            console.log('[CHDIAG] refreshList SKIP (foreign socket)', {
+                cid: requestContext.cid,
+                socketCid: rawContext.socketCid,
+            });
+            return;
+        }
         const targetSid = query.sid ?? requestContext.sid;
         const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
         const remote = await this.channelRemoteDataSource.fetchChannel(
@@ -150,6 +161,10 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public async syncChannels(since: number): Promise<SyncChannelsResult> {
         const requestContext = this.getRequestContext();
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+            return { syncedAt: since, removedCount: 0 };
+        }
         const normalizedContext = this.getNormalizedContext(requestContext);
         // Sync ingests channels across all places, so map without binding to the active sid.
         const remote = await this.channelRemoteDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });

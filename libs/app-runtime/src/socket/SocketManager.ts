@@ -44,6 +44,11 @@ export class SocketManager implements ISocketManager {
     private client: ClientSocketV2 | null = null;
     private config: SocketBindingConfig | null = null;
     private state: SocketState = initialState();
+    // The cloud id the live socket was bound to, frozen when the client is (re)created. It only
+    // advances on a real rebind (url/deviceId/wssType change), NOT when the cache cid flips
+    // optimistically mid-switch — so it identifies the cloud the attached socket truly serves,
+    // letting cache writes reject frames/reads from a socket that outlived its cloud.
+    private boundCid: string | null = null;
 
     // State is an observable store: each consumer (e.g. a useSyncExternalStore hook,
     // one callback per mounted component) registers its own listener — hence a Set.
@@ -73,6 +78,9 @@ export class SocketManager implements ISocketManager {
         this.teardownClient();
 
         this.config = config;
+        // Freeze this socket's cloud. Set only here (on an actual rebind), so a mid-switch cid
+        // flip that doesn't change the url leaves it pinned to the socket's real cloud.
+        this.boundCid = config.cid ?? null;
 
         const client = this.createClient(config);
         this.client = client;
@@ -100,6 +108,11 @@ export class SocketManager implements ISocketManager {
     /** Diagnostic: the wss URL the live socket is bound to (identifies its cloud). */
     public getConnectedUrl(): string | null {
         return this.config?.url ?? null;
+    }
+
+    /** The cloud id the live socket was bound to (frozen at bind), or null before the first bind. */
+    public getBoundCid(): string | null {
+        return this.boundCid;
     }
 
     /**
