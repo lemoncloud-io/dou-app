@@ -226,4 +226,63 @@ RCT_EXPORT_METHOD(createDummyFile:(NSString *)path
     }
 }
 
+RCT_EXPORT_METHOD(downloadFile:(NSString *)url
+                  toPath:(NSString *)toPath
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+    @try {
+        NSURL *downloadURL = [NSURL URLWithString:url];
+        if (!downloadURL) {
+            reject(@"DOWNLOAD_FAILED", [NSString stringWithFormat:@"Invalid URL: %@", url], nil);
+            return;
+        }
+
+        NSString *cleanPath = [self getCleanPath:toPath];
+        if (!cleanPath) {
+            reject(@"DOWNLOAD_FAILED", [NSString stringWithFormat:@"Invalid destination path: %@", toPath], nil);
+            return;
+        }
+
+        NSURLSessionDownloadTask *task = [[NSURLSession sharedSession] downloadTaskWithURL:downloadURL
+                                                                         completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error) {
+            NSFileManager *fileManager = [NSFileManager defaultManager];
+            if (error) {
+                [fileManager removeItemAtPath:cleanPath error:nil];
+                reject(@"DOWNLOAD_FAILED", error.localizedDescription, error);
+                return;
+            }
+
+            if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
+                NSInteger statusCode = ((NSHTTPURLResponse *)response).statusCode;
+                if (statusCode < 200 || statusCode > 299) {
+                    [fileManager removeItemAtPath:cleanPath error:nil];
+                    reject(@"DOWNLOAD_FAILED", [NSString stringWithFormat:@"Download failed with HTTP status: %ld", (long)statusCode], nil);
+                    return;
+                }
+            }
+
+            NSString *parentDir = [cleanPath stringByDeletingLastPathComponent];
+            [fileManager createDirectoryAtPath:parentDir withIntermediateDirectories:YES attributes:nil error:nil];
+            if ([fileManager fileExistsAtPath:cleanPath]) {
+                [fileManager removeItemAtPath:cleanPath error:nil];
+            }
+
+            NSError *moveError = nil;
+            BOOL moved = [fileManager moveItemAtURL:location
+                                              toURL:[NSURL fileURLWithPath:cleanPath]
+                                              error:&moveError];
+            if (!moved) {
+                [fileManager removeItemAtPath:cleanPath error:nil];
+                reject(@"DOWNLOAD_FAILED", moveError.localizedDescription ?: @"Failed to move downloaded file", moveError);
+                return;
+            }
+
+            resolve(cleanPath);
+        }];
+        [task resume];
+    } @catch (NSException *exception) {
+        reject(@"DOWNLOAD_FAILED", exception.reason, nil);
+    }
+}
+
 @end
