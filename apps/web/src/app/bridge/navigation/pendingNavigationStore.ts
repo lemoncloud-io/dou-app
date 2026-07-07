@@ -1,4 +1,4 @@
-import { webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
 import type { AppMessageData } from '@chatic/app-messages';
 
 type OnNavigateMessage = AppMessageData<'OnNavigate'>;
@@ -41,8 +41,11 @@ export const createPendingNavigationStore = (subscribe: NavigationSubscribe): Pe
             if (unsubscribe) return;
             unsubscribe = subscribe(message => {
                 if (consumer) {
+                    // Live delivery is already logged by the handler itself; no extra trace here.
                     consumer(message);
                 } else {
+                    // Cold-start leg: the router-mounted handler does not exist yet.
+                    logger.info('ROUTER', `OnNavigate held until handler mounts: ${message.data?.path}`);
                     pending = message;
                 }
             });
@@ -59,6 +62,7 @@ export const createPendingNavigationStore = (subscribe: NavigationSubscribe): Pe
                 // cannot replay an already-consumed navigation.
                 const held = pending;
                 pending = null;
+                logger.info('ROUTER', `Replaying held OnNavigate to newly mounted handler: ${held.data?.path}`);
                 nextConsumer(held);
             }
             return () => {
