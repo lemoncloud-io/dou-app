@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { deeplinkService, logger, notificationService } from '../../services';
 import type { NativeRouteState, PushNavigationData } from '../../services/deeplinks/deeplinkUtils';
-import { navigationRef } from '../../features/core/navigation/navigationRef';
+import { navigationRef } from '../../features/core/navigation';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 // Delay before lifting the cold-start splash after the WebView reports load: keeps the "home" frame
@@ -112,7 +112,17 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         // Notification tap → relative path (cid/sid merged). A null path just foregrounds the app.
         const dispatchPushTap = (data: PushNavigationData | undefined, isColdStart: boolean) => {
             const path = deeplinkService.resolvePushTap(data);
-            if (!path) return;
+            if (!path) {
+                // A tap that resolves to nothing is otherwise invisible in field diagnostics; log the
+                // payload shape (keys only, no content) so a schema mismatch can be spotted from logs.
+                logger.warn(
+                    'DEEPLINK',
+                    `[useDeepLinkNavigation] Push tap resolved to no path (coldStart=${isColdStart}, keys=${
+                        data ? Object.keys(data).join(',') : 'none'
+                    })`
+                );
+                return;
+            }
             if (isColdStart) markColdStartRedirect();
             emitNavigate(path);
         };
