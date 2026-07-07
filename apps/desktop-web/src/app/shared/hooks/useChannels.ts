@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
@@ -111,7 +111,34 @@ export const useChannels = (placeId: string | undefined) => {
         return () => clearTimeout(timer);
     }, [rawLoading, isVerified, rawChannels.length]);
 
-    const isLoading = rawLoading || (rawChannels.length === 0 && !confidentEmpty);
+    // Cloud-switch settle gate. The channel cache is cid-partitioned but a switch flips the
+    // cid optimistically while the old cloud's socket is still delivering, so the target
+    // partition can transiently hold the previous cloud's rows (stamped with the new cid, so
+    // a read filter can't undo it). Rather than flash those, hold the skeleton until the new
+    // cloud's socket re-verifies — the switch drops it to unverified while it reconnects, so
+    // "verified again on the current cid" means its discovery has run and the list is real.
+    // `readyCid` is only advanced on an isVerified change (never on the cid change itself), so
+    // a switch that flips cid while still momentarily verified doesn't mark the new cloud ready
+    // early. Bounded by the wedge ceiling so a socket that never re-verifies still resolves.
+    const activeCidRef = useRef(activeCid);
+    activeCidRef.current = activeCid;
+    const [readyCid, setReadyCid] = useState(activeCid);
+    useEffect(() => {
+        if (isVerified) setReadyCid(activeCidRef.current);
+    }, [isVerified]);
+    const settling = readyCid !== activeCid;
+    const [settleExpired, setSettleExpired] = useState(false);
+    useEffect(() => {
+        if (!settling) {
+            setSettleExpired(false);
+            return;
+        }
+        const timer = setTimeout(() => setSettleExpired(true), EMPTY_WEDGE_CEILING_MS);
+        return () => clearTimeout(timer);
+    }, [settling]);
+    const holdForSwitch = settling && !settleExpired;
+
+    const isLoading = rawLoading || holdForSwitch || (rawChannels.length === 0 && !confidentEmpty);
 
     return { channels, isLoading };
 };
