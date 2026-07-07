@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSocketManager } from '@chatic/app-runtime';
 import { useSessionSelection, useSiteSwitch, useSwitchCloudSession } from '@chatic/web-core';
 
-import { useOnNavigate } from '../useHandleAppMessage';
+import { pendingNavigationStore } from './pendingNavigationStore';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { useHandlePushNavigation } from './useHandlePushNavigation';
 
@@ -16,13 +16,14 @@ jest.mock('@chatic/web-core', () => ({
     useSwitchCloudSession: jest.fn(),
 }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
-jest.mock('../useHandleAppMessage', () => ({ useOnNavigate: jest.fn() }));
+jest.mock('./pendingNavigationStore', () => ({ pendingNavigationStore: { register: jest.fn() } }));
 jest.mock('./resolvePushNavigation', () => ({ resolvePushNavigation: jest.fn() }));
 
 const navigate = jest.fn();
 const switchCloud = jest.fn();
 const switchSite = jest.fn();
 const waitUntilVerified = jest.fn();
+const unregister = jest.fn();
 
 type NavigationMessage = { data: { path: string; replace?: boolean } };
 let captured: ((message: NavigationMessage) => Promise<void>) | undefined;
@@ -51,13 +52,24 @@ beforeEach(() => {
     (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
     waitUntilVerified.mockResolvedValue(true);
     (getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
-    (useOnNavigate as jest.Mock).mockImplementation((handler: typeof captured) => {
+    (pendingNavigationStore.register as jest.Mock).mockImplementation((handler: typeof captured) => {
         captured = handler;
+        return unregister;
     });
     setSelection('default', 's1');
 });
 
 describe('useHandlePushNavigation', () => {
+    it('마운트 시 pendingNavigationStore에 소비자를 등록하고 언마운트 시 해제한다', () => {
+        setResolved({ target: '/x', cid: null, sid: null });
+
+        const { unmount } = renderHook(() => useHandlePushNavigation());
+        expect(pendingNavigationStore.register).toHaveBeenCalledTimes(1);
+
+        unmount();
+        expect(unregister).toHaveBeenCalledTimes(1);
+    });
+
     it('waits for the handshake, then switches cloud-before-site, then navigates', async () => {
         setSelection('c1', 's1');
         setResolved({ target: '/room', cid: 'c2', sid: 's2' });

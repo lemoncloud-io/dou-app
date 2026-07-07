@@ -1,5 +1,11 @@
 import { Toaster as SonnerToaster } from 'sonner';
 
+// Top-positioned toasts (in-app push banner) must clear the device notch/status bar.
+// `--safe-top` is injected by the native WebView (see mobile injectionScripts.ts) and
+// falls back to 0px in a plain browser. Only `top` is set, so bottom toasts keep
+// sonner's defaults.
+const SONNER_SAFE_OFFSET = { top: 'calc(var(--safe-top, 0px) + 8px)' };
+
 import { GlobalLoader, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
@@ -42,7 +48,7 @@ export const AppRuntime = () => {
             <Router />
             <DevMonitorOverlay />
             <GlobalLoader />
-            <SonnerToaster />
+            <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
             <Toaster />
         </RuntimeConnectionHost>
     );
