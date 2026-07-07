@@ -65,6 +65,19 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         expect(second.isSystem).toBe(false);
     });
 
+    it('내가 주체인 시스템 메시지는 목록에서 숨기고, 타인의 시스템 메시지는 유지한다', () => {
+        seedChats([
+            chat({ id: 'a', chatNo: 1, ownerId: 'u1', stereo: 'system', createdAtMs: 100 }),
+            chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'system', createdAtMs: 200 }),
+            chat({ id: 'c', chatNo: 3, ownerId: 'me', stereo: 'text', createdAtMs: 300 }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        // Only my own system row is hidden — my normal message and others' system rows remain.
+        expect(result.current.messages.map(m => m.id)).toEqual(['a', 'c']);
+    });
+
     it('메시지가 없고 로딩이 끝나면 isEmpty=true', () => {
         seedChats([]);
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));

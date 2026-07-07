@@ -4,6 +4,7 @@ import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
+import { isOwnSystemChat } from '../../../utils';
 import type { ClientChatView } from '../types';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';
 
@@ -85,8 +86,12 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     }, [users]);
 
     // Sort oldest → newest so messages[last] is the latest (the page reads it for auto-read).
+    // Own system rows (my join/leave) are hidden — they carry no information for their subject.
+    // Read-marking is unaffected: stage 1 of useReadMarker sends channel.chatNo, which already
+    // covers a hidden newest row.
     const messages = useMemo<ClientChatView[]>(() => {
-        return [...chats]
+        return chats
+            .filter(chat => !isOwnSystemChat(chat, myUid))
             .sort((a, b) => (a.chatNo ?? 0) - (b.chatNo ?? 0))
             .map(chat => ({
                 ...chat,
