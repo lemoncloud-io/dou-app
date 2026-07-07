@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-07] - No version updates
+
+### Features
+
+- (app-runtime/push) shared device-token registration with force re-register
+
 ## [2026-07-06] - No version updates
 
 ### Features
