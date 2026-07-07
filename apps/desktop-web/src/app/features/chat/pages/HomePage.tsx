@@ -30,6 +30,7 @@ import {
     useMentionsPanelStore,
     useReadCursorStore,
     useSelectPlace,
+    useLastChannelStore,
     useSelectedChannelStore,
     useSiteProfiles,
     useUnreadStore,
@@ -315,15 +316,34 @@ export const HomePage = () => {
             return;
         }
         // Keep the current selection if it still exists in the loaded list (survives
-        // a HomePage remount after navigating to profile/settings and back). Fall back
-        // to the first channel only when the selection is absent — initial load, or a
-        // place switch where the prior channel doesn't exist in the new place.
+        // a HomePage remount after navigating to profile/settings and back). Otherwise
+        // restore the channel last opened in THIS cloud+place (so switching away and back
+        // returns to it), falling back to the first channel only when there is none —
+        // initial load, or a place with no prior selection.
         const stillValid = !!selectedChannelId && channels.some(channel => channel.id === selectedChannelId);
         if (!stillValid && channels.length > 0) {
-            const firstId = channels[0]?.id;
-            if (firstId) selectChannel(firstId);
+            const scope = `${activeCloudId ?? 'default'}:${selectedPlaceId ?? ''}`;
+            const remembered = useLastChannelStore.getState().byScope[scope];
+            const target = remembered && channels.some(c => c.id === remembered) ? remembered : channels[0]?.id;
+            if (target) selectChannel(target);
         }
-    }, [channels, selectedChannelId, selectChannel, requestMessageJump, requestOpenAtBottom]);
+    }, [
+        channels,
+        selectedChannelId,
+        selectChannel,
+        requestMessageJump,
+        requestOpenAtBottom,
+        activeCloudId,
+        selectedPlaceId,
+    ]);
+
+    // Remember the channel you have open in this cloud+place so returning restores it.
+    const rememberLastChannel = useLastChannelStore(s => s.remember);
+    useEffect(() => {
+        if (selectedChannelId && channels.some(c => c.id === selectedChannelId)) {
+            rememberLastChannel(`${activeCloudId ?? 'default'}:${selectedPlaceId ?? ''}`, selectedChannelId);
+        }
+    }, [selectedChannelId, channels, activeCloudId, selectedPlaceId, rememberLastChannel]);
 
     // Open a deferred thread (saved / mention click on a reply) once its channel is
     // the selected one and present in the loaded list. Declared after the
