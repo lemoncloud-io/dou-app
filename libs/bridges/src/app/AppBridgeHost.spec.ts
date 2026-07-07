@@ -153,6 +153,66 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect(flushed.data.path).toBe('/channels/1/room');
     });
 
+    it('SendLog/__console__ 릴레이는 웹 준비 신호로 취급하지 않아 버퍼를 플러시하지 않는다 (cold start 유실 방지)', async () => {
+        const host = new AppBridgeHost({
+            sendToWeb: mockSendToWeb,
+            protocol: JsonProtocol,
+        });
+
+        // The web logger (SendLog) relays from module evaluation and the injected console
+        // forwarder (__console__) runs even before content load — neither proves the web
+        // app can receive events, so neither may trigger the buffered-event flush.
+        host.registerHandler('SendLog' as any, async () => ({ type: 'OnSendLog', success: true, data: {} }) as any);
+        host.registerHandler(
+            '__console__' as any,
+            async () => ({ type: '__console__', success: true, data: {} }) as any
+        );
+        host.registerHandler('Ping' as any, async () => ({ type: 'Ping', success: true, data: {} }) as any);
+
+        // Cold-start OnNavigate sits in the buffer while the web boots.
+        host.pushEvent({ type: 'OnNavigate', data: { path: '/channels/1/room' } } as any);
+
+        // Pre-content console relay arrives first, then an early boot log: both must be
+        // answered, but neither may flush the buffer.
+        await host.handleMessage(
+            JsonProtocol.encode({
+                type: '__console__',
+                refId: 'console-1',
+                version: BRIDGE_PROTOCOL_VERSION,
+                data: { level: 'log', msg: 'vite connected' },
+            } as any) as string
+        );
+        await host.handleMessage(
+            JsonProtocol.encode({
+                type: 'SendLog',
+                refId: 'log-1',
+                version: BRIDGE_PROTOCOL_VERSION,
+                data: { level: 'info', tag: 'WEB_CORE', message: 'booting' },
+            } as any) as string
+        );
+
+        expect(mockSendToWeb).toHaveBeenCalledTimes(2);
+        const consoleResponse = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
+        expect(consoleResponse.type).toBe('__console__');
+        const logResponse = JsonProtocol.decode(mockSendToWeb.mock.calls[1][0]) as any;
+        expect(logResponse.type).toBe('OnSendLog');
+
+        // A real (non-relay) message marks the web ready: buffered event flushes first.
+        await host.handleMessage(
+            JsonProtocol.encode({
+                type: 'Ping',
+                refId: 'ping-1',
+                version: BRIDGE_PROTOCOL_VERSION,
+                data: {},
+            } as any) as string
+        );
+
+        expect(mockSendToWeb).toHaveBeenCalledTimes(4);
+        const flushed = JsonProtocol.decode(mockSendToWeb.mock.calls[2][0]) as any;
+        expect(flushed.type).toBe('OnNavigate');
+        expect(flushed.data.path).toBe('/channels/1/room');
+    });
+
     it('should dispatch immediately when web is already ready', async () => {
         const host = new AppBridgeHost({
             sendToWeb: mockSendToWeb,
