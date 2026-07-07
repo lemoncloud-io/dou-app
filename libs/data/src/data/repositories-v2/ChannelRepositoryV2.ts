@@ -10,6 +10,7 @@ import type {
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import type { ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
+import { logger } from '@chatic/bridges';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import type { IChannelLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
@@ -131,6 +132,14 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const staleIds = (localResult?.list || [])
             .map(item => item.id)
             .filter((id): id is string => !!id && !serverIds.has(id));
+        logger.info('CHDIAG', 'refreshList', {
+            data: {
+                cid: requestContext.cid,
+                sid: targetSid,
+                wrote: domainList.map(c => c.name),
+                stale: staleIds,
+            },
+        });
         if (staleIds.length > 0) {
             await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
         }
@@ -155,6 +164,9 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         if (domainList.length > 0) {
             await this.channelLocalDataSource.cacheWriteMany(domainList, { ...requestContext, sid: '' });
         }
+        logger.info('CHDIAG', 'syncChannels', {
+            data: { cid: requestContext.cid, wrote: domainList.map(c => c.name) },
+        });
 
         let removedCount = 0;
         if (remote.ids) {

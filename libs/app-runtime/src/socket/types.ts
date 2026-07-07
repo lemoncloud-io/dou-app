@@ -72,6 +72,8 @@ export interface ISocketManager {
     setRecoveryHandler(handler: SocketRecoveryHandler | null): void;
     setReconnectHandler(handler: (() => Promise<void>) | null): void;
     recover(reason: string): Promise<void>;
+    /** Diagnostic: the wss URL the live socket is bound to (identifies its cloud). */
+    getConnectedUrl(): string | null;
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;

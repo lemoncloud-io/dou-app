@@ -97,6 +97,11 @@ export class SocketManager implements ISocketManager {
         return this.client;
     }
 
+    /** Diagnostic: the wss URL the live socket is bound to (identifies its cloud). */
+    public getConnectedUrl(): string | null {
+        return this.config?.url ?? null;
+    }
+
     /**
      * Returns the current comprehensive socket state snapshot.
      */
