@@ -4,6 +4,17 @@
 
 ### Features
 
+- (push) resolve device identity from single source with composite split
+- (push) register web devices with bare unique device id
+
+### Other
+
+- build: (mobile) bump mobile app version to 0.18.0
+
+## [2026-07-07] - No version updates
+
+### Features
+
 - (web/sync) refresh chat feed and lists on app foreground return
 - (app/sync) full channel snapshot on rising edge + 1-day sync cursor TTL
 
