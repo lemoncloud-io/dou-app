@@ -147,8 +147,13 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             sid: targetSid,
             wrote: domainList.map(c => c.name),
             stale: staleIds,
+            pruned: staleIds.length > 0 && domainList.length > 0,
         });
-        if (staleIds.length > 0) {
+        // Only prune when the server actually returned channels. Right after a switch the socket
+        // is bound to the new cloud but its session/site may not be ready, so channel.mine returns
+        // an empty list — pruning against that would wipe the real (sync-plan-populated) channels
+        // and leave "No channels yet". A genuinely empty cloud settles once a real response arrives.
+        if (staleIds.length > 0 && domainList.length > 0) {
             await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
         }
     }
