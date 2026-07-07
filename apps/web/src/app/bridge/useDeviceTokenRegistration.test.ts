@@ -1,8 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/web-core', () => ({
-    useSessionAuth: jest.fn(),
-    useRegisterDeviceToken: jest.fn(),
+jest.mock('@chatic/app-runtime', () => ({
+    useDeviceTokenRegistration: jest.fn(),
 }));
 
 jest.mock('./appBridge', () => ({
@@ -11,18 +10,19 @@ jest.mock('./appBridge', () => ({
     },
 }));
 
-import { useRegisterDeviceToken, useSessionAuth } from '@chatic/web-core';
+import { useDeviceTokenRegistration as useRuntimeDeviceTokenRegistration } from '@chatic/app-runtime';
 
 import { appBridge } from './appBridge';
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 
-const mockUseSessionAuth = useSessionAuth as jest.Mock;
-const mockUseRegister = useRegisterDeviceToken as jest.Mock;
+const mockRuntimeHook = useRuntimeDeviceTokenRegistration as jest.Mock;
 const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
-const setAuthenticated = (isAuthenticated: boolean) => mockUseSessionAuth.mockReturnValue({ isAuthenticated });
+// The adapter's job is delegate construction only; registration policy is
+// covered by app-runtime's own tests.
+const lastDelegate = () => mockRuntimeHook.mock.calls[mockRuntimeHook.mock.calls.length - 1][0];
 
-describe('useDeviceTokenRegistration — 디바이스 토큰 등록', () => {
+describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         delete window.CHATIC_APP_PLATFORM;
@@ -30,40 +30,51 @@ describe('useDeviceTokenRegistration — 디바이스 토큰 등록', () => {
         mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
     });
 
-    it('미인증 상태에서는 토큰을 가져오지 않고 null을 등록한다', () => {
-        setAuthenticated(false);
-        window.CHATIC_APP_PLATFORM = 'ios';
-
+    it('네이티브 셸 밖(플랫폼 없음)에서는 null 델리게이트를 넘긴다', () => {
         renderHook(() => useDeviceTokenRegistration());
 
-        expect(mockFetchFcmToken).not.toHaveBeenCalled();
-        expect(mockUseRegister).toHaveBeenLastCalledWith(null);
+        expect(mockRuntimeHook).toHaveBeenLastCalledWith(null);
     });
 
-    it('네이티브 셸 밖(플랫폼 없음)에서는 토큰을 가져오지 않는다', () => {
-        setAuthenticated(true); // authenticated but window.CHATIC_APP_PLATFORM is unset
-
-        renderHook(() => useDeviceTokenRegistration());
-
-        expect(mockFetchFcmToken).not.toHaveBeenCalled();
-        expect(mockUseRegister).toHaveBeenLastCalledWith(null);
-    });
-
-    it('앱 환경에서는 FCM 토큰을 가져와 등록 body로 전달한다', async () => {
-        setAuthenticated(true);
+    it('앱 환경에서는 platform/installId/application을 담은 델리게이트를 넘긴다', () => {
         window.CHATIC_APP_PLATFORM = 'ios';
         window.CHATIC_APP_INSTALLATION_ID = 'inst-1';
 
         renderHook(() => useDeviceTokenRegistration());
 
-        expect(mockFetchFcmToken).toHaveBeenCalledTimes(1);
-        await waitFor(() =>
-            expect(mockUseRegister).toHaveBeenLastCalledWith({
-                deviceToken: 'tok-123',
+        expect(lastDelegate()).toEqual(
+            expect.objectContaining({
                 platform: 'ios',
                 installId: 'inst-1',
                 application: 'chatic',
             })
         );
+    });
+
+    it('델리게이트의 fetchDeviceToken은 브리지 응답의 토큰을 반환한다', async () => {
+        window.CHATIC_APP_PLATFORM = 'android';
+
+        renderHook(() => useDeviceTokenRegistration());
+
+        await expect(lastDelegate().fetchDeviceToken()).resolves.toBe('tok-123');
+        expect(mockFetchFcmToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('브리지 응답에 토큰이 없으면 null을 반환한다', async () => {
+        window.CHATIC_APP_PLATFORM = 'android';
+        mockFetchFcmToken.mockResolvedValue({ data: {} });
+
+        renderHook(() => useDeviceTokenRegistration());
+
+        await expect(lastDelegate().fetchDeviceToken()).resolves.toBeNull();
+    });
+
+    it('브리지 호출이 실패하면 null을 반환한다 (런타임이 재시도)', async () => {
+        window.CHATIC_APP_PLATFORM = 'android';
+        mockFetchFcmToken.mockRejectedValue(new Error('permission denied'));
+
+        renderHook(() => useDeviceTokenRegistration());
+
+        await expect(lastDelegate().fetchDeviceToken()).resolves.toBeNull();
     });
 });

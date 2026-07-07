@@ -193,6 +193,8 @@ libs/app-runtime/src/
     runtime.ts
     factories/
       remoteFactory.ts
+  push/
+    useDeviceTokenRegistration.ts
 ```
 
 ## 구현 단계별 전환 규칙
