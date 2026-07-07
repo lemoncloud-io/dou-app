@@ -7,7 +7,6 @@ import {
     ProfileSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
-import { logger } from '@chatic/bridges';
 import { getDataManager, getRepositories } from '../../data/runtime';
 import { getSocketManager } from '../runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
@@ -29,12 +28,10 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
         new ChannelSyncPlan<ChannelView>({
             onUpdate: (_target, view) => {
-                logger.info('CHDIAG', 'syncPlan.channel', {
-                    data: {
-                        name: (view as { name?: string })?.name,
-                        ctxCid: getContext().cid,
-                        wss: getSocketManager().getConnectedUrl(),
-                    },
+                console.log('[CHDIAG] syncPlan.channel', {
+                    name: (view as { name?: string })?.name,
+                    ctxCid: getContext().cid,
+                    wss: getSocketManager().getConnectedUrl(),
                 });
                 const { channel } = getRepositories();
                 void channel.cacheWrite(toDomainChannel(view, getContext()));

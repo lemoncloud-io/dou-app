@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { logger } from '@chatic/bridges';
 import { useSessionIdentity } from '@chatic/web-core';
 
 import { computeChannelUnread, resolveReadNo } from '../utils';
@@ -61,8 +60,10 @@ export const useChannels = (placeId: string | undefined) => {
         setRawLoading(true);
         return channelRepository.observeList({ sid: placeId }, result => {
             const list = (result?.list ?? []).filter(c => c.sid === placeId);
-            logger.info('CHDIAG', 'observe', {
-                data: { placeId, all: (result?.list ?? []).map(c => c.name), shown: list.map(c => c.name) },
+            console.log('[CHDIAG] observe', {
+                placeId,
+                all: (result?.list ?? []).map(c => c.name),
+                shown: list.map(c => c.name),
             });
             setRawChannels(sortByName(list));
             setRawLoading(false);
