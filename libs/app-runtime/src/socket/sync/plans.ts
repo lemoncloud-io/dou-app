@@ -9,7 +9,6 @@ import {
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { isCloudSwitchInFlight } from '@chatic/web-core';
 import { getDataManager, getRepositories } from '../../data/runtime';
-import { getSocketManager } from '../runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
@@ -23,23 +22,12 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
  */
 const getContext = () => getDataManager().getContext();
 
-// Drop socket-driven cache mutations from a frame that does NOT belong to the active cloud.
-//
-// A cloud switch flips the cache cid to the target optimistically, but the socket only rebinds
-// to the target cloud once its wss changes (after the token exchange commits). Until then — and
-// indefinitely if the target's exchange wedges — the OUTGOING cloud's socket stays attached and
-// keeps delivering channel/chat/place frames; written under the live (target) cid they poison
-// the target partition, and the sidebar oscillates as the target's own refreshList prunes them.
-// getBoundCid() is the cloud the attached socket was actually bound to (frozen at bind, only
-// advanced on a real rebind), so a mismatch with the live cache cid means this frame is from a
-// socket that outlived its cloud — drop it. isCloudSwitchInFlight covers the brief window before
-// boundCid is meaningful (the switch mutation itself).
-const dropForeignFrame = (): boolean => {
-    if (isCloudSwitchInFlight()) return true;
-    const boundCid = getSocketManager().getBoundCid();
-    const cacheCid = getContext().cid || 'default';
-    return boundCid != null && boundCid !== cacheCid;
-};
+// During a cloud switch the cache cid is flipped to the target cloud optimistically while
+// the outgoing cloud's socket is still delivering frames — writing those under the new cid
+// poisons the target partition (the previous cloud's channels flash after the switch). Drop
+// socket-driven cache mutations while the switch is committing; the target cloud's own sync
+// repopulates it correctly once the switch lands.
+const dropDuringSwitch = (): boolean => isCloudSwitchInFlight();
 
 // DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
 // DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
@@ -47,7 +35,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
         new ChannelSyncPlan<ChannelView>({
             onUpdate: (_target, view) => {
-                if (dropForeignFrame()) return;
+                if (dropDuringSwitch()) return;
                 const { channel } = getRepositories();
                 void channel.cacheWrite(toDomainChannel(view, getContext()));
             },
@@ -62,7 +50,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // bare SyncableView (id/updatedAt only).
         new PlaceSyncPlan<MySiteView>({
             onUpdate: (_target, view) => {
-                if (dropForeignFrame()) return;
+                if (dropDuringSwitch()) return;
                 const { place } = getRepositories();
                 void place.cacheWrite(toDomainPlace(view, getContext()));
             },
@@ -74,7 +62,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         }),
         new ProfileSyncPlan<ProfileView>({
             onUpdate: (_target, view) => {
-                if (dropForeignFrame()) return;
+                if (dropDuringSwitch()) return;
                 const { profile } = getRepositories();
                 void profile.cacheWrite(toDomainProfile(view, getContext()));
             },
@@ -89,7 +77,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
         new ChatSyncPlan({
             onApply: (_target, applied) => {
-                if (dropForeignFrame()) return;
+                if (dropDuringSwitch()) return;
                 if (!applied.length) return;
                 const { chat } = getRepositories();
                 const scope = getContext();
@@ -100,7 +88,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
         new JoinSyncPlan({
             onUpdate: (_target, view) => {
-                if (dropForeignFrame()) return;
+                if (dropDuringSwitch()) return;
                 const { join } = getRepositories();
                 void join.cacheWrite(toDomainJoin(view, getContext()));
             },
