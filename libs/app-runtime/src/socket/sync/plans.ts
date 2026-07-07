@@ -39,12 +39,6 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
         new ChannelSyncPlan<ChannelView>({
             onUpdate: (_target, view) => {
-                console.log('[CHDIAG] syncPlan.channel', {
-                    name: (view as { name?: string })?.name,
-                    ctxCid: getContext().cid,
-                    boundCid: getSocketManager().getBoundCid(),
-                    drop: dropForeignFrame(),
-                });
                 if (dropForeignFrame()) return;
                 const { channel } = getRepositories();
                 void channel.cacheWrite(toDomainChannel(view, getContext()));

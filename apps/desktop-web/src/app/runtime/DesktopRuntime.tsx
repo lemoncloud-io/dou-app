@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
-import { logger } from '@chatic/bridges';
 import { useSessionAuth } from '@chatic/web-core';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 
@@ -101,13 +100,8 @@ const ShellUnreadSync = () => {
     const badgeTotal = total + crossCloudCount;
     useDesktopBadge(badgeTotal);
     useEffect(() => {
-        // Diagnostic for the stuck-badge report: shows exactly what makes up the dock
-        // count so a lingering value can be attributed (unread vs a cross-cloud flag).
-        logger.info('BADGE', '[dock] badge total', {
-            data: { total, crossCloudCount, activeCloudId, badged: Object.keys(badgedClouds) },
-        });
         document.title = badgeTotal > 0 ? `(${badgeTotal > 99 ? '99+' : badgeTotal}) DoU` : 'DoU';
-    }, [badgeTotal, total, crossCloudCount, activeCloudId, badgedClouds]);
+    }, [badgeTotal]);
 
     return null;
 };

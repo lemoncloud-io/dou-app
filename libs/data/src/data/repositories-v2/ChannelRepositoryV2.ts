@@ -116,10 +116,6 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         // target partition, so skip when the socket's bound cloud differs from the active cid.
         const rawContext = this.getRepositoryContext();
         if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
-            console.log('[CHDIAG] refreshList SKIP (foreign socket)', {
-                cid: requestContext.cid,
-                socketCid: rawContext.socketCid,
-            });
             return;
         }
         const targetSid = query.sid ?? requestContext.sid;
@@ -142,13 +138,6 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const staleIds = (localResult?.list || [])
             .map(item => item.id)
             .filter((id): id is string => !!id && !serverIds.has(id));
-        console.log('[CHDIAG] refreshList', {
-            cid: requestContext.cid,
-            sid: targetSid,
-            wrote: domainList.map(c => c.name),
-            stale: staleIds,
-            pruned: staleIds.length > 0 && domainList.length > 0,
-        });
         // Only prune when the server actually returned channels. Right after a switch the socket
         // is bound to the new cloud but its session/site may not be ready, so channel.mine returns
         // an empty list — pruning against that would wipe the real (sync-plan-populated) channels
@@ -181,11 +170,6 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         if (domainList.length > 0) {
             await this.channelLocalDataSource.cacheWriteMany(domainList, { ...requestContext, sid: '' });
         }
-        console.log('[CHDIAG] syncChannels', {
-            cid: requestContext.cid,
-            wrote: domainList.map(c => c.name),
-        });
-
         let removedCount = 0;
         if (remote.ids) {
             const activeIds = new Set(remote.ids);

@@ -60,11 +60,6 @@ export const useChannels = (placeId: string | undefined) => {
         setRawLoading(true);
         return channelRepository.observeList({ sid: placeId }, result => {
             const list = (result?.list ?? []).filter(c => c.sid === placeId);
-            console.log('[CHDIAG] observe', {
-                placeId,
-                all: (result?.list ?? []).map(c => c.name),
-                shown: list.map(c => c.name),
-            });
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });

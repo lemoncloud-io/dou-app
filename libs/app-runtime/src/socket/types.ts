@@ -79,8 +79,6 @@ export interface ISocketManager {
     setRecoveryHandler(handler: SocketRecoveryHandler | null): void;
     setReconnectHandler(handler: (() => Promise<void>) | null): void;
     recover(reason: string): Promise<void>;
-    /** Diagnostic: the wss URL the live socket is bound to (identifies its cloud). */
-    getConnectedUrl(): string | null;
     /** The cloud id the live socket was bound to (frozen at bind), or null before the first bind. */
     getBoundCid(): string | null;
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
