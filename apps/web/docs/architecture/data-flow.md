@@ -133,7 +133,7 @@ useEffect(() => {
 
 WebView가 백그라운드에서 suspend되면 폴링 타이머가 얼고 소켓 push를 놓칠 수 있다. 소켓이 살아남아 재연결(=상승 엣지)이 없으면 그 갭을 메울 경로가 없으므로, **포그라운드 복귀를 명시적 리프레시 트리거로 쓴다.**
 
-- **감지**: `apps/web/src/app/bridge/useAppForeground` — 네이티브 `OnBackgroundStatusChanged(isForeground=true)` + 웹 폴백 `visibilitychange→visible`을 합치고 ~1초 dedup한 단일 신호. (GlobalBridgeListener의 resume 오버레이 dismiss도 같은 훅을 쓴다.)
+- **감지**: `apps/web/src/app/bridge/useAppVisibility` — 네이티브 `OnBackgroundStatusChanged` + 웹 폴백 `visibilitychange`를 합치고 방향별 ~1초 dedup한 단일 가시성 신호(`isForeground: boolean`). `useAppForeground`는 이것의 포그라운드 필터 래퍼다. (GlobalBridgeListener의 resume 오버레이 dismiss도 같은 훅을 쓰고, `useDeviceSync`의 presence status 통지(green/yellow → `device.sync`)는 양방향 신호를 직접 구독한다.)
 - **목록**: `useBackgroundSync` 트리거 3 — verified·비전환 중이면 `refreshActiveLists()` + 채널 스냅샷 실행.
 - **채팅 피드**: `useForegroundChatRefresh(channelId)` — chat 플랜은 폴링이 없어(라이브 push + 재연결 catch-up뿐) 놓친 push는 자동 복구되지 않는다. 이 훅은 `usePrimeChat`(cold일 때만 fetch)의 **의도적 보완**으로, **warm 캐시일 때만** 베이스라인 재정렬 후 최신 페이지를 refetch한다 — 진입 시(푸시 탭: 방 마운트 전에 포그라운드 신호가 지나가는 케이스) + 복귀 시. 두 정책은 거울상이므로 한쪽을 바꾸면 반드시 같이 바꾼다.
 
