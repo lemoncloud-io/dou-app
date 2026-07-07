@@ -6,6 +6,7 @@ export * from './useReadMarker';
 export * from './useChatScroll';
 export * from './useChannelMutations';
 export * from './useChats';
+export * from './useForegroundChatRefresh';
 export * from './useChatMutations';
 export * from './useUserMutations';
 export * from './useCreateChannel';

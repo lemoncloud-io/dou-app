@@ -5,6 +5,7 @@ import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
 import type { ClientChatView } from '../types';
+import { useForegroundChatRefresh } from './useForegroundChatRefresh';
 
 // Each older page widens the observe window by this much. `observeList` returns
 // only the newest `limit` rows (chat_no-descending cursor paging), so to reveal
@@ -37,6 +38,9 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     // while ChatSyncPlan streams live + catches up on reconnect. So this hook never fetches on
     // entry itself — it only observes the cache (no isVerified gate needed here).
     useChatSync(channelId);
+    // Warm-cache complement: pushes missed while backgrounded leave no recovery path (the chat
+    // plan doesn't poll), so warm rooms refetch the newest page on entry and foreground return.
+    useForegroundChatRefresh(channelId);
 
     const [chats, setChats] = useState<DomainChat[]>([]);
     const [users, setUsers] = useState<DomainUser[]>([]);

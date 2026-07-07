@@ -15,6 +15,10 @@ jest.mock('@chatic/web-core', () => ({
     SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
     SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
 }));
+// Capture the foreground handler so tests can fire the signal directly.
+jest.mock('../bridge', () => ({ useAppForeground: jest.fn() }));
+
+import { useAppForeground } from '../bridge';
 
 const refreshList = jest.fn();
 const refreshChannelList = jest.fn();
@@ -25,6 +29,13 @@ const getSyncedAt = jest.fn();
 const setSyncedAt = jest.fn();
 
 const setVerified = (isVerified: boolean) => (useSocketState as jest.Mock).mockReturnValue({ isVerified });
+// The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
+const fireForeground = async () => {
+    const handler = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0];
+    await act(async () => {
+        handler?.();
+    });
+};
 const setSwitching = (switching: boolean) => (useIsMutating as jest.Mock).mockReturnValue(switching ? 1 : 0);
 const setSession = (cid: string, selectedSiteId: string | null) => {
     (useGlobalSession as jest.Mock).mockReturnValue({
@@ -186,6 +197,37 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
 
         expect(syncChannels).toHaveBeenCalledTimes(1);
         expect(syncProfiles).toHaveBeenCalledTimes(1);
+    });
+
+    it('포그라운드 복귀 신호에서 목록 델타 + 채널 스냅샷을 갱신한다', async () => {
+        setVerified(true);
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined); // flush the mount rising edge
+        syncChannels.mockClear();
+        refreshChannelList.mockClear();
+
+        await fireForeground();
+
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+    });
+
+    it('미인증이거나 전환 중이면 포그라운드 신호를 무시한다', async () => {
+        setVerified(false);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        await fireForeground();
+        expect(syncChannels).not.toHaveBeenCalled();
+
+        // Becoming verified fires Trigger 1 (rising edge) — take it as the baseline and
+        // assert the foreground signal adds nothing while a switch is in flight.
+        setVerified(true);
+        setSwitching(true);
+        await act(async () => {
+            rerender();
+        });
+        const afterRisingEdge = syncChannels.mock.calls.length;
+        await fireForeground();
+        expect(syncChannels).toHaveBeenCalledTimes(afterRisingEdge);
     });
 
     it('sync 실패 시 해당 워터마크를 전진시키지 않는다', async () => {

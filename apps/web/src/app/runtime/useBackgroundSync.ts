@@ -9,6 +9,8 @@ import {
     useSessionSelection,
 } from '@chatic/web-core';
 
+import { useAppForeground } from '../bridge';
+
 // Periodic background-sync interval. The user-facing requirement is "about a minute"; lists
 // only re-discover added/removed entries here, so a coarse cadence is intentional.
 const BACKGROUND_SYNC_POLL_MS = 60_000;
@@ -119,4 +121,14 @@ export const useBackgroundSync = (): void => {
         const timer = setInterval(() => void refreshActiveLists(), BACKGROUND_SYNC_POLL_MS);
         return () => clearInterval(timer);
     }, [isVerified, isSwitching, refreshActiveLists]);
+
+    // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended
+    // and pushes may have been missed; if the socket survived (no rising edge), nothing else
+    // re-syncs, so refresh immediately. Same gates as the timer: skip mid-switch and unverified
+    // (a reconnect after suspension re-verifies and lands on Trigger 1 instead).
+    useAppForeground(() => {
+        if (!isVerified || isSwitching) return;
+        void refreshActiveLists();
+        void refreshChannelSnapshot();
+    });
 };
