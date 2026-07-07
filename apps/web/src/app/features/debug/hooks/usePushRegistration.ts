@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { isNative } from '@chatic/bridges';
-import { useRegisterDeviceTokenMutation } from '@chatic/web-core';
+import { useDynamicDeviceId, useRegisterDeviceTokenMutation } from '@chatic/web-core';
 import { useDeviceInfo } from '@chatic/device-utils';
 
 import { appBridge } from '../../../bridge';
@@ -34,6 +34,9 @@ export interface UsePushRegistration {
  */
 export const usePushRegistration = (): UsePushRegistration => {
     const { deviceInfo } = useDeviceInfo();
+    // Same single source as socket identity and production push registration —
+    // this debug check must confirm the exact record production writes.
+    const { deviceId, firebaseInstallationId } = useDynamicDeviceId();
     const { mutateAsync } = useRegisterDeviceTokenMutation();
 
     const [state, setState] = useState<PushRegistrationState>('idle');
@@ -67,9 +70,9 @@ export const usePushRegistration = (): UsePushRegistration => {
             // idempotent register-device call (force re-runs it server-side).
             const result = await mutateAsync({
                 deviceToken: nextToken,
-                deviceId: deviceInfo?.deviceId ?? undefined,
+                deviceId,
                 platform: deviceInfo?.platform ?? window.CHATIC_APP_PLATFORM,
-                installId: deviceInfo?.installId ?? window.CHATIC_APP_INSTALLATION_ID,
+                installId: firebaseInstallationId,
                 application: APPLICATION,
                 force: true,
             });
@@ -80,7 +83,7 @@ export const usePushRegistration = (): UsePushRegistration => {
             setState('error');
             setError(e?.message ?? 'Failed to check registration.');
         }
-    }, [deviceInfo?.deviceId, deviceInfo?.platform, deviceInfo?.installId, mutateAsync]);
+    }, [deviceId, firebaseInstallationId, deviceInfo?.platform, mutateAsync]);
 
     return { state, token, summary, error, check };
 };

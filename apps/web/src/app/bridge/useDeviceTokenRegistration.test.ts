@@ -26,8 +26,6 @@ describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', (
     beforeEach(() => {
         jest.clearAllMocks();
         delete window.CHATIC_APP_PLATFORM;
-        delete window.CHATIC_APP_INSTALLATION_ID;
-        delete window.CHATIC_APP_UNIQUE_DEVICE_ID;
         mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
     });
 
@@ -37,46 +35,20 @@ describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', (
         expect(mockRuntimeHook).toHaveBeenLastCalledWith(null);
     });
 
-    it('앱 환경에서는 platform/installId/application을 담은 델리게이트를 넘긴다', () => {
+    it('앱 환경에서는 platform/application을 담은 델리게이트를 넘긴다', () => {
         window.CHATIC_APP_PLATFORM = 'ios';
-        window.CHATIC_APP_INSTALLATION_ID = 'inst-1';
 
         renderHook(() => useDeviceTokenRegistration());
 
         expect(lastDelegate()).toEqual(
             expect.objectContaining({
                 platform: 'ios',
-                installId: 'inst-1',
                 application: 'chatic',
             })
         );
-    });
-
-    it('신규 앱에서는 UNIQUE_DEVICE_ID를 델리게이트 deviceId로 사용한다', () => {
-        window.CHATIC_APP_PLATFORM = 'ios';
-        window.CHATIC_APP_UNIQUE_DEVICE_ID = 'bare-device-1';
-        window.CHATIC_APP_INSTALLATION_ID = 'bare-device-1';
-
-        renderHook(() => useDeviceTokenRegistration());
-
-        expect(lastDelegate()).toEqual(expect.objectContaining({ deviceId: 'bare-device-1' }));
-    });
-
-    it('구버전 앱(UNIQUE_DEVICE_ID 미주입)에서는 INSTALLATION_ID로 폴백한다', () => {
-        window.CHATIC_APP_PLATFORM = 'android';
-        window.CHATIC_APP_INSTALLATION_ID = 'legacy-device-1';
-
-        renderHook(() => useDeviceTokenRegistration());
-
-        expect(lastDelegate()).toEqual(expect.objectContaining({ deviceId: 'legacy-device-1' }));
-    });
-
-    it('두 글로벌 모두 없으면 deviceId를 넘기지 않는다 (런타임이 동적 id로 폴백)', () => {
-        window.CHATIC_APP_PLATFORM = 'android';
-
-        renderHook(() => useDeviceTokenRegistration());
-
-        expect(lastDelegate().deviceId).toBeUndefined();
+        // Device identity (deviceId / installId) is resolved inside the runtime
+        // via useDynamicDeviceId — the adapter must not supply its own.
+        expect(lastDelegate().installId).toBeUndefined();
     });
 
     it('델리게이트의 fetchDeviceToken은 브리지 응답의 토큰을 반환한다', async () => {

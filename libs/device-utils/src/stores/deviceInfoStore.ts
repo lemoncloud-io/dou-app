@@ -46,10 +46,12 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         const shouldUpdate = window.CHATIC_APP_SHOULD_UPDATE === 'true';
         const appLang = window.CHATIC_APP_CURRENT_LANGUAGE as PageLanguage | undefined;
         const installId = window.CHATIC_APP_INSTALLATION_ID || '';
-        // Older app shells only inject INSTALLATION_ID, which carries the same bare
-        // device id — fall back to it so the new field is populated either way.
-        const uniqueDeviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || window.CHATIC_APP_INSTALLATION_ID || '';
-        const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || '';
+        // Mirror the new globals verbatim (undefined when absent so `??` fallbacks
+        // work downstream). INSTALLATION_ID is deliberately not folded in: app
+        // <= 0.15.x injected the Firebase installation id there, so it is not a
+        // safe bare-device-id source.
+        const uniqueDeviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || undefined;
+        const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || undefined;
 
         const webVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
         const appVersion = currentVersion || webVersion;

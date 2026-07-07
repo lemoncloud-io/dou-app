@@ -40,7 +40,7 @@ beforeEach(() => {
     nowMs = 1_000_000;
     jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
     setAuthenticated(true);
-    mockUseDynamicDeviceId.mockReturnValue({ deviceId: 'device-1', isReady: true });
+    mockUseDynamicDeviceId.mockReturnValue({ deviceId: 'device-1', firebaseInstallationId: 'fid-dyn', isReady: true });
     mockUseRegisterMutation.mockReturnValue({ mutateAsync: mockMutateAsync });
     mockMutateAsync.mockResolvedValue({});
     mockFetchDeviceToken.mockResolvedValue('tok-1');
@@ -84,12 +84,11 @@ describe('useDeviceTokenRegistration — 공용 디바이스 토큰 등록', () 
         });
     });
 
-    it('delegate가 deviceId를 주면 동적(복합) id 대신 그것으로 등록한다', async () => {
-        renderHook(() => useDeviceTokenRegistration(makeDelegate({ deviceId: 'bare-device-1' })));
+    it('delegate에 installId가 없으면 useDynamicDeviceId의 firebase id로 등록한다', async () => {
+        renderHook(() => useDeviceTokenRegistration(makeDelegate({ installId: undefined })));
         await flush();
 
-        // 'device-1' comes from useDynamicDeviceId; the shell-provided bare id must win.
-        expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ deviceId: 'bare-device-1' }));
+        expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ installId: 'fid-dyn' }));
     });
 
     it('delegate의 application이 있으면 기본값 대신 그것을 쓴다', async () => {
