@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { getSocketManager } from '@chatic/app-runtime';
 import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
 import { JoinWithInviteDialog } from '../../auth';
@@ -50,6 +51,18 @@ import { useThreadStore } from '../stores';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
+
+/** Upper bound for awaiting the socket handshake before a push-driven cloud/place switch. */
+const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+// A cloud/place switch re-issues tokens against the active server, so firing it over a
+// half-open socket (cold start / just-refocused window) races the connection, fails, and
+// rolls the selection back — stranding the notification target unopened. Wait for the base
+// handshake first; on timeout fire anyway (best-effort, no worse than an immediate switch).
+const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
+    await getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+    doSwitch();
+};
 
 export const HomePage = () => {
     const { clouds, activeCloudId } = useClouds();
@@ -164,13 +177,14 @@ export const HomePage = () => {
         if (cloudId && cloudId !== activeCloud) {
             // Cross-cloud: switch cloud first. The target place lands via the
             // auto-select effect (pendingPlaceRef), then the channel via the
-            // pending-channel effect — each once its data loads.
+            // pending-channel effect — each once its data loads. Refs are set now
+            // (before the awaited switch) so the deferred landing is armed regardless.
             pendingChannelRef.current = channelId;
             pendingPlaceRef.current = placeId || null;
-            switchCloud(cloudId);
+            void switchAfterHandshake(() => switchCloud(cloudId));
         } else if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
-            switchPlace(placeId);
+            void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
             requestOpenAtBottom(channelId);
