@@ -21,6 +21,16 @@ export interface AppBridgeHostConfig {
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
+    /**
+     * Message types that originate from log/console relay infrastructure rather than
+     * application code. The injected console forwarder runs before the page content
+     * loads, and the web logger relays from the earliest module-evaluation phase —
+     * both long before the web app can receive events. Treating them as the readiness
+     * signal flushes buffered events (e.g. a cold-start OnNavigate) into a page with
+     * no listeners, where they are silently lost.
+     */
+    private static readonly NON_READINESS_MESSAGE_TYPES = new Set(['SendLog', '__console__']);
+
     private protocol: MessageProtocol;
     private sendToWeb: (message: string) => void;
     private version: string;
@@ -59,7 +69,11 @@ export class AppBridgeHost implements IAppBridgeHost {
         try {
             const parsed = this.protocol.decode(data) as RequestMessage;
             if (parsed && typeof parsed.type === 'string') {
-                if (!this.isWebReady) {
+                // Log/console relay traffic must NOT count as the web-ready signal (see
+                // NON_READINESS_MESSAGE_TYPES). Any other message type originates from app
+                // code running after the web app has bootstrapped — most explicitly the
+                // WebAppReady handshake — so it is a safe point to flush buffered events.
+                if (!this.isWebReady && !AppBridgeHost.NON_READINESS_MESSAGE_TYPES.has(parsed.type)) {
                     this.isWebReady = true;
                     this.flushBuffer();
                 }
