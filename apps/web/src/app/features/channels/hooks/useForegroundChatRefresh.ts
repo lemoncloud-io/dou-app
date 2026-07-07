@@ -48,9 +48,13 @@ export const useForegroundChatRefresh = (channelId: string): void => {
         });
     }, [isVerified, channelId, refreshIfWarm]);
 
-    // Foreground return while the room stays mounted.
+    // Foreground return while the room stays mounted. Unlike the entry effect this does NOT gate
+    // on `isVerified`: the `feed` request routes through SocketManager.request, which self-heals a
+    // 401 (re-auth + retry) or a disconnected socket (reconnect + retry). Gating here meant a
+    // socket that resumed verified-stuck/zombie (no false→true edge to re-fire the entry effect)
+    // left the room permanently stale — the exact missed-push-on-resume gap this hook exists to
+    // close. Firing unconditionally lets the request layer re-establish auth on the way through.
     useAppForeground(() => {
-        if (!isVerified) return;
         refreshIfWarm().catch(error => {
             logger.warn('CHAT', '[useForegroundChatRefresh] foreground refresh failed', {
                 error,

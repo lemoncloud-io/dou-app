@@ -124,10 +124,14 @@ export const useBackgroundSync = (): void => {
 
     // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended
     // and pushes may have been missed; if the socket survived (no rising edge), nothing else
-    // re-syncs, so refresh immediately. Same gates as the timer: skip mid-switch and unverified
-    // (a reconnect after suspension re-verifies and lands on Trigger 1 instead).
+    // re-syncs, so refresh immediately. This does NOT gate on `isVerified`: the list requests
+    // route through SocketManager.request, which self-heals a 401 (re-auth + retry) or a
+    // disconnected socket (reconnect + retry), so a socket that resumed verified-stuck/zombie
+    // (no false→true edge for Trigger 1) still recovers here instead of staying stale. The
+    // `isSwitching` guard remains — mid-switch the socket is rebinding to a new identity, so a
+    // fetch could race the wrong session; Trigger 1 covers post-switch re-verification.
     useAppForeground(() => {
-        if (!isVerified || isSwitching) return;
+        if (isSwitching) return;
         void refreshActiveLists();
         void refreshChannelSnapshot();
     });

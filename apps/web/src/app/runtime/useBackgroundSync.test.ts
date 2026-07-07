@@ -212,22 +212,29 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(refreshChannelList).toHaveBeenCalledTimes(1);
     });
 
-    it('미인증이거나 전환 중이면 포그라운드 신호를 무시한다', async () => {
+    it('미인증이어도 포그라운드 복귀에서 동기화한다 — 요청 계층이 401/재연결을 자가치유', async () => {
         setVerified(false);
-        const { rerender } = renderHook(() => useBackgroundSync());
-        await fireForeground();
+        renderHook(() => useBackgroundSync());
+        await act(async () => undefined); // 미인증이라 상승 엣지(Trigger 1) 미발생
         expect(syncChannels).not.toHaveBeenCalled();
 
-        // Becoming verified fires Trigger 1 (rising edge) — take it as the baseline and
-        // assert the foreground signal adds nothing while a switch is in flight.
+        await fireForeground();
+
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+    });
+
+    it('전환 중이면 포그라운드 신호를 무시한다', async () => {
         setVerified(true);
         setSwitching(true);
-        await act(async () => {
-            rerender();
-        });
-        const afterRisingEdge = syncChannels.mock.calls.length;
+        renderHook(() => useBackgroundSync());
+        // verified+switching로 마운트하면 Trigger 1(상승 엣지)이 1회 발생하므로 baseline으로 잡는다.
+        await act(async () => undefined);
+        const baseline = syncChannels.mock.calls.length;
+
         await fireForeground();
-        expect(syncChannels).toHaveBeenCalledTimes(afterRisingEdge);
+
+        expect(syncChannels).toHaveBeenCalledTimes(baseline); // 포그라운드가 추가 호출을 만들지 않음
     });
 
     it('sync 실패 시 해당 워터마크를 전진시키지 않는다', async () => {

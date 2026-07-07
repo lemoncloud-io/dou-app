@@ -81,16 +81,29 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-1' });
     });
 
-    it('미인증 상태에서는 진입/포그라운드 모두 refetch하지 않는다', async () => {
+    it('미인증이면 진입(entry effect)에서는 refetch하지 않는다 — 콜드스타트 보호', async () => {
         setVerified(false);
         setCachedChats([7]);
 
         await act(async () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
-        await fireForeground();
 
         expect(refreshList).not.toHaveBeenCalled();
+    });
+
+    it('미인증이어도 포그라운드 복귀에서는 refetch한다 — 요청 계층이 401/재연결을 자가치유', async () => {
+        setVerified(false);
+        setCachedChats([7]);
+
+        await act(async () => {
+            renderHook(() => useForegroundChatRefresh('ch-1'));
+        });
+        expect(refreshList).not.toHaveBeenCalled(); // entry는 게이트로 미실행
+
+        await fireForeground();
+
+        expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-1' });
     });
 
     it('refetch 실패는 조용히 로깅만 하고 전파하지 않는다', async () => {
