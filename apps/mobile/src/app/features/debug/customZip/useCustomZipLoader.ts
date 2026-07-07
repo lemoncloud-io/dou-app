@@ -37,9 +37,8 @@ export const useCustomZipLoader = () => {
             const origin = await startCustomZipServer(extractRoot);
 
             // 서버 start 성공 이후에만 store를 갱신 — 실패 시 기본 웹 폴백 유지
-            const { setCustomZipLocalRoot, setCustomZipServerUrl } = useDebugSettingsStore.getState();
-            setCustomZipLocalRoot(extractRoot);
-            setCustomZipServerUrl(origin);
+            settings.setCustomZipLocalRoot(extractRoot);
+            settings.setCustomZipServerUrl(origin);
             useDebugRuntimeStore.getState().requestWebViewReload();
             setStatus('serving');
             return true;

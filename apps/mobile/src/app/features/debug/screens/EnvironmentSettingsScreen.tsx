@@ -14,6 +14,12 @@ const isValidHttpUrl = (value: string): boolean => {
     }
 };
 
+const httpUrlError = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return isValidHttpUrl(trimmed) ? null : 'http 또는 https URL만 사용할 수 있습니다.';
+};
+
 interface EnvironmentSettingsScreenProps {
     onCloseAfterWebViewReload?: () => void;
 }
@@ -42,10 +48,7 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
 
     const resolvedBaseUrl = getResolvedWebviewBaseUrl();
 
-    const baseUrlError = useMemo(() => {
-        if (!baseUrlInput.trim()) return null;
-        return isValidHttpUrl(baseUrlInput.trim()) ? null : 'http 또는 https URL만 사용할 수 있습니다.';
-    }, [baseUrlInput]);
+    const baseUrlError = useMemo(() => httpUrlError(baseUrlInput), [baseUrlInput]);
 
     const saveBaseUrl = () => {
         if (baseUrlError) {
@@ -71,10 +74,7 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
         onCloseAfterWebViewReload?.();
     };
 
-    const zipUrlError = useMemo(() => {
-        if (!zipUrlInput.trim()) return null;
-        return isValidHttpUrl(zipUrlInput.trim()) ? null : 'http 또는 https URL만 사용할 수 있습니다.';
-    }, [zipUrlInput]);
+    const zipUrlError = useMemo(() => httpUrlError(zipUrlInput), [zipUrlInput]);
 
     const isZipBusy = zipStatus === 'downloading' || zipStatus === 'extracting';
 
