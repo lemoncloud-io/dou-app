@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
+import { useGlobalSession, useSessionIdentity } from '@chatic/web-core';
 
 import { computeChannelUnread, resolveReadNo } from '../utils';
 import { useReadCursorStore } from '../stores';
@@ -31,22 +31,29 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * observes the cache: a new message, an invite, or a read updates the cached
  * channel record and re-emits here, keeping unread badges fresh without a manual
  * refetch. The relay cache is not sid-isolated, so results are filtered to the
- * active place and the list is reset on place switch so the previous place's
- * channels don't flash.
+ * active place and the list is reset on cloud or place switch so the previous
+ * scope's channels don't flash.
  */
 export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository } = useRuntimeRepositories();
     const { userId: myUid } = useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
     const { isVerified } = useSocketState();
+    // The cache is partitioned by the SELECTED cloud id (cid) — the same value
+    // useRuntimeBinding derives for the observe scope. Track it here: place ids (sid)
+    // collide across clouds, so a cloud switch can leave `placeId` unchanged; without
+    // keying on cid too, the reset never fires and the observer never re-subscribes,
+    // leaving the previous cloud's channels on screen until a reload.
+    const activeCid = useGlobalSession().cloud?.cloudId ?? 'default';
     const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
     const [rawLoading, setRawLoading] = useState(true);
 
-    // Render-phase reset on place switch (mirrors apps/web useChannels): drop the
-    // old list immediately rather than waiting for the next emit to resolve.
-    const [prevPlaceId, setPrevPlaceId] = useState(placeId);
-    if (placeId !== prevPlaceId) {
-        setPrevPlaceId(placeId);
+    // Render-phase reset on cloud OR place switch (mirrors apps/web useChannels): drop
+    // the old list immediately rather than waiting for the next emit to resolve.
+    const scope = `${activeCid}:${placeId ?? ''}`;
+    const [prevScope, setPrevScope] = useState(scope);
+    if (scope !== prevScope) {
+        setPrevScope(scope);
         setRawChannels([]);
         setRawLoading(true);
     }
@@ -63,7 +70,9 @@ export const useChannels = (placeId: string | undefined) => {
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });
-    }, [channelRepository, placeId]);
+        // activeCid: re-subscribe on a cloud switch so the observer re-reads the new
+        // cloud's cache partition even when the colliding sid leaves placeId unchanged.
+    }, [channelRepository, placeId, activeCid]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
