@@ -18,6 +18,11 @@ const sortByName = (list: DomainChannel[]): DomainChannel[] =>
 // How long a verified socket may report an empty list before we trust it as truly
 // empty — covers list discovery's round trip so the empty state never flashes first.
 const EMPTY_SETTLE_MS = 600;
+// Hard ceiling for an UNVERIFIED socket. After a sleep/wake wedge the socket can sit
+// unverified indefinitely (the cloud-token refresh 400s and never re-verifies), which
+// must never pin the skeleton forever — observeList already streams the cache without
+// the socket, so once this elapses we trust the cached-or-empty list instead.
+const EMPTY_WEDGE_CEILING_MS = 4000;
 
 /**
  * Streams the channel list for a place from the engine's channel cache (mirrors
@@ -80,18 +85,20 @@ export const useChannels = (placeId: string | undefined) => {
     // reset, *before* list discovery (a sync plan that runs on a verified socket)
     // writes it — so a raw empty result flashes "No channels yet" for a frame, most
     // visibly on a warm reconnect where the socket is already verified at mount.
-    // There's no per-place "list fetched" signal to key off, so treat the place as
-    // genuinely empty only once the socket is verified AND an empty result has
-    // persisted past a short settle window (discovery's round trip). Until then, keep
-    // reporting "loading" so the sidebar shows the skeleton. A populated list is never
-    // masked (guarded on length === 0); it clears the flag the moment it arrives.
+    // There's no per-place "list fetched" signal to key off, so hold the skeleton over
+    // an empty result for a settle window (discovery's round trip). A verified socket
+    // gets a short window; an unverified one gets a longer ceiling so a wake-wedged
+    // socket (never re-verifies) resolves to the empty state instead of spinning
+    // forever. A populated list is never masked (guarded on length === 0) — it clears
+    // the flag the moment it arrives.
     const [confidentEmpty, setConfidentEmpty] = useState(false);
     useEffect(() => {
-        if (rawLoading || !isVerified || rawChannels.length > 0) {
+        if (rawLoading || rawChannels.length > 0) {
             setConfidentEmpty(false);
             return;
         }
-        const timer = setTimeout(() => setConfidentEmpty(true), EMPTY_SETTLE_MS);
+        const settle = isVerified ? EMPTY_SETTLE_MS : EMPTY_WEDGE_CEILING_MS;
+        const timer = setTimeout(() => setConfidentEmpty(true), settle);
         return () => clearTimeout(timer);
     }, [rawLoading, isVerified, rawChannels.length]);
 
