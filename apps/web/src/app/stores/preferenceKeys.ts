@@ -31,9 +31,12 @@ export type PreferenceEntry = NativeLocalEntry | LocalEntry | SessionEntry;
 //     2. If native: PreferenceLoader fetches from native and hydrates store
 //     3. If neither has a value: use `defaultValue`
 //
-// Keys owned by external modules (theme, language) are listed for reference
+// Keys owned by external modules (language) are listed for reference
 // so the full picture lives in one place.
 // ---------------------------------------------------------------------------
+
+/** Theme preference value — 'system' resolves against the OS color scheme at runtime. */
+export type Theme = 'dark' | 'light' | 'system';
 
 export const PREFERENCES = {
     // -----------------------------------------------------------------------
@@ -53,15 +56,13 @@ export const PREFERENCES = {
         localKey: 'chatic-onboarding-completed',
         defaultValue: 'false',
     },
-
-    // -----------------------------------------------------------------------
-    // Owned by @chatic/theme — registered here for reference
-    // -----------------------------------------------------------------------
     theme: {
         strategy: 'native+local',
         nativeKey: 'theme',
+        // Legacy ThemeProvider key — kept so an existing user's explicit choice survives the migration.
         localKey: 'vite-ui-theme',
-        defaultValue: 'light',
+        // 'system' follows the OS scheme: mobile OS inside the WebView, prefers-color-scheme on web.
+        defaultValue: 'system',
     },
 
     // -----------------------------------------------------------------------

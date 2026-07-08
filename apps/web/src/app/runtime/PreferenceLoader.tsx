@@ -6,8 +6,8 @@ import { PREFERENCES } from '../stores/preferenceKeys';
 import { hasLocalPreference, usePreferenceStore } from '../stores/usePreferenceStore';
 
 // Keys managed by usePreferenceStore — only these are bridge-read on startup.
-// Theme and language are handled by their own providers (ThemeProvider, i18n).
-const MANAGED_KEYS = ['blurLastMessage', 'isFirstRun'] as const;
+// Language is handled by its own provider (i18n).
+const MANAGED_KEYS = ['blurLastMessage', 'isFirstRun', 'theme'] as const;
 
 /**
  * Bridge fallback read: fills the store from native storage for any managed key
