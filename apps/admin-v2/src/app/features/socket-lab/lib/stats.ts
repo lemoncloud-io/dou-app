@@ -36,6 +36,7 @@ export const dur = (s: number): string => {
 };
 
 export const ago = (s: number): string => dur(s) + ' ago';
+export const sinceSec = (at: number): number => Math.max(0, Math.round((Date.now() - at) / 1000));
 
 export type MetricKey = 'fanout' | 'rtt' | 'send' | 'handshake' | 'loss' | 'catchup' | 'reconnect';
 export type SliStatus = 'green' | 'yellow' | 'red';
