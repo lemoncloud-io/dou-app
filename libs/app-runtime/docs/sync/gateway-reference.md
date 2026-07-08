@@ -28,11 +28,11 @@ Date: 2026-06-23
 
 로컬 `DeviceView`로 타입 확정.
 
-| 메서드 | action        | 요청 Input        | (필드)                                             | 응답                                    |
-| ------ | ------------- | ----------------- | -------------------------------------------------- | --------------------------------------- |
-| `save` | `device.save` | `DeviceSaveInput` | `DeviceBody`(=Partial\<DeviceView\>)               | `DeviceSaveResponseData`(=`DeviceView`) |
-| `read` | `device.read` | `DeviceGetInput`  | `{ id? } \| null` (없으면 현재 연결)               | `DeviceGetResponseData`(=`DeviceView`)  |
-| `sync` | `device.sync` | `DeviceSyncInput` | `{ id?, tick?, viewingType?, viewingId? } \| null` | **void**(send, 응답 없음)               |
+| 메서드 | action        | 요청 Input        | (필드)                                                      | 응답                                    |
+| ------ | ------------- | ----------------- | ----------------------------------------------------------- | --------------------------------------- |
+| `save` | `device.save` | `DeviceSaveInput` | `DeviceBody`(=Partial\<DeviceView\>)                        | `DeviceSaveResponseData`(=`DeviceView`) |
+| `read` | `device.read` | `DeviceGetInput`  | `{ id? } \| null` (없으면 현재 연결)                        | `DeviceGetResponseData`(=`DeviceView`)  |
+| `sync` | `device.sync` | `DeviceSyncInput` | `{ id?, tick?, status?, viewingType?, viewingId? } \| null` | **void**(send, 응답 없음)               |
 
 `DeviceView` = `{ id?, name?, platform?, status?, tick?, posX?, posY?, lastActiveAt?, connectedAt?, disconnectedAt?, connId?, viewingType?, viewingId?, viewingSince? }`
 `status`: `'' | 'green' | 'red' | 'yellow'` · `platform`: `'' | 'ios' | 'android' | 'web' | 'macos' | 'windows' | 'linux'` · `viewingType`: `'' | 'channel'`

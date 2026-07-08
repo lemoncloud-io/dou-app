@@ -1,4 +1,4 @@
-import type { ViewingType } from '@lemoncloud/chatic-sockets-lib';
+import type { DeviceStatus, ViewingType } from '@lemoncloud/chatic-sockets-lib';
 import type { IDeviceRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
@@ -7,9 +7,16 @@ export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
     /**
      * device.sync — notify which target the current device is viewing.
      * Fire-and-forget and tick-neutral (the server owns `tick`). Always send the pair:
-     * `notifyViewing('channel', id)` on enter, `notifyViewing('', '')` to clear.
+     * `syncDevice('channel', id)` on enter, `syncDevice('', '')` to clear.
      */
     syncDevice(viewingType: ViewingType, viewingId: string): void;
+
+    /**
+     * device.sync — report the device's presence status (green = foreground,
+     * yellow = background). The server merges partial payloads, so status travels
+     * alone and never disturbs the viewing pair. Fire-and-forget and tick-neutral.
+     */
+    syncStatus(status: DeviceStatus): void;
 }
 
 /**
@@ -28,5 +35,10 @@ export class DeviceRepositoryV2 extends BaseRepositoryV2 implements IDeviceRepos
     public syncDevice(viewingType: ViewingType, viewingId: string): void {
         // `tick` is server-owned and must never be sent from the client; forward only the pair.
         this.deviceRemoteDataSource.syncDevice({ viewingType, viewingId });
+    }
+
+    public syncStatus(status: DeviceStatus): void {
+        // Server-side partial merge: sending status alone keeps the viewing pair intact.
+        this.deviceRemoteDataSource.syncDevice({ status });
     }
 }

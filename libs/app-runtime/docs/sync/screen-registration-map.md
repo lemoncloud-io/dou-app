@@ -48,10 +48,10 @@ Date: 2026-06-30
 
 ### 🌐 전역 (라우트 무관, 앱 마운트 시)
 
-| 무엇                   | 메커니즘                                                                          | 진입점                                                      |
-| ---------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| device viewing 통지    | `useDeviceSync` — 현재 보는 채널을 `device.syncDevice`로 통지(라우트 파생, dedup) | `UnifiedLayout` → `apps/web/src/app/hooks/useDeviceSync.ts` |
-| 백그라운드 리스트 sync | `BackgroundSyncRunner` → `useBackgroundSync` (§3)                                 | `apps/web/src/app/runtime/AppRuntime.tsx`                   |
+| 무엇                       | 메커니즘                                                                                                                                      | 진입점                                                      |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| device viewing·status 통지 | `useDeviceSync` — 현재 보는 채널을 `device.syncDevice`로, 포/백그라운드를 `device.syncStatus`(green/yellow)로 통지(라우트·가시성 파생, dedup) | `UnifiedLayout` → `apps/web/src/app/hooks/useDeviceSync.ts` |
+| 백그라운드 리스트 sync     | `BackgroundSyncRunner` → `useBackgroundSync` (§3)                                                                                             | `apps/web/src/app/runtime/AppRuntime.tsx`                   |
 
 ### 🏠 홈 화면
 

@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 
 import { useHandlePushNavigation } from '../../bridge';
+import { useInAppPushMessage } from '../../features/notifications';
 import { useBackHandler, useDeviceSync } from '../../hooks';
 
 const MAIN_VARIANT_PATHS = ['/'];
@@ -19,6 +20,8 @@ export const UnifiedLayout = (): JSX.Element => {
     useDeviceSync();
     // Handle native-driven navigation (push taps / deep links), incl. cross-cloud/site switches.
     useHandlePushNavigation();
+    // Surface foreground pushes as an in-app banner; a click routes like a push tap.
+    useInAppPushMessage();
 
     const { pathname } = useLocation();
     const isMain = isMainVariant(pathname);

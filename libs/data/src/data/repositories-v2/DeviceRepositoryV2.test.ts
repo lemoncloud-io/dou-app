@@ -44,4 +44,18 @@ describe('DeviceRepositoryV2', () => {
         const payload = deviceRemoteDataSource.syncDevice.mock.calls[0][0];
         expect(payload).not.toHaveProperty('tick');
     });
+
+    it('status 통지는 status만 단독으로 device.sync에 위임한다 (부분 병합)', () => {
+        const { repository, deviceRemoteDataSource } = createRepository();
+
+        repository.syncStatus('green');
+
+        // Partial merge on the server: viewing fields must be absent, not empty strings,
+        // or the send would clear the viewing pair.
+        expect(deviceRemoteDataSource.syncDevice).toHaveBeenCalledWith({ status: 'green' });
+        const payload = deviceRemoteDataSource.syncDevice.mock.calls[0][0];
+        expect(payload).not.toHaveProperty('viewingType');
+        expect(payload).not.toHaveProperty('viewingId');
+        expect(payload).not.toHaveProperty('tick');
+    });
 });
