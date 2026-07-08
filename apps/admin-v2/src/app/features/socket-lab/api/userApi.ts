@@ -40,7 +40,12 @@ export interface UserSearchPage {
     page: number;
 }
 
+/** 유저 관측 API 스테이지 — d1(개발) / v1(운영) */
+export type UsersStage = 'd1' | 'v1';
+
 const getUsersEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
+
+const getUsersBase = (stage: UsersStage): string => `${getUsersEndpoint()}/skt-${stage}`;
 
 const mapDevice = (d: DeviceViewRaw, now: number): ObservedDevice => {
     const viewing = d.viewingType === 'channel' && d.viewingId ? `${d.viewingId}` : null;
@@ -70,6 +75,7 @@ export interface FetchObservedUsersParams {
     query?: string;
     page?: number;
     limit?: number;
+    stage?: UsersStage;
 }
 
 export const fetchObservedUsers = async ({
@@ -77,13 +83,14 @@ export const fetchObservedUsers = async ({
     query = '',
     page = 0,
     limit = 10,
+    stage = 'd1',
 }: FetchObservedUsersParams = {}): Promise<UserSearchPage> => {
     const q = query.trim();
     const search = q ? (type === 'name' ? { keyword: q } : { id: q }) : {};
     const { data } = await webTransport
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${getUsersEndpoint()}/skt-d1/users/0/list`,
+            baseURL: `${getUsersBase(stage)}/users/0/list`,
         })
         .setParams({ detail: 1, page, limit, ...search })
         .execute<UsersListResponse>();
@@ -104,21 +111,25 @@ export interface UserPresence {
 }
 
 /** 유저 디바이스 목록 저장(전달한 deviceIds만 유지) — id는 'CN' prefix로 조립 */
-export const updateUserDevices = async (userId: string, deviceIds: string[]): Promise<void> => {
+export const updateUserDevices = async (
+    userId: string,
+    deviceIds: string[],
+    stage: UsersStage = 'd1'
+): Promise<void> => {
     await webTransport
         .buildSignedRequest({
             method: 'PUT',
-            baseURL: `${getUsersEndpoint()}/skt-d1/users/CN${userId}/admin`,
+            baseURL: `${getUsersBase(stage)}/users/CN${userId}/admin`,
         })
         .setBody({ deviceIds })
         .execute();
 };
 
-export const fetchUserPresence = async (userId: string): Promise<UserPresence> => {
+export const fetchUserPresence = async (userId: string, stage: UsersStage = 'd1'): Promise<UserPresence> => {
     const { data } = await webTransport
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${getUsersEndpoint()}/skt-d1/users/${userId}/presence`,
+            baseURL: `${getUsersBase(stage)}/users/${userId}/presence`,
         })
         .execute<PresenceResponse>();
     const now = Date.now();
