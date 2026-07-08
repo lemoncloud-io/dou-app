@@ -5,6 +5,7 @@ export * from './common';
 export * from './device';
 export * from './iap';
 export * from './notification';
+export * from './perf';
 export * from './preference';
 export * from './system';
 export * from './test-record';

@@ -76,6 +76,8 @@ import type {
     OnUpdateStatusPayload,
     OnStartUpdateDownloadPayload,
     OnRestartToUpdatePayload,
+    OnSendBootMetricsPayload,
+    OnSetDebugModePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -166,6 +168,8 @@ export type AppMessageDataMap = {
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
     OnCopyToClipboard: OnCopyToClipboardPayload;
+    OnSendBootMetrics: OnSendBootMetricsPayload;
+    OnSetDebugMode: OnSetDebugModePayload;
 
     // 8. Test DB Scenario Validation
     OnFetchTestRecord: OnFetchTestRecordPayload;

@@ -67,6 +67,8 @@ import type {
     DismissResumeOverlayPayload,
     StartUpdateDownloadPayload,
     RestartToUpdatePayload,
+    SendBootMetricsPayload,
+    SetDebugModePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -147,6 +149,8 @@ export type WebMessagePayloadMap = {
     Ping: PingPayload;
     CopyToClipboard: CopyToClipboardPayload;
     DismissResumeOverlay: DismissResumeOverlayPayload;
+    SendBootMetrics: SendBootMetricsPayload;
+    SetDebugMode: SetDebugModePayload;
 
     // 8. Test DB Scenario Validation
     FetchTestRecord: FetchTestRecordPayload;
