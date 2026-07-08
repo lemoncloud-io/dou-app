@@ -6,11 +6,11 @@ import { webTransport } from '@chatic/web-core';
 
 import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
 
-interface DeviceViewRaw {
+export interface DeviceViewRaw {
     id?: string;
     name?: string | null;
     platform?: string;
-    status?: Presence;
+    status?: string;
     tick?: number;
     viewingType?: string;
     viewingId?: string;
@@ -40,34 +40,33 @@ export interface UserSearchPage {
     page: number;
 }
 
-/** 유저 관측 API 스테이지 — d1(개발) / v1(운영) */
 export type UsersStage = 'd1' | 'v1';
 
 const getUsersEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
 
 const getUsersBase = (stage: UsersStage): string => `${getUsersEndpoint()}/skt-${stage}`;
 
-const mapDevice = (d: DeviceViewRaw, now: number): ObservedDevice => {
-    const viewing = d.viewingType === 'channel' && d.viewingId ? `${d.viewingId}` : null;
-    const activeAt = d.lastActiveAt ?? d.updatedAt;
+export const mapDeviceView = (d: DeviceViewRaw): ObservedDevice => {
+    const status: Presence = d.status === 'red' || d.status === 'yellow' ? d.status : 'green';
+    const viewing = status !== 'red' && d.viewingType === 'channel' && d.viewingId ? `${d.viewingId}` : null;
     return {
         id: `${d.id ?? ''}`,
         name: d.name || `${d.id ?? 'device'}`,
         platform: d.platform || '-',
-        status: d.status ?? 'green',
+        status,
         tick: d.tick ?? 0,
         viewing,
         viewingFor: null,
-        lastActiveAt: activeAt ? Math.max(0, Math.round((now - activeAt) / 1000)) : 0,
+        lastActiveAt: d.lastActiveAt ?? d.updatedAt ?? 0,
     };
 };
 
-const mapUser = (u: UserViewRaw, now: number): ObservedUser => ({
+const mapUser = (u: UserViewRaw): ObservedUser => ({
     id: `${u.id ?? ''}`,
     name: u.name || u.nick || `${u.id ?? ''}`,
     code: u.accountId || '',
     presence: u.presence ?? 'green',
-    devices: (u.Devices ?? []).map(d => mapDevice(d, now)),
+    devices: (u.Devices ?? []).map(mapDeviceView),
 });
 
 export interface FetchObservedUsersParams {
@@ -94,8 +93,7 @@ export const fetchObservedUsers = async ({
         })
         .setParams({ detail: 1, page, limit, ...search })
         .execute<UsersListResponse>();
-    const now = Date.now();
-    const list = (data?.list ?? []).map(u => mapUser(u, now));
+    const list = (data?.list ?? []).map(mapUser);
     return { list, total: data?.total ?? list.length, page: data?.page ?? page };
 };
 
@@ -110,7 +108,6 @@ export interface UserPresence {
     devices: ObservedDevice[];
 }
 
-/** 유저 디바이스 목록 저장(전달한 deviceIds만 유지) — id는 'CN' prefix로 조립 */
 export const updateUserDevices = async (
     userId: string,
     deviceIds: string[],
@@ -132,7 +129,6 @@ export const fetchUserPresence = async (userId: string, stage: UsersStage = 'd1'
             baseURL: `${getUsersBase(stage)}/users/${userId}/presence`,
         })
         .execute<PresenceResponse>();
-    const now = Date.now();
     const raw = data?.Devices ?? data?.devices ?? [];
-    return { presence: data?.presence ?? 'green', devices: raw.map(d => mapDevice(d, now)) };
+    return { presence: data?.presence ?? 'green', devices: raw.map(mapDeviceView) };
 };

@@ -1,16 +1,52 @@
 /**
  * `hooks/use-watchlist.ts`
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { fetchObservedUsers, fetchUserPresence, updateUserDevices } from '../api/userApi';
+import type { ClientSocketState, DeviceView } from '@lemoncloud/chatic-sockets-lib';
+
+import { fetchObservedUsers, fetchUserPresence, mapDeviceView, updateUserDevices } from '../api/userApi';
 import type { UsersStage } from '../api/userApi';
-import type { ObservedUser, UserSearchType } from '../mock/observed-users';
+import { createObserveSyncContainer, type ObserveSyncContainer } from '../runtime/observe-sync-container';
+import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
 
 const PAGE_SIZE = 10;
+const MAX_OBSERVED_DEVICES = 30;
+const DISCOVERY_INTERVAL_MS = 60_000;
+
+export const worstPresence = (devices: ObservedDevice[], fallback: Presence): Presence =>
+    !devices.length
+        ? fallback
+        : devices.some(d => d.status === 'red')
+          ? 'red'
+          : devices.some(d => d.status === 'yellow')
+            ? 'yellow'
+            : 'green';
+
+const sameDevice = (a: ObservedDevice, b: ObservedDevice): boolean =>
+    a.id === b.id &&
+    a.name === b.name &&
+    a.platform === b.platform &&
+    a.status === b.status &&
+    a.tick === b.tick &&
+    a.viewing === b.viewing &&
+    a.lastActiveAt === b.lastActiveAt;
+
+export const patchDevice = (list: ObservedUser[], deviceId: string, view: DeviceView): ObservedUser[] => {
+    let changed = false;
+    const next = list.map(u => {
+        const prev = u.devices.find(d => d.id === deviceId);
+        if (!prev) return u;
+        const mapped = { ...mapDeviceView(view), name: view?.name ? `${view.name}` : prev.name };
+        if (sameDevice(prev, mapped)) return u;
+        changed = true;
+        const devices = u.devices.map(d => (d.id === deviceId ? mapped : d));
+        return { ...u, devices, presence: worstPresence(devices, u.presence) };
+    });
+    return changed ? next : list;
+};
 
 export interface Watchlist {
-    /** API 스테이지(d1 개발/v1 운영). 전환 시 스테이지별 캐시에서 관측 상태 복원 */
     stage: UsersStage;
     setStage(s: UsersStage): void;
     observed: ObservedUser[];
@@ -23,6 +59,9 @@ export interface Watchlist {
     reloadDevices(): void;
     deleteDevice(deviceId: string): Promise<void>;
     reloading: boolean;
+    syncState: ClientSocketState;
+    lastSyncAt: number | null;
+    addError: string | null;
     // search
     searchOpen: boolean;
     openSearch(): void;
@@ -56,10 +95,52 @@ export const useWatchlist = (): Watchlist => {
     const [searchError, setSearchError] = useState<string | null>(null);
 
     const applied = useRef<{ type: UserSearchType; query: string; page: number }>({ type: 'id', query: '', page: 0 });
-    /** 스테이지별 관측 상태 캐시 — 전환 후 되돌아오면 복원 */
     const stageCache = useRef<Partial<Record<UsersStage, { observed: ObservedUser[]; selectedUserId: string | null }>>>(
         {}
     );
+
+    const [addError, setAddError] = useState<string | null>(null);
+    const [syncStates, setSyncStates] = useState<Record<UsersStage, ClientSocketState>>({ d1: 'idle', v1: 'idle' });
+    const [lastSyncAts, setLastSyncAts] = useState<Record<UsersStage, number | null>>({ d1: null, v1: null });
+    const containers = useRef<Partial<Record<UsersStage, ObserveSyncContainer>>>({});
+    // 구독 콜백에서 최신 값 참조용
+    const stageRef = useRef(stage);
+    stageRef.current = stage;
+    const observedRef = useRef(observed);
+    observedRef.current = observed;
+
+    useEffect(() => {
+        const created = (['d1', 'v1'] as UsersStage[]).map(s => {
+            const container = createObserveSyncContainer(s);
+            containers.current[s] = container;
+            const unsub = container.subscribe(event => {
+                if (event.type === 'state') {
+                    setSyncStates(prev => ({ ...prev, [s]: event.state }));
+                } else if (event.type === 'sync') {
+                    setLastSyncAts(prev => ({ ...prev, [s]: event.at }));
+                } else if (s === stageRef.current) {
+                    setObserved(prev => patchDevice(prev, event.deviceId, event.view));
+                } else {
+                    const cached = stageCache.current[s];
+                    if (cached) cached.observed = patchDevice(cached.observed, event.deviceId, event.view);
+                }
+            });
+            return { container, unsub };
+        });
+        const timer = window.setTimeout(() => created.forEach(({ container }) => void container.connect()), 0);
+        return () => {
+            window.clearTimeout(timer);
+            created.forEach(({ container, unsub }) => {
+                unsub();
+                void container.dispose();
+            });
+            containers.current = {};
+        };
+    }, []);
+
+    useEffect(() => {
+        containers.current[stage]?.setTargets(observed.flatMap(u => u.devices.map(d => d.id)));
+    }, [observed, stage]);
 
     const loadPage = useCallback(
         async (append: boolean) => {
@@ -80,18 +161,28 @@ export const useWatchlist = (): Watchlist => {
         [stage]
     );
 
-    // 선택/추가/reload 공용 — id로 presence(디바이스) 최신화 후 해당 유저만 갱신.
     const refreshPresence = useCallback(
-        (id: string) =>
-            fetchUserPresence(id, stage)
-                .then(p =>
+        (id: string, s?: UsersStage) => {
+            const target = s ?? stage;
+            return fetchUserPresence(id, target)
+                .then(p => {
+                    if (stageRef.current !== target) return;
                     setObserved(prev =>
                         prev.map(u => (u.id === id ? { ...u, presence: p.presence, devices: p.devices } : u))
-                    )
-                )
-                .catch(() => undefined),
+                    );
+                })
+                .catch(() => undefined);
+        },
         [stage]
     );
+
+    useEffect(() => {
+        const timer = window.setInterval(() => {
+            if (document.hidden) return;
+            observedRef.current.forEach(u => void refreshPresence(u.id));
+        }, DISCOVERY_INTERVAL_MS);
+        return () => window.clearInterval(timer);
+    }, [refreshPresence]);
 
     const observedIds = useMemo(() => new Set(observed.map(u => u.id)), [observed]);
     const selected = observed.find(u => u.id === selectedUserId) ?? null;
@@ -100,7 +191,6 @@ export const useWatchlist = (): Watchlist => {
         stage,
         setStage: s => {
             if (s === stage) return;
-            // 현재 스테이지 상태는 캐시에 보관, 대상 스테이지는 캐시에서 복원(없으면 빈 상태)
             stageCache.current[stage] = { observed, selectedUserId };
             const cached = stageCache.current[s];
             setStage(s);
@@ -108,6 +198,7 @@ export const useWatchlist = (): Watchlist => {
             setSelectedUserId(cached?.selectedUserId ?? null);
             setSearchList([]);
             setSearchTotal(0);
+            (cached?.observed ?? []).forEach(u => void refreshPresence(u.id, s));
         },
         observed,
         selectedUserId,
@@ -115,7 +206,7 @@ export const useWatchlist = (): Watchlist => {
         observedIds,
         selectUser: id => {
             setSelectedUserId(id);
-            void refreshPresence(id); // 전환 시에도 presence 호출
+            void refreshPresence(id);
         },
         removeUser: id =>
             setObserved(prev => {
@@ -146,12 +237,22 @@ export const useWatchlist = (): Watchlist => {
             if (!user) return;
             const deviceIds = user.devices.filter(d => d.id !== deviceId).map(d => d.id);
             await updateUserDevices(user.id, deviceIds, stage);
-            await refreshPresence(user.id);
+            setObserved(prev =>
+                prev.map(u => (u.id === user.id ? { ...u, devices: u.devices.filter(d => d.id !== deviceId) } : u))
+            );
+            const p = await fetchUserPresence(user.id, stage).catch(() => null);
+            if (!p || stageRef.current !== stage) return;
+            const devices = p.devices.filter(d => d.id !== deviceId);
+            setObserved(prev => prev.map(u => (u.id === user.id ? { ...u, presence: p.presence, devices } : u)));
         },
+        syncState: syncStates[stage],
+        lastSyncAt: lastSyncAts[stage],
+        addError,
         searchOpen,
         openSearch: () => {
             setSearchOpen(true);
             setSearchQuery('');
+            setAddError(null);
             applied.current = { type: searchType, query: '', page: 0 };
             void loadPage(false);
         },
@@ -175,6 +276,14 @@ export const useWatchlist = (): Watchlist => {
         },
         addUser: u => {
             if (observedIds.has(u.id)) return;
+            const total = observed.reduce((n, x) => n + x.devices.length, 0) + u.devices.length;
+            if (total > MAX_OBSERVED_DEVICES) {
+                setAddError(
+                    `관측 디바이스 상한(${MAX_OBSERVED_DEVICES}개)을 초과합니다 — 기존 유저를 해제한 뒤 추가하세요`
+                );
+                return;
+            }
+            setAddError(null);
             setObserved(prev => [...prev, u]);
             setSelectedUserId(u.id);
             void refreshPresence(u.id);

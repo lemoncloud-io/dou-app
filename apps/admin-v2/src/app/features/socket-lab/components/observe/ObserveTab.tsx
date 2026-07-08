@@ -1,13 +1,54 @@
+import { useEffect, useState } from 'react';
+
+import type { ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
+
+import { ago, hexToRgba, sinceSec } from '../../lib/stats';
 import type { Watchlist } from '../../hooks/use-watchlist';
 import type { UsersStage } from '../../api/userApi';
 import SummaryStrip from './SummaryStrip';
 import WatchlistMasterDetail from './WatchlistMasterDetail';
 
-/** 스테이지별 라벨/강조색 — v1(운영)은 경고 색으로 구분 */
 const STAGES: { value: UsersStage; label: string; color: string }[] = [
     { value: 'd1', label: 'DEV (d1)', color: '#3fb950' },
     { value: 'v1', label: 'PROD (v1)', color: '#e5484d' },
 ];
+
+const badgeFor = (state: ClientSocketState): { label: string; color: string } =>
+    state === 'connected'
+        ? { label: 'LIVE', color: '#3fb950' }
+        : state === 'connecting' || state === 'idle'
+          ? { label: 'CONNECTING', color: '#d29922' }
+          : { label: 'OFFLINE', color: '#e5484d' };
+
+function SyncBadge({ state, lastSyncAt }: { state: ClientSocketState; lastSyncAt: number | null }) {
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const t = window.setInterval(() => setTick(n => n + 1), 1000);
+        return () => window.clearInterval(t);
+    }, []);
+    const b = badgeFor(state);
+    return (
+        <>
+            <span
+                style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '.05em',
+                    color: b.color,
+                    background: hexToRgba(b.color, 0.1),
+                    border: `1px solid ${hexToRgba(b.color, 0.25)}`,
+                    borderRadius: 5,
+                    padding: '2px 7px',
+                }}
+            >
+                {b.label}
+            </span>
+            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: 'var(--sm-text-6)' }}>
+                {lastSyncAt ? `sync ${ago(sinceSec(lastSyncAt))}` : 'sync —'}
+            </span>
+        </>
+    );
+}
 
 export interface ObserveTabProps {
     wl: Watchlist;
@@ -24,20 +65,7 @@ export default function ObserveTab({ wl }: ObserveTabProps) {
         <div style={{ padding: '22px 22px 28px', display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, letterSpacing: '-.01em' }}>User Watchlist</h2>
-                <span
-                    style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        letterSpacing: '.05em',
-                        color: '#3fb950',
-                        background: 'rgba(63,185,80,.1)',
-                        border: '1px solid rgba(63,185,80,.25)',
-                        borderRadius: 5,
-                        padding: '2px 7px',
-                    }}
-                >
-                    LIVE
-                </span>
+                <SyncBadge state={wl.syncState} lastSyncAt={wl.lastSyncAt} />
                 <span style={{ fontSize: 11.5, color: 'var(--sm-text-6)' }}>
                     특정 유저를 관측 대상으로 추가해 디바이스 상태·presence 추적 (users/0/list)
                 </span>

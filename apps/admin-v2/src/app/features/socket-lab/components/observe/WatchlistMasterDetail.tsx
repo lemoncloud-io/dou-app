@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { RotateCw, Trash2 } from 'lucide-react';
 
-import { ACCENT, ago, dur, hexToRgba, presenceColor } from '../../lib/stats';
+import { ACCENT, ago, dur, hexToRgba, presenceColor, sinceSec } from '../../lib/stats';
 import type { Watchlist } from '../../hooks/use-watchlist';
 import type { ObservedDevice } from '../../mock/observed-users';
 
@@ -18,9 +18,9 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const { observed, selectedUserId, selected } = wl;
-    // 유저 마지막 활동 = 디바이스 중 가장 최근(min lastActiveAt). 디바이스 없으면 null.
-    const userLastActive =
-        selected && selected.devices.length ? Math.min(...selected.devices.map(d => d.lastActiveAt)) : null;
+
+    const activeAts = selected ? selected.devices.map(d => d.lastActiveAt).filter(Boolean) : [];
+    const userLastActive = activeAts.length ? Math.max(...activeAts) : null;
 
     return (
         <div
@@ -271,7 +271,7 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                 >
                                     {selected.id}
                                     {selected.code ? ` · ${selected.code}` : ''} · active{' '}
-                                    {userLastActive != null ? ago(userLastActive) : '—'}
+                                    {userLastActive != null ? ago(sinceSec(userLastActive)) : '—'}
                                 </span>
                             </div>
                         </div>
@@ -487,7 +487,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                     color: 'var(--sm-text-6)',
                                                 }}
                                             >
-                                                {d.platform} · tick {d.tick} · active {ago(d.lastActiveAt)}
+                                                {d.platform} · tick {d.tick} · active{' '}
+                                                {d.lastActiveAt ? ago(sinceSec(d.lastActiveAt)) : '—'}
                                             </div>
                                         </div>
                                     );

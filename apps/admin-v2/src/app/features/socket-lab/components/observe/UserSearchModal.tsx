@@ -147,6 +147,20 @@ export default function UserSearchModal({ wl }: UserSearchModalProps) {
                     </button>
                 </div>
 
+                {wl.addError ? (
+                    <div
+                        style={{
+                            padding: '8px 18px',
+                            fontSize: 12,
+                            color: '#f85149',
+                            background: hexToRgba('#f85149', 0.08),
+                            borderBottom: '1px solid var(--sm-border)',
+                        }}
+                    >
+                        {wl.addError}
+                    </div>
+                ) : null}
+
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {wl.searchLoading && !shown.length ? (
                         <div
