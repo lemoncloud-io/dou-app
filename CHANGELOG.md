@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-07-08] - No version updates
+
+### Features
+
+- (mobile-deploy) document mobile app deployment pipeline
+- (mobile-release) implement Fastlane configuration for deployment
+- (mobile-release) add mobile app deployment and versioning scripts
+
+### Bug Fixes
+
+- (web/bridge/navigation) compare full location for push navigation
+
+### Chores
+
+- (mobile) bump version to 0.19.1
+
 ## [2026-07-08] - root@0.41.0, @chatic/desktop-web@0.3.0
 
 ### Features
