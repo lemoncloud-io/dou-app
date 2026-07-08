@@ -7,7 +7,7 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { useTheme } from '@chatic/theme';
+import { useTheme } from '../../../theme';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useSessionSelection } from '@chatic/web-core';
 import { useSessionProfile } from '@chatic/app-runtime';
@@ -17,7 +17,7 @@ import { BottomNavigation } from '../../../ui/components/BottomNavigation';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
 import { useMyUser } from '../../../hooks';
-import { useDebugMode } from '../../debug';
+import { debugOverlayActions, useDebugMode } from '../../debug';
 import { ROUTES } from '../../../routes/paths';
 
 export const MyPage = () => {
@@ -257,7 +257,7 @@ export const MyPage = () => {
                     {isDebugMode && (
                         <>
                             <button
-                                onClick={() => navigate(ROUTES.debug.root)}
+                                onClick={() => debugOverlayActions.open('expanded')}
                                 className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                             >
                                 <span className="text-[15px] font-medium text-destructive">Debug Mode</span>

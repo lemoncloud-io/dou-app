@@ -1,17 +1,13 @@
-import { ChevronLeft, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { useNavigateWithTransition } from '@chatic/shared';
-
-import { buildInviteRedirectUrl, DEFAULT_INVITE_REDIRECT_BASE } from '../lib';
+import { buildInviteRedirectUrl, DEFAULT_INVITE_REDIRECT_BASE } from '../../lib';
 
 /**
  * Debug tool: paste a share link (…/s?code=…&api=…&stage=…), preview the converted invite
  * redirect URL, and navigate to it. The redirect base is editable so any environment can be targeted.
  */
-export const DebugInviteRedirectPage = () => {
-    const navigate = useNavigateWithTransition();
-
+export const InviteRedirectScreen = () => {
     const [input, setInput] = useState('');
     const [baseUrl, setBaseUrl] = useState(DEFAULT_INVITE_REDIRECT_BASE);
 
@@ -30,15 +26,8 @@ export const DebugInviteRedirectPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-                <span className="ml-2 text-[14px] font-medium text-muted-foreground">Invite Link Converter</span>
-            </header>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
+        <div className="flex h-full flex-col bg-background">
+            <div className="flex-1 px-4">
                 <div className="mb-6 mt-6">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">초대 링크 변환</h1>
                     <p className="mt-1 text-[13px] text-muted-foreground">

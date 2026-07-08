@@ -44,16 +44,6 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.mypage.policy.licenses).toBe('/mypage/policy/licenses');
         expect(ROUTES.mypage.policy.privacy).toBe('/mypage/policy/privacy');
     });
-
-    it('debug 하위 트리를 최상위 /debug 경로로 노출한다', () => {
-        expect(ROUTES.debug.root).toBe('/debug');
-        expect(ROUTES.debug.login).toBe('/debug/login');
-        expect(ROUTES.debug.dashboard).toBe('/debug/dashboard');
-        expect(ROUTES.debug.logBuffer).toBe('/debug/log-buffer');
-        expect(ROUTES.debug.cacheTest).toBe('/debug/cache-test');
-        expect(ROUTES.debug.uploadTest).toBe('/debug/upload-test');
-        expect(ROUTES.debug.badgeCount).toBe('/debug/badge-count');
-    });
 });
 
 describe('ROUTES — 파라미터 빌더', () => {

@@ -63,4 +63,25 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
         expect(result.current.isEnabled).toBe(false);
         expect(sessionStorage.getItem(DEBUG_STORAGE_KEY)).toBeNull();
     });
+
+    it('한 인스턴스에서 언락하면 다른 인스턴스도 즉시 활성화된다', () => {
+        // The always-mounted debug overlay must react to the MyPage 10-tap unlock.
+        const unlocker = renderHook(() => useDebugMode());
+        const observer = renderHook(() => useDebugMode());
+        expect(observer.result.current.isEnabled).toBe(false);
+
+        tap(unlocker.result.current.registerTap, 10);
+
+        expect(observer.result.current.isEnabled).toBe(true);
+    });
+
+    it('한 인스턴스에서 disable하면 다른 인스턴스도 즉시 비활성화된다', () => {
+        sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
+        const a = renderHook(() => useDebugMode());
+        const b = renderHook(() => useDebugMode());
+
+        act(() => a.result.current.disable());
+
+        expect(b.result.current.isEnabled).toBe(false);
+    });
 });

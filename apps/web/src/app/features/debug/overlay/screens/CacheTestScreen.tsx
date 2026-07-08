@@ -1,22 +1,8 @@
-import {
-    Check,
-    ChevronLeft,
-    Edit2,
-    FileText,
-    Flame,
-    Lock,
-    Plus,
-    RefreshCw,
-    Search,
-    Sparkles,
-    Trash2,
-    XCircle,
-} from 'lucide-react';
+import { Check, Edit2, FileText, Flame, Lock, Plus, RefreshCw, Search, Sparkles, Trash2, XCircle } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { AppMessageData } from '@chatic/app-messages';
 import { type TestRecord } from '@chatic/app-messages';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { webClient } from '@chatic/bridges';
 
 const BULK_COUNTS = [10, 50, 100, 500, 1000, 2000];
@@ -144,9 +130,7 @@ const LogEntryView = ({ log, index }: { log: LogEntry; index: number }) => {
 
 // --- Page ---
 
-export const DebugCacheTestPage = () => {
-    const navigate = useNavigateWithTransition();
-
+export const CacheTestScreen = () => {
     // Core Dashboard States
     const [activeTab, setActiveTab] = useState<ActiveTab>('scenarios');
     const [isRunning, setIsRunning] = useState(false);
@@ -747,18 +731,8 @@ export const DebugCacheTestPage = () => {
     }, [isOnMobileApp, addLog, loadAllRecords]);
 
     return (
-        <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background pt-safe-top">
-            {/* Header matching DebugLogBufferPage.tsx */}
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-                <span className="ml-2 text-[14px] font-semibold text-foreground">
-                    SQLite 브릿지 벤치마크 및 데이터 관리
-                </span>
-            </header>
-
-            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none pb-safe-bottom">
+        <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background">
+            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none">
                 <div className="flex min-w-0 max-w-full flex-col gap-3 p-4 pb-10">
                     {/* 1. 상단 상시 노출: 상태 정보 (Status Summary) */}
                     <Section title="실시간 DB 상태 정보">

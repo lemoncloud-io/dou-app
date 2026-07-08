@@ -1,8 +1,7 @@
-import { Bell, ChevronLeft, Minus, Plus, RefreshCw, RotateCcw, Send } from 'lucide-react';
+import { Bell, Minus, Plus, RefreshCw, RotateCcw, Send } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { useNavigateWithTransition } from '@chatic/shared';
 
 type BadgeAction = 'fetch' | 'set' | 'clear';
 type ActionStatus = 'idle' | 'pending' | 'success' | 'error';
@@ -22,8 +21,7 @@ const getResponseCount = (response: { data?: unknown }): number | null => {
     return typeof data?.count === 'number' ? data.count : null;
 };
 
-export const DebugBadgeCountPage = () => {
-    const navigate = useNavigateWithTransition();
+export const BadgeCountScreen = () => {
     const isOnNative = isNative();
 
     const [inputCount, setInputCount] = useState('1');
@@ -81,15 +79,8 @@ export const DebugBadgeCountPage = () => {
     const parsedInputCount = clampBadgeCount(Number(inputCount) || 0);
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-                <span className="ml-2 text-[14px] font-medium text-muted-foreground">Debug</span>
-            </header>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
+        <div className="flex h-full flex-col bg-background">
+            <div className="flex-1 px-4">
                 <div className="mb-6 mt-6">
                     <div className="flex items-center gap-2">
                         <Bell size={20} className="text-foreground" />

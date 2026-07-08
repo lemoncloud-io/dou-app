@@ -2,7 +2,6 @@ import {
     Activity,
     AlertTriangle,
     CheckCircle2,
-    ChevronLeft,
     Clock,
     FileText,
     Gauge,
@@ -16,7 +15,6 @@ import {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { OnCreateDummyFilePayload } from '@chatic/app-messages';
 import { type RecoverableUploadTaskInfo } from '@chatic/app-messages';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { webClient } from '@chatic/bridges';
 
 type LogLevel = 'info' | 'success' | 'warning' | 'error';
@@ -114,9 +112,7 @@ const levelClassName: Record<LogLevel, string> = {
     error: 'bg-destructive/15 text-destructive',
 };
 
-export const DebugUploadPage = () => {
-    const navigate = useNavigateWithTransition();
-
+export const UploadTestScreen = () => {
     // Configuration states
     const [uploadUrl, setUploadUrl] = useState('http://localhost:8080/upload');
     const [chunkSize, setChunkSize] = useState(1024 * 1024); // Default 1.0 MB
@@ -1082,25 +1078,8 @@ export const DebugUploadPage = () => {
     }, [taskList]);
 
     return (
-        <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background pt-safe-top">
-            <header className="flex items-center px-2 py-1.5 border-b border-border/20 bg-background/95 backdrop-blur-md sticky top-0 z-10">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="rounded-full p-2.5 hover:bg-muted transition-colors active:scale-95"
-                >
-                    <ChevronLeft size={24} strokeWidth={2.5} />
-                </button>
-                <div className="ml-2.5">
-                    <h1 className="text-[15px] font-extrabold text-foreground tracking-tight">
-                        대용량 파일 다중 백그라운드 전송
-                    </h1>
-                    <p className="text-[10px] text-muted-foreground/80 font-medium">
-                        Native FileManager Bridge 및 백그라운드 수명 제어
-                    </p>
-                </div>
-            </header>
-
-            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none pb-safe-bottom">
+        <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background">
+            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none">
                 <div className="flex min-w-0 max-w-full flex-col gap-4 p-4 pb-12">
                     {/* Native App Status Indicator */}
                     {!isOnMobileApp && (

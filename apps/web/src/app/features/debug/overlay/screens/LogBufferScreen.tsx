@@ -1,16 +1,15 @@
-import { ChevronLeft, RefreshCw, Scissors, Trash2, Zap } from 'lucide-react';
+import { RefreshCw, Scissors, Trash2, Zap } from 'lucide-react';
 import { type ReactNode, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
 import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
-import { useNavigateWithTransition } from '@chatic/shared';
 import {
     appBridge,
     useOnClearAppLogBuffer,
     useOnFetchAppLogBuffer,
     useOnFetchAppLogBufferSize,
     useOnPollAppLogBuffer,
-} from '../../../bridge';
+} from '../../../../bridge';
 
 const LOG_FETCH_LIMIT = 20;
 
@@ -135,8 +134,7 @@ const LogEntry = ({ log, index }: { log: AppLogInfo; index: number }) => {
     );
 };
 
-export const DebugLogBufferPage = () => {
-    const navigate = useNavigateWithTransition();
+export const LogBufferScreen = () => {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const requestedLimitRef = useRef(LOG_FETCH_LIMIT);
     const [limit, setLimit] = useState(LOG_FETCH_LIMIT);
@@ -281,18 +279,11 @@ export const DebugLogBufferPage = () => {
     }, [hasMoreLogs, isFetchingLogs, loadMoreLogs, logs.length]);
 
     return (
-        <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-                <span className="ml-2 text-[14px] font-medium text-muted-foreground">Log Buffer</span>
-            </header>
-
+        <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background">
             <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none pb-safe-bottom"
+                className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none"
             >
                 <div className="flex min-w-0 max-w-full flex-col gap-3 p-4 pb-10">
                     <Section title="Status">

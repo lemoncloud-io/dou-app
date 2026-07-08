@@ -1,16 +1,14 @@
-import { ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useLogin } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useNavigateWithTransition } from '@chatic/shared';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { ROUTES } from '../../../routes/paths';
+import { ROUTES } from '../../../../routes/paths';
 
-export const DebugLoginPage = () => {
-    const navigate = useNavigateWithTransition();
+export const EmailLoginScreen = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { mutateAsync: login, isPending } = useLogin();
@@ -35,15 +33,8 @@ export const DebugLoginPage = () => {
     };
 
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <header className="flex items-center px-[6px]">
-                <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
-                    <ChevronLeft size={26} strokeWidth={2} />
-                </button>
-                <span className="ml-2 text-[14px] font-medium text-muted-foreground">Debug</span>
-            </header>
-
-            <div className="flex-1 overflow-y-auto overscroll-none px-4 pb-safe-bottom">
+        <div className="flex h-full flex-col bg-background">
+            <div className="flex-1 px-4">
                 <div className="mt-6 mb-8">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">{t('mypageLogin.title')}</h1>
                     <p className="mt-1 text-[13px] text-muted-foreground">Debug Mode - Email Login</p>
@@ -95,9 +86,11 @@ export const DebugLoginPage = () => {
                 </form>
 
                 <div className="mt-6 flex items-center justify-center gap-6">
+                    {/* Full-page navigation: the overlay lives outside the Router,
+                        so account routes are reached by leaving the debug session. */}
                     <button
                         type="button"
-                        onClick={() => navigate(ROUTES.account.signup.root)}
+                        onClick={() => (window.location.href = ROUTES.account.signup.root)}
                         className="flex items-center gap-0.5 text-[15px] font-medium text-label"
                     >
                         {t('mypageLogin.signup')}
@@ -106,7 +99,7 @@ export const DebugLoginPage = () => {
                     <div className="h-[14px] w-px bg-input-border" />
                     <button
                         type="button"
-                        onClick={() => navigate(ROUTES.account.resetPassword.root)}
+                        onClick={() => (window.location.href = ROUTES.account.resetPassword.root)}
                         className="flex items-center gap-0.5 text-[15px] font-medium text-label"
                     >
                         {t('mypageLogin.forgotPassword')}

@@ -14,6 +14,7 @@ import { logger } from '@chatic/bridges';
 import i18n from '../i18n';
 import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
+import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
@@ -68,6 +69,9 @@ export function App() {
                             <Suspense fallback={<LoadingFallback />}>
                                 <AppRuntime />
                             </Suspense>
+                            {/* Outside the Suspense/Router chain so the debug overlay stays
+                                reachable even when the app is stuck booting. */}
+                            <DebugOverlayHost />
                         </ErrorBoundary>
                     </ThemeProvider>
                 </QueryClientProvider>
