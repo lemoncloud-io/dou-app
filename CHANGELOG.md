@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-07-08] - root@0.41.0, @chatic/desktop-web@0.3.0
+
+### Features
+
+- (desktop-web) restore the last-open channel when returning to a cloud
+- (desktop-web) lock the cloud rail until a switch settles, not just the exchange
+- (desktop-web) hold each cloud's channel list through switch blips with a snapshot
+- (desktop-web) keep each cloud's channel list on switch — no flicker
+
+### Bug Fixes
+
+- (data) don't prune the channel list on an empty refresh response
+- (app-runtime) scope channel cache writes to the socket's actual cloud
+- (app-runtime) reject socket frames from a cloud the cache no longer points at
+- (desktop-web) hold the channel skeleton across a cloud switch until it re-verifies
+- (app-runtime) drop socket cache writes during a cloud switch to stop partition poisoning
+- (desktop-web) only fold REAL, non-active clouds into the dock badge
+- (desktop-web) re-key the channel list on cloud switch, not just place
+- (desktop-web) stop the dock badge sticking at 1 with everything read
+
+### Chores
+
+- (desktop-web) remove channel-switch and badge diagnostic logs
+- (desktop-web) use console.log for channel diagnostics so they show on desktop
+- (desktop-web) add diagnostic logs to pinpoint the channel-switch flicker
+
+### Other
+
+- revert: (desktop-web) roll back the channel-switch changes to baseline
+
 ## [2026-07-08] - No version updates
 
 ### Features
