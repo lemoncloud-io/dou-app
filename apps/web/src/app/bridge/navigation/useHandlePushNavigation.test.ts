@@ -38,7 +38,7 @@ const invoke = async (path = '/x', replace = false) => {
     await captured!({ data: { path, replace } });
 };
 
-// Normalization reads the live pathname from window.location (jsdom), so tests
+// Normalization reads the live pathname+search from window.location (jsdom), so tests
 // drive the "current screen" through the history API rather than a router mock.
 const setCurrentPath = (path: string) => window.history.replaceState({}, '', path);
 
@@ -179,13 +179,39 @@ describe('useHandlePushNavigation', () => {
             expect(navigate).not.toHaveBeenCalled();
         });
 
-        it('target에 쿼리가 붙어 있어도 pathname 기준으로 같은 화면이면 생략한다', async () => {
-            setCurrentPath('/channels/roomA/room');
+        it('pathname과 쿼리가 모두 같으면 네비게이션을 생략한다', async () => {
+            setCurrentPath('/channels/roomA/room?from=push');
             setResolved({ target: '/channels/roomA/room?from=push', cid: null, sid: null });
 
             await invoke();
 
             expect(navigate).not.toHaveBeenCalled();
+        });
+
+        it('같은 pathname이라도 쿼리가 다르면 생략하지 않고 정규화 네비게이션한다', async () => {
+            setCurrentPath('/channels/roomA/room');
+            setResolved({ target: '/channels/roomA/room?from=push', cid: null, sid: null });
+
+            await invoke();
+
+            expect(navigate).toHaveBeenNthCalledWith(1, '/', { replace: true });
+            expect(navigate).toHaveBeenNthCalledWith(2, '/channels/roomA/room?from=push');
+        });
+
+        it('홈에서 초대 딥링크(쿼리만 다른 홈 타겟)를 받으면 rebase 없이 target을 push한다', async () => {
+            // Regression: the invite deeplink shares the home pathname, so the old
+            // pathname-only skip dropped its query and the invite popup never showed.
+            setCurrentPath('/');
+            setResolved({
+                target: '/?code=abc&provider=invite&version=2&_backend=https%3A%2F%2Fapi',
+                cid: null,
+                sid: null,
+            });
+
+            await invoke();
+
+            expect(navigate).toHaveBeenCalledTimes(1);
+            expect(navigate).toHaveBeenCalledWith('/?code=abc&provider=invite&version=2&_backend=https%3A%2F%2Fapi');
         });
 
         it('네이티브 replace 플래그와 무관하게 정규화 규칙대로 네비게이션한다', async () => {

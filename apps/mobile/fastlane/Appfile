@@ -1,0 +1,2 @@
+# App identifiers are passed explicitly per lane (dev/prod are separate store
+# apps), so nothing is configured globally here. See Fastfile.
