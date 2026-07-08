@@ -1,9 +1,10 @@
 import { useState } from 'react';
 
-import { RotateCw } from 'lucide-react';
+import { RotateCw, Trash2 } from 'lucide-react';
 
 import { ACCENT, ago, dur, hexToRgba, presenceColor } from '../../lib/stats';
 import type { Watchlist } from '../../hooks/use-watchlist';
+import type { ObservedDevice } from '../../mock/observed-users';
 
 export interface WatchlistMasterDetailProps {
     wl: Watchlist;
@@ -13,6 +14,9 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
     const [hoverId, setHoverId] = useState<string | null>(null);
     const [dragId, setDragId] = useState<string | null>(null);
     const [dragOverId, setDragOverId] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<ObservedDevice | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const { observed, selectedUserId, selected } = wl;
     // 유저 마지막 활동 = 디바이스 중 가장 최근(min lastActiveAt). 디바이스 없으면 null.
     const userLastActive =
@@ -410,6 +414,28 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                 >
                                                     {d.status.toUpperCase()}
                                                 </span>
+                                                <button
+                                                    onClick={() => {
+                                                        setDeleteError(null);
+                                                        setDeleteTarget(d);
+                                                    }}
+                                                    title="디바이스 삭제"
+                                                    aria-label="디바이스 삭제"
+                                                    style={{
+                                                        appearance: 'none',
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: 'var(--sm-text-6)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        padding: '2px 4px',
+                                                        flexShrink: 0,
+                                                        marginLeft: 6,
+                                                    }}
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
                                             </div>
                                             <div
                                                 style={{
@@ -495,6 +521,92 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                     </div>
                 )}
             </div>
+
+            {/* 디바이스 삭제 확인 모달 */}
+            {deleteTarget ? (
+                <div
+                    onClick={() => (deleting ? undefined : setDeleteTarget(null))}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(4,7,11,.7)',
+                        backdropFilter: 'blur(3px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 50,
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            width: 380,
+                            maxWidth: '92vw',
+                            background: 'var(--sm-panel)',
+                            border: '1px solid var(--sm-border-3)',
+                            borderRadius: 14,
+                            boxShadow: '0 24px 64px rgba(0,0,0,.55)',
+                            padding: '20px 22px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 14,
+                        }}
+                    >
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sm-text)' }}>디바이스 삭제</span>
+                        <span style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--sm-text-3)' }}>
+                            <span style={{ fontFamily: "'Geist Mono',monospace" }}>{deleteTarget.name}</span> 디바이스를
+                            이 유저에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+                        </span>
+                        {deleteError ? <span style={{ fontSize: 12, color: '#e5484d' }}>{deleteError}</span> : null}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleting}
+                                style={{
+                                    appearance: 'none',
+                                    cursor: deleting ? 'default' : 'pointer',
+                                    fontFamily: 'inherit',
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    borderRadius: 7,
+                                    padding: '8px 14px',
+                                    background: 'var(--sm-panel-2)',
+                                    border: '1px solid var(--sm-border-2)',
+                                    color: 'var(--sm-text-3)',
+                                }}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setDeleting(true);
+                                    setDeleteError(null);
+                                    wl.deleteDevice(deleteTarget.id)
+                                        .then(() => setDeleteTarget(null))
+                                        .catch(e => setDeleteError(e instanceof Error ? e.message : `${e}`))
+                                        .finally(() => setDeleting(false));
+                                }}
+                                disabled={deleting}
+                                style={{
+                                    appearance: 'none',
+                                    cursor: deleting ? 'default' : 'pointer',
+                                    fontFamily: 'inherit',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    borderRadius: 7,
+                                    padding: '8px 14px',
+                                    background: hexToRgba('#e5484d', 0.14),
+                                    border: `1px solid ${hexToRgba('#e5484d', 0.4)}`,
+                                    color: '#e5484d',
+                                    opacity: deleting ? 0.6 : 1,
+                                }}
+                            >
+                                {deleting ? '삭제 중…' : '삭제'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

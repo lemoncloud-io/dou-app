@@ -103,6 +103,17 @@ export interface UserPresence {
     devices: ObservedDevice[];
 }
 
+/** 유저 디바이스 목록 저장(전달한 deviceIds만 유지) — id는 'CN' prefix로 조립 */
+export const updateUserDevices = async (userId: string, deviceIds: string[]): Promise<void> => {
+    await webTransport
+        .buildSignedRequest({
+            method: 'PUT',
+            baseURL: `${getUsersEndpoint()}/skt-d1/users/CN${userId}/admin`,
+        })
+        .setBody({ deviceIds })
+        .execute();
+};
+
 export const fetchUserPresence = async (userId: string): Promise<UserPresence> => {
     const { data } = await webTransport
         .buildSignedRequest({
