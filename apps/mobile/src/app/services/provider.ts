@@ -28,6 +28,9 @@ import type { ISmsService } from './sms';
 import { SmsService } from './sms';
 import type { IUploadService } from './upload';
 import { SqliteUploadTaskDataSource, UploadService } from './upload';
+import type { IBootMetricsService } from './perf';
+import { BootMetricsService } from './perf';
+import DeviceInfo from 'react-native-device-info';
 
 import {
     ChannelDataSource,
@@ -73,11 +76,18 @@ class DependencyProvider {
     public readonly testRecordService: TestRecordService;
     public readonly keyValueStorage: IKeyValueStorage;
     public readonly sqliteDatabase: ISqliteDatabase;
+    public readonly bootMetricsService: IBootMetricsService;
 
     private constructor() {
         this.logService = new LogService();
         this.consoleLogger = new ConsoleLogger(this.logService);
         this.keyValueStorage = new MmkvStorage(this.logService);
+        // Constructed first so its baseline sits as close to JS entry as possible.
+        this.bootMetricsService = new BootMetricsService(
+            this.logService,
+            this.keyValueStorage,
+            DeviceInfo.getVersion()
+        );
 
         // Inject dependencies into LogBufferService
         this.logBufferService = new LogBufferService(
@@ -148,6 +158,9 @@ class DependencyProvider {
         // Initialize Crashlytics immediately
         this.firebaseCrashlyticsService.init();
         void this.firebaseCrashlyticsService.setupUser();
+
+        // Boot timeline: all synchronous provider initialization is done.
+        this.bootMetricsService.mark('provider-ready');
     }
 
     public static getInstance(): DependencyProvider {

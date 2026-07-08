@@ -13,11 +13,14 @@ interface DebugSettingsState {
     mockServiceBaseUrl: string | null;
     overlayBackdropOpacity: number;
     overlayContentOpacity: number;
+    /** Runtime debug unlock propagated from the web 10-tap gesture (works in PROD builds). */
+    debugModeEnabled: boolean;
     setWebviewBaseUrlOverride: (url: string | null) => void;
     setMockServiceMode: (mode: MockServiceMode) => void;
     setMockServiceBaseUrl: (url: string | null) => void;
     setOverlayBackdropOpacity: (opacity: number) => void;
     setOverlayContentOpacity: (opacity: number) => void;
+    setDebugModeEnabled: (enabled: boolean) => void;
     resetDebugSettings: () => void;
     getResolvedWebviewBaseUrl: () => string;
 }
@@ -28,6 +31,7 @@ export const defaultDebugSettings = {
     mockServiceBaseUrl: null,
     overlayBackdropOpacity: 0.35,
     overlayContentOpacity: 1,
+    debugModeEnabled: false,
 };
 
 const normalizeUrl = (url: string | null): string | null => {
@@ -50,6 +54,7 @@ export const useDebugSettingsStore = create<DebugSettingsState>()(
             setMockServiceBaseUrl: url => set({ mockServiceBaseUrl: normalizeUrl(url) }),
             setOverlayBackdropOpacity: opacity => set({ overlayBackdropOpacity: clampOverlayOpacity(opacity) }),
             setOverlayContentOpacity: opacity => set({ overlayContentOpacity: clampOverlayContentOpacity(opacity) }),
+            setDebugModeEnabled: enabled => set({ debugModeEnabled: enabled }),
             resetDebugSettings: () => set(defaultDebugSettings),
             getResolvedWebviewBaseUrl: () => get().webviewBaseUrlOverride ?? getDefaultWebviewBaseUrl(),
         }),

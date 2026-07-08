@@ -12,3 +12,4 @@ export * from './SmsTestScreen';
 export * from './UploadTestScreen';
 export * from './EnvironmentSettingsScreen';
 export * from './MonitoringScreen';
+export * from './BootPerformanceScreen';

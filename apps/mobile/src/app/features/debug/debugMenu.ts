@@ -1,6 +1,7 @@
 export type DebugOverlayScreenKey =
     | 'EnvironmentSettings'
     | 'Monitoring'
+    | 'BootPerformance'
     | 'SocketTest'
     | 'InAppPurchaseTest'
     | 'NotificationTest'
@@ -13,7 +14,7 @@ export type DebugOverlayScreenKey =
     | 'SmsTest'
     | 'UploadTest';
 
-export type DebugOverlayEntryKey = 'FeatureTests' | 'EnvironmentSettings' | 'Monitoring';
+export type DebugOverlayEntryKey = 'FeatureTests' | 'EnvironmentSettings' | 'Monitoring' | 'BootPerformance';
 
 export interface DebugMenuItem {
     key: DebugOverlayScreenKey;
@@ -48,7 +49,10 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
     },
     {
         title: '모니터링',
-        items: [{ key: 'Monitoring', title: '모니터링' }],
+        items: [
+            { key: 'Monitoring', title: '모니터링' },
+            { key: 'BootPerformance', title: '부팅 성능 기록' },
+        ],
     },
 ];
 
@@ -58,6 +62,7 @@ export const DEBUG_ENTRY_TITLES: Record<DebugOverlayEntryKey, string> = {
     FeatureTests: '기능 테스트',
     EnvironmentSettings: '환경설정',
     Monitoring: '모니터링',
+    BootPerformance: '부팅 성능 기록',
 };
 
 export const DEBUG_SCREEN_TITLES = DEBUG_MENU_SECTIONS.flatMap(section => section.items).reduce(

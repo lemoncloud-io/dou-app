@@ -13,6 +13,8 @@ import { buildInjectedUniqueId } from './utils/buildInjectedUniqueId';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
+import { bootMetricsService } from '../services';
+import { useDebugSettingsStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 const LIGHT_BG = '#ffffff';
@@ -47,6 +49,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     // iOS: content process가 OS에 의해 종료된 경우 리로드
     const handleContentProcessDidTerminate = useCallback(() => {
+        // The forced reload is effectively a full re-boot of the web app —
+        // record it as its own boot session so it shows up in the perf history.
+        bootMetricsService.startReloadSession();
         webViewRef.current?.reload();
     }, []);
 
@@ -56,9 +61,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // resolves this falls back to the bare device id (see buildInjectedUniqueId).
     const uniqueId = buildInjectedUniqueId(deviceId, firebaseInstallId);
     const versionCheck = getVersionCheckResult();
+    const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
     const syncInjectionScript = getSyncInjectionScript({
         insets,
         keyboardHeight,
+        debugModeEnabled,
         deviceInfo: {
             platform: Platform.OS.toLowerCase(),
             applicationName: DeviceInfo.getApplicationName(),

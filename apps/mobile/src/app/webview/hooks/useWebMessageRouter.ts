@@ -17,6 +17,7 @@ import {
     useUploadHandler,
     useTestRecordHandler,
     useResumeOverlay,
+    usePerfHandler,
 } from './index';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -99,6 +100,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
+    const { handleSendBootMetrics, handleSetDebugMode } = usePerfHandler();
 
     const {
         handleFetchTestRecord,
@@ -153,6 +155,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchAppIconList,
         handleChangeAppIcon,
         handleCopyToClipboard,
+        handleSendBootMetrics,
+        handleSetDebugMode,
         handleRequestFileUpload,
         handlePauseFileUpload,
         handleResumeFileUpload,
@@ -212,6 +216,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchAppIconList,
             handleChangeAppIcon,
             handleCopyToClipboard,
+            handleSendBootMetrics,
+            handleSetDebugMode,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -287,6 +293,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             RetryUpload: message => handlersRef.current.handleRetryUpload(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
+            SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
+            SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
         };
 
         // Bridge에 핸들러 등록

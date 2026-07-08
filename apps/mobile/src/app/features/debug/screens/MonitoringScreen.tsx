@@ -21,11 +21,12 @@ const formatLogTime = (timestamp: number) => {
 export const MonitoringScreen = () => {
     const colors = useDebugTheme();
     const { appState, isForeground, isBackground, isInactive } = useAppState();
-    const { logBufferService, clipboardService } = useServices();
+    const { logBufferService, clipboardService, bootMetricsService } = useServices();
     const webView = useDebugRuntimeStore(state => state.webView);
     const { getResolvedWebviewBaseUrl, mockServiceMode, mockServiceBaseUrl } = useDebugSettingsStore();
     const [logs, setLogs] = useState<AppLogInfo[]>([]);
     const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
+    const [usedMemoryMb, setUsedMemoryMb] = useState<number | null>(null);
 
     const refreshLogs = () => {
         setLogs(logBufferService.peek(20).reverse());
@@ -36,6 +37,16 @@ export const MonitoringScreen = () => {
         const timer = setInterval(refreshLogs, 2000);
         return () => clearInterval(timer);
     }, [logBufferService]);
+
+    // Perf: app memory footprint, polled on the same cadence as the log view.
+    useEffect(() => {
+        const readMemory = () => {
+            void DeviceInfo.getUsedMemory().then(bytes => setUsedMemoryMb(Math.round(bytes / 1024 / 1024)));
+        };
+        readMemory();
+        const timer = setInterval(readMemory, 2000);
+        return () => clearInterval(timer);
+    }, []);
 
     const snapshot = useMemo(
         () => ({
@@ -101,6 +112,14 @@ export const MonitoringScreen = () => {
                 {renderStatusRow('Inactive', isInactive)}
                 {renderStatusRow('Env', Config.VITE_ENV || 'PROD')}
                 {renderStatusRow('Version', `${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`)}
+                {renderStatusRow('Used Memory', usedMemoryMb != null ? `${usedMemoryMb} MB` : null)}
+                {renderStatusRow(
+                    'Last Resume',
+                    bootMetricsService.getLastForegroundResumeMs() != null
+                        ? `${bootMetricsService.getLastForegroundResumeMs()} ms`
+                        : null
+                )}
+                {renderStatusRow('WebView Process Kills', bootMetricsService.getContentProcessReloadCount())}
             </View>
 
             <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]}>

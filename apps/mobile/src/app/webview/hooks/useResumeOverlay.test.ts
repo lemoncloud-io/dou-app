@@ -1,8 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { Platform } from 'react-native';
+
 import { useResumeOverlay } from './useResumeOverlay';
 
 const mockAddEventListener = jest.fn();
+const mockRecordForegroundResume = jest.fn();
 
 jest.mock('react-native', () => ({
     AppState: {
@@ -13,6 +15,12 @@ jest.mock('react-native', () => ({
     },
 }));
 
+// Stub the services barrel: importing the real one drags in the whole provider
+// (MMKV, SQLite, Firebase, ...) which cannot load under jsdom.
+jest.mock('../../services', () => ({
+    bootMetricsService: { recordForegroundResume: (ms: number) => mockRecordForegroundResume(ms) },
+}));
+
 describe('useResumeOverlay hook', () => {
     let appStateListeners: { [key: string]: ((...args: any[]) => any)[] } = {};
 
@@ -21,6 +29,7 @@ describe('useResumeOverlay hook', () => {
         jest.useFakeTimers();
         appStateListeners = {};
         mockAddEventListener.mockClear();
+        mockRecordForegroundResume.mockClear();
         mockAddEventListener.mockImplementation((event, listener) => {
             if (!appStateListeners[event]) {
                 appStateListeners[event] = [];
@@ -90,6 +99,23 @@ describe('useResumeOverlay hook', () => {
             jest.advanceTimersByTime(1500);
         });
         expect(result.current.showResumeOverlay).toBe(false);
+    });
+
+    it('복귀(active) 후 dismiss까지의 소요시간을 부팅 메트릭에 기록한다', () => {
+        Platform.OS = 'ios';
+        const { result } = renderHook(() => useResumeOverlay());
+
+        act(() => {
+            triggerAppStateChange('background');
+            triggerAppStateChange('active');
+        });
+        act(() => {
+            jest.advanceTimersByTime(400);
+            result.current.dismissOverlay();
+        });
+
+        expect(mockRecordForegroundResume).toHaveBeenCalledTimes(1);
+        expect(mockRecordForegroundResume.mock.calls[0][0]).toBeGreaterThanOrEqual(0);
     });
 
     it('should not register listeners or show overlay on Android', () => {

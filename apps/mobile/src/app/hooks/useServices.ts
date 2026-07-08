@@ -1,4 +1,5 @@
 import {
+    bootMetricsService,
     cacheCrudService,
     cacheSearchService,
     clipboardService,
@@ -40,4 +41,5 @@ export const useServices = () => ({
     keyValueStorage: keyValueStorage,
     sqliteDatabase: sqliteDatabase,
     uploadService: uploadService,
+    bootMetricsService: bootMetricsService,
 });

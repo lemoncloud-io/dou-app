@@ -10,6 +10,7 @@ import {
 } from '../debugMenu';
 import {
     AppIconTestScreen,
+    BootPerformanceScreen,
     BridgeTestScreen,
     DebugHomeScreen,
     DeeplinkTestScreen,
@@ -36,6 +37,7 @@ interface DebugOverlayProps {
 const getInitialScreen = (entry: DebugOverlayEntryKey): DebugOverlayScreenKey | null => {
     if (entry === 'EnvironmentSettings') return 'EnvironmentSettings';
     if (entry === 'Monitoring') return 'Monitoring';
+    if (entry === 'BootPerformance') return 'BootPerformance';
     return null;
 };
 
@@ -89,6 +91,8 @@ export const DebugOverlay = ({ initialEntry, onClose }: DebugOverlayProps) => {
                 return <EnvironmentSettingsScreen onCloseAfterWebViewReload={closeWithAnimation} />;
             case 'Monitoring':
                 return <MonitoringScreen />;
+            case 'BootPerformance':
+                return <BootPerformanceScreen />;
             case 'SocketTest':
                 return <SocketTestScreen />;
             case 'InAppPurchaseTest':
