@@ -3,7 +3,7 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-import { fetchObservedUsers, fetchUserPresence } from '../api/userApi';
+import { fetchObservedUsers, fetchUserPresence, updateUserDevices } from '../api/userApi';
 import type { ObservedUser, UserSearchType } from '../mock/observed-users';
 
 const PAGE_SIZE = 10;
@@ -17,6 +17,7 @@ export interface Watchlist {
     removeUser(id: string): void;
     reorderUser(fromId: string, toId: string): void;
     reloadDevices(): void;
+    deleteDevice(deviceId: string): Promise<void>;
     reloading: boolean;
     // search
     searchOpen: boolean;
@@ -116,6 +117,13 @@ export const useWatchlist = (): Watchlist => {
             void refreshPresence(id).finally(() => setReloading(false));
         },
         reloading,
+        deleteDevice: async deviceId => {
+            const user = observed.find(u => u.id === selectedUserId);
+            if (!user) return;
+            const deviceIds = user.devices.filter(d => d.id !== deviceId).map(d => d.id);
+            await updateUserDevices(user.id, deviceIds);
+            await refreshPresence(user.id);
+        },
         searchOpen,
         openSearch: () => {
             setSearchOpen(true);
