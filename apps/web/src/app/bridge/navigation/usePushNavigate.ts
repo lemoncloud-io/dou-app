@@ -11,8 +11,13 @@ import { ROUTES } from '../../routes/paths';
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
 
-/** Strips query/hash so push targets can be compared against the current pathname. */
-const toPathname = (target: string): string => target.split(/[?#]/)[0];
+/**
+ * Strips only the hash so push targets can be compared against the current location.
+ * The query string must participate in the comparison: some targets (e.g. the invite
+ * deeplink `/?provider=invite&code=...`) share a pathname with the current screen but
+ * carry their whole meaning in query params — a pathname-only match would drop them.
+ */
+const toLocationKey = (target: string): string => target.split('#')[0];
 
 /**
  * Shared navigation primitive for push-originated route changes — native `OnNavigate`
@@ -46,23 +51,26 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     /**
      * Navigates to a push target with the back stack normalized to `[..., home, target]`.
      *
-     * - Already on the target screen: skip entirely — re-navigating would remount the page
-     *   (scroll/input reset) and stack a duplicate history entry for the same room.
+     * - Already on the exact target (pathname + query): skip entirely — re-navigating would
+     *   remount the page (scroll/input reset) and stack a duplicate history entry for the
+     *   same screen. A matching pathname with a *different* query is NOT "already there":
+     *   invite deeplinks land on `/` with their payload in query params, and skipping them
+     *   used to silently swallow the invite popup when the user was already at home.
      * - Otherwise rebase the *current* entry to home (`replace`) before pushing the target,
      *   so back always lands on home no matter how deep the user was when tapping the push.
      *
-     * The current pathname is read from `window.location` (not `useLocation`) because this
+     * The current location is read from `window.location` (not `useLocation`) because this
      * runs after async cloud/site switches and must see the location at call time, not the
      * one captured when the handler was created. Safe under `createBrowserRouter`.
      */
     const navigateNormalized = useCallback(
         (target: string) => {
-            const currentPathname = window.location.pathname;
-            if (currentPathname === toPathname(target)) {
+            const { pathname, search } = window.location;
+            if (`${pathname}${search}` === toLocationKey(target)) {
                 logger.info('ROUTER', `Already at push target; skipping navigation: ${target}`);
                 return;
             }
-            if (currentPathname !== ROUTES.root) {
+            if (pathname !== ROUTES.root) {
                 navigate(ROUTES.root, { replace: true });
             }
             navigate(target);
