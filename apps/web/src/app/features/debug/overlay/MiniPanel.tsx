@@ -3,11 +3,12 @@ import { useRef, useState } from 'react';
 import { Maximize2, X } from 'lucide-react';
 
 import { debugOverlayActions } from './overlayStore';
+import { BootTab } from './tabs/BootTab';
 import { PerfTab } from './tabs/PerfTab';
 import { StateTab } from './tabs/StateTab';
 import { UnreadTab } from './tabs/UnreadTab';
 
-const TABS = ['상태', '성능', '안읽음'] as const;
+const TABS = ['상태', '부팅', '성능', '안읽음'] as const;
 type MiniTab = (typeof TABS)[number];
 
 /**
@@ -98,6 +99,7 @@ export const MiniPanel = () => {
                 </div>
 
                 {tab === '상태' && <StateTab />}
+                {tab === '부팅' && <BootTab />}
                 {tab === '성능' && <PerfTab />}
                 {tab === '안읽음' && <UnreadTab />}
             </div>

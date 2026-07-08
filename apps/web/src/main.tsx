@@ -6,7 +6,14 @@ import '@lemoncloud/page-transition-core/styles.css';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
+import { markBoot } from './app/features/debug/metrics/bootMarks';
+import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { initWebVitals } from './app/utils';
+
+// Boot/perf collectors first so buffered long tasks and the boot timeline
+// include everything from here on (surfaced in the debug overlay).
+markBoot('main-start');
+initLongTasks();
 
 // Initialize Web Vitals monitoring
 initWebVitals();

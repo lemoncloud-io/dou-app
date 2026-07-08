@@ -16,7 +16,7 @@ import { BottomNavigation } from '../../../ui/components/BottomNavigation';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
-import { useDebugMode } from '../../debug';
+import { debugOverlayActions, useDebugMode } from '../../debug';
 import { ROUTES } from '../../../routes/paths';
 
 export const MyPage = () => {
@@ -256,7 +256,7 @@ export const MyPage = () => {
                     {isDebugMode && (
                         <>
                             <button
-                                onClick={() => navigate(ROUTES.debug.root)}
+                                onClick={() => debugOverlayActions.open('expanded')}
                                 className="flex w-full items-center justify-between py-3 pl-4 pr-3"
                             >
                                 <span className="text-[15px] font-medium text-destructive">Debug Mode</span>

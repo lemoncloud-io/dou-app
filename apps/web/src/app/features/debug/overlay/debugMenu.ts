@@ -3,11 +3,9 @@
 
 export type DebugScreenKey =
     | 'EmailLogin'
-    | 'ChatDashboard'
     | 'LogBuffer'
     | 'CacheTest'
     | 'UploadTest'
-    | 'BadgeCount'
     | 'Push'
     | 'InviteRedirect'
     | 'DBBrowser'
@@ -29,11 +27,9 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
         title: 'Tools',
         items: [
             { key: 'EmailLogin', title: 'Email Login' },
-            { key: 'ChatDashboard', title: 'Chat Test Dashboard' },
             { key: 'LogBuffer', title: 'Log Buffer' },
             { key: 'CacheTest', title: 'Cache DB Test' },
             { key: 'UploadTest', title: 'Chunk Upload Test' },
-            { key: 'BadgeCount', title: 'Badge Count Test' },
             { key: 'Push', title: 'Push (Token & Receive)' },
             { key: 'InviteRedirect', title: 'Invite Link Converter' },
         ],

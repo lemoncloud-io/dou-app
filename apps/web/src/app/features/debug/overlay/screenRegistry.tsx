@@ -8,11 +8,9 @@ import type { DebugScreenKey } from './debugMenu';
 // The expanded sheet renders them inside a Suspense boundary.
 export const DEBUG_SCREEN_COMPONENTS: Record<DebugScreenKey, LazyExoticComponent<ComponentType>> = {
     EmailLogin: lazy(() => import('./screens/EmailLoginScreen').then(m => ({ default: m.EmailLoginScreen }))),
-    ChatDashboard: lazy(() => import('./screens/ChatDashboardScreen').then(m => ({ default: m.ChatDashboardScreen }))),
     LogBuffer: lazy(() => import('./screens/LogBufferScreen').then(m => ({ default: m.LogBufferScreen }))),
     CacheTest: lazy(() => import('./screens/CacheTestScreen').then(m => ({ default: m.CacheTestScreen }))),
     UploadTest: lazy(() => import('./screens/UploadTestScreen').then(m => ({ default: m.UploadTestScreen }))),
-    BadgeCount: lazy(() => import('./screens/BadgeCountScreen').then(m => ({ default: m.BadgeCountScreen }))),
     Push: lazy(() => import('./screens/PushScreen').then(m => ({ default: m.PushScreen }))),
     InviteRedirect: lazy(() =>
         import('./screens/InviteRedirectScreen').then(m => ({ default: m.InviteRedirectScreen }))
