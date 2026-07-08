@@ -54,6 +54,16 @@ export const appBridge = {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });
     },
 
+    /** Deliver the web-side boot timeline snapshot (fire-and-forget, once per load). */
+    sendBootMetrics(data: Payload<'SendBootMetrics'>): void {
+        webClient.post({ type: 'SendBootMetrics', data });
+    },
+
+    /** Propagate the debug-mode unlock/lock to the native shell. */
+    setDebugMode(enabled: boolean): void {
+        webClient.post({ type: 'SetDebugMode', data: { enabled } });
+    },
+
     // ---------------------------------------------------------------
     // Notification & device
     // ---------------------------------------------------------------

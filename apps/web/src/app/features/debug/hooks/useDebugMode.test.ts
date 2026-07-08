@@ -1,7 +1,18 @@
+// Mock the bridge so the hook's native propagation is observable and jsdom
+// never touches the real webClient.
+jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+jest.mock('../../../bridge', () => ({ appBridge: { setDebugMode: jest.fn() } }));
+
 import { act, renderHook } from '@testing-library/react';
 
+import { isNative } from '@chatic/bridges';
+
+import { appBridge } from '../../../bridge';
 import { useDebugMode } from './useDebugMode';
 import { DEBUG_STORAGE_KEY } from '../consts';
+
+const isNativeMock = isNative as jest.Mock;
+const setDebugModeMock = appBridge.setDebugMode as jest.Mock;
 
 const tap = (registerTap: () => void, times: number) =>
     act(() => {
@@ -11,6 +22,9 @@ const tap = (registerTap: () => void, times: number) =>
 describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
     beforeEach(() => {
         sessionStorage.clear();
+        jest.clearAllMocks();
+        isNativeMock.mockReturnValue(false);
+        delete (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE;
         jest.useFakeTimers();
     });
 
@@ -83,5 +97,27 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
         act(() => a.result.current.disable());
 
         expect(b.result.current.isEnabled).toBe(false);
+    });
+
+    it('네이티브 셸에서 언락하면 브릿지로 전파된다', () => {
+        isNativeMock.mockReturnValue(true);
+        const { result } = renderHook(() => useDebugMode());
+        tap(result.current.registerTap, 10);
+        expect(setDebugModeMock).toHaveBeenCalledWith(true);
+
+        act(() => result.current.disable());
+        expect(setDebugModeMock).toHaveBeenLastCalledWith(false);
+    });
+
+    it('일반 브라우저에서는 브릿지로 전파하지 않는다', () => {
+        const { result } = renderHook(() => useDebugMode());
+        tap(result.current.registerTap, 10);
+        expect(setDebugModeMock).not.toHaveBeenCalled();
+    });
+
+    it('네이티브가 주입한 CHATIC_APP_DEBUG_MODE 전역이 true면 언락 상태로 시작한다', () => {
+        (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE = true;
+        const { result } = renderHook(() => useDebugMode());
+        expect(result.current.isEnabled).toBe(true);
     });
 });

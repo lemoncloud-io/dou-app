@@ -6,6 +6,7 @@ import { RouterErrorFallback } from '@chatic/shared';
 import { reportError, useSessionAuth } from '@chatic/web-core';
 
 import { markBoot } from '../features/debug/metrics/bootMarks';
+import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';
 import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
@@ -15,9 +16,12 @@ export const Router = () => {
     const { isAuthenticated, isInitialized } = useSessionAuth();
 
     // Boot timeline: the router unblocking is the moment the first real screen
-    // can render (markBoot ignores repeat calls).
+    // can render (markBoot ignores repeat calls). The native shell gets the
+    // completed web snapshot shortly after.
     useEffect(() => {
-        if (isInitialized) markBoot('session-initialized');
+        if (!isInitialized) return;
+        markBoot('session-initialized');
+        scheduleBootMetricsReport();
     }, [isInitialized]);
 
     const handleRouterError = useCallback((error: Error): void => {

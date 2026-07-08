@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
+import { isNative } from '@chatic/bridges';
+
+import { appBridge } from '../../../bridge';
 import { DEBUG_STORAGE_KEY } from '../consts';
 
 const TAP_THRESHOLD = 10;
 const TAP_RESET_MS = 3000;
 
-const readEnabled = () => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true';
+// Inside the native shell the persisted native flag is the source of truth —
+// injected as a window global (see mobile injectionScripts.ts) so a restarted
+// WebView boots already unlocked and the two sides never need separate unlocks.
+const readInjectedFlag = () =>
+    (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE === true;
+
+const readEnabled = () => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true' || readInjectedFlag();
 
 // Module-level signal so every hook instance (MyPage unlock, always-mounted
 // debug overlay, …) observes the same enabled state without prop plumbing.
@@ -19,6 +28,11 @@ const notify = () => listeners.forEach(listener => listener());
 const setEnabled = (enabled: boolean) => {
     if (enabled) sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
     else sessionStorage.removeItem(DEBUG_STORAGE_KEY);
+    if (isNative()) {
+        // Single unlock/lock covers both layers (PROD included).
+        appBridge.setDebugMode(enabled);
+        (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE = enabled;
+    }
     notify();
 };
 
