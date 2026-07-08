@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 import { useSessionAuth } from '@chatic/web-core';
@@ -8,6 +8,7 @@ import { AppRouter } from '../routes';
 import {
     ConnectionBanner,
     UpdateBanner,
+    useClouds,
     useCrossCloudPushBadge,
     useCrossCloudPushNotifications,
     useDesktopBadge,
@@ -85,7 +86,17 @@ const ShellUnreadSync = () => {
     // push badges (no count). Fold each into the OS dock badge as +1 so the dock
     // reflects cross-cloud activity instead of reading 0 while other clouds wait —
     // an approximation (cloud count, not message count), same as the rail dots.
-    const crossCloudCount = useCloudPushBadgeStore(s => Object.keys(s.badged).length);
+    //
+    // Count only badged clouds that are (a) NOT the active one — its unread is already
+    // in `total` — and (b) a REAL cloud present in the rail. A stray self-mark during a
+    // relay-fallback window, or a foreign/stale cloud id the backend stamped into
+    // `data.cid` (or a cloud that no longer exists), can never be visited to clear it, so
+    // it would fold a permanent +1 into the dock badge — the "stuck at 1 with everything
+    // read" bug. Filtering to real, non-active clouds drops those dead flags.
+    const { clouds, activeCloudId } = useClouds();
+    const railCloudIds = useMemo(() => new Set(clouds.map(c => c.id)), [clouds]);
+    const badgedClouds = useCloudPushBadgeStore(s => s.badged);
+    const crossCloudCount = Object.keys(badgedClouds).filter(id => id !== activeCloudId && railCloudIds.has(id)).length;
     const badgeTotal = total + crossCloudCount;
     useDesktopBadge(badgeTotal);
     useEffect(() => {

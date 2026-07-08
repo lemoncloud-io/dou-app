@@ -67,8 +67,13 @@ export const useCrossCloudPushBadge = (): void => {
     }, [mark]);
 
     // Visiting a cloud consumes its badge — once the handshake verifies, the
-    // user is looking at it and the socket unread takes over.
+    // user is looking at it and the socket unread takes over. Keyed on whether the
+    // active cloud is currently badged (not just the verify/switch edge) so a mark
+    // that lands AFTER the handshake is still swept: a push arriving during the
+    // relay-fallback / mid-switch window gets attributed to the now-active cloud, and
+    // without this the edge never re-fires and the tile (and the +1 dock badge) stick.
+    const activeBadged = useCloudPushBadgeStore(s => (cloudId ? !!s.badged[cloudId] : false));
     useEffect(() => {
-        if (isVerified && cloudId) clear(cloudId);
-    }, [isVerified, cloudId, clear]);
+        if (isVerified && cloudId && activeBadged) clear(cloudId);
+    }, [isVerified, cloudId, activeBadged, clear]);
 };

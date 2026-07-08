@@ -22,6 +22,8 @@ export interface DataContext {
     sid?: string;
     /** 현재 사용자 id */
     uid?: string;
+    /** 현재 붙어있는 소켓이 바인드된 cloud id (커밋된 클라우드). cid와 다르면 소켓이 아직 옛 클라우드임. */
+    socketCid?: string;
 
     /** 도메인별 추가 context를 수용하기 위한 확장 필드 */
     [key: string]: unknown;

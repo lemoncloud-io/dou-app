@@ -8,6 +8,7 @@ import {
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { getDataManager, getRepositories } from '../../data/runtime';
+import { getSocketManager } from '../runtime';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
@@ -21,12 +22,24 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
  */
 const getContext = () => getDataManager().getContext();
 
+// A cloud switch flips the cache cid to the target optimistically, but the outgoing cloud's
+// socket stays attached (same url) until the target's wss commits — and keeps delivering frames.
+// getBoundCid() is the cloud that socket was actually bound to; when it differs from the live
+// cache cid the frame belongs to a socket that outlived its cloud, so drop it rather than write
+// the old cloud's channels under the new cloud's partition (the cross-cloud flicker).
+const dropForeignFrame = (): boolean => {
+    const boundCid = getSocketManager().getBoundCid();
+    const cacheCid = getContext().cid ?? 'default';
+    return boundCid != null && boundCid !== cacheCid;
+};
+
 // DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
 // DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
 export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
         new ChannelSyncPlan<ChannelView>({
             onUpdate: (_target, view) => {
+                if (dropForeignFrame()) return;
                 const { channel } = getRepositories();
                 void channel.cacheWrite(toDomainChannel(view, getContext()));
             },
@@ -41,6 +54,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // bare SyncableView (id/updatedAt only).
         new PlaceSyncPlan<MySiteView>({
             onUpdate: (_target, view) => {
+                if (dropForeignFrame()) return;
                 const { place } = getRepositories();
                 void place.cacheWrite(toDomainPlace(view, getContext()));
             },
@@ -52,6 +66,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         }),
         new ProfileSyncPlan<ProfileView>({
             onUpdate: (_target, view) => {
+                if (dropForeignFrame()) return;
                 const { profile } = getRepositories();
                 void profile.cacheWrite(toDomainProfile(view, getContext()));
             },
@@ -66,6 +81,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // onRemove는 두지 않는다 — chat plan은 자동 stop되지 않고, 메시지 이력은 lazy-load/오프라인을 위해 유지한다.
         new ChatSyncPlan({
             onApply: (_target, applied) => {
+                if (dropForeignFrame()) return;
                 if (!applied.length) return;
                 const { chat } = getRepositories();
                 const scope = getContext();
@@ -76,6 +92,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
         new JoinSyncPlan({
             onUpdate: (_target, view) => {
+                if (dropForeignFrame()) return;
                 const { join } = getRepositories();
                 void join.cacheWrite(toDomainJoin(view, getContext()));
             },

@@ -23,6 +23,13 @@ export interface SocketBindingConfig {
      * The type of the WebSocket connection, distinguishing between relaying or direct cloud connection.
      */
     wssType?: 'relay' | 'cloud';
+    /**
+     * The cloud id (cache cid space) this socket is bound to. Frozen at bind time and read back
+     * via getBoundCid so cache writes can be attributed to the socket's ACTUAL cloud — a switch
+     * flips the cache cid optimistically while the old cloud's socket (same url) stays attached,
+     * and its frames must not be written under the new cloud's cid.
+     */
+    cid?: string;
 }
 
 /**
@@ -72,6 +79,8 @@ export interface ISocketManager {
     setRecoveryHandler(handler: SocketRecoveryHandler | null): void;
     setReconnectHandler(handler: (() => Promise<void>) | null): void;
     recover(reason: string): Promise<void>;
+    /** The cloud id the live socket was bound to (frozen at bind), or null before the first bind. */
+    getBoundCid(): string | null;
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;

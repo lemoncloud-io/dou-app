@@ -6,6 +6,7 @@ import { createRemoteDataSources } from './factories/remoteFactory';
 import { createRepositories } from './factories/repositoryFactory';
 import type { IDataManager } from './types';
 import { DEFAULT_CONTEXT } from './types';
+import { getSocketManager } from '../socket/runtime';
 
 export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
@@ -17,10 +18,23 @@ export class DataManager implements IDataManager {
         const { remoteDataSources } = createRemoteDataSources();
         const localDataSources = createLocalDataSources({ contextProvider: this.contextHolder });
 
+        // Repositories see a context augmented with the live socket's bound cloud (socketCid), so
+        // a refresh/sync that runs while the socket still serves the OUTGOING cloud (cid already
+        // flipped optimistically) can detect the mismatch and skip the write instead of poisoning
+        // the target cloud's partition. Read live per-call so it tracks socket rebinds.
+        const socketAwareProvider: DataContextProvider = {
+            getContext: () => {
+                const base = this.contextHolder.getContext();
+                const socketCid = getSocketManager().getBoundCid();
+                return socketCid != null ? { ...base, socketCid } : base;
+            },
+            setContext: context => this.contextHolder.setContext(context),
+        };
+
         this.repositories = createRepositories({
             remoteDataSources,
             localDataSources,
-            contextProvider: this.contextHolder,
+            contextProvider: socketAwareProvider,
         });
     }
 

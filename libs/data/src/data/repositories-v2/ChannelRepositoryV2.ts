@@ -110,6 +110,13 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         //      re-emit lands on the same scope key observers subscribed with; tagging the
         //      write context with query.sid instead would silently miss those observers.
         const requestContext = this.getRequestContext();
+        // The socket that answers `channel.mine` may still serve the OUTGOING cloud during a
+        // switch (cache cid already flipped). Writing its list under the new cid poisons the
+        // target partition, so skip when the socket's bound cloud differs from the active cid.
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+            return;
+        }
         const targetSid = query.sid ?? requestContext.sid;
         const mappingContext = this.getNormalizedContext({ ...requestContext, sid: targetSid });
         const remote = await this.channelRemoteDataSource.fetchChannel(
@@ -130,7 +137,11 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const staleIds = (localResult?.list || [])
             .map(item => item.id)
             .filter((id): id is string => !!id && !serverIds.has(id));
-        if (staleIds.length > 0) {
+        // Only prune when the server actually returned channels. Right after a switch the socket
+        // is bound to the new cloud but its session/site may not be ready, so channel.mine returns
+        // an empty list — pruning against that would wipe the real (sync-plan-populated) channels
+        // and leave "No channels yet". A genuinely empty cloud settles once a real response arrives.
+        if (staleIds.length > 0 && domainList.length > 0) {
             await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
         }
     }
@@ -143,6 +154,10 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public async syncChannels(since: number): Promise<SyncChannelsResult> {
         const requestContext = this.getRequestContext();
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+            return { syncedAt: since, removedCount: 0 };
+        }
         const normalizedContext = this.getNormalizedContext(requestContext);
         // Sync ingests channels across all places, so map without binding to the active sid.
         const remote = await this.channelRemoteDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
@@ -154,7 +169,6 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         if (domainList.length > 0) {
             await this.channelLocalDataSource.cacheWriteMany(domainList, { ...requestContext, sid: '' });
         }
-
         let removedCount = 0;
         if (remote.ids) {
             const activeIds = new Set(remote.ids);
