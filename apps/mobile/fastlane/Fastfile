@@ -1,0 +1,153 @@
+# Store-upload lanes for the Chatic mobile apps.
+#
+# Run these through the repo-root wrapper (`yarn mobile:deploy:...`), which
+# collects the release notes and exports RELEASE_NOTES before invoking
+# fastlane. Credentials live in fastlane/.env (gitignored) — copy
+# .env.example and fill it in.
+#
+# dev and prod are separate store apps (4 apps total):
+#   iOS  dev:  io.chatic.dou.dev  (scheme "Chatic Dev") -> TestFlight
+#   iOS  prod: io.chatic.dou      (scheme "Chatic")     -> TestFlight
+#   And. dev:  io.chatic.dou.dev  (flavor Dev)          -> Play closed testing
+#   And. prod: io.chatic.dou      (flavor Prod)         -> Play internal track
+
+require 'fileutils'
+
+APP_IDS = {
+  'dev' => 'io.chatic.dou.dev',
+  'prod' => 'io.chatic.dou',
+}.freeze
+
+IOS_SCHEMES = {
+  'dev' => 'Chatic Dev',
+  'prod' => 'Chatic',
+}.freeze
+
+# Read a credential, preferring the _DEV-suffixed variable for dev deploys so
+# a separate dev store account is possible while a single shared key also
+# works (dev simply falls back to the shared value).
+def cred(name, env)
+  dev_value = ENV["#{name}_DEV"].to_s.strip
+  return dev_value if env == 'dev' && !dev_value.empty?
+
+  value = ENV[name].to_s.strip
+  UI.user_error!("Missing #{name} — fill in apps/mobile/fastlane/.env (see .env.example)") if value.empty?
+  value
+end
+
+# Resolve a credential that holds a file path. Bare filenames / relative
+# paths resolve against this fastlane directory, so keys can simply sit next
+# to this file (they are gitignored there). Absolute and ~ paths work as-is.
+def cred_path(name, env)
+  raw = cred(name, env)
+  return File.expand_path(raw) if raw.start_with?('~', '/')
+
+  File.expand_path(raw, __dir__)
+end
+
+# Release notes are mandatory: they become TestFlight "What to Test" and the
+# Play release notes, and the team decided they are always written by hand.
+def release_notes
+  notes = ENV['RELEASE_NOTES'].to_s.strip
+  UI.user_error!('RELEASE_NOTES is empty — deploy via `yarn mobile:deploy:...` which prompts for it') if notes.empty?
+  notes
+end
+
+# supply reads release notes from the metadata directory on disk, so write
+# the hand-typed notes to changelogs/default.txt (applies to the uploaded
+# versionCode). The directory is generated per deploy and gitignored.
+def write_play_changelog(notes)
+  locale = ENV.fetch('PLAY_LOCALE', 'en-US')
+  dir = File.join(Dir.pwd, 'fastlane', 'metadata', 'android', locale, 'changelogs')
+  FileUtils.mkdir_p(dir)
+  File.write(File.join(dir, 'default.txt'), notes)
+end
+
+platform :ios do
+  desc 'Build the dev app and upload to TestFlight (dev app)'
+  lane :dev do
+    ios_build_and_upload(env: 'dev')
+  end
+
+  desc 'Build the prod app and upload to TestFlight'
+  lane :prod do
+    ios_build_and_upload(env: 'prod')
+  end
+
+  private_lane :ios_build_and_upload do |options|
+    env = options[:env]
+    key_path = cred_path('ASC_KEY_PATH', env)
+
+    api_key = app_store_connect_api_key(
+      key_id: cred('ASC_KEY_ID', env),
+      issuer_id: cred('ASC_ISSUER_ID', env),
+      key_filepath: key_path
+    )
+
+    build_app(
+      workspace: 'ios/Chatic.xcworkspace',
+      scheme: IOS_SCHEMES[env],
+      export_method: 'app-store',
+      output_directory: 'build/fastlane',
+      # The project uses Automatic signing; let xcodebuild refresh signing
+      # assets itself, authenticated with the same ASC API key.
+      xcargs: '-allowProvisioningUpdates ' \
+              "-authenticationKeyPath #{key_path} " \
+              "-authenticationKeyID #{cred('ASC_KEY_ID', env)} " \
+              "-authenticationKeyIssuerID #{cred('ASC_ISSUER_ID', env)}"
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: APP_IDS[env],
+      changelog: release_notes,
+      # Applying the changelog requires waiting for build processing, so we
+      # deliberately do NOT skip_waiting_for_build_processing here.
+      distribute_external: false
+    )
+  end
+end
+
+platform :android do
+  desc 'Build the dev app bundle and upload to the Play dev-app track'
+  lane :dev do
+    android_build_and_upload(env: 'dev')
+  end
+
+  desc 'Build the prod app bundle and upload to the Play prod-app track'
+  lane :prod do
+    android_build_and_upload(env: 'prod')
+  end
+
+  private_lane :android_build_and_upload do |options|
+    env = options[:env]
+    track = env == 'dev' ? ENV.fetch('PLAY_TRACK_DEV', 'alpha') : ENV.fetch('PLAY_TRACK_PROD', 'internal')
+
+    # dev and prod live in different Google Cloud accounts — fail before the
+    # (long) gradle build when the JSON key for this env is missing.
+    json_key = cred_path('PLAY_JSON_KEY_PATH', env)
+    UI.user_error!("Play JSON key not found at #{json_key}") unless File.exist?(json_key)
+
+    write_play_changelog(release_notes)
+
+    gradle(
+      task: 'bundle',
+      flavor: env == 'dev' ? 'Dev' : 'Prod',
+      build_type: 'Release',
+      project_dir: 'android'
+    )
+
+    upload_to_play_store(
+      package_name: APP_IDS[env],
+      track: track,
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      json_key: json_key,
+      # Only the binary and its release notes are managed here; the store
+      # listing is maintained in the Play Console UI.
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_apk: true
+    )
+  end
+end

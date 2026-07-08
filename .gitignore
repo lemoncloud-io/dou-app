@@ -151,3 +151,8 @@ AuthKey_*.p8
 ./AuthKey_DEV.p8
 ./AuthKey_PROD.p8
 ./serviceAccountKey.json
+
+# Generated Play release-notes metadata (written per deploy by Fastfile)
+apps/mobile/fastlane/metadata/
+# Store credentials kept next to the Fastfile (.p8 is already ignored globally)
+apps/mobile/fastlane/*.json
