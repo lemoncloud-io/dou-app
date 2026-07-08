@@ -1,5 +1,40 @@
 # Changelog
 
+## [2026-07-08] - No version updates
+
+### Features
+
+- (device) sync foreground/background presence status via device.sync
+- (notifications) show in-app message for foreground pushes
+- (navigation) normalize history stack for push links
+- (chat) hide own system messages from chat list and preview
+
+### Bug Fixes
+
+- (web/push-nav) send WebAppReady handshake after arming cold-start capture
+- (bridges) ignore log relay traffic for web-ready detection
+- (sync) allow foreground sync when unverified
+
+### Documentation
+
+- (push) document in-app banner implementation in push scenarios
+
+### Refactor
+
+- (device-sync) rename notifyViewing to syncDevice
+
+### Chores
+
+- (mobile) bump app versions 0.19.0
+- (ios) apply Xcode project normalization
+- (mobile/deeplink) warn when a push tap resolves to no path
+
+### Other
+
+- test: (bridges) drop duplicated relay-readiness spec
+- test: (bridges) validate ignoring log/console relays for web-ready
+- build: (deps) update @lemoncloud/chatic-sockets-lib to 0.4.6
+
 ## [2026-07-07] - No version updates
 
 ### Features
