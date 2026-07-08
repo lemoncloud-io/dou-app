@@ -4,11 +4,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { fetchObservedUsers, fetchUserPresence, updateUserDevices } from '../api/userApi';
+import type { UsersStage } from '../api/userApi';
 import type { ObservedUser, UserSearchType } from '../mock/observed-users';
 
 const PAGE_SIZE = 10;
 
 export interface Watchlist {
+    /** API 스테이지(d1 개발/v1 운영). 전환 시 스테이지별 캐시에서 관측 상태 복원 */
+    stage: UsersStage;
+    setStage(s: UsersStage): void;
     observed: ObservedUser[];
     selectedUserId: string | null;
     selected: ObservedUser | null;
@@ -38,6 +42,7 @@ export interface Watchlist {
 }
 
 export const useWatchlist = (): Watchlist => {
+    const [stage, setStage] = useState<UsersStage>('d1');
     const [observed, setObserved] = useState<ObservedUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [reloading, setReloading] = useState(false);
@@ -51,40 +56,59 @@ export const useWatchlist = (): Watchlist => {
     const [searchError, setSearchError] = useState<string | null>(null);
 
     const applied = useRef<{ type: UserSearchType; query: string; page: number }>({ type: 'id', query: '', page: 0 });
+    /** 스테이지별 관측 상태 캐시 — 전환 후 되돌아오면 복원 */
+    const stageCache = useRef<Partial<Record<UsersStage, { observed: ObservedUser[]; selectedUserId: string | null }>>>(
+        {}
+    );
 
-    const loadPage = useCallback(async (append: boolean) => {
-        setSearchLoading(true);
-        setSearchError(null);
-        try {
-            const { type, query, page } = applied.current;
-            const res = await fetchObservedUsers({ type, query, page, limit: PAGE_SIZE });
-            setSearchList(prev => (append ? [...prev, ...res.list] : res.list));
-            setSearchTotal(res.total);
-        } catch (e) {
-            setSearchError(e instanceof Error ? e.message : `${e}`);
-            if (!append) setSearchList([]);
-        } finally {
-            setSearchLoading(false);
-        }
-    }, []);
+    const loadPage = useCallback(
+        async (append: boolean) => {
+            setSearchLoading(true);
+            setSearchError(null);
+            try {
+                const { type, query, page } = applied.current;
+                const res = await fetchObservedUsers({ type, query, page, limit: PAGE_SIZE, stage });
+                setSearchList(prev => (append ? [...prev, ...res.list] : res.list));
+                setSearchTotal(res.total);
+            } catch (e) {
+                setSearchError(e instanceof Error ? e.message : `${e}`);
+                if (!append) setSearchList([]);
+            } finally {
+                setSearchLoading(false);
+            }
+        },
+        [stage]
+    );
 
     // 선택/추가/reload 공용 — id로 presence(디바이스) 최신화 후 해당 유저만 갱신.
     const refreshPresence = useCallback(
         (id: string) =>
-            fetchUserPresence(id)
+            fetchUserPresence(id, stage)
                 .then(p =>
                     setObserved(prev =>
                         prev.map(u => (u.id === id ? { ...u, presence: p.presence, devices: p.devices } : u))
                     )
                 )
                 .catch(() => undefined),
-        []
+        [stage]
     );
 
     const observedIds = useMemo(() => new Set(observed.map(u => u.id)), [observed]);
     const selected = observed.find(u => u.id === selectedUserId) ?? null;
 
     return {
+        stage,
+        setStage: s => {
+            if (s === stage) return;
+            // 현재 스테이지 상태는 캐시에 보관, 대상 스테이지는 캐시에서 복원(없으면 빈 상태)
+            stageCache.current[stage] = { observed, selectedUserId };
+            const cached = stageCache.current[s];
+            setStage(s);
+            setObserved(cached?.observed ?? []);
+            setSelectedUserId(cached?.selectedUserId ?? null);
+            setSearchList([]);
+            setSearchTotal(0);
+        },
         observed,
         selectedUserId,
         selected,
@@ -121,7 +145,7 @@ export const useWatchlist = (): Watchlist => {
             const user = observed.find(u => u.id === selectedUserId);
             if (!user) return;
             const deviceIds = user.devices.filter(d => d.id !== deviceId).map(d => d.id);
-            await updateUserDevices(user.id, deviceIds);
+            await updateUserDevices(user.id, deviceIds, stage);
             await refreshPresence(user.id);
         },
         searchOpen,
