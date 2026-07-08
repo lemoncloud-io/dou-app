@@ -10,6 +10,7 @@ import {
     useOnFetchAppLogBufferSize,
     useOnPollAppLogBuffer,
 } from '../../../../bridge';
+import { webLogSource } from '../../lib';
 
 const LOG_FETCH_LIMIT = 20;
 
@@ -170,14 +171,25 @@ export const LogBufferScreen = () => {
     const fetchLogs = useCallback(
         (nextLimit: number, action = 'Fetch') => {
             const normalizedLimit = Math.max(LOG_FETCH_LIMIT, nextLimit);
-            const nonce = createNonce('fetch-log-buffer');
             requestedLimitRef.current = normalizedLimit;
             setLimit(normalizedLimit);
+
+            // Plain web: read the in-memory buffer synchronously — no bridge
+            // round-trip, so no nonce/pending state is involved.
+            if (!isOnMobileApp) {
+                const { logs: webLogs, size } = webLogSource.fetch(normalizedLimit);
+                setLogs(webLogs);
+                setIsFetchingLogs(false);
+                markResponse(action, size);
+                return;
+            }
+
+            const nonce = createNonce('fetch-log-buffer');
             setIsFetchingLogs(true);
             markRequest(action, nonce);
             appBridge.fetchAppLogBuffer(nonce, normalizedLimit);
         },
-        [markRequest]
+        [isOnMobileApp, markRequest, markResponse]
     );
 
     const refreshLogs = useCallback(() => {
@@ -204,26 +216,48 @@ export const LogBufferScreen = () => {
     );
 
     const pollLogs = useCallback(() => {
+        if (!isOnMobileApp) {
+            const { logs: webLogs, size } = webLogSource.poll(limit);
+            setLogs(webLogs);
+            markResponse('Poll', size);
+            return;
+        }
+
         const nonce = createNonce('poll-log-buffer');
         markRequest('Poll', nonce);
         appBridge.pollAppLogBuffer(nonce, limit);
-    }, [limit, markRequest]);
+    }, [isOnMobileApp, limit, markRequest, markResponse]);
 
     const clearLogs = useCallback(() => {
+        if (!isOnMobileApp) {
+            const { success, size } = webLogSource.clear();
+            setLogs([]);
+            setLimit(LOG_FETCH_LIMIT);
+            requestedLimitRef.current = LOG_FETCH_LIMIT;
+            setClearSuccess(success);
+            markResponse('Clear', size);
+            return;
+        }
+
         const nonce = createNonce('clear-log-buffer');
         markRequest('Clear', nonce);
         appBridge.clearAppLogBuffer(nonce);
-    }, [markRequest]);
+    }, [isOnMobileApp, markRequest, markResponse]);
 
     const fetchSize = useCallback(() => {
+        if (!isOnMobileApp) {
+            markResponse('Size', webLogSource.fetchSize().size);
+            return;
+        }
+
         const nonce = createNonce('fetch-log-buffer-size');
         markRequest('Size', nonce);
         appBridge.fetchAppLogBufferSize(nonce);
-    }, [markRequest]);
+    }, [isOnMobileApp, markRequest, markResponse]);
 
     const generateSampleLogs = useCallback(() => {
         const requestId = Date.now().toString(36);
-        const source = 'DebugLogBufferPage';
+        const source = 'LogBufferScreen';
 
         logger.debug('LOG_BUFFER_TEST', 'debug sample', { requestId, source });
         logger.info('LOG_BUFFER_TEST', 'info sample', { requestId, source });
@@ -299,7 +333,7 @@ export const LogBufferScreen = () => {
                         </div>
                         {!isOnMobileApp ? (
                             <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-                                Native bridge response is only available in mobile WebView.
+                                Showing the in-memory web log buffer (current session only).
                             </p>
                         ) : null}
                     </Section>

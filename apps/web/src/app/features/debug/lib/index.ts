@@ -5,3 +5,4 @@ export * from './normalizeReceivedPush';
 export * from './formatRegisteredAt';
 export * from './copyText';
 export * from './isDevEnv';
+export * from './webLogSource';

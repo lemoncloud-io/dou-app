@@ -1,4 +1,4 @@
-import type { LogAdapter, LogEntry, LogLevel } from '../types';
+import type { LogEntry, LogListener, LogLevel } from './types';
 
 const CONSOLE_MAP: Record<LogLevel, (...args: unknown[]) => void> = {
     debug: (...args) => console.debug(...args),
@@ -7,8 +7,13 @@ const CONSOLE_MAP: Record<LogLevel, (...args: unknown[]) => void> = {
     error: (...args) => console.error(...args),
 };
 
-export const createConsoleFallbackAdapter = (): LogAdapter => ({
-    log(entry: LogEntry): void {
+/**
+ * Creates a listener that mirrors log entries to the console. Output format is
+ * kept identical to the legacy bridges console fallback so existing devtools
+ * filters keep working.
+ */
+export const createConsoleListener = (): LogListener => {
+    return (entry: LogEntry): void => {
         const fn = CONSOLE_MAP[entry.level];
         const prefix = `[${entry.tag}]`;
 
@@ -19,5 +24,5 @@ export const createConsoleFallbackAdapter = (): LogAdapter => ({
         } else {
             fn(prefix, entry.message);
         }
-    },
-});
+    };
+};

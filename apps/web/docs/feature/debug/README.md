@@ -25,17 +25,17 @@ DebugOverlayHost (app.tsx 마운트, 게이트 통과 시 우하단 "debug" 플�
 
 ## 도구 스크린 (확장 모드)
 
-| 스크린                 | 키               | 설명                                                          |
-| ---------------------- | ---------------- | ------------------------------------------------------------- |
-| `EmailLoginScreen`     | `EmailLogin`     | 이메일 로그인 테스트(`useLogin`)                              |
-| `LogBufferScreen`      | `LogBuffer`      | 네이티브 앱 로그 버퍼 뷰어(fetch/stream/poll)                 |
-| `CacheTestScreen`      | `CacheTest`      | SQLite 브릿지 벤치마크(저장/조회·동시성·flood, 레이턴시 통계) |
-| `UploadTestScreen`     | `UploadTest`     | 멀티파일 청크 업로드 컨트롤러(pause/resume/cancel/retry)      |
-| `PushScreen`           | `Push`           | 푸시 토큰 서버 등록여부 확인 + 포그라운드 수신 목록           |
-| `InviteRedirectScreen` | `InviteRedirect` | 공유 링크 → 초대 리다이렉트 URL 변환기                        |
-| `DBBrowserScreen`      | `DBBrowser`      | 도메인 캐시 브라우저(repository observe 기반)                 |
-| `ProfileEditorScreen`  | `ProfileEditor`  | 활성 place의 내 프로필(nick/thumbnail) 편집                   |
-| `DeviceInfoScreen`     | `DeviceInfo`     | 네이티브 주입 deviceId/installId/platform (탭하여 복사)       |
+| 스크린                 | 키               | 설명                                                                |
+| ---------------------- | ---------------- | ------------------------------------------------------------------- |
+| `EmailLoginScreen`     | `EmailLogin`     | 이메일 로그인 테스트(`useLogin`)                                    |
+| `LogBufferScreen`      | `LogBuffer`      | 로그 버퍼 뷰어(fetch/poll/clear) — 네이티브=앱 버퍼, 웹=메모리 버퍼 |
+| `CacheTestScreen`      | `CacheTest`      | SQLite 브릿지 벤치마크(저장/조회·동시성·flood, 레이턴시 통계)       |
+| `UploadTestScreen`     | `UploadTest`     | 멀티파일 청크 업로드 컨트롤러(pause/resume/cancel/retry)            |
+| `PushScreen`           | `Push`           | 푸시 토큰 서버 등록여부 확인 + 포그라운드 수신 목록                 |
+| `InviteRedirectScreen` | `InviteRedirect` | 공유 링크 → 초대 리다이렉트 URL 변환기                              |
+| `DBBrowserScreen`      | `DBBrowser`      | 도메인 캐시 브라우저(repository observe 기반)                       |
+| `ProfileEditorScreen`  | `ProfileEditor`  | 활성 place의 내 프로필(nick/thumbnail) 편집                         |
+| `DeviceInfoScreen`     | `DeviceInfo`     | 네이티브 주입 deviceId/installId/platform (탭하여 복사)             |
 
 Chat Test Dashboard, Badge Count Test 스크린은 통합 과정에서 제거했다.
 
@@ -50,7 +50,7 @@ Chat Test Dashboard, Badge Count Test 스크린은 통합 과정에서 제거했
 | `longTasks`        | "성능" 탭           | 메인 스레드 50ms+ 태스크 집계(건수·누적·최대), `buffered:true`로 부팅 중 jank 포함. WKWebView 미지원                                                        |
 | `MetricsCollector` | "성능" 탭           | 채팅 처리량/레이턴시, 캐시 observe 카운트, 렌더 카운트, 소켓 연결 품질                                                                                      |
 
-모든 값은 웹뷰의 **페이지 로드 시작(timeOrigin) 이후** 구간만 본다. 그 앞(앱 실행 → 웹뷰 생성)의 네이티브 구간은 모바일 BootMetricsService(별도 플랜)가 측정하고, 웹 스냅샷은 추후 `BootMetrics` 브릿지 메시지로 네이티브에 합류시켜 전체 부팅 타임라인을 만든다.
+모든 값은 웹뷰의 **페이지 로드 시작(timeOrigin) 이후** 구간만 본다. 그 앞(앱 실행 → 웹뷰 생성)의 네이티브 구간은 모바일 `BootMetricsService`가 측정하며, 웹 스냅샷은 라우터 언블록 후 `SendBootMetrics` 브릿지 메시지로 1회 전송되어(`metrics/reportBootMetrics.ts`) 네이티브 기록에 합류한다. 합쳐진 부팅 기록(MMKV, 50건)은 모바일 FAB 디버그 메뉴의 "부팅 성능" 화면에서 본다 — `apps/mobile/docs/boot-metrics.md` 참고.
 
 ## 게이팅 — 런타임 언락
 
@@ -59,6 +59,7 @@ env/빌드 플래그가 아니라 **런타임 제스처**로 연다. 마이페�
 - `useDebugMode`는 모듈 레벨 시그널(`useSyncExternalStore`) 기반이라 **모든 훅 인스턴스가 즉시 동기화**된다 — 마이페이지에서 언락하면 상시 마운트된 오버레이 호스트가 바로 반응한다.
 - DEV/LOCAL 빌드(`isDevEnv`)에서는 언락 없이 자동 활성.
 - 확장 모드 홈 하단의 "Disable Debug Mode"로 다시 잠근다. 세션 스코프라 탭이 닫히면 초기화된다.
+- **네이티브 셸에서는 단일 언락**: 언락/잠금이 `SetDebugMode` 브릿지 메시지로 네이티브에 전파되어 모바일 FAB 디버그 메뉴도 함께 열린다(PROD 포함). 네이티브는 플래그를 persist하고 재시작 시 주입 전역 `CHATIC_APP_DEBUG_MODE`로 웹을 자동 언락하므로, 앱에서는 세션이 끊겨도 다시 탭할 필요가 없다.
 
 ## 구조
 

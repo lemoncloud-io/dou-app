@@ -4,11 +4,17 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
+import { setupBridgeLogger } from '@chatic/bridges';
+
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { initWebVitals } from './app/utils';
+
+// Wire log sinks before anything else logs: native WebView forwards to the
+// app (mirrored to the console in dev builds), plain web logs to the console.
+setupBridgeLogger({ consoleInNative: import.meta.env.DEV });
 
 // Boot/perf collectors first so buffered long tasks and the boot timeline
 // include everything from here on (surfaced in the debug overlay).
