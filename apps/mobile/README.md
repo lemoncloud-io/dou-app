@@ -15,6 +15,7 @@ WebView 안의 웹 앱이 typed bridge message로 모바일 기능을 요청한�
 5. [cache](./docs/cache.md) — SQLite/MMKV 로컬 저장
 6. [push](./docs/push.md) — FCM/APNs, 포그라운드 이벤트, 탭 라우팅
 7. [upload](./docs/upload.md) — 대용량 파일 업로드
+8. [deploy](./docs/deploy.md) — 버전 범프와 스토어 업로드 파이프라인
 
 ## 카테고리 맵
 
@@ -27,6 +28,7 @@ WebView 안의 웹 앱이 typed bridge message로 모바일 기능을 요청한�
 | [cache](./docs/cache.md)                                                           | SQLite, MMKV, 로컬 data source, 캐시 브릿지 API            | `src/app/database`, `src/app/data/cache`, `src/app/services/cache`                                            |
 | [push](./docs/push.md) · [badge](./docs/badge.md) · [deeplink](./docs/deeplink.md) | FCM/APNs, 포그라운드 이벤트, 뱃지 카운트, 탭·딥링크 라우팅 | `src/app/services/notification`, `src/app/services/deeplinks`, `android/app/src/main/java/io/chatic/dou/push` |
 | [upload](./docs/upload.md)                                                         | 대용량 파일 업로드, 네이티브 업로드 엔진, 업로드 복구      | `src/app/services/upload`, `src/app/webview/hooks/useUploadHandler.ts`                                        |
+| [deploy](./docs/deploy.md)                                                         | 버전 범프, TestFlight/Play 업로드, 배포 자격증명 세팅      | `scripts/version-mobile.js`, `scripts/deploy-mobile.sh`, `fastlane/Fastfile`                                  |
 
 ## 작업 규칙
 
