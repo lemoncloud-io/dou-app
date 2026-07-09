@@ -27,14 +27,14 @@ jobs:
                   base: 'develop'
                   filters: |
                       admin:
-                          - 'apps/admin/src/**'
-                          - 'apps/admin/public/**'
-                          - 'apps/admin/index.html'
-                          - 'apps/admin/vite.config.mts'
-                          - 'apps/admin/project.json'
-                          - 'apps/admin/tsconfig*.json'
-                          - 'apps/admin/tailwind.config.js'
-                          - 'apps/admin/postcss.config.js'
+                          - 'apps/admin-v2/src/**'
+                          - 'apps/admin-v2/public/**'
+                          - 'apps/admin-v2/index.html'
+                          - 'apps/admin-v2/vite.config.mts'
+                          - 'apps/admin-v2/project.json'
+                          - 'apps/admin-v2/tsconfig*.json'
+                          - 'apps/admin-v2/tailwind.config.js'
+                          - 'apps/admin-v2/postcss.config.js'
                       web:
                           - 'apps/web/src/**'
                           - 'apps/web/public/**'
@@ -67,7 +67,7 @@ jobs:
               run: |
                   PROJECTS=()
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
-                  [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
+                  [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin-v2"')
                   [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
                   [[ "${{ steps.filter.outputs.desktopweb }}" == "true" ]] && PROJECTS+=('"desktop-web"')
 
@@ -138,7 +138,7 @@ jobs:
 
                   PROJECTS=()
                   [[ "${{ needs.changes.outputs.web }}" == "true" ]] && PROJECTS+=("web")
-                  [[ "${{ needs.changes.outputs.admin }}" == "true" ]] && PROJECTS+=("admin")
+                  [[ "${{ needs.changes.outputs.admin }}" == "true" ]] && PROJECTS+=("admin-v2")
                   [[ "${{ needs.changes.outputs.landing }}" == "true" ]] && PROJECTS+=("landing")
                   [[ "${{ needs.changes.outputs.desktopweb }}" == "true" ]] && PROJECTS+=("desktop-web")
 
@@ -156,7 +156,7 @@ jobs:
                   WEB_VERSION=$(node -p "require('./apps/web/package.json').version")
                   echo "web-version=${WEB_VERSION}" >> $GITHUB_OUTPUT
 
-                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
+                  ADMIN_VERSION=$(node -p "require('./apps/admin-v2/package.json').version")
                   echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
 
                   LANDING_VERSION=$(node -p "require('./apps/landing/package.json').version")
@@ -203,7 +203,7 @@ jobs:
                 include:
                     - project: web
                       prefix: WEB
-                    - project: admin
+                    - project: admin-v2
                       prefix: ADMIN
                     - project: landing
                       prefix: LANDING
