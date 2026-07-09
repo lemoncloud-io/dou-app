@@ -1,5 +1,5 @@
 import type { ErrorInfo } from 'react';
-import { Suspense, useCallback } from 'react';
+import { Suspense, useCallback, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nextProvider } from 'react-i18next';
@@ -7,13 +7,15 @@ import { I18nextProvider } from 'react-i18next';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ErrorFallback, LoadingFallback } from '@chatic/shared';
-import { ThemeProvider } from '@chatic/theme';
 import { reportError } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
 import i18n from '../i18n';
 import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
+import { ThemeApplier } from './runtime/ThemeApplier';
+import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
+import { markBoot } from './features/debug/metrics/bootMarks';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
@@ -53,6 +55,11 @@ const queryClient = new QueryClient({
  * `AppRuntime` (see `./runtime`).
  */
 export function App() {
+    // Boot timeline: first React commit of the provider tree.
+    useEffect(() => {
+        markBoot('app-render');
+    }, []);
+
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', 'Application Error', { error, data: info });
         reportError(error, { componentStack: info.componentStack ?? undefined });
@@ -62,14 +69,15 @@ export function App() {
         <HelmetProvider>
             <I18nextProvider i18n={i18n}>
                 <QueryClientProvider client={queryClient}>
-                    <ThemeProvider>
-                        <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-                            <GlobalBridgeListener />
-                            <Suspense fallback={<LoadingFallback />}>
-                                <AppRuntime />
-                            </Suspense>
-                        </ErrorBoundary>
-                    </ThemeProvider>
+                    {/* Theme state lives in usePreferenceStore; ThemeApplier only mirrors it to <html>. */}
+                    <ThemeApplier />
+                    <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
+                        <GlobalBridgeListener />
+                        <Suspense fallback={<LoadingFallback />}>
+                            <AppRuntime />
+                        </Suspense>
+                        <DebugOverlayHost />
+                    </ErrorBoundary>
                 </QueryClientProvider>
             </I18nextProvider>
         </HelmetProvider>

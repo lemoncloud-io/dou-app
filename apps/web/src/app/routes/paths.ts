@@ -76,19 +76,6 @@ export const ROUTES = {
             privacy: '/mypage/policy/privacy',
         },
     },
-
-    // ── Debug tools (Private, hidden) ────────────────────────────
-    debug: {
-        root: '/debug',
-        login: '/debug/login',
-        dashboard: '/debug/dashboard',
-        logBuffer: '/debug/log-buffer',
-        cacheTest: '/debug/cache-test',
-        uploadTest: '/debug/upload-test',
-        badgeCount: '/debug/badge-count',
-        inviteRedirect: '/debug/invite-redirect',
-        push: '/debug/push',
-    },
 } as const;
 
 /**

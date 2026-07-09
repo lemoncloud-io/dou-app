@@ -1,34 +1,28 @@
-import { useCallback, useMemo } from 'react';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-import { RouterErrorFallback } from '@chatic/shared';
-import { reportError, useWebCoreStore } from '@chatic/web-core';
-
-import { CommonRoutes } from './common/CommonRoutes';
-import { usePrivateRoutes } from './private/usePrivateRoutes';
-import { publicRoutes } from './public/PublicRoutes';
-
 export const Router = () => {
-    const { isAuthenticated, profile } = useWebCoreStore();
-    const privateRoutes = usePrivateRoutes();
-
-    const handleRouterError = useCallback(
-        (error: Error, info: { componentStack?: string }): void => {
-            console.error('Router Error:', error, info);
-            reportError(error, info, 'admin', profile?.uid);
+    const router = createBrowserRouter([
+        {
+            path: '/',
+            element: (
+                <main className="min-h-screen bg-background text-foreground">
+                    <div className="mx-auto flex min-h-screen max-w-3xl items-center justify-center p-8">
+                        <section className="w-full rounded-2xl border border-border bg-card p-8 shadow-sm">
+                            <h1 className="text-2xl font-semibold">Admin Disabled</h1>
+                            <p className="mt-3 text-sm text-muted-foreground">
+                                This admin module is currently not in use. The build keeps a minimal placeholder route
+                                so deployment can complete safely.
+                            </p>
+                        </section>
+                    </div>
+                </main>
+            ),
         },
-        [profile?.uid]
-    );
-
-    const routes = isAuthenticated ? privateRoutes : publicRoutes;
-
-    const router = useMemo(() => {
-        const routesWithErrorElement = [...routes, ...CommonRoutes].map(route => ({
-            ...route,
-            errorElement: <RouterErrorFallback onError={handleRouterError} />,
-        }));
-        return createBrowserRouter(routesWithErrorElement);
-    }, [routes, handleRouterError]);
+        {
+            path: '*',
+            element: null,
+        },
+    ]);
 
     return <RouterProvider router={router} />;
 };

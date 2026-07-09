@@ -1,4 +1,4 @@
-import { getDeviceInfoScript } from './injectionScripts';
+import { getDebugModeScript, getDeviceInfoScript } from './injectionScripts';
 import type { DeviceInfoParams } from './injectionScripts';
 
 const makeParams = (overrides: Partial<DeviceInfoParams> = {}): DeviceInfoParams => ({
@@ -39,5 +39,12 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
         const script = getDeviceInfoScript(makeParams({ firebaseInstallationId: '' }));
 
         expect(script).toContain("window.CHATIC_APP_FIREBASE_INSTALLATION_ID = '';");
+    });
+});
+
+describe('getDebugModeScript — 디버그 모드 언락 주입 스크립트', () => {
+    it('영속화된 언락 상태를 boolean 전역으로 주입한다', () => {
+        expect(getDebugModeScript(true)).toContain('window.CHATIC_APP_DEBUG_MODE = true;');
+        expect(getDebugModeScript(false)).toContain('window.CHATIC_APP_DEBUG_MODE = false;');
     });
 });

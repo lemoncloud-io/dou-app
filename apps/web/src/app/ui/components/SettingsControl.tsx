@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 
 import { Moon, Settings, Sun } from 'lucide-react';
 
-import { useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Card } from '@chatic/ui-kit/components/ui/card';
+
+import { useTheme } from '../../hooks';
 
 interface SettingsControlProps {
     className?: string;

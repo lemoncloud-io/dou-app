@@ -4,6 +4,7 @@ import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
 import { PREFERENCES } from './preferenceKeys';
+import type { Theme } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
 // Storage model
@@ -54,6 +55,31 @@ const persistPreference = (name: keyof typeof PREFERENCES, value: string): void 
 };
 
 // ---------------------------------------------------------------------------
+// Theme parsing
+// ---------------------------------------------------------------------------
+
+const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
+
+/**
+ * Normalize a raw stored theme into a valid Theme, or null when unrecognized.
+ *
+ * Two shapes must be accepted: the plain string this store writes ('dark'),
+ * and the zustand-persist JSON envelope the mobile app stores under the same
+ * native key ({"state":{"theme":"dark"},"version":0}) — a bridge fetch on
+ * native returns whichever shape was persisted last.
+ */
+export const parseTheme = (value: unknown): Theme | null => {
+    if (typeof value !== 'string') return null;
+    if (THEME_VALUES.includes(value)) return value as Theme;
+    try {
+        const inner = JSON.parse(value)?.state?.theme;
+        return typeof inner === 'string' && THEME_VALUES.includes(inner) ? (inner as Theme) : null;
+    } catch {
+        return null;
+    }
+};
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -61,12 +87,15 @@ interface PreferenceState {
     blurLastMessage: boolean;
     /** true until the user completes onboarding for the first time. */
     isFirstRun: boolean;
+    /** Theme preference; 'system' resolves against the OS scheme (see app/theme). */
+    theme: Theme;
 }
 
 interface PreferenceActions {
     setBlurLastMessage: (value: boolean) => void;
     completeOnboarding: () => void;
     resetOnboarding: () => void;
+    setTheme: (theme: Theme) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -83,6 +112,9 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     // isFirstRun is the inverse of the 'completed' flag stored in localStorage.
     isFirstRun: readPreference('isFirstRun') !== 'true',
 
+    // A corrupt cached value falls back to 'system' rather than leaking into the DOM class.
+    theme: parseTheme(readPreference('theme')) ?? 'system',
+
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
         persistPreference('blurLastMessage', value ? 'true' : 'false');
@@ -98,6 +130,11 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         persistPreference('isFirstRun', 'false');
     },
 
+    setTheme: (theme: Theme) => {
+        set({ theme });
+        persistPreference('theme', theme);
+    },
+
     hydrate: (key: PreferenceKey, value: unknown) => {
         // Bridge fallback values arrive here via PreferenceLoader when the local cache was empty.
         const bool = value === true || value === 'true';
@@ -107,6 +144,13 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         } else if (key === PREFERENCES.isFirstRun.nativeKey) {
             set({ isFirstRun: bool });
             cacheLocalPreference('isFirstRun', bool ? 'true' : 'false');
+        } else if (key === PREFERENCES.theme.nativeKey) {
+            // An unparseable bridge value is ignored — the synchronous 'system' default stands.
+            const theme = parseTheme(value);
+            if (theme) {
+                set({ theme });
+                cacheLocalPreference('theme', theme);
+            }
         }
     },
 }));

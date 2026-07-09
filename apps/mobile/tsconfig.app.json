@@ -32,16 +32,16 @@
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/device-utils/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/app-messages/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/i18n-mobile/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/device-utils/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/app-messages/tsconfig.lib.json"
         }
     ]
 }

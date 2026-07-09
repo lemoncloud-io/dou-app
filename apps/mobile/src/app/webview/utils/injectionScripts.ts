@@ -107,19 +107,30 @@ export const getConsoleOverrideScript = (): string => `
 `;
 
 /**
+ * Generates a script exposing the persisted debug-mode unlock to the web, so a
+ * restarted WebView boots already unlocked (single unlock covers both layers).
+ */
+export const getDebugModeScript = (enabled: boolean): string => `
+    window.CHATIC_APP_DEBUG_MODE = ${enabled ? 'true' : 'false'};
+`;
+
+/**
  * Parameters for generating the combined synchronous injection script.
  */
 export interface SyncInjectionScriptParams {
     insets: EdgeInsets;
     keyboardHeight: number;
     deviceInfo: DeviceInfoParams;
+    /** Persisted runtime debug unlock (see debugSettingsStore.debugModeEnabled). */
+    debugModeEnabled?: boolean;
 }
 
 /**
- * Combines safe area, device info, and console override scripts into a single script.
+ * Combines safe area, device info, debug mode, and console override scripts into a single script.
  */
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     ${getSafeAreaScript(params.insets, params.keyboardHeight)}
     ${getDeviceInfoScript(params.deviceInfo)}
+    ${getDebugModeScript(params.debugModeEnabled ?? false)}
     ${getConsoleOverrideScript()}
 `;

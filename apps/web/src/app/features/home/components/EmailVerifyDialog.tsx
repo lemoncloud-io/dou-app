@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useTheme } from '@chatic/theme';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useVerifyEmail } from '@chatic/web-core';
 
+import { useTheme } from '../../../hooks';
 import { isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../account';
 import { EmailStep, VerifyStep } from './email-verify';
 

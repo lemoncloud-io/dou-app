@@ -8,7 +8,7 @@ import { AppWebView } from '../../../webview';
 import { DeepLinkErrorView, ResumeOverlay } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
-import { logger } from '../../../services';
+import { bootMetricsService, logger } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 
@@ -20,6 +20,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
 
     const handleAppReady = useCallback(() => {
         logger.info('WEBVIEW', 'WebAppReady received in MainScreen');
+        bootMetricsService.mark('web-app-ready');
         if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
         setIsWebAppReady(true);
     }, []);
@@ -58,6 +59,11 @@ export const MainScreen = ({ route }: MainScreenProps) => {
         };
     }, []);
 
+    // Boot timeline: WebView screen mounted — network load starts right after.
+    useEffect(() => {
+        bootMetricsService.mark('main-screen-mount');
+    }, []);
+
     if (!source) {
         return (
             <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
@@ -84,6 +90,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                 scrollEnabled={false}
                 onLoad={handleWebViewLoad}
                 onLoadStart={event => {
+                    bootMetricsService.mark('load-start');
                     handleWebViewLoadStart();
                     updateWebViewState({
                         isLoading: true,
@@ -96,6 +103,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                     });
                 }}
                 onLoadEnd={event => {
+                    bootMetricsService.mark('load-end');
                     updateWebViewState({
                         isLoading: false,
                         currentUrl: event.nativeEvent.url,

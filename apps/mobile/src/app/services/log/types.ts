@@ -23,7 +23,8 @@ export type LogTag =
     | 'UPLOAD'
     | 'PREFERENCE'
     | 'PUSH_QUEUE'
-    | 'PUSH_EVENT';
+    | 'PUSH_EVENT'
+    | 'PERF';
 
 export type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 

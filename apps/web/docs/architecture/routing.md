@@ -83,11 +83,11 @@ export const ROUTES = {
             privacy: '/mypage/policy/privacy',
         },
     },
-    debug: { root: '/debug', login: '/debug/login' /* … */ },
 } as const;
 ```
 
-> feature 디렉터리는 `ROUTES`의 top-level 그룹과 1:1로 정렬된다(`account auth channels debug home mypage place subscription`).
+> feature 디렉터리는 `ROUTES`의 top-level 그룹과 1:1로 정렬된다(`account auth channels home mypage place subscription`).
+> `debug`는 라우트가 아니다 — 디버그 도구는 라우터 밖 오버레이로 뜬다([debug feature](../feature/debug/README.md)).
 
 ## 4. 파라미터 키 계약
 

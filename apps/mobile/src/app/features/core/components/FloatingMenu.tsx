@@ -6,6 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FloatingMenuProps {
     onOpenDebug: (entry: DebugOverlayEntryKey) => void;
+    /**
+     * Hidden for runtime-unlocked PROD sessions: the webview URL override must
+     * not be reachable in production builds (arbitrary-URL loading surface).
+     */
+    allowEnvironmentSettings?: boolean;
 }
 
 type FloatingMenuItem = {
@@ -14,7 +19,7 @@ type FloatingMenuItem = {
     onPress: () => void;
 };
 
-export const FloatingMenu = ({ onOpenDebug }: FloatingMenuProps) => {
+export const FloatingMenu = ({ onOpenDebug, allowEnvironmentSettings = true }: FloatingMenuProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const insets = useSafeAreaInsets();
 
@@ -65,8 +70,11 @@ export const FloatingMenu = ({ onOpenDebug }: FloatingMenuProps) => {
 
     const menuItems: FloatingMenuItem[] = [
         { id: 'feature-tests', label: '기능 테스트', onPress: () => onOpenDebug('FeatureTests') },
-        { id: 'settings', label: '환경설정', onPress: () => onOpenDebug('EnvironmentSettings') },
+        ...(allowEnvironmentSettings
+            ? [{ id: 'settings', label: '환경설정', onPress: () => onOpenDebug('EnvironmentSettings') }]
+            : []),
         { id: 'monitoring', label: '모니터링', onPress: () => onOpenDebug('Monitoring') },
+        { id: 'boot-performance', label: '부팅 성능', onPress: () => onOpenDebug('BootPerformance') },
     ];
 
     const menuStyle = {

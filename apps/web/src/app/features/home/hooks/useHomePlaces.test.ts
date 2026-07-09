@@ -24,9 +24,10 @@ const emit = (rows: DomainPlace[]) => {
     return dispose;
 };
 
-const setActiveServer = (kind: 'relay' | 'cloud', cloudId?: string) =>
+const setActiveServer = (kind: 'relay' | 'cloud', cloudId?: string, userId: string | null = 'u1') =>
     (useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: kind === 'cloud' ? { kind, cloudId } : { kind },
+        identity: { userId },
     });
 
 beforeEach(() => {
@@ -71,5 +72,24 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
         expect(disposeA).toHaveBeenCalledTimes(1);
         expect(result.current.places.map(p => p.id)).toEqual(['b1']);
         expect(disposeB).not.toHaveBeenCalled();
+    });
+
+    it('cid가 그대로여도 uid 변경 시 재구독한다 (클라우드 전환 커밋의 uid 반영)', () => {
+        // Reproduces the cloud-switch bug: cid is pre-applied optimistically, then uid flips at
+        // token commit while cid stays the same. Keying on cid alone would leave the observer
+        // orphaned under the pre-commit uid, so the post-commit rows must arrive via a re-subscribe.
+        const disposeOldUid = emit([place('stale')]);
+        setActiveServer('cloud', 'cloud-A', 'old-uid');
+
+        const { result, rerender } = renderHook(() => useHomePlaces());
+        expect(result.current.places.map(p => p.id)).toEqual(['stale']);
+
+        const disposeNewUid = emit([place('fresh')]);
+        setActiveServer('cloud', 'cloud-A', 'new-uid');
+        rerender();
+
+        expect(disposeOldUid).toHaveBeenCalledTimes(1);
+        expect(result.current.places.map(p => p.id)).toEqual(['fresh']);
+        expect(disposeNewUid).not.toHaveBeenCalled();
     });
 });

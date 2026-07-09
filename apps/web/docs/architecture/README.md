@@ -7,6 +7,8 @@
 - [routing](./routing.md) — 3-tier 라우팅과 `ROUTES` 빌더
 - [bridge](./bridge.md) — 네이티브 ↔ 웹 메시지 단일 접점
 - [stores](./stores.md) — 전역 preference store
+- [theme](./theme.md) — 테마 상태·적용·bridge 동기화
+- [logging](./logging.md) — pub/sub 로거, 환경별 sink 배선, 로그 버퍼
 
 ## 레이어 경계
 

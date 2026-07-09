@@ -11,7 +11,6 @@ import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
-import { DevMonitorOverlay } from '../dev/DevMonitorOverlay';
 import { UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
@@ -46,7 +45,6 @@ export const AppRuntime = () => {
                 onDismiss={dismissUpdate}
             />
             <Router />
-            <DevMonitorOverlay />
             <GlobalLoader />
             <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
             <Toaster />

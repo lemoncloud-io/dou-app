@@ -1,11 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
+import { isNative } from '@chatic/bridges';
+
+import { appBridge } from '../../../bridge';
 import { DEBUG_STORAGE_KEY } from '../consts';
 
 const TAP_THRESHOLD = 10;
 const TAP_RESET_MS = 3000;
 
-const readEnabled = () => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true';
+// Inside the native shell the persisted native flag is the source of truth —
+// injected as a window global (see mobile injectionScripts.ts) so a restarted
+// WebView boots already unlocked and the two sides never need separate unlocks.
+const readInjectedFlag = () =>
+    (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE === true;
+
+const readEnabled = () => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true' || readInjectedFlag();
+
+// Module-level signal so every hook instance (MyPage unlock, always-mounted
+// debug overlay, …) observes the same enabled state without prop plumbing.
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+};
+const notify = () => listeners.forEach(listener => listener());
+
+const setEnabled = (enabled: boolean) => {
+    if (enabled) sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
+    else sessionStorage.removeItem(DEBUG_STORAGE_KEY);
+    if (isNative()) {
+        // Single unlock/lock covers both layers (PROD included).
+        appBridge.setDebugMode(enabled);
+        (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE = enabled;
+    }
+    notify();
+};
 
 /**
  * Controls the hidden debug-mode gate.
@@ -15,9 +44,10 @@ const readEnabled = () => sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true';
  * - `disable`: lock debug tools again.
  *
  * Debug mode is session-scoped (sessionStorage) so it clears when the tab closes.
+ * State changes propagate to every mounted instance of this hook.
  */
 export const useDebugMode = () => {
-    const [isEnabled, setIsEnabled] = useState(readEnabled);
+    const isEnabled = useSyncExternalStore(subscribe, readEnabled);
     const tapCountRef = useRef(0);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -36,14 +66,12 @@ export const useDebugMode = () => {
 
         if (tapCountRef.current >= TAP_THRESHOLD) {
             tapCountRef.current = 0;
-            sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
-            setIsEnabled(true);
+            setEnabled(true);
         }
     }, []);
 
     const disable = useCallback(() => {
-        sessionStorage.removeItem(DEBUG_STORAGE_KEY);
-        setIsEnabled(false);
+        setEnabled(false);
     }, []);
 
     return { isEnabled, registerTap, disable };

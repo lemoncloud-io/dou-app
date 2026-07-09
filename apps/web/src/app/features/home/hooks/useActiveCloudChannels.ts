@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionSelection } from '@chatic/web-core';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
 /**
@@ -15,30 +15,33 @@ import type { DomainChannel } from '@chatic/data';
  *
  * Re-subscribe timing: the cache reemits by a key hashed over the full {cid, sid, uid} context and
  * channel writes run under the active sid, so an observer keeps matching writes only while its
- * captured sid equals the active sid. selectedSiteId therefore drives re-subscription (covering both
- * site and cloud switches); isVerified is a backstop so it re-lands on the post-switch re-auth.
+ * captured {cid, sid, uid} equals the active one. selectedCloudId/selectedSiteId cover site and
+ * cloud switches; uid is the third scope component and flips at cloud-switch commit (after the
+ * optimistic cid pre-apply), so it must drive re-subscription too — otherwise the observer stays
+ * registered under the pre-commit uid and misses the post-commit fetch reemit.
  */
 export const useActiveCloudChannels = (): DomainChannel[] => {
     const { channel } = useRuntimeRepositories();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
-    const { isVerified } = useSocketState();
+    const uid = useGlobalSession().identity.userId ?? undefined;
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
 
-    // Clear only when the cloud actually changes — the cloud-wide list is the same set across a
+    // Clear only when the cloud/uid actually changes — the cloud-wide list is the same set across a
     // site switch, so clearing there would flash an empty list for no reason.
-    const cloudRef = useRef(selectedCloudId);
+    const scopeRef = useRef(`${selectedCloudId}|${uid ?? ''}`);
 
     useEffect(() => {
         if (!channel) return;
-        if (cloudRef.current !== selectedCloudId) {
-            cloudRef.current = selectedCloudId;
+        const scope = `${selectedCloudId}|${uid ?? ''}`;
+        if (scopeRef.current !== scope) {
+            scopeRef.current = scope;
             setChannels([]);
         }
         return channel.observeList({ sid: '' }, result => {
             setChannels(result?.list ?? []);
         });
-    }, [channel, selectedCloudId, selectedSiteId, isVerified]);
+    }, [channel, selectedCloudId, selectedSiteId, uid]);
 
     return channels;
 };

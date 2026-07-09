@@ -1,10 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { RouterErrorFallback } from '@chatic/shared';
 import { reportError, useSessionAuth } from '@chatic/web-core';
 
+import { markBoot } from '../features/debug/metrics/bootMarks';
+import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';
 import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
@@ -12,6 +14,15 @@ import { ROUTES } from './paths';
 
 export const Router = () => {
     const { isAuthenticated, isInitialized } = useSessionAuth();
+
+    // Boot timeline: the router unblocking is the moment the first real screen
+    // can render (markBoot ignores repeat calls). The native shell gets the
+    // completed web snapshot shortly after.
+    useEffect(() => {
+        if (!isInitialized) return;
+        markBoot('session-initialized');
+        scheduleBootMetricsReport();
+    }, [isInitialized]);
 
     const handleRouterError = useCallback((error: Error): void => {
         logger.error('ROUTER', 'Router Error', { error });
