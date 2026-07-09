@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createCredentialsByProvider, useProfile } from '@chatic/web-core';
+import { createCredentialsByProvider, fetchProfile } from '@chatic/web-core';
 
 export const OAuthResponsePage = () => {
-    const { loadProfile } = useProfile();
     const location = useLocation();
     const navigate = useNavigate();
     const handled = useRef(false);
@@ -16,34 +15,39 @@ export const OAuthResponsePage = () => {
         handled.current = true;
 
         const checkLoginResult = async () => {
-            const params = new URLSearchParams(location.search);
-            const code = params.get('code') || '';
-            const provider = params.get('provider') || '';
-            const stateParam = params.get('state') || '';
-            const isSuccess = code.length > 5;
+            try {
+                const params = new URLSearchParams(location.search);
+                const code = params.get('code') || '';
+                const provider = params.get('provider') || '';
+                const stateParam = params.get('state') || '';
+                const isSuccess = code.length > 5;
 
-            if (isSuccess) {
+                if (!isSuccess) {
+                    navigate('/auth/login', { replace: true });
+                    return;
+                }
+
+                // Exchange OAuth code for transport credentials, then hydrate profile.
                 await createCredentialsByProvider(provider, code);
-                // v2: hydrate identity → isAuthenticated is derived from relay profile.
-                await loadProfile();
+                await fetchProfile();
 
                 let redirectTo = '/socket-lab';
                 try {
                     const stateObj = JSON.parse(decodeURIComponent(stateParam));
                     redirectTo = stateObj.from || '/socket-lab';
                 } catch {
-                    // ignore malformed state
+                    // Ignore malformed state; use default redirect.
                 }
 
                 navigate(redirectTo, { replace: true });
-                return;
+            } catch {
+                // Auth or profile fetch failed; redirect to login.
+                navigate('/auth/login', { replace: true });
             }
-
-            navigate('/auth/login', { replace: true });
         };
 
         void checkLoginResult();
-    }, [location.search]);
+    }, [location.search, navigate]);
 
     return (
         <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">
