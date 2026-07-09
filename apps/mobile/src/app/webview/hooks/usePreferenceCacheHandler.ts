@@ -1,7 +1,16 @@
 import { useCallback } from 'react';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { PreferenceKey, WebMessageData } from '@chatic/app-messages';
 import { useLanguageStore, useThemeStore } from '../../stores';
 import { useServices } from '../../hooks';
+
+// SavePreference bridge messages originate from untrusted WebView page JS. Only
+// web-facing preferences may be persisted through this path. System keys — above
+// all 'debugSettings', which carries webviewBaseUrlOverride and therefore decides
+// the WebView origin on next launch — must NEVER be writable from the web, or a
+// single crafted bridge message could silently hijack the app origin (persistent
+// MITM). theme/language are handled by their own cases below; every other key
+// falls through to this allowlist.
+const BRIDGE_WRITABLE_PREFERENCE_KEYS: readonly PreferenceKey[] = ['blurLastMessage', 'isFirstRun'];
 
 export const usePreferenceCacheHandler = () => {
     const { preferenceService, logService } = useServices();
@@ -37,7 +46,18 @@ export const usePreferenceCacheHandler = () => {
                         useLanguageStore.getState().setLanguage(value as any);
                         break;
                     default:
-                        await preferenceService.set(key as any, value);
+                        if (!BRIDGE_WRITABLE_PREFERENCE_KEYS.includes(key)) {
+                            logService.warn('CACHE', `SavePreference rejected non-writable key: ${key}`);
+                            return {
+                                type: 'OnSavePreference' as const,
+                                success: false,
+                                error: {
+                                    code: 'PREF_KEY_NOT_WRITABLE',
+                                    message: `Preference key not writable from web: ${key}`,
+                                },
+                            };
+                        }
+                        await preferenceService.set(key, value);
                 }
 
                 return { type: 'OnSavePreference' as const, success: true, data: { key, success: true } };
