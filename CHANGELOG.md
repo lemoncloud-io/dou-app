@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-09] - root@0.41.1, @chatic/desktop-web@0.3.1
+
+### Bug Fixes
+
+- (desktop-web) show the default cloud's self channel
+
 ## [2026-07-08] - No version updates
 
 ### Features
