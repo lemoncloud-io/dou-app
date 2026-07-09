@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-07-09] - root@0.42.2, @chatic/desktop-web@0.3.3
+
+### Bug Fixes
+
+- (desktop-web) drop cache reads that resolve after unsubscribe
+- (desktop-web) re-subscribe cache observers on uid change
+
 ## [2026-07-09] - root@0.42.1, @chatic/desktop-web@0.3.2
 
 ### Bug Fixes
