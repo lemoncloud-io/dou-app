@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
 export interface HomeChannelsResult {
@@ -18,9 +19,14 @@ export interface HomeChannelsResult {
  * registered by the rendered ChannelItem (useChannelSync) — so this hook only subscribes to cache.
  * The cache read on the relay cloud is not sid-isolated, so results are filtered to the active
  * site to avoid flashing the previous site's channels mid-switch.
+ *
+ * uid is part of the cache observer scope key ({cid, sid, uid}) and flips at cloud-switch commit,
+ * which can lag the sid change (a cross-cloud switch may reuse a numerically equal sid). Re-keying
+ * on uid too keeps the observer aligned with the scope the post-commit fetch reemits against.
  */
 export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
     const { channel } = useRuntimeRepositories();
+    const uid = useGlobalSession().identity.userId ?? undefined;
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +42,7 @@ export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
             setChannels(list);
             setIsLoading(false);
         });
-    }, [channel, sid]);
+    }, [channel, sid, uid]);
 
     return { channels, isLoading };
 };

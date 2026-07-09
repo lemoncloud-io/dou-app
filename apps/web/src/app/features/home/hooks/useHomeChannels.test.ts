@@ -1,14 +1,19 @@
 import { renderHook } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
 import { useHomeChannels } from './useHomeChannels';
 
 jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/web-core', () => ({ useGlobalSession: jest.fn() }));
 
 const observeListMock = jest.fn();
 const refreshListMock = jest.fn();
+
+const setUid = (userId: string | null = 'u1') =>
+    (useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId } });
 
 const channel = (id: string, sid: string): DomainChannel => ({ id, sid }) as unknown as DomainChannel;
 
@@ -27,6 +32,7 @@ beforeEach(() => {
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         channel: { observeList: observeListMock, refreshList: refreshListMock },
     });
+    setUid('u1');
 });
 
 describe('useHomeChannels — 채널 목록 구독', () => {
@@ -62,6 +68,20 @@ describe('useHomeChannels — 채널 목록 구독', () => {
         expect(observeListMock).toHaveBeenCalledTimes(1);
 
         rerender({ sid: 's2' });
+
+        expect(dispose).toHaveBeenCalledTimes(1);
+        expect(observeListMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('sid가 그대로여도 uid 변경 시 재구독한다 (클라우드 전환 커밋의 uid 반영)', () => {
+        const dispose = emit([channel('c1', 's1')]);
+        setUid('old-uid');
+
+        const { rerender } = renderHook(() => useHomeChannels('s1'));
+        expect(observeListMock).toHaveBeenCalledTimes(1);
+
+        setUid('new-uid');
+        rerender();
 
         expect(dispose).toHaveBeenCalledTimes(1);
         expect(observeListMock).toHaveBeenCalledTimes(2);
