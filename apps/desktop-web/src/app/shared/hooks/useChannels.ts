@@ -33,6 +33,13 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * refetch. The relay cache is not sid-isolated, so results are filtered to the
  * active place and the list is reset on place switch so the previous place's
  * channels don't flash.
+ *
+ * `uid` is part of the cache observer's scope key ({cid, sid, uid}) and flips only at
+ * cloud-switch commit, after the optimistic `cid` pre-apply. sid alone cannot key the
+ * subscription: sids are per-cloud, so a cross-cloud switch can reuse a numerically
+ * equal one (a cloud's site '10001' and the relay's site '10001'), leaving the observer
+ * bound to the previous cloud's partition and streaming its channels forever. Re-key on
+ * uid too. Mirrors apps/web useHomeChannels (57a58278).
  */
 export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository } = useRuntimeRepositories();
@@ -42,11 +49,13 @@ export const useChannels = (placeId: string | undefined) => {
     const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
     const [rawLoading, setRawLoading] = useState(true);
 
-    // Render-phase reset on place switch (mirrors apps/web useChannels): drop the
-    // old list immediately rather than waiting for the next emit to resolve.
-    const [prevPlaceId, setPrevPlaceId] = useState(placeId);
-    if (placeId !== prevPlaceId) {
-        setPrevPlaceId(placeId);
+    // Render-phase reset on scope switch: drop the old list immediately rather than waiting
+    // for the next emit to resolve. Keyed on uid as well as placeId — a cross-cloud switch
+    // can land on an equal sid, and only uid tells the two partitions apart.
+    const scopeKey = `${myUid ?? ''}:${placeId ?? ''}`;
+    const [prevScopeKey, setPrevScopeKey] = useState(scopeKey);
+    if (scopeKey !== prevScopeKey) {
+        setPrevScopeKey(scopeKey);
         setRawChannels([]);
         setRawLoading(true);
     }
@@ -58,12 +67,22 @@ export const useChannels = (placeId: string | undefined) => {
             return;
         }
         setRawLoading(true);
-        return channelRepository.observeList({ sid: placeId }, result => {
+        // The engine's unsubscribe only deregisters the observer — a read already in flight
+        // still delivers. On a cloud switch that read resolves after the next subscription has
+        // painted and overwrites it with the previous cloud's list, and nothing re-emits until
+        // the next cache write (sending a message appeared to "fix" it). Ignore late arrivals.
+        let cancelled = false;
+        const unsubscribe = channelRepository.observeList({ sid: placeId }, result => {
+            if (cancelled) return;
             const list = (result?.list ?? []).filter(c => c.sid === placeId);
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });
-    }, [channelRepository, placeId]);
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
+    }, [channelRepository, placeId, myUid]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
