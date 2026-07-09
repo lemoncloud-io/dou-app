@@ -57,6 +57,29 @@ w0 main.tsx start · w1 app render · w2 session init(라우터 언블록)
 
 **보안 경계**: 런타임 언락(빌드 게이트 없이 열린 경우)에서는 FAB 메뉴에서 **환경설정(웹뷰 URL 오버라이드)이 제외**된다 — 프로덕션 앱이 임의 URL을 로드하는 면을 막기 위함 (`FloatingMenu.allowEnvironmentSettings`).
 
+## 베이스라인 (v0.19.2, 콜드부팅 8건, 실기기)
+
+JS 엔트리 기준 구간 평균:
+
+| 구간                                             | 평균      | 범위     |
+| ------------------------------------------------ | --------- | -------- |
+| 네이티브 pre-webview (→load-start)               | **580ms** | 326–882  |
+| └ JS엔트리→provider-ready                        | 56ms      | 15–118   |
+| └ provider→app-mount                             | 68ms      | 5–168    |
+| └ app-mount→main-screen (네비게이션 마운트)      | **251ms** | 98–446   |
+| └ main-screen→load-start (WebView 인스턴스 생성) | **206ms** | 134–301  |
+| 웹 로드+부팅 (load-start→web-app-ready)          | 518ms     | 325–1018 |
+| totalMs (web-app-ready)                          | 1099ms    | 711–1643 |
+
+관찰:
+
+- **네이티브 pre-webview가 부팅의 53%.** 완전 직렬(provider → App → NavigationContainer → 네비게이터 → MainScreen → WebView 생성)이라 앞단 지연이 웹뷰 로드 시작을 통째로 밀어낸다. 네비게이션 마운트(251ms)와 WebView 인스턴스 생성(206ms)이 지배적.
+- **`totalMs`는 체감 부팅이 아니다.** `web-app-ready`는 main.tsx 최상단(React 렌더 전)에서 발생. 실제 첫 화면은 웹 `sessionInit`(라우터 언블록) 이후 → 체감 부팅 ≈ native load-start + web sessionInit ≈ **평균 1255ms, 최대 2115ms**.
+- **자산은 매 부팅 304 재검증**(`transferSize: 300` = 304 헤더). `no-cache` 정책 탓. 배포 직후엔 메인 청크 296KB 재다운로드.
+- 콜드 변동은 provider-ready 15–29ms(빠름) vs 109–118ms(느림)로 갈림 — 느린 콜드는 전 구간이 비례해 밀린다(JS 번들 파싱/디스크 I/O).
+
+→ 1차 최적화 대상: **네이티브 웹뷰 조기 마운트** (pre-webview 51%, 변동 폭까지 흡수).
+
 ## 주의사항
 
 - 계측은 동기 최소 연산(타임스탬프 기록)만 부팅 경로에서 수행하고, 저장·전송은 확정 시점에 비동기로 한다.
