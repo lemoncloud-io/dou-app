@@ -9,7 +9,9 @@ jobs:
         name: Check changed projects
         runs-on: ubuntu-latest
         outputs:
-            admin: ${{ steps.filter.outputs.admin == 'true' && 'true' || 'false' }}
+            # admin is not supported yet — force-skip its build/deploy (shared-lib break in
+            # libs/socket → web-core fails admin:build). Downstream jobs read this output.
+            admin: 'false'
             web: ${{ steps.filter.outputs.web == 'true' && 'true' || 'false' }}
             landing: ${{ steps.filter.outputs.landing == 'true' && 'true' || 'false' }}
             desktopweb: ${{ steps.filter.outputs.desktopweb == 'true' && 'true' || 'false' }}
@@ -67,7 +69,8 @@ jobs:
               run: |
                   PROJECTS=()
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
-                  [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
+                  # admin not supported yet — never add it to the deploy matrix.
+                  # [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
                   [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
                   [[ "${{ steps.filter.outputs.desktopweb }}" == "true" ]] && PROJECTS+=('"desktop-web"')
 
