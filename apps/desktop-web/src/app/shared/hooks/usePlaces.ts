@@ -27,10 +27,18 @@ export const usePlaces = () => {
     useEffect(() => {
         setPlaces([]);
         setIsLoading(true);
-        return placeRepository.observeList(undefined, result => {
+        // The engine's unsubscribe does not cancel a read already in flight; drop its late
+        // result rather than let the previous cloud's places overwrite the new ones.
+        let cancelled = false;
+        const unsubscribe = placeRepository.observeList(undefined, result => {
+            if (cancelled) return;
             setPlaces(result?.list ?? []);
             setIsLoading(false);
         });
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
     }, [placeRepository, cid, uid]);
 
     return { places, isLoading };

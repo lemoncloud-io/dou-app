@@ -67,11 +67,21 @@ export const useChannels = (placeId: string | undefined) => {
             return;
         }
         setRawLoading(true);
-        return channelRepository.observeList({ sid: placeId }, result => {
+        // The engine's unsubscribe only deregisters the observer — a read already in flight
+        // still delivers. On a cloud switch that read resolves after the next subscription has
+        // painted and overwrites it with the previous cloud's list, and nothing re-emits until
+        // the next cache write (sending a message appeared to "fix" it). Ignore late arrivals.
+        let cancelled = false;
+        const unsubscribe = channelRepository.observeList({ sid: placeId }, result => {
+            if (cancelled) return;
             const list = (result?.list ?? []).filter(c => c.sid === placeId);
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
     }, [channelRepository, placeId, myUid]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading

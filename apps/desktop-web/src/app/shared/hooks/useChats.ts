@@ -103,10 +103,19 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
             setIsLoading(false);
             return;
         }
-        return chatRepository.observeList({ channelId, limit: pageLimit }, result => {
+        // Ignore a read that resolves after this subscription is torn down — the engine's
+        // unsubscribe does not cancel one already in flight, so the outgoing channel's (or
+        // cloud's) messages would land in the pane the incoming one just painted.
+        let cancelled = false;
+        const unsubscribe = chatRepository.observeList({ channelId, limit: pageLimit }, result => {
+            if (cancelled) return;
             setChats(result?.list ?? []);
             setIsLoading(false);
         });
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
     }, [chatRepository, channelId, pageLimit, myUid]);
 
     // Freshness bridge (see the hook doc): when the channel record's newest chatNo
