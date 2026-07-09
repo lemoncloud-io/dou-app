@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 
 import { computeChannelUnread, resolveReadNo } from '../utils';
 import { useReadCursorStore } from '../stores';
@@ -37,12 +37,6 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
 export const useChannels = (placeId: string | undefined) => {
     const { channel: channelRepository } = useRuntimeRepositories();
     const { userId: myUid } = useSessionIdentity();
-    // The Default Cloud (relay) holds the Self Channel, whose sid is its own site id — NOT the
-    // 'default' sentinel this page pins as placeId. The engine already returns every channel on
-    // the default cloud (ChannelLocalDataSourceV2 skips sid scoping when cid === 'default'), so
-    // re-filtering by placeId here would drop the Self Channel. Skip the sid filter in that mode.
-    const { selectedCloudId } = useSessionSelection();
-    const isDefaultCloud = selectedCloudId === 'default';
     const readCursors = useReadCursorStore(s => s.cursors);
     const { isVerified } = useSocketState();
     const [rawChannels, setRawChannels] = useState<DomainChannel[]>([]);
@@ -65,11 +59,11 @@ export const useChannels = (placeId: string | undefined) => {
         }
         setRawLoading(true);
         return channelRepository.observeList({ sid: placeId }, result => {
-            const list = (result?.list ?? []).filter(c => isDefaultCloud || c.sid === placeId);
+            const list = (result?.list ?? []).filter(c => c.sid === placeId);
             setRawChannels(sortByName(list));
             setRawLoading(false);
         });
-    }, [channelRepository, placeId, isDefaultCloud]);
+    }, [channelRepository, placeId]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).

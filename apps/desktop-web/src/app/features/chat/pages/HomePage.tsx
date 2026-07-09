@@ -75,10 +75,11 @@ export const HomePage = () => {
     // received cross-cloud push marks its source cloud's tile instead.
     const badgedClouds = useCloudPushBadgeStore(s => s.badged);
 
-    // The active place IS the session's selected site. The Default Cloud (relay / Guest
-    // Session) has no joinable places, so pin the 'default' sentinel there so the Self
-    // Channel loads (the sidebar hides the switcher in that mode). activeCloudId (from
-    // useClouds) already resolves socket → persisted → fallback.
+    // The active place IS the session's selected site. On the Default Cloud the sidebar hides
+    // the place switcher, so `selectedPlaceId` pins a 'default' sentinel as the UI scope key
+    // (last-channel memory, panel props). That sentinel is a cloudId — never an sid, and no
+    // channel record can match it. activeCloudId (from useClouds) already resolves socket →
+    // persisted → fallback.
     const isDefaultMode = (activeCloudId ?? 'default') === 'default';
     const { selectedSiteId } = useSessionSelection();
     const selectedPlaceId = isDefaultMode ? 'default' : selectedSiteId;
@@ -102,7 +103,10 @@ export const HomePage = () => {
     // useRealtimeProfileSync), so no per-page sync hook is needed here.
     useSiteProfiles();
 
-    const { channels, isLoading } = useChannels(selectedPlaceId ?? undefined);
+    // Scope the list by the session's site id, not by `selectedPlaceId`: the Default Cloud spans
+    // several sites (the relay's own site holds the Self Channel), and its 'default' sentinel
+    // would match no record. Mirrors apps/web useHomeChannels.
+    const { channels, isLoading } = useChannels(selectedSiteId ?? undefined);
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
     const selectChannel = useSelectedChannelStore(s => s.selectChannel);
     const requestMessageJump = useMessageJumpStore(s => s.request);
