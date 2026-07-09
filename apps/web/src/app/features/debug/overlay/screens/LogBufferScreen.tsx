@@ -4,13 +4,7 @@ import { type ReactNode, type UIEvent, useCallback, useEffect, useMemo, useRef, 
 import { isNative, logger } from '@chatic/bridges';
 import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
 
-import {
-    appBridge,
-    useOnClearAppLogBuffer,
-    useOnFetchAppLogBuffer,
-    useOnFetchAppLogBufferSize,
-    useOnPollAppLogBuffer,
-} from '../../../../bridge';
+import { appBridge } from '../../../../bridge';
 import {
     copyText,
     filterLogs,
@@ -175,7 +169,6 @@ const LogRow = ({
 
 export const LogBufferScreen = () => {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-    const requestedLimitRef = useRef(LOG_FETCH_LIMIT);
     const [limit, setLimit] = useState(LOG_FETCH_LIMIT);
     const [logs, setLogs] = useState<AppLogInfo[]>([]);
     const [bufferSize, setBufferSize] = useState<number | null>(null);
@@ -218,7 +211,7 @@ export const LogBufferScreen = () => {
     }, []);
 
     const fetchLogs = useCallback(
-        (nextLimit: number, action = 'Fetch') => {
+        async (nextLimit: number, action = 'Fetch') => {
             // Plain web: read the whole in-memory buffer synchronously. Ordering
             // and paging are handled at display time (newest-first), so there is
             // no incremental limit or bridge round-trip here.
@@ -231,12 +224,23 @@ export const LogBufferScreen = () => {
             }
 
             const normalizedLimit = Math.max(LOG_FETCH_LIMIT, nextLimit);
-            const nonce = createNonce('fetch-log-buffer');
-            requestedLimitRef.current = normalizedLimit;
             setLimit(normalizedLimit);
             setIsFetchingLogs(true);
             markRequest(action);
-            appBridge.fetchAppLogBuffer(nonce, normalizedLimit);
+
+            try {
+                // The native reply carries the request's refId, so the bridge
+                // resolves this promise instead of emitting an event — the logs
+                // must be read from the response here, not from a listener.
+                const res = await appBridge.fetchAppLogBuffer(createNonce('fetch-log-buffer'), normalizedLimit);
+                setLogs(res.data.logs ?? []);
+                markResponse(action, res.data.size);
+            } catch (error) {
+                setLastAction(`${action} failed`);
+                logger.warn('LOG_BUFFER', 'fetchAppLogBuffer failed', error);
+            } finally {
+                setIsFetchingLogs(false);
+            }
         },
         [isOnMobileApp, markRequest, markResponse]
     );
@@ -266,13 +270,19 @@ export const LogBufferScreen = () => {
 
     // Native-only: poll consumes entries from the app buffer. Omitted on web
     // because consuming logs from a live viewer is destructive.
-    const pollLogs = useCallback(() => {
-        const nonce = createNonce('poll-log-buffer');
+    const pollLogs = useCallback(async () => {
         markRequest('Poll');
-        appBridge.pollAppLogBuffer(nonce, limit);
-    }, [limit, markRequest]);
+        try {
+            const res = await appBridge.pollAppLogBuffer(createNonce('poll-log-buffer'), limit);
+            setLogs(res.data.logs ?? []);
+            markResponse('Poll', res.data.size);
+        } catch (error) {
+            setLastAction('Poll failed');
+            logger.warn('LOG_BUFFER', 'pollAppLogBuffer failed', error);
+        }
+    }, [limit, markRequest, markResponse]);
 
-    const clearLogs = useCallback(() => {
+    const clearLogs = useCallback(async () => {
         setExpandedKey(null);
 
         if (!isOnMobileApp) {
@@ -283,9 +293,16 @@ export const LogBufferScreen = () => {
             return;
         }
 
-        const nonce = createNonce('clear-log-buffer');
         markRequest('Clear');
-        appBridge.clearAppLogBuffer(nonce);
+        try {
+            const res = await appBridge.clearAppLogBuffer(createNonce('clear-log-buffer'));
+            setLogs([]);
+            setClearSuccess(res.data.success);
+            markResponse('Clear', res.data.size);
+        } catch (error) {
+            setLastAction('Clear failed');
+            logger.warn('LOG_BUFFER', 'clearAppLogBuffer failed', error);
+        }
     }, [isOnMobileApp, markRequest, markResponse]);
 
     const generateSampleLogs = useCallback(() => {
@@ -330,32 +347,6 @@ export const LogBufferScreen = () => {
         const timer = window.setTimeout(() => setCopiedAt(null), 1500);
         return () => window.clearTimeout(timer);
     }, [copiedAt]);
-
-    useOnFetchAppLogBuffer(message => {
-        setLogs(message.data.logs ?? []);
-        setLimit(requestedLimitRef.current);
-        setIsFetchingLogs(false);
-        markResponse('Fetch', message.data.size);
-    });
-
-    useOnPollAppLogBuffer(message => {
-        setLogs(message.data.logs ?? []);
-        setIsFetchingLogs(false);
-        markResponse('Poll', message.data.size);
-    });
-
-    useOnClearAppLogBuffer(message => {
-        setLogs([]);
-        setLimit(LOG_FETCH_LIMIT);
-        requestedLimitRef.current = LOG_FETCH_LIMIT;
-        setIsFetchingLogs(false);
-        setClearSuccess(message.data.success);
-        markResponse('Clear', message.data.size);
-    });
-
-    useOnFetchAppLogBufferSize(message => {
-        markResponse('Size', message.data.size);
-    });
 
     useEffect(() => {
         fetchLogs(LOG_FETCH_LIMIT);
