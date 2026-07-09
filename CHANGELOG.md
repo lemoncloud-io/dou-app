@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-07-09] - root@0.42.0, @chatic/web@0.36.0, @chatic/admin@0.4.2
+
+### Features
+
+- (web/debug) rework web log viewer with filter, search, and detail
+- (mobile/perf) implement boot metrics and debug mode sync Introduce `BootMetricsService` to track native boot milestones and integrate web-side boot metrics via the `SendBootMetrics` contract. This also implements web-native debug mode synchronization through the `SetDebugMode` contract, enabling a single 10-tap unlock for both layers.
+- (web/native) sync debug mode and report boot metrics
+- (app-messages) add web-native boot perf and debug mode contracts
+- (logger) add pub/sub logging core with in-memory web buffer
+- (web/debug) add boot/perf instrumentation to the debug overlay
+- (web) manage theme via usePreferenceStore with system default
+
+### Bug Fixes
+
+- (web/home) re-subscribe cache observers on uid change
+- (web/debug) load native log buffer via bridge response, not events
+
+### Documentation
+
+- (mobile/docs) add v0.19.2 baseline boot metrics and analysis
+- (web) document theme architecture and refresh stores doc
+
+### Refactor
+
+- (admin) disable admin module and simplify app structure
+- (web/debug) consolidate debug tools into a single overlay
+
+### Chores
+
+- (mobile) bump app versions 0.19.2
+
 ## [2026-07-09] - root@0.41.1, @chatic/desktop-web@0.3.1
 
 ### Bug Fixes
