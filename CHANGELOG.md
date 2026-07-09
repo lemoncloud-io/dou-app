@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-09] - root@0.42.1, @chatic/desktop-web@0.3.2
+
+### Bug Fixes
+
+- (desktop-web) scope the Home channel list by the real site id
+
 ## [2026-07-09] - root@0.42.0, @chatic/web@0.36.0, @chatic/admin@0.4.2
 
 ### Features
