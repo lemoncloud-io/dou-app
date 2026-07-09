@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DomainChat } from '@chatic/data';
 
 import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/web-core';
 
 const PAGE_SIZE = 50;
 // Each older page widens the observe window by this much. `observeList` returns
@@ -48,10 +49,16 @@ const sortByChatNo = (messages: DomainChat[]): DomainChat[] =>
  */
 export const useChats = (channelId: string | null, latestChatNo?: number) => {
     const { chat: chatRepository } = useRuntimeRepositories();
+    // Part of the cache observer's scope key ({cid, uid}); channel ids are per-cloud and
+    // collide across clouds, so uid is what keeps the feed bound to the right partition.
+    const { userId: myUid } = useSessionIdentity();
 
     useChatSync(channelId ?? undefined);
 
-    const initial = channelId ? channelMemo.get(channelId) : undefined;
+    // Memo/reset key, not just the channel id: the same id names different channels in
+    // different clouds, and uid is what separates their cache partitions.
+    const scopeKey = channelId ? `${myUid ?? ''}:${channelId}` : null;
+    const initial = scopeKey ? channelMemo.get(scopeKey) : undefined;
     const [chats, setChats] = useState<DomainChat[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [pageLimit, setPageLimit] = useState(initial?.pageLimit ?? PAGE_SIZE);
@@ -69,10 +76,10 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
     // Adjust state synchronously on channel switch (React's "derive state from
     // props" pattern) so the new channel paints in the same render. Restore the
     // saved window so a revisited channel shows its prior scroll depth.
-    const [renderedChannel, setRenderedChannel] = useState(channelId);
-    if (renderedChannel !== channelId) {
-        setRenderedChannel(channelId);
-        const restored = channelId ? channelMemo.get(channelId) : undefined;
+    const [renderedScope, setRenderedScope] = useState(scopeKey);
+    if (renderedScope !== scopeKey) {
+        setRenderedScope(scopeKey);
+        const restored = scopeKey ? channelMemo.get(scopeKey) : undefined;
         setChats([]);
         setIsLoading(true);
         setPageLimit(restored?.pageLimit ?? PAGE_SIZE);
@@ -86,8 +93,8 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
 
     // Persist the channel's window so re-opening restores its scroll depth.
     useEffect(() => {
-        if (channelId) channelMemo.set(channelId, { pageLimit, hasMore });
-    }, [channelId, pageLimit, hasMore]);
+        if (scopeKey) channelMemo.set(scopeKey, { pageLimit, hasMore });
+    }, [scopeKey, pageLimit, hasMore]);
 
     // Widening pageLimit re-subscribes and re-reads cached older pages into view.
     useEffect(() => {
@@ -100,7 +107,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
             setChats(result?.list ?? []);
             setIsLoading(false);
         });
-    }, [chatRepository, channelId, pageLimit]);
+    }, [chatRepository, channelId, pageLimit, myUid]);
 
     // Freshness bridge (see the hook doc): when the channel record's newest chatNo
     // runs ahead of what the cache holds, pull the newest feed page. Guarded per
