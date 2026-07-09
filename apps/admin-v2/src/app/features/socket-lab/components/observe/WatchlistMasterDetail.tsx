@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { RotateCw, Trash2 } from 'lucide-react';
 
 import { ACCENT, ago, dur, hexToRgba, presenceColor, sinceSec } from '../../lib/stats';
 import type { Watchlist } from '../../hooks/use-watchlist';
-import type { ObservedDevice } from '../../mock/observed-users';
+import type { UsersStage } from '../../api/userApi';
+import type { ObservedDevice, ObservedUser } from '../../mock/observed-users';
+import UnicastPanel from './UnicastPanel';
+
+interface SendTarget {
+    stage: UsersStage;
+    user: ObservedUser;
+    device: ObservedDevice;
+}
 
 export interface WatchlistMasterDetailProps {
     wl: Watchlist;
@@ -17,16 +25,29 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
     const [deleteTarget, setDeleteTarget] = useState<ObservedDevice | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [sendTarget, setSendTarget] = useState<SendTarget | null>(null);
     const { observed, selectedUserId, selected } = wl;
+
+    useEffect(() => {
+        if (!sendTarget) return;
+        const alive =
+            wl.stage === sendTarget.stage &&
+            observed.some(u => u.id === sendTarget.user.id && u.devices.some(d => d.id === sendTarget.device.id));
+        if (!alive) setSendTarget(null);
+    }, [sendTarget, wl.stage, observed]);
 
     const activeAts = selected ? selected.devices.map(d => d.lastActiveAt).filter(Boolean) : [];
     const userLastActive = activeAts.length ? Math.max(...activeAts) : null;
+
+    const liveDevice = sendTarget
+        ? observed.find(u => u.id === sendTarget.user.id)?.devices.find(d => d.id === sendTarget.device.id)
+        : undefined;
 
     return (
         <div
             style={{
                 display: 'grid',
-                gridTemplateColumns: '320px 1fr',
+                gridTemplateColumns: sendTarget ? '320px 1fr 360px' : '320px 1fr',
                 gap: 14,
                 alignItems: 'stretch',
                 flex: 1,
@@ -346,15 +367,27 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                             </span>
                         </div>
                         {selected.devices.length ? (
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div
+                                style={{ display: 'flex', flexDirection: 'column', maxHeight: 940, overflowY: 'auto' }}
+                            >
                                 {selected.devices.map(d => {
                                     const dc = presenceColor(d.status);
                                     return (
                                         <div
                                             key={d.id}
+                                            onClick={() =>
+                                                setSendTarget({ stage: wl.stage, user: selected, device: d })
+                                            }
+                                            title="클릭하여 unicast 전송 패널 열기"
                                             style={{
                                                 padding: '14px 16px',
                                                 borderBottom: '1px solid var(--sm-raised-2)',
+                                                cursor: 'pointer',
+                                                background:
+                                                    sendTarget?.user.id === selected.id &&
+                                                    sendTarget?.device.id === d.id
+                                                        ? hexToRgba(ACCENT, 0.06)
+                                                        : undefined,
                                             }}
                                         >
                                             <div
@@ -415,7 +448,8 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                                                     {d.status.toUpperCase()}
                                                 </span>
                                                 <button
-                                                    onClick={() => {
+                                                    onClick={e => {
+                                                        e.stopPropagation();
                                                         setDeleteError(null);
                                                         setDeleteTarget(d);
                                                     }}
@@ -523,7 +557,16 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                 )}
             </div>
 
-            {/* 디바이스 삭제 확인 모달 */}
+            {sendTarget ? (
+                <UnicastPanel
+                    key={`${sendTarget.stage}:${sendTarget.user.id}:${sendTarget.device.id}`}
+                    stage={sendTarget.stage}
+                    user={sendTarget.user}
+                    device={liveDevice ?? sendTarget.device}
+                    onClose={() => setSendTarget(null)}
+                />
+            ) : null}
+
             {deleteTarget ? (
                 <div
                     onClick={() => (deleting ? undefined : setDeleteTarget(null))}

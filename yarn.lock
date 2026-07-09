@@ -3297,10 +3297,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@0.26.525":
-  version "0.26.525"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.525.tgz#67167727b511f994c2ee7cdfe1f466c5f94cc061"
-  integrity sha512-4Ohc/i3yvRE9i0hCAfmniMF5Op1Lp/Hwbx5gcuH4HF+UWK7cNuuOwPYrhnk1jgARFGEpRNKWTudeE4NrA1N60w==
+"@lemoncloud/chatic-sockets-api@0.26.701":
+  version "0.26.701"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.701.tgz#6616835812331e4b0704408d330a789330ca8403"
+  integrity sha512-uVcrw5lIgffRj1l/bOQcI/zK03bVb9dR0ovN4onG9MlShDb9opj51Q5PPueBxXUumDDOEyorT/BzHtPOuVUUrg==
   dependencies:
     lemon-model "^1.2.2"
 

@@ -95,7 +95,7 @@
         "@lemoncloud/chatic-iap-api": "^1.26.121",
         "@lemoncloud/chatic-pushes-api": "^0.26.124",
         "@lemoncloud/chatic-socials-api": "^0.26.407",
-        "@lemoncloud/chatic-sockets-api": "0.26.525",
+        "@lemoncloud/chatic-sockets-api": "0.26.701",
         "@lemoncloud/chatic-sockets-lib": "0.4.0",
         "@lemoncloud/lemon-web-core": "^1.5.0",
         "@lemoncloud/react-page-transition": "1.0.0",
