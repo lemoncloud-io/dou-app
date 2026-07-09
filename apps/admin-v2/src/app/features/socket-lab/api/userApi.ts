@@ -44,7 +44,7 @@ export type UsersStage = 'd1' | 'v1';
 
 const getUsersEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
 
-const getUsersBase = (stage: UsersStage): string => `${getUsersEndpoint()}/skt-${stage}`;
+export const getUsersBase = (stage: UsersStage): string => `${getUsersEndpoint()}/skt-${stage}`;
 
 export const mapDeviceView = (d: DeviceViewRaw): ObservedDevice => {
     const status: Presence = d.status === 'red' || d.status === 'yellow' ? d.status : 'green';

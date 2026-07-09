@@ -24,12 +24,11 @@ export interface ObserveSyncContainer {
     getState(): ClientSocketState;
     subscribe(listener: (event: ObserveSyncEvent) => void): () => void;
     connect(): Promise<void>;
-    /** 관측 대상 전체 교체 — diff로 start/stopSync 반영 */
     setTargets(deviceIds: string[]): void;
     dispose(): Promise<void>;
 }
 
-const SYNC_INTERVAL_MS = 5000;
+const SYNC_INTERVAL_MS = 1000;
 
 export const getObserveWsUrl = (stage: UsersStage): string => {
     const ws = `${import.meta.env.VITE_WS_ENDPOINT ?? ''}`.trim();
