@@ -35,6 +35,7 @@ describe('SyncManager', () => {
                 next(null);
                 return jest.fn();
             }),
+            getBoundCid: jest.fn().mockReturnValue(null),
             markUnverified: jest.fn(),
             connect: jest.fn(),
             destroy: jest.fn(),
@@ -73,6 +74,31 @@ describe('SyncManager', () => {
         dispose();
 
         expect(runtime.stopSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
+    });
+
+    it('does not replay a target onto a client whose boundCid differs (post-swap cleanup, §8-a)', () => {
+        (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
+        const syncManager = new SyncManager(manager, {
+            buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+
+        // Registered while cloud-A is active → tagged cloud-A; starts once cloud-A's client attaches.
+        syncManager.register({ type: 'channel', id: 'ch-1' });
+        listener?.({ state: 'cloud-A' } as unknown as ClientSocketV2);
+        expect(runtime.startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
+
+        // Cloud logout → relay becomes the active client (boundCid 'default'). The cloud-A channel
+        // target must NOT be replayed onto the relay socket.
+        runtime.startSync.mockClear();
+        (manager.getBoundCid as jest.Mock).mockReturnValue('default');
+        listener?.({ state: 'relay' } as unknown as ClientSocketV2);
+        expect(runtime.startSync).not.toHaveBeenCalled();
+
+        // Switching back to cloud-A re-activates it.
+        (manager.getBoundCid as jest.Mock).mockReturnValue('cloud-A');
+        listener?.({ state: 'cloud-A-again' } as unknown as ClientSocketV2);
+        expect(runtime.startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
     });
 
     it('registers a chat target and stops it on dispose', () => {
