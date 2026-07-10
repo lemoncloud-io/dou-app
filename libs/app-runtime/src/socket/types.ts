@@ -66,8 +66,12 @@ export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 export interface ISocketManager {
     /** Creates/reuses the slot for `kind` bound to `config`; returns that slot's client. */
     ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2;
-    /** The ACTIVE slot's client (cloud when present, else relay), or null before any bind. */
-    getClient(): ClientSocketV2 | null;
+    /**
+     * A specific slot's client when `kind` is given (null if that slot is not bound), else the ACTIVE
+     * slot's client (cloud when present, else relay). The per-kind form backs logout, which must
+     * notify each server's own socket (§8-5/§8-6).
+     */
+    getClient(kind?: SocketKind): ClientSocketV2 | null;
     /** Observable state of the ACTIVE slot. */
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;

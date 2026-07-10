@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { getSocketManager } from '../socket/runtime';
 import { reauthenticateActiveSocket } from '../socket';
-import type { SocketSessionDelegate } from '../socket';
+import type { SocketBindingConfig, SocketSessionDelegate } from '../socket';
 import type { RuntimeBinding } from '../runtime';
 
 export interface SocketReauthBinderProps {
@@ -11,13 +11,27 @@ export interface SocketReauthBinderProps {
 }
 
 /**
- * Re-authenticates the live socket when the session identity changes ON THE SAME connection
- * (guest→social/email promotion): web-core swaps the relay token while url/deviceId/wssType stay,
- * so SocketBinder does not reboot and the SDK still holds the old identity.
+ * Reboot signature of the two slots — the SAME key SocketBinder reboots on (`url|deviceId|wssType`),
+ * deliberately EXCLUDING `cid`. A same-wss cloud switch (cid-only config change) must NOT count as a
+ * reboot here: SocketBinder does not reboot it, so this binder must re-authenticate it instead (§8-4).
+ */
+const rebootSignature = (binding: RuntimeBinding): string => {
+    const key = (config?: SocketBindingConfig) =>
+        config ? `${config.url}|${config.deviceId}|${config.wssType ?? ''}` : '';
+    return `${key(binding.socket.relay?.config)}#${key(binding.socket.cloud?.config)}`;
+};
+
+/**
+ * Re-authenticates the live socket when the session identity changes ON THE SAME connection while the
+ * socket is NOT rebooting. Two cases:
+ *   - guest→social/email promotion: web-core swaps the relay token while url/deviceId/wssType stay.
+ *   - same-wss cloud switch (§8-4): the cloud token changes and only `cid` moves in the config, which
+ *     SocketBinder ignores (its reboot key excludes cid) — so the SDK still holds the old identity.
  *
- * Keyed on `binding.auth.identityToken`. A socket-config change (reboot) is handled by SocketBinder
- * via bootstrapSocketConnection, so this skips those. The actual work + the feedback-loop guard
- * (SDK-driven refresh writeback also changes the token but must NOT trigger re-auth) live in
+ * Keyed on `binding.auth.identityToken` gated by the reboot signature (`rebootSignature`, cid-blind):
+ * a genuine reboot (url/deviceId/wssType change) is handled by SocketBinder via bootstrapSocketConnection,
+ * so this skips those to avoid a double register. The actual work + the feedback-loop guard (SDK-driven
+ * refresh writeback also changes the token but must NOT trigger re-auth) live in
  * reauthenticateActiveSocket, which no-ops when the token already matches the SDK's.
  */
 export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProps) => {
@@ -27,7 +41,7 @@ export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProp
     const hasMountedRef = useRef(false);
 
     useEffect(() => {
-        const socketStr = JSON.stringify(binding.socket);
+        const socketStr = rebootSignature(binding);
         const token = binding.auth?.identityToken ?? '';
 
         // First render: the socket is freshly bootstrapped (or absent). Seed the refs and skip.

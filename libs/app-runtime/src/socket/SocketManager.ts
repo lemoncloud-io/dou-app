@@ -106,8 +106,14 @@ export class SocketManager implements ISocketManager {
         return client;
     }
 
-    /** The ACTIVE slot's client (cloud when present, else relay), or null before any bind. */
-    public getClient(): ClientSocketV2 | null {
+    /**
+     * A specific slot's client when `kind` is given (null if unbound), else the ACTIVE slot's client
+     * (cloud when present, else relay). Logout uses the per-kind form to notify each server's socket.
+     */
+    public getClient(kind?: SocketKind): ClientSocketV2 | null {
+        if (kind) {
+            return this.entries.get(kind)?.client ?? null;
+        }
         return this.getActiveClient();
     }
 

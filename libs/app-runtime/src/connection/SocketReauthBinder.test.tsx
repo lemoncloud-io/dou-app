@@ -26,6 +26,17 @@ const bindingWith = (identityToken: string | undefined, socketUrl = 'wss://relay
         auth: { kind: 'relay', siteId: undefined, identityToken },
     }) as unknown as RuntimeBinding;
 
+/** A cloud-active binding: relay is always-on, cloud is the active server. */
+const cloudBinding = (identityToken: string, cid: string, cloudUrl = 'wss://cloud'): RuntimeBinding =>
+    ({
+        context: { cid, sid: undefined, uid: 'u' },
+        socket: {
+            relay: { config: { url: 'wss://relay', deviceId: 'd', wssType: 'relay', cid: 'default' } },
+            cloud: { config: { url: cloudUrl, deviceId: 'd', wssType: 'cloud', cid } },
+        },
+        auth: { kind: 'cloud', siteId: undefined, identityToken },
+    }) as unknown as RuntimeBinding;
+
 describe('SocketReauthBinder', () => {
     beforeEach(() => jest.clearAllMocks());
 
@@ -54,6 +65,34 @@ describe('SocketReauthBinder', () => {
         const { rerender } = render(<SocketReauthBinder binding={bindingWith('guest-token')} delegate={delegate} />);
         // a re-render with the same identity token (e.g. sid-only change) must not re-auth
         rerender(<SocketReauthBinder binding={bindingWith('guest-token')} delegate={delegate} />);
+        expect(mockedReauth).not.toHaveBeenCalled();
+    });
+
+    it('re-authenticates a same-wss cloud switch (cid changes, url stays) as the cloud kind (§8-4)', () => {
+        // cloud→cloud on the same wss: the cloud token changes but only cid moves in the config, which
+        // SocketBinder ignores (reboot key excludes cid) → this binder must re-register the cloud slot.
+        const { rerender } = render(
+            <SocketReauthBinder binding={cloudBinding('cloud-a-token', 'cloud-a')} delegate={delegate} />
+        );
+        rerender(<SocketReauthBinder binding={cloudBinding('cloud-b-token', 'cloud-b')} delegate={delegate} />);
+        expect(mockedReauth).toHaveBeenCalledTimes(1);
+        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'cloud' }));
+    });
+
+    it('does NOT re-authenticate a different-wss cloud switch (SocketBinder reboots that slot)', () => {
+        const { rerender } = render(
+            <SocketReauthBinder
+                binding={cloudBinding('cloud-a-token', 'cloud-a', 'wss://cloud-a')}
+                delegate={delegate}
+            />
+        );
+        // wss differs → the cloud slot's reboot signature changes → reboot handles register.
+        rerender(
+            <SocketReauthBinder
+                binding={cloudBinding('cloud-b-token', 'cloud-b', 'wss://cloud-b')}
+                delegate={delegate}
+            />
+        );
         expect(mockedReauth).not.toHaveBeenCalled();
     });
 });
