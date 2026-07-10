@@ -12,10 +12,13 @@ import type {
     ISocketManager,
     SocketBindingConfig,
     SocketClientListener,
-    SocketRecoveryHandler,
     SocketState,
     SocketStateListener,
 } from './types';
+
+/** SDK AuthController tuning at adoption. SDK defaults are refreshRatio 0.8 / maxFailures 5; we
+ *  override maxFailures to 3 for a slightly faster terminal `expired` (see usage.md §1.1). */
+const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3 } as const;
 
 /** A push subscription that must be re-bound whenever the underlying client is replaced. */
 type TypeListenerEntry = {
@@ -59,10 +62,9 @@ export class SocketManager implements ISocketManager {
     // Push subscriptions registered via onType. Owned here so they survive socket
     // replacement — re-bound to the fresh client on every client change.
     private readonly typeListeners = new Set<TypeListenerEntry>();
-    // Recovery policy is injected by the session layer (see SocketRecoveryHandler).
-    private recoveryHandler: SocketRecoveryHandler | null = null;
-    // Reconnect policy for a disconnected socket (503 SOCKET NOT CONNECTED), injected by the session layer.
-    private reconnectHandler: (() => Promise<void>) | null = null;
+    // Mirrors the SDK AuthController's authenticated flag. `isVerified` is derived as
+    // `authenticated && state === 'connected'`, so a drop clears it without a manual reset.
+    private authenticated = false;
     private unsubscribes: Array<() => void> = [];
 
     /**
@@ -86,6 +88,8 @@ export class SocketManager implements ISocketManager {
         this.client = client;
         this.bindClient(client);
 
+        // A fresh client is not authenticated until its SDK AuthController completes a handshake.
+        this.authenticated = false;
         // Reset handshake flags; connection state follows the client.
         this.setState({
             state: client.state,
@@ -170,19 +174,18 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Marks the current socket as auth-verified. Called by the session controller
-     * once `auth.update` resolves — the lib settles request responses by mid and
-     * does not route them to `onType`, so the controller owns this signal.
+     * Mirrors the SDK AuthController's authenticated state (wired via onAuthState in
+     * bootstrapSocketConnection). `isVerified` is recomputed from this AND the transport being
+     * connected, so re-auth and connection drops both flow through here.
      */
-    public markVerified(): void {
-        this.setState({ isVerified: true });
+    public setAuthenticated(value: boolean): void {
+        this.authenticated = value;
+        this.setState({ isVerified: this.computeVerified() });
     }
 
-    /**
-     * Marks the current socket as requiring a fresh auth acknowledgement.
-     */
-    public markUnverified(): void {
-        this.setState({ isVerified: false });
+    /** isVerified = authenticated && transport connected. */
+    private computeVerified(): boolean {
+        return this.authenticated && this.state.state === 'connected';
     }
 
     /**
@@ -197,69 +200,13 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Injects the 401 recovery policy. Wired at the composition root to the session
-     * controller so SocketManager triggers recovery without owning auth policy.
-     */
-    public setRecoveryHandler(handler: SocketRecoveryHandler | null): void {
-        this.recoveryHandler = handler;
-    }
-
-    /**
-     * Injects the reconnect policy for a disconnected socket. Wired at the composition root to the
-     * session controller so a request that hits a dead socket triggers a reconnect + retry.
-     */
-    public setReconnectHandler(handler: (() => Promise<void>) | null): void {
-        this.reconnectHandler = handler;
-    }
-
-    /**
-     * Renderer-facing recovery trigger for a socket that went dead without a request to
-     * carry it back — sleep/wake or a network drop, where no send runs the reconnect+retry
-     * path and the periodic heal is up to ~60s away. Runs the same reconnect + re-auth the
-     * request path uses. No-op if no reconnect handler is wired. A genuinely expired token
-     * still fails re-auth here and falls through to the wedge reload; this only accelerates
-     * the still-valid-token case.
-     */
-    public async recover(reason: string): Promise<void> {
-        if (!this.reconnectHandler) return;
-        logger.info('SOCKET', '[SocketManager] external recovery trigger', { reason });
-        await this.reconnectHandler();
-    }
-
-    /**
-     * Stable request facade. Routes to the current client; on a 401 it invokes the
-     * injected recovery handler and retries once against the (possibly replaced) client.
+     * Stable request facade. Routes to the current client. The SDK AuthController now owns
+     * re-authentication (epoch-serialized reauth on `failed`/`:error`) and the transport owns
+     * reconnect, so this no longer intercepts 401s or drives manual reconnect/retry.
      */
     public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireClient(`request(${type})`);
-        try {
-            return await (client.request(type as any, data as any, options) as Promise<T>);
-        } catch (error: any) {
-            if (this.recoveryHandler && this.is401Error(error)) {
-                logger.info('SOCKET', '[SocketManager] Intercepted 401 error, triggering recovery', { type });
-                const success = await this.recoveryHandler();
-                if (success) {
-                    const retryClient = this.requireClient(`retry request(${type})`);
-                    return await (retryClient.request(type as any, data as any, options) as Promise<T>);
-                }
-            }
-            // A request against a socket left disconnected (e.g. a bootstrap race on invite entry /
-            // rapid cloud switches) throws `503 SOCKET NOT CONNECTED`. Reconnect and retry once so the
-            // send isn't silently lost — instead of waiting up to a minute for the periodic heal.
-            if (this.reconnectHandler && this.isDisconnectedError(error)) {
-                logger.info('SOCKET', '[SocketManager] request hit a disconnected socket, reconnecting', { type });
-                await this.reconnectHandler();
-                if (this.state.isConnected) {
-                    const retryClient = this.requireClient(`retry request(${type})`);
-                    return await (retryClient.request(type as any, data as any, options) as Promise<T>);
-                }
-            }
-            throw error;
-        }
-    }
-
-    private isDisconnectedError(error: any): boolean {
-        return (error?.message || '').includes('SOCKET NOT CONNECTED');
+        return (await client.request(type as any, data as any, options)) as T;
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
@@ -327,11 +274,13 @@ export class SocketManager implements ISocketManager {
                     state: next,
                     isConnected: next === 'connected',
                 };
-                // A dropped/closed socket loses its handshake.
                 if (next === 'idle' || next === 'closed') {
-                    patch.isVerified = false;
                     patch.connectionId = null;
                 }
+                // isVerified is derived: authenticated AND connected. Recompute against the incoming
+                // transport state so a drop clears verification and a reconnect restores it once the
+                // SDK re-authenticates (onAuthState → setAuthenticated).
+                patch.isVerified = this.authenticated && next === 'connected';
                 this.setState(patch);
             })
         );
@@ -345,9 +294,9 @@ export class SocketManager implements ISocketManager {
             })
         );
 
-        // The `isVerified` flag is NOT bound here: `auth.update` is a request/response
-        // call, and the lib settles its `:ok` response by mid without routing to
-        // `onType`. The session controller reports success via markVerified.
+        // `isVerified` is not bound from transport alone: it also depends on the SDK
+        // AuthController's authenticated state, mirrored via setAuthenticated (wired in
+        // bootstrapSocketConnection's onAuthState subscription).
     }
 
     /**
@@ -432,28 +381,21 @@ export class SocketManager implements ISocketManager {
         entry.unsubscribe = this.client.onType(entry.type, entry.listener);
     }
 
-    private is401Error(error: any): boolean {
-        if (!error) return false;
-        const code = error.code || error.errorCode || error.statusCode || (error.response && error.response.status);
-        if (code === 401 || code === '401') return true;
-        const msg = error.message || '';
-        // The socket lib drops the server's errorCode on settle, leaving only strings like
-        // '401 UNAUTHORIZED - auth.update(...)'. Match 401 as a standalone token so an id or
-        // count containing "401" can't spoof an auth failure into a token-refresh loop.
-        return /\b401\b/.test(msg) || msg.includes('UNAUTHORIZED') || msg.includes('Authentication failed');
-    }
-
     private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {
         return !!left && left.url === right.url && left.deviceId === right.deviceId && left.wssType === right.wssType;
     }
 
     private createClient(config: SocketBindingConfig): ClientSocketV2 {
+        // Attach the SDK AuthController: it owns the socket token SSoT, expiry-based refresh,
+        // reconnect re-auth, epoch serialization, and backoff → terminal `expired`. The app only
+        // register/switch/logout via bootstrapSocketConnection's delegate wiring.
         return createClientSocketV2({
             url: this.normalizeUrl(config.url),
             device: {
                 id: config.deviceId,
                 platform: 'web',
             },
+            auth: AUTH_OPTIONS,
         });
     }
 

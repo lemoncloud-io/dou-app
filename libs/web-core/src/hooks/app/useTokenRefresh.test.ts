@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 
 const mockRefreshRelaySession = jest.fn();
 const mockRefreshActiveCloudSession = jest.fn();
@@ -74,5 +74,44 @@ describe('useTokenRefresh — parallel cloud refresh', () => {
 
         expect(ok).toBe(false);
         expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('useTokenRefresh — skipPeriodicRefresh', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // Authenticated so the mount effect runs the one-shot initialize() (and would arm the interval).
+        mockUseSessionAuth.mockReturnValue({ isAuthenticated: true });
+        mockRefreshRelaySession.mockResolvedValue(null);
+        mockRefreshActiveCloudSession.mockResolvedValue(undefined);
+        mockClassifyError.mockReturnValue({ shouldLogout: false });
+    });
+
+    it('runs boot initialize() but does NOT arm the periodic interval when skipPeriodicRefresh is true', async () => {
+        const setIntervalSpy = jest.spyOn(global, 'setInterval');
+
+        const { result } = renderHook(() => useTokenRefresh(true, { skipPeriodicRefresh: true }));
+
+        // initialize() (one-shot boot refresh) still runs and marks success.
+        await waitFor(() => expect(result.current.initStatus).toBe('success'));
+        await Promise.resolve(); // flush the .then(startInterval) microtask
+
+        expect(mockRefreshRelaySession).toHaveBeenCalledTimes(1); // boot only
+        // The hook's refresh interval uses a 60_000ms delay; assert on that specifically so
+        // waitFor's own internal 50ms polling interval does not register as a false positive.
+        expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), 60_000);
+
+        setIntervalSpy.mockRestore();
+    });
+
+    it('arms the periodic interval when skipPeriodicRefresh is not set', async () => {
+        const setIntervalSpy = jest.spyOn(global, 'setInterval');
+
+        const { result } = renderHook(() => useTokenRefresh(true));
+
+        await waitFor(() => expect(result.current.initStatus).toBe('success'));
+        await waitFor(() => expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 60_000));
+
+        setIntervalSpy.mockRestore();
     });
 });

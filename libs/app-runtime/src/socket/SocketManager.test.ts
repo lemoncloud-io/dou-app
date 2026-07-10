@@ -29,7 +29,7 @@ const makeClient = (overrides: Partial<jest.Mocked<ClientSocketV2>> = {}): jest.
 
 const CONFIG: SocketBindingConfig = { url: 'wss://example.test/socket', deviceId: 'device-1' };
 const OTHER_CONFIG: SocketBindingConfig = { url: 'wss://example.test/socket', deviceId: 'device-2' };
-const ERROR_401 = { errorCode: 401, message: 'UNAUTHORIZED' };
+const REQUEST_ERROR = { errorCode: 401, message: 'UNAUTHORIZED' };
 
 describe('SocketManager request facade', () => {
     beforeEach(() => {
@@ -50,51 +50,56 @@ describe('SocketManager request facade', () => {
         expect(result).toBe('response-data');
     });
 
-    it('on 401 invokes the recovery handler and retries once on success', async () => {
+    it('rethrows request errors — recovery is owned by the SDK AuthController, not the request path', async () => {
         const client = makeClient();
-        client.request.mockRejectedValueOnce(ERROR_401).mockResolvedValueOnce('retry-data');
-        mockedCreate.mockReturnValue(client);
-
-        const manager = new SocketManager();
-        manager.ensure(CONFIG);
-        const recover = jest.fn().mockResolvedValue(true);
-        manager.setRecoveryHandler(recover);
-
-        const result = await manager.request('test.type', { foo: 'bar' });
-
-        expect(recover).toHaveBeenCalledTimes(1);
-        expect(client.request).toHaveBeenCalledTimes(2);
-        expect(result).toBe('retry-data');
-    });
-
-    it('rethrows the original 401 when recovery fails (no retry)', async () => {
-        const client = makeClient();
-        client.request.mockRejectedValueOnce(ERROR_401);
-        mockedCreate.mockReturnValue(client);
-
-        const manager = new SocketManager();
-        manager.ensure(CONFIG);
-        manager.setRecoveryHandler(jest.fn().mockResolvedValue(false));
-
-        await expect(manager.request('test.type')).rejects.toEqual(ERROR_401);
-        expect(client.request).toHaveBeenCalledTimes(1);
-    });
-
-    it('rethrows a 401 without retry when no recovery handler is set', async () => {
-        const client = makeClient();
-        client.request.mockRejectedValueOnce(ERROR_401);
+        client.request.mockRejectedValueOnce(REQUEST_ERROR);
         mockedCreate.mockReturnValue(client);
 
         const manager = new SocketManager();
         manager.ensure(CONFIG);
 
-        await expect(manager.request('test.type')).rejects.toEqual(ERROR_401);
+        await expect(manager.request('test.type')).rejects.toEqual(REQUEST_ERROR);
         expect(client.request).toHaveBeenCalledTimes(1);
     });
 
     it('throws when request() is called before a client exists', async () => {
         const manager = new SocketManager();
         await expect(manager.request('test.type')).rejects.toThrow('Socket client not ready');
+    });
+});
+
+describe('SocketManager isVerified derivation', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('derives isVerified = authenticated AND connected, and a drop clears it', () => {
+        let stateCb: ((event: { next: string }) => void) | undefined;
+        const client = makeClient({
+            onState: jest.fn((cb: (event: { next: string }) => void) => {
+                stateCb = cb;
+                return jest.fn();
+            }) as unknown as jest.Mocked<ClientSocketV2>['onState'],
+        });
+        mockedCreate.mockReturnValue(client);
+
+        const manager = new SocketManager();
+        manager.ensure(CONFIG); // client.state === 'connected', not yet authenticated
+        expect(manager.getSnapshot().isVerified).toBe(false);
+
+        // authenticated + connected → verified
+        manager.setAuthenticated(true);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+
+        // de-authenticated → not verified
+        manager.setAuthenticated(false);
+        expect(manager.getSnapshot().isVerified).toBe(false);
+
+        // authenticated again, then a transport drop clears verification via derivation
+        manager.setAuthenticated(true);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+        stateCb?.({ next: 'closed' });
+        expect(manager.getSnapshot().isVerified).toBe(false);
     });
 });
 
@@ -130,7 +135,7 @@ describe('SocketManager waitUntilVerified', () => {
         mockedCreate.mockReturnValue(makeClient());
         const manager = new SocketManager();
         manager.ensure(CONFIG);
-        manager.markVerified();
+        manager.setAuthenticated(true);
 
         await expect(manager.waitUntilVerified(1000)).resolves.toBe(true);
     });
@@ -141,7 +146,7 @@ describe('SocketManager waitUntilVerified', () => {
         manager.ensure(CONFIG);
 
         const pending = manager.waitUntilVerified(1000);
-        manager.markVerified();
+        manager.setAuthenticated(true);
 
         await expect(pending).resolves.toBe(true);
     });
@@ -166,7 +171,7 @@ describe('SocketManager waitUntilVerified', () => {
         manager.ensure(CONFIG);
 
         const pending = manager.waitUntilVerified(1000);
-        manager.markVerified();
+        manager.setAuthenticated(true);
         jest.advanceTimersByTime(5000);
 
         await expect(pending).resolves.toBe(true);

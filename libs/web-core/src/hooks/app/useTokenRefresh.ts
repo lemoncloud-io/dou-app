@@ -18,10 +18,22 @@ const isInviteFlow = (): boolean => {
     return params.get('provider') === 'invite';
 };
 
+export interface UseTokenRefreshOptions {
+    /**
+     * When true, skip the periodic refresh `setInterval` (the SDK AuthController owns socket-token
+     * refresh in AuthController-active apps; a parallel HTTP refresh would rotate the auth model and
+     * break the socket auth session). Boot initialization, profile hydration, and hard-expiry logout
+     * still run — only the recurring interval is suppressed. AuthController-less apps (admin,
+     * desktop-web) leave this off. (app-runtime auth docs §6-4 / §2-4)
+     */
+    skipPeriodicRefresh?: boolean;
+}
+
 /**
  * Maintains relay token validity for an initialized app runtime and recovers profile state when possible.
  */
-export const useTokenRefresh = (webCoreReady: boolean) => {
+export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshOptions = {}) => {
+    const { skipPeriodicRefresh = false } = options;
     const { isAuthenticated } = useSessionAuth();
     const logout = useSessionLogout();
 
@@ -73,13 +85,18 @@ export const useTokenRefresh = (webCoreReady: boolean) => {
     }, [logout]);
 
     const startInterval = useCallback(() => {
+        // AuthController-active apps skip the recurring refresh (SDK owns socket-token refresh);
+        // the one-shot boot initialize() still ran before this is called.
+        if (skipPeriodicRefresh) {
+            return;
+        }
         if (intervalRef.current) {
             return;
         }
 
         logger.info('AUTH', 'Starting token refresh interval', { interval: REFRESH_INTERVAL });
         intervalRef.current = setInterval(refreshToken, REFRESH_INTERVAL);
-    }, [refreshToken]);
+    }, [refreshToken, skipPeriodicRefresh]);
 
     const stopInterval = useCallback(() => {
         if (intervalRef.current) {

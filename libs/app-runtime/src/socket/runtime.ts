@@ -1,40 +1,34 @@
 import { SocketManager } from './SocketManager';
-import { SocketSessionController } from './SocketSessionController';
 import { SyncManager } from './sync/SyncManager';
 import type { ISocketManager } from './types';
 import type { SyncRuntimeOptions } from './sync/types';
 
 export interface SocketRuntime {
     socketManager: ISocketManager;
-    sessionController: SocketSessionController;
     syncManager: SyncManager;
 }
 
 let socketRuntimeSingleton: SocketRuntime | null = null;
 
 /**
- * Default createDeviceRuntime tuning. Empty for now so the engine keeps its own
- * defaults (behavior-preserving). The injection point exists so external config
- * (connectionDraft-style) can override these later without touching SyncManager.
+ * Sync runtime tuning. `gateSyncOnAuth: false` is a TRANSITIONAL override that disables the SDK's
+ * built-in auth gate (user-scope sync only after `authenticated`). It stays until the ClientSocketAuth
+ * migration makes each client's `auth.state` authoritative — then remove it to restore the SDK
+ * default (`true`). See multi-socket-design.md §10 (마무리 제거 대상) and §2f.
  */
 const DEFAULT_SYNC_RUNTIME_OPTIONS: SyncRuntimeOptions = { gateSyncOnAuth: false };
 
 /**
- * Creates a fresh socket runtime assembly. Composition root only: wires objects and
- * injects cross-cutting policy (401 recovery, sync runtime options); holds no logic.
+ * Creates a fresh socket runtime assembly. Composition root only: wires objects. Auth is owned by
+ * the SDK AuthController (attached per-client in SocketManager, driven by bootstrapSocketConnection),
+ * so there is no session controller or recovery/reconnect policy to inject here.
  */
 export const createSocketRuntime = (): SocketRuntime => {
     const socketManager = new SocketManager();
-    const sessionController = new SocketSessionController(socketManager);
-    // The request facade lives in SocketManager but the recovery policy lives in the
-    // session controller — wire them here to avoid a hard manager→controller dependency.
-    socketManager.setRecoveryHandler(() => sessionController.handle401Recovery());
-    socketManager.setReconnectHandler(() => sessionController.recoverConnection('request-retry'));
     const syncManager = new SyncManager(socketManager, { runtimeOptions: DEFAULT_SYNC_RUNTIME_OPTIONS });
 
     return {
         socketManager,
-        sessionController,
         syncManager,
     };
 };

@@ -13,8 +13,8 @@ import {
     registerDevice,
     verifyNativeAppToken,
 } from '../api';
-import { clearRelayTransportOverrides, webTransport } from '../transport';
-import { getCloudSessionSnapshot } from './contexts';
+import { calcSignature, clearRelayTransportOverrides, webTransport } from '../transport';
+import { getActiveServerContext, getCloudSessionSnapshot } from './contexts';
 import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, startWebCoreInit } from './core';
 import {
     clearRelaySession,
@@ -502,4 +502,82 @@ export const refreshActiveCloudSession = async (): Promise<void> => {
         return;
     }
     await refreshCloudSession({ siteId });
+};
+
+// ---------------------------------------------------------------------------
+// SDK AuthController (ClientSocketAuth) bridge helpers — active-server-aware.
+//
+// These feed the app-runtime socket delegate: seed the SDK `register` call, back
+// its stateless `sign` callback, and write SDK-refreshed tokens back into the
+// web-core stores that the HTTP/AWS signing layers read. The active server
+// (relay vs cloud) decides the token source, signature source, and target store.
+//
+// Contract + branching rationale live in libs/app-runtime/docs/auth/signing.md.
+// The lemon-hmac signature never depends on the token string (calcSignature signs
+// an empty identityToken slot), so the SDK-injected token argument is ignored and
+// the signature is recomputed from the active server's stored fields.
+// ---------------------------------------------------------------------------
+
+/**
+ * Seeds the SDK `register({ token, authId })` call for the active server. Returns null when
+ * either field is unavailable so the caller can defer register until a token exists.
+ */
+export const getActiveServerAuthRegistration = async (): Promise<{ token: string; authId: string } | null> => {
+    if (getActiveServerContext().kind === 'cloud') {
+        const token = cloudCore.getIdentityToken();
+        const authId = cloudCore.getCloudToken()?.Token?.authId ?? null;
+        return token && authId ? { token, authId } : null;
+    }
+
+    // relay: identity token from the relay store, authId from the cached lemon signature.
+    const token = relayCore.getIdentityToken();
+    const { authId } = await webTransport.getTokenSignature();
+    return token && authId ? { token, authId } : null;
+};
+
+/**
+ * Backs the SDK stateless `sign` callback with the lemon-hmac signature for the active server.
+ * `target` (a site-switch selector) is accepted for callback-shape parity but does not change the
+ * signature — it is carried only in the SDK `auth.switch` packet (see signing.md §1).
+ */
+export const signActiveServerAuth = async (target?: string): Promise<{ signature: string; current: string }> => {
+    if (getActiveServerContext().kind === 'cloud') {
+        const cloudToken = cloudCore.getCloudToken()?.Token;
+        const authId = cloudToken?.authId;
+        const accountId = cloudToken?.accountId;
+        const identityId = cloudToken?.identityId;
+        if (!authId || !accountId || !identityId) {
+            throw new Error('Missing cloud token fields for socket auth signature');
+        }
+        const current = new Date().toISOString();
+        const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
+        return { signature, current };
+    }
+
+    // relay: reuse the lemon-web-core precomputed signature (same source as the HTTP refresh path).
+    const { current, signature } = await webTransport.getTokenSignature();
+    if (!current || !signature) {
+        throw new Error('Missing relay signature for socket auth');
+    }
+    return { signature, current };
+};
+
+/**
+ * Writes an SDK-refreshed token back into the web-core store that the HTTP/AWS layers read.
+ *
+ * Asymmetric by design (signing.md §3): relay must also rebuild the lemon-web-core AWS credential
+ * cache — relay signed HTTP signs from that cache, not from relayCore — while cloud only persists
+ * the merged token because cloud HTTP reads cloudCore live per request.
+ */
+export const commitSocketRefreshedToken = async (view: UserTokenView): Promise<void> => {
+    if (getActiveServerContext().kind === 'cloud') {
+        const existing = cloudCore.getCloudToken();
+        cloudCore.saveCloudToken(existing ? ({ ...existing, ...view } as UserTokenView) : view);
+    } else if (view.Token) {
+        await webTransport.buildCredentialsByToken(view.Token);
+        relayCore.saveRelayToken(view);
+    }
+
+    // Re-derive uid / identity from the freshly written token so activeServer + UI stay in sync.
+    rebuildSessionIdentity();
 };

@@ -13,3 +13,11 @@ export * from './api';
 export * from './session/contexts';
 export * from './session/types';
 export { LANGUAGE_KEY } from './session/core';
+// SDK AuthController bridge helpers consumed by the app-runtime socket delegate.
+// `./session/services` is not auto re-exported, so these are named explicitly.
+export {
+    getActiveServerAuthRegistration,
+    signActiveServerAuth,
+    commitSocketRefreshedToken,
+    logoutCloudSession,
+} from './session/services';

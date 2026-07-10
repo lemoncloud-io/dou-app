@@ -15,12 +15,12 @@ import { UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
-import { useSocketDelegate } from './useSocketDelegate';
 
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
- * socket lifecycle and re-auth from the binding + delegate). Re-authentication on
- * site/cloud switch is handled internally — the app never sends `auth:update` itself.
+ * socket lifecycle and SDK-driven re-auth from the binding). Re-authentication on
+ * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
+ * socket session delegate is now owned by app-runtime (no delegate prop).
  *
  * Session readiness is owned here, not by a wrapping gate: `SessionBackgroundRunner` (inside
  * `RuntimeConnectionHost`) is the single owner of `useInitWebCore` / `useTokenRefresh`, which
@@ -29,11 +29,10 @@ import { useSocketDelegate } from './useSocketDelegate';
  */
 export const AppRuntime = () => {
     const binding = useRuntimeBinding();
-    const delegate = useSocketDelegate();
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     return (
-        <RuntimeConnectionHost binding={binding} delegate={delegate}>
+        <RuntimeConnectionHost binding={binding}>
             <PreferenceLoader />
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />

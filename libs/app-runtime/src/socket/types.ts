@@ -53,14 +53,6 @@ export type SocketStateListener = (state: SocketState) => void;
 
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 
-/**
- * Recovery policy hook injected by the session layer. SocketManager owns the
- * request mechanics (401 detect + retry) but delegates "how to recover" here so
- * auth/token policy stays in SocketSessionController (see architecture.md §1).
- * Returns true once the connection is re-authenticated and the request may retry.
- */
-export type SocketRecoveryHandler = () => Promise<boolean>;
-
 export interface ISocketManager {
     ensure(config: SocketBindingConfig): ClientSocketV2;
     getClient(): ClientSocketV2 | null;
@@ -68,19 +60,20 @@ export interface ISocketManager {
     subscribe(listener: SocketStateListener): () => void;
     subscribeClient(listener: SocketClientListener): () => void;
     waitUntilVerified(timeoutMs?: number): Promise<boolean>;
-    markVerified(): void;
-    markUnverified(): void;
+    /**
+     * Mirrors the SDK AuthController's `authenticated` state. `isVerified` is derived from this
+     * AND the transport being connected, so re-authentication and connection drops both flow here.
+     * Replaces the former manual markVerified/markUnverified pair.
+     */
+    setAuthenticated(value: boolean): void;
     connect(): Promise<void>;
     destroy(): void;
 
-    // Stable request facade (absorbed from the former ManagedSocketClientProxy).
-    // Gateways bind to these instead of a raw ClientSocketV2 so socket replacement
-    // stays invisible to them.
-    setRecoveryHandler(handler: SocketRecoveryHandler | null): void;
-    setReconnectHandler(handler: (() => Promise<void>) | null): void;
-    recover(reason: string): Promise<void>;
     /** The cloud id the live socket was bound to (frozen at bind), or null before the first bind. */
     getBoundCid(): string | null;
+    // Stable request facade so gateways bind to these instead of a raw ClientSocketV2 and socket
+    // replacement stays invisible to them. Recovery is owned by the SDK AuthController now, so the
+    // request path no longer intercepts 401s or drives reconnects.
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;
     onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void;
@@ -90,8 +83,20 @@ export interface ISocketManager {
     disconnect(code?: number, reason?: string): Promise<void>;
 }
 
+/**
+ * Bridges the SDK AuthController to web-core. Owned by app-runtime
+ * (connection/useSocketSessionDelegate), which wires it to web-core's active-server-aware helpers.
+ *
+ * - `getAuthRegistration` seeds `register({ token, authId })`.
+ * - `signAuth` backs the SDK stateless sign callback (`target` is the switch selector).
+ * - `commitRefreshedToken` writes an SDK-refreshed token back into the web-core stores. The view is
+ *   the SDK `AuthTokenView`, typed here as `unknown` because that type is not exported from the SDK
+ *   package root — the web-core boundary casts it to its own `UserTokenView`.
+ * - `onAuthExpired` runs teardown when the SDK reaches the terminal `expired` state (active-server-aware).
+ */
 export interface SocketSessionDelegate {
-    getSocketToken(): Promise<string | null>;
-    refreshSocketToken(reason: 'bootstrap' | 'socket-401' | 'reconnect'): Promise<string | null>;
-    onRefreshFailed?(error: unknown): Promise<void> | void;
+    getAuthRegistration(): Promise<{ token: string; authId: string } | null>;
+    signAuth(token: string, target?: string): Promise<{ signature: string; current: string }>;
+    commitRefreshedToken(view: unknown): Promise<void> | void;
+    onAuthExpired?(): Promise<void> | void;
 }

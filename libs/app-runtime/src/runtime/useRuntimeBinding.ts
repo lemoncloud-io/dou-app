@@ -35,11 +35,18 @@ export const useRuntimeBinding = (): RuntimeBinding => {
         const uid = identity.userId ?? undefined;
         const endpoint = activeServer.wss;
         const wssType = activeServer.kind;
+        const identityToken = activeServer.identityToken ?? undefined;
 
         return {
             context: { cid, sid, uid },
+            // Gate the socket on identityToken too: relay wss is a static env value present before
+            // login, so gating on deviceId+endpoint alone would boot the socket before a token
+            // exists — bootstrap would run once with no registration and never retry. A token
+            // refresh only changes the token value (not url/deviceId/wssType), so config stays
+            // stable and the socket is not rebooted; login (null→token) turns it on, logout off.
+            // (multi-socket-design.md §6-3)
             socket:
-                deviceId && endpoint
+                deviceId && endpoint && identityToken
                     ? {
                           config: {
                               url: endpoint,

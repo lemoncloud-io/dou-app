@@ -20,6 +20,7 @@ describe('useRuntimeBinding', () => {
                 cloudId: 'my-cloud-id',
                 siteId: 'my-site-id',
                 wss: 'wss://cloud.chatic.com',
+                identityToken: 'cloud-token',
             },
             cloud: { cloudId: 'my-cloud-id' },
             identity: {
@@ -39,12 +40,13 @@ describe('useRuntimeBinding', () => {
                 url: 'wss://cloud.chatic.com',
                 deviceId: 'test-device-id',
                 wssType: 'cloud',
+                cid: 'my-cloud-id',
             },
         });
         expect(result.current.auth).toEqual({
             kind: 'cloud',
             siteId: 'my-site-id',
-            identityToken: undefined,
+            identityToken: 'cloud-token',
         });
     });
 
@@ -54,6 +56,7 @@ describe('useRuntimeBinding', () => {
                 kind: 'relay',
                 siteId: 'relay-site-id',
                 wss: 'wss://relay.chatic.com',
+                identityToken: 'relay-token',
             },
             cloud: { cloudId: 'default' },
             identity: {
@@ -73,13 +76,33 @@ describe('useRuntimeBinding', () => {
                 url: 'wss://relay.chatic.com',
                 deviceId: 'test-device-id',
                 wssType: 'relay',
+                cid: 'default',
             },
         });
         expect(result.current.auth).toEqual({
             kind: 'relay',
             siteId: 'relay-site-id',
-            identityToken: undefined,
+            identityToken: 'relay-token',
         });
+    });
+
+    it('identityToken이 아직 없으면(로그인 전) socket이 null이어야 한다', () => {
+        // relay wss is a static env value present before login, so the socket must additionally
+        // gate on identityToken — otherwise bootstrap runs before a token exists (§6-3).
+        (useGlobalSession as jest.Mock).mockReturnValue({
+            activeServer: {
+                kind: 'relay',
+                siteId: null,
+                wss: 'wss://relay.chatic.com',
+                identityToken: null,
+            },
+            cloud: { cloudId: 'default' },
+            identity: { userId: null },
+        });
+
+        const { result } = renderHook(() => useRuntimeBinding());
+
+        expect(result.current.socket).toBeNull();
     });
 
     it('deviceId가 없거나 endpoint가 없으면 socket이 null이어야 한다', () => {
@@ -114,6 +137,7 @@ describe('useRuntimeBinding', () => {
                 kind: 'relay',
                 siteId: 'relay-site-id',
                 wss: 'wss://relay.chatic.com',
+                identityToken: 'relay-token',
             },
             cloud: { cloudId: 'target-cloud' },
             identity: {

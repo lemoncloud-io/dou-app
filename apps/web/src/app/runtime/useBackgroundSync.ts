@@ -26,14 +26,14 @@ const CHANNEL_SNAPSHOT_LIMIT = 100;
  *
  * Triggers:
  *  1. Rising edge of `isVerified` (false→true) — covers app entry, reconnect, and switch
- *     completion. A site/cloud switch commits a new identity token, which re-authenticates
- *     the socket (SocketAuthBinder), so the rising edge fires exactly when the new session
- *     is verified — never against the stale pre-switch session.
+ *     completion. A site/cloud switch commits a new identity token, which the SDK AuthController
+ *     re-authenticates (auth.switch / reconnect re-auth), so the rising edge fires exactly when
+ *     the new session is verified — never against the stale pre-switch session.
  *  2. Periodic timer while verified — skipped during an in-flight switch.
  *
  * Switch detection is global via `useIsMutating` on the switch mutation keys: the switch is
  * triggered by other components, whose per-hook `isSwitching`/`isPending` is invisible here.
- * This closes the optimistic window (old session still verified=true before markUnverified).
+ * This closes the optimistic window (old session still verified=true before the new handshake).
  */
 export const useBackgroundSync = (): void => {
     const repos = useRuntimeRepositories();
