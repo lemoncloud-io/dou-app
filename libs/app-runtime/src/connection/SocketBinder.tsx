@@ -67,8 +67,7 @@ const useSocketSlot = (
             active = false;
         };
         // Keyed on rebootKey (not the config object) so benign re-renders and cid-only flips do not
-        // re-run this effect. `config` is read via configRef.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // re-run this effect. `config` is read via configRef (a ref, so it needs no dependency entry).
     }, [rebootKey, manager, kind, delegate]);
 
     // Detach on unmount so the slot's subscriptions do not leak.

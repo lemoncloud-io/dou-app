@@ -69,6 +69,10 @@ export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProp
             delegate,
             kind: binding.auth?.kind ?? 'relay',
         });
+        // Deps are the granular fields actually read (identity token, kind, and — via rebootSignature —
+        // binding.socket); eslint sees the whole `binding` passed to rebootSignature and wants it listed,
+        // but re-running on every binding identity would defeat the token/reboot change detection above.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [binding.auth?.identityToken, binding.auth?.kind, binding.socket, socketManager, delegate]);
 
     return null;
