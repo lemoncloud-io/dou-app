@@ -33,7 +33,7 @@ describe('reauthenticateActiveSocket', () => {
         const auth = makeAuth('guest-token', order);
         const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
 
-        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate });
+        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
 
         expect(order).toEqual(['logout', 'register']); // revoke old session BEFORE registering new identity
         expect(auth.register).toHaveBeenCalledWith(
@@ -46,7 +46,7 @@ describe('reauthenticateActiveSocket', () => {
         const auth = makeAuth('same-token', order);
         const delegate = makeDelegate({ token: 'same-token', authId: 'auth' });
 
-        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate });
+        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
 
         expect(order).toEqual([]);
         expect(auth.logout).not.toHaveBeenCalled();
@@ -56,7 +56,7 @@ describe('reauthenticateActiveSocket', () => {
     it('does nothing when there is no active client', async () => {
         const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
 
-        await reauthenticateActiveSocket({ manager: makeManager(null), delegate });
+        await reauthenticateActiveSocket({ manager: makeManager(null), delegate, kind: 'relay' });
 
         expect(delegate.getAuthRegistration).not.toHaveBeenCalled();
     });
@@ -66,7 +66,7 @@ describe('reauthenticateActiveSocket', () => {
         const auth = makeAuth('guest-token', order);
         const delegate = makeDelegate(null);
 
-        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate });
+        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
 
         expect(order).toEqual([]);
         expect(auth.logout).not.toHaveBeenCalled();
@@ -77,13 +77,13 @@ describe('reauthenticateActiveSocket', () => {
         const auth = makeAuth('guest-token', order);
         const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
 
-        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate });
+        await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
 
         const registeredSign = auth.register.mock.calls[0][0].sign as (
             token: string,
             ctx?: { target?: string }
         ) => Promise<unknown>;
         await registeredSign('sdk-token', { target: 'uid@sid' });
-        expect(delegate.signAuth).toHaveBeenCalledWith('sdk-token', 'uid@sid');
+        expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
     });
 });

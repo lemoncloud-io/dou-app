@@ -20,7 +20,9 @@ const delegate = { getAuthRegistration: jest.fn() } as unknown as SocketSessionD
 const bindingWith = (identityToken: string | undefined, socketUrl = 'wss://relay'): RuntimeBinding =>
     ({
         context: { cid: 'default', sid: undefined, uid: 'u' },
-        socket: socketUrl ? { config: { url: socketUrl, deviceId: 'd', wssType: 'relay', cid: 'default' } } : null,
+        socket: socketUrl
+            ? { relay: { config: { url: socketUrl, deviceId: 'd', wssType: 'relay', cid: 'default' } } }
+            : {},
         auth: { kind: 'relay', siteId: undefined, identityToken },
     }) as unknown as RuntimeBinding;
 
@@ -36,7 +38,7 @@ describe('SocketReauthBinder', () => {
         const { rerender } = render(<SocketReauthBinder binding={bindingWith('guest-token')} delegate={delegate} />);
         rerender(<SocketReauthBinder binding={bindingWith('social-token')} delegate={delegate} />);
         expect(mockedReauth).toHaveBeenCalledTimes(1);
-        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate }));
+        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'relay' }));
     });
 
     it('does NOT re-authenticate when the socket also changed (reboot handles register)', () => {

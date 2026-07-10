@@ -52,7 +52,7 @@ describe('RuntimeConnectionHost', () => {
         const binding = {
             context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             socket: {
-                config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const },
+                cloud: { config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const } },
             },
             auth: { kind: 'cloud' as const, identityToken: 'token-1', siteId: 'site-1' },
         };
@@ -71,7 +71,7 @@ describe('RuntimeConnectionHost', () => {
             // The delegate is created internally and passed through to bootstrap.
             expect(mockedBootstrap).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    config: binding.socket.config,
+                    config: binding.socket.cloud.config,
                     delegate: expect.objectContaining({ getAuthRegistration: expect.any(Function) }),
                 })
             );
@@ -82,7 +82,7 @@ describe('RuntimeConnectionHost', () => {
         const binding = {
             context: { cid: 'my-cloud', sid: 'site-1', uid: 'user-1' },
             socket: {
-                config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const },
+                cloud: { config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const } },
             },
             auth: { kind: 'cloud' as const, identityToken: 'token-1', siteId: 'site-1' },
         };
@@ -99,7 +99,7 @@ describe('RuntimeConnectionHost', () => {
 
         const newBinding = {
             context: { cid: 'my-cloud', sid: 'site-2', uid: 'user-1' },
-            socket: null,
+            socket: {},
             auth: { kind: 'cloud' as const, identityToken: 'token-2', siteId: 'site-2' },
         };
 

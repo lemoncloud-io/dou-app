@@ -111,7 +111,7 @@ describe('bootstrapSocketConnection', () => {
             ctx?: { target?: string }
         ) => Promise<unknown>;
         await registeredSign('sdk-token', { target: 'uid@sid' });
-        expect(delegate.signAuth).toHaveBeenCalledWith('sdk-token', 'uid@sid');
+        expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
     });
 
     it('returns a cleanup that detaches both subscriptions', async () => {

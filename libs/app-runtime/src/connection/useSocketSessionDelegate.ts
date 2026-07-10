@@ -2,27 +2,29 @@ import { useMemo } from 'react';
 
 import {
     commitServerRefreshedToken,
-    getActiveServerAuthRegistration,
+    getServerAuthRegistration,
     logoutCloudSession,
     logoutRelaySession,
-    signActiveServerAuth,
+    signServerAuth,
 } from '@chatic/web-core';
 
 import type { SocketSessionDelegate } from '../socket';
 
 /**
  * Builds the socket session delegate that bridges the SDK AuthController (wired by
- * bootstrapSocketConnection) to web-core's active-server-aware auth helpers. This lives inside
- * app-runtime — which already depends on web-core — so apps no longer inject a delegate.
+ * bootstrapSocketConnection) to web-core's PER-SERVER auth helpers. Every method is keyed by the
+ * socket's kind, so the relay and cloud sockets each seed/sign/write-back against their own server.
+ * This lives inside app-runtime — which already depends on web-core — so apps no longer inject a
+ * delegate.
  *
  * The returned delegate is stable (its members are all module-level web-core functions), so the
- * SocketBinder effect does not re-bootstrap on re-render.
+ * SocketBinder effects do not re-bootstrap on re-render.
  */
 export const useSocketSessionDelegate = (): SocketSessionDelegate => {
     return useMemo<SocketSessionDelegate>(
         () => ({
-            getAuthRegistration: () => getActiveServerAuthRegistration(),
-            signAuth: (_token, target) => signActiveServerAuth(target),
+            getAuthRegistration: kind => getServerAuthRegistration(kind),
+            signAuth: (kind, _token, target) => signServerAuth(kind, target),
             // Routed by the socket's own kind (§6-6). The SDK AuthTokenView is not exported from the
             // package root; web-core casts it to its own UserTokenView at this boundary.
             commitRefreshedToken: (kind, view) =>

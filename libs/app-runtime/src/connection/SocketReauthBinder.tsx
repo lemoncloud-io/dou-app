@@ -43,13 +43,19 @@ export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProp
         prevSocketRef.current = socketStr;
         prevTokenRef.current = token;
 
-        // No socket, no token, no change, or a reboot (SocketBinder re-registers) → nothing to do.
-        if (!binding.socket || !token || !tokenChanged || socketChanged) {
+        // No active token (logged out), no change, or a reboot (SocketBinder re-registers) → skip.
+        // A genuine same-socket identity change (guest→social) is a change to the ACTIVE server, so
+        // re-auth that server's kind.
+        if (!token || !tokenChanged || socketChanged) {
             return;
         }
 
-        void reauthenticateActiveSocket({ manager: socketManager, delegate });
-    }, [binding.auth?.identityToken, binding.socket, socketManager, delegate]);
+        void reauthenticateActiveSocket({
+            manager: socketManager,
+            delegate,
+            kind: binding.auth?.kind ?? 'relay',
+        });
+    }, [binding.auth?.identityToken, binding.auth?.kind, binding.socket, socketManager, delegate]);
 
     return null;
 };

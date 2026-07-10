@@ -20,12 +20,19 @@ export class RuntimeManager implements IRuntimeManager {
     public ensure(binding: RuntimeBinding): void {
         this.dataManager.ensure(binding.context);
 
-        if (!binding.socket) {
-            this.socketManager.destroy();
-            return;
+        // Dual sockets: ensure/tear down each slot by kind (mirrors SocketBinder). relay is always-on
+        // once its token exists; cloud is present only while a cloud session is active.
+        const { relay, cloud } = binding.socket;
+        if (relay) {
+            this.socketManager.ensure(relay.config, 'relay');
+        } else {
+            this.socketManager.destroy('relay');
         }
-
-        this.socketManager.ensure(binding.socket.config, binding.socket.config.wssType ?? 'relay');
+        if (cloud) {
+            this.socketManager.ensure(cloud.config, 'cloud');
+        } else {
+            this.socketManager.destroy('cloud');
+        }
     }
 
     public getRepositories(): DataRepositoriesV2 {

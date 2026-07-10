@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { getSocketManager } from '../socket/runtime';
 import { bootstrapSocketConnection } from '../socket';
-import type { SocketSessionDelegate } from '../socket';
+import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
 import type { RuntimeBinding } from '../runtime';
 
 export interface SocketBinderProps {
@@ -13,53 +13,46 @@ export interface SocketBinderProps {
 }
 
 /**
- * Boots (or tears down) the socket via the pure `bootstrapSocketConnection` when the socket
- * IDENTITY changes.
+ * Manages ONE socket slot (relay or cloud) independently: (re)boots it via the pure
+ * `bootstrapSocketConnection` on a socket-identity change, and tears just that slot down when it is
+ * gated off. relay and cloud slots coexist (dual sockets) — a change to one never disturbs the other.
  *
- * The reboot key is `url|deviceId|wssType` — deliberately NOT the full `binding.socket` (which
- * includes `cid`). Two reasons:
- *   1. `binding.socket` is a fresh object on every session mutation (useMemo over the session
- *      snapshot), so keying the effect on it would re-run on every benign re-render and could detach
- *      an in-flight bootstrap's SDK auth subscriptions — leaving a connected-but-unverified socket
- *      whose token writeback is severed. Keying on the stable string avoids that.
- *   2. A cid-only flip is an OPTIMISTIC cloud switch (cid pre-applied before tokens commit).
- *      Rebooting then would re-freeze the socket's boundCid to the target cloud while it is still
- *      attached to the outgoing cloud, defeating dropForeignFrame and poisoning the target cache
- *      partition. Skipping the reboot keeps boundCid frozen; RuntimeDataBinder handles the cid flip
- *      separately (multi-socket-design.md §6-9/§8-4).
- *
- * The live config (incl. cid) is read from a ref at bootstrap time, so a genuine reboot still passes
- * the current cid to `ensure`.
+ * Keyed on the reboot key `url|deviceId|wssType` — deliberately NOT the slot's full config (which
+ * includes `cid`):
+ *   1. The binding is a fresh object on every session mutation; keying on the stable string avoids
+ *      re-running (and detaching an in-flight bootstrap's SDK auth subscriptions) on benign re-renders.
+ *   2. A cid-only flip is an OPTIMISTIC cloud switch — rebooting then would re-freeze boundCid to the
+ *      target cloud while still attached to the outgoing one, poisoning the cache (§6-9/§8-4).
+ * The live config (incl. cid) is read from a ref, so a genuine reboot still passes the current cid.
  */
-export const SocketBinder = ({ binding, delegate }: SocketBinderProps) => {
-    const socketManager = getSocketManager();
+const useSocketSlot = (
+    manager: ISocketManager,
+    kind: SocketKind,
+    config: SocketBindingConfig | undefined,
+    delegate: SocketSessionDelegate
+): void => {
     const cleanupRef = useRef<(() => void) | null>(null);
-
-    const config = binding.socket?.config;
-    const rebootKey = config ? `${config.url}|${config.deviceId}|${config.wssType ?? 'relay'}` : '';
-    // Latest config (incl. optimistic cid) — read inside the effect so a genuine reboot uses it,
-    // while a cid-only change (same rebootKey) does not re-run the effect.
+    const rebootKey = config ? `${config.url}|${config.deviceId}|${config.wssType ?? kind}` : '';
     const configRef = useRef(config);
     configRef.current = config;
 
     useEffect(() => {
-        // Detach the previous connection's auth subscriptions, then tear down the previous socket.
-        // Single-socket (Phase 2c): a rebootKey change is a genuine socket-identity change, so
-        // destroy ALL slots — a relay↔cloud switch changes the kind and the stale slot must not
-        // linger. Phase 2d makes this per-kind so relay + cloud slots can coexist.
+        // Detach the previous connection's SDK auth subscriptions before (re)booting / tearing down.
         cleanupRef.current?.();
         cleanupRef.current = null;
-        socketManager.destroy();
 
         const current = configRef.current;
         if (!current) {
+            // Slot gated off (logged out / cloud left) → tear down just this kind; the sibling stays.
+            manager.destroy(kind);
             return;
         }
 
+        // Genuine reboot: `ensure` inside bootstrap tears down this kind's stale client (its config
+        // differs) and builds a fresh one — no destroy-all, so the sibling slot is untouched.
         let active = true;
-        void bootstrapSocketConnection({ manager: socketManager, config: current, delegate })
+        void bootstrapSocketConnection({ manager, config: current, delegate })
             .then(cleanup => {
-                // A newer reboot (or unmount) landed while bootstrap was in flight — detach immediately.
                 if (!active) {
                     cleanup();
                     return;
@@ -67,18 +60,18 @@ export const SocketBinder = ({ binding, delegate }: SocketBinderProps) => {
                 cleanupRef.current = cleanup;
             })
             .catch(error => {
-                logger.error('SOCKET', '[SocketBinder] bootstrap failed', { error });
+                logger.error('SOCKET', '[SocketBinder] bootstrap failed', { error, data: { kind } });
             });
 
         return () => {
             active = false;
         };
-        // Keyed on rebootKey (not binding.socket) so benign re-renders and cid-only flips do not
+        // Keyed on rebootKey (not the config object) so benign re-renders and cid-only flips do not
         // re-run this effect. `config` is read via configRef.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rebootKey, socketManager, delegate]);
+    }, [rebootKey, manager, kind, delegate]);
 
-    // Detach on unmount so the last connection's subscriptions do not leak.
+    // Detach on unmount so the slot's subscriptions do not leak.
     useEffect(
         () => () => {
             cleanupRef.current?.();
@@ -86,6 +79,17 @@ export const SocketBinder = ({ binding, delegate }: SocketBinderProps) => {
         },
         []
     );
+};
 
+/**
+ * Boots the dual sockets from `binding.socket`: a relay slot (always-on once a relay token exists)
+ * and a cloud slot (present only while a cloud session is active). Each is managed independently by
+ * `useSocketSlot`, so relay stays connected (keeping its token alive for relay HTTP) while cloud
+ * comes and goes. (multi-socket-design.md §5-1/§5-3)
+ */
+export const SocketBinder = ({ binding, delegate }: SocketBinderProps) => {
+    const socketManager = getSocketManager();
+    useSocketSlot(socketManager, 'relay', binding.socket.relay?.config, delegate);
+    useSocketSlot(socketManager, 'cloud', binding.socket.cloud?.config, delegate);
     return null;
 };

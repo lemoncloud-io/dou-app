@@ -1,10 +1,12 @@
 import { logger } from '@chatic/bridges';
 
-import type { ISocketManager, SocketSessionDelegate } from './types';
+import type { ISocketManager, SocketKind, SocketSessionDelegate } from './types';
 
 export interface ReauthenticateActiveSocketArgs {
     manager: ISocketManager;
     delegate: SocketSessionDelegate;
+    /** The active server kind whose identity changed — used to seed/sign the re-register. */
+    kind: SocketKind;
 }
 
 /**
@@ -26,13 +28,14 @@ export interface ReauthenticateActiveSocketArgs {
 export const reauthenticateActiveSocket = async ({
     manager,
     delegate,
+    kind,
 }: ReauthenticateActiveSocketArgs): Promise<void> => {
     const auth = manager.getClient()?.auth;
     if (!auth) {
         return;
     }
 
-    const registration = await delegate.getAuthRegistration();
+    const registration = await delegate.getAuthRegistration(kind);
     if (!registration) {
         return;
     }
@@ -53,6 +56,6 @@ export const reauthenticateActiveSocket = async ({
     auth.register({
         token: registration.token,
         authId: registration.authId,
-        sign: (token, ctx) => delegate.signAuth(token, ctx?.target),
+        sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
     });
 };

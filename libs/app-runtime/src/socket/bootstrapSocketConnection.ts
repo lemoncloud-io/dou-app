@@ -60,12 +60,12 @@ export const bootstrapSocketConnection = async ({
 
     // register BEFORE connect (see the ordering note above). A null registration (token not ready)
     // defers auth until the next bootstrap; the identityToken binding gate normally prevents that.
-    const registration = await delegate.getAuthRegistration();
+    const registration = await delegate.getAuthRegistration(kind);
     if (registration) {
         auth.register({
             token: registration.token,
             authId: registration.authId,
-            sign: (token, ctx) => delegate.signAuth(token, ctx?.target),
+            sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
         });
     } else {
         logger.warn('SOCKET', '[bootstrapSocketConnection] no auth registration available — skipping register');
