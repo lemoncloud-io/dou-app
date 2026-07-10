@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-10] - root@0.42.3, @chatic/desktop-web@0.3.4
+
+### Bug Fixes
+
+- (desktop-web) sort pending sends to the bottom, not the top
+- (desktop-web) show last main-channel message in channel list preview
+
+### Refactor
+
+- (desktop-web) dedupe chat sort, memoize channel preview
+
 ## [2026-07-09] - root@0.42.2, @chatic/desktop-web@0.3.3
 
 ### Bug Fixes
