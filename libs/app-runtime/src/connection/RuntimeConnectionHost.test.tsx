@@ -20,8 +20,10 @@ jest.mock('@chatic/web-core', () => ({
 }));
 
 // SocketBinder boots through the pure bootstrapSocketConnection; intercept it to assert wiring.
+// SocketReauthBinder calls reauthenticateActiveSocket on same-socket identity changes.
 jest.mock('../socket', () => ({
     bootstrapSocketConnection: jest.fn().mockResolvedValue(jest.fn()),
+    reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../socket/runtime', () => {

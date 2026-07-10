@@ -156,6 +156,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 import {
+    applySelectedSite,
     commitSocketRefreshedToken,
     getActiveServerAuthRegistration,
     initializeRelaySession,
@@ -411,6 +412,22 @@ describe('session/services', () => {
             identityToken: 'identity-token',
             backend: 'https://cloud.example.com',
             wss: 'wss://cloud.example.com',
+        });
+    });
+
+    describe('applySelectedSite (optimistic sid primitive for the app-runtime socket switch)', () => {
+        it('applies the selected site and notifies (used for optimistic pre-apply and rollback)', () => {
+            applySelectedSite('site-new');
+
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
+            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+        });
+
+        it('clears the selected site when passed null', () => {
+            applySelectedSite(null);
+
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith(null);
+            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
         });
     });
 

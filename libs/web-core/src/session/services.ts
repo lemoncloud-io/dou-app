@@ -383,6 +383,21 @@ export const refreshCloudSession = ({ siteId }: { siteId: string }): Promise<Clo
     cloudRefreshFlight(siteId, () => runRefreshCloudSession({ siteId }));
 
 /**
+ * Optimistically applies (or rolls back) the selected site for the app-runtime socket-driven site
+ * switch (SDK `auth.switch`, multi-socket-design.md §8-2). Moves only the selected-site read model so
+ * cid/sid-scoped caches swap immediately; app-runtime reuses it to roll the sid back if the socket
+ * switch fails. `setSelectedSiteId` routes to relay/cloud store by active cloud; notify re-renders
+ * `activeServer.siteId` observers.
+ *
+ * Distinct from `switchSiteSession` below (the legacy HTTP-refresh switch still used by
+ * admin/desktop-web); apps/web drives the switch through app-runtime and only uses this primitive.
+ */
+export const applySelectedSite = (siteId: string | null): void => {
+    setSelectedSiteId(siteId);
+    notifySessionStateChanged();
+};
+
+/**
  * User-initiated site switch.
  *
  * Pre-applies the target sid (optimistic) and notifies so `activeServer.siteId` flips

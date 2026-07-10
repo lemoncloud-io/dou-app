@@ -4,6 +4,7 @@ import { TransportBootstrap } from './TransportBootstrap';
 import { SessionBackgroundRunner } from './SessionBackgroundRunner';
 import { RuntimeDataBinder } from './RuntimeDataBinder';
 import { SocketBinder } from './SocketBinder';
+import { SocketReauthBinder } from './SocketReauthBinder';
 import { useSocketSessionDelegate } from './useSocketSessionDelegate';
 import type { RuntimeBinding } from '../runtime';
 
@@ -25,6 +26,7 @@ export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHo
             <SessionBackgroundRunner />
             <RuntimeDataBinder binding={binding} />
             <SocketBinder binding={binding} delegate={delegate} />
+            <SocketReauthBinder binding={binding} delegate={delegate} />
             {children}
         </TransportBootstrap>
     );

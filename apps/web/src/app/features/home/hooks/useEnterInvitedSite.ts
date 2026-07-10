@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { useSiteSwitch } from '@chatic/web-core';
+
+import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 
 /**
  * Step 2 of invite entry: switch into the invited site when the invite carries a `siteId`.
