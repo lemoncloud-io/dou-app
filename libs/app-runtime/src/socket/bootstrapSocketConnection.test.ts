@@ -84,6 +84,7 @@ describe('bootstrapSocketConnection', () => {
         auth.emitAuthState('expired');
         expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', false);
         expect(delegate.onAuthExpired).toHaveBeenCalledTimes(1);
+        expect(delegate.onAuthExpired).toHaveBeenCalledWith('relay');
     });
 
     it('writes refreshed tokens back through the delegate', async () => {
@@ -95,7 +96,7 @@ describe('bootstrapSocketConnection', () => {
 
         const view = { Token: { identityToken: 'fresh' } };
         auth.emitTokenRefresh(view);
-        expect(delegate.commitRefreshedToken).toHaveBeenCalledWith(view);
+        expect(delegate.commitRefreshedToken).toHaveBeenCalledWith('relay', view);
     });
 
     it('routes the SDK sign callback to delegate.signAuth with the switch target', async () => {

@@ -104,14 +104,17 @@ export interface ISocketManager {
  *
  * - `getAuthRegistration` seeds `register({ token, authId })`.
  * - `signAuth` backs the SDK stateless sign callback (`target` is the switch selector).
- * - `commitRefreshedToken` writes an SDK-refreshed token back into the web-core stores. The view is
- *   the SDK `AuthTokenView`, typed here as `unknown` because that type is not exported from the SDK
- *   package root — the web-core boundary casts it to its own `UserTokenView`.
- * - `onAuthExpired` runs teardown when the SDK reaches the terminal `expired` state (active-server-aware).
+ * - `commitRefreshedToken` writes an SDK-refreshed token back into the web-core store for THAT
+ *   socket's `kind` — routing by the socket's own kind, not the global active server, so a refresh
+ *   arriving during a switch/teardown lands in the correct store (multi-socket-design.md §6-6). The
+ *   view is the SDK `AuthTokenView`, typed here as `unknown` because that type is not exported from
+ *   the SDK package root — the web-core boundary casts it to its own `UserTokenView`.
+ * - `onAuthExpired` runs teardown when a socket reaches the terminal `expired` state, keyed by that
+ *   socket's `kind` (relay vs cloud escalate differently — §6-10).
  */
 export interface SocketSessionDelegate {
     getAuthRegistration(): Promise<{ token: string; authId: string } | null>;
     signAuth(token: string, target?: string): Promise<{ signature: string; current: string }>;
-    commitRefreshedToken(view: unknown): Promise<void> | void;
-    onAuthExpired?(): Promise<void> | void;
+    commitRefreshedToken(kind: SocketKind, view: unknown): Promise<void> | void;
+    onAuthExpired?(kind: SocketKind): Promise<void> | void;
 }

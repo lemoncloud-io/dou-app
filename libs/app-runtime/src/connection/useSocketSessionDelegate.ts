@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 
 import {
-    commitSocketRefreshedToken,
+    commitServerRefreshedToken,
     getActiveServerAuthRegistration,
-    getActiveServerContext,
     logoutCloudSession,
+    logoutRelaySession,
     signActiveServerAuth,
 } from '@chatic/web-core';
 
@@ -23,17 +23,21 @@ export const useSocketSessionDelegate = (): SocketSessionDelegate => {
         () => ({
             getAuthRegistration: () => getActiveServerAuthRegistration(),
             signAuth: (_token, target) => signActiveServerAuth(target),
-            // The SDK AuthTokenView is not exported from the package root; web-core casts it to its
-            // own UserTokenView at this boundary.
-            commitRefreshedToken: view =>
-                commitSocketRefreshedToken(view as Parameters<typeof commitSocketRefreshedToken>[0]),
-            onAuthExpired: () => {
-                // relay socket expiry must NOT trigger a full logout — relay session validity is
-                // owned by web-core's useTokenRefresh. Only tear down the cloud session so relay
-                // stays the baseline (multi-socket-design.md §6-10, implementation.md §4-6).
-                if (getActiveServerContext().kind === 'cloud') {
+            // Routed by the socket's own kind (§6-6). The SDK AuthTokenView is not exported from the
+            // package root; web-core casts it to its own UserTokenView at this boundary.
+            commitRefreshedToken: (kind, view) =>
+                commitServerRefreshedToken(kind, view as Parameters<typeof commitServerRefreshedToken>[1]),
+            onAuthExpired: kind => {
+                if (kind === 'cloud') {
+                    // cloud expiry: tear down only the cloud session; relay stays the baseline.
                     logoutCloudSession();
+                    return;
                 }
+                // relay terminal expiry: with the SDK owning refresh, no periodic-refresh loop or
+                // request self-heal recovers a dead relay session anymore, so escalate to a full
+                // relay logout (clears stores → keepAlive re-login + /auth/login redirect). §6-10
+                // notes a lighter reboot/re-register is a future refinement.
+                void logoutRelaySession();
             },
         }),
         []

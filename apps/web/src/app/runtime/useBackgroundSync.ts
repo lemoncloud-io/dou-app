@@ -122,14 +122,15 @@ export const useBackgroundSync = (): void => {
         return () => clearInterval(timer);
     }, [isVerified, isSwitching, refreshActiveLists]);
 
-    // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended
-    // and pushes may have been missed; if the socket survived (no rising edge), nothing else
-    // re-syncs, so refresh immediately. This does NOT gate on `isVerified`: the list requests
-    // route through SocketManager.request, which self-heals a 401 (re-auth + retry) or a
-    // disconnected socket (reconnect + retry), so a socket that resumed verified-stuck/zombie
-    // (no false→true edge for Trigger 1) still recovers here instead of staying stale. The
-    // `isSwitching` guard remains — mid-switch the socket is rebinding to a new identity, so a
-    // fetch could race the wrong session; Trigger 1 covers post-switch re-verification.
+    // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended and
+    // pushes may have been missed; if the socket survived (no rising edge), nothing else re-syncs,
+    // so refresh immediately. This does NOT gate on `isVerified`. Recovery is now owned by the SDK
+    // AuthController (SocketManager.request no longer self-heals 401s/reconnects): keepAlive closes a
+    // zombie socket → reconnect re-auth, and a terminal `expired` escalates via the delegate
+    // (relay → logout/redirect, §6-10). So a best-effort foreground refresh is safe — if the socket
+    // is momentarily unverified a request may fail, and Trigger 1's false→true rising edge re-syncs
+    // once the SDK re-verifies. The `isSwitching` guard remains — mid-switch the socket is rebinding
+    // to a new identity, so a fetch could race the wrong session.
     useAppForeground(() => {
         if (isSwitching) return;
         void refreshActiveLists();

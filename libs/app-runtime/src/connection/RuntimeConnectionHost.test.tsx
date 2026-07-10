@@ -14,9 +14,9 @@ jest.mock('@chatic/web-core', () => ({
     // Consumed by useSocketSessionDelegate (the delegate is now owned by app-runtime).
     getActiveServerAuthRegistration: jest.fn(),
     signActiveServerAuth: jest.fn(),
-    commitSocketRefreshedToken: jest.fn(),
-    getActiveServerContext: jest.fn().mockReturnValue({ kind: 'relay' }),
+    commitServerRefreshedToken: jest.fn(),
     logoutCloudSession: jest.fn(),
+    logoutRelaySession: jest.fn(),
 }));
 
 // SocketBinder boots through the pure bootstrapSocketConnection; intercept it to assert wiring.

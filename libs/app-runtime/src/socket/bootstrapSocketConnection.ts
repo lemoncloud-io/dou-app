@@ -44,16 +44,17 @@ export const bootstrapSocketConnection = async ({
         auth.onAuthState(state => {
             manager.setAuthenticated(kind, state === 'authenticated');
             if (state === 'expired') {
-                void delegate.onAuthExpired?.();
+                void delegate.onAuthExpired?.(kind);
             }
         })
     );
 
     // Every refresh/switch success carries the full token view — write it back to web-core so the
     // HTTP/AWS signing layers stay fresh (SDK is the socket-token SSoT; web-core is the read model).
+    // Routed by THIS socket's kind so a refresh during a switch/teardown lands in the right store (§6-6).
     unsubscribes.push(
         auth.onTokenRefresh(view => {
-            void delegate.commitRefreshedToken(view);
+            void delegate.commitRefreshedToken(kind, view);
         })
     );
 

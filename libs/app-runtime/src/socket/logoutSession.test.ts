@@ -17,8 +17,7 @@ jest.mock('./runtime', () => ({
 const mockedLogoutRelay = logoutRelaySession as jest.MockedFunction<typeof logoutRelaySession>;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 
-const managerWith = (auth: unknown) =>
-    ({ getClient: jest.fn(() => (auth ? { auth } : null)) } as never);
+const managerWith = (auth: unknown) => ({ getClient: jest.fn(() => (auth ? { auth } : null)) }) as never;
 
 describe('logoutSession', () => {
     beforeEach(() => jest.clearAllMocks());
@@ -54,5 +53,16 @@ describe('logoutSession', () => {
 
         await expect(logoutSession()).resolves.toBeUndefined();
         expect(mockedLogoutRelay).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT block the HTTP revoke on a hanging auth.logout ack (wedged socket)', async () => {
+        // auth.logout never resolves (server wedged / half-open). logoutSession must still complete
+        // the authoritative HTTP revoke without awaiting the socket ack.
+        const authLogout = jest.fn(() => new Promise<void>(() => undefined)); // never settles
+        mockedGetManager.mockReturnValue(managerWith({ logout: authLogout }));
+
+        await expect(logoutSession()).resolves.toBeUndefined();
+        expect(authLogout).toHaveBeenCalledTimes(1); // frame dispatched
+        expect(mockedLogoutRelay).toHaveBeenCalledTimes(1); // HTTP revoke still ran
     });
 });

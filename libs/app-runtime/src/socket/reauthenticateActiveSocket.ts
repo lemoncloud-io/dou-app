@@ -44,8 +44,12 @@ export const reauthenticateActiveSocket = async ({
     }
 
     logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed on the live socket, re-authenticating');
-    // best-effort revoke of the previous session; logout() never throws.
-    await auth.logout();
+    // Fire-and-forget the revoke of the previous session: logout() dispatches the auth.logout frame
+    // synchronously (preserving logout-before-update wire order) and flips the controller inactive,
+    // so register() can resume immediately. We do NOT await the server ack — on a wedged socket it
+    // could hang to the 30s request timeout and needlessly delay the promotion re-auth. logout() is
+    // best-effort and does not reject; the promise is guarded regardless.
+    void Promise.resolve(auth.logout()).catch(() => undefined);
     auth.register({
         token: registration.token,
         authId: registration.authId,
