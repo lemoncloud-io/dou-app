@@ -1,6 +1,7 @@
 export * from './waitForVerified';
 export * from './channelUnread';
 export * from './channelMerge';
+export * from './chatSort';
 export * from './avatarColor';
 export * from './displayName';
 export * from './displayProfile';
