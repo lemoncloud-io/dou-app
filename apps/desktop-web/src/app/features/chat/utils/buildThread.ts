@@ -27,8 +27,11 @@ export const threadRootId = (chat: DomainChat): string =>
 const replyTime = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
 
 const byChatNo = (a: DomainChat, b: DomainChat): number => {
-    const an = a.chatNo ?? Number.MAX_SAFE_INTEGER;
-    const bn = b.chatNo ?? Number.MAX_SAFE_INTEGER;
+    // chatNo is a 1-based sequence; an optimistic (still-pending) send carries the
+    // sentinel `chatNo: 0`. Treat 0 (and a missing no) as newest so a just-sent reply
+    // sorts to the bottom, not above older replies — createdAt then orders pendings.
+    const an = a.chatNo || Number.MAX_SAFE_INTEGER;
+    const bn = b.chatNo || Number.MAX_SAFE_INTEGER;
     if (an !== bn) return an - bn;
     return (a.createdAt ?? 0) - (b.createdAt ?? 0);
 };

@@ -25,8 +25,11 @@ const channelMemo = new Map<string, ChannelWindow>();
 
 const sortByChatNo = (messages: DomainChat[]): DomainChat[] =>
     [...messages].sort((a, b) => {
-        const aNo = a.chatNo ?? Number.MAX_SAFE_INTEGER;
-        const bNo = b.chatNo ?? Number.MAX_SAFE_INTEGER;
+        // chatNo is a 1-based sequence; an optimistic (still-pending) send carries the
+        // sentinel `chatNo: 0`. Treat 0 (and a missing no) as newest so a just-sent
+        // message sorts to the bottom, not above older ones — createdAt orders pendings.
+        const aNo = a.chatNo || Number.MAX_SAFE_INTEGER;
+        const bNo = b.chatNo || Number.MAX_SAFE_INTEGER;
         if (aNo !== bNo) return aNo - bNo;
         return (a.createdAt ?? 0) - (b.createdAt ?? 0);
     });
