@@ -4,7 +4,6 @@ import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules
 import { storage } from '@chatic/shared';
 import { notifySessionStateChanged } from '../utils';
 
-export const CLOUD_IS_ACTIVE_KEY = 'chatic-cloud-is-active';
 export const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 export const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
 export const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
@@ -13,8 +12,6 @@ export const CLOUD_PLACE_ORDER_KEY_PREFIX = 'chatic-place-order-';
 export const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
 
 interface CloudCore {
-    getIsActive: () => boolean;
-    setIsActive: (isActive: boolean) => void;
     saveDelegationToken: (token: CloudDelegationTokenView) => void;
     getDelegationToken: () => CloudDelegationTokenView | null;
     saveCloudToken: (token: UserTokenView) => void;
@@ -38,13 +35,6 @@ interface CloudCore {
 }
 
 export const cloudCore: CloudCore = {
-    getIsActive: (): boolean => {
-        const raw = storage.get(CLOUD_IS_ACTIVE_KEY);
-        return raw ? (JSON.parse(raw) as boolean) : false;
-    },
-    setIsActive: (isActive: boolean) => {
-        storage.set(CLOUD_IS_ACTIVE_KEY, JSON.stringify(isActive));
-    },
     saveDelegationToken: (token: CloudDelegationTokenView): void => {
         storage.set(CLOUD_DELEGATION_TOKEN_KEY, JSON.stringify(token));
         notifySessionStateChanged();
