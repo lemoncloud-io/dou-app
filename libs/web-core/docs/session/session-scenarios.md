@@ -40,19 +40,21 @@ relay와 cloud 세션 처리의 의도된 lifecycle 시나리오를 정의합니
 - 구현됨
     - `initializeRelaySession`
     - `loginRelayGuestByDevice`
+    - `loginRelayUser`
     - `loginRelaySocial`
-    - `loginWithInviteCode`
+    - `registerUserWithInviteCode` (raw API, `useInviteFlow`가 구동 — 문서 곳곳의 옛 이름 `loginWithInviteCode`는 이 심볼로 대체됨)
     - `refreshRelaySession`
     - `logoutRelaySession`
-    - `switchCloudSession` (cloud 전환 + 병렬 리프레시 single-flight)
+    - `switchCloudSession` (cloud 전환 + cid **선반영+롤백** + 병렬 리프레시 single-flight)
     - `refreshCloudSession` (cloudToken 기반, 서비스 single-flight)
+    - `switchSiteSession` (sid **선반영+롤백**, 활성 서버별 refresh 커밋)
     - `refreshActiveCloudSession` (주기 루프용 cloud 갱신)
     - `logoutCloudSession`
     - `persistDeviceId` (deviceId를 identityCore에도 저장)
 - 제거됨
     - `restorePreviousCloudSession` — invited 번들 writer 부재로 죽은 경로였고, 초대 cloud 진입을 `switchCloudSession`으로 일원화하며 제거
 - 미구현 (TODO)
-    - 클라우드/사이트 전환 cid/sid **선반영(optimistic) + 실패 롤백** (orchestration.md "미구현 TODO" 참조)
+    - **relay 사이트 전환** cid/sid 선반영: `refreshRelaySession(target=uid@sid)`만 아직 성공 후 반영(선반영 아님). `switchCloudSession`(cid)·`switchSiteSession`(sid)은 **구현 완료** (orchestration.md "미구현 TODO" 참조)
 
 구현 메모:
 

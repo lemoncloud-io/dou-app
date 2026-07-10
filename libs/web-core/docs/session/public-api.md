@@ -65,12 +65,14 @@ getGlobalSessionContext(): GlobalSessionContext
 
 - `initializeRelaySession()`
 - `loginRelayGuestByDevice()`
+- `loginRelayUser()`
 - `loginRelaySocial()`
-- `loginWithInviteCode()`
+- `registerUserWithInviteCode()` (raw API — `useInviteFlow`가 구동; 옛 이름 `loginWithInviteCode`)
 - `refreshRelaySession()`
 - `logoutRelaySession()`
 - `switchCloudSession()`
 - `refreshCloudSession()`
+- `switchSiteSession()` — sid 선반영+롤백 사이트 전환
 - `refreshActiveCloudSession()` — 주기 리프레시 루프용 cloud 갱신
 - `logoutCloudSession()`
 - `persistDeviceId()`
@@ -82,7 +84,7 @@ getGlobalSessionContext(): GlobalSessionContext
 - `refreshRelaySession(target = uid@sid)`는 relay auth refresh와 relay selected site 전환을 함께 수행합니다.
 - `refreshRelaySession`·`refreshCloudSession`은 서비스 레벨 single-flight로 주기 루프와 사이트 전환을 직렬화합니다.
 - `restorePreviousCloudSession()`은 **제거**되었습니다 (invited 번들 writer 부재로 죽은 경로 → `switchCloudSession`으로 일원화).
-- cid/sid **선반영(optimistic) + 롤백**은 미구현 TODO입니다 (hooks/orchestration.md 참조).
+- cid/sid **선반영(optimistic) + 롤백**은 `switchCloudSession`(cid)·`switchSiteSession`(sid)에 **구현 완료**입니다. relay 사이트 전환(`refreshRelaySession(target)`) sid 선반영만 TODO (hooks/orchestration.md 참조).
 
 소켓 모듈 연계:
 

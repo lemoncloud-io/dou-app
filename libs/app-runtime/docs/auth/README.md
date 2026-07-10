@@ -47,6 +47,8 @@ Status: Adoption Guide (SDK `AuthController` 도입)
 
 `AuthControllerState = '' | pending | validating | authenticated | failed | disconnected | expired`. 앞 6개는 서버 상태(`AuthUpdateState`), `expired`는 백오프 소진 시 SDK가 만드는 **클라이언트 터미널 상태**다.
 
+> ⚠️ **`disconnected`는 타입엔 있으나 컨트롤러가 방출하지 않는다**(SDK 0.4.5 dist 확인). 서버가 `disconnected`를 응답해도 클라에선 `failed`로 표면화되고, 소켓 close 시엔 상태가 마지막 값으로 유지된다. → `onAuthState`에서 `disconnected`를 기대하는 매핑을 두지 말 것. 연결 끊김은 transport state로 파생한다([multi-socket-design.md §6-15](./multi-socket-design.md)).
+
 서명 콜백은 **stateless**다:
 
 ```ts
@@ -55,7 +57,7 @@ type AuthSignCallback = (token: string, ctx?: { target?: string }) => Promise<{ 
 
 SDK가 보유한 현재 토큰을 첫 인자로 주입하지만, lemon hmac 서명은 토큰 문자열에 의존하지 않는다(§[signing.md](./signing.md)) — 앱은 **active server 기준**으로 서명을 계산한다. `ctx.target`이 있으면 switch용 호출이다(서명 자체는 동일, target은 패킷에만 실림).
 
-부착 옵션(`AuthControllerOptionsPartial`): `refreshIntervalMs`(expiresIn 부재 시 fallback), `minBackoffMs`, `maxBackoffMs`, `backoffFactor`, `maxFailures`, `validatingTimeoutMs`. 도입 기본값은 `refreshRatio 0.8` + `maxFailures 3`.
+부착 옵션(`AuthControllerOptionsPartial`): `refreshIntervalMs`(expiresIn 부재 시 fallback), `minBackoffMs`, `maxBackoffMs`, `backoffFactor`, `maxFailures`, `validatingTimeoutMs`. **SDK 기본값**(0.4.5 dist 확인)은 `refreshRatio 0.8` · `refreshIntervalMs 1,800,000`(30분) · `maxFailures 5` · `minBackoffMs 1000` · `maxBackoffMs 30000` · `backoffFactor 2` · `validatingTimeoutMs 15000`. 도입 시 앱이 `maxFailures 3` 등으로 override할 수 있다(값은 [usage.md §1.1](./usage.md) 부착 예시 기준). `expired`는 `failures > maxFailures`에서 전이하므로 기본값 5면 6번째 연속 실패에 발동.
 
 ---
 
