@@ -1,5 +1,7 @@
 import type { DomainChat } from '@chatic/data';
 
+import { compareByChatNo } from '../../../shared/utils/chatSort';
+
 /**
  * Thread derivation — pure, client-side (see ADR 0008). The backend models a
  * thread with nothing but `parentId`; everything below is computed from the
@@ -25,16 +27,6 @@ export const threadRootId = (chat: DomainChat): string =>
     chat.parentId ?? (chat.chatNo != null ? String(chat.chatNo) : (chat.id ?? ''));
 
 const replyTime = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
-
-const byChatNo = (a: DomainChat, b: DomainChat): number => {
-    // chatNo is a 1-based sequence; an optimistic (still-pending) send carries the
-    // sentinel `chatNo: 0`. Treat 0 (and a missing no) as newest so a just-sent reply
-    // sorts to the bottom, not above older replies — createdAt then orders pendings.
-    const an = a.chatNo || Number.MAX_SAFE_INTEGER;
-    const bn = b.chatNo || Number.MAX_SAFE_INTEGER;
-    if (an !== bn) return an - bn;
-    return (a.createdAt ?? 0) - (b.createdAt ?? 0);
-};
 
 export interface ThreadReplier {
     /** Reply author (`ownerId`); replies without one are counted but not listed. */
@@ -107,5 +99,5 @@ export const buildThread = (messages: DomainChat[], rootId: string): ThreadView 
     if (root?.id) rootKeys.add(root.id);
     if (root?.chatNo != null) rootKeys.add(String(root.chatNo));
     const replies = messages.filter(m => m !== root && !!m.parentId && rootKeys.has(m.parentId));
-    return { root, replies: replies.sort(byChatNo) };
+    return { root, replies: replies.sort(compareByChatNo) };
 };

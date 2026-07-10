@@ -65,7 +65,9 @@ const ChannelRow = ({ channel, label, icon, isActive, onSelect, rowRef }: Channe
     const unread = channel.unreadCount ?? 0;
     const hasUnread = unread > 0 && !isActive;
     const lastChat = useLastChat(id, lastChatNoOf(channel));
-    const preview = stripMarkdown(lastChat?.content?.trim() ?? '');
+    // Memo the preview so the parent's minute tick (which must recompute `time`) doesn't
+    // re-run stripMarkdown for every row — the preview only changes when lastChat does.
+    const preview = useMemo(() => stripMarkdown(lastChat?.content?.trim() ?? ''), [lastChat]);
     const time = relativeTime(lastChat?.createdAt ?? channel.lastActivityAt);
     return (
         <button

@@ -10,9 +10,9 @@ import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 const PREVIEW_LOOKBACK = 20;
 
 /**
- * A real main-channel message: not a thread reply (`parentId`) and not a system
- * (join/leave/etc.) row. Mirrors the main feed, which hides threads (ChatPane:
- * `!m.parentId`).
+ * A message worth previewing: not a thread reply (`parentId`) — the main feed hides
+ * those too (ChatPane: `!m.parentId`) — and, additionally, not a system (join/leave)
+ * row, so a channel's preview line is always a real message.
  */
 const isPreviewable = (chat: DomainChat): boolean => !chat.parentId && chat.stereo !== 'system';
 

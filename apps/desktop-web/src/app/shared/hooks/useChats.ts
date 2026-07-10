@@ -4,6 +4,8 @@ import type { DomainChat } from '@chatic/data';
 
 import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 
+import { compareByChatNo } from '../utils/chatSort';
+
 const PAGE_SIZE = 50;
 // Each older page widens the observe window by this much. `observeList` returns
 // only the newest `limit` rows (chat_no-descending cursor paging), so revealing
@@ -23,16 +25,7 @@ interface ChannelWindow {
 }
 const channelMemo = new Map<string, ChannelWindow>();
 
-const sortByChatNo = (messages: DomainChat[]): DomainChat[] =>
-    [...messages].sort((a, b) => {
-        // chatNo is a 1-based sequence; an optimistic (still-pending) send carries the
-        // sentinel `chatNo: 0`. Treat 0 (and a missing no) as newest so a just-sent
-        // message sorts to the bottom, not above older ones — createdAt orders pendings.
-        const aNo = a.chatNo || Number.MAX_SAFE_INTEGER;
-        const bNo = b.chatNo || Number.MAX_SAFE_INTEGER;
-        if (aNo !== bNo) return aNo - bNo;
-        return (a.createdAt ?? 0) - (b.createdAt ?? 0);
-    });
+const sortByChatNo = (messages: DomainChat[]): DomainChat[] => [...messages].sort(compareByChatNo);
 
 /**
  * Message stream for a channel (mirrors apps/web useChats). Chat fetching is owned
