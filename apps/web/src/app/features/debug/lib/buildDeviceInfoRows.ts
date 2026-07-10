@@ -32,8 +32,8 @@ const toRow = (label: string, value: string | null | undefined): DeviceInfoRow =
  * (see the Push debug page).
  */
 export const buildDeviceInfoRows = (deviceInfo: DeviceInfo | null): DeviceInfoRow[] => [
-    toRow('Device ID', deviceInfo?.deviceId),
-    toRow('Install ID', deviceInfo?.installId),
+    toRow('Device ID', deviceInfo?.uniqueDeviceId),
+    toRow('Install ID', deviceInfo?.firebaseInstallationId),
     toRow('Platform', deviceInfo?.platform),
     toRow('Model', deviceInfo?.deviceModel),
     toRow('Stage', deviceInfo?.stage),
