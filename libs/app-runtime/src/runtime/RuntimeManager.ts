@@ -25,7 +25,7 @@ export class RuntimeManager implements IRuntimeManager {
             return;
         }
 
-        this.socketManager.ensure(binding.socket.config);
+        this.socketManager.ensure(binding.socket.config, binding.socket.config.wssType ?? 'relay');
     }
 
     public getRepositories(): DataRepositoriesV2 {

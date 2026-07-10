@@ -30,12 +30,15 @@ export const SocketBinder = ({ binding, delegate }: SocketBinderProps) => {
         }
         prevSocketRef.current = currentSocketStr;
 
-        // Detach the previous connection's auth subscriptions before (re)booting.
+        // Detach the previous connection's auth subscriptions, then tear down the previous socket.
+        // Single-socket (Phase 2c): any binding.socket change is a reboot, so destroy ALL slots — a
+        // relay↔cloud switch changes the kind and the stale slot must not linger. Phase 2d makes
+        // this per-kind so the relay + cloud slots can coexist.
         cleanupRef.current?.();
         cleanupRef.current = null;
+        socketManager.destroy();
 
         if (!binding.socket) {
-            socketManager.destroy();
             return;
         }
 

@@ -1,6 +1,7 @@
 import {
     type ClientSocketErrorEvent,
     type ClientSocketMessageEvent,
+    type ClientSocketState,
     type ClientSocketStateEvent,
     type ClientSocketV2,
     type SocketMessage,
@@ -12,6 +13,7 @@ import type {
     ISocketManager,
     SocketBindingConfig,
     SocketClientListener,
+    SocketKind,
     SocketState,
     SocketStateListener,
 } from './types';
@@ -20,12 +22,25 @@ import type {
  *  override maxFailures to 3 for a slightly faster terminal `expired` (see usage.md §1.1). */
 const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3 } as const;
 
-/** A push subscription that must be re-bound whenever the underlying client is replaced. */
+/** A push subscription that must be re-bound whenever the active client is replaced. */
 type TypeListenerEntry = {
     type: string;
     listener: (message: SocketMessage<any>) => void;
     unsubscribe?: () => void;
 };
+
+/** One managed socket slot (relay or cloud). Each slot owns its own SDK client + connection state. */
+interface ClientEntry {
+    client: ClientSocketV2;
+    config: SocketBindingConfig;
+    /** Mirrors this slot's SDK AuthController authenticated flag (via setAuthenticated). */
+    authenticated: boolean;
+    /** Latest transport state for this slot (from its onState). */
+    connState: ClientSocketState;
+    /** Cloud id this slot was bound to (frozen at bind) — cache attribution. */
+    boundCid: string | null;
+    unsubscribes: Array<() => void>;
+}
 
 const initialState = (): SocketState => ({
     state: 'idle',
@@ -38,92 +53,75 @@ const initialState = (): SocketState => ({
 const DEFAULT_VERIFY_TIMEOUT_MS = 10_000;
 
 /**
- * SocketManager wraps a single ClientSocketV2 instance and owns the comprehensive,
- * observable socket state (connection + handshake). The socket is always 1:1 with
- * the current config (url/deviceId/wssType): any config change tears down the old
- * socket and builds a fresh one — there is no "active" socket among many.
+ * SocketManager owns up to two ClientSocketV2 slots — `relay` (always-on) and `cloud` (active-only)
+ * — keyed by kind, and exposes an ACTIVE-FACADE: the observable state, request/send/onType, and
+ * subscribeClient all track the ACTIVE slot (cloud when present, else relay). Slot lifecycle
+ * (ensure/connect/setAuthenticated/destroy) is per-kind. Each SDK client is fully independent
+ * (multi-socket-design.md §6-14); do NOT share a timerScheduler between them (§6-13) — the factory
+ * gives each its own.
  */
 export class SocketManager implements ISocketManager {
-    private client: ClientSocketV2 | null = null;
-    private config: SocketBindingConfig | null = null;
+    private readonly entries = new Map<SocketKind, ClientEntry>();
     private state: SocketState = initialState();
-    // The cloud id the live socket was bound to, frozen when the client is (re)created. It only
-    // advances on a real rebind (url/deviceId/wssType change), NOT when the cache cid flips
-    // optimistically mid-switch — so it identifies the cloud the attached socket truly serves,
-    // letting cache writes reject frames/reads from a socket that outlived its cloud.
-    private boundCid: string | null = null;
 
-    // State is an observable store: each consumer (e.g. a useSyncExternalStore hook,
-    // one callback per mounted component) registers its own listener — hence a Set.
+    // State is an observable store: each consumer (e.g. a useSyncExternalStore hook) registers its
+    // own listener — hence a Set.
     private readonly stateListeners = new Set<SocketStateListener>();
-    // Client-instance changes now have multiple consumers (e.g. SyncManager). A Set
-    // is required: the former single slot silently dropped all but the last subscriber.
+    // Active-client listeners (e.g. SyncManager). Fired with the ACTIVE client on every active change.
     private readonly clientListeners = new Set<SocketClientListener>();
-    // Push subscriptions registered via onType. Owned here so they survive socket
-    // replacement — re-bound to the fresh client on every client change.
+    // Push subscriptions registered via onType. Owned here so they survive active-client changes —
+    // re-bound to the active client whenever the active slot changes.
     private readonly typeListeners = new Set<TypeListenerEntry>();
-    // Mirrors the SDK AuthController's authenticated flag. `isVerified` is derived as
-    // `authenticated && state === 'connected'`, so a drop clears it without a manual reset.
-    private authenticated = false;
-    private unsubscribes: Array<() => void> = [];
 
     /**
-     * Ensures a single ClientSocketV2 bound to the given config.
-     * Reuses the existing socket when config is unchanged; otherwise
-     * destroys the old socket and creates a fresh one.
+     * Ensures the slot for `kind` is bound to `config`. Reuses the slot when its config is unchanged;
+     * otherwise tears the slot down and builds a fresh client. Returns that slot's client.
      */
-    public ensure(config: SocketBindingConfig): ClientSocketV2 {
-        if (this.client && this.isSameConfig(this.config, config)) {
-            return this.client;
+    public ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2 {
+        const existing = this.entries.get(kind);
+        if (existing && this.isSameConfig(existing.config, config)) {
+            return existing.client;
         }
 
-        this.teardownClient();
-
-        this.config = config;
-        // Freeze this socket's cloud. Set only here (on an actual rebind), so a mid-switch cid
-        // flip that doesn't change the url leaves it pinned to the socket's real cloud.
-        this.boundCid = config.cid ?? null;
+        const prevActiveClient = this.getActiveClient();
+        if (existing) {
+            this.teardownEntry(kind);
+        }
 
         const client = this.createClient(config);
-        this.client = client;
-        this.bindClient(client);
+        const entry: ClientEntry = {
+            client,
+            config,
+            authenticated: false,
+            connState: client.state,
+            // Freeze this slot's cloud (set only on an actual rebind), so a mid-switch cid flip that
+            // doesn't change the url leaves it pinned to the socket's real cloud.
+            boundCid: config.cid ?? null,
+            unsubscribes: [],
+        };
+        this.entries.set(kind, entry);
+        this.bindEntry(kind, entry);
 
-        // A fresh client is not authenticated until its SDK AuthController completes a handshake.
-        this.authenticated = false;
-        // Reset handshake flags; connection state follows the client.
-        this.setState({
-            state: client.state,
-            isConnected: client.state === 'connected',
-            isVerified: false,
-            connectionId: null,
-        });
-        this.emitClientChanged();
-
+        this.syncActive(prevActiveClient);
         return client;
     }
 
-    /**
-     * Retrieves the underlying socket client, if any.
-     */
+    /** The ACTIVE slot's client (cloud when present, else relay), or null before any bind. */
     public getClient(): ClientSocketV2 | null {
-        return this.client;
+        return this.getActiveClient();
     }
 
-    /** The cloud id the live socket was bound to (frozen at bind), or null before the first bind. */
+    /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
     public getBoundCid(): string | null {
-        return this.boundCid;
+        return this.getActiveEntry()?.boundCid ?? null;
     }
 
-    /**
-     * Returns the current comprehensive socket state snapshot.
-     */
+    /** Observable state snapshot of the ACTIVE slot. */
     public getSnapshot(): SocketState {
         return this.state;
     }
 
-    /**
-     * Subscribes to socket state changes. Fires immediately with the current snapshot.
-     */
+    /** Subscribes to ACTIVE-slot state changes. Fires immediately with the current snapshot. */
     public subscribe(listener: SocketStateListener): () => void {
         this.stateListeners.add(listener);
         listener(this.state);
@@ -133,10 +131,9 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Resolves once the current socket is auth-verified (handshake complete), or after
-     * `timeoutMs` elapses. Resolves `true` when verified and `false` on timeout — it never
-     * rejects, so callers gating an action can fall back to best-effort behavior. Resolves
-     * synchronously when the socket is already verified.
+     * Resolves once the ACTIVE slot is auth-verified (handshake complete), or after `timeoutMs`.
+     * Resolves `true` when verified and `false` on timeout — never rejects, so callers gating an
+     * action can fall back to best-effort. Resolves synchronously when already verified.
      */
     public waitUntilVerified(timeoutMs: number = DEFAULT_VERIFY_TIMEOUT_MS): Promise<boolean> {
         if (this.state.isVerified) {
@@ -153,8 +150,6 @@ export class SocketManager implements ISocketManager {
                 resolve(verified);
             };
             const timer = setTimeout(() => finish(false), timeoutMs);
-            // subscribe() fires immediately with the current snapshot; the early return above
-            // guarantees that first call carries isVerified === false, so it is a no-op here.
             unsubscribe = this.subscribe(state => {
                 if (state.isVerified) finish(true);
             });
@@ -162,55 +157,52 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Subscribes to socket instance replacement (e.g. on scope switch / restart).
-     * Fires immediately with the current client. Used by the adapter to re-bind listeners.
+     * Subscribes to ACTIVE-client replacement (bind, active-slot switch, teardown). Fires immediately
+     * with the current active client. Used by the sync adapter to re-bind its runtime to the active
+     * socket (relay auth-only slot never becomes the sync target unless it is active).
      */
     public subscribeClient(listener: SocketClientListener): () => void {
         this.clientListeners.add(listener);
-        listener(this.client);
+        listener(this.getActiveClient());
         return () => {
             this.clientListeners.delete(listener);
         };
     }
 
     /**
-     * Mirrors the SDK AuthController's authenticated state (wired via onAuthState in
-     * bootstrapSocketConnection). `isVerified` is recomputed from this AND the transport being
-     * connected, so re-auth and connection drops both flow through here.
+     * Mirrors the SDK AuthController's authenticated state for `kind` (wired via onAuthState in
+     * bootstrapSocketConnection). When `kind` is the active slot, `isVerified` is recomputed from
+     * this AND that slot being connected.
      */
-    public setAuthenticated(value: boolean): void {
-        this.authenticated = value;
-        this.setState({ isVerified: this.computeVerified() });
+    public setAuthenticated(kind: SocketKind, value: boolean): void {
+        const entry = this.entries.get(kind);
+        if (!entry) return;
+        entry.authenticated = value;
+        if (this.getActiveKind() === kind) {
+            this.setState(this.computeState(entry));
+        }
     }
 
-    /** isVerified = authenticated && transport connected. */
-    private computeVerified(): boolean {
-        return this.authenticated && this.state.state === 'connected';
-    }
-
-    /**
-     * Connects the current socket if it is idle or closed.
-     */
-    public async connect(): Promise<void> {
-        const client = this.client;
-        if (!client) return;
-        if (client.state === 'idle' || client.state === 'closed') {
-            await client.connect();
+    /** Connects the slot for `kind` if it is idle or closed. */
+    public async connect(kind: SocketKind): Promise<void> {
+        const entry = this.entries.get(kind);
+        if (!entry) return;
+        if (entry.client.state === 'idle' || entry.client.state === 'closed') {
+            await entry.client.connect();
         }
     }
 
     /**
-     * Stable request facade. Routes to the current client. The SDK AuthController now owns
-     * re-authentication (epoch-serialized reauth on `failed`/`:error`) and the transport owns
-     * reconnect, so this no longer intercepts 401s or drives manual reconnect/retry.
+     * Stable request facade (ACTIVE slot). The SDK AuthController owns re-authentication and the
+     * transport owns reconnect, so this no longer intercepts 401s or drives manual reconnect/retry.
      */
     public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
-        const client = this.requireClient(`request(${type})`);
+        const client = this.requireActiveClient(`request(${type})`);
         return (await client.request(type as any, data as any, options)) as T;
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
-        const client = this.requireClient('send()');
+        const client = this.requireActiveClient('send()');
         if (typeof type === 'string') {
             client.send(type as any, data as any);
             return;
@@ -219,8 +211,8 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
-     * Registers a push subscription that survives socket replacement. The entry is
-     * owned by the manager and re-bound on every client change (see emitClientChanged).
+     * Registers a push subscription that survives active-client replacement. The entry is owned by
+     * the manager and re-bound to the active client on every active-slot change.
      */
     public onType<T = unknown>(type: string, listener: (message: SocketMessage<T>) => void): () => void {
         const entry: TypeListenerEntry = {
@@ -228,7 +220,7 @@ export class SocketManager implements ISocketManager {
             listener: listener as (message: SocketMessage<any>) => void,
         };
         this.typeListeners.add(entry);
-        this.bindTypeListener(entry);
+        this.bindTypeListener(entry, this.getActiveClient());
 
         return () => {
             entry.unsubscribe?.();
@@ -237,89 +229,124 @@ export class SocketManager implements ISocketManager {
     }
 
     public onMessage(listener: (event: ClientSocketMessageEvent) => void): () => void {
-        return this.requireClient('onMessage()').onMessage(listener);
+        return this.requireActiveClient('onMessage()').onMessage(listener);
     }
 
     public onState(listener: (event: ClientSocketStateEvent) => void): () => void {
-        return this.requireClient('onState()').onState(listener);
+        return this.requireActiveClient('onState()').onState(listener);
     }
 
     public onError(listener: (event: ClientSocketErrorEvent) => void): () => void {
-        return this.requireClient('onError()').onError(listener);
+        return this.requireActiveClient('onError()').onError(listener);
     }
 
     public disconnect(code?: number, reason?: string): Promise<void> {
-        return this.requireClient('disconnect()').disconnect(code, reason);
+        return this.requireActiveClient('disconnect()').disconnect(code, reason);
+    }
+
+    /** Destroys one slot (`kind`) or, when omitted, all slots, and resets state. */
+    public destroy(kind?: SocketKind): void {
+        const prevActiveClient = this.getActiveClient();
+        if (kind) {
+            this.teardownEntry(kind);
+        } else {
+            for (const key of [...this.entries.keys()]) {
+                this.teardownEntry(key);
+            }
+        }
+        this.syncActive(prevActiveClient);
+    }
+
+    // --- active-slot derivation -------------------------------------------------------------
+
+    /** cloud when a cloud slot exists (it is the sync/active socket), else relay. */
+    private getActiveKind(): SocketKind {
+        return this.entries.has('cloud') ? 'cloud' : 'relay';
+    }
+
+    private getActiveEntry(): ClientEntry | null {
+        return this.entries.get(this.getActiveKind()) ?? null;
+    }
+
+    private getActiveClient(): ClientSocketV2 | null {
+        return this.getActiveEntry()?.client ?? null;
+    }
+
+    private computeState(entry: ClientEntry | null): SocketState {
+        if (!entry) return initialState();
+        const connected = entry.connState === 'connected';
+        return {
+            state: entry.connState,
+            isConnected: connected,
+            // isVerified = authenticated && connected, so a drop clears it and a reconnect restores
+            // it once the SDK re-authenticates (onAuthState → setAuthenticated).
+            isVerified: entry.authenticated && connected,
+            connectionId: null,
+        };
     }
 
     /**
-     * Destroys the socket and resets all state.
+     * Recomputes the observable state from the (possibly new) active slot, and — when the active
+     * client actually changed — re-binds owned onType subscriptions to it and notifies client listeners.
      */
-    public destroy(): void {
-        this.teardownClient();
-        this.config = null;
-        this.setState(initialState());
-        this.emitClientChanged();
+    private syncActive(prevActiveClient: ClientSocketV2 | null): void {
+        this.setState(this.computeState(this.getActiveEntry()));
+
+        const activeClient = this.getActiveClient();
+        if (activeClient === prevActiveClient) return;
+        // Rebind type listeners first so consumers reacting to the client change observe an
+        // already-consistent subscription state.
+        this.rebindTypeListeners(activeClient);
+        for (const listener of this.clientListeners) {
+            listener(activeClient);
+        }
     }
 
-    /**
-     * Binds connection, error, and handshake listeners to the given client and
-     * routes them into the comprehensive socket state.
-     */
-    private bindClient(client: ClientSocketV2): void {
-        this.unsubscribes.push(
-            client.onState((event: ClientSocketStateEvent) => {
-                const next = event.next;
-                const patch: Partial<SocketState> = {
-                    state: next,
-                    isConnected: next === 'connected',
-                };
-                if (next === 'idle' || next === 'closed') {
-                    patch.connectionId = null;
+    // --- slot binding / teardown ------------------------------------------------------------
+
+    /** Binds connection + error listeners for a slot, routing them into the active-slot state. */
+    private bindEntry(kind: SocketKind, entry: ClientEntry): void {
+        entry.unsubscribes.push(
+            entry.client.onState((event: ClientSocketStateEvent) => {
+                entry.connState = event.next;
+                // Only the active slot drives the observable state; background (relay-while-cloud)
+                // transport changes are tracked on the entry but not surfaced.
+                if (this.getActiveKind() === kind) {
+                    this.setState(this.computeState(entry));
                 }
-                // isVerified is derived: authenticated AND connected. Recompute against the incoming
-                // transport state so a drop clears verification and a reconnect restores it once the
-                // SDK re-authenticates (onAuthState → setAuthenticated).
-                patch.isVerified = this.authenticated && next === 'connected';
-                this.setState(patch);
             })
         );
 
-        this.unsubscribes.push(
-            client.onError((event: ClientSocketErrorEvent) => {
+        entry.unsubscribes.push(
+            entry.client.onError((event: ClientSocketErrorEvent) => {
                 logger.error('SOCKET', '[SocketManager] Socket error', {
                     error: event.error,
-                    data: { phase: event.phase },
+                    data: { kind, phase: event.phase },
                 });
             })
         );
-
-        // `isVerified` is not bound from transport alone: it also depends on the SDK
-        // AuthController's authenticated state, mirrored via setAuthenticated (wired in
-        // bootstrapSocketConnection's onAuthState subscription).
     }
 
-    /**
-     * Safely unsubscribes all listeners and destroys the current client.
-     */
-    private teardownClient(): void {
-        for (const unsubscribe of this.unsubscribes) {
+    private teardownEntry(kind: SocketKind): void {
+        const entry = this.entries.get(kind);
+        if (!entry) return;
+
+        for (const unsubscribe of entry.unsubscribes) {
             try {
                 unsubscribe();
             } catch (error) {
-                logger.warn('SOCKET', '[SocketManager] Failed to unsubscribe socket listener', { error });
+                logger.warn('SOCKET', '[SocketManager] Failed to unsubscribe socket listener', {
+                    error,
+                    data: { kind },
+                });
             }
         }
-        this.unsubscribes = [];
-
-        if (this.client) {
-            try {
-                this.client.destroy();
-            } catch (error) {
-                logger.warn('SOCKET', '[SocketManager] Failed to destroy socket client', { error });
-            }
-            this.client = null;
+        try {
+            entry.client.destroy();
+        } catch (error) {
+            logger.warn('SOCKET', '[SocketManager] Failed to destroy socket client', { error, data: { kind } });
         }
+        this.entries.delete(kind);
     }
 
     /**
@@ -341,44 +368,32 @@ export class SocketManager implements ISocketManager {
         }
     }
 
-    /**
-     * Re-binds owned push subscriptions to the new client, then notifies external
-     * client-change listeners. Type-listener rebind happens first so consumers that
-     * react to the change observe an already-consistent subscription state.
-     */
-    private emitClientChanged(): void {
-        this.rebindTypeListeners();
-        for (const listener of this.clientListeners) {
-            listener(this.client);
-        }
-    }
-
-    private requireClient(action: string): ClientSocketV2 {
-        const client = this.client;
+    private requireActiveClient(action: string): ClientSocketV2 {
+        const client = this.getActiveClient();
         if (!client) {
             throw new Error(`[SocketManager] Socket client not ready for ${action}`);
         }
         return client;
     }
 
-    /** Re-binds every owned push subscription to the current client. */
-    private rebindTypeListeners(): void {
+    /** Re-binds every owned push subscription to the given (active) client. */
+    private rebindTypeListeners(client: ClientSocketV2 | null): void {
         for (const entry of this.typeListeners) {
             entry.unsubscribe?.();
             entry.unsubscribe = undefined;
-            this.bindTypeListener(entry);
+            this.bindTypeListener(entry, client);
         }
     }
 
-    private bindTypeListener(entry: TypeListenerEntry): void {
-        if (!this.client) {
-            // Defer until a client exists; rebindTypeListeners re-attempts on client change.
-            logger.debug('SOCKET', '[SocketManager] Skipping onType bind until socket client is ready', {
+    private bindTypeListener(entry: TypeListenerEntry, client: ClientSocketV2 | null): void {
+        if (!client) {
+            // Defer until an active client exists; rebindTypeListeners re-attempts on active change.
+            logger.debug('SOCKET', '[SocketManager] Skipping onType bind until an active socket exists', {
                 type: entry.type,
             });
             return;
         }
-        entry.unsubscribe = this.client.onType(entry.type, entry.listener);
+        entry.unsubscribe = client.onType(entry.type, entry.listener);
     }
 
     private isSameConfig(left: SocketBindingConfig | null, right: SocketBindingConfig): boolean {
@@ -387,8 +402,8 @@ export class SocketManager implements ISocketManager {
 
     private createClient(config: SocketBindingConfig): ClientSocketV2 {
         // Attach the SDK AuthController: it owns the socket token SSoT, expiry-based refresh,
-        // reconnect re-auth, epoch serialization, and backoff → terminal `expired`. The app only
-        // register/switch/logout via bootstrapSocketConnection's delegate wiring.
+        // reconnect re-auth, epoch serialization, and backoff → terminal `expired`. Each slot gets
+        // its OWN client (and its own timer scheduler — never shared, §6-13).
         return createClientSocketV2({
             url: this.normalizeUrl(config.url),
             device: {

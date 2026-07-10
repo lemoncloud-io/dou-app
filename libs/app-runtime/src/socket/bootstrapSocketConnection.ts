@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 
-import type { ISocketManager, SocketBindingConfig, SocketSessionDelegate } from './types';
+import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from './types';
 
 export interface BootstrapSocketConnectionArgs {
     manager: ISocketManager;
@@ -24,7 +24,10 @@ export const bootstrapSocketConnection = async ({
     config,
     delegate,
 }: BootstrapSocketConnectionArgs): Promise<() => void> => {
-    const client = manager.ensure(config);
+    // The slot kind is carried on the config (relay vs cloud wss). Each slot is bootstrapped
+    // independently, so ensure/connect/setAuthenticated all address this kind.
+    const kind: SocketKind = config.wssType ?? 'relay';
+    const client = manager.ensure(config, kind);
     const auth = client.auth;
     const unsubscribes: Array<() => void> = [];
 
@@ -32,14 +35,14 @@ export const bootstrapSocketConnection = async ({
         // Defensive: SocketManager always attaches the AuthController (auth option is set), so this
         // only happens if that wiring regresses. Connect anyway so transport-only flows still work.
         logger.error('SOCKET', '[bootstrapSocketConnection] client has no AuthController — auth disabled');
-        await manager.connect();
+        await manager.connect(kind);
         return () => undefined;
     }
 
-    // Mirror the SDK auth state into the manager's isVerified, and run teardown on terminal expiry.
+    // Mirror the SDK auth state into the manager's isVerified (per slot), run teardown on terminal expiry.
     unsubscribes.push(
         auth.onAuthState(state => {
-            manager.setAuthenticated(state === 'authenticated');
+            manager.setAuthenticated(kind, state === 'authenticated');
             if (state === 'expired') {
                 void delegate.onAuthExpired?.();
             }
@@ -67,7 +70,7 @@ export const bootstrapSocketConnection = async ({
         logger.warn('SOCKET', '[bootstrapSocketConnection] no auth registration available — skipping register');
     }
 
-    await manager.connect();
+    await manager.connect(kind);
 
     return () => {
         for (const unsubscribe of unsubscribes) {

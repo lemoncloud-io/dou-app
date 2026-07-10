@@ -7,6 +7,9 @@ import type {
     SocketMessage,
 } from '@lemoncloud/chatic-sockets-lib';
 
+/** Which server a socket slot serves. Dual sockets: relay is always-on, cloud is active-only. */
+export type SocketKind = 'relay' | 'cloud';
+
 /**
  * Configuration options required to initialize and bind a socket connection.
  */
@@ -53,26 +56,38 @@ export type SocketStateListener = (state: SocketState) => void;
 
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 
+/**
+ * Dual-socket manager with an ACTIVE-FACADE interface (multi-socket-design.md §5-1): it holds a
+ * relay slot (always) and a cloud slot (when cloud is active), but most methods operate on the
+ * ACTIVE slot (cloud when present, else relay) so consumers (SyncManager/useSocketState/gateways/
+ * the switch·logout·reauth helpers) stay socket-count-agnostic. Only slot lifecycle — ensure /
+ * connect / setAuthenticated / destroy — is addressed per `kind`.
+ */
 export interface ISocketManager {
-    ensure(config: SocketBindingConfig): ClientSocketV2;
+    /** Creates/reuses the slot for `kind` bound to `config`; returns that slot's client. */
+    ensure(config: SocketBindingConfig, kind: SocketKind): ClientSocketV2;
+    /** The ACTIVE slot's client (cloud when present, else relay), or null before any bind. */
     getClient(): ClientSocketV2 | null;
+    /** Observable state of the ACTIVE slot. */
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;
+    /** Fires with the ACTIVE slot's client, and again whenever the active slot changes. */
     subscribeClient(listener: SocketClientListener): () => void;
     waitUntilVerified(timeoutMs?: number): Promise<boolean>;
     /**
-     * Mirrors the SDK AuthController's `authenticated` state. `isVerified` is derived from this
-     * AND the transport being connected, so re-authentication and connection drops both flow here.
-     * Replaces the former manual markVerified/markUnverified pair.
+     * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
+     * `isVerified` is derived from this AND that slot being connected. Replaces markVerified/markUnverified.
      */
-    setAuthenticated(value: boolean): void;
-    connect(): Promise<void>;
-    destroy(): void;
+    setAuthenticated(kind: SocketKind, value: boolean): void;
+    /** Connects the slot for `kind` if idle/closed. */
+    connect(kind: SocketKind): Promise<void>;
+    /** Destroys one slot (`kind`) or, when omitted, all slots. */
+    destroy(kind?: SocketKind): void;
 
-    /** The cloud id the live socket was bound to (frozen at bind), or null before the first bind. */
+    /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
     getBoundCid(): string | null;
-    // Stable request facade so gateways bind to these instead of a raw ClientSocketV2 and socket
-    // replacement stays invisible to them. Recovery is owned by the SDK AuthController now, so the
+    // Stable request facade (ACTIVE slot) so gateways bind to these instead of a raw ClientSocketV2
+    // and socket replacement stays invisible. Recovery is owned by the SDK AuthController now, so the
     // request path no longer intercepts 401s or drives reconnects.
     request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T>;
     send<T = unknown>(type: string | SocketMessage<T>, data?: T): void;

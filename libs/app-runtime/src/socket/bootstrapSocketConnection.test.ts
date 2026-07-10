@@ -75,14 +75,14 @@ describe('bootstrapSocketConnection', () => {
         await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         auth.emitAuthState('authenticated');
-        expect(manager.setAuthenticated).toHaveBeenCalledWith(true);
+        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', true);
 
         auth.emitAuthState('failed');
-        expect(manager.setAuthenticated).toHaveBeenCalledWith(false);
+        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', false);
         expect(delegate.onAuthExpired).not.toHaveBeenCalled();
 
         auth.emitAuthState('expired');
-        expect(manager.setAuthenticated).toHaveBeenCalledWith(false);
+        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', false);
         expect(delegate.onAuthExpired).toHaveBeenCalledTimes(1);
     });
 
