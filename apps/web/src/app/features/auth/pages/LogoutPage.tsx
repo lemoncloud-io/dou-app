@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { LoadingFallback } from '@chatic/shared';
-import { useSessionLogout } from '@chatic/web-core';
+
+import { useSessionLogout } from '../../../runtime/useSessionLogout';
 
 export const LogoutPage = () => {
     const { t } = useTranslation();

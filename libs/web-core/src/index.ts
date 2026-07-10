@@ -20,7 +20,9 @@ export {
     signActiveServerAuth,
     commitSocketRefreshedToken,
     logoutCloudSession,
+    logoutRelaySession,
     applySelectedSite,
 } from './session/services';
+export type { LogoutOptions } from './session/services';
 // Selected-site read model getter, for app-runtime's socket-driven site switch (auth.switch).
 export { getSelectedSiteId } from './session/contextStore';

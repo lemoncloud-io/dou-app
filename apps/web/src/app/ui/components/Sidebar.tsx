@@ -8,7 +8,8 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type { JSX, ReactNode } from 'react';
-import { useSessionLogout } from '@chatic/web-core';
+
+import { useSessionLogout } from '../../runtime/useSessionLogout';
 
 interface NavItem {
     path: string;
