@@ -19,10 +19,14 @@ export {
     getActiveServerAuthRegistration,
     signActiveServerAuth,
     commitSocketRefreshedToken,
+    // Per-server (kind-explicit) variants for the dual-socket path (multi-socket-design.md §7).
+    getServerAuthRegistration,
+    signServerAuth,
+    commitServerRefreshedToken,
     logoutCloudSession,
     logoutRelaySession,
     applySelectedSite,
 } from './session/services';
-export type { LogoutOptions } from './session/services';
+export type { LogoutOptions, ServerKind } from './session/services';
 // Selected-site read model getter, for app-runtime's socket-driven site switch (auth.switch).
 export { getSelectedSiteId } from './session/contextStore';

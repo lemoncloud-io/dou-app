@@ -533,12 +533,17 @@ export const refreshActiveCloudSession = async (): Promise<void> => {
 // the signature is recomputed from the active server's stored fields.
 // ---------------------------------------------------------------------------
 
+/** Which socket/server a bridge helper acts on. Dual-socket callers pass this explicitly. */
+export type ServerKind = 'relay' | 'cloud';
+
 /**
- * Seeds the SDK `register({ token, authId })` call for the active server. Returns null when
+ * Seeds the SDK `register({ token, authId })` call for a specific server kind. Returns null when
  * either field is unavailable so the caller can defer register until a token exists.
  */
-export const getActiveServerAuthRegistration = async (): Promise<{ token: string; authId: string } | null> => {
-    if (getActiveServerContext().kind === 'cloud') {
+export const getServerAuthRegistration = async (
+    kind: ServerKind
+): Promise<{ token: string; authId: string } | null> => {
+    if (kind === 'cloud') {
         const token = cloudCore.getIdentityToken();
         const authId = cloudCore.getCloudToken()?.Token?.authId ?? null;
         return token && authId ? { token, authId } : null;
@@ -551,12 +556,15 @@ export const getActiveServerAuthRegistration = async (): Promise<{ token: string
 };
 
 /**
- * Backs the SDK stateless `sign` callback with the lemon-hmac signature for the active server.
+ * Backs the SDK stateless `sign` callback with the lemon-hmac signature for a specific server kind.
  * `target` (a site-switch selector) is accepted for callback-shape parity but does not change the
  * signature — it is carried only in the SDK `auth.switch` packet (see signing.md §1).
  */
-export const signActiveServerAuth = async (target?: string): Promise<{ signature: string; current: string }> => {
-    if (getActiveServerContext().kind === 'cloud') {
+export const signServerAuth = async (
+    kind: ServerKind,
+    target?: string
+): Promise<{ signature: string; current: string }> => {
+    if (kind === 'cloud') {
         const cloudToken = cloudCore.getCloudToken()?.Token;
         const authId = cloudToken?.authId;
         const accountId = cloudToken?.accountId;
@@ -578,14 +586,16 @@ export const signActiveServerAuth = async (target?: string): Promise<{ signature
 };
 
 /**
- * Writes an SDK-refreshed token back into the web-core store that the HTTP/AWS layers read.
+ * Writes an SDK-refreshed token back into the web-core store for a specific server kind — the
+ * per-socket writeback routing that unblocks dual sockets (multi-socket-design.md §6-6): a relay
+ * refresh arriving while cloud is active must land in the relay store, not the active one.
  *
  * Asymmetric by design (signing.md §3): relay must also rebuild the lemon-web-core AWS credential
  * cache — relay signed HTTP signs from that cache, not from relayCore — while cloud only persists
  * the merged token because cloud HTTP reads cloudCore live per request.
  */
-export const commitSocketRefreshedToken = async (view: UserTokenView): Promise<void> => {
-    if (getActiveServerContext().kind === 'cloud') {
+export const commitServerRefreshedToken = async (kind: ServerKind, view: UserTokenView): Promise<void> => {
+    if (kind === 'cloud') {
         const existing = cloudCore.getCloudToken();
         cloudCore.saveCloudToken(existing ? ({ ...existing, ...view } as UserTokenView) : view);
     } else if (view.Token) {
@@ -596,3 +606,20 @@ export const commitSocketRefreshedToken = async (view: UserTokenView): Promise<v
     // Re-derive uid / identity from the freshly written token so activeServer + UI stay in sync.
     rebuildSessionIdentity();
 };
+
+// ---------------------------------------------------------------------------
+// active-server variants — delegate to the per-server helpers using the CURRENT active kind.
+// Used by the single-socket path (Phase 0/1); dual-socket callers use the kind-explicit ones above.
+// ---------------------------------------------------------------------------
+
+/** Seeds register for the active server (single-socket). */
+export const getActiveServerAuthRegistration = (): Promise<{ token: string; authId: string } | null> =>
+    getServerAuthRegistration(getActiveServerContext().kind);
+
+/** Signs for the active server (single-socket). */
+export const signActiveServerAuth = (target?: string): Promise<{ signature: string; current: string }> =>
+    signServerAuth(getActiveServerContext().kind, target);
+
+/** Writes back a refreshed token to the active server's store (single-socket). */
+export const commitSocketRefreshedToken = (view: UserTokenView): Promise<void> =>
+    commitServerRefreshedToken(getActiveServerContext().kind, view);

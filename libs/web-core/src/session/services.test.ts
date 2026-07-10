@@ -157,8 +157,10 @@ jest.mock('@chatic/bridges', () => ({
 
 import {
     applySelectedSite,
+    commitServerRefreshedToken,
     commitSocketRefreshedToken,
     getActiveServerAuthRegistration,
+    getServerAuthRegistration,
     initializeRelaySession,
     loginRelayGuestByDevice,
     loginRelayUser,
@@ -169,6 +171,7 @@ import {
     refreshCloudSession,
     refreshRelaySession,
     signActiveServerAuth,
+    signServerAuth,
     switchCloudSession,
     switchSiteSession,
 } from './services';
@@ -803,5 +806,75 @@ describe('session/services · AuthController bridge helpers', () => {
 
             expect(mockSaveCloudToken).toHaveBeenCalledWith(view);
         });
+    });
+});
+
+// Per-server (kind-explicit) bridge helpers for the dual-socket path. The active-server variants
+// above delegate to these, so here we verify the explicit-kind routing directly (no active context).
+describe('session/services · per-server bridge helpers', () => {
+    beforeEach(() => {
+        jest.resetAllMocks();
+        localStorage.clear();
+    });
+
+    it('getServerAuthRegistration routes by the kind argument, not the active server', async () => {
+        // relay branch: relay identity token + lemon signature authId
+        mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
+        mockGetTokenSignature.mockResolvedValue({ authId: 'relay-auth-id' });
+        await expect(getServerAuthRegistration('relay')).resolves.toEqual({
+            token: 'relay-identity-token',
+            authId: 'relay-auth-id',
+        });
+
+        // cloud branch: both from the cloud token (relay signature not consulted)
+        mockGetTokenSignature.mockClear();
+        mockGetIdentityToken.mockReturnValue('cloud-identity-token');
+        mockGetCloudToken.mockReturnValue({ Token: { authId: 'cloud-auth-id' } });
+        await expect(getServerAuthRegistration('cloud')).resolves.toEqual({
+            token: 'cloud-identity-token',
+            authId: 'cloud-auth-id',
+        });
+        expect(mockGetTokenSignature).not.toHaveBeenCalled();
+
+        // getActiveServerContext must NOT be consulted — routing is purely the kind arg
+        expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('signServerAuth(cloud) computes over the cloud token; target does not change the signature', async () => {
+        mockGetCloudToken.mockReturnValue({
+            Token: { authId: 'a', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
+        });
+        mockCalcSignature.mockReturnValue('cloud-sig');
+
+        await signServerAuth('cloud', 'uid@sid');
+
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            { authId: 'a', accountId: 'acct', identityId: 'ident', identityToken: '' },
+            expect.any(String)
+        );
+        expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('commitServerRefreshedToken(relay) writes the relay store even while cloud would be active (§6-6)', async () => {
+        mockBuildCredentialsByToken.mockResolvedValue(undefined);
+        const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
+
+        await commitServerRefreshedToken('relay', view);
+
+        // relay dual-write, no cloud store touched, and no dependence on the active context
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(view.Token);
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(view);
+        expect(mockSaveCloudToken).not.toHaveBeenCalled();
+        expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('commitServerRefreshedToken(cloud) merges the cloud store (single write, no credential rebuild)', async () => {
+        mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
+        const view = { id: 'u', Token: { identityToken: 'new' } } as unknown as UserTokenView;
+
+        await commitServerRefreshedToken('cloud', view);
+
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ Token: { identityToken: 'new' } }));
+        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
     });
 });
