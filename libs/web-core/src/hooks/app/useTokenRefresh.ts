@@ -22,18 +22,27 @@ export interface UseTokenRefreshOptions {
     /**
      * When true, skip the periodic refresh `setInterval` (the SDK AuthController owns socket-token
      * refresh in AuthController-active apps; a parallel HTTP refresh would rotate the auth model and
-     * break the socket auth session). Boot initialization, profile hydration, and hard-expiry logout
-     * still run — only the recurring interval is suppressed. AuthController-less apps (admin,
-     * desktop-web) leave this off. (app-runtime auth docs §6-4 / §2-4)
+     * break the socket auth session). AuthController-less apps (admin, desktop-web) leave this off.
+     * (app-runtime auth docs §6-4 / §2-4)
      */
     skipPeriodicRefresh?: boolean;
+    /**
+     * When true, ALSO skip the one-shot boot `initialize()` HTTP refresh. The SDK AuthController is
+     * the SOLE relay-token refresher, so a boot HTTP refresh here would race the socket refresh on the
+     * shared device-keyed auth model and 403 → spurious logout (multi-socket-design.md §6-12). Boot
+     * still marks itself initialized; token freshness comes from the socket refresh writeback, profile
+     * + site/channel hydrate over the socket (useBackgroundSync), and hard-expiry logout moves to the
+     * SDK `expired` → `onAuthExpired('relay')` path. AuthController-less apps leave this off (they need
+     * the boot HTTP refresh to hydrate). Implies the periodic refresh is also off.
+     */
+    skipInitialRefresh?: boolean;
 }
 
 /**
  * Maintains relay token validity for an initialized app runtime and recovers profile state when possible.
  */
 export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshOptions = {}) => {
-    const { skipPeriodicRefresh = false } = options;
+    const { skipPeriodicRefresh = false, skipInitialRefresh = false } = options;
     const { isAuthenticated } = useSessionAuth();
     const logout = useSessionLogout();
 
@@ -119,6 +128,18 @@ export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshO
             return;
         }
 
+        // SDK-AuthController apps own relay refresh on the socket, so they skip the boot HTTP refresh
+        // entirely: it would race the socket refresh on the shared device auth model and 403 → spurious
+        // logout (§6-12). Token freshness comes from the socket refresh writeback, profile + site/channel
+        // hydrate over the socket, and hard-expiry logout is owned by the SDK `expired` → onAuthExpired.
+        if (skipInitialRefresh) {
+            logger.info('AUTH', '[tokenRefresh] boot refresh skipped (SDK owns relay refresh)');
+            isInitializedRef.current = true;
+            networkRetryRef.current = 0;
+            setInitStatus('success');
+            return;
+        }
+
         logger.info('AUTH', '[tokenRefresh] Initializing: refreshing token + profile');
         // A single relay refresh refreshes the token AND hydrates the profile from the same
         // response (no separate profile GET). refreshToken() classifies errors and performs
@@ -134,7 +155,7 @@ export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshO
         isInitializedRef.current = true;
         networkRetryRef.current = 0;
         setInitStatus('success');
-    }, [isAuthenticated, webCoreReady, refreshToken]);
+    }, [isAuthenticated, webCoreReady, refreshToken, skipInitialRefresh]);
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {

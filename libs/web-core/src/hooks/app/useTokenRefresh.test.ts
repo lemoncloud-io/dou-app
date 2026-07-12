@@ -115,3 +115,36 @@ describe('useTokenRefresh — skipPeriodicRefresh', () => {
         setIntervalSpy.mockRestore();
     });
 });
+
+describe('useTokenRefresh — skipInitialRefresh (SDK owns relay refresh)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // Authenticated so the mount effect runs initialize(); a boot refresh WOULD fire if not skipped.
+        mockUseSessionAuth.mockReturnValue({ isAuthenticated: true });
+        mockRefreshRelaySession.mockResolvedValue(null);
+        mockRefreshActiveCloudSession.mockResolvedValue(undefined);
+        mockClassifyError.mockReturnValue({ shouldLogout: false });
+    });
+
+    it('does NOT run the boot HTTP refresh but still marks initialized when skipInitialRefresh is true', async () => {
+        const { result } = renderHook(() =>
+            useTokenRefresh(true, { skipPeriodicRefresh: true, skipInitialRefresh: true })
+        );
+
+        await waitFor(() => expect(result.current.initStatus).toBe('success'));
+        await Promise.resolve();
+
+        // No boot HTTP refresh → no double-rotation, no shouldLogout path, no logout.
+        expect(mockRefreshRelaySession).not.toHaveBeenCalled();
+        expect(mockRefreshActiveCloudSession).not.toHaveBeenCalled();
+        expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('still runs the boot refresh when skipInitialRefresh is not set (admin/desktop-web path)', async () => {
+        const { result } = renderHook(() => useTokenRefresh(true, { skipPeriodicRefresh: true }));
+
+        await waitFor(() => expect(result.current.initStatus).toBe('success'));
+
+        expect(mockRefreshRelaySession).toHaveBeenCalledWith({ syncProfile: true });
+    });
+});
