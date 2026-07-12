@@ -30,16 +30,10 @@ export const reauthenticateActiveSocket = async ({
     delegate,
     kind,
 }: ReauthenticateActiveSocketArgs): Promise<void> => {
-    const auth = manager.getClient()?.auth;
+    // Target the slot for THIS kind, not the global active slot: a relay identity change must re-auth
+    // the relay client even while a cloud slot is the active one (getClient() would return cloud).
+    const auth = manager.getClient(kind)?.auth;
     if (!auth) {
-        return;
-    }
-
-    // Only swap identity on a LIVE (verified) socket. Before the socket is connected+authenticated
-    // there is no live session to re-auth: the (re)connect seeds register() from the latest token via
-    // bootstrapSocketConnection, so firing here would only dispatch a doomed `auth.logout` (503 SOCKET
-    // NOT CONNECTED) and can feed a refresh→writeback→reauth loop while the socket is still connecting.
-    if (!manager.getSnapshot().isVerified) {
         return;
     }
 
@@ -54,13 +48,17 @@ export const reauthenticateActiveSocket = async ({
         return;
     }
 
-    logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed on the live socket, re-authenticating');
-    // Fire-and-forget the revoke of the previous session: logout() dispatches the auth.logout frame
-    // synchronously (preserving logout-before-update wire order) and flips the controller inactive,
-    // so register() can resume immediately. We do NOT await the server ack — on a wedged socket it
-    // could hang to the 30s request timeout and needlessly delay the promotion re-auth. logout() is
-    // best-effort and does not reject; the promise is guarded regardless.
-    void Promise.resolve(auth.logout()).catch(() => undefined);
+    logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed, re-authenticating');
+    // Revoke the PREVIOUS session only on a LIVE (verified) socket: auth.logout on a disconnected socket
+    // 503s and is pointless, and firing it during a connect can feed a refresh→writeback→reauth loop.
+    // register() below runs UNCONDITIONALLY, so even when we skip the revoke the new identity is stored
+    // and applied on the next handshake — the token-change edge is never dropped (a transient
+    // disconnect coinciding with a guest→social promotion must not leave the socket on the old identity).
+    if (manager.getSnapshot().isVerified) {
+        // Fire-and-forget: logout() dispatches the frame synchronously (logout-before-update wire order)
+        // and flips the controller inactive so register() resumes immediately; we do NOT await the ack.
+        void Promise.resolve(auth.logout()).catch(() => undefined);
+    }
     auth.register({
         token: registration.token,
         authId: registration.authId,

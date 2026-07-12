@@ -56,17 +56,20 @@ describe('reauthenticateActiveSocket', () => {
         expect(auth.register).not.toHaveBeenCalled();
     });
 
-    it('is a no-op when the socket is not verified yet (connect seeds the latest token itself)', async () => {
+    it('registers the new identity but SKIPS the revoke when the socket is not verified (no dropped edge)', async () => {
         const order: string[] = [];
         const auth = makeAuth('guest-token', order);
         const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
 
         await reauthenticateActiveSocket({ manager: makeManager(auth, false), delegate, kind: 'relay' });
 
-        expect(order).toEqual([]);
+        // register still runs (so the new identity is applied on the next handshake — edge not lost),
+        // but auth.logout is skipped (it would 503 on a disconnected socket).
+        expect(order).toEqual(['register']);
         expect(auth.logout).not.toHaveBeenCalled();
-        expect(auth.register).not.toHaveBeenCalled();
-        expect(delegate.getAuthRegistration).not.toHaveBeenCalled();
+        expect(auth.register).toHaveBeenCalledWith(
+            expect.objectContaining({ token: 'social-token', authId: 'social-auth' })
+        );
     });
 
     it('does nothing when there is no active client', async () => {
