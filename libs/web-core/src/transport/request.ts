@@ -2,6 +2,7 @@ import axios from 'axios';
 
 import { cloudCore, DOU_ENDPOINT, getDynamicDOUEndpoint, OAUTH_ENDPOINT } from '../session/core';
 import { signAwsRequest } from './awsSigning';
+import { withNetworkLog } from './networkLog';
 import { webTransport } from './webTransport';
 
 import type { AxiosRequestConfig, AxiosResponse, Method } from 'axios';
@@ -98,7 +99,9 @@ export const executeRelayRequest = async <TResponse, TBody = unknown, TParams = 
     if (params) request.setParams(params as Record<string, unknown>);
     if (body !== undefined) request.setBody(body as never);
 
-    const { data } = await request.execute<TResponse & { error?: string }>();
+    const { data } = await withNetworkLog({ method, url: baseURL, params, body }, () =>
+        request.execute<TResponse & { error?: string }>()
+    );
     return throwIfApiError(data);
 };
 
@@ -119,7 +122,9 @@ export const executeSignedRelayRequest = async <TResponse, TBody = unknown, TPar
     if (params) request.setParams(params as Record<string, unknown>);
     if (body !== undefined) request.setBody(body as never);
 
-    const { data } = await request.execute<TResponse & { error?: string }>();
+    const { data } = await withNetworkLog({ method, url: baseURL, params, body }, () =>
+        request.execute<TResponse & { error?: string }>()
+    );
     return throwIfApiError(data);
 };
 
@@ -140,6 +145,8 @@ export const executeCloudRequest = async <TResponse, TBody = unknown, TParams = 
     if (params) request.setParams(params as Record<string, unknown>);
     if (body !== undefined) request.setBody(body as never);
 
-    const { data } = await request.execute<TResponse & { error?: string }>();
+    const { data } = await withNetworkLog({ method, url: baseURL, params, body }, () =>
+        request.execute<TResponse & { error?: string }>()
+    );
     return throwIfApiError(data);
 };

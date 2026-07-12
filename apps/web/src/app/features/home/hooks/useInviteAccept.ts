@@ -13,6 +13,36 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
+/** The invite-accept pipeline step that was in flight when an error was thrown. */
+type InviteAcceptStep = 'login-invite' | 'cache-cloud' | 'enter-cloud' | 'enter-site' | 'enter-channel';
+
+/**
+ * Maps a failure (the step it happened in + the thrown error) to a specific `inviteAccept.*` i18n key
+ * so the toast and error panel can name the actual cause instead of a generic "failed".
+ *
+ * Ordering matters: transport-shape errors (timeout/network) are checked first since they can occur in
+ * any step. Server errors arrive as HTTP-200 bodies like `"400 INVALID - ..."` (see throwIfApiError),
+ * so we match by HTTP-code substring — the same convention used by ErrorFallback. `delegatorId` is not
+ * handled here: it is branched to the missing-delegator panel before this helper runs.
+ */
+const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
+    const message = err.message;
+
+    if (message.startsWith('TIMEOUT:')) return 'inviteAccept.timeout';
+    if (message.includes('Network Error') || message.includes('ERR_NETWORK')) return 'inviteAccept.networkError';
+
+    if (step === 'login-invite') {
+        // The invite itself is bad: expired, revoked, or a malformed code.
+        if (message.includes('400') || message.includes('404')) return 'inviteAccept.expired';
+        // Authentication/authorization rejected the invite login.
+        if (message.includes('401') || message.includes('403')) return 'inviteAccept.authVerifyFailed';
+        return 'inviteAccept.failed';
+    }
+
+    // Login succeeded but a later token/entry step failed — the user is registered but couldn't enter.
+    return 'inviteAccept.enterFailed';
+};
+
 /**
  * Drives invite acceptance: logs in with the invite code via `useInviteFlow`, then enters the
  * invite target in order — cloud → site → channel — using identifiers from `MyInviteView`. Each
@@ -28,7 +58,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
     const { enterChannel } = useEnterInvitedChannel();
     const { cloud } = useRuntimeRepositories();
     const [missingDelegator, setMissingDelegator] = useState(false);
-    const [hasError, setHasError] = useState(false);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const accept = useCallback(async () => {
         const { code, backend } = params;
@@ -38,12 +68,16 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             return;
         }
 
+        // Tracks the pipeline step in flight so a failure can name where it happened. Every underlying
+        // token call (delegate/exchange/refresh) is traced separately via traceTokenCall in web-core.
+        let step: InviteAcceptStep = 'login-invite';
         try {
             await runInviteFlow({ code, backend });
 
             // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
             // the cloud sheet. Skipped when the invite carries no cloudId.
             if (info?.cloudId) {
+                step = 'cache-cloud';
                 await cloud.cacheWrite({
                     id: info.cloudId,
                     cid: info.cloudId,
@@ -53,32 +87,31 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
                 });
             }
 
+            step = 'enter-cloud';
             await enterCloud(info);
+            step = 'enter-site';
             await enterSite(info);
+            step = 'enter-channel';
             enterChannel(info);
         } catch (error) {
             const err = toError(error);
-            logger.error('AUTH', '[useInviteAccept] accept failed', { error: err });
+            logger.error('AUTH', `[useInviteAccept] accept failed at step=${step}`, { error: err, data: { step } });
 
             if (err.message.includes('delegatorId')) {
                 setMissingDelegator(true);
                 return;
             }
-            if (err.message.startsWith('TIMEOUT:')) {
-                toast({ title: t('inviteAccept.timeout'), variant: 'destructive' });
-            } else if (err.message.includes('Network Error') || err.message.includes('ERR_NETWORK')) {
-                toast({ title: t('inviteAccept.networkError'), variant: 'destructive' });
-            } else {
-                toast({ title: t('inviteAccept.failed'), variant: 'destructive' });
-            }
-            setHasError(true);
+
+            const key = resolveInviteErrorKey(step, err);
+            toast({ title: t(key), variant: 'destructive' });
+            setErrorKey(key);
         }
-    }, [params, info, runInviteFlow, enterCloud, enterSite, enterChannel, toast, t]);
+    }, [params, info, runInviteFlow, enterCloud, enterSite, enterChannel, cloud, toast, t]);
 
     return {
         accept,
         isAccepting: isInviting || isEnteringCloud || isEnteringSite,
         missingDelegator,
-        hasError,
+        errorKey,
     };
 };
