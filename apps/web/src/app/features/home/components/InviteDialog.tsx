@@ -29,7 +29,7 @@ export const InviteDialog = (): JSX.Element | null => {
     // Invite metadata (inviter / target name) to personalize the prompt. Hooks must run before any
     // early return, so this is called unconditionally; the query stays disabled for non-invites.
     const { data: info } = useInviteInfo(params.code, params.backend);
-    const { accept, isAccepting, missingDelegator, hasError } = useInviteAccept({ params, info });
+    const { accept, isAccepting, missingDelegator, errorKey } = useInviteAccept({ params, info });
 
     // Not an invite landing: render nothing so home shows normally.
     if (!isInviteEntry(params)) return null;
@@ -40,15 +40,14 @@ export const InviteDialog = (): JSX.Element | null => {
     const headingText = inviterName ? t('inviteAccept.invitedBy', { name: inviterName }) : t('inviteAccept.title');
     const avatarInitial = inviterName?.trim().charAt(0).toUpperCase() || '?';
 
-    // Show invite error with retry
-    if (hasError) {
+    // Show invite error. The message reflects the resolved cause (expired / network / entry failure …)
+    // instead of a generic "invalid link".
+    if (errorKey) {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(41,41,58,0.23)]">
                 <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
                     <div className="flex flex-col items-center pt-4 w-full gap-4">
-                        <p className="text-center text-[16px] font-medium text-[#84888f]">
-                            {t('inviteAccept.invalidLink')}
-                        </p>
+                        <p className="text-center text-[16px] font-medium text-[#84888f]">{t(errorKey)}</p>
                         <button
                             onClick={() => navigate(ROUTES.home, { replace: true })}
                             className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"

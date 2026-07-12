@@ -794,6 +794,8 @@
         "timeout": "Server response timed out. Please try again.",
         "networkError": "Please check your network connection and try again.",
         "authVerifyFailed": "Authentication failed. Please try again.",
+        "expired": "This invite has expired or is invalid.",
+        "enterFailed": "The invite was accepted but entering failed. Please try again.",
         "invitedBy": "{{name}} invited you"
     },
     "subscriptionRequired": {
