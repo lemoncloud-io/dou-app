@@ -15,7 +15,6 @@ import type {
     MyInviteView,
     RegisterUserV2Body,
     UserBody,
-    UserLogoutResult,
     UserProfile$,
     UserTokenView,
     UserView,
@@ -120,14 +119,6 @@ export const generateToken = async (request: TokenGenerateRequest): Promise<Toke
         method: 'POST',
         baseURL: `${getOAuthEndpoint()}/auth/0/generate-token`,
         body: request,
-    });
-};
-
-export const logout = async (): Promise<UserLogoutResult> => {
-    return executeRelayRequest<UserLogoutResult, Record<string, never>>({
-        method: 'POST',
-        baseURL: `${getCoreEndpoint()}/users/logout`,
-        body: {},
     });
 };
 

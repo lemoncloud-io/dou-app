@@ -29,21 +29,21 @@ const managerWith = (byKind: { relay?: unknown; cloud?: unknown }) =>
 describe('logoutSession', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    it('sends socket auth.logout BEFORE the authoritative HTTP logout', async () => {
+    it('sends socket auth.logout BEFORE the local session teardown', async () => {
         const order: string[] = [];
         const authLogout = jest.fn(() => {
             order.push('auth.logout');
             return Promise.resolve();
         });
         mockedLogoutRelay.mockImplementation(() => {
-            order.push('http.logout');
+            order.push('local.teardown');
             return Promise.resolve();
         });
         mockedGetManager.mockReturnValue(managerWith({ relay: { logout: authLogout } }));
 
         await logoutSession();
 
-        expect(order).toEqual(['auth.logout', 'http.logout']);
+        expect(order).toEqual(['auth.logout', 'local.teardown']);
     });
 
     it('notifies BOTH the relay and cloud sockets (a relay logout ends everything, §8-6)', async () => {
@@ -60,7 +60,7 @@ describe('logoutSession', () => {
         expect(mockedLogoutRelay).toHaveBeenCalledTimes(1);
     });
 
-    it('still runs the HTTP logout when there is no socket (disconnected → HTTP is the only revoke)', async () => {
+    it('still runs the local teardown when there is no socket (teardown is unconditional)', async () => {
         mockedGetManager.mockReturnValue(managerWith({}));
 
         await logoutSession({ preserveUrl: true });
@@ -68,7 +68,7 @@ describe('logoutSession', () => {
         expect(mockedLogoutRelay).toHaveBeenCalledWith({ preserveUrl: true });
     });
 
-    it('proceeds to HTTP logout even when socket auth.logout throws (best-effort)', async () => {
+    it('proceeds to the local teardown even when socket auth.logout throws (best-effort)', async () => {
         const authLogout = jest.fn().mockRejectedValue(new Error('socket gone'));
         mockedGetManager.mockReturnValue(managerWith({ relay: { logout: authLogout } }));
 
@@ -76,14 +76,14 @@ describe('logoutSession', () => {
         expect(mockedLogoutRelay).toHaveBeenCalledTimes(1);
     });
 
-    it('does NOT block the HTTP revoke on a hanging auth.logout ack (wedged socket)', async () => {
+    it('does NOT block the local teardown on a hanging auth.logout ack (wedged socket)', async () => {
         // auth.logout never resolves (server wedged / half-open). logoutSession must still complete
-        // the authoritative HTTP revoke without awaiting the socket ack.
+        // the local teardown without awaiting the socket ack.
         const authLogout = jest.fn(() => new Promise<void>(() => undefined)); // never settles
         mockedGetManager.mockReturnValue(managerWith({ relay: { logout: authLogout } }));
 
         await expect(logoutSession()).resolves.toBeUndefined();
         expect(authLogout).toHaveBeenCalledTimes(1); // frame dispatched
-        expect(mockedLogoutRelay).toHaveBeenCalledTimes(1); // HTTP revoke still ran
+        expect(mockedLogoutRelay).toHaveBeenCalledTimes(1); // local teardown still ran
     });
 });

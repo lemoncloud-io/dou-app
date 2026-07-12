@@ -7,7 +7,6 @@ import {
     issueCloudDelegationToken,
     issueCloudToken,
     login as loginRelayRequest,
-    logout as logoutRelayRequest,
     refreshAuthToken,
     refreshCloudToken,
     registerDevice,
@@ -229,9 +228,10 @@ const runRefreshRelaySession = async ({
 export const logoutRelaySession = async (options?: LogoutOptions): Promise<void> => {
     const searchBeforeCleanup = window.location.search;
 
-    await logoutRelayRequest().catch(error => {
-        logger.error('AUTH', '[service] relay logout request failed', { error });
-    });
+    // No server-side logout: there is no backend session-revoke endpoint (the old POST /users/logout
+    // always 403'd because it was unsigned, and it was never authoritative). Logout is purely a LOCAL
+    // teardown — clear the relay/cloud tokens + credentials + selection below. The socket auth session
+    // is ended separately by the caller's best-effort socket `auth.logout` (app-runtime logoutSession).
 
     logoutCallbacks.forEach(callback => {
         try {
