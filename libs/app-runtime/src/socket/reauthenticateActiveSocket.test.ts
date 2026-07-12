@@ -16,8 +16,11 @@ const makeAuth = (token: string, order: string[]) => ({
     }),
 });
 
-const makeManager = (auth: unknown): ISocketManager =>
-    ({ getClient: jest.fn(() => (auth ? { auth } : null)) }) as unknown as ISocketManager;
+const makeManager = (auth: unknown, isVerified = true): ISocketManager =>
+    ({
+        getClient: jest.fn(() => (auth ? { auth } : null)),
+        getSnapshot: jest.fn(() => ({ isVerified })),
+    }) as unknown as ISocketManager;
 
 const makeDelegate = (registration: { token: string; authId: string } | null): jest.Mocked<SocketSessionDelegate> =>
     ({
@@ -51,6 +54,19 @@ describe('reauthenticateActiveSocket', () => {
         expect(order).toEqual([]);
         expect(auth.logout).not.toHaveBeenCalled();
         expect(auth.register).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op when the socket is not verified yet (connect seeds the latest token itself)', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('guest-token', order);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager: makeManager(auth, false), delegate, kind: 'relay' });
+
+        expect(order).toEqual([]);
+        expect(auth.logout).not.toHaveBeenCalled();
+        expect(auth.register).not.toHaveBeenCalled();
+        expect(delegate.getAuthRegistration).not.toHaveBeenCalled();
     });
 
     it('does nothing when there is no active client', async () => {

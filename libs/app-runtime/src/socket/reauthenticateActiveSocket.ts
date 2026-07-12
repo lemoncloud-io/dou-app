@@ -35,6 +35,14 @@ export const reauthenticateActiveSocket = async ({
         return;
     }
 
+    // Only swap identity on a LIVE (verified) socket. Before the socket is connected+authenticated
+    // there is no live session to re-auth: the (re)connect seeds register() from the latest token via
+    // bootstrapSocketConnection, so firing here would only dispatch a doomed `auth.logout` (503 SOCKET
+    // NOT CONNECTED) and can feed a refresh→writeback→reauth loop while the socket is still connecting.
+    if (!manager.getSnapshot().isVerified) {
+        return;
+    }
+
     const registration = await delegate.getAuthRegistration(kind);
     if (!registration) {
         return;
