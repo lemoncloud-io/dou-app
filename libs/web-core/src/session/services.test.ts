@@ -39,7 +39,8 @@ const mockRelaySaveRelayToken = jest.fn();
 const mockRelayGetRelayToken = jest.fn();
 const mockRelayGetIdentityToken = jest.fn();
 
-// AuthController bridge helper deps (getActiveServerAuthRegistration / signActiveServerAuth / commitSocketRefreshedToken)
+// Per-server bridge helper deps. mockGetActiveServerContext backs the "routing ignores active
+// context" assertions in the per-server suite.
 const mockGetActiveServerContext = jest.fn();
 const mockGetTokenSignature = jest.fn();
 const mockCalcSignature = jest.fn();
@@ -158,8 +159,6 @@ jest.mock('@chatic/bridges', () => ({
 import {
     applySelectedSite,
     commitServerRefreshedToken,
-    commitSocketRefreshedToken,
-    getActiveServerAuthRegistration,
     getServerAuthRegistration,
     initializeRelaySession,
     loginRelayGuestByDevice,
@@ -170,7 +169,6 @@ import {
     refreshActiveCloudSession,
     refreshCloudSession,
     refreshRelaySession,
-    signActiveServerAuth,
     signServerAuth,
     switchCloudSession,
     switchSiteSession,
@@ -636,181 +634,8 @@ describe('session/services', () => {
     });
 });
 
-// SDK AuthController bridge helpers — active-server-aware register seed / sign / writeback.
-describe('session/services · AuthController bridge helpers', () => {
-    const asRelay = () => mockGetActiveServerContext.mockReturnValue({ kind: 'relay' });
-    const asCloud = () => mockGetActiveServerContext.mockReturnValue({ kind: 'cloud' });
-
-    beforeEach(() => {
-        jest.resetAllMocks();
-        localStorage.clear();
-    });
-
-    describe('getActiveServerAuthRegistration', () => {
-        it('relay: token from relayCore, authId from the lemon signature', async () => {
-            asRelay();
-            mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
-            mockGetTokenSignature.mockResolvedValue({ authId: 'relay-auth-id', current: 'now', signature: 'sig' });
-
-            await expect(getActiveServerAuthRegistration()).resolves.toEqual({
-                token: 'relay-identity-token',
-                authId: 'relay-auth-id',
-            });
-        });
-
-        it('cloud: token + authId both from the cloud token', async () => {
-            asCloud();
-            mockGetIdentityToken.mockReturnValue('cloud-identity-token');
-            mockGetCloudToken.mockReturnValue({ Token: { authId: 'cloud-auth-id' } });
-
-            await expect(getActiveServerAuthRegistration()).resolves.toEqual({
-                token: 'cloud-identity-token',
-                authId: 'cloud-auth-id',
-            });
-            // relay signature is not consulted on the cloud branch
-            expect(mockGetTokenSignature).not.toHaveBeenCalled();
-        });
-
-        it('returns null when the token is missing (defer register)', async () => {
-            asRelay();
-            mockRelayGetIdentityToken.mockReturnValue(null);
-            mockGetTokenSignature.mockResolvedValue({ authId: 'relay-auth-id' });
-
-            await expect(getActiveServerAuthRegistration()).resolves.toBeNull();
-        });
-
-        it('returns null when the authId is missing', async () => {
-            asCloud();
-            mockGetIdentityToken.mockReturnValue('cloud-identity-token');
-            mockGetCloudToken.mockReturnValue({ Token: {} });
-
-            await expect(getActiveServerAuthRegistration()).resolves.toBeNull();
-        });
-    });
-
-    describe('signActiveServerAuth', () => {
-        it('relay: reuses the lemon-web-core precomputed { signature, current }', async () => {
-            asRelay();
-            mockGetTokenSignature.mockResolvedValue({
-                authId: 'a',
-                current: '2026-01-01T00:00:00Z',
-                signature: 'relay-sig',
-            });
-
-            await expect(signActiveServerAuth()).resolves.toEqual({
-                signature: 'relay-sig',
-                current: '2026-01-01T00:00:00Z',
-            });
-            expect(mockCalcSignature).not.toHaveBeenCalled();
-        });
-
-        it('cloud: computes the lemon-hmac over the cloud token fields with an empty identityToken slot', async () => {
-            asCloud();
-            mockGetCloudToken.mockReturnValue({
-                Token: { authId: 'cloud-auth', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
-            });
-            mockCalcSignature.mockReturnValue('cloud-sig');
-
-            const result = await signActiveServerAuth();
-
-            expect(mockCalcSignature).toHaveBeenCalledWith(
-                { authId: 'cloud-auth', accountId: 'acct', identityId: 'ident', identityToken: '' },
-                expect.any(String)
-            );
-            expect(result.signature).toBe('cloud-sig');
-            expect(typeof result.current).toBe('string');
-        });
-
-        it('cloud: the switch target does not change the signature', async () => {
-            asCloud();
-            mockGetCloudToken.mockReturnValue({
-                Token: { authId: 'cloud-auth', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
-            });
-            mockCalcSignature.mockReturnValue('cloud-sig');
-
-            await signActiveServerAuth('uid@sid');
-
-            // target is never passed into the signature computation
-            expect(mockCalcSignature).toHaveBeenCalledWith(
-                expect.not.objectContaining({ target: expect.anything() }),
-                expect.any(String)
-            );
-        });
-
-        it('cloud: throws when required token fields are missing (so the SDK backs off)', async () => {
-            asCloud();
-            mockGetCloudToken.mockReturnValue({ Token: { authId: 'cloud-auth' } });
-
-            await expect(signActiveServerAuth()).rejects.toThrow('Missing cloud token fields');
-        });
-
-        it('relay: throws when the precomputed signature is unavailable', async () => {
-            asRelay();
-            mockGetTokenSignature.mockResolvedValue({ authId: 'a', current: undefined, signature: undefined });
-
-            await expect(signActiveServerAuth()).rejects.toThrow('Missing relay signature');
-        });
-    });
-
-    describe('commitSocketRefreshedToken', () => {
-        it('relay: rebuilds the AWS credential cache, then persists the relay token (order matters)', async () => {
-            asRelay();
-            mockBuildCredentialsByToken.mockResolvedValue(undefined);
-            const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
-
-            await commitSocketRefreshedToken(view);
-
-            expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(view.Token);
-            expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(view);
-            expect(mockRebuildSessionIdentity).toHaveBeenCalledTimes(1);
-            // cloud store must not be touched on the relay branch
-            expect(mockSaveCloudToken).not.toHaveBeenCalled();
-        });
-
-        it('relay: skips writeback when the view carries no Token but still rebuilds identity', async () => {
-            asRelay();
-            const view = { id: 'u' } as unknown as UserTokenView;
-
-            await commitSocketRefreshedToken(view);
-
-            expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
-            expect(mockRelaySaveRelayToken).not.toHaveBeenCalled();
-            expect(mockRebuildSessionIdentity).toHaveBeenCalledTimes(1);
-        });
-
-        it('cloud: merges over the existing cloud token (single write, no credential rebuild)', async () => {
-            asCloud();
-            mockGetCloudToken.mockReturnValue({
-                id: 'u',
-                Token: { identityToken: 'old', credential: { AccessKeyId: 'k' } },
-            });
-            const view = { id: 'u', Token: { identityToken: 'new' } } as unknown as UserTokenView;
-
-            await commitSocketRefreshedToken(view);
-
-            expect(mockSaveCloudToken).toHaveBeenCalledWith(
-                expect.objectContaining({ Token: { identityToken: 'new' } })
-            );
-            // cloud path never rebuilds the relay AWS credential cache
-            expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
-            expect(mockRelaySaveRelayToken).not.toHaveBeenCalled();
-            expect(mockRebuildSessionIdentity).toHaveBeenCalledTimes(1);
-        });
-
-        it('cloud: persists the view directly when there is no existing token', async () => {
-            asCloud();
-            mockGetCloudToken.mockReturnValue(null);
-            const view = { id: 'u', Token: { identityToken: 'new' } } as unknown as UserTokenView;
-
-            await commitSocketRefreshedToken(view);
-
-            expect(mockSaveCloudToken).toHaveBeenCalledWith(view);
-        });
-    });
-});
-
-// Per-server (kind-explicit) bridge helpers for the dual-socket path. The active-server variants
-// above delegate to these, so here we verify the explicit-kind routing directly (no active context).
+// Per-server (kind-explicit) bridge helpers for the dual-socket path (multi-socket-design.md §7):
+// verify the explicit-kind routing directly (no active-server context).
 describe('session/services · per-server bridge helpers', () => {
     beforeEach(() => {
         jest.resetAllMocks();

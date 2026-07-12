@@ -12,8 +12,8 @@ jest.mock('@chatic/web-core', () => ({
     useTokenRefresh: jest.fn(),
     useDynamicDeviceId: jest.fn().mockReturnValue({ deviceId: 'test-device-id', isReady: true }),
     // Consumed by useSocketSessionDelegate (the delegate is now owned by app-runtime).
-    getActiveServerAuthRegistration: jest.fn(),
-    signActiveServerAuth: jest.fn(),
+    getServerAuthRegistration: jest.fn(),
+    signServerAuth: jest.fn(),
     commitServerRefreshedToken: jest.fn(),
     logoutCloudSession: jest.fn(),
     logoutRelaySession: jest.fn(),

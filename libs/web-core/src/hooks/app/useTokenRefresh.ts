@@ -20,29 +20,23 @@ const isInviteFlow = (): boolean => {
 
 export interface UseTokenRefreshOptions {
     /**
-     * When true, skip the periodic refresh `setInterval` (the SDK AuthController owns socket-token
-     * refresh in AuthController-active apps; a parallel HTTP refresh would rotate the auth model and
-     * break the socket auth session). AuthController-less apps (admin, desktop-web) leave this off.
-     * (app-runtime auth docs §6-4 / §2-4)
+     * When true, the SDK AuthController is the SOLE relay-token refresher, so this hook does NO HTTP
+     * relay refresh at all — it skips BOTH the one-shot boot `initialize()` refresh AND the periodic
+     * `setInterval`. A parallel HTTP refresh would race the socket refresh on the shared device-keyed
+     * auth model and 403 → spurious logout (multi-socket-design.md §6-12). Boot still marks itself
+     * initialized; token freshness comes from the socket refresh writeback, profile + site/channel
+     * hydrate over the socket (useBackgroundSync), and hard-expiry logout moves to the SDK `expired` →
+     * `onAuthExpired('relay')` path. AuthController-less apps (admin, desktop-web) leave this off —
+     * they need the boot HTTP refresh to hydrate and the periodic loop to stay authenticated.
      */
-    skipPeriodicRefresh?: boolean;
-    /**
-     * When true, ALSO skip the one-shot boot `initialize()` HTTP refresh. The SDK AuthController is
-     * the SOLE relay-token refresher, so a boot HTTP refresh here would race the socket refresh on the
-     * shared device-keyed auth model and 403 → spurious logout (multi-socket-design.md §6-12). Boot
-     * still marks itself initialized; token freshness comes from the socket refresh writeback, profile
-     * + site/channel hydrate over the socket (useBackgroundSync), and hard-expiry logout moves to the
-     * SDK `expired` → `onAuthExpired('relay')` path. AuthController-less apps leave this off (they need
-     * the boot HTTP refresh to hydrate). Implies the periodic refresh is also off.
-     */
-    skipInitialRefresh?: boolean;
+    sdkOwnsRefresh?: boolean;
 }
 
 /**
  * Maintains relay token validity for an initialized app runtime and recovers profile state when possible.
  */
 export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshOptions = {}) => {
-    const { skipPeriodicRefresh = false, skipInitialRefresh = false } = options;
+    const { sdkOwnsRefresh = false } = options;
     const { isAuthenticated } = useSessionAuth();
     const logout = useSessionLogout();
 
@@ -94,9 +88,8 @@ export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshO
     }, [logout]);
 
     const startInterval = useCallback(() => {
-        // AuthController-active apps skip the recurring refresh (SDK owns socket-token refresh);
-        // the one-shot boot initialize() still ran before this is called.
-        if (skipPeriodicRefresh) {
+        // AuthController-active apps skip the recurring refresh entirely (SDK owns socket-token refresh).
+        if (sdkOwnsRefresh) {
             return;
         }
         if (intervalRef.current) {
@@ -105,7 +98,7 @@ export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshO
 
         logger.info('AUTH', 'Starting token refresh interval', { interval: REFRESH_INTERVAL });
         intervalRef.current = setInterval(refreshToken, REFRESH_INTERVAL);
-    }, [refreshToken, skipPeriodicRefresh]);
+    }, [refreshToken, sdkOwnsRefresh]);
 
     const stopInterval = useCallback(() => {
         if (intervalRef.current) {
@@ -132,7 +125,7 @@ export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshO
         // entirely: it would race the socket refresh on the shared device auth model and 403 → spurious
         // logout (§6-12). Token freshness comes from the socket refresh writeback, profile + site/channel
         // hydrate over the socket, and hard-expiry logout is owned by the SDK `expired` → onAuthExpired.
-        if (skipInitialRefresh) {
+        if (sdkOwnsRefresh) {
             logger.info('AUTH', '[tokenRefresh] boot refresh skipped (SDK owns relay refresh)');
             isInitializedRef.current = true;
             networkRetryRef.current = 0;
@@ -155,7 +148,7 @@ export const useTokenRefresh = (webCoreReady: boolean, options: UseTokenRefreshO
         isInitializedRef.current = true;
         networkRetryRef.current = 0;
         setInitStatus('success');
-    }, [isAuthenticated, webCoreReady, refreshToken, skipInitialRefresh]);
+    }, [isAuthenticated, webCoreReady, refreshToken, sdkOwnsRefresh]);
 
     useEffect(() => {
         if (isAuthenticated && webCoreReady) {

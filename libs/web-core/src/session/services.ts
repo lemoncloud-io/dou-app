@@ -13,7 +13,7 @@ import {
     verifyNativeAppToken,
 } from '../api';
 import { calcSignature, clearRelayTransportOverrides, webTransport } from '../transport';
-import { getActiveServerContext, getCloudSessionSnapshot } from './contexts';
+import { getCloudSessionSnapshot } from './contexts';
 import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, startWebCoreInit } from './core';
 import {
     clearRelaySession,
@@ -606,20 +606,3 @@ export const commitServerRefreshedToken = async (kind: ServerKind, view: UserTok
     // Re-derive uid / identity from the freshly written token so activeServer + UI stay in sync.
     rebuildSessionIdentity();
 };
-
-// ---------------------------------------------------------------------------
-// active-server variants — delegate to the per-server helpers using the CURRENT active kind.
-// Used by the single-socket path (Phase 0/1); dual-socket callers use the kind-explicit ones above.
-// ---------------------------------------------------------------------------
-
-/** Seeds register for the active server (single-socket). */
-export const getActiveServerAuthRegistration = (): Promise<{ token: string; authId: string } | null> =>
-    getServerAuthRegistration(getActiveServerContext().kind);
-
-/** Signs for the active server (single-socket). */
-export const signActiveServerAuth = (target?: string): Promise<{ signature: string; current: string }> =>
-    signServerAuth(getActiveServerContext().kind, target);
-
-/** Writes back a refreshed token to the active server's store (single-socket). */
-export const commitSocketRefreshedToken = (view: UserTokenView): Promise<void> =>
-    commitServerRefreshedToken(getActiveServerContext().kind, view);
