@@ -107,4 +107,40 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
             expect.objectContaining({ data: { step: 'enter-site' } })
         );
     });
+
+    it('타임아웃은 단계와 무관하게 timeout 키', async () => {
+        mockRunInviteFlow.mockRejectedValue(new Error('TIMEOUT: no response'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.timeout');
+
+        jest.clearAllMocks();
+        mockRunInviteFlow.mockResolvedValue({});
+        mockEnterCloud.mockResolvedValue(undefined);
+        mockEnterSite.mockRejectedValue(new Error('TIMEOUT: no response'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.timeout');
+    });
+
+    it('네트워크 오류는 단계와 무관하게 networkError 키', async () => {
+        mockRunInviteFlow.mockRejectedValue(new Error('ERR_NETWORK'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.networkError');
+
+        jest.clearAllMocks();
+        mockRunInviteFlow.mockResolvedValue({});
+        mockEnterCloud.mockResolvedValue(undefined);
+        mockEnterSite.mockRejectedValue(new Error('Network Error'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.networkError');
+    });
+
+    it('login-invite 단계의 401/403은 authVerifyFailed 키', async () => {
+        mockRunInviteFlow.mockRejectedValue(new Error('401 UNAUTHORIZED'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.authVerifyFailed');
+
+        jest.clearAllMocks();
+        mockRunInviteFlow.mockRejectedValue(new Error('403 FORBIDDEN'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.authVerifyFailed');
+    });
+
+    it('login-invite 단계의 그 외 서버 오류는 failed 키', async () => {
+        mockRunInviteFlow.mockRejectedValue(new Error('500 SERVER ERROR'));
+        expect((await runAccept(ctx())).current.errorKey).toBe('inviteAccept.failed');
+    });
 });
