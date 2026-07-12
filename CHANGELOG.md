@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-07-12] - No version updates
+
+### Features
+
+- (logging) capture full network detail in transport logs
+
+### Bug Fixes
+
+- (invite) resolve invite-accept errors to specific messages
+- (debug) use correct device and install IDs
+
+### Refactor
+
+- (invite) inline resolveInviteErrorKey into useInviteAccept
+
 ## [2026-07-10] - root@0.42.3, @chatic/desktop-web@0.3.4
 
 ### Bug Fixes
