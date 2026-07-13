@@ -1,6 +1,6 @@
 import { applySelectedSite, getGlobalSessionContext, getSelectedSiteId } from '@chatic/web-core';
 
-import { getSocketManager } from './runtime';
+import { getSocketManager } from '../runtime';
 
 /**
  * Switches the active site on the live socket via the SDK `auth.switch` — owned by app-runtime now
@@ -14,7 +14,7 @@ import { getSocketManager } from './runtime';
  * server rejection / not-connected) the optimistic sid is rolled back to the previous site; the
  * committed token is untouched on failure, so the previous session stays intact.
  */
-export const switchSiteViaSocket = async (siteId: string): Promise<void> => {
+export const switchSite = async (siteId: string): Promise<void> => {
     const prevSiteId = getSelectedSiteId();
     if (siteId === prevSiteId) {
         return;

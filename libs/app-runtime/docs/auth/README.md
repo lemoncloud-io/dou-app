@@ -79,7 +79,7 @@ const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 *
 
 ## 3. 부팅·구독 배선 (app-runtime이 하는 것)
 
-인증 수명주기는 SDK가 소유하지만, **소켓 부팅 시퀀싱과 구독 배선**은 app-runtime의 순수 함수 [`bootstrapSocketConnection`](../../src/socket/bootstrapSocketConnection.ts)가 담당한다. `SocketBinder`의 각 슬롯(relay/cloud)이 이 함수를 호출한다.
+인증 수명주기는 SDK가 소유하지만, **소켓 부팅 시퀀싱과 구독 배선**은 app-runtime의 순수 함수 [`bootstrapSocketConnection`](../../src/socket/auth/bootstrapSocketConnection.ts)가 담당한다. `SocketBinder`의 각 슬롯(relay/cloud)이 이 함수를 호출한다.
 
 부팅 시퀀스 — **`ensure` → `register` → `connect`** (순서 필수):
 
@@ -104,7 +104,7 @@ const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 *
 1. 게스트 → 소셜/이메일 승격 — relay 토큰 교체.
 2. 같은 wss의 cloud site 전환 — cid만 바뀌어 `SocketBinder`가 재부팅하지 않는 config 변경.
 
-SDK의 bare `register`는 active 상태에서 토큰만 조용히 교체하고 `auth.update`를 재발사하지 않으므로, 이 경우 옛 신원이 유지된다. [`SocketReauthBinder`](../../src/connection/SocketReauthBinder.tsx)는 `binding.auth.identityToken` 변화를 관측(reboot 중이 아닐 때만)해 [`reauthenticateActiveSocket`](../../src/socket/reauthenticateActiveSocket.ts)를 호출한다:
+SDK의 bare `register`는 active 상태에서 토큰만 조용히 교체하고 `auth.update`를 재발사하지 않으므로, 이 경우 옛 신원이 유지된다. [`SocketReauthBinder`](../../src/connection/SocketReauthBinder.tsx)는 `binding.auth.identityToken` 변화를 관측(reboot 중이 아닐 때만)해 [`reauthenticateActiveSocket`](../../src/socket/auth/reauthenticateActiveSocket.ts)를 호출한다:
 
 - 대상은 `manager.getClient(kind)?.auth` — 전역 active가 아니라 그 **kind의 슬롯**.
 - **피드백 루프 가드**: `registration.token === auth.token`이면 no-op. SDK 자체 refresh/switch의 writeback(같은 토큰으로 web-core에 착지)이 재인증을 유발하지 않도록 막는다.

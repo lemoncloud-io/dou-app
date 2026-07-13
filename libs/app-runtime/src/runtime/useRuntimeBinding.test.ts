@@ -38,7 +38,7 @@ describe('useRuntimeBinding', () => {
 
         expect(result.current.context).toEqual({ cid: 'my-cloud-id', sid: 'my-site-id', uid: 'user-123' });
         expect(result.current.socket).toEqual({
-            relay: { config: relayConfig },
+            relay: { config: relayConfig, identityToken: 'relay-token' },
             cloud: {
                 config: {
                     url: 'wss://cloud.chatic.com',
@@ -46,9 +46,9 @@ describe('useRuntimeBinding', () => {
                     wssType: 'cloud',
                     cid: 'my-cloud-id',
                 },
+                identityToken: 'cloud-token',
             },
         });
-        expect(result.current.auth).toEqual({ kind: 'cloud', siteId: 'my-site-id', identityToken: 'cloud-token' });
     });
 
     it('relay only (no cloud active): relay slot present, cloud slot absent', () => {
@@ -67,7 +67,7 @@ describe('useRuntimeBinding', () => {
         const { result } = renderHook(() => useRuntimeBinding());
 
         expect(result.current.context).toEqual({ cid: 'default', sid: 'relay-site-id', uid: 'user-456' });
-        expect(result.current.socket).toEqual({ relay: { config: relayConfig } });
+        expect(result.current.socket).toEqual({ relay: { config: relayConfig, identityToken: 'relay-token' } });
         expect(result.current.socket.cloud).toBeUndefined();
     });
 
@@ -121,6 +121,5 @@ describe('useRuntimeBinding', () => {
         // …while the cloud socket stays absent (relay-only) until the target's tokens commit.
         expect(result.current.socket.relay).toBeDefined();
         expect(result.current.socket.cloud).toBeUndefined();
-        expect(result.current.auth?.kind).toBe('relay');
     });
 });

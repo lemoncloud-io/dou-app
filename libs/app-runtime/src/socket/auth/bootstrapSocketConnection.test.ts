@@ -1,5 +1,6 @@
 import { bootstrapSocketConnection } from './bootstrapSocketConnection';
-import type { ISocketManager, SocketBindingConfig, SocketSessionDelegate } from './types';
+import type { ISocketManager, SocketBindingConfig } from '../types';
+import type { SocketSessionDelegate } from './types';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },

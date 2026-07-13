@@ -2,78 +2,94 @@ import { useEffect, useRef } from 'react';
 
 import { getSocketManager } from '../socket/runtime';
 import { reauthenticateActiveSocket } from '../socket';
-import type { SocketBindingConfig, SocketSessionDelegate } from '../socket';
-import type { RuntimeBinding } from '../runtime';
+import type { SocketKind, SocketSessionDelegate } from '../socket';
+import type { RuntimeBinding, RuntimeSocketSlot } from '../runtime';
 
 export interface SocketReauthBinderProps {
     binding: RuntimeBinding;
     delegate: SocketSessionDelegate;
 }
 
-/**
- * Reboot signature of the two slots — the SAME key SocketBinder reboots on (`url|deviceId|wssType`),
- * deliberately EXCLUDING `cid`. A same-wss cloud switch (cid-only config change) must NOT count as a
- * reboot here: SocketBinder does not reboot it, so this binder must re-authenticate it instead (§8-4).
- */
-const rebootSignature = (binding: RuntimeBinding): string => {
-    const key = (config?: SocketBindingConfig) =>
-        config ? `${config.url}|${config.deviceId}|${config.wssType ?? ''}` : '';
-    return `${key(binding.socket.relay?.config)}#${key(binding.socket.cloud?.config)}`;
-};
+/** Both slots are watched independently; relay may change while cloud is the active socket. */
+const SLOT_KINDS: readonly SocketKind[] = ['relay', 'cloud'] as const;
 
 /**
- * Re-authenticates the live socket when the session identity changes ON THE SAME connection while the
- * socket is NOT rebooting. Two cases:
- *   - guest→social/email promotion: web-core swaps the relay token while url/deviceId/wssType stay.
- *   - same-wss cloud switch (§8-4): the cloud token changes and only `cid` moves in the config, which
- *     SocketBinder ignores (its reboot key excludes cid) — so the SDK still holds the old identity.
+ * Per-slot reboot key — the SAME key SocketBinder reboots on (`url|deviceId|wssType`), deliberately
+ * EXCLUDING `cid` and `identityToken`. When this key is unchanged the socket is NOT rebooting, so an
+ * identity change on that slot must be re-authenticated in place rather than double-registered.
+ */
+const slotRebootKey = (slot?: RuntimeSocketSlot): string =>
+    slot ? `${slot.config.url}|${slot.config.deviceId}|${slot.config.wssType ?? ''}` : '';
+
+type SlotSnapshot = { reboot: string; token: string };
+
+const emptySnapshot = (): SlotSnapshot => ({ reboot: '', token: '' });
+
+/**
+ * Re-authenticates a live socket when its server identity changes ON THE SAME connection while the
+ * socket is NOT rebooting. Watches EACH slot independently (not just the active one) so both cases
+ * are covered even when the changed slot is in the background:
+ *   - guest→social/email promotion: web-core swaps the relay token while url/deviceId/wssType stay —
+ *     and this must fire even while a cloud slot is the active socket (§6-7).
+ *   - same-wss cloud switch (§8-4): the cloud token + cid change but only `cid` moves in the config,
+ *     which SocketBinder ignores (its reboot key excludes cid) — so the SDK still holds the old identity.
  *
- * Keyed on `binding.auth.identityToken` gated by the reboot signature (`rebootSignature`, cid-blind):
- * a genuine reboot (url/deviceId/wssType change) is handled by SocketBinder via bootstrapSocketConnection,
- * so this skips those to avoid a double register. The actual work + the feedback-loop guard (SDK-driven
- * refresh writeback also changes the token but must NOT trigger re-auth) live in
- * reauthenticateActiveSocket, which no-ops when the token already matches the SDK's.
+ * For each slot we compare the reboot key (cid/token-blind) and the identity token: a genuine reboot
+ * (url/deviceId/wssType change) is handled by SocketBinder via bootstrapSocketConnection, so we skip
+ * it to avoid a double register. The actual work + the feedback-loop guard (the SDK-driven refresh
+ * writeback also changes the token but must NOT trigger re-auth) live in reauthenticateActiveSocket,
+ * which no-ops when the token already matches the SDK's.
  */
 export const SocketReauthBinder = ({ binding, delegate }: SocketReauthBinderProps) => {
     const socketManager = getSocketManager();
-    const prevSocketRef = useRef<string>('');
-    const prevTokenRef = useRef<string>('');
+    const prevRef = useRef<Record<SocketKind, SlotSnapshot>>({ relay: emptySnapshot(), cloud: emptySnapshot() });
     const hasMountedRef = useRef(false);
 
     useEffect(() => {
-        const socketStr = rebootSignature(binding);
-        const token = binding.auth?.identityToken ?? '';
+        const slots: Record<SocketKind, RuntimeSocketSlot | undefined> = {
+            relay: binding.socket.relay,
+            cloud: binding.socket.cloud,
+        };
 
-        // First render: the socket is freshly bootstrapped (or absent). Seed the refs and skip.
+        const snapshotOf = (kind: SocketKind): SlotSnapshot => ({
+            reboot: slotRebootKey(slots[kind]),
+            token: slots[kind]?.identityToken ?? '',
+        });
+
+        // First render: the sockets are freshly bootstrapped (or absent). Seed the refs and skip.
         if (!hasMountedRef.current) {
             hasMountedRef.current = true;
-            prevSocketRef.current = socketStr;
-            prevTokenRef.current = token;
+            for (const kind of SLOT_KINDS) {
+                prevRef.current[kind] = snapshotOf(kind);
+            }
             return;
         }
 
-        const socketChanged = prevSocketRef.current !== socketStr;
-        const tokenChanged = prevTokenRef.current !== token;
-        prevSocketRef.current = socketStr;
-        prevTokenRef.current = token;
+        for (const kind of SLOT_KINDS) {
+            const slot = slots[kind];
+            const next = snapshotOf(kind);
+            const prev = prevRef.current[kind];
+            prevRef.current[kind] = next;
 
-        // No active token (logged out), no change, or a reboot (SocketBinder re-registers) → skip.
-        // A genuine same-socket identity change (guest→social) is a change to the ACTIVE server, so
-        // re-auth that server's kind.
-        if (!token || !tokenChanged || socketChanged) {
-            return;
+            const socketChanged = prev.reboot !== next.reboot;
+            const tokenChanged = prev.token !== next.token;
+
+            // No token (slot gated off / logged out), no identity change, or a reboot (SocketBinder
+            // re-registers) → skip. A genuine same-socket identity change re-authenticates this kind.
+            if (!next.token || !tokenChanged || socketChanged) {
+                continue;
+            }
+
+            void reauthenticateActiveSocket({
+                manager: socketManager,
+                delegate,
+                kind,
+                cid: slot?.config.cid ?? null,
+            });
         }
-
-        void reauthenticateActiveSocket({
-            manager: socketManager,
-            delegate,
-            kind: binding.auth?.kind ?? 'relay',
-        });
-        // Deps are the granular fields actually read (identity token, kind, and — via rebootSignature —
-        // binding.socket); eslint sees the whole `binding` passed to rebootSignature and wants it listed,
-        // but re-running on every binding identity would defeat the token/reboot change detection above.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [binding.auth?.identityToken, binding.auth?.kind, binding.socket, socketManager, delegate]);
+        // Deps are binding.socket (the slot configs + tokens actually read) plus the stable manager
+        // and delegate; the per-slot refs above absorb re-runs that are not a real identity change.
+    }, [binding.socket, socketManager, delegate]);
 
     return null;
 };

@@ -16,7 +16,7 @@
 
 ### 1.2 부팅 등록 — `bootstrapSocketConnection`
 
-각 소켓 슬롯(relay/cloud)의 부팅은 순수 함수 [`bootstrapSocketConnection({ manager, config, delegate })`](../../src/socket/bootstrapSocketConnection.ts)가 시퀀싱한다. 순서는 **`ensure` → 구독 → `register` → `connect`** 이며, `register`가 `connect`보다 **먼저**다(근거 → [README.md §3](./README.md)).
+각 소켓 슬롯(relay/cloud)의 부팅은 순수 함수 [`bootstrapSocketConnection({ manager, config, delegate })`](../../src/socket/auth/bootstrapSocketConnection.ts)가 시퀀싱한다. 순서는 **`ensure` → 구독 → `register` → `connect`** 이며, `register`가 `connect`보다 **먼저**다(근거 → [README.md §3](./README.md)).
 
 ```ts
 const kind = config.wssType ?? 'relay';
@@ -61,7 +61,7 @@ await manager.connect(kind);
 
 ### 1.3 same-connection 재인증 — `reauthenticateActiveSocket`
 
-같은 연결에서 토큰만 바뀌는 경우(게스트→소셜 승격, 같은 wss cloud site 전환)는 bare `register`로 재인증되지 않는다. [`SocketReauthBinder`](../../src/connection/SocketReauthBinder.tsx)가 `binding.auth.identityToken` 변화를 관측해 [`reauthenticateActiveSocket({ manager, delegate, kind })`](../../src/socket/reauthenticateActiveSocket.ts)를 호출한다. 내부는 `token===auth.token` no-op 가드 + `logout → register` resume 경로다(상세 → [README.md §3](./README.md)).
+같은 연결에서 토큰만 바뀌는 경우(게스트→소셜 승격, 같은 wss cloud site 전환)는 bare `register`로 재인증되지 않는다. [`SocketReauthBinder`](../../src/connection/SocketReauthBinder.tsx)가 `binding.auth.identityToken` 변화를 관측해 [`reauthenticateActiveSocket({ manager, delegate, kind })`](../../src/socket/auth/reauthenticateActiveSocket.ts)를 호출한다. 내부는 `token===auth.token` no-op 가드 + `logout → register` resume 경로다(상세 → [README.md §3](./README.md)).
 
 ### 1.4 토큰 사용 + 구독
 
@@ -85,9 +85,9 @@ const offState = client.auth.onAuthState(state => {
 
 app-runtime은 `client.auth`를 직접 노출하지 않고 socket 레벨 헬퍼로 감싼다([../socket/README.md](../socket/README.md)):
 
-- **[`switchSite(siteId)`](../../src/socket/switchSite.ts)** — 같은 소켓 내 site 변경. optimistic `applySelectedSite(siteId)` → `manager.waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)`. 실패 시 이전 sid로 롤백하고 rethrow. active server 종류가 바뀌면(relay↔cloud, wss URL 변경) switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
-- **[`logoutSession(options?)`](../../src/socket/logoutSession.ts)** — 두 슬롯에 best-effort `auth.logout()` 통지 후 `logoutRelaySession()`(relay/cloud 토큰·credential 전체 로컬 정리 + redirect). relay 토큰이 사라지면 두 binding 슬롯이 모두 내려가 `SocketBinder`가 client를 tear down.
-- **[`logoutCloudViaSocket()`](../../src/socket/logoutCloudViaSocket.ts)** — cloud 슬롯에 best-effort `auth.logout()` 후 `logoutCloudSession()`(cloudCore만 정리). cloud 슬롯만 내려가고 relay는 유지된다.
+- **[`switchSite(siteId)`](../../src/socket/auth/switchSite.ts)** — 같은 소켓 내 site 변경. optimistic `applySelectedSite(siteId)` → `manager.waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)`. 실패 시 이전 sid로 롤백하고 rethrow. active server 종류가 바뀌면(relay↔cloud, wss URL 변경) switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
+- **[`logoutSession(options?)`](../../src/socket/auth/logoutSession.ts)** — 두 슬롯에 best-effort `auth.logout()` 통지 후 `logoutRelaySession()`(relay/cloud 토큰·credential 전체 로컬 정리 + redirect). relay 토큰이 사라지면 두 binding 슬롯이 모두 내려가 `SocketBinder`가 client를 tear down.
+- **[`logoutCloudViaSocket()`](../../src/socket/auth/logoutCloudViaSocket.ts)** — cloud 슬롯에 best-effort `auth.logout()` 후 `logoutCloudSession()`(cloudCore만 정리). cloud 슬롯만 내려가고 relay는 유지된다.
 
 ```ts
 // switch 원형: 실패해도 기존 세션/sid 보존

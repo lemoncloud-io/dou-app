@@ -1,6 +1,6 @@
 import { logoutSession } from './logoutSession';
 import { logoutRelaySession } from '@chatic/web-core';
-import { getSocketManager } from './runtime';
+import { getSocketManager } from '../runtime';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -10,7 +10,7 @@ jest.mock('@chatic/web-core', () => ({
     logoutRelaySession: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('./runtime', () => ({
+jest.mock('../runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 

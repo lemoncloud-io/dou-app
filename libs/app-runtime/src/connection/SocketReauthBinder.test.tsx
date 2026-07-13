@@ -17,24 +17,27 @@ const mockedReauth = reauthenticateActiveSocket as jest.MockedFunction<typeof re
 
 const delegate = { getAuthRegistration: jest.fn() } as unknown as SocketSessionDelegate;
 
-const bindingWith = (identityToken: string | undefined, socketUrl = 'wss://relay'): RuntimeBinding =>
+// The identity token now lives on each slot (RuntimeSocketSlot.identityToken), not on a shared
+// `binding.auth` — SocketReauthBinder watches each slot independently.
+const bindingWith = (identityToken: string, socketUrl = 'wss://relay'): RuntimeBinding =>
     ({
         context: { cid: 'default', sid: undefined, uid: 'u' },
-        socket: socketUrl
-            ? { relay: { config: { url: socketUrl, deviceId: 'd', wssType: 'relay', cid: 'default' } } }
-            : {},
-        auth: { kind: 'relay', siteId: undefined, identityToken },
+        socket: { relay: { config: { url: socketUrl, deviceId: 'd', wssType: 'relay', cid: 'default' }, identityToken } },
     }) as unknown as RuntimeBinding;
 
-/** A cloud-active binding: relay is always-on, cloud is the active server. */
-const cloudBinding = (identityToken: string, cid: string, cloudUrl = 'wss://cloud'): RuntimeBinding =>
+/** A cloud-active binding: relay is always-on (constant token), cloud is the active server. */
+const cloudBinding = (
+    cloudToken: string,
+    cid: string,
+    cloudUrl = 'wss://cloud',
+    relayToken = 'relay-token'
+): RuntimeBinding =>
     ({
         context: { cid, sid: undefined, uid: 'u' },
         socket: {
-            relay: { config: { url: 'wss://relay', deviceId: 'd', wssType: 'relay', cid: 'default' } },
-            cloud: { config: { url: cloudUrl, deviceId: 'd', wssType: 'cloud', cid } },
+            relay: { config: { url: 'wss://relay', deviceId: 'd', wssType: 'relay', cid: 'default' }, identityToken: relayToken },
+            cloud: { config: { url: cloudUrl, deviceId: 'd', wssType: 'cloud', cid }, identityToken: cloudToken },
         },
-        auth: { kind: 'cloud', siteId: undefined, identityToken },
     }) as unknown as RuntimeBinding;
 
 describe('SocketReauthBinder', () => {
@@ -76,7 +79,21 @@ describe('SocketReauthBinder', () => {
         );
         rerender(<SocketReauthBinder binding={cloudBinding('cloud-b-token', 'cloud-b')} delegate={delegate} />);
         expect(mockedReauth).toHaveBeenCalledTimes(1);
-        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'cloud' }));
+        // cid is threaded through so reauthenticateActiveSocket can re-point boundCid (#1/§8-4).
+        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'cloud', cid: 'cloud-b' }));
+    });
+
+    it('클라우드 활성 중 relay 토큰이 바뀌면 relay kind로 재인증한다 (#5 배경 슬롯 승격)', () => {
+        // guest→social promotion while a cloud slot is the active socket: the cloud slot is unchanged,
+        // only the (background) relay token swaps — the old active-only binder missed this entirely.
+        const { rerender } = render(
+            <SocketReauthBinder binding={cloudBinding('cloud-token', 'cloud-a', 'wss://cloud', 'guest-relay')} delegate={delegate} />
+        );
+        rerender(
+            <SocketReauthBinder binding={cloudBinding('cloud-token', 'cloud-a', 'wss://cloud', 'social-relay')} delegate={delegate} />
+        );
+        expect(mockedReauth).toHaveBeenCalledTimes(1);
+        expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, kind: 'relay' }));
     });
 
     it('does NOT re-authenticate a different-wss cloud switch (SocketBinder reboots that slot)', () => {

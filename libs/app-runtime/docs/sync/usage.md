@@ -1,7 +1,5 @@
 # Sync 사용 패턴 (app-runtime)
 
-Date: 2026-06-24
-
 > 앱/UI가 동기화를 **어떻게 사용하는가**를 다룬다. 무엇을 register하고, 언제 수동 gateway 콜을 쓰고, chat을 어떻게 prime하는가.
 >
 > - 소유 경계·SyncManager 책임 → [README.md](README.md)
@@ -19,7 +17,7 @@ Date: 2026-06-24
 | **register / SyncPlan**    | ❌ 자동 | `register` 한 번이면 이후 polling·push·재연결을 알아서 유지 | 연결/주기/push |
 | **gateway `.sync` 메서드** | ✅ 수동 | `since` 커서 기반 delta 조회 / 통지 RPC                     | 앱이 직접 호출 |
 
-- **자동으로 계속 유지** → `register*` (내부적으로 `startSync` + plan).
+- **자동으로 계속 유지** → `register*` (ref-count + plan; 시작/정지는 내부 private).
 - **원할 때 한 번 따라잡기(목록 발견·델타)** → gateway `.get`/`.feed`/`.sync` 직접 콜.
 - 둘은 granularity가 달라 **자동 연결되지 않는다**. `updateLocalSnapshot`/repository cache로만 만난다(§4).
 
@@ -37,28 +35,28 @@ Date: 2026-06-24
 
 ## 2. app-runtime 통합 — `SyncManager`
 
-`libs/app-runtime`는 라이브러리를 직접 노출하지 않고 `SyncManager`(`src/socket/sync/`)로 감싼다. UI/앱은 `getSyncManager()` 또는 동등 진입점의 `register*` 메서드만 쓴다.
+`libs/app-runtime`는 라이브러리를 직접 노출하지 않고 `SyncManager`(`src/socket/sync/`)로 감싼다. UI/앱은 `getSyncManager()`(또는 `useSyncTarget` 계열 훅)의 `register*` 메서드만 쓴다. (`getSocketRuntime`은 **export하지 않는다** — 매니저는 `getSyncManager()`로 접근.)
 
 ```ts
-import { getSocketRuntime } from '@chatic/app-runtime';
+import { getSyncManager } from '@chatic/app-runtime';
 
-const sync = getSocketRuntime().syncManager;
+const sync = getSyncManager();
 const off = sync.registerChat('CH001'); // 채널 진입
 // ...
-off(); // 채널 이탈 (ref-count 0이면 stopSync)
+off(); // 채널 이탈 (ref-count 0이면 내부 stopTarget)
 ```
 
-- `register*`는 모두 **ref-count + dispose 반환**(중복 register 안전, 마지막 dispose 시 `stopSync`).
+- `register*`는 모두 **ref-count + dispose 반환**(중복 register 안전, 마지막 dispose 시 내부 `stopTarget`).
 - client 재생성(재로그인/재연결) 시 `SyncManager`가 등록 target을 새 runtime에 자동 replay한다.
 - 갱신 데이터는 콜백 → repository cache → `observeList`/`observeItem` 스트림으로 UI에 흐른다. **UI는 네트워크 콜을 직접 하지 않는다**([README.md](README.md) 원칙).
 
 ### plan 주입 — 부팅 1회
 
-[`plans.ts`](../../src/socket/sync/plans.ts)의 `createSyncPlans()`가 모든 plan을 1회 생성하고 콜백을 **data 레이어 repository**에 연결한다:
+[`plans.ts`](../../src/socket/sync/plans.ts)의 `createSyncPlans()`가 앱 도메인 plan을 1회 생성하고 콜백을 **data 레이어 repository**에 연결한다(`extraSyncPlans`로 주입). **`device` plan은 여기서 만들지 않는다** — `createDeviceRuntime`가 자체 주입한다:
 
 | plan    | 콜백 → repository                                                                 |
 | ------- | --------------------------------------------------------------------------------- |
-| device  | (캐시 미연결, 연결 유지용)                                                        |
+| device  | (createDeviceRuntime가 주입, 캐시 미연결·연결 유지용)                             |
 | channel | `onUpdate`/`onRemove` → `channel.cacheWrite`/`cacheDelete`                        |
 | place   | → `place.cacheWrite`/`cacheDelete`                                                |
 | profile | → `profile.cacheWrite`/`cacheDelete`                                              |
@@ -126,7 +124,7 @@ lastSyncedAt = delta.syncedAt; // 다음 since 기준선 저장
 
 | 바꾸고 싶은 것          | 어디서                                             | 비고                               |
 | ----------------------- | -------------------------------------------------- | ---------------------------------- |
-| 특정 대상만 주기 다르게 | `startSync({ intervalMs })`                        | 최우선. 변경은 다음 tick 반영      |
+| 특정 대상만 주기 다르게 | register target의 `intervalMs`                     | 최우선. 변경은 다음 tick 반영      |
 | 도메인 기본 주기        | plan 생성자 `intervalMs`                           | Chat은 무의미(run no-op)           |
 | 변화 없을 때 감속/끄기  | plan/runtime `idleBackoff`                         | `factor: 1`이면 감속 끔(일정 주기) |
 | 실패 시 재시도 주기     | runtime `syncBackoff`                              | 기본 ×2, 최대 30s                  |
@@ -134,7 +132,7 @@ lastSyncedAt = delta.syncedAt; // 다음 since 기준선 저장
 | 재연결 시 full vs delta | `resetSnapshotOnConnected`                         | 기본 true(비우고 full)             |
 | Chat catch-up 한도      | `ChatSyncPlanOptions.cap`(50) / `maxMessages`(500) |                                    |
 
-수동 제어: `stopSync`/`startSync`(일시정지·재개), `updateLocalSnapshot`(기준선 갱신). **즉시 강제 1회 실행 공개 API는 없음** — 필요하면 gateway 직접 콜 또는 stop+start.
+수동 제어: `register`/dispose(등록·해제), `updateLocalSnapshot`(기준선 갱신). start/stop은 ref-count 내부 동작이라 공개 API가 아니며, **즉시 강제 1회 실행 공개 API도 없음** — 필요하면 gateway 직접 콜 또는 dispose 후 재register.
 
 ---
 

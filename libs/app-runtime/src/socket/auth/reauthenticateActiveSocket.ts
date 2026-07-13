@@ -1,12 +1,19 @@
 import { logger } from '@chatic/bridges';
 
-import type { ISocketManager, SocketKind, SocketSessionDelegate } from './types';
+import type { ISocketManager, SocketKind } from '../types';
+import type { SocketSessionDelegate } from './types';
 
 export interface ReauthenticateActiveSocketArgs {
     manager: ISocketManager;
     delegate: SocketSessionDelegate;
-    /** The active server kind whose identity changed — used to seed/sign the re-register. */
+    /** The server kind whose identity changed — used to seed/sign the re-register and target the slot. */
     kind: SocketKind;
+    /**
+     * The slot's current cache cid. A same-wss cloud switch (§8-4) changes only the cid (url stays),
+     * so SocketBinder never reboots and boundCid would stay frozen on the previous cloud — we re-point
+     * it here so cache attribution follows the switch. Omitted/undefined leaves boundCid untouched.
+     */
+    cid?: string | null;
 }
 
 /**
@@ -29,6 +36,7 @@ export const reauthenticateActiveSocket = async ({
     manager,
     delegate,
     kind,
+    cid,
 }: ReauthenticateActiveSocketArgs): Promise<void> => {
     // Target the slot for THIS kind, not the global active slot: a relay identity change must re-auth
     // the relay client even while a cloud slot is the active one (getClient() would return cloud).
@@ -49,16 +57,35 @@ export const reauthenticateActiveSocket = async ({
     }
 
     logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed, re-authenticating');
-    // Revoke the PREVIOUS session only on a LIVE (verified) socket: auth.logout on a disconnected socket
-    // 503s and is pointless, and firing it during a connect can feed a refresh→writeback→reauth loop.
-    // register() below runs UNCONDITIONALLY, so even when we skip the revoke the new identity is stored
-    // and applied on the next handshake — the token-change edge is never dropped (a transient
-    // disconnect coinciding with a guest→social promotion must not leave the socket on the old identity).
-    if (manager.getSnapshot().isVerified) {
+
+    // Re-point cache attribution BEFORE the handshake: a same-wss cloud switch keeps the socket but
+    // moves clouds, so boundCid must follow now (frames arriving during re-auth attribute correctly).
+    if (cid !== undefined) {
+        manager.rebindCid(kind, cid);
+    }
+
+    // Revoke the PREVIOUS session only on a LIVE (verified) socket, checked PER-KIND (the active
+    // snapshot reflects a different slot when this is a background relay re-auth). auth.logout on a
+    // disconnected socket 503s and is pointless; register() below runs UNCONDITIONALLY, so even when
+    // we skip the revoke the new identity is stored and applied on the next handshake — the
+    // token-change edge is never dropped (a transient disconnect coinciding with a guest→social
+    // promotion must not leave the socket on the old identity).
+    const wasVerified = manager.isKindVerified(kind);
+    if (wasVerified) {
         // Fire-and-forget: logout() dispatches the frame synchronously (logout-before-update wire order)
         // and flips the controller inactive so register() resumes immediately; we do NOT await the ack.
         void Promise.resolve(auth.logout()).catch(() => undefined);
     }
+
+    // Force a synchronous verified dip on the ACTIVE slot so useBackgroundSync's isVerified false→true
+    // rising edge fires once the SDK re-verifies the new identity. Without this an already-connected
+    // controller can swap identity without an auth-state dip, so a same-socket promotion would never
+    // re-anchor the promoted user's lists (restores the old markUnverified() behaviour). setAuthenticated
+    // only surfaces when `kind` is the active slot, so a background relay re-auth is unaffected.
+    if (wasVerified) {
+        manager.setAuthenticated(kind, false);
+    }
+
     auth.register({
         token: registration.token,
         authId: registration.authId,

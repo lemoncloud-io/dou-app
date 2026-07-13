@@ -101,11 +101,11 @@ flowchart TD
 
 ## site 전환 / 로그아웃 헬퍼
 
-socket 계층은 `client.auth`를 직접 노출하지 않고 app-facing 헬퍼로 감싼다:
+socket 계층은 `client.auth`를 직접 노출하지 않고 `socket/auth/` 안의 헬퍼로 감싼다. 이 원함수들은 루트에서 export하지 않으며(내부 전용), 앱은 `session/`의 react-query 훅(`useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession`)으로 소비한다:
 
-- **`switchSite(siteId)`** ([switchSite.ts](../../src/socket/switchSite.ts)) — 같은 소켓 내 site 변경. optimistic `applySelectedSite` → `waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)` → 실패 시 롤백·rethrow. 종류 변경(relay↔cloud, wss URL 변경)은 switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
-- **`logoutSession(options?)`** ([logoutSession.ts](../../src/socket/logoutSession.ts)) — 두 슬롯 best-effort `auth.logout()` + `logoutRelaySession()`(전체 로컬 정리). relay 토큰 소멸 → 두 슬롯 tear down.
-- **`logoutCloudViaSocket()`** ([logoutCloudViaSocket.ts](../../src/socket/logoutCloudViaSocket.ts)) — cloud 슬롯 best-effort `auth.logout()` + `logoutCloudSession()`. cloud 슬롯만 tear down, relay 유지.
+- **`switchSite(siteId)`** ([switchSite.ts](../../src/socket/auth/switchSite.ts)) — 같은 소켓 내 site 변경. optimistic `applySelectedSite` → `waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)` → 실패 시 롤백·rethrow. 종류 변경(relay↔cloud, wss URL 변경)은 switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
+- **`logoutSession(options?)`** ([logoutSession.ts](../../src/socket/auth/logoutSession.ts)) — 두 슬롯 best-effort `auth.logout()` + `logoutRelaySession()`(전체 로컬 정리). relay 토큰 소멸 → 두 슬롯 tear down.
+- **`logoutCloudViaSocket()`** ([logoutCloudViaSocket.ts](../../src/socket/auth/logoutCloudViaSocket.ts)) — cloud 슬롯 best-effort `auth.logout()` + `logoutCloudSession()`. cloud 슬롯만 tear down, relay 유지.
 
 ## 외부 계약 — `SocketSessionDelegate`
 

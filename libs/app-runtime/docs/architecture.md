@@ -128,7 +128,7 @@ return { socketManager, syncManager };
 
 - **gateway / remote data layer** — `SocketManager` active-facade만 사용, raw `ClientSocketV2` 직접 의존 금지.
 - **sync hooks / feature layer** — `SyncManager`(또는 `useSyncTarget` 계열)만 사용, `createDeviceRuntime` 직접 의존 금지.
-- **auth/session binding** — 인증은 SDK `AuthController`가 소유. `SocketBinder`가 부팅을, `SocketReauthBinder`가 same-connection 재인증을 배선하며 상태를 들고 있는 controller 클래스는 없다. site 전환은 `switchSite`(→ `client.auth.switch(`${uid}@${siteId}`)`).
+- **auth/session binding** — 인증은 SDK `AuthController`가 소유. `SocketBinder`가 부팅을, `SocketReauthBinder`가 same-connection 재인증을 배선하며 상태를 들고 있는 controller 클래스는 없다. 소켓 인증 배선/액션은 `socket/auth/`에 모여 있다. site 전환은 `useSiteSwitch`(내부 `socket/auth/switchSite` → `client.auth.switch(`${uid}@${siteId}`)`).
 
 ## 모듈 구조
 
@@ -147,20 +147,26 @@ libs/app-runtime/src/
     useRuntimeRepositories.ts
     useSessionProfile.ts
   socket/
-    SocketManager.ts
-    bootstrapSocketConnection.ts
-    reauthenticateActiveSocket.ts
-    switchSite.ts
-    logoutSession.ts
-    logoutCloudViaSocket.ts
-    runtime.ts
-    types.ts
+    SocketManager.ts               # transport (듀얼 슬롯 + active-facade)
+    runtime.ts                     # getSocketManager/getSyncManager 싱글턴
+    types.ts                       # transport 타입(SocketKind/SocketBindingConfig/SocketState/ISocketManager)
     hooks/useSocketState.ts
+    auth/                          # 소켓 인증 배선 (transport에서 분리)
+      bootstrapSocketConnection.ts
+      reauthenticateActiveSocket.ts
+      switchSite.ts
+      logoutSession.ts
+      logoutCloudViaSocket.ts
+      types.ts                     # SocketSessionDelegate 계약
     sync/
       SyncManager.ts
       plans.ts
       types.ts
       hooks/useSyncTarget.ts
+  session/                         # 소켓 구동 세션 액션 훅(react-query 래퍼)
+    useSiteSwitch.ts
+    useSessionLogout.ts
+    useLogoutCloudSession.ts
   data/
     DataManager.ts
     runtime.ts

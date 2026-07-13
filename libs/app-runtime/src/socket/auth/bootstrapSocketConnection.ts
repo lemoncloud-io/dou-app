@@ -1,6 +1,7 @@
 import { logger } from '@chatic/bridges';
 
-import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from './types';
+import type { ISocketManager, SocketBindingConfig, SocketKind } from '../types';
+import type { SocketSessionDelegate } from './types';
 
 export interface BootstrapSocketConnectionArgs {
     manager: ISocketManager;

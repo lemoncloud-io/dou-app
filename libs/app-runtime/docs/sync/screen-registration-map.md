@@ -1,7 +1,5 @@
 # 화면별 Sync 등록 지도 (web)
 
-Date: 2026-06-30
-
 > 앱이 **어느 화면에서 무엇을 sync 등록하는가**를 한 장으로 본다. 런타임/라이브러리 메커니즘이
 > 아니라 **소비자(apps/web) 관점의 등록 지도**다.
 >
@@ -27,8 +25,10 @@ Date: 2026-06-30
 
 ## 1. Sync 플랜 (앱 전체 공통, 1회 정의)
 
-`SyncManager` 생성 시 `createDeviceRuntime`에 주입된다. 무엇을 동기화할지는 정하지 않고,
-타입별 캐시 반영만 담당한다. 정의: `libs/app-runtime/src/socket/sync/plans.ts`.
+앱 도메인 plan은 `SyncManager` 생성 시 `createSyncPlans()`로 만들어져 `createDeviceRuntime`에
+`extraSyncPlans`로 주입된다(정의: `libs/app-runtime/src/socket/sync/plans.ts`). 무엇을 동기화할지는
+정하지 않고 타입별 캐시 반영만 담당한다. **`DeviceSyncPlan`은 plans.ts에 없다** — `createDeviceRuntime`가
+자체 주입한다.
 
 | 플랜              | 트리거                                                  | 캐시 반영                                            |
 | ----------------- | ------------------------------------------------------- | ---------------------------------------------------- |

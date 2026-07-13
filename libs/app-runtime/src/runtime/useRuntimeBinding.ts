@@ -9,6 +9,12 @@ import { useDynamicDeviceId } from '@chatic/web-core';
 /** One socket slot's binding config (undefined when that slot is gated off). */
 export interface RuntimeSocketSlot {
     config: SocketBindingConfig;
+    /**
+     * This slot's server identity token. Deliberately OUTSIDE `config` (which drives SocketBinder's
+     * reboot key) so a token swap does not reboot the socket — SocketReauthBinder watches this
+     * per-slot to re-authenticate the RIGHT socket even when it is not the active one (§6-3, §6-7).
+     */
+    identityToken?: string;
 }
 
 export interface RuntimeBinding {
@@ -21,11 +27,6 @@ export interface RuntimeBinding {
         relay?: RuntimeSocketSlot;
         cloud?: RuntimeSocketSlot;
     };
-    auth: {
-        kind: 'relay' | 'cloud';
-        siteId?: string;
-        identityToken?: string;
-    } | null;
 }
 
 export const useRuntimeBinding = (): RuntimeBinding => {
@@ -60,11 +61,6 @@ export const useRuntimeBinding = (): RuntimeBinding => {
         return {
             context: { cid, sid, uid },
             socket: { relay: relaySlot, cloud: cloudSlot },
-            auth: {
-                kind: activeServer.kind,
-                siteId: sid,
-                identityToken: activeServer.identityToken ?? undefined,
-            },
         };
     }, [deviceId, session]);
 };

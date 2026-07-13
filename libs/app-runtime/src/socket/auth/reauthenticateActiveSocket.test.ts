@@ -1,5 +1,6 @@
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
-import type { ISocketManager, SocketSessionDelegate } from './types';
+import type { ISocketManager } from '../types';
+import type { SocketSessionDelegate } from './types';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -20,6 +21,10 @@ const makeManager = (auth: unknown, isVerified = true): ISocketManager =>
     ({
         getClient: jest.fn(() => (auth ? { auth } : null)),
         getSnapshot: jest.fn(() => ({ isVerified })),
+        // The revoke/dip guard now reads the PER-KIND verification, not the active-slot snapshot.
+        isKindVerified: jest.fn(() => isVerified),
+        rebindCid: jest.fn(),
+        setAuthenticated: jest.fn(),
     }) as unknown as ISocketManager;
 
 const makeDelegate = (registration: { token: string; authId: string } | null): jest.Mocked<SocketSessionDelegate> =>
@@ -104,5 +109,45 @@ describe('reauthenticateActiveSocket', () => {
         ) => Promise<unknown>;
         await registeredSign('sdk-token', { target: 'uid@sid' });
         expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
+    });
+
+    it('cid가 주어지면 핸드셰이크 전에 rebindCid로 캐시 귀속을 새 클라우드로 옮긴다 (#1/§8-4)', async () => {
+        const auth = makeAuth('cloud-a-token', []);
+        const manager = makeManager(auth);
+        const delegate = makeDelegate({ token: 'cloud-b-token', authId: 'cloud-b-auth' });
+
+        await reauthenticateActiveSocket({ manager, delegate, kind: 'cloud', cid: 'cloud-b' });
+
+        expect(manager.rebindCid).toHaveBeenCalledWith('cloud', 'cloud-b');
+    });
+
+    it('cid가 undefined면 rebindCid를 호출하지 않는다', async () => {
+        const auth = makeAuth('guest-token', []);
+        const manager = makeManager(auth);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager, delegate, kind: 'relay' });
+
+        expect(manager.rebindCid).not.toHaveBeenCalled();
+    });
+
+    it('검증된 슬롯이면 register 전에 setAuthenticated(kind,false)로 동기적 verified 딥을 만든다 (#4 rising edge)', async () => {
+        const auth = makeAuth('guest-token', []);
+        const manager = makeManager(auth, true);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager, delegate, kind: 'relay' });
+
+        expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', false);
+    });
+
+    it('검증되지 않은 슬롯이면 딥(setAuthenticated)을 만들지 않는다', async () => {
+        const auth = makeAuth('guest-token', []);
+        const manager = makeManager(auth, false);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager, delegate, kind: 'relay' });
+
+        expect(manager.setAuthenticated).not.toHaveBeenCalled();
     });
 });

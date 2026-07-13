@@ -1,8 +1,6 @@
 import React from 'react';
 
-import { useInitWebCore } from '@chatic/web-core';
-
-import { SessionBackgroundRunner } from './SessionBackgroundRunner';
+import { useInitWebCore, useRelaySessionKeepAlive } from '@chatic/web-core';
 import { RuntimeDataBinder } from './RuntimeDataBinder';
 import { SocketBinder } from './SocketBinder';
 import { SocketReauthBinder } from './SocketReauthBinder';
@@ -25,6 +23,7 @@ export interface RuntimeConnectionHostProps {
 export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHostProps) => {
     const isWebCoreReady = useInitWebCore();
     const delegate = useSocketSessionDelegate();
+    useRelaySessionKeepAlive(true);
 
     if (!isWebCoreReady) {
         return null;
@@ -32,7 +31,6 @@ export const RuntimeConnectionHost = ({ binding, children }: RuntimeConnectionHo
 
     return (
         <>
-            <SessionBackgroundRunner />
             <RuntimeDataBinder binding={binding} />
             <SocketBinder binding={binding} delegate={delegate} />
             <SocketReauthBinder binding={binding} delegate={delegate} />

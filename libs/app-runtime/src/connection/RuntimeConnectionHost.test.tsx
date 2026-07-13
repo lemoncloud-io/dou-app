@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 
-import { RuntimeConnectionHost } from './RuntimeConnectionHost';
+import { RuntimeConnectionHost } from '@chatic/app-runtime';
 import { getSocketManager } from '../socket/runtime';
 import { getDataManager } from '../data/runtime';
 import { bootstrapSocketConnection } from '../socket';

@@ -83,6 +83,11 @@ export interface ISocketManager {
      * `isVerified` is derived from this AND that slot being connected. Replaces markVerified/markUnverified.
      */
     setAuthenticated(kind: SocketKind, value: boolean): void;
+    /**
+     * Per-kind verification (authenticated AND connected) for the given slot, independent of which
+     * slot is active — backs re-auth guards that target a non-active slot (relay while cloud is up).
+     */
+    isKindVerified(kind: SocketKind): boolean;
     /** Connects the slot for `kind` if idle/closed. */
     connect(kind: SocketKind): Promise<void>;
     /** Destroys one slot (`kind`) or, when omitted, all slots. */
@@ -90,6 +95,11 @@ export interface ISocketManager {
 
     /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
     getBoundCid(): string | null;
+    /**
+     * Re-points a slot's bound cloud id without rebooting the socket — required for a same-wss cloud
+     * switch (§8-4), where the url is unchanged so ensure() never re-runs to refresh boundCid.
+     */
+    rebindCid(kind: SocketKind, cid: string | null): void;
     // Stable request facade (ACTIVE slot) so gateways bind to these instead of a raw ClientSocketV2
     // and socket replacement stays invisible. Recovery is owned by the SDK AuthController now, so the
     // request path no longer intercepts 401s or drives reconnects.
@@ -100,27 +110,4 @@ export interface ISocketManager {
     onState(listener: (event: ClientSocketStateEvent) => void): () => void;
     onError(listener: (event: ClientSocketErrorEvent) => void): () => void;
     disconnect(code?: number, reason?: string): Promise<void>;
-}
-
-/**
- * Bridges the SDK AuthController to web-core. Owned by app-runtime
- * (connection/useSocketSessionDelegate), which wires it to web-core's per-server helpers. EVERY
- * method is keyed by the socket's `kind` so relay and cloud sockets, which bootstrap independently,
- * each seed/sign/write-back/expire against their OWN server — never the global active one
- * (multi-socket-design.md §6-6, §7).
- *
- * - `getAuthRegistration(kind)` seeds `register({ token, authId })` for that server.
- * - `signAuth(kind, token, target?)` backs the SDK stateless sign callback (`target` is the switch selector).
- * - `commitRefreshedToken(kind, view)` writes an SDK-refreshed token back into that server's store —
- *   so a refresh arriving during a switch/teardown lands in the correct store. The view is the SDK
- *   `AuthTokenView`, typed here as `unknown` because that type is not exported from the SDK package
- *   root — the web-core boundary casts it to its own `UserTokenView`.
- * - `onAuthExpired(kind)` runs teardown when a socket reaches the terminal `expired` state (relay vs
- *   cloud escalate differently — §6-10).
- */
-export interface SocketSessionDelegate {
-    getAuthRegistration(kind: SocketKind): Promise<{ token: string; authId: string } | null>;
-    signAuth(kind: SocketKind, token: string, target?: string): Promise<{ signature: string; current: string }>;
-    commitRefreshedToken(kind: SocketKind, view: unknown): Promise<void> | void;
-    onAuthExpired?(kind: SocketKind): Promise<void> | void;
 }

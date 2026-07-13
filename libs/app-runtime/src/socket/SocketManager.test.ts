@@ -277,4 +277,61 @@ describe('SocketManager dual slots (active facade)', () => {
 
         expect(seen).toEqual([null, relay, cloud, relay]);
     });
+
+    it('rebindCid는 리부트 없이 활성 슬롯의 boundCid를 새 클라우드로 갱신한다 (같은-wss 전환)', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud');
+        expect(manager.getBoundCid()).toBe('cloud-1'); // frozen at bind
+
+        // Same-wss switch: url unchanged so ensure() never re-runs; rebindCid must move boundCid.
+        manager.rebindCid('cloud', 'cloud-2');
+        expect(manager.getBoundCid()).toBe('cloud-2');
+    });
+
+    it('rebindCid는 바인딩되지 않은 kind에 대해 무해하게 무시한다', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(() => manager.rebindCid('cloud', 'cloud-x')).not.toThrow();
+        expect(manager.getBoundCid()).toBe('default'); // relay slot's cid untouched
+    });
+
+    it('isKindVerified는 활성 슬롯이 아니라 대상 슬롯의 인증+연결을 반영한다', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud'); // active facade → cloud
+
+        // Relay is authenticated + connected even though cloud is the active slot.
+        manager.setAuthenticated('relay', true);
+        expect(manager.isKindVerified('relay')).toBe(true);
+        // Cloud is not yet authenticated, so the active snapshot is unverified — but the per-kind
+        // query for relay still reports true, which the active-slot snapshot cannot.
+        expect(manager.getSnapshot().isVerified).toBe(false);
+        expect(manager.isKindVerified('cloud')).toBe(false);
+
+        manager.setAuthenticated('cloud', true);
+        expect(manager.isKindVerified('cloud')).toBe(true);
+    });
+
+    it('isKindVerified는 바인딩되지 않은 kind에 대해 false를 반환한다', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(manager.isKindVerified('cloud')).toBe(false);
+    });
 });

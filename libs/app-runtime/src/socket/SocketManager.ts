@@ -133,9 +133,32 @@ export class SocketManager implements ISocketManager {
         return this.getActiveEntry()?.boundCid ?? null;
     }
 
+    /**
+     * Re-points a slot's bound cloud id WITHOUT rebooting the socket. A same-wss cloud switch (§8-4)
+     * keeps the url unchanged, so the slot is never rebuilt through ensure() and boundCid — otherwise
+     * frozen at bind — would stay on the previous cloud. Without this, getBoundCid() reports the old
+     * cloud and every new-cloud frame is dropped as foreign / mis-attributed by the sync layer.
+     */
+    public rebindCid(kind: SocketKind, cid: string | null): void {
+        const entry = this.entries.get(kind);
+        if (!entry) return;
+        entry.boundCid = cid;
+    }
+
     /** Observable state snapshot of the ACTIVE slot. */
     public getSnapshot(): SocketState {
         return this.state;
+    }
+
+    /**
+     * Whether a SPECIFIC slot is auth-verified (authenticated AND connected). getSnapshot() only
+     * reflects the ACTIVE slot; a per-kind guard (e.g. a relay re-auth while a cloud slot is active)
+     * must read the target slot, not the active one.
+     */
+    public isKindVerified(kind: SocketKind): boolean {
+        const entry = this.entries.get(kind);
+        if (!entry) return false;
+        return entry.authenticated && entry.connState === 'connected';
     }
 
     /** Subscribes to ACTIVE-slot state changes. Fires immediately with the current snapshot. */

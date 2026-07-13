@@ -5,8 +5,7 @@ Date: 2026-07-10
 > SDK `AuthController`가 요구하는 `authId` + `sign` 콜백을 앱(web-core 세션 레이어)이 **어디서 어떻게** 공급하고, SDK가 refresh한 토큰을 **어떻게 web-core로 되돌리는가**를 다룬다. 듀얼 소켓(relay + cloud) 도입 이후, 이 계약은 전역 active server가 아니라 **각 소켓의 `kind`** 를 축으로 분기한다.
 >
 > - 공개 표면·상태 머신 → [README.md](./README.md)
-> - 사용/도입 흐름 → [usage.md](./usage.md)
-> - 듀얼 소켓 설계 → [multi-socket-design.md](./multi-socket-design.md) (§6-6, §7)
+> - 배선/사용 흐름 → [usage.md](./usage.md)
 
 ---
 
@@ -14,18 +13,18 @@ Date: 2026-07-10
 
 인증 대상 서버는 두 종류다 — `relay` 또는 `cloud`. 소켓은 각 서버의 wss로 붙고, 인증 토큰도 각 서버의 `identityToken`이다. SDK `auth.refresh`는 `{ current, signature, authId }`를 보내 서버가 `/oauth/{authId}/refresh`로 forward하므로, **`authId`와 서명은 그 소켓 서버의 토큰에 대응**해야 한다.
 
-듀얼 소켓에서는 relay·cloud 두 소켓이 **동시에** 각자 refresh/sign을 돌린다. 서명·seed·writeback을 전역 `getActiveServer…`로 분기하면 **cloud 활성 중 relay refresh가 도착했을 때 cloud로 오라우팅**되어 relay credential이 stale해진다(§6-6 하드 블로커). 따라서 delegate는 소켓 생성 시점에 고정된 **`kind` 클로저**로 분기한다 — SDK `AuthTokenView.cloudId`는 relay 토큰에도 실릴 수 있어 신뢰 불가(dist 확인).
-
-> 기존 active-server 헬퍼(`getActiveServerAuthRegistration` 등)는 **존치**한다 — admin/desktop-web·주기 루프가 쓴다(§2-4). 아래 per-server 헬퍼는 **추가**이며 apps/web(SDK 경로)이 쓴다.
+듀얼 소켓에서는 relay·cloud 두 소켓이 **동시에** 각자 refresh/sign을 돌린다. 서명·seed·writeback을 전역 `getActiveServer…`로 분기하면 **cloud 활성 중 relay refresh가 도착했을 때 cloud로 오라우팅**되어 relay credential이 stale해진다(하드 블로커). 따라서 delegate는 소켓 생성 시점에 고정된 **`kind` 클로저**로 분기한다 — SDK `AuthTokenView.cloudId`는 relay 토큰에도 실릴 수 있어 신뢰 불가(dist 확인).
 
 ---
 
 ## 1. 출처 (relay vs cloud)
 
-|           | token (register 초기값 / Authorization)       | authId + signature                                                                                                                                                                                |
+> ⚠️ **authId는 `$auth.id`다 (`Token.authId` 아님).** 소켓 서버의 `auth.update`/`auth.refresh`는 auth model을 `$auth.id`로 조회하고 **서명도 `$auth.id`를 HMAC 키로** 검증한다. register의 authId와 sign의 서명 authId가 둘 다 `$auth.id`여야 하며, `Token.authId`(HTTP `/oauth/{authId}/refresh`용 id)를 쓰면 서버가 다른 서명을 계산해 `no auth model`로 영구 실패한다. 그래서 relay 서명은 `getTokenSignature()`(= `Token.authId` 기반, HTTP 경로) 재사용을 **버리고 `$auth.id`로 직접 계산**한다.
+
+|           | token (register 초기값 / Authorization)       | authId (register + 서명 HMAC 키) + signature                                                                                                                                                     |
 | --------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **relay** | `relayCore.getIdentityToken()`                | `webTransport.getTokenSignature()` → `{ authId, current, signature, originToken }` (이미 [web-core `api/auth.ts` `refreshAuthToken`](../../../web-core/src/api/auth.ts)에서 사용)                 |
-| **cloud** | `cloudCore.getIdentityToken()` (= cloudToken) | `cloudCore.getCloudToken().Token`의 `{ authId, accountId, identityId }` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../web-core/src/transport/awsSigning.ts)) |
+| **relay** | `relayCore.getIdentityToken()`                | `relayCore.getRelayToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../web-core/src/transport/awsSigning.ts))                 |
+| **cloud** | `cloudCore.getIdentityToken()` (= cloudToken) | `cloudCore.getCloudToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../web-core/src/transport/awsSigning.ts)) |
 
 ### 서명식은 token 문자열에 의존하지 않는다
 
@@ -48,7 +47,7 @@ export const signServerAuth = (kind: 'relay' | 'cloud', target?: string): Promis
 export const commitServerRefreshedToken = (kind: 'relay' | 'cloud', view: AuthTokenView): Promise<void> | void;
 ```
 
-app-runtime의 [`SocketSessionDelegate`](../../src/socket/types.ts)는 이를 **모두 kind 인자로** 노출한다 — `getAuthRegistration(kind)` / `signAuth(kind, token, target?)` / `commitRefreshedToken(kind, view)` / `onAuthExpired(kind)`. 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)가 소유하며, `kind`는 소켓 부팅 시([`bootstrapSocketConnection`](../../src/socket/bootstrapSocketConnection.ts)) `config.wssType`에서 고정돼 클로저로 흐른다. (app-runtime은 web-core/data만 의존 — 3축 경계 준수.)
+app-runtime의 [`SocketSessionDelegate`](../../src/socket/auth/types.ts)는 이를 **모두 kind 인자로** 노출한다 — `getAuthRegistration(kind)` / `signAuth(kind, token, target?)` / `commitRefreshedToken(kind, view)` / `onAuthExpired(kind)`. 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)가 소유하며, `kind`는 소켓 부팅 시([`bootstrapSocketConnection`](../../src/socket/auth/bootstrapSocketConnection.ts)) `config.wssType`에서 고정돼 클로저로 흐른다. (app-runtime은 web-core/data만 의존 — 3축 경계 준수.)
 
 ---
 
@@ -68,10 +67,10 @@ interface AuthTokenView {
 }
 ```
 
-`commitServerRefreshedToken(kind, view)`는 **`kind`로 분기**해 저장한다 (전역 active 참조 금지 — §6-6):
+`commitServerRefreshedToken(kind, view)`는 **`kind`로 분기**해 저장한다 (전역 active 참조 금지):
 
-- **cloud** → `cloudCore.saveCloudToken({ ...cloudToken, ...view })` **단일 쓰기**. cloud HTTP는 cloudCore를 **라이브 읽기**하므로 store 갱신만으로 충분. (switch 시 sid 선반영/롤백은 writeback이 아니라 `switchSiteViaSocket`의 optimistic `applySelectedSite`가 소유 — §8-2.)
-- **relay** → **이중 쓰기 필수**: `await webTransport.buildCredentialsByToken(view.Token)`로 **AWS credential 캐시**를 먼저 갱신한 뒤 `relayCore.saveRelayToken({ ...relayToken, ...view })`. relay signed HTTP는 토큰 "문자열"이 아니라 credential 번들을 소비하므로, credential 캐시를 빠뜨리면 store만 신선하고 서명은 stale(§6-6 비대칭, §6-8).
+- **cloud** → `cloudCore.saveCloudToken({ ...cloudToken, ...view })` **단일 쓰기**. cloud HTTP는 cloudCore를 **라이브 읽기**하므로 store 갱신만으로 충분. (switch 시 sid 선반영/롤백은 writeback이 아니라 `switchSite`의 optimistic `applySelectedSite`가 소유.)
+- **relay** → **이중 쓰기 필수**: `await webTransport.buildCredentialsByToken(view.Token)`로 **AWS credential 캐시**를 먼저 갱신한 뒤 `relayCore.saveRelayToken({ ...relayToken, ...view })`. relay signed HTTP는 토큰 "문자열"이 아니라 credential 번들을 소비하므로, credential 캐시를 빠뜨리면 store만 신선하고 서명은 stale(비대칭).
 - 두 경우 모두 이후 `rebuildSessionIdentity()`로 파생 identity 갱신.
 
 > 이 writeback이 빠지거나 잘못된 kind로 라우팅되면, SDK는 갱신 토큰을 갖지만 web-core(HTTP/REST·AWS 서명 경로)는 stale 토큰을 들고 있어 요청이 403/401로 샌다. 필드 매핑·kind 라우팅은 단위 테스트로 고정한다.
