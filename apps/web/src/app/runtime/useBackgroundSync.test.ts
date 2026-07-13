@@ -268,6 +268,24 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
+    it('클라우드 전환(상승 엣지 + sid 변경)에서 채널 스냅샷을 중복 없이 1회만 갱신한다 (#7)', async () => {
+        // A cloud switch reboots the socket (verified false→true) AND lands on a new sid. Trigger 1
+        // and Trigger 4 must not both fire: Trigger 1 advances prevSiteRef so Trigger 4 stays quiet.
+        setVerified(false);
+        setSession('cloud-a', 's1');
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        setSession('cloud-b', 's2');
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
     it('전환 진행 중(isSwitching)에는 사이트 변경 트리거가 대기하고, 정착 후 발화한다', async () => {
         setVerified(true);
         setSwitching(true);

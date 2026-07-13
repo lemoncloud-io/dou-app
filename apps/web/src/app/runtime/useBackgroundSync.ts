@@ -111,16 +111,23 @@ export const useBackgroundSync = (): void => {
         }
     }, [repos.channel, activeSiteId]);
 
-    // Trigger 1 — rising edge of isVerified (app entry / reconnect / switch completion).
+    // prevSiteRef is shared by Trigger 1 and Trigger 4 (declared once, above both) so the rising edge
+    // can advance the site watermark and Trigger 4 does not re-fire the same sync on a cloud switch.
+    const prevSiteRef = useRef(activeSiteId);
     const prevVerifiedRef = useRef(false);
+
+    // Trigger 1 — rising edge of isVerified (app entry / reconnect / switch completion).
     useEffect(() => {
         const becameVerified = !prevVerifiedRef.current && isVerified;
         prevVerifiedRef.current = isVerified;
         if (becameVerified) {
+            // A cloud switch lands on a new sid AND fires this rising edge; advance the site watermark
+            // here so Trigger 4 sees an unchanged sid and does not duplicate the fetch below.
+            prevSiteRef.current = activeSiteId;
             void refreshActiveLists();
             void refreshChannelSnapshot();
         }
-    }, [isVerified, refreshActiveLists, refreshChannelSnapshot]);
+    }, [isVerified, activeSiteId, refreshActiveLists, refreshChannelSnapshot]);
 
     // Trigger 2 — periodic poll while verified, skipped during an in-flight switch (the optimistic
     // window can leave the old session briefly verified=true; the rising edge handles completion).
@@ -134,9 +141,8 @@ export const useBackgroundSync = (): void => {
     // which stays `authenticated` throughout (no isVerified false→true), so Trigger 1 never fires for
     // it — without this, a site the user only ever reached via a switch is never fetched and its
     // channel list stays empty. Fire once the switch settles (verified + not mid-switch) and the sid
-    // actually changed. (A CLOUD switch reboots the socket → Trigger 1 covers it; the ref guard avoids
-    // a duplicate fetch there.)
-    const prevSiteRef = useRef(activeSiteId);
+    // actually changed. A CLOUD switch instead reboots the socket and fires Trigger 1, which already
+    // advanced prevSiteRef to the new sid — so this stays quiet and does not double-fetch.
     useEffect(() => {
         if (!isVerified || isSwitching || !activeSiteId) return;
         if (prevSiteRef.current === activeSiteId) return;
