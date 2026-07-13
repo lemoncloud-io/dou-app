@@ -53,41 +53,49 @@ export const useBackgroundSync = (): void => {
     // snapshot (no cursor); channel.syncChannels / profile.syncProfiles are delta APIs, so the
     // stored syncedAt is passed as `since` and the returned syncedAt is persisted back.
     const refreshActiveLists = useCallback(async () => {
+        // These are three INDEPENDENT socket domains (user profile, channel delta, profile delta) plus
+        // the fire-and-forget place snapshot — they share no data dependency, so run them concurrently.
+        // Awaiting them serially cost ~3 sequential socket round trips on every switch / 60s poll /
+        // foreground; Promise.all collapses that to one round-trip depth. Each block keeps its own
+        // getSyncedAt → sync → setSyncedAt watermark ordering internally.
         void repos.place.refreshList().catch(() => {
             /* best-effort */
         });
 
-        // Refresh the current-session user profile (User domain) and let the repository cache the
-        // embedded $site into the place store. Keeps the account profile + active site fresh.
-        try {
-            await repos.user.getMyProfile();
-        } catch {
-            // best-effort: a failed profile refresh leaves the previous cache intact
-        }
+        await Promise.all([
+            // Refresh the current-session user profile (User domain); the repository caches the embedded
+            // $site into the place store. Keeps the account profile + active site fresh.
+            repos.user.getMyProfile().catch(() => {
+                // best-effort: a failed profile refresh leaves the previous cache intact
+            }),
 
-        // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
-        // Each channel is stored tagged with its own sid, so this is correct across site switches.
-        try {
-            const channelSyncKind = `channel-sync:${cid}`;
-            const since = await repos.syncMeta.getSyncedAt(channelSyncKind);
-            const { syncedAt } = await repos.channel.syncChannels(since);
-            await repos.syncMeta.setSyncedAt(channelSyncKind, syncedAt);
-        } catch {
-            // best-effort: on failure the watermark is not advanced → retried with the same since next tick
-        }
+            // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
+            // Each channel is stored tagged with its own sid, so this is correct across site switches.
+            (async () => {
+                try {
+                    const channelSyncKind = `channel-sync:${cid}`;
+                    const since = await repos.syncMeta.getSyncedAt(channelSyncKind);
+                    const { syncedAt } = await repos.channel.syncChannels(since);
+                    await repos.syncMeta.setSyncedAt(channelSyncKind, syncedAt);
+                } catch {
+                    // best-effort: watermark not advanced → retried with the same since next tick
+                }
+            })(),
 
-        if (!activeSiteId) return;
-
-        // Profile delta sync — cursor keyed by {cid, sid}. Passing since=0 every tick would
-        // re-pull everything and lose removal deltas, so the watermark must advance.
-        try {
-            const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
-            const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
-            const { syncedAt } = await repos.profile.syncProfiles(since);
-            await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
-        } catch {
-            // best-effort: on failure the watermark is not advanced → retried with the same since next tick
-        }
+            // Profile delta sync — cursor keyed by {cid, sid}. Passing since=0 every tick would re-pull
+            // everything and lose removal deltas, so the watermark must advance. Skipped without a site.
+            (async () => {
+                if (!activeSiteId) return;
+                try {
+                    const profileSyncKind = `profile-sync:${cid}:${activeSiteId}`;
+                    const since = await repos.syncMeta.getSyncedAt(profileSyncKind);
+                    const { syncedAt } = await repos.profile.syncProfiles(since);
+                    await repos.syncMeta.setSyncedAt(profileSyncKind, syncedAt);
+                } catch {
+                    // best-effort: watermark not advanced → retried with the same since next tick
+                }
+            })(),
+        ]);
     }, [repos.place, repos.user, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
 
     // Full channel snapshot (channel.mine) for the active site. Delta sync above only carries
