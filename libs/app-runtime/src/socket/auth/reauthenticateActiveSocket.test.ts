@@ -103,10 +103,8 @@ describe('reauthenticateActiveSocket', () => {
 
         await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, kind: 'relay' });
 
-        const registeredSign = auth.register.mock.calls[0][0].sign as (
-            token: string,
-            ctx?: { target?: string }
-        ) => Promise<unknown>;
+        const registerCall = auth.register.mock.calls[0] as any;
+        const registeredSign = registerCall[0].sign as (token: string, ctx?: { target?: string }) => Promise<unknown>;
         await registeredSign('sdk-token', { target: 'uid@sid' });
         expect(delegate.signAuth).toHaveBeenCalledWith('relay', 'sdk-token', 'uid@sid');
     });
