@@ -22,6 +22,8 @@ const mockSaveDelegationToken = jest.fn();
 const mockGetDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCloudToken = jest.fn();
+const mockGetCachedCloudTokens = jest.fn();
+const mockSetCachedCloudTokens = jest.fn();
 const mockSaveSelectedCloudId = jest.fn();
 const mockGetSelectedCloudId = jest.fn();
 const mockSaveSelectedSiteId = jest.fn();
@@ -98,6 +100,8 @@ jest.mock('./core', () => ({
         getDelegationToken: (...args: unknown[]) => mockGetDelegationToken(...args),
         saveCloudToken: (...args: unknown[]) => mockSaveCloudToken(...args),
         getCloudToken: (...args: unknown[]) => mockGetCloudToken(...args),
+        getCachedCloudTokens: (...args: unknown[]) => mockGetCachedCloudTokens(...args),
+        setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         getSelectedCloudId: (...args: unknown[]) => mockGetSelectedCloudId(...args),
         saveSelectedSiteId: (...args: unknown[]) => mockSaveSelectedSiteId(...args),
@@ -325,6 +329,15 @@ describe('session/services', () => {
         });
         expect(mockSaveDelegationToken).toHaveBeenCalled();
         expect(mockSaveCloudToken).toHaveBeenCalled();
+        // Freshly-issued tokens are cached by cloudId for a fast re-switch.
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-new', {
+            delegationToken: {
+                backend: 'https://cloud.example.com',
+                wss: 'wss://cloud.example.com',
+                delegationToken: 'delegation-token',
+            },
+            cloudToken: userToken,
+        });
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
         expect(mockClearPlaceOrder).toHaveBeenCalledWith('cloud-new');
         // Cloud token saved above; identity is rebuilt (uid re-derives from the active cloud token).
@@ -337,6 +350,29 @@ describe('session/services', () => {
             backend: 'https://cloud.example.com',
             wss: 'wss://cloud.example.com',
         });
+    });
+
+    it('reuses cached cloud tokens on a re-switch — skips both HTTP token exchanges', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        const cachedDelegation = {
+            backend: 'https://cloud.example.com',
+            wss: 'wss://cloud.example.com',
+            delegationToken: 'cached-delegation',
+        };
+        const cachedCloudToken = {
+            id: 'cloud-user',
+            Token: { identityToken: 'cached-token' },
+        } as unknown as UserTokenView;
+        mockGetCachedCloudTokens.mockReturnValue({ delegationToken: cachedDelegation, cloudToken: cachedCloudToken });
+
+        await switchCloudSession({ cloudId: 'cloud-new' });
+
+        // Cache hit → no HTTP round trips; the committed tokens come straight from the cache.
+        expect(mockIssueCloudDelegationToken).not.toHaveBeenCalled();
+        expect(mockIssueCloudToken).not.toHaveBeenCalled();
+        expect(mockSaveDelegationToken).toHaveBeenCalledWith(cachedDelegation);
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(cachedCloudToken);
+        expect(mockRebuildSessionIdentity).toHaveBeenCalled();
     });
 
     it('pre-applies the target cid before the token exchange (optimistic)', async () => {

@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import {
@@ -337,10 +337,22 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
     }
 
     try {
-        const cloudDelegationToken = await issueCloudDelegationToken(cloudId);
-        const userToken = await issueCloudToken(cloudDelegationToken.backend as string, {
-            delegationToken: cloudDelegationToken.delegationToken,
-        });
+        // Reuse a recently-issued token for this cloud when still valid → skip both HTTP token
+        // exchanges, so the cloud identity (uid) commits instantly and the cid+uid-scoped local cache
+        // reads immediately on a re-switch (multi-socket-design.md perf: cloud-switch cache warmth).
+        const cached = cloudCore.getCachedCloudTokens(cloudId);
+        let cloudDelegationToken: CloudDelegationTokenView;
+        let userToken: UserTokenView;
+        if (cached) {
+            cloudDelegationToken = cached.delegationToken;
+            userToken = cached.cloudToken;
+        } else {
+            cloudDelegationToken = await issueCloudDelegationToken(cloudId);
+            userToken = await issueCloudToken(cloudDelegationToken.backend as string, {
+                delegationToken: cloudDelegationToken.delegationToken,
+            });
+            cloudCore.setCachedCloudTokens(cloudId, { delegationToken: cloudDelegationToken, cloudToken: userToken });
+        }
 
         cloudCore.saveDelegationToken(cloudDelegationToken);
         const existingToken = isCloudChange ? null : cloudCore.getCloudToken();

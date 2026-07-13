@@ -27,6 +27,9 @@ const emit = (rows: DomainPlace[]) => {
 const setActiveServer = (kind: 'relay' | 'cloud', cloudId?: string, userId: string | null = 'u1') =>
     (useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: kind === 'cloud' ? { kind, cloudId } : { kind },
+        // useHomePlaces keys its cache-scope cid on the OPTIMISTIC selected cloud (session.cloud.cloudId),
+        // not the committed activeServer.cloudId — mirror that here.
+        cloud: kind === 'cloud' ? { cloudId } : undefined,
         identity: { userId },
     });
 
