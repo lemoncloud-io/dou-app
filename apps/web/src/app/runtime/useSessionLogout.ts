@@ -1,12 +1,3 @@
-import { useCallback } from 'react';
-
-import { logoutSession } from '@chatic/app-runtime';
-import type { LogoutOptions } from '@chatic/web-core';
-
-/**
- * Terminates the active relay session via app-runtime's `logoutSession`: best-effort socket
- * `auth.logout` then web-core's local session teardown (clears tokens/credentials + redirect; there
- * is no server-side revoke endpoint). Drop-in for the legacy web-core `useSessionLogout` — apps/web
- * uses this one so the socket is notified; admin/desktop-web keep the web-core hook.
- */
-export const useSessionLogout = () => useCallback((options?: LogoutOptions) => logoutSession(options), []);
+// The relay-logout hook now lives in @chatic/app-runtime (best-effort socket logout + web-core teardown).
+// Re-exported here so existing apps/web import paths and their test mocks stay stable.
+export { useSessionLogout } from '@chatic/app-runtime';
