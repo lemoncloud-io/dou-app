@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 
+import { logger } from '@chatic/bridges';
 import {
     commitServerRefreshedToken,
     getServerAuthRegistration,
     logoutCloudSession,
-    logoutRelaySession,
     signServerAuth,
 } from '@chatic/web-core';
 
@@ -35,11 +35,11 @@ export const useSocketSessionDelegate = (): SocketSessionDelegate => {
                     logoutCloudSession();
                     return;
                 }
-                // relay terminal expiry: with the SDK owning refresh, no periodic-refresh loop or
-                // request self-heal recovers a dead relay session anymore, so escalate to a full
-                // relay logout (clears stores → keepAlive re-login + /auth/login redirect). §6-10
-                // notes a lighter reboot/re-register is a future refinement.
-                void logoutRelaySession();
+                // Relay terminal `expired`: POLICY = NO auto-logout — relay logout is manual-only. The
+                // socket is dead (isVerified→false) but the relay token stays in the store, so recovery
+                // is a manual logout or an app reload. With the 5min refresh fallback + reconnect
+                // re-auth (SocketManager AUTH_OPTIONS), terminal relay expiry is rare.
+                logger.warn('SOCKET', '[delegate] relay auth expired — no auto-logout (manual logout only)');
             },
         }),
         []

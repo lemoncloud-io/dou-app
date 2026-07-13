@@ -6,17 +6,14 @@ import { getDataManager } from '../data/runtime';
 import { bootstrapSocketConnection } from '../socket';
 
 jest.mock('@chatic/web-core', () => ({
-    startWebCoreInit: jest.fn().mockResolvedValue(undefined),
+    // RuntimeConnectionHost is the single init driver; gate returns ready so children render.
     useInitWebCore: jest.fn().mockReturnValue(true),
     useRelaySessionKeepAlive: jest.fn(),
-    useTokenRefresh: jest.fn(),
-    useDynamicDeviceId: jest.fn().mockReturnValue({ deviceId: 'test-device-id', isReady: true }),
     // Consumed by useSocketSessionDelegate (the delegate is now owned by app-runtime).
     getServerAuthRegistration: jest.fn(),
     signServerAuth: jest.fn(),
     commitServerRefreshedToken: jest.fn(),
     logoutCloudSession: jest.fn(),
-    logoutRelaySession: jest.fn(),
 }));
 
 // SocketBinder boots through the pure bootstrapSocketConnection; intercept it to assert wiring.

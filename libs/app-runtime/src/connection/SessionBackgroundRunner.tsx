@@ -1,15 +1,12 @@
-import { useInitWebCore, useRelaySessionKeepAlive, useTokenRefresh, useDynamicDeviceId } from '@chatic/web-core';
+import { useRelaySessionKeepAlive } from '@chatic/web-core';
 
+/**
+ * Background session upkeep. RuntimeConnectionHost mounts this ONLY after web-core init completes, so
+ * keepAlive runs with `enabled = true` — when the relay session is absent it performs a background
+ * guest login. Web-core init + readiness gating is owned by RuntimeConnectionHost (a second
+ * `useInitWebCore` here would drive a duplicate `initializeRelaySession`).
+ */
 export const SessionBackgroundRunner = () => {
-    const isWebCoreReady = useInitWebCore();
-    useRelaySessionKeepAlive(isWebCoreReady);
-    // The SDK AuthController owns relay-token refresh, so this hook does NO HTTP relay refresh (neither
-    // the boot one-shot nor the periodic loop). A parallel HTTP refresh would race the socket refresh on
-    // the shared device auth model → 403 → spurious logout (multi-socket-design.md §6-12). Token freshness
-    // now comes from the socket refresh writeback; profile + site/channel hydrate over the socket
-    // (useBackgroundSync); and hard-expiry logout is owned by the SDK `expired` → onAuthExpired('relay').
-    useTokenRefresh(isWebCoreReady, { sdkOwnsRefresh: true });
-    useDynamicDeviceId();
-
+    useRelaySessionKeepAlive(true);
     return null;
 };
