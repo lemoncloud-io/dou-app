@@ -678,7 +678,7 @@ describe('session/services · per-server bridge helpers', () => {
         localStorage.clear();
     });
 
-    it('getServerAuthRegistration은 kind 인자로 authId를 $auth.id에서 시드한다 (Token.authId 아님)', async () => {
+    it('getServerAuthRegistration은 kind별로 authId를 시드한다 (relay: $auth.id, cloud: Token.authId)', async () => {
         // relay branch: relay identity token + $auth.id (NOT getTokenSignature / Token.authId)
         mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
         mockRelayGetRelayToken.mockReturnValue({ $auth: { id: 'relay-auth-id' }, Token: { authId: 'http-id' } });
@@ -687,12 +687,13 @@ describe('session/services · per-server bridge helpers', () => {
             authId: 'relay-auth-id',
         });
 
-        // cloud branch: both from the cloud token ($auth.id, not Token.authId)
+        // cloud branch: authId from Token.authId (cloud tokens carry no $auth, so — unlike relay —
+        // Token.authId is the socket-auth key). $auth is present in the mock to prove it is NOT used.
         mockGetIdentityToken.mockReturnValue('cloud-identity-token');
         mockGetCloudToken.mockReturnValue({ $auth: { id: 'cloud-auth-id' }, Token: { authId: 'http-id' } });
         await expect(getServerAuthRegistration('cloud')).resolves.toEqual({
             token: 'cloud-identity-token',
-            authId: 'cloud-auth-id',
+            authId: 'http-id',
         });
 
         // the HTTP-path signature helper must NOT be consulted for socket registration
@@ -701,7 +702,7 @@ describe('session/services · per-server bridge helpers', () => {
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
     });
 
-    it('signServerAuth(cloud)는 $auth.id를 HMAC 키로 서명하고 target은 서명을 바꾸지 않는다', async () => {
+    it('signServerAuth(cloud)는 Token.authId를 HMAC 키로 서명하고 target은 서명을 바꾸지 않는다', async () => {
         mockGetCloudToken.mockReturnValue({
             $auth: { id: 'cloud-auth-id' },
             Token: { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
@@ -710,8 +711,10 @@ describe('session/services · per-server bridge helpers', () => {
 
         await signServerAuth('cloud', 'uid@sid');
 
+        // cloud signs with Token.authId (not $auth.id — cloud tokens have no $auth); accountId/identityId
+        // also come from Token.
         expect(mockCalcSignature).toHaveBeenCalledWith(
-            { authId: 'cloud-auth-id', accountId: 'acct', identityId: 'ident', identityToken: '' },
+            { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: '' },
             expect.any(String)
         );
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();

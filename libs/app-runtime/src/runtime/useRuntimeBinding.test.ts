@@ -37,6 +37,9 @@ describe('useRuntimeBinding', () => {
         const { result } = renderHook(() => useRuntimeBinding());
 
         expect(result.current.context).toEqual({ cid: 'my-cloud-id', sid: 'my-site-id', uid: 'user-123' });
+        // relay carries identityToken (SocketReauthBinder watches it for a same-connection
+        // guest→social swap); the cloud slot does NOT — a cloud change reboots the socket (wss URL
+        // differs → SocketBinder rebuilds), so no in-place cloud re-auth key is needed.
         expect(result.current.socket).toEqual({
             relay: { config: relayConfig, identityToken: 'relay-token' },
             cloud: {
@@ -46,7 +49,6 @@ describe('useRuntimeBinding', () => {
                     wssType: 'cloud',
                     cid: 'my-cloud-id',
                 },
-                identityToken: 'cloud-token',
             },
         });
     });
