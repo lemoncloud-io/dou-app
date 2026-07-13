@@ -130,6 +130,21 @@ export const useBackgroundSync = (): void => {
         return () => clearInterval(timer);
     }, [isVerified, isSwitching, refreshActiveLists]);
 
+    // Trigger 4 — active site (sid) change. A SITE switch drives SDK `auth.switch` on the SAME socket,
+    // which stays `authenticated` throughout (no isVerified false→true), so Trigger 1 never fires for
+    // it — without this, a site the user only ever reached via a switch is never fetched and its
+    // channel list stays empty. Fire once the switch settles (verified + not mid-switch) and the sid
+    // actually changed. (A CLOUD switch reboots the socket → Trigger 1 covers it; the ref guard avoids
+    // a duplicate fetch there.)
+    const prevSiteRef = useRef(activeSiteId);
+    useEffect(() => {
+        if (!isVerified || isSwitching || !activeSiteId) return;
+        if (prevSiteRef.current === activeSiteId) return;
+        prevSiteRef.current = activeSiteId;
+        void refreshActiveLists();
+        void refreshChannelSnapshot();
+    }, [activeSiteId, isVerified, isSwitching, refreshActiveLists, refreshChannelSnapshot]);
+
     // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended and
     // pushes may have been missed; if the socket survived (no rising edge), nothing else re-syncs,
     // so refresh immediately. This does NOT gate on `isVerified`. Recovery is now owned by the SDK

@@ -250,4 +250,43 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         // 채널 실패가 프로필 동기화를 막지는 않는다
         expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
+
+    it('사이트(sid) 변경 시 새 사이트 채널을 갱신한다 (auth.switch는 상승 엣지를 만들지 않으므로 Trigger 4)', async () => {
+        setVerified(true);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        await act(async () => undefined); // 마운트 상승 엣지(s1) flush
+        syncChannels.mockClear();
+        refreshChannelList.mockClear();
+
+        // 사이트 전환: s1 → s2. verified는 그대로 true(auth.switch가 authenticated 유지 → 상승 엣지 없음).
+        setSession('default', 's2');
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('전환 진행 중(isSwitching)에는 사이트 변경 트리거가 대기하고, 정착 후 발화한다', async () => {
+        setVerified(true);
+        setSwitching(true);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+        refreshChannelList.mockClear();
+
+        // sid는 낙관적으로 먼저 s2가 되지만 아직 전환 중이므로 fetch하지 않는다.
+        setSession('default', 's2');
+        await act(async () => {
+            rerender();
+        });
+        expect(refreshChannelList).not.toHaveBeenCalled();
+
+        // 전환 정착 → 발화.
+        setSwitching(false);
+        await act(async () => {
+            rerender();
+        });
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+    });
 });
