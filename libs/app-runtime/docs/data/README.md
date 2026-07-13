@@ -85,4 +85,4 @@ flowchart TD
 
 - [context-design.md](context-design.md) — 전역/요청 context 분리 설계
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
-- [../sync/README.md](../sync/README.md) — sync 결과의 cache 반영 경계
+- [../sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계

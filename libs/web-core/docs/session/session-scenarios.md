@@ -48,7 +48,7 @@ relay와 cloud 세션 처리의 의도된 lifecycle 시나리오를 정의합니
     - `switchCloudSession` (cloud 전환 + cid **선반영+롤백** + 병렬 리프레시 single-flight)
     - `refreshCloudSession` (cloudToken 기반, 서비스 single-flight)
     - `switchSiteSession` (sid **선반영+롤백**, 활성 서버별 refresh 커밋)
-    - `refreshActiveCloudSession` (주기 루프용 cloud 갱신)
+    - `refreshActiveCloudSession` (활성 cloud 세션 갱신 서비스 — 현재 in-package 구동 훅 없음; 소켓 refresh는 SDK가 소유)
     - `logoutCloudSession`
     - `persistDeviceId` (deviceId를 identityCore에도 저장)
 - 제거됨
@@ -202,9 +202,9 @@ selected site 변경은 독립 setter가 아니라 `target = uid@sid`를 사용�
 
 single-flight 규칙:
 
-- `refreshCloudSession`은 **서비스 레벨 single-flight**를 가져야 합니다. 주기 리프레시 루프(시나리오 13), 사이트 전환(`target = uid@sid`), 소켓 401 복구가 모두 같은 in-flight promise를 공유합니다.
+- `refreshCloudSession`은 **서비스 레벨 single-flight**를 가져야 합니다. 사이트 전환(`target = uid@sid`)과 소켓 401 복구가 모두 같은 in-flight promise를 공유합니다.
 - in-flight refresh가 있으면 새 호출은 그 promise에 합류(coalesce)합니다.
-- 단 **target이 다르면**(주기=target 없음 vs 사이트 전환=`uid@sid`) site-switch target을 우선해 직렬 실행합니다.
+- 단 **target이 다르면**(target 없음 vs 사이트 전환=`uid@sid`) site-switch target을 우선해 직렬 실행합니다.
 - 이유: `refreshCloudSession`이 selectedSiteId 저장 + cloudToken 교체의 유일 소유자이므로, 직렬화를 서비스에 두어야 모든 진입이 같은 경합 보호를 공유합니다. hook 레벨 가드는 호출자마다 중복·우회됩니다.
 
 ### 9. `logoutCloudSession`
@@ -405,7 +405,7 @@ sequenceDiagram
   WIRE->>WC: commitServerRefreshedToken(kind, view)  (단방향 writeback)
 ```
 
-상세 계약 → [../../../app-runtime/docs/auth/README.md](../../../app-runtime/docs/auth/README.md) · [../../../app-runtime/docs/auth/signing.md](../../../app-runtime/docs/auth/signing.md).
+상세 계약 → [../../../app-runtime/docs/socket/auth/README.md](../../../app-runtime/docs/socket/auth/README.md) · [../../../app-runtime/docs/socket/auth/signing.md](../../../app-runtime/docs/socket/auth/signing.md).
 
 ## 시나리오 4: 인증 연속성 유지
 
@@ -582,7 +582,7 @@ sequenceDiagram
 
 single-flight 규칙:
 
-- relay도 site 전환이 가능하므로(`target = uid@sid`) cloud와 동일한 경합이 존재합니다. 주기 리프레시 루프(시나리오 13)의 `refreshRelaySession()`(target 없음)과 사이트 전환의 `refreshRelaySession(target = uid@sid)`가 동시 실행될 수 있습니다.
+- relay도 site 전환이 가능하므로(`target = uid@sid`) cloud와 동일한 경합이 존재합니다. 소켓 재인증 복구의 `refreshRelaySession()`(target 없음)과 사이트 전환의 `refreshRelaySession(target = uid@sid)`가 동시 실행될 수 있습니다.
 - 따라서 `refreshRelaySession`도 **서비스 레벨 single-flight**를 가집니다. in-flight refresh에 새 호출은 합류하되, target이 다르면 site-switch target을 우선해 직렬 실행합니다.
 - 이 규칙은 `refreshCloudSession`(시나리오 2)과 **대칭**이며, relay/cloud 양쪽에 공통으로 적용됩니다.
 
@@ -669,45 +669,6 @@ flowchart LR
 
 - deviceId는 identity raw state로 취급합니다 (`delegatorId`와 같은 계층 — context-model.md 참조).
 - `localStorage` + `identityCore` 양쪽에 저장해 세션 read model에서 일관되게 조회합니다.
-
-## 시나리오 13: 병렬 리프레시 루프 (`useTokenRefresh`)
-
-목적:
-
-백그라운드에서 relay/cloud 토큰을 만료 전에 갱신해 인증 연속성을 유지합니다.
-
-규칙:
-
-- 기본은 relay 리프레시(`refreshRelaySession`)입니다
-- cloud 서버가 연결되어 있으면(delegation token 존재) `refreshActiveCloudSession`을 **fire-and-forget 병렬 수행**합니다(`cloudCore.getCloudToken()` 기반)
-- 주기는 1분(`MIN_REFRESH_GAP` 5초 dedup)입니다
-- 사이트 전환의 refresh와 경합하지 않도록 `refreshRelaySession`(시나리오 9)·`refreshCloudSession`(시나리오 2)의 **서비스 레벨 single-flight**를 공유합니다
-- **`sdkOwnsRefresh` 모드**: SDK `AuthController`가 소켓에서 relay refresh를 소유하는 앱(apps/web)에서는 이 훅이 부팅 refresh와 `setInterval`을 **둘 다 건너뜁니다** — 소켓 refresh와 경쟁해 403→오탐 로그아웃을 내지 않기 위함([hooks/orchestration.md](../hooks/orchestration.md))
-
-실패 폴백:
-
-- relay 실패: `classifyError().shouldLogout`이면 logout, 그 외는 다음 주기 재시도
-- cloud 실패: logout하지 않고 relay를 유지(다음 주기/SDK 소켓 재인증에 위임)
-- 두 축은 독립 실패. invite 세션에서는 cloud 실패가 logout을 유발하지 않습니다
-
-```mermaid
-sequenceDiagram
-  participant H as useTokenRefresh (1분 주기)
-  participant S as Session Service
-  participant R as Relay API
-  participant C as Cloud API
-  H->>S: refreshRelaySession()
-  S->>R: relay refresh
-  alt cloud 연결됨
-    H->>S: refreshActiveCloudSession() (fire-and-forget, cloudToken)
-    S->>C: cloud refresh
-  end
-```
-
-비고:
-
-- 이 루프는 app lifecycle hook이 구동하며, 동작 정책 상세는 [hooks/orchestration.md](../hooks/orchestration.md)에 있습니다.
-- 전이 자체(token 교체·저장)는 `refreshRelaySession`/`refreshCloudSession` 서비스가 소유합니다.
 
 ## 시나리오 요약 다이어그램
 

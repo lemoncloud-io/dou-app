@@ -73,7 +73,7 @@ actions (`actions/`, mutation/callback):
 - `switchCloudSession()`
 - `refreshCloudSession()`
 - `switchSiteSession()` — sid 선반영+롤백 사이트 전환
-- `refreshActiveCloudSession()` — 주기 리프레시 루프용 cloud 갱신
+- `refreshActiveCloudSession()` — 활성 cloud 세션 갱신 서비스 (현재 in-package 구동 훅 없음; 소켓 refresh는 SDK가 소유)
 - `logoutCloudSession()`
 - `persistDeviceId()`
 
@@ -82,7 +82,7 @@ actions (`actions/`, mutation/callback):
 - `registerUserWithInviteCode()`를 제외한 위 서비스들은 `libs/web-core/src/session/services.ts`에 정의됩니다. `registerUserWithInviteCode()`는 **service가 아니라 `libs/web-core/src/api/auth.ts`의 API 함수**이며 `useInviteFlow`가 직접 호출합니다.
 - `refreshRelaySession()`은 relay auth refresh를 수행합니다(`syncProfile` 옵션).
 - `refreshRelaySession(target = uid@sid)`는 relay auth refresh와 relay selected site 전환을 함께 수행합니다.
-- `refreshRelaySession`·`refreshCloudSession`은 서비스 레벨 single-flight로 주기 루프와 사이트 전환을 직렬화합니다.
+- `refreshRelaySession`·`refreshCloudSession`은 서비스 레벨 single-flight로 사이트 전환과 소켓 재인증 복구를 직렬화합니다.
 - `restorePreviousCloudSession()`은 **제거**되었습니다 (invited 번들 writer 부재로 죽은 경로 → `switchCloudSession`으로 일원화).
 - cid/sid **선반영(optimistic) + 롤백**은 `switchCloudSession`(cid)·`switchSiteSession`(sid)에 **구현 완료**입니다. relay 사이트 전환(`refreshRelaySession(target)`) sid 선반영만 TODO (hooks/orchestration.md 참조).
 

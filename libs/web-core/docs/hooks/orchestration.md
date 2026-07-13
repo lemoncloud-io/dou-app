@@ -25,43 +25,15 @@
 
 감지 신호: `useSessionAuth().isAuthenticated`(false) + 해석된 `deviceId` + `enabled` 게이트. 이 hook은 부재한 세션을 **복구**할 뿐 명시적 logout으로 세션을 내리지 않습니다.
 
-## 2. 병렬 리프레시 루프 (`useTokenRefresh`)
-
-목표: relay/cloud 토큰을 백그라운드에서 만료 전에 갱신합니다.
-
-규칙:
-
-- 기본은 relay 리프레시(`refreshRelaySession({ syncProfile: true })`)입니다
-- cloud 서버가 연결되어 있으면 `refreshActiveCloudSession`을 **fire-and-forget 병렬 수행**합니다(`cloudCore.getCloudToken()` 기반)
-- 주기는 1분(`REFRESH_INTERVAL`), 5초 dedup(`MIN_REFRESH_GAP`)
-- **`sdkOwnsRefresh` 모드**: SDK `AuthController`가 소켓 relay refresh를 소유하는 앱에서는 이 hook이 **부팅 refresh와 `setInterval`을 둘 다 스킵**합니다 — 소켓 refresh와 경쟁해 403→오탐 로그아웃을 내지 않기 위함
-
-실패 폴백:
-
-- relay 실패: `classifyError().shouldLogout`이면 logout(초대 딥링크 URL은 보존), 그 외는 다음 주기 재시도
-- cloud 실패: **logout 금지**. relay 세션은 유지하고 다음 주기 또는 SDK 소켓 재인증에 위임
-- 두 축은 독립 실패 (invite 세션에서 cloud 실패가 logout을 유발하지 않도록)
-
-```mermaid
-flowchart LR
-  Tick["1분 주기 (sdkOwnsRefresh면 스킵)"] --> R["refreshRelaySession"]
-  Tick --> C{"cloud 연결?"}
-  C -->|yes| CR["refreshActiveCloudSession (fire-and-forget)"]
-  C -->|no| Skip["skip"]
-  R --> RF{"shouldLogout?"}
-  RF -->|yes| Logout
-  RF -->|no| Keep
-  CR --> CF{"실패?"}
-  CF -->|yes| Mark["무시 (logout 안 함)"]
-```
+> **HTTP 주기 리프레시 루프는 web-core에서 제거되었습니다.** 소켓 인증 수명주기(토큰 refresh 포함)는 SDK `AuthController`가 소유합니다 — app-runtime `docs/socket/auth/README.md` 참조. `session/services.refreshActiveCloudSession`은 서비스로 남아 있으나 현재 in-package 구동 훅이 없습니다.
 
 ## 6. 사이트 전환 ↔ 리프레시 single-flight
 
-문제: 1분 리프레시 루프의 주기 refresh와, 사이트 전환의 `target = uid@sid` refresh가 동시에 실행되면 token·selectedSiteId 경합이 발생합니다. **relay·cloud 양쪽 모두** 해당합니다 (중계서버도 site 전환 가능).
+문제: 사이트 전환의 `target = uid@sid` refresh와 소켓 재인증 복구가 동시에 실행되면 token·selectedSiteId 경합이 발생합니다. **relay·cloud 양쪽 모두** 해당합니다 (중계서버도 site 전환 가능).
 
 해결 (확정):
 
-- **`refreshRelaySession`·`refreshCloudSession` 둘 다 서비스 레벨에 single-flight** 를 둡니다 (대칭). 각 축의 모든 진입(주기 루프·사이트 전환·소켓 401 복구)이 같은 in-flight promise를 공유합니다
+- **`refreshRelaySession`·`refreshCloudSession` 둘 다 서비스 레벨에 single-flight** 를 둡니다 (대칭). 각 축의 모든 진입(사이트 전환·소켓 재인증 복구)이 같은 in-flight promise를 공유합니다
 - in-flight refresh가 있으면 새 호출은 그 promise에 합류(coalesce)합니다
 - 단 **target이 다르면**(주기=target 없음 vs 사이트 전환=`uid@sid`) site-switch target을 우선해 직렬 실행합니다
 - 서비스 레벨에 두는 이유: refresh 서비스가 selectedSiteId 저장 + token 교체의 유일 소유자이기 때문입니다. hook 레벨 가드는 호출자마다 중복·우회됩니다
@@ -117,8 +89,7 @@ flowchart LR
 자동 (web-core 단위 테스트):
 
 - **① 항시 로그인** — 미인증 + deviceId 준비 시 `loginRelayGuestByDevice`가 1회 호출되고, 진행 중 재진입이 차단된다. 인증 상태면 호출되지 않는다.
-- **② 병렬 리프레시** — `refreshToken` 시 `refreshActiveCloudSession`이 병렬 호출되고, cloud 실패가 logout을 유발하지 않는다. relay `shouldLogout`만 logout으로 이어진다.
-- **②/⑥ single-flight** — `refreshRelaySession`·`refreshCloudSession` 동일 key 동시호출이 1회로 coalesce되고, 다른 key는 직렬 실행되어 selectedSiteId/token 경합이 없다.
+- **⑥ single-flight** — `refreshRelaySession`·`refreshCloudSession` 동일 key 동시호출이 1회로 coalesce되고, 다른 key는 직렬 실행되어 selectedSiteId/token 경합이 없다.
 - **⑥ 사이트 전환** — `target = uid@sid` refresh가 selectedSiteId를 refresh 결과로만 반영한다 (독립 setter 아님).
 - **⑦ 초대** — delegatorId 부재 시 throw, 존재 시 `registerUserWithInviteCode`(`useInviteFlow`) → `switchCloudSession` 순서로 진행한다.
 - **⑪ 디바이스 등록** — `persistDeviceId`가 `identityCore.setDeviceId`와 localStorage에 함께 반영하고, 로그아웃 후에도 deviceId가 유지된다.

@@ -1,13 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useSocketState: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSocketState: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({
     useGlobalSession: jest.fn(),
     useSessionSelection: jest.fn(),
@@ -28,7 +28,7 @@ const getMyProfile = jest.fn();
 const getSyncedAt = jest.fn();
 const setSyncedAt = jest.fn();
 
-const setVerified = (isVerified: boolean) => (useSocketState as jest.Mock).mockReturnValue({ isVerified });
+const setVerified = (isVerified: boolean) => (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 // The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0];

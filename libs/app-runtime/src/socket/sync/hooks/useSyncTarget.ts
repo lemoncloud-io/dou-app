@@ -5,7 +5,7 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { logger } from '@chatic/bridges';
 
 import { getSyncManager } from '../../runtime';
-import { useSocketState } from '../../hooks/useSocketState';
+import { useRuntimeSocketState } from '../../../runtime/useRuntimeSocketState';
 import { getRepositories } from '../../../data/runtime';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
@@ -37,7 +37,7 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null): void => {
  * path that used to re-prime on a client swap.
  */
 const usePrimeChat = (channelId?: string): void => {
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     useEffect(() => {
         if (!isVerified || !channelId) return;

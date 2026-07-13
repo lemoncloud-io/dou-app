@@ -73,7 +73,7 @@ const delegate = useMemo<DeviceTokenDelegate | null>(() => {
 useDeviceTokenRegistration(delegate);
 ```
 
-마운트 위치는 앱 자유다 — apps/web은 `GlobalBridgeListener`에서 호출한다. `SessionBackgroundRunner`에 내장하지 않은 이유: delegate가 앱(셸) 컨텍스트를 요구하므로 인자 없는 runner에 넣을 수 없다.
+마운트 위치는 앱 자유다 — apps/web은 `GlobalBridgeListener`에서 호출한다. `RuntimeConnectionHost`에 내장하지 않은 이유: delegate가 앱(셸) 컨텍스트를 요구하므로 인자 없이 Host에서 호출할 수 없다.
 
 ## 비책임
 

@@ -1,4 +1,5 @@
-import { logoutCloudSession } from '@chatic/web-core';
+// web-core's cloud teardown shares this name; alias it so the app-runtime export below can own it.
+import { logoutCloudSession as clearCloudCoreSession } from '@chatic/web-core';
 
 import { notifySocketLogout } from './logoutSession';
 
@@ -9,10 +10,10 @@ import { notifySocketLogout } from './logoutSession';
  * Steps (mirrors {@link logoutSession} but scoped to cloud):
  *  1. best-effort `auth.logout()` on the CLOUD slot only (fire-and-forget) — the relay socket is
  *     untouched.
- *  2. web-core `logoutCloudSession()` clears cloudCore. That drops `cloud.isActive`, so the binding
+ *  2. web-core cloud teardown clears cloudCore. That drops `cloud.isActive`, so the binding
  *     removes the cloud slot and SocketBinder tears the cloud client down — relay stays connected.
  */
-export const logoutCloudViaSocket = async (): Promise<void> => {
+export const logoutCloudSession = async (): Promise<void> => {
     notifySocketLogout('cloud');
-    logoutCloudSession();
+    clearCloudCoreSession();
 };

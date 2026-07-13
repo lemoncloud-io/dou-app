@@ -9,8 +9,8 @@ jest.mock('@chatic/web-core', () => new Proxy({}, { get: () => jest.fn() }));
  * Locks the package's PUBLIC runtime surface. Type-only exports (SessionProfile, ISocketManager,
  * DeviceTokenDelegate) are erased at runtime and do not appear here — this asserts the value exports
  * only. Adding/removing a public value export must be a deliberate change to this list, so internal
- * wiring (socket auth bootstrap/reauth, connection binders, raw session actions, useSyncTarget,
- * getRuntimeManager) can never leak back into the barrel unnoticed.
+ * wiring (socket auth bootstrap/reauth, connection binders, raw session actions, useSyncTarget)
+ * can never leak back into the barrel unnoticed.
  */
 describe('@chatic/app-runtime public surface', () => {
     it('exports exactly the intended value symbols', () => {
@@ -18,8 +18,11 @@ describe('@chatic/app-runtime public surface', () => {
             // value-deriving hooks
             'useRuntimeBinding',
             'useRuntimeRepositories',
-            'useSessionProfile',
+            'useRuntimeSocketState',
+            'useRuntimeProfile',
+            // back-compat aliases (desktop-web) — useRuntimeSocketState / useRuntimeProfile
             'useSocketState',
+            'useSessionProfile',
             // session action hooks
             'useSiteSwitch',
             'useSessionLogout',

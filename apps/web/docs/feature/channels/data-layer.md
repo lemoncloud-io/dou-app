@@ -27,7 +27,7 @@ hooks/
 
 ## 멤버
 
-`useChannelMembers({channelId})`가 `repos.user.observeList`(신원)와 `repos.join.observeList`(읽음/역할)를 함께 구독해 `userId` 기준으로 병합한다. 네트워크 로드는 `useSocketState().isVerified` 이후에만 실행한다(stale 세션 회피, 재인증 시 자동 재시도).
+`useChannelMembers({channelId})`가 `repos.user.observeList`(신원)와 `repos.join.observeList`(읽음/역할)를 함께 구독해 `userId` 기준으로 병합한다. 네트워크 로드는 `useRuntimeSocketState().isVerified` 이후에만 실행한다(stale 세션 회피, 재인증 시 자동 재시도).
 
 ## 메시지
 

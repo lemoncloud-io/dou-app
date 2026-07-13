@@ -45,15 +45,15 @@ device 모델 상태 필드(SDK `DeviceView`): `status('' | green | red | yellow
 
 ## 3. 현재 배선 상태 (코드 기준)
 
-| 경로                                                          | 상태                      | 위치                                                                                                            |
-| ------------------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `DeviceRemoteDataSource.saveDevice / readDevice / syncDevice` | ✅ 존재                   | [libs/data/.../DeviceRemoteDataSource.ts](../../../data/src/data/remote/data-sources/DeviceRemoteDataSource.ts) |
-| `SyncManager.registerDevice(id?)`                             | ✅ 존재                   | [SyncManager.ts](../../src/socket/sync/SyncManager.ts)                                                          |
-| connect 시 자동 `device.save`                                 | ✅ runtime 소유           | `createDeviceRuntime`                                                                                           |
-| **viewing 통지 트리거** (채널 진입/이탈 → `syncDevice`)       | ✅ **배선됨**             | apps/web `useDeviceSync`(라우트 관측) → `DeviceRepositoryV2.syncDevice` (§4)                                    |
-| **status 통지 트리거** (포/백그라운드 → `syncStatus`)         | ✅ **배선됨**             | apps/web `useDeviceSync`(`useAppVisibility` 관측) → `DeviceRepositoryV2.syncStatus` (§4.3)                      |
-| **위치 변경 트리거** (`saveDevice({posX,posY})`)              | 🔴 **없음**(자동 save 외) | —                                                                                                               |
-| device watch 결과 캐시 (`registerDevice` → repository)        | 🟡 미연결                 | plan `onUpdate`가 캐시에 안 붙음([usage.md](usage.md) §2 "device: 캐시 미연결")                                 |
+| 경로                                                          | 상태                      | 위치                                                                                                               |
+| ------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `DeviceRemoteDataSource.saveDevice / readDevice / syncDevice` | ✅ 존재                   | [libs/data/.../DeviceRemoteDataSource.ts](../../../../data/src/data/remote/data-sources/DeviceRemoteDataSource.ts) |
+| `SyncManager.registerDevice(id?)`                             | ✅ 존재                   | [SyncManager.ts](../../../src/socket/sync/SyncManager.ts)                                                          |
+| connect 시 자동 `device.save`                                 | ✅ runtime 소유           | `createDeviceRuntime`                                                                                              |
+| **viewing 통지 트리거** (채널 진입/이탈 → `syncDevice`)       | ✅ **배선됨**             | apps/web `useDeviceSync`(라우트 관측) → `DeviceRepositoryV2.syncDevice` (§4)                                       |
+| **status 통지 트리거** (포/백그라운드 → `syncStatus`)         | ✅ **배선됨**             | apps/web `useDeviceSync`(`useAppVisibility` 관측) → `DeviceRepositoryV2.syncStatus` (§4.3)                         |
+| **위치 변경 트리거** (`saveDevice({posX,posY})`)              | 🔴 **없음**(자동 save 외) | —                                                                                                                  |
+| device watch 결과 캐시 (`registerDevice` → repository)        | 🟡 미연결                 | plan `onUpdate`가 캐시에 안 붙음([usage.md](usage.md) §2 "device: 캐시 미연결")                                    |
 
 → **viewing·status 통지 트리거는 배선됐다**(§4). 남은 빈칸은 "내 위치(posX/posY)를 쏘는" 트리거와 "남의 디바이스 상태를 받는" watch 캐시 연결(§5)이다.
 
@@ -68,7 +68,7 @@ viewing 통지는 **쓰기(write)** 다 — sync target 등록(`register*`, 자�
 - **API**: `DeviceRemoteDataSource.syncDevice` (이미 존재) 를 재사용.
 - **repository**: `DeviceRepositoryV2.syncDevice(viewingType, viewingId)` / `syncStatus(status)` —
   캐시 없는 thin passthrough. `DataRepositoriesV2.device`로 노출되어 UI는 `useRuntimeRepositories().device`라는
-  매니저 surface만 만진다(매니저 surface 규칙). [DeviceRepositoryV2.ts](../../../data/src/data/repositories-v2/DeviceRepositoryV2.ts)
+  매니저 surface만 만진다(매니저 surface 규칙). [DeviceRepositoryV2.ts](../../../../data/src/data/repositories-v2/DeviceRepositoryV2.ts)
 - **트리거 소유**: 컴포넌트 lifecycle이 아니라 **전역 관측**. apps/web `useDeviceSync`가
   `UnifiedLayout`(RouterProvider 안)에 마운트되어 두 신호를 관측한다 — (a) `useMatch('/channels/:channelId/room')`로
   현재 채널을 도출해 전환마다 1회 viewing 통지, (b) 네이티브 `OnBackgroundStatusChanged`와 웹

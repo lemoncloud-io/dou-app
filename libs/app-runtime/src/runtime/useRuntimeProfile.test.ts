@@ -1,15 +1,15 @@
 import { renderHook } from '@testing-library/react';
 
-import { getActiveSessionUser, useGlobalSession, useSessionIdentity } from '@chatic/web-core';
+import { getActiveSessionUser, useGlobalSession } from '@chatic/web-core';
 
-import { useSessionProfile } from './useSessionProfile';
+import { useRuntimeProfile } from './useRuntimeProfile';
 import { useRuntimeRepositories } from './useRuntimeRepositories';
 
-// useSessionProfile only needs the session hooks + the token seed accessor from web-core. Mock the
-// whole module (avoids transport's import.meta under jest); no pure derivations are needed.
+// useRuntimeProfile sources uid/isCloudActive from useGlobalSession + the token seed accessor from
+// web-core. Mock the whole web-core module (avoids transport's import.meta under jest); the
+// repositories hook is mocked locally.
 jest.mock('@chatic/web-core', () => ({
     getActiveSessionUser: jest.fn(),
-    useSessionIdentity: jest.fn(),
     useGlobalSession: jest.fn(),
 }));
 jest.mock('./useRuntimeRepositories', () => ({ useRuntimeRepositories: jest.fn() }));
@@ -25,10 +25,13 @@ const emit = (user: unknown) => {
 };
 
 const setSession = (opts: { userId: string | null; sessionUser?: unknown; hasCloud?: boolean }) => {
-    (useSessionIdentity as jest.Mock).mockReturnValue({ userId: opts.userId });
+    // uid + isCloudActive are read straight from the web-core session.
+    (useGlobalSession as jest.Mock).mockReturnValue({
+        identity: { userId: opts.userId },
+        cloud: { isActive: !!opts.hasCloud },
+    });
     // getActiveSessionUser is the synchronous seed source (active token's user fields).
     (getActiveSessionUser as jest.Mock).mockReturnValue(opts.sessionUser ?? null);
-    (useGlobalSession as jest.Mock).mockReturnValue({ cloud: { isActive: !!opts.hasCloud } });
 };
 
 beforeEach(() => {
@@ -37,11 +40,11 @@ beforeEach(() => {
     emit(undefined);
 });
 
-describe('useSessionProfile', () => {
+describe('useRuntimeProfile', () => {
     it('seeds synchronously from the session token payload before the cache emits (no flash)', () => {
         setSession({ userId: 'me', sessionUser: { userRole: 'user', name: 'Seed' }, hasCloud: false });
 
-        const { result } = renderHook(() => useSessionProfile());
+        const { result } = renderHook(() => useRuntimeProfile());
 
         expect(result.current.userRole).toBe('user');
         expect(result.current.isGuest).toBe(false);
@@ -53,7 +56,7 @@ describe('useSessionProfile', () => {
         setSession({ userId: 'me', sessionUser: { userRole: 'guest', name: 'Seed' }, hasCloud: false });
         emit({ userRole: 'user', name: 'Cache', photo: 'p.png' });
 
-        const { result } = renderHook(() => useSessionProfile());
+        const { result } = renderHook(() => useRuntimeProfile());
 
         expect(result.current.userRole).toBe('user');
         expect(result.current.userName).toBe('Cache');
@@ -67,7 +70,7 @@ describe('useSessionProfile', () => {
         setSession({ userId: 'me', sessionUser: { userRole: 'guest', name: 'Seed' }, hasCloud: false });
         emit({ name: 'CacheNoRole' });
 
-        const { result } = renderHook(() => useSessionProfile());
+        const { result } = renderHook(() => useRuntimeProfile());
 
         expect(result.current.userRole).toBe('guest');
         expect(result.current.isGuest).toBe(true);
@@ -77,7 +80,7 @@ describe('useSessionProfile', () => {
     it('derives isGuest from a guest role', () => {
         setSession({ userId: 'me', sessionUser: { userRole: 'guest' }, hasCloud: false });
 
-        const { result } = renderHook(() => useSessionProfile());
+        const { result } = renderHook(() => useRuntimeProfile());
 
         expect(result.current.isGuest).toBe(true);
     });
@@ -85,7 +88,7 @@ describe('useSessionProfile', () => {
     it('exposes isCloudActive from the active cloud session', () => {
         setSession({ userId: 'me', sessionUser: { userRole: 'user' }, hasCloud: true });
 
-        const { result } = renderHook(() => useSessionProfile());
+        const { result } = renderHook(() => useRuntimeProfile());
 
         expect(result.current.isCloudActive).toBe(true);
         expect(result.current.isGuest).toBe(false);
@@ -94,7 +97,7 @@ describe('useSessionProfile', () => {
     it('falls back to Unknown with no session and no uid', () => {
         setSession({ userId: null });
 
-        const { result } = renderHook(() => useSessionProfile());
+        const { result } = renderHook(() => useRuntimeProfile());
 
         expect(result.current.userName).toBe('Unknown');
         expect(result.current.isGuest).toBe(false);

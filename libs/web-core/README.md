@@ -28,7 +28,7 @@ flowchart TD
 ### 3) Hooks Layer (인증 및 라이프사이클 오케스트레이션)
 
 - 세션의 생명주기를 자동으로 제어하는 백그라운드 오케스트레이션 훅과 액션 훅들을 소유합니다.
-- 예: 중계 서버 로그인 상시 유지, 토큰 갱신 루프, 디바이스 ID 관리, 사이트/클라우드 전환 액션 등.
+- 예: 중계 서버 로그인 상시 유지, 디바이스 ID 관리, 사이트/클라우드 전환 액션 등. (소켓 토큰의 주기 리프레시는 SDK `AuthController`가 소유하며 web-core 훅이 아닙니다.)
 
 ---
 
@@ -90,7 +90,6 @@ const SessionControls = () => {
 ### 4. 백그라운드 세션 오케스트레이션
 
 - `useRelaySessionKeepAlive(enabled)`: relay 세션이 부재하면 백그라운드 게스트 로그인으로 복구합니다.
-- `useTokenRefresh()`: relay 토큰 1분 주기 리프레시 루프(+cloud 병렬). SDK가 소켓 refresh를 소유하는 앱에서는 `sdkOwnsRefresh`로 루프를 끕니다.
 - `useInitWebCore()`: 웹코어 초기화 단일 드라이버(1회).
 - `useDynamicDeviceId()`: 브라우저/디바이스 식별키 해석·유지.
 
@@ -104,5 +103,5 @@ const SessionControls = () => {
 - **[세션 시나리오 명세](docs/session/session-scenarios.md)**: 클라우드/사이트 전환, 토큰 갱신, 로그아웃 동작 흐름
 - **[공개 세션 API](docs/session/public-api.md)**: 세션 핵심 메서드 명세
 - **[통신 런타임 초기화 모델](docs/transport/runtime-model.md)**: webTransport 설정 및 init 가이드
-- **[백그라운드 오케스트레이션 훅 정책](docs/hooks/orchestration.md)**: KeepAlive 및 TokenRefresh 병렬 구동 스펙
+- **[백그라운드 오케스트레이션 훅 정책](docs/hooks/orchestration.md)**: KeepAlive·디바이스 등록 등 lifecycle 훅 구동 스펙
 - **[공개 훅 목록](docs/hooks/public-surface.md)**: 노출되는 훅과 시나리오 매핑 정리

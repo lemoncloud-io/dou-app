@@ -1,4 +1,4 @@
-import { useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 
 /**
  * App-side permission policy. Web-core/app-runtime expose only raw identity facts (userRole /
@@ -17,7 +17,7 @@ const GUEST_MAX_CHANNELS = 3;
 const MAX_CHANNELS_PER_PLACE = 100;
 
 export const useUserPermissions = (): UserPermissions => {
-    const { isGuest, isCloudActive } = useSessionProfile();
+    const { isGuest, isCloudActive } = useRuntimeProfile();
 
     // Place creation and cloud-profile editing require a signed-in (non-guest) user with an active
     // cloud session; channel creation and cloud selection are open to everyone; guests are capped.

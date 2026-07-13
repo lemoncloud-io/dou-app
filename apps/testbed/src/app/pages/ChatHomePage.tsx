@@ -8,7 +8,7 @@ import {
     useSiteSwitch,
     useSwitchCloudSession,
 } from '@chatic/web-core';
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainChannel, DomainCloud, DomainPlace } from '@chatic/data';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useRenderCount } from '../metrics/useRuntimeMetrics';
@@ -60,7 +60,7 @@ export const ChatHomePage = () => {
     // isVerified gates the list-discovery network calls: place/channel lists come from
     // socket gateways (UserGateway.mySite / channel list), so a fetch before the new
     // session is verified would run against the stale (pre-switch) session.
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
     const cid: string = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
 
     // The active site is the session's selected site. switchSite() pre-applies it

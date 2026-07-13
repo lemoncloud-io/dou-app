@@ -1,5 +1,5 @@
 import { useGlobalSession, useSessionAuth } from '@chatic/web-core';
-import { useSocketState, useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
 
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
@@ -8,8 +8,8 @@ import { Section } from '../../components/Section';
 export const StateTab = () => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
-    const socketState = useSocketState();
-    const facts = useSessionProfile();
+    const socketState = useRuntimeSocketState();
+    const facts = useRuntimeProfile();
     const { relay, cloud, identity, activeServer } = session;
 
     return (

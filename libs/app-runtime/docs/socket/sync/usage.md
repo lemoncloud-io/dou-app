@@ -52,7 +52,7 @@ off(); // 채널 이탈 (ref-count 0이면 내부 stopTarget)
 
 ### plan 주입 — 부팅 1회
 
-[`plans.ts`](../../src/socket/sync/plans.ts)의 `createSyncPlans()`가 앱 도메인 plan을 1회 생성하고 콜백을 **data 레이어 repository**에 연결한다(`extraSyncPlans`로 주입). **`device` plan은 여기서 만들지 않는다** — `createDeviceRuntime`가 자체 주입한다:
+[`plans.ts`](../../../src/socket/sync/plans.ts)의 `createSyncPlans()`가 앱 도메인 plan을 1회 생성하고 콜백을 **data 레이어 repository**에 연결한다(`extraSyncPlans`로 주입). **`device` plan은 여기서 만들지 않는다** — `createDeviceRuntime`가 자체 주입한다:
 
 | plan    | 콜백 → repository                                                                 |
 | ------- | --------------------------------------------------------------------------------- |

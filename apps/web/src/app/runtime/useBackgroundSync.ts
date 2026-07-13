@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import {
     SWITCH_CLOUD_MUTATION_KEY,
     SWITCH_SITE_MUTATION_KEY,
@@ -39,7 +39,7 @@ export const useBackgroundSync = (): void => {
     const repos = useRuntimeRepositories();
     const session = useGlobalSession();
     const { selectedSiteId } = useSessionSelection();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;

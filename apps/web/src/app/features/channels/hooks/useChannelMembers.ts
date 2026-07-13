@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainJoin, DomainUser } from '@chatic/data';
 
 import type { ChannelMember } from '../types';
@@ -28,7 +28,7 @@ interface UseChannelMembersParams {
  */
 export const useChannelMembers = ({ channelId, detail = true }: UseChannelMembersParams) => {
     const { user: userRepository, join: joinRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const [users, setUsers] = useState<DomainUser[]>([]);
     const [joins, setJoins] = useState<DomainJoin[]>([]);

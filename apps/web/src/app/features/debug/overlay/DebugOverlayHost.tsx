@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useSocketState } from '@chatic/app-runtime';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { isDevEnv } from '../lib/isDevEnv';
 import { metricsCollector } from '../metrics/MetricsCollector';
@@ -12,7 +12,7 @@ import { MiniPanel } from './MiniPanel';
 // Always-on socket quality reporter — keeps connect/disconnect counts accurate
 // even while the monitoring overlay is closed.
 function MetricsSocketReporter() {
-    const socketState = useSocketState();
+    const socketState = useRuntimeSocketState();
     useEffect(() => {
         metricsCollector.reportSocketState(socketState.state);
     }, [socketState.state]);

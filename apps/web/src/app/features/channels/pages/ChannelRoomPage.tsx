@@ -29,7 +29,7 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
-import { useSocketState, useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
 
 import { InviteFriendsDialog } from '../components';
 import { MessageBubble } from '../components/MessageBubble';
@@ -69,11 +69,11 @@ export const ChannelRoomPage = () => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     const { userId } = useSessionIdentity();
-    const { isGuest, isCloudActive } = useSessionProfile();
+    const { isGuest, isCloudActive } = useRuntimeProfile();
     const { selectedCloudId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     const { isIOS } = useAppChecker();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     // --- 데이터 패칭 Hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);

@@ -59,7 +59,7 @@ export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 /**
  * Dual-socket manager with an ACTIVE-FACADE interface (multi-socket-design.md §5-1): it holds a
  * relay slot (always) and a cloud slot (when cloud is active), but most methods operate on the
- * ACTIVE slot (cloud when present, else relay) so consumers (SyncManager/useSocketState/gateways/
+ * ACTIVE slot (cloud when present, else relay) so consumers (SyncManager/useRuntimeSocketState/gateways/
  * the switch·logout·reauth helpers) stay socket-count-agnostic. Only slot lifecycle — ensure /
  * connect / setAuthenticated / destroy — is addressed per `kind`.
  */

@@ -9,7 +9,7 @@
 앱은 **"값은 훅으로 읽고, lifecycle은 컴포넌트를 마운트하여 제어한다"** 는 원칙으로 동작합니다.
 세션 상태(로그인·토큰 등)의 실시간 전이는 `@chatic/web-core`가 소유하며, `app-runtime`은 활성 서버(`activeServer`) 변화를 감지해 데이터 컨텍스트와 relay/cloud 소켓 연결을 동기화합니다.
 
-소켓 인증 수명주기는 SDK(`@lemoncloud/chatic-sockets-lib`)의 `AuthController`가 소유합니다. app-runtime은 부팅 시 토큰을 `register`하고 상태를 구독만 합니다 — 자세한 소유 경계는 [docs/auth/README.md](docs/auth/README.md).
+소켓 인증 수명주기는 SDK(`@lemoncloud/chatic-sockets-lib`)의 `AuthController`가 소유합니다. app-runtime은 부팅 시 토큰을 `register`하고 상태를 구독만 합니다 — 자세한 소유 경계는 [docs/socket/auth/README.md](docs/socket/auth/README.md).
 
 ---
 
@@ -27,7 +27,8 @@ export const App = () => {
 
     return (
         // Host가 web-core 초기화(useInitWebCore)를 게이트하고, 완료 후 아래를 마운트합니다:
-        //   SessionBackgroundRunner · RuntimeDataBinder · SocketBinder · SocketReauthBinder
+        //   RuntimeDataBinder · SocketBinder · SocketReauthBinder
+        //   (relay keep-alive는 Host가 게이트 위에서 useRelaySessionKeepAlive로 인라인 호출)
         <RuntimeConnectionHost binding={binding}>
             <MainLayout />
         </RuntimeConnectionHost>
@@ -55,15 +56,15 @@ const ChannelListPage = () => {
 };
 ```
 
-### 2. 소켓 연결 상태 관측 (`useSocketState`)
+### 2. 소켓 연결 상태 관측 (`useRuntimeSocketState`)
 
 물리 소켓의 연결 여부와 핸드셰이크 인증 성공 여부를 관측합니다.
 
 ```tsx
-import { useSocketState } from '@chatic/app-runtime';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
 
 const ConnectionStatusBadge = () => {
-    const { isConnected, isVerified } = useSocketState();
+    const { isConnected, isVerified } = useRuntimeSocketState();
     return (
         <span className={isVerified ? 'bg-green-500' : 'bg-red-500'}>
             {isConnected ? (isVerified ? 'Online' : 'Authenticating') : 'Offline'}
@@ -74,7 +75,7 @@ const ConnectionStatusBadge = () => {
 
 ### 3. 그 외 공개 표면
 
-- 값 파생 훅: `useRuntimeBinding` · `useRuntimeRepositories` · `useSessionProfile` · `useSocketState`
+- 값 파생 훅: `useRuntimeBinding` · `useRuntimeRepositories` · `useRuntimeProfile` · `useRuntimeSocketState`
 - 세션 액션 훅: `useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` (소켓 구동 액션의 래퍼)
 - sync 등록 훅: `useChatSync` · `useChannelSync` · `usePlaceSync`
 - lifecycle: `<RuntimeConnectionHost>` · `useDeviceTokenRegistration(delegate)`
@@ -91,7 +92,7 @@ const ConnectionStatusBadge = () => {
 - **[전체 아키텍처 개요](docs/architecture.md)** — manager 2축 + SDK 인증 소유, 모듈 구조
 - **[공개 인터페이스 리스트](docs/public-surface.md)** — 노출 훅/컴포넌트/타입
 - **[소켓 도메인](docs/socket/README.md)** — 듀얼 슬롯·active-facade·bootstrap·switch/logout
-- **[인증(SDK AuthController)](docs/auth/README.md)** — 소유 경계·상태 머신·서명/writeback
+- **[인증(SDK AuthController)](docs/socket/auth/README.md)** — 소유 경계·상태 머신·서명/writeback
 - **[런타임 바인딩](docs/runtime/README.md)** — `RuntimeBinding` 파생·바인더 역할
 - **[데이터 런타임 및 캐싱](docs/data/README.md)** — 레포지토리 조립·캐시 정책
-- **[Sync 도메인](docs/sync/README.md)** — `SyncManager`·plan·target 등록
+- **[Sync 도메인](docs/socket/sync/README.md)** — `SyncManager`·plan·target 등록

@@ -61,5 +61,5 @@
 
 - [components.md](./components.md) · [README.md](./README.md) — 홈 컴포넌트/기능 개요
 - [../../architecture/data-flow.md](../../architecture/data-flow.md) — observe/sync/refresh 데이터 흐름
-- `libs/app-runtime/docs/sync/chat-sync.md` — `ChatSyncPlan`과 `chat.feed`의 분업, prime 소유
-- `libs/app-runtime/docs/sync/screen-registration-map.md` — 화면별 sync 등록 지도
+- `libs/app-runtime/docs/socket/sync/chat-sync.md` — `ChatSyncPlan`과 `chat.feed`의 분업, prime 소유
+- `libs/app-runtime/docs/socket/sync/screen-registration-map.md` — 화면별 sync 등록 지도

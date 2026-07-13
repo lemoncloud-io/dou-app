@@ -10,7 +10,7 @@ interface UpdateProfileData {
 /**
  * Updates the current-session user profile through the User domain socket action
  * ($backend.MyUserView, relay/cloud common). The write lands in the user cache, which every reader
- * observes (useSessionProfile / useMyUser), so the UI reflects the change reactively — no session
+ * observes (useRuntimeProfile / useMyUser), so the UI reflects the change reactively — no session
  * profile patch needed. Replaces the former HTTP `PUT /users/{uid}` relay profile update.
  */
 export const useUpdateProfile = () => {

@@ -21,14 +21,14 @@ Date: 2026-07-10
 
 > ⚠️ **authId는 `$auth.id`다 (`Token.authId` 아님).** 소켓 서버의 `auth.update`/`auth.refresh`는 auth model을 `$auth.id`로 조회하고 **서명도 `$auth.id`를 HMAC 키로** 검증한다. register의 authId와 sign의 서명 authId가 둘 다 `$auth.id`여야 하며, `Token.authId`(HTTP `/oauth/{authId}/refresh`용 id)를 쓰면 서버가 다른 서명을 계산해 `no auth model`로 영구 실패한다. 그래서 relay 서명은 `getTokenSignature()`(= `Token.authId` 기반, HTTP 경로) 재사용을 **버리고 `$auth.id`로 직접 계산**한다.
 
-|           | token (register 초기값 / Authorization)       | authId (register + 서명 HMAC 키) + signature                                                                                                                                                     |
-| --------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **relay** | `relayCore.getIdentityToken()`                | `relayCore.getRelayToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../web-core/src/transport/awsSigning.ts))                 |
-| **cloud** | `cloudCore.getIdentityToken()` (= cloudToken) | `cloudCore.getCloudToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../web-core/src/transport/awsSigning.ts)) |
+|           | token (register 초기값 / Authorization)       | authId (register + 서명 HMAC 키) + signature                                                                                                                                                            |
+| --------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **relay** | `relayCore.getIdentityToken()`                | `relayCore.getRelayToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../../web-core/src/transport/awsSigning.ts)) |
+| **cloud** | `cloudCore.getIdentityToken()` (= cloudToken) | `cloudCore.getCloudToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../../web-core/src/transport/awsSigning.ts)) |
 
 ### 서명식은 token 문자열에 의존하지 않는다
 
-`calcSignature`의 data는 `[current, accountId, identityId, '', userAgent]`이고 키는 `authId → accountId → identityId`로 중첩 hmac이다. **identityToken 자리는 항상 `''`** 다([api/auth.ts `refreshCloudToken`](../../../web-core/src/api/auth.ts)도 `identityToken:''`로 호출).
+`calcSignature`의 data는 `[current, accountId, identityId, '', userAgent]`이고 키는 `authId → accountId → identityId`로 중첩 hmac이다. **identityToken 자리는 항상 `''`** 다([api/auth.ts `refreshCloudToken`](../../../../web-core/src/api/auth.ts)도 `identityToken:''`로 호출).
 
 → SDK가 sign 콜백 첫 인자로 주입하는 `token`은 **무시**하고, `kind` 기준으로 `{accountId, identityId, authId}`를 모아 서명한다. switch용(`ctx.target`)도 서명 자체는 동일하며, `target`은 SDK가 `auth.switch` 패킷에만 싣는다.
 
@@ -47,13 +47,13 @@ export const signServerAuth = (kind: 'relay' | 'cloud', target?: string): Promis
 export const commitServerRefreshedToken = (kind: 'relay' | 'cloud', view: AuthTokenView): Promise<void> | void;
 ```
 
-app-runtime의 [`SocketSessionDelegate`](../../src/socket/auth/types.ts)는 이를 **모두 kind 인자로** 노출한다 — `getAuthRegistration(kind)` / `signAuth(kind, token, target?)` / `commitRefreshedToken(kind, view)` / `onAuthExpired(kind)`. 배선은 app-runtime의 [`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)가 소유하며, `kind`는 소켓 부팅 시([`bootstrapSocketConnection`](../../src/socket/auth/bootstrapSocketConnection.ts)) `config.wssType`에서 고정돼 클로저로 흐른다. (app-runtime은 web-core/data만 의존 — 3축 경계 준수.)
+app-runtime의 [`SocketSessionDelegate`](../../../src/socket/auth/types.ts)는 이를 **모두 kind 인자로** 노출한다 — `getAuthRegistration(kind)` / `signAuth(kind, token, target?)` / `commitRefreshedToken(kind, view)` / `onAuthExpired(kind)`. 배선은 app-runtime의 [`useSocketSessionDelegate`](../../../src/connection/useSocketSessionDelegate.ts)가 소유하며, `kind`는 소켓 부팅 시([`bootstrapSocketConnection`](../../../src/socket/auth/bootstrapSocketConnection.ts)) `config.wssType`에서 고정돼 클로저로 흐른다. (app-runtime은 web-core/data만 의존 — 3축 경계 준수.)
 
 ---
 
 ## 3. writeback 매핑 (`AuthTokenView` → web-core, per-socket 라우팅)
 
-SDK `onTokenRefresh`/`switch`가 주는 [`AuthTokenView`](../../../../node_modules/@lemoncloud/chatic-sockets-lib/dist/lib/auth/contracts.d.ts)는 backend `UserTokenView`를 미러링한다:
+SDK `onTokenRefresh`/`switch`가 주는 [`AuthTokenView`](../../../../../node_modules/@lemoncloud/chatic-sockets-lib/dist/lib/auth/contracts.d.ts)는 backend `UserTokenView`를 미러링한다:
 
 ```ts
 interface AuthTokenView {

@@ -7,9 +7,12 @@
 // See docs/public-surface.md.
 
 // --- Value-deriving hooks -------------------------------------------------------------------
-export { useRuntimeBinding, useRuntimeRepositories, useSessionProfile } from './runtime';
+export { useRuntimeBinding, useRuntimeRepositories, useRuntimeSocketState, useRuntimeProfile } from './runtime';
 export type { SessionProfile } from './runtime';
-export { useSocketState } from './socket';
+
+// Back-compat aliases (pre-rename names) kept so desktop-web keeps compiling without churn while it is
+// mid-refactor. New code uses the useRuntime* names above; migrate desktop-web and drop these later.
+export { useRuntimeSocketState as useSocketState, useRuntimeProfile as useSessionProfile } from './runtime';
 
 // --- Session action hooks (socket-driven site switch / logout) ------------------------------
 export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './session';

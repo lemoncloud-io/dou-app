@@ -62,7 +62,6 @@ hooks/
   app/
     index.ts
     useInitWebCore.ts
-    useTokenRefresh.ts
     useRelaySessionKeepAlive.ts
     useServiceUnavailable.ts
     useDynamicDeviceId.ts
@@ -106,7 +105,6 @@ user/cloud 조회·수정 query/mutation, push/device token 등록 mutation(`use
 앱 부트스트랩 시 마운트되는 lifecycle/loop hook. 세부 동작은 [orchestration.md](./orchestration.md).
 
 - `useInitWebCore` — **단일 init 드라이버**. `initializeRelaySession`을 1회 구동하고 완료를 gating.
-- `useTokenRefresh` — relay refresh 1분 루프 + cloud(`refreshActiveCloudSession`) fire-and-forget 병렬. **`sdkOwnsRefresh` 옵션 시 부팅 refresh와 interval을 모두 스킵**(SDK가 소켓 refresh 소유).
 - `useRelaySessionKeepAlive(enabled)` — relay 세션 부재 시 백그라운드 `loginRelayGuestByDevice`로 복구(구현됨).
 - `useServiceUnavailable` — 앱 레벨 가용성 플래그.
 - `useDynamicDeviceId` — deviceId/firebaseInstallationId 단일 해석 지점.

@@ -26,7 +26,7 @@ describe('useUpdateProfile', () => {
         const returned = await result.current.mutateAsync({ name: 'Neo', photo: 'p' });
 
         expect(updateProfileMock).toHaveBeenCalledWith({ name: 'Neo', photo: 'p' });
-        // No session-snapshot patch: user.updateProfile writes the user cache, which useSessionProfile /
+        // No session-snapshot patch: user.updateProfile writes the user cache, which useRuntimeProfile /
         // useMyUser observe, so readers refresh reactively.
         expect(returned).toEqual({ name: 'Neo', photo: 'p' });
     });

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useMatch } from 'react-router-dom';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useAppVisibility } from '../bridge';
 
@@ -29,7 +29,7 @@ export const useDeviceSync = (): void => {
     const match = useMatch('/channels/:channelId/room');
     const channelId = match?.params.channelId ?? '';
     const { device } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     // The viewingId we last notified. '' = "no channel"; null = nothing sent yet (or the
     // connection dropped, forcing a re-assert once auth returns).

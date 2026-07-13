@@ -11,7 +11,7 @@ transport 계층은 2개 manager 축으로 정리된다:
 1. `SocketManager` — 소켓 생성/교체/상태 (relay·cloud **듀얼 슬롯** + active-facade)
 2. `SyncManager` — sync runtime 생성/조작
 
-인증 수명주기는 별도 manager 축이 아니라 **SDK `AuthController`(`client.auth`)** 가 소유한다. bootstrap 시퀀싱·구독 배선은 `SocketBinder`가 호출하는 순수 함수 `bootstrapSocketConnection(...)`가, same-connection 재인증은 `SocketReauthBinder`가 담당한다([auth/README.md](./auth/README.md)).
+인증 수명주기는 별도 manager 축이 아니라 **SDK `AuthController`(`client.auth`)** 가 소유한다. bootstrap 시퀀싱·구독 배선은 `SocketBinder`가 호출하는 순수 함수 `bootstrapSocketConnection(...)`가, same-connection 재인증은 `SocketReauthBinder`가 담당한다([auth/README.md](./socket/auth/README.md)).
 
 핵심 원칙:
 
@@ -29,7 +29,6 @@ flowchart TD
   App["apps/*"] --> Host["RuntimeConnectionHost (+ useInitWebCore 게이트)"]
   Binding["useRuntimeBinding()"] --> Host
 
-  Host --> Runner["SessionBackgroundRunner"]
   Host --> DataBinder["RuntimeDataBinder"]
   Host --> SocketBinder["SocketBinder (relay/cloud 슬롯)"]
   Host --> Reauth["SocketReauthBinder"]
@@ -80,7 +79,7 @@ flowchart TD
 
 SDK가 소유(app-runtime 비책임): 토큰 획득/갱신 타이밍·만료 refresh·재연결 재인증·백오프·site switch 패킷.
 
-상세 소유 경계·상태 머신·서명 계약은 [auth/README.md](./auth/README.md)·[auth/usage.md](./auth/usage.md)·[auth/signing.md](./auth/signing.md)가 SSoT다.
+상세 소유 경계·상태 머신·서명 계약은 [auth/README.md](./socket/auth/README.md)·[auth/usage.md](./socket/auth/usage.md)·[auth/signing.md](./socket/auth/signing.md)가 SSoT다.
 
 ### 3. `SyncManager`
 
@@ -94,7 +93,7 @@ SDK가 소유(app-runtime 비책임): 토큰 획득/갱신 타이밍·만료 ref
 
 - token refresh, socket bootstrap, chat prime(= `usePrimeChat`가 소유)
 
-상세는 [sync/README.md](./sync/README.md).
+상세는 [sync/README.md](./socket/sync/README.md).
 
 ### 4. `DataManager`
 
@@ -122,7 +121,7 @@ return { socketManager, syncManager };
 
 ### `RuntimeConnectionHost` (React 조립 루트)
 
-`useInitWebCore` init 게이트 뒤에 `SessionBackgroundRunner`·`RuntimeDataBinder`·`SocketBinder`·`SocketReauthBinder`를 마운트하고, `useSocketSessionDelegate`로 만든 per-kind delegate를 소켓 바인더에 넘긴다([runtime/session-lifecycle.md](./runtime/session-lifecycle.md)).
+`useInitWebCore` init 게이트 뒤에 `RuntimeDataBinder`·`SocketBinder`·`SocketReauthBinder`를 마운트하고, `useSocketSessionDelegate`로 만든 per-kind delegate를 소켓 바인더에 넘긴다. relay keep-alive(`useRelaySessionKeepAlive`)는 Host가 게이트 위에서 인라인 호출한다([runtime/session-lifecycle.md](./runtime/session-lifecycle.md)).
 
 ## 외부 사용 규칙
 
@@ -135,28 +134,27 @@ return { socketManager, syncManager };
 ```text
 libs/app-runtime/src/
   connection/
-    RuntimeConnectionHost.tsx      # 조립 루트 + init 게이트 + delegate 소유
+    RuntimeConnectionHost.tsx      # 조립 루트 + init 게이트 + delegate 소유 + relay keep-alive 인라인
     RuntimeDataBinder.tsx
     SocketBinder.tsx               # relay/cloud 슬롯 부팅
     SocketReauthBinder.tsx         # same-connection 재인증
-    SessionBackgroundRunner.tsx    # relay keep-alive
     useSocketSessionDelegate.ts    # per-kind delegate 배선
-  runtime/
-    RuntimeManager.ts
+  runtime/                         # 앱이 소비하는 value-deriving 훅 (도메인 매니저 상태 표면화)
+    types.ts                       # RuntimeBinding/RuntimeSocketSlot/SessionProfile
     useRuntimeBinding.ts
-    useRuntimeRepositories.ts
-    useSessionProfile.ts
+    useRuntimeRepositories.ts      # getDataManager().getRepositories() 직접 위임
+    useRuntimeSocketState.ts       # SocketManager 상태 구독(isConnected/isVerified)
+    useRuntimeProfile.ts
   socket/
     SocketManager.ts               # transport (듀얼 슬롯 + active-facade)
     runtime.ts                     # getSocketManager/getSyncManager 싱글턴
     types.ts                       # transport 타입(SocketKind/SocketBindingConfig/SocketState/ISocketManager)
-    hooks/useSocketState.ts
     auth/                          # 소켓 인증 배선 (transport에서 분리)
       bootstrapSocketConnection.ts
       reauthenticateActiveSocket.ts
       switchSite.ts
       logoutSession.ts
-      logoutCloudViaSocket.ts
+      logoutCloudSession.ts
       types.ts                     # SocketSessionDelegate 계약
     sync/
       SyncManager.ts

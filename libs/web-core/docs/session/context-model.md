@@ -33,7 +33,7 @@ runtime 상태(`isInitialized`/`isAuthenticated`/`error`)는 별도 필드가 �
 
 ### ...Core (raw 저장)
 
-- `cloudCore`: cloud token, delegation token, selected cloud, selected site, per-cloud place order, invited-bundle key
+- `cloudCore`: cloud token, delegation token, selected cloud, selected site, per-cloud place order, invited-bundle key, **per-cloud 토큰 캐시**(`CLOUD_TOKEN_CACHE_KEY` — cloudId별 `{delegationToken, cloudToken}`를 보관해 빠른 재전환에 재사용; AWS credential이 만료 마진(60s) 안이면 캐시를 건너뛰고 재발급, 로그아웃 시 클리어)
 - `relayCore`: relay token(인증 앵커), relay selected site. endpoint(`backend`/`wss`)는 transport 헬퍼에 위임
 - `identityCore`: **`delegatorId`, `deviceId`, `registeredDeviceToken`만** 저장
 

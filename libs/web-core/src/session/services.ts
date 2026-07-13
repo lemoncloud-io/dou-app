@@ -87,7 +87,7 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
 /**
  * Applies a relay token view as the active session: builds AWS credentials, persists the token (the
  * auth anchor + uid/profile-seed source), and marks the session authenticated. Profile shaping is
- * gone — profile facts are tracked from the token + user cache by app-runtime's useSessionProfile.
+ * gone — profile facts are tracked from the token + user cache by app-runtime's useRuntimeProfile.
  *
  * Note: this deliberately does NOT touch delegatorId. delegatorId is set once at guest login and
  * must survive every relay refresh / cloud switch that also runs through here, so it is owned by
@@ -539,7 +539,7 @@ export const refreshActiveCloudSession = async (): Promise<void> => {
 // web-core stores that the HTTP/AWS signing layers read. The active server
 // (relay vs cloud) decides the token source, signature source, and target store.
 //
-// Contract + branching rationale live in libs/app-runtime/docs/auth/signing.md.
+// Contract + branching rationale live in libs/app-runtime/docs/socket/auth/signing.md.
 // The lemon-hmac signature never depends on the token string (calcSignature signs
 // an empty identityToken slot), so the SDK-injected token argument is ignored and
 // the signature is recomputed from the active server's stored fields.

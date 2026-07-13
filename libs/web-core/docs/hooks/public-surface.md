@@ -52,18 +52,17 @@
 
 외부 feature/UI가 수행하려는 동작과, 그때 사용해야 하는 공개 hook의 대응입니다. "직접 core/service를 조합"하지 말고 아래 hook을 통합니다. 각 hook이 내부적으로 수행하는 전이 상세는 [session/session-scenarios.md](../session/session-scenarios.md)를 참조합니다.
 
-| #   | 하려는 동작                   | 사용 hook                                               | 비고                                                                                                                                           |
-| --- | ----------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| ①   | 중계서버 로그인 항시 유지     | `useRelaySessionKeepAlive` (app)                        | relay 부재 감지 → 백그라운드 게스트 로그인                                                                                                     |
-| ②   | 병렬 리프레시 (relay + cloud) | `useTokenRefresh` (app)                                 | 1분 주기, cloud는 cloudToken 기반                                                                                                              |
-| ③   | 클라우드 전환                 | `useSwitchCloudSession`                                 | cid 변경 → app-runtime이 데이터/소켓 반응 (선반영+롤백은 TODO, orchestration.md)                                                               |
-| ④   | 클라우드 로그아웃             | `useLogoutCloudSession`                                 | relay fallback 복귀                                                                                                                            |
-| ⑤   | 중계서버 로그아웃             | `useSessionLogout`                                      | **캐시 클리어는 외부 레이어 책임 (이 hook은 캐시를 비우지 않음)**                                                                              |
-| ⑥   | 사이트 전환                   | `useRefreshCloudSiteSession` / `useRefreshRelaySession` | `target = uid@sid`, 서비스 single-flight로 ②와 직렬화                                                                                          |
-| ⑥′  | 현재 세션 리프레시            | `useRefreshCurrentCloudSession`                         | 사이트 전환 없이 현재 siteId 그대로 cloud token 재발급                                                                                         |
-| ⑦   | 초대                          | `useInviteFlow` (전용 훅)                               | 초대 인증을 구동 (내부에서 api `registerUserWithInviteCode` 직접 호출; cloud 진입은 소비자)                                                    |
-| ⑧⑨  | 소켓 인증/refresh/복구        | (hook 아님) SDK `AuthController` 소유                   | web-core는 per-kind 브리지 헬퍼(`getServerAuthRegistration`/`signServerAuth`/`commitServerRefreshedToken`)만 공급; app-runtime delegate가 배선 |
-| ⑪   | 디바이스 등록                 | `useRegisterDeviceToken` (app)                          | 토큰 값당 1회 dedup 등록, deviceToken을 identityCore에 저장                                                                                    |
+| #   | 하려는 동작               | 사용 hook                                               | 비고                                                                                                                                           |
+| --- | ------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| ①   | 중계서버 로그인 항시 유지 | `useRelaySessionKeepAlive` (app)                        | relay 부재 감지 → 백그라운드 게스트 로그인                                                                                                     |
+| ③   | 클라우드 전환             | `useSwitchCloudSession`                                 | cid 변경 → app-runtime이 데이터/소켓 반응 (선반영+롤백은 TODO, orchestration.md)                                                               |
+| ④   | 클라우드 로그아웃         | `useLogoutCloudSession`                                 | relay fallback 복귀                                                                                                                            |
+| ⑤   | 중계서버 로그아웃         | `useSessionLogout`                                      | **캐시 클리어는 외부 레이어 책임 (이 hook은 캐시를 비우지 않음)**                                                                              |
+| ⑥   | 사이트 전환               | `useRefreshCloudSiteSession` / `useRefreshRelaySession` | `target = uid@sid`, 서비스 single-flight로 소켓 재인증 복구와 직렬화                                                                           |
+| ⑥′  | 현재 세션 리프레시        | `useRefreshCurrentCloudSession`                         | 사이트 전환 없이 현재 siteId 그대로 cloud token 재발급                                                                                         |
+| ⑦   | 초대                      | `useInviteFlow` (전용 훅)                               | 초대 인증을 구동 (내부에서 api `registerUserWithInviteCode` 직접 호출; cloud 진입은 소비자)                                                    |
+| ⑧⑨  | 소켓 인증/refresh/복구    | (hook 아님) SDK `AuthController` 소유                   | web-core는 per-kind 브리지 헬퍼(`getServerAuthRegistration`/`signServerAuth`/`commitServerRefreshedToken`)만 공급; app-runtime delegate가 배선 |
+| ⑪   | 디바이스 등록             | `useRegisterDeviceToken` (app)                          | 토큰 값당 1회 dedup 등록, deviceToken을 identityCore에 저장                                                                                    |
 
 규칙:
 

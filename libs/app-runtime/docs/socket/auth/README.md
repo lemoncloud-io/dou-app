@@ -4,7 +4,7 @@
 >
 > - 앱/UI가 **어떻게 사용하는가**(bootstrap·reauth·switch·logout·구독) → [usage.md](./usage.md)
 > - **authId·서명·writeback 계약**(relay vs cloud, per-kind) → [signing.md](./signing.md)
-> - 소유 규칙·전체 아키텍처 → [../architecture.md](../architecture.md)
+> - 소유 규칙·전체 아키텍처 → [../architecture.md](../../architecture.md)
 > - sync가 인증 완료에 의존하는 방식 → [../sync/library-internals.md](../sync/library-internals.md)
 
 ---
@@ -79,7 +79,7 @@ const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 *
 
 ## 3. 부팅·구독 배선 (app-runtime이 하는 것)
 
-인증 수명주기는 SDK가 소유하지만, **소켓 부팅 시퀀싱과 구독 배선**은 app-runtime의 순수 함수 [`bootstrapSocketConnection`](../../src/socket/auth/bootstrapSocketConnection.ts)가 담당한다. `SocketBinder`의 각 슬롯(relay/cloud)이 이 함수를 호출한다.
+인증 수명주기는 SDK가 소유하지만, **소켓 부팅 시퀀싱과 구독 배선**은 app-runtime의 순수 함수 [`bootstrapSocketConnection`](../../../src/socket/auth/bootstrapSocketConnection.ts)가 담당한다. `SocketBinder`의 각 슬롯(relay/cloud)이 이 함수를 호출한다.
 
 부팅 시퀀스 — **`ensure` → `register` → `connect`** (순서 필수):
 
@@ -104,7 +104,7 @@ const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 *
 1. 게스트 → 소셜/이메일 승격 — relay 토큰 교체.
 2. 같은 wss의 cloud site 전환 — cid만 바뀌어 `SocketBinder`가 재부팅하지 않는 config 변경.
 
-SDK의 bare `register`는 active 상태에서 토큰만 조용히 교체하고 `auth.update`를 재발사하지 않으므로, 이 경우 옛 신원이 유지된다. [`SocketReauthBinder`](../../src/connection/SocketReauthBinder.tsx)는 `binding.auth.identityToken` 변화를 관측(reboot 중이 아닐 때만)해 [`reauthenticateActiveSocket`](../../src/socket/auth/reauthenticateActiveSocket.ts)를 호출한다:
+SDK의 bare `register`는 active 상태에서 토큰만 조용히 교체하고 `auth.update`를 재발사하지 않으므로, 이 경우 옛 신원이 유지된다. [`SocketReauthBinder`](../../../src/connection/SocketReauthBinder.tsx)는 `binding.auth.identityToken` 변화를 관측(reboot 중이 아닐 때만)해 [`reauthenticateActiveSocket`](../../../src/socket/auth/reauthenticateActiveSocket.ts)를 호출한다:
 
 - 대상은 `manager.getClient(kind)?.auth` — 전역 active가 아니라 그 **kind의 슬롯**.
 - **피드백 루프 가드**: `registration.token === auth.token`이면 no-op. SDK 자체 refresh/switch의 writeback(같은 토큰으로 web-core에 착지)이 재인증을 유발하지 않도록 막는다.
@@ -120,14 +120,14 @@ SDK의 bare `register`는 active 상태에서 토큰만 조용히 교체하고 `
 isVerified = authenticated && connected
 ```
 
-`useSocketState()`가 이 파생값(`isConnected`/`isVerified`)을 UI에 노출한다. (`SocketState.connectionId`는 현재 항상 `null`로 미배선 — 알려진 갭.)
+`useRuntimeSocketState()`가 이 파생값(`isConnected`/`isVerified`)을 UI에 노출한다. (`SocketState.connectionId`는 현재 항상 `null`로 미배선 — 알려진 갭.)
 
 ### `onAuthExpired` 정책 (kind별)
 
-delegate의 `onAuthExpired(kind)`([`useSocketSessionDelegate`](../../src/connection/useSocketSessionDelegate.ts)):
+delegate의 `onAuthExpired(kind)`([`useSocketSessionDelegate`](../../../src/connection/useSocketSessionDelegate.ts)):
 
 - **cloud** → `logoutCloudSession()` — cloud 세션만 정리(relay는 유지).
-- **relay** → `logger.warn`만. **자동 로그아웃하지 않는다** — relay 로그아웃은 수동(manual-only)이다([../../../web-core/docs/hooks/orchestration.md](../../../web-core/docs/hooks/orchestration.md)).
+- **relay** → `logger.warn`만. **자동 로그아웃하지 않는다** — relay 로그아웃은 수동(manual-only)이다([../../../web-core/docs/hooks/orchestration.md](../../../../web-core/docs/hooks/orchestration.md)).
 
 ---
 
@@ -174,6 +174,6 @@ flowchart TD
 
 - [usage.md](./usage.md) — 앱 사용 패턴 + 트러블슈팅
 - [signing.md](./signing.md) — per-kind authId/sign/writeback 계약 (relay vs cloud)
-- [../socket/README.md](../socket/README.md) — `SocketManager` 듀얼 슬롯·bootstrap·switch/logout 헬퍼
+- [../socket/README.md](../README.md) — `SocketManager` 듀얼 슬롯·bootstrap·switch/logout 헬퍼
 - [../sync/usage.md](../sync/usage.md) — sync target 등록(인증 완료가 전제)
-- [../architecture.md](../architecture.md) — 소유 규칙(manager 2축 + SDK 인증)
+- [../architecture.md](../../architecture.md) — 소유 규칙(manager 2축 + SDK 인증)
