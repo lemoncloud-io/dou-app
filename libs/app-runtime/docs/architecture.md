@@ -1,29 +1,24 @@
 # App Runtime Architecture
 
-Date: 2026-06-24
-Status: Target Architecture
-
 ## 목적
 
-이 문서는 `libs/app-runtime`의 소켓, 세션, sync 조립 방식을 다른 구현 에이전트가 바로 이해하고 작업할 수 있도록 정의한다.
-
-이 문서는 현재 구현 설명보다 **목표 아키텍처**를 우선한다. 현재 코드와 차이가 있는 부분은 이후 리팩터링 대상이다.
+`libs/app-runtime`가 소켓 transport·인증·sync·data를 어떻게 조립하는지 정의한다. 상위 세션 레이어(`@chatic/web-core`)가 준 `RuntimeBinding`을 받아 물리 연결과 repository를 파생시키는 **composition root**다.
 
 ## 결정 요약
 
-`app-runtime`의 transport 계층은 아래 2개 manager 축으로 정리한다.
+transport 계층은 2개 manager 축으로 정리된다:
 
-1. `SocketManager` — 소켓 생성/교체/상태
+1. `SocketManager` — 소켓 생성/교체/상태 (relay·cloud **듀얼 슬롯** + active-facade)
 2. `SyncManager` — sync runtime 생성/조작
 
-인증 수명주기는 별도 축(과거 `SocketSessionController`)이 아니라 **SDK `AuthController`(`client.auth`)** 가 소유하고, bootstrap 시퀀싱은 `SocketBinder`가 호출하는 순수 함수가 담당한다([auth/README.md](./auth/README.md)).
+인증 수명주기는 별도 manager 축이 아니라 **SDK `AuthController`(`client.auth`)** 가 소유한다. bootstrap 시퀀싱·구독 배선은 `SocketBinder`가 호출하는 순수 함수 `bootstrapSocketConnection(...)`가, same-connection 재인증은 `SocketReauthBinder`가 담당한다([auth/README.md](./auth/README.md)).
 
 핵심 원칙:
 
 - `createClientSocketV2`의 생성 책임은 `SocketManager`에만 둔다.
 - `createDeviceRuntime`의 생성 책임은 `SyncManager`에만 둔다.
-- 인증(만료 refresh·재연결 재인증·switch·백오프)은 SDK `AuthController`가 소유한다. app-runtime은 register/ready·구독만 배선한다.
-- gateway는 raw client가 아니라 `SocketManager`의 stable socket API를 사용한다.
+- 인증(만료 refresh·재연결 재인증·백오프·switch·logout 패킷)은 SDK `AuthController`가 소유한다. app-runtime은 `register`·구독·same-connection 재인증 트리거만 배선한다.
+- gateway는 raw client가 아니라 `SocketManager`의 stable active-facade를 사용한다.
 - sync는 raw runtime이 아니라 `SyncManager`를 통해서만 조작한다.
 - `createSocketRuntime()`는 객체 조립만 담당하는 composition root로 유지한다.
 
@@ -31,22 +26,24 @@ Status: Target Architecture
 
 ```mermaid
 flowchart TD
-  App["apps/*"] --> Host["RuntimeConnectionHost"]
-  Host --> Bootstrap["TransportBootstrap"]
-  Bootstrap --> Runner["SessionBackgroundRunner"]
-  Bootstrap --> DataBinder["RuntimeDataBinder"]
-  Bootstrap --> SocketBinder["SocketBinder"]
-
+  App["apps/*"] --> Host["RuntimeConnectionHost (+ useInitWebCore 게이트)"]
   Binding["useRuntimeBinding()"] --> Host
 
-  DataBinder --> DataManager["DataManager"]
-  SocketBinder --> SocketManager["SocketManager"]
-  SocketBinder --> Bootstrap2["bootstrapSocketConnection()"]
+  Host --> Runner["SessionBackgroundRunner"]
+  Host --> DataBinder["RuntimeDataBinder"]
+  Host --> SocketBinder["SocketBinder (relay/cloud 슬롯)"]
+  Host --> Reauth["SocketReauthBinder"]
 
-  SocketManager --> Client["createClientSocketV2({ auth })"]
-  Client --> Auth["client.auth: AuthController (SDK)"]
-  Bootstrap2 --> Auth
-  Bootstrap2 --> SocketManager
+  DataBinder --> DataManager["DataManager"]
+  SocketBinder --> Bootstrap["bootstrapSocketConnection()"]
+  Reauth --> ReauthFn["reauthenticateActiveSocket()"]
+  Bootstrap --> SocketManager["SocketManager"]
+  ReauthFn --> SocketManager
+
+  SocketManager --> Client["createClientSocketV2({ auth: AUTH_OPTIONS })"]
+  Client --> Auth["client.auth: AuthController (SDK, per-kind)"]
+  Bootstrap --> Auth
+
   SyncManager["SyncManager"] --> SocketManager
   SyncManager --> DeviceRuntime["createDeviceRuntime({ client, extraSyncPlans })"]
   SyncManager --> Plans["Domain Sync Plans"]
@@ -61,176 +58,114 @@ flowchart TD
 
 책임:
 
-- `ClientSocketV2` 생성, 교체, destroy
-- 현재 socket state 저장 및 방송
-- stable `request/send/onType/onMessage/onState` 제공
-- socket 교체 시 listener 재바인딩
+- kind별 `ClientSocketV2` 생성·교체·destroy (relay·cloud 두 슬롯)
+- kind별 인증 상태 미러링(`setAuthenticated`) + transport 연결 합성 `SocketState` 방송
+- active-facade `request/send/onType/onMessage/onState/onError` (cloud 우선, 없으면 relay)
+- socket 교체 시 listener 재바인딩, `getBoundCid`, `waitUntilVerified`
 
 비책임:
 
-- token 획득/갱신 정책
-- `auth.update` orchestration
-- sync runtime 생성
+- token 획득/갱신 정책·`auth.update` orchestration — SDK `AuthController`
+- **401 감지/재시도** — `request`는 401을 가로채지 않는다(제거됨)
+- sync runtime 생성 — `SyncManager`
 
-설계 의도:
+과거의 `ManagedSocketClientProxy` 역할(request facade + listener rebind)은 별도 클래스 없이 `SocketManager`가 흡수했다. 외부 gateway는 소켓 교체·슬롯 전환을 몰라도 된다.
 
-- 과거의 `ManagedSocketClientProxy` 역할은 별도 클래스로 두지 않고 `SocketManager`로 흡수한다.
-- 외부 gateway는 socket 교체 여부를 몰라도 되어야 한다.
+### 2. 인증: SDK `AuthController` + bootstrap/reauth 배선
 
-### 2. 인증: SDK `AuthController` + `bootstrapSocketConnection()`
+인증 수명주기는 SDK `AuthController`가 소유한다. app-runtime은 상태를 들고 있는 controller 클래스를 두지 않고, 순수 함수/바인더로 **배선만** 한다:
 
-인증 수명주기는 SDK `AuthController`(`client.auth`)가 소유한다. 과거 `SocketSessionController`(수동 auth 엔진)는 **제거**되고, 남는 오케스트레이션은 `SocketBinder`가 호출하는 순수 함수 `bootstrapSocketConnection(...)`로 흡수한다.
+- `bootstrapSocketConnection({ manager, config, delegate })` — 부팅 시퀀스 `ensure → 구독 → register+stop(게이트 닫기) → device.save:ok/disconnect 구독 → connect`(순서 필수), `onAuthState`→`setAuthenticated`, `onTokenRefresh`→`commitRefreshedToken`, `expired`→`onAuthExpired` 배선. `auth.update`는 `device.save:ok` 이후에만 발사(백엔드 device 선등록 요구), `ready()` 호출 없음.
+- `reauthenticateActiveSocket({ manager, delegate, kind })` — `SocketReauthBinder`가 same-connection 신원 교체(게스트→소셜 승격, 같은 wss cloud site 전환)를 재인증. `token===auth.token` no-op 가드 + `logout→register` resume.
 
-`bootstrapSocketConnection({ manager, config, delegate })` 책임:
+SDK가 소유(app-runtime 비책임): 토큰 획득/갱신 타이밍·만료 refresh·재연결 재인증·백오프·site switch 패킷.
 
-- bootstrap sequence — `ensure` → `connect` → `device.save` ack 대기 → `client.auth.register({ token, authId, sign })` + `await client.auth.ready()`
-- SDK 인증 구독 배선: `onAuthState` → `manager.setVerified`, `onTokenRefresh` → `delegate.commitRefreshedToken`, `expired` → `delegate.onAuthExpired`
-
-SDK `AuthController`가 소유(app-runtime 비책임):
-
-- 토큰 획득/갱신 타이밍·만료 refresh·재연결 재인증·401 백오프·site switch
-
-설계 의도:
-
-- 인증 수명주기는 SDK가 SSoT로 소유하고, app-runtime은 register/ready·구독만 배선한다. 상태를 들고 있는 별도 controller 클래스를 두지 않는다.
-- `device.save` ack 게이팅(서버가 device 링크 전 auth.update 거부)은 SDK가 알 수 없는 앱 오케스트레이션이므로 bootstrap 함수가 시퀀싱한다.
-- `SocketSessionDelegate`를 통해 상위 세션 레이어(`@chatic/web-core`)의 active-server-aware register/sign/writeback 헬퍼와 결합한다.
-- 인증 소유 경계·상태 머신·서명 계약은 [auth/README.md](./auth/README.md)·[auth/usage.md](./auth/usage.md)·[auth/signing.md](./auth/signing.md) 참조.
+상세 소유 경계·상태 머신·서명 계약은 [auth/README.md](./auth/README.md)·[auth/usage.md](./auth/usage.md)·[auth/signing.md](./auth/signing.md)가 SSoT다.
 
 ### 3. `SyncManager`
 
 책임:
 
-- 현재 client 기준 `createDeviceRuntime({ client, extraSyncPlans })`
-- runtime `start()` / `stop()`
-- `startSync()` / `stopSync()`
-- 필요 시 target registry, replay, dedupe
-- 앱 고유 sync 정책 수용 지점
+- 현재 client 기준 `createDeviceRuntime({ client, extraSyncPlans })` 소유
+- runtime `start()`/`stop()`, sync target ref-count registry + client-swap 시 replay
+- 도메인별 sync plan 등록(`createSyncPlans`), cross-cloud frame 가드
 
 비책임:
 
-- token refresh
-- gateway request 재시도
+- token refresh, socket bootstrap, chat prime(= `usePrimeChat`가 소유)
 
-설계 의도:
+상세는 [sync/README.md](./sync/README.md).
 
-- 기존 `AppSyncRuntime`은 제거 대상이라기보다 `SyncManager`로 재편 대상이다.
-- `createDeviceRuntime`은 외부로 직접 노출하지 않는다.
+### 4. `DataManager`
 
-## 생성 및 주입 위치
+책임:
 
-### `createClientSocketV2`
+- remote/local data source 조립 → repository 그래프 (`ensure(context)`)
+- `socketAwareProvider`로 live socket cid 주입 → repository가 socket-vs-cache 클라우드 불일치를 감지해 오염 쓰기 방지
 
-- 위치: `SocketManager` 내부
-- 이유: socket transport 생성 책임을 한 곳에 모으기 위함
+상세는 [data/README.md](./data/README.md).
 
-### `createDeviceRuntime`
+## 조립 (composition root)
 
-- 위치: `SyncManager` 내부
-- 이유: sync runtime 생성과 sync target 조작을 한 계층에 모으기 위함
-
-### `createSocketRuntime()`
-
-- 위치: `src/socket/runtime.ts`
-- 역할: 아래 객체의 조립만 수행
+### `createSocketRuntime()` (`src/socket/runtime.ts`)
 
 ```ts
 const socketManager = new SocketManager();
-const syncManager = new SyncManager(socketManager, { runtimeOptions: DEFAULT_SYNC_RUNTIME_OPTIONS });
-// 인증 수명주기(만료 refresh·재연결 재인증·401 백오프)는 SDK AuthController가 소유한다.
-// bootstrap 시퀀싱(register/ready + onAuthState/onTokenRefresh 배선)은 SocketBinder가
-// bootstrapSocketConnection(...)로 수행한다 — 별도 controller 인스턴스는 없다.
-
-return {
-    socketManager,
-    syncManager,
-};
+const syncManager = new SyncManager(socketManager);
+// 인증은 SDK AuthController가 client당 소유(SocketManager가 auth: AUTH_OPTIONS로 부착).
+// bootstrap/reauth 배선은 SocketBinder/SocketReauthBinder가 순수 함수로 수행 — controller 인스턴스 없음.
+return { socketManager, syncManager };
 ```
+
+- `createClientSocketV2`는 `SocketManager` 내부에서만.
+- `createDeviceRuntime`는 `SyncManager` 내부에서만.
+
+### `RuntimeConnectionHost` (React 조립 루트)
+
+`useInitWebCore` init 게이트 뒤에 `SessionBackgroundRunner`·`RuntimeDataBinder`·`SocketBinder`·`SocketReauthBinder`를 마운트하고, `useSocketSessionDelegate`로 만든 per-kind delegate를 소켓 바인더에 넘긴다([runtime/session-lifecycle.md](./runtime/session-lifecycle.md)).
 
 ## 외부 사용 규칙
 
-### gateway / remote data layer
-
-- `SocketManager`만 사용한다.
-- raw `ClientSocketV2`에 직접 의존하지 않는다.
-
-### sync hooks / feature layer
-
-- `SyncManager`만 사용한다.
-- raw `ClientSocketRuntime` 또는 `createDeviceRuntime`에 직접 의존하지 않는다.
-
-### auth/session binding
-
-- 인증 수명주기는 SDK `AuthController`(`client.auth`)가 소유한다. `SocketBinder`가 `bootstrapSocketConnection(...)`으로 register/ready·구독을 배선하며, 상태를 들고 있는 controller 클래스는 없다.
-- 토큰/site 변경은 별도 binder 없이 SDK가 담당한다 — 만료·재연결은 자동, site 전환은 `client.auth.switch(`${uid}@${siteId}`)`, 갱신 결과는 `onTokenRefresh` → web-core writeback.
+- **gateway / remote data layer** — `SocketManager` active-facade만 사용, raw `ClientSocketV2` 직접 의존 금지.
+- **sync hooks / feature layer** — `SyncManager`(또는 `useSyncTarget` 계열)만 사용, `createDeviceRuntime` 직접 의존 금지.
+- **auth/session binding** — 인증은 SDK `AuthController`가 소유. `SocketBinder`가 부팅을, `SocketReauthBinder`가 same-connection 재인증을 배선하며 상태를 들고 있는 controller 클래스는 없다. site 전환은 `switchSite`(→ `client.auth.switch(`${uid}@${siteId}`)`).
 
 ## 모듈 구조
 
 ```text
 libs/app-runtime/src/
   connection/
-    RuntimeConnectionHost.tsx
+    RuntimeConnectionHost.tsx      # 조립 루트 + init 게이트 + delegate 소유
     RuntimeDataBinder.tsx
-    SocketBinder.tsx
-    SessionBackgroundRunner.tsx
-    TransportBootstrap.tsx
+    SocketBinder.tsx               # relay/cloud 슬롯 부팅
+    SocketReauthBinder.tsx         # same-connection 재인증
+    SessionBackgroundRunner.tsx    # relay keep-alive
+    useSocketSessionDelegate.ts    # per-kind delegate 배선
   runtime/
     RuntimeManager.ts
     useRuntimeBinding.ts
+    useRuntimeRepositories.ts
+    useSessionProfile.ts
   socket/
     SocketManager.ts
     bootstrapSocketConnection.ts
+    reauthenticateActiveSocket.ts
+    switchSite.ts
+    logoutSession.ts
+    logoutCloudViaSocket.ts
     runtime.ts
     types.ts
+    hooks/useSocketState.ts
     sync/
       SyncManager.ts
       plans.ts
       types.ts
-      hooks/
-        useSyncTarget.ts
+      hooks/useSyncTarget.ts
   data/
     DataManager.ts
     runtime.ts
-    factories/
-      remoteFactory.ts
+    cacheStorageStrategies.ts
+    factories/{remoteFactory,localFactory,repositoryFactory}.ts
   push/
     useDeviceTokenRegistration.ts
 ```
-
-## 구현 단계별 전환 규칙
-
-### 1단계
-
-- `ManagedSocketClientProxy`를 새로 확장하지 않는다.
-- request/rebind 역할을 `SocketManager`로 흡수한다.
-
-### 2단계
-
-- `AppSyncRuntime`를 `SyncManager`로 교체한다.
-- `createDeviceRuntime` 호출은 `SyncManager` 내부로 이동한다.
-
-### 3단계
-
-- sync hook은 `getSyncManager().register(...)` 또는 동등 API만 사용한다.
-- `remoteFactory`는 `getSocketRuntime().socketManager`를 사용한다.
-
-## 현재 코드와의 차이
-
-목표 아키텍처와 코드가 정렬되었다 (2026-06-24 리팩터링 완료):
-
-- `ManagedSocketClientProxy`는 제거되었고 request facade는 `SocketManager`로 흡수되었다.
-- `AppSyncRuntime`는 `SyncManager`로 재편되었고 `createDeviceRuntime` 소유 + 튜닝 옵션 주입 표면(`SyncManagerDeps.runtimeOptions`)을 갖는다.
-- 401 recovery는 `SocketManager.request`가 감지·재시도하되 복구 정책은 주입된 핸들러(`setRecoveryHandler` → `SocketSessionController.handle401Recovery`)에 위임한다.
-
-남은 후속:
-
-- runtime 튜닝 값의 외부 config(connectionDraft류) 연결 — 현재는 composition root의 기본 상수(빈 값=엔진 기본 유지). 주입 표면은 준비됨.
-- **인증 SDK 도입(진행 트랙)** — 위 §2는 목표(SDK `AuthController` 소유 + `bootstrapSocketConnection` 함수) 기준이다. 현재 코드는 아직 `SocketSessionController`가 수동 인증(`updateAuth`·주기 refresh·single-flight 401 recovery)을 수행하고 `SocketAuthBinder`가 `updateAuth('session-switch')`를 호출한다. 도입은 (1) 수동 auth 경로 제거, (2) `SocketSessionController` 클래스 **삭제** + bootstrap 로직을 `bootstrapSocketConnection`으로 이관, (3) `SocketAuthBinder` 삭제, (4) `getSocketRuntime()` 공개 표면에서 `sessionController` 제거. 단계·서명/writeback 계약은 [auth/usage.md](./auth/usage.md) §3, [auth/signing.md](./auth/signing.md) 참조.
-
-## 완료 기준
-
-- gateway가 `ManagedSocketClientProxy` 없이 동작한다.
-- sync 관련 생성 책임이 `SyncManager` 하나로 모인다.
-- `createClientSocketV2`와 `createDeviceRuntime`이 외부 호출부에서 사라진다.
-- 인증은 SDK `AuthController`가 소유하고, `SocketSessionController`/`SocketAuthBinder`가 코드에서 사라진다(bootstrap은 `bootstrapSocketConnection` 함수).
-- socket/sync 책임과 인증 소유 경계가 문서와 코드에서 동일하게 보인다.

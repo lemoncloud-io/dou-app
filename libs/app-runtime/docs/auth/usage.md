@@ -1,158 +1,128 @@
 # Auth 사용 패턴 (app-runtime)
 
-Date: 2026-06-29
-
-> 앱/UI가 SDK `ClientSocketAuth`(`AuthController`)를 **어떻게 사용하는가**, 그리고 현재 수동 경로에서 **어떻게 도입(migration)하는가**를 다룬다.
+> app-runtime이 SDK `ClientSocketAuth`(`AuthController`)를 **어떻게 배선·사용하는가**를 다룬다.
 >
 > - 소유 경계·내부 동작·상태 머신 → [README.md](./README.md)
-> - authId·서명·writeback 계약(relay vs cloud) → [signing.md](./signing.md)
+> - per-kind authId·서명·writeback 계약 → [signing.md](./signing.md)
 > - sync target 등록(인증 완료가 전제) → [../sync/usage.md](../sync/usage.md)
 
 ---
 
-## 1. 4가지 사용 흐름
+## 1. 배선 흐름
 
 ### 1.1 부착 — `createClientSocketV2({ auth })`
 
-`SocketManager.createClient`에서 `auth` 옵션을 넘긴다. `false`면 미부착, `undefined`면 기본값 부착, 객체면 옵션 부착이다.
+`SocketManager.createClient`가 모든 client에 `auth: AUTH_OPTIONS`를 넘긴다(값·근거 → [README.md §2](./README.md)). `start/stop/destroy`는 SDK가 client 라이프사이클에 맞춰 자동 처리한다. app-runtime은 `client.auth`의 공개 메서드만 쓴다.
+
+### 1.2 부팅 등록 — `bootstrapSocketConnection`
+
+각 소켓 슬롯(relay/cloud)의 부팅은 순수 함수 [`bootstrapSocketConnection({ manager, config, delegate })`](../../src/socket/bootstrapSocketConnection.ts)가 시퀀싱한다. 순서는 **`ensure` → 구독 → `register` → `connect`** 이며, `register`가 `connect`보다 **먼저**다(근거 → [README.md §3](./README.md)).
 
 ```ts
-return createClientSocketV2({
-    url: this.normalizeUrl(config.url),
-    device: { id: config.deviceId, platform: 'web' },
-    auth: {
-        refreshRatio: 0.8, // 만료 잔여시간의 80% 지점에 선제 refresh
-        maxFailures: 3, // 백오프 N회 실패 → expired
-        // refreshIntervalMs(=expiresIn 부재 시 fallback), minBackoffMs, maxBackoffMs,
-        // backoffFactor, validatingTimeoutMs ...
+const kind = config.wssType ?? 'relay';
+const client = manager.ensure(config, kind);
+const auth = client.auth;
+
+// 상태·갱신 구독 (반환 cleanup으로 해제)
+const offState = auth.onAuthState(state => {
+    manager.setAuthenticated(kind, state === 'authenticated');
+    if (state === 'expired') void delegate.onAuthExpired?.(kind);
+});
+const offRefresh = auth.onTokenRefresh(view => {
+    void delegate.commitRefreshedToken(kind, view); // SDK SSoT → web-core writeback
+});
+
+// register로 토큰만 시드한 뒤 stop()으로 게이트를 닫는다 — SDK의 onState('connected')
+// 자동 발사를 억제하고, auth.update는 device.save:ok 이후 start()로 지연 발사한다.
+const registration = await delegate.getAuthRegistration(kind); // { token, authId } — per-kind (signing.md)
+if (registration) {
+    auth.register({
+        token: registration.token,
+        authId: registration.authId,
+        sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
+    });
+    gate.stop(); // 게이트 닫기 (gate = auth as { start(); stop() } — 인터페이스 밖 impl 메서드)
+    // device 선등록 후에만 auth.update 발사; 재연결 대비 disconnect마다 게이트 재폐쇄.
+    // device.save:ok는 device.save 요청의 응답이라 onType이 아닌 onMessage로만 온다.
+    offDeviceSaved = client.onMessage(e => {
+        if (e.message?.type === 'device.save:ok') gate.start();
+    });
+    offState = client.onState(e => {
+        if (e.next === 'closed' || e.next === 'closing' || e.next === 'idle') gate.stop();
+    });
+}
+
+await manager.connect(kind);
+```
+
+- **`auth.update`는 `device.save:ok` 이후에만 발사** — 백엔드는 device 선등록 없이는 `auth.update`를 처리 못 하고, 실패 시 재시도되지 않아 `expired`로 끝난다. 그래서 SDK의 connect-time 자동 발사를 stop/start 게이트로 억제·지연시킨다([README.md §3](./README.md)).
+- **`client.auth.ready()`를 부팅에서 호출하지 않는다** — sync는 `requiresAuth` 게이트가, UI는 `useSocketState().isVerified`가 인증 완료를 관측한다.
+- delegate 메서드는 **모두 `kind` 인자**를 받는다([signing.md §2](./signing.md)).
+
+### 1.3 same-connection 재인증 — `reauthenticateActiveSocket`
+
+같은 연결에서 토큰만 바뀌는 경우(게스트→소셜 승격, 같은 wss cloud site 전환)는 bare `register`로 재인증되지 않는다. [`SocketReauthBinder`](../../src/connection/SocketReauthBinder.tsx)가 `binding.auth.identityToken` 변화를 관측해 [`reauthenticateActiveSocket({ manager, delegate, kind })`](../../src/socket/reauthenticateActiveSocket.ts)를 호출한다. 내부는 `token===auth.token` no-op 가드 + `logout → register` resume 경로다(상세 → [README.md §3](./README.md)).
+
+### 1.4 토큰 사용 + 구독
+
+```ts
+const token = client.auth.token; // HTTP Authorization 헤더 (identityToken 문자열)
+
+const offToken = client.auth.onTokenRefresh(view => {
+    void delegate.commitRefreshedToken(kind, view); // full payload(Token.credential=AWS creds 포함)
+});
+
+const offState = client.auth.onAuthState(state => {
+    manager.setAuthenticated(kind, state === 'authenticated'); // isVerified = authenticated && connected
+    if (state === 'expired') void delegate.onAuthExpired(kind);
+});
+// SDK는 'disconnected'를 방출하지 않는다(타입엔 있으나 미사용) — onAuthState에서 기대하지 말 것.
+```
+
+> ⚠️ `onTokenRefresh`의 view에는 **AWS credential이 그대로 노출**된다 — 기존 프론트가 `/oauth/refresh`에서 받던 형태와 동일한 **의도된 노출**이다. writeback 매핑은 [signing.md §3](./signing.md).
+
+### 1.5 사이트 전환 / 로그아웃 (socket 헬퍼)
+
+app-runtime은 `client.auth`를 직접 노출하지 않고 socket 레벨 헬퍼로 감싼다([../socket/README.md](../socket/README.md)):
+
+- **[`switchSite(siteId)`](../../src/socket/switchSite.ts)** — 같은 소켓 내 site 변경. optimistic `applySelectedSite(siteId)` → `manager.waitUntilVerified()` → `client.auth.switch(`${uid}@${siteId}`)`. 실패 시 이전 sid로 롤백하고 rethrow. active server 종류가 바뀌면(relay↔cloud, wss URL 변경) switch가 아니라 **새 소켓 생성**이며 `SocketBinder` 재부팅이 처리한다.
+- **[`logoutSession(options?)`](../../src/socket/logoutSession.ts)** — 두 슬롯에 best-effort `auth.logout()` 통지 후 `logoutRelaySession()`(relay/cloud 토큰·credential 전체 로컬 정리 + redirect). relay 토큰이 사라지면 두 binding 슬롯이 모두 내려가 `SocketBinder`가 client를 tear down.
+- **[`logoutCloudViaSocket()`](../../src/socket/logoutCloudViaSocket.ts)** — cloud 슬롯에 best-effort `auth.logout()` 후 `logoutCloudSession()`(cloudCore만 정리). cloud 슬롯만 내려가고 relay는 유지된다.
+
+```ts
+// switch 원형: 실패해도 기존 세션/sid 보존
+const view = await client.auth.switch(`${uid}@${siteId}`, {
+    onSuccess: res => {
+        /* 새 토큰 적용됨 (onTokenRefresh로도 writeback) */
+    },
+    onError: err => {
+        /* err.phase: 'not-connected' | 'sign' | 'server' */
     },
 });
 ```
-
-`start/stop/destroy`는 SDK(`create-client-socket-v2`)가 client 라이프사이클에 맞춰 자동 처리한다. 앱은 `client.auth`의 공개 메서드만 쓴다.
-
-### 1.2 등록 — `register({ token, authId, sign })`
-
-부팅 순서상 **`register`를 `connect`보다 먼저** 호출한다([implementation.md §3-1](./implementation.md)). SDK는 client 생성 시 `auth.start()`로 즉시 `active=true`가 되므로, active 상태의 `register`는 **토큰만 저장**하고 실제 `auth.update`는 SDK의 `onState('connected')` 핸들러가 발사한다. connect 후 register하면 connected가 빈 토큰으로 지나가 인증이 안 나간다. **device.save ack 대기는 불필요**하다 — `auth.update`가 device 링크를 겸하고(implementation.md §3-2), 미링크면 SDK 백오프가 재시도한다.
-
-```ts
-const reg = await delegate.getAuthRegistration(); // { token, authId } — active-server-aware (signing.md)
-client.auth.register({
-    token: reg.token,
-    authId: reg.authId,
-    sign: (token, ctx) => delegate.signAuth(token, ctx?.target), // { signature, current }
-});
-
-await client.auth.ready(); // authenticated 까지 대기(만료 시 reject)
-```
-
-- `register`는 **멱등**이나, **active(=연결·인증 중) 상태의 재register는 토큰만 조용히 교체하고 `auth.update`를 재발사하지 않는다**(SDK 0.4.5 dist 확인 — auth-controller.js:38-51). 즉 게스트→소셜 승격처럼 같은 소켓에서 토큰만 바꾸는 **재로그인은 bare register로는 즉시 재인증되지 않고 옛 신원이 유지**된다. 즉시 재인증하려면 **`await client.auth.logout()` → `register()`**(SDK resume 경로)를 쓴다([multi-socket-design.md §6-7](./multi-socket-design.md)).
-- `expired` 또는 `logout()` 후(=`inactive`) 새 토큰으로 `register`하면 `pending`으로 복귀해 인증을 재개한다.
-- `sign` 콜백은 토큰을 보관하지 않는다 — 매번 active server 기준으로 서명을 계산한다([signing.md](./signing.md)).
-
-### 1.3 토큰 사용 + 상태/갱신 구독
-
-```ts
-// HTTP Authorization 헤더 — SDK 보유 현재 토큰(identityToken 문자열)
-const token = client.auth.token;
-
-// 갱신마다 full payload(Token.credential = AWS AccessKey/Secret/Session 포함).
-// SDK 주도 주기 refresh·switch 분 모두 여기로 온다. → web-core 저장소로 writeback.
-const offToken = client.auth.onTokenRefresh(view => {
-    void delegate.commitRefreshedToken(view); // SDK SSoT → web-core (HTTP/AWS 서명용)
-});
-
-// 인증 상태 — isVerified 등 앱 상태로 매핑
-const offState = client.auth.onAuthState(state => {
-    manager.setAuthenticated(state === 'authenticated'); // isVerified = authenticated && state==='connected'
-    if (state === 'expired') void delegate.onAuthExpired(); // 로그아웃 트리거
-});
-// 주의: SDK는 'disconnected'를 방출하지 않는다(타입엔 있으나 미사용, multi-socket-design.md §6-15).
-// 연결 끊김은 transport state로 파생 — onAuthState에서 'disconnected'를 기대하지 말 것.
-```
-
-> ⚠️ `onTokenRefresh`의 view에는 **AWS credential이 그대로 노출**된다 — 기존 프론트가 `/oauth/refresh`에서 받던 형태와 동일한 **의도된 노출**이다. writeback 매핑은 [signing.md](./signing.md) §3.
-
-### 1.4 사이트 전환 / 로그아웃
-
-```ts
-// 전환: 일회성 명시 호출. 실패해도 기존 세션/sid 보존, expired 경로 안 탐.
-// target = `${uid}@${siteId}`. switch 성공분도 onTokenRefresh로 와서 writeback된다.
-try {
-    const view = await client.auth.switch(`${uid}@${siteId}`, {
-        onSuccess: res => {
-            /* 새 토큰 적용됨 */
-        },
-        onError: err => {
-            /* err.phase: 'not-connected' | 'sign' | 'server' */
-        },
-    });
-} catch (e) {
-    if (e instanceof AuthSwitchError) {
-        /* e.phase */
-    }
-}
-
-// 로그아웃: best-effort 서버 통지 후 로컬 정리, 상태 '' 복귀(예외 안 던짐)
-await client.auth.logout();
-```
-
-> **switch vs 소켓 재생성**: `switch`는 **같은 소켓 내 site 변경**에만 쓴다. active server 종류가 바뀌어(`relay`↔`cloud`) wss URL이 달라지면 그것은 switch가 아니라 **새 소켓 생성**이며, `SocketBinder`가 재부팅(register)으로 처리한다. 이 분기 판단은 binder가 한다.
 
 ---
 
 ## 2. 사용 원칙
 
-1. **소켓 토큰 갱신 타이머를 앱이 돌리지 않는다** — 만료 기반 refresh·재연결 재인증·실패 백오프는 SDK 자동. 앱은 토큰 교체(`register`)와 사이트 전환(`switch`)만 명시적으로 한다. SDK가 SSoT.
-2. **토큰은 읽고 흘려보낸다** — `client.auth.token`/`onTokenRefresh`로 읽고, refresh 결과는 web-core로 **writeback**해 HTTP/AWS 서명 경로와 일치시킨다([signing.md](./signing.md)).
-3. **switch는 일회성** — 실패는 타입드 에러(`AuthSwitchError.phase`)로만 받고, 주기 백오프·`expired` 경로로 넘기지 않는다. 기존 sid는 보존된다.
-4. **sync 등록 전에 `ready()`** — `requiresAuth` plan은 `authenticated` 전엔 안 돈다([README.md](./README.md) §4). 부팅은 `register → ready → registerChat/Channel` 순서.
-5. **UI 직접 노출 금지** — `client.auth`는 socket/세션 레이어가 감싼다. UI는 매핑된 앱 상태(예: `isVerified`)와 repository 스트림만 본다([../architecture.md](../architecture.md) 소유 규칙).
+1. **소켓 토큰 갱신 타이머를 app-runtime이 돌리지 않는다** — 만료 refresh·재연결 재인증·실패 백오프는 SDK 자동. app-runtime은 부팅 `register`, same-connection 재인증(`reauthenticateActiveSocket`), 사이트 전환(`switchSite`)만 명시한다.
+2. **토큰은 읽고 흘려보낸다** — `client.auth.token`/`onTokenRefresh`로 읽고, refresh 결과는 per-kind로 web-core에 **writeback**해 HTTP/AWS 서명 경로와 일치시킨다([signing.md](./signing.md)).
+3. **switch는 일회성** — 실패는 타입드 에러(`AuthSwitchError.phase`)로만 받고, 주기 백오프·`expired` 경로로 넘기지 않는다.
+4. **UI 직접 노출 금지** — `client.auth`는 socket/delegate 레이어가 감싼다. UI는 매핑된 앱 상태(`useSocketState`)와 repository 스트림만 본다.
+5. **delegate는 per-kind** — 모든 delegate 호출에 소켓 `kind`를 넘겨 relay/cloud 토큰이 교차 오염되지 않게 한다([signing.md §0](./signing.md)).
 
 ---
 
-## 3. 도입(migration) — 수동 경로에서 SDK로
+## 3. 트러블슈팅
 
-현재 인증은 [`SocketSessionController`](../../src/socket/SocketSessionController.ts)가 수동으로 한다. SDK `AuthController` 도입 시 아래가 대체된다.
-
-| 현재(수동)                                                                                       | → SDK `AuthController`                                            | 비고                                                                                                            |
-| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `updateAuth(...)` → `client.request('auth.update', {token})`                                     | `register({token,authId,sign})` + `onState=connected` 자동 update | SDK가 connected마다 auth.update                                                                                 |
-| `startPeriodicRefresh`(1분 `setInterval`)                                                        | `expiresIn × refreshRatio` 만료 기반 자동 refresh                 | 고정 1분 → 토큰 수명 기반                                                                                       |
-| `handle401Recovery`(single-flight + `delegate.refreshSocketToken`)                               | `failed`/`:error` → 백오프 reauth                                 | epoch 단일 in-flight가 single-flight 대체                                                                       |
-| [`SocketAuthBinder`](../../src/connection/SocketAuthBinder.tsx) → `updateAuth('session-switch')` | **파일 삭제** — site 전환은 `client.auth.switch(`uid@sid`)`       | token 변경 관찰 재인증은 `onTokenRefresh` writeback과 피드백 루프를 만들어 제거. 종류 변경은 소켓 재생성        |
-| `delegate.getSocketToken()`                                                                      | `register({token})` 초기값 + `delegate.getAuthRegistration()`     |                                                                                                                 |
-| `delegate.refreshSocketToken(reason)`                                                            | `delegate.signAuth` 콜백(lemon hmac)                              | SDK가 `auth.refresh`로 backend forward                                                                          |
-| (HTTP refresh가 web-core 저장소 갱신)                                                            | `onTokenRefresh` → `delegate.commitRefreshedToken(view)`          | SDK SSoT → web-core 단방향                                                                                      |
-| `markVerified()` / `markUnverified()`(`isVerified`)                                              | `onAuthState(s => setAuthenticated(s === 'authenticated'))`       | `isVerified = authenticated && state==='connected'` 파생. `disconnected`는 미방출(multi-socket-design.md §6-15) |
-| `device.save:` ack 관찰 후 auth                                                                  | **제거** — ack 대기 불필요                                        | `auth.update`가 device 링크를 겸함(implementation.md §3-2). register→connect 순서만 지키면 됨                   |
-
-### 도입 단계
-
-1. **web-core에 active-server-aware 헬퍼 신설** — `getActiveServerAuthRegistration()`, `signActiveServerAuth(target?)`, `commitSocketRefreshedToken(view)` (relay/cloud 분기). 상세 계약 → [signing.md](./signing.md).
-2. **delegate 계약 확장** — `SocketSessionDelegate`에 `getAuthRegistration`/`signAuth`/`commitRefreshedToken`/`onAuthExpired` 추가, `refreshSocketToken`/`onRefreshFailed` 제거. `useSocketDelegate`를 신설 헬퍼에 연결.
-3. `SocketManager.createClient`의 `createClientSocketV2`에 `auth` 옵션을 넘긴다(§1.1).
-4. **`SocketSessionController` 클래스 삭제 + bootstrap을 순수 함수로 이관** — 부팅 시퀀스(`ensure` → **`register(...)` → `connect()`**(순서 필수, §1.2) → `await client.auth.ready()`)를 `bootstrapSocketConnection({ manager, config, delegate })` 함수로 옮기고, `SocketBinder`가 이를 호출한다. **`device.save` ack 대기 게이트는 두지 않는다**(§1.2). 상태를 들고 있는 controller 클래스는 두지 않는다. `getSocketRuntime()` 공개 표면과 `createSocketRuntime()` 조립에서 `sessionController`를 제거하고, `setRecoveryHandler` 주입 배선도 삭제한다.
-5. `onAuthState`를 `SocketManager`의 `isVerified`(`setAuthenticated`)에 매핑하고, `onTokenRefresh`를 web-core writeback(`delegate.commitRefreshedToken`), `expired`를 `delegate.onAuthExpired`에 연결한다(§1.3). 이 구독 배선은 `bootstrapSocketConnection` 안에서 하고, 반환 cleanup으로 해제한다.
-6. `startPeriodicRefresh`/`handle401Recovery`를 제거하고, `SocketAuthBinder.tsx`는 **파일 삭제**한다(identity token 변경 관측 재인증은 `onTokenRefresh` writeback과 피드백 루프를 만들어 제거). 사이트 전환은 `client.auth.switch(`uid@sid`)`로 옮긴다.
-7. sync 등록을 `ready()` 이후로 정렬한다(이미 `requiresAuth` 게이트가 있어 순서만 맞추면 됨).
-8. **web-core 주기 refresh를 per-app 게이트** — `useTokenRefresh`의 `setInterval`을 AuthController 활성 앱(apps/web·testbed)에서만 끈다. `admin`·`desktop-web`은 유지([README.md](./README.md) §5, [multi-socket-design.md §2-4](./multi-socket-design.md)).
-
-> 서버 패킷(`auth.refresh`/`auth.switch`/`auth.logout`)은 chatic-sockets-api에 모두 배선·forward 확인됨([README.md](./README.md) §3). 도입 범위를 `auth.update`로 제한할 필요는 없다.
-
----
-
-## 4. 트러블슈팅
-
-| 증상                               | 원인 후보                                                                                                                                |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 계속 `pending`, 인증 안 됨         | `register()` 미호출 → SDK가 발사할 토큰이 없음(`sendUpdate` early-return)                                                                |
-| 인증이 "첫 재연결 후에만" 됨       | `register`를 `connect` **후**에 호출(순서 위반, §1.2) → connected가 빈 토큰으로 지나감. 다음 reconnect에서 자가치유되나 첫 연결은 미인증 |
-| `ready()`가 안 풀리거나 reject     | reject: `expired` 또는 `logout()`(state `''`)로 전이. 무한 대기: `failed` 백오프 중(타임아웃 없음) — `onAuthState`로 별도 관측           |
-| 곧장 `expired`로 감                | `sign` 콜백 reject 반복(active server 토큰 필드 누락 — signing.md), 또는 백오프 소진(기본 `maxFailures` 초과)                            |
-| HTTP 요청이 stale 토큰으로 실패    | `onTokenRefresh` → `commitRefreshedToken` 미연결(writeback 누락), 또는 cloud/relay 매핑 오류(signing.md §3)                              |
-| sync가 안 돎                       | `authenticated` 전에 `registerChat` 호출 — `requiresAuth` 게이트에 막힘(§2.4)                                                            |
-| switch 후 토큰 안 바뀜             | `onSuccess`/`onTokenRefresh` 미구독, 또는 `AuthSwitchError.phase==='server'`(서명 불일치·권한 없는 target)                               |
-| site 전환했는데 재인증이 안 일어남 | 종류 변경(relay↔cloud)인데 switch로 처리 — 새 소켓 생성/재부팅 경로여야 함(§1.4)                                                        |
-| admin 토큰이 안 갱신됨             | web-core 주기 refresh를 전역 삭제 — AuthController 미사용 앱은 `useTokenRefresh` 주기 유지해야 함([README.md](./README.md) §5)           |
-| 재연결 후 stale 토큰 적용          | (SDK가 epoch로 방어) 앱이 별도 토큰 캐시를 들고 덮어쓰는 경우 — 토큰은 SDK SSoT만 신뢰                                                   |
+| 증상                               | 원인 후보                                                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 계속 `pending`, 인증 안 됨         | `getAuthRegistration(kind)`가 null → `register()` 미호출로 발사할 토큰 없음                                |
+| 인증이 "첫 재연결 후에만" 됨       | `register`를 `connect` **후**에 호출(순서 위반) → connected가 빈 토큰으로 지나감                           |
+| 곧장 `expired`로 감                | `sign` 콜백 reject 반복(kind 토큰 필드 누락 — signing.md), 또는 백오프 소진(`maxFailures` 3 초과)          |
+| HTTP 요청이 stale 토큰으로 실패    | `commitRefreshedToken` 미연결(writeback 누락), 또는 cloud/relay **kind 라우팅 오류**(signing.md §3)        |
+| cloud 활성 중 relay 요청이 403     | relay refresh writeback이 잘못된 kind로 라우팅됨 — kind 클로저 확인(signing.md §0)                         |
+| sync가 안 돎                       | `authenticated` 전에 등록된 채로 `requiresAuth` 게이트에 막힘 — 인증되면 자동 시작                         |
+| 게스트→소셜 승격 후 옛 신원 유지   | same-connection 토큰 교체인데 `SocketReauthBinder`/`reauthenticateActiveSocket` 미동작(§1.3)               |
+| switch 후 토큰 안 바뀜             | `onSuccess`/`onTokenRefresh` 미구독, 또는 `AuthSwitchError.phase==='server'`(서명 불일치·권한 없는 target) |
+| site 전환했는데 재인증이 안 일어남 | 종류 변경(relay↔cloud)인데 switch로 처리 — 새 소켓 생성/재부팅 경로여야 함(§1.5)                          |
