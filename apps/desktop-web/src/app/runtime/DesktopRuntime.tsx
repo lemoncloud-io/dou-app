@@ -25,7 +25,6 @@ import {
 } from '../shared';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
-import { useSocketDelegate } from './useSocketDelegate';
 
 /** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {
@@ -108,17 +107,16 @@ const ShellUnreadSync = () => {
 
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
- * socket lifecycle and re-auth from the binding + delegate). Session readiness is owned here,
- * not by a wrapping gate in app.tsx: `SessionBackgroundRunner` (inside `RuntimeConnectionHost`)
- * owns `useInitWebCore` / `useTokenRefresh`; `TransportBootstrap` shows the splash during init.
- * The desktop notification / unread / connection runners self-gate on socket verification.
+ * socket lifecycle and re-auth from the binding). Session readiness is owned by
+ * `RuntimeConnectionHost`, which is the single web-core init driver (`useInitWebCore`) and builds
+ * its own socket session delegate internally — apps no longer inject one. The desktop notification /
+ * unread / connection runners self-gate on socket verification.
  */
 export const DesktopRuntime = () => {
     const binding = useRuntimeBinding();
-    const delegate = useSocketDelegate();
 
     return (
-        <RuntimeConnectionHost binding={binding} delegate={delegate}>
+        <RuntimeConnectionHost binding={binding}>
             <BackgroundSyncRunner />
             <AuthedNotifications />
             <ShellUnreadSync />
