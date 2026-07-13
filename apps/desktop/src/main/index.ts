@@ -547,6 +547,16 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     let loadRetries = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let unresponsiveTimer: ReturnType<typeof setTimeout> | undefined;
+    // Bounded renderer-crash recovery. A crash that reproduces on every load (e.g. a reload
+    // that always OOMs) would otherwise loop forever: reloadWeb fires immediately with no cap,
+    // the dying frame's navigation aborts as ERR_ABORTED (-3) which did-fail-load filters, so
+    // no error page ever shows — the window just black-flickers. Allow a few quick recoveries,
+    // then fall through to the branded error page carrying the crash reason so it stops and the
+    // cause is visible. A successful trusted load resets the budget (see did-finish-load).
+    const CRASH_RELOAD_LIMIT = 3;
+    const CRASH_RELOAD_DELAY_MS = 1000;
+    let crashReloads = 0;
+    let crashTimer: ReturnType<typeof setTimeout> | undefined;
     resetLoadRetries = () => {
         loadRetries = 0;
     };
@@ -572,18 +582,32 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     win.webContents.on('did-finish-load', () => {
         if (isTrustedUrl(win.webContents.getURL())) {
             loadRetries = 0;
+            crashReloads = 0;
             onErrorPage = false;
         }
     });
     // A crashed or OOM-killed renderer otherwise leaves a blank window with no recovery
-    // (did-fail-load only covers LOAD failures). Reload the trusted web with a refilled
-    // retry budget — a crash usually needs the full backoff ladder again (e.g. OOM during
-    // a flaky network); a hard crash loop is bounded by the user quitting from the tray.
+    // (did-fail-load only covers LOAD failures). Reload the trusted web with a refilled LOAD
+    // retry budget — a crash usually needs the full backoff ladder again (e.g. OOM during a
+    // flaky network). But cap the crash reloads themselves: without a bound, a crash that
+    // reproduces on every load spins forever (see CRASH_RELOAD_LIMIT note). After the cap,
+    // show the branded error page carrying the crash reason instead of reloading again.
     win.webContents.on('render-process-gone', (_event, details) => {
         if (details.reason === 'clean-exit') return;
-        console.warn('[shell] renderer process gone, reloading', details);
-        loadRetries = 0;
-        reloadWeb();
+        console.warn('[shell] renderer process gone', details);
+        if (crashReloads < CRASH_RELOAD_LIMIT) {
+            crashReloads += 1;
+            loadRetries = 0;
+            if (crashTimer) clearTimeout(crashTimer);
+            crashTimer = setTimeout(reloadWeb, CRASH_RELOAD_DELAY_MS);
+            return;
+        }
+        onErrorPage = true;
+        if (!win.isDestroyed()) {
+            if (!win.isVisible()) win.show();
+            const html = renderErrorHtml(0, `renderer ${details.reason}`);
+            void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+        }
     });
     // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
     // their own and 'responsive' cancels the timer) — losing in-flight state is better
@@ -601,6 +625,7 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     win.on('closed', () => {
         if (retryTimer) clearTimeout(retryTimer);
         if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
+        if (crashTimer) clearTimeout(crashTimer);
     });
 
     // Wake from sleep: if the window got stranded on the error page while the network was
