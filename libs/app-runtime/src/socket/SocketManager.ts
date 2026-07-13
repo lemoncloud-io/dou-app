@@ -18,9 +18,20 @@ import type {
     SocketStateListener,
 } from './types';
 
-/** SDK AuthController tuning at adoption. SDK defaults are refreshRatio 0.8 / maxFailures 5; we
- *  override maxFailures to 3 for a slightly faster terminal `expired` (see usage.md §1.1). */
-const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3 } as const;
+/**
+ * SDK AuthController tuning at adoption. SDK defaults are refreshRatio 0.8 / maxFailures 5 /
+ * refreshIntervalMs 30min; we override:
+ *  - maxFailures 3 — a slightly faster terminal `expired` (see usage.md §1.1).
+ *  - refreshIntervalMs 5min — the FALLBACK cadence used only when the socket auth response omits
+ *    `expiresIn` (dev/prod currently do — §11/§6-12). The SDK schedules refresh at `expiresIn * 0.8`
+ *    when present, else this interval. The 30min default is too slow: it can let the relay AWS
+ *    credential (or lemon-web-core's `expired_time` = Expiration − 5min) lapse before the socket
+ *    refreshes, so signed HTTP starts 403ing while the socket still reports `authenticated`. 5min
+ *    stays well under the ~1h credential lifetime (and lemon's expired_time), so the socket refresh
+ *    writeback keeps credentials fresh and lemon never self-refreshes (§6-12). The real fix is the
+ *    server reporting `expiresIn`, which makes this fallback moot.
+ */
+const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 * 60 * 1000 } as const;
 
 /** A push subscription that must be re-bound whenever the active client is replaced. */
 type TypeListenerEntry = {
