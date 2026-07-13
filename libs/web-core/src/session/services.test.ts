@@ -678,55 +678,99 @@ describe('session/services · per-server bridge helpers', () => {
         localStorage.clear();
     });
 
-    it('getServerAuthRegistration routes by the kind argument, not the active server', async () => {
-        // relay branch: relay identity token + lemon signature authId
+    it('getServerAuthRegistration은 kind 인자로 authId를 $auth.id에서 시드한다 (Token.authId 아님)', async () => {
+        // relay branch: relay identity token + $auth.id (NOT getTokenSignature / Token.authId)
         mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
-        mockGetTokenSignature.mockResolvedValue({ authId: 'relay-auth-id' });
+        mockRelayGetRelayToken.mockReturnValue({ $auth: { id: 'relay-auth-id' }, Token: { authId: 'http-id' } });
         await expect(getServerAuthRegistration('relay')).resolves.toEqual({
             token: 'relay-identity-token',
             authId: 'relay-auth-id',
         });
 
-        // cloud branch: both from the cloud token (relay signature not consulted)
-        mockGetTokenSignature.mockClear();
+        // cloud branch: both from the cloud token ($auth.id, not Token.authId)
         mockGetIdentityToken.mockReturnValue('cloud-identity-token');
-        mockGetCloudToken.mockReturnValue({ Token: { authId: 'cloud-auth-id' } });
+        mockGetCloudToken.mockReturnValue({ $auth: { id: 'cloud-auth-id' }, Token: { authId: 'http-id' } });
         await expect(getServerAuthRegistration('cloud')).resolves.toEqual({
             token: 'cloud-identity-token',
             authId: 'cloud-auth-id',
         });
-        expect(mockGetTokenSignature).not.toHaveBeenCalled();
 
+        // the HTTP-path signature helper must NOT be consulted for socket registration
+        expect(mockGetTokenSignature).not.toHaveBeenCalled();
         // getActiveServerContext must NOT be consulted — routing is purely the kind arg
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
     });
 
-    it('signServerAuth(cloud) computes over the cloud token; target does not change the signature', async () => {
+    it('signServerAuth(cloud)는 $auth.id를 HMAC 키로 서명하고 target은 서명을 바꾸지 않는다', async () => {
         mockGetCloudToken.mockReturnValue({
-            Token: { authId: 'a', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
+            $auth: { id: 'cloud-auth-id' },
+            Token: { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
         });
         mockCalcSignature.mockReturnValue('cloud-sig');
 
         await signServerAuth('cloud', 'uid@sid');
 
         expect(mockCalcSignature).toHaveBeenCalledWith(
-            { authId: 'a', accountId: 'acct', identityId: 'ident', identityToken: '' },
+            { authId: 'cloud-auth-id', accountId: 'acct', identityId: 'ident', identityToken: '' },
             expect.any(String)
         );
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
     });
 
-    it('commitServerRefreshedToken(relay) writes the relay store even while cloud would be active (§6-6)', async () => {
+    it('signServerAuth(relay)는 Token.authId가 아니라 $auth.id로 서명한다 (getTokenSignature 미사용)', async () => {
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id' },
+            Token: { authId: 'http-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: 'jwt' },
+        });
+        mockCalcSignature.mockReturnValue('relay-sig');
+
+        const result = await signServerAuth('relay');
+
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            { authId: 'relay-auth-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: '' },
+            expect.any(String)
+        );
+        expect(result.signature).toBe('relay-sig');
+        // socket signature must not fall back to the HTTP-path (Token.authId) helper
+        expect(mockGetTokenSignature).not.toHaveBeenCalled();
+    });
+
+    it('signServerAuth(relay)는 $auth.id가 없으면 던진다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({ Token: { accountId: 'a', identityId: 'i' } });
+
+        await expect(signServerAuth('relay')).rejects.toThrow('Missing relay token fields');
+    });
+
+    it('commitServerRefreshedToken(relay)는 view에 identityToken이 있으면 그대로 relay store에 쓴다 (§6-6)', async () => {
         mockBuildCredentialsByToken.mockResolvedValue(undefined);
+        mockRelayGetRelayToken.mockReturnValue(null);
         const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
 
         await commitServerRefreshedToken('relay', view);
 
         // relay dual-write, no cloud store touched, and no dependence on the active context
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(view.Token);
-        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(view);
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'fresh' }));
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'u', Token: expect.objectContaining({ identityToken: 'fresh' }) })
+        );
         expect(mockSaveCloudToken).not.toHaveBeenCalled();
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('commitServerRefreshedToken(relay)는 refresh view가 identityToken을 생략하면 저장된 값을 보존한다', async () => {
+        mockBuildCredentialsByToken.mockResolvedValue(undefined);
+        mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept', accountId: 'a' } } as UserTokenView);
+        // a socket refresh view carrying a fresh credential but NO identityToken
+        const view = { id: 'u', Token: { credential: { AccessKeyId: 'k' } } } as unknown as UserTokenView;
+
+        await commitServerRefreshedToken('relay', view);
+
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Token: expect.objectContaining({ identityToken: 'kept', credential: { AccessKeyId: 'k' } }),
+            })
+        );
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'kept' }));
     });
 
     it('commitServerRefreshedToken(cloud) merges the cloud store (single write, no credential rebuild)', async () => {

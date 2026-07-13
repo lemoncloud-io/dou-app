@@ -12,18 +12,18 @@
 - 상태 전이 자체는 `session/services`가 소유합니다
 - 경계를 넘는 효과(소켓 재인증, 캐시 클리어)는 web-core가 수행하지 않고 socket delegate / 외부 레이어가 가져갑니다
 
-## 1. 중계서버 로그인 항시 유지 (`useRelaySessionKeepAlive`)
+## 1. 중계서버 로그인 항시 유지 (`useRelaySessionKeepAlive(enabled)`)
 
 목표: 명시적 logout이 없는 한 relay 세션이 항상 존재하도록 유지합니다.
 
 규칙:
 
-- 기본 진입은 게스트 로그인입니다
-- 소셜 로그인(예: OAuth) 시 토큰·세션 정보가 소셜 기준으로 교체됩니다 (`loginRelaySocial`)
-- relay 세션 부재(`relayCore` 세션 없음)가 감지되면 **백그라운드로 `loginRelayGuestByDevice`** 를 수행합니다
-- 최초 앱 실행 시에는 반드시 relay 로그인이 일어나므로, 이때 **`delegatorId`를 반드시 저장**합니다 (이후 초대 로직에서 사용)
+- `enabled: boolean` 인자로 게이트합니다(Host가 init 게이트 뒤에서 `true`로 마운트).
+- 기본 진입은 게스트 로그인입니다. 소셜 로그인 시 토큰이 소셜 기준으로 교체됩니다(`loginRelaySocial`, 별도 승격 경로).
+- `enabled && !isAuthenticated && deviceId` 조건에서 **백그라운드로 `loginRelayGuestByDevice(deviceId)`** 를 1회 수행합니다(`runningRef`로 재진입 차단).
+- 최초 앱 실행 시 relay 게스트 로그인이 `delegatorId`를 저장합니다(이후 초대 로직에서 사용).
 
-감지 신호: `getGlobalSessionContext().runtime.isAuthenticated` 또는 relay profile 부재 구독.
+감지 신호: `useSessionAuth().isAuthenticated`(false) + 해석된 `deviceId` + `enabled` 게이트. 이 hook은 부재한 세션을 **복구**할 뿐 명시적 logout으로 세션을 내리지 않습니다.
 
 ## 2. 병렬 리프레시 루프 (`useTokenRefresh`)
 
@@ -31,28 +31,28 @@
 
 규칙:
 
-- 기본은 relay 리프레시(`refreshRelaySession`)입니다
-- cloud 서버가 연결되어 있으면(delegation token 존재) **cloud 리프레시(`refreshCloudSession`)를 병렬 수행**합니다
-- cloud 리프레시는 **`cloudCore.getCloudToken()`을 credential로 사용**합니다 (cloudToken 기반)
-- 주기는 1분입니다
+- 기본은 relay 리프레시(`refreshRelaySession({ syncProfile: true })`)입니다
+- cloud 서버가 연결되어 있으면 `refreshActiveCloudSession`을 **fire-and-forget 병렬 수행**합니다(`cloudCore.getCloudToken()` 기반)
+- 주기는 1분(`REFRESH_INTERVAL`), 5초 dedup(`MIN_REFRESH_GAP`)
+- **`sdkOwnsRefresh` 모드**: SDK `AuthController`가 소켓 relay refresh를 소유하는 앱에서는 이 hook이 **부팅 refresh와 `setInterval`을 둘 다 스킵**합니다 — 소켓 refresh와 경쟁해 403→오탐 로그아웃을 내지 않기 위함
 
 실패 폴백:
 
-- relay 실패: `classifyError().shouldLogout`이면 logout, 그 외는 다음 주기 재시도
-- cloud 실패: **logout 금지**. relay 세션은 유지하고 cloud를 "재인증 필요"로 두어 다음 주기 또는 소켓 401 복구에 위임
-- 두 축은 독립 실패로 다룹니다 (invite 세션에서는 cloud 실패가 logout을 유발하지 않도록 주의)
+- relay 실패: `classifyError().shouldLogout`이면 logout(초대 딥링크 URL은 보존), 그 외는 다음 주기 재시도
+- cloud 실패: **logout 금지**. relay 세션은 유지하고 다음 주기 또는 SDK 소켓 재인증에 위임
+- 두 축은 독립 실패 (invite 세션에서 cloud 실패가 logout을 유발하지 않도록)
 
 ```mermaid
 flowchart LR
-  Tick["1분 주기"] --> R["refreshRelaySession"]
+  Tick["1분 주기 (sdkOwnsRefresh면 스킵)"] --> R["refreshRelaySession"]
   Tick --> C{"cloud 연결?"}
-  C -->|yes| CR["refreshCloudSession (cloudToken)"]
+  C -->|yes| CR["refreshActiveCloudSession (fire-and-forget)"]
   C -->|no| Skip["skip"]
   R --> RF{"shouldLogout?"}
   RF -->|yes| Logout
   RF -->|no| Keep
   CR --> CF{"실패?"}
-  CF -->|yes| Mark["재인증 필요 표시 (logout 안 함)"]
+  CF -->|yes| Mark["무시 (logout 안 함)"]
 ```
 
 ## 6. 사이트 전환 ↔ 리프레시 single-flight
@@ -68,23 +68,23 @@ flowchart LR
 
 ## 7. 초대 (`useInviteFlow`)
 
-목표: 딥링크 초대 코드 진입을 받아 로그인부터 cloud 진입까지 **하나의 시나리오로 구동**합니다. 소비자가 여러 hook을 수동으로 체이닝하지 않도록 전용 훅으로 감쌉니다.
+목표: 딥링크 초대 코드로 **인증**을 구동합니다. cloud/site 진입은 이 hook이 하지 않고 소비자에게 맡깁니다.
 
 흐름:
 
-1. 초기에 저장해둔 `delegatorId`를 꺼낸다 (시나리오 ①에서 게스트 로그인 시 저장된 값, `identityCore`)
-2. 초대코드 로그인 로직을 실행한다 (`loginWithInviteCode` / `useLoginWithInviteCode`)
-3. 이후 cloud 진입은 ③클라우드 전환과 동일하게 `switchCloudSession`으로 수행한다
+1. `useSessionIdentity()`에서 `delegatorId`를 읽는다 (게스트 로그인 시 저장된 값, `identityCore`)
+2. **api `registerUserWithInviteCode(code, delegatorId, backend)`를 직접 호출**한다 (별도 `useLoginWithInviteCode` hook 없음)
+3. cloud 진입이 필요하면 소비자가 ③클라우드 전환(`switchCloudSession`)을 이어서 수행한다
 
 ```mermaid
 flowchart LR
-  A["delegatorId 조회"] --> B["loginWithInviteCode"]
-  B --> D["switchCloudSession (③과 동일)"]
+  A["delegatorId 조회 (useSessionIdentity)"] --> B["api registerUserWithInviteCode"]
+  B --> D["(소비자) switchCloudSession"]
 ```
 
 비고:
 
-- `useInviteFlow`는 orchestration hook이고, 내부 전이 자체(`loginWithInviteCode`, `switchCloudSession`)는 `session/services`가 소유합니다.
+- `useInviteFlow`는 **인증만** 수행하며 cloud/site 진입을 자동으로 이어가지 않습니다. 인증 함수는 service가 아니라 `api/auth.ts`의 `registerUserWithInviteCode`입니다.
 - 전이 sequence 상세는 [session-scenarios.md 시나리오 5](../session/session-scenarios.md)를 참조합니다.
 - 과거의 `restorePreviousCloudSession`(캐시된 invited 번들 replay) 경로는 **제거**되었습니다. 번들 writer가 없어 죽은 경로였고, 초대 cloud 진입도 `switchCloudSession`(delegate-cloud → exchange-token)으로 일원화했습니다. 초대 cloud가 broker-delegable하지 않은 케이스가 확인되면 별도 재설계가 필요합니다(아래 TODO).
 
@@ -103,7 +103,7 @@ flowchart LR
 
 설계 의도: ③클라우드 전환·⑥사이트 전환은 cid/sid를 **선반영**합니다. web-core hook은 `session/services`를 통해 세션 상태(cid/sid)만 바꾸고, 그 변경을 **app-runtime의 binding/DataProvider가 구독**해 캐싱 데이터를 우선 표시하고 소켓을 재연결합니다. 즉 "캐싱 데이터 표시"는 web-core가 아니라 app-runtime/data 소관입니다.
 
-> **현황(2026-07-09 정정):** cid/sid **선반영 + 실패 롤백**은 대부분 **구현 완료**다 — `switchCloudSession`(cid 선반영+롤백, [services.ts:331-360](../../src/session/services.ts)), `switchSiteSession`(sid 선반영+롤백, [services.ts:388-403](../../src/session/services.ts)). **잔존 TODO는 relay 사이트 전환 하나뿐**: `refreshRelaySession(target=uid@sid)` 내부에서 refresh 전 sid 선반영([services.ts:196](../../src/session/services.ts) `TODO(optimistic)`).
+> **현황:** cid/sid **선반영 + 실패 롤백**은 대부분 **구현 완료**다 — `switchCloudSession`(cid 선반영+롤백), `switchSiteSession`(sid 선반영+롤백), 둘 다 `session/services.ts`. **잔존 TODO는 relay 사이트 전환 하나뿐**: `refreshRelaySession(target=uid@sid)`가 sid를 refresh 성공 후에만 반영(선반영 아님).
 
 ## 미구현 TODO
 
@@ -127,8 +127,8 @@ flowchart LR
 
 - **③⑥ cid/sid 반응** — 전환 시 캐시 우선 표시 + 소켓 재연결 (app-runtime/data·binding).
 - **⑤ 로그아웃 캐시 클리어** — 로그아웃 후 다른 유저 로그인 시 데이터가 꼬이지 않음 (외부 레이어).
-- **⑧⑨ 소켓 리프레시/401 복구** — socket delegate 결합 후 `auth:update` 갱신·재시도 (sid 없으면 skip).
-- **선반영+롤백** — `switchCloudSession`(cid)·`switchSiteSession`(sid)의 "전환 실패 → 이전 cid/sid 복귀"는 [services.test.ts](../../src/session/services.test.ts)에 구현됨. relay 사이트 전환(refreshRelaySession) sid 선반영만 TODO.
+- **⑧⑨ 소켓 인증** — SDK `AuthController`(app-runtime) 소유. web-core 브리지 헬퍼(seed/sign/writeback)가 올바른 kind로 라우팅되는지는 app-runtime 결합 후 확인.
+- **선반영+롤백** — `switchCloudSession`(cid)·`switchSiteSession`(sid)의 "전환 실패 → 이전 cid/sid 복귀"는 `services.test.ts`에 구현됨. relay 사이트 전환(refreshRelaySession) sid 선반영만 TODO.
 
 ## 관련 문서
 

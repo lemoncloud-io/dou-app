@@ -30,7 +30,7 @@
 현재 구조에서는 `webTransport` 단독이 아니라 다음 두 층을 합쳐 transport runtime으로 보는 것이 더 정확합니다.
 
 - `webTransport.ts`
-- `api/utils/request.ts`의 request execution adapter
+- `transport/request.ts`의 request execution adapter(`executeRelayRequest`·`executeSignedRelayRequest`·`executeCloudRequest`)
 
 ### Storage Adapter
 
@@ -141,7 +141,8 @@ transport 계층은 로그아웃 query param이 있는 경우 token 관련 stora
 - `webTransport`가 너무 많은 역할을 갖고 있는지
 - logout token 정리가 transport bootstrap 시점에 있는 것이 적절한지
 - storage adapter 선택이 session 정책과 충분히 분리되어 있는지
-- `api/utils/request.ts`를 transport 하위로 이동해도 경계가 더 명확해지는지
+
+> request execution adapter의 `transport/` 이동은 **완료**됐다(과거 `api/utils/request.ts` → 현재 `transport/request.ts`).
 
 ## 관련 문서
 

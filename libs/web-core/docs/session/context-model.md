@@ -2,330 +2,131 @@
 
 ## 목적
 
-전역 세션 스냅샷을 구성하는 세션 컨텍스트를 정의합니다.
+전역 세션 스냅샷을 구성하는 세션 컨텍스트를 정의합니다(`libs/web-core/src/session/types.ts` 기준).
 
-의도한 외부 계약은 다음과 같습니다.
+외부 계약:
 
-- 소비자는 `getGlobalSessionContext()`를 읽습니다
-- session 계층은 relay, cloud, identity raw 상태를 어떻게 조합하는지 외부에 숨깁니다
-- 모든 세션 관련 기능 요청은 `session/services`에서 처리합니다
-- 모든 저장 책임은 `cloudCore`, `relayCore`, `identityCore`, 기타 `...Core`가 가집니다
-- 각 `core`의 상태가 바뀌면 변경이 hooks까지 전파되어야 합니다
+- 소비자는 `getGlobalSessionContext()`(또는 `useGlobalSession()`)를 읽습니다.
+- session 계층은 relay/cloud/identity raw 상태를 어떻게 조합하는지 숨깁니다.
+- 모든 상태 전이는 `session/services`가 처리합니다.
+- 모든 저장 책임은 `...Core`가 가집니다.
+- core 상태가 바뀌면 변경이 hook까지 전파됩니다.
 
 ## Global Shape
 
 ```ts
 interface GlobalSessionContext {
-    relay: RelaySessionContext;
-    cloud: CloudSessionContext;
+    relay: RelayContext;
+    cloud: CloudContext;
     identity: IdentityContext;
-    runtime: SessionRuntimeContext;
     activeServer: ActiveServerContext;
 }
 ```
 
-권장 스펙은 위 구조이지만, 현재 구현은 `libs/web-core/src/session/types.ts`에서 `runtime`을 별도 분리하지 않고 `IdentityContext` 내부에 함께 가지고 있습니다.
+runtime 상태(`isInitialized`/`isAuthenticated`/`error`)는 별도 필드가 아니라 **`IdentityContext` 안에** 들어 있습니다. 스냅샷은 `contextStore.getGlobalSessionContext()`가 요청 시 조립하고 메모이즈합니다(core 변경 시 무효화).
 
 ## 책임 분리
 
 ### session/services
 
-세션 관련 기능 요청을 담당합니다.
+상태 전이를 담당합니다: initialize, login(guest/user/social), cloud switch(invite 진입 포함, `switchCloudSession`으로 일원화), relay/cloud token refresh(서비스 레벨 single-flight), site 전환 refresh, logout, device id 저장.
 
-- initialize
-- logout
-- cloud switch (invite 진입 포함, `switchCloudSession`으로 일원화)
-- relay/cloud token refresh (서비스 레벨 single-flight)
-- relay/cloud site 전환을 포함한 refresh
-- device id 저장 (`persistDeviceId` → identityCore)
+### ...Core (raw 저장)
 
-즉, 상태 전이는 반드시 `session/services`를 통해서만 수행되어야 합니다.
+- `cloudCore`: cloud token, delegation token, selected cloud, selected site, per-cloud place order, invited-bundle key
+- `relayCore`: relay token(인증 앵커), relay selected site. endpoint(`backend`/`wss`)는 transport 헬퍼에 위임
+- `identityCore`: **`delegatorId`, `deviceId`, `registeredDeviceToken`만** 저장
 
-### ...Core
+### identityCore가 저장하는 것 / 안 하는 것
 
-세션 관련 raw 저장 책임을 담당합니다.
+저장: `delegatorId`(게스트 자신의 uid, 초대 수락용), `deviceId`, `registeredDeviceToken`.
 
-- `cloudCore`: cloud token, delegation token, selected cloud, selected site
-- `relayCore`: relay selected site, relay endpoint access
-- `identityCore`: relay/cloud profile, delegatorId, deviceId, oAuthProvider, invited 관련 raw 상태
-- 기타 `...Core`: 각 도메인의 raw get/set 저장
+**저장하지 않음**(과거 문서가 나열했으나 코드에서 제거됨): `relayProfile`/`cloudProfile`/`activeProfile`, `oAuthProvider`, `isInvited`, `isGuest`, `userRole`, `userType`, `permissions`, `userId`.
 
-`core`는 저장 경계이고, `session`은 조합 및 orchestration 경계입니다.
-
-### IdentityCore
-
-`IdentityCore`는 계산된 `IdentityContext`를 저장하지 않고, identity 관련 raw source만 저장합니다.
-
-저장 대상:
-
-- `relayProfile`
-- `cloudProfile`
-- `delegatorId`
-- `deviceId`
-- `oAuthProvider`
-- invited 관련 raw flag 또는 value
-
-저장하지 않는 대상:
-
-- `activeProfile`
-- `isGuest`
-- `userId`
-- `userRole`
-- `userType`
-- `permissions`
-
-이 값들은 `contextStore` 조립 시 계산해야 하며, `IdentityCore`에 캐시된 파생값으로 저장하면 안 됩니다.
-
-권장 메서드:
-
-- `getRelayProfile(): UserProfile$ | null`
-- `setRelayProfile(profile: UserProfile$ | null): void`
-- `getCloudProfile(): UserProfile$ | null`
-- `setCloudProfile(profile: UserProfile$ | null): void`
-- `getDelegatorId(): string | null`
-- `setDelegatorId(delegatorId: string | null): void`
-- `getDeviceId(): string | null`
-- `setDeviceId(deviceId: string | null): void`
-- `getOAuthProvider(): OAuthLoginProvider | null`
-- `setOAuthProvider(provider: OAuthLoginProvider | null): void`
-- `getIsInvited(): boolean`
-- `setIsInvited(value: boolean): void`
-- `clearIdentity(): void`
-- `subscribe(listener: () => void): () => void`
+- 프로필 payload(`UserProfile$`)는 어디에도 저장하지 않습니다 — raw 토큰만 보관하고, profile fact는 app 레이어 `useProfileFacts`가 캐시에서 추적하며 active 토큰 user 필드(`getActiveSessionUser`)로 동기 seed합니다.
+- invited-ness는 캐시된 cloud(`cloudType: 'invited'`)에, OAuth provider는 더 이상 session 상태가 아닙니다.
 
 ### contextStore
 
-`contextStore`는 단순 저장소가 아니라 context assembler이자 조회 진입점입니다.
-
-- `relayCore`, `cloudCore`, `identityCore` 상태를 읽습니다
-- `identity`와 `runtime` 상태를 읽습니다
-- `GlobalSessionContext`를 조립합니다
-- 외부 getter와 hook이 읽을 최종 read model을 제공합니다
+단순 저장소가 아니라 context assembler이자 조회 진입점입니다. `relayCore`/`cloudCore`/`identityCore` + 모듈 스코프 `identityState`(runtime 플래그)를 읽어 `GlobalSessionContext`를 조립하고, 외부 getter/hook이 읽을 read model을 제공합니다.
 
 ## 상태 전파
 
-`core` 내용이 바뀌면 그 변경은 session 구독자에게 전파되어야 합니다.
+core나 `identityState`가 바뀌면 `notifySessionStateChanged()`(`session/utils.ts`)가 캐시를 무효화하고 리스너에 알립니다. hook은 `subscribeSessionSignal`을 `useSyncExternalStore`로 구독하므로, 전이 후 `useGlobalSession()` 등이 최신 스냅샷을 관측합니다.
 
-구현 방식은 고정하지 않습니다.
+## RelayContext
 
-- event emitter
-- external store
-- Zustand
+```ts
+interface BaseServerContext {
+    backend: string | null;
+    wss: string | null;
+    identityToken: string | null;
+    siteId: string | null;
+}
+interface RelayContext extends BaseServerContext {
+    isAuthenticated: boolean;
+}
+```
 
-중요한 것은 방식이 아니라 계약입니다.
+source of truth (`buildRelayContext`):
 
-- `core` 변경 후 `useGlobalSession()` 같은 hook이 최신 snapshot을 관측할 수 있어야 합니다
-- relay/cloud/identity/runtime 간 불일치가 장시간 남아 있으면 안 됩니다
+- `backend`/`wss` → transport 헬퍼(`getDynamicRelayBackend/Wss`)
+- `identityToken` → `relayCore.getIdentityToken()`
+- `siteId` → `relayCore`
+- `isAuthenticated = !!relayCore.getRelayToken()` — **토큰 존재 기반 coarse auth**(프로필 아님)
 
-## RelaySessionContext
+relay endpoint는 runtime에서 결정되며 cloud로부터 유도되지 않습니다. relay `siteId`도 refresh(`target = uid@sid`) 결과로 바뀔 수 있습니다.
 
-relay 기준 실행 컨텍스트를 표현합니다.
+## CloudContext
 
-필드:
+```ts
+interface CloudContext extends BaseServerContext {
+    cloudId: string | null;
+    delegationToken: CloudDelegationTokenView | null;
+    cloudToken: UserTokenView | null;
+    isActive: boolean;
+}
+```
 
-- `backend: string | null`
-- `wss: string | null`
-- `identityToken: string | null`
-- `siteId: string | null`
-- `isAuthenticated: boolean`
+source of truth: `cloudCore`의 selected cloud/site, delegation token, cloud token. `backend`/`wss`는 delegation token에서, `identityToken`은 cloud token에서 유도.
 
-source of truth:
-
-- `relayCore.getBackend()`
-- `relayCore.getWss()`
-- `relayCore.getSelectedSiteId()`
-- `identityCore.getRelayProfile()` 존재 여부 기반 coarse auth state
-
-규칙:
-
-- cloud가 active가 아니면 relay는 항상 fallback server입니다
-- relay endpoint 값은 runtime에서 결정되며 cloud로부터 유도되지 않습니다
-- relay의 `siteId`도 refresh(`target = uid@sid`) 결과로 변경될 수 있습니다
-
-## CloudSessionContext
-
-현재 선택된 cloud 실행 컨텍스트를 표현합니다.
-
-필드:
-
-- `cloudId: string | null`
-- `siteId: string | null`
-- `backend: string | null`
-- `wss: string | null`
-- `identityToken: string | null`
-- `delegationToken: CloudDelegationTokenView | null`
-- `cloudToken: UserTokenView | null`
-- `isActive: boolean`
-
-source of truth:
-
-- `cloudCore.getSelectedCloudId()`
-- `cloudCore.getSelectedSiteId()`
-- `cloudCore.getDelegationToken()`
-- `cloudCore.getCloudToken()`
-
-활성화 규칙:
-
-아래 조건이 모두 만족될 때만 cloud는 active입니다.
-
-- `cloudId`
-- `backend`
-- `wss`
-- `identityToken`
-- selected cloud is not the sentinel `default`
-
-이는 현재 `libs/web-core/src/session/contextStore.ts`의 `buildCloudContext()` 로직과 일치합니다.
-
-추가 규칙:
-
-- cloud의 `siteId` 역시 refresh(`target = uid@sid`) 결과로 변경될 수 있습니다
+활성화 규칙(`buildCloudContext`): `cloudId && cloudId !== 'default' && backend && wss && identityToken`이 모두 참일 때만 `isActive`.
 
 ## IdentityContext
 
-사용자 identity 및 permission 모델을 표현합니다.
+```ts
+interface IdentityContext {
+    isInitialized: boolean;
+    isAuthenticated: boolean;
+    error: Error | null;
+    userId: string | null;
+    delegatorId: string | null;
+}
+```
 
-권장 필드:
+- `userId` — active 세션 토큰(`getActiveSessionToken().uid ?? .id`)에서 파생. cache observe용.
+- `delegatorId` — `identityCore.getDelegatorId()`.
+- `isInitialized`/`isAuthenticated`/`error` — runtime 플래그(모듈 스코프 `identityState`). `isInitialized`는 `useInitWebCore` 게이팅과 연결되고, `isAuthenticated`는 relay 기준 coarse auth입니다.
 
-- `relayProfile: UserProfile$ | null`
-- `cloudProfile: UserProfile$ | null`
-- `activeProfile: UserProfile$ | null`
-- `isGuest: boolean`
-- `userId: string | null`
-- `delegatorId: string | null`
-- `deviceId: string | null`
-- `userRole: string | null`
-- `oAuthProvider: OAuthLoginProvider | null`
-- `readonly userType: UserType`
-- `readonly permissions: UserPermissions`
-
-판단:
-
-- 이 필드들은 계산 여부와 무관하게 identity 도메인에 속합니다
-- `userId`, `userRole`, `isGuest`, `userType`, `permissions`는 파생값이지만 runtime이 아니라 identity에 속합니다
-- 따라서 파생값이라는 이유만으로 `runtime`으로 이동시키면 안 됩니다
-
-source of truth:
-
-- 저장 원본
-    - `identityCore.getRelayProfile()`
-    - `identityCore.getCloudProfile()`
-    - `identityCore.getDelegatorId()`
-    - `identityCore.getDeviceId()`
-    - `identityCore.getOAuthProvider()`
-- 파생값
-    - `isGuest`
-    - `userId`
-    - `userRole`
-    - `userType`
-    - `permissions`
-
-profile 접근 규칙:
-
-- relay 기준 정보가 필요하면 `relayProfile`에 접근합니다
-- cloud 기준 정보가 필요하면 `cloudProfile`에 접근합니다
-- 현재 활성 세션 기준 정보가 필요하면 `activeProfile`에 접근합니다
-- relay와 cloud profile을 하나의 canonical profile로 merge하지 않습니다
-
-현재 구현 메모:
-
-현재 구현은 `libs/web-core/src/session/types.ts`의 `IdentityContext` 안에 `runtime` 성격의 필드까지 함께 포함하고 있습니다. 권장 방향은 `IdentityCore`에 raw identity source를 모으고, `contextStore`에서 `IdentityContext`를 조립하는 구조입니다.
-
-## SessionRuntimeContext
-
-세션 실행 상태를 표현합니다.
-
-권장 필드:
-
-- `isInitialized: boolean`
-- `isAuthenticated: boolean`
-- `error: Error | null`
-
-필드 필요성 검토:
-
-- `isInitialized`
-    - 필요합니다
-    - session initialize 흐름 완료 여부를 외부에서 알아야 하기 때문입니다
-    - `useInitWebCore` 같은 초기화 gating 흐름과 직접 연결됩니다
-- `isAuthenticated`
-    - 필요합니다
-    - profile 존재 여부와 완전히 동일한 의미로 보지 말고, 현재 relay 기준 인증 상태를 나타내는 coarse auth 상태로 보는 것이 맞습니다
-    - cloud 여부와는 분리해서 해석해야 합니다
-- `error`
-    - 필요합니다
-    - initialize나 session lifecycle 중 마지막 오류 상태를 노출할 경계가 필요합니다
-    - 단, 영구 누적 에러 저장소가 아니라 현재 runtime failure snapshot 정도로 보는 것이 적절합니다
-
-정리:
-
-- runtime 필드: `isInitialized`, `isAuthenticated`, `error`
-
-현재 구현 메모:
-
-현재는 이 필드들과 `isOnMobileApp`이 `IdentityContext` 안에 존재합니다. 문서상 권장 방향은 `SessionRuntimeContext`를 `isInitialized`, `isAuthenticated`, `error` 중심으로 분리하고, `isOnMobileApp`은 세션 컨텍스트 밖의 환경 정보로 정리하는 것입니다.
+프로필/역할/권한 필드는 여기 없습니다 — app 레이어에서 파생합니다(`types.ts` 헤더 주석).
 
 ## ActiveServerContext
 
-request와 socket이 실제로 사용해야 하는 현재 대상 서버를 표현합니다.
-
-Relay case:
+request/socket이 붙어야 하는 현재 대상 서버(discriminated union):
 
 ```ts
-{
-    kind: 'relay';
-    backend: string;
-    wss: string;
-    siteId: string | null;
-    identityToken: string | null;
-}
+type ActiveServerContext =
+    | { kind: 'relay'; backend: string; wss: string; siteId: string | null; identityToken: string | null }
+    | { kind: 'cloud'; cloudId: string; siteId: string | null; backend: string; wss: string; identityToken: string };
 ```
 
-Cloud case:
+계산 규칙(`resolveActiveServerContext`): cloud가 active이면 cloud, 아니면 relay.
 
-```ts
-{
-    kind: 'cloud';
-    cloudId: string;
-    siteId: string | null;
-    backend: string;
-    wss: string;
-    identityToken: string;
-}
-```
+## cid / sid / uid 출처
 
-계산 규칙:
-
-1. if cloud session is active, choose cloud
-2. otherwise choose relay
-
-## 현재 구현 매핑
-
-현재 기준 파일:
-
-- context assembly: `libs/web-core/src/session/contextStore.ts`
-- exported getters: `libs/web-core/src/session/contexts.ts`
-- types: `libs/web-core/src/session/types.ts`
-
-매핑:
-
-- `RelayContext` -> `RelaySessionContext`
-- `CloudContext` -> `CloudSessionContext`
-- `IdentityContext` -> `IdentityContext + SessionRuntimeContext`
-- `ActiveServerContext` -> same concept
-
-## 설계 가이드
-
-권장 공개 계약 방향:
-
-- `getGlobalSessionContext()`를 메인 외부 API로 유지
-- 로컬 편의를 위한 specialized getter는 허용
-- raw storage semantics를 외부 소비자에게 노출하지 않음
-
-권장 구현 방향:
-
-- 우선 현재 동작을 보존
-- `IdentityContext`에서 runtime 성격 필드를 분리해 `SessionRuntimeContext`로 정리
-- `IdentityContext`는 사용자 identity 및 permission 모델에 집중
-- `contextStore`는 저장소가 아니라 assembler 역할에 집중
+- **cid** — `cloudCore` selected cloud(`getSelectedCloudId()`, 기본 `'default'`).
+- **sid** — active cloud에 따라 라우팅(`getSelectedSiteId()`: cloud가 `default`면 relayCore, 아니면 cloudCore). `activeServer.siteId`가 이를 반영.
+- **uid** — 별도 저장이 아니라 active 세션 토큰(`token.uid ?? token.id`)에서 파생.
 
 ## 관련 문서
 

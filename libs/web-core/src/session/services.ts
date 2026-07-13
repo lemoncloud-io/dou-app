@@ -518,7 +518,7 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
  * - Skips when the selected cloud is `default` or there is no delegation token (cloud not connected).
  * - Skips when there is no selected site (sid null), since no site session exists (cid/sid default rule).
  *
- * Failures are absorbed by the caller (useTokenRefresh); they never trigger logout, to keep relay continuity.
+ * Failures are absorbed by the caller (the profile-update refresh flow); they never trigger logout, to keep relay continuity.
  */
 export const refreshActiveCloudSession = async (): Promise<void> => {
     if (cloudCore.getSelectedCloudId() === 'default' || !cloudCore.getDelegationToken()) {
@@ -563,7 +563,8 @@ export const getServerAuthRegistration = async (
 
     // relay: identity token from the relay store, authId from the cached lemon signature.
     const token = relayCore.getIdentityToken();
-    const { authId } = await webTransport.getTokenSignature();
+    const authId = relayCore.getRelayToken()?.$auth?.id || null;
+
     return token && authId ? { token, authId } : null;
 };
 
@@ -589,11 +590,17 @@ export const signServerAuth = async (
         return { signature, current };
     }
 
-    // relay: reuse the lemon-web-core precomputed signature (same source as the HTTP refresh path).
-    const { current, signature } = await webTransport.getTokenSignature();
-    if (!current || !signature) {
-        throw new Error('Missing relay signature for socket auth');
+    // relay: compute the signature over `$auth.id` ourselves instead of reusing
+    // webTransport.getTokenSignature(), which keys on `Token.authId` for the HTTP refresh path.
+    const relayToken = relayCore.getRelayToken();
+    const authId = relayToken?.$auth?.id;
+    const accountId = relayToken?.Token?.accountId;
+    const identityId = relayToken?.Token?.identityId;
+    if (!authId || !accountId || !identityId) {
+        throw new Error('Missing relay token fields for socket auth signature');
     }
+    const current = new Date().toISOString();
+    const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
     return { signature, current };
 };
 
@@ -611,8 +618,20 @@ export const commitServerRefreshedToken = async (kind: ServerKind, view: UserTok
         const existing = cloudCore.getCloudToken();
         cloudCore.saveCloudToken(existing ? ({ ...existing, ...view } as UserTokenView) : view);
     } else if (view.Token) {
-        await webTransport.buildCredentialsByToken(view.Token);
-        relayCore.saveRelayToken(view);
+        // A socket refresh view can omit `Token.identityToken` (the SDK itself falls back to the token
+        // it already holds), but relay REQUIRES it — relay signed HTTP sends it as `x-lemon-identity`
+        // and the next register reads it back via getIdentityToken(). Preserve the stored identityToken
+        // when the fresh view lacks one, mirroring the HTTP refresh path (api/auth.ts `refreshAuthToken`).
+        const previous = relayCore.getRelayToken();
+        const merged = {
+            ...view,
+            Token: {
+                ...view.Token,
+                identityToken: view.Token.identityToken ?? previous?.Token?.identityToken,
+            },
+        } as UserTokenView;
+        await webTransport.buildCredentialsByToken(merged.Token);
+        relayCore.saveRelayToken(merged);
     }
 
     // Re-derive uid / identity from the freshly written token so activeServer + UI stay in sync.
