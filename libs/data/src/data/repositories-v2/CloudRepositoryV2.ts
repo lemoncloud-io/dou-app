@@ -52,33 +52,13 @@ export class CloudRepositoryV2 extends BaseRepositoryV2 implements ICloudReposit
         // Capture the request-time context so a late response never pollutes a switched scope.
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.cloudRemoteDataSource.getCloud(payload, normalizedContext);
-        if (domain.id) {
-            await this.cloudLocalDataSource.cacheWrite(domain, requestContext);
-        }
-        return domain;
+        return await this.cloudRemoteDataSource.getCloud(payload, normalizedContext);
     }
 
     public async updateCloud(payload: CloudUpdateInput): Promise<DomainCloud> {
-        const id = resolveCloudId(payload);
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing = id ? await this.cloudLocalDataSource.cacheRead(id, requestContext) : null;
-        if (id) {
-            await this.cloudLocalDataSource.cacheWrite({ id, ...(payload as Partial<DomainCloud>) }, requestContext);
-        }
-        try {
-            const domain = await this.cloudRemoteDataSource.updateCloud(payload, normalizedContext);
-            if (domain.id) {
-                await this.cloudLocalDataSource.cacheWrite(domain, requestContext);
-            }
-            return domain;
-        } catch (error) {
-            if (existing) {
-                await this.cloudLocalDataSource.cacheWrite(existing, requestContext);
-            }
-            throw error;
-        }
+        return await this.cloudRemoteDataSource.updateCloud(payload, normalizedContext);
     }
 
     public async deleteCloud(payload: CloudDeleteInput): Promise<DomainCloud> {
