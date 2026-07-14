@@ -67,16 +67,16 @@ export class CloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICl
 
     public async cacheWrite(
         item: Partial<DomainCloud>,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
         const id = this.assertRequiredString(item.id, 'id');
+        const cid = this.assertRequiredString(item.cid, 'cid');
         const existing = await this.cacheStorage.load(id);
-        const context = this.getContext(contextOverride);
         const merged: DomainCloud = {
             ...(existing ?? ({} as DomainCloud)),
             ...item,
             id,
-            cid: item.cid || existing?.cid || context.cid || this.getCid(contextOverride),
+            cid,
             cloudType: item.cloudType ?? existing?.cloudType ?? 'invited',
         };
         await this.cacheStorage.save(id, merged);
@@ -86,24 +86,25 @@ export class CloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICl
 
     public async cacheWriteMany(
         items: Array<Partial<DomainCloud>>,
-        contextOverride?: LocalDataSourceV2ContextOverride
+        _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
         const validItems = items.filter(item => !!item.id);
         if (validItems.length === 0) return;
         const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
-        const context = this.getContext(contextOverride);
         const mergedList = validItems.map((item, index) => {
             const existing = existingItems[index];
+            const id = this.assertRequiredString(item.id, 'id');
+            const cid = this.assertRequiredString(item.cid, 'cid');
             return {
                 ...(existing ?? ({} as DomainCloud)),
                 ...item,
-                id: item.id!,
-                cid: item.cid || existing?.cid || context.cid || 'default',
+                id,
+                cid,
                 cloudType: item.cloudType ?? existing?.cloudType ?? 'invited',
             } as DomainCloud;
         });
         await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
+        this.scheduleItemReemit(mergedList.map(item => item.id));
         this.scheduleListReemit([CLOUD_LIST_KEY]);
     }
 

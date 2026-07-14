@@ -21,13 +21,13 @@ export const InviteCloudItem = ({
     hasUnread,
     onSelectCloud,
 }: InviteCloudItemProps) => {
-    const displayName = inviteCloud.name ?? inviteCloud.id ?? '';
+    const displayName = inviteCloud.name ?? inviteCloud.cid ?? '';
     const disabled = isDisabled || isSelected;
 
     return (
         <button
             onClick={() => {
-                if (!disabled && inviteCloud.id) onSelectCloud(inviteCloud.id);
+                if (!disabled && inviteCloud.cid) onSelectCloud(inviteCloud.cid);
             }}
             disabled={disabled}
             className={cn(
@@ -51,7 +51,7 @@ export const InviteCloudItem = ({
                         {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
                     </div>
                     <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                        ID: {inviteCloud.id}
+                        ID: {inviteCloud.cid}
                     </span>
                 </div>
             </div>
