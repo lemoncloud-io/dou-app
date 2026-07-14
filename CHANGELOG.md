@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-07-14] - No version updates
+
+### Bug Fixes
+
+- (cloud) derive cid from payload instead of active-server context
+- (auth) skip local cache clearing on logout
+
 ## [2026-07-12] - No version updates
 
 ### Features
