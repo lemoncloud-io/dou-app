@@ -213,7 +213,8 @@
             "renewal_canceled": "취소됨",
             "autoRenewNotice": "본 구독은 자동 갱신 구독입니다. 구독 기간이 종료되면 동일한 가격으로 자동 갱신되며, 갱신일 최소 24시간 전에 구독을 해지하지 않으면 요금이 청구됩니다.",
             "termsOfService": "이용약관",
-            "privacyPolicy": "개인정보처리방침"
+            "privacyPolicy": "개인정보처리방침",
+            "inUse": "구독 이용 중"
         },
         "accountManage": {
             "title": "계정 관리",
@@ -346,7 +347,8 @@
     },
     "bottomNav": {
         "chat": "채팅",
-        "my": "MY"
+        "my": "MY",
+        "unread": "{{count}}개 안 읽음"
     },
     "explore": {
         "title": "탐색",

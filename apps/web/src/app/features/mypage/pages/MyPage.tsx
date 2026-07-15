@@ -1,4 +1,3 @@
-import { ChevronRight, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -7,23 +6,25 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
-import { useSessionSelection } from '@chatic/web-core';
+import { IconChevronRight, IconUser, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
+import { useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
-import { BottomNavigation } from '../../../ui/components/BottomNavigation';
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { useAppIcon } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
 import { debugOverlayActions, useDebugMode } from '../../debug';
 import { ROUTES } from '../../../routes/paths';
 
+const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
+
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { isGuest, isCloudActive } = useRuntimeProfile();
     const { selectedCloudId } = useSessionSelection();
+    const { data: membership } = useMembershipInfo();
     const myUser = useMyUser();
 
     const { setTheme, isDarkTheme } = useTheme();
@@ -45,6 +46,29 @@ export const MyPage = () => {
     const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
 
     const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
+    const profileAvatar = (
+        <span className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-avatar-ring bg-muted">
+            {displayImageUrl ? (
+                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+                <IconUser size={20} className="text-placeholder" />
+            )}
+        </span>
+    );
+    const profileText = (
+        <span className="flex flex-col items-start gap-0.5">
+            <span className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
+                {displayName}
+            </span>
+            <span className="text-[14px] text-description">{myUser?.email}</span>
+        </span>
+    );
+    // Subscription status label — "구독 이용 중" when a membership is valid, else "구독 관리".
+    // Free-trial D-N state is intentionally out of scope (no reliable server "in trial" flag).
+    const hasSubscription = membership?.isValid === true;
+
+    const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
+    const showUpdate = !!versionInfo?.shouldUpdate && isMobilePlatform;
 
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
@@ -64,181 +88,130 @@ export const MyPage = () => {
         const storeUrl = getStoreUrl(deviceInfo?.platform);
         if (!storeUrl) return;
 
-        const isOnMobileApp = isNative();
-        if (isOnMobileApp) {
+        if (isNative()) {
             appBridge.openURL(storeUrl);
         } else {
             window.open(storeUrl, '_blank');
         }
     };
 
+    const versionText = isMobilePlatform
+        ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
+        : `v${versionInfo?.webVersion}`;
+
     return (
         <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 overflow-y-auto">
-            {/* Profile Section */}
+            {/* Account profile header — account-level profile (name/email/photo), not cloud/site. */}
             <div className="px-5 pb-3 pt-safe-top">
-                {/* Show the sign-in prompt only for guests; once a real relay login exists
-                    (userRole 'user' → isGuest false), show the profile instead of "Sign in". */}
                 {isGuest ? (
                     <button onClick={() => navigate(ROUTES.mypage.login)} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                                 {t('mypage.loginPrompt')}
                             </span>
-                            <ChevronRight size={18} className="text-foreground" />
+                            <IconChevronRight className="size-[18px] text-foreground" />
                         </div>
-                        <p className="text-[14px] text-muted-foreground">{t('mypage.loginDescription')}</p>
+                        <p className="text-[14px] text-description">{t('mypage.loginDescription')}</p>
                     </button>
                 ) : isDefaultCloud ? (
                     <div className="flex items-center gap-[9px]">
-                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {displayImageUrl ? (
-                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
-                            ) : (
-                                <User size={20} className="text-muted-foreground" />
-                            )}
-                        </div>
-                        <div className="flex flex-col items-start gap-0.5">
-                            <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                {displayName}
-                            </h2>
-                            <p className="text-[14px] text-muted-foreground">{myUser?.email}</p>
-                        </div>
+                        {profileAvatar}
+                        {profileText}
                     </div>
                 ) : (
-                    <button onClick={handleProfileClick} className="flex items-center gap-[9px]">
-                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {displayImageUrl ? (
-                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
-                            ) : (
-                                <User size={20} className="text-muted-foreground" />
-                            )}
-                        </div>
-                        <div className="flex flex-col items-start gap-0.5">
-                            <h2 className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                {displayName}
-                            </h2>
-                            <p className="text-[14px] text-muted-foreground">{myUser?.email}</p>
-                        </div>
+                    <button onClick={handleProfileClick} className="flex items-center gap-[9px] text-left">
+                        {profileAvatar}
+                        {profileText}
                     </button>
                 )}
             </div>
 
-            {/* Menu Cards Container */}
+            {/* Menu cards */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* My Info Card */}
+                {/* My info */}
                 {!isGuest && (
-                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                        <button
+                    <MenuCard>
+                        <ListRow
+                            title={t('mypage.accountInfo.title')}
+                            trailing={<Chevron />}
                             onClick={() => navigate(ROUTES.mypage.account.info)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-foreground">
-                                {t('mypage.accountInfo.title')}
-                            </span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </button>
-                    </div>
+                        />
+                    </MenuCard>
                 )}
 
-                {/* Subscription & Account Management Card - Cloud user only */}
+                {/* Subscription + account management */}
                 {!isGuest && (
-                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                        <button
+                    <MenuCard>
+                        <ListRow
+                            title={hasSubscription ? t('mypage.subscription.inUse') : t('mypage.subscription.title')}
+                            trailing={<Chevron />}
                             onClick={() => navigate(ROUTES.subscription.root)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-foreground">
-                                {t('mypage.subscription.title')}
-                            </span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </button>
-                        {!isGuest && isCloudActive && (
-                            <>
-                                <div className="h-2" />
-                                <button
-                                    onClick={() => navigate(ROUTES.mypage.account.manage)}
-                                    className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                                >
-                                    <span className="text-[15px] font-medium text-foreground">
-                                        {t('mypage.accountManage.title')}
-                                    </span>
-                                    <ChevronRight size={18} className="text-muted-foreground" />
-                                </button>
-                            </>
+                        />
+                        {isCloudActive && (
+                            <ListRow
+                                title={t('mypage.accountManage.title')}
+                                trailing={<Chevron />}
+                                onClick={() => navigate(ROUTES.mypage.account.manage)}
+                            />
                         )}
-                    </div>
+                    </MenuCard>
                 )}
 
-                {/* Settings Card - For all users (including guests) */}
-                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
-                        <span className="text-[15px] font-medium text-foreground">{t('mypage.darkMode')}</span>
-                        <Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />
-                    </div>
-                    <div className="flex items-center justify-between py-3 pl-4 pr-3">
-                        <span className="text-[15px] font-medium text-foreground">{t('mypage.messagePreview')}</span>
-                        <Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />
-                    </div>
-                    <button
-                        onClick={() => setIsLanguageSheetOpen(true)}
-                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                    >
-                        <span className="text-[15px] font-medium text-foreground">{t('mypage.languageSettings')}</span>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[14px] text-muted-foreground">{currentLanguageLabel}</span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </div>
-                    </button>
-                    {isNative() && isIconChangeSupported && (
-                        <button
-                            onClick={() => setIsAppIconSheetOpen(true)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-foreground">
-                                {t('mypage.appIconSettings')}
+                {/* Settings — kept from the previous design, restyled onto the DS card. */}
+                <MenuCard>
+                    <ListRow
+                        title={t('mypage.darkMode')}
+                        trailing={<Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />}
+                    />
+                    <ListRow
+                        title={t('mypage.messagePreview')}
+                        trailing={<Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />}
+                    />
+                    <ListRow
+                        title={t('mypage.languageSettings')}
+                        trailing={
+                            <span className="flex items-center gap-1">
+                                <span className="text-[14px] text-description">{currentLanguageLabel}</span>
+                                <Chevron />
                             </span>
-                            <div className="flex items-center gap-1">
-                                <span className="text-[14px] text-muted-foreground">{currentIconLabel}</span>
-                                <ChevronRight size={18} className="text-muted-foreground" />
-                            </div>
-                        </button>
+                        }
+                        onClick={() => setIsLanguageSheetOpen(true)}
+                    />
+                    {isNative() && isIconChangeSupported && (
+                        <ListRow
+                            title={t('mypage.appIconSettings')}
+                            trailing={
+                                <span className="flex items-center gap-1">
+                                    <span className="text-[14px] text-description">{currentIconLabel}</span>
+                                    <Chevron />
+                                </span>
+                            }
+                            onClick={() => setIsAppIconSheetOpen(true)}
+                        />
                     )}
-                    <button
+                    <ListRow
+                        title={t('mypage.viewOnboarding')}
+                        trailing={<Chevron />}
                         onClick={() => {
                             resetOnboarding();
                             navigate(ROUTES.root, { replace: true });
                         }}
-                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                    >
-                        <span className="text-[15px] font-medium text-foreground">{t('mypage.viewOnboarding')}</span>
-                        <ChevronRight size={18} className="text-muted-foreground" />
-                    </button>
-                </div>
+                    />
+                </MenuCard>
 
-                {/* Policy and Version Card */}
-                <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                    <button
+                {/* Policy + version */}
+                <MenuCard>
+                    <ListRow
+                        title={t('mypage.policy.title')}
+                        trailing={<Chevron />}
                         onClick={() => navigate(ROUTES.mypage.policy.root)}
-                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                    >
-                        <span className="text-[15px] font-medium text-foreground">{t('mypage.policy.title')}</span>
-                        <ChevronRight size={18} className="text-muted-foreground" />
-                    </button>
-                    <button
-                        onClick={registerTap}
-                        className="flex w-full items-center justify-between py-3 pl-4 pr-3 text-left"
-                    >
-                        <div className="flex flex-col items-start gap-0.5">
-                            <span className="text-[15px] font-medium text-foreground">{t('mypage.appVersion')}</span>
-                            <span className="text-[13px] text-muted-foreground">
-                                {deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android'
-                                    ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
-                                    : `v${versionInfo?.webVersion}`}
-                            </span>
-                        </div>
-                        {versionInfo?.shouldUpdate &&
-                            (deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android') && (
-                                <div
+                    />
+                    <ListRow
+                        title={t('mypage.appVersion')}
+                        subtitle={versionText}
+                        trailing={
+                            showUpdate ? (
+                                <span
                                     role="button"
                                     onClick={e => {
                                         e.stopPropagation();
@@ -249,37 +222,29 @@ export const MyPage = () => {
                                     <span className="text-[14px] font-medium text-primary">
                                         {t('mypage.updateAvailable')}
                                     </span>
-                                    <ChevronRight size={18} className="text-primary" />
-                                </div>
-                            )}
-                    </button>
+                                    <IconChevronRight className="size-[18px] text-primary" />
+                                </span>
+                            ) : undefined
+                        }
+                        onClick={registerTap}
+                    />
                     {isDebugMode && (
-                        <>
-                            <button
-                                onClick={() => debugOverlayActions.open('expanded')}
-                                className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                            >
-                                <span className="text-[15px] font-medium text-destructive">Debug Mode</span>
-                                <ChevronRight size={18} className="text-destructive" />
-                            </button>
-                        </>
+                        <ListRow
+                            title="Debug Mode"
+                            destructive
+                            trailing={<IconChevronRight className="size-[18px] text-destructive" />}
+                            onClick={() => debugOverlayActions.open('expanded')}
+                        />
                     )}
-                </div>
+                </MenuCard>
 
                 {/* Logout */}
                 {!isGuest && (
-                    <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                        <button
-                            onClick={() => setIsLogoutDialogOpen(true)}
-                            className="flex w-full items-center py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-destructive">{t('mypage.logout')}</span>
-                        </button>
-                    </div>
+                    <MenuCard>
+                        <ListRow title={t('mypage.logout')} destructive onClick={() => setIsLogoutDialogOpen(true)} />
+                    </MenuCard>
                 )}
             </div>
-
-            <BottomNavigation />
 
             {/* Logout Dialog */}
             <LogoutDialog

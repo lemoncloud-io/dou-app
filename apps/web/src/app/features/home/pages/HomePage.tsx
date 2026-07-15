@@ -18,7 +18,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
-import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
+import { CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
 import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
 import {
@@ -194,7 +194,6 @@ export const HomePage = () => {
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
             <InviteDialog />
-            <BottomNavigation />
         </div>
     );
 };
