@@ -156,3 +156,6 @@ AuthKey_*.p8
 apps/mobile/fastlane/metadata/
 # Store credentials kept next to the Fastfile (.p8 is already ignored globally)
 apps/mobile/fastlane/*.json
+
+
+storybook-static

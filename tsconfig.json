@@ -28,6 +28,9 @@
             "path": "./libs/ui-kit"
         },
         {
+            "path": "./libs/web-ui-kit"
+        },
+        {
             "path": "./libs/theme"
         },
         {
