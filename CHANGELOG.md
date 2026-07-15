@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-07-15] - No version updates
+
+### Features
+
+- (web/layout) floating bottom nav in shell + redesign MyPage on web-ui-kit
+
+### Documentation
+
+- (adr) renumber layout-shell ADR 0010 → 0011
+
 ## [2026-07-15] - root@0.43.0, @chatic/web@0.37.0
 
 ### Features
