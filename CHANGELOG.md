@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-07-15] - root@0.43.0, @chatic/web@0.37.0
+
+### Features
+
+- (web) add place profile create overlay
+- (web-ui-kit) add TextField enforceMaxLength for soft over-limit
+
+### Bug Fixes
+
+- (web-ui-kit) stop AlertDialog action row inheriting buttonVariants
+
+### Documentation
+
+- (adr) renumber place-profile ADR to 0012 under docs/adr
+
 ## [2026-07-15] - No version updates
 
 ### Features
