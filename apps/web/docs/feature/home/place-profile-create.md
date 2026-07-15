@@ -1,6 +1,6 @@
 # 플레이스 프로필 생성 (Place Profile Create)
 
-> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [ADR-0001](../../../../../docs/adrs/ADR-0001-place-profile-creation.md)
+> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [0012](../../../../../docs/adr/0012-place-profile-creation.md)
 
 ## 목적
 
