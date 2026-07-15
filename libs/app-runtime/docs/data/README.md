@@ -1,8 +1,5 @@
 # Data Domain Spec
 
-Date: 2026-06-24
-Status: Target Architecture
-
 ## 목적
 
 `data` 도메인은 repository, local data source, remote data source를 조립해 앱이 사용할 headless data runtime을 제공한다.
@@ -24,9 +21,10 @@ flowchart TD
 
 ### `DataManager`
 
-- data context 생명주기 관리
-- `ensure(context)`로 `cid/sid/uid` 동기화
-- `destroy()`로 data runtime 정리
+- data context 생명주기 관리 — `DataContextHolder`에 현재 `{ cid, sid?, uid? }` 보관
+- `ensure(context)`로 context 갱신 후 repository 반환
+- `destroy()`로 context를 `DEFAULT_CONTEXT`로 리셋 (**캐시는 비우지 않는다**)
+- **`socketAwareProvider`** — context holder를 감싸 `getContext()`마다 live `socketCid = getSocketManager().getBoundCid()`를 주입한다. repository가 socket이 붙은 클라우드와 캐시 컨텍스트 클라우드의 **불일치를 감지해 오염 쓰기를 스킵**하도록 한다(cross-cloud 가드).
 
 ### `remoteFactory`
 
@@ -87,4 +85,4 @@ flowchart TD
 
 - [context-design.md](context-design.md) — 전역/요청 context 분리 설계
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
-- [../sync/README.md](../sync/README.md) — sync 결과의 cache 반영 경계
+- [../sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계

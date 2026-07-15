@@ -1,15 +1,35 @@
+// @chatic/web-core — session SSoT (identity/relay/cloud + activeServer), transport, and shared hooks
+// for Chatic web clients. Exports are grouped by concern below; the public catalog lives in
+// docs/hooks/public-surface.md and docs/session/public-api.md.
+
+// --- Config: env-derived endpoints, build identifiers, i18n key -----------------------------
+export * from './config';
+
+// --- Transport: low-level API client, signing, request builder ------------------------------
 export * from './transport';
-export {
-    WEB_DOU_ENDPOINT as DOU_ENDPOINT,
-    WEB_ENV as ENV,
-    WEB_OAUTH_ENDPOINT as OAUTH_ENDPOINT,
-    WEB_PROJECT as PROJECT,
-    WEB_SOCIAL_OAUTH_ENDPOINT as SOCIAL_OAUTH_ENDPOINT,
-    WEB_WS_ENDPOINT as WS_ENDPOINT,
-    startWebTransportInit as startWebCoreInit,
-} from './transport/webTransport';
-export * from './hooks';
+
+// --- API: typed request functions + payload/response types ----------------------------------
 export * from './api';
+
+// --- Session: global session context + shared session types ---------------------------------
 export * from './session/contexts';
 export * from './session/types';
-export { LANGUAGE_KEY } from './session/core';
+
+// --- Hooks: background orchestration, session actions, and readers --------------------------
+export * from './hooks';
+
+// --- app-runtime bridge (consumed by @chatic/app-runtime's socket delegate, not app-facing) -
+// SDK AuthController bridge helpers (kind-explicit, per-server; multi-socket-design.md §7), session
+// teardown, and the optimistic selected-site read model. `./session/services` is not auto re-exported,
+// so these are named explicitly.
+export {
+    getServerAuthRegistration,
+    signServerAuth,
+    commitServerRefreshedToken,
+    logoutCloudSession,
+    logoutRelaySession,
+    applySelectedSite,
+} from './session/services';
+export type { LogoutOptions, ServerKind } from './session/services';
+// Selected-site read model getter, for app-runtime's socket-driven site switch (auth.switch).
+export { getSelectedSiteId } from './session/contextStore';

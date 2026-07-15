@@ -1,54 +1,47 @@
 # App Runtime Public Surface
 
-Date: 2026-06-24
-Status: Target Architecture
-
 ## 목적
 
-이 문서는 `@chatic/app-runtime`를 사용하는 앱이 어떤 공개 표면을 기준으로 런타임을 조립해야 하는지 정의한다.
+`@chatic/app-runtime`를 사용하는 앱이 어떤 공개 표면을 기준으로 런타임을 조립하는지 정의한다. 실제 export는 `src/index.ts` 기준이다.
 
 원칙:
 
 - 값은 훅으로 읽는다.
 - lifecycle은 컴포넌트 마운트로 제어한다.
-- socket/session/sync의 내부 구현 세부사항은 외부에 새지 않는다.
+- socket/session/sync/data의 내부 구현 세부는 외부에 새지 않는다.
 
-## 공개 표면
+## 공개 표면 (`src/index.ts`)
 
-| 구분               | 심볼                                                                                           | 설명                                                  |
-| ------------------ | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 값 파생 훅         | `useRuntimeBinding()`                                                                          | 활성 서버 기준 `RuntimeBinding` 파생                  |
-| 값 파생 훅         | `useRuntimeRepositories()`                                                                     | 현재 data context에 바인딩된 repository 조회          |
-| 값 파생 훅         | `useSocketState()`                                                                             | socket 연결/인증 상태 조회                            |
-| lifecycle 컴포넌트 | `<RuntimeConnectionHost>`                                                                      | 런타임 조립 루트                                      |
-| lifecycle 컴포넌트 | `<TransportBootstrap>`                                                                         | transport 초기화 게이트                               |
-| lifecycle 컴포넌트 | `<SessionBackgroundRunner>`                                                                    | 백그라운드 세션 유지/리프레시                         |
-| lifecycle 컴포넌트 | `<RuntimeDataBinder>`                                                                          | data context 동기화                                   |
-| lifecycle 컴포넌트 | `<SocketBinder>`                                                                               | socket config 동기화                                  |
-| lifecycle 훅       | `useDeviceTokenRegistration(delegate)`                                                         | 네이티브 셸 푸시 토큰 force 등록 (스로틀·재시도)      |
-| delegate 계약      | `SocketSessionDelegate`                                                                        | active-server-aware register/sign/writeback 주입 계약 |
-| delegate 계약      | `DeviceTokenDelegate`                                                                          | 셸별 푸시 토큰 획득/식별자 주입 계약                  |
-| 편의 진입점        | `getRuntimeManager()`                                                                          | runtime manager 접근                                  |
-| 편의 진입점        | `getSocketRuntime()`                                                                           | socket/session/sync 조립체 접근                       |
-| 편의 진입점        | `getDataRuntime()`                                                                             | data runtime 접근                                     |
-| 핵심 타입          | `RuntimeBinding`, `SocketBindingConfig`, `SocketState`, `DataContext`, `SocketSessionDelegate` | 외부에서 알아야 하는 주요 타입                        |
+루트 배럴(`src/index.ts`)은 **명시적 named export만** 한다 — `export *` 배럴을 쓰지 않으므로 내부 배선(소켓 auth bootstrap/reauth, connection 바인더, 저수준 socket 타입, raw session 액션)은 새지 않는다. 공개 값 export 집합은 `src/public-surface.test.ts`가 잠근다.
 
-## socket runtime 공개 규칙
+| 구분               | 심볼                                                           | 설명                                                                                |
+| ------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 값 파생 훅         | `useRuntimeBinding()`                                          | 활성 서버 기준 `RuntimeBinding` 파생(듀얼 소켓 슬롯 + auth)                         |
+| 값 파생 훅         | `useRuntimeRepositories()`                                     | 현재 data context에 바인딩된 repository 조회                                        |
+| 값 파생 훅         | `useRuntimeProfile()`                                          | 파생 세션 프로필(`SessionProfile`: userRole/isGuest/isCloudActive/userName/photo)   |
+| 값 파생 훅         | `useRuntimeSocketState()`                                      | socket 연결/인증 상태(`isConnected`/`isVerified`)                                   |
+| 세션 액션 훅       | `useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` | site 전환 / relay·cloud 로그아웃(소켓 구동 액션의 react-query 래퍼, `src/session/`) |
+| sync 등록 훅       | `useChatSync` · `useChannelSync` · `usePlaceSync`              | 화면에서 sync target 등록([sync/README.md](./socket/sync/README.md))                |
+| lifecycle 컴포넌트 | `<RuntimeConnectionHost>`                                      | 런타임 조립 루트 + web-core init 게이트 + delegate 소유(내부 바인더 마운트)         |
+| lifecycle 훅       | `useDeviceTokenRegistration(delegate)`                         | 네이티브 셸 푸시 토큰 force 등록(스로틀·재시도)                                     |
+| 매니저 진입점      | `getSocketManager()` · `getSyncManager()`                      | socket/sync 매니저 접근                                                             |
+| delegate 계약      | `DeviceTokenDelegate`                                          | 셸별 푸시 토큰 획득/식별자 주입 계약                                                |
+| 핵심 타입          | `ISocketManager` · `SessionProfile`                            | 매니저 반환/프로필 타입                                                             |
 
-`getSocketRuntime()`가 최종적으로 노출해야 하는 내부 조립체:
+> **back-compat 별칭:** `useSocketState`(=`useRuntimeSocketState`) · `useSessionProfile`(=`useRuntimeProfile`)은 desktop-web이 리팩터 중이라 churn을 피하려고 남긴 구(舊) 이름 별칭이다. 신규 코드는 `useRuntime*` 이름을 쓰고, desktop-web 마이그레이션 후 제거한다.
 
-```ts
-{
-  socketManager,
-  syncManager,
-}
-```
+## 외부에서 알 필요 없는 것 (비공개)
 
-> 인증은 SDK `AuthController`(`client.auth`)가 소유하므로 조립체에 `sessionController`를 두지 않는다. bootstrap 시퀀싱은 `SocketBinder`가 `bootstrapSocketConnection(...)`로 수행한다.
-
-주의:
-
-- `ManagedSocketClientProxy`는 제거(request facade는 `SocketManager`로 흡수), `AppSyncRuntime`는 `SyncManager`로 재편(진입점 `getSyncManager()`)되었다. 정렬 상태 전체는 [architecture.md](./architecture.md#현재-코드와의-차이) 참조.
+- **세션 액션 원함수** `switchSite` · `logoutSession` · `logoutCloudSession` — `src/socket/auth/`에 있고 루트에서 export하지 않는다. 앱은 위 `useSiteSwitch`/`useSessionLogout`/`useLogoutCloudSession` 훅으로만 소비한다.
+- **소켓 배선 함수** `bootstrapSocketConnection` · `reauthenticateActiveSocket` — `SocketBinder`/`SocketReauthBinder`가 내부에서만 호출한다.
+- **connection 바인더** `<RuntimeDataBinder>` · `<SocketBinder>` · `<SocketReauthBinder>` — `RuntimeConnectionHost`가 내부에서 마운트한다.
+- **delegate 계약** `SocketSessionDelegate` (`socket/auth/types.ts`) — app-runtime 내부(`useSocketSessionDelegate`)에서만 배선한다.
+- **저수준 socket 타입** `SocketKind` · `SocketBindingConfig` · `SocketState` — 내부 전용.
+- `useSyncTarget` · `useProfileSync` — 내부 전용(앱 미사용).
+- `getSocketRuntime()` · `getDataRuntime()` — 조립체 접근자. **export하지 않는다**.
+- `DataManager` · `SyncManager` · `SocketManager` 클래스, `getDataManager()` · `getRepositories()` · `createSyncPlans()`
+- `RuntimeBinding` / `RuntimeSocketSlot` **타입** — `useRuntimeBinding()` 반환값으로만 소비.
+- `createClientSocketV2` · `createDeviceRuntime` · raw `ClientSocketV2` · raw sync runtime
 
 ## 앱 조립 예시
 
@@ -57,9 +50,8 @@ import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 const App = () => {
     const binding = useRuntimeBinding();
-
     return (
-        <RuntimeConnectionHost binding={binding} delegate={delegate}>
+        <RuntimeConnectionHost binding={binding}>
             <MainLayout />
         </RuntimeConnectionHost>
     );
@@ -68,23 +60,15 @@ const App = () => {
 
 설명:
 
-- `RuntimeConnectionHost` 내부에서 `TransportBootstrap`, `SessionBackgroundRunner`, `RuntimeDataBinder`, `SocketBinder`를 조립한다.
-- 인증 문맥(토큰/site) 변경은 별도 binder 없이 SDK `AuthController`가 담당한다(만료·재연결 자동, site 전환은 `client.auth.switch`). 이전 구현의 `<SocketAuthBinder>`는 SDK 도입 시 삭제된다.
-- sync는 별도 binder를 두지 않고 `SyncManager` 내부 서비스로 동작한다.
-
-## 외부에서 알 필요 없는 것
-
-- `createClientSocketV2`
-- `createDeviceRuntime`
-- raw `ClientSocketV2`
-- raw sync runtime 인스턴스
-
-위 항목은 모두 내부 구현 세부사항이다.
+- `RuntimeConnectionHost`는 **`{ binding, children }`만** 받는다. delegate는 Host 내부(`useSocketSessionDelegate`)가 소유하므로 앱이 주입하지 않는다.
+- Host 내부에서 `useInitWebCore` init 게이트 뒤에 `RuntimeDataBinder`·`SocketBinder`·`SocketReauthBinder`를 조립하고, relay keep-alive(`useRelaySessionKeepAlive`)는 게이트 위에서 인라인 호출한다([runtime/session-lifecycle.md](./runtime/session-lifecycle.md)).
+- 인증 문맥(토큰/site) 변경은 SDK `AuthController`(만료·재연결 자동)와 `SocketReauthBinder`(same-connection 신원 교체)가 담당한다. site 전환은 `useSiteSwitch`(내부 `switchSite` 래퍼).
+- sync는 별도 binder 없이 `SyncManager` 내부 서비스로 동작한다.
 
 ## 관련 문서
 
 - [architecture.md](./architecture.md)
 - [runtime/README.md](./runtime/README.md)
 - [socket/README.md](./socket/README.md)
-- [sync/README.md](./sync/README.md)
+- [sync/README.md](./socket/sync/README.md)
 - [data/README.md](./data/README.md)

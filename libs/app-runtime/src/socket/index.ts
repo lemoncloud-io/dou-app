@@ -1,3 +1,3 @@
 export * from './types';
-export * from './hooks/useSocketState';
+export * from './auth';
 export * from './sync/hooks/useSyncTarget';

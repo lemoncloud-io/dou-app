@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import { useSessionSelection } from '@chatic/web-core';
 import type { DataRepositoriesV2, DomainChannel } from '@chatic/data';
 
@@ -20,7 +20,7 @@ import type { DataRepositoriesV2, DomainChannel } from '@chatic/data';
 export const useActiveCloudChannels = (): DomainChannel[] => {
     const repos = useRuntimeRepositories() as unknown as DataRepositoriesV2;
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
 

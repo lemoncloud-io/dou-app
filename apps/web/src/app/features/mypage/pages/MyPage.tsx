@@ -9,7 +9,7 @@ import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useSessionSelection } from '@chatic/web-core';
-import { useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
 import { BottomNavigation } from '../../../ui/components/BottomNavigation';
@@ -22,7 +22,7 @@ import { ROUTES } from '../../../routes/paths';
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const { isGuest, isCloudActive } = useSessionProfile();
+    const { isGuest, isCloudActive } = useRuntimeProfile();
     const { selectedCloudId } = useSessionSelection();
     const myUser = useMyUser();
 

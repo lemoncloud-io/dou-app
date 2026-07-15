@@ -2,8 +2,9 @@ import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
 import { getSocketManager } from '@chatic/app-runtime';
-import { useSessionSelection, useSiteSwitch, useSwitchCloudSession } from '@chatic/web-core';
+import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 
+import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { pendingNavigationStore } from './pendingNavigationStore';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { useHandlePushNavigation } from './useHandlePushNavigation';
@@ -12,9 +13,9 @@ jest.mock('@chatic/app-runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('@chatic/web-core', () => ({
     useSessionSelection: jest.fn(),
-    useSiteSwitch: jest.fn(),
     useSwitchCloudSession: jest.fn(),
 }));
+jest.mock('../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
 jest.mock('./pendingNavigationStore', () => ({ pendingNavigationStore: { register: jest.fn() } }));
 jest.mock('./resolvePushNavigation', () => ({ resolvePushNavigation: jest.fn() }));

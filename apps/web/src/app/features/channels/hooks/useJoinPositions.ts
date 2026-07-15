@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 interface ReadCount {
@@ -33,7 +33,7 @@ interface ReadCount {
  */
 export const useJoinPositions = (channelId: string | null, activeMemberIds: string[]) => {
     const { join: joinRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const [joins, setJoins] = useState<DomainJoin[]>([]);
 

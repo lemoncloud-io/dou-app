@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { useAppForeground } from '../../../bridge';
@@ -21,7 +21,7 @@ import { useAppForeground } from '../../../bridge';
  */
 export const useForegroundChatRefresh = (channelId: string): void => {
     const { chat: chatRepository } = useRuntimeRepositories();
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const refreshIfWarm = useCallback(async () => {
         if (!channelId) return;

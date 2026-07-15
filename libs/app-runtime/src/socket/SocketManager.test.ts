@@ -29,7 +29,7 @@ const makeClient = (overrides: Partial<jest.Mocked<ClientSocketV2>> = {}): jest.
 
 const CONFIG: SocketBindingConfig = { url: 'wss://example.test/socket', deviceId: 'device-1' };
 const OTHER_CONFIG: SocketBindingConfig = { url: 'wss://example.test/socket', deviceId: 'device-2' };
-const ERROR_401 = { errorCode: 401, message: 'UNAUTHORIZED' };
+const REQUEST_ERROR = { errorCode: 401, message: 'UNAUTHORIZED' };
 
 describe('SocketManager request facade', () => {
     beforeEach(() => {
@@ -42,7 +42,7 @@ describe('SocketManager request facade', () => {
         mockedCreate.mockReturnValue(client);
 
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
+        manager.ensure(CONFIG, 'relay');
 
         const result = await manager.request('test.type', { foo: 'bar' });
 
@@ -50,51 +50,56 @@ describe('SocketManager request facade', () => {
         expect(result).toBe('response-data');
     });
 
-    it('on 401 invokes the recovery handler and retries once on success', async () => {
+    it('rethrows request errors — recovery is owned by the SDK AuthController, not the request path', async () => {
         const client = makeClient();
-        client.request.mockRejectedValueOnce(ERROR_401).mockResolvedValueOnce('retry-data');
+        client.request.mockRejectedValueOnce(REQUEST_ERROR);
         mockedCreate.mockReturnValue(client);
 
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
-        const recover = jest.fn().mockResolvedValue(true);
-        manager.setRecoveryHandler(recover);
+        manager.ensure(CONFIG, 'relay');
 
-        const result = await manager.request('test.type', { foo: 'bar' });
-
-        expect(recover).toHaveBeenCalledTimes(1);
-        expect(client.request).toHaveBeenCalledTimes(2);
-        expect(result).toBe('retry-data');
-    });
-
-    it('rethrows the original 401 when recovery fails (no retry)', async () => {
-        const client = makeClient();
-        client.request.mockRejectedValueOnce(ERROR_401);
-        mockedCreate.mockReturnValue(client);
-
-        const manager = new SocketManager();
-        manager.ensure(CONFIG);
-        manager.setRecoveryHandler(jest.fn().mockResolvedValue(false));
-
-        await expect(manager.request('test.type')).rejects.toEqual(ERROR_401);
-        expect(client.request).toHaveBeenCalledTimes(1);
-    });
-
-    it('rethrows a 401 without retry when no recovery handler is set', async () => {
-        const client = makeClient();
-        client.request.mockRejectedValueOnce(ERROR_401);
-        mockedCreate.mockReturnValue(client);
-
-        const manager = new SocketManager();
-        manager.ensure(CONFIG);
-
-        await expect(manager.request('test.type')).rejects.toEqual(ERROR_401);
+        await expect(manager.request('test.type')).rejects.toEqual(REQUEST_ERROR);
         expect(client.request).toHaveBeenCalledTimes(1);
     });
 
     it('throws when request() is called before a client exists', async () => {
         const manager = new SocketManager();
         await expect(manager.request('test.type')).rejects.toThrow('Socket client not ready');
+    });
+});
+
+describe('SocketManager isVerified derivation', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('derives isVerified = authenticated AND connected, and a drop clears it', () => {
+        let stateCb: ((event: { next: string }) => void) | undefined;
+        const client = makeClient({
+            onState: jest.fn((cb: (event: { next: string }) => void) => {
+                stateCb = cb;
+                return jest.fn();
+            }) as unknown as jest.Mocked<ClientSocketV2>['onState'],
+        });
+        mockedCreate.mockReturnValue(client);
+
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay'); // client.state === 'connected', not yet authenticated
+        expect(manager.getSnapshot().isVerified).toBe(false);
+
+        // authenticated + connected → verified
+        manager.setAuthenticated('relay', true);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+
+        // de-authenticated → not verified
+        manager.setAuthenticated('relay', false);
+        expect(manager.getSnapshot().isVerified).toBe(false);
+
+        // authenticated again, then a transport drop clears verification via derivation
+        manager.setAuthenticated('relay', true);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+        stateCb?.({ next: 'closed' });
+        expect(manager.getSnapshot().isVerified).toBe(false);
     });
 });
 
@@ -109,14 +114,14 @@ describe('SocketManager onType rebinding', () => {
         mockedCreate.mockReturnValueOnce(first).mockReturnValueOnce(second);
 
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
+        manager.ensure(CONFIG, 'relay');
 
         const listener = jest.fn();
         manager.onType('chat.sync', listener);
         expect(first.onType).toHaveBeenCalledWith('chat.sync', listener);
 
         // A different config tears down the old client and builds a fresh one.
-        manager.ensure(OTHER_CONFIG);
+        manager.ensure(OTHER_CONFIG, 'relay');
         expect(second.onType).toHaveBeenCalledWith('chat.sync', listener);
     });
 });
@@ -129,8 +134,8 @@ describe('SocketManager waitUntilVerified', () => {
     it('resolves true immediately when already verified', async () => {
         mockedCreate.mockReturnValue(makeClient());
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
-        manager.markVerified();
+        manager.ensure(CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
 
         await expect(manager.waitUntilVerified(1000)).resolves.toBe(true);
     });
@@ -138,10 +143,10 @@ describe('SocketManager waitUntilVerified', () => {
     it('resolves true once the socket becomes verified before the timeout', async () => {
         mockedCreate.mockReturnValue(makeClient());
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
+        manager.ensure(CONFIG, 'relay');
 
         const pending = manager.waitUntilVerified(1000);
-        manager.markVerified();
+        manager.setAuthenticated('relay', true);
 
         await expect(pending).resolves.toBe(true);
     });
@@ -150,7 +155,7 @@ describe('SocketManager waitUntilVerified', () => {
         jest.useFakeTimers();
         mockedCreate.mockReturnValue(makeClient());
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
+        manager.ensure(CONFIG, 'relay');
 
         const pending = manager.waitUntilVerified(1000);
         jest.advanceTimersByTime(1000);
@@ -163,10 +168,10 @@ describe('SocketManager waitUntilVerified', () => {
         jest.useFakeTimers();
         mockedCreate.mockReturnValue(makeClient());
         const manager = new SocketManager();
-        manager.ensure(CONFIG);
+        manager.ensure(CONFIG, 'relay');
 
         const pending = manager.waitUntilVerified(1000);
-        manager.markVerified();
+        manager.setAuthenticated('relay', true);
         jest.advanceTimersByTime(5000);
 
         await expect(pending).resolves.toBe(true);
@@ -191,9 +196,142 @@ describe('SocketManager subscribeClient', () => {
         first.mockClear();
         second.mockClear();
 
-        manager.ensure(CONFIG);
+        manager.ensure(CONFIG, 'relay');
 
         expect(first).toHaveBeenCalledWith(client);
         expect(second).toHaveBeenCalledWith(client);
+    });
+});
+
+describe('SocketManager dual slots (active facade)', () => {
+    const RELAY_CONFIG: SocketBindingConfig = {
+        url: 'wss://relay.test/socket',
+        deviceId: 'device-1',
+        wssType: 'relay',
+        cid: 'default',
+    };
+    const CLOUD_CONFIG: SocketBindingConfig = {
+        url: 'wss://cloud.test/socket',
+        deviceId: 'device-1',
+        wssType: 'cloud',
+        cid: 'cloud-1',
+    };
+
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('the cloud slot becomes the active facade; relay auth stays in the background', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
+        expect(manager.getClient()).toBe(relay); // relay is the only slot → active
+        expect(manager.getSnapshot().isVerified).toBe(true);
+
+        // Adding the cloud slot flips the active facade to cloud (not yet authenticated).
+        manager.ensure(CLOUD_CONFIG, 'cloud');
+        expect(manager.getClient()).toBe(cloud);
+        expect(manager.getSnapshot().isVerified).toBe(false);
+        expect(manager.getBoundCid()).toBe('cloud-1'); // active slot's bound cloud
+
+        manager.setAuthenticated('cloud', true);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+
+        // A background relay auth change must NOT affect the active (cloud) facade.
+        manager.setAuthenticated('relay', false);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+    });
+
+    it('destroying the cloud slot falls the active facade back to relay', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud');
+        expect(manager.getClient()).toBe(cloud);
+
+        manager.destroy('cloud');
+        expect(manager.getClient()).toBe(relay); // relay slot survives
+        expect(cloud.destroy).toHaveBeenCalledTimes(1);
+        expect(relay.destroy).not.toHaveBeenCalled();
+    });
+
+    it('subscribeClient emits the active client and re-emits on every active-slot change', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        const seen: Array<unknown> = [];
+        manager.subscribeClient(client => seen.push(client)); // immediate: null (no slots yet)
+
+        manager.ensure(RELAY_CONFIG, 'relay'); // active → relay
+        manager.ensure(CLOUD_CONFIG, 'cloud'); // active → cloud
+        manager.destroy('cloud'); // active → relay
+
+        expect(seen).toEqual([null, relay, cloud, relay]);
+    });
+
+    it('rebindCid는 리부트 없이 활성 슬롯의 boundCid를 새 클라우드로 갱신한다 (같은-wss 전환)', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud');
+        expect(manager.getBoundCid()).toBe('cloud-1'); // frozen at bind
+
+        // Same-wss switch: url unchanged so ensure() never re-runs; rebindCid must move boundCid.
+        manager.rebindCid('cloud', 'cloud-2');
+        expect(manager.getBoundCid()).toBe('cloud-2');
+    });
+
+    it('rebindCid는 바인딩되지 않은 kind에 대해 무해하게 무시한다', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(() => manager.rebindCid('cloud', 'cloud-x')).not.toThrow();
+        expect(manager.getBoundCid()).toBe('default'); // relay slot's cid untouched
+    });
+
+    it('isKindVerified는 활성 슬롯이 아니라 대상 슬롯의 인증+연결을 반영한다', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud'); // active facade → cloud
+
+        // Relay is authenticated + connected even though cloud is the active slot.
+        manager.setAuthenticated('relay', true);
+        expect(manager.isKindVerified('relay')).toBe(true);
+        // Cloud is not yet authenticated, so the active snapshot is unverified — but the per-kind
+        // query for relay still reports true, which the active-slot snapshot cannot.
+        expect(manager.getSnapshot().isVerified).toBe(false);
+        expect(manager.isKindVerified('cloud')).toBe(false);
+
+        manager.setAuthenticated('cloud', true);
+        expect(manager.isKindVerified('cloud')).toBe(true);
+    });
+
+    it('isKindVerified는 바인딩되지 않은 kind에 대해 false를 반환한다', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(manager.isKindVerified('cloud')).toBe(false);
     });
 });

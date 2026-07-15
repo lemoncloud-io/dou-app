@@ -8,7 +8,8 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type { JSX, ReactNode } from 'react';
-import { useSessionLogout } from '@chatic/web-core';
+
+import { useSessionLogout } from '@chatic/app-runtime';
 
 interface NavItem {
     path: string;
@@ -45,9 +46,7 @@ export const Sidebar = (): JSX.Element => {
         i18n.changeLanguage(newLang);
     };
 
-    const handleLogout = () => {
-        useSessionLogout();
-    };
+    const handleLogout = () => useSessionLogout();
 
     return (
         <aside className="w-56 border-r bg-card flex flex-col">

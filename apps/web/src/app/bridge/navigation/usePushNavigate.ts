@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 
 import { getSocketManager } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useSessionSelection, useSiteSwitch, useSwitchCloudSession } from '@chatic/web-core';
+import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 
+import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { ROUTES } from '../../routes/paths';
 

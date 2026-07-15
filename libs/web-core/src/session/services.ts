@@ -1,19 +1,18 @@
 import { logger } from '@chatic/bridges';
 import type { OAuthLoginProvider } from '@chatic/app-messages';
-import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import {
     issueCloudDelegationToken,
     issueCloudToken,
     login as loginRelayRequest,
-    logout as logoutRelayRequest,
     refreshAuthToken,
     refreshCloudToken,
     registerDevice,
     verifyNativeAppToken,
 } from '../api';
-import { clearRelayTransportOverrides, webTransport } from '../transport';
+import { calcSignature, clearRelayTransportOverrides, webTransport } from '../transport';
 import { getCloudSessionSnapshot } from './contexts';
 import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, startWebCoreInit } from './core';
 import {
@@ -88,7 +87,7 @@ const buildSnapshotFallback = (cloudId: string, siteId: string | null): CloudSes
 /**
  * Applies a relay token view as the active session: builds AWS credentials, persists the token (the
  * auth anchor + uid/profile-seed source), and marks the session authenticated. Profile shaping is
- * gone — profile facts are tracked from the token + user cache by app-runtime's useSessionProfile.
+ * gone — profile facts are tracked from the token + user cache by app-runtime's useRuntimeProfile.
  *
  * Note: this deliberately does NOT touch delegatorId. delegatorId is set once at guest login and
  * must survive every relay refresh / cloud switch that also runs through here, so it is owned by
@@ -229,9 +228,10 @@ const runRefreshRelaySession = async ({
 export const logoutRelaySession = async (options?: LogoutOptions): Promise<void> => {
     const searchBeforeCleanup = window.location.search;
 
-    await logoutRelayRequest().catch(error => {
-        logger.error('AUTH', '[service] relay logout request failed', { error });
-    });
+    // No server-side logout: there is no backend session-revoke endpoint (the old POST /users/logout
+    // always 403'd because it was unsigned, and it was never authoritative). Logout is purely a LOCAL
+    // teardown — clear the relay/cloud tokens + credentials + selection below. The socket auth session
+    // is ended separately by the caller's best-effort socket `auth.logout` (app-runtime logoutSession).
 
     logoutCallbacks.forEach(callback => {
         try {
@@ -337,10 +337,22 @@ export const switchCloudSession = async ({ cloudId }: { cloudId: string }): Prom
     }
 
     try {
-        const cloudDelegationToken = await issueCloudDelegationToken(cloudId);
-        const userToken = await issueCloudToken(cloudDelegationToken.backend as string, {
-            delegationToken: cloudDelegationToken.delegationToken,
-        });
+        // Reuse a recently-issued token for this cloud when still valid → skip both HTTP token
+        // exchanges, so the cloud identity (uid) commits instantly and the cid+uid-scoped local cache
+        // reads immediately on a re-switch (multi-socket-design.md perf: cloud-switch cache warmth).
+        const cached = cloudCore.getCachedCloudTokens(cloudId);
+        let cloudDelegationToken: CloudDelegationTokenView;
+        let userToken: UserTokenView;
+        if (cached) {
+            cloudDelegationToken = cached.delegationToken;
+            userToken = cached.cloudToken;
+        } else {
+            cloudDelegationToken = await issueCloudDelegationToken(cloudId);
+            userToken = await issueCloudToken(cloudDelegationToken.backend as string, {
+                delegationToken: cloudDelegationToken.delegationToken,
+            });
+            cloudCore.setCachedCloudTokens(cloudId, { delegationToken: cloudDelegationToken, cloudToken: userToken });
+        }
 
         cloudCore.saveDelegationToken(cloudDelegationToken);
         const existingToken = isCloudChange ? null : cloudCore.getCloudToken();
@@ -381,6 +393,21 @@ const cloudRefreshFlight = createSerializedSingleFlight<CloudSessionSnapshot>();
  */
 export const refreshCloudSession = ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> =>
     cloudRefreshFlight(siteId, () => runRefreshCloudSession({ siteId }));
+
+/**
+ * Optimistically applies (or rolls back) the selected site for the app-runtime socket-driven site
+ * switch (SDK `auth.switch`, multi-socket-design.md §8-2). Moves only the selected-site read model so
+ * cid/sid-scoped caches swap immediately; app-runtime reuses it to roll the sid back if the socket
+ * switch fails. `setSelectedSiteId` routes to relay/cloud store by active cloud; notify re-renders
+ * `activeServer.siteId` observers.
+ *
+ * Distinct from `switchSiteSession` below (the legacy HTTP-refresh switch still used by
+ * admin/desktop-web); apps/web drives the switch through app-runtime and only uses this primitive.
+ */
+export const applySelectedSite = (siteId: string | null): void => {
+    setSelectedSiteId(siteId);
+    notifySessionStateChanged();
+};
 
 /**
  * User-initiated site switch.
@@ -491,7 +518,7 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
  * - Skips when the selected cloud is `default` or there is no delegation token (cloud not connected).
  * - Skips when there is no selected site (sid null), since no site session exists (cid/sid default rule).
  *
- * Failures are absorbed by the caller (useTokenRefresh); they never trigger logout, to keep relay continuity.
+ * Failures are absorbed by the caller (the profile-update refresh flow); they never trigger logout, to keep relay continuity.
  */
 export const refreshActiveCloudSession = async (): Promise<void> => {
     if (cloudCore.getSelectedCloudId() === 'default' || !cloudCore.getDelegationToken()) {
@@ -502,4 +529,111 @@ export const refreshActiveCloudSession = async (): Promise<void> => {
         return;
     }
     await refreshCloudSession({ siteId });
+};
+
+// ---------------------------------------------------------------------------
+// SDK AuthController (ClientSocketAuth) bridge helpers — active-server-aware.
+//
+// These feed the app-runtime socket delegate: seed the SDK `register` call, back
+// its stateless `sign` callback, and write SDK-refreshed tokens back into the
+// web-core stores that the HTTP/AWS signing layers read. The active server
+// (relay vs cloud) decides the token source, signature source, and target store.
+//
+// Contract + branching rationale live in libs/app-runtime/docs/socket/auth/signing.md.
+// The lemon-hmac signature never depends on the token string (calcSignature signs
+// an empty identityToken slot), so the SDK-injected token argument is ignored and
+// the signature is recomputed from the active server's stored fields.
+// ---------------------------------------------------------------------------
+
+/** Which socket/server a bridge helper acts on. Dual-socket callers pass this explicitly. */
+export type ServerKind = 'relay' | 'cloud';
+
+/**
+ * Seeds the SDK `register({ token, authId })` call for a specific server kind. Returns null when
+ * either field is unavailable so the caller can defer register until a token exists.
+ */
+export const getServerAuthRegistration = async (
+    kind: ServerKind
+): Promise<{ token: string; authId: string } | null> => {
+    if (kind === 'cloud') {
+        const token = cloudCore.getIdentityToken();
+        const authId = cloudCore.getCloudToken()?.Token?.authId ?? null;
+        return token && authId ? { token, authId } : null;
+    }
+
+    // relay: identity token from the relay store, authId from the cached lemon signature.
+    const token = relayCore.getIdentityToken();
+    const authId = relayCore.getRelayToken()?.$auth?.id || null;
+
+    return token && authId ? { token, authId } : null;
+};
+
+/**
+ * Backs the SDK stateless `sign` callback with the lemon-hmac signature for a specific server kind.
+ * `target` (a site-switch selector) is accepted for callback-shape parity but does not change the
+ * signature — it is carried only in the SDK `auth.switch` packet (see signing.md §1).
+ */
+export const signServerAuth = async (
+    kind: ServerKind,
+    target?: string
+): Promise<{ signature: string; current: string }> => {
+    if (kind === 'cloud') {
+        const cloudToken = cloudCore.getCloudToken()?.Token;
+        const authId = cloudToken?.authId;
+        const accountId = cloudToken?.accountId;
+        const identityId = cloudToken?.identityId;
+        if (!authId || !accountId || !identityId) {
+            throw new Error('Missing cloud token fields for socket auth signature');
+        }
+        const current = new Date().toISOString();
+        const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
+        return { signature, current };
+    }
+
+    // relay: compute the signature over `$auth.id` ourselves instead of reusing
+    // webTransport.getTokenSignature(), which keys on `Token.authId` for the HTTP refresh path.
+    const relayToken = relayCore.getRelayToken();
+    const authId = relayToken?.$auth?.id;
+    const accountId = relayToken?.Token?.accountId;
+    const identityId = relayToken?.Token?.identityId;
+    if (!authId || !accountId || !identityId) {
+        throw new Error('Missing relay token fields for socket auth signature');
+    }
+    const current = new Date().toISOString();
+    const signature = calcSignature({ authId, accountId, identityId, identityToken: '' }, current);
+    return { signature, current };
+};
+
+/**
+ * Writes an SDK-refreshed token back into the web-core store for a specific server kind — the
+ * per-socket writeback routing that unblocks dual sockets (multi-socket-design.md §6-6): a relay
+ * refresh arriving while cloud is active must land in the relay store, not the active one.
+ *
+ * Asymmetric by design (signing.md §3): relay must also rebuild the lemon-web-core AWS credential
+ * cache — relay signed HTTP signs from that cache, not from relayCore — while cloud only persists
+ * the merged token because cloud HTTP reads cloudCore live per request.
+ */
+export const commitServerRefreshedToken = async (kind: ServerKind, view: UserTokenView): Promise<void> => {
+    if (kind === 'cloud') {
+        const existing = cloudCore.getCloudToken();
+        cloudCore.saveCloudToken(existing ? ({ ...existing, ...view } as UserTokenView) : view);
+    } else if (view.Token) {
+        // A socket refresh view can omit `Token.identityToken` (the SDK itself falls back to the token
+        // it already holds), but relay REQUIRES it — relay signed HTTP sends it as `x-lemon-identity`
+        // and the next register reads it back via getIdentityToken(). Preserve the stored identityToken
+        // when the fresh view lacks one, mirroring the HTTP refresh path (api/auth.ts `refreshAuthToken`).
+        const previous = relayCore.getRelayToken();
+        const merged = {
+            ...view,
+            Token: {
+                ...view.Token,
+                identityToken: view.Token.identityToken ?? previous?.Token?.identityToken,
+            },
+        } as UserTokenView;
+        await webTransport.buildCredentialsByToken(merged.Token);
+        relayCore.saveRelayToken(merged);
+    }
+
+    // Re-derive uid / identity from the freshly written token so activeServer + UI stay in sync.
+    rebuildSessionIdentity();
 };

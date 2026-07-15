@@ -22,6 +22,8 @@ const mockSaveDelegationToken = jest.fn();
 const mockGetDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCloudToken = jest.fn();
+const mockGetCachedCloudTokens = jest.fn();
+const mockSetCachedCloudTokens = jest.fn();
 const mockSaveSelectedCloudId = jest.fn();
 const mockGetSelectedCloudId = jest.fn();
 const mockSaveSelectedSiteId = jest.fn();
@@ -37,6 +39,13 @@ const mockGetWss = jest.fn();
 const mockRelayClearSelectedSite = jest.fn();
 const mockRelaySaveRelayToken = jest.fn();
 const mockRelayGetRelayToken = jest.fn();
+const mockRelayGetIdentityToken = jest.fn();
+
+// Per-server bridge helper deps. mockGetActiveServerContext backs the "routing ignores active
+// context" assertions in the per-server suite.
+const mockGetActiveServerContext = jest.fn();
+const mockGetTokenSignature = jest.fn();
+const mockCalcSignature = jest.fn();
 
 const mockIdentitySetDelegatorId = jest.fn();
 const mockIdentitySetDeviceId = jest.fn();
@@ -68,16 +77,19 @@ jest.mock('../api', () => ({
 
 jest.mock('../transport', () => ({
     clearRelayTransportOverrides: (...args: unknown[]) => mockClearRelayTransportOverrides(...args),
+    calcSignature: (...args: unknown[]) => mockCalcSignature(...args),
     webTransport: {
         setUseXLemonLanguage: (...args: unknown[]) => mockSetUseXLemonLanguage(...args),
         isAuthenticated: (...args: unknown[]) => mockIsAuthenticated(...args),
         buildCredentialsByToken: (...args: unknown[]) => mockBuildCredentialsByToken(...args),
+        getTokenSignature: (...args: unknown[]) => mockGetTokenSignature(...args),
         logout: (...args: unknown[]) => mockLogout(...args),
     },
 }));
 
 jest.mock('./contexts', () => ({
     getCloudSessionSnapshot: (...args: unknown[]) => mockGetCloudSessionSnapshot(...args),
+    getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
 }));
 
 jest.mock('./core', () => ({
@@ -88,6 +100,8 @@ jest.mock('./core', () => ({
         getDelegationToken: (...args: unknown[]) => mockGetDelegationToken(...args),
         saveCloudToken: (...args: unknown[]) => mockSaveCloudToken(...args),
         getCloudToken: (...args: unknown[]) => mockGetCloudToken(...args),
+        getCachedCloudTokens: (...args: unknown[]) => mockGetCachedCloudTokens(...args),
+        setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         getSelectedCloudId: (...args: unknown[]) => mockGetSelectedCloudId(...args),
         saveSelectedSiteId: (...args: unknown[]) => mockSaveSelectedSiteId(...args),
@@ -108,6 +122,7 @@ jest.mock('./core', () => ({
         clearSelectedSite: (...args: unknown[]) => mockRelayClearSelectedSite(...args),
         saveRelayToken: (...args: unknown[]) => mockRelaySaveRelayToken(...args),
         getRelayToken: (...args: unknown[]) => mockRelayGetRelayToken(...args),
+        getIdentityToken: (...args: unknown[]) => mockRelayGetIdentityToken(...args),
     },
     startWebCoreInit: (...args: unknown[]) => mockStartWebCoreInit(...args),
     resetWebCoreInit: (...args: unknown[]) => mockResetWebCoreInit(...args),
@@ -146,6 +161,9 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 import {
+    applySelectedSite,
+    commitServerRefreshedToken,
+    getServerAuthRegistration,
     initializeRelaySession,
     loginRelayGuestByDevice,
     loginRelayUser,
@@ -155,6 +173,7 @@ import {
     refreshActiveCloudSession,
     refreshCloudSession,
     refreshRelaySession,
+    signServerAuth,
     switchCloudSession,
     switchSiteSession,
 } from './services';
@@ -310,6 +329,15 @@ describe('session/services', () => {
         });
         expect(mockSaveDelegationToken).toHaveBeenCalled();
         expect(mockSaveCloudToken).toHaveBeenCalled();
+        // Freshly-issued tokens are cached by cloudId for a fast re-switch.
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-new', {
+            delegationToken: {
+                backend: 'https://cloud.example.com',
+                wss: 'wss://cloud.example.com',
+                delegationToken: 'delegation-token',
+            },
+            cloudToken: userToken,
+        });
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
         expect(mockClearPlaceOrder).toHaveBeenCalledWith('cloud-new');
         // Cloud token saved above; identity is rebuilt (uid re-derives from the active cloud token).
@@ -322,6 +350,29 @@ describe('session/services', () => {
             backend: 'https://cloud.example.com',
             wss: 'wss://cloud.example.com',
         });
+    });
+
+    it('reuses cached cloud tokens on a re-switch — skips both HTTP token exchanges', async () => {
+        mockGetSelectedCloudId.mockReturnValue('cloud-old');
+        const cachedDelegation = {
+            backend: 'https://cloud.example.com',
+            wss: 'wss://cloud.example.com',
+            delegationToken: 'cached-delegation',
+        };
+        const cachedCloudToken = {
+            id: 'cloud-user',
+            Token: { identityToken: 'cached-token' },
+        } as unknown as UserTokenView;
+        mockGetCachedCloudTokens.mockReturnValue({ delegationToken: cachedDelegation, cloudToken: cachedCloudToken });
+
+        await switchCloudSession({ cloudId: 'cloud-new' });
+
+        // Cache hit → no HTTP round trips; the committed tokens come straight from the cache.
+        expect(mockIssueCloudDelegationToken).not.toHaveBeenCalled();
+        expect(mockIssueCloudToken).not.toHaveBeenCalled();
+        expect(mockSaveDelegationToken).toHaveBeenCalledWith(cachedDelegation);
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(cachedCloudToken);
+        expect(mockRebuildSessionIdentity).toHaveBeenCalled();
     });
 
     it('pre-applies the target cid before the token exchange (optimistic)', async () => {
@@ -398,6 +449,22 @@ describe('session/services', () => {
             identityToken: 'identity-token',
             backend: 'https://cloud.example.com',
             wss: 'wss://cloud.example.com',
+        });
+    });
+
+    describe('applySelectedSite (optimistic sid primitive for the app-runtime socket switch)', () => {
+        it('applies the selected site and notifies (used for optimistic pre-apply and rollback)', () => {
+            applySelectedSite('site-new');
+
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith('site-new');
+            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
+        });
+
+        it('clears the selected site when passed null', () => {
+            applySelectedSite(null);
+
+            expect(mockSetSelectedSiteId).toHaveBeenCalledWith(null);
+            expect(mockNotifySessionStateChanged).toHaveBeenCalled();
         });
     });
 
@@ -600,5 +667,122 @@ describe('session/services', () => {
         await refreshActiveCloudSession();
 
         expect(mockRefreshCloudToken).toHaveBeenCalledWith(expect.objectContaining({ target: 'cloud-user@site-3' }));
+    });
+});
+
+// Per-server (kind-explicit) bridge helpers for the dual-socket path (multi-socket-design.md §7):
+// verify the explicit-kind routing directly (no active-server context).
+describe('session/services · per-server bridge helpers', () => {
+    beforeEach(() => {
+        jest.resetAllMocks();
+        localStorage.clear();
+    });
+
+    it('getServerAuthRegistration은 kind별로 authId를 시드한다 (relay: $auth.id, cloud: Token.authId)', async () => {
+        // relay branch: relay identity token + $auth.id (NOT getTokenSignature / Token.authId)
+        mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
+        mockRelayGetRelayToken.mockReturnValue({ $auth: { id: 'relay-auth-id' }, Token: { authId: 'http-id' } });
+        await expect(getServerAuthRegistration('relay')).resolves.toEqual({
+            token: 'relay-identity-token',
+            authId: 'relay-auth-id',
+        });
+
+        // cloud branch: authId from Token.authId (cloud tokens carry no $auth, so — unlike relay —
+        // Token.authId is the socket-auth key). $auth is present in the mock to prove it is NOT used.
+        mockGetIdentityToken.mockReturnValue('cloud-identity-token');
+        mockGetCloudToken.mockReturnValue({ $auth: { id: 'cloud-auth-id' }, Token: { authId: 'http-id' } });
+        await expect(getServerAuthRegistration('cloud')).resolves.toEqual({
+            token: 'cloud-identity-token',
+            authId: 'http-id',
+        });
+
+        // the HTTP-path signature helper must NOT be consulted for socket registration
+        expect(mockGetTokenSignature).not.toHaveBeenCalled();
+        // getActiveServerContext must NOT be consulted — routing is purely the kind arg
+        expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('signServerAuth(cloud)는 Token.authId를 HMAC 키로 서명하고 target은 서명을 바꾸지 않는다', async () => {
+        mockGetCloudToken.mockReturnValue({
+            $auth: { id: 'cloud-auth-id' },
+            Token: { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: 'jwt' },
+        });
+        mockCalcSignature.mockReturnValue('cloud-sig');
+
+        await signServerAuth('cloud', 'uid@sid');
+
+        // cloud signs with Token.authId (not $auth.id — cloud tokens have no $auth); accountId/identityId
+        // also come from Token.
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: '' },
+            expect.any(String)
+        );
+        expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('signServerAuth(relay)는 Token.authId가 아니라 $auth.id로 서명한다 (getTokenSignature 미사용)', async () => {
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id' },
+            Token: { authId: 'http-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: 'jwt' },
+        });
+        mockCalcSignature.mockReturnValue('relay-sig');
+
+        const result = await signServerAuth('relay');
+
+        expect(mockCalcSignature).toHaveBeenCalledWith(
+            { authId: 'relay-auth-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: '' },
+            expect.any(String)
+        );
+        expect(result.signature).toBe('relay-sig');
+        // socket signature must not fall back to the HTTP-path (Token.authId) helper
+        expect(mockGetTokenSignature).not.toHaveBeenCalled();
+    });
+
+    it('signServerAuth(relay)는 $auth.id가 없으면 던진다', async () => {
+        mockRelayGetRelayToken.mockReturnValue({ Token: { accountId: 'a', identityId: 'i' } });
+
+        await expect(signServerAuth('relay')).rejects.toThrow('Missing relay token fields');
+    });
+
+    it('commitServerRefreshedToken(relay)는 view에 identityToken이 있으면 그대로 relay store에 쓴다 (§6-6)', async () => {
+        mockBuildCredentialsByToken.mockResolvedValue(undefined);
+        mockRelayGetRelayToken.mockReturnValue(null);
+        const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
+
+        await commitServerRefreshedToken('relay', view);
+
+        // relay dual-write, no cloud store touched, and no dependence on the active context
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'fresh' }));
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'u', Token: expect.objectContaining({ identityToken: 'fresh' }) })
+        );
+        expect(mockSaveCloudToken).not.toHaveBeenCalled();
+        expect(mockGetActiveServerContext).not.toHaveBeenCalled();
+    });
+
+    it('commitServerRefreshedToken(relay)는 refresh view가 identityToken을 생략하면 저장된 값을 보존한다', async () => {
+        mockBuildCredentialsByToken.mockResolvedValue(undefined);
+        mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept', accountId: 'a' } } as UserTokenView);
+        // a socket refresh view carrying a fresh credential but NO identityToken
+        const view = { id: 'u', Token: { credential: { AccessKeyId: 'k' } } } as unknown as UserTokenView;
+
+        await commitServerRefreshedToken('relay', view);
+
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Token: expect.objectContaining({ identityToken: 'kept', credential: { AccessKeyId: 'k' } }),
+            })
+        );
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'kept' }));
+    });
+
+    it('commitServerRefreshedToken(cloud) merges the cloud store (single write, no credential rebuild)', async () => {
+        mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
+        const view = { id: 'u', Token: { identityToken: 'new' } } as unknown as UserTokenView;
+
+        await commitServerRefreshedToken('cloud', view);
+
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ Token: { identityToken: 'new' } }));
+        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
     });
 });

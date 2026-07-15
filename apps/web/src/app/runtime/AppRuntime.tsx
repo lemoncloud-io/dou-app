@@ -15,25 +15,24 @@ import { UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
-import { useSocketDelegate } from './useSocketDelegate';
 
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
- * socket lifecycle and re-auth from the binding + delegate). Re-authentication on
- * site/cloud switch is handled internally — the app never sends `auth:update` itself.
+ * socket lifecycle and SDK-driven re-auth from the binding). Re-authentication on
+ * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
+ * socket session delegate is now owned by app-runtime (no delegate prop).
  *
- * Session readiness is owned here, not by a wrapping gate: `SessionBackgroundRunner` (inside
- * `RuntimeConnectionHost`) is the single owner of `useInitWebCore` / `useTokenRefresh`, which
- * drive guest login + profile load. `TransportBootstrap` shows the splash during webCore init,
- * then `AppReadyGate` holds it until the profile is ready so the UI never renders profile-less.
+ * Session readiness: `RuntimeConnectionHost` is the SINGLE web-core init driver (`useInitWebCore` →
+ * `initializeRelaySession`) and gates its subtree until ready; `SessionBackgroundRunner` inside it
+ * runs the background guest login when the relay session is absent. `AppReadyGate` then holds the UI
+ * until the profile is ready so it never renders profile-less.
  */
 export const AppRuntime = () => {
     const binding = useRuntimeBinding();
-    const delegate = useSocketDelegate();
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
     return (
-        <RuntimeConnectionHost binding={binding} delegate={delegate}>
+        <RuntimeConnectionHost binding={binding}>
             <PreferenceLoader />
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />

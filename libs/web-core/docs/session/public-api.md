@@ -36,26 +36,26 @@ getGlobalSessionContext(): GlobalSessionContext
 
 ## Hook API
 
-현재 hook 진입점은 `libs/web-core/src/hooks/session.ts`에 구현되어 있습니다.
+세션 hook은 `libs/web-core/src/hooks/session/` 아래 **readers**(구독 기반 getter)와 **actions**(전이 mutation)로 나뉩니다.
 
-주요 hook:
+readers (`readers/`, `useSyncExternalStore`):
 
-- `useGlobalSession()`
-- `useSessionAuth()`
-- `useSessionIdentity()`
+- `useGlobalSession()` — 전체 조립 세션 컨텍스트
+- `useSessionAuth()` — runtime auth 스냅샷(`isInitialized`/`isAuthenticated`)
+- `useSessionIdentity()` — identity 스냅샷(`userId`/`delegatorId`)
+- `useSessionSelection()` — 파생 `selectedCloudId`/`selectedSiteId`
 
-연계 hook:
+actions (`actions/`, mutation/callback):
 
-- cloud token refresh hook
-    - 소켓 모듈이 웹소켓 인증 실패 시 호출할 수 있는 복구 진입점
-    - 내부적으로 `refreshCloudSession()` 계열 service와 연결
-- relay/cloud session refresh hook
-    - relay 또는 cloud의 `target = uid@sid` 기반 site 전환을 포함한 refresh 진입점
+- `useSiteSwitch()` · `useSwitchCloudSession()` — site/cloud 전환
+- `useRefreshRelaySession()` · `useRefreshCloudSiteSession()` · `useRefreshCurrentCloudSession()` — refresh
+- `useSessionLogout()` · `useLogoutCloudSession()` — 로그아웃
+- `useInviteFlow()` — 초대코드 인증(cloud/site 진입은 소비자가)
 
 권장 가이드:
 
-- feature가 profile과 active server 상태를 모두 필요로 하면 `useGlobalSession()` 사용
-- 더 좁은 hook은 의도적으로 범위를 제한한 컴포넌트에서만 사용
+- feature가 active server + identity 상태를 함께 필요로 하면 `useGlobalSession()` 사용
+- 더 좁은 reader는 범위를 제한한 컴포넌트에서만 사용
 
 ## Write/Transition API
 
@@ -65,47 +65,44 @@ getGlobalSessionContext(): GlobalSessionContext
 
 - `initializeRelaySession()`
 - `loginRelayGuestByDevice()`
+- `loginRelayUser()`
 - `loginRelaySocial()`
-- `loginWithInviteCode()`
+- `registerUserWithInviteCode()` (raw API — `useInviteFlow`가 구동; 옛 이름 `loginWithInviteCode`)
 - `refreshRelaySession()`
 - `logoutRelaySession()`
 - `switchCloudSession()`
 - `refreshCloudSession()`
-- `refreshActiveCloudSession()` — 주기 리프레시 루프용 cloud 갱신
+- `switchSiteSession()` — sid 선반영+롤백 사이트 전환
+- `refreshActiveCloudSession()` — 활성 cloud 세션 갱신 서비스 (현재 in-package 구동 훅 없음; 소켓 refresh는 SDK가 소유)
 - `logoutCloudSession()`
 - `persistDeviceId()`
 
 현재 구현 메모:
 
-- 위 서비스들은 `libs/web-core/src/session/services.ts`에 정의되어 있습니다.
-- `refreshRelaySession()`은 현재 relay auth refresh와 profile 재동기화까지 구현되어 있습니다.
+- `registerUserWithInviteCode()`를 제외한 위 서비스들은 `libs/web-core/src/session/services.ts`에 정의됩니다. `registerUserWithInviteCode()`는 **service가 아니라 `libs/web-core/src/api/auth.ts`의 API 함수**이며 `useInviteFlow`가 직접 호출합니다.
+- `refreshRelaySession()`은 relay auth refresh를 수행합니다(`syncProfile` 옵션).
 - `refreshRelaySession(target = uid@sid)`는 relay auth refresh와 relay selected site 전환을 함께 수행합니다.
-- `refreshRelaySession`·`refreshCloudSession`은 서비스 레벨 single-flight로 주기 루프와 사이트 전환을 직렬화합니다.
+- `refreshRelaySession`·`refreshCloudSession`은 서비스 레벨 single-flight로 사이트 전환과 소켓 재인증 복구를 직렬화합니다.
 - `restorePreviousCloudSession()`은 **제거**되었습니다 (invited 번들 writer 부재로 죽은 경로 → `switchCloudSession`으로 일원화).
-- cid/sid **선반영(optimistic) + 롤백**은 미구현 TODO입니다 (hooks/orchestration.md 참조).
+- cid/sid **선반영(optimistic) + 롤백**은 `switchCloudSession`(cid)·`switchSiteSession`(sid)에 **구현 완료**입니다. relay 사이트 전환(`refreshRelaySession(target)`) sid 선반영만 TODO (hooks/orchestration.md 참조).
 
 소켓 모듈 연계:
 
-- 소켓 모듈은 직접 session 저장 상태를 수정하지 않습니다
-- 소켓 auth 실패 시 cloud token refresh hook을 호출해 복구를 요청합니다
+- 소켓 auth 수명주기는 SDK `AuthController`(app-runtime)가 소유합니다. session은 직접 소켓 상태를 조작하지 않고, **per-kind 브리지 헬퍼**(`getServerAuthRegistration`/`signServerAuth`/`commitServerRefreshedToken`)로 register seed·서명·refresh writeback을 공급합니다([../transport/request-lifecycle.md](../transport/request-lifecycle.md)).
+- 소켓 refresh 결과는 이 writeback으로 session 저장소에 단방향 반영됩니다(session이 소켓 복구를 능동 호출하지 않음).
 
 ## 금지 사항
 
 - feature 코드에서 `cloudCore`와 `relayCore`를 직접 조합하지 않습니다
 - feature 코드에서 `identityCore`를 직접 조합하지 않습니다
 - `selectedCloudId`만 보고 active server를 추론하지 않습니다
-- relay profile과 cloud profile이 항상 같다고 가정하지 않습니다
+- 프로필/역할/권한을 session에서 읽으려 하지 않습니다 — app 레이어(`useProfileFacts`)에서 파생합니다
 - cloud token refresh를 full cloud switch와 동일하게 취급하지 않습니다
 
 ## 향후 정리 권장 사항
 
-현재 public surface는 `libs/web-core/src/session/index.ts`를 통해 내부 구현 일부까지 노출하고 있습니다.
-
-권장 방향:
-
-1. `getGlobalSessionContext()`를 문서상 기본 조회 계약으로 고정
-2. 타입 수준에서 `IdentityContext`와 `SessionRuntimeContext` 분리
-3. 의도적으로 공개할 API가 아니면 내부 store utility 재노출 축소
+- `getGlobalSessionContext()`를 기본 조회 계약으로 유지.
+- 의도적으로 공개할 API가 아니면 내부 store utility(`contextStore`/`utils`) 재노출 축소. (`session/index.ts`는 현재 `types`/`contexts`/`services`만 re-export하며, SDK 브리지 헬퍼는 `src/index.ts`에서 명시적으로 노출합니다.)
 
 ## 관련 문서
 

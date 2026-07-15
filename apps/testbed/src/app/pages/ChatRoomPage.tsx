@@ -6,7 +6,7 @@ import {
     useChannelSync,
     useChatSync,
     useRuntimeRepositories,
-    useSocketState,
+    useRuntimeSocketState,
 } from '@chatic/app-runtime';
 import type {
     DataRepositoriesV2,
@@ -43,7 +43,7 @@ export const ChatRoomPage = () => {
     const identity = useSessionIdentity();
     const { selectedSiteId } = useSessionSelection();
     const myUid = identity.userId ?? '';
-    const { isVerified } = useSocketState();
+    const { isVerified } = useRuntimeSocketState();
 
     const [chats, setChats] = useState<DomainChat[]>([]);
     const [channel, setChannel] = useState<DomainChannel | null>(null);

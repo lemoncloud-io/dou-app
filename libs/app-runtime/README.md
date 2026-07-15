@@ -1,121 +1,70 @@
 # @chatic/app-runtime
 
-이 패키지는 Chatic 어플리케이션의 세션 바인딩, WebSocket 연결 관리, 그리고 API 레포지토리 조립을 담당하는 런타임 Composition Root 라이브러리입니다.
+이 패키지는 Chatic 어플리케이션의 세션 바인딩, WebSocket 연결 관리, API 레포지토리 조립을 담당하는 런타임 **Composition Root** 라이브러리입니다.
 
 ---
 
 ## 핵심 컨셉
 
-앱은 **"값은 훅으로 읽고, lifecycle은 컴포넌트를 마운트하여 제어한다"**는 원칙 하에 동작합니다.
-세션 상태(로그인, 토큰 등)의 실시간 상태 전이는 `@chatic/web-core`가 소유하며, `app-runtime`은 이 상태 변화를 감지하여 데이터 컨텍스트와 물리 소켓 연결을 동기화합니다.
+앱은 **"값은 훅으로 읽고, lifecycle은 컴포넌트를 마운트하여 제어한다"** 는 원칙으로 동작합니다.
+세션 상태(로그인·토큰 등)의 실시간 전이는 `@chatic/web-core`가 소유하며, `app-runtime`은 활성 서버(`activeServer`) 변화를 감지해 데이터 컨텍스트와 relay/cloud 소켓 연결을 동기화합니다.
+
+소켓 인증 수명주기는 SDK(`@lemoncloud/chatic-sockets-lib`)의 `AuthController`가 소유합니다. app-runtime은 부팅 시 토큰을 `register`하고 상태를 구독만 합니다 — 자세한 소유 경계는 [docs/socket/auth/README.md](docs/socket/auth/README.md).
 
 ---
 
 ## 사용 방법 (How to Use)
 
-어플리케이션의 엔트리 포인트(예: `apps/web/src/app/app.tsx`)에서 다음과 같이 세션 관리 및 런타임을 조립합니다.
-
-### 1. 런타임 호스트 및 바인더 조립 예제
+어플리케이션 엔트리 포인트에서 런타임을 조립합니다. `RuntimeConnectionHost`는 **`binding`만** 받으며, 소켓 인증 delegate는 Host가 내부에서(`useSocketSessionDelegate`) 소유하므로 앱이 주입하지 않습니다.
 
 ```tsx
 import React from 'react';
-import {
-    RuntimeConnectionHost,
-    TransportBootstrap,
-    SessionBackgroundRunner,
-    RuntimeDataBinder,
-    SocketBinder,
-    useRuntimeBinding,
-    SocketSessionDelegate,
-} from '@chatic/app-runtime';
-import { useGlobalSession, useRefreshCloudToken } from '@chatic/web-core';
-
-// web-core의 인증/토큰 훅과 소켓 컨트롤러를 연결해주는 위임(Delegate) 계약을 정의합니다.
-const useSocketDelegate = (): SocketSessionDelegate => {
-    const session = useGlobalSession();
-    const refreshCloud = useRefreshCloudToken();
-
-    return {
-        // 소켓 인증 갱신을 위해 현재 보존 중인 토큰을 획득합니다.
-        getSocketToken: async () => {
-            const activeServer = session.activeServer;
-            return activeServer.identityToken ?? null;
-        },
-        // 소켓이 401 Unauthorized 에러를 수신했을 때 실행할 클라우드 세션 재인증 동작을 정의합니다.
-        refreshSocketToken: async reason => {
-            console.log(`[Socket Reauth] Triggered due to ${reason}`);
-            const refreshed = await refreshCloud();
-            return refreshed.identityToken ?? null;
-        },
-        onRefreshFailed: error => {
-            console.error('[Socket Reauth] Failed recovery sequence', error);
-            // 필요 시 강제 로그아웃 또는 로그인 화면 이동 처리를 여기에 수행합니다.
-        },
-    };
-};
+import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 export const App = () => {
-    // 1. 활성 서버(activeServer)를 관측하여 실시간 데이터/소켓 바인딩을 파생시킵니다.
+    // 활성 서버(activeServer)를 관측해 데이터 컨텍스트 + relay/cloud 소켓 슬롯 + auth를 파생시킵니다.
     const binding = useRuntimeBinding();
-    const delegate = useSocketDelegate();
 
     return (
-        // 2. 런타임 호스트 컨텍스트 주입
-        <RuntimeConnectionHost binding={binding} delegate={delegate}>
-            {/* 3. webTransport 초기화 가드 (완료 전엔 하위 트리 렌더 방지) */}
-            <TransportBootstrap>
-                {/* 4. 백그라운드 세션 제어 훅 구동 (KeepAlive, TokenRefresh, DeviceId) */}
-                <SessionBackgroundRunner />
-
-                {/* 5. activeServer 컨텍스트(cid/sid)에 맞춰 데이터 저장소 자동 동기화 */}
-                <RuntimeDataBinder binding={binding} />
-
-                {/* 6. 소켓 엔드포인트 URL 변경 시 자동 재연결 제어 */}
-                <SocketBinder binding={binding} />
-
-                {/* 실제 화면 레이아웃 마운트 */}
-                <MainLayout />
-            </TransportBootstrap>
+        // Host가 web-core 초기화(useInitWebCore)를 게이트하고, 완료 후 아래를 마운트합니다:
+        //   RuntimeDataBinder · SocketBinder · SocketReauthBinder
+        //   (relay keep-alive는 Host가 게이트 위에서 useRelaySessionKeepAlive로 인라인 호출)
+        <RuntimeConnectionHost binding={binding}>
+            <MainLayout />
         </RuntimeConnectionHost>
     );
 };
 ```
 
+조립 구조·마운트 순서는 [docs/runtime/session-lifecycle.md](docs/runtime/session-lifecycle.md)를 참조하세요.
+
 ---
 
-## 주요 API 및 Hooks 사용 가이드
-
-하위 컴포넌트(예: `MainLayout` 또는 각 Page 컴포넌트) 내에서 조립된 데이터 레포지토리와 소켓 상태를 읽을 때 아래의 API들을 활용합니다.
+## 주요 API 및 Hooks
 
 ### 1. 데이터 리포지토리 획득 (`useRuntimeRepositories`)
 
-현재 활성화된 데이터 컨텍스트(`cid`, `sid`, `uid`)에 바인딩된 Chatic 리포지토리 묶음을 가져옵니다.
+현재 활성 데이터 컨텍스트(`cid`/`sid`/`uid`)에 바인딩된 Chatic 리포지토리 묶음을 가져옵니다.
 
 ```tsx
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 const ChannelListPage = () => {
-    const { channelRepository } = useRuntimeRepositories();
-
-    useEffect(() => {
-        // 활성화된 클라우드/사이트의 채널 리스트를 조회합니다.
-        channelRepository.getChannels().then(console.log);
-    }, [channelRepository]);
-
+    const { channel } = useRuntimeRepositories();
+    // channel 등 도메인 리포지토리로 조회/구독. 조립 규칙은 docs/data/README.md 참조.
     return <div>Channel List</div>;
 };
 ```
 
-### 2. 소켓 연결 상태 관측 (`useSocketState`)
+### 2. 소켓 연결 상태 관측 (`useRuntimeSocketState`)
 
-현재 물리 소켓의 연결 여부 및 핸드셰이크 인증 성공 여부를 관측하여 UI에 표시할 수 있습니다.
+물리 소켓의 연결 여부와 핸드셰이크 인증 성공 여부를 관측합니다.
 
 ```tsx
-import { useSocketState } from '@chatic/app-runtime';
+import { useRuntimeSocketState } from '@chatic/app-runtime';
 
 const ConnectionStatusBadge = () => {
-    const { isConnected, isVerified } = useSocketState();
-
+    const { isConnected, isVerified } = useRuntimeSocketState();
     return (
         <span className={isVerified ? 'bg-green-500' : 'bg-red-500'}>
             {isConnected ? (isVerified ? 'Online' : 'Authenticating') : 'Offline'}
@@ -124,14 +73,26 @@ const ConnectionStatusBadge = () => {
 };
 ```
 
+### 3. 그 외 공개 표면
+
+- 값 파생 훅: `useRuntimeBinding` · `useRuntimeRepositories` · `useRuntimeProfile` · `useRuntimeSocketState`
+- 세션 액션 훅: `useSiteSwitch` · `useSessionLogout` · `useLogoutCloudSession` (소켓 구동 액션의 래퍼)
+- sync 등록 훅: `useChatSync` · `useChannelSync` · `usePlaceSync`
+- lifecycle: `<RuntimeConnectionHost>` · `useDeviceTokenRegistration(delegate)`
+- 매니저: `getSocketManager` · `getSyncManager`
+
+전체 목록·비공개 항목은 [docs/public-surface.md](docs/public-surface.md).
+
 ---
 
 ## 관련 문서 가이드
 
-자세한 내부 구현 및 도메인 사양은 `docs/` 폴더 내의 마크다운 문서를 참조하십시오.
+내부 구현·도메인 사양은 `docs/` 폴더를 참조하십시오.
 
-- **[전체 아키텍처 개요](docs/architecture.md)**: 패키지 내 각 도메인간 관계 및 책임 분리 정리
-- **[공개 인터페이스 리스트](docs/public-surface.md)**: 노출되는 훅/컴포넌트 API 명세
-- **[소켓 도메인 및 401 복구](docs/socket/socket.md)**: 소켓 연결 라이프사이클 및 single-flight 401 재시도 흐름
-- **[런타임 바인딩 사양](docs/runtime/runtime.md)**: 활성 서버 관측 및 Binder의 데이터/소켓 동기화 상세
-- **[데이터 런타임 및 캐싱 정책](docs/data/data.md)**: 레포지토리 조립 및 Cache-First 표시 정책
+- **[전체 아키텍처 개요](docs/architecture.md)** — manager 2축 + SDK 인증 소유, 모듈 구조
+- **[공개 인터페이스 리스트](docs/public-surface.md)** — 노출 훅/컴포넌트/타입
+- **[소켓 도메인](docs/socket/README.md)** — 듀얼 슬롯·active-facade·bootstrap·switch/logout
+- **[인증(SDK AuthController)](docs/socket/auth/README.md)** — 소유 경계·상태 머신·서명/writeback
+- **[런타임 바인딩](docs/runtime/README.md)** — `RuntimeBinding` 파생·바인더 역할
+- **[데이터 런타임 및 캐싱](docs/data/README.md)** — 레포지토리 조립·캐시 정책
+- **[Sync 도메인](docs/socket/sync/README.md)** — `SyncManager`·plan·target 등록

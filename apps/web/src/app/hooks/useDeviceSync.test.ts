@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useMatch } from 'react-router-dom';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useAppVisibility } from '../bridge';
 import { useDeviceSync } from './useDeviceSync';
@@ -12,7 +12,7 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
-    useSocketState: jest.fn(),
+    useRuntimeSocketState: jest.fn(),
 }));
 
 // The bridge hook is unit-tested on its own; here we only need to drive its handler.
@@ -22,7 +22,7 @@ jest.mock('../bridge', () => ({
 
 const useMatchMock = useMatch as jest.Mock;
 const useRuntimeRepositoriesMock = useRuntimeRepositories as jest.Mock;
-const useSocketStateMock = useSocketState as jest.Mock;
+const useRuntimeSocketStateMock = useRuntimeSocketState as jest.Mock;
 const useAppVisibilityMock = useAppVisibility as jest.Mock;
 
 const syncDevice = jest.fn();
@@ -41,7 +41,7 @@ const emitVisibility = (isForeground: boolean) => {
 beforeEach(() => {
     jest.clearAllMocks();
     useRuntimeRepositoriesMock.mockReturnValue({ device: { syncDevice, syncStatus } });
-    useSocketStateMock.mockReturnValue({ isVerified: true });
+    useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
     setChannel(null);
 });
 
@@ -88,13 +88,13 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
     });
 
     it('미인증 상태에서는 통지를 보류하고, 재인증되면 현재 채널을 통지한다', () => {
-        useSocketStateMock.mockReturnValue({ isVerified: false });
+        useRuntimeSocketStateMock.mockReturnValue({ isVerified: false });
         setChannel('A');
         const { rerender } = renderHook(() => useDeviceSync());
         expect(syncDevice).not.toHaveBeenCalled();
 
         // re-auth while still in channel A → re-assert viewing
-        useSocketStateMock.mockReturnValue({ isVerified: true });
+        useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
         expect(syncDevice).toHaveBeenCalledWith('channel', 'A');
     });
@@ -135,18 +135,18 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
         syncStatus.mockClear();
 
         // Socket drops: the reconnect never replays status, so the hook must.
-        useSocketStateMock.mockReturnValue({ isVerified: false });
+        useRuntimeSocketStateMock.mockReturnValue({ isVerified: false });
         rerender();
         expect(syncStatus).not.toHaveBeenCalled();
 
-        useSocketStateMock.mockReturnValue({ isVerified: true });
+        useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
         expect(syncStatus).toHaveBeenCalledTimes(1);
         expect(syncStatus).toHaveBeenCalledWith('yellow');
     });
 
     it('미인증 중 전환은 즉시 전송하되(게이트 없음), 재인증 시 다시 단언한다', () => {
-        useSocketStateMock.mockReturnValue({ isVerified: false });
+        useRuntimeSocketStateMock.mockReturnValue({ isVerified: false });
         const { rerender } = renderHook(() => useDeviceSync());
         expect(syncStatus).not.toHaveBeenCalled();
 
@@ -155,7 +155,7 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
         expect(syncStatus).toHaveBeenNthCalledWith(1, 'yellow');
 
         // Re-auth → the possibly-lost yellow is re-asserted by the catch-up.
-        useSocketStateMock.mockReturnValue({ isVerified: true });
+        useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
         expect(syncStatus).toHaveBeenNthCalledWith(2, 'yellow');
         expect(syncStatus).toHaveBeenCalledTimes(2);

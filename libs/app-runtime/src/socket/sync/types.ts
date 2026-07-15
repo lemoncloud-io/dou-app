@@ -9,6 +9,13 @@ import type {
 export interface SyncWatchEntry {
     target: SyncTargetDescriptor;
     refs: number;
+    /**
+     * The cloud id (active slot's boundCid) this target was registered under, or null when no socket
+     * was bound yet (cid-agnostic). On an active-client swap, a target is only (re)synced on the
+     * client whose boundCid matches — so a cloud channel is never replayed onto the relay socket after
+     * a cloud logout (multi-socket-design.md §8-a trap #2).
+     */
+    cid: string | null;
 }
 
 /**

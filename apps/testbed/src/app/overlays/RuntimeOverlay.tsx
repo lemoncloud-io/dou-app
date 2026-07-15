@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlobalSession, useSessionAuth, useSessionIdentity } from '@chatic/web-core';
-import { useSocketState, getSyncManager, useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeSocketState, getSyncManager, useRuntimeRepositories, useRuntimeProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainCloud, DomainProfile, DomainUser } from '@chatic/data';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 import { DBBrowser } from './DBBrowser';
@@ -32,7 +32,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 export const RuntimeOverlay = ({ onClose }: Props) => {
     const session = useGlobalSession();
     const { isAuthenticated, isInitialized } = useSessionAuth();
-    const socketState = useSocketState();
+    const socketState = useRuntimeSocketState();
     const [tab, setTab] = useState<'상태' | 'DB' | '성능' | '프로필' | '안읽음'>('상태');
 
     // Floating draggable panel: start near the top-right so it doesn't cover the header.
@@ -70,7 +70,7 @@ export const RuntimeOverlay = ({ onClose }: Props) => {
 
     const { relay, cloud, identity, activeServer } = session;
     // Profile facts (guest/role/type/name) now track the cached profile, not the session payload.
-    const facts = useSessionProfile();
+    const facts = useRuntimeProfile();
 
     return (
         <div

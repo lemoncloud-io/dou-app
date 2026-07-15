@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
-import { useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 
 import {
     DropdownMenu,
@@ -38,7 +38,7 @@ export const HomePage = () => {
 
     // Profile facts track the cached profile (seeded synchronously from the active session payload,
     // then reactive on cache emits), so a profile edit fans out here without a session refresh.
-    const { isGuest } = useSessionProfile();
+    const { isGuest } = useRuntimeProfile();
     const permissions = useUserPermissions();
     // A guest who has accepted a cloud invite stays userType === TEMP_ACCOUNT, but holds invited
     // clouds in the cache. This "invited guest" must be able to switch into those clouds, so the

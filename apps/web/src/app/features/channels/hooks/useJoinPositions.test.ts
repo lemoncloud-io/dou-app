@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 import { useJoinPositions } from './useJoinPositions';
@@ -8,7 +8,7 @@ import { useJoinPositions } from './useJoinPositions';
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
     getSyncManager: jest.fn(),
-    useSocketState: jest.fn(),
+    useRuntimeSocketState: jest.fn(),
 }));
 
 const observeList = jest.fn();
@@ -33,7 +33,7 @@ beforeEach(() => {
     registerJoin.mockReturnValue(() => undefined);
     (useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList } });
     (getSyncManager as jest.Mock).mockReturnValue({ registerJoin });
-    (useSocketState as jest.Mock).mockReturnValue({ isVerified: true });
+    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
 });
 
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {

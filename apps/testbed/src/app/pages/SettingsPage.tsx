@@ -7,14 +7,14 @@ import {
     useSessionIdentity,
     useSessionSelection,
 } from '@chatic/web-core';
-import { useRuntimeRepositories, useSessionProfile } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeProfile } from '@chatic/app-runtime';
 import type { DataRepositoriesV2, DomainProfile } from '@chatic/data';
 
 export const SettingsPage = () => {
     const navigate = useNavigate();
     const session = useGlobalSession();
     const identity = useSessionIdentity();
-    const facts = useSessionProfile();
+    const facts = useRuntimeProfile();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const logout = useSessionLogout();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();

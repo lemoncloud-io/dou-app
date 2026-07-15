@@ -39,7 +39,7 @@ function AppInner() {
 
 | 필요한 값                                            | 출처                                                         |
 | ---------------------------------------------------- | ------------------------------------------------------------ |
-| `isVerified`, `isConnected`, `state`, `connectionId` | `useSocketState()` (`@chatic/app-runtime`)                   |
+| `isVerified`, `isConnected`, `state`, `connectionId` | `useRuntimeSocketState()` (`@chatic/app-runtime`)            |
 | `selectedSiteId`(=selectedPlaceId)                   | `useSessionSelection().selectedSiteId` (`@chatic/web-core`)  |
 | `selectedCloudId`(=cloudId)                          | `useSessionSelection().selectedCloudId` ('default' fallback) |
 | `wssType`(relay/cloud)                               | `useGlobalSession().activeServer.kind`                       |
@@ -106,7 +106,7 @@ const refreshActiveLists = useCallback(async () => {
 
 ### (a) 앱 진입 + (b) 사이트/클라우드 전환 확정 — `isVerified` 상승 엣지
 
-둘 다 **`useSocketState().isVerified`의 false→true 상승 엣지** 하나로 포착한다. 전환은 재인증을 거치므로 `isVerified`가 하강 후 재상승한다 = "전환 확정 완료". 상승 엣지에서만 부르므로, 전환 낙관 구간(아직 옛 세션이 `verified=true`)에는 fetch하지 않아 이전 데이터가 새 `sid`/`cid`로 오염되지 않는다.
+둘 다 **`useRuntimeSocketState().isVerified`의 false→true 상승 엣지** 하나로 포착한다. 전환은 재인증을 거치므로 `isVerified`가 하강 후 재상승한다 = "전환 확정 완료". 상승 엣지에서만 부르므로, 전환 낙관 구간(아직 옛 세션이 `verified=true`)에는 fetch하지 않아 이전 데이터가 새 `sid`/`cid`로 오염되지 않는다.
 
 상승 엣지에서는 `refreshActiveLists`(델타)와 함께 **활성 사이트 채널 풀 스냅샷**(`channel.refreshList` = `channel.mine`)도 1회 실행한다. 델타 sync는 변경분만 나르므로, 진입/재연결/전환 시점에 스냅샷으로 보이는 목록을 재고정한다. 매 60초 틱에는 풀 fetch 비용을 내지 않는다 — 전환도 재인증(상승 엣지)을 거치므로 이 경로 하나로 충분하다.
 

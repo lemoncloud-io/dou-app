@@ -27,7 +27,11 @@ export interface HomePlacesResult {
 export const useHomePlaces = (): HomePlacesResult => {
     const { place } = useRuntimeRepositories();
     const session = useGlobalSession();
-    const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
+    // OPTIMISTIC cloud id (the selected cloud), matching useRuntimeBinding's cache-scope cid — NOT the
+    // committed activeServer.cloudId. This re-subscribes the observer the instant a cloud switch
+    // pre-applies the cid, so the previous cloud's rows clear immediately instead of lingering until
+    // token commit. (uid below still closes the commit-lag gap for the cache scope key.)
+    const cid = session.cloud?.cloudId && session.cloud.cloudId !== 'default' ? session.cloud.cloudId : 'default';
     const uid = session.identity.userId ?? undefined;
 
     const [places, setPlaces] = useState<DomainPlace[]>([]);

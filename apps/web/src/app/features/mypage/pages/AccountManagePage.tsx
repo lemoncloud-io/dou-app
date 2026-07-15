@@ -5,17 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import {
-    cloudsKeys,
-    useClouds,
-    useDeleteCloud,
-    useLogoutCloudSession,
-    useMembershipInfo,
-    useSessionSelection,
-} from '@chatic/web-core';
+import { cloudsKeys, useClouds, useDeleteCloud, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
+
+import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 
 export const AccountManagePage = () => {
     const navigate = useNavigateWithTransition();

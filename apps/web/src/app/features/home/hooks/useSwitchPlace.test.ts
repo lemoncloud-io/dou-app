@@ -1,11 +1,13 @@
 import { renderHook } from '@testing-library/react';
 
-import { useSessionSelection, useSiteSwitch } from '@chatic/web-core';
+import { useSessionSelection } from '@chatic/web-core';
 import type { DomainPlace } from '@chatic/data';
 
+import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useSwitchPlace } from './useSwitchPlace';
 
-jest.mock('@chatic/web-core', () => ({ useSessionSelection: jest.fn(), useSiteSwitch: jest.fn() }));
+jest.mock('@chatic/web-core', () => ({ useSessionSelection: jest.fn() }));
+jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 
 const switchSiteMock = jest.fn();
 

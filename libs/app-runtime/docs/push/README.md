@@ -1,8 +1,5 @@
 # Push Device-Token Registration
 
-Date: 2026-07-06
-Status: Implemented
-
 ## 목적
 
 네이티브 셸(모바일 WebView, Electron)로 실행 중일 때 푸시 디바이스 토큰을 홈 브로커(`reg-dev`)에 등록하는 공용 lifecycle 훅을 정의한다. 브로커에 등록된 토큰으로 중앙 pushes-api가 **모든 클라우드**의 메시지를 이 디바이스로 팬아웃한다 — 라이브 WebSocket이 커버하지 못하는 경로(소켓은 현재 접속한 클라우드만 본다)를 보완한다.
@@ -18,7 +15,7 @@ Status: Implemented
 interface DeviceTokenDelegate {
     fetchDeviceToken: () => Promise<string | null>; // null = 획득 불가(권한 거부 등)
     platform: string; // 'ios' | 'android' | 'desktop' ...
-    installId?: string; // Firebase installation id
+    installId?: string; // @deprecated — 미주입 시 useDynamicDeviceId().firebaseInstallationId로 폴백
     application?: string; // 기본 'chatic'
 }
 ```
@@ -76,7 +73,7 @@ const delegate = useMemo<DeviceTokenDelegate | null>(() => {
 useDeviceTokenRegistration(delegate);
 ```
 
-마운트 위치는 앱 자유다 — apps/web은 `GlobalBridgeListener`에서 호출한다. `SessionBackgroundRunner`에 내장하지 않은 이유: delegate가 앱(셸) 컨텍스트를 요구하므로 인자 없는 runner에 넣을 수 없다.
+마운트 위치는 앱 자유다 — apps/web은 `GlobalBridgeListener`에서 호출한다. `RuntimeConnectionHost`에 내장하지 않은 이유: delegate가 앱(셸) 컨텍스트를 요구하므로 인자 없이 Host에서 호출할 수 없다.
 
 ## 비책임
 

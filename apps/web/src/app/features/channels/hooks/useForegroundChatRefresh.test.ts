@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 jest.mock('@chatic/app-runtime', () => ({
     getSyncManager: jest.fn(),
     useRuntimeRepositories: jest.fn(),
-    useSocketState: jest.fn(),
+    useRuntimeSocketState: jest.fn(),
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -11,7 +11,7 @@ jest.mock('@chatic/bridges', () => ({
 // Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../../../bridge', () => ({ useAppForeground: jest.fn() }));
 
-import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useAppForeground } from '../../../bridge';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';
@@ -22,7 +22,7 @@ const cacheReadList = jest.fn();
 const refreshList = jest.fn();
 const updateLocalSnapshot = jest.fn();
 
-const setVerified = (isVerified: boolean) => (useSocketState as jest.Mock).mockReturnValue({ isVerified });
+const setVerified = (isVerified: boolean) => (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 const setCachedChats = (chatNos: number[]) =>
     cacheReadList.mockResolvedValue({ list: chatNos.map(chatNo => ({ chatNo })) });
 

@@ -1,13 +1,13 @@
 import { act, renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useSocketState: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSocketState: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({
     useGlobalSession: jest.fn(),
     useSessionSelection: jest.fn(),
@@ -28,7 +28,7 @@ const getMyProfile = jest.fn();
 const getSyncedAt = jest.fn();
 const setSyncedAt = jest.fn();
 
-const setVerified = (isVerified: boolean) => (useSocketState as jest.Mock).mockReturnValue({ isVerified });
+const setVerified = (isVerified: boolean) => (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 // The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0];
@@ -249,5 +249,62 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(setSyncedAt).not.toHaveBeenCalledWith('channel-sync:default', expect.anything());
         // 채널 실패가 프로필 동기화를 막지는 않는다
         expect(syncProfiles).toHaveBeenCalledTimes(1);
+    });
+
+    it('사이트(sid) 변경 시 새 사이트 채널을 갱신한다 (auth.switch는 상승 엣지를 만들지 않으므로 Trigger 4)', async () => {
+        setVerified(true);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        await act(async () => undefined); // 마운트 상승 엣지(s1) flush
+        syncChannels.mockClear();
+        refreshChannelList.mockClear();
+
+        // 사이트 전환: s1 → s2. verified는 그대로 true(auth.switch가 authenticated 유지 → 상승 엣지 없음).
+        setSession('default', 's2');
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('클라우드 전환(상승 엣지 + sid 변경)에서 채널 스냅샷을 중복 없이 1회만 갱신한다 (#7)', async () => {
+        // A cloud switch reboots the socket (verified false→true) AND lands on a new sid. Trigger 1
+        // and Trigger 4 must not both fire: Trigger 1 advances prevSiteRef so Trigger 4 stays quiet.
+        setVerified(false);
+        setSession('cloud-a', 's1');
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        setSession('cloud-b', 's2');
+        await act(async () => {
+            rerender();
+        });
+
+        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('전환 진행 중(isSwitching)에는 사이트 변경 트리거가 대기하고, 정착 후 발화한다', async () => {
+        setVerified(true);
+        setSwitching(true);
+        const { rerender } = renderHook(() => useBackgroundSync());
+        await act(async () => undefined);
+        refreshChannelList.mockClear();
+
+        // sid는 낙관적으로 먼저 s2가 되지만 아직 전환 중이므로 fetch하지 않는다.
+        setSession('default', 's2');
+        await act(async () => {
+            rerender();
+        });
+        expect(refreshChannelList).not.toHaveBeenCalled();
+
+        // 전환 정착 → 발화.
+        setSwitching(false);
+        await act(async () => {
+            rerender();
+        });
+        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
     });
 });

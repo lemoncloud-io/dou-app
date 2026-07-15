@@ -52,11 +52,15 @@ export class SyncManager implements ISyncManager {
             entry.refs += 1;
             entry.target = { ...entry.target, ...target };
         } else {
+            // Tag the target with the cloud it is registered under (the active slot's boundCid) so a
+            // later client swap only replays it onto the matching client (§8-a trap #2).
+            const cid = this.manager.getBoundCid();
             this.watchEntries.set(key, {
                 target: { ...target },
                 refs: 1,
+                cid,
             });
-            this.startTarget(target);
+            this.startTarget(target, cid);
         }
 
         let active = true;
@@ -151,12 +155,24 @@ export class SyncManager implements ISyncManager {
 
     private replayTargets(): void {
         for (const entry of this.watchEntries.values()) {
-            this.startTarget(entry.target);
+            this.startTarget(entry.target, entry.cid);
         }
     }
 
-    private startTarget(target: SyncTargetDescriptor): void {
+    /**
+     * A target syncs only on the client whose `boundCid` it was registered under. `cid == null`
+     * (registered before any socket bound) is cid-agnostic and always eligible. This keeps a cloud's
+     * channel/chat targets off the relay socket after a cloud logout, and off a different cloud's
+     * socket after a switch — the frame-level `dropForeignFrame` guard (plans.ts) only covers the
+     * mid-switch same-url window, not a target replayed onto a genuinely different active client.
+     */
+    private isCidActive(cid: string | null): boolean {
+        return cid == null || cid === this.manager.getBoundCid();
+    }
+
+    private startTarget(target: SyncTargetDescriptor, cid: string | null): void {
         if (!this.runtime || this.plans.length === 0) return;
+        if (!this.isCidActive(cid)) return;
 
         try {
             this.runtime.startSync(target);

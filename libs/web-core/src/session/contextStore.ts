@@ -200,13 +200,59 @@ export const setSessionAuthenticated = (isAuthenticated: boolean): void => {
     notifySessionStateChanged();
 };
 
+// Field-level equality over the fields observers actually read. Token carriers (delegationToken/
+// cloudToken) are compared by reference: they are only ever REPLACED on save, never mutated, so `===`
+// can only report "unchanged" for a genuine no-op — it never masks a real change.
+const sameRelayContext = (a: RelayContext, b: RelayContext): boolean =>
+    a.backend === b.backend &&
+    a.wss === b.wss &&
+    a.identityToken === b.identityToken &&
+    a.siteId === b.siteId &&
+    a.isAuthenticated === b.isAuthenticated;
+
+const sameCloudContext = (a: CloudContext, b: CloudContext): boolean =>
+    a.cloudId === b.cloudId &&
+    a.siteId === b.siteId &&
+    a.backend === b.backend &&
+    a.wss === b.wss &&
+    a.identityToken === b.identityToken &&
+    a.isActive === b.isActive &&
+    a.delegationToken === b.delegationToken &&
+    a.cloudToken === b.cloudToken;
+
+const sameIdentityContext = (a: IdentityContext, b: IdentityContext): boolean =>
+    a.userId === b.userId &&
+    a.delegatorId === b.delegatorId &&
+    a.isInitialized === b.isInitialized &&
+    a.isAuthenticated === b.isAuthenticated &&
+    a.error === b.error;
+
 // Rebuilds identity from the current token/flag storage and notifies subscribers. Call after a
 // caller changes the underlying session tokens (relay/cloud) so token-derived fields (uid,
 // delegatorId, flags) refresh. Profile payloads are no longer stored, so there is nothing to set
 // beyond re-deriving from state.
+//
+// Gated notify: a token writeback frequently re-derives an IDENTICAL observable context — most
+// notably a background relay credential refresh while cloud is active (dual 5min refresh loops),
+// which changes neither uid nor any field observers read. Notifying then fans out a no-op re-render
+// to every useGlobalSession subscriber and rebuilds useRuntimeBinding. Skip the fan-out unless the
+// derived context actually changed. `before` is the cached (pre-writeback) context; the freshly
+// built relay/cloud reflect post-writeback core storage, so a genuine change is still detected.
 export const rebuildSessionIdentity = (): void => {
-    const state = readSessionIdentityState();
-    sessionContextStore.setIdentityState(buildIdentityContext(state));
+    const before = getGlobalSessionContext();
+    const nextIdentity = buildIdentityContext(readSessionIdentityState());
+    const relay = buildRelayContext();
+    const cloud = buildCloudContext();
+
+    if (
+        sameIdentityContext(before.identity, nextIdentity) &&
+        sameRelayContext(before.relay, relay) &&
+        sameCloudContext(before.cloud, cloud)
+    ) {
+        return;
+    }
+
+    sessionContextStore.setIdentityState(nextIdentity);
     notifySessionStateChanged();
 };
 

@@ -9,12 +9,13 @@ const RECOVER_THROTTLE_MS = 5_000;
 
 /**
  * Kick socket recovery the instant the app returns to the foreground or the network
- * comes back. After a short sleep the live WS silently dies, but no request carries it
- * back and the periodic heal only runs every ~60s — so live messages stall until then.
- * Reconnect + re-auth on wake instead, for instant recovery. Only fires while the socket
- * is actually unverified; a genuinely expired token still fails re-auth and falls through
- * to useSocketWedgeReload's reload. Electron only (a plain browser tab manages its own
- * lifecycle and must never be poked like this).
+ * comes back. After a short sleep the live WS silently dies, so we force-close it on wake:
+ * disconnect() bypasses the SDK reconnect controller's manualStop flag, so the resulting
+ * `closed` transition triggers auto-reconnect + re-auth for instant recovery (the SDK now
+ * owns reconnect — SocketManager no longer exposes a manual recover()). Only fires while the
+ * socket is actually unverified; a genuinely expired token still fails re-auth and falls
+ * through to useSocketWedgeReload's reload. Electron only (a plain browser tab manages its
+ * own lifecycle and must never be poked like this).
  */
 export const useSocketWakeRecovery = (): void => {
     const lastKickRef = useRef(0);
@@ -31,7 +32,8 @@ export const useSocketWakeRecovery = (): void => {
             const now = Date.now();
             if (now - lastKickRef.current < RECOVER_THROTTLE_MS) return;
             lastKickRef.current = now;
-            void manager.recover('wake');
+            // Force-close the zombie socket; the SDK reconnect controller then re-establishes + re-auths.
+            void manager.disconnect().catch(() => undefined);
         };
 
         window.addEventListener('focus', kick);

@@ -23,11 +23,12 @@ flowchart TD
 
 - Chatic API를 호출하기 위한 저수준 클라이언트(`webTransport`) 설정을 가집니다.
 - 환경 정보, 기기 설정, 스토리지 어댑터 등을 주입받아 API Request Builder 및 토큰 주입 흐름을 관장합니다.
+- 외부에 노출하는 환경 상수(`ENV`/`PROJECT`/`WS_ENDPOINT`/`OAUTH_ENDPOINT`/`SOCIAL_OAUTH_ENDPOINT`/`DOU_ENDPOINT`/`startWebCoreInit`/`LANGUAGE_KEY`)는 transport 클라이언트와 구분해 `src/config`로 묶어 재노출합니다. 값 해석 규칙은 [통신 런타임 초기화 모델](docs/transport/runtime-model.md)을 따릅니다.
 
 ### 3) Hooks Layer (인증 및 라이프사이클 오케스트레이션)
 
 - 세션의 생명주기를 자동으로 제어하는 백그라운드 오케스트레이션 훅과 액션 훅들을 소유합니다.
-- 예: 중계 서버 로그인 상시 유지, 토큰 갱신 루프, 디바이스 ID 관리, 사이트/클라우드 전환 액션 등.
+- 예: 중계 서버 로그인 상시 유지, 디바이스 ID 관리, 사이트/클라우드 전환 액션 등. (소켓 토큰의 주기 리프레시는 SDK `AuthController`가 소유하며 web-core 훅이 아닙니다.)
 
 ---
 
@@ -57,12 +58,13 @@ const MyInitializer = () => {
 ```typescript
 import { useGlobalSession } from '@chatic/web-core';
 
-const UserProfile = () => {
+const ServerBadge = () => {
   const { identity, activeServer } = useGlobalSession();
 
+  // 프로필(이름/사진/역할)은 session이 아니라 app 레이어(useProfileFacts)에서 파생합니다.
   return (
     <div>
-      <p>사용자: {identity.activeProfile?.name}</p>
+      <p>userId: {identity.userId}</p>
       <p>현재 연결 서버: {activeServer.kind} (Site ID: {activeServer.siteId})</p>
     </div>
   );
@@ -71,27 +73,25 @@ const UserProfile = () => {
 
 ### 3. 세션 조작 및 비즈니스 액션
 
-로그인, 로그아웃, 클라우드 및 사이트 전환은 아래의 액션 훅들을 통해 실행합니다.
+로그인, 로그아웃, 클라우드/사이트 전환은 `hooks/session/actions`의 개별 액션 훅으로 실행합니다.
 
 ```typescript
-import { useSessionActions } from '@chatic/web-core';
+import { useLogoutCloudSession, useSessionLogout, useSwitchCloudSession } from '@chatic/web-core';
 
-const LogoutButton = () => {
-  const { logoutCloud, logoutRelay } = useSessionActions();
+const SessionControls = () => {
+  const { logoutCloudSession } = useLogoutCloudSession(); // cloud만 종료(relay 유지)
+  const logout = useSessionLogout();                      // relay 전체 로그아웃(콜백)
+  const { switchCloud } = useSwitchCloudSession();
 
-  return (
-    <button onClick={logoutCloud}>
-      클라우드 세션 종료
-    </button>
-  );
+  return <button onClick={() => logoutCloudSession()}>클라우드 세션 종료</button>;
 };
 ```
 
 ### 4. 백그라운드 세션 오케스트레이션
 
-- `useRelaySessionKeepAlive()`: 중계 서버의 게스트/영구 로그인 커넥션을 유지합니다.
-- `useTokenRefresh()`: 1분 주기로 백그라운드 토큰 리프레시 루프를 실행합니다.
-- `useDynamicDeviceId()`: 브라우저/디바이스 식별키 발급 및 유지를 관리합니다.
+- `useRelaySessionKeepAlive(enabled)`: relay 세션이 부재하면 백그라운드 게스트 로그인으로 복구합니다.
+- `useInitWebCore()`: 웹코어 초기화 단일 드라이버(1회).
+- `useDynamicDeviceId()`: 브라우저/디바이스 식별키 해석·유지.
 
 ---
 
@@ -103,5 +103,5 @@ const LogoutButton = () => {
 - **[세션 시나리오 명세](docs/session/session-scenarios.md)**: 클라우드/사이트 전환, 토큰 갱신, 로그아웃 동작 흐름
 - **[공개 세션 API](docs/session/public-api.md)**: 세션 핵심 메서드 명세
 - **[통신 런타임 초기화 모델](docs/transport/runtime-model.md)**: webTransport 설정 및 init 가이드
-- **[백그라운드 오케스트레이션 훅 정책](docs/hooks/orchestration.md)**: KeepAlive 및 TokenRefresh 병렬 구동 스펙
+- **[백그라운드 오케스트레이션 훅 정책](docs/hooks/orchestration.md)**: KeepAlive·디바이스 등록 등 lifecycle 훅 구동 스펙
 - **[공개 훅 목록](docs/hooks/public-surface.md)**: 노출되는 훅과 시나리오 매핑 정리

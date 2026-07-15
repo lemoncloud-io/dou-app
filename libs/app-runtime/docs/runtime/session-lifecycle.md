@@ -1,69 +1,64 @@
-# Runtime Session 서브 (Runner & Bootstrap)
-
-Date: 2026-06-19
+# Runtime 마운트 라이프사이클 (Host)
 
 ## 1. 목적
 
-`runtime`의 **session 서브**는 `@chatic/web-core`가 소유하고 있는 백그라운드 병렬 세션 시나리오(중계서버 유지, 토큰 리프레시, 디바이스 등록 등)의 마운트 생명주기를 통제하고, `webTransport` 통신 레이어의 초기화 선행 조건을 보장하는 역할을 한다.
+`RuntimeConnectionHost`가 `webTransport` 초기화 선행 조건을 보장하고, `@chatic/web-core`의 백그라운드 세션 훅(relay keep-alive)을 인라인으로 호출하면서 `app-runtime`의 바인더들을 올바른 순서로 마운트하는 방식을 다룬다.
 
 ---
 
-## 2. 세션 백그라운드 러너 (SessionBackgroundRunner)
+## 2. `RuntimeConnectionHost` — 조립 루트 + init 게이트
 
-`SessionBackgroundRunner`는 백그라운드 상에서 병렬로 지속 구동되어야 하는 `web-core` 핵심 세션 제어 훅들을 한데 묶어 실행하는 render-null 컴포넌트다.
+과거 별도의 `TransportBootstrap` 컴포넌트가 하던 transport 준비 게이팅은 **`RuntimeConnectionHost`에 흡수**됐다. Host가 다음을 직접 소유한다:
+
+1. **웹코어 init 게이트** — `useInitWebCore()`가 `initializeRelaySession`을 1회 구동한다. 완료 전(`isWebCoreReady === false`)에는 자식 트리를 렌더하지 않고 `null`을 반환해, 선행 의존성 없는 상태에서 바인더가 일찍 마운트되는 것을 차단한다.
+2. **delegate 소유** — `const delegate = useSocketSessionDelegate()`로 per-kind 소켓 인증 delegate를 만들어 소켓 바인더에 넘긴다. 앱이 delegate를 주입하지 않는다(Host props는 `{ binding, children }`뿐).
+3. **relay keep-alive** — `useRelaySessionKeepAlive(true)`를 Host에서 직접 호출한다(게이트보다 위에서 호출돼 init 진행 여부와 무관하게 relay 세션 부재 시 백그라운드 게스트 로그인으로 복구). 별도 render-null 러너 컴포넌트는 없다.
+4. **자식 마운트 순서**.
 
 ```tsx
-export const SessionBackgroundRunner = () => {
-    // ① 중계서버 게스트/인증 로그인 세션 항시 유지
-    useRelaySessionKeepAlive();
+export const RuntimeConnectionHost = ({ binding, children }) => {
+    const isWebCoreReady = useInitWebCore(); // web-core 단일 init 드라이버
+    const delegate = useSocketSessionDelegate();
+    useRelaySessionKeepAlive(true); // relay 세션 부재 시 백그라운드 게스트 로그인으로 복구
 
-    // ② 주기적 토큰 리프레시 루프 (relay + cloudToken)
-    useTokenRefresh();
+    if (!isWebCoreReady) return null; // 초기화 완료 전 하위 트리 렌더 차단
 
-    // ⑪ 물리 디바이스 고유 식별자(deviceId) 등록/관리
-    useDynamicDeviceId();
-
-    return null;
+    return (
+        <>
+            <RuntimeDataBinder binding={binding} />
+            <SocketBinder binding={binding} delegate={delegate} />
+            <SocketReauthBinder binding={binding} delegate={delegate} />
+            {children}
+        </>
+    );
 };
 ```
 
-- **역할 분리**: 세션의 상태 전이 로직 및 API 호출은 전적으로 `web-core` 훅이 소유한다. `SessionBackgroundRunner`는 해당 훅들이 적절한 순서와 환경에 마운트되어 라이프사이클을 구동할 수 있도록 제어하는 실행 단위이다.
-- **마운트 선행 조건**: `TransportBootstrap`에 의해 `webTransport` 인스턴스 초기화 및 중계서버 초기화(`useInitWebCore` 완료)가 보장된 상태에서만 안전하게 실행되도록 게이팅한다.
+- **역할 분리**: 상태 전이·API 호출은 web-core 훅이 소유하고, Host는 인라인 훅 호출 + 바인더 마운트 단위일 뿐이다.
+- 토큰 refresh는 Host에서 돌리지 않는다 — 소켓 토큰(relay 주기 refresh 포함)은 SDK `AuthController`가 만료 기반으로 소유한다. web-core에는 주기 refresh 루프가 없다([../../../web-core/docs/hooks/orchestration.md](../../../web-core/docs/hooks/orchestration.md)).
 
 ---
 
-## 3. 웹트랜스포트 부트스트랩 (TransportBootstrap)
-
-`TransportBootstrap`은 런타임의 최상위 게이트 역할을 하는 컴포넌트다.
-스토리지 어댑터, 환경 변수, 네트워크 자격 증명 등을 보유하는 `webTransport` 런타임(`libs/web-core/src/transport/webTransport.ts`)의 준비 여부를 관측한다.
-
-- `web-core` 내부의 `useInitWebCore()` 훅의 `isReady` 상태를 가이드로 삼는다.
-- **초기화 대기**: `isReady === false`인 초기 구동 시점에는 자식 트리를 렌더링하지 않고 `null`을 반환하여, 선행 의존성이 없는 상태에서 하위 바인더나 세션 러너가 일찍 마운트되어 에러를 발생시키는 것을 원천 차단한다.
-- **초기화 완료**: `isReady === true`가 되는 순간 자식 트리를 마운트하여 정상적인 커넥션 및 데이터 동기화 루프를 가동한다.
-
----
-
-## 4. 라이프사이클 흐름도
+## 3. 라이프사이클 흐름도
 
 ```mermaid
 flowchart TD
-  Host["RuntimeConnectionHost (마운트)"] --> TB["TransportBootstrap"]
+  Host["RuntimeConnectionHost (useInitWebCore + useRelaySessionKeepAlive)"]
+  Host -- isWebCoreReady === false --> Pending["자식 렌더링 차단 (null)"]
+  Host -- isWebCoreReady === true --> Mount["자식 트리 마운트"]
 
-  TB -- isReady === false --> Pending["자식 렌더링 차단 (null)"]
-  TB -- isReady === true --> Mount["자식 트리 마운트"]
-
-  Mount --> Runner["SessionBackgroundRunner 구동 (①, ②, ⑪)"]
-  Mount --> DataBinder["RuntimeDataBinder (DataContext 동기화)"]
-  Mount --> SocketBinder["SocketBinder (SocketConfig 동기화)"]
+  Mount --> DataBinder["RuntimeDataBinder (context 동기화)"]
+  Mount --> SocketBinder["SocketBinder (relay/cloud 슬롯 부팅)"]
+  Mount --> Reauth["SocketReauthBinder (same-connection 재인증)"]
 ```
 
-1. **로그인/갱신 흐름 생성**: `SessionBackgroundRunner`가 `web-core` 세션 데이터를 지속적으로 갱신하고 흐르게 한다.
-2. **반영**: 세션 데이터가 갱신되어 활성 서버 정보가 변경되면, `useRuntimeBinding`을 거쳐 `RuntimeDataBinder`와 `SocketBinder`가 이를 감지하고 소켓 및 데이터 엔진에 주입한다.
+1. **세션 유지** — Host의 인라인 `useRelaySessionKeepAlive`가 relay 세션을 유지·복구한다.
+2. **반영** — 세션이 갱신돼 활성 서버가 바뀌면 `useRuntimeBinding`을 거쳐 `RuntimeDataBinder`/`SocketBinder`/`SocketReauthBinder`가 이를 data/socket 엔진에 주입한다.
 
 ---
 
 ## 관련 문서
 
-- [../architecture.md](../architecture.md) — 전체 아키텍처 아웃라인 및 오케스트레이션 매핑
-- [./README.md](./README.md) — Binder 컴포넌트 및 `useRuntimeBinding` 파생 규칙
-- [../socket/README.md](../socket/README.md) — 소켓 401 재인증 복구 매커니즘
+- [../architecture.md](../architecture.md) — 전체 아키텍처·오케스트레이션 매핑
+- [./README.md](./README.md) — `RuntimeBinding` 파생 규칙 + 바인더 역할
+- [../socket/README.md](../socket/README.md) — 소켓 부팅·재인증·switch/logout

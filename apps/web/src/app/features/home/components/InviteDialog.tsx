@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useInviteInfo, useSessionLogout } from '@chatic/web-core';
+import { useInviteInfo } from '@chatic/web-core';
 
+import { useSessionLogout } from '../../../runtime/useSessionLogout';
 import { useInviteAccept } from '../hooks';
 import { isInviteEntry, parseInviteDeeplink } from '../types';
 import { ROUTES } from '../../../routes/paths';
