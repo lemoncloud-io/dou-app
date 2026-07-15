@@ -1,11 +1,11 @@
-import { ArrowLeftRight, CircleAlert, EllipsisVertical, User } from 'lucide-react';
-
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
+import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
+
+import { AppHeader, DefaultAvatar, ProfileAvatar } from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -18,9 +18,18 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
-import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
+import { BottomNavigation } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
-import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
+import {
+    ChannelList,
+    CloudSessionSheet,
+    CreateChannelDialog,
+    CreatePlaceDialog,
+    InviteDialog,
+    PlaceList,
+    SubscriptionRequiredDialog,
+} from '../components';
+import { getCloudDisplayName } from '../components/cloud-session';
 import {
     useActiveCloudChannels,
     useChannelUnreads,
@@ -30,7 +39,6 @@ import {
     useSwitchPlace,
 } from '../hooks';
 import { resolveHeaderProfile } from '../lib';
-import { InviteDialog } from '../components';
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -45,12 +53,26 @@ export const HomePage = () => {
     // cloud-switch UI is offered to them even though they are still a guest.
     // useInvitedClouds hides clouds the signed-in account now owns, so an invited cloud that became
     // owned (guest → owner) no longer counts here and is shown only as an owned cloud.
-    const { hasInvitedClouds } = useInvitedClouds();
+    const { hasInvitedClouds, invitedClouds } = useInvitedClouds();
     const isInvitedGuest = isGuest && hasInvitedClouds;
     const canSwitchCloud = !isGuest || isInvitedGuest;
     const { selectedCloudId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
-    const { isCloudsError } = useCloudSessionCatalog();
+    // Connected to an invited cloud → drives the place-type caption; place creation is owner-only
+    // (hidden on relay and for invited users), gated by the runtime permission.
+    const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);
+    const canAddPlace = !isDefaultCloud && permissions.canCreatePlace;
+
+    // Cloud identity for the `cloud` header kind. CloudView has no image field, so AppHeader falls
+    // back to a CloudAvatar (name initials) — we only supply the display name here.
+    const { clouds } = useCloudSessionCatalog();
+    const activeCloud = clouds.find(cloud => cloud.id === selectedCloudId);
+    const cloudName = activeCloud ? getCloudDisplayName(activeCloud) : '';
+
+    // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise a valid
+    // membership reads as PRO (same convention as SubscriptionPage). CloudView carries no grade.
+    const { data: membership } = useMembershipInfo();
+    const planTier: 'free' | 'pro' = !isGuest && membership?.isValid ? 'pro' : 'free';
 
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
@@ -88,7 +110,7 @@ export const HomePage = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
-    const [isReportIssueOpen, setIsReportIssueOpen] = useState(false);
+    const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
     const { toast } = useToast();
@@ -105,62 +127,70 @@ export const HomePage = () => {
         setIsPlaceDialogOpen(true);
     };
 
-    const handleCreateChannel = () => setIsDialogOpen(true);
+    // Group-room creation is PRO-gated: subscribed → the create dialog, otherwise the upsell.
+    const handleCreateGroup = () => {
+        if (planTier === 'pro') {
+            setIsDialogOpen(true);
+        } else {
+            setIsSubscriptionRequiredOpen(true);
+        }
+    };
+    // Relay 1:1 chat creation is not implemented yet (ADR-0010): placeholder.
+    const handleCreateOneOnOne = () => toast({ title: t('homePage.directComingSoon', '1:1 대화는 준비 중이에요') });
+
+    // Search is not implemented yet (ADR-0010): the button is a visible placeholder.
+    const handleSearch = () => toast({ title: t('homePage.searchComingSoon', '검색은 준비 중이에요') });
+    // Notifications settings has no route yet (ADR-0010): placeholder, tracked as a follow-up.
+    const handleNotifications = () =>
+        toast({ title: t('homePage.notificationsComingSoon', '알림 설정은 준비 중이에요') });
+
+    // Right-side profile → dropdown (프로필 / 알림 / 설정). The header shows my place profile.
+    const profileMenu = (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    aria-label={t('homePage.profile', '프로필')}
+                    className="flex size-9 items-center justify-center"
+                >
+                    <ProfileAvatar src={displayImageUrl} size={36} />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+                <div className="flex items-center gap-2 px-2 py-2">
+                    <ProfileAvatar src={displayImageUrl} size={32} />
+                    <span className="min-w-0 truncate text-sm font-semibold text-foreground">{displayName}</span>
+                </div>
+                <DropdownMenuItem onClick={() => navigate(profileTarget)} className="cursor-pointer">
+                    {t('homePage.menuProfile', '프로필')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleNotifications} className="cursor-pointer">
+                    {t('homePage.menuNotifications', '알림')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(ROUTES.mypage.root)} className="cursor-pointer">
+                    {t('homePage.menuSettings', '설정')}
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
 
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-background pb-[98px] pt-4">
-            {/* Header */}
-            <header className="flex items-center justify-between px-5 pb-3 pt-safe-top">
-                {!showProfileButton ? (
-                    <CloudLogo />
-                ) : (
-                    <button onClick={() => navigate(profileTarget)} className="flex items-center gap-[9px]">
-                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {displayImageUrl ? (
-                                <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
-                            ) : (
-                                <User size={20} className="text-muted-foreground" />
-                            )}
-                        </div>
-                        <span className="max-w-[100px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                            {displayName}
-                        </span>
-                    </button>
-                )}
-                <div className="flex items-center gap-4">
-                    {canSwitchCloud && (
-                        <button onClick={() => setIsCloudSessionOpen(true)} className="p-1">
-                            <ArrowLeftRight size={22} className="text-foreground" />
-                        </button>
-                    )}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="p-1">
-                                <EllipsisVertical size={22} className="text-foreground" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => setIsReportIssueOpen(true)} className="cursor-pointer">
-                                <CircleAlert size={16} className="mr-2" />
-                                <span>{t('home.reportIssue')}</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </header>
+        <div className="flex h-screen flex-col overflow-hidden bg-background pb-[98px]">
+            <AppHeader
+                kind={isDefaultCloud ? 'no-cloud' : 'cloud'}
+                name={cloudName}
+                planTier={planTier}
+                onPlanClick={() => navigate(ROUTES.subscription.root)}
+                onSearch={handleSearch}
+                searchLabel={t('homePage.search', '검색')}
+                onSwitcher={canSwitchCloud ? () => setIsCloudSessionOpen(true) : undefined}
+                switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
+                avatar={showProfileButton ? profileMenu : <DefaultAvatar size={36} />}
+                profileLabel={t('homePage.profile', '프로필')}
+            />
 
-            {/* Cloud Error Banner */}
-            {!isGuest && isCloudsError && (
-                <button
-                    onClick={() => setIsCloudSessionOpen(true)}
-                    className="mx-5 mb-2 rounded-lg bg-destructive/10 px-4 py-2.5 text-left text-sm text-destructive"
-                >
-                    {t('homePage.noCloudsError')}
-                </button>
-            )}
-
-            {/* Place List */}
-            <section className="pb-4 pt-2">
+            {/* Place + Chat scroll together under the fixed header (accordion sections). */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2">
                 <PlaceList
                     places={places}
                     selectedPlaceId={selectedPlaceId}
@@ -169,30 +199,32 @@ export const HomePage = () => {
                     isSwitching={isSwitching}
                     onSelectPlace={switchPlace}
                     onCreatePlace={handleCreatePlace}
-                    isGuest={isGuest}
+                    isInvitedCloud={isInvitedCloud}
+                    canAddPlace={canAddPlace}
                 />
-            </section>
 
-            <div className="mx-4 h-[3px] bg-border" />
-
-            {/* Chat List */}
-            <section className="flex min-h-0 flex-1 flex-col px-4 pt-[18px]">
                 {selectedPlaceId ? (
                     <ChannelList
                         channels={channels}
                         unreadByChannel={unreadByChannel}
                         isLoading={isChannelsLoading}
-                        showCreateButton={!isChannelsLoading && permissions.canCreateChannel}
-                        onCreateChannel={handleCreateChannel}
+                        canCreate={!isChannelsLoading && permissions.canCreateChannel}
+                        isDefaultCloud={isDefaultCloud}
+                        isPro={planTier === 'pro'}
+                        onCreateOneOnOne={handleCreateOneOnOne}
+                        onCreateGroup={handleCreateGroup}
                     />
                 ) : null}
-            </section>
+            </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
+            <SubscriptionRequiredDialog
+                open={isSubscriptionRequiredOpen}
+                onClose={() => setIsSubscriptionRequiredOpen(false)}
+            />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
-            <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
             <InviteDialog />
             <BottomNavigation />
         </div>
