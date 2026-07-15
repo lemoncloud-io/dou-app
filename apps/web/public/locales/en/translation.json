@@ -213,7 +213,8 @@
             "renewal_canceled": "Canceled",
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
-            "privacyPolicy": "Privacy Policy"
+            "privacyPolicy": "Privacy Policy",
+            "inUse": "Subscribed"
         },
         "accountManage": {
             "title": "Account Management",
@@ -345,7 +346,8 @@
     },
     "bottomNav": {
         "chat": "Chat",
-        "my": "MY"
+        "my": "MY",
+        "unread": "{{count}} unread"
     },
     "explore": {
         "title": "Explore",

@@ -47,9 +47,7 @@ describe('PlaceProfileCreateDialog', () => {
         fireEvent.change(screen.getByRole('textbox'), { target: { value: '  sunny  ' } });
         fireEvent.click(done());
 
-        await waitFor(() =>
-            expect(setMyProfileMock).toHaveBeenCalledWith({ nick: 'sunny', thumbnail: undefined })
-        );
+        await waitFor(() => expect(setMyProfileMock).toHaveBeenCalledWith({ nick: 'sunny', thumbnail: undefined }));
     });
 
     it('입력이 없으면 닫기 시 바로 onExit을 호출한다', () => {

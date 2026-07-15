@@ -98,9 +98,9 @@ flowchart TD
 - 입력: 활성 플레이스 `sid`(`useSessionSelection().selectedSiteId`), `uid`(`useSessionIdentity().userId`).
 - **default cloud(중계 서버)에서도 동작한다.** default cloud에서도 `selectedSiteId`는 relay core에서 나오므로([contextStore.ts:173](../../../../../libs/web-core/src/session/contextStore.ts)), 클라우드 종류로 게이팅하지 않는다. `sid`·`uid`가 모두 있을 때만 프로필을 키(`${sid}@${uid}`)로 판단할 수 있으므로, 둘 중 하나라도 없으면 표시하지 않는다.
 - **관측 캐시 주도 + 레이스 안전 (핵심)**: 내부 상태 `status: 'unknown' | 'present' | 'absent'`. 판단은 `getMyProfile()`의 반환값이 아니라 **관측 캐시(`observeItem`, 헤더가 읽는 것과 동일 소스)**로 한다 — 동시 저장/조회가 오래된 값으로 resolve될 수 있기 때문.
-  - **로딩 vs 없음**: `absent`는 `getMyProfile()`이 **성공 resolve**했을 때만 확정한다(서버의 authoritative "이 플레이스에 프로필 없음"). reject는 대개 일시적(부팅 시 소켓 연결 중 503)이므로 "없음"으로 보지 않고 **재시도(`RETRY_DELAY_MS`×`MAX_FETCH_ATTEMPTS`)하며 `unknown` 유지** → 로딩 중 프롬프트가 깜빡이며 뜨지 않는다.
-  - **present 래치 (`presentFor` ref)**: 한 번 nick이 확인된 플레이스는 이후 다시 `absent`로 내려가지 않는다 — effect 재실행이나, 저장 직후 **뒤늦게 도착한 오래된 빈 조회**가 캐시를 덮어써도 프롬프트가 재등장하지 않는다. (프로필 설정 후 다이얼로그가 다시 뜨던 동시성 버그를 막는 지점.) 래치는 `profileId` 단위라 다른 플레이스로 바뀌면 새로 판정한다.
-  - `getMyProfile()`은 캐시를 채우고 settle 시점을 알리는 용도이며, 그 cacheWrite가 `observeItem`으로 fan-in된다.
+    - **로딩 vs 없음**: `absent`는 `getMyProfile()`이 **성공 resolve**했을 때만 확정한다(서버의 authoritative "이 플레이스에 프로필 없음"). reject는 대개 일시적(부팅 시 소켓 연결 중 503)이므로 "없음"으로 보지 않고 **재시도(`RETRY_DELAY_MS`×`MAX_FETCH_ATTEMPTS`)하며 `unknown` 유지** → 로딩 중 프롬프트가 깜빡이며 뜨지 않는다.
+    - **present 래치 (`presentFor` ref)**: 한 번 nick이 확인된 플레이스는 이후 다시 `absent`로 내려가지 않는다 — effect 재실행이나, 저장 직후 **뒤늦게 도착한 오래된 빈 조회**가 캐시를 덮어써도 프롬프트가 재등장하지 않는다. (프로필 설정 후 다이얼로그가 다시 뜨던 동시성 버그를 막는 지점.) 래치는 `profileId` 단위라 다른 플레이스로 바뀌면 새로 판정한다.
+    - `getMyProfile()`은 캐시를 채우고 settle 시점을 알리는 용도이며, 그 cacheWrite가 `observeItem`으로 fan-in된다.
 - `shouldPrompt = (status === 'absent') && !skippedPlaceProfileIds.includes(sid)`.
 - 반환: `{ shouldPrompt, activeSid, dismiss() }`. `dismiss()`는 `skipPlaceProfile(sid)` 호출.
 
@@ -136,9 +136,9 @@ apps/web가 `@chatic/web-ui-kit`을 처음 소비하면서 필요한 통합 작�
 ## 검증 방법
 
 - **유닛/컴포넌트 테스트** (전부 통과):
-  - [TextField.test.tsx](../../../../../libs/web-ui-kit/src/foundations/input/TextField.test.tsx): `enforceMaxLength={false}`면 하드 캡 없이 21/20 카운터 노출, 기본은 캡 유지.
-  - [usePreferenceStore.test.ts](../../../src/app/stores/usePreferenceStore.test.ts): `skipPlaceProfile` 추가·중복 제거·persist·빈 sid 무시.
-  - [usePlaceProfilePrompt.test.ts](../../../src/app/features/home/hooks/usePlaceProfilePrompt.test.ts): 로딩 중 미표시 / resolve 후 nick 공백&미건너뛰기→표시 / nick 채워짐→미표시 / 건너뛰기·sid·uid 없음→미표시 / **getMyProfile reject는 로딩으로 간주해 미표시+재시도**, 재시도 resolve 시 판정 / reject 중 캐시 nick 있으면 미표시 / **present 래치**(저장 후 뒤늦은 빈 조회가 와도 재표시 안 함) / default cloud 동작 / 늦게 도착한 프로필로 자동 닫힘 / dismiss 호출.
-  - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx): 완료 활성/비활성 전이, 20자 초과 카운터, `setMyProfile` 호출(nick trim), 입력 유무에 따른 이탈 확인 모달/즉시 exit.
+    - [TextField.test.tsx](../../../../../libs/web-ui-kit/src/foundations/input/TextField.test.tsx): `enforceMaxLength={false}`면 하드 캡 없이 21/20 카운터 노출, 기본은 캡 유지.
+    - [usePreferenceStore.test.ts](../../../src/app/stores/usePreferenceStore.test.ts): `skipPlaceProfile` 추가·중복 제거·persist·빈 sid 무시.
+    - [usePlaceProfilePrompt.test.ts](../../../src/app/features/home/hooks/usePlaceProfilePrompt.test.ts): 로딩 중 미표시 / resolve 후 nick 공백&미건너뛰기→표시 / nick 채워짐→미표시 / 건너뛰기·sid·uid 없음→미표시 / **getMyProfile reject는 로딩으로 간주해 미표시+재시도**, 재시도 resolve 시 판정 / reject 중 캐시 nick 있으면 미표시 / **present 래치**(저장 후 뒤늦은 빈 조회가 와도 재표시 안 함) / default cloud 동작 / 늦게 도착한 프로필로 자동 닫힘 / dismiss 호출.
+    - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx): 완료 활성/비활성 전이, 20자 초과 카운터, `setMyProfile` 호출(nick trim), 입력 유무에 따른 이탈 확인 모달/즉시 exit.
 - **정적 검사**: `nx typecheck web`·`nx typecheck web-ui-kit` 통과, 변경 파일 ESLint 통과.
 - **수동 확인(후속)**: 실제 프롬프트는 로그인 세션 + 프로필 없는 활성 플레이스 상태가 필요해 로컬 프리뷰로 재현이 제한적이다. Storybook의 `TextField > OverLimit` 스토리로 초과 상태를 시각 확인할 수 있으나, worktree+nx 데몬(심링크 node_modules) 상호작용으로 worktree 스토리 인덱싱이 지연될 수 있음. 배포 환경 QA에서 5개 Figma 상태를 대조 권장.

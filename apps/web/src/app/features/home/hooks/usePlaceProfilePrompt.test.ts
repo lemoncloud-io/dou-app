@@ -54,7 +54,7 @@ beforeEach(() => {
 
 describe('usePlaceProfilePrompt — 플레이스 프로필 생성 감지', () => {
     it('로딩 중(getMyProfile 미resolve)에는 표시하지 않는다', () => {
-        getMyProfileMock.mockReturnValue(new Promise(() => {})); // never resolves
+        getMyProfileMock.mockReturnValue(new Promise(() => undefined)); // never resolves
 
         const { result } = renderHook(() => usePlaceProfilePrompt());
 

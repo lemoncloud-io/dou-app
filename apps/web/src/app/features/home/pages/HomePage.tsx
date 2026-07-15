@@ -18,7 +18,6 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
-import { BottomNavigation } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
@@ -248,7 +247,6 @@ export const HomePage = () => {
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
             <InviteDialog />
-            <BottomNavigation />
         </div>
     );
 };
