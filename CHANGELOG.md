@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-07-15] - No version updates
+
+### Features
+
+- (web-ui-kit) add CollapsibleSection and UnreadBadge pill variant
+
+### Documentation
+
+- (adr) renumber home web-ui-kit migration ADR to 0013
+
+### Refactor
+
+- (web/home) migrate home screen to web-ui-kit (ADR-0010)
+
 ## [2026-07-15] - root@0.42.4, @chatic/web@0.36.1, @chatic/desktop-web@0.3.5
 
 ### Features

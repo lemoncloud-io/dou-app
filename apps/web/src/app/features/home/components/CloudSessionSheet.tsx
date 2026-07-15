@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Home, X } from 'lucide-react';
+import { Home } from 'lucide-react';
 
 import { useInterval } from '@chatic/shared';
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudsKeys, useCloudSessionCatalog, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+
+import { BottomSheet } from '@chatic/web-ui-kit';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
@@ -23,7 +24,6 @@ import {
     AddAccountButton,
     CloudItem,
     InviteCloudItem,
-    ProfileSection,
     TabBar,
     getCloudDisplayName,
     isProvisioning,
@@ -118,24 +118,19 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
 
     return (
         <>
-            <Sheet open={open} onOpenChange={open => !open && handleClose()}>
-                <SheetContent side="bottom" className="rounded-t-2xl p-0 pb-safe-bottom" hideClose>
-                    <SheetTitle className="sr-only">{t('cloudSessionSheet.title')}</SheetTitle>
-                    <SheetDescription className="sr-only">{t('cloudSessionSheet.title')}</SheetDescription>
-
-                    {/* Close Button */}
-                    <div className="flex justify-end px-4 pt-[14px]">
-                        <button
-                            onClick={handleClose}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EAEAEC] dark:bg-[#3A3A3E]"
-                        >
-                            <X size={14} className="text-foreground" strokeWidth={2} />
-                        </button>
-                    </div>
-
-                    {/* Profile */}
-                    <ProfileSection />
-
+            <BottomSheet
+                open={open}
+                onOpenChange={open => !open && handleClose()}
+                title={t('cloudSessionSheet.title')}
+                onClose={handleClose}
+                closeLabel={t('cloudSessionSheet.close', '닫기')}
+                footer={
+                    tab === 'my' && !isDefaultSelected && clouds.length < 1 ? (
+                        <AddAccountButton onClick={handleAddAccount} />
+                    ) : undefined
+                }
+            >
+                <div className="flex flex-col">
                     {/* Disconnect Cloud Link — shown only while connected to a cloud */}
                     {!isDefaultSelected && (
                         <button
@@ -224,12 +219,8 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                             )}
                         </div>
                     </div>
-
-                    {tab === 'my' && !isDefaultSelected && clouds.length < 1 && (
-                        <AddAccountButton onClick={handleAddAccount} />
-                    )}
-                </SheetContent>
-            </Sheet>
+                </div>
+            </BottomSheet>
             <SubscriptionSelectDialog
                 open={isSubscriptionSelectOpen}
                 onOpenChange={setIsSubscriptionSelectOpen}

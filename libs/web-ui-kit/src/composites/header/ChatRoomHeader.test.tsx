@@ -32,6 +32,28 @@ describe('ChatRoomHeader', () => {
         });
     });
 
+    describe('meta row', () => {
+        it('renders the meta node below the title when provided', () => {
+            render(<ChatRoomHeader kind="group" title="개발 모임방" meta={<span>META</span>} />);
+
+            expect(screen.getByText('META')).toBeInTheDocument();
+        });
+    });
+
+    describe('moreMenu', () => {
+        it('renders the ⋯ button as a dropdown trigger (not calling onMore)', () => {
+            const onMore = jest.fn();
+            render(<ChatRoomHeader title="개발 모임방" onMore={onMore} moreMenu={<div>menu</div>} />);
+
+            const moreButton = screen.getByRole('button', { name: 'More' });
+            expect(moreButton).toHaveAttribute('aria-haspopup', 'menu');
+
+            fireEvent.click(moreButton);
+            // moreMenu takes precedence — the plain onMore callback must not fire.
+            expect(onMore).not.toHaveBeenCalled();
+        });
+    });
+
     describe('direct kind', () => {
         it('renders the host-supplied peer avatar', () => {
             render(<ChatRoomHeader kind="direct" title="친구 이름" avatar={<span>PEER</span>} />);

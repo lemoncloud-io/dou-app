@@ -49,6 +49,11 @@
         --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
         --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
 
+        /* Brand + control tokens (Figma, web-ui-kit parity) */
+        --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge, active send) */
+        --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
+        --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
+
         /* Toast (always dark surface) */
         --toast: 222 75% 12%; /* #081837 */
         --toast-foreground: 210 6% 96%; /* #F4F5F5 */
@@ -111,6 +116,11 @@
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
         --control-idle: 220 3% 40%; /* idle/disabled control fill on dark bg */
         --avatar-ring: 0 0% 18%; /* avatar outer ring on dark bg */
+
+        /* Brand + control tokens (Figma, web-ui-kit parity) */
+        --brand-ink: 217 63% 17%; /* #102346 */
+        --control-idle: 220 3% 40%; /* muted control on dark bg */
+        --avatar-ring: 0 0% 18%; /* subtle ring on dark bg */
 
         /* Toast (light card on dark bg) */
         --toast: 210 6% 96%; /* #F4F5F5 - light card */
