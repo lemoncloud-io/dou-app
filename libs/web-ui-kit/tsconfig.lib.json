@@ -1,0 +1,26 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc",
+        "types": ["node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
+    },
+    "exclude": [
+        "jest.config.js",
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+        "src/**/*.spec.tsx",
+        "src/**/*.test.tsx",
+        "src/**/*.stories.ts",
+        "src/**/*.stories.tsx",
+        "**/*.stories.ts",
+        "**/*.stories.js",
+        "**/*.stories.jsx",
+        "**/*.stories.tsx"
+    ],
+    "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+    "references": [
+        {
+            "path": "../ui-kit/tsconfig.lib.json"
+        }
+    ]
+}

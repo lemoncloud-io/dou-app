@@ -43,7 +43,9 @@
             "@chatic/ui-kit": ["libs/ui-kit/src/index.ts"],
             "@chatic/ui-kit/*": ["libs/ui-kit/src/*"],
             "@chatic/users": ["libs/users/src/index.ts"],
-            "@chatic/web-core": ["libs/web-core/src/index.ts"]
+            "@chatic/web-core": ["libs/web-core/src/index.ts"],
+            "@chatic/web-ui-kit": ["libs/web-ui-kit/src/index.ts"],
+            "@chatic/web-ui-kit/*": ["libs/web-ui-kit/src/*"]
         }
     },
     "exclude": ["node_modules", "tmp"]
