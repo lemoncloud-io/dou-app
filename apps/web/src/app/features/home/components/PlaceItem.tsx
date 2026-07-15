@@ -1,8 +1,9 @@
-import type { DomainPlace } from '@chatic/data';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@chatic/lib/utils';
+
 import { usePlaceSync } from '@chatic/app-runtime';
-import { Check, Home, Users } from 'lucide-react';
+import type { DomainPlace } from '@chatic/data';
+
+import { CloudAvatar, ListRow, PlaceAvatar, VerifiedBadge } from '@chatic/web-ui-kit';
 
 interface PlaceItemProps {
     place: DomainPlace;
@@ -10,55 +11,57 @@ interface PlaceItemProps {
     isDisabled: boolean;
     onSelectPlace: (placeId: string) => void;
     unreadCount?: number;
+    /** Place-type caption below the name (기본/내/초대받은 플레이스). */
+    subtitle: string;
 }
 
-export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unreadCount }: PlaceItemProps) => {
+export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unreadCount, subtitle }: PlaceItemProps) => {
     const { t } = useTranslation();
     // Register this place as a sync target while it is rendered; the runtime keeps its
     // metadata (name, thumbnail, …) live and unregisters on unmount.
     usePlaceSync(place.id);
 
     const isDefaultPlace = place.id === 'default';
-    const disabled = isDisabled || isSelected;
     const displayName = isDefaultPlace ? t('placeList.defaultPlace') : place.name;
+    const hasUnread = !!unreadCount && unreadCount > 0;
+
+    // Avatar: photo when set, the generic place glyph for the default place, otherwise a
+    // name-initials avatar (matches the Figma place rows).
+    const leading = place.thumbnail ? (
+        <span className="size-[46px] shrink-0 overflow-hidden rounded-full">
+            <img src={place.thumbnail} alt={displayName} className="size-full object-cover" />
+        </span>
+    ) : isDefaultPlace ? (
+        <PlaceAvatar size="lg" />
+    ) : (
+        <CloudAvatar name={displayName ?? ''} size="lg" />
+    );
+
+    // Selected place shows the blue verified check; an unselected place with unread shows a red dot.
+    const trailingMark = isSelected ? (
+        <VerifiedBadge size={18} label={t('placeList.selected', '선택됨')} />
+    ) : hasUnread ? (
+        <span
+            className="size-1.5 shrink-0 rounded-full bg-main-accent"
+            aria-label={t('placeList.hasUnread', '읽지 않음')}
+        />
+    ) : null;
 
     return (
-        <button
-            onClick={() => !disabled && onSelectPlace(place.id)}
-            disabled={disabled}
-            className={cn('flex flex-col items-center gap-[5px]', disabled && 'cursor-not-allowed')}
-        >
-            <div className="relative h-[47px] w-[47px]">
-                <div
-                    className={cn(
-                        'absolute left-[3px] top-[3px] flex h-[41px] w-[41px] items-center justify-center overflow-hidden rounded-full',
-                        isSelected ? 'bg-[#102346]' : 'bg-muted'
-                    )}
-                >
-                    {place.thumbnail ? (
-                        <img src={place.thumbnail} alt={displayName} className="h-full w-full object-cover" />
-                    ) : isDefaultPlace ? (
-                        <Home size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
-                    ) : (
-                        <Users size={20} className={isSelected ? 'text-white' : 'text-muted-foreground'} />
-                    )}
-                </div>
-                {isSelected && <div className="absolute inset-0 rounded-full border-[1.5px] border-[#C139E3]" />}
-                {!!unreadCount && unreadCount > 0 && (
-                    <div className="absolute right-[3px] top-[3px] z-10 h-[10px] w-[10px] rounded-full bg-red-500" />
-                )}
-            </div>
-            <div className="flex items-center justify-center gap-[2px]">
-                <span
-                    className={cn(
-                        'max-w-[70px] truncate text-center text-[14px] tracking-[-0.018em]',
-                        isSelected ? 'font-medium text-foreground' : 'font-normal text-muted-foreground'
-                    )}
-                >
-                    {displayName}
-                </span>
-                {isSelected && <Check size={14} className="flex-shrink-0 text-[#90C304]" />}
-            </div>
-        </button>
+        <ListRow
+            leading={leading}
+            title={
+                <>
+                    <span className="truncate">{displayName}</span>
+                    {trailingMark}
+                </>
+            }
+            subtitle={subtitle}
+            onClick={() => onSelectPlace(place.id)}
+            // Re-selecting the active place is a no-op in useSwitchPlace, so we don't disable the
+            // selected row — disabling would dim it (ListRow's disabled:opacity-50), but the selected
+            // place should stay prominent. Only a switch-in-progress disables the rows.
+            disabled={isDisabled}
+        />
     );
 };
