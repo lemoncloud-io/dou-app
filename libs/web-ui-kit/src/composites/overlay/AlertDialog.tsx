@@ -1,8 +1,7 @@
+import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import * as React from 'react';
 
 import {
-    AlertDialogAction,
-    AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialog as Root,
@@ -75,13 +74,16 @@ export const AlertDialog = ({
                         )}
                     </div>
 
+                    {/* Use the RAW Radix Cancel/Action (not @chatic/ui-kit's styled wrappers): those
+                        inject buttonVariants + `mt-2`, which Radix Slot concatenates onto the child
+                        button (no tailwind-merge), breaking the two-up split row (misaligned/overlap). */}
                     <div className="flex w-full">
-                        <AlertDialogCancel asChild>
+                        <AlertDialogPrimitive.Cancel asChild>
                             <button type="button" onClick={handleCancel} className={cn(ACTION, 'border-r text-label')}>
                                 {cancelLabel}
                             </button>
-                        </AlertDialogCancel>
-                        <AlertDialogAction asChild>
+                        </AlertDialogPrimitive.Cancel>
+                        <AlertDialogPrimitive.Action asChild>
                             <button
                                 type="button"
                                 onClick={handleConfirm}
@@ -89,7 +91,7 @@ export const AlertDialog = ({
                             >
                                 {confirmLabel}
                             </button>
-                        </AlertDialogAction>
+                        </AlertDialogPrimitive.Action>
                     </div>
                 </div>
             </AlertDialogContent>

@@ -8,7 +8,8 @@
 
 메인 화면(`/`)이다. 활성 클라우드의 **Place 목록**과 **선택된 Place의 Channel 목록**을 보여주고,
 **Place 전환**·**클라우드 전환(CloudSessionSheet)**·**미읽음 집계**를 담당한다. 최초 실행 시
-[onboarding](../onboarding/README.md) 모달을 오버레이로 띄운다.
+[onboarding](../onboarding/README.md) 모달을 오버레이로 띄운다. 활성 플레이스에 프로필이 없으면
+[플레이스 프로필 생성](./place-profile-create.md) 오버레이를 감지해 띄운다(onboarding 우선).
 
 이번 개정(ADR-0013)의 목표는 **손수 만든 홈 UI를 `@chatic/web-ui-kit`로 마이그레이션**하는 것이다.
 데이터 흐름·훅·동기화 등록 모델은 그대로 두고, 헤더·Place/Chat 섹션·행·클라우드 전환 시트를 디자인

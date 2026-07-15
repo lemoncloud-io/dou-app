@@ -37,6 +37,22 @@ describe('TextField', () => {
         expect(screen.getByRole('textbox')).toHaveAttribute('maxLength', '20');
     });
 
+    it('drops the hard cap but keeps the counter when enforceMaxLength is false', () => {
+        // Over-limit value: counter shows 21/20 (unreachable if the input were hard-capped).
+        render(
+            <TextField
+                label="이름"
+                value={'a'.repeat(21)}
+                onChange={jest.fn()}
+                maxLength={20}
+                enforceMaxLength={false}
+            />
+        );
+
+        expect(screen.getByRole('textbox')).not.toHaveAttribute('maxLength');
+        expect(screen.getByText('21/20')).toBeInTheDocument();
+    });
+
     it('renders the error instead of the description', () => {
         render(
             <TextField

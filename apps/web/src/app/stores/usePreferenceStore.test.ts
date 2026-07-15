@@ -23,10 +23,12 @@ const mockSavePreference = appBridge.savePreference as jest.MockedFunction<typeo
 
 const resetStore = () => {
     localStorage.clear();
+    sessionStorage.clear();
     usePreferenceStore.setState({
         blurLastMessage: false,
         isFirstRun: true,
         theme: 'system',
+        skippedPlaceProfileIds: [],
     });
     jest.clearAllMocks();
 };
@@ -84,6 +86,35 @@ describe('usePreferenceStore — web 환경', () => {
 
             expect(usePreferenceStore.getState().isFirstRun).toBe(true);
             expect(localStorage.getItem('chatic-onboarding-completed')).toBe('false');
+        });
+    });
+
+    describe('skipPlaceProfile — 플레이스 프로필 생성 건너뛰기', () => {
+        it('sid를 집합에 추가하고 sessionStorage에 JSON으로 저장한다', () => {
+            usePreferenceStore.getState().skipPlaceProfile('SITE#1');
+
+            expect(usePreferenceStore.getState().skippedPlaceProfileIds).toEqual(['SITE#1']);
+            expect(sessionStorage.getItem('chatic-skipped-place-profiles')).toBe('["SITE#1"]');
+        });
+
+        it('같은 sid를 두 번 넣어도 중복되지 않는다', () => {
+            usePreferenceStore.getState().skipPlaceProfile('SITE#1');
+            usePreferenceStore.getState().skipPlaceProfile('SITE#1');
+
+            expect(usePreferenceStore.getState().skippedPlaceProfileIds).toEqual(['SITE#1']);
+        });
+
+        it('여러 sid를 누적한다', () => {
+            usePreferenceStore.getState().skipPlaceProfile('SITE#1');
+            usePreferenceStore.getState().skipPlaceProfile('SITE#2');
+
+            expect(usePreferenceStore.getState().skippedPlaceProfileIds).toEqual(['SITE#1', 'SITE#2']);
+        });
+
+        it('빈 sid는 무시한다', () => {
+            usePreferenceStore.getState().skipPlaceProfile('');
+
+            expect(usePreferenceStore.getState().skippedPlaceProfileIds).toEqual([]);
         });
     });
 

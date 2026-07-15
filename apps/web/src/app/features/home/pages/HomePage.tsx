@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -27,6 +27,7 @@ import {
     CreatePlaceDialog,
     InviteDialog,
     PlaceList,
+    PlaceProfileCreateDialog,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
@@ -36,6 +37,7 @@ import {
     useHomeChannels,
     useHomePlaces,
     useInvitedClouds,
+    usePlaceProfilePrompt,
     useSwitchPlace,
 } from '../hooks';
 import { resolveHeaderProfile } from '../lib';
@@ -78,6 +80,11 @@ export const HomePage = () => {
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
+    // Prompt to CREATE a per-place profile when the active place has none yet.
+    const { shouldPrompt: needsPlaceProfile, dismiss: dismissPlaceProfile } = usePlaceProfilePrompt();
+    const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
+    const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
+
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
     // sites, not just the selected one. Unread derives from each channel's embedded `$join`/`metaNo`
@@ -114,6 +121,12 @@ export const HomePage = () => {
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
     const { toast } = useToast();
+
+    // Open the place-profile-create overlay once the prompt is due, but never over the first-run
+    // onboarding modal (that flow takes precedence).
+    useEffect(() => {
+        if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
+    }, [needsPlaceProfile, isFirstRun]);
 
     const handleComplete = () => {
         toast({ title: t('homePage.roomCreated') });
@@ -219,6 +232,15 @@ export const HomePage = () => {
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
+            <PlaceProfileCreateDialog
+                open={isPlaceProfileOpen}
+                placeName={activePlaceName}
+                onDone={() => setIsPlaceProfileOpen(false)}
+                onExit={() => {
+                    setIsPlaceProfileOpen(false);
+                    dismissPlaceProfile();
+                }}
+            />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}

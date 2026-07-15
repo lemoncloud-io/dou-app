@@ -45,6 +45,9 @@
         --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
         --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
         --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
+        --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
+        --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
+        --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
 
         /* Brand + control tokens (Figma, web-ui-kit parity) */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge, active send) */
@@ -110,6 +113,9 @@
         --main-accent: 76 93% 39%; /* #90C304 - same */
         --input-border: 0 0% 23%; /* #3A3C40 */
         --focus-border: 216 3% 64%; /* #9FA2A7 */
+        --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
+        --control-idle: 220 3% 40%; /* idle/disabled control fill on dark bg */
+        --avatar-ring: 0 0% 18%; /* avatar outer ring on dark bg */
 
         /* Brand + control tokens (Figma, web-ui-kit parity) */
         --brand-ink: 217 63% 17%; /* #102346 */
