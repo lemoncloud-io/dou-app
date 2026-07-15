@@ -15,6 +15,13 @@ export interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInput
     onChange: (value: string) => void;
     /** When set, shows an "N/max" counter inside the field and caps input length. */
     maxLength?: number;
+    /**
+     * Whether `maxLength` also hard-caps typed input. Defaults to `true`.
+     * Set `false` to keep the counter (and let callers surface an over-limit
+     * `error`) while still allowing the value to exceed `maxLength` — e.g. a
+     * "21/20" over-limit state that a hard cap would make unreachable.
+     */
+    enforceMaxLength?: boolean;
     /** Helper text below the field. Hidden when `error` is present. */
     description?: string;
     /** Error text below the field; reddens the border + copy. Overrides `description`. */
@@ -37,6 +44,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
             value,
             onChange,
             maxLength,
+            enforceMaxLength = true,
             description,
             error,
             success = false,
@@ -85,7 +93,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
                             ref={ref}
                             id={inputId}
                             value={value}
-                            maxLength={maxLength}
+                            maxLength={enforceMaxLength ? maxLength : undefined}
                             required={required}
                             aria-required={required || undefined}
                             aria-invalid={error ? true : undefined}

@@ -39,6 +39,26 @@ export const ErrorState: Story = {
     render: () => <TextField label="이름" required value="" onChange={() => undefined} error="이름을 입력해 주세요." />,
 };
 
+const OverLimitDemo = () => {
+    // Soft cap: enforceMaxLength={false} keeps the counter but lets the value exceed the max,
+    // so the "21/20" over-limit error state is reachable (used by place-profile-create).
+    const [value, setValue] = useState('sunny12^^~ㄴㄴㄴㄴㄴㄴㄴㄴㄴㄴ');
+    return (
+        <TextField
+            label="이름"
+            required
+            value={value}
+            onChange={setValue}
+            maxLength={20}
+            enforceMaxLength={false}
+            description="20글자 이내로 입력해 주세요."
+            error={value.length > 20 ? '20글자 이내로 입력해 주세요.' : undefined}
+        />
+    );
+};
+
+export const OverLimit: Story = { render: () => <OverLimitDemo /> };
+
 export const Success: Story = {
     render: () => (
         <TextField
