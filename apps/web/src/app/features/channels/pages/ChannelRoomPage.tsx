@@ -1,39 +1,20 @@
-import {
-    AlertCircle,
-    ArrowUp,
-    ChevronLeft,
-    Clock,
-    Copy,
-    Loader2,
-    MoreHorizontal,
-    PenLine,
-    Plus,
-    RotateCcw,
-    Settings,
-    User,
-    X,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, PenLine, Plus, Settings, User, X } from 'lucide-react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
+import { useSessionIdentity } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
 import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
+import { AvatarGroup, ChatRoomHeader, DateDivider, MessageInput, SystemNotice } from '@chatic/web-ui-kit';
 
 import { InviteFriendsDialog } from '../components';
-import { MessageBubble } from '../components/MessageBubble';
-import { ReadStatus } from '../components/ReadStatus';
+import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import {
     useChannel,
     useChannelMembers,
@@ -70,8 +51,6 @@ export const ChannelRoomPage = () => {
 
     const { userId } = useSessionIdentity();
     const { isGuest, isCloudActive } = useRuntimeProfile();
-    const { selectedCloudId } = useSessionSelection();
-    const isDefaultCloud = selectedCloudId === 'default';
     const { isIOS } = useAppChecker();
     const { isVerified } = useRuntimeSocketState();
 
@@ -91,6 +70,38 @@ export const ChannelRoomPage = () => {
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, activeMemberIds);
 
+    const isSelfChat = channel?.isSelfChat ?? false;
+    // Read receipts show for real groups only; the mode follows the active roster size
+    // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
+    const activeCount = activeMemberIds.length;
+    const showReadReceipt = !isSelfChat && activeCount >= 2;
+    const readVariant: 'binary' | 'count' = activeCount <= 2 ? 'binary' : 'count';
+
+    // Header avatar stack — self first (accent ring), peers after (surface ring). Capped by
+    // AvatarGroup. Hidden for the "only me" group; the count still shows.
+    const memberAvatars = useMemo(() => {
+        const ordered = [...activeMemberIds].sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0));
+        return ordered.slice(0, 4).map(id => {
+            const profile = profileMap.get(id);
+            const ring = id === userId ? 'border-main-accent' : 'border-surface';
+            return profile?.thumbnail ? (
+                <img
+                    key={id}
+                    src={profile.thumbnail}
+                    alt=""
+                    className={`size-6 rounded-full border object-cover ${ring}`}
+                />
+            ) : (
+                <span
+                    key={id}
+                    className={`inline-flex size-6 items-center justify-center rounded-full border bg-muted ${ring}`}
+                >
+                    <User className="size-3 text-muted-foreground" />
+                </span>
+            );
+        });
+    }, [activeMemberIds, profileMap, userId]);
+
     const memoizedChatParams = useMemo(
         () => ({
             channelId: stableChannelId,
@@ -109,8 +120,7 @@ export const ChannelRoomPage = () => {
         loadMore,
     } = useChats(memoizedChatParams);
 
-    const { isPending, sendMessage, readMessage, deleteMessage } = useChatMutations();
-    const isSending = isPending.send;
+    const { sendMessage, readMessage, deleteMessage } = useChatMutations();
 
     useEffect(() => {
         if (isChannelLoading) return;
@@ -142,16 +152,8 @@ export const ChannelRoomPage = () => {
         inputRef,
     });
 
-    useEffect(() => {
-        if (inputRef.current) {
-            inputRef.current.style.height = 'auto';
-            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-            inputRef.current.style.overflowY = inputRef.current.scrollHeight > 120 ? 'auto' : 'hidden';
-        }
-    }, [content]);
-
-    const handleSend = () => {
-        const trimmed = content.trim().slice(0, MAX_INPUT_LENGTH);
+    const handleSend = (raw: string) => {
+        const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
         if (!trimmed || !stableChannelId) return;
 
         setContent('');
@@ -217,7 +219,7 @@ export const ChannelRoomPage = () => {
 
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSend();
+            handleSend(content);
         }
     };
 
@@ -303,56 +305,48 @@ export const ChannelRoomPage = () => {
         );
     }
 
+    // Group meta (avatar stack + count) — omitted for self chats and while the member
+    // count is still 0 (initial load), so the header never shows an empty meta row.
+    const groupMeta =
+        isSelfChat || memberCount <= 0 ? undefined : (
+            <AvatarGroup avatars={memberCount <= 1 ? [] : memberAvatars} count={memberCount} />
+        );
+
     return (
-        <div className="flex h-full flex-col pt-safe-top bg-background">
-            <header className="relative z-10 flex min-h-[48px] items-center justify-center border-b border-border px-4 py-3">
-                <button onClick={() => navigate(-1)} className="absolute left-4 p-2">
-                    <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
-                </button>
-                <h1 className="text-[17px] font-semibold text-foreground">
-                    {channel?.isSelfChat ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
-                    {!channel?.isSelfChat && memberCount > 0 && (
-                        <span className="ml-1.5 text-sm font-normal text-muted-foreground">{memberCount}</span>
-                    )}
-                </h1>
-                {!channel?.isSelfChat && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="absolute right-4 p-1">
-                                <MoreHorizontal size={22} className="text-foreground" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
-                                className="cursor-pointer gap-2"
-                            >
-                                <Settings size={16} />
-                                <span>{t('home.settings')}</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
-            </header>
+        <div className="flex h-full flex-col bg-background">
+            <ChatRoomHeader
+                kind="group"
+                title={isSelfChat ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
+                onBack={() => navigate(-1)}
+                meta={groupMeta}
+                moreMenu={
+                    <DropdownMenuItem
+                        onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
+                        className="cursor-pointer gap-2"
+                    >
+                        <Settings size={16} />
+                        <span>{t('home.settings')}</span>
+                    </DropdownMenuItem>
+                }
+                className="border-b border-border"
+            />
 
             <div
                 ref={messagesEndRef}
                 onScroll={debouncedHandleScroll}
-                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none px-4 pb-4 pt-2 gap-3"
+                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none pb-4 pt-2 gap-3"
             >
                 {isChatLoading ? (
                     <div className="flex min-h-full items-center justify-center">
                         <Loader2 size={24} className="animate-spin text-muted-foreground" />
                     </div>
                 ) : isChatEmpty ? (
-                    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center">
-                        <div className="absolute left-0 right-0 top-2 text-center">
-                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                {formatDateSeparator(new Date())}
-                            </span>
+                    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center px-4">
+                        <div className="absolute left-0 right-0 top-2">
+                            <DateDivider label={formatDateSeparator(new Date())} />
                         </div>
                         <div className="flex flex-col items-center gap-4">
-                            {channel?.isSelfChat ? (
+                            {isSelfChat ? (
                                 <>
                                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
                                         <PenLine size={24} className="text-muted-foreground" />
@@ -406,31 +400,25 @@ export const ChannelRoomPage = () => {
                                                         : undefined;
                                                     const systemName = systemProfile?.nick ?? message.ownerName;
                                                     return (
-                                                        <div key={message.id} className="flex justify-center py-1">
-                                                            <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                                <span className="font-semibold">{systemName}</span>
-                                                                {t(suffixKey)}
-                                                            </span>
-                                                        </div>
+                                                        <SystemNotice key={message.id}>
+                                                            <span className="font-semibold">{systemName}</span>
+                                                            {t(suffixKey)}
+                                                        </SystemNotice>
                                                     );
                                                 }
                                                 // Legacy fallback: older rows stored the full sentence in content.
                                                 const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
                                                 return (
-                                                    <div key={message.id} className="flex justify-center py-1">
-                                                        <span className="rounded-full bg-foreground/5 px-2.5 py-1.5 text-sm text-foreground">
-                                                            {systemMatch ? (
-                                                                <>
-                                                                    <span className="font-semibold">
-                                                                        {systemMatch[1]}
-                                                                    </span>
-                                                                    {systemMatch[2]}
-                                                                </>
-                                                            ) : (
-                                                                message.content
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                                    <SystemNotice key={message.id}>
+                                                        {systemMatch ? (
+                                                            <>
+                                                                <span className="font-semibold">{systemMatch[1]}</span>
+                                                                {systemMatch[2]}
+                                                            </>
+                                                        ) : (
+                                                            message.content
+                                                        )}
+                                                    </SystemNotice>
                                                 );
                                             }
 
@@ -457,196 +445,50 @@ export const ChannelRoomPage = () => {
                                             const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
                                             const ownerAvatar = ownerProfile?.thumbnail;
 
+                                            const { readCount, unreadCount } =
+                                                message.chatNo !== undefined
+                                                    ? getReadCount(message.chatNo)
+                                                    : { readCount: 0, unreadCount: 0 };
+
                                             return (
-                                                <div
+                                                <ChannelMessageRow
                                                     key={message.id}
-                                                    className={`flex gap-1.5 ${message.isOwner ? 'justify-end' : 'justify-start'} ${!showProfileAndName ? '-mt-1' : ''}`}
-                                                >
-                                                    {!message.isOwner &&
-                                                        (showProfileAndName ? (
-                                                            <div className="flex size-[39px] flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
-                                                                {ownerAvatar ? (
-                                                                    <img
-                                                                        src={ownerAvatar}
-                                                                        alt={ownerDisplayName}
-                                                                        loading="lazy"
-                                                                        decoding="async"
-                                                                        className="size-full object-cover"
-                                                                    />
-                                                                ) : (
-                                                                    <User className="size-4 text-muted-foreground" />
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="size-[39px] flex-shrink-0" />
-                                                        ))}
-                                                    <div
-                                                        className={`flex max-w-[75%] flex-col ${message.isOwner ? 'items-end' : 'items-start'}`}
-                                                    >
-                                                        {!message.isOwner && showProfileAndName && (
-                                                            <span className="mb-1 text-xs text-muted-foreground">
-                                                                {ownerDisplayName}
-                                                            </span>
-                                                        )}
-                                                        <div
-                                                            className={`flex items-center gap-1.5 ${message.isOwner ? 'flex-row' : ''}`}
-                                                        >
-                                                            {message.isFailed && message.isOwner && (
-                                                                <button
-                                                                    onClick={() => handleRetryMessage(message)}
-                                                                    className="flex flex-shrink-0 items-center"
-                                                                >
-                                                                    <AlertCircle
-                                                                        size={20}
-                                                                        className="text-destructive"
-                                                                    />
-                                                                </button>
-                                                            )}
-                                                            <DropdownMenu
-                                                                open={openActionMessageKey === messageActionKey}
-                                                                onOpenChange={open => {
-                                                                    if (
-                                                                        !open &&
-                                                                        openActionMessageKey === messageActionKey
-                                                                    ) {
-                                                                        setOpenActionMessageKey(null);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <span
-                                                                        className="inline-flex max-w-full"
-                                                                        onPointerDown={event => event.preventDefault()}
-                                                                    >
-                                                                        <MessageBubble
-                                                                            content={message.content ?? ''}
-                                                                            isMine={message.isOwner}
-                                                                            onLongPress={() =>
-                                                                                handleOpenMessageActions(
-                                                                                    message,
-                                                                                    messageActionKey
-                                                                                )
-                                                                            }
-                                                                            status={
-                                                                                message.isFailed
-                                                                                    ? 'failed'
-                                                                                    : message.isPending
-                                                                                      ? 'pending'
-                                                                                      : undefined
-                                                                            }
-                                                                            onAction={
-                                                                                message.isFailed
-                                                                                    ? () => handleRetryMessage(message)
-                                                                                    : () =>
-                                                                                          setExpandedMessage({
-                                                                                              content:
-                                                                                                  message.content ?? '',
-                                                                                              ownerName:
-                                                                                                  message.ownerName,
-                                                                                          })
-                                                                            }
-                                                                        />
-                                                                    </span>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent
-                                                                    align={message.isOwner ? 'end' : 'start'}
-                                                                    side="top"
-                                                                    sideOffset={6}
-                                                                    className="min-w-[132px]"
-                                                                >
-                                                                    <DropdownMenuItem
-                                                                        disabled={isCopyingMessage}
-                                                                        onSelect={() =>
-                                                                            void handleCopyMessage(
-                                                                                message.content ?? ''
-                                                                            )
-                                                                        }
-                                                                        className="cursor-pointer gap-2"
-                                                                    >
-                                                                        {isCopyingMessage &&
-                                                                        openActionMessageKey === messageActionKey ? (
-                                                                            <Loader2 className="size-4 animate-spin" />
-                                                                        ) : (
-                                                                            <Copy className="size-4" />
-                                                                        )}
-                                                                        <span>{t('chat.room.copyMessage')}</span>
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                        {showTimeAndStatus && (
-                                                            <div
-                                                                className={`mt-1 flex items-center gap-1.5 text-[11px] leading-4 ${message.isOwner ? 'flex-row-reverse' : ''}`}
-                                                            >
-                                                                {message.isPending ? (
-                                                                    <span className="flex items-center gap-1 text-muted-foreground/70">
-                                                                        <Clock size={11} />
-                                                                        <span>{t('chat.room.sending')}</span>
-                                                                    </span>
-                                                                ) : message.isFailed ? (
-                                                                    <div className="flex items-center gap-1 text-destructive">
-                                                                        <AlertCircle size={11} />
-                                                                        <span>{t('chat.room.failed')}</span>
-                                                                        {message.isOwner && (
-                                                                            <>
-                                                                                <button
-                                                                                    onClick={() =>
-                                                                                        handleRetryMessage(message)
-                                                                                    }
-                                                                                    className="ml-2 flex items-center text-destructive"
-                                                                                    title={t('chat.room.retry')}
-                                                                                >
-                                                                                    <RotateCcw size={11} />
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() =>
-                                                                                        handleDeleteMessage(message.id)
-                                                                                    }
-                                                                                    className="ml-1 flex items-center text-destructive"
-                                                                                    title={t('chat.room.delete')}
-                                                                                >
-                                                                                    <X size={11} />
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="text-muted-foreground">
-                                                                            {formatTime(message.timestamp)}
-                                                                        </span>
-                                                                        {!isDefaultCloud &&
-                                                                            message.chatNo !== undefined &&
-                                                                            (!isJoinReady ? (
-                                                                                <Loader2
-                                                                                    size={11}
-                                                                                    className="animate-spin text-muted-foreground"
-                                                                                />
-                                                                            ) : (
-                                                                                (() => {
-                                                                                    const { readCount, unreadCount } =
-                                                                                        getReadCount(message.chatNo);
-                                                                                    return (
-                                                                                        <ReadStatus
-                                                                                            readCount={readCount}
-                                                                                            unreadCount={unreadCount}
-                                                                                        />
-                                                                                    );
-                                                                                })()
-                                                                            ))}
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                    message={message}
+                                                    showProfileAndName={showProfileAndName}
+                                                    showTimeAndStatus={showTimeAndStatus}
+                                                    ownerDisplayName={ownerDisplayName}
+                                                    ownerAvatar={ownerAvatar}
+                                                    time={formatTime(message.timestamp)}
+                                                    read={{
+                                                        show: showReadReceipt,
+                                                        variant: readVariant,
+                                                        isReady: isJoinReady,
+                                                        readCount,
+                                                        unreadCount,
+                                                    }}
+                                                    isActionOpen={openActionMessageKey === messageActionKey}
+                                                    isCopying={isCopyingMessage}
+                                                    onActionOpenChange={open => {
+                                                        if (!open && openActionMessageKey === messageActionKey) {
+                                                            setOpenActionMessageKey(null);
+                                                        }
+                                                    }}
+                                                    onLongPress={() =>
+                                                        handleOpenMessageActions(message, messageActionKey)
+                                                    }
+                                                    onCopy={() => void handleCopyMessage(message.content ?? '')}
+                                                    onExpand={() =>
+                                                        setExpandedMessage({
+                                                            content: message.content ?? '',
+                                                            ownerName: message.ownerName,
+                                                        })
+                                                    }
+                                                    onRetry={() => handleRetryMessage(message)}
+                                                    onDelete={() => handleDeleteMessage(message.id)}
+                                                />
                                             );
                                         })}
-                                        <div className="py-2 text-center pb-1">
-                                            <span className="text-[13px] tracking-[-0.195px] text-muted-foreground">
-                                                {formatDateSeparator(dateMessages[0].timestamp)}
-                                            </span>
-                                        </div>
+                                        <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
                                     </div>
                                 );
                             })}
@@ -659,7 +501,7 @@ export const ChannelRoomPage = () => {
                 )}
             </div>
 
-            {!isGuest && isCloudActive && !channel?.isSelfChat && (
+            {!isGuest && isCloudActive && !isSelfChat && (
                 <InviteFriendsDialog
                     open={inviteDialogOpen}
                     onOpenChange={setInviteDialogOpen}
@@ -668,17 +510,6 @@ export const ChannelRoomPage = () => {
             )}
 
             <div
-                onMouseDown={e => {
-                    if (e.target === e.currentTarget) {
-                        e.preventDefault();
-                        inputRef.current?.focus();
-                    }
-                }}
-                onTouchEnd={e => {
-                    if (e.target === e.currentTarget) {
-                        inputRef.current?.focus();
-                    }
-                }}
                 className="border-t border-border bg-background px-4 py-3"
                 style={{
                     paddingBottom: isIOS
@@ -686,52 +517,14 @@ export const ChannelRoomPage = () => {
                         : `calc(12px + var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
                 }}
             >
-                <div
-                    onMouseDown={e => {
-                        if (e.target === e.currentTarget) {
-                            e.preventDefault();
-                            inputRef.current?.focus();
-                        }
-                    }}
-                    onTouchEnd={e => {
-                        if (e.target === e.currentTarget) {
-                            inputRef.current?.focus();
-                        }
-                    }}
-                    className="flex items-end gap-1.5 rounded-2xl bg-muted px-3 py-1.5"
-                >
-                    <textarea
-                        ref={inputRef}
-                        value={content}
-                        onChange={e => setContent(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={t('chat.room.inputPlaceholder')}
-                        rows={1}
-                        enterKeyHint={isMobile ? 'enter' : 'send'}
-                        className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm leading-[1.45] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
-                    />
-                    <button
-                        onMouseDown={e => e.preventDefault()}
-                        onTouchStart={e => e.preventDefault()}
-                        onClick={handleSend}
-                        disabled={isSending || !content.trim()}
-                        className="relative flex size-8 flex-shrink-0 items-center justify-center before:absolute before:inset-[-8px] before:content-['']"
-                    >
-                        <span
-                            className={`flex size-8 items-center justify-center rounded-full transition-colors ${
-                                content.trim() && !isSending
-                                    ? 'bg-foreground text-background'
-                                    : 'bg-muted-foreground/20 text-muted-foreground'
-                            }`}
-                        >
-                            {isSending ? (
-                                <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                            ) : (
-                                <ArrowUp size={18} />
-                            )}
-                        </span>
-                    </button>
-                </div>
+                <MessageInput
+                    value={content}
+                    onChange={setContent}
+                    onSend={handleSend}
+                    onKeyDown={handleKeyDown}
+                    inputRef={inputRef}
+                    placeholder={t('chat.room.inputPlaceholder')}
+                />
             </div>
 
             <Dialog open={!!expandedMessage} onOpenChange={open => !open && setExpandedMessage(null)}>

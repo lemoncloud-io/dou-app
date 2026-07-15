@@ -21,6 +21,16 @@ export interface MessageInputProps {
     maxHeight?: number;
     /** Accessible label for the textarea. Host supplies a localized string. */
     label?: string;
+    /**
+     * Optional key handler on the textarea — e.g. the host wiring Enter-to-send on
+     * desktop while leaving Enter as a newline on mobile.
+     */
+    onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+    /**
+     * Optional ref to the underlying textarea (e.g. so the host can re-anchor a
+     * scroll view on focus). Merged with the component's own auto-sizing ref.
+     */
+    inputRef?: React.RefObject<HTMLTextAreaElement | null>;
     className?: string;
 }
 
@@ -46,10 +56,21 @@ export const MessageInput = ({
     disabled = false,
     maxHeight = 279,
     label,
+    onKeyDown,
+    inputRef,
     className,
 }: MessageInputProps) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+    // Merge the auto-sizing ref with the optional host ref onto the one textarea.
+    const setTextareaRef = React.useCallback(
+        (node: HTMLTextAreaElement | null) => {
+            textareaRef.current = node;
+            if (inputRef) inputRef.current = node;
+        },
+        [inputRef]
+    );
 
     // Size the textarea to its content up to maxHeight (scroll past it) and flag
     // the pill<->rect switch on the container. Runs on every value change.
@@ -84,13 +105,14 @@ export const MessageInput = ({
             )}
         >
             <textarea
-                ref={textareaRef}
+                ref={setTextareaRef}
                 rows={1}
                 value={value}
                 disabled={disabled}
                 placeholder={placeholder}
                 aria-label={label}
                 onChange={event => onChange(event.target.value)}
+                onKeyDown={onKeyDown}
                 className="mt-0.5 min-w-0 flex-1 resize-none self-center bg-transparent pl-1.5 text-[16px] leading-[1.45] tracking-[-0.08px] text-foreground outline-none placeholder:text-description disabled:cursor-not-allowed"
             />
             <button

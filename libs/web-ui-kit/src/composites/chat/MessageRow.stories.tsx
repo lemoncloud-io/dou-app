@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { MessageBubble } from '@chatic/web-ui-kit';
 import { MessageRow } from '@chatic/web-ui-kit';
 import { ProfileAvatar } from '@chatic/web-ui-kit';
+import { ReadReceipt } from '@chatic/web-ui-kit';
 
 const AVATAR =
     'data:image/svg+xml;utf8,' +
@@ -37,6 +38,21 @@ export const Other: Story = {
 export const Mine: Story = {
     render: () => (
         <MessageRow variant="mine" time="오후 12:10" unread={1}>
+            <MessageBubble variant="mine">Lorem ipsum dolor sit amet</MessageBubble>
+        </MessageRow>
+    ),
+};
+
+// My message with a group read receipt as the status node.
+export const MineWithReadReceipt: Story = {
+    render: () => (
+        <MessageRow
+            variant="mine"
+            time="오후 12:10"
+            status={
+                <ReadReceipt variant="count" readCount={72} unreadCount={28} readLabel="읽음" unreadLabel="안읽음" />
+            }
+        >
             <MessageBubble variant="mine">Lorem ipsum dolor sit amet</MessageBubble>
         </MessageRow>
     ),

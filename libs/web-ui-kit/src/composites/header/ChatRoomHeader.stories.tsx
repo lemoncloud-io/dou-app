@@ -1,7 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { ChatRoomHeader } from '@chatic/web-ui-kit';
+import { AvatarGroup, ChatRoomHeader } from '@chatic/web-ui-kit';
 import { ProfileAvatar } from '@chatic/web-ui-kit';
+
+const memberDot = (color: string, mine = false) => (
+    <span
+        className={`inline-block size-6 rounded-full border ${mine ? 'border-main-accent' : 'border-surface'}`}
+        style={{ background: color }}
+    />
+);
 
 const AVATAR =
     'data:image/svg+xml;utf8,' +
@@ -51,5 +58,23 @@ export const Group: Story = {
     args: {
         kind: 'group',
         title: '개발 모임방',
+    },
+};
+
+// Group chat with the member avatar stack + count below the title.
+export const GroupWithMembers: Story = {
+    args: {
+        kind: 'group',
+        title: '개발 모임방',
+        meta: <AvatarGroup avatars={[memberDot('#5b6b8c', true), memberDot('#8c6b5b')]} count={2} />,
+    },
+};
+
+// Self chat — title only, but the overflow button is present with a dropdown.
+export const SelfWithMenu: Story = {
+    args: {
+        kind: 'group',
+        title: '나와의 채팅',
+        moreMenu: <div className="px-3 py-2 text-sm">설정</div>,
     },
 };

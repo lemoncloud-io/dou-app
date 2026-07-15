@@ -48,4 +48,14 @@ describe('MessageRow', () => {
         );
         expect(screen.queryByText('AV')).not.toBeInTheDocument();
     });
+
+    it('renders the status node alongside the time', () => {
+        render(
+            <MessageRow variant="mine" time="오후 12:10" status={<span>읽음</span>}>
+                <div>bubble</div>
+            </MessageRow>
+        );
+        expect(screen.getByText('오후 12:10')).toBeInTheDocument();
+        expect(screen.getByText('읽음')).toBeInTheDocument();
+    });
 });

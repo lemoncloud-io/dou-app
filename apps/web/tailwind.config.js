@@ -61,6 +61,9 @@ module.exports = {
                 'main-accent': 'hsl(var(--main-accent))',
                 'input-border': 'hsl(var(--input-border))',
                 'focus-border': 'hsl(var(--focus-border))',
+                'brand-ink': 'hsl(var(--brand-ink))',
+                'control-idle': 'hsl(var(--control-idle))',
+                'avatar-ring': 'hsl(var(--avatar-ring))',
                 toast: {
                     DEFAULT: 'hsl(var(--toast))',
                     foreground: 'hsl(var(--toast-foreground))',
