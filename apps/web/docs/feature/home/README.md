@@ -1,6 +1,6 @@
 # home
 
-> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [[ADR-0010]]
+> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [[ADR-0013]]
 >
 > 대상: `apps/web/src/app/features/home` · 참조 구현: `apps/testbed/src/app/pages/ChatHomePage.tsx`
 
@@ -10,7 +10,7 @@
 **Place 전환**·**클라우드 전환(CloudSessionSheet)**·**미읽음 집계**를 담당한다. 최초 실행 시
 [onboarding](../onboarding/README.md) 모달을 오버레이로 띄운다.
 
-이번 개정(ADR-0010)의 목표는 **손수 만든 홈 UI를 `@chatic/web-ui-kit`로 마이그레이션**하는 것이다.
+이번 개정(ADR-0013)의 목표는 **손수 만든 홈 UI를 `@chatic/web-ui-kit`로 마이그레이션**하는 것이다.
 데이터 흐름·훅·동기화 등록 모델은 그대로 두고, 헤더·Place/Chat 섹션·행·클라우드 전환 시트를 디자인
 시스템 컴포넌트로 교체한다. 화면은 **접속 유형(중계 vs 클라우드)**과 **구독 여부(free/pro)**에 따라
 상태가 달라진다.

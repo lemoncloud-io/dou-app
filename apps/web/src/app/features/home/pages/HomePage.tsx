@@ -135,12 +135,12 @@ export const HomePage = () => {
             setIsSubscriptionRequiredOpen(true);
         }
     };
-    // Relay 1:1 chat creation is not implemented yet (ADR-0010): placeholder.
+    // Relay 1:1 chat creation is not implemented yet (ADR-0013): placeholder.
     const handleCreateOneOnOne = () => toast({ title: t('homePage.directComingSoon', '1:1 대화는 준비 중이에요') });
 
-    // Search is not implemented yet (ADR-0010): the button is a visible placeholder.
+    // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => toast({ title: t('homePage.searchComingSoon', '검색은 준비 중이에요') });
-    // Notifications settings has no route yet (ADR-0010): placeholder, tracked as a follow-up.
+    // Notifications settings has no route yet (ADR-0013): placeholder, tracked as a follow-up.
     const handleNotifications = () =>
         toast({ title: t('homePage.notificationsComingSoon', '알림 설정은 준비 중이에요') });
 

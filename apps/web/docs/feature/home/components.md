@@ -2,7 +2,7 @@
 
 > 대상: `apps/web/src/app/features/home/components`
 
-무거운 컴포넌트는 `<이름>/` 서브폴더에 구성 요소를 모으고, 메인 파일은 상태·로직과 조립만 담당한다. 순수 뷰 단계는 props만 받는 presentational로 분리한다. UI는 `@chatic/web-ui-kit`로 조립한다(ADR-0010) — 헤더는 `AppHeader`, 섹션은 `CollapsibleSection`, 행은 `ListRow`, 시트는 `BottomSheet`.
+무거운 컴포넌트는 `<이름>/` 서브폴더에 구성 요소를 모으고, 메인 파일은 상태·로직과 조립만 담당한다. 순수 뷰 단계는 props만 받는 presentational로 분리한다. UI는 `@chatic/web-ui-kit`로 조립한다(ADR-0013) — 헤더는 `AppHeader`, 섹션은 `CollapsibleSection`, 행은 `ListRow`, 시트는 `BottomSheet`.
 
 ```
 components/
@@ -15,7 +15,7 @@ components/
   SubscriptionRequiredDialog.tsx
 
   CloudSessionSheet.tsx           # 메인 시트 로직 (BottomSheet; 목록/전환/연결끊기)
-  cloud-session/                  #   시트 구성 요소 (ProfileSection은 ADR-0010에서 제거 — 프로필은 헤더 드롭다운으로)
+  cloud-session/                  #   시트 구성 요소 (ProfileSection은 ADR-0013에서 제거 — 프로필은 헤더 드롭다운으로)
     shared.ts                     #     스타일 상수 + isProvisioning/getCloudDisplayName + CloudTab
     CloudItem.tsx                 #     내 클라우드 행 (+ CloudStatusBadge)
     InviteCloudItem.tsx           #     초대 클라우드 행 (DomainCloud)
