@@ -1,22 +1,38 @@
-import { User, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@chatic/ui-kit/components/ui/dropdown-menu';
+
+import {
+    Badge,
+    ChatAvatar,
+    CollapsibleSection,
+    DefaultAvatar,
+    IconBolt,
+    IconPlus,
+    ListRow,
+    PlanBadge,
+    UnreadBadge,
+} from '@chatic/web-ui-kit';
+
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../hooks/useLastChat';
 
 const ChannelSkeleton = () => (
-    <div className="flex items-start gap-2 rounded-[6px] px-[2px] py-2">
-        <Skeleton className="h-10 w-10 rounded-full" />
-        <div className="flex flex-1 flex-col gap-1">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-48" />
+    <div className="flex items-center gap-3 px-4 py-3">
+        <div className="size-[46px] animate-pulse rounded-full bg-muted" />
+        <div className="flex flex-1 flex-col gap-1.5">
+            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-48 animate-pulse rounded bg-muted" />
         </div>
     </div>
 );
@@ -25,7 +41,6 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
-    const currentWSS = useGlobalSession().activeServer.kind;
     const isSelf = channel.memberNo === 1;
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
@@ -39,68 +54,54 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
         if (!dateValue) return '';
         const date = new Date(dateValue);
         const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
-        return date.toLocaleTimeString(locale, {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
+    const name = channel.name || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'));
+    const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
+    const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
+
+    const leading = (
+        <div className="relative">
+            {channel.thumbnail ? (
+                <span className="size-[46px] shrink-0 overflow-hidden rounded-full">
+                    <img src={channel.thumbnail} alt="" className="size-full object-cover" />
+                </span>
+            ) : isSelf ? (
+                <DefaultAvatar size={46} />
+            ) : (
+                <ChatAvatar size="md" />
+            )}
+            {(channel.memberNo ?? 0) > 1 && (
+                <span className="absolute -left-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full border border-border bg-background/80 px-[5px] text-[11px] font-medium text-muted-foreground backdrop-blur-sm">
+                    {channel.memberNo}
+                </span>
+            )}
+        </div>
+    );
+
     return (
-        <button
+        <ListRow
+            leading={leading}
+            title={
+                <>
+                    {isSelf && (
+                        <Badge variant="solid" tone="dark" className="px-1.5 py-0.5 text-[11px] leading-none">
+                            MY
+                        </Badge>
+                    )}
+                    <span className="truncate">{name}</span>
+                </>
+            }
+            subtitle={blurLastMessage ? <span className="select-none blur-[5px]">{preview}</span> : preview}
+            trailing={
+                <div className="flex flex-col items-end gap-1">
+                    <span className="text-[12px] leading-4 text-description">{time}</span>
+                    <UnreadBadge count={unread} variant="pill" />
+                </div>
+            }
             onClick={() => navigate(ROUTES.channels.room(channel.id))}
-            className="flex w-full items-start gap-2 rounded-[6px] px-[2px] py-2 text-left transition-colors active:bg-muted"
-        >
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                    {channel.thumbnail ? (
-                        <img src={channel.thumbnail} alt="" className="h-full w-full object-cover" />
-                    ) : isSelf ? (
-                        <User size={20} className="text-muted-foreground" />
-                    ) : (
-                        <Users size={20} className="text-muted-foreground" />
-                    )}
-                </div>
-                {(channel.memberNo ?? 0) > 1 && (
-                    <span className="absolute -left-[2px] -top-[2px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full border border-[#90C304] bg-background/75 px-[5px] text-[11px] font-medium tracking-[-0.025em] text-muted-foreground shadow-sm backdrop-blur-sm">
-                        {channel.memberNo}
-                    </span>
-                )}
-            </div>
-
-            {/* Content */}
-            <div className="flex min-w-0 flex-1 gap-2">
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-[6px]">
-                        {currentWSS === 'relay' && isSelf && (
-                            <span className="rounded-[3px] bg-[#102346] px-[5px] py-[3px] text-[11px] font-medium leading-none text-white">
-                                MY
-                            </span>
-                        )}
-                        <span className="truncate text-[15px] font-semibold tracking-[-0.025em] text-foreground">
-                            {channel.name || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'))}
-                        </span>
-                    </div>
-                    <p
-                        className={`mt-1 truncate text-[13.5px] leading-[1.2] tracking-[-0.025em] text-muted-foreground${blurLastMessage ? ' select-none blur-[5px]' : ''}`}
-                    >
-                        {lastChat?.content || channel.desc || t('channelList.noDescription')}
-                    </p>
-                </div>
-
-                {/* Time + Unread */}
-                <div className="flex h-[45px] flex-shrink-0 flex-col items-end gap-1">
-                    <span className="text-[12px] leading-[20px] tracking-[-0.015em] text-muted-foreground">
-                        {formatTime(lastChat?.createdAt ?? channel.updatedAt)}
-                    </span>
-                    {unread > 0 && (
-                        <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-[8.5px] bg-[#F41F52] px-[5px] text-[11px] font-semibold leading-[10px] tracking-[0.005em] text-[#FEFEFE]">
-                            {unread > 999 ? '+999' : unread}
-                        </span>
-                    )}
-                </div>
-            </div>
-        </button>
+        />
     );
 };
 
@@ -108,80 +109,74 @@ interface ChannelListProps {
     channels: DomainChannel[];
     unreadByChannel: Record<string, number>;
     isLoading: boolean;
-    showCreateButton?: boolean;
-    onCreateChannel?: () => void;
+    /** Show the create (＋) popover in the section header. */
+    canCreate?: boolean;
+    /** Relay shows "1:1 대화"; a cloud shows "그룹 방 만들기". */
+    isDefaultCloud?: boolean;
+    /** Drives the PRO upsell badge on "그룹 방 만들기". */
+    isPro?: boolean;
+    /** Relay: start a 1:1 chat (not implemented yet — placeholder). */
+    onCreateOneOnOne?: () => void;
+    /** Cloud: create a group room (host applies the PRO gate). */
+    onCreateGroup?: () => void;
 }
 
 export const ChannelList = ({
     channels,
     unreadByChannel,
     isLoading,
-    showCreateButton,
-    onCreateChannel,
+    canCreate,
+    isDefaultCloud,
+    isPro,
+    onCreateOneOnOne,
+    onCreateGroup,
 }: ChannelListProps) => {
     const { t } = useTranslation();
 
-    const header = (
-        <div className="mb-[18px] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                <span className="text-[18px] font-semibold leading-[1.334] tracking-[-0.003em] text-foreground">
-                    Chat
-                </span>
-            </div>
-            {showCreateButton && (
+    const createMenu = canCreate ? (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
                 <button
-                    onClick={onCreateChannel}
-                    className="flex h-[24px] w-[24px] items-center justify-center text-foreground"
+                    type="button"
+                    aria-label={t('channelList.createChat', '채팅 만들기')}
+                    className="flex size-6 items-center justify-center text-foreground"
                 >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path
-                            d="M20.0871 12.3522C19.5183 16.7033 15.2147 20.2296 10.8257 20.2296H4.50289C3.96623 20.2299 3.4689 19.9482 3.19307 19.4879C2.91725 19.0275 2.90348 18.4561 3.15681 17.983L3.41276 17.4996C3.68766 17.0314 3.68766 16.451 3.41276 15.9828C1.25812 12.5793 1.59465 8.16472 4.24031 5.1271C6.88597 2.08948 11.2125 1.15009 14.8797 2.81708C18.5468 4.48406 20.6837 8.3616 20.1345 12.3522H20.0871Z"
-                            stroke="currentColor"
-                            strokeWidth="1.2"
-                        />
-                        <path
-                            d="M11.165 8V14.33M8 11.165H14.33"
-                            stroke="currentColor"
-                            strokeWidth="1.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
+                    <IconPlus className="size-[18px]" />
                 </button>
-            )}
-        </div>
-    );
-
-    if (!channels.length && isLoading) {
-        return (
-            <div className="space-y-0">
-                {header}
-                <ChannelSkeleton />
-                <ChannelSkeleton />
-                <ChannelSkeleton />
-            </div>
-        );
-    }
-
-    if (!channels.length) {
-        return (
-            <div>
-                {header}
-                <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
-            </div>
-        );
-    }
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+                {isDefaultCloud ? (
+                    <DropdownMenuItem onClick={onCreateOneOnOne} className="cursor-pointer">
+                        {t('channelList.createDirect', '1:1 대화')}
+                    </DropdownMenuItem>
+                ) : (
+                    <DropdownMenuItem
+                        onClick={onCreateGroup}
+                        className="flex cursor-pointer items-center justify-between gap-2"
+                    >
+                        <span>{t('channelList.createGroup', '그룹 방 만들기')}</span>
+                        {!isPro && <PlanBadge label="PRO" accent icon={<IconBolt className="size-3.5" />} />}
+                    </DropdownMenuItem>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    ) : undefined;
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col">
-            {header}
-            <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col gap-[18px] px-1">
-                    {channels.map((channel: DomainChannel) => (
-                        <ChannelItem key={channel.id} channel={channel} unread={unreadByChannel[channel.id] ?? 0} />
-                    ))}
-                </div>
-            </div>
-        </div>
+        <CollapsibleSection title="Chat" actions={createMenu}>
+            {isLoading && channels.length === 0 ? (
+                <>
+                    <ChannelSkeleton />
+                    <ChannelSkeleton />
+                    <ChannelSkeleton />
+                </>
+            ) : channels.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+            ) : (
+                channels.map(channel => (
+                    <ChannelItem key={channel.id} channel={channel} unread={unreadByChannel[channel.id] ?? 0} />
+                ))
+            )}
+        </CollapsibleSection>
     );
 };
