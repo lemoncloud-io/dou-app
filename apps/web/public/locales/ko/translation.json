@@ -575,6 +575,24 @@
         "successMessage": "채팅방이 생성되었습니다",
         "errorMessage": "채팅방 생성에 실패했습니다"
     },
+    "placeProfileCreate": {
+        "title": "<{{place}}>에\n사용할 프로필을 만들어 주세요",
+        "subtitle": "현재 플레이스에서만 사용할 프로필을 설정해요!\n플레이스마다 새로운 나로 참여할 수 있습니다.",
+        "nameLabel": "이름",
+        "nameHint": "20글자 이내로 입력해 주세요.",
+        "namePlaceholder": "이름 입력",
+        "photoLabel": "프로필 사진",
+        "photoOptional": "[선택]",
+        "done": "완료",
+        "close": "닫기",
+        "successToast": "프로필 설정이 완료되었습니다.",
+        "saveError": "프로필 설정에 실패했습니다.",
+        "imageSizeError": "이미지는 10MB 이하여야 합니다",
+        "exitTitle": "프로필 설정을 중단하시겠어요?",
+        "exitDescription": "이름을 설정해야 DoU를 시작할 수 있어요!\n플레이스에 사용될 프로필을 설정해 주세요!",
+        "exitLeave": "나가기",
+        "exitContinue": "계속 설정"
+    },
     "profileEdit": {
         "title": "프로필 수정",
         "description1": "DoU에서 사용할 이름과",

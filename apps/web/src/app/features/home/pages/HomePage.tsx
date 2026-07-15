@@ -1,6 +1,6 @@
 import { ArrowLeftRight, CircleAlert, EllipsisVertical, User } from 'lucide-react';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -20,13 +20,21 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
 import { BottomNavigation, CloudLogo, ReportIssueDialog } from '../../../ui';
 import { OnboardingModal } from '../../onboarding';
-import { ChannelList, CloudSessionSheet, CreateChannelDialog, CreatePlaceDialog, PlaceList } from '../components';
+import {
+    ChannelList,
+    CloudSessionSheet,
+    CreateChannelDialog,
+    CreatePlaceDialog,
+    PlaceList,
+    PlaceProfileCreateDialog,
+} from '../components';
 import {
     useActiveCloudChannels,
     useChannelUnreads,
     useHomeChannels,
     useHomePlaces,
     useInvitedClouds,
+    usePlaceProfilePrompt,
     useSwitchPlace,
 } from '../hooks';
 import { resolveHeaderProfile } from '../lib';
@@ -55,6 +63,11 @@ export const HomePage = () => {
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
+
+    // Prompt to CREATE a per-place profile when the active place has none yet.
+    const { shouldPrompt: needsPlaceProfile, dismiss: dismissPlaceProfile } = usePlaceProfilePrompt();
+    const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
+    const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
@@ -92,6 +105,12 @@ export const HomePage = () => {
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
     const { toast } = useToast();
+
+    // Open the place-profile-create overlay once the prompt is due, but never over the first-run
+    // onboarding modal (that flow takes precedence).
+    useEffect(() => {
+        if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
+    }, [needsPlaceProfile, isFirstRun]);
 
     const handleComplete = () => {
         toast({ title: t('homePage.roomCreated') });
@@ -190,6 +209,15 @@ export const HomePage = () => {
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
+            <PlaceProfileCreateDialog
+                open={isPlaceProfileOpen}
+                placeName={activePlaceName}
+                onDone={() => setIsPlaceProfileOpen(false)}
+                onExit={() => {
+                    setIsPlaceProfileOpen(false);
+                    dismissPlaceProfile();
+                }}
+            />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
             <ReportIssueDialog open={isReportIssueOpen} onOpenChange={setIsReportIssueOpen} />
