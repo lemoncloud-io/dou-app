@@ -1,3 +1,4 @@
+export * from './AvatarGroup';
 export * from './ProfileAvatar';
 export * from './PlaceAvatar';
 export * from './ChatAvatar';
