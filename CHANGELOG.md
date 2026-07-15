@@ -1,5 +1,57 @@
 # Changelog
 
+## [2026-07-15] - root@0.42.4, @chatic/web@0.36.1, @chatic/desktop-web@0.3.5
+
+### Features
+
+- (app-runtime) cid-scoped sync + restore SDK auth-gated sync (Phase 2f)
+- (app-runtime) dual-socket logout + same-wss cloud switch re-auth (Phase 2e)
+- (app-runtime) activate dual sockets (relay + cloud) end-to-end (Phase 2d)
+- (app-runtime) dualize SocketManager to Map<kind> with an active facade (Phase 2c)
+- (web-core) add per-server (kind-explicit) auth bridge helpers (Phase 2a)
+- (app-runtime) delegate logout to ClientSocketAuth + HTTP fallback (Phase 1c)
+- (app-runtime) delegate login re-auth and site switch to ClientSocketAuth (Phase 1a/1b)
+- (app-runtime) adopt SDK AuthController for single-socket auth (Phase 0)
+
+### Bug Fixes
+
+- (web/app-runtime) prevent duplicate channel sync on cloud switch (raine-client-socket-auth)
+- (app-runtime/socket) gate auth.update on device.save:ok
+- (web) fetch the new site's channels on a site switch (Trigger 4)
+- (app-runtime) lower SDK auth refresh fallback to 5min (no-expiresIn stopgap)
+- (app-runtime) reauth registers unconditionally + targets the kind's client (review #4/#6)
+- (web-core) make logout a local-only teardown (drop POST /users/logout)
+- (web-core) skip boot HTTP relay refresh in apps/web (SDK owns refresh)
+- (app-runtime) gate socket re-auth on a verified connection (Phase 2 runtime fix)
+- (app-runtime) clean up react-hooks/exhaustive-deps directives (Phase 2g)
+- (app-runtime) address adversarial review of the SDK-auth migration (6 findings)
+
+### Documentation
+
+- (app-runtime) rewrite signing.md for per-socket kind routing (Phase 2g)
+- (auth) mark web-core parallel refresh as deprecated in the SDK path (Phase 2)
+- (auth) correct multi-socket + ClientSocketAuth design against SDK 0.4.5
+
+### Refactor
+
+- (app-runtime/socket-auth) align socket authId and identity token usage
+- (app-runtime) consolidate runtime-layer hooks + rewrite/realign docs
+- (app-runtime/socket-auth) adjust test mock access
+- (desktop-web/runtime) remove external socket delegate injection
+- (desktop-web/socket-recovery) align wake recovery with SDK reconnect
+- (app-runtime/connection) adjust test import for RuntimeConnectionHost
+- (web) consume relocated session hooks from app-runtime
+- (app-runtime) split socket/auth, relocate session hooks, tighten surface
+- (web-core) extract config module and group the public barrel
+- (app-runtime/connection) single init driver + relay logout is manual-only
+- remove dead code + collapse redundant refresh flag (code-review cleanup)
+- (web-core) remove redundant CLOUD_IS_ACTIVE_KEY
+
+### Other
+
+- perf: (web-core) per-cloud token cache + align home place cid to optimistic
+- perf: (web) parallelize independent socket fetches in background sync
+
 ## [2026-07-14] - No version updates
 
 ### Bug Fixes
