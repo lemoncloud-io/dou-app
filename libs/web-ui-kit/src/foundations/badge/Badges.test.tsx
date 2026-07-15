@@ -18,6 +18,11 @@ describe('UnreadBadge', () => {
         const { container } = render(<UnreadBadge count={0} />);
         expect(container).toBeEmptyDOMElement();
     });
+
+    it('renders the pill variant with the count', () => {
+        render(<UnreadBadge count={12} variant="pill" />);
+        expect(screen.getByText('12')).toBeInTheDocument();
+    });
 });
 
 describe('StatusBadge', () => {

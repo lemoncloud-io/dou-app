@@ -13,3 +13,5 @@ type Story = StoryObj<typeof UnreadBadge>;
 
 export const Few: Story = {};
 export const Clamped: Story = { args: { count: 1200 } };
+export const Pill: Story = { args: { variant: 'pill', count: 12 } };
+export const PillClamped: Story = { args: { variant: 'pill', count: 1200 } };
