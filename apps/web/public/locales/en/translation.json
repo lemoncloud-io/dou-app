@@ -388,8 +388,8 @@
             "today": "Today",
             "yesterday": "Yesterday",
             "system": {
-                "join": " joined the channel",
-                "leave": " left the channel"
+                "join": " entered the chat room.",
+                "leave": " left the chat room."
             },
             "emptyState": {
                 "line1": "Invite friends to",

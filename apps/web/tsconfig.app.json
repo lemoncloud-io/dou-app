@@ -29,6 +29,9 @@
             "path": "../../libs/data/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/web-ui-kit/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {
