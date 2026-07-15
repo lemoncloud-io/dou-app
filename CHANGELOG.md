@@ -4,6 +4,17 @@
 
 ### Features
 
+- (web/channels) rebuild chat room screen on web-ui-kit
+- (web-ui-kit) add chat AvatarGroup/ReadReceipt/SystemNotice + header/row/input slots
+
+### Documentation
+
+- (channels) add chat-room-ui architecture doc + ADR-0010
+
+## [2026-07-15] - No version updates
+
+### Features
+
 - (web-ui-kit) add CollapsibleSection and UnreadBadge pill variant
 
 ### Documentation
