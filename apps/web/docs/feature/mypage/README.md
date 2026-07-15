@@ -1,6 +1,6 @@
 # mypage
 
-> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [ADR-0010](../../../../../docs/adr/0010-web-layout-shell-and-floating-bottom-nav.md)
+> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [ADR-0011](../../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
 >
 > 대상: `apps/web/src/app/features/mypage`
 >
@@ -60,7 +60,7 @@ Figma 기준 카드(좌우 16px 마진, 행 높이 46px, chevron 우측):
 | 토글 행            | `ListRow` + `Switch`(`foundations/switch`)                 |
 | chevron / 값 표시  | `IconChevronRight` + `text-description`                    |
 
-Figma 카드를 감싸는 라운드 카드 컨테이너가 web-ui-kit에 없어 **`MenuCard` 컴포넌트를 신규 정의**했다(누락 컴포넌트는 라이브러리에 먼저 정의 후 사용 — ADR-0010).
+Figma 카드를 감싸는 라운드 카드 컨테이너가 web-ui-kit에 없어 **`MenuCard` 컴포넌트를 신규 정의**했다(누락 컴포넌트는 라이브러리에 먼저 정의 후 사용 — ADR-0011).
 
 > **스크롤 모델**: `ScreenLayout`(높이 고정 + 내부 스크롤)은 쓰지 않는다. `MyPage`는 셸의 메인 변형(`min-h-dvh`, 페이지 스크롤) 아래 있어, 페이지 자체가 `overflow-y-auto`로 스크롤하고 `pb-32`로 플로팅 네비 겹침을 피한다. 프로필 헤더는 카드 밖 상단 블록(아바타 + 이름 + 이메일)으로 둔다.
 
