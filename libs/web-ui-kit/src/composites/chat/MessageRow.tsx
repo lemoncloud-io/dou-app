@@ -15,20 +15,41 @@ export interface MessageRowProps {
     time?: string;
     /** Unread count shown next to the time. */
     unread?: number;
+    /**
+     * Status node shown alongside the time (e.g. a `ReadReceipt`, or a sending /
+     * failed indicator). On `mine` rows the meta line is mirrored so the time
+     * sits on the outer edge and the status toward the bubble.
+     */
+    status?: React.ReactNode;
     className?: string;
 }
 
 /**
  * A message row layout — composes an optional avatar, a stack of MessageBubbles,
- * and a time/unread meta line. Stateless; assembled from MessageBubble +
+ * and a time/status meta line. Stateless; assembled from MessageBubble +
  * UnreadBadge so screens compose rows without re-implementing alignment.
  */
-export const MessageRow = ({ variant = 'other', avatar, children, time, unread, className }: MessageRowProps) => {
+export const MessageRow = ({
+    variant = 'other',
+    avatar,
+    children,
+    time,
+    unread,
+    status,
+    className,
+}: MessageRowProps) => {
     const mine = variant === 'mine';
 
-    const meta = (time || unread != null) && (
-        <div className="flex items-center gap-1 text-[12px] leading-4 tracking-[-0.18px] text-description">
+    const meta = (time || unread != null || status) && (
+        <div
+            className={cn(
+                'flex items-center gap-2 text-[12px] leading-4 tracking-[-0.18px] text-description',
+                // Mirror the meta on my rows so the time sits on the outer edge.
+                mine && 'flex-row-reverse'
+            )}
+        >
             {time && <span>{time}</span>}
+            {status}
             {unread != null && <UnreadBadge count={unread} />}
         </div>
     );

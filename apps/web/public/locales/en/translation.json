@@ -390,8 +390,8 @@
             "today": "Today",
             "yesterday": "Yesterday",
             "system": {
-                "join": " joined the channel",
-                "leave": " left the channel"
+                "join": " entered the chat room.",
+                "leave": " left the chat room."
             },
             "emptyState": {
                 "line1": "Invite friends to",
@@ -575,6 +575,24 @@
         "inviteCode": "Chat room invite code",
         "successMessage": "Chat room created",
         "errorMessage": "Failed to create chat room"
+    },
+    "placeProfileCreate": {
+        "title": "Create a profile for\n<{{place}}>",
+        "subtitle": "Set up a profile just for this place!\nYou can join as a new you in every place.",
+        "nameLabel": "Name",
+        "nameHint": "Please enter up to 20 characters.",
+        "namePlaceholder": "Enter a name",
+        "photoLabel": "Profile photo",
+        "photoOptional": "[Optional]",
+        "done": "Done",
+        "close": "Close",
+        "successToast": "Your profile has been set up.",
+        "saveError": "Failed to set up the profile.",
+        "imageSizeError": "Image must be 10MB or less",
+        "exitTitle": "Stop setting up your profile?",
+        "exitDescription": "You need to set a name to start DoU!\nPlease set up the profile for this place!",
+        "exitLeave": "Leave",
+        "exitContinue": "Keep setting up"
     },
     "profileEdit": {
         "title": "Edit Profile",

@@ -2,7 +2,6 @@ export {
     findAlias,
     issueCloudToken,
     login,
-    logout,
     refreshCloudToken,
     registerDevice,
     registerUser,

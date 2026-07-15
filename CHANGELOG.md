@@ -1,5 +1,45 @@
 # Changelog
 
+## [2026-07-15] - root@0.43.0, @chatic/web@0.37.0
+
+### Features
+
+- (web) add place profile create overlay
+- (web-ui-kit) add TextField enforceMaxLength for soft over-limit
+
+### Bug Fixes
+
+- (web-ui-kit) stop AlertDialog action row inheriting buttonVariants
+
+### Documentation
+
+- (adr) renumber place-profile ADR to 0012 under docs/adr
+
+## [2026-07-15] - No version updates
+
+### Features
+
+- (web/channels) rebuild chat room screen on web-ui-kit
+- (web-ui-kit) add chat AvatarGroup/ReadReceipt/SystemNotice + header/row/input slots
+
+### Documentation
+
+- (channels) add chat-room-ui architecture doc + ADR-0010
+
+## [2026-07-15] - No version updates
+
+### Features
+
+- (web-ui-kit) add CollapsibleSection and UnreadBadge pill variant
+
+### Documentation
+
+- (adr) renumber home web-ui-kit migration ADR to 0013
+
+### Refactor
+
+- (web/home) migrate home screen to web-ui-kit (ADR-0010)
+
 ## [2026-07-15] - root@0.42.4, @chatic/web@0.36.1, @chatic/desktop-web@0.3.5
 
 ### Features
