@@ -39,17 +39,37 @@ describe('AlertDialog', () => {
                 open
                 onOpenChange={onOpenChange}
                 title="t"
+                cancelLabel="취소"
                 confirmLabel="나가기"
                 onConfirm={onConfirm}
                 onCancel={onCancel}
             />
         );
 
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        fireEvent.click(screen.getByRole('button', { name: '취소' }));
 
         expect(onCancel).toHaveBeenCalledTimes(1);
         expect(onConfirm).not.toHaveBeenCalled();
         expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('single action: without cancelLabel renders only the confirm button', () => {
+        const onConfirm = jest.fn();
+        render(
+            <AlertDialog
+                open
+                onOpenChange={jest.fn()}
+                title="초대 링크가 만료되었어요"
+                confirmLabel="확인"
+                onConfirm={onConfirm}
+            />
+        );
+
+        const buttons = screen.getAllByRole('button');
+        expect(buttons).toHaveLength(1);
+        expect(buttons[0]).toHaveTextContent('확인');
+        fireEvent.click(buttons[0]);
+        expect(onConfirm).toHaveBeenCalledTimes(1);
     });
 
     it('applies destructive color to the confirm action', () => {

@@ -3,6 +3,7 @@ import {
     Check,
     CircleAlert,
     ChevronDown,
+    Clock,
     House,
     ChevronLeft,
     ChevronRight,
@@ -15,6 +16,7 @@ import {
     Search,
     Sparkles,
     User,
+    Users,
     X,
     Zap,
 } from 'lucide-react';
@@ -45,3 +47,5 @@ export const IconSpinner: LucideIcon = Loader2;
 export const IconPlan: LucideIcon = Sparkles;
 export const IconBolt: LucideIcon = Zap;
 export const IconUser: LucideIcon = User;
+export const IconUsers: LucideIcon = Users;
+export const IconClock: LucideIcon = Clock;

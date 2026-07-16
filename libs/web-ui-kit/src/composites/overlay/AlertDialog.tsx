@@ -18,7 +18,7 @@ export interface AlertDialogProps {
     title: React.ReactNode;
     /** Optional supporting message below the title. */
     description?: React.ReactNode;
-    /** Left (dismiss) button label. */
+    /** Left (dismiss) button label. Omit for a single full-width confirm button. */
     cancelLabel?: string;
     /** Right (confirm) button label. */
     confirmLabel: string;
@@ -43,12 +43,14 @@ export const AlertDialog = ({
     onOpenChange,
     title,
     description,
-    cancelLabel = 'Cancel',
+    cancelLabel,
     confirmLabel,
     onConfirm,
     onCancel,
     destructive = false,
 }: AlertDialogProps) => {
+    // No cancel label → a single full-width confirm button (the Figma one-action dialog).
+    const hasCancel = cancelLabel !== undefined;
     const handleCancel = () => {
         onCancel?.();
         onOpenChange(false);
@@ -78,11 +80,17 @@ export const AlertDialog = ({
                         inject buttonVariants + `mt-2`, which Radix Slot concatenates onto the child
                         button (no tailwind-merge), breaking the two-up split row (misaligned/overlap). */}
                     <div className="flex w-full">
-                        <AlertDialogPrimitive.Cancel asChild>
-                            <button type="button" onClick={handleCancel} className={cn(ACTION, 'border-r text-label')}>
-                                {cancelLabel}
-                            </button>
-                        </AlertDialogPrimitive.Cancel>
+                        {hasCancel && (
+                            <AlertDialogPrimitive.Cancel asChild>
+                                <button
+                                    type="button"
+                                    onClick={handleCancel}
+                                    className={cn(ACTION, 'border-r text-label')}
+                                >
+                                    {cancelLabel}
+                                </button>
+                            </AlertDialogPrimitive.Cancel>
+                        )}
                         <AlertDialogPrimitive.Action asChild>
                             <button
                                 type="button"
