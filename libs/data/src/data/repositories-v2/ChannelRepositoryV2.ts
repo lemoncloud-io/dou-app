@@ -247,10 +247,15 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public async leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel> {
         const channelId = payload.channelId || '';
+        // A leave carrying a target userId is a kick (owner removing another member):
+        // the caller stays in the room, so the channel must NOT be evicted locally.
+        // Self-leave (no userId) removes the channel from my cache, as before.
+        const isSelfLeave = !payload.userId;
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
-        if (channelId) {
+        const existing =
+            isSelfLeave && channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
+        if (isSelfLeave && channelId) {
             this.leftChannelIds.add(channelId);
             await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
         }
@@ -258,9 +263,11 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         try {
             return await this.channelRemoteDataSource.leaveChannel(payload, normalizedContext);
         } catch (error) {
-            this.leftChannelIds.delete(channelId);
-            if (existing) {
-                await this.channelLocalDataSource.cacheWrite(existing, requestContext);
+            if (isSelfLeave && channelId) {
+                this.leftChannelIds.delete(channelId);
+                if (existing) {
+                    await this.channelLocalDataSource.cacheWrite(existing, requestContext);
+                }
             }
             throw error;
         }
