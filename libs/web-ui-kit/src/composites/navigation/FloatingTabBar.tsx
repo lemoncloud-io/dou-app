@@ -43,7 +43,8 @@ export interface FloatingTabBarProps {
  * Stateless and i18n-agnostic: active state, labels, icons and badges are passed
  * in; the host owns routing via `onSelect`. Self-positions with `fixed` so it
  * floats over the scrolling body — the outer area lets touches pass through and
- * only the pill is interactive. Honors the bottom safe-area inset.
+ * only the pill is interactive; the body scrolls fully visible behind it (no
+ * backdrop). Honors the bottom safe-area inset.
  */
 export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: FloatingTabBarProps) => {
     return (
@@ -54,11 +55,6 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
             )}
             style={{ paddingBottom: 'calc(var(--safe-bottom, 0px) + 18px)' }}
         >
-            {/* Soft gradient so body content scrolling under the bar stays legible. */}
-            <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent"
-            />
             <nav className="pointer-events-auto relative flex h-[62px] items-center gap-[18px] rounded-[300px] border border-white/40 bg-white/70 px-[26px] shadow-[0px_8px_24px_0px_rgba(0,0,0,0.12)] backdrop-blur-[20px] dark:border-white/10 dark:bg-[rgba(40,40,40,0.85)]">
                 {items.map(item => {
                     const isActive = !!item.active;
