@@ -54,3 +54,24 @@ export interface ErrorReportPayload {
         online: boolean;
     };
 }
+
+/**
+ * Optional context a user-facing issue report can attach on top of the base
+ * `reportIssue` payload (user/cloud/env/url). Kept loosely typed so web-core
+ * stays decoupled from the app's log/device modules — the caller (apps/web
+ * issue-report feature) composes and passes a concrete shape.
+ */
+export interface IssueReportExtras {
+    /** Recent log entries (already serialized/truncated by the caller). */
+    logs?: unknown[];
+    /** Device snapshot (platform, model, stage, ...). */
+    device?: Record<string, unknown>;
+    /** Version snapshot (appVersion, webVersion, ...). */
+    version?: Record<string, unknown>;
+    /** navigator.onLine at report time. */
+    online?: boolean;
+    /** Viewport size at report time. */
+    viewport?: { width: number; height: number };
+    /** Current route path at report time. */
+    path?: string;
+}

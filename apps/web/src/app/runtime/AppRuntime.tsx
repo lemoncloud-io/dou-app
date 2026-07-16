@@ -12,6 +12,7 @@ import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
 import { UnreadBadgeRunner } from '../features/home';
+import { IssueReportHost } from '../features/issue-report';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
@@ -44,6 +45,7 @@ export const AppRuntime = () => {
                 onDismiss={dismissUpdate}
             />
             <Router />
+            <IssueReportHost />
             <GlobalLoader />
             <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
             <Toaster />

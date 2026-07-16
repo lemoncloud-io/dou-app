@@ -29,6 +29,7 @@ const resetStore = () => {
         isFirstRun: true,
         theme: 'system',
         skippedPlaceProfileIds: [],
+        issueReportHidden: false,
     });
     jest.clearAllMocks();
 };
@@ -294,5 +295,32 @@ describe('hasLocalPreference — 로컬 캐시 존재 여부', () => {
     it('값이 쓰여지면 true를 반환한다', () => {
         usePreferenceStore.getState().setBlurLastMessage(true);
         expect(hasLocalPreference('blurLastMessage')).toBe(true);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// setIssueReportHidden — 플로팅 이슈 리포트 버튼 표시/숨김 (local 전략)
+// ---------------------------------------------------------------------------
+
+describe('setIssueReportHidden — 이슈 리포트 버튼 숨김', () => {
+    beforeEach(() => {
+        mockIsNative.mockReturnValue(false);
+        resetStore();
+    });
+
+    it('기본값은 노출(false)이다', () => {
+        expect(usePreferenceStore.getState().issueReportHidden).toBe(false);
+    });
+
+    it('true로 설정하면 localStorage에 저장되고 상태가 반영된다', () => {
+        usePreferenceStore.getState().setIssueReportHidden(true);
+        expect(usePreferenceStore.getState().issueReportHidden).toBe(true);
+        expect(localStorage.getItem('chatic-issue-report-hidden')).toBe('true');
+    });
+
+    it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
+        mockIsNative.mockReturnValue(true);
+        usePreferenceStore.getState().setIssueReportHidden(true);
+        expect(mockSavePreference).not.toHaveBeenCalled();
     });
 });

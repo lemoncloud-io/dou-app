@@ -101,6 +101,8 @@ interface PreferenceState {
     theme: Theme;
     /** Place (site) ids the user dismissed the profile-create prompt for. */
     skippedPlaceProfileIds: string[];
+    /** true when the user hid the floating issue-report button (restored from MyPage). */
+    issueReportHidden: boolean;
 }
 
 interface PreferenceActions {
@@ -110,6 +112,8 @@ interface PreferenceActions {
     setTheme: (theme: Theme) => void;
     /** Remember that the user skipped the profile-create prompt for `sid` so it is not shown again. */
     skipPlaceProfile: (sid: string) => void;
+    /** Show/hide the floating issue-report button. */
+    setIssueReportHidden: (value: boolean) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -130,6 +134,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     theme: parseTheme(readPreference('theme')) ?? 'system',
 
     skippedPlaceProfileIds: parseStringArray(readPreference('skippedPlaceProfiles')),
+
+    issueReportHidden: readPreference('issueReportHidden') === 'true',
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -158,6 +164,11 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
             persistPreference('skippedPlaceProfiles', JSON.stringify(next));
             return { skippedPlaceProfileIds: next };
         });
+    },
+
+    setIssueReportHidden: (value: boolean) => {
+        set({ issueReportHidden: value });
+        persistPreference('issueReportHidden', value ? 'true' : 'false');
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {
