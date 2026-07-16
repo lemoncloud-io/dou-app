@@ -5,21 +5,46 @@ import { useLocation } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useInviteInfo } from '@chatic/web-core';
+import { AlertDialog } from '@chatic/web-ui-kit';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { InviteAcceptScreen } from './invite';
 import { useSessionLogout } from '../../../runtime/useSessionLogout';
-import { useInviteAccept } from '../hooks';
+import { useInviteAccept, useInviteCountdown } from '../hooks';
 import { isInviteEntry, parseInviteDeeplink } from '../types';
 import { ROUTES } from '../../../routes/paths';
 
+/** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */
+type InviteDialogVariant = 'expired' | 'alreadyJoined' | 'channelDeleted' | 'inviteCanceled' | 'generic';
+
 /**
- * Self-contained invite-accept overlay driven entirely by the current URL.
- *
- * It reads the invite params off `location.search` and renders nothing unless the link is a
- * fully-formed invite entry (`provider=invite` + `code` + `_backend`). This lets home mount it
- * unconditionally — it stays invisible on normal navigation and only surfaces the popup when an
- * invite deeplink lands. Dismiss/back strips the query string so the popup cannot reappear.
+ * Map the accept-pipeline error key to a notice-dialog variant. Only `expired` is confidently
+ * distinguished today; already-joined / channel-deleted / invite-canceled need backend error codes
+ * (their UI/copy is ready — see ADR-0016) so they fall back to `generic` until wired. `missingDelegator`
+ * is handled separately (it drives a logout action, not a home dismissal).
  */
-export const InviteDialog = (): JSX.Element | null => {
+const resolveDialogVariant = (errorKey: string | null): InviteDialogVariant | null => {
+    if (!errorKey) return null;
+    if (errorKey === 'inviteAccept.expired') return 'expired';
+    return 'generic';
+};
+
+interface InviteDialogProps {
+    /** When true the popup is withheld (e.g. first-run onboarding takes precedence). */
+    suppressed?: boolean;
+}
+
+/**
+ * Self-contained invite-accept overlay driven by the current URL.
+ *
+ * Renders nothing unless the link is a fully-formed invite entry (`provider=invite` + `code` +
+ * `_backend`), so home can mount it unconditionally. `suppressed` withholds it while a
+ * higher-priority overlay (onboarding) is open. Dismiss/back strips the query string so the popup
+ * cannot reappear. This orchestrator owns the overlay, routing and error dialogs; the visual accept
+ * screen lives in the presentational InviteAcceptScreen. The accept pipeline (useInviteAccept) is
+ * unchanged.
+ */
+export const InviteDialog = ({ suppressed = false }: InviteDialogProps): JSX.Element | null => {
     const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigateWithTransition();
@@ -27,103 +52,78 @@ export const InviteDialog = (): JSX.Element | null => {
 
     const params = useMemo(() => parseInviteDeeplink(location.search), [location.search]);
 
-    // Invite metadata (inviter / target name) to personalize the prompt. Hooks must run before any
-    // early return, so this is called unconditionally; the query stays disabled for non-invites.
+    // Invite metadata (inviter / place / expiry) to populate the screen. Hooks must run before any
+    // early return, so these are called unconditionally; the query stays disabled for non-invites.
     const { data: info } = useInviteInfo(params.code, params.backend);
     const { accept, isAccepting, missingDelegator, errorKey } = useInviteAccept({ params, info });
+    const countdown = useInviteCountdown(info?.expiredAt);
 
-    // Not an invite landing: render nothing so home shows normally.
-    if (!isInviteEntry(params)) return null;
+    // Not an invite landing, or withheld by a higher-priority overlay: render nothing.
+    if (!isInviteEntry(params) || suppressed) return null;
 
-    // Prefer inviter name, then the invite's own display name, for the heading/avatar.
-    const inviterName = info?.inviter$?.name;
-    const targetName = info?.name ?? info?.site$?.name;
-    const headingText = inviterName ? t('inviteAccept.invitedBy', { name: inviterName }) : t('inviteAccept.title');
-    const avatarInitial = inviterName?.trim().charAt(0).toUpperCase() || '?';
+    const goHome = () => navigate(ROUTES.home, { replace: true });
+    const doLogout = () => logout({ preserveUrl: true });
+    // Block dismissal (X / esc / overlay) while the accept pipeline is in flight, so a mid-accept
+    // dismissal can't strip the URL and swallow a later failure dialog (mirrors PlaceProfileCreateDialog).
+    const requestClose = () => {
+        if (!isAccepting) goHome();
+    };
 
-    // Show invite error. The message reflects the resolved cause (expired / network / entry failure …)
-    // instead of a generic "invalid link".
-    if (errorKey) {
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(41,41,58,0.23)]">
-                <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
-                    <div className="flex flex-col items-center pt-4 w-full gap-4">
-                        <p className="text-center text-[16px] font-medium text-[#84888f]">{t(errorKey)}</p>
-                        <button
-                            onClick={() => navigate(ROUTES.home, { replace: true })}
-                            className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
-                        >
-                            {t('inviteAccept.goBack')}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Show missing delegatorId error with logout action
+    // Missing device credential: a dedicated logout-prompt dialog (not a home dismissal).
     if (missingDelegator) {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(41,41,58,0.23)]">
-                <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
-                    <div className="flex flex-col items-center pt-4 w-full gap-4">
-                        <p className="text-center text-[16px] font-medium text-[#84888f] whitespace-pre-line">
-                            {t('inviteAccept.missingDelegator')}
-                        </p>
-                        <button
-                            onClick={() => logout({ preserveUrl: true })}
-                            className="w-full max-w-[200px] h-[42px] rounded-full bg-[#b0ea10] text-[14px] font-semibold text-[#222325]"
-                        >
-                            {t('auth.logout')}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <AlertDialog
+                open
+                onOpenChange={next => !next && doLogout()}
+                title={t('inviteAccept.dialog.missingDelegator.title')}
+                description={t('inviteAccept.dialog.missingDelegator.description')}
+                confirmLabel={t('auth.logout')}
+                onConfirm={doLogout}
+            />
         );
     }
 
-    // Show invite accept UI. Inviter/target come from MyInviteView; falls back to a generic prompt
-    // until the metadata resolves.
+    // Invite failure: a single-action notice dialog reflecting the resolved cause (red title per Figma).
+    const variant = resolveDialogVariant(errorKey);
+    if (variant) {
+        return (
+            <AlertDialog
+                open
+                onOpenChange={next => !next && goHome()}
+                title={<span className="text-destructive">{t(`inviteAccept.dialog.${variant}.title`)}</span>}
+                description={t(`inviteAccept.dialog.${variant}.description`)}
+                confirmLabel={t('inviteAccept.confirm')}
+                onConfirm={goHome}
+            />
+        );
+    }
+
+    // Accept screen. Fields the backend hasn't shipped yet (inviter image, place intro/thumbnail,
+    // member count) degrade gracefully inside the presentational screen.
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(41,41,58,0.23)]">
-            <div className="relative mx-4 w-full max-w-[308px] rounded-[18px] bg-white/80 backdrop-blur-[4px] shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)] px-[10px] pt-[26px] pb-[14px]">
-                <div className="flex flex-col items-center pt-4 w-full">
-                    <div className="w-[82px] h-[82px] rounded-full border border-[#f4f5f5] bg-[rgba(0,43,126,0.04)] flex items-center justify-center overflow-hidden">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-200 to-green-400 flex items-center justify-center text-2xl font-semibold text-white">
-                            {avatarInitial}
-                        </div>
-                    </div>
+        <Dialog open onOpenChange={next => !next && requestClose()}>
+            <DialogContent
+                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                hideClose
+                variant="slide-up"
+            >
+                <DialogTitle className="sr-only">{t('inviteAccept.title')}</DialogTitle>
+                <DialogDescription className="sr-only">{t('inviteAccept.description')}</DialogDescription>
 
-                    <div className="flex flex-col items-center gap-1 px-[22px] py-2 mt-1 w-full">
-                        <p className="text-center text-[16px] font-semibold leading-[1.45] tracking-[-0.16px] text-[#222325]">
-                            {headingText}
-                        </p>
-                        {targetName && (
-                            <p className="text-center text-[14px] font-medium text-[#84888f]">{targetName}</p>
-                        )}
-                        <p className="text-center text-[14px] font-medium leading-[1.45] tracking-[-0.16px] text-[#84888f]">
-                            {t('inviteAccept.description')}
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col items-center w-full px-[22px] pt-5 pb-4 gap-3">
-                        <button
-                            onClick={accept}
-                            disabled={isAccepting}
-                            className="w-full h-[50px] rounded-full bg-[#b0ea10] text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#222325] disabled:opacity-50"
-                        >
-                            {isAccepting ? t('inviteAccept.accepting') : t('inviteAccept.accept')}
-                        </button>
-                        <button
-                            onClick={() => navigate(ROUTES.home, { replace: true })}
-                            disabled={isAccepting}
-                            className="w-full h-[50px] rounded-full text-[16px] font-semibold leading-[22px] tracking-[0.08px] text-[#84888f] disabled:opacity-50"
-                        >
-                            {t('inviteAccept.decline')}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+                <InviteAcceptScreen
+                    inviterName={info?.inviter$?.name}
+                    inviterImage={info?.inviter$?.image}
+                    placeName={info?.site$?.name}
+                    placeIntro={info?.site$?.intro}
+                    placeThumbnail={info?.site$?.thumbnail}
+                    memberCount={info?.memberCount}
+                    expiredAt={info?.expiredAt}
+                    countdown={countdown}
+                    isAccepting={isAccepting}
+                    onAccept={accept}
+                    onClose={requestClose}
+                />
+            </DialogContent>
+        </Dialog>
     );
 };

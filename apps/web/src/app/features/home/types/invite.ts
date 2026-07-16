@@ -15,11 +15,28 @@ export interface InviteParams {
     version?: string;
 }
 
-/** Composed input for invite acceptance: URL params plus the fetched invite metadata.
- * `cloudId` is included by the backend at runtime but not declared on the published `MyInviteView`. */
+/**
+ * Fields the accept screen consumes that the backend denormalizes into the invite response but the
+ * published `MyInviteView` (and its shallow `Head` types) does not yet declare. All optional: the UI
+ * degrades gracefully (hides / falls back) until the backend ships them. See ADR-0016.
+ */
+export type InviteInfo = MyInviteView & {
+    /** the target cloud id (present at runtime, absent on the published view). */
+    cloudId?: string;
+    /** invited place: intro copy + thumbnail (base64/url). */
+    site$?: MyInviteView['site$'] & { intro?: string; thumbnail?: string };
+    /** inviter avatar image url. */
+    inviter$?: MyInviteView['inviter$'] & { image?: string };
+    /** member count of the target group room (absent for 1:1). */
+    memberCount?: number;
+    /** invite-link expiry epoch (ms); drives the validity countdown. */
+    expiredAt?: number;
+};
+
+/** Composed input for invite acceptance: URL params plus the fetched invite metadata. */
 export interface InviteContext {
     params: InviteParams;
-    info?: MyInviteView & { cloudId?: string };
+    info?: InviteInfo;
 }
 
 /** Extract invite parameters from a location search string (e.g. `location.search`). */

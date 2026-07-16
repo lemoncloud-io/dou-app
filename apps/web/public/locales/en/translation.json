@@ -818,22 +818,59 @@
         "logout": "Log out"
     },
     "inviteAccept": {
-        "title": "You've been invited to chat",
+        "title": "You've been invited to DoU",
+        "invitedBy": " invited you to DoU",
         "description": "Accept the invitation to start chatting.",
         "accept": "Accept",
-        "accepting": "Accepting...",
+        "decline": "Decline",
+        "confirm": "OK",
+        "close": "Close",
+        "target": {
+            "you": "You",
+            "oneToOne": "1:1 chat",
+            "roomFriends": "{{count}} members"
+        },
+        "expiry": {
+            "label": "Invite link expires in",
+            "remaining": "{{time}} left",
+            "days": "{{n}}d",
+            "hours": "{{n}}h",
+            "minutes": "{{n}}m"
+        },
+        "dialog": {
+            "expired": {
+                "title": "This invite link has expired",
+                "description": "For security, invite links expire automatically after a while. Ask the inviter for a new invite to join again."
+            },
+            "alreadyJoined": {
+                "title": "You've already joined this invite.",
+                "description": "Continue the conversation in the chat room."
+            },
+            "channelDeleted": {
+                "title": "The chat room was deleted.",
+                "description": "The chat room was deleted, so you can't join."
+            },
+            "inviteCanceled": {
+                "title": "The invite was canceled.",
+                "description": "The inviter canceled the invite, so you can't join."
+            },
+            "missingDelegator": {
+                "title": "Device authentication not found.",
+                "description": "Please log out and try again."
+            },
+            "generic": {
+                "title": "Failed to accept the invite.",
+                "description": "Please try again in a moment."
+            }
+        },
         "failed": "Failed to accept invitation",
         "invalidLink": "Invalid invite link",
         "missingServerInfo": "Server information is missing from the invite link",
-        "missingDelegator": "Device authentication not found.\nPlease log out and try again.",
-        "goBack": "Go Back",
-        "decline": "Decline",
         "timeout": "Server response timed out. Please try again.",
         "networkError": "Please check your network connection and try again.",
         "authVerifyFailed": "Authentication failed. Please try again.",
         "expired": "This invite has expired or is invalid.",
-        "enterFailed": "The invite was accepted but entering failed. Please try again.",
-        "invitedBy": "{{name}} invited you"
+        "enterFailed": "The invite was accepted but entering failed. Please try again."
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",
