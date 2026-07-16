@@ -4,6 +4,17 @@
 
 ### Features
 
+- (web/channels) redesign channel settings with profile & notification dialogs
+- (data/channels) support owner kick via leaveChannel userId
+
+### Documentation
+
+- (channels) add channel-settings-ui doc + ADR-0015
+
+## [2026-07-16] - No version updates
+
+### Features
+
 - (web/home) apply ADR-0014 Figma visual refinement
 - (web-ui-kit) add ImageAvatar and drop FloatingTabBar gradient backdrop
 
