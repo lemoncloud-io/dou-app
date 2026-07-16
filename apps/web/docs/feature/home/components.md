@@ -14,6 +14,14 @@ components/
   CloudNameEditDialog.tsx
   SubscriptionRequiredDialog.tsx
 
+  InviteDialog.tsx                # 초대 수락 오케스트레이터 (URL 구동, 풀스크린 Dialog + 실패 AlertDialog; useInviteAccept/useInviteCountdown)
+  invite/                         #   초대 수락 화면 뷰 (presentational) — invite-accept.md 참조
+    InviteAcceptScreen.tsx        #     수락 화면 본문 (헤더+카드들+거절/수락, props 구동)
+    InviteCard.tsx                #     카드 셸
+    InvitePlaceCard.tsx           #     플레이스 카드 (썸네일/명/소개, degrade)
+    InviteTargetCard.tsx          #     You 카드 (1:1 / 방 친구 N 배지)
+    InviteExpiryCard.tsx          #     초대 링크 유효기간 카운트다운
+
   CloudSessionSheet.tsx           # 메인 시트 로직 (BottomSheet; 목록/전환/연결끊기)
   cloud-session/                  #   시트 구성 요소 (ProfileSection은 ADR-0013에서 제거 — 프로필은 헤더 드롭다운으로)
     shared.ts                     #     스타일 상수 + isProvisioning/getCloudDisplayName + CloudTab
