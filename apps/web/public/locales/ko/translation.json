@@ -819,22 +819,59 @@
         "logout": "로그아웃"
     },
     "inviteAccept": {
-        "title": "채팅에 초대되었습니다",
-        "description": "초대를 수락하고 채팅을 시작해 보세요.",
-        "accept": "수락하기",
-        "accepting": "수락 중...",
+        "title": "DoU에 당신을 초대했어요",
+        "invitedBy": "님이\nDoU에 당신을 초대했어요",
+        "description": "초대 수락하고 대화를 시작해 보세요.",
+        "accept": "수락",
+        "decline": "거절",
+        "confirm": "확인",
+        "close": "닫기",
+        "target": {
+            "you": "You",
+            "oneToOne": "1:1 대화",
+            "roomFriends": "방 친구 {{count}}"
+        },
+        "expiry": {
+            "label": "초대 링크 유효기간",
+            "remaining": "{{time}} 남음",
+            "days": "{{n}}일",
+            "hours": "{{n}}시간",
+            "minutes": "{{n}}분"
+        },
+        "dialog": {
+            "expired": {
+                "title": "초대 링크가 만료되었어요",
+                "description": "보안을 위해 일정 시간이 지나면 초대 링크는 자동으로 만료됩니다. 초대한 사람에게 새로운 초대를 받아 다시 참여해 주세요."
+            },
+            "alreadyJoined": {
+                "title": "이미 참여한 초대입니다.",
+                "description": "채팅방에서 대화를 이어가주세요."
+            },
+            "channelDeleted": {
+                "title": "채팅방이 삭제되었습니다.",
+                "description": "채팅방이 삭제되어 참여할 수 없습니다."
+            },
+            "inviteCanceled": {
+                "title": "초대가 취소되었습니다.",
+                "description": "초대한 사람이 초대를 취소하여 참여할 수 없습니다."
+            },
+            "missingDelegator": {
+                "title": "기기 인증 정보를 찾을 수 없습니다.",
+                "description": "로그아웃 후 다시 시도해 주세요."
+            },
+            "generic": {
+                "title": "초대 수락에 실패했습니다.",
+                "description": "잠시 후 다시 시도해 주세요."
+            }
+        },
         "failed": "초대 수락에 실패했습니다",
         "invalidLink": "유효하지 않은 초대 링크입니다",
         "missingServerInfo": "초대 링크에 서버 정보가 누락되었습니다",
-        "missingDelegator": "기기 인증 정보를 찾을 수 없습니다.\n로그아웃 후 다시 시도해 주세요.",
-        "goBack": "돌아가기",
-        "decline": "거절하기",
         "timeout": "서버 응답 시간이 초과되었습니다. 다시 시도해 주세요.",
         "networkError": "네트워크 연결을 확인한 후 다시 시도해 주세요.",
         "authVerifyFailed": "인증에 실패했습니다. 다시 시도해 주세요.",
         "expired": "만료되었거나 유효하지 않은 초대입니다.",
-        "enterFailed": "초대는 수락되었지만 입장에 실패했습니다. 다시 시도해 주세요.",
-        "invitedBy": "{{name}}님이 초대했습니다"
+        "enterFailed": "초대는 수락되었지만 입장에 실패했습니다. 다시 시도해 주세요."
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",

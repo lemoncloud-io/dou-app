@@ -251,7 +251,7 @@ export const HomePage = () => {
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
-            <InviteDialog />
+            <InviteDialog suppressed={isFirstRun} />
         </div>
     );
 };
