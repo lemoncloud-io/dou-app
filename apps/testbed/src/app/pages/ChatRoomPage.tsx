@@ -60,6 +60,7 @@ export const ChatRoomPage = () => {
     const [isSystemSendOpen, setIsSystemSendOpen] = useState(false);
 
     const listRef = useRef<HTMLDivElement>(null);
+    const sendButtonRef = useRef<HTMLButtonElement>(null);
     // Per-room scroll/read guards (reset on channel change):
     const hasInitialScrolledRef = useRef(false); // bottom-align once on first page
     const lastReadSentRef = useRef(0); // high-water chatNo already marked read
@@ -347,6 +348,32 @@ export const ChatRoomPage = () => {
         }
     };
 
+    // Keep a live ref to handleSend so the native listeners below always call the latest closure.
+    const handleSendRef = useRef(handleSend);
+    handleSendRef.current = handleSend;
+
+    // Send button: keep the textarea focused so the mobile (iOS) keyboard never closes on send.
+    // iOS blurs the focused input on the tap's `touchstart`, which dismisses the keyboard, and it
+    // won't reopen without a fresh user gesture. React attaches touch events as PASSIVE, so
+    // `onTouchStart`/`onTouchEnd` with preventDefault do nothing — we must bind native listeners
+    // with { passive: false }. preventDefault on touchstart stops the blur (and suppresses the
+    // synthesized click), so we run the send from touchend instead.
+    useEffect(() => {
+        const btn = sendButtonRef.current;
+        if (!btn) return;
+        const onTouchStart = (e: TouchEvent) => e.preventDefault();
+        const onTouchEnd = (e: TouchEvent) => {
+            e.preventDefault();
+            void handleSendRef.current();
+        };
+        btn.addEventListener('touchstart', onTouchStart, { passive: false });
+        btn.addEventListener('touchend', onTouchEnd, { passive: false });
+        return () => {
+            btn.removeEventListener('touchstart', onTouchStart);
+            btn.removeEventListener('touchend', onTouchEnd);
+        };
+    }, []);
+
     return (
         <div className="flex flex-col h-full">
             {/* 헤더 */}
@@ -418,6 +445,12 @@ export const ChatRoomPage = () => {
                     className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
+                    ref={sendButtonRef}
+                    // Touch (iOS) is handled by the native listeners in the effect above. Here we
+                    // cover desktop: preventDefault on mousedown keeps focus on the textarea, and
+                    // onClick sends. On touch, native touchstart preventDefault suppresses the
+                    // synthesized click, so onClick won't double-fire.
+                    onMouseDown={e => e.preventDefault()}
                     onClick={() => void handleSend()}
                     disabled={!message.trim() || isSending}
                     className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 transition-opacity"
