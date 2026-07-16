@@ -4,7 +4,7 @@ import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { isNative, logger } from '@chatic/bridges';
 
 import type { SlackReportBody } from '@lemoncloud/chatic-backend-api';
-import type { AppType, ErrorReportPayload } from './types';
+import type { AppType, ErrorReportPayload, IssueReportExtras } from './types';
 
 const ERROR_REPORT_ENDPOINT = `${DOU_ENDPOINT}/hello/report`;
 
@@ -121,8 +121,11 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
 /**
  * 사용자가 직접 이슈를 보고하는 함수
  * reportError와 달리 스로틀링 없음 (사용자 의도적 액션)
+ *
+ * `extras`는 사용자 대면 이슈 리포트 위젯이 붙이는 선택 컨텍스트(최근 로그,
+ * 디바이스/버전 스냅샷 등)다. 없으면 기존 2-인자 호출과 동일하게 동작한다.
  */
-export const reportIssue = async (title: string, message: string): Promise<void> => {
+export const reportIssue = async (title: string, message: string, extras?: IssueReportExtras): Promise<void> => {
     try {
         const app: AppType = isNative() ? 'mobile' : 'web';
 
@@ -157,6 +160,10 @@ export const reportIssue = async (title: string, message: string): Promise<void>
                 name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
                 placeId: cloudState.siteId ?? undefined,
             },
+            // User-facing widget context (recent logs, device/version snapshot, ...).
+            // Spread only when provided so the base payload shape is unchanged for
+            // legacy 2-arg callers.
+            ...(extras ?? {}),
         };
 
         const body: SlackReportBody = {
