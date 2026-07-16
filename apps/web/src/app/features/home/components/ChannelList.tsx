@@ -18,6 +18,7 @@ import {
     DefaultAvatar,
     IconBolt,
     IconPlus,
+    ImageAvatar,
     ListRow,
     PlanBadge,
     UnreadBadge,
@@ -61,23 +62,12 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
     const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
     const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
 
-    const leading = (
-        <div className="relative">
-            {channel.thumbnail ? (
-                <span className="size-[46px] shrink-0 overflow-hidden rounded-full">
-                    <img src={channel.thumbnail} alt="" className="size-full object-cover" />
-                </span>
-            ) : isSelf ? (
-                <DefaultAvatar size={46} />
-            ) : (
-                <ChatAvatar size="md" />
-            )}
-            {(channel.memberNo ?? 0) > 1 && (
-                <span className="absolute -left-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full border border-border bg-background/80 px-[5px] text-[11px] font-medium text-muted-foreground backdrop-blur-sm">
-                    {channel.memberNo}
-                </span>
-            )}
-        </div>
+    const leading = channel.thumbnail ? (
+        <ImageAvatar src={channel.thumbnail} alt="" size={46} />
+    ) : isSelf ? (
+        <DefaultAvatar size={46} />
+    ) : (
+        <ChatAvatar size="md" />
     );
 
     return (
@@ -91,6 +81,12 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
                         </Badge>
                     )}
                     <span className="truncate">{name}</span>
+                    {/* Group member count — an inline gray pill after the name (Figma 2931-8611). */}
+                    {(channel.memberNo ?? 0) > 1 && (
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
+                            {channel.memberNo}
+                        </span>
+                    )}
                 </>
             }
             subtitle={blurLastMessage ? <span className="select-none blur-[5px]">{preview}</span> : preview}
@@ -163,7 +159,7 @@ export const ChannelList = ({
     ) : undefined;
 
     return (
-        <CollapsibleSection title="Chat" actions={createMenu}>
+        <CollapsibleSection title={t('homePage.channels', '채널')} count={channels.length} actions={createMenu}>
             {isLoading && channels.length === 0 ? (
                 <>
                     <ChannelSkeleton />

@@ -270,13 +270,15 @@
     },
     "homePage": {
         "places": "Places",
+        "channels": "Chat",
         "roomCreated": "Chat room created",
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud"
     },
     "cloudSessionSheet": {
-        "title": "Select Cloud",
+        "title": "Switch Cloud",
+        "douHome": "DoU Home",
         "errorLoading": "Failed to load clouds",
         "retry": "Retry",
         "statusActive": "Subscribed",

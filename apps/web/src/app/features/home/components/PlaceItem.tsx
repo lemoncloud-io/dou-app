@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlaceSync } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
-import { CloudAvatar, ListRow, PlaceAvatar, VerifiedBadge } from '@chatic/web-ui-kit';
+import { CloudAvatar, ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge } from '@chatic/web-ui-kit';
 
 interface PlaceItemProps {
     place: DomainPlace;
@@ -28,9 +28,7 @@ export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unread
     // Avatar: photo when set, the generic place glyph for the default place, otherwise a
     // name-initials avatar (matches the Figma place rows).
     const leading = place.thumbnail ? (
-        <span className="size-[46px] shrink-0 overflow-hidden rounded-full">
-            <img src={place.thumbnail} alt={displayName} className="size-full object-cover" />
-        </span>
+        <ImageAvatar src={place.thumbnail} alt={displayName ?? ''} size={46} />
     ) : isDefaultPlace ? (
         <PlaceAvatar size="lg" />
     ) : (
@@ -42,7 +40,7 @@ export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unread
         <VerifiedBadge size={18} label={t('placeList.selected', '선택됨')} />
     ) : hasUnread ? (
         <span
-            className="size-1.5 shrink-0 rounded-full bg-main-accent"
+            className="size-1.5 shrink-0 rounded-full bg-red-500"
             aria-label={t('placeList.hasUnread', '읽지 않음')}
         />
     ) : null;

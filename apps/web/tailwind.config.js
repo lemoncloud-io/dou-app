@@ -59,6 +59,7 @@ module.exports = {
                 description: 'hsl(var(--description))',
                 surface: 'hsl(var(--surface))',
                 'main-accent': 'hsl(var(--main-accent))',
+                verified: 'hsl(var(--verified))',
                 'input-border': 'hsl(var(--input-border))',
                 'focus-border': 'hsl(var(--focus-border))',
                 'brand-ink': 'hsl(var(--brand-ink))',

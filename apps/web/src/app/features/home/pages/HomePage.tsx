@@ -105,7 +105,10 @@ export const HomePage = () => {
         accountImageUrl: myUser?.photo,
     });
     const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
-    const displayImageUrl = headerProfile.kind === 'setup' ? undefined : headerProfile.imageUrl;
+    // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When the
+    // active place has no photo (or on relay, which has no place profile), ProfileAvatar renders its
+    // default glyph (기본 아바타).
+    const displayImageUrl = isDefaultCloud ? undefined : (myProfile?.thumbnail ?? undefined);
 
     // On an active site everyone has an editable site profile (incl. invited-cloud users), so show
     // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
@@ -187,7 +190,7 @@ export const HomePage = () => {
     );
 
     return (
-        <div className="flex h-screen flex-col overflow-hidden bg-background pb-[98px]">
+        <div className="flex h-screen flex-col overflow-hidden bg-background">
             <AppHeader
                 kind={isDefaultCloud ? 'no-cloud' : 'cloud'}
                 name={cloudName}
@@ -201,8 +204,10 @@ export const HomePage = () => {
                 profileLabel={t('homePage.profile', '프로필')}
             />
 
-            {/* Place + Chat scroll together under the fixed header (accordion sections). */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2">
+            {/* Place + Chat scroll together under the fixed header (accordion sections). The
+                bottom padding lets the last row scroll clear of the floating nav, whose pill the
+                content passes fully behind (no backdrop). */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[98px] pt-2">
                 <PlaceList
                     places={places}
                     selectedPlaceId={selectedPlaceId}

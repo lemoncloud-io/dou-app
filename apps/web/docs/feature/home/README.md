@@ -1,6 +1,6 @@
 # home
 
-> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [[ADR-0013]]
+> 상태: Live · 최종 갱신: 2026-07-16 · 관련 ADR: [[ADR-0013]], [[ADR-0014]]
 >
 > 대상: `apps/web/src/app/features/home` · 참조 구현: `apps/testbed/src/app/pages/ChatHomePage.tsx`
 
@@ -59,8 +59,10 @@
 4. **섹션 접기/펼치기** — Place·Chat 섹션 헤더 우측 chevron 탭 → 해당 섹션 본문 토글. 두 섹션은 독립.
 5. **채널 생성** — Chat 섹션 `＋` 탭 → 팝오버. 중계면 `1:1 대화`(TBD), 클라우드면 `그룹 방 만들기`.
    후자는 구독중(pro)이 아니면 `SubscriptionRequiredDialog`로 유도, 구독중이면 `CreateChannelDialog`.
-6. **클라우드 전환** — 헤더 좌측 chevron 탭 → `CloudSessionSheet`(BottomSheet). `내 클라우드`/`초대된 클라우드`
-   탭, 선택 시 `switchCloud`, 연결끊기·계정추가·이름편집·프로비저닝 배지 보존.
+6. **클라우드 전환** — 헤더 좌측 chevron 탭 → `CloudSessionSheet`(BottomSheet). `내 클라우드` 탭 최상단엔 렐리를
+   나타내는 `두유 홈`(DoU Home) 행(초록 DoU 마크)이 고정 노출되고, 그 아래 소유 클라우드가 나열된다. 현재 접속
+   대상이 오른쪽 트레일링 초록 체크로 표시된다. 두유 홈 선택 = 렐리 복귀(`logoutCloudSession`), 클라우드 선택 =
+   `switchCloud`. 계정추가·이름편집·프로비저닝 배지 보존.
 7. **프로필 진입** — 헤더 우측 프로필 탭 → 드롭다운. `프로필` → 프로필 편집(중계=account edit, 클라우드=
    site-profile), `설정` → `/mypage`, `알림` → TBD.
 
@@ -122,10 +124,11 @@ flowchart TD
   `onPlanClick` → `navigate(ROUTES.subscription.root)`. (`useMembershipInfo`는 `@chatic/web-core`,
   판정 관례는 `subscription/pages/SubscriptionPage.tsx`와 동일.)
 - **검색**: `onSearch` 제공(버튼 렌더) — 핸들러는 TBD 플레이스홀더(토스트/no-op).
-- **프로필**: `avatar = <ProfileAvatar src={headerProfile.imageUrl} size={36} />`(onSelect 없음 → 편집 배지
-  없이 사진+글리프 폴백). 소스는 기존 `resolveHeaderProfile`
-  ([lib/resolveHeaderProfile.ts](../../../src/app/features/home/lib/resolveHeaderProfile.ts)) 그대로. `onProfile`은
-  드롭다운을 여는 트리거로 쓴다(아래).
+- **프로필**: 우측 상단 아바타는 **플레이스(site) 프로필 사진만** 보여준다(`ProfileAvatar src={myProfile?.thumbnail}`,
+  계정 사진 폴백 없음). 활성 플레이스에 프로필 사진이 없거나 렐리(플레이스 프로필 없음)면 `ProfileAvatar`의 기본
+  글리프(기본 아바타)로 폴백한다([HomePage.tsx](../../../src/app/features/home/pages/HomePage.tsx)의 `displayImageUrl`).
+  드롭다운 헤더의 이름(`displayName`)은 `resolveHeaderProfile` 계층(site→account→setup)을 유지한다. `onProfile`은
+  드롭다운을 여는 트리거.
 - **좌측 chevron**: `onSwitcher`는 `canSwitchCloud`일 때만 전달 → `CloudSessionSheet` open. (게스트 게이팅은
   현행 `!isGuest || isInvitedGuest` 유지.)
 
@@ -141,20 +144,28 @@ flowchart TD
 
 ### Place 섹션 (`CollapsibleSection` + `ListRow`)
 
-- `PlaceList` → `CollapsibleSection`(title=`Place`, 접기 상태 host 소유)으로 감싼다.
-- `PlaceItem`을 세로 `ListRow`로 재작성: `leading` = 아바타(`place.thumbnail` 이미지 / 기본 플레이스는 DoU
-  마크 / 그 외 이름 이니셜), `title` = 이름 + (선택 시 `VerifiedBadge`), `subtitle` = 플레이스 유형 라벨
-  (`기본/내/초대받은 플레이스`), 미선택+미읽음이면 이름 옆 빨간 점. `usePlaceSync(place.id)` 등록은 유지.
+- `PlaceList` → `CollapsibleSection`(title=`Place`, `count={places.length}`, 접기 상태 host 소유)으로
+  감싼다. 카운트는 kit `SectionHeader`가 제목 옆 `main-accent`(이 앱에선 #90C304 초록)로 렌더(Figma `2931-8611`).
+- `PlaceItem`을 세로 `ListRow`로 재작성: `leading` = 아바타(`place.thumbnail`은 kit 이미지 아바타
+  프리미티브로 원형 크롭 / 기본 플레이스는 DoU 마크 / 그 외 이름 이니셜), `title` = 이름 + (선택 시
+  `VerifiedBadge`), `subtitle` = 플레이스 유형 라벨(`기본/내/초대받은 플레이스`), 미선택+미읽음이면 이름 옆
+  빨간 점(`bg-red-500`). `usePlaceSync(place.id)` 등록은 유지. 선택 체크(`VerifiedBadge`)는 kit `bg-verified`
+  토큰을 쓰므로 앱이 `--verified` CSS 변수([styles.css](../../../src/styles.css))와 tailwind `verified` 색 매핑
+  ([tailwind.config.js](../../../tailwind.config.js))을 **둘 다** 정의해야 파랗게 보인다 — 앱은 web-ui-kit
+  `tokens.css`를 import하지 않고 자체 토큰셋을 유지하므로 누락 시 흰 체크가 배경 없이 안 보인다.
 - 기존 필터 유지: `stereo === 'place'`(중계 구독 행) 제외([PlaceList.tsx:53](../../../src/app/features/home/components/PlaceList.tsx)).
 - `＋ 플레이스 추가` 행은 소유자 전용 — `permissions.canCreatePlace`로 게이팅(중계/초대는 숨김).
 
 ### Chat 섹션 (`CollapsibleSection` + `ListRow` + 생성 팝오버)
 
-- `ChannelList`이 `CollapsibleSection`(title=`Chat`)으로 감싼다.
-- `ChannelItem`은 `ListRow`로 구성: `leading` = 아바타(`channel.thumbnail` 사진 / self=`DefaultAvatar` / 그룹=`ChatAvatar`,
-  멤버수>1이면 오버레이 배지), `title` = (self면 `MY` 배지, `Badge tone="dark"`) + 이름, `subtitle` = `useLastChat`
-  미리보기(현행 유지, [last-chat.md](./last-chat.md); `blurLastMessage` 시 blur), `trailing` = 세로 스택(시간 +
-  `UnreadBadge variant="pill"`). `MY` 배지는 모드 무관하게 `isSelf` 기준이다(예전 relay-only 게이트 폐기).
+- `ChannelList`이 `CollapsibleSection`(title=`t('homePage.channels','채널')`, `count={channels.length}`)으로
+  감싼다. 라벨은 로컬 로케일(`public/locales`) 기준 `채널`(ko)/`Chat`(en) — 하드코딩 `Chat` 폐기.
+- `ChannelItem`은 `ListRow`로 구성: `leading` = 아바타(`channel.thumbnail` 사진은 kit 이미지 아바타
+  프리미티브로 원형 크롭 / self=`DefaultAvatar` / 그룹=`ChatAvatar`), `title` = (self면 `MY` 배지,
+  `Badge tone="dark"`) + 이름 + **멤버수>1이면 이름 뒤 회색 pill**(Figma `2931-8611`; 예전 아바타 오버레이
+  배지 폐기), `subtitle` = `useLastChat` 미리보기(현행 유지, [last-chat.md](./last-chat.md); `blurLastMessage`
+  시 blur), `trailing` = 세로 스택(시간 + `UnreadBadge variant="pill"`). `MY` 배지는 모드 무관하게 `isSelf`
+  기준이다(예전 relay-only 게이트 폐기).
 - `useChannelSync`·`useLastChat` 등록, `useChannelUnreads` 계산은 그대로.
 - 섹션 헤더 `＋`(생성 팝오버) — `DropdownMenu` 조합, 접속 유형별 단일 항목:
     - 중계(`isDefaultCloud`) → `1:1 대화`(TBD 플레이스홀더 토스트).
@@ -168,10 +179,32 @@ flowchart TD
   [CloudSessionSheet.tsx:121-231](../../../src/app/features/home/components/CloudSessionSheet.tsx)). 상단
   `ProfileSection` 제거(프로필은 헤더 드롭다운으로 이동). 행은 서브타이틀(소유=계정/이메일, 초대=`OO님의
 클라우드`)로 리스킨.
+- **DoU Home(렐리) 행**: `내 클라우드` 목록 최상단에 렐리(default)를 나타내는 합성 행을 고정 노출한다 —
+  기존 `dou-logo.svg`(28×28 레몬) + `bg-[#90c304] rounded-full` 초록 원 + `두유 홈`(ko)/`DoU Home`(en) 라벨.
+  렐리는 카탈로그에 없고 `selectedCloudId==='default'`
+  로만 존재하므로([CloudSessionSheet.tsx:116](../../../src/app/features/home/components/CloudSessionSheet.tsx))
+  `clouds` 배열에 섞지 않고 별도 행으로 렌더한다. `isSelected = isDefaultSelected`, 선택 시 렐리로 복귀
+  (`logoutCloudSession`, 기존 disconnect와 동일 경로). 이 행이 disconnect를 겸하므로 기존 하단 `disconnectCloud`
+  pill 버튼은 제거한다(Figma `2933-9794`).
+- **선택 마크 = 트레일링 초록 체크 배지**: `CloudItem`/DoU Home 행 모두 선택 표시를 왼쪽 보라 체크에서 오른쪽
+  트레일링 **채워진 초록 배지**(`bg-[#b0ea10]` 원 + 흰 체크, `p-1.5`)로 옮기고 행 레이아웃을
+  `[아바타][이름/서브타이틀] … [체크]`로 재구성했다([CloudItem.tsx](../../../src/app/features/home/components/cloud-session/CloudItem.tsx),
+  Figma `2933-9794`/`2933-9956`). 활성 클라우드는 별도 `활성` 상태 배지 없이 트레일링 체크로만 현재 접속을 표시한다
+  (비활성 상태 배지는 유지). 프로비저닝/에러 상태는 좌측 아바타 글리프 슬롯에 접어 넣었다. 행 아바타는 46px
+  (`CLOUD_AVATAR_CLASS`). 시트 제목·탭 문구는 로컬 로케일(`클라우드 전환`/`내 클라우드`, `public/locales/*`).
 - **로직 전부 보존**: `useCloudSessionCatalog`/`useInvitedClouds`/`switchCloud`/`logoutCloudSession`,
   프로비저닝 폴링·`cloudReady` 토스트·이름 편집(`CloudNameEditDialog`)·계정 추가.
 
-### kit 변경 — `CollapsibleSection`(신규), `UnreadBadge`(pill variant)
+### 레이아웃 — 플로팅 네비 위로 콘텐츠 노출
+
+- 바텀네비는 shell(`UnifiedLayout`)이 소유하며 `FloatingTabBar`가 `fixed`로 뜬다. 현재 `HomePage` 루트는
+  `pb-[98px]`로 하단에 죽은 여백을 예약해([HomePage.tsx:190](../../../src/app/features/home/pages/HomePage.tsx))
+  콘텐츠가 pill 뒤로 지나가지 못한다.
+- 개정: 루트 `pb-[98px]`를 제거하고 스크롤 영역([HomePage.tsx:205](../../../src/app/features/home/pages/HomePage.tsx))
+  안쪽에 하단 패딩을 주어, 마지막 행이 pill 위로 스크롤되며 그 사이 콘텐츠가 반투명 pill 뒤로 비쳐 보이게 한다
+  (kit 백드롭 제거와 함께). "네비만 뜨고 뒤 영역은 노출"이 목표.
+
+### kit 변경 — `CollapsibleSection`, `UnreadBadge`, 이미지 아바타 프리미티브, `FloatingTabBar` 백드롭, DoU 마크
 
 - **`CollapsibleSection`** (`libs/web-ui-kit/src/composites/section/CollapsibleSection.tsx`) — `SectionHeader`를
   감싸고 우측 actions에 회전하는 `IconChevronDown`을 두어 본문을 토글한다. 접기 상태는 controlled
@@ -179,6 +212,18 @@ flowchart TD
   중첩 행의 sync 등록이 해제된다. 스토리 + 유닛 테스트 동반, `composites/section/index.ts`에 export.
 - **`UnreadBadge`에 `variant` 추가** — 기존 accent 텍스트(`accent`, 기본)에 채워진 핑크 pill(`pill`)을 더했다.
   채널 행은 `pill`을 쓴다(Figma의 채운 배지). 기존 소비자는 기본값 유지로 영향 없음.
+- **이미지 아바타 프리미티브(신규)** — 반복되던 "썸네일 img를 원형 크롭" 패턴(`PlaceItem`/`ChannelList`)을
+  블록 레벨 박스로 크기를 강제하는 재사용 컴포넌트로 추출한다. 인라인 `<span>`은 `width`/`height`가 무시되어
+  `ChannelList`처럼 `relative` 래퍼 안에 중첩되면 크롭이 깨지므로([ADR-0014](../../../../docs/adr/0014-home-screen-figma-visual-refinement.md)),
+  프리미티브가 `size` prop으로 고정 원형을 보장한다. Place/Channel(및 남은 미크롭 지점)에서 사용. 스토리 +
+  유닛 테스트 동반.
+- **`FloatingTabBar` 백드롭 제거** — 하단 96px `from-background` 그라디언트 오버레이를 제거해 바가 콘텐츠 위로
+  진짜 떠 보이게 한다([FloatingTabBar.tsx:57-61](../../../../libs/web-ui-kit/src/composites/navigation/FloatingTabBar.tsx)).
+  홈은 이에 맞춰 스크롤 영역이 pill 뒤로 지나가도록 레이아웃을 조정한다(아래 레이아웃 항목). 네비를 쓰는 전
+  화면에 영향 → 각 화면 가독성 재확인.
+- **DoU Home 마크 — 기존 애셋 재사용** — 둥근 레몬 글리프는 kit에 이미 있는 `dou-logo.svg`(28×28, Figma
+  `2933-9999`의 28px 글리프와 일치)를 쓴다. 초록 원 배경(`#90c304`)만 CSS(`rounded-full`)로 입힌다. 새 export
+  불필요. (헤더용 `dou-mark.svg`는 96×38 워드마크로 별개.)
 
 ### 데이터 소스 매핑 요약
 
@@ -208,14 +253,16 @@ unread(channel) = max(0, (channel.chatNo ?? 0) - ($join.chatNo ?? 0) - systemInW
 
 ## 검증 방법
 
-- **유닛 테스트** — `nx test web-ui-kit`(147개 통과): `CollapsibleSection.test.tsx`(열림/닫힘·controlled·actions),
-  `Badges.test.tsx`의 `UnreadBadge` pill variant. 기존 홈 훅 테스트(`useSwitchPlace`/`useChannelUnreads`/
-  `resolveHeaderProfile`)는 로직 미변경으로 그대로 통과.
-- **빌드** — `nx build web` 통과: HomePage + 재작성된 Place/Chat/시트 + web-ui-kit 전체 모듈 그래프가 vite/rollup으로
-  클린 번들됨(import/JSX 해석 검증).
-- **수동 확인(preview)** — 중계/클라우드/초대클라우드 3상태에서: 헤더 kind·배지(free/pro)·프로필 드롭다운,
-  Place 세로목록+선택 체크+미읽음 점, Place/Chat 접기, 생성 팝오버(중계 1:1 / 클라우드 그룹·구독 게이팅),
-  클라우드 전환 시트. (홈은 인증 뒤 화면이라 로그인 세션에서 확인한다.)
+- **유닛 테스트** — `nx test web-ui-kit`(171개 통과): 신규 `ImageAvatar.test.tsx`(src/alt 렌더·픽셀 크기·원형
+  크롭 클래스), 기존 `CollapsibleSection`/`UnreadBadge`/아바타 스위트. 홈 훅 테스트는 로직 미변경으로 그대로 통과.
+- **빌드** — `nx build web` 통과: HomePage + Place/Chat/시트 + web-ui-kit 전체 모듈 그래프가 vite/rollup으로 클린
+  번들됨(import/JSX/타입 해석 검증).
+- **Storybook 시각 확인** — `ImageAvatar`(비정사각 400×240 소스가 원형으로 크롭됨)와 `FloatingTabBar`(그라디언트
+  백드롭 제거 → pill만 플로팅, 뒤 캔버스 완전 투명)를 스토리로 육안 확인.
+- **라이브 확인(워크트리 vite + 클라우드 로그인)** — 클라우드 세션에서 육안 확인 완료: `플레이스 8`/`채널 N`
+  카운트(초록), 선택 플레이스 파란 체크, 미읽음 빨간 점, `채널` 한국어 제목, 플레이스 썸네일(실제 사진) 원형 크롭,
+  클라우드 전환 시트 최상단 `두유 홈` 행, 바텀네비 백드롭 없는 플로팅. 게스트/렐리 세션에선 카운트·플로팅 네비만
+  확인 가능(전환 가능한 클라우드가 없어 시트 진입 불가). 워크트리 프리뷰 구동은 [[preview-web-from-worktree]] 참고.
 
 > 환경 주의: 이 워크트리는 `node_modules`가 불완전(`@nx/react` 미설치)해 `nx typecheck`가 `@nx/react/typings`
 > 에서 실패한다 — 코드 문제가 아니라 설치 문제다. 타입 확인은 `nx build web`(성공)과 web-ui-kit 소스 tsc로 갈음했다.
