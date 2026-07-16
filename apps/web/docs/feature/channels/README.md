@@ -29,7 +29,7 @@ features/channels/
 
 ## 데이터 흐름
 
-repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md).
+repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md). 채팅방 화면 UI는 [chat-room-ui.md](./chat-room-ui.md), 채널 설정·프로필·알림 UI는 [channel-settings-ui.md](./channel-settings-ui.md).
 
 요약:
 
@@ -44,4 +44,7 @@ repository observe + sync 등록 모델을 따른다([architecture/data-flow.md]
 
 ## 미구현(의도적 부재)
 
-다음은 stub이라 제거됐고 구현 예정이 없다 — 알림 설정 화면(`RoomNotificationSettingsPage`), 멤버 신고/차단, 방 생성 사진 업로드. 필요해지면 재도입한다.
+- **UI만 있고 미연동** — 알림 설정(`RoomNotificationDialog`, 토글 로컬 상태), 멤버 신고하기
+  (프로필 ⋯메뉴, 토스트만). 백엔드 뮤테이션이 없어 표시/버튼만 둔다([channel-settings-ui.md](./channel-settings-ui.md), [ADR-0015](../../../../docs/adr/0015-channel-settings-ui-refresh.md)).
+- **범위 밖** — 멤버별 별명(nick) 편집, 멤버 차단, 방 생성 사진 업로드. 필요해지면 재도입한다.
+  (멤버 추방(kick)은 `leaveChannel({channelId, userId})`로 **연동됨** — 소유자만.)
