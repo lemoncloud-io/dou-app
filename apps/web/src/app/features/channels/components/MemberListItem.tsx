@@ -11,6 +11,8 @@ interface MemberListItemProps {
     isMe?: boolean;
     isOwner?: boolean;
     isPendingInvite?: boolean;
+    /** When set, the row becomes a button that opens the member profile. */
+    onClick?: () => void;
 }
 
 export const MemberListItem = ({
@@ -18,9 +20,14 @@ export const MemberListItem = ({
     isMe = false,
     isOwner = false,
     isPendingInvite = false,
+    onClick,
 }: MemberListItemProps) => {
+    const Root = onClick ? 'button' : 'div';
     return (
-        <div className="flex items-center gap-2">
+        <Root
+            {...(onClick ? { type: 'button' as const, onClick } : {})}
+            className="flex w-full items-center gap-2 text-left"
+        >
             {/* Avatar */}
             <div
                 className={`relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted ${
@@ -64,6 +71,6 @@ export const MemberListItem = ({
                     </span>
                 )}
             </div>
-        </div>
+        </Root>
     );
 };

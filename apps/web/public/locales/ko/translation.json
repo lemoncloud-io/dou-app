@@ -473,6 +473,21 @@
                 "title": "멤버를 차단하시겠습니까?",
                 "description": "차단하면 이 멤버의 메시지를 더 이상 받지 않습니다.",
                 "confirm": "차단"
+            },
+            "friendInfo": {
+                "title": "친구 정보"
+            },
+            "deleteFriend": "친구 삭제",
+            "kickDialog": {
+                "title": "친구를 삭제하시겠습니까?",
+                "description": "삭제하면 이 친구는 더 이상 이 채팅방에 참여할 수 없습니다.",
+                "confirm": "삭제"
+            },
+            "kicked": "친구를 삭제했습니다",
+            "kickFailed": "친구 삭제에 실패했습니다",
+            "memberLimit": {
+                "message": "방 인원은 최대 100명까지만 함께할 수 있어요. 😭",
+                "confirm": "확인"
             }
         }
     },

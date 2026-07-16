@@ -107,6 +107,42 @@ describe('ChannelRepositoryV2', () => {
         );
     });
 
+    it('leaveChannel — 본인 나가기(userId 없음)는 채널을 로컬 캐시에서 제거한다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        channelRemoteDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+
+        await repository.leaveChannel({ channelId: 'ch-1' } as any);
+
+        expect(channelLocalDataSource.cacheDelete).toHaveBeenCalledWith('ch-1', {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
+    it('leaveChannel — 멤버 추방(userId 있음)은 내 채널 캐시를 evict하지 않는다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        // Owner kicking another member: I stay in the room, so the channel must remain cached
+        // and must not be marked as left (a lagging snapshot must still resurrect it for me).
+        channelRemoteDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
+
+        await repository.leaveChannel({ channelId: 'ch-1', userId: 'other-user' } as any);
+
+        expect(channelLocalDataSource.cacheDelete).not.toHaveBeenCalled();
+        expect(channelRemoteDataSource.leaveChannel).toHaveBeenCalledWith(
+            { channelId: 'ch-1', userId: 'other-user' },
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+
+        // The kicked channel is NOT filtered out of a subsequent snapshot merge.
+        channelRemoteDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
+        await repository.refreshList({ sid: 'site-1' } as any);
+        expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [{ id: 'ch-1', sid: 'site-1' }],
+            expect.anything()
+        );
+    });
+
     it('refreshList — 빈 스냅샷이면 캐시를 건드리지 않는다', async () => {
         const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
         channelRemoteDataSource.fetchChannel.mockResolvedValue({ list: [] });

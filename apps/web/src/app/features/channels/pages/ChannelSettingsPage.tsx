@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LogOut, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { Bell, LogOut, Trash2, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -14,11 +14,19 @@ import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
+import { MemberProfileDialog } from '../components/MemberProfileDialog';
+import { RoomNotificationDialog } from '../components/RoomNotificationDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'invite' | 'update' | 'delete' | 'leave' | null;
+type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'notification' | 'profile' | null;
+
+interface SelectedMember {
+    id: string;
+    name: string;
+    avatar?: string | null;
+}
 
 interface ActionButtonProps {
     icon: LucideIcon;
@@ -58,6 +66,7 @@ export const ChannelSettingsPage = () => {
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+    const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
 
     const { toast } = useToast();
 
@@ -75,6 +84,29 @@ export const ChannelSettingsPage = () => {
     });
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
+
+    const openMemberProfile = (member: SelectedMember) => {
+        setSelectedMember(member);
+        setActiveDialog('profile');
+    };
+
+    // Owner-only kick: leaveChannel with a target userId removes that member.
+    const handleKickMember = async () => {
+        if (!channelId || !selectedMember) return;
+
+        try {
+            await leaveChannel({ channelId, userId: selectedMember.id });
+            closeDialog();
+            toast({ title: t('chat.settings.kicked') });
+        } catch (error) {
+            logger.error('CHAT', 'Failed to remove member', {
+                error,
+                data: { channelId, userId: selectedMember.id },
+            });
+            reportError(toError(error));
+            toast({ title: t('chat.settings.kickFailed'), variant: 'destructive' });
+        }
+    };
     const memberCount = membersTotal || channel?.memberCount || 0;
 
     // Site profiles (nick/avatar) for the member list; same source as the room.
@@ -128,28 +160,27 @@ export const ChannelSettingsPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pt-safe-top">
+        <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('chat.settings.title')} />
 
-            {/* Content */}
-            <div className="flex flex-col items-center gap-[25px] px-4 py-2.5">
+            {/* Content — scrolls when the member list grows past the viewport. */}
+            <div className="flex flex-1 flex-col items-center gap-[25px] overflow-y-auto px-4 py-2.5">
                 {/* Room Info */}
                 <div className="flex flex-col items-center gap-[19px]">
                     {/* Room Icon & Name */}
                     <div className="flex flex-col items-center gap-2">
                         <ChatProfileIcon thumbnail={channel?.thumbnail} />
                         <div className="flex flex-col items-center gap-1">
-                            {channel?.isOwner && !channel?.isSelfChat ? (
-                                <button onClick={() => openDialog('update')} className="flex items-center gap-1.5">
-                                    <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
-                                        {channel?.name || t('chat.settings.roomName')}
-                                    </h2>
-                                    <Pencil size={14} className="text-muted-foreground" />
+                            <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
+                                {channel?.name || t('chat.settings.roomName')}
+                            </h2>
+                            {channel?.isOwner && !channel?.isSelfChat && (
+                                <button
+                                    onClick={() => openDialog('update')}
+                                    className="text-[13px] font-medium leading-[1.3] text-primary underline"
+                                >
+                                    {t('chat.settings.edit')}
                                 </button>
-                            ) : (
-                                <h2 className="text-[17px] font-semibold leading-[22px] tracking-[-0.34px] text-foreground">
-                                    {channel?.name || t('chat.settings.roomName')}
-                                </h2>
                             )}
                         </div>
                     </div>
@@ -161,6 +192,13 @@ export const ChannelSettingsPage = () => {
                                 icon={UserPlus}
                                 label={t('chat.settings.inviteFriends')}
                                 onClick={() => openDialog('invite')}
+                            />
+                        )}
+                        {!channel?.isSelfChat && (
+                            <ActionButton
+                                icon={Bell}
+                                label={t('chat.settings.notifications')}
+                                onClick={() => openDialog('notification')}
                             />
                         )}
                         {!channel?.isSelfChat ? (
@@ -210,18 +248,20 @@ export const ChannelSettingsPage = () => {
                                         t('chat.settings.unknownUser');
 
                                     const isMember = memberId === userId;
+                                    const memberView = {
+                                        id: memberId,
+                                        name: memberName,
+                                        avatar: memberProfile?.thumbnail ?? null,
+                                    };
 
                                     return (
                                         <MemberListItem
                                             key={memberId}
-                                            member={{
-                                                id: memberId,
-                                                name: memberName,
-                                                avatar: memberProfile?.thumbnail ?? null,
-                                            }}
+                                            member={memberView}
                                             isMe={isMember}
                                             isOwner={memberId === channel?.ownerId}
                                             isPendingInvite={member.$join?.joined === 0}
+                                            onClick={() => openMemberProfile(memberView)}
                                         />
                                     );
                                 })
@@ -265,6 +305,24 @@ export const ChannelSettingsPage = () => {
                 onConfirm={handleLeaveRoom}
                 isPending={isPending.leave}
                 variant="warning"
+            />
+            <RoomNotificationDialog
+                open={activeDialog === 'notification'}
+                onOpenChange={open => (open ? openDialog('notification') : closeDialog())}
+            />
+            <MemberProfileDialog
+                open={activeDialog === 'profile'}
+                onOpenChange={open => (open ? openDialog('profile') : closeDialog())}
+                member={selectedMember}
+                memberIsOwner={!!selectedMember && selectedMember.id === channel?.ownerId}
+                canKick={
+                    !!channel?.isOwner &&
+                    !!selectedMember &&
+                    selectedMember.id !== channel?.ownerId &&
+                    selectedMember.id !== userId
+                }
+                onKick={handleKickMember}
+                isKicking={isPending.leave}
             />
         </div>
     );

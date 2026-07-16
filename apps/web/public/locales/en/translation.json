@@ -472,6 +472,21 @@
                 "title": "Block this member?",
                 "description": "You will no longer receive messages from this member.",
                 "confirm": "Block"
+            },
+            "friendInfo": {
+                "title": "Friend Info"
+            },
+            "deleteFriend": "Remove friend",
+            "kickDialog": {
+                "title": "Remove this friend?",
+                "description": "Once removed, this friend can no longer take part in this chat room.",
+                "confirm": "Remove"
+            },
+            "kicked": "Friend removed",
+            "kickFailed": "Failed to remove friend",
+            "memberLimit": {
+                "message": "A room can have up to 100 members. 😭",
+                "confirm": "OK"
             }
         }
     },

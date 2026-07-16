@@ -6,15 +6,25 @@ import type { ContactInfo } from '@chatic/app-messages';
 import { isNative } from '@chatic/bridges';
 import { reportError } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogTitle,
+} from '@chatic/ui-kit/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreateInviteBatch } from '../hooks';
+import { useChannel, useCreateInviteBatch } from '../hooks';
 
 import { AddFriendSheet } from './AddFriendSheet';
 import { ContactListItem } from './ContactListItem';
 import { PermissionDeniedBanner } from './PermissionDeniedBanner';
 import { appBridge } from '../../../bridge';
+
+/** A room can hold at most this many members. */
+const MAX_ROOM_MEMBERS = 100;
 
 const inviteLogger = {
     error: (tag: string, msg: string, ...args: any[]) => console.error(`[${tag}] ${msg}`, ...args),
@@ -61,10 +71,12 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
     const [hasRequestedContacts, setHasRequestedContacts] = useState(false);
     const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
     const [isBatchInviting, setIsBatchInviting] = useState(false);
+    const [showLimitAlert, setShowLimitAlert] = useState(false);
 
     const isOnMobileApp = isNative();
     const [isWaitingForContacts, setIsWaitingForContacts] = useState(false);
     const { createSingleInvite, createBatchInvite } = useCreateInviteBatch();
+    const { channel } = useChannel(channelId ?? null);
 
     // 웹: 연락처 접근 불가 → AddFriendSheet(번호 직접 입력)만 바로 노출
     if (!isOnMobileApp) {
@@ -171,6 +183,13 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
         }
 
         if (selectedContacts.length === 0) return;
+
+        // Guard the room capacity before inviting (client-side; server is authoritative).
+        const currentMembers = channel?.memberCount ?? 0;
+        if (currentMembers + selectedContacts.length > MAX_ROOM_MEMBERS) {
+            setShowLimitAlert(true);
+            return;
+        }
 
         setIsBatchInviting(true);
         try {
@@ -311,6 +330,24 @@ export const InviteFriendsDialog = ({ open, onOpenChange, channelId }: InviteFri
             </Dialog>
 
             <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} channelId={channelId} />
+
+            <AlertDialog open={showLimitAlert} onOpenChange={setShowLimitAlert}>
+                <AlertDialogContent className="max-w-[288px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 shadow-[0px_0px_8px_0px_rgba(0,0,0,0.08)]">
+                    <div className="flex flex-col items-center gap-[22px] pt-[22px]">
+                        <div className="flex flex-col items-center gap-2 px-[22px] text-center">
+                            <AlertDialogTitle className="sr-only">
+                                {t('chat.settings.memberLimit.confirm')}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-[16px] font-medium leading-[1.45] tracking-[-0.16px] text-foreground">
+                                {t('chat.settings.memberLimit.message')}
+                            </AlertDialogDescription>
+                        </div>
+                        <AlertDialogAction className="mt-0 flex h-[52px] w-full items-center justify-center rounded-none border-0 border-t border-border bg-transparent text-[16px] font-semibold text-primary transition-colors hover:bg-muted">
+                            {t('chat.settings.memberLimit.confirm')}
+                        </AlertDialogAction>
+                    </div>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 };
