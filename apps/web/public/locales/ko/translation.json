@@ -270,6 +270,7 @@
     },
     "homePage": {
         "places": "플레이스",
+        "channels": "채널",
         "roomCreated": "채팅방이 생성되었습니다",
         "setupProfile": "프로필을 설정해주세요",
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
@@ -277,7 +278,8 @@
         "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요"
     },
     "cloudSessionSheet": {
-        "title": "클라우드 선택",
+        "title": "클라우드 전환",
+        "douHome": "두유 홈",
         "errorLoading": "클라우드를 불러오지 못했어요",
         "retry": "재시도",
         "statusActive": "구독 완료",
@@ -290,7 +292,7 @@
         "empty": "등록된 클라우드가 없어요",
         "switchFailed": "클라우드 전환에 실패했어요",
         "invited": "초대됨",
-        "tabMy": "나의 클라우드",
+        "tabMy": "내 클라우드",
         "tabInvited": "초대된 클라우드",
         "emptyInvited": "초대된 클라우드가 없어요",
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",

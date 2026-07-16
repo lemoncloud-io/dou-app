@@ -10,8 +10,9 @@ import { CLOUD_AVATAR_CLASS, SELECTED_HIGHLIGHT, getCloudDisplayName, isProvisio
 const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
     const { t } = useTranslation();
 
+    // 'active' has no badge — selection is shown by the trailing green check instead (Figma 2933-9794).
+    // Only non-active states carry an informational badge.
     const configs: Partial<Record<NonNullable<CloudView['status']>, { label: string; className: string }>> = {
-        active: { label: t('cloudSessionSheet.statusActive'), className: 'text-[#2A7EF4]' },
         reserved: { label: t('cloudSessionSheet.statusReserved'), className: 'text-label' },
         suspended: { label: t('cloudSessionSheet.statusSuspended'), className: 'text-yellow-600 dark:text-yellow-400' },
         expired: { label: t('cloudSessionSheet.statusExpired'), className: 'text-gray-400' },
@@ -24,7 +25,6 @@ const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
     return (
         <div className="flex items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
             <span className={`text-[14px] font-medium leading-[1.19] ${config.className}`}>{config.label}</span>
-            {status === 'active' && <Check size={16} className="text-[#2A7EF4]" strokeWidth={1.5} />}
         </div>
     );
 };
@@ -67,66 +67,68 @@ export const CloudItem = ({
             }}
             disabled={isDisabled || !isActive}
             className={cn(
-                'flex w-full items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
+                'flex w-full items-center gap-3 rounded-xl px-2 py-2 transition-colors',
                 isSelected && SELECTED_HIGHLIGHT,
                 disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
-            <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
+            {/* Avatar — folds provisioning/error state into the glyph slot. */}
+            <div className={CLOUD_AVATAR_CLASS}>
                 {isProvisioning(cloud.status) ? (
                     <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
                 ) : isError ? (
                     <AlertCircle size={20} className="text-red-500" />
                 ) : (
-                    isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={2} />
+                    <User size={20} className="text-placeholder" />
                 )}
             </div>
-            <div className="flex flex-1 items-center gap-3 pr-[6px]">
-                <div className={CLOUD_AVATAR_CLASS}>
-                    <User size={16} className="text-placeholder" />
-                </div>
-                <div className="flex flex-col gap-0.5">
-                    {hasName ? (
-                        <div className="flex items-center gap-[6px]">
-                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                                {displayName}
-                            </span>
-                            {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
-                            {isActive && onEditCloud && (
-                                <button
-                                    type="button"
-                                    onClick={e => {
-                                        e.stopPropagation();
-                                        onEditCloud(cloud);
-                                    }}
-                                    className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                    <Pencil size={14} />
-                                </button>
-                            )}
-                            <CloudStatusBadge status={cloud.status} />
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-[6px]">
-                            <AlertCircle size={18} className="text-white" />
-                            <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                                {t('cloudSessionSheet.setupProfile')}
-                            </span>
-                        </div>
-                    )}
-                    <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                        {cloud.email ?? ''}
-                    </span>
-                    {isProvisioning(cloud.status) && (
-                        <span className="text-left text-[12px] leading-[1.3] text-[#9FA2A7]">
-                            {t('cloudSessionSheet.statusReservedDescription')}
+            <div className="flex flex-1 flex-col gap-0.5">
+                {hasName ? (
+                    <div className="flex items-center gap-[6px]">
+                        <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                            {displayName}
                         </span>
-                    )}
-                    {isError && cloud.error && (
-                        <span className="text-left text-[11px] leading-[1.3] text-red-400">{cloud.error}</span>
-                    )}
-                </div>
+                        {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
+                        {isActive && onEditCloud && (
+                            <button
+                                type="button"
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    onEditCloud(cloud);
+                                }}
+                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <Pencil size={14} />
+                            </button>
+                        )}
+                        <CloudStatusBadge status={cloud.status} />
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-[6px]">
+                        <AlertCircle size={18} className="text-white" />
+                        <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                            {t('cloudSessionSheet.setupProfile')}
+                        </span>
+                    </div>
+                )}
+                <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                    {cloud.email ?? ''}
+                </span>
+                {isProvisioning(cloud.status) && (
+                    <span className="text-left text-[12px] leading-[1.3] text-[#9FA2A7]">
+                        {t('cloudSessionSheet.statusReservedDescription')}
+                    </span>
+                )}
+                {isError && cloud.error && (
+                    <span className="text-left text-[11px] leading-[1.3] text-red-400">{cloud.error}</span>
+                )}
             </div>
+            {/* Selection mark — trailing filled green check badge (Figma 2933-9794/9956). */}
+            {isSelected && (
+                <span className="flex shrink-0 items-center justify-center rounded-full bg-[#b0ea10] p-1.5">
+                    <Check size={16} className="text-white" strokeWidth={3} />
+                </span>
+            )}
         </button>
     );
 };

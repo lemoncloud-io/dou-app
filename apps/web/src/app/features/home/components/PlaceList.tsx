@@ -59,7 +59,7 @@ export const PlaceList = ({
     }
 
     return (
-        <CollapsibleSection title={t('homePage.places')}>
+        <CollapsibleSection title={t('homePage.places')} count={places.length}>
             {places.map(place => (
                 <PlaceItem
                     key={place.id}

@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Home } from 'lucide-react';
-
 import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudsKeys, useCloudSessionCatalog, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
@@ -23,6 +21,7 @@ import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
 import {
     AddAccountButton,
     CloudItem,
+    DouHomeItem,
     InviteCloudItem,
     TabBar,
     getCloudDisplayName,
@@ -131,74 +130,68 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                 }
             >
                 <div className="flex flex-col">
-                    {/* Disconnect Cloud Link — shown only while connected to a cloud */}
-                    {!isDefaultSelected && (
-                        <button
-                            onClick={handleDisconnect}
-                            disabled={isLoggingOutCloudSession}
-                            className="mx-auto mb-4 flex w-fit items-center gap-[6px] rounded-full border border-border bg-secondary px-4 py-[7px] text-[13px] font-medium text-foreground transition-colors active:bg-muted"
-                        >
-                            <Home size={14} />
-                            <span>{t('cloudSessionSheet.disconnectCloud')}</span>
-                        </button>
-                    )}
-
-                    {/* Tabs */}
+                    {/* Tabs — returning to relay is done by selecting the DoU Home row below,
+                        so the standalone disconnect link is gone. */}
                     <TabBar tab={tab} onChange={setTab} inviteCount={invitedClouds.length} />
 
                     {/* Content */}
                     <div className="max-h-[40vh] overflow-y-auto">
                         <div className="flex flex-col gap-[6px] pt-6">
                             {tab === 'my' ? (
-                                isLoading ? (
-                                    <div className="flex flex-col gap-[15px] px-3">
-                                        {Array.from({ length: 3 }).map((_, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <div className="h-[22px] w-[22px]" />
-                                                <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                                                    <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                                <>
+                                    {/* DoU Home (relay) is always the top row; selecting it returns to relay. */}
+                                    <div className="px-2">
+                                        <DouHomeItem
+                                            isSelected={isDefaultSelected}
+                                            isDisabled={isSwitching || isLoggingOutCloudSession}
+                                            onSelect={handleDisconnect}
+                                        />
+                                    </div>
+                                    {isLoading ? (
+                                        <div className="flex flex-col gap-[15px] px-3">
+                                            {Array.from({ length: 3 }).map((_, i) => (
+                                                <div key={i} className="flex items-center gap-2">
+                                                    <div className="h-[46px] w-[46px] animate-pulse rounded-full bg-muted" />
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                                                        <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : isCloudsError ? (
-                                    <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
-                                        <span>{t('cloudSessionSheet.errorLoading')}</span>
-                                        <button
-                                            onClick={() => refetchClouds()}
-                                            className="flex items-center gap-1 text-foreground"
-                                        >
-                                            <span>{t('cloudSessionSheet.retry')}</span>
-                                        </button>
-                                    </div>
-                                ) : clouds.length === 0 ? (
-                                    <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
-                                        {t('cloudSessionSheet.empty')}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-1 px-2">
-                                        {clouds.map(cloud => (
-                                            <CloudItem
-                                                key={cloud.id}
-                                                cloud={cloud}
-                                                isSelected={selectedId === cloud.id}
-                                                isDisabled={isSwitching}
-                                                hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0}
-                                                onSelectCloud={handleSelectCloud}
-                                                onErrorClick={() =>
-                                                    toast({
-                                                        title: t('cloudSessionSheet.statusError'),
-                                                        description: cloud.error ?? undefined,
-                                                        variant: 'destructive',
-                                                    })
-                                                }
-                                                onEditCloud={setEditingCloud}
-                                            />
-                                        ))}
-                                    </div>
-                                )
+                                            ))}
+                                        </div>
+                                    ) : isCloudsError ? (
+                                        <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-muted-foreground">
+                                            <span>{t('cloudSessionSheet.errorLoading')}</span>
+                                            <button
+                                                onClick={() => refetchClouds()}
+                                                className="flex items-center gap-1 text-foreground"
+                                            >
+                                                <span>{t('cloudSessionSheet.retry')}</span>
+                                            </button>
+                                        </div>
+                                    ) : clouds.length === 0 ? null : (
+                                        <div className="flex flex-col gap-1 px-2">
+                                            {clouds.map(cloud => (
+                                                <CloudItem
+                                                    key={cloud.id}
+                                                    cloud={cloud}
+                                                    isSelected={selectedId === cloud.id}
+                                                    isDisabled={isSwitching}
+                                                    hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0}
+                                                    onSelectCloud={handleSelectCloud}
+                                                    onErrorClick={() =>
+                                                        toast({
+                                                            title: t('cloudSessionSheet.statusError'),
+                                                            description: cloud.error ?? undefined,
+                                                            variant: 'destructive',
+                                                        })
+                                                    }
+                                                    onEditCloud={setEditingCloud}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
                             ) : invitedClouds.length === 0 ? (
                                 <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
                                     {t('cloudSessionSheet.emptyInvited')}
