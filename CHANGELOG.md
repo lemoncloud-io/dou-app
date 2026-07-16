@@ -4,6 +4,17 @@
 
 ### Features
 
+- (web/home) redesign invite accept popup on web-ui-kit
+- (web-ui-kit) add AlertDialog single-action variant and Clock/Users icons
+
+### Documentation
+
+- (home) add invite-accept architecture doc + ADR-0016
+
+## [2026-07-16] - No version updates
+
+### Features
+
 - (web/channels) redesign channel settings with profile & notification dialogs
 - (data/channels) support owner kick via leaveChannel userId
 
