@@ -64,6 +64,14 @@ export const PREFERENCES = {
         // 'system' follows the OS scheme: mobile OS inside the WebView, prefers-color-scheme on web.
         defaultValue: 'system',
     },
+    // Whether the user hid the floating issue-report button. Web-only widget, so
+    // 'local' (localStorage only) — no native bridge / app-messages PreferenceKey needed.
+    // Restored via the MyPage settings toggle.
+    issueReportHidden: {
+        strategy: 'local',
+        localKey: 'chatic-issue-report-hidden',
+        defaultValue: 'false',
+    },
     // Place ids the user dismissed ("나가기") the profile-create prompt for this session, as a JSON
     // string array. Session-scoped: skipping suppresses the prompt only until the app/tab is closed,
     // then it may prompt again (the profile is still editable anytime from the profile screen).

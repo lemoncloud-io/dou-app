@@ -1,4 +1,17 @@
 {
+    "issueReport": {
+        "open": "Report an issue",
+        "title": "Report an issue",
+        "close": "Close",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Enter an issue title",
+        "bodyLabel": "Details",
+        "bodyPlaceholder": "Describe what went wrong",
+        "submit": "Send",
+        "success": "Your issue has been sent",
+        "failed": "Failed to send. Please try again",
+        "hide": "Hide button"
+    },
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
@@ -148,6 +161,7 @@
         "loginDescription": "Sign in to safely manage your conversations.",
         "darkMode": "Dark Mode",
         "messagePreview": "Message Preview",
+        "issueReportButton": "Issue report button",
         "languageSettings": "Language",
         "appIconSettings": "App Icon Settings",
         "appIcon": {

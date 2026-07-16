@@ -29,7 +29,8 @@ export const MyPage = () => {
 
     const { setTheme, isDarkTheme } = useTheme();
     const { deviceInfo, versionInfo } = useDeviceInfo();
-    const { resetOnboarding, blurLastMessage, setBlurLastMessage } = usePreferenceStore();
+    const { resetOnboarding, blurLastMessage, setBlurLastMessage, issueReportHidden, setIssueReportHidden } =
+        usePreferenceStore();
     const { isEnabled: isDebugMode, registerTap } = useDebugMode();
     const {
         isSupported: isIconChangeSupported,
@@ -166,6 +167,12 @@ export const MyPage = () => {
                     <ListRow
                         title={t('mypage.messagePreview')}
                         trailing={<Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />}
+                    />
+                    <ListRow
+                        title={t('mypage.issueReportButton')}
+                        trailing={
+                            <Switch checked={!issueReportHidden} onCheckedChange={v => setIssueReportHidden(!v)} />
+                        }
                     />
                     <ListRow
                         title={t('mypage.languageSettings')}

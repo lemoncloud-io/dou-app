@@ -1,4 +1,17 @@
 {
+    "issueReport": {
+        "open": "이슈 신고",
+        "title": "이슈 신고",
+        "close": "닫기",
+        "titleLabel": "제목",
+        "titlePlaceholder": "이슈 제목을 입력하세요",
+        "bodyLabel": "내용",
+        "bodyPlaceholder": "무엇이 문제인지 설명해 주세요",
+        "submit": "전송",
+        "success": "이슈가 전송되었습니다",
+        "failed": "전송에 실패했습니다. 다시 시도해 주세요",
+        "hide": "버튼 숨기기"
+    },
     "common": {
         "signout": "로그아웃",
         "cancel": "취소",
@@ -148,6 +161,7 @@
         "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
         "darkMode": "다크 모드",
         "messagePreview": "메시지 미리보기",
+        "issueReportButton": "이슈 신고 버튼",
         "languageSettings": "언어 설정",
         "appIconSettings": "앱 아이콘 설정",
         "appIcon": {
