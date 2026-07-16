@@ -4,6 +4,17 @@
 
 ### Features
 
+- (web/issue-report) add floating issue report widget
+- (web-core) attach logs & device context to reportIssue
+
+### Documentation
+
+- (issue-report) add feature doc + ADR-0017
+
+## [2026-07-16] - No version updates
+
+### Features
+
 - (web/home) redesign invite accept popup on web-ui-kit
 - (web-ui-kit) add AlertDialog single-action variant and Clock/Users icons
 
