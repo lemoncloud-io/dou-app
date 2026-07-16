@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-16] - No version updates
+
+### Features
+
+- (web/home) apply ADR-0014 Figma visual refinement
+- (web-ui-kit) add ImageAvatar and drop FloatingTabBar gradient backdrop
+
+### Documentation
+
+- (home) add ADR-0014 and sync home feature doc
+
 ## [2026-07-15] - No version updates
 
 ### Features
