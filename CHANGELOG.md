@@ -4,6 +4,16 @@
 
 ### Features
 
+- (web/channel-settings) 그룹방 설정 화면 섹션 리스트형 개편
+
+### Documentation
+
+- (channel-settings) 채널 설정 아키텍처 문서 및 ADR-0019 추가
+
+## [2026-07-20] - No version updates
+
+### Features
+
 - (web/i18n) add localization for group chat invite target
 - (web/invite-accept-screen) implement glassmorphism design
 - (web-ui-kit/icons) add image icon
