@@ -5,7 +5,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
-import { AppHeader, DefaultAvatar, ProfileAvatar } from '@chatic/web-ui-kit';
+import { AppHeader, DefaultAvatar, EmptyState, ProfileAvatar } from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -268,6 +268,13 @@ export const HomePage = () => {
                         isPro={planTier === 'pro'}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
+                    />
+                ) : !isPlacesLoading && !isSwitching ? (
+                    // No place is active in this cloud (none to auto-select) — guide the user to
+                    // connect to a place before a channel list can show.
+                    <EmptyState
+                        title={t('homePage.noPlaceTitle', '접속한 플레이스가 없어요')}
+                        description={t('homePage.noPlaceDescription', '플레이스에 접속해 대화를 시작해보세요')}
                     />
                 ) : null}
             </div>

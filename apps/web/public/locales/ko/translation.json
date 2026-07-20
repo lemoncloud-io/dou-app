@@ -299,7 +299,9 @@
         "switchCloud": "클라우드 전환",
         "directComingSoon": "1:1 대화는 준비 중이에요",
         "searchComingSoon": "검색은 준비 중이에요",
-        "notificationsComingSoon": "알림 설정은 준비 중이에요"
+        "notificationsComingSoon": "알림 설정은 준비 중이에요",
+        "noPlaceTitle": "접속한 플레이스가 없어요",
+        "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",

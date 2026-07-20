@@ -299,7 +299,9 @@
         "directComingSoon": "1:1 chat is coming soon",
         "searchComingSoon": "Search is coming soon",
         "notificationsComingSoon": "Notification settings are coming soon",
-        "setupProfile": "Set up your profile"
+        "setupProfile": "Set up your profile",
+        "noPlaceTitle": "No place connected",
+        "noPlaceDescription": "Connect to a place to start chatting"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
