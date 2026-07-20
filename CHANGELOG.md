@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web/place-profile) 플레이스 프로필 수정 화면을 다이얼로그로 전환하고 생성/수정 공통화
+
+## [2026-07-20] - No version updates
+
+### Features
+
 - (web/home) rebuild place & group-room creation screens on web-ui-kit
 
 ## [2026-07-20] - No version updates
