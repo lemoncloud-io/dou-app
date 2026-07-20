@@ -1,17 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Check, ChevronLeft, MoreHorizontal } from 'lucide-react';
-
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { ProfileAvatar } from '@chatic/web-ui-kit';
+import { IconCheck, ListRow, ModalTopBar, ProfileAvatar } from '@chatic/web-ui-kit';
 
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -27,95 +19,100 @@ interface MemberProfileDialogProps {
     member: ProfileMember | null;
     /** The displayed member is the room owner (shows the owner badge). */
     memberIsOwner?: boolean;
+    /** The displayed member is me — show "profile settings" instead of friend actions. */
+    isSelf?: boolean;
     /** Viewer may remove this member (room owner viewing a non-owner, non-self). */
     canKick?: boolean;
     /** Remove the member from the room (owner-only kick via leaveChannel). */
     onKick?: () => void;
     isKicking?: boolean;
+    /** Open my per-place profile editor (only meaningful when `isSelf`). */
+    onOpenProfileSettings?: () => void;
 }
 
 /**
- * Member profile ("친구 정보"). Name is read-only (nickname editing is out of
- * scope, ADR-0014). The ⋯ menu offers "report" (UI only — toast) for everyone
- * and "remove friend" (real kick) only when the viewer is the room owner.
+ * Member profile ("프로필"). Full-screen dialog with an inline action list whose
+ * items depend on WHO is viewing WHOM (ADR-0022):
+ * - viewing myself → `프로필 설정` (opens the per-place profile editor).
+ * - owner viewing another member → `친구 설정` (deferred), `내보내기` (real kick), `신고` (deferred).
+ * - member viewing another member → `신고` only.
+ * `친구 설정`/`신고` are UI-only for now (toast, no backend).
  */
 export const MemberProfileDialog = ({
     open,
     onOpenChange,
     member,
     memberIsOwner = false,
+    isSelf = false,
     canKick = false,
     onKick,
     isKicking = false,
+    onOpenProfileSettings,
 }: MemberProfileDialogProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [confirmKick, setConfirmKick] = useState(false);
 
-    const handleReport = () => {
-        // Report is not wired to a backend yet (ADR-0014) — acknowledge with a toast.
-        toast({ title: t('chat.settings.reportSuccess') });
-    };
+    // Deferred, UI-only actions acknowledge with a neutral toast (no backend yet).
+    const handleReport = () => toast({ title: t('chat.settings.reportSuccess') });
+    const handleFriendSettings = () => toast({ title: t('chat.settings.comingSoon') });
 
     const handleConfirmKick = () => {
         onKick?.();
         setConfirmKick(false);
     };
 
+    // Row set by viewer role / target: self → profile settings; owner-over-member → manage + kick +
+    // report; otherwise report only.
+    const rows: Array<{ key: string; label: string; onClick: () => void }> = isSelf
+        ? [{ key: 'profile', label: t('chat.settings.profileSettings'), onClick: () => onOpenProfileSettings?.() }]
+        : canKick
+          ? [
+                { key: 'friendSettings', label: t('chat.settings.friendSettings'), onClick: handleFriendSettings },
+                { key: 'kick', label: t('chat.settings.removeMember'), onClick: () => setConfirmKick(true) },
+                { key: 'report', label: t('chat.settings.report'), onClick: handleReport },
+            ]
+          : [{ key: 'report', label: t('chat.settings.report'), onClick: handleReport }];
+
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent
-                    className="m-0 flex w-full max-w-full flex-col rounded-none bg-background"
+                    className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                     hideClose
                     variant="slide-up"
                 >
+                    <DialogTitle className="sr-only">{t('chat.settings.profileHeader')}</DialogTitle>
                     <DialogDescription className="sr-only">Member profile</DialogDescription>
-                    {/* Top Bar */}
-                    <div className="flex items-center justify-between bg-background px-1.5 py-3">
-                        <button
-                            onClick={() => onOpenChange(false)}
-                            className="flex h-11 w-11 items-center justify-center"
-                            aria-label="back"
-                        >
-                            <ChevronLeft className="h-6 w-6 text-foreground" />
-                        </button>
-                        <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
-                            {t('chat.settings.friendInfo.title')}
-                        </DialogTitle>
-                        <DropdownMenu modal={false}>
-                            <DropdownMenuTrigger asChild>
-                                <button className="flex h-11 w-11 items-center justify-center" aria-label="menu">
-                                    <MoreHorizontal className="h-6 w-6 text-foreground" />
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={handleReport}>{t('chat.settings.report')}</DropdownMenuItem>
-                                {canKick && (
-                                    <DropdownMenuItem
-                                        onSelect={() => setConfirmKick(true)}
-                                        className="text-destructive focus:text-destructive"
-                                    >
-                                        {t('chat.settings.deleteFriend')}
-                                    </DropdownMenuItem>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
 
-                    {/* Avatar + name */}
-                    <div className="flex flex-col items-center gap-3 pt-8">
-                        <div className="relative">
-                            <ProfileAvatar src={member?.avatar ?? undefined} alt={member?.name ?? ''} size={86} />
-                            {memberIsOwner && (
-                                <div className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-[#B0EA10] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.16)]">
-                                    <Check className="size-4 text-white" strokeWidth={3} />
-                                </div>
-                            )}
+                    <div className="flex h-full w-full max-w-[440px] flex-col">
+                        <ModalTopBar
+                            title={t('chat.settings.profileHeader')}
+                            onClose={() => onOpenChange(false)}
+                            closeLabel={t('chat.settings.close')}
+                        />
+
+                        {/* Avatar + name */}
+                        <div className="flex flex-col items-center gap-3 pt-6">
+                            <div className="relative">
+                                <ProfileAvatar src={member?.avatar ?? undefined} alt={member?.name ?? ''} size={86} />
+                                {memberIsOwner && (
+                                    <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-main-accent shadow-[0px_1px_3px_0px_rgba(0,0,0,0.16)]">
+                                        <IconCheck className="size-4 text-white" strokeWidth={3} />
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[18px] font-semibold leading-[1.4] tracking-[-0.18px] text-foreground">
+                                {member?.name}
+                            </span>
                         </div>
-                        <span className="text-[18px] font-semibold leading-[1.4] tracking-[-0.18px] text-foreground">
-                            {member?.name}
-                        </span>
+
+                        {/* Action list */}
+                        <div className="mt-6 flex flex-col">
+                            {rows.map(row => (
+                                <ListRow key={row.key} title={row.label} onClick={row.onClick} />
+                            ))}
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

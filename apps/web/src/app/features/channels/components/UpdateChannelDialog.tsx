@@ -1,222 +1,198 @@
 import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-
-import { Camera, MessageSquare, X } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
 import { resizeImageToBase64 } from '@chatic/shared';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
+import { FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useChannel, useChannelMutations } from '../hooks';
+
+import { useChannel, useChannelMutations, useJoinMutations } from '../hooks';
 
 interface UpdateChannelDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     channelId?: string;
-    /** Read-only view for non-owner members: hides the photo picker and the save button. */
-    readOnly?: boolean;
 }
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const NAME_MAX = 20;
 
-export const UpdateChannelDialog = ({ open, onOpenChange, channelId, readOnly = false }: UpdateChannelDialogProps) => {
+/**
+ * Room info dialog. Two role-based modes (ADR-0022):
+ * - Owner: edit the shared room name + photo → `channel.update`.
+ * - Invited member: the avatar is read-only (owner's photo); the name field sets
+ *   MY personal room name (`join.update` nick), shown only to me. Ownership is
+ *   derived from the observed channel, so no mode prop is needed.
+ */
+export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
     const { t } = useTranslation();
-    const { updateChannel, isPending: mutationPending } = useChannelMutations();
     const { channel } = useChannel(channelId ?? null);
+    const { updateChannel, isPending: channelPending } = useChannelMutations();
+    const { updateJoin, isPending: joinPending } = useJoinMutations();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [imageUrl, setImageUrl] = useState('');
+    const isOwner = !!channel?.isOwner;
+    const ownerRoomName = channel?.name ?? '';
+    const myNick = channel?.$join?.nick ?? '';
+
+    const [name, setName] = useState('');
+    const [thumbnail, setThumbnail] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
+    const seededRef = useRef(false);
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        reset,
-    } = useForm<{ name: string }>({
-        defaultValues: {
-            name: channel?.name || '',
-        },
-    });
-
-    // dialog가 열릴 때 channel 데이터로 폼/이미지 초기화
+    // Seed transient state once per open (false→true). The observed channel can re-emit while the
+    // dialog is open (background sync); re-seeding then would clobber in-progress edits, so we latch.
     useEffect(() => {
-        if (open && channel) {
-            reset({ name: channel.name || '' });
-            setImageUrl(channel.thumbnail || '');
+        if (open && channel && !seededRef.current) {
+            seededRef.current = true;
+            setName(isOwner ? ownerRoomName : myNick);
+            setThumbnail(channel.thumbnail ?? '');
             setImageSizeError(false);
+        } else if (!open) {
+            seededRef.current = false;
         }
-    }, [open, channel, reset]);
+    }, [open, channel, isOwner, ownerRoomName, myNick]);
 
-    const initialThumbnail = channel?.thumbnail || '';
-    const isImageDirty = imageUrl !== initialThumbnail;
+    const trimmed = name.trim();
+    const isValidName = trimmed.length >= 1 && name.length <= NAME_MAX;
+    // Owner edits name + photo; invited edits only their nick (no thumbnail on join.update).
+    const isImageDirty = isOwner && thumbnail !== (channel?.thumbnail ?? '');
+    const isNameDirty = name !== (isOwner ? ownerRoomName : myNick);
+    const isDirty = isNameDirty || isImageDirty;
+    const pending = isOwner ? channelPending.update : joinPending.update;
+    const canSubmit = isValidName && isDirty && !pending;
 
-    const handleImageClick = () => {
-        fileInputRef.current?.click();
-    };
+    const handleImageClick = () => fileInputRef.current?.click();
 
     const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
+        event.target.value = '';
         if (!file) return;
-
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
             return;
         }
-
         setImageSizeError(false);
-
         try {
             const base64 = await resizeImageToBase64(file, 150);
-            setImageUrl(base64);
+            setThumbnail(base64);
         } catch {
             setImageSizeError(true);
         }
-
-        event.target.value = '';
     };
 
-    const onSubmit = async (data: { name: string }) => {
-        if (!channelId || !data.name) return;
-
+    const handleSubmit = async () => {
+        if (!channelId || !canSubmit) return;
         try {
-            await updateChannel({
-                channelId,
-                name: data.name,
-                ...(isImageDirty && { thumbnail: imageUrl }),
-            } as any);
+            if (isOwner) {
+                await updateChannel({
+                    channelId,
+                    name: trimmed,
+                    ...(isImageDirty && { thumbnail }),
+                } as never);
+            } else {
+                await updateJoin({ channelId, nick: trimmed } as never);
+            }
             toast({ title: t('updateChannel.success') });
             onOpenChange(false);
         } catch (error) {
-            logger.error('CHAT', 'Failed to update channel', { error, data: { channelId } });
+            logger.error('CHAT', 'Failed to update channel info', { error, data: { channelId, isOwner } });
             toast({ title: t('updateChannel.error'), variant: 'destructive' });
         }
     };
 
+    const namePlaceholder = isOwner
+        ? t('updateChannel.namePlaceholder')
+        : ownerRoomName || t('updateChannel.invitedNamePlaceholder');
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="m-0 flex w-full max-w-full flex-col rounded-none bg-background"
+                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
             >
-                <DialogDescription className="sr-only">Update channel settings</DialogDescription>
-                {/* Top Bar */}
-                <div className="flex items-center justify-between bg-background px-1.5 py-3">
-                    <div className="h-11 w-11" />
-                    <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
-                        {readOnly ? t('updateChannel.readOnlyTitle') : t('updateChannel.title')}
-                    </DialogTitle>
-                    <button onClick={() => onOpenChange(false)} className="flex h-11 w-11 items-center justify-center">
-                        <X className="h-6 w-6 text-foreground" />
-                    </button>
-                </div>
+                <DialogTitle className="sr-only">{t('updateChannel.readOnlyTitle')}</DialogTitle>
+                <DialogDescription className="sr-only">Update room info</DialogDescription>
 
-                {/* Content */}
-                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-auto">
-                    <div className="flex flex-col gap-6 pt-6">
-                        {/* Title Section — the "수정해 주세요" prompt only makes sense when editable. */}
-                        {!readOnly && (
-                            <div className="flex flex-col gap-1.5 px-4">
-                                <div className="flex flex-col gap-[2px]">
-                                    <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                                        {t('updateChannel.subtitle1')}
-                                    </span>
-                                    <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                                        {t('updateChannel.subtitle2')}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
+                {/* Full-bleed on phones, capped to a phone-width column on wider screens. */}
+                <div className="flex h-full w-full max-w-[440px] flex-col">
+                    <ModalTopBar
+                        title={t('updateChannel.readOnlyTitle')}
+                        onClose={() => onOpenChange(false)}
+                        closeLabel={t('updateChannel.close')}
+                    />
 
-                        {/* Thumbnail */}
-                        <div className="flex flex-col items-center justify-center gap-1.5 px-4">
-                            <div className="relative inline-block">
-                                <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                                    {imageUrl ? (
-                                        <img
-                                            src={imageUrl}
-                                            alt="Channel"
-                                            loading="lazy"
-                                            decoding="async"
-                                            className="h-full w-full object-cover"
-                                        />
-                                    ) : (
-                                        <MessageSquare size={36} className="text-muted-foreground" />
-                                    )}
-                                </div>
-                                {!readOnly && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            onClick={handleImageClick}
-                                            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#B0EA10] shadow-md"
-                                        >
-                                            <Camera size={16} className="text-foreground" />
-                                        </button>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/jpeg,image/png,image/webp"
-                                            onChange={handleImageChange}
-                                            className="hidden"
-                                        />
-                                    </>
-                                )}
-                            </div>
-                            {imageSizeError && (
-                                <p className="mt-1 text-[12px] text-destructive">{t('placeInfo.imageSizeError')}</p>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        {/* Heading + invited-only subtitle */}
+                        <div className="flex flex-col gap-2 px-4 py-4">
+                            <Text
+                                as="h1"
+                                className="break-keep text-[21px] font-semibold leading-[1.35] tracking-[-0.5px] text-foreground"
+                            >
+                                {t('updateChannel.heading')}
+                            </Text>
+                            {!isOwner && (
+                                <Text className="break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                                    {t('updateChannel.invitedSubtitle')}
+                                </Text>
                             )}
                         </div>
 
-                        {/* Room Name Input */}
-                        <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg px-4">
-                            <div className="flex w-full flex-col gap-1.5">
-                                <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
-                                    {t('updateChannel.nameLabel')}
-                                </Label>
-                                <Input
-                                    {...register('name', {
-                                        required: t('updateChannel.nameRequired'),
-                                        minLength: { value: 2, message: t('updateChannel.nameMinLength') },
-                                        maxLength: { value: 20, message: t('updateChannel.nameMaxLength') },
-                                    })}
-                                    readOnly={readOnly}
-                                    placeholder={t('updateChannel.namePlaceholder')}
-                                    className="h-11 rounded-[10px] border border-border bg-background px-3.5 text-[15px] font-medium leading-[1.45] tracking-[0.005em] text-foreground placeholder:text-muted-foreground read-only:opacity-70"
-                                />
-                                {errors.name && (
-                                    <span className="text-[12px] text-destructive">{errors.name.message}</span>
-                                )}
-                            </div>
+                        {/* Avatar — editable (owner) or read-only owner photo + caption (invited) */}
+                        <div className="flex flex-col items-center gap-1.5 py-6">
+                            <ProfileAvatar
+                                src={thumbnail || undefined}
+                                glyph="group"
+                                onSelect={isOwner ? handleImageClick : undefined}
+                                selectLabel={t('updateChannel.selectPhoto')}
+                            />
+                            {!isOwner && ownerRoomName && (
+                                <Text className="text-[14px] font-medium leading-[1.45] text-placeholder">
+                                    {ownerRoomName}
+                                </Text>
+                            )}
+                            {imageSizeError && (
+                                <Text className="text-[12px] text-destructive">{t('placeInfo.imageSizeError')}</Text>
+                            )}
                         </div>
+
+                        {/* Name (owner: room name / invited: personal nick), 1–20 with counter */}
+                        <TextField
+                            label={t('updateChannel.nameFieldLabel')}
+                            value={name}
+                            onChange={setName}
+                            maxLength={NAME_MAX}
+                            placeholder={namePlaceholder}
+                            description={t('updateChannel.nameHint')}
+                        />
+
+                        {isOwner && (
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleImageChange}
+                                className="hidden"
+                            />
+                        )}
                     </div>
 
-                    {/* Bottom Button */}
-                    <div className="mt-auto">
-                        {!readOnly && (
-                            <div className="flex flex-col gap-4 px-4 pb-4 pt-5">
-                                <Button
-                                    type="submit"
-                                    disabled={mutationPending.update}
-                                    className="flex h-[50px] items-center justify-center gap-1.5 rounded-full bg-[#B0EA10] px-6 py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
-                                >
-                                    {mutationPending.update ? t('updateChannel.updating') : t('updateChannel.done')}
-                                </Button>
-                            </div>
-                        )}
-                        <div
-                            className="shrink-0 touch-none bg-background"
-                            style={{ height: 'var(--keyboard-height, 0px)' }}
-                            onTouchMove={e => e.preventDefault()}
-                        />
-                    </div>
-                </form>
+                    <FloatingButton
+                        label={pending ? t('updateChannel.updating') : t('updateChannel.done')}
+                        loading={pending}
+                        disabled={!canSubmit}
+                        onClick={handleSubmit}
+                        wrapperClassName="shrink-0"
+                    />
+                    <div
+                        className="shrink-0 touch-none bg-background"
+                        style={{ height: 'var(--keyboard-height, 0px)' }}
+                        onTouchMove={e => e.preventDefault()}
+                    />
+                </div>
             </DialogContent>
         </Dialog>
     );

@@ -26,6 +26,17 @@ jest.mock('@chatic/web-core', () => ({
 // Avoid pulling the ui barrel (which imports @chatic/assets, unmapped in jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 
+// Shared hooks barrel + cross-feature dialog import both pull @chatic/app-runtime (socket lib
+// needs TextEncoder, unavailable in jsdom) — stub them to keep the suite runtime-free.
+jest.mock('../../../hooks', () => ({ useActivePlaceName: () => 'MyPlace' }));
+let placeSettingsProps: any;
+jest.mock('../../home/components', () => ({
+    PlaceProfileEditDialog: (p: any) => {
+        placeSettingsProps = p;
+        return <div data-testid="profile-settings" data-open={String(p.open)} />;
+    },
+}));
+
 // web-ui-kit stubs — ListRow exposes onClick as a button so rows are clickable/queryable;
 // Switch forwards its controlled toggle so the notification state can be exercised.
 jest.mock('@chatic/web-ui-kit', () => ({
@@ -59,9 +70,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
 // Prop-capturing stubs so we can assert wiring without deep dialog rendering.
 let profileProps: any;
 jest.mock('../components/UpdateChannelDialog', () => ({
-    UpdateChannelDialog: (p: any) => (
-        <div data-testid="update" data-open={String(p.open)} data-readonly={String(p.readOnly)} />
-    ),
+    UpdateChannelDialog: (p: any) => <div data-testid="update" data-open={String(p.open)} />,
 }));
 jest.mock('../components/ConfirmDialog', () => ({
     ConfirmDialog: (p: any) => (p.open ? <button onClick={p.onConfirm}>{p.confirmLabel}</button> : null),
@@ -81,15 +90,22 @@ jest.mock('../components/MemberListItem', () => ({
 }));
 
 const OWNER_CHANNEL = {
-    channel: { isOwner: true, isSelfChat: false, ownerId: 'owner1', name: '방', sid: 's1' },
+    channel: { isOwner: true, isSelfChat: false, ownerId: 'owner1', name: '방', displayName: '방', sid: 's1' },
     isError: false,
 };
 const MEMBER_CHANNEL = {
-    channel: { isOwner: false, isSelfChat: false, ownerId: 'owner1', name: '방', sid: 's1' },
+    channel: { isOwner: false, isSelfChat: false, ownerId: 'owner1', name: '방', displayName: '방', sid: 's1' },
     isError: false,
 };
 const SELF_CHANNEL = {
-    channel: { isOwner: true, isSelfChat: true, ownerId: 'me', name: '나와의 채팅', sid: 's1' },
+    channel: {
+        isOwner: true,
+        isSelfChat: true,
+        ownerId: 'me',
+        name: '나와의 채팅',
+        displayName: '나와의 채팅',
+        sid: 's1',
+    },
     isError: false,
 };
 const MEMBERS = {
@@ -145,24 +161,20 @@ describe('ChannelSettingsPage', () => {
         expect(screen.queryByText('chat.settings.leaveRoom')).not.toBeInTheDocument();
     });
 
-    it('소유자가 방 이름을 탭하면 편집 가능한 정보 다이얼로그가 열린다', () => {
+    it('방 이름을 탭하면 정보 다이얼로그가 열린다 (모드 분기는 다이얼로그 내부에서 파생)', () => {
         channelValue = OWNER_CHANNEL;
         render(<ChannelSettingsPage />);
 
         fireEvent.click(screen.getByText('방'));
-        const dialog = screen.getByTestId('update');
-        expect(dialog).toHaveAttribute('data-open', 'true');
-        expect(dialog).toHaveAttribute('data-readonly', 'false');
+        expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
     });
 
-    it('멤버가 방 이름을 탭하면 읽기전용 정보 다이얼로그가 열린다', () => {
+    it('멤버도 방 이름을 탭하면 같은 정보 다이얼로그가 열린다', () => {
         channelValue = MEMBER_CHANNEL;
         render(<ChannelSettingsPage />);
 
         fireEvent.click(screen.getByText('방'));
-        const dialog = screen.getByTestId('update');
-        expect(dialog).toHaveAttribute('data-open', 'true');
-        expect(dialog).toHaveAttribute('data-readonly', 'true');
+        expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
     });
 
     it('친구 추가 행을 누르면 초대 페이지로 이동한다', () => {
@@ -202,6 +214,19 @@ describe('ChannelSettingsPage', () => {
 
         fireEvent.click(screen.getByTestId('member-owner1'));
         expect(profileProps.canKick).toBe(false);
+    });
+
+    it('내 항목을 탭하면 isSelf=true이고, 프로필 설정 진입 시 PlaceProfileEditDialog가 열린다', () => {
+        channelValue = OWNER_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        fireEvent.click(screen.getByTestId('member-me'));
+        expect(profileProps.isSelf).toBe(true);
+        expect(screen.getByTestId('profile-settings')).toHaveAttribute('data-open', 'false');
+
+        act(() => profileProps.onOpenProfileSettings());
+        expect(screen.getByTestId('profile-settings')).toHaveAttribute('data-open', 'true');
+        expect(placeSettingsProps.placeName).toBe('MyPlace');
     });
 
     it('프로필의 onKick은 leaveChannel을 대상 userId와 함께 호출한다', async () => {

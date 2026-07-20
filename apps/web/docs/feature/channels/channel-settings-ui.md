@@ -1,160 +1,171 @@
-# 채널 설정 UI (Channel Settings UI)
+# 채널 상세 다이얼로그 (Channel Detail Dialogs)
 
-> 상태: Live · 최종 갱신: 2026-07-16 · 관련 ADR: [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md)
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0022](../../../../../docs/adr/0022-channel-detail-dialogs-figma-redesign.md) (Supersedes 다이얼로그 부분 [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
 
 ## 목적
 
-채널 설정 관련 화면(`ChannelSettingsPage` 및 그 하위 다이얼로그)을 DoU 디자인 개편에 맞춰
-`@chatic/web-ui-kit` 프리미티브 기반으로 재정비한다. 설정 화면·정보 수정·확인
-다이얼로그는 이미 존재하므로 **재스타일**이 중심이고, **프로필 상세("친구 정보")와 알림
-설정**은 신규로 추가한다. 소유자 여부에 따라 노출이 달라지는 규칙을 한 곳에서 일관되게
-표현하는 것이 목표다.
+채널 설정 화면([channel-settings.md](./channel-settings.md), ADR-0019)에서 열리는 **두 개의 풀스크린 다이얼로그**를
+개정 DoU 디자인에 맞춰 `@chatic/web-ui-kit` 기반으로 재구성한다.
+
+1. **방 정보 다이얼로그** (`UpdateChannelDialog`) — 방 이름·프로필 변경. **소유자/초대받은자**로 동작이 갈린다.
+2. **멤버 프로필 다이얼로그** (`MemberProfileDialog`) — 멤버 항목 탭으로 진입. **보는 사람(뷰어)의 역할**과
+   **대상이 나인지**로 항목이 갈린다.
+
+부수적으로, 초대받은자가 설정한 **개인 방 이름(`join.nick`)이 실제 방 이름 표시에 반영**되도록 클라이언트 파생을
+정비한다. (페이지 레이아웃 자체는 [channel-settings.md](./channel-settings.md)가 담당하며 이 문서 범위 밖이다.)
 
 ## 설계 원칙
 
-- **프레젠테이션은 web-ui-kit 프리미티브로 조립한다.** 새 화면(프로필 상세·알림 설정)은
-  feature 레이어의 다이얼로그 컴포넌트로 두되, 시각 요소는 web-ui-kit(`Switch`·`AlertDialog`·
-  `Badge`·`ProfileAvatar` 등)로 구성한다. 재사용 가치가 분명한 프리미티브가
-  없을 때만 web-ui-kit에 신규 정의한다(불필요한 신규 컴포넌트 지양).
-- **소유자 분기는 `channel.isOwner` 하나로 파생한다.** 설정 화면·프로필 상세 모두 동일
-  기준을 쓴다([useChannel.ts:10-15](../../../src/app/features/channels/hooks/useChannel.ts) —
-  `isOwner = !!ownerId && ownerId === myUid`). 멤버별 소유자 뱃지는 `memberId === channel.ownerId`.
-- **미연동 액션은 UI만 둔다.** 백엔드 메서드가 없는 알림 토글·신고하기는 표시/버튼만 두고
-  데이터 연동을 하지 않는다(ADR-0015). 눌렀을 때는 토스트 안내로 기대치를 관리한다.
-- **별명(닉네임) 편집은 이번 범위에서 제외한다.** 백엔드 미비로 편집 input·`완료` 버튼을 두지
-  않는다. 프로필 상세의 이름은 읽기 표시만(후속 과제).
-- **`친구 삭제`(kick)는 실제 연동한다.** `leaveChannel({ channelId, userId })`로 특정 멤버를
-  내보내며 **소유자만** 가능하다. self-leave와 달리 내 채널 캐시를 유지해야 하므로 repository
-  분기가 필요하다(아래 상세 구현).
-- **신규 화면은 in-page Dialog로 연다.** 기존 `UpdateChannelDialog`/`InviteFriendsDialog`
-  패턴을 그대로 따르고 URL 라우트를 추가하지 않는다.
-- **기존 동작 로직은 유지한다.** 나가기/삭제/초대/정보수정의 데이터 흐름은 손대지 않고
-  표현만 재배치한다.
+- **프레젠테이션은 web-ui-kit 프리미티브로 조립**한다 — 방 정보/프로필 다이얼로그의 상단바·아바타·입력·리스트·CTA는
+  `ModalTopBar`/`ProfileAvatar`/`TextField`/`ListRow`/`FloatingButton`(이미 존재)으로 구성한다. hex·아이콘을 화면에
+  직접 박지 않는다. 누락 프리미티브만 라이브러리에 신규 정의한다(불필요한 신규 지양). [ADR-0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)의 `PlaceProfileFormDialog`가 참조 패턴이다.
+- **역할 분기는 기존 파생을 재사용**한다 — 신규 판별 로직을 만들지 않는다:
+    - 뷰어가 소유자: `channel.isOwner` (`ownerId === myUid`) — [useChannel.ts:11-15](../../src/app/features/channels/hooks/useChannel.ts)
+    - 대상 멤버가 나: `memberId === userId`
+    - 대상 멤버가 방장: `memberId === channel.ownerId`
+- **초대받은자의 "이름"은 개인 방 이름**이다 — 소유자의 방 이름(`channel.name`)을 바꾸는 게 아니라 **내 `join.nick`**을
+  설정하며 "나에게만 표시"된다. 아바타는 **읽기전용**(소유자 썸네일). `join.update`가 `nick`/`notify`만 받고 thumbnail이
+  없는 것과 일치한다.
+- **개인 방 이름 병합은 파생 계층 한 곳**에 둔다 — 방 이름을 노출하는 소비처(홈 리스트·설정 헤더·룸 헤더)가 각자
+  분기하지 않도록 `channel.$join?.nick || channel.name` 파생을 공용 헬퍼로 뽑는다.
+- **미연동 액션은 UI만 둔다** — `신고`(백엔드 없음)와 `친구 설정`(Figma에 목적지·의미 미정)은 **행만 노출하고 동작
+  보류**(toast/no-op). 눌러도 오해를 주지 않게 토스트로 기대치를 관리한다.
+- **프로필 편집기는 재사용**한다 — "내 프로필"의 `프로필 설정`은 새 편집기를 만들지 않고 ADR-0020의
+  `PlaceProfileEditDialog`(per-place 프로필, `setMyProfile`)를 그대로 연다.
+- **기존 동작 로직은 유지**한다 — kick(`leaveChannel({channelId,userId})`)·소유자 방 정보 저장(`updateChannel`)의
+  데이터 흐름은 손대지 않고, 편집 능력과 표현만 바꾼다.
 
 ## 범위
 
 **포함**
 
-- **채팅방 설정 재스타일** — 방 아이콘/이름(+`편집` 링크, 소유자만), 액션 버튼 행,
-  방 친구 목록(소유자 뱃지·`MY` 뱃지). 소유자/일반 멤버 분기.
-- **알림 액션 추가** — 액션 버튼 행에 `알림`(Bell) 추가(소유자·일반 공통). 탭 시 알림 설정
-  Dialog 오픈.
-- **알림 설정 Dialog(신규)** — 앱 알림 꺼짐 배너 + `메시지 알림` 토글. **UI만**(로컬 상태).
-- **프로필 상세 Dialog(신규, "친구 정보")** — 멤버 항목 탭으로 진입. 아바타 + 이름(읽기 표시),
-  ⋯메뉴(`신고하기` 공통, `친구 삭제` 소유자만). **신고는 UI만, `친구 삭제`(kick)는 연동.
-  별명 편집은 제외**(input·완료 없음).
-- **확인 다이얼로그** — 방 삭제/나가기(`ConfirmDialog`), 정보 저장 토스트. 디자인 확인 후 유지/보정.
-- **인원 100명 초과 안내 얼럿** — 초대 흐름 클라이언트 가드.
+1. `UpdateChannelDialog` 2모드 재구성 — 소유자(이름+썸네일 편집 → `updateChannel`) / 초대받은자(이름=개인 닉 편집 →
+   `join.update.nick`, 아바타 읽기전용+캡션, 서브타이틀). 글자수 카운터 `0/20` + 힌트.
+2. `join.update`를 감싸는 신규 앱 훅(`useJoinMutations`).
+3. 개인 방 이름 병합 — `resolveChannelName(channel)` 공용 헬퍼 + 소비처 배선(홈 `ChannelList`, `useChannel`, 룸 헤더).
+4. `MemberProfileDialog` 재디자인 — `⋯` 드롭다운 제거, 상단 X + 아바타 + 이름 + 인라인 리스트. 뷰어 역할/대상 분기.
+5. `친구 설정`·`신고` = UI-only 보류(행 노출 + no-op/toast).
+6. `프로필 설정`(대상=나) → `PlaceProfileEditDialog` 재사용 연결.
+7. 관련 i18n 키·유닛 테스트 정리.
 
 **제외**
 
-- 멤버별 별명 쓰기·알림 실제 연동 등 백엔드 필요 작업(kick은 포함).
-- 1:1 채팅 전용 레이아웃(ADR-0015의 제외 항목).
-- 신규 URL 라우트. 데이터/동기화 로직 변경.
+- 채널 알림(notify) 토글 실제 배선 — `join.update.notify`로 가능하나 **별건**(현행 UI-only 유지, [channel-settings.md](./channel-settings.md)).
+- `신고` 백엔드, `친구 설정` 실제 동작.
+- 페이지 레이아웃(섹션 리스트) 변경 — [channel-settings.md](./channel-settings.md) 소관.
+- 데이터 흐름·멤버 소스·kick/leave/delete·sync 등록 모델 변경.
 
 ## 시나리오
 
-1. **소유자 진입** — 방 아이콘·이름 + 이름 아래 `편집` 링크. 액션 3개(`친구 초대`·`알림`·
-   `방 삭제`). 방 친구 목록에서 소유자에게 초록 뱃지, 본인에게 `MY`.
-2. **일반 멤버 진입** — 이름 편집/친구 초대 없음. 액션 2개(`알림`·`방 나가기`). 목록 동일.
-3. **알림 설정 열기** — `알림` 탭 → Dialog. 기기 알림이 꺼져 있으면 상단 배너, `메시지 알림`
-   토글은 로컬 상태로 on/off(저장/연동 없음). 재진입 시 초기화.
-4. **멤버 프로필 보기** — 멤버 항목 탭 → "친구 정보" Dialog. 이름은 읽기 표시(편집 없음).
-   ⋯메뉴: `신고하기`(공통), 소유자면 `친구 삭제`도 노출. `신고하기`는 토스트만(UI). `친구 삭제`는
-   확인 후 `leaveChannel({ channelId, userId })`로 실제 추방 → 멤버 목록에서 제거, Dialog 닫힘.
-5. **정보 수정(소유자)** — 이름 `편집` 링크 또는 이름 탭 → `UpdateChannelDialog`. 방이름·
-   썸네일 저장 → "방 정보가 저장되었어요" 토스트(기존 동작 유지).
-6. **나가기/삭제** — 액션 탭 → `ConfirmDialog` → 확정 시 기존 뮤테이션 실행 후 홈으로 이동.
-7. **초대 인원 초과** — 초대 확정 시 (기존 멤버 + 선택 인원) > 100이면 얼럿("방 인원은 최대
-   100명까지만 함께할 수 있어요") 노출, 초대 중단.
+1. **소유자 — 방 정보 편집** — 방 이름 행 탭 → 다이얼로그. 아바타 카메라 배지로 사진 교체, 이름 입력(카운터).
+   `완료` → `updateChannel({ name, thumbnail })` → 토스트 → 닫힘.
+2. **초대받은자 — 개인 방 이름 설정** — 방 이름 행 탭 → 다이얼로그. 서브타이틀 "설정한 방 이름은 나에게만
+   표시됩니다." 아바타는 소유자 썸네일 읽기전용 + 캡션(`<소유자가 설정한 방 이름>`). 이름 입력(placeholder=소유자
+   방 이름) → `완료` → `updateJoin({ channelId, nick })` → 토스트 → 닫힘. 이후 홈/설정/룸 헤더의 방 이름이 **내 닉으로**
+   보인다(나에게만).
+3. **멤버 프로필 — 뷰어=소유자, 대상=타 멤버** — 멤버 탭 → 프로필 다이얼로그. 아바타 + 이름 + 리스트
+   `친구 설정`(toast/no-op) · `내보내기`(확인 → `leaveChannel({channelId,userId})` → 목록 제거) · `신고`(toast).
+4. **멤버 프로필 — 뷰어=초대받은자** — 리스트에 `신고`만.
+5. **멤버 프로필 — 대상=나** — 리스트에 `프로필 설정` 1개 → 탭 시 `PlaceProfileEditDialog`(per-place 프로필 닉+사진)
+   오픈 → `setMyProfile`.
+6. **닫기** — 상단 X. 편집 중 미저장 변경이 있으면(방 정보/프로필 편집기) 이탈 가드(`AlertDialog`).
 
 ## 다이어그램
 
-### 화면 구성 (컨테이너 → Dialog)
-
-```mermaid
-graph TD
-    Page[ChannelSettingsPage<br/>데이터·activeDialog 상태] --> Header[PageHeader 방 설정]
-    Page --> Info[방 아이콘·이름·편집 링크]
-    Page --> Actions[액션 버튼 행<br/>초대/알림/삭제·나가기]
-    Page --> Members[방 친구 목록<br/>MemberListItem ＋클릭]
-    Page -.dialog.-> Update[UpdateChannelDialog 기존]
-    Page -.dialog.-> Invite[InviteFriendsDialog 기존＋100 가드]
-    Page -.dialog.-> Confirm[ConfirmDialog 삭제/나가기 기존]
-    Page -.dialog.-> Notif[RoomNotificationDialog ★신규]
-    Page -.dialog.-> Profile[MemberProfileDialog ★신규]
-    Notif --> Sw[web-ui-kit Switch]
-    Profile --> Menu[Radix DropdownMenu<br/>신고/친구삭제]
-```
-
-### 소유자 분기 결정
+### 방 정보 다이얼로그 — 역할 분기
 
 ```mermaid
 flowchart TD
-    A{channel.isOwner} -->|true| O[편집 링크·친구 초대·방 삭제<br/>프로필: ⋯메뉴에 친구 삭제＋신고]
-    A -->|false| M[편집/초대 없음·방 나가기<br/>프로필: ⋯메뉴 신고만]
-    B{isSelfChat} -->|true| S[멤버목록·초대·나가기 숨김]
+    Open[방 이름 행 탭] --> Q{channel.isOwner}
+    Q -->|true| O["소유자 모드<br/>아바타 편집 · 이름 편집<br/>→ updateChannel(name, thumbnail)"]
+    Q -->|false| I["초대받은자 모드<br/>서브타이틀 · 아바타 읽기전용(소유자 썸네일)+캡션<br/>이름=개인 닉 → updateJoin(channelId, nick)"]
+```
+
+### 멤버 프로필 다이얼로그 — 항목 분기
+
+```mermaid
+flowchart TD
+    Tap[멤버 항목 탭] --> S{대상이 나?}
+    S -->|yes| Me["'프로필 설정' → PlaceProfileEditDialog (ADR-0020)"]
+    S -->|no| V{뷰어가 소유자?}
+    V -->|yes| Owner["친구 설정(보류) · 내보내기(kick) · 신고(보류)"]
+    V -->|no| Member["신고(보류)"]
+```
+
+### 개인 방 이름 병합 (표시)
+
+```mermaid
+flowchart LR
+    subgraph 파생
+      R["resolveChannelName(channel)<br/>= channel.$join?.nick || channel.name"]
+    end
+    HomeList[ChannelList] --> R
+    Settings[useChannel 헤더] --> R
+    Room[룸 헤더] --> R
+    Save["초대받은자 저장 → join.update.nick<br/>→ 캐시 $join.nick 갱신"] -.reemit.-> R
 ```
 
 ## 상세 구현
 
-핵심 파일과 역할. 대안 비교·선택 이유는 [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md).
+핵심 파일과 역할. 대안 비교·선택 이유는 [ADR-0022](../../../../../docs/adr/0022-channel-detail-dialogs-figma-redesign.md).
 
-- **`ChannelSettingsPage`** ([pages/ChannelSettingsPage.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx)) —
-  컨테이너. 루트는 `flex h-full flex-col`(헤더 고정) + 콘텐츠 `flex-1 overflow-y-auto`로,
-  `UnifiedLayout`의 `h-dvh overflow-hidden` 셸 안에서 **멤버가 많아지면 목록 영역이 스크롤**된다
-  (다른 상세 페이지 패턴과 동일). `DialogType`([:21](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx))에
-  `'notification'` 추가, 프로필용 `selectedMember` 상태 추가.
-    - 액션 버튼 행([:158-182](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx))에
-      `알림`(Bell, `t('chat.settings.notifications')`) 추가 — self가 아니면 소유자·일반 공통.
-      순서: 소유자 `초대·알림·삭제`, 일반 `알림·나가기`.
-    - 방 이름 아래에 `편집` 링크(밑줄 텍스트 버튼) — 소유자·비-self일 때만 노출, 클릭 시 `'update'`
-      Dialog 오픈(기존 `Pencil` inline 트리거 대체).
-    - 멤버 항목 탭 시 `openMemberProfile(memberView)`로 `selectedMember` 설정 + `'profile'` 오픈.
-    - `handleKickMember`: `leaveChannel({ channelId, userId: selectedMember.id })` → 토스트
-      (`kicked`/`kickFailed`) → `closeDialog`. `canKick`은 `isOwner && 대상≠소유자 && 대상≠본인`.
-- **`MemberListItem`** ([components/MemberListItem.tsx](../../../src/app/features/channels/components/MemberListItem.tsx)) —
-  `onClick`이 있으면 루트를 `button`으로 렌더(없으면 `div`). 소유자 뱃지·`MY` 뱃지는 기존 하드코딩
-  hex(`#B0EA10`/`#102346`) 유지(토큰화는 후속). 프레젠테이션만.
-- **`RoomNotificationDialog`(신규)** ([components/RoomNotificationDialog.tsx](../../../src/app/features/channels/components/RoomNotificationDialog.tsx)) —
-  풀스크린 슬라이드업 Dialog(UpdateChannelDialog 패턴, 우상단 X). `앱 알림 꺼짐` 배너(정적) +
-  `메시지 알림` 행(web-ui-kit `Switch`, 로컬 `useState`). i18n `chat.settings.notificationSettings.*`
-  (기존 키 재사용). UI만 — 연동/영속 없음.
-- **`MemberProfileDialog`(신규)** ([components/MemberProfileDialog.tsx](../../../src/app/features/channels/components/MemberProfileDialog.tsx)) —
-  풀스크린 슬라이드업 Dialog. 상단바: 좌 뒤로가기(`ChevronLeft`, 닫기) · 중앙 "친구 정보" ·
-  우 ⋯ `DropdownMenu`(`@chatic/ui-kit`, ChatRoomHeader moreMenu 패턴). **`DropdownMenu`는
-  `modal={false}` 필수** — modal Dialog 안의 modal DropdownMenu는 pointer 충돌로 트리거 클릭 시
-  부모 Dialog가 닫힌다(프리뷰에서 확인·수정). 아바타(`ProfileAvatar`) +
-  소유자 뱃지(초록 체크) + 이름(읽기 표시, 편집 없음). ⋯메뉴: `신고하기`(공통, 내부 토스트)·
-  `친구 삭제`(`canKick`일 때만, danger). Props: `member`, `memberIsOwner`, `canKick`, `onKick`,
-  `isKicking`, `open`, `onOpenChange`.
-    - `친구 삭제` → 내부 `ConfirmDialog`(danger) 재확인 → `onKick()`. 컨테이너가 `leaveChannel` 호출.
-- **`ChannelRepositoryV2.leaveChannel`** ([ChannelRepositoryV2.ts:248](../../../../../libs/data/src/data/repositories-v2/ChannelRepositoryV2.ts)) —
-  kick 지원을 위한 evict 분기. `isSelfLeave = !payload.userId` — self-leave만 `leftChannelIds` 추가 +
-  `cacheDelete`(및 실패 시 롤백). kick(타 userId)은 채널 캐시를 건드리지 않는다. `useChannelMutations.leaveChannel`은
-  이미 `ChatLeaveInput = { channelId, userId? }`를 통과시켜 훅 변경 불필요.
-- **`InviteFriendsDialog`** ([components/InviteFriendsDialog.tsx](../../../src/app/features/channels/components/InviteFriendsDialog.tsx)) —
-  `useChannel`로 현재 인원을 얻어 초대 확정 직전 `(memberCount + 선택 인원) > 100`이면 단일 버튼
-  `AlertDialog`(`chat.settings.memberLimit.*`) 노출 후 중단. `MAX_ROOM_MEMBERS = 100` 상수.
-- **`ConfirmDialog`** ([components/ConfirmDialog.tsx](../../../src/app/features/channels/components/ConfirmDialog.tsx)) —
-  기존 그대로. Figma 삭제/나가기(2935-22403/22411)와 이미 일치, 변경 없음.
-- **web-ui-kit 신규 컴포넌트 없음** — 필요한 프리미티브(`Switch`·`ProfileAvatar` + `@chatic/ui-kit`
-  `Dialog`/`DropdownMenu`/`AlertDialog`)가 모두 존재해 feature 레이어 조립으로 충분(minimal).
+- **`UpdateChannelDialog`** ([components/UpdateChannelDialog.tsx](../../src/app/features/channels/components/UpdateChannelDialog.tsx)) —
+  `readOnly` prop을 **제거**하고 관측한 `channel.isOwner`에서 모드를 파생한다(페이지는 mode prop을 넘기지 않음).
+  소유자=`updateChannel({name, thumbnail})`([useChannelMutations.updateChannel](../../src/app/features/channels/hooks/useChannelMutations.ts)),
+  초대받은자=`updateJoin({channelId, nick})`. 초대받은자는 아바타 읽기전용(소유자 썸네일 + 하단 `channel.name` 캡션),
+  서브타이틀 노출, 이름 초기값=내 `channel.$join?.nick`(placeholder=`channel.name` → 없으면 i18n). 상단바/아바타/입력/CTA를
+  kit 프리미티브(`ModalTopBar`/`ProfileAvatar`/`TextField`/`FloatingButton`)로 재조립하고, `ProfileAvatar`의 select
+  어포던스는 소유자만 노출. 글자수 카운터 `0/20`은 `TextField`의 `maxLength`. 검증은 비어있지 않은(trim 1자 이상) 이름 +
+  dirty일 때만 완료 활성(이전 min-2 규칙은 Figma 힌트("20글자 이내")에 맞춰 제거).
+- **`useJoinMutations`(신규)** ([hooks/useJoinMutations.ts](../../src/app/features/channels/hooks/useJoinMutations.ts), 배럴 export) —
+  `useRuntimeRepositories().join.updateJoin`([JoinRepositoryV2.ts:125](../../../../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts))를
+  감싸는 얇은 훅. `useChannelMutations` 패턴(action별 pending 플래그) 동일. optimistic write는 repository가 처리.
+  `useChannelMutations`가 `channelRepository`만 쓰므로 repo 혼합을 피해 **별도 훅**으로 둔다. payload 타입은
+  `ChannelUpdateJoinInput`(@lemoncloud/chatic-sockets-api); repo 인터페이스의 `JoinUpdateInput`은 동일 alias(`= ChannelUpdateJoinInput`).
+- **`resolveChannelName`(신규 공용 헬퍼)** ([app/utils/channel.ts](../../src/app/utils/channel.ts)) —
+  `channel.$join?.nick?.trim() || channel.name?.trim() || ''`. 홈·channels 양쪽이 쓰므로 feature가 아닌 **공용 utils**에 둔다.
+  `$join`은 채널 뷰에 인라인으로 실려온다([useChannelUnreads.ts:36](../../src/app/features/home/hooks/useChannelUnreads.ts) —
+  `ch.$join.chatNo` 선례). 소비처:
+    - 홈 채널 리스트 [ChannelList.tsx](../../src/app/features/home/components/ChannelList.tsx) — 이름 결정에 헬퍼 사용(자기채팅/무명 폴백은 유지).
+    - 설정 헤더·룸 헤더 — `useChannel`의 `toClientChannel`([useChannel.ts](../../src/app/features/channels/hooks/useChannel.ts))가
+      파생 필드 `displayName`을 노출(→ `ClientChannelView.displayName`), `ChannelSettingsPage`/`ChannelRoomPage`가 이를 사용.
+- **`useActivePlaceName`(신규 공용 훅)** ([app/hooks/useActivePlaceName.ts](../../src/app/hooks/useActivePlaceName.ts)) —
+  `useSessionSelection().selectedSiteId`로 `placeRepository.observeItem`을 구독해 활성 플레이스명을 반환. home 훅을
+  끌어오지 않고 `PlaceProfileEditDialog`의 `placeName`을 공급한다. `useMyProfile`과 같은 app-level 공용 위치.
+- **`MemberProfileDialog`** ([components/MemberProfileDialog.tsx](../../src/app/features/channels/components/MemberProfileDialog.tsx)) —
+  `⋯` `DropdownMenu` 제거. 레이아웃: `ModalTopBar`(X 닫기) + `ProfileAvatar`(+방장 `IconCheck` 뱃지) + 이름 +
+  **인라인 `ListRow` 리스트**. Props: 기존 `memberIsOwner`/`canKick`/`onKick`/`isKicking`에 더해 `isSelf`(대상=나),
+  `onOpenProfileSettings`(내 프로필 설정 진입). 행 분기: `isSelf`→`프로필 설정`만 / `canKick`(뷰어=소유자,대상≠나≠방장)→
+  `친구 설정`+`내보내기`+`신고` / 그 외→`신고`. `친구 설정`(comingSoon)·`신고`(reportSuccess)는 내부 toast(no-op),
+  `내보내기`는 `ConfirmDialog`(danger) 재확인 → `onKick`.
+- **`ChannelSettingsPage`** ([pages/ChannelSettingsPage.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.tsx)) —
+  `DialogType`에 `'profileSettings'` 추가. `MemberProfileDialog`에 `isSelf`(대상=`userId`)/`onOpenProfileSettings`
+  (→`openDialog('profileSettings')`) 전달. `PlaceProfileEditDialog`를 `useActivePlaceName()` 결과로 마운트. 방 이름 행
+  title은 `channel?.displayName`.
+- **`PlaceProfileEditDialog` 재사용** ([home/components/PlaceProfileEditDialog.tsx](../../src/app/features/home/components/PlaceProfileEditDialog.tsx)) —
+  `{open, placeName, onClose}` 자립 컴포넌트를 channels에서 **크로스 피처 import**(`../../home/components`)로 재사용(리스크의
+  (a)안 채택). eslint 모듈 경계 위반 없음(리포에 강제 boundary 규칙 없음).
+- **아이콘/애셋** — 방 정보 카메라(＋) 배지(`ProfileAvatar`의 `IconPlus`), 프로필 X(`ModalTopBar`의 `IconClose`), 방장
+  체크(`IconCheck`)가 kit에 모두 존재 → **신규 애셋 반입 없음**.
 
 ## 검증 방법
 
-- **단위 테스트**(통과) — `apps/web` channels 47개 전부 통과(신규 `MemberListItem`·
-  `RoomNotificationDialog`·`MemberProfileDialog` 7개 + `ChannelSettingsPage` 컨테이너 6개
-  = 소유자/일반 액션 분기·알림 오픈·멤버 탭→프로필·canKick 게이팅·kick 배선). `libs/data`
-  `ChannelRepositoryV2` — kick 시 채널 캐시 보존 / self-leave 시 evict 신규 2개 통과(같은 파일의
-  기존 실패 2개 `refreshList` 케이스는 이 작업과 무관한 사전 실패).
-  `npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels` /
-  `npx jest --config libs/data/jest.config.js libs/data/src/data/repositories-v2/ChannelRepositoryV2.test.ts`.
-- **타입체크/린트**(통과) — `nx typecheck web`(의존 22 태스크 포함), `nx lint web`(0 errors).
-  stale 시 `rm -rf dist/out-tsc`.
-- **빌드/서브**(통과) — vite dev(apps/web, 워크트리는 node_modules 심링크 + `.env` 복사) 정상
-  기동, 신규 모듈 컴파일·임포트 오류 없음(소켓 503은 백엔드 미연결로 무관).
-- **후속(백엔드 필요)** — 실제 채팅방 진입은 로그인+소켓이 필요하므로 소유자/일반 UI 분기·kick
-  후 멤버 목록 반영·서버 권한 검증은 백엔드 연결 환경에서 확인한다(chat-room-ui.md와 동일 한계).
-  특히 **kick 후 `useChannelMembers` 자동 갱신 여부**(소켓 sync 미반영 시 수동 refetch 필요)와
-  **비소유자 kick 서버 거부**를 확인할 것.
+- **유닛 테스트**(통과) — `npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels apps/web/src/app/features/home apps/web/src/app/utils apps/web/src/app/hooks` → **44 suites / 236 tests 통과**.
+    - [UpdateChannelDialog.test.tsx](../../src/app/features/channels/components/UpdateChannelDialog.test.tsx) — 소유자 모드
+      (아바타 select 노출·`updateChannel(name)` 호출) / 초대받은자 모드(서브타이틀·아바타 select 없음·`channel.name` 캡션·
+      `updateJoin(nick)` 호출·placeholder) / 변경 없으면 완료 비활성.
+    - [MemberProfileDialog.test.tsx](../../src/app/features/channels/components/MemberProfileDialog.test.tsx) — 3분기
+      (대상=나=프로필 설정→콜백 / 뷰어=소유자=친구설정·내보내기·신고 / 뷰어=멤버=신고), 신고/친구설정 토스트, 내보내기 확인→onKick, 방장 뱃지.
+    - [useJoinMutations.test.ts](../../src/app/features/channels/hooks/useJoinMutations.test.ts) — `updateJoin` 위임·pending 플래그.
+    - [useActivePlaceName.test.ts](../../src/app/hooks/useActivePlaceName.test.ts) — sid 구독→place.name, 미활성 시 빈 문자열, 언마운트 해제.
+    - [channel.test.ts](../../src/app/utils/channel.test.ts) — `$join.nick` 우선, 공백·부재 시 `channel.name` 폴백, 둘 다 없으면 빈 문자열.
+    - [ChannelSettingsPage.test.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) — 방 이름 title(`displayName`),
+      멤버 탭→프로필, canKick 게이팅, `isSelf` + 프로필 설정 다이얼로그 오픈 배선.
+- **타입 정합**(수동 확인) — `join.updateJoin`의 인터페이스 타입 `JoinUpdateInput`은 `ChannelUpdateJoinInput`의 alias라
+  훅 payload 타입과 호환. 워크트리에는 `node_modules`가 없어 `nx typecheck`/`vite build`가 라이브러리 dist 미빌드로
+  실패(환경 한계, 본 변경과 무관) — [[preview-web-from-worktree]]/[[stale-tsbuildinfo-typecheck]] 참고.
+- **수동 확인**(백엔드 연결 환경 필요, 이 세션 미수행) — 채널 설정 진입에 로그인+소켓이 필요해 브라우저 육안 확인은
+  백엔드 연결 환경에서 수행한다(ADR-0015/0019 문서와 동일 한계). 확인 포인트: 초대받은자 닉 저장 후 홈/설정/룸 헤더에
+  내 닉 반영·소유자 방 이름 변경 무영향, 프로필 3분기 렌더, 내 프로필→`PlaceProfileEditDialog` 오픈, kick 후 목록 반영.
+  특히 **`$join.nick`이 호출자 본인 값으로 실려오고 저장 후 optimistic write로 갱신되는지**(미도달 시 순간 `channel.name`
+  폴백) 확인할 것.
