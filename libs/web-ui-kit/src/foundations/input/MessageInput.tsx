@@ -87,6 +87,17 @@ export const MessageInput = ({
 
     const canSend = !disabled && value.trim().length > 0;
 
+    // Keep the mobile keyboard open when the composer chrome — the pill padding, the
+    // gap next to the textarea, or the send button — is tapped instead of the textarea.
+    // Only the textarea itself should take/hold the caret; any other target inside the
+    // pill preventDefaults so focus never leaves the textarea (a finger slipping a few
+    // px off the send button no longer blurs it and drops the keyboard).
+    const handleContainerPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (event.target !== textareaRef.current) {
+            event.preventDefault();
+        }
+    };
+
     const handleSend = () => {
         if (!canSend) return;
         // Emit the trimmed value to match the onSend contract (non-empty, trimmed).
@@ -97,6 +108,7 @@ export const MessageInput = ({
         <div
             ref={containerRef}
             data-multiline="false"
+            onPointerDown={handleContainerPointerDown}
             className={cn(
                 'flex w-full items-center gap-1.5 rounded-[100px] border bg-surface/90 px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color]',
                 'data-[multiline=true]:items-end data-[multiline=true]:rounded-2xl data-[multiline=true]:py-3',
