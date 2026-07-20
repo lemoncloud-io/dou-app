@@ -6,6 +6,10 @@ accepted
 
 결정일: 2026-07-16
 
+부분 Superseded by [ADR-0019](0019-group-channel-settings-section-layout.md) —
+Decision #1(채팅방 설정 레이아웃)·#4(알림을 별도 Dialog로)는 새 그룹방 디자인(섹션 리스트형 +
+인라인 알림 토글)으로 대체됨. 그 외 결정(정보 수정·프로필 상세·확인 다이얼로그·kick 연동)은 유효.
+
 ## Context
 
 채널 설정 관련 화면이 DoU 디자인으로 리디자인됐다(Figma 파일 `ViwLfjc5Eoq7BpEXFfFj3W`).
