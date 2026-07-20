@@ -20,7 +20,6 @@ import {
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
-import { InviteFriendsDialog } from '../components';
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import {
     useChannel,
@@ -48,7 +47,6 @@ export const ChannelRoomPage = () => {
 
     // UI 상태 관리
     const [content, setContent] = useState('');
-    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
     const [openActionMessageKey, setOpenActionMessageKey] = useState<string | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
@@ -398,7 +396,7 @@ export const ChannelRoomPage = () => {
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() => setInviteDialogOpen(true)}
+                                            onClick={() => navigate(ROUTES.channels.invite(stableChannelId))}
                                             className="flex h-[50px] items-center gap-1.5 rounded-full border border-input-border pl-[25px] pr-[19px] text-[16px] font-semibold text-foreground"
                                         >
                                             {t('chat.room.emptyState.inviteButton')}
@@ -540,14 +538,6 @@ export const ChannelRoomPage = () => {
                     <FloatingDateChip label={floatingDate} visible={showFloatingDate && !!floatingDate} />
                 </div>
             </div>
-
-            {!isGuest && isCloudActive && !isSelfChat && (
-                <InviteFriendsDialog
-                    open={inviteDialogOpen}
-                    onOpenChange={setInviteDialogOpen}
-                    channelId={stableChannelId}
-                />
-            )}
 
             <div
                 // Extend the keep-keyboard-open tolerance to the whole bottom bar — a finger

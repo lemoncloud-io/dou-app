@@ -8,6 +8,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Image as ImageGlyph,
+    Link2,
     Loader2,
     MessageCircle,
     type LucideIcon,
@@ -48,6 +49,7 @@ export const IconSpinner: LucideIcon = Loader2;
 export const IconPlan: LucideIcon = Sparkles;
 export const IconBolt: LucideIcon = Zap;
 export const IconImage: LucideIcon = ImageGlyph;
+export const IconLink: LucideIcon = Link2;
 export const IconUser: LucideIcon = User;
 export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;

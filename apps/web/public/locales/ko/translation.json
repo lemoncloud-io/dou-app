@@ -775,9 +775,13 @@
     },
     "inviteFriends": {
         "title": "친구 초대",
+        "selectTitle": "친구 선택",
         "addFriend": "친구 추가",
         "searchPlaceholder": "친구 검색",
         "invite": "초대하기",
+        "deselectAll": "전체 선택 해제",
+        "sendLink": "초대 링크 보내기",
+        "limitToast": "{{max}}명 까지 초대 가능해요",
         "noSearchResults": "검색 결과가 없습니다.",
         "linkCopied": "링크 복사가 완료되었습니다.",
         "shareFailed": "공유에 실패했습니다.",
@@ -786,10 +790,21 @@
         "batchSuccess": "{{count}}명에게 초대를 보냈습니다",
         "inviteSelected": "초대하기 ({{count}}명)",
         "batchFailed": "초대 전송에 실패했습니다",
+        "webGuide": {
+            "title": "초대 링크로 친구를 초대해 보세요",
+            "description": "이름과 전화번호를 입력하면 초대 링크가 만들어져요. 링크를 공유해 친구를 대화에 초대할 수 있어요."
+        },
         "permissionDenied": {
             "title": "연락처 접근 허용이 꺼져 있어요",
             "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다."
         }
+    },
+    "inviteLink": {
+        "title": "초대 링크",
+        "share": "링크 공유하기",
+        "shared": "공유 완료",
+        "copyDone": "링크 복사 완료",
+        "close": "닫기"
     },
     "addFriend": {
         "title": "친구 추가",

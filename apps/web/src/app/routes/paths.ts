@@ -43,6 +43,8 @@ export const ROUTES = {
         root: '/channels',
         room: (channelId: string) => `/channels/${channelId}/room`,
         settings: (channelId: string) => `/channels/${channelId}/settings`,
+        invite: (channelId: string) => `/channels/${channelId}/invite`,
+        inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,
     },
 
     // ── Place (Private) ──────────────────────────────────────────

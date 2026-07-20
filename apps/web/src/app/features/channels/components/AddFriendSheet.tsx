@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
+import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
+import { ROUTES } from '../../../routes/paths';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -65,10 +67,11 @@ const formatPhoneNumber = (digits: string): string => {
 export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const navigate = useNavigateWithTransition();
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
     const [phoneError, setPhoneError] = useState('');
-    const { createSingleInvite, isPending } = useCreateInviteBatch();
+    const { requestInviteLink, isPending } = useCreateInviteBatch();
 
     const handlePhoneChange = (value: string) => {
         const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
@@ -98,14 +101,15 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
         if (!validatePhone()) return;
 
         try {
-            await createSingleInvite({
+            // Obtain the invite link (no auto-share) and hand it to the invite-link page.
+            const inviteLink = await requestInviteLink({
                 channelId,
                 name: name.trim(),
                 phone: phoneDigits,
             });
 
-            toast({ title: t('inviteFriends.batchSuccess', { count: 1 }) });
             resetAndClose();
+            navigate(ROUTES.channels.inviteLink(channelId), { state: { inviteLink } });
         } catch (error) {
             logger.error('INVITE', 'Failed to create invite', { error, data: { channelId } });
             reportError(toError(error));
