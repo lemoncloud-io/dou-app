@@ -4,6 +4,17 @@
 
 ### Features
 
+- (web/channels) 채널 메인 화면 Figma 디자인 반영
+- (web-ui-kit/chat) 채널 룸 화면 Figma 컴포넌트 추가/개선
+
+### Documentation
+
+- (adr) 채널 룸 Figma 개선 기록(ADR-0021) 및 chat-room-ui 갱신
+
+## [2026-07-20] - No version updates
+
+### Features
+
 - (web/place-profile) 플레이스 프로필 수정 화면을 다이얼로그로 전환하고 생성/수정 공통화
 
 ## [2026-07-20] - No version updates
