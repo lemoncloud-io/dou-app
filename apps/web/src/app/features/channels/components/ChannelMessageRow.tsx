@@ -21,11 +21,9 @@ const LONG_PRESS_DELAY_MS = 450;
 export interface MessageReadInfo {
     /** Whether a read receipt should be shown for this chat at all. */
     show: boolean;
-    /** `binary` for 1:1, `count` for groups (3+ members). */
-    variant: 'binary' | 'count';
     /** Join cursors have synced enough to trust the counts. */
     isReady: boolean;
-    readCount: number;
+    /** Members who have not read this message yet. */
     unreadCount: number;
 }
 
@@ -166,13 +164,7 @@ export const ChannelMessageRow = ({
             );
         } else if (read.show && message.chatNo !== undefined) {
             status = read.isReady ? (
-                <ReadReceipt
-                    variant={read.variant}
-                    readCount={read.readCount}
-                    unreadCount={read.unreadCount}
-                    readLabel={t('chat.room.read')}
-                    unreadLabel={t('chat.room.unread')}
-                />
+                <ReadReceipt unreadCount={read.unreadCount} unreadLabel={t('chat.room.unread')} />
             ) : (
                 <Loader2 size={11} className="animate-spin text-muted-foreground" />
             );

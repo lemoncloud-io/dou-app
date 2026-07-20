@@ -1,4 +1,4 @@
-import { Loader2, PenLine, Plus, Settings, User, X } from 'lucide-react';
+import { Loader2, PenLine, Settings, X } from 'lucide-react';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -11,7 +11,14 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
 import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
-import { AvatarGroup, ChatRoomHeader, DateDivider, MessageInput, SystemNotice } from '@chatic/web-ui-kit';
+import {
+    ChatRoomHeader,
+    DateDivider,
+    FloatingDateChip,
+    IconChevronRight,
+    MessageInput,
+    SystemNotice,
+} from '@chatic/web-ui-kit';
 
 import { InviteFriendsDialog } from '../components';
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
@@ -46,6 +53,11 @@ export const ChannelRoomPage = () => {
     const [openActionMessageKey, setOpenActionMessageKey] = useState<string | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
+    // 스크롤 중 상단에 걸친 날짜 그룹을 표시하는 플로팅 pill 상태
+    const [floatingDate, setFloatingDate] = useState('');
+    const [showFloatingDate, setShowFloatingDate] = useState(false);
+    const floatingHideTimerRef = useRef<number | null>(null);
+
     // DOM 접근을 위한 Ref (스크롤 컨테이너 ref는 useChatScroll이 소유)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -63,10 +75,6 @@ export const ChannelRoomPage = () => {
     const { activeMemberIds } = useChannelMembers({ channelId: stableChannelId, detail: true });
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
 
-    // Header member count is a display value — keep it on the channel's embedded `memberIds`
-    // (total participants), separate from the active set that drives sync registration.
-    const memberCount = channel?.memberIds?.length || channel?.memberCount || 0;
-
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, activeMemberIds);
 
@@ -75,32 +83,6 @@ export const ChannelRoomPage = () => {
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
     const showReadReceipt = !isSelfChat && activeCount >= 2;
-    const readVariant: 'binary' | 'count' = activeCount <= 2 ? 'binary' : 'count';
-
-    // Header avatar stack — self first (accent ring), peers after (surface ring). Capped by
-    // AvatarGroup. Hidden for the "only me" group; the count still shows.
-    const memberAvatars = useMemo(() => {
-        const ordered = [...activeMemberIds].sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0));
-        return ordered.slice(0, 4).map(id => {
-            const profile = profileMap.get(id);
-            const ring = id === userId ? 'border-main-accent' : 'border-surface';
-            return profile?.thumbnail ? (
-                <img
-                    key={id}
-                    src={profile.thumbnail}
-                    alt=""
-                    className={`size-6 rounded-full border object-cover ${ring}`}
-                />
-            ) : (
-                <span
-                    key={id}
-                    className={`inline-flex size-6 items-center justify-center rounded-full border bg-muted ${ring}`}
-                >
-                    <User className="size-3 text-muted-foreground" />
-                </span>
-            );
-        });
-    }, [activeMemberIds, profileMap, userId]);
 
     const memoizedChatParams = useMemo(
         () => ({
@@ -151,6 +133,41 @@ export const ChannelRoomPage = () => {
         loadMore,
         inputRef,
     });
+
+    // 플로팅 날짜 pill: 스크롤 중 컨테이너 상단 경계에 걸친 날짜 그룹의 라벨을 찾아 표시하고,
+    // 스크롤이 멎으면 잠시 뒤 감춘다. useChatScroll의 스크롤 로직과는 독립적인 경량 관측이다.
+    const handleFloatingDateScroll = useCallback(() => {
+        const container = messagesEndRef.current;
+        if (!container) return;
+
+        const containerTop = container.getBoundingClientRect().top;
+        const groups = container.querySelectorAll<HTMLElement>('[data-date-label]');
+        for (const group of Array.from(groups)) {
+            const rect = group.getBoundingClientRect();
+            // The group straddling the top edge owns the currently-visible date.
+            if (rect.top <= containerTop + 1 && rect.bottom > containerTop) {
+                const label = group.dataset.dateLabel;
+                if (label) setFloatingDate(label);
+                break;
+            }
+        }
+
+        setShowFloatingDate(true);
+        if (floatingHideTimerRef.current !== null) window.clearTimeout(floatingHideTimerRef.current);
+        floatingHideTimerRef.current = window.setTimeout(() => setShowFloatingDate(false), 1200);
+    }, [messagesEndRef]);
+
+    const handleMessagesScroll = useCallback(() => {
+        debouncedHandleScroll();
+        handleFloatingDateScroll();
+    }, [debouncedHandleScroll, handleFloatingDateScroll]);
+
+    // Clear the pending hide timer on unmount.
+    useEffect(() => {
+        return () => {
+            if (floatingHideTimerRef.current !== null) window.clearTimeout(floatingHideTimerRef.current);
+        };
+    }, []);
 
     const handleSend = (raw: string) => {
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
@@ -274,6 +291,16 @@ export const ChannelRoomPage = () => {
         return t('chat.room.dateFormat', { year, month, day, weekday });
     };
 
+    // Compact label for the scroll-time floating pill, e.g. "7. 01 월".
+    // The weekday is the first character of the localized weekday name (한글 단일자).
+    const formatFloatingDate = (date: Date) => {
+        const month = date.getMonth() + 1;
+        const day = String(date.getDate()).padStart(2, '0');
+        const weekdayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+        const weekday = t(`chat.room.weekdays.${weekdayKeys[date.getDay()]}`).charAt(0);
+        return `${month}. ${day} ${weekday}`;
+    };
+
     const getDateKey = (date: Date) => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
@@ -305,20 +332,23 @@ export const ChannelRoomPage = () => {
         );
     }
 
-    // Group meta (avatar stack + count) — omitted for self chats and while the member
-    // count is still 0 (initial load), so the header never shows an empty meta row.
-    const groupMeta =
-        isSelfChat || memberCount <= 0 ? undefined : (
-            <AvatarGroup avatars={memberCount <= 1 ? [] : memberAvatars} count={memberCount} />
-        );
+    // Header avatar — the channel thumbnail as an image when set; otherwise the
+    // ChatRoomHeader fallback glyph (person for self, group for everything else).
+    const headerAvatar = channel?.thumbnail ? (
+        <img
+            src={channel.thumbnail}
+            alt=""
+            className="size-[42px] shrink-0 rounded-full border border-border object-cover"
+        />
+    ) : undefined;
 
     return (
         <div className="flex h-full flex-col bg-background">
             <ChatRoomHeader
-                kind="group"
+                kind={isSelfChat ? 'direct' : 'group'}
                 title={isSelfChat ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
+                avatar={headerAvatar}
                 onBack={() => navigate(-1)}
-                meta={groupMeta}
                 moreMenu={
                     <DropdownMenuItem
                         onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
@@ -331,23 +361,21 @@ export const ChannelRoomPage = () => {
                 className="border-b border-border"
             />
 
-            <div
-                ref={messagesEndRef}
-                onScroll={debouncedHandleScroll}
-                className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none pb-4 pt-2 gap-3"
-            >
-                {isChatLoading ? (
-                    <div className="flex min-h-full items-center justify-center">
-                        <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                    </div>
-                ) : isChatEmpty ? (
-                    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center px-4">
-                        <div className="absolute left-0 right-0 top-2">
-                            <DateDivider label={formatDateSeparator(new Date())} />
+            <div className="relative flex min-h-0 flex-1 flex-col">
+                <div
+                    ref={messagesEndRef}
+                    onScroll={handleMessagesScroll}
+                    className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none pb-4 pt-2 gap-3"
+                >
+                    {isChatLoading ? (
+                        <div className="flex min-h-full items-center justify-center">
+                            <Loader2 size={24} className="animate-spin text-muted-foreground" />
                         </div>
-                        <div className="flex flex-col items-center gap-4">
+                    ) : isChatEmpty ? (
+                        <div className="flex min-h-full flex-1 flex-col">
+                            <DateDivider label={formatDateSeparator(new Date())} />
                             {isSelfChat ? (
-                                <>
+                                <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
                                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
                                         <PenLine size={24} className="text-muted-foreground" />
                                     </div>
@@ -355,150 +383,162 @@ export const ChannelRoomPage = () => {
                                         <p>{t('chat.room.emptyState.selfLine1')}</p>
                                         <p>{t('chat.room.emptyState.selfLine2')}</p>
                                     </div>
-                                </>
+                                </div>
                             ) : (
                                 channel?.ownerId === userId &&
                                 !isGuest &&
                                 isCloudActive && (
-                                    <>
-                                        <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                            <p>{t('chat.room.emptyState.line1')}</p>
-                                            <p>{t('chat.room.emptyState.line2')}</p>
+                                    <div className="flex flex-col items-start gap-6 px-4 py-2.5">
+                                        <div className="flex flex-col gap-1.5">
+                                            <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
+                                                {t('chat.room.emptyState.line1')}
+                                            </p>
+                                            <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
+                                                {t('chat.room.emptyState.line2')}
+                                            </p>
                                         </div>
                                         <button
                                             onClick={() => setInviteDialogOpen(true)}
-                                            className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-background"
+                                            className="flex h-[50px] items-center gap-1.5 rounded-full border border-input-border pl-[25px] pr-[19px] text-[16px] font-semibold text-foreground"
                                         >
-                                            <Plus size={20} />
-                                            <span className="text-[16px] font-semibold">
-                                                {t('chat.room.emptyState.inviteButton')}
-                                            </span>
+                                            {t('chat.room.emptyState.inviteButton')}
+                                            <IconChevronRight className="size-[18px]" />
                                         </button>
-                                    </>
+                                    </div>
                                 )
                             )}
                         </div>
-                    </div>
-                ) : (
-                    <>
-                        {Object.entries(groupedMessages)
-                            .sort(([a], [b]) => b.localeCompare(a))
-                            .map(([dateKey, dateMessages]) => {
-                                const reversedMessages = [...dateMessages].reverse();
+                    ) : (
+                        <>
+                            {Object.entries(groupedMessages)
+                                .sort(([a], [b]) => b.localeCompare(a))
+                                .map(([dateKey, dateMessages]) => {
+                                    const reversedMessages = [...dateMessages].reverse();
 
-                                return (
-                                    <div key={dateKey} className="flex flex-col-reverse gap-3">
-                                        {reversedMessages.map((message, index) => {
-                                            if (message.isSystem) {
-                                                // New model: system messages carry no text — render the
-                                                // localized clause from `subType` with the subject's name
-                                                // (profile nick preferred) as a bold prefix.
-                                                const suffixKey = systemMessageSuffixKey(message.subType);
-                                                if (suffixKey) {
-                                                    const systemProfile = message.ownerId
-                                                        ? profileMap.get(message.ownerId)
-                                                        : undefined;
-                                                    const systemName = systemProfile?.nick ?? message.ownerName;
+                                    return (
+                                        <div
+                                            key={dateKey}
+                                            data-date-label={formatFloatingDate(dateMessages[0].timestamp)}
+                                            className="flex flex-col-reverse gap-3"
+                                        >
+                                            {reversedMessages.map((message, index) => {
+                                                if (message.isSystem) {
+                                                    // New model: system messages carry no text — render the
+                                                    // localized clause from `subType` with the subject's name
+                                                    // (profile nick preferred) as a bold prefix.
+                                                    const suffixKey = systemMessageSuffixKey(message.subType);
+                                                    if (suffixKey) {
+                                                        const systemProfile = message.ownerId
+                                                            ? profileMap.get(message.ownerId)
+                                                            : undefined;
+                                                        const systemName = systemProfile?.nick ?? message.ownerName;
+                                                        return (
+                                                            <SystemNotice key={message.id}>
+                                                                <span className="font-semibold">{systemName}</span>
+                                                                {t(suffixKey)}
+                                                            </SystemNotice>
+                                                        );
+                                                    }
+                                                    // Legacy fallback: older rows stored the full sentence in content.
+                                                    const systemMatch = (message.content ?? '').match(
+                                                        /^(.+?)(님이.+)$/
+                                                    );
                                                     return (
                                                         <SystemNotice key={message.id}>
-                                                            <span className="font-semibold">{systemName}</span>
-                                                            {t(suffixKey)}
+                                                            {systemMatch ? (
+                                                                <>
+                                                                    <span className="font-semibold">
+                                                                        {systemMatch[1]}
+                                                                    </span>
+                                                                    {systemMatch[2]}
+                                                                </>
+                                                            ) : (
+                                                                message.content
+                                                            )}
                                                         </SystemNotice>
                                                     );
                                                 }
-                                                // Legacy fallback: older rows stored the full sentence in content.
-                                                const systemMatch = (message.content ?? '').match(/^(.+?)(님이.+)$/);
+
+                                                const chronPrevMessage = reversedMessages[index + 1];
+                                                const chronNextMessage = reversedMessages[index - 1];
+
+                                                const isSameAsPrev =
+                                                    chronPrevMessage && isSameGroup(message, chronPrevMessage);
+                                                const isSameAsNext =
+                                                    chronNextMessage && isSameGroup(message, chronNextMessage);
+
+                                                const showProfileAndName = !isSameAsPrev;
+                                                const showTimeAndStatus =
+                                                    !isSameAsNext || message.isPending || message.isFailed;
+                                                const messageActionKey =
+                                                    message.id ||
+                                                    `${message.chatNo ?? 'pending'}-${message.timestamp.getTime()}-${index}`;
+
+                                                // Site profile (nick/avatar) takes precedence over the
+                                                // user-cache name fallback computed in useChats.
+                                                const ownerProfile = message.ownerId
+                                                    ? profileMap.get(message.ownerId)
+                                                    : undefined;
+                                                const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
+                                                const ownerAvatar = ownerProfile?.thumbnail;
+
+                                                const { unreadCount } =
+                                                    message.chatNo !== undefined
+                                                        ? getReadCount(message.chatNo)
+                                                        : { unreadCount: 0 };
+
                                                 return (
-                                                    <SystemNotice key={message.id}>
-                                                        {systemMatch ? (
-                                                            <>
-                                                                <span className="font-semibold">{systemMatch[1]}</span>
-                                                                {systemMatch[2]}
-                                                            </>
-                                                        ) : (
-                                                            message.content
-                                                        )}
-                                                    </SystemNotice>
-                                                );
-                                            }
-
-                                            const chronPrevMessage = reversedMessages[index + 1];
-                                            const chronNextMessage = reversedMessages[index - 1];
-
-                                            const isSameAsPrev =
-                                                chronPrevMessage && isSameGroup(message, chronPrevMessage);
-                                            const isSameAsNext =
-                                                chronNextMessage && isSameGroup(message, chronNextMessage);
-
-                                            const showProfileAndName = !isSameAsPrev;
-                                            const showTimeAndStatus =
-                                                !isSameAsNext || message.isPending || message.isFailed;
-                                            const messageActionKey =
-                                                message.id ||
-                                                `${message.chatNo ?? 'pending'}-${message.timestamp.getTime()}-${index}`;
-
-                                            // Site profile (nick/avatar) takes precedence over the
-                                            // user-cache name fallback computed in useChats.
-                                            const ownerProfile = message.ownerId
-                                                ? profileMap.get(message.ownerId)
-                                                : undefined;
-                                            const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
-                                            const ownerAvatar = ownerProfile?.thumbnail;
-
-                                            const { readCount, unreadCount } =
-                                                message.chatNo !== undefined
-                                                    ? getReadCount(message.chatNo)
-                                                    : { readCount: 0, unreadCount: 0 };
-
-                                            return (
-                                                <ChannelMessageRow
-                                                    key={message.id}
-                                                    message={message}
-                                                    showProfileAndName={showProfileAndName}
-                                                    showTimeAndStatus={showTimeAndStatus}
-                                                    ownerDisplayName={ownerDisplayName}
-                                                    ownerAvatar={ownerAvatar}
-                                                    time={formatTime(message.timestamp)}
-                                                    read={{
-                                                        show: showReadReceipt,
-                                                        variant: readVariant,
-                                                        isReady: isJoinReady,
-                                                        readCount,
-                                                        unreadCount,
-                                                    }}
-                                                    isActionOpen={openActionMessageKey === messageActionKey}
-                                                    isCopying={isCopyingMessage}
-                                                    onActionOpenChange={open => {
-                                                        if (!open && openActionMessageKey === messageActionKey) {
-                                                            setOpenActionMessageKey(null);
+                                                    <ChannelMessageRow
+                                                        key={message.id}
+                                                        message={message}
+                                                        showProfileAndName={showProfileAndName}
+                                                        showTimeAndStatus={showTimeAndStatus}
+                                                        ownerDisplayName={ownerDisplayName}
+                                                        ownerAvatar={ownerAvatar}
+                                                        time={formatTime(message.timestamp)}
+                                                        read={{
+                                                            show: showReadReceipt,
+                                                            isReady: isJoinReady,
+                                                            unreadCount,
+                                                        }}
+                                                        isActionOpen={openActionMessageKey === messageActionKey}
+                                                        isCopying={isCopyingMessage}
+                                                        onActionOpenChange={open => {
+                                                            if (!open && openActionMessageKey === messageActionKey) {
+                                                                setOpenActionMessageKey(null);
+                                                            }
+                                                        }}
+                                                        onLongPress={() =>
+                                                            handleOpenMessageActions(message, messageActionKey)
                                                         }
-                                                    }}
-                                                    onLongPress={() =>
-                                                        handleOpenMessageActions(message, messageActionKey)
-                                                    }
-                                                    onCopy={() => void handleCopyMessage(message.content ?? '')}
-                                                    onExpand={() =>
-                                                        setExpandedMessage({
-                                                            content: message.content ?? '',
-                                                            ownerName: message.ownerName,
-                                                        })
-                                                    }
-                                                    onRetry={() => handleRetryMessage(message)}
-                                                    onDelete={() => handleDeleteMessage(message.id)}
-                                                />
-                                            );
-                                        })}
-                                        <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
-                                    </div>
-                                );
-                            })}
-                        {isLoadingMore && (
-                            <div className="flex justify-center py-3">
-                                <Loader2 size={20} className="animate-spin text-muted-foreground" />
-                            </div>
-                        )}
-                    </>
-                )}
+                                                        onCopy={() => void handleCopyMessage(message.content ?? '')}
+                                                        onExpand={() =>
+                                                            setExpandedMessage({
+                                                                content: message.content ?? '',
+                                                                ownerName: message.ownerName,
+                                                            })
+                                                        }
+                                                        onRetry={() => handleRetryMessage(message)}
+                                                        onDelete={() => handleDeleteMessage(message.id)}
+                                                    />
+                                                );
+                                            })}
+                                            <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
+                                        </div>
+                                    );
+                                })}
+                            {isLoadingMore && (
+                                <div className="flex justify-center py-3">
+                                    <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
+                    <FloatingDateChip label={floatingDate} visible={showFloatingDate && !!floatingDate} />
+                </div>
             </div>
 
             {!isGuest && isCloudActive && !isSelfChat && (
