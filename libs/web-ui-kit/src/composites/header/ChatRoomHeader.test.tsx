@@ -81,4 +81,13 @@ describe('ChatRoomHeader', () => {
             expect(container.querySelector('svg')).toBeInTheDocument();
         });
     });
+
+    describe('self kind', () => {
+        it('falls back to the self solid-silhouette glyph (viewBox 0 0 42 42) with a ring', () => {
+            const { container } = render(<ChatRoomHeader kind="self" title="나와의 채팅" />);
+
+            // The self fallback avatar uses the custom solid-person glyph, not the lucide outline.
+            expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
+        });
+    });
 });

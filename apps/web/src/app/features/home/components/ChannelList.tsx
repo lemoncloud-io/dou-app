@@ -27,6 +27,8 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
 import { resolveChannelName } from '../../../utils';
 import { useLastChat } from '../hooks/useLastChat';
+import { useMyProfile } from '../../../hooks';
+import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -38,11 +40,15 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: number }) => {
+const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unread: number; myNick?: string }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
-    const isSelf = channel.memberNo === 1;
+    // Self-chat is identified by stereo (ADR-0022), not member count.
+    const isSelf = channel.stereo === 'self';
+    // For self-chat the title is the per-user join nick, falling back to my profile
+    // nick (resolved once by the parent), then the "나와의 채팅" label.
+    const selfChatTitle = resolveSelfChatTitle(channel.$join?.nick, myNick, t('channelList.selfChannel'));
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
@@ -58,18 +64,18 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
         return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Personal room name (my join.nick) overrides the owner-set channel name; empty → i18n fallback.
-    const name =
-        resolveChannelName(channel) || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'));
+    // Self-chat: join.nick → my site-profile nick → label (ADR-0026). Other rows:
+    // personal room name (my join.nick) overrides the owner-set channel name.
+    const name = isSelf ? selfChatTitle : resolveChannelName(channel) || t('channelList.unnamedChannel');
     const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
     const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
 
-    // No channel photo → the default person avatar (기본 아바타) for both self and group
-    // rows, instead of the speech-bubble placeholder.
+    // No channel photo → the default person avatar (기본 아바타). Self-chat uses its
+    // own solid-silhouette variant (Figma "1명 Profile"); other rows use the plain one.
     const leading = channel.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt="" size={46} />
     ) : (
-        <DefaultAvatar size={46} />
+        <DefaultAvatar size={46} variant={isSelf ? 'self' : 'user'} />
     );
 
     return (
@@ -130,6 +136,10 @@ export const ChannelList = ({
     onCreateGroup,
 }: ChannelListProps) => {
     const { t } = useTranslation();
+    // My active-site profile nick — the self-chat title fallback. Resolved once here
+    // (not per row) since useMyProfile triggers a fetch.
+    const { profile: myProfile } = useMyProfile();
+    const myNick = myProfile?.nick;
 
     const createMenu = canCreate ? (
         <DropdownMenu>
@@ -172,7 +182,12 @@ export const ChannelList = ({
                 <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
             ) : (
                 channels.map(channel => (
-                    <ChannelItem key={channel.id} channel={channel} unread={unreadByChannel[channel.id] ?? 0} />
+                    <ChannelItem
+                        key={channel.id}
+                        channel={channel}
+                        unread={unreadByChannel[channel.id] ?? 0}
+                        myNick={myNick}
+                    />
                 ))
             )}
         </CollapsibleSection>

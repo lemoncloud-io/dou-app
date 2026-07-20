@@ -66,6 +66,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     Divider: () => <hr />,
     ChatAvatar: () => <div data-testid="chat-avatar" />,
+    DefaultAvatar: () => <div data-testid="default-avatar" />,
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
 }));
 
@@ -73,6 +74,9 @@ jest.mock('@chatic/web-ui-kit', () => ({
 let profileProps: any;
 jest.mock('../components/UpdateChannelDialog', () => ({
     UpdateChannelDialog: (p: any) => <div data-testid="update" data-open={String(p.open)} />,
+}));
+jest.mock('../components/SelfChatNameDialog', () => ({
+    SelfChatNameDialog: (p: any) => <div data-testid="self-name" data-open={String(p.open)} />,
 }));
 jest.mock('../components/ConfirmDialog', () => ({
     ConfirmDialog: (p: any) => (p.open ? <button onClick={p.onConfirm}>{p.confirmLabel}</button> : null),
@@ -133,6 +137,7 @@ jest.mock('../hooks', () => ({
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     useMyJoin: () => myJoinValue,
+    useSelfChatTitle: () => 'SELF_TITLE',
 }));
 
 describe('ChannelSettingsPage', () => {
@@ -156,14 +161,27 @@ describe('ChannelSettingsPage', () => {
         expect(screen.queryByText('chat.settings.deleteRoom')).not.toBeInTheDocument();
     });
 
-    it('self 채팅: 방 이름만 노출하고 설정/멤버/삭제 섹션은 숨긴다', () => {
+    it('self 채팅: 이름(파생) 행과 "방 친구"만 노출하고 대화방 설정/삭제/나가기/친구추가는 숨긴다', () => {
         channelValue = SELF_CHANNEL;
         render(<ChannelSettingsPage />);
 
-        expect(screen.getByText('나와의 채팅')).toBeInTheDocument();
+        // Title comes from the self-chat derivation (join nick → my name), not channel.name.
+        expect(screen.getByText('SELF_TITLE')).toBeInTheDocument();
+        expect(screen.getByText('chat.settings.roomMembers')).toBeInTheDocument();
+        expect(screen.getByTestId('member-me')).toBeInTheDocument();
         expect(screen.queryByText('chat.settings.roomSettingsGroup')).not.toBeInTheDocument();
+        expect(screen.queryByText('chat.settings.addFriend')).not.toBeInTheDocument();
         expect(screen.queryByText('chat.settings.deleteRoom')).not.toBeInTheDocument();
         expect(screen.queryByText('chat.settings.leaveRoom')).not.toBeInTheDocument();
+    });
+
+    it('self 채팅: 이름 행을 탭하면 SelfChatNameDialog가 열린다', () => {
+        channelValue = SELF_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'false');
+        fireEvent.click(screen.getByText('SELF_TITLE'));
+        expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'true');
     });
 
     it('방 이름을 탭하면 정보 다이얼로그가 열린다 (모드 분기는 다이얼로그 내부에서 파생)', () => {

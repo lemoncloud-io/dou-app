@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { ChatAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
+import { ChatAvatar, DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
@@ -16,6 +16,7 @@ import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
+import { SelfChatNameDialog } from '../components/SelfChatNameDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import {
     useChannel,
@@ -24,10 +25,11 @@ import {
     useChannelProfiles,
     useJoinMutations,
     useMyJoin,
+    useSelfChatTitle,
 } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | null;
+type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'selfName' | null;
 
 interface SelectedMember {
     id: string;
@@ -170,11 +172,49 @@ export const ChannelSettingsPage = () => {
 
     const isSelfChat = !!channel?.isSelfChat;
     const isOwner = !!channel?.isOwner;
+    // Self-chat name comes from the per-user join nick, not `channel.name` (ADR-0022).
+    const selfChatTitle = useSelfChatTitle(channel);
 
     const roomAvatar = channel?.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
+    ) : isSelfChat ? (
+        <DefaultAvatar size={40} variant="self" />
     ) : (
         <ChatAvatar size="sm" />
+    );
+
+    // Member rows — shared by the group section and the self-chat "방 친구" section
+    // (where the only member is me/the owner).
+    const memberList = isMembersLoading ? (
+        <div className="py-4 text-center text-sm text-muted-foreground">{t('chat.settings.loading')}</div>
+    ) : members.length > 0 ? (
+        members.map(member => {
+            const memberId = member.id ?? '';
+            // Site profile (nick/avatar) takes precedence over the user-cache name.
+            const memberProfile = memberId ? profileMap.get(memberId) : undefined;
+            const memberName = memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
+
+            const memberView = {
+                id: memberId,
+                name: memberName,
+                avatar: memberProfile?.thumbnail ?? null,
+            };
+
+            return (
+                <MemberListItem
+                    key={memberId}
+                    member={memberView}
+                    isMe={memberId === userId}
+                    isOwner={memberId === channel?.ownerId}
+                    isPendingInvite={member.$join?.joined === 0}
+                    onClick={() => openMemberProfile(memberView)}
+                />
+            );
+        })
+    ) : (
+        <div className="py-4 text-center text-sm text-muted-foreground">
+            {t('chat.settings.noMembers', 'No members')}
+        </div>
     );
 
     return (
@@ -183,15 +223,24 @@ export const ChannelSettingsPage = () => {
 
             {/* Content — scrolls when the member list grows past the viewport. */}
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
-                {/* Room name — tap opens the info dialog (editable for the owner, read-only for members). */}
+                {/* Room name — tap opens the name/info dialog. Self-chat edits the join
+                    nick (SelfChatNameDialog); groups edit channel.name (UpdateChannelDialog,
+                    read-only for non-owner members). */}
                 <ListRow
                     leading={roomAvatar}
-                    title={channel?.displayName || t('chat.settings.roomName')}
-                    trailing={isSelfChat ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
-                    onClick={isSelfChat ? undefined : () => openDialog('update')}
+                    title={isSelfChat ? selfChatTitle : channel?.displayName || t('chat.settings.roomName')}
+                    trailing={<ChevronRight className="size-5 text-muted-foreground" />}
+                    onClick={() => openDialog(isSelfChat ? 'selfName' : 'update')}
                 />
 
-                {!isSelfChat && (
+                {isSelfChat ? (
+                    /* Self-chat: only the "방 친구" section (just me/the owner). No
+                       notification, friend-add, or leave/delete. */
+                    <>
+                        <GroupLabel label={t('chat.settings.roomMembers')} />
+                        {memberList}
+                    </>
+                ) : (
                     <>
                         {/* Chat settings */}
                         <GroupLabel label={t('chat.settings.roomSettingsGroup')} />
@@ -219,40 +268,7 @@ export const ChannelSettingsPage = () => {
                                 onClick={() => channelId && navigate(ROUTES.channels.invite(channelId))}
                             />
                         )}
-                        {isMembersLoading ? (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.loading')}
-                            </div>
-                        ) : members.length > 0 ? (
-                            members.map(member => {
-                                const memberId = member.id ?? '';
-                                // Site profile (nick/avatar) takes precedence over the user-cache name.
-                                const memberProfile = memberId ? profileMap.get(memberId) : undefined;
-                                const memberName =
-                                    memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
-
-                                const memberView = {
-                                    id: memberId,
-                                    name: memberName,
-                                    avatar: memberProfile?.thumbnail ?? null,
-                                };
-
-                                return (
-                                    <MemberListItem
-                                        key={memberId}
-                                        member={memberView}
-                                        isMe={memberId === userId}
-                                        isOwner={memberId === channel?.ownerId}
-                                        isPendingInvite={member.$join?.joined === 0}
-                                        onClick={() => openMemberProfile(memberView)}
-                                    />
-                                );
-                            })
-                        ) : (
-                            <div className="py-4 text-center text-sm text-muted-foreground">
-                                {t('chat.settings.noMembers', 'No members')}
-                            </div>
-                        )}
+                        {memberList}
 
                         {/* Destructive action — owner deletes the room, members leave it. */}
                         <Divider variant="block" className="my-2" />
@@ -269,6 +285,11 @@ export const ChannelSettingsPage = () => {
             <UpdateChannelDialog
                 open={activeDialog === 'update'}
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
+                channelId={channelId}
+            />
+            <SelfChatNameDialog
+                open={activeDialog === 'selfName'}
+                onOpenChange={open => (open ? openDialog('selfName') : closeDialog())}
                 channelId={channelId}
             />
             <ConfirmDialog
