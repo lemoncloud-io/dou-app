@@ -860,6 +860,7 @@
         "close": "Close",
         "target": {
             "you": "You",
+            "group": "Group chat",
             "oneToOne": "1:1 chat",
             "roomFriends": "{{count}} members"
         },
