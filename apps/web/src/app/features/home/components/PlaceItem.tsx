@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlaceSync } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
-import { CloudAvatar, ImageAvatar, ListRow, VerifiedBadge, douLogo } from '@chatic/web-ui-kit';
+import { ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge, douLogo } from '@chatic/web-ui-kit';
 
 interface PlaceItemProps {
     place: DomainPlace;
@@ -39,17 +39,24 @@ export const PlaceItem = ({
     const displayName = isHomePlace ? t('placeList.defaultPlace') : place.name;
     const hasUnread = !!unreadCount && unreadCount > 0;
 
-    // Avatar: the DoU brand mascot for the home (relay) place, a photo when set, otherwise a
-    // name-initials avatar (matches the Figma place rows). The mascot is an irregular cloud shape
-    // on a transparent background, so we render it with object-contain (no circular crop) at 46px.
+    // Avatar: the DoU brand mascot on a brand-green disc for the home (relay) place, a photo when
+    // set, otherwise a name-initials avatar. Per Figma (2869:48261): a 42px brand-green circle with
+    // a hairline avatar-ring border. The mascot's source PNG has transparent margins, so it is scaled
+    // up inside a clipped 28px box to make its cloud fill the disc (matching the design proportions).
     const leading = isHomePlace ? (
-        <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#90c304]">
-            <img src={douLogo} alt={displayName ?? ''} className="h-8 w-8" />
+        <span className="flex size-[42px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-avatar-ring bg-main-accent">
+            <span className="relative size-7 overflow-hidden">
+                <img
+                    src={douLogo}
+                    alt={displayName ?? ''}
+                    className="absolute left-[-13.54%] top-[-10.03%] h-[120.14%] w-[127.23%] max-w-none"
+                />
+            </span>
         </span>
     ) : place.thumbnail ? (
         <ImageAvatar src={place.thumbnail} alt={displayName ?? ''} size={46} />
     ) : (
-        <CloudAvatar name={displayName ?? ''} size="lg" />
+        <PlaceAvatar name={displayName ?? ''} size="lg" />
     );
 
     // Selected place shows the blue verified check; an unselected place with unread shows a red dot.

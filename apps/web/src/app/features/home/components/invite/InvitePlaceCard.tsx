@@ -20,7 +20,7 @@ export const InvitePlaceCard = ({ name, intro, thumbnail }: InvitePlaceCardProps
         {thumbnail ? (
             <img src={thumbnail} alt="" className="size-10 shrink-0 rounded-full object-cover" />
         ) : (
-            <PlaceAvatar size="md" />
+            <PlaceAvatar name={name} size="md" />
         )}
         <div className="flex w-full flex-col items-center gap-1 text-center">
             {name && (
