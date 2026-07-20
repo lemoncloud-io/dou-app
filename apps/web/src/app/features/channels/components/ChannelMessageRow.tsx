@@ -1,8 +1,8 @@
-import { AlertCircle, Clock, Copy, Loader2, RotateCcw, User, X } from 'lucide-react';
+import { AlertCircle, Clock, Copy, Loader2, RotateCcw, X } from 'lucide-react';
 import { useRef, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
+import { DefaultAvatar, ImageAvatar, MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/ui-kit';
 import {
     DropdownMenu,
@@ -23,6 +23,8 @@ export interface MessageReadInfo {
     show: boolean;
     /** Join cursors have synced enough to trust the counts. */
     isReady: boolean;
+    /** Members who have read this message. */
+    readCount: number;
     /** Members who have not read this message yet. */
     unreadCount: number;
 }
@@ -106,23 +108,16 @@ export const ChannelMessageRow = ({
     };
 
     // Avatar slot for `other` rows — the real avatar on the first message of a
-    // group, a same-size spacer otherwise so stacked bubbles stay aligned.
+    // group, a same-size spacer otherwise so stacked bubbles stay aligned. 32px
+    // matches the Figma message-row avatar (node 3209:27250).
     const avatar = mine ? undefined : showProfileAndName ? (
         ownerAvatar ? (
-            <img
-                src={ownerAvatar}
-                alt={ownerDisplayName}
-                loading="lazy"
-                decoding="async"
-                className="size-[39px] rounded-full object-cover"
-            />
+            <ImageAvatar src={ownerAvatar} alt={ownerDisplayName} size={32} />
         ) : (
-            <span className="flex size-[39px] items-center justify-center rounded-full bg-muted">
-                <User className="size-4 text-muted-foreground" />
-            </span>
+            <DefaultAvatar size={32} />
         )
     ) : (
-        <span className="block size-[39px] shrink-0" />
+        <span className="block size-[32px] shrink-0" />
     );
 
     // Time is suppressed for pending/failed rows — the status carries the state there.
@@ -164,7 +159,12 @@ export const ChannelMessageRow = ({
             );
         } else if (read.show && message.chatNo !== undefined) {
             status = read.isReady ? (
-                <ReadReceipt unreadCount={read.unreadCount} unreadLabel={t('chat.room.unread')} />
+                <ReadReceipt
+                    readCount={read.readCount}
+                    unreadCount={read.unreadCount}
+                    readLabel={t('chat.room.read')}
+                    unreadLabel={t('chat.room.unread')}
+                />
             ) : (
                 <Loader2 size={11} className="animate-spin text-muted-foreground" />
             );

@@ -12,15 +12,19 @@ import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useAppChecker } from '@chatic/device-utils';
 import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
 import {
+    AvatarGroup,
     ChatRoomHeader,
     DateDivider,
+    DefaultAvatar,
     FloatingDateChip,
     IconChevronRight,
+    ImageAvatar,
     MessageInput,
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
     useChannel,
     useChannelMembers,
@@ -70,13 +74,16 @@ export const ChannelRoomPage = () => {
 
     // Loads member user identities (name/avatar fallback) + join read-state into the cache and
     // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.
-    const { activeMemberIds } = useChannelMembers({ channelId: stableChannelId, detail: true });
+    const { members, activeMemberIds } = useChannelMembers({ channelId: stableChannelId, detail: true });
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, activeMemberIds);
 
     const isSelfChat = channel?.isSelfChat ?? false;
+    // Group = anything that is neither the self chat nor a 1:1 DM (stereo). The header
+    // participant stack is group-only; self / 1:1 DM headers stay single-line.
+    const isGroupChat = !!channel && !isSelfChat && channel.stereo !== 'dm';
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
@@ -340,12 +347,37 @@ export const ChannelRoomPage = () => {
         />
     ) : undefined;
 
+    // Group header meta — an owner-first participant stack (max 5, resolved via
+    // the site profile then the member user cache) plus the total member count.
+    // Self / 1:1 DM headers stay single-line (no meta), so this is group-only.
+    // Built inline (plain code, not a hook) since it sits past the error return.
+    const headerMeta = !isGroupChat
+        ? undefined
+        : (() => {
+              const memberById = new Map<string, (typeof members)[number]>();
+              for (const member of members) if (member.id) memberById.set(member.id, member);
+              const ids = orderMemberIdsOwnerFirst(channel?.ownerId, activeMemberIds, 5);
+              const avatars = ids.map(id => {
+                  const profile = profileMap.get(id);
+                  const member = memberById.get(id);
+                  const thumbnail = profile?.thumbnail ?? member?.thumbnail;
+                  const name = profile?.nick ?? member?.nick ?? member?.name ?? '';
+                  return thumbnail ? (
+                      <ImageAvatar key={id} src={thumbnail} alt={name} size={20} className="ring-2 ring-surface" />
+                  ) : (
+                      <DefaultAvatar key={id} size={20} className="ring-2 ring-surface" />
+                  );
+              });
+              return <AvatarGroup avatars={avatars} count={channel?.memberCount ?? 1} max={5} />;
+          })();
+
     return (
         <div className="flex h-full flex-col bg-background">
             <ChatRoomHeader
                 kind={isSelfChat ? 'direct' : 'group'}
                 title={isSelfChat ? t('channelList.selfChannel') : channel?.displayName || t('chat.room.title')}
                 avatar={headerAvatar}
+                meta={headerMeta}
                 onBack={() => navigate(-1)}
                 moreMenu={
                     <DropdownMenuItem
@@ -480,10 +512,10 @@ export const ChannelRoomPage = () => {
                                                 const ownerDisplayName = ownerProfile?.nick ?? message.ownerName;
                                                 const ownerAvatar = ownerProfile?.thumbnail;
 
-                                                const { unreadCount } =
+                                                const { readCount, unreadCount } =
                                                     message.chatNo !== undefined
                                                         ? getReadCount(message.chatNo)
-                                                        : { unreadCount: 0 };
+                                                        : { readCount: 0, unreadCount: 0 };
 
                                                 return (
                                                     <ChannelMessageRow
@@ -497,6 +529,7 @@ export const ChannelRoomPage = () => {
                                                         read={{
                                                             show: showReadReceipt,
                                                             isReady: isJoinReady,
+                                                            readCount,
                                                             unreadCount,
                                                         }}
                                                         isActionOpen={openActionMessageKey === messageActionKey}
