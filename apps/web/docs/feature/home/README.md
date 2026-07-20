@@ -9,7 +9,7 @@
 메인 화면(`/`)이다. 활성 클라우드의 **Place 목록**과 **선택된 Place의 Channel 목록**을 보여주고,
 **Place 전환**·**클라우드 전환(CloudSessionSheet)**·**미읽음 집계**를 담당한다. 최초 실행 시
 [onboarding](../onboarding/README.md) 모달을 오버레이로 띄운다. 활성 플레이스에 프로필이 없으면
-[플레이스 프로필 생성](./place-profile-create.md) 오버레이를 감지해 띄운다(onboarding 우선).
+[플레이스 프로필](./place-profile.md) 오버레이를 감지해 띄운다(onboarding 우선).
 
 이번 개정(ADR-0013)의 목표는 **손수 만든 홈 UI를 `@chatic/web-ui-kit`로 마이그레이션**하는 것이다.
 데이터 흐름·훅·동기화 등록 모델은 그대로 두고, 헤더·Place/Chat 섹션·행·클라우드 전환 시트를 디자인
@@ -137,8 +137,7 @@ flowchart TD
 `AppHeader`의 `onProfile`을 트리거로 `@chatic/ui-kit`의 `DropdownMenu`를 홈에서 조합한다(kit 신규 컴포넌트
 아님). 헤더 상단엔 내 플레이스 프로필(닉/썸네일), 항목:
 
-- `프로필` → `navigate(isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.siteProfile)`
-  (경로 근거: [routes/paths.ts:66,69](../../../src/app/routes/paths.ts), 현행 `profileTarget` 분기와 동일).
+- `프로필` → 플레이스 프로필 수정 오버레이(`PlaceProfileEditDialog`)를 연다(클라우드 종류 무관, 라우팅 아님). 활성 플레이스(`selectedSiteId`)가 없으면 비활성. 상세는 [place-profile.md](./place-profile.md).
 - `설정` → `navigate(ROUTES.mypage.root)`(`/mypage` 설정 허브).
 - `알림` → TBD(전용 라우트 없음 — [리스크](#리스크와-미지수)).
 

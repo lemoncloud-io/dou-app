@@ -630,6 +630,23 @@
         "exitLeave": "나가기",
         "exitContinue": "계속 설정"
     },
+    "placeProfileEdit": {
+        "title": "<{{place}}>에\n적용 중인 프로필 입니다.",
+        "nameLabel": "이름",
+        "nameHint": "20글자 이내로 입력해 주세요.",
+        "namePlaceholder": "이름 입력",
+        "photoLabel": "프로필 사진",
+        "photoOptional": "[선택]",
+        "done": "완료",
+        "close": "닫기",
+        "successToast": "프로필이 수정되었습니다.",
+        "saveError": "프로필 수정에 실패했습니다.",
+        "imageSizeError": "이미지는 10MB 이하여야 합니다",
+        "exitTitle": "변경사항을 저장하지 않고 나갈까요?",
+        "exitDescription": "저장하지 않은 변경사항은 사라집니다.",
+        "exitLeave": "나가기",
+        "exitContinue": "계속 편집"
+    },
     "profileEdit": {
         "title": "프로필 수정",
         "description1": "DoU에서 사용할 이름과",
@@ -646,12 +663,7 @@
         "cloudDescription2": "사진을 설정해 주세요",
         "thumbnailLabel": "프로필 이미지",
         "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
-        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다.",
-        "tabSite": "사이트 프로필",
-        "siteDescription1": "이 사이트에서 사용할 이름과",
-        "siteDescription2": "사진을 설정해 주세요",
-        "siteSaveSuccess": "프로필이 수정되었습니다.",
-        "siteSaveError": "프로필 수정에 실패했습니다."
+        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
     },
     "mypageLogin": {
         "title": "로그인하기",

@@ -630,6 +630,23 @@
         "exitLeave": "Leave",
         "exitContinue": "Keep setting up"
     },
+    "placeProfileEdit": {
+        "title": "The profile you use in\n<{{place}}>",
+        "nameLabel": "Name",
+        "nameHint": "Please enter up to 20 characters.",
+        "namePlaceholder": "Enter a name",
+        "photoLabel": "Profile photo",
+        "photoOptional": "[Optional]",
+        "done": "Done",
+        "close": "Close",
+        "successToast": "Profile updated.",
+        "saveError": "Failed to update profile.",
+        "imageSizeError": "Image must be 10MB or less",
+        "exitTitle": "Leave without saving changes?",
+        "exitDescription": "Your unsaved changes will be lost.",
+        "exitLeave": "Leave",
+        "exitContinue": "Keep editing"
+    },
     "profileEdit": {
         "title": "Edit Profile",
         "description1": "Set your name and photo",
@@ -646,12 +663,7 @@
         "cloudDescription2": "for Cloud",
         "thumbnailLabel": "Profile Image",
         "cloudSaveSuccess": "Cloud profile updated.",
-        "cloudSaveError": "Failed to update Cloud profile.",
-        "tabSite": "Site Profile",
-        "siteDescription1": "Set your name and photo",
-        "siteDescription2": "for this site",
-        "siteSaveSuccess": "Profile updated.",
-        "siteSaveError": "Failed to update profile."
+        "cloudSaveError": "Failed to update Cloud profile."
     },
     "mypageLogin": {
         "title": "Sign In",

@@ -1,0 +1,282 @@
+import { useEffect, useRef, useState } from 'react';
+
+import { logger } from '@chatic/bridges';
+import { resizeImageToBase64 } from '@chatic/shared';
+
+import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const NAME_MAX = 20;
+const SUCCESS_CLOSE_DELAY = 1300; // keep the success toast visible briefly before closing
+
+interface Notice {
+    variant: 'positive' | 'error';
+    message: string;
+}
+
+/** Confirm-on-exit copy for the unsaved-changes guard. */
+export interface PlaceProfileExitCopy {
+    title: string;
+    description: string;
+    /** Destructive action — leaves without saving. */
+    leaveLabel: string;
+    /** Cancel action — dismisses the guard and keeps editing. */
+    continueLabel: string;
+}
+
+export interface PlaceProfileFormDialogProps {
+    /** Controls visibility (owned by the caller). */
+    open: boolean;
+    /** Screen title; supports `\n` (rendered with `whitespace-pre-line`). */
+    title: string;
+    /** Optional subtitle under the title. Omitted in the edit flow. */
+    subtitle?: string;
+    /** Initial nick — empty for create, current profile nick for edit. */
+    initialNick?: string;
+    /** Initial thumbnail (data/URL) — empty for create, current for edit. */
+    initialThumbnail?: string;
+    /** CTA label (e.g. "완료"). */
+    submitLabel: string;
+    /** Toast shown on successful save, right before the dialog closes. */
+    successToast: string;
+    /** Toast shown when the save fails. */
+    saveError: string;
+    /** Toast shown when the picked image is too large / unreadable. */
+    imageSizeError: string;
+    nameLabel: string;
+    nameHint: string;
+    namePlaceholder?: string;
+    photoLabel: string;
+    photoOptional: string;
+    /** Accessible label for the close (X) button. */
+    closeLabel: string;
+    /** Copy for the unsaved-changes exit guard. */
+    exit: PlaceProfileExitCopy;
+    /** Persists the profile; rejecting surfaces `saveError`. */
+    onSubmit: (value: { nick: string; thumbnail?: string }) => Promise<void>;
+    /** Called after a successful save (once the success toast has shown). */
+    onDone: () => void;
+    /** Called when the user leaves without saving. */
+    onExit: () => void;
+}
+
+/**
+ * Shared full-screen overlay for the per-place profile (nick + optional photo).
+ * The create and edit flows are the same screen — same layout, same
+ * `setMyProfile` save path — differing only in copy, initial values, and success
+ * handling, so both are thin wrappers (`PlaceProfileCreateDialog` /
+ * `PlaceProfileEditDialog`) around this component. Built on @chatic/web-ui-kit.
+ */
+export const PlaceProfileFormDialog = ({
+    open,
+    title,
+    subtitle,
+    initialNick = '',
+    initialThumbnail = '',
+    submitLabel,
+    successToast,
+    saveError,
+    imageSizeError,
+    nameLabel,
+    nameHint,
+    namePlaceholder,
+    photoLabel,
+    photoOptional,
+    closeLabel,
+    exit,
+    onSubmit,
+    onDone,
+    onExit,
+}: PlaceProfileFormDialogProps) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const seededRef = useRef(false);
+
+    const [name, setName] = useState(initialNick);
+    const [thumbnail, setThumbnail] = useState(initialThumbnail);
+    const [submitting, setSubmitting] = useState(false);
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [notice, setNotice] = useState<Notice | null>(null);
+
+    // Seed transient state from the initial values only on the open transition (false→true) — once per
+    // open. The edit flow's initial values come from an observed profile cache that can emit again while
+    // the dialog is open (background sync, a late first load); re-seeding on every change would clobber
+    // the user's in-progress edits, so we latch and don't re-seed until the dialog closes and reopens.
+    useEffect(() => {
+        if (open && !seededRef.current) {
+            seededRef.current = true;
+            setName(initialNick);
+            setThumbnail(initialThumbnail);
+            setSubmitting(false);
+            setAlertOpen(false);
+            setNotice(null);
+        } else if (!open) {
+            seededRef.current = false;
+        }
+    }, [open, initialNick, initialThumbnail]);
+
+    // Clear a pending close timer on unmount.
+    useEffect(() => () => clearTimeout(closeTimer.current ?? undefined), []);
+
+    const trimmed = name.trim();
+    const isOverLimit = name.length > NAME_MAX;
+    const isValidName = trimmed.length >= 1 && !isOverLimit;
+    // Dirty vs the initial values: create (empty initials) → dirty when anything is entered;
+    // edit → dirty only when the nick or photo actually changed.
+    const isDirty = name !== initialNick || thumbnail !== initialThumbnail;
+    const canSubmit = isValidName && isDirty && !submitting;
+
+    const handleImageClick = () => fileInputRef.current?.click();
+
+    const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        if (file.size > MAX_IMAGE_SIZE) {
+            setNotice({ variant: 'error', message: imageSizeError });
+            return;
+        }
+        try {
+            const base64 = await resizeImageToBase64(file, 150);
+            setThumbnail(base64);
+            setNotice(null);
+        } catch {
+            setNotice({ variant: 'error', message: imageSizeError });
+        }
+    };
+
+    // X / esc / overlay: confirm before leaving when there are unsaved changes, else exit directly.
+    const requestClose = () => {
+        if (submitting) return;
+        if (isDirty) setAlertOpen(true);
+        else onExit();
+    };
+
+    const handleSubmit = async () => {
+        if (!canSubmit) return;
+        setSubmitting(true);
+        setNotice(null);
+        try {
+            await onSubmit({ nick: trimmed, thumbnail: thumbnail || undefined });
+            // Show the success toast over the still-open screen, then close (matches Figma).
+            setNotice({ variant: 'positive', message: successToast });
+            closeTimer.current = setTimeout(onDone, SUCCESS_CLOSE_DELAY);
+        } catch (error) {
+            logger.error('PROFILE', 'Failed to save place profile', { error });
+            setNotice({ variant: 'error', message: saveError });
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={next => !next && requestClose()}>
+            <DialogContent
+                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                hideClose
+                variant="slide-up"
+            >
+                <DialogTitle className="sr-only">{title}</DialogTitle>
+                <DialogDescription className="sr-only">{subtitle ?? title}</DialogDescription>
+
+                {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
+                    screens so the layout (and the full-width CTA) never stretches. */}
+                <div className="flex h-full w-full max-w-[440px] flex-col">
+                    <ModalTopBar onClose={requestClose} closeLabel={closeLabel} />
+
+                    {/* Scrollable content: min-h-0 lets it shrink+scroll so the CTA never overlaps on short
+                    viewports. Section paddings mirror the Figma spec (title px-4, avatar px-[18px],
+                    TextField self-pads px-4). */}
+                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        {/* Title + optional subtitle */}
+                        <div className="flex flex-col gap-2 px-4 py-4 text-center">
+                            <Text
+                                as="h1"
+                                className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
+                            >
+                                {title}
+                            </Text>
+                            {subtitle && (
+                                <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                                    {subtitle}
+                                </Text>
+                            )}
+                        </div>
+
+                        {/* Avatar + name — the Figma py-40 / gap-32 block */}
+                        <div className="flex flex-col gap-8 py-10">
+                            {/* Profile photo (optional) */}
+                            <div className="flex flex-col items-center gap-4 px-[18px]">
+                                <ProfileAvatar
+                                    src={thumbnail || undefined}
+                                    onSelect={handleImageClick}
+                                    selectLabel={photoLabel}
+                                />
+                                <div className="flex flex-col items-center gap-0.5">
+                                    <Text variant="label" className="text-label">
+                                        {photoLabel}
+                                    </Text>
+                                    <Text variant="caption" className="text-placeholder">
+                                        {photoOptional}
+                                    </Text>
+                                </div>
+                            </div>
+
+                            {/* Name (required, 1–20; soft cap so the over-limit error is reachable) */}
+                            <TextField
+                                label={nameLabel}
+                                required
+                                value={name}
+                                onChange={setName}
+                                maxLength={NAME_MAX}
+                                enforceMaxLength={false}
+                                placeholder={namePlaceholder}
+                                description={nameHint}
+                                error={isOverLimit ? nameHint : undefined}
+                            />
+                        </div>
+
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
+                        />
+                    </div>
+
+                    {/* Inline notice (success / error) — rendered above the CTA like the Figma snackbar */}
+                    {notice && (
+                        <div className="pointer-events-none flex shrink-0 justify-center px-4 pb-2">
+                            <Toast variant={notice.variant}>{notice.message}</Toast>
+                        </div>
+                    )}
+
+                    <FloatingButton
+                        label={submitLabel}
+                        loading={submitting}
+                        disabled={!canSubmit}
+                        onClick={handleSubmit}
+                        wrapperClassName="shrink-0"
+                    />
+                    <div
+                        className="shrink-0 touch-none bg-background"
+                        style={{ height: 'var(--keyboard-height, 0px)' }}
+                        onTouchMove={e => e.preventDefault()}
+                    />
+                </div>
+
+                <AlertDialog
+                    open={alertOpen}
+                    onOpenChange={setAlertOpen}
+                    title={exit.title}
+                    description={exit.description}
+                    cancelLabel={exit.leaveLabel}
+                    onCancel={onExit}
+                    confirmLabel={exit.continueLabel}
+                    onConfirm={() => undefined}
+                />
+            </DialogContent>
+        </Dialog>
+    );
+};

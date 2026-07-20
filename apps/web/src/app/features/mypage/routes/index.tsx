@@ -10,7 +10,6 @@ import {
     PolicyListPage,
     PrivacyPage,
     ProfileEditPage,
-    SiteProfileEditPage,
     TermsPage,
     WithdrawalPage,
 } from '../pages';
@@ -23,7 +22,6 @@ export const MyPageRoutes = () => {
             <Route path="account-manage" element={<AccountManagePage />} />
             <Route path="edit" element={<ProfileEditPage />} />
             <Route path="cloud-profile" element={<CloudProfileEditPage />} />
-            <Route path="site-profile" element={<SiteProfileEditPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="policy" element={<PolicyListPage />} />
             <Route path="policy/terms" element={<TermsPage />} />

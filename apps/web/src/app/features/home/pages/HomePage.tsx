@@ -28,6 +28,7 @@ import {
     InviteDialog,
     PlaceList,
     PlaceProfileCreateDialog,
+    PlaceProfileEditDialog,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
@@ -59,7 +60,7 @@ export const HomePage = () => {
     const { hasInvitedClouds, invitedClouds } = useInvitedClouds();
     const isInvitedGuest = isGuest && hasInvitedClouds;
     const canSwitchCloud = !isGuest || isInvitedGuest;
-    const { selectedCloudId } = useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     // Connected to an invited cloud → drives the place-type caption.
     const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);
@@ -87,6 +88,7 @@ export const HomePage = () => {
     // Prompt to CREATE a per-place profile when the active place has none yet.
     const { shouldPrompt: needsPlaceProfile, dismiss: dismissPlaceProfile } = usePlaceProfilePrompt();
     const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
+    const [isEditOpen, setIsEditOpen] = useState(false);
     const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
     // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
@@ -127,7 +129,10 @@ export const HomePage = () => {
     // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
     // it for guests / invited users who have no editable relay profile.
     const showProfileButton = !isDefaultCloud || !isGuest;
-    const profileTarget = isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.siteProfile;
+    // The per-place profile edit dialog needs an active site (the key `useMyProfile` reads). Works on
+    // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
+    // is active, since there'd be no profile to edit.
+    const hasActivePlace = !!selectedSiteId;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
@@ -195,7 +200,11 @@ export const HomePage = () => {
                     <ProfileAvatar src={displayImageUrl} size={32} />
                     <span className="min-w-0 truncate text-sm font-semibold text-foreground">{displayName}</span>
                 </div>
-                <DropdownMenuItem onClick={() => navigate(profileTarget)} className="cursor-pointer">
+                <DropdownMenuItem
+                    disabled={!hasActivePlace}
+                    onClick={() => setIsEditOpen(true)}
+                    className="cursor-pointer"
+                >
                     {t('homePage.menuProfile', '프로필')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleNotifications} className="cursor-pointer">
@@ -268,6 +277,11 @@ export const HomePage = () => {
                     setIsPlaceProfileOpen(false);
                     dismissPlaceProfile();
                 }}
+            />
+            <PlaceProfileEditDialog
+                open={isEditOpen}
+                placeName={activePlaceName}
+                onClose={() => setIsEditOpen(false)}
             />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <SubscriptionRequiredDialog
