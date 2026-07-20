@@ -81,7 +81,13 @@
 ### 4. `친구 설정`·`신고` = UI-only 보류
 
 - **`신고`**: 현행대로 미구현 — 행은 노출, 클릭 시 toast만(백엔드 미배선).
-- **`친구 설정`**: Figma에 목적지·의미가 없고(범용 컴포넌트 잔재), 소유자 전용 배치라 "개인 별칭" 해석과 충돌한다. 이번 패스는 **행만 노출하고 동작 보류(no-op/toast)** 한다. 별칭/멤버 관리로 확정되면 별도 ADR로 다룬다.
+- **`친구 설정`**: **보류 유지**(행 노출 + comingSoon toast). 후속 논의(2026-07-20)에서 디자인이 확정됨 —
+  소유자가 친구에게 **"나에게만 표시되는" 이름**을 붙이는 화면([Figma 2970-13653](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=2970-13653&m=dev) /
+  [2970-12918](https://www.figma.com/design/ViwLfjc5Eoq7BpEXFfFj3W/DoU?node-id=2970-12918&m=dev), 방 정보 초대받은자 화면과 동일 레이아웃).
+  **블로커**: per-viewer 별칭을 담을 백엔드 필드가 없다 — `JoinModel.nick`은 그 멤버의 개인 방 이름(공유 join),
+  `profile.set(target)`은 그 멤버의 전역 프로필이라 둘 다 "나에게만"과 어긋난다. 멤버 이름 표시도 `profile.nick`에서
+  해석된다([useChannelProfiles](../../apps/web/src/app/features/channels/hooks/useChannelProfiles.ts)). 사용자 결정으로
+  **백엔드 per-viewer 별칭 저장(또는 기기 로컬 저장) 준비 후 별도 작업**으로 미룬다.
 
 ### 5. `프로필 설정` → 기존 `PlaceProfileEditDialog` 재사용
 
