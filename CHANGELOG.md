@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web/home) rebuild place & group-room creation screens on web-ui-kit
+
+## [2026-07-20] - No version updates
+
+### Features
+
 - (web/channel-settings) 그룹방 설정 화면 섹션 리스트형 개편
 
 ### Documentation
