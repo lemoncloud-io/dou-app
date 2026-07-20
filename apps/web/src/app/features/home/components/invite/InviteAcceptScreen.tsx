@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Button, IconClose, ProfileAvatar, Text, douLogo } from '@chatic/web-ui-kit';
+import { Button, IconClose, ProfileAvatar, Text, douMark } from '@chatic/web-ui-kit';
 
 import { InvitePlaceCard } from './InvitePlaceCard';
 import { InviteTargetCard } from './InviteTargetCard';
@@ -46,7 +46,7 @@ export const InviteAcceptScreen = ({
 
     const heading = inviterName ? (
         <>
-            <span className="text-[24px]">{inviterName}</span>
+            <span className="text-[24px] font-bold">{inviterName}</span>
             {t('inviteAccept.invitedBy')}
         </>
     ) : (
@@ -54,14 +54,28 @@ export const InviteAcceptScreen = ({
     );
 
     return (
-        <div className="relative flex h-full w-full max-w-[440px] flex-col bg-[linear-gradient(180deg,rgba(176,234,16,0.12),rgba(176,234,16,0.3))]">
-            {/* Brand-green wash (theme-agnostic DoU green), stronger toward the bottom like the Figma
-                background; the frosted header/cards/footer float on it. */}
+        <div className="relative flex h-full w-full max-w-[440px] flex-col overflow-hidden bg-[#eef1e8] dark:bg-[#0c0e0b]">
+            {/* Glassmorphism per Figma 3076-11341, built as three layers so the frosted surfaces read
+                as glass: (1) a blurred organic brand-green (#b0ea10) bloom on a light base, (2) a
+                full-screen "freeze" frost over it, then (3) the header/cards/footer float on top —
+                their own backdrop-blur + translucency frost the green behind into glass. */}
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-0"
+                style={{
+                    background:
+                        'radial-gradient(115% 72% at 50% 64%, rgba(176,234,16,0.60) 0%, rgba(176,234,16,0.20) 46%, rgba(176,234,16,0) 74%), radial-gradient(78% 52% at 80% 106%, rgba(176,234,16,0.55) 0%, rgba(176,234,16,0) 58%), radial-gradient(68% 44% at 10% 4%, rgba(176,234,16,0.16) 0%, rgba(176,234,16,0) 60%)',
+                }}
+            />
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-0 bg-[rgba(255,255,255,0.10)] backdrop-blur-[56px] dark:bg-[rgba(20,20,20,0.24)]"
+            />
 
-            {/* Header: brand logo (left) + close (right). The wide logo doesn't fit ModalTopBar's
-                44px slot, so this mirrors that bar's safe-area padding inline. */}
-            <header className="flex items-center justify-between bg-transparent px-4 pb-2 pt-[calc(var(--safe-top,0px)+0.5rem)]">
-                <img src={douLogo} alt="DoU" className="h-10 w-auto" />
+            {/* Header: brand character+wordmark (left) + close (right). The wide mark doesn't fit
+                ModalTopBar's 44px slot, so this mirrors that bar's safe-area padding inline. */}
+            <header className="relative z-10 flex items-center justify-between bg-transparent px-4 pb-2 pt-[calc(var(--safe-top,0px)+0.5rem)]">
+                <img src={douMark} alt="DoU" className="h-10 w-auto" />
                 <button
                     type="button"
                     onClick={onClose}
@@ -73,7 +87,7 @@ export const InviteAcceptScreen = ({
             </header>
 
             {/* Scrollable body: min-h-0 lets it shrink+scroll so the footer never overlaps. */}
-            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-2">
+            <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-2">
                 {/* Inviter + heading */}
                 <div className="flex flex-col items-center gap-2 pt-2">
                     <ProfileAvatar src={inviterImage} size={86} />
@@ -105,7 +119,7 @@ export const InviteAcceptScreen = ({
             </div>
 
             {/* Footer: decline / accept — raised frosted panel per Figma */}
-            <div className="shrink-0 rounded-t-[16px] bg-white/60 px-4 pb-4 pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)] backdrop-blur-[12px] dark:bg-white/5">
+            <div className="relative z-10 shrink-0 rounded-t-[16px] bg-white/55 px-4 pb-4 pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)] backdrop-blur-[16px] dark:bg-white/5">
                 <div className="flex gap-1.5">
                     <Button variant="outline" fullWidth size="lg" onClick={onClose} disabled={isAccepting}>
                         {t('inviteAccept.decline')}
