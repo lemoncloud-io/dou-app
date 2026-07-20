@@ -53,7 +53,7 @@
 2. **초대받은 멤버 진입** — 위와 동일하나 **친구 추가 행 없음**, 하단이 **방 나가기**(빨강).
 3. **방 이름 행 탭** — 소유자면 `UpdateChannelDialog`(이름/썸네일 편집), 멤버면 같은 다이얼로그를
    **읽기전용**으로 열어 방 정보만 표시.
-4. **알림 토글** — 초기값은 `channel.$join?.notify`에서 파생(`'none'`→꺼짐, 그 외→켜짐). 탭 시
+4. **알림 토글** — 초기값은 내 join 스트림(`useMyJoin`)의 `notify`에서 파생(`'none'`→꺼짐, 그 외→켜짐). 탭 시
    즉시 낙관적 반영 후 `updateJoin({ channelId, userId, notify: 켬?'all':'none' })` 호출. 성공 시
    서버 재싱크로 확정, 실패 시 토글 원복 + 실패 toast. 재진입·기기 간에 상태가 유지된다.
 5. **친구 추가**(소유자) — 행 탭 → 기존 `InviteFriendsDialog`.
@@ -111,7 +111,7 @@ sequenceDiagram
   participant R as JoinRepositoryV2
   participant S as 서버(join.update)
 
-  Note over P: 초기 notifyEnabled = channel.$join?.notify !== 'none'
+  Note over P: 초기 notifyEnabled = useMyJoin().notify !== 'none' (join 스트림)
   U->>P: Switch 토글
   P->>P: setNotifyEnabled(next) — 낙관적 반영
   P->>H: updateJoin({ channelId, userId, notify })
@@ -155,8 +155,8 @@ sequenceDiagram
     - 현재 [L188-221](../../src/app/features/channels/pages/ChannelSettingsPage.tsx) 액션 버튼 블록 제거.
     - 방 이름 행: `ListRow`(leading=방 아바타, title=이름, trailing=chevron, onClick=정보 Dialog).
       소유자→`update` 다이얼로그, 멤버→`update` 다이얼로그(readOnly).
-    - "대화방 설정" `GroupLabel` + 알림 `ListRow`(trailing=`Switch`). 알림 상태는 `channel.$join?.notify`
-      기반 낙관적 `useState`이며 토글 시 `useJoinMutations.updateJoin`을 호출(ADR-0024).
+    - "대화방 설정" `GroupLabel` + 알림 `ListRow`(trailing=`Switch`). 알림 상태는 `useMyJoin`(join 스트림)의
+      `notify` 기반 낙관적 `useState`이며 토글 시 `useJoinMutations.updateJoin`을 호출(ADR-0024).
       `RoomNotificationDialog`는 이 화면에서 미사용.
     - "방 친구" `GroupLabel` + (소유자만)친구 추가 `ListRow` + 멤버 목록.
     - 하단 `Divider` + `ListRow destructive`(소유자=방 삭제/`delete`, 멤버=방 나가기/`leave`).
@@ -186,12 +186,14 @@ sequenceDiagram
   변경 없음. `member.$join?.joined === 0` → pending.
 - 프로필(닉/아바타): `useChannelProfiles` — 변경 없음.
 - mutation: `useChannelMutations`(leave/delete/invite) — 변경 없음.
-- 알림 토글: 초기값은 `useChannel`이 관측하는 `channel.$join?.notify`에서 파생. 토글 시
+- 알림 토글: 초기값은 [`useMyJoin`](../../src/app/features/channels/hooks/useMyJoin.ts)이 join 캐시를
+  스트림 관측(`joinRepository.observeList`)해 내 userId 행을 골라 그 `notify`에서 파생한다. 채널 행의
+  임베디드 `$join`은 지연되는 projection이라 쓰지 않는다. 토글 시
   [`useJoinMutations.updateJoin`](../../src/app/features/channels/hooks/useJoinMutations.ts) →
   [`JoinRepositoryV2.updateJoin`](../../../../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts)이
   `channelId + userId`로 join 행을 해석하고 낙관적 캐시 write + `join.update` 소켓 호출 + 실패 롤백까지 담당.
-  `updateJoin`의 낙관적 write는 **join 캐시**에만 반영되고 채널 행의 임베디드 `$join`은 즉시 갱신하지
-  않으므로, 화면의 즉시 반영은 컴포넌트 낙관적 `useState`가 담당하고 채널 재싱크 후 `$join.notify`가 최종값이 된다.
+  `updateJoin`의 낙관적 write가 같은 join 캐시에 반영되므로 `useMyJoin` 스트림이 그 값을 다시 흘려보내
+  최종 상태가 되고, 화면의 즉시 반영은 컴포넌트 낙관적 `useState`가 담당한다.
 
 ## 검증 방법
 
@@ -201,7 +203,7 @@ sequenceDiagram
     - [ChannelSettingsPage.test.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
       소유자/멤버/self 분기(친구 추가 행 유무, 하단 삭제/나가기), 방 이름 탭 시 편집/읽기전용 다이얼로그,
       친구 추가→초대 다이얼로그, 멤버 탭→프로필, canKick 조건, kick/삭제 배선. **알림 토글(ADR-0024)**:
-      초기값이 `channel.$join?.notify`에서 파생(`'none'`→off), 토글 시
+      초기값이 `useMyJoin`(join 스트림)의 `notify`에서 파생(`'none'`→off), 토글 시
       `updateJoin({ channelId, userId, notify })` 호출 인자 검증, 실패 시 원복 + toast.
     - [UpdateChannelDialog.test.tsx](../../src/app/features/channels/components/UpdateChannelDialog.test.tsx) —
       편집/읽기전용 모드별 제목·안내 문구·완료 버튼·입력 readonly 분기.

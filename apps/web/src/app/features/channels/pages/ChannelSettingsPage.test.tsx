@@ -13,6 +13,7 @@ const toast = jest.fn();
 // Mutable hook return values, set per test.
 let channelValue: any;
 let membersValue: any;
+let myJoinValue: any;
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -91,15 +92,7 @@ jest.mock('../components/MemberListItem', () => ({
 }));
 
 const OWNER_CHANNEL = {
-    channel: {
-        isOwner: true,
-        isSelfChat: false,
-        ownerId: 'owner1',
-        name: '방',
-        displayName: '방',
-        sid: 's1',
-        $join: { userId: 'me' },
-    },
+    channel: { isOwner: true, isSelfChat: false, ownerId: 'owner1', name: '방', displayName: '방', sid: 's1' },
     isError: false,
 };
 const MEMBER_CHANNEL = {
@@ -129,6 +122,7 @@ const MEMBERS = {
 beforeEach(() => {
     jest.clearAllMocks();
     membersValue = MEMBERS;
+    myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → on
     profileProps = undefined;
 });
 
@@ -138,6 +132,7 @@ jest.mock('../hooks', () => ({
     useChannelMutations: () => ({ leaveChannel, deleteChannel, isPending: { delete: false, leave: false } }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
+    useMyJoin: () => myJoinValue,
 }));
 
 describe('ChannelSettingsPage', () => {
@@ -195,16 +190,14 @@ describe('ChannelSettingsPage', () => {
         expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite');
     });
 
-    it('알림 토글 초기값: $join.notify가 없으면 on, "none"이면 off로 파생된다', () => {
-        channelValue = OWNER_CHANNEL; // $join.notify 없음 → on
+    it('알림 토글 초기값: 내 join의 notify가 없으면 on, "none"이면 off로 파생된다', () => {
+        channelValue = OWNER_CHANNEL;
+        myJoinValue = { userId: 'me' }; // notify 없음 → on
         const { unmount } = render(<ChannelSettingsPage />);
         expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
         unmount();
 
-        channelValue = {
-            channel: { ...OWNER_CHANNEL.channel, $join: { userId: 'me', notify: 'none' } },
-            isError: false,
-        };
+        myJoinValue = { userId: 'me', notify: 'none' };
         render(<ChannelSettingsPage />);
         expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
     });

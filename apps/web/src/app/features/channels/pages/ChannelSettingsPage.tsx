@@ -17,7 +17,14 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles, useJoinMutations } from '../hooks';
+import {
+    useChannel,
+    useChannelMembers,
+    useChannelMutations,
+    useChannelProfiles,
+    useJoinMutations,
+    useMyJoin,
+} from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | null;
@@ -51,17 +58,18 @@ export const ChannelSettingsPage = () => {
     const { updateJoin } = useJoinMutations();
 
     // Chat-notification toggle backed by join.update (ADR-0024). The mute state
-    // lives on the server join (`notify`), carried inline on the channel as
-    // `$join.notify`; 'none' means muted, anything else means on. apps/web has no
-    // client-side notifier, so we trust the server value and keep a local
-    // optimistic mirror for instant feedback (the repo's optimistic write lands on
-    // the join cache, not the channel's embedded $join, so the toggle wouldn't
-    // move on its own until the channel re-syncs).
-    const serverNotify = channel?.$join?.notify;
+    // lives on my join row (`notify`), not the channel — so read it from the join
+    // cache stream, not the channel's embedded `$join` (a lagging projection).
+    // 'none' means muted, anything else means on. apps/web has no client-side
+    // notifier, so we trust the server value and keep a local optimistic mirror
+    // for instant feedback (updateJoin's optimistic write lands on the join cache
+    // too, so this reconciles from the same source).
+    const myJoin = useMyJoin(channelId ?? null);
+    const serverNotify = myJoin?.notify;
     const [notifyEnabled, setNotifyEnabled] = useState(serverNotify !== 'none');
 
-    // Reconcile with the server value once the channel's join syncs (or changes
-    // from another device). channel is null on first render, so this seeds it too.
+    // Reconcile with the join stream once it hydrates (or changes from another
+    // device). myJoin is null on first render, so this seeds it too.
     useEffect(() => {
         setNotifyEnabled(serverNotify !== 'none');
     }, [serverNotify]);
@@ -76,7 +84,7 @@ export const ChannelSettingsPage = () => {
             // the join row from channelId + userId at write time, so pass userId via a cast.
             await updateJoin({
                 channelId,
-                userId: channel?.$join?.userId ?? userId,
+                userId: myJoin?.userId ?? userId,
                 notify: next ? 'all' : 'none',
             } as never);
         } catch (error) {
