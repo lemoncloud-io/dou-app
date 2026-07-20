@@ -467,6 +467,14 @@
             "deleteRoom": "Delete Room",
             "leaveRoom": "Leave Room",
             "roomMembers": "Room Members",
+            "roomSettingsGroup": "Chat Settings",
+            "roomNotification": "Chat Notifications",
+            "addFriend": "Add Friend",
+            "badge": {
+                "owner": "Owner",
+                "mine": "MY",
+                "pending": "Invite Pending"
+            },
             "leftRoom": "Left the room",
             "leaveFailed": "Failed to leave the room",
             "deletedRoom": "Room deleted",
@@ -797,6 +805,7 @@
     },
     "updateChannel": {
         "title": "Edit Room",
+        "readOnlyTitle": "Room Info",
         "subtitle1": "Edit room",
         "subtitle2": "information",
         "nameLabel": "Room Name",

@@ -467,6 +467,14 @@
             "deleteRoom": "방 삭제",
             "leaveRoom": "방 나가기",
             "roomMembers": "방 친구",
+            "roomSettingsGroup": "대화방 설정",
+            "roomNotification": "대화방 알림",
+            "addFriend": "친구 추가",
+            "badge": {
+                "owner": "방장",
+                "mine": "MY",
+                "pending": "초대 대기 중"
+            },
             "leftRoom": "채팅방을 나갔습니다",
             "leaveFailed": "방 나가기에 실패했습니다",
             "deletedRoom": "채팅방이 삭제되었습니다",
@@ -797,6 +805,7 @@
     },
     "updateChannel": {
         "title": "방 편집",
+        "readOnlyTitle": "방 정보",
         "subtitle1": "방 정보를",
         "subtitle2": "수정해 주세요",
         "nameLabel": "방 이름",
