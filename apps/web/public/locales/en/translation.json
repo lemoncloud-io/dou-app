@@ -532,6 +532,7 @@
             },
             "kicked": "Friend removed",
             "kickFailed": "Failed to remove friend",
+            "notifyFailed": "Failed to update notification setting",
             "memberLimit": {
                 "message": "A room can have up to 100 members. 😭",
                 "confirm": "OK"

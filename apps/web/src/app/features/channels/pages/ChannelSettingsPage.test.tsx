@@ -1,17 +1,19 @@
 import '@testing-library/jest-dom';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { ChannelSettingsPage } from './ChannelSettingsPage';
 
 const leaveChannel = jest.fn().mockResolvedValue({});
 const deleteChannel = jest.fn().mockResolvedValue({});
+const updateJoin = jest.fn().mockResolvedValue({});
 const navigate = jest.fn();
 const toast = jest.fn();
 
 // Mutable hook return values, set per test.
 let channelValue: any;
 let membersValue: any;
+let myJoinValue: any;
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -120,6 +122,7 @@ const MEMBERS = {
 beforeEach(() => {
     jest.clearAllMocks();
     membersValue = MEMBERS;
+    myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → on
     profileProps = undefined;
 });
 
@@ -128,6 +131,8 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => membersValue,
     useChannelMutations: () => ({ leaveChannel, deleteChannel, isPending: { delete: false, leave: false } }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
+    useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
+    useMyJoin: () => myJoinValue,
 }));
 
 describe('ChannelSettingsPage', () => {
@@ -185,14 +190,43 @@ describe('ChannelSettingsPage', () => {
         expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite');
     });
 
-    it('대화방 알림 토글은 기본 on이며 누르면 off로 바뀐다 (UI-only)', () => {
+    it('알림 토글 초기값: 내 join의 notify가 없으면 on, "none"이면 off로 파생된다', () => {
+        channelValue = OWNER_CHANNEL;
+        myJoinValue = { userId: 'me' }; // notify 없음 → on
+        const { unmount } = render(<ChannelSettingsPage />);
+        expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+        unmount();
+
+        myJoinValue = { userId: 'me', notify: 'none' };
+        render(<ChannelSettingsPage />);
+        expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('알림 토글을 끄면 updateJoin이 notify="none"으로 호출된다', async () => {
         channelValue = OWNER_CHANNEL;
         render(<ChannelSettingsPage />);
 
-        const toggle = screen.getByRole('switch');
-        expect(toggle).toHaveAttribute('aria-checked', 'true');
-        fireEvent.click(toggle);
+        await act(async () => {
+            fireEvent.click(screen.getByRole('switch'));
+        });
+
+        expect(updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', userId: 'me', notify: 'none' });
         expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('updateJoin 실패 시 토글을 원복하고 실패 toast를 띄운다', async () => {
+        updateJoin.mockRejectedValueOnce(new Error('boom'));
+        channelValue = OWNER_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('switch'));
+        });
+
+        await waitFor(() => expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true'));
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'chat.settings.notifyFailed', variant: 'destructive' })
+        );
     });
 
     it('멤버 항목을 탭하면 프로필이 열리고, 소유자가 일반 멤버를 볼 때 canKick=true', () => {

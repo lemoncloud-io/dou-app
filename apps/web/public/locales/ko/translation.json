@@ -532,6 +532,7 @@
             },
             "kicked": "친구를 삭제했습니다",
             "kickFailed": "친구 삭제에 실패했습니다",
+            "notifyFailed": "알림 설정 변경에 실패했습니다",
             "memberLimit": {
                 "message": "방 인원은 최대 100명까지만 함께할 수 있어요. 😭",
                 "confirm": "확인"
