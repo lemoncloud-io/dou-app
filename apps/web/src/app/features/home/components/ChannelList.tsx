@@ -13,7 +13,6 @@ import {
 
 import {
     Badge,
-    ChatAvatar,
     CollapsibleSection,
     DefaultAvatar,
     IconBolt,
@@ -62,12 +61,12 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
     const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
     const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
 
+    // No channel photo → the default person avatar (기본 아바타) for both self and group
+    // rows, instead of the speech-bubble placeholder.
     const leading = channel.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt="" size={46} />
-    ) : isSelf ? (
-        <DefaultAvatar size={46} />
     ) : (
-        <ChatAvatar size="md" />
+        <DefaultAvatar size={46} />
     );
 
     return (
