@@ -58,9 +58,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 // Prop-capturing stubs so we can assert wiring without deep dialog rendering.
 let profileProps: any;
-jest.mock('../components/InviteFriendsDialog', () => ({
-    InviteFriendsDialog: (p: any) => <div data-testid="invite" data-open={String(p.open)} />,
-}));
 jest.mock('../components/UpdateChannelDialog', () => ({
     UpdateChannelDialog: (p: any) => (
         <div data-testid="update" data-open={String(p.open)} data-readonly={String(p.readOnly)} />
@@ -168,13 +165,12 @@ describe('ChannelSettingsPage', () => {
         expect(dialog).toHaveAttribute('data-readonly', 'true');
     });
 
-    it('친구 추가 행을 누르면 초대 다이얼로그가 열린다', () => {
+    it('친구 추가 행을 누르면 초대 페이지로 이동한다', () => {
         channelValue = OWNER_CHANNEL;
         render(<ChannelSettingsPage />);
 
-        expect(screen.getByTestId('invite')).toHaveAttribute('data-open', 'false');
         fireEvent.click(screen.getByText('chat.settings.addFriend'));
-        expect(screen.getByTestId('invite')).toHaveAttribute('data-open', 'true');
+        expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite');
     });
 
     it('대화방 알림 토글은 기본 on이며 누르면 off로 바뀐다 (UI-only)', () => {

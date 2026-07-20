@@ -12,14 +12,13 @@ import { toError } from '../../../utils/errors';
 
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { InviteFriendsDialog } from '../components/InviteFriendsDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'invite' | 'update' | 'delete' | 'leave' | 'profile' | null;
+type DialogType = 'update' | 'delete' | 'leave' | 'profile' | null;
 
 interface SelectedMember {
     id: string;
@@ -171,7 +170,7 @@ export const ChannelSettingsPage = () => {
                                     </span>
                                 }
                                 title={<span className="text-primary">{t('chat.settings.addFriend')}</span>}
-                                onClick={() => openDialog('invite')}
+                                onClick={() => channelId && navigate(ROUTES.channels.invite(channelId))}
                             />
                         )}
                         {isMembersLoading ? (
@@ -221,11 +220,6 @@ export const ChannelSettingsPage = () => {
             </div>
 
             {/* Dialogs */}
-            <InviteFriendsDialog
-                open={activeDialog === 'invite'}
-                onOpenChange={open => (open ? openDialog('invite') : closeDialog())}
-                channelId={channelId}
-            />
             <UpdateChannelDialog
                 open={activeDialog === 'update'}
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}

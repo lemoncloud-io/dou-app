@@ -1,8 +1,6 @@
 export { AddFriendSheet } from './AddFriendSheet';
 export { ConfirmDialog } from './ConfirmDialog';
-export { ContactListItem } from './ContactListItem';
 export { InviteCodeCard } from './InviteCodeCard';
-export { InviteFriendsDialog } from './InviteFriendsDialog';
 export { MemberListItem } from './MemberListItem';
 export { MemberProfileDialog } from './MemberProfileDialog';
 export { PermissionDeniedBanner } from './PermissionDeniedBanner';
