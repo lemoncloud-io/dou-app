@@ -101,7 +101,7 @@ export const MyPage = () => {
         : `v${versionInfo?.webVersion}`;
 
     return (
-        <div className="flex min-h-screen flex-col bg-background pb-32 pt-4 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pb-[calc(var(--safe-bottom,0px)+96px)] pt-4">
             {/* Account profile header — account-level profile (name/email/photo), not cloud/site. */}
             <div className="px-5 pb-3 pt-safe-top">
                 {isGuest ? (
