@@ -24,19 +24,18 @@ describe('ChatRoomHeader', () => {
     });
 
     describe('group kind (default)', () => {
-        it('renders only the room name, with no avatar', () => {
+        it('renders the room name with a group-glyph fallback avatar', () => {
             const { container } = render(<ChatRoomHeader kind="group" title="개발 모임방" />);
 
             expect(screen.getByText('개발 모임방')).toBeInTheDocument();
-            expect(container.querySelector('svg')).not.toBeInTheDocument();
+            // The group fallback avatar renders a glyph in the leading slot.
+            expect(container.querySelector('svg')).toBeInTheDocument();
         });
-    });
 
-    describe('meta row', () => {
-        it('renders the meta node below the title when provided', () => {
-            render(<ChatRoomHeader kind="group" title="개발 모임방" meta={<span>META</span>} />);
+        it('uses a host-supplied avatar node when provided', () => {
+            render(<ChatRoomHeader kind="group" title="개발 모임방" avatar={<span>THUMB</span>} />);
 
-            expect(screen.getByText('META')).toBeInTheDocument();
+            expect(screen.getByText('THUMB')).toBeInTheDocument();
         });
     });
 

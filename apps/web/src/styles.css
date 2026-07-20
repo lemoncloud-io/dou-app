@@ -64,7 +64,7 @@
         --dialog-subtitle: 218 4% 54%; /* #84888F */
 
         /* Chatic custom tokens */
-        --bubble-mine: 220 30% 18%;
+        --bubble-mine: 218 63% 16%; /* #102346 - my messages (matches web-ui-kit tokens.css) */
         --bubble-mine-foreground: 0 0% 100%;
         --bubble-other: 220 10% 95%;
         --bubble-other-foreground: 220 20% 10%;
@@ -133,7 +133,7 @@
         --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */
 
         /* Chatic custom tokens (dark) */
-        --bubble-mine: 220 30% 25%;
+        --bubble-mine: 218 63% 16%; /* #102346 - my messages (matches web-ui-kit tokens.css) */
         --bubble-mine-foreground: 0 0% 100%;
         --bubble-other: 0 0% 15%;
         --bubble-other-foreground: 0 0% 98%;

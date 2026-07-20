@@ -43,16 +43,10 @@ export const Mine: Story = {
     ),
 };
 
-// My message with a group read receipt as the status node.
+// My message with an unread-count receipt as the status node.
 export const MineWithReadReceipt: Story = {
     render: () => (
-        <MessageRow
-            variant="mine"
-            time="오후 12:10"
-            status={
-                <ReadReceipt variant="count" readCount={72} unreadCount={28} readLabel="읽음" unreadLabel="안읽음" />
-            }
-        >
+        <MessageRow variant="mine" time="오후 12:10" status={<ReadReceipt unreadCount={28} unreadLabel="안읽음" />}>
             <MessageBubble variant="mine">Lorem ipsum dolor sit amet</MessageBubble>
         </MessageRow>
     ),
