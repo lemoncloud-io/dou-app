@@ -1,5 +1,5 @@
 import { ChevronRight, Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
@@ -17,7 +17,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles } from '../hooks';
+import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles, useJoinMutations } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | null;
@@ -34,9 +34,6 @@ export const ChannelSettingsPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
-    // Chat-notification toggle is UI-only for now — there is no per-member notify
-    // mutation yet (see ADR-0019 / ADR-0015), so this resets on re-entry.
-    const [notifyEnabled, setNotifyEnabled] = useState(true);
 
     const { toast } = useToast();
 
@@ -51,6 +48,44 @@ export const ChannelSettingsPage = () => {
     });
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
+    const { updateJoin } = useJoinMutations();
+
+    // Chat-notification toggle backed by join.update (ADR-0024). The mute state
+    // lives on the server join (`notify`), carried inline on the channel as
+    // `$join.notify`; 'none' means muted, anything else means on. apps/web has no
+    // client-side notifier, so we trust the server value and keep a local
+    // optimistic mirror for instant feedback (the repo's optimistic write lands on
+    // the join cache, not the channel's embedded $join, so the toggle wouldn't
+    // move on its own until the channel re-syncs).
+    const serverNotify = channel?.$join?.notify;
+    const [notifyEnabled, setNotifyEnabled] = useState(serverNotify !== 'none');
+
+    // Reconcile with the server value once the channel's join syncs (or changes
+    // from another device). channel is null on first render, so this seeds it too.
+    useEffect(() => {
+        setNotifyEnabled(serverNotify !== 'none');
+    }, [serverNotify]);
+
+    const handleNotifyChange = async (next: boolean) => {
+        if (!channelId) return;
+
+        const previous = notifyEnabled;
+        setNotifyEnabled(next); // optimistic — revert on failure below
+        try {
+            // ChannelUpdateJoinInput types only channelId/notify; the engine resolves
+            // the join row from channelId + userId at write time, so pass userId via a cast.
+            await updateJoin({
+                channelId,
+                userId: channel?.$join?.userId ?? userId,
+                notify: next ? 'all' : 'none',
+            } as never);
+        } catch (error) {
+            setNotifyEnabled(previous);
+            logger.error('CHAT', 'Failed to update room notification', { error, data: { channelId } });
+            reportError(toError(error));
+            toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' });
+        }
+    };
 
     const openMemberProfile = (member: SelectedMember) => {
         setSelectedMember(member);
@@ -157,7 +192,7 @@ export const ChannelSettingsPage = () => {
                             trailing={
                                 <Switch
                                     checked={notifyEnabled}
-                                    onCheckedChange={setNotifyEnabled}
+                                    onCheckedChange={handleNotifyChange}
                                     label={t('chat.settings.roomNotification')}
                                 />
                             }
