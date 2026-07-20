@@ -38,6 +38,7 @@ import {
     useHomeChannels,
     useHomePlaces,
     useInvitedClouds,
+    useMyJoins,
     usePlaceProfilePrompt,
     useScrollRestoration,
     useSwitchPlace,
@@ -95,11 +96,12 @@ export const HomePage = () => {
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
-    // sites, not just the selected one. Unread derives from each channel's embedded `$join`/`metaNo`
-    // (kept live by the background channel sync) — no per-channel join sync here. The app-icon badge
-    // is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
+    // sites, not just the selected one. Unread derives from each channel head (`chatNo`/`metaNo`)
+    // and MY read cursor from the subscribed join list (useMyJoins), not the channel-embedded
+    // `$join`. The app-icon badge is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
     const cloudChannels = useActiveCloudChannels();
-    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels);
+    const myJoins = useMyJoins(cloudChannels);
+    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels, myJoins);
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on
     // navigation). Restore only once the list content has rendered so the offset isn't clamped
@@ -238,7 +240,7 @@ export const HomePage = () => {
             <div
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[98px] pt-2"
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(var(--safe-bottom,0px)+96px)] pt-2"
             >
                 <PlaceList
                     places={places}

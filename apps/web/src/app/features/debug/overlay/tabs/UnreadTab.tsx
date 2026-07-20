@@ -1,6 +1,6 @@
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
-import { useActiveCloudChannels, useChannelUnreads } from '../../../home/hooks';
+import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../../home/hooks';
 import { readCloudUnreadSnapshot, sumSnapshot } from '../../../home/lib';
 
 // Unread inspector: observes the active cloud's full channel list and shows the same aggregates the
@@ -8,7 +8,7 @@ import { readCloudUnreadSnapshot, sumSnapshot } from '../../../home/lib';
 // the persisted per-cloud snapshot that feeds inactive-cloud dots and the badge sum. Read-only.
 export const UnreadTab = () => {
     const channels = useActiveCloudChannels();
-    const { byChannel, byPlace, total } = useChannelUnreads(channels);
+    const { byChannel, byPlace, total } = useChannelUnreads(channels, useMyJoins(channels));
     const nameById = new Map(channels.map(ch => [ch.id, ch.name ?? ch.id]));
     const snapshot = readCloudUnreadSnapshot();
 
