@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-07-20] - No version updates
+
+### Features
+
+- (web/channels) 채널 상세 팝업 Figma 재디자인 (방 정보 2모드·멤버 프로필·개인 방 이름)
+
+### Documentation
+
+- (adr) 채널 상세 다이얼로그 ADR 번호 0022→0023 리넘버
+- (adr) 친구 설정 보류 사유·확정 디자인 기록(ADR-0022)
+- (adr) 채널 상세 다이얼로그 재디자인 기록(ADR-0022) 및 channel-settings-ui 갱신
+
 ## [2026-07-20] - root@0.43.1, @chatic/web@0.37.1
 
 ### Features
