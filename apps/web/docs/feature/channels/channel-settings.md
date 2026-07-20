@@ -1,6 +1,6 @@
 # 그룹 채널 설정 화면 (ChannelSettingsPage)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0024](../../../../../docs/adr/0024-channel-notification-mute-toggle.md) (알림 토글 데이터 연동), [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
 
 ## 목적
 
@@ -17,8 +17,12 @@
     - 소유자: `channel.isOwner` (`ownerId === myUid`) — [useChannel.ts:10-15](../../src/app/features/channels/hooks/useChannel.ts)
     - self 채팅: `channel.isSelfChat` (`stereo === 'self'`) — 기존 분기 유지
     - 초대 대기 중: `member.$join?.joined === 0`
-- **백엔드 미지원 기능은 UI-only 또는 제외로 명시**한다 — 알림 저장 뮤테이션·"초대 거절"
-  상태는 백엔드에 없다. 동작하지 않는 UI가 오해를 주지 않도록 로컬 상태/미표시로 관리한다.
+- **백엔드 미지원 기능은 UI-only 또는 제외로 명시**한다 — "초대 거절" 상태는 백엔드에 없다.
+  동작하지 않는 UI가 오해를 주지 않도록 로컬 상태/미표시로 관리한다.
+  (대화방 알림은 `chatic-sockets-api@0.26.703`부터 `join.update` notify를 지원하므로 UI-only에서 데이터 연동으로 전환됨 — ADR-0024.)
+- **채팅방별 알림 상태는 서버(`join.notify`)만 신뢰**한다 — apps/web에는 클라이언트 알림을 직접
+  렌더하는 notifier가 없고 서버 푸시에 의존하므로, 데스크톱식 로컬 pref store를 두지 않는다.
+  즉시 UI 반영은 컴포넌트 낙관적 상태로 처리하고 서버 재싱크 값으로 정정한다.
 - 라이브러리 신규/변경 컴포넌트는 stateless·slot·i18n-agnostic 라벨 props·토큰 사용 원칙과
   `*.test.tsx` + `*.stories.tsx` 동반 원칙을 지킨다.
 
@@ -29,13 +33,15 @@
 1. `ChannelSettingsPage` 본문을 섹션 리스트형으로 재구성 (방 이름 행 · "대화방 설정"/알림
    토글 · "방 친구"/친구 추가 + 멤버 목록 · 하단 방 삭제/나가기).
 2. 멤버 행 뱃지 재정비 (방장 / MY / 초대 대기 중) — `StatusBadge` 사용.
-3. 대화방 알림 = 단순 on/off 인라인 토글 (UI-only, 로컬 상태).
+3. 대화방 알림 = 단순 on/off 인라인 토글. `join.update` notify(`all`/`none`)로 서버에 영속화 (ADR-0024).
 4. 방 이름 행 탭 → 소유자=편집 다이얼로그 / 멤버=읽기전용 방 정보.
 
-**제외** (근거: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md))
+**제외** (근거: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md), [ADR-0024](../../../../../docs/adr/0024-channel-notification-mute-toggle.md))
 
 - "초대 거절" 뱃지·상태 (백엔드 미지원 — pending과 구분 불가).
-- 알림 설정의 실제 데이터 연동.
+- 알림 `notify = 'mention'` 3단계 — 모바일 토글은 켬/끔 이진(`all`/`none`)만 노출.
+- 데스크톱식 로컬 알림 pref store — apps/web엔 클라 notifier가 없어 불필요.
+- `libs/data` 변경 — `JoinRepositoryV2.updateJoin`이 이미 notify를 처리(낙관적 write + 롤백).
 - 연결 Dialog(정보 수정·프로필 상세)의 재디자인 — 기존 재사용, 멤버 읽기전용만 소규모 추가.
 - "신고하기" (Figma hidden).
 - 1:1(self) 채팅 레이아웃 — 기존 `isSelfChat` 분기 유지.
@@ -47,7 +53,9 @@
 2. **초대받은 멤버 진입** — 위와 동일하나 **친구 추가 행 없음**, 하단이 **방 나가기**(빨강).
 3. **방 이름 행 탭** — 소유자면 `UpdateChannelDialog`(이름/썸네일 편집), 멤버면 같은 다이얼로그를
    **읽기전용**으로 열어 방 정보만 표시.
-4. **알림 토글** — 탭 시 로컬 on/off 전환. 저장 백엔드가 없어 재진입 시 초기화(UI-only).
+4. **알림 토글** — 초기값은 `channel.$join?.notify`에서 파생(`'none'`→꺼짐, 그 외→켜짐). 탭 시
+   즉시 낙관적 반영 후 `updateJoin({ channelId, userId, notify: 켬?'all':'none' })` 호출. 성공 시
+   서버 재싱크로 확정, 실패 시 토글 원복 + 실패 toast. 재진입·기기 간에 상태가 유지된다.
 5. **친구 추가**(소유자) — 행 탭 → 기존 `InviteFriendsDialog`.
 6. **멤버 행 탭** — 기존 `MemberProfileDialog`(소유자면 강퇴 가능).
 7. **방 삭제/나가기** — 하단 행 탭 → `ConfirmDialog` → `deleteChannel`/`leaveChannel` → 루트 이동.
@@ -62,7 +70,7 @@ flowchart TD
   Page --> Body[scroll body]
   Body --> NameRow["ListRow: 아바타 + 방 이름 + '>'  (탭→정보 Dialog)"]
   Body --> G1[GroupLabel '대화방 설정']
-  Body --> AlarmRow["ListRow: '대화방 알림' + Switch (UI-only)"]
+  Body --> AlarmRow["ListRow: '대화방 알림' + Switch (join.update notify)"]
   Body --> G2[GroupLabel '방 친구']
   Body --> AddRow["ListRow: + '친구 추가'  (소유자만)"]
   Body --> MemberList[members.map → MemberListItem]
@@ -93,6 +101,33 @@ flowchart LR
   end
 ```
 
+### 알림 토글 흐름 (join.update notify)
+
+```mermaid
+sequenceDiagram
+  participant U as 사용자
+  participant P as ChannelSettingsPage
+  participant H as useJoinMutations.updateJoin
+  participant R as JoinRepositoryV2
+  participant S as 서버(join.update)
+
+  Note over P: 초기 notifyEnabled = channel.$join?.notify !== 'none'
+  U->>P: Switch 토글
+  P->>P: setNotifyEnabled(next) — 낙관적 반영
+  P->>H: updateJoin({ channelId, userId, notify })
+  H->>R: joinRepository.updateJoin
+  R->>R: join 캐시 낙관적 write (channelId+userId로 id 해석)
+  R->>S: join.update { id, notify }
+  alt 성공
+    S-->>R: JoinView
+    R-->>P: DomainJoin (채널 재싱크로 $join.notify 확정)
+  else 실패
+    R->>R: join 캐시 롤백
+    R-->>P: throw
+    P->>P: setNotifyEnabled(previous) — 원복 + 실패 toast
+  end
+```
+
 ## 상세 구현
 
 ### 신규/재사용 web-ui-kit 프리미티브 (대부분 이미 존재)
@@ -120,8 +155,9 @@ flowchart LR
     - 현재 [L188-221](../../src/app/features/channels/pages/ChannelSettingsPage.tsx) 액션 버튼 블록 제거.
     - 방 이름 행: `ListRow`(leading=방 아바타, title=이름, trailing=chevron, onClick=정보 Dialog).
       소유자→`update` 다이얼로그, 멤버→`update` 다이얼로그(readOnly).
-    - "대화방 설정" `GroupLabel` + 알림 `ListRow`(trailing=`Switch`). 알림 상태는 `useState`
-      (UI-only). `RoomNotificationDialog`는 이 화면에서 미사용.
+    - "대화방 설정" `GroupLabel` + 알림 `ListRow`(trailing=`Switch`). 알림 상태는 `channel.$join?.notify`
+      기반 낙관적 `useState`이며 토글 시 `useJoinMutations.updateJoin`을 호출(ADR-0024).
+      `RoomNotificationDialog`는 이 화면에서 미사용.
     - "방 친구" `GroupLabel` + (소유자만)친구 추가 `ListRow` + 멤버 목록.
     - 하단 `Divider` + `ListRow destructive`(소유자=방 삭제/`delete`, 멤버=방 나가기/`leave`).
     - 기존 다이얼로그 배선(`InviteFriendsDialog`/`UpdateChannelDialog`/`ConfirmDialog`/
@@ -140,9 +176,9 @@ flowchart LR
    숨김, 제목은 `updateChannel.readOnlyTitle`("방 정보")로, "수정해 주세요" 안내는 숨김.
    (소규모 추가; 시각 재디자인은 범위 외.)
 
-4. **i18n** — 필요한 키가 이미 있는지 확인, 없으면 추가: `chat.settings.roomSettings`(대화방 설정),
-   `chat.settings.roomMembers`(방 친구), `chat.settings.notifications`(대화방 알림),
-   `chat.settings.addFriend`(친구 추가), 뱃지 라벨(방장/초대 대기 중/MY), 방 삭제/나가기.
+4. **i18n** — 기존 키(`roomSettingsGroup`/`roomNotification`/`roomMembers`/`addFriend`/뱃지) 유지.
+   이번 개정으로 실패 toast 키 **`chat.settings.notifyFailed`**("알림 설정 변경에 실패했습니다") 신규 추가
+   (ko/en 양쪽).
 
 ### 데이터/제어 흐름
 
@@ -150,21 +186,31 @@ flowchart LR
   변경 없음. `member.$join?.joined === 0` → pending.
 - 프로필(닉/아바타): `useChannelProfiles` — 변경 없음.
 - mutation: `useChannelMutations`(leave/delete/invite) — 변경 없음.
-- 알림 토글: 컴포넌트 로컬 `useState`만. 백엔드 연동 없음.
+- 알림 토글: 초기값은 `useChannel`이 관측하는 `channel.$join?.notify`에서 파생. 토글 시
+  [`useJoinMutations.updateJoin`](../../src/app/features/channels/hooks/useJoinMutations.ts) →
+  [`JoinRepositoryV2.updateJoin`](../../../../../libs/data/src/data/repositories-v2/JoinRepositoryV2.ts)이
+  `channelId + userId`로 join 행을 해석하고 낙관적 캐시 write + `join.update` 소켓 호출 + 실패 롤백까지 담당.
+  `updateJoin`의 낙관적 write는 **join 캐시**에만 반영되고 채널 행의 임베디드 `$join`은 즉시 갱신하지
+  않으므로, 화면의 즉시 반영은 컴포넌트 낙관적 `useState`가 담당하고 채널 재싱크 후 `$join.notify`가 최종값이 된다.
 
 ## 검증 방법
 
-- **유닛 테스트**(모두 통과, `nx test web --testPathPatterns=channels` → 15 suites / 69 tests):
+- **유닛 테스트**(모두 통과, `nx test web --testPathPatterns=channels` → 18 suites / 83 tests):
     - [MemberListItem.test.tsx](../../src/app/features/channels/components/MemberListItem.test.tsx) —
       방장/MY/초대 대기 중 뱃지 렌더 및 우선순위(pending > owner > mine), avatar 분기, onClick 배선.
     - [ChannelSettingsPage.test.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
       소유자/멤버/self 분기(친구 추가 행 유무, 하단 삭제/나가기), 방 이름 탭 시 편집/읽기전용 다이얼로그,
-      친구 추가→초대 다이얼로그, 알림 토글 on→off, 멤버 탭→프로필, canKick 조건, kick/삭제 배선.
+      친구 추가→초대 다이얼로그, 멤버 탭→프로필, canKick 조건, kick/삭제 배선. **알림 토글(ADR-0024)**:
+      초기값이 `channel.$join?.notify`에서 파생(`'none'`→off), 토글 시
+      `updateJoin({ channelId, userId, notify })` 호출 인자 검증, 실패 시 원복 + toast.
     - [UpdateChannelDialog.test.tsx](../../src/app/features/channels/components/UpdateChannelDialog.test.tsx) —
       편집/읽기전용 모드별 제목·안내 문구·완료 버튼·입력 readonly 분기.
-- **타입 검증**: 편집 파일 3종 `tsc --noEmit` 오류 0건.
-- **빌드 검증**: `vite build apps/web` 성공(✓) — 실제 web-ui-kit export 해석 및 번들 정상.
-- **참고(미실행)**: 브라우저 육안 확인은 워크트리 프리뷰 제약(preview는 메인 트리 서빙, 별도 세션 서버
-  점유)으로 이 세션에서 미수행. 확인 포인트: 소유자=친구 추가 행+"방 삭제"(빨강), 멤버=행 없음+
-  "방 나가기"(빨강), 방장·MY·초대 대기 중 뱃지, 알림 토글, 방 이름 탭 편집/읽기전용.
-- **명령**: `nx test web --testPathPatterns=channels` (typecheck 거짓 실패 시 [[stale-tsbuildinfo-typecheck]]).
+- **타입 검증**: `tsc --noEmit -p apps/web/tsconfig.app.json` 에러 집합이 baseline(0.26.603, 무변경 메인
+  트리)과 **완전히 동일** — 알림 연동·`chatic-sockets-api` 0.26.603→0.26.703 버전업 모두 새 타입 에러 0건.
+  잔존 6개(`features/home` InviteDialog/PlaceProfile\*)는 버전 무관 기존 에러(범위 외).
+  (`nx typecheck web`는 워크트리 프로젝트 참조/`web-ui-kit` rootDir·svg 모듈 이슈로 거짓 실패하므로
+  app 설정 직접 검사를 신뢰한다 — [[stale-tsbuildinfo-typecheck]].)
+- **빌드 검증**: `nx build web`(vite) 성공(✓ 11.27s) — 0.26.703 해석 및 번들 정상.
+- **참고(미실행)**: 브라우저 육안 확인은 워크트리 프리뷰 제약([[preview-web-from-worktree]])으로 이 세션에서
+  미수행. 확인 포인트: 알림 토글 초기 상태(서버 notify 반영)·끄기 시 유지·실패 toast.
+- **명령**: `nx test web --testPathPatterns=channels`.
