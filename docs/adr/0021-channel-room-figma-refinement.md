@@ -1,6 +1,12 @@
 # ADR-0021: 채널 메인(채팅) 화면 Figma 디자인 개선
 
-> 상태: Accepted · 결정일: 2026-07-20
+> 상태: Accepted (일부 항목 Superseded) · 결정일: 2026-07-20
+>
+> ⚠️ [ADR-0024](0024-group-chat-room-figma-redesign.md)가 본 ADR의 두 결정을 되돌린다:
+> ① 헤더 멤버 아바타 스택/카운트 제거 → **재도입**(소유자 최좌측·최대 5·총원 수),
+> ② 읽음표시 숫자형(안읽음만) → **`읽음 N · 안읽음 M` 2요소로 재확장**.
+> 그 외 항목(빈 상태 좌측정렬, 플로팅 날짜 pill, `IconGroup`/`DefaultAvatar variant`,
+> 말풍선 `#102346`)은 유효하다.
 
 ## 맥락 (Context)
 

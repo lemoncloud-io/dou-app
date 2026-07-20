@@ -39,6 +39,21 @@ describe('ChatRoomHeader', () => {
         });
     });
 
+    describe('meta slot', () => {
+        it('renders the meta node under the title when provided (group)', () => {
+            render(<ChatRoomHeader kind="group" title="개발 모임방" meta={<span>메타 스택</span>} />);
+
+            expect(screen.getByText('개발 모임방')).toBeInTheDocument();
+            expect(screen.getByText('메타 스택')).toBeInTheDocument();
+        });
+
+        it('stays a single line (no meta rendered) when meta is omitted', () => {
+            render(<ChatRoomHeader kind="direct" title="친구 이름" />);
+
+            expect(screen.queryByText('메타 스택')).not.toBeInTheDocument();
+        });
+    });
+
     describe('moreMenu', () => {
         it('renders the ⋯ button as a dropdown trigger (not calling onMore)', () => {
             const onMore = jest.fn();

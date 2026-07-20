@@ -5,15 +5,15 @@ import { ReadReceipt } from '@chatic/web-ui-kit';
 const meta: Meta<typeof ReadReceipt> = {
     title: 'web-ui-kit/composites/ReadReceipt',
     component: ReadReceipt,
-    args: { unreadLabel: '안읽음' },
+    args: { readLabel: '읽음', unreadLabel: '안읽음' },
 };
 export default meta;
 
 type Story = StoryObj<typeof ReadReceipt>;
 
+// Group chat, one member read, many still unread.
+export const PartiallyRead: Story = { args: { readCount: 1, unreadCount: 99 } };
 // 1:1 chat, peer hasn't read yet.
-export const SingleUnread: Story = { args: { unreadCount: 1 } };
-// Group chat, several members still unread.
-export const GroupUnread: Story = { args: { unreadCount: 12 } };
-// Everyone has read — the indicator disappears.
-export const AllRead: Story = { args: { unreadCount: 0 } };
+export const SingleUnread: Story = { args: { readCount: 1, unreadCount: 1 } };
+// Everyone has read — only the read count remains, the unread segment disappears.
+export const AllRead: Story = { args: { readCount: 8, unreadCount: 0 } };
