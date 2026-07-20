@@ -4,6 +4,21 @@
 
 ### Features
 
+- (web/channels) 채팅방별 알림 끄기 (join.update notify 연동)
+
+### Documentation
+
+- (adr) 채팅방 알림 ADR 번호 0024→0025 리넘버
+- (channels) 알림 토글 데이터 연동 기록 (ADR-0024) 및 설정 문서 갱신
+
+### Refactor
+
+- (web/channels) 알림 초기값을 channel.$join 대신 join 스트림에서 읽기
+
+## [2026-07-20] - No version updates
+
+### Features
+
 - (web/channels) 그룹 채팅방 헤더 아바타 스택·총원·읽음표시 반영
 - (web-ui-kit) 채팅방 헤더 meta 슬롯·읽음/안읽음 표시 확장
 
