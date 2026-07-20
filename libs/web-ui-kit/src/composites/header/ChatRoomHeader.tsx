@@ -9,24 +9,19 @@ import { IconBack, IconMore } from '../../resources/icons';
 
 export interface ChatRoomHeaderProps {
     /**
-     * `direct` (1:1 — exactly one other participant) = leading peer avatar +
-     * name, left-aligned next to the back button.
-     * `group` (1–n participants) = room name centered, with an optional `meta`
-     * row (e.g. an AvatarGroup) below it.
+     * Selects the fallback avatar glyph when no `avatar` node is supplied:
+     * `direct` = single-person glyph (a peer / self chat), `group` = three-person
+     * glyph (a channel). Both kinds render identically otherwise — a leading
+     * avatar + left-aligned name next to the back button.
      */
     kind?: 'direct' | 'group';
     /** Room / peer title. */
     title?: string;
     /**
-     * Leading avatar node — `direct` kind only. Falls back to a default avatar
-     * glyph when the peer has no profile photo.
+     * Leading avatar node (e.g. the channel thumbnail as an `<img>`). Falls back
+     * to a default glyph — person for `direct`, group for `group` — when omitted.
      */
     avatar?: React.ReactNode;
-    /**
-     * Meta row rendered centered below the title (e.g. an `AvatarGroup` with the
-     * member count). `group` kind only; omit for `self`/`direct`.
-     */
-    meta?: React.ReactNode;
     /** Back button handler; omit to hide the button. */
     onBack?: () => void;
     /** Overflow (⋯) handler; omit to hide the button. Ignored when `moreMenu` is set. */
@@ -50,18 +45,16 @@ export interface ChatRoomHeaderProps {
 const SLOT = 'flex size-11 shrink-0 items-center justify-center';
 
 /**
- * Chat room header — the Figma chat "top bar", in two kinds:
- *  - `direct` (1:1): peer avatar + name, hugging the back button.
- *  - `group`  (1–n): room name centered, with an optional meta row (member
- *    avatars + count) below it.
- * Side slots reserve equal width so the title zone stays balanced. The overflow
+ * Chat room header — the Figma chat "top bar": a leading avatar + left-aligned
+ * room/peer name hugging the back button, with an overflow (⋯) button on the
+ * right. `kind` only chooses the fallback avatar glyph (person vs. group). Side
+ * slots reserve equal width so the title zone stays balanced. The overflow
  * button can be a plain action (`onMore`) or a dropdown trigger (`moreMenu`).
  */
 export const ChatRoomHeader = ({
     kind = 'group',
     title,
     avatar,
-    meta,
     onBack,
     onMore,
     moreMenu,
@@ -96,14 +89,9 @@ export const ChatRoomHeader = ({
                     )}
                 </div>
 
-                <div className={cn('flex min-w-0 flex-1 items-center gap-2', isDirect ? 'px-1' : 'px-2')}>
-                    {isDirect && (avatar ?? <DefaultAvatar size={42} />)}
-                    <p
-                        className={cn(
-                            'min-w-0 flex-1 truncate text-[16px] font-semibold leading-[26px] text-foreground',
-                            isDirect ? 'tracking-[-0.08px]' : 'text-center tracking-[0.08px]'
-                        )}
-                    >
+                <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
+                    {avatar ?? <DefaultAvatar size={42} variant={isDirect ? 'user' : 'group'} />}
+                    <p className="min-w-0 flex-1 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
                         {title}
                     </p>
                 </div>
@@ -119,8 +107,6 @@ export const ChatRoomHeader = ({
                     )}
                 </div>
             </div>
-
-            {meta && <div className="flex w-full items-center justify-center pt-1">{meta}</div>}
         </header>
     );
 };

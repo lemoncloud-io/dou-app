@@ -1,14 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { AvatarGroup, ChatRoomHeader } from '@chatic/web-ui-kit';
+import { ChatRoomHeader } from '@chatic/web-ui-kit';
 import { ProfileAvatar } from '@chatic/web-ui-kit';
-
-const memberDot = (color: string, mine = false) => (
-    <span
-        className={`inline-block size-6 rounded-full border ${mine ? 'border-main-accent' : 'border-surface'}`}
-        style={{ background: color }}
-    />
-);
 
 const AVATAR =
     'data:image/svg+xml;utf8,' +
@@ -36,7 +29,7 @@ export default meta;
 
 type Story = StoryObj<typeof ChatRoomHeader>;
 
-// 1:1 chat — exactly one other participant: peer avatar + name, hugging the back button.
+// 1:1 chat — peer avatar + name, hugging the back button.
 export const Direct: Story = {
     args: {
         kind: 'direct',
@@ -45,7 +38,7 @@ export const Direct: Story = {
     },
 };
 
-// 1:1 chat, peer hasn't set a profile photo yet — falls back to the default avatar glyph.
+// 1:1 chat, peer has no profile photo yet — falls back to the person glyph.
 export const DirectWithDefaultAvatar: Story = {
     args: {
         kind: 'direct',
@@ -53,27 +46,27 @@ export const DirectWithDefaultAvatar: Story = {
     },
 };
 
-// Group chat (1–n participants) — room name only, centered in the title zone.
-export const Group: Story = {
+// Group channel with a thumbnail image supplied by the host.
+export const GroupWithThumbnail: Story = {
+    args: {
+        kind: 'group',
+        title: '개발 모임방',
+        avatar: <ProfileAvatar src={AVATAR} size={42} />,
+    },
+};
+
+// Group channel with no thumbnail — falls back to the three-person group glyph.
+export const GroupWithDefaultAvatar: Story = {
     args: {
         kind: 'group',
         title: '개발 모임방',
     },
 };
 
-// Group chat with the member avatar stack + count below the title.
-export const GroupWithMembers: Story = {
-    args: {
-        kind: 'group',
-        title: '개발 모임방',
-        meta: <AvatarGroup avatars={[memberDot('#5b6b8c', true), memberDot('#8c6b5b')]} count={2} />,
-    },
-};
-
-// Self chat — title only, but the overflow button is present with a dropdown.
+// Self chat — person glyph + title, overflow button opens a dropdown.
 export const SelfWithMenu: Story = {
     args: {
-        kind: 'group',
+        kind: 'direct',
         title: '나와의 채팅',
         moreMenu: <div className="px-3 py-2 text-sm">설정</div>,
     },
