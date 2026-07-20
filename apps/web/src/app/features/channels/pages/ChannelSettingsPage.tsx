@@ -10,6 +10,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
+import { useActivePlaceName } from '../../../hooks';
+import { PlaceProfileEditDialog } from '../../home/components';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -18,7 +20,7 @@ import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import { useChannel, useChannelMembers, useChannelMutations, useChannelProfiles } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'update' | 'delete' | 'leave' | 'profile' | null;
+type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | null;
 
 interface SelectedMember {
     id: string;
@@ -41,6 +43,7 @@ export const ChannelSettingsPage = () => {
     const { userId } = useSessionIdentity();
 
     const { channel, isError } = useChannel(channelId ?? null);
+    const activePlaceName = useActivePlaceName();
 
     const { members, isLoading: isMembersLoading } = useChannelMembers({
         channelId: channelId || '',
@@ -140,7 +143,7 @@ export const ChannelSettingsPage = () => {
                 {/* Room name — tap opens the info dialog (editable for the owner, read-only for members). */}
                 <ListRow
                     leading={roomAvatar}
-                    title={channel?.name || t('chat.settings.roomName')}
+                    title={channel?.displayName || t('chat.settings.roomName')}
                     trailing={isSelfChat ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
                     onClick={isSelfChat ? undefined : () => openDialog('update')}
                 />
@@ -224,7 +227,6 @@ export const ChannelSettingsPage = () => {
                 open={activeDialog === 'update'}
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
                 channelId={channelId}
-                readOnly={!isOwner}
             />
             <ConfirmDialog
                 open={activeDialog === 'delete'}
@@ -251,6 +253,7 @@ export const ChannelSettingsPage = () => {
                 onOpenChange={open => (open ? openDialog('profile') : closeDialog())}
                 member={selectedMember}
                 memberIsOwner={!!selectedMember && selectedMember.id === channel?.ownerId}
+                isSelf={!!selectedMember && selectedMember.id === userId}
                 canKick={
                     isOwner &&
                     !!selectedMember &&
@@ -259,6 +262,12 @@ export const ChannelSettingsPage = () => {
                 }
                 onKick={handleKickMember}
                 isKicking={isPending.leave}
+                onOpenProfileSettings={() => openDialog('profileSettings')}
+            />
+            <PlaceProfileEditDialog
+                open={activeDialog === 'profileSettings'}
+                placeName={activePlaceName}
+                onClose={closeDialog}
             />
         </div>
     );

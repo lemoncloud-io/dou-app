@@ -518,6 +518,12 @@
             "friendInfo": {
                 "title": "친구 정보"
             },
+            "profileHeader": "프로필",
+            "close": "닫기",
+            "profileSettings": "프로필 설정",
+            "friendSettings": "친구 설정",
+            "removeMember": "내보내기",
+            "comingSoon": "준비 중인 기능이에요",
             "deleteFriend": "친구 삭제",
             "kickDialog": {
                 "title": "친구를 삭제하시겠습니까?",
@@ -823,15 +829,15 @@
         "copy": "복사"
     },
     "updateChannel": {
-        "title": "방 편집",
         "readOnlyTitle": "방 정보",
-        "subtitle1": "방 정보를",
-        "subtitle2": "수정해 주세요",
-        "nameLabel": "방 이름",
+        "heading": "방 이름을 설정할 수 있어요",
+        "invitedSubtitle": "설정한 방 이름은 나에게만 표시됩니다.",
+        "nameFieldLabel": "이름",
         "namePlaceholder": "예: UIUX 스터디 방",
-        "nameRequired": "방 이름을 입력해주세요",
-        "nameMinLength": "최소 2자 이상 입력해주세요",
-        "nameMaxLength": "최대 20자까지 입력 가능합니다",
+        "invitedNamePlaceholder": "소유자가 설정한 방 이름으로 노출",
+        "nameHint": "20글자 이내로 입력해 주세요.",
+        "selectPhoto": "사진 선택",
+        "close": "닫기",
         "updating": "업데이트 중...",
         "done": "완료",
         "success": "채널 정보가 업데이트되었습니다",

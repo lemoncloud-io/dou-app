@@ -25,6 +25,7 @@ import {
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
+import { resolveChannelName } from '../../../utils';
 import { useLastChat } from '../hooks/useLastChat';
 
 const ChannelSkeleton = () => (
@@ -57,7 +58,9 @@ const ChannelItem = ({ channel, unread }: { channel: DomainChannel; unread: numb
         return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
-    const name = channel.name || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'));
+    // Personal room name (my join.nick) overrides the owner-set channel name; empty → i18n fallback.
+    const name =
+        resolveChannelName(channel) || (isSelf ? t('channelList.selfChannel') : t('channelList.unnamedChannel'));
     const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
     const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
 

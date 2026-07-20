@@ -344,7 +344,7 @@ export const ChannelRoomPage = () => {
         <div className="flex h-full flex-col bg-background">
             <ChatRoomHeader
                 kind={isSelfChat ? 'direct' : 'group'}
-                title={isSelfChat ? t('channelList.selfChannel') : channel?.name || t('chat.room.title')}
+                title={isSelfChat ? t('channelList.selfChannel') : channel?.displayName || t('chat.room.title')}
                 avatar={headerAvatar}
                 onBack={() => navigate(-1)}
                 moreMenu={

@@ -518,6 +518,12 @@
             "friendInfo": {
                 "title": "Friend Info"
             },
+            "profileHeader": "Profile",
+            "close": "Close",
+            "profileSettings": "Profile settings",
+            "friendSettings": "Friend settings",
+            "removeMember": "Remove",
+            "comingSoon": "This feature is coming soon",
             "deleteFriend": "Remove friend",
             "kickDialog": {
                 "title": "Remove this friend?",
@@ -823,15 +829,15 @@
         "copy": "Copy"
     },
     "updateChannel": {
-        "title": "Edit Room",
         "readOnlyTitle": "Room Info",
-        "subtitle1": "Edit room",
-        "subtitle2": "information",
-        "nameLabel": "Room Name",
+        "heading": "You can set the room name",
+        "invitedSubtitle": "The room name you set is shown only to you.",
+        "nameFieldLabel": "Name",
         "namePlaceholder": "e.g., UIUX Study Room",
-        "nameRequired": "Please enter a room name",
-        "nameMinLength": "Please enter at least 2 characters",
-        "nameMaxLength": "Maximum 20 characters allowed",
+        "invitedNamePlaceholder": "Shown as the owner-set room name",
+        "nameHint": "Please enter up to 20 characters.",
+        "selectPhoto": "Select photo",
+        "close": "Close",
         "updating": "Updating...",
         "done": "Done",
         "success": "Channel updated successfully",

@@ -4,6 +4,7 @@ import { useChannelSync, useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
+import { resolveChannelName } from '../../../utils';
 import type { ClientChannelView } from '../types';
 
 /** Map a cached channel into the UI view-model with derived membership flags. */
@@ -12,6 +13,8 @@ const toClientChannel = (channel: DomainChannel, myUid: string): ClientChannelVi
     isOwner: !!channel.ownerId && channel.ownerId === myUid,
     isSelfChat: channel.stereo === 'self',
     memberCount: channel.memberIds?.length ?? channel.memberNo ?? 0,
+    // Room name shown to me: my personal join.nick overrides the owner-set name.
+    displayName: resolveChannelName(channel),
 });
 
 /**
