@@ -22,6 +22,15 @@ describe('AvatarGroup', () => {
         expect(screen.getByText('22')).toBeTruthy();
     });
 
+    it('shows up to five avatars for the group header (owner + four peers)', () => {
+        const avatars = ['a', 'b', 'c', 'd', 'e', 'f'].map(avatar);
+        render(<AvatarGroup avatars={avatars} count={50} max={5} />);
+
+        expect(screen.getByTestId('e')).toBeTruthy();
+        expect(screen.queryByTestId('f')).toBeNull();
+        expect(screen.getByText('50')).toBeTruthy();
+    });
+
     it('renders just the count when there are no avatars (group with only me)', () => {
         const { container } = render(<AvatarGroup avatars={[]} count={1} />);
 

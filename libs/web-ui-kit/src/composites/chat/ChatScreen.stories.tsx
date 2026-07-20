@@ -57,7 +57,7 @@ export const GroupMany: Story = {
                     <MessageRow
                         variant="mine"
                         time="오후 12:10"
-                        status={<ReadReceipt unreadCount={28} unreadLabel="안읽음" />}
+                        status={<ReadReceipt readCount={1} unreadCount={28} readLabel="읽음" unreadLabel="안읽음" />}
                     >
                         <MessageBubble variant="mine">Lorem ipsum dolor sit amet</MessageBubble>
                     </MessageRow>
@@ -101,7 +101,7 @@ export const DirectUnread: Story = {
                 <MessageRow
                     variant="mine"
                     time="오후 12:10"
-                    status={<ReadReceipt unreadCount={1} unreadLabel="안읽음" />}
+                    status={<ReadReceipt readCount={1} unreadCount={1} readLabel="읽음" unreadLabel="안읽음" />}
                 >
                     <MessageBubble variant="mine">Lorem ipsum dolor sit amet</MessageBubble>
                 </MessageRow>

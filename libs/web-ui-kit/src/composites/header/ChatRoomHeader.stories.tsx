@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { ChatRoomHeader } from '@chatic/web-ui-kit';
+import { AvatarGroup, ChatRoomHeader, ImageAvatar } from '@chatic/web-ui-kit';
 import { ProfileAvatar } from '@chatic/web-ui-kit';
 
 const AVATAR =
@@ -60,6 +60,18 @@ export const GroupWithDefaultAvatar: Story = {
     args: {
         kind: 'group',
         title: '개발 모임방',
+    },
+};
+
+// Group channel with the participant meta row — owner-first avatar stack + total
+// member count under the title (Figma group top bar).
+const stackAvatar = (key: string) => <ImageAvatar key={key} src={AVATAR} size={20} className="ring-2 ring-surface" />;
+export const GroupWithMemberStack: Story = {
+    args: {
+        kind: 'group',
+        title: '<그룹방 이름>',
+        avatar: <ProfileAvatar src={AVATAR} size={42} />,
+        meta: <AvatarGroup avatars={['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(stackAvatar)} count={50} max={5} />,
     },
 };
 

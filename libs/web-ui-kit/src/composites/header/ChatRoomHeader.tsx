@@ -22,6 +22,12 @@ export interface ChatRoomHeaderProps {
      * to a default glyph — person for `direct`, group for `group` — when omitted.
      */
     avatar?: React.ReactNode;
+    /**
+     * Optional secondary row rendered under the title (e.g. a group participant
+     * stack + member count). When omitted the header stays a single line, so
+     * direct / self chats are unaffected. (Figma group top bar, node 3209:27063.)
+     */
+    meta?: React.ReactNode;
     /** Back button handler; omit to hide the button. */
     onBack?: () => void;
     /** Overflow (⋯) handler; omit to hide the button. Ignored when `moreMenu` is set. */
@@ -55,6 +61,7 @@ export const ChatRoomHeader = ({
     kind = 'group',
     title,
     avatar,
+    meta,
     onBack,
     onMore,
     moreMenu,
@@ -91,9 +98,12 @@ export const ChatRoomHeader = ({
 
                 <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
                     {avatar ?? <DefaultAvatar size={42} variant={isDirect ? 'user' : 'group'} />}
-                    <p className="min-w-0 flex-1 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
-                        {title}
-                    </p>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                        <p className="min-w-0 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
+                            {title}
+                        </p>
+                        {meta && <div className="min-w-0">{meta}</div>}
+                    </div>
                 </div>
 
                 <div className={SLOT}>
