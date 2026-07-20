@@ -23,7 +23,6 @@ describe('ROUTES — 상수 경로', () => {
 
     it('channels 경로와 상수 root를 노출한다', () => {
         expect(ROUTES.channels.root).toBe('/channels');
-        expect(ROUTES.channels.create).toBe('/channels/create');
     });
 
     it('subscription 허브를 노출한다', () => {

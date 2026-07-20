@@ -18,5 +18,6 @@ export default meta;
 type Story = StoryObj<typeof ProfileAvatar>;
 
 export const Placeholder: Story = {};
+export const GroupPlaceholder: Story = { args: { glyph: 'group' } };
 export const WithImage: Story = { args: { src: AVATAR } };
 export const ReadOnly: Story = { args: { src: AVATAR, onSelect: undefined } };

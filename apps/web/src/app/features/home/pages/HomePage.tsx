@@ -18,6 +18,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
+import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils/consts';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
@@ -60,10 +61,13 @@ export const HomePage = () => {
     const canSwitchCloud = !isGuest || isInvitedGuest;
     const { selectedCloudId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
-    // Connected to an invited cloud → drives the place-type caption; place creation is owner-only
-    // (hidden on relay and for invited users), gated by the runtime permission.
+    // Connected to an invited cloud → drives the place-type caption.
     const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);
-    const canAddPlace = !isDefaultCloud && permissions.canCreatePlace;
+    // Place/group-room creation is owner-only and cloud-server-only. A cloud I own is one that is
+    // neither the relay (default) nor invited — cloudType is only ever 'invited' | 'owner'. This is
+    // UX gating; the server is the final authority. See place-channel-create.md.
+    const isCloudOwner = !isDefaultCloud && !isInvitedCloud;
+    const canAddPlace = isCloudOwner && permissions.canCreatePlace;
 
     // Cloud identity for the `cloud` header kind. CloudView has no image field, so AppHeader falls
     // back to a CloudAvatar (name initials) — we only supply the display name here.
@@ -84,6 +88,8 @@ export const HomePage = () => {
     const { shouldPrompt: needsPlaceProfile, dismiss: dismissPlaceProfile } = usePlaceProfilePrompt();
     const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
     const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
+    // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
+    const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
@@ -137,20 +143,26 @@ export const HomePage = () => {
         if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
     }, [needsPlaceProfile, isFirstRun]);
 
-    const handleComplete = () => {
-        toast({ title: t('homePage.roomCreated') });
-    };
-
     const handleCreatePlace = () => {
-        if (!permissions.canCreatePlace) {
+        if (!canAddPlace) {
             toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
+            return;
+        }
+        // Places are capped per owned cloud; the "+" stays visible and the attempt is toasted.
+        if (ownedPlaceCount >= MAX_PLACES) {
+            toast({ title: t('homePage.placeLimitReached') });
             return;
         }
         setIsPlaceDialogOpen(true);
     };
 
-    // Group-room creation is PRO-gated: subscribed → the create dialog, otherwise the upsell.
+    // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
+    // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners).
     const handleCreateGroup = () => {
+        if (channels.length >= MAX_CHANNELS_PER_PLACE) {
+            toast({ title: t('homePage.channelLimitReached') });
+            return;
+        }
         if (planTier === 'pro') {
             setIsDialogOpen(true);
         } else {
@@ -237,7 +249,7 @@ export const HomePage = () => {
                         channels={channels}
                         unreadByChannel={unreadByChannel}
                         isLoading={isChannelsLoading}
-                        canCreate={!isChannelsLoading && permissions.canCreateChannel}
+                        canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
                         isPro={planTier === 'pro'}
                         onCreateOneOnOne={handleCreateOneOnOne}
@@ -246,7 +258,7 @@ export const HomePage = () => {
                 ) : null}
             </div>
 
-            <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onComplete={handleComplete} />
+            <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <PlaceProfileCreateDialog
                 open={isPlaceProfileOpen}

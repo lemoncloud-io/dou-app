@@ -32,4 +32,18 @@ describe('ProfileAvatar', () => {
 
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
+
+    it('renders the single-person glyph by default', () => {
+        const { container } = render(<ProfileAvatar />);
+
+        expect(container.querySelector('.lucide-user')).toBeInTheDocument();
+        expect(container.querySelector('.lucide-users')).not.toBeInTheDocument();
+    });
+
+    it('renders the group glyph when glyph="group"', () => {
+        const { container } = render(<ProfileAvatar glyph="group" />);
+
+        expect(container.querySelector('.lucide-users')).toBeInTheDocument();
+        expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
+    });
 });
