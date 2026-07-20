@@ -109,17 +109,20 @@ export const HomePage = () => {
     const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelsLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
 
-    // Header profile is resolved by tier (site → user account → setup prompt). The site profile
-    // (V2 per-site nick/thumbnail) only applies off the default cloud; an edit-screen save reflects
-    // immediately via the observed cache. `identity.userName` is intentionally excluded — it defaults
-    // to 'Unknown', which would mask the empty-account state that should show the setup prompt.
+    // Header profile is resolved by tier. Off the default cloud the site (place) profile is the
+    // identity: when it's missing we fall through to the setup prompt — NOT the account profile — so
+    // the user is nudged to set up their place profile. On the default cloud (relay), which has no
+    // per-place identity, the account profile is the intended display, so it's passed only there.
+    // The site profile (V2 per-site nick/thumbnail) reflects an edit-screen save immediately via the
+    // observed cache. `identity.userName` is intentionally excluded — it defaults to 'Unknown', which
+    // would mask the empty state that should show the setup prompt.
     const { profile: myProfile } = useMyProfile();
     const myUser = useMyUser();
     const headerProfile = resolveHeaderProfile({
         siteName: !isDefaultCloud ? myProfile?.nick : undefined,
         siteImageUrl: !isDefaultCloud ? myProfile?.thumbnail : undefined,
-        accountName: myUser?.name,
-        accountImageUrl: myUser?.photo,
+        accountName: isDefaultCloud ? myUser?.name : undefined,
+        accountImageUrl: isDefaultCloud ? myUser?.photo : undefined,
     });
     const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
     // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When the
@@ -274,6 +277,8 @@ export const HomePage = () => {
             <PlaceProfileCreateDialog
                 open={isPlaceProfileOpen}
                 placeName={activePlaceName}
+                // On the relay/default place the first-time profile setup is mandatory — no cancel.
+                dismissible={!isDefaultCloud}
                 onDone={() => setIsPlaceProfileOpen(false)}
                 onExit={() => {
                     setIsPlaceProfileOpen(false);
