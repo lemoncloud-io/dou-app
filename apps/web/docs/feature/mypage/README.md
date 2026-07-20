@@ -12,16 +12,15 @@
 
 ## 화면
 
-| 페이지                                       | 경로(`ROUTES.mypage.*`)  | 설명                                                                   |
-| -------------------------------------------- | ------------------------ | ---------------------------------------------------------------------- |
-| `MyPage`                                     | `/mypage`                | 허브 — 프로필 + 카드형 설정 메뉴(아래 [허브 재설계](#허브-재설계))     |
-| `AccountInfoPage`                            | `/mypage/account`        | 계정 정보                                                              |
-| `AccountManagePage`                          | `/mypage/account-manage` | 계정 관리(클라우드 세션)                                               |
-| `ProfileEditPage`                            | `/mypage/edit`           | 기본 클라우드(relay) 프로필 편집                                       |
-| `CloudProfileEditPage`                       | `/mypage/cloud-profile`  | 클라우드 프로필(이름) 편집                                             |
-| `SiteProfileEditPage`                        | `/mypage/site-profile`   | 사이트 프로필(닉·썸네일) 편집 (→ [site-profile.md](./site-profile.md)) |
-| `WithdrawalPage`                             | `/mypage/withdrawal`     | 회원 탈퇴                                                              |
-| `TermsPage` / `PrivacyPage` / `LicensesPage` | `/mypage/policy/*`       | 약관·개인정보·라이선스                                                 |
+| 페이지                                       | 경로(`ROUTES.mypage.*`)  | 설명                                                               |
+| -------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
+| `MyPage`                                     | `/mypage`                | 허브 — 프로필 + 카드형 설정 메뉴(아래 [허브 재설계](#허브-재설계)) |
+| `AccountInfoPage`                            | `/mypage/account`        | 계정 정보                                                          |
+| `AccountManagePage`                          | `/mypage/account-manage` | 계정 관리(클라우드 세션)                                           |
+| `ProfileEditPage`                            | `/mypage/edit`           | 기본 클라우드(relay) 프로필 편집                                   |
+| `CloudProfileEditPage`                       | `/mypage/cloud-profile`  | 클라우드 프로필(이름) 편집                                         |
+| `WithdrawalPage`                             | `/mypage/withdrawal`     | 회원 탈퇴                                                          |
+| `TermsPage` / `PrivacyPage` / `LicensesPage` | `/mypage/policy/*`       | 약관·개인정보·라이선스                                             |
 
 ## 허브 재설계
 
@@ -94,13 +93,12 @@ features/mypage/
 
 mypage는 세 가지 프로필 편집 진입점을 가진다 — 구분 주의:
 
-| 진입점                 | 대상                           | API                                |
-| ---------------------- | ------------------------------ | ---------------------------------- |
-| `ProfileEditPage`      | 기본 클라우드(relay) 프로필    | `useUpdateProfile`                 |
-| `CloudProfileEditPage` | 클라우드 이름                  | `useUpdateCloud`                   |
-| `SiteProfileEditPage`  | 사이트 내 내 프로필(닉·썸네일) | `ProfileRepositoryV2.setMyProfile` |
+| 진입점                 | 대상                        | API                |
+| ---------------------- | --------------------------- | ------------------ |
+| `ProfileEditPage`      | 기본 클라우드(relay) 프로필 | `useUpdateProfile` |
+| `CloudProfileEditPage` | 클라우드 이름               | `useUpdateCloud`   |
 
-허브 상단 프로필(아바타·이름·이메일)은 **계정 프로필**(`useMyUser`)이며, 탭 시 기본 클라우드면 `account.edit`, 아니면 `account.cloudProfile`로 이동한다. 사이트 프로필은 홈 헤더에서만 진입하며 상세는 [site-profile.md](./site-profile.md).
+허브 상단 프로필(아바타·이름·이메일)은 **계정 프로필**(`useMyUser`)이며, 탭 시 기본 클라우드면 `account.edit`, 아니면 `account.cloudProfile`로 이동한다. 플레이스(사이트) 내 내 프로필(닉·썸네일)은 홈 헤더 드롭다운에서 `PlaceProfileEditDialog` 오버레이로 편집하며 상세는 [home/place-profile.md](../home/place-profile.md).
 
 ## 디버그 언락
 

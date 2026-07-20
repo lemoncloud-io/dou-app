@@ -36,7 +36,7 @@
 ## 시나리오
 
 1. **정상 초대 진입** — 초대 딥링크로 홈 진입. `isInviteEntry`가 참이고 온보딩이 아니면 풀스크린 수락 화면. `useInviteInfo`가 초대자·플레이스 메타를 채우고, 없는 필드(소개/썸네일/멤버수)는 접힌다. `expiredAt`이 있으면 유효기간 카드에 카운트다운(임박 시 빨강).
-2. **수락** — `수락` 탭 → `useInviteAccept.accept()`가 로그인→cloud→site→channel 입장 파이프라인 실행. 성공하면 URL query가 정리되며 팝업이 닫히고, 초대받은 플레이스에 내 프로필이 없으면 **플레이스 프로필 생성 오버레이가 후행**([place-profile-create.md](./place-profile-create.md) 시나리오 2).
+2. **수락** — `수락` 탭 → `useInviteAccept.accept()`가 로그인→cloud→site→channel 입장 파이프라인 실행. 성공하면 URL query가 정리되며 팝업이 닫히고, 초대받은 플레이스에 내 프로필이 없으면 **플레이스 프로필 생성 오버레이가 후행**([place-profile.md](./place-profile.md) 생성 시나리오).
 3. **거절** — `거절` 탭 → 홈으로 이동하며 query 제거(팝업 재등장 불가). 별도 서버 호출 없음.
 4. **만료 초대** — 링크가 만료됐으면 만료 `AlertDialog`("초대 링크가 만료되었어요"). `확인` → 홈.
 5. **이미 참여 / 채팅방 삭제 / 초대 취소** — 각 사유별 `AlertDialog`. `확인` → 홈. (구분 가능한 사유만 정확 매핑, 나머지는 generic 폴백.)
@@ -165,4 +165,4 @@ InviteDialog 내 `resolveDialogVariant(errorKey)`가 `useInviteAccept`의 `error
     - `apps/web/src/app/features/home/components/InviteDialog.test.tsx`(9): 비-초대/`suppressed`면 렌더 안 함, 수락 화면(초대자/플레이스/You/거절·수락), 수락→`accept` 호출, 거절→홈, 만료 errorKey→만료 다이얼로그, 미구분 errorKey→generic, `missingDelegator`→로그아웃, degrade(소개/썸네일 없이 이름만).
     - 회귀: `PlaceProfileCreateDialog.test.tsx`(AlertDialog 유일 소비자) 통과 — kit 변경 하위호환 확인.
 - **정적 검사**: `nx build web`(전체 그래프 번들) 통과, web-ui-kit `tsc --build tsconfig.lib.json` 통과, `nx lint web`/`nx lint web-ui-kit` 0 errors. (이 워크트리는 `node_modules`가 불완전(`@nx/react` 미설치)해 `nx typecheck`가 `@nx/react/typings`에서 거짓 실패 — 코드 문제가 아니라 설치 문제이므로 빌드로 갈음. [README](./README.md) 주의 참고.)
-- **수동 확인(QA)**: 실제 확인은 로그인 세션 + 유효한 초대 딥링크(`?provider=invite&code=…&_backend=…`)가 필요해 로컬 프리뷰 재현이 제한적이다([place-profile-create.md](./place-profile-create.md)와 동일 제약). 배포 QA에서 7개 Figma 상태(수락 기본/유효기간/그룹, 만료/이미참여/삭제/취소 다이얼로그, 온보딩 중 억제) 대조 권장.
+- **수동 확인(QA)**: 실제 확인은 로그인 세션 + 유효한 초대 딥링크(`?provider=invite&code=…&_backend=…`)가 필요해 로컬 프리뷰 재현이 제한적이다([place-profile.md](./place-profile.md)와 동일 제약). 배포 QA에서 7개 Figma 상태(수락 기본/유효기간/그룹, 만료/이미참여/삭제/취소 다이얼로그, 온보딩 중 억제) 대조 권장.
