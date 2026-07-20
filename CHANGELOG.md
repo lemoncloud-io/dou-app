@@ -4,6 +4,13 @@
 
 ### Features
 
+- (web/channels) 그룹 채팅방 헤더 아바타 스택·총원·읽음표시 반영
+- (web-ui-kit) 채팅방 헤더 meta 슬롯·읽음/안읽음 표시 확장
+
+## [2026-07-20] - No version updates
+
+### Features
+
 - (web/channels) 채널 상세 팝업 Figma 재디자인 (방 정보 2모드·멤버 프로필·개인 방 이름)
 
 ### Documentation
