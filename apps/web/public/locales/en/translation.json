@@ -288,7 +288,17 @@
         "roomCreated": "Chat room created",
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
-        "cannotCreatePlace": "Can't create place in this cloud"
+        "cannotCreatePlace": "Can't create place in this cloud",
+        "profile": "Profile",
+        "menuProfile": "Profile",
+        "menuNotifications": "Notifications",
+        "menuSettings": "Settings",
+        "search": "Search",
+        "switchCloud": "Switch Cloud",
+        "directComingSoon": "1:1 chat is coming soon",
+        "searchComingSoon": "Search is coming soon",
+        "notificationsComingSoon": "Notification settings are coming soon",
+        "setupProfile": "Set up your profile"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
@@ -316,10 +326,11 @@
         "placeLoadFailed": "Failed to load places",
         "placeAuthFailed": "Failed to authenticate place",
         "channelLoadFailed": "Failed to load channels",
-        "cloudSessionExpired": "Cloud session expired. Switched to default mode."
+        "cloudSessionExpired": "Cloud session expired. Switched to default mode.",
+        "close": "Close"
     },
     "placeList": {
-        "defaultPlace": "Default",
+        "defaultPlace": "DoU Home",
         "errorLoading": "Failed to load places",
         "retry": "Retry",
         "empty": "No places",
@@ -331,7 +342,12 @@
         "sortOrder": "Manage Places",
         "selectCloud": "Please select a cloud first",
         "settings": "Settings",
-        "addPlace": "Add Place"
+        "addPlace": "Add Place",
+        "subtitleDefault": "Default Place",
+        "subtitleOwned": "My Place",
+        "subtitleInvited": "Invited Place",
+        "hasUnread": "Unread",
+        "selected": "Selected"
     },
     "placeOrder": {
         "title": "Place List",
@@ -358,7 +374,10 @@
         "retry": "Retry",
         "empty": "No channels yet. Create a new chat room!",
         "unnamedChannel": "Unnamed Channel",
-        "selfChannel": "My Chat"
+        "selfChannel": "My Chat",
+        "createChat": "Create Chat",
+        "createDirect": "1:1 Chat",
+        "createGroup": "Create Group"
     },
     "bottomNav": {
         "chat": "Chat",
