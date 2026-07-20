@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-20] - root@0.43.1, @chatic/web@0.37.1
+
+### Features
+
+- (web/channels) 초대 화면을 다이얼로그에서 페이지로 전환하고 Figma 디자인 반영
+- (web-ui-kit) 초대 화면용 SelectedAvatarRow·InviteLinkCard·IconLink 추가
+
+### Documentation
+
+- 채널 초대 페이지 전환 기록(ADR-0022) 및 invite 피처 문서 추가
+
 ## [2026-07-20] - No version updates
 
 ### Features
