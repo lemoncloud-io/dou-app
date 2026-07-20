@@ -57,7 +57,7 @@ export const ChannelSettingsPage = () => {
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
     const { updateJoin } = useJoinMutations();
 
-    // Chat-notification toggle backed by join.update (ADR-0024). The mute state
+    // Chat-notification toggle backed by join.update (ADR-0025). The mute state
     // lives on my join row (`notify`), not the channel — so read it from the join
     // cache stream, not the channel's embedded `$join` (a lagging projection).
     // 'none' means muted, anything else means on. apps/web has no client-side

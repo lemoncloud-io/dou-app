@@ -1,6 +1,6 @@
 # 그룹 채널 설정 화면 (ChannelSettingsPage)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0024](../../../../../docs/adr/0024-channel-notification-mute-toggle.md) (알림 토글 데이터 연동), [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
+> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md) (알림 토글 데이터 연동), [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md) (부분 Supersedes [ADR-0015](../../../../../docs/adr/0015-channel-settings-ui-refresh.md))
 
 ## 목적
 
@@ -19,7 +19,7 @@
     - 초대 대기 중: `member.$join?.joined === 0`
 - **백엔드 미지원 기능은 UI-only 또는 제외로 명시**한다 — "초대 거절" 상태는 백엔드에 없다.
   동작하지 않는 UI가 오해를 주지 않도록 로컬 상태/미표시로 관리한다.
-  (대화방 알림은 `chatic-sockets-api@0.26.703`부터 `join.update` notify를 지원하므로 UI-only에서 데이터 연동으로 전환됨 — ADR-0024.)
+  (대화방 알림은 `chatic-sockets-api@0.26.703`부터 `join.update` notify를 지원하므로 UI-only에서 데이터 연동으로 전환됨 — ADR-0025.)
 - **채팅방별 알림 상태는 서버(`join.notify`)만 신뢰**한다 — apps/web에는 클라이언트 알림을 직접
   렌더하는 notifier가 없고 서버 푸시에 의존하므로, 데스크톱식 로컬 pref store를 두지 않는다.
   즉시 UI 반영은 컴포넌트 낙관적 상태로 처리하고 서버 재싱크 값으로 정정한다.
@@ -33,10 +33,10 @@
 1. `ChannelSettingsPage` 본문을 섹션 리스트형으로 재구성 (방 이름 행 · "대화방 설정"/알림
    토글 · "방 친구"/친구 추가 + 멤버 목록 · 하단 방 삭제/나가기).
 2. 멤버 행 뱃지 재정비 (방장 / MY / 초대 대기 중) — `StatusBadge` 사용.
-3. 대화방 알림 = 단순 on/off 인라인 토글. `join.update` notify(`all`/`none`)로 서버에 영속화 (ADR-0024).
+3. 대화방 알림 = 단순 on/off 인라인 토글. `join.update` notify(`all`/`none`)로 서버에 영속화 (ADR-0025).
 4. 방 이름 행 탭 → 소유자=편집 다이얼로그 / 멤버=읽기전용 방 정보.
 
-**제외** (근거: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md), [ADR-0024](../../../../../docs/adr/0024-channel-notification-mute-toggle.md))
+**제외** (근거: [ADR-0019](../../../../../docs/adr/0019-group-channel-settings-section-layout.md), [ADR-0025](../../../../../docs/adr/0025-channel-notification-mute-toggle.md))
 
 - "초대 거절" 뱃지·상태 (백엔드 미지원 — pending과 구분 불가).
 - 알림 `notify = 'mention'` 3단계 — 모바일 토글은 켬/끔 이진(`all`/`none`)만 노출.
@@ -156,7 +156,7 @@ sequenceDiagram
     - 방 이름 행: `ListRow`(leading=방 아바타, title=이름, trailing=chevron, onClick=정보 Dialog).
       소유자→`update` 다이얼로그, 멤버→`update` 다이얼로그(readOnly).
     - "대화방 설정" `GroupLabel` + 알림 `ListRow`(trailing=`Switch`). 알림 상태는 `useMyJoin`(join 스트림)의
-      `notify` 기반 낙관적 `useState`이며 토글 시 `useJoinMutations.updateJoin`을 호출(ADR-0024).
+      `notify` 기반 낙관적 `useState`이며 토글 시 `useJoinMutations.updateJoin`을 호출(ADR-0025).
       `RoomNotificationDialog`는 이 화면에서 미사용.
     - "방 친구" `GroupLabel` + (소유자만)친구 추가 `ListRow` + 멤버 목록.
     - 하단 `Divider` + `ListRow destructive`(소유자=방 삭제/`delete`, 멤버=방 나가기/`leave`).
@@ -202,7 +202,7 @@ sequenceDiagram
       방장/MY/초대 대기 중 뱃지 렌더 및 우선순위(pending > owner > mine), avatar 분기, onClick 배선.
     - [ChannelSettingsPage.test.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
       소유자/멤버/self 분기(친구 추가 행 유무, 하단 삭제/나가기), 방 이름 탭 시 편집/읽기전용 다이얼로그,
-      친구 추가→초대 다이얼로그, 멤버 탭→프로필, canKick 조건, kick/삭제 배선. **알림 토글(ADR-0024)**:
+      친구 추가→초대 다이얼로그, 멤버 탭→프로필, canKick 조건, kick/삭제 배선. **알림 토글(ADR-0025)**:
       초기값이 `useMyJoin`(join 스트림)의 `notify`에서 파생(`'none'`→off), 토글 시
       `updateJoin({ channelId, userId, notify })` 호출 인자 검증, 실패 시 원복 + toast.
     - [UpdateChannelDialog.test.tsx](../../src/app/features/channels/components/UpdateChannelDialog.test.tsx) —

@@ -1,4 +1,4 @@
-# ADR-0024: 채팅방별 알림 끄기 — join.update notify 연동 (apps/web)
+# ADR-0025: 채팅방별 알림 끄기 — join.update notify 연동 (apps/web)
 
 > 상태: Accepted · 결정일: 2026-07-20
 
