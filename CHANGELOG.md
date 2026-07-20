@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-07-20] - No version updates
+
+### Features
+
+- (web/i18n) add localization for group chat invite target
+- (web/invite-accept-screen) implement glassmorphism design
+- (web-ui-kit/icons) add image icon
+- (web/i18n) add UI localization for menus and place list Adds new localization keys to support various UI elements across the application. This includes:
+- (web/channels) extend keyboard open tolerance in channel room Extends the `onPointerDown` handling to the entire bottom bar of the channel room. Previously, tapping on the padding or other elements within the message input's surrounding area could cause the mobile keyboard to dismiss.
+- (web/channels) ensure message row avatar placeholder alignment
+- (web/home) implement scroll restoration for home list
+- (web/home) refine DoU Home avatar and standardize PlaceAvatar Further refines the 'DoU Home' place avatar to precisely match Figma specifications (2869:48261). The mascot is now displayed on a 42px brand-green disc with a hairline border.
+- (web-ui-kit/message-input) keep mobile keyboard open
+- (web-ui-kit/place-avatar) render name initial or home glyph
+- (web/home) brand default place as DoU Home and refine avatars
+
+### Bug Fixes
+
+- (web/home) gate profile prompt on settled app context
+- (web/runtime) gate foreground sync on user verification
+
 ## [2026-07-16] - No version updates
 
 ### Features
