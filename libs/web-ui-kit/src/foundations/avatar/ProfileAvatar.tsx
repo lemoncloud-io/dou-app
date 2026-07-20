@@ -1,14 +1,16 @@
 import { cn } from '@chatic/lib/utils';
 
-import { IconPlus, IconUser } from '../../resources/icons';
+import { IconPlus, IconUser, IconUsers } from '../../resources/icons';
 
 export interface ProfileAvatarProps {
-    /** Image URL; when absent a placeholder user glyph is shown. */
+    /** Image URL; when absent a placeholder glyph is shown. */
     src?: string;
     /** Alt text for the image. */
     alt?: string;
     /** Diameter in pixels. Defaults to the Figma spec (86). */
     size?: number;
+    /** Placeholder glyph when there is no image: a single person ('user') or a group ('group'). */
+    glyph?: 'user' | 'group';
     /** When provided, the avatar becomes a button (e.g. to pick a photo). */
     onSelect?: () => void;
     /** Accessible label for the select action. */
@@ -25,6 +27,7 @@ export const ProfileAvatar = ({
     src,
     alt = '',
     size = 86,
+    glyph = 'user',
     onSelect,
     selectLabel = 'Select photo',
     className,
@@ -32,6 +35,7 @@ export const ProfileAvatar = ({
     const Root = onSelect ? 'button' : 'div';
     // Placeholder glyph scales with the avatar; ~42% reads well at the 86px default.
     const glyphSize = Math.round(size * 0.42);
+    const PlaceholderGlyph = glyph === 'group' ? IconUsers : IconUser;
 
     return (
         <Root
@@ -43,7 +47,7 @@ export const ProfileAvatar = ({
                 {src ? (
                     <img src={src} alt={alt} className="h-full w-full object-cover" />
                 ) : (
-                    <IconUser size={glyphSize} className="text-placeholder" />
+                    <PlaceholderGlyph size={glyphSize} className="text-placeholder" />
                 )}
             </span>
             {onSelect && (

@@ -1,126 +1,206 @@
-import { useForm } from 'react-hook-form';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Loader2, X } from 'lucide-react';
+import { logger } from '@chatic/bridges';
+import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
+import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+
+import { ROUTES } from '../../../routes/paths';
 import { useCreateChannel } from '../../channels/hooks';
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const NAME_MAX = 20;
+
+interface Notice {
+    variant: 'positive' | 'error';
+    message: string;
+}
 
 interface CreateChannelDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onComplete?: () => void;
 }
 
-export const CreateChannelDialog = ({ open, onOpenChange, onComplete }: CreateChannelDialogProps) => {
+/**
+ * Full-screen overlay to CREATE a group room (=Channel, stereo 'private'): name + optional photo.
+ * On success it creates the room on the cloud server and navigates into it, then closes. Built on
+ * @chatic/web-ui-kit; mirrors CreatePlaceDialog. Owner/PRO/limit gating lives in the caller
+ * (HomePage). See place-channel-create.md.
+ */
+export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogProps) => {
     const { t } = useTranslation();
-    const { createChannel, isLoading } = useCreateChannel();
-    const {
-        register,
-        handleSubmit,
-        reset,
-        watch,
-        formState: { errors },
-    } = useForm<{ name: string }>();
+    const navigate = useNavigateWithTransition();
+    const { createChannel } = useCreateChannel();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const nameValue = watch('name', '');
-    const isButtonDisabled = isLoading || !nameValue?.trim();
+    const [name, setName] = useState('');
+    const [thumbnail, setThumbnail] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [notice, setNotice] = useState<Notice | null>(null);
 
-    const onSubmit = async (data: { name: string }) => {
+    // Reset transient state each time the overlay opens.
+    useEffect(() => {
+        if (open) {
+            setName('');
+            setThumbnail('');
+            setSubmitting(false);
+            setAlertOpen(false);
+            setNotice(null);
+        }
+    }, [open]);
+
+    const trimmed = name.trim();
+    const isOverLimit = name.length > NAME_MAX;
+    const isValidName = trimmed.length >= 1 && !isOverLimit;
+    const canSubmit = isValidName && !submitting;
+
+    const handleImageClick = () => fileInputRef.current?.click();
+
+    const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        if (file.size > MAX_IMAGE_SIZE) {
+            setNotice({ variant: 'error', message: t('createChannel.imageSizeError') });
+            return;
+        }
         try {
-            await createChannel({ stereo: 'private', name: data.name });
-            reset();
-            onOpenChange(false);
-            onComplete?.();
+            const base64 = await resizeImageToBase64(file, 150);
+            setThumbnail(base64);
+            setNotice(null);
         } catch {
-            // isError handled by hook
+            setNotice({ variant: 'error', message: t('createChannel.imageSizeError') });
+        }
+    };
+
+    const requestClose = () => {
+        if (submitting) return;
+        if (trimmed.length > 0 || thumbnail) setAlertOpen(true);
+        else onOpenChange(false);
+    };
+
+    const handleSubmit = async () => {
+        if (!canSubmit) return;
+        setSubmitting(true);
+        setNotice(null);
+        try {
+            const created = await createChannel({
+                stereo: 'private',
+                name: trimmed,
+                thumbnail: thumbnail || undefined,
+            });
+            onOpenChange(false);
+            // Enter the freshly created room. Guard the id: an empty id would build "/channels//room"
+            // (no route match, blank screen) — in that unlikely case just close and stay on home.
+            if (created.id) navigate(ROUTES.channels.room(created.id));
+        } catch (error) {
+            logger.error('CHANNEL', 'Failed to create group room', { error });
+            setNotice({ variant: 'error', message: t('createChannel.saveError') });
+            setSubmitting(false);
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={next => !next && requestClose()}>
             <DialogContent
-                className="m-0 max-w-full w-full rounded-none flex flex-col bg-background"
+                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
             >
-                <DialogDescription className="sr-only">Create a new channel</DialogDescription>
-                {/* Top Bar */}
-                <div className="flex items-center justify-between px-1.5 py-3 bg-background">
-                    <div className="w-11 h-11" />
-                    <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
-                        {t('createChannel.title')}
-                    </DialogTitle>
-                    <button onClick={() => onOpenChange(false)} className="w-11 h-11 flex items-center justify-center">
-                        <X className="w-6 h-6 text-foreground" />
-                    </button>
-                </div>
+                <DialogTitle className="sr-only">{t('createChannel.title')}</DialogTitle>
+                <DialogDescription className="sr-only">{t('createChannel.subtitle')}</DialogDescription>
 
-                {/* Content */}
-                <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-auto">
-                    <div className="flex flex-col gap-6 pt-6">
-                        {/* Title Section */}
-                        <div className="flex flex-col gap-1.5 px-4">
-                            <div className="flex flex-col justify-center gap-2">
-                                <div className="flex flex-col">
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                                            {t('createChannel.subtitle1')}
-                                        </span>
-                                    </div>
-                                    <span className="text-[21px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
-                                        {t('createChannel.subtitle2')}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                <div className="flex h-full w-full max-w-[440px] flex-col">
+                    <ModalTopBar onClose={requestClose} closeLabel={t('createChannel.close')} />
 
-                        {/* Form Section */}
-                        <div className="flex flex-col justify-center gap-6">
-                            {/* Room Name Input */}
-                            <div className="flex flex-col justify-center items-center gap-1.5 px-4 rounded-lg">
-                                <div className="flex flex-col gap-1.5 w-full">
-                                    <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
-                                        {t('createChannel.nameLabel')}
-                                    </Label>
-                                    <Input
-                                        {...register('name', {
-                                            required: t('createChannel.nameRequired'),
-                                            minLength: { value: 2, message: t('createChannel.nameMinLength') },
-                                            maxLength: { value: 20, message: t('createChannel.nameMaxLength') },
-                                        })}
-                                        placeholder={t('createChannel.namePlaceholder')}
-                                        className="h-11 px-3.5 bg-background border border-border rounded-[10px] text-[15px] font-medium leading-[1.45] tracking-[0.005em] text-foreground placeholder:text-muted-foreground"
-                                    />
-                                    {errors.name && (
-                                        <span className="text-[12px] text-destructive">{errors.name.message}</span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Bottom Button */}
-                    <div className="mt-auto">
-                        <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
-                            <Button
-                                type="submit"
-                                disabled={isButtonDisabled}
-                                className="flex items-center justify-center gap-1.5 h-[50px] px-6 py-3 bg-[#B0EA10] rounded-full text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
+                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        {/* Title + subtitle */}
+                        <div className="flex flex-col gap-2 px-4 py-4 text-center">
+                            <Text
+                                as="h1"
+                                className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
                             >
-                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : t('createChannel.done')}
-                            </Button>
+                                {t('createChannel.title')}
+                            </Text>
+                            <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                                {t('createChannel.subtitle')}
+                            </Text>
                         </div>
-                        <div
-                            className="shrink-0 touch-none bg-background"
-                            style={{ height: 'var(--keyboard-height, 0px)' }}
-                            onTouchMove={e => e.preventDefault()}
+
+                        {/* Avatar + name */}
+                        <div className="flex flex-col gap-8 py-10">
+                            <div className="flex flex-col items-center gap-4 px-[18px]">
+                                <ProfileAvatar
+                                    src={thumbnail || undefined}
+                                    glyph="group"
+                                    onSelect={handleImageClick}
+                                    selectLabel={t('createChannel.photoLabel')}
+                                />
+                                <div className="flex flex-col items-center gap-0.5">
+                                    <Text variant="label" className="text-label">
+                                        {t('createChannel.photoLabel')}
+                                    </Text>
+                                    <Text variant="caption" className="text-placeholder">
+                                        {t('createChannel.photoOptional')}
+                                    </Text>
+                                </div>
+                            </div>
+
+                            <TextField
+                                label={t('createChannel.nameLabel')}
+                                required
+                                value={name}
+                                onChange={setName}
+                                maxLength={NAME_MAX}
+                                enforceMaxLength={false}
+                                placeholder={t('createChannel.namePlaceholder')}
+                                description={t('createChannel.nameHint')}
+                                error={isOverLimit ? t('createChannel.nameHint') : undefined}
+                            />
+                        </div>
+
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
                         />
                     </div>
-                </form>
+
+                    {notice && (
+                        <div className="pointer-events-none flex shrink-0 justify-center px-4 pb-2">
+                            <Toast variant={notice.variant}>{notice.message}</Toast>
+                        </div>
+                    )}
+
+                    <FloatingButton
+                        label={t('createChannel.done')}
+                        loading={submitting}
+                        disabled={!canSubmit}
+                        onClick={handleSubmit}
+                        wrapperClassName="shrink-0"
+                    />
+                    <div
+                        className="shrink-0 touch-none bg-background"
+                        style={{ height: 'var(--keyboard-height, 0px)' }}
+                        onTouchMove={e => e.preventDefault()}
+                    />
+                </div>
+
+                <AlertDialog
+                    open={alertOpen}
+                    onOpenChange={setAlertOpen}
+                    title={t('createChannel.exitTitle')}
+                    description={t('createChannel.exitDescription')}
+                    cancelLabel={t('createChannel.exitLeave')}
+                    onCancel={() => onOpenChange(false)}
+                    confirmLabel={t('createChannel.exitContinue')}
+                    onConfirm={() => undefined}
+                />
             </DialogContent>
         </Dialog>
     );

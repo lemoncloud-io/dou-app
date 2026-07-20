@@ -41,7 +41,6 @@ export const ROUTES = {
     // ── Channel (Private) ────────────────────────────────────────
     channels: {
         root: '/channels',
-        create: '/channels/create',
         room: (channelId: string) => `/channels/${channelId}/room`,
         settings: (channelId: string) => `/channels/${channelId}/settings`,
     },

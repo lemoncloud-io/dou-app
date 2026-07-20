@@ -1,9 +1,15 @@
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
+import { GUEST_MAX_CHANNELS, MAX_CHANNELS_PER_PLACE } from '../utils/consts';
+
 /**
  * App-side permission policy. Web-core/app-runtime expose only raw identity facts (userRole /
  * isGuest / isCloudActive); this hook is where the product decides what a user may do, derived from
  * those facts. Kept in the app layer so permission rules can change without touching the runtime.
+ *
+ * Owner-only gating for place/group-room CREATION (cloudType === 'owner') is layered on top of these
+ * coarse facts by the caller (HomePage), which knows the active cloud's ownership and cloud context
+ * (relay 1:1 vs cloud group). See apps/web/docs/feature/home/place-channel-create.md.
  */
 export interface UserPermissions {
     canCreateChannel: boolean;
@@ -12,9 +18,6 @@ export interface UserPermissions {
     useCloudProfile: boolean;
     canSelectCloud: boolean;
 }
-
-const GUEST_MAX_CHANNELS = 3;
-const MAX_CHANNELS_PER_PLACE = 100;
 
 export const useUserPermissions = (): UserPermissions => {
     const { isGuest, isCloudActive } = useRuntimeProfile();
