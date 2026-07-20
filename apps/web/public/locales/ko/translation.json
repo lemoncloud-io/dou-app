@@ -289,7 +289,16 @@
         "setupProfile": "프로필을 설정해주세요",
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
         "selectCloud": "클라우드 선택하기",
-        "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요"
+        "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
+        "profile": "프로필",
+        "menuProfile": "프로필",
+        "menuNotifications": "알림",
+        "menuSettings": "설정",
+        "search": "검색",
+        "switchCloud": "클라우드 전환",
+        "directComingSoon": "1:1 대화는 준비 중이에요",
+        "searchComingSoon": "검색은 준비 중이에요",
+        "notificationsComingSoon": "알림 설정은 준비 중이에요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
@@ -317,10 +326,11 @@
         "placeLoadFailed": "플레이스 목록을 불러오지 못했어요",
         "placeAuthFailed": "플레이스 인증에 실패했어요",
         "channelLoadFailed": "채널 목록을 불러오지 못했어요",
-        "cloudSessionExpired": "클라우드 세션이 만료되어 기본 모드로 전환되었어요"
+        "cloudSessionExpired": "클라우드 세션이 만료되어 기본 모드로 전환되었어요",
+        "close": "닫기"
     },
     "placeList": {
-        "defaultPlace": "기본",
+        "defaultPlace": "DoU Home",
         "errorLoading": "플레이스를 불러오지 못했어요",
         "retry": "재시도",
         "empty": "플레이스가 없어요",
@@ -332,7 +342,12 @@
         "sortOrder": "플레이스 관리",
         "selectCloud": "클라우드를 먼저 선택해주세요",
         "settings": "설정",
-        "addPlace": "플레이스 추가"
+        "addPlace": "플레이스 추가",
+        "subtitleDefault": "기본 플레이스",
+        "subtitleOwned": "내 플레이스",
+        "subtitleInvited": "초대받은 플레이스",
+        "hasUnread": "읽지 않음",
+        "selected": "선택됨"
     },
     "placeOrder": {
         "title": "플레이스 목록",
@@ -359,7 +374,10 @@
         "retry": "다시 시도",
         "empty": "채널이 없습니다. 새 채팅방을 만들어보세요!",
         "unnamedChannel": "이름 없는 채널",
-        "selfChannel": "나와의 채팅"
+        "selfChannel": "나와의 채팅",
+        "createChat": "채팅 만들기",
+        "createDirect": "1:1 대화",
+        "createGroup": "그룹 방 만들기"
     },
     "bottomNav": {
         "chat": "채팅",
@@ -842,6 +860,7 @@
         "close": "닫기",
         "target": {
             "you": "You",
+            "group": "그룹 대화",
             "oneToOne": "1:1 대화",
             "roomFriends": "방 친구 {{count}}"
         },

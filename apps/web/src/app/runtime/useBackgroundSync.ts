@@ -152,16 +152,21 @@ export const useBackgroundSync = (): void => {
     }, [activeSiteId, isVerified, isSwitching, refreshActiveLists, refreshChannelSnapshot]);
 
     // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended and
-    // pushes may have been missed; if the socket survived (no rising edge), nothing else re-syncs,
-    // so refresh immediately. This does NOT gate on `isVerified`. Recovery is now owned by the SDK
-    // AuthController (SocketManager.request no longer self-heals 401s/reconnects): keepAlive closes a
-    // zombie socket → reconnect re-auth, and a terminal `expired` escalates via the delegate
-    // (relay → logout/redirect, §6-10). So a best-effort foreground refresh is safe — if the socket
-    // is momentarily unverified a request may fail, and Trigger 1's false→true rising edge re-syncs
-    // once the SDK re-verifies. The `isSwitching` guard remains — mid-switch the socket is rebinding
-    // to a new identity, so a fetch could race the wrong session.
+    // pushes may have been missed, so re-sync on resume. Gated on `isVerified` so we only fire against
+    // an authenticated socket and skip the wasted round-trips a momentarily-unverified socket would
+    // reject:
+    //  - Socket survived suspension (still verified) → no rising edge fires, so this is the only
+    //    re-sync path, and the guard passes → fires here.
+    //  - Socket died (unverified on resume) → this skips; recovery is owned by the SDK AuthController
+    //    (SocketManager.request no longer self-heals 401s/reconnects): keepAlive closes a zombie socket
+    //    → reconnect re-auth, and a terminal `expired` escalates via the delegate (relay →
+    //    logout/redirect, §6-10). Trigger 1's false→true rising edge then re-syncs once the SDK
+    //    re-verifies, so the foreground refresh is deferred to auth completion rather than lost.
+    // The `isSwitching` guard remains — mid-switch the socket is rebinding to a new identity, so a
+    // fetch could race the wrong session. The handler is a fresh closure each render, so `isVerified`
+    // is read live (not captured stale) — see useAppVisibility's handlerRef.
     useAppForeground(() => {
-        if (isSwitching) return;
+        if (!isVerified || isSwitching) return;
         void refreshActiveLists();
         void refreshChannelSnapshot();
     });

@@ -11,6 +11,7 @@ export * from './useInviteCountdown';
 export * from './useInvitedClouds';
 export * from './useLastChat';
 export * from './usePlaceProfilePrompt';
+export * from './useScrollRestoration';
 export * from './useSwitchPlace';
 export * from './useUpdateCloud';
 export * from './useUpdatePlace';

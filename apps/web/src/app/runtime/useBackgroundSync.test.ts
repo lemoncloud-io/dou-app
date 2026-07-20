@@ -212,14 +212,22 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(refreshChannelList).toHaveBeenCalledTimes(1);
     });
 
-    it('미인증이어도 포그라운드 복귀에서 동기화한다 — 요청 계층이 401/재연결을 자가치유', async () => {
+    it('미인증이면 포그라운드 복귀에서 쏘지 않고, 재인증 상승 엣지(Trigger 1)가 대신 동기화한다', async () => {
         setVerified(false);
-        renderHook(() => useBackgroundSync());
+        const { rerender } = renderHook(() => useBackgroundSync());
         await act(async () => undefined); // 미인증이라 상승 엣지(Trigger 1) 미발생
         expect(syncChannels).not.toHaveBeenCalled();
 
         await fireForeground();
+        // 미인증 소켓에는 쏘지 않는다 — 헛된 왕복을 피하고 재인증까지 지연
+        expect(syncChannels).not.toHaveBeenCalled();
+        expect(refreshChannelList).not.toHaveBeenCalled();
 
+        // SDK 재인증 → isVerified false→true 상승 엣지가 뒤이어 sync
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
         expect(syncChannels).toHaveBeenCalledTimes(1);
         expect(refreshChannelList).toHaveBeenCalledTimes(1);
     });

@@ -124,7 +124,7 @@ export const ChannelMessageRow = ({
             </span>
         )
     ) : (
-        <span className="size-[39px] shrink-0" />
+        <span className="block size-[39px] shrink-0" />
     );
 
     // Time is suppressed for pending/failed rows — the status carries the state there.

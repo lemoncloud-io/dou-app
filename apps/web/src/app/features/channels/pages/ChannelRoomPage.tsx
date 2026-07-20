@@ -510,6 +510,12 @@ export const ChannelRoomPage = () => {
             )}
 
             <div
+                // Extend the keep-keyboard-open tolerance to the whole bottom bar — a finger
+                // slipping off the input onto the surrounding padding shouldn't blur the
+                // textarea. Only the textarea itself keeps the caret.
+                onPointerDown={e => {
+                    if (e.target !== inputRef.current) e.preventDefault();
+                }}
                 className="border-t border-border bg-background px-4 py-3"
                 style={{
                     paddingBottom: isIOS

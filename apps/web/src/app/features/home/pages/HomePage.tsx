@@ -37,6 +37,7 @@ import {
     useHomePlaces,
     useInvitedClouds,
     usePlaceProfilePrompt,
+    useScrollRestoration,
     useSwitchPlace,
 } from '../hooks';
 import { resolveHeaderProfile } from '../lib';
@@ -91,6 +92,12 @@ export const HomePage = () => {
     // is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
     const cloudChannels = useActiveCloudChannels();
     const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels);
+
+    // Restore the list scroll position when returning from a chat room (the page unmounts on
+    // navigation). Restore only once the list content has rendered so the offset isn't clamped
+    // against a still-loading (short) list.
+    const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelsLoading);
+    const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
 
     // Header profile is resolved by tier (site → user account → setup prompt). The site profile
     // (V2 per-site nick/thumbnail) only applies off the default cloud; an edit-screen save reflects
@@ -207,7 +214,11 @@ export const HomePage = () => {
             {/* Place + Chat scroll together under the fixed header (accordion sections). The
                 bottom padding lets the last row scroll clear of the floating nav, whose pill the
                 content passes fully behind (no backdrop). */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[98px] pt-2">
+            <div
+                ref={scrollContainerRef}
+                onScroll={handleListScroll}
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[98px] pt-2"
+            >
                 <PlaceList
                     places={places}
                     selectedPlaceId={selectedPlaceId}
@@ -217,6 +228,7 @@ export const HomePage = () => {
                     onSelectPlace={switchPlace}
                     onCreatePlace={handleCreatePlace}
                     isInvitedCloud={isInvitedCloud}
+                    isDefaultCloud={isDefaultCloud}
                     canAddPlace={canAddPlace}
                 />
 

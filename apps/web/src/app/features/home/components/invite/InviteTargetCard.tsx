@@ -10,9 +10,10 @@ interface InviteTargetCardProps {
 }
 
 /**
- * Invite accept screen — the "You" block: who is joining. Shows the self avatar + a 1:1 label; when
- * a member count is provided (group room) a "room friends N" badge is added. The 1:1-vs-group source
- * of truth is not finalized yet, so this defaults to 1:1 and only shows the badge when a count lands.
+ * Invite accept screen — the "You" block: who is joining. Shows the self avatar and the "group chat"
+ * caption (Figma 3076-11341). Invites are always group chats today (1:1 is not shipped — ADR-0013),
+ * so the caption is fixed to "group chat"; the "room friends N" badge is added only once the invite
+ * metadata carries a member count (backend-denormalized; hidden until then).
  */
 export const InviteTargetCard = ({ memberCount }: InviteTargetCardProps) => {
     const { t } = useTranslation();
@@ -25,7 +26,7 @@ export const InviteTargetCard = ({ memberCount }: InviteTargetCardProps) => {
                     {t('inviteAccept.target.you')}
                 </Text>
                 <Text as="p" className="text-[14px] font-medium leading-[1.4] text-description">
-                    {t('inviteAccept.target.oneToOne')}
+                    {t('inviteAccept.target.group')}
                 </Text>
             </div>
             {memberCount != null && memberCount > 0 && (

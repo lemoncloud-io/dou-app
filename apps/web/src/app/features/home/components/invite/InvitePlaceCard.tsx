@@ -1,4 +1,4 @@
-import { PlaceAvatar, Text } from '@chatic/web-ui-kit';
+import { IconImage, Text } from '@chatic/web-ui-kit';
 
 import { InviteCard } from './InviteCard';
 
@@ -20,7 +20,10 @@ export const InvitePlaceCard = ({ name, intro, thumbnail }: InvitePlaceCardProps
         {thumbnail ? (
             <img src={thumbnail} alt="" className="size-10 shrink-0 rounded-full object-cover" />
         ) : (
-            <PlaceAvatar size="md" />
+            // No thumbnail: the Figma picture-placeholder — brand-ink disc with a white image glyph.
+            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-ink">
+                <IconImage size={20} className="text-white" />
+            </span>
         )}
         <div className="flex w-full flex-col items-center gap-1 text-center">
             {name && (

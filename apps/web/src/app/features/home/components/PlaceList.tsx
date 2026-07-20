@@ -17,6 +17,8 @@ interface PlaceListProps {
     onCreatePlace?: () => void;
     /** True while connected to an invited cloud — drives the place-type caption. */
     isInvitedCloud?: boolean;
+    /** True on the relay/default cloud — its single personal place renders as "DoU Home". */
+    isDefaultCloud?: boolean;
     /** Owner-only: shows the "add place" row (hidden on relay / for invited users). */
     canAddPlace?: boolean;
 }
@@ -30,6 +32,7 @@ export const PlaceList = ({
     onSelectPlace,
     onCreatePlace,
     isInvitedCloud,
+    isDefaultCloud,
     canAddPlace,
 }: PlaceListProps) => {
     const { t } = useTranslation();
@@ -37,7 +40,7 @@ export const PlaceList = ({
     const places = rawPlaces.filter(p => p.stereo !== 'place');
 
     const placeSubtitle = (place: DomainPlace): string => {
-        if (place.id === 'default') return t('placeList.subtitleDefault', '기본 플레이스');
+        if (isDefaultCloud) return t('placeList.subtitleDefault', '기본 플레이스');
         if (isInvitedCloud) return t('placeList.subtitleInvited', '초대받은 플레이스');
         return t('placeList.subtitleOwned', '내 플레이스');
     };
@@ -69,6 +72,7 @@ export const PlaceList = ({
                     unreadCount={unreadByPlace?.[place.id]}
                     onSelectPlace={onSelectPlace}
                     subtitle={placeSubtitle(place)}
+                    isHomePlace={isDefaultCloud}
                 />
             ))}
             {canAddPlace && onCreatePlace && (

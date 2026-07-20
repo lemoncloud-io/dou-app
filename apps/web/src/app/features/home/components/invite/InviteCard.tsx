@@ -16,7 +16,7 @@ interface InviteCardProps {
 export const InviteCard = ({ children, className }: InviteCardProps) => (
     <div
         className={cn(
-            'flex flex-col items-center gap-4 rounded-[24px] border border-white/50 bg-white/55 px-4 py-6 backdrop-blur-[12px] dark:border-white/10 dark:bg-white/10',
+            'flex flex-col items-center gap-4 rounded-[24px] border border-white/60 bg-white/45 px-4 py-6 backdrop-blur-[12px] dark:border-white/10 dark:bg-white/10',
             className
         )}
     >
