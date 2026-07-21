@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-21] - No version updates
+
+### Features
+
+- (web/channels) 나와의 채팅(self) 채널 유형 반영
+
 ## [2026-07-20] - No version updates
 
 ### Features
