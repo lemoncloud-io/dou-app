@@ -9,13 +9,14 @@ const CONFIG = {
     rootPackagePath: 'package.json', // 루트 package.json 경로
     projectPaths: {
         web: 'apps/web/package.json',
-        admin: 'apps/admin/package.json',
+        'admin-v2': 'apps/admin-v2/package.json',
         landing: 'apps/landing/package.json',
         'desktop-web': 'apps/desktop-web/package.json',
     },
     scopeMap: {
         web: 'web',
-        admin: 'admin',
+        // admin-v2 is the current admin app; 'admin'-scoped commits bump it.
+        'admin-v2': 'admin',
         landing: 'landing',
         'desktop-web': 'desktop-web',
     },
@@ -228,8 +229,16 @@ function getCommitParents() {
 }
 
 function getMergedCommitSubjects(firstParent) {
-    const out = spawnSync('git', ['log', '--no-merges', '--pretty=format:%s', `${firstParent}..HEAD`]).stdout.toString();
-    return out.split('\n').map(line => line.trim()).filter(Boolean);
+    const out = spawnSync('git', [
+        'log',
+        '--no-merges',
+        '--pretty=format:%s',
+        `${firstParent}..HEAD`,
+    ]).stdout.toString();
+    return out
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
 }
 
 // 머지 방식과 무관하게 conventional 커밋 목록을 수집한다.

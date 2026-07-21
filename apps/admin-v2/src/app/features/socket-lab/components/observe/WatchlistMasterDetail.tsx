@@ -1,0 +1,656 @@
+import { useEffect, useState } from 'react';
+
+import { RotateCw, Trash2 } from 'lucide-react';
+
+import { ACCENT, ago, dur, hexToRgba, presenceColor, sinceSec } from '../../lib/stats';
+import type { Watchlist } from '../../hooks/use-watchlist';
+import type { UsersStage } from '../../api/userApi';
+import type { ObservedDevice, ObservedUser } from '../../mock/observed-users';
+import UnicastPanel from './UnicastPanel';
+
+interface SendTarget {
+    stage: UsersStage;
+    user: ObservedUser;
+    device: ObservedDevice;
+}
+
+export interface WatchlistMasterDetailProps {
+    wl: Watchlist;
+}
+
+export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps) {
+    const [hoverId, setHoverId] = useState<string | null>(null);
+    const [dragId, setDragId] = useState<string | null>(null);
+    const [dragOverId, setDragOverId] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<ObservedDevice | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [sendTarget, setSendTarget] = useState<SendTarget | null>(null);
+    const { observed, selectedUserId, selected } = wl;
+
+    useEffect(() => {
+        if (!sendTarget) return;
+        const alive =
+            wl.stage === sendTarget.stage &&
+            observed.some(u => u.id === sendTarget.user.id && u.devices.some(d => d.id === sendTarget.device.id));
+        if (!alive) setSendTarget(null);
+    }, [sendTarget, wl.stage, observed]);
+
+    const activeAts = selected ? selected.devices.map(d => d.lastActiveAt).filter(Boolean) : [];
+    const userLastActive = activeAts.length ? Math.max(...activeAts) : null;
+
+    const liveDevice = sendTarget
+        ? observed.find(u => u.id === sendTarget.user.id)?.devices.find(d => d.id === sendTarget.device.id)
+        : undefined;
+
+    return (
+        <div
+            style={{
+                display: 'grid',
+                gridTemplateColumns: sendTarget ? '320px 1fr 360px' : '320px 1fr',
+                gap: 14,
+                alignItems: 'stretch',
+                flex: 1,
+                minHeight: 340,
+            }}
+        >
+            {/* MASTER */}
+            <div
+                style={{
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '11px 14px',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
+                        flexShrink: 0,
+                    }}
+                >
+                    <span
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: '.05em',
+                            color: 'var(--sm-text-5)',
+                            textTransform: 'uppercase',
+                        }}
+                    >
+                        Observed Users
+                    </span>
+                    <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 11, color: 'var(--sm-text-4)' }}>
+                        {observed.length}
+                    </span>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {observed.length ? (
+                        observed.map(u => {
+                            const sel = u.id === selectedUserId;
+                            return (
+                                <div
+                                    key={u.id}
+                                    draggable
+                                    onClick={() => wl.selectUser(u.id)}
+                                    onMouseEnter={() => setHoverId(u.id)}
+                                    onMouseLeave={() => setHoverId(null)}
+                                    onDragStart={() => setDragId(u.id)}
+                                    onDragEnd={() => {
+                                        setDragId(null);
+                                        setDragOverId(null);
+                                    }}
+                                    onDragOver={e => {
+                                        e.preventDefault();
+                                        if (dragId && dragOverId !== u.id) setDragOverId(u.id);
+                                    }}
+                                    onDrop={e => {
+                                        e.preventDefault();
+                                        if (dragId) wl.reorderUser(dragId, u.id);
+                                        setDragId(null);
+                                        setDragOverId(null);
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 10,
+                                        padding: '12px 14px 12px 13px',
+                                        borderBottom: '1px solid var(--sm-raised-2)',
+                                        borderLeft: `3px solid ${sel ? ACCENT : 'transparent'}`,
+                                        background: sel
+                                            ? hexToRgba(ACCENT, 0.12)
+                                            : hoverId === u.id
+                                              ? 'var(--sm-panel-2)'
+                                              : 'transparent',
+                                        cursor: dragId ? 'grabbing' : 'grab',
+                                        opacity: dragId === u.id ? 0.4 : 1,
+                                        boxShadow:
+                                            dragOverId === u.id && dragId !== u.id ? `inset 0 2px 0 ${ACCENT}` : 'none',
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: '50%',
+                                            background: presenceColor(u.presence),
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 1,
+                                            minWidth: 0,
+                                            flex: 1,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontWeight: 500,
+                                                color: 'var(--sm-text)',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}
+                                        >
+                                            {u.name}
+                                        </span>
+                                        <span
+                                            style={{
+                                                fontFamily: "'Geist Mono',monospace",
+                                                fontSize: 10,
+                                                color: 'var(--sm-text-6)',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}
+                                        >
+                                            {u.id.slice(0, 8)} · {u.devices.length} dev
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            wl.removeUser(u.id);
+                                        }}
+                                        title="관측 해제"
+                                        style={{
+                                            appearance: 'none',
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            color: 'var(--sm-text-7)',
+                                            fontSize: 14,
+                                            padding: '2px 4px',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div
+                            style={{
+                                padding: '36px 18px',
+                                textAlign: 'center',
+                                color: 'var(--sm-text-6)',
+                                fontSize: 12,
+                                lineHeight: 1.6,
+                            }}
+                        >
+                            관측할 유저를 추가하세요
+                            <br />
+                            <span style={{ color: 'var(--sm-text-8)', fontSize: 11 }}>아래 + 추가 버튼을 누르세요</span>
+                        </div>
+                    )}
+                </div>
+                <div style={{ padding: '11px 14px', borderTop: '1px solid var(--sm-border)', flexShrink: 0 }}>
+                    <button
+                        onClick={wl.openSearch}
+                        style={{
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            width: '100%',
+                            fontFamily: 'inherit',
+                            fontSize: 12,
+                            fontWeight: 500,
+                            borderRadius: 7,
+                            padding: 9,
+                            background: hexToRgba(ACCENT, 0.12),
+                            border: `1px solid ${hexToRgba(ACCENT, 0.35)}`,
+                            color: ACCENT,
+                        }}
+                    >
+                        + 관측 유저 추가
+                    </button>
+                </div>
+            </div>
+
+            {/* DETAIL */}
+            <div
+                style={{
+                    background: 'var(--sm-sidebar)',
+                    border: '1px solid var(--sm-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '11px 14px',
+                        borderBottom: '1px solid var(--sm-border)',
+                        background: 'var(--sm-panel)',
+                        flexShrink: 0,
+                    }}
+                >
+                    {selected ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <span
+                                style={{
+                                    width: 9,
+                                    height: 9,
+                                    borderRadius: '50%',
+                                    background: presenceColor(selected.presence),
+                                    flexShrink: 0,
+                                }}
+                            />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                                <span
+                                    style={{
+                                        fontWeight: 600,
+                                        fontSize: 13,
+                                        color: 'var(--sm-text)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}
+                                >
+                                    {selected.name}
+                                </span>
+                                <span
+                                    style={{
+                                        fontFamily: "'Geist Mono',monospace",
+                                        fontSize: 10.5,
+                                        color: 'var(--sm-text-6)',
+                                    }}
+                                >
+                                    {selected.id}
+                                    {selected.code ? ` · ${selected.code}` : ''} · active{' '}
+                                    {userLastActive != null ? ago(sinceSec(userLastActive)) : '—'}
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <span
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: '.05em',
+                                color: 'var(--sm-text-5)',
+                                textTransform: 'uppercase',
+                            }}
+                        >
+                            User
+                        </span>
+                    )}
+                    {selected ? (
+                        <button
+                            onClick={wl.reloadDevices}
+                            title="디바이스 목록 새로고침"
+                            aria-label="디바이스 목록 새로고침"
+                            style={{
+                                appearance: 'none',
+                                background: 'var(--sm-panel-2)',
+                                border: '1px solid var(--sm-border-2)',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                color: 'var(--sm-text-3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '4px 6px',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <RotateCw size={12} />
+                        </button>
+                    ) : null}
+                </div>
+
+                {selected ? (
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '9px 16px',
+                                borderBottom: '1px solid var(--sm-border)',
+                                background: 'var(--sm-bg-deepest)',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <span
+                                style={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    letterSpacing: '.05em',
+                                    color: 'var(--sm-text-5)',
+                                    textTransform: 'uppercase',
+                                }}
+                            >
+                                Devices
+                            </span>
+                            <span
+                                style={{
+                                    fontFamily: "'Geist Mono',monospace",
+                                    fontSize: 11,
+                                    color: 'var(--sm-text-4)',
+                                }}
+                            >
+                                {selected.devices.length}
+                            </span>
+                        </div>
+                        {selected.devices.length ? (
+                            <div
+                                style={{ display: 'flex', flexDirection: 'column', maxHeight: 940, overflowY: 'auto' }}
+                            >
+                                {selected.devices.map(d => {
+                                    const dc = presenceColor(d.status);
+                                    return (
+                                        <div
+                                            key={d.id}
+                                            onClick={() =>
+                                                setSendTarget({ stage: wl.stage, user: selected, device: d })
+                                            }
+                                            title="클릭하여 unicast 전송 패널 열기"
+                                            style={{
+                                                padding: '14px 16px',
+                                                borderBottom: '1px solid var(--sm-raised-2)',
+                                                cursor: 'pointer',
+                                                background:
+                                                    sendTarget?.user.id === selected.id &&
+                                                    sendTarget?.device.id === d.id
+                                                        ? hexToRgba(ACCENT, 0.06)
+                                                        : undefined,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    marginBottom: 6,
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 9,
+                                                        minWidth: 0,
+                                                        flex: 1,
+                                                    }}
+                                                >
+                                                    <span
+                                                        style={{
+                                                            width: 8,
+                                                            height: 8,
+                                                            borderRadius: '50%',
+                                                            background: dc,
+                                                            flexShrink: 0,
+                                                        }}
+                                                    />
+                                                    <span
+                                                        title={d.name}
+                                                        style={{
+                                                            fontWeight: 500,
+                                                            fontFamily: "'Geist Mono',monospace",
+                                                            fontSize: 12.5,
+                                                            color: 'var(--sm-text)',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            minWidth: 0,
+                                                        }}
+                                                    >
+                                                        {d.name}
+                                                    </span>
+                                                </div>
+                                                <span
+                                                    style={{
+                                                        fontSize: 10,
+                                                        fontWeight: 700,
+                                                        letterSpacing: '.05em',
+                                                        color: dc,
+                                                        background: hexToRgba(dc, 0.13),
+                                                        borderRadius: 5,
+                                                        padding: '2px 8px',
+                                                        flexShrink: 0,
+                                                        marginLeft: 8,
+                                                    }}
+                                                >
+                                                    {d.status.toUpperCase()}
+                                                </span>
+                                                <button
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        setDeleteError(null);
+                                                        setDeleteTarget(d);
+                                                    }}
+                                                    title="디바이스 삭제"
+                                                    aria-label="디바이스 삭제"
+                                                    style={{
+                                                        appearance: 'none',
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: 'var(--sm-text-6)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        padding: '2px 4px',
+                                                        flexShrink: 0,
+                                                        marginLeft: 6,
+                                                    }}
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: 8,
+                                                    marginBottom: 5,
+                                                    fontSize: 12,
+                                                }}
+                                            >
+                                                <span
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 6,
+                                                        minWidth: 0,
+                                                        color: d.viewing ? ACCENT : 'var(--sm-text-6)',
+                                                    }}
+                                                >
+                                                    <span style={{ fontSize: 9 }}>●</span>
+                                                    <span
+                                                        style={{
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                        }}
+                                                    >
+                                                        {d.viewing ? `채널 ${d.viewing} 보는 중` : '보는 채널 없음'}
+                                                    </span>
+                                                </span>
+                                                {d.viewing && d.viewingFor != null ? (
+                                                    <span
+                                                        style={{
+                                                            fontFamily: "'Geist Mono',monospace",
+                                                            fontSize: 10.5,
+                                                            color: 'var(--sm-text-4)',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        체류 {dur(d.viewingFor)}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <div
+                                                style={{
+                                                    fontFamily: "'Geist Mono',monospace",
+                                                    fontSize: 10.5,
+                                                    color: 'var(--sm-text-6)',
+                                                }}
+                                            >
+                                                {d.platform} · tick {d.tick} · active{' '}
+                                                {d.lastActiveAt ? ago(sinceSec(d.lastActiveAt)) : '—'}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div
+                                style={{
+                                    padding: '40px 18px',
+                                    textAlign: 'center',
+                                    color: 'var(--sm-text-6)',
+                                    fontSize: 12,
+                                }}
+                            >
+                                이 유저의 디바이스 없음
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div
+                        style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--sm-text-6)',
+                            fontSize: 12,
+                        }}
+                    >
+                        좌측에서 관측 유저를 선택하세요
+                    </div>
+                )}
+            </div>
+
+            {sendTarget ? (
+                <UnicastPanel
+                    key={`${sendTarget.stage}:${sendTarget.user.id}:${sendTarget.device.id}`}
+                    stage={sendTarget.stage}
+                    user={sendTarget.user}
+                    device={liveDevice ?? sendTarget.device}
+                    onClose={() => setSendTarget(null)}
+                />
+            ) : null}
+
+            {deleteTarget ? (
+                <div
+                    onClick={() => (deleting ? undefined : setDeleteTarget(null))}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(4,7,11,.7)',
+                        backdropFilter: 'blur(3px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 50,
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            width: 380,
+                            maxWidth: '92vw',
+                            background: 'var(--sm-panel)',
+                            border: '1px solid var(--sm-border-3)',
+                            borderRadius: 14,
+                            boxShadow: '0 24px 64px rgba(0,0,0,.55)',
+                            padding: '20px 22px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 14,
+                        }}
+                    >
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sm-text)' }}>디바이스 삭제</span>
+                        <span style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--sm-text-3)' }}>
+                            <span style={{ fontFamily: "'Geist Mono',monospace" }}>{deleteTarget.name}</span> 디바이스를
+                            이 유저에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+                        </span>
+                        {deleteError ? <span style={{ fontSize: 12, color: '#e5484d' }}>{deleteError}</span> : null}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleting}
+                                style={{
+                                    appearance: 'none',
+                                    cursor: deleting ? 'default' : 'pointer',
+                                    fontFamily: 'inherit',
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    borderRadius: 7,
+                                    padding: '8px 14px',
+                                    background: 'var(--sm-panel-2)',
+                                    border: '1px solid var(--sm-border-2)',
+                                    color: 'var(--sm-text-3)',
+                                }}
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setDeleting(true);
+                                    setDeleteError(null);
+                                    wl.deleteDevice(deleteTarget.id)
+                                        .then(() => setDeleteTarget(null))
+                                        .catch(e => setDeleteError(e instanceof Error ? e.message : `${e}`))
+                                        .finally(() => setDeleting(false));
+                                }}
+                                disabled={deleting}
+                                style={{
+                                    appearance: 'none',
+                                    cursor: deleting ? 'default' : 'pointer',
+                                    fontFamily: 'inherit',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    borderRadius: 7,
+                                    padding: '8px 14px',
+                                    background: hexToRgba('#e5484d', 0.14),
+                                    border: `1px solid ${hexToRgba('#e5484d', 0.4)}`,
+                                    color: '#e5484d',
+                                    opacity: deleting ? 0.6 : 1,
+                                }}
+                            >
+                                {deleting ? '삭제 중…' : '삭제'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+}

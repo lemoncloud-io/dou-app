@@ -68,7 +68,7 @@ jobs:
               if: ${{ github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_admin_prod == 'true' }}
               id: get-admin-version
               run: |
-                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
+                  ADMIN_VERSION=$(node -p "require('./apps/admin-v2/package.json').version")
                   if ! echo "$ADMIN_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
                     echo "Error: Invalid admin version format: $ADMIN_VERSION"
                     exit 1
@@ -98,7 +98,7 @@ jobs:
                     - project: web
                       prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_web_dev == 'true' && 'true' || 'false' }}
-                    - project: admin
+                    - project: admin-v2
                       prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_dev == 'true' && 'true' || 'false' }}
                     - project: landing
@@ -210,7 +210,7 @@ jobs:
                     - project: web
                       prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_web_prod == 'true' && 'true' || 'false' }}
-                    - project: admin
+                    - project: admin-v2
                       prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_prod == 'true' && 'true' || 'false' }}
                     - project: landing
