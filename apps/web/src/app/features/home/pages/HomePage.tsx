@@ -5,7 +5,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
-import { AppHeader, DefaultAvatar, EmptyState, ProfileAvatar } from '@chatic/web-ui-kit';
+import { AppHeader, EmptyState, ProfileAvatar } from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -15,7 +15,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
+import { useMyProfile, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
@@ -72,10 +72,12 @@ export const HomePage = () => {
     const canAddPlace = isCloudOwner && permissions.canCreatePlace;
 
     // Cloud identity for the `cloud` header kind. CloudView has no image field, so AppHeader falls
-    // back to a CloudAvatar (name initials) — we only supply the display name here.
+    // back to a CloudAvatar (name initials) — we only supply the display name here. When the cloud
+    // has no display name (name/email absent), fall back to its id so both the header label and the
+    // initials avatar have something to show instead of a blank "?".
     const { clouds } = useCloudSessionCatalog();
     const activeCloud = clouds.find(cloud => cloud.id === selectedCloudId);
-    const cloudName = activeCloud ? getCloudDisplayName(activeCloud) : '';
+    const cloudName = activeCloud ? getCloudDisplayName(activeCloud) || activeCloud.id : '';
 
     // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise a valid
     // membership reads as PRO (same convention as SubscriptionPage). CloudView carries no grade.
@@ -109,32 +111,22 @@ export const HomePage = () => {
     const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelsLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
 
-    // Header profile is resolved by tier. Off the default cloud the site (place) profile is the
-    // identity: when it's missing we fall through to the setup prompt — NOT the account profile — so
-    // the user is nudged to set up their place profile. On the default cloud (relay), which has no
-    // per-place identity, the account profile is the intended display, so it's passed only there.
-    // The site profile (V2 per-site nick/thumbnail) reflects an edit-screen save immediately via the
-    // observed cache. `identity.userName` is intentionally excluded — it defaults to 'Unknown', which
-    // would mask the empty state that should show the setup prompt.
+    // Header identity is the PLACE (site) profile only — HomePage never uses the account/user
+    // record. On every cloud (relay included) the header shows the place profile nick/thumbnail;
+    // when it's missing we fall through to the setup prompt (never the account name), nudging the
+    // user to set up their place profile. A site-profile edit reflects immediately via the observed
+    // cache.
     const { profile: myProfile } = useMyProfile();
-    const myUser = useMyUser();
     const headerProfile = resolveHeaderProfile({
-        siteName: !isDefaultCloud ? myProfile?.nick : undefined,
-        siteImageUrl: !isDefaultCloud ? myProfile?.thumbnail : undefined,
-        accountName: isDefaultCloud ? myUser?.name : undefined,
-        accountImageUrl: isDefaultCloud ? myUser?.photo : undefined,
+        siteName: myProfile?.nick,
+        siteImageUrl: myProfile?.thumbnail,
     });
 
     const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
-    // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When the
-    // active place has no photo (or on relay, which has no place profile), ProfileAvatar renders its
-    // default glyph (기본 아바타).
-    const displayImageUrl = isDefaultCloud ? undefined : (myProfile?.thumbnail ?? undefined);
+    // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When
+    // the active place has no photo, ProfileAvatar renders its default glyph (기본 아바타).
+    const displayImageUrl = myProfile?.thumbnail ?? undefined;
 
-    // On an active site everyone has an editable site profile (incl. invited-cloud users), so show
-    // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
-    // it for guests / invited users who have no editable relay profile.
-    const showProfileButton = !isDefaultCloud || !isGuest;
     // The per-place profile edit dialog needs an active site (the key `useMyProfile` reads). Works on
     // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
     // is active, since there'd be no profile to edit.
@@ -234,7 +226,7 @@ export const HomePage = () => {
                 searchLabel={t('homePage.search', '검색')}
                 onSwitcher={canSwitchCloud ? () => setIsCloudSessionOpen(true) : undefined}
                 switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
-                avatar={showProfileButton ? profileMenu : <DefaultAvatar size={36} />}
+                avatar={profileMenu}
                 profileLabel={t('homePage.profile', '프로필')}
             />
 
