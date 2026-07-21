@@ -7,6 +7,7 @@ import { FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField } from '@ch
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
 import { useChannel, useChannelMutations, useJoinMutations } from '../hooks';
 
 interface UpdateChannelDialogProps {
@@ -123,10 +124,13 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
 
                 {/* Full-bleed on phones, capped to a phone-width column on wider screens. */}
                 <div className="flex h-full w-full max-w-[440px] flex-col">
+                    {/* safeArea={false}: the native WebView is already inset below the status bar,
+                        so adding the safe-top inset here would double the top gap. */}
                     <ModalTopBar
                         title={t('updateChannel.readOnlyTitle')}
                         onClose={() => onOpenChange(false)}
                         closeLabel={t('updateChannel.close')}
+                        safeArea={false}
                     />
 
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -191,11 +195,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                         onClick={handleSubmit}
                         wrapperClassName="shrink-0"
                     />
-                    <div
-                        className="shrink-0 touch-none bg-background"
-                        style={{ height: 'var(--keyboard-height, 0px)' }}
-                        onTouchMove={e => e.preventDefault()}
-                    />
+                    <KeyboardSafeAreaSpacer />
                 </div>
             </DialogContent>
         </Dialog>

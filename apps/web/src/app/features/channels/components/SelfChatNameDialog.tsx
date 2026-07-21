@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { TextField } from '@chatic/web-ui-kit';
 
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
 import { useMyProfile } from '../../../hooks';
 import { useChannel, useJoinMutations } from '../hooks';
 
@@ -118,11 +119,7 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
                                 {isPending.update ? t('selfChat.name.saving') : t('selfChat.name.done')}
                             </Button>
                         </div>
-                        <div
-                            className="shrink-0 touch-none bg-background"
-                            style={{ height: 'var(--keyboard-height, 0px)' }}
-                            onTouchMove={e => e.preventDefault()}
-                        />
+                        <KeyboardSafeAreaSpacer />
                     </div>
                 </form>
             </DialogContent>

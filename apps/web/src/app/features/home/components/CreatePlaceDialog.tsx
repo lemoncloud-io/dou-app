@@ -7,6 +7,7 @@ import { resizeImageToBase64 } from '@chatic/shared';
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useCreatePlace } from '../hooks';
 
@@ -115,7 +116,9 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                 <DialogDescription className="sr-only">{t('createPlace.subtitle')}</DialogDescription>
 
                 <div className="flex h-full w-full max-w-[440px] flex-col">
-                    <ModalTopBar onClose={requestClose} closeLabel={t('createPlace.close')} />
+                    {/* safeArea={false}: the native WebView is already inset below the status bar,
+                        so adding the safe-top inset here would double the top gap. */}
+                    <ModalTopBar onClose={requestClose} closeLabel={t('createPlace.close')} safeArea={false} />
 
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {/* Title + subtitle */}
@@ -184,11 +187,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                         onClick={handleSubmit}
                         wrapperClassName="shrink-0"
                     />
-                    <div
-                        className="shrink-0 touch-none bg-background"
-                        style={{ height: 'var(--keyboard-height, 0px)' }}
-                        onTouchMove={e => e.preventDefault()}
-                    />
+                    <KeyboardSafeAreaSpacer />
                 </div>
 
                 <AlertDialog

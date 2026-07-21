@@ -6,6 +6,8 @@ import { resizeImageToBase64 } from '@chatic/shared';
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
 const SUCCESS_CLOSE_DELAY = 1300; // keep the success toast visible briefly before closing
@@ -190,8 +192,14 @@ export const PlaceProfileFormDialog = ({
                 {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
                     screens so the layout (and the full-width CTA) never stretches. */}
                 <div className="flex h-full w-full max-w-[440px] flex-col">
-                    {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button. */}
-                    <ModalTopBar onClose={dismissible ? requestClose : undefined} closeLabel={closeLabel} />
+                    {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button.
+                        safeArea={false}: the native WebView is already inset below the status bar,
+                        so adding the safe-top inset here would double the top gap. */}
+                    <ModalTopBar
+                        onClose={dismissible ? requestClose : undefined}
+                        closeLabel={closeLabel}
+                        safeArea={false}
+                    />
 
                     {/* Scrollable content: min-h-0 lets it shrink+scroll so the CTA never overlaps on short
                     viewports. Section paddings mirror the Figma spec (title px-4, avatar px-[18px],
@@ -268,11 +276,7 @@ export const PlaceProfileFormDialog = ({
                         onClick={handleSubmit}
                         wrapperClassName="shrink-0"
                     />
-                    <div
-                        className="shrink-0 touch-none bg-background"
-                        style={{ height: 'var(--keyboard-height, 0px)' }}
-                        onTouchMove={e => e.preventDefault()}
-                    />
+                    <KeyboardSafeAreaSpacer />
                 </div>
 
                 <AlertDialog
