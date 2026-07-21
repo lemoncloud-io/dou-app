@@ -67,17 +67,27 @@ export const HomePage = () => {
     const canAddPlace = isCloudOwner && permissions.canCreatePlace;
 
     // Cloud identity for the `cloud` header kind. CloudView has no image field, so AppHeader falls
-    // back to a CloudAvatar (name initials) — we only supply the display name here. When the cloud
-    // has no display name (name/email absent), fall back to its id so both the header label and the
-    // initials avatar have something to show instead of a blank "?".
+    // back to a CloudAvatar (name initials) — we only supply the display name here.
+    // The active cloud is usually an owned catalog cloud, but an INVITED cloud is not in the catalog
+    // (it lives in invitedClouds), so look there too — matched by id or cid. Invited clouds may lack
+    // name/email (and even id), so fall back name → id → cid so both the header label and its
+    // initials avatar always have something to show instead of a blank "?".
     const { clouds } = useCloudSessionCatalog();
-    const activeCloud = clouds.find(cloud => cloud.id === selectedCloudId);
-    const cloudName = activeCloud ? getCloudDisplayName(activeCloud) || activeCloud.id : '';
+    const activeOwnedCloud = clouds.find(cloud => cloud.id === selectedCloudId);
+    const activeInvitedCloud = invitedClouds.find(
+        cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
+    );
+    const activeCloud = activeOwnedCloud ?? activeInvitedCloud;
+    const cloudName = activeCloud
+        ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || ''
+        : '';
 
-    // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise a valid
-    // membership reads as PRO (same convention as SubscriptionPage). CloudView carries no grade.
+    // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
+    // either a valid membership OR at least one activated cloud exists — owning a live cloud (status
+    // 'active' in the relay catalog above) already implies paid access. CloudView carries no grade.
     const { data: membership } = useMembershipInfo();
-    const planTier: 'free' | 'pro' = !isGuest && membership?.isValid ? 'pro' : 'free';
+    const hasActiveCloud = clouds.some(cloud => cloud.status === 'active');
+    const planTier: 'free' | 'pro' = !isGuest && (membership?.isValid || hasActiveCloud) ? 'pro' : 'free';
 
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
