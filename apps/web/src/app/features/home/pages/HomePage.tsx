@@ -53,14 +53,9 @@ export const HomePage = () => {
     // then reactive on cache emits), so a profile edit fans out here without a session refresh.
     const { isGuest } = useRuntimeProfile();
     const permissions = useUserPermissions();
-    // A guest who has accepted a cloud invite stays userType === TEMP_ACCOUNT, but holds invited
-    // clouds in the cache. This "invited guest" must be able to switch into those clouds, so the
-    // cloud-switch UI is offered to them even though they are still a guest.
     // useInvitedClouds hides clouds the signed-in account now owns, so an invited cloud that became
     // owned (guest → owner) no longer counts here and is shown only as an owned cloud.
-    const { hasInvitedClouds, invitedClouds } = useInvitedClouds();
-    const isInvitedGuest = isGuest && hasInvitedClouds;
-    const canSwitchCloud = !isGuest || isInvitedGuest;
+    const { invitedClouds } = useInvitedClouds();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     // Connected to an invited cloud → drives the place-type caption.
@@ -224,7 +219,9 @@ export const HomePage = () => {
                 onPlanClick={() => navigate(ROUTES.subscription.root)}
                 onSearch={handleSearch}
                 searchLabel={t('homePage.search', '검색')}
-                onSwitcher={canSwitchCloud ? () => setIsCloudSessionOpen(true) : undefined}
+                // The cloud-switch entry is always available — even a plain guest can open the sheet
+                // to reach DoU Home, view invited clouds, or add a cloud (subscribe).
+                onSwitcher={() => setIsCloudSessionOpen(true)}
                 switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
                 avatar={profileMenu}
                 profileLabel={t('homePage.profile', '프로필')}

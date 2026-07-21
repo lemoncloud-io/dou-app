@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
-import { AlertCircle, Check, Loader2, Pencil, User } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Pencil } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
+import { CloudAvatar } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { CLOUD_AVATAR_CLASS, SELECTED_HIGHLIGHT, getCloudDisplayName, isProvisioning } from './shared';
@@ -72,16 +73,19 @@ export const CloudItem = ({
                 disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
-            {/* Avatar — folds provisioning/error state into the glyph slot. */}
-            <div className={CLOUD_AVATAR_CLASS}>
-                {isProvisioning(cloud.status) ? (
+            {/* Avatar — provisioning/error states show a glyph in the placeholder disc; the active
+                cloud uses the AppHeader-style initials avatar (CloudAvatar) derived from its name. */}
+            {isProvisioning(cloud.status) ? (
+                <div className={CLOUD_AVATAR_CLASS}>
                     <Loader2 size={18} className="animate-spin text-[#9FA2A7]" />
-                ) : isError ? (
+                </div>
+            ) : isError ? (
+                <div className={CLOUD_AVATAR_CLASS}>
                     <AlertCircle size={20} className="text-red-500" />
-                ) : (
-                    <User size={20} className="text-placeholder" />
-                )}
-            </div>
+                </div>
+            ) : (
+                <CloudAvatar name={displayName} size="lg" />
+            )}
             <div className="flex flex-1 flex-col gap-0.5">
                 {hasName ? (
                     <div className="flex items-center gap-[6px]">

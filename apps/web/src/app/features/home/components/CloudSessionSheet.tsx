@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
+import { Inbox } from 'lucide-react';
+
 import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudsKeys, useCloudSessionCatalog, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
@@ -18,6 +20,7 @@ import { readCloudUnreadSnapshot } from '../lib';
 import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
 import { SubscriptionRequiredDialog } from './SubscriptionRequiredDialog';
+
 import {
     AddAccountButton,
     CloudItem,
@@ -26,6 +29,7 @@ import {
     TabBar,
     getCloudDisplayName,
     isProvisioning,
+    sortCloudsForSwitcher,
     type CloudTab,
 } from './cloud-session';
 
@@ -115,6 +119,11 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const isDefaultSelected = !selectedId || selectedId === 'default';
     const isLoading = isFetchingClouds && clouds.length === 0;
 
+    // Display order (spec 2-3 / 5-2): selected cloud pinned to top, then creation order (newest
+    // first). View-only — logic/polling keeps using the unsorted `clouds`.
+    const sortedClouds = sortCloudsForSwitcher(clouds, selectedId);
+    const sortedInvited = sortCloudsForSwitcher(invitedClouds, selectedId);
+
     return (
         <>
             <BottomSheet
@@ -123,19 +132,25 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                 title={t('cloudSessionSheet.title')}
                 onClose={handleClose}
                 closeLabel={t('cloudSessionSheet.close', '닫기')}
+                // Fixed height (spec 1): the sheet always opens at its maximum height (matching the
+                // BottomSheet's max-h-[90vh] cap) regardless of list length — default height IS the
+                // max height, so it never grows/shrinks with content.
+                className="h-[90vh]"
                 footer={
                     tab === 'my' && !isDefaultSelected && clouds.length < 1 ? (
                         <AddAccountButton onClick={handleAddAccount} />
                     ) : undefined
                 }
             >
-                <div className="flex flex-col">
-                    {/* Tabs — returning to relay is done by selecting the DoU Home row below,
-                        so the standalone disconnect link is gone. */}
-                    <TabBar tab={tab} onChange={setTab} inviteCount={invitedClouds.length} />
+                <div className="flex h-full flex-col">
+                    {/* Tabs — pinned above the scroll area. Returning to relay is done by selecting
+                        the DoU Home row below, so the standalone disconnect link is gone. */}
+                    <div className="shrink-0">
+                        <TabBar tab={tab} onChange={setTab} inviteCount={invitedClouds.length} />
+                    </div>
 
-                    {/* Content */}
-                    <div className="max-h-[40vh] overflow-y-auto">
+                    {/* Content — only this region scrolls inside the fixed-height sheet. */}
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                         <div className="flex flex-col gap-[6px] pt-6">
                             {tab === 'my' ? (
                                 <>
@@ -171,7 +186,7 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                         </div>
                                     ) : clouds.length === 0 ? null : (
                                         <div className="flex flex-col gap-1 px-2">
-                                            {clouds.map(cloud => (
+                                            {sortedClouds.map(cloud => (
                                                 <CloudItem
                                                     key={cloud.id}
                                                     cloud={cloud}
@@ -193,12 +208,24 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
                                     )}
                                 </>
                             ) : invitedClouds.length === 0 ? (
-                                <div className="flex items-center justify-center px-3 py-6 text-sm text-muted-foreground">
-                                    {t('cloudSessionSheet.emptyInvited')}
+                                // Empty state (invited tab) — centered icon + title + description,
+                                // filling the fixed-height sheet.
+                                <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+                                    <span className="flex size-14 items-center justify-center rounded-full bg-secondary">
+                                        <Inbox size={28} className="text-muted-foreground" />
+                                    </span>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[15px] font-medium leading-[1.4] text-foreground">
+                                            {t('cloudSessionSheet.emptyInvited')}
+                                        </span>
+                                        <span className="text-[13px] leading-[1.4] text-muted-foreground">
+                                            {t('cloudSessionSheet.emptyInvitedDescription')}
+                                        </span>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-1 px-2">
-                                    {invitedClouds.map(inviteCloud => (
+                                    {sortedInvited.map(inviteCloud => (
                                         <InviteCloudItem
                                             key={inviteCloud.id}
                                             inviteCloud={inviteCloud}
