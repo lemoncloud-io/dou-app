@@ -174,6 +174,12 @@ export const ChannelSettingsPage = () => {
     const isOwner = !!channel?.isOwner;
     // Self-chat name comes from the per-user join nick, not `channel.name` (ADR-0022).
     const selfChatTitle = useSelfChatTitle(channel);
+    // Title by channel type: self → selfChatTitle; dm → not handled yet (falls through). The rest —
+    // I own it → the owner-set channel.name (my own join nick is ignored); I'm a member → my join
+    // nick, falling back to channel.name.
+    const roomTitle = isSelfChat
+        ? selfChatTitle
+        : (isOwner ? channel?.name : (myJoin?.nick ?? channel?.name)) || t('chat.settings.roomName');
 
     const roomAvatar = channel?.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
@@ -228,7 +234,7 @@ export const ChannelSettingsPage = () => {
                     read-only for non-owner members). */}
                 <ListRow
                     leading={roomAvatar}
-                    title={isSelfChat ? selfChatTitle : channel?.displayName || t('chat.settings.roomName')}
+                    title={roomTitle}
                     trailing={<ChevronRight className="size-5 text-muted-foreground" />}
                     onClick={() => openDialog(isSelfChat ? 'selfName' : 'update')}
                 />
