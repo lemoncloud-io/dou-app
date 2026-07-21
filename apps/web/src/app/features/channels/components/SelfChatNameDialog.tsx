@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { TextField } from '@chatic/web-ui-kit';
 
+import { useMyProfile } from '../../../hooks';
 import { useChannel, useJoinMutations } from '../hooks';
 
 interface SelfChatNameDialogProps {
@@ -33,7 +34,12 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
     const { channel } = useChannel(channelId ?? null);
     const { updateJoin, isPending } = useJoinMutations();
     const { userId } = useSessionIdentity();
+    const { profile } = useMyProfile();
     const { toast } = useToast();
+
+    // A self-chat's default name (when no custom join nick is set) is my place-profile nick, so
+    // surface it as the placeholder — the same fallback identity used by useSelfChatTitle.
+    const placeProfileName = profile?.nick;
 
     const [name, setName] = useState('');
 
@@ -96,7 +102,7 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
                             value={name}
                             onChange={setName}
                             maxLength={MAX_NAME_LENGTH}
-                            placeholder={t('selfChat.name.placeholder')}
+                            placeholder={placeProfileName || t('selfChat.name.placeholder')}
                             description={t('selfChat.name.helper')}
                         />
                     </div>

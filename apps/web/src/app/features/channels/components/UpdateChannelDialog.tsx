@@ -44,10 +44,12 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
 
     // Seed transient state once per open (false→true). The observed channel can re-emit while the
     // dialog is open (background sync); re-seeding then would clobber in-progress edits, so we latch.
+    // The name field starts empty for both roles — the current room name is surfaced as the
+    // placeholder instead (see namePlaceholder), so typing overwrites it rather than editing in place.
     useEffect(() => {
         if (open && channel && !seededRef.current) {
             seededRef.current = true;
-            setName(isOwner ? ownerRoomName : myNick);
+            setName('');
             setThumbnail(channel.thumbnail ?? '');
             setImageSizeError(false);
         } else if (!open) {
@@ -56,13 +58,14 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
     }, [open, channel, isOwner, ownerRoomName, myNick]);
 
     const trimmed = name.trim();
-    const isValidName = trimmed.length >= 1 && name.length <= NAME_MAX;
+    // The field starts empty (current name shown as placeholder), so an empty value means
+    // "keep the current name" — it only counts as a change once something new is typed.
+    const isNameDirty = trimmed.length > 0 && trimmed !== (isOwner ? ownerRoomName : myNick);
     // Owner edits name + photo; invited edits only their nick (no thumbnail on join.update).
     const isImageDirty = isOwner && thumbnail !== (channel?.thumbnail ?? '');
-    const isNameDirty = name !== (isOwner ? ownerRoomName : myNick);
     const isDirty = isNameDirty || isImageDirty;
     const pending = isOwner ? channelPending.update : joinPending.update;
-    const canSubmit = isValidName && isDirty && !pending;
+    const canSubmit = name.length <= NAME_MAX && isDirty && !pending;
 
     const handleImageClick = () => fileInputRef.current?.click();
 
@@ -89,7 +92,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
             if (isOwner) {
                 await updateChannel({
                     channelId,
-                    name: trimmed,
+                    ...(isNameDirty && { name: trimmed }),
                     ...(isImageDirty && { thumbnail }),
                 } as never);
             } else {
@@ -103,9 +106,10 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
         }
     };
 
-    const namePlaceholder = isOwner
-        ? t('updateChannel.namePlaceholder')
-        : ownerRoomName || t('updateChannel.invitedNamePlaceholder');
+    // Common placeholder = the current room name (channel.name) for both roles. Falls back to a
+    // role-appropriate hint only when the room has no name yet.
+    const namePlaceholder =
+        ownerRoomName || (isOwner ? t('updateChannel.namePlaceholder') : t('updateChannel.invitedNamePlaceholder'));
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
