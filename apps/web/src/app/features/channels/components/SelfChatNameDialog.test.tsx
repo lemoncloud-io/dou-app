@@ -16,6 +16,9 @@ jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
 }));
+// The dialog surfaces my place-profile nick as the placeholder. Mock the app-level hooks barrel
+// so the test doesn't pull in the real app-runtime (socket lib) transitively.
+jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '플레이스닉' } }) }));
 
 describe('SelfChatNameDialog', () => {
     beforeEach(() => updateJoin.mockClear());
@@ -28,6 +31,12 @@ describe('SelfChatNameDialog', () => {
         expect(screen.getByText('selfChat.name.helper')).toBeInTheDocument();
         expect(screen.getByText('selfChat.name.done')).toBeInTheDocument();
         expect(screen.getByRole('textbox')).toHaveValue('내 메모');
+    });
+
+    it('플레이스홀더로 내 플레이스 프로필 nick을 노출한다', () => {
+        render(<SelfChatNameDialog open onOpenChange={() => undefined} channelId="c1" />);
+
+        expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', '플레이스닉');
     });
 
     it('저장 시 join.userId와 트림된 nick으로 updateJoin을 호출하고 닫는다', async () => {
