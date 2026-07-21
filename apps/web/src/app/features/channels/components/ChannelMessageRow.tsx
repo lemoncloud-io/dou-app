@@ -180,7 +180,7 @@ export const ChannelMessageRow = ({
             className={cn(!showProfileAndName && '-mt-1')}
         >
             {!mine && showProfileAndName && <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>}
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
                 {message.isFailed && mine && (
                     <button onClick={onRetry} className="flex shrink-0 items-center">
                         <AlertCircle size={20} className="text-destructive" />
