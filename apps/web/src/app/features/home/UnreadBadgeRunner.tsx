@@ -19,7 +19,11 @@ import { sumSnapshot, writeCloudUnread } from './lib';
  */
 export const UnreadBadgeRunner = (): null => {
     const cloudChannels = useActiveCloudChannels();
-    const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels));
+    // Observe-only (sync: false): the app-global badge must not own per-channel join sync — that
+    // registration is scoped to the home surface so it tears down when home unmounts. The cursor
+    // still reflects my reads (join cache) and new messages (channel head via syncChannels), and
+    // reconciles on the next home visit.
+    const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
     const { selectedCloudId } = useSessionSelection();
 
     // Write-through the active cloud's total into the snapshot, then push the cross-cloud sum to

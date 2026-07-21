@@ -39,7 +39,10 @@ export const UnifiedLayout = (): JSX.Element => {
     // the nav component. The native app-icon badge is a separate concern owned by UnreadBadgeRunner.
     const showBottomNav = shouldShowBottomNav(pathname);
     const cloudChannels = useActiveCloudChannels();
-    const { total: unreadTotal } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels));
+    // Observe-only (sync: false): this layout is mounted on every route, so it must not own the
+    // per-channel join sync (that stays scoped to HomePage). The nav badge total is derived from
+    // the observed join cache + channel head.
+    const { total: unreadTotal } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
 
     return (
         <div
