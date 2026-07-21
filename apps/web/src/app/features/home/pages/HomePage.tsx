@@ -262,6 +262,7 @@ export const HomePage = () => {
                     <ChannelList
                         channels={channels}
                         unreadByChannel={unreadByChannel}
+                        joinByChannel={myJoins}
                         isLoading={isChannelsLoading}
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}

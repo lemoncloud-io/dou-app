@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import {
     DropdownMenu,
@@ -30,6 +31,16 @@ import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
 
+// Coerce a possibly-string/number timestamp to epoch ms for comparison (0 when absent/invalid).
+const toTime = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+};
+
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
         <div className="size-[46px] animate-pulse rounded-full bg-muted" />
@@ -40,15 +51,25 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unread: number; myNick?: string }) => {
+const ChannelItem = ({
+    channel,
+    unread,
+    myNick,
+    joinNick,
+}: {
+    channel: DomainChannel;
+    unread: number;
+    myNick?: string;
+    joinNick?: string;
+}) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
     // Self-chat is identified by stereo (ADR-0022), not member count.
     const isSelf = channel.stereo === 'self';
-    // For self-chat the title is the per-user join nick, falling back to my profile
-    // nick (resolved once by the parent), then the "나와의 채팅" label.
-    const selfChatTitle = resolveSelfChatTitle(channel.$join?.nick, myNick, t('channelList.selfChannel'));
+    // For self-chat the title follows: this channel's join nick (from the subscribed join list,
+    // freshest after a rename) → the embedded `$join` nick → my profile nick → "나와의 채팅" label.
+    const selfChatTitle = resolveSelfChatTitle(joinNick ?? channel.$join?.nick, myNick, t('channelList.selfChannel'));
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
@@ -65,7 +86,7 @@ const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unre
     };
 
     // Self-chat: join.nick → my site-profile nick → label (ADR-0026). Other rows:
-    // personal room name (my join.nick) overrides the owner-set channel name.
+    // owner-set channel name (self-chat's own nick handling lives in selfChatTitle).
     const name = isSelf ? selfChatTitle : resolveChannelName(channel) || t('channelList.unnamedChannel');
     const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
     const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
@@ -112,6 +133,8 @@ const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unre
 interface ChannelListProps {
     channels: DomainChannel[];
     unreadByChannel: Record<string, number>;
+    /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
+    joinByChannel?: Map<string, DomainJoin>;
     isLoading: boolean;
     /** Show the create (＋) popover in the section header. */
     canCreate?: boolean;
@@ -128,6 +151,7 @@ interface ChannelListProps {
 export const ChannelList = ({
     channels,
     unreadByChannel,
+    joinByChannel,
     isLoading,
     canCreate,
     isDefaultCloud,
@@ -140,6 +164,15 @@ export const ChannelList = ({
     // (not per row) since useMyProfile triggers a fetch.
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
+
+    // Order by the channel's join `updatedAt` (most recently active first), sourced from the
+    // subscribed join list, then the embedded `$join`, then the channel's own activity time.
+    const sortedChannels = useMemo(() => {
+        const activityAt = (channel: DomainChannel): number =>
+            toTime(joinByChannel?.get(channel.id)?.updatedAt ?? channel.$join?.updatedAt) ||
+            toTime(channel.lastActivityAt ?? channel.updatedAt);
+        return [...channels].sort((left, right) => activityAt(right) - activityAt(left));
+    }, [channels, joinByChannel]);
 
     const createMenu = canCreate ? (
         <DropdownMenu>
@@ -181,12 +214,13 @@ export const ChannelList = ({
             ) : channels.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
             ) : (
-                channels.map(channel => (
+                sortedChannels.map(channel => (
                     <ChannelItem
                         key={channel.id}
                         channel={channel}
                         unread={unreadByChannel[channel.id] ?? 0}
                         myNick={myNick}
+                        joinNick={joinByChannel?.get(channel.id)?.nick}
                     />
                 ))
             )}
