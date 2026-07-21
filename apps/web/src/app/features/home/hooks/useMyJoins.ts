@@ -11,8 +11,9 @@ import type { DomainChannel, DomainJoin } from '@chatic/data';
  * only catches up on the next channel sync).
  *
  * Registers a join (read-state) sync per channel keyed `${channelId}@${myUserId}` so my cursor stays
- * current while home is mounted. registerJoin refcounts by key, so these dedup with the chat room's
- * own per-member registration. Read cursors come from observing the join cache per channel.
+ * current while home is mounted. This is the SOLE owner of join sync registration — the chat room no
+ * longer registers its own (useJoinPositions only observes the cache). Read cursors come from
+ * observing the join cache per channel.
  *
  * Returns a channelId → my {@link DomainJoin} map; channels with no synced join row are simply
  * absent (the consumer treats them as "no read boundary yet").

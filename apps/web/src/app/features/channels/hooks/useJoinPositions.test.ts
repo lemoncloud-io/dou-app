@@ -1,18 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 import { useJoinPositions } from './useJoinPositions';
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
-    getSyncManager: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
 }));
 
 const observeList = jest.fn();
-const registerJoin = jest.fn();
 
 const join = (userId: string, fields: Partial<DomainJoin>): DomainJoin =>
     ({ userId, joined: 1, ...fields }) as unknown as DomainJoin;
@@ -30,19 +27,14 @@ const emitJoins = (rows: DomainJoin[]) => act(() => observeCallback?.({ list: ro
 beforeEach(() => {
     jest.clearAllMocks();
     seedJoins([]);
-    registerJoin.mockReturnValue(() => undefined);
     (useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList } });
-    (getSyncManager as jest.Mock).mockReturnValue({ registerJoin });
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
 });
 
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
-    it('active 멤버마다 join sync를 등록한다', () => {
+    it('join sync를 등록하지 않고 채널 join 캐시만 관측한다 (전역 sync는 홈 소유)', () => {
         renderHook(() => useJoinPositions('c1', ['u1', 'u2']));
 
-        expect(registerJoin).toHaveBeenCalledTimes(2);
-        expect(registerJoin).toHaveBeenCalledWith('c1@u1');
-        expect(registerJoin).toHaveBeenCalledWith('c1@u2');
+        expect(observeList).toHaveBeenCalledWith({ channelId: 'c1' }, expect.any(Function));
     });
 
     it('커서는 testbed 방식대로 max(readNo, chatNo)를 그대로 쓴다', () => {

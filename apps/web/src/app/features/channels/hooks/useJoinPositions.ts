@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 interface ReadCount {
@@ -13,13 +13,11 @@ interface ReadCount {
  * data/cache layers stay untouched.
  *
  * `activeMemberIds` is the active-membership set (join rows with `joined !== 0`), derived
- * upstream in useChannelMembers. It drives both the per-member join sync registration and
- * the unread denominator — keeping the two consistent so unread converges to 0.
+ * upstream in useChannelMembers. It is the unread denominator (total active members).
  *
- * Registers a join (read-state) sync per active member — keyed `${channelId}@${userId}` —
- * so each active member's read cursor stays current (mirrors testbed ChatRoomPage's
- * per-member `registerJoin`). registerJoin refcounts by key, so it dedups with any other
- * join registration for the same id. Read counts come from observing the join cache directly.
+ * The room does NOT register its own join (read-state) sync — global join sync is owned by the
+ * home surface (useMyJoins). This hook only OBSERVES the join cache, so read cursors reflect
+ * whatever that global sync (plus channel sync) has landed.
  *
  * Read cursor: the API join model stores the last-read number in `chatNo`, with our own
  * join also carrying an explicit `readNo` from readChat's optimistic patch, so a member's
@@ -33,7 +31,6 @@ interface ReadCount {
  */
 export const useJoinPositions = (channelId: string | null, activeMemberIds: string[]) => {
     const { join: joinRepository } = useRuntimeRepositories();
-    const { isVerified } = useRuntimeSocketState();
 
     const [joins, setJoins] = useState<DomainJoin[]>([]);
 
@@ -45,20 +42,6 @@ export const useJoinPositions = (channelId: string | null, activeMemberIds: stri
         }
         return joinRepository.observeList({ channelId }, result => setJoins(result?.list ?? []));
     }, [joinRepository, channelId]);
-
-    // Join into a stable dependency so the registration effect only re-runs on a real
-    // membership change, not on every render's new array identity.
-    const memberKey = activeMemberIds.join(',');
-
-    // Register a join sync for every active member (gated on isVerified — runs against the
-    // current session and auto-retries after re-auth).
-    useEffect(() => {
-        if (!channelId || !isVerified) return;
-        const sync = getSyncManager();
-        const disposers = activeMemberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
-        return () => disposers.forEach(dispose => dispose());
-        // memberKey captures the membership set; activeMemberIds is read once per key.
-    }, [channelId, isVerified, memberKey]);
 
     // Per-user read cursor straight from the latest observed join rows: max(readNo, chatNo).
     const cursorByUser = useMemo(() => {
