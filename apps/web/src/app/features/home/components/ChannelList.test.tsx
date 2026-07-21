@@ -7,6 +7,8 @@ import { ChannelList } from './ChannelList';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
 jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
+// My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
+jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
 jest.mock('../hooks/useLastChat', () => ({ useLastChat: () => null }));
 
@@ -109,7 +111,7 @@ describe('ChannelList self-chat row', () => {
     it('그룹 행은 channel.name을 제목으로 쓰고 MY 배지가 없다', () => {
         render(
             <ChannelList
-                channels={[makeChannel({ id: 'g1', stereo: 'group', memberNo: 3, name: '스터디방' })]}
+                channels={[makeChannel({ id: 'g1', stereo: 'group', memberNo: 3, name: '스터디방', ownerId: 'other' })]}
                 unreadByChannel={{}}
                 isLoading={false}
             />
@@ -117,5 +119,52 @@ describe('ChannelList self-chat row', () => {
 
         expect(screen.getByText('스터디방')).toBeInTheDocument();
         expect(screen.queryByText('MY')).not.toBeInTheDocument();
+    });
+
+    it('내가 소유한 채널은 channel.name을 쓰고 내 join.nick은 무시한다', () => {
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({
+                        id: 'g1',
+                        stereo: 'group',
+                        name: '공지방',
+                        ownerId: 'me',
+                        $join: { nick: '내별명' },
+                    }),
+                ]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByText('공지방')).toBeInTheDocument();
+        expect(screen.queryByText('내별명')).not.toBeInTheDocument();
+    });
+
+    it('멤버인 채널은 join.nick을 제목으로 쓴다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
+                unreadByChannel={{}}
+                joinByChannel={new Map([['g1', { nick: '내별명' } as any]])}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByText('내별명')).toBeInTheDocument();
+        expect(screen.queryByText('공지방')).not.toBeInTheDocument();
+    });
+
+    it('멤버인데 join.nick이 없으면 channel.name으로 폴백한다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByText('공지방')).toBeInTheDocument();
     });
 });

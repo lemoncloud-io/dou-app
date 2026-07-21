@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
+import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import {
@@ -26,7 +27,6 @@ import {
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
-import { resolveChannelName } from '../../../utils';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
@@ -56,11 +56,13 @@ const ChannelItem = ({
     unread,
     myNick,
     joinNick,
+    uid,
 }: {
     channel: DomainChannel;
     unread: number;
     myNick?: string;
     joinNick?: string;
+    uid?: string;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -85,11 +87,21 @@ const ChannelItem = ({
         return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Self-chat: join.nick → my site-profile nick → label (ADR-0026). Other rows:
-    // owner-set channel name (self-chat's own nick handling lives in selfChatTitle).
-    const name = isSelf ? selfChatTitle : resolveChannelName(channel) || t('channelList.unnamedChannel');
-    const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
-    const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
+    // Title by channel type. self → selfChatTitle (above); dm → not handled yet (future). The rest:
+    //   - I own the channel → the owner-set `channel.name` (my own join nick is ignored).
+    //   - I'm a member     → my per-channel join nick, falling back to `channel.name`.
+    const unnamed = t('channelList.unnamedChannel');
+    const isOwner = !!uid && channel.ownerId === uid;
+    const memberNick = joinNick ?? channel.$join?.nick;
+    const groupTitle = isOwner
+        ? channel.name?.trim() || unnamed
+        : memberNick?.trim() || channel.name?.trim() || unnamed;
+    const name = isSelf ? selfChatTitle : groupTitle;
+
+    // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
+    // preview or timestamp shows (the message line is hidden).
+    const preview = lastChat?.content ?? '';
+    const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // No channel photo → the default person avatar (기본 아바타). Self-chat uses its
     // own solid-silhouette variant (Figma "1명 Profile"); other rows use the plain one.
@@ -118,7 +130,15 @@ const ChannelItem = ({
                     )}
                 </>
             }
-            subtitle={blurLastMessage ? <span className="select-none blur-[5px]">{preview}</span> : preview}
+            subtitle={
+                preview ? (
+                    blurLastMessage ? (
+                        <span className="select-none blur-[5px]">{preview}</span>
+                    ) : (
+                        preview
+                    )
+                ) : undefined
+            }
             trailing={
                 <div className="flex flex-col items-end gap-1">
                     <span className="text-[12px] leading-4 text-description">{time}</span>
@@ -164,6 +184,8 @@ export const ChannelList = ({
     // (not per row) since useMyProfile triggers a fetch.
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
+    // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
+    const { userId: uid } = useSessionIdentity();
 
     // Order by the channel's join `updatedAt` (most recently active first), sourced from the
     // subscribed join list, then the embedded `$join`, then the channel's own activity time.
@@ -221,6 +243,7 @@ export const ChannelList = ({
                         unread={unreadByChannel[channel.id] ?? 0}
                         myNick={myNick}
                         joinNick={joinByChannel?.get(channel.id)?.nick}
+                        uid={uid ?? undefined}
                     />
                 ))
             )}

@@ -18,7 +18,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
-import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils/consts';
+import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
@@ -124,6 +124,7 @@ export const HomePage = () => {
         accountName: isDefaultCloud ? myUser?.name : undefined,
         accountImageUrl: isDefaultCloud ? myUser?.photo : undefined,
     });
+
     const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
     // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When the
     // active place has no photo (or on relay, which has no place profile), ProfileAvatar renders its
