@@ -75,10 +75,10 @@ export const GroupWithMemberStack: Story = {
     },
 };
 
-// Self chat — person glyph + title, overflow button opens a dropdown.
+// Self chat — solid-silhouette self glyph (ring) + title, overflow opens a dropdown.
 export const SelfWithMenu: Story = {
     args: {
-        kind: 'direct',
+        kind: 'self',
         title: '나와의 채팅',
         moreMenu: <div className="px-3 py-2 text-sm">설정</div>,
     },

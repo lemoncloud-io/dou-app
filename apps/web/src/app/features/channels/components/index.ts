@@ -5,4 +5,5 @@ export { MemberListItem } from './MemberListItem';
 export { MemberProfileDialog } from './MemberProfileDialog';
 export { PermissionDeniedBanner } from './PermissionDeniedBanner';
 export { RoomNotificationDialog } from './RoomNotificationDialog';
+export { SelfChatNameDialog } from './SelfChatNameDialog';
 export { UpdateChannelDialog } from './UpdateChannelDialog';

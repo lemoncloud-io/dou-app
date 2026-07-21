@@ -33,4 +33,14 @@ describe('DefaultAvatar', () => {
 
         expect(root.className).not.toContain('border-border');
     });
+
+    it('adds a hairline ring and a solid-person glyph for the self variant', () => {
+        const { container } = render(<DefaultAvatar variant="self" />);
+        const root = container.firstElementChild as HTMLElement;
+
+        expect(root.className).toContain('bg-brand-ink');
+        expect(root.className).toContain('border-border');
+        // The self glyph is the custom solid silhouette (viewBox 0 0 42 42), not the lucide outline.
+        expect(root.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
+    });
 });

@@ -54,5 +54,6 @@ export const IconUser: LucideIcon = User;
 export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;
 
-// Figma-exported custom glyph (not a lucide icon). See IconGroup.tsx.
+// Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUserSolid.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
+export { IconUserSolid, type IconUserSolidProps } from './IconUserSolid';

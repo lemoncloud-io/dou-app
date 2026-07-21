@@ -44,7 +44,8 @@
 - `libs/data` 변경 — `JoinRepositoryV2.updateJoin`이 이미 notify를 처리(낙관적 write + 롤백).
 - 연결 Dialog(정보 수정·프로필 상세)의 재디자인 — 기존 재사용, 멤버 읽기전용만 소규모 추가.
 - "신고하기" (Figma hidden).
-- 1:1(self) 채팅 레이아웃 — 기존 `isSelfChat` 분기 유지.
+- 1:1(self) 채팅 레이아웃 — self 유형 전용 문서 [[self-chat]]가 담당(이름 행 탭→이름 수정,
+  "방 친구"만 노출). 이 문서는 그룹 설정에 집중한다.
 
 ## 시나리오
 

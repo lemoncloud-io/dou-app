@@ -433,8 +433,8 @@
                 "line1": "Invite friends to",
                 "line2": "start chatting.",
                 "inviteButton": "Invite Friends",
-                "selfLine1": "Your personal space.",
-                "selfLine2": "Save notes, links, or ideas."
+                "selfLine1": "Start your own record",
+                "selfLine2": "Freely save notes, links, and more"
             },
             "read": "Read",
             "unread": "Unread",
@@ -843,6 +843,18 @@
         "done": "Done",
         "success": "Channel updated successfully",
         "error": "Failed to update channel"
+    },
+    "selfChat": {
+        "name": {
+            "title": "Edit name",
+            "label": "Room name",
+            "placeholder": "Self Chat",
+            "helper": "Enter up to 20 characters.",
+            "done": "Done",
+            "saving": "Saving...",
+            "success": "Name updated",
+            "error": "Failed to update name"
+        }
     },
     "onboarding": {
         "prev": "Previous",

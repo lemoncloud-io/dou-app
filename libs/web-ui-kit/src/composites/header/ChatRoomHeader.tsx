@@ -10,11 +10,12 @@ import { IconBack, IconMore } from '../../resources/icons';
 export interface ChatRoomHeaderProps {
     /**
      * Selects the fallback avatar glyph when no `avatar` node is supplied:
-     * `direct` = single-person glyph (a peer / self chat), `group` = three-person
-     * glyph (a channel). Both kinds render identically otherwise — a leading
+     * `direct` = single-person lucide glyph (a peer), `group` = three-person glyph
+     * (a channel), `self` = solid single-person silhouette with a ring (the
+     * "나와의 채팅" design). All kinds render identically otherwise — a leading
      * avatar + left-aligned name next to the back button.
      */
-    kind?: 'direct' | 'group';
+    kind?: 'direct' | 'group' | 'self';
     /** Room / peer title. */
     title?: string;
     /**
@@ -70,7 +71,7 @@ export const ChatRoomHeader = ({
     safeArea = true,
     className,
 }: ChatRoomHeaderProps) => {
-    const isDirect = kind === 'direct';
+    const fallbackVariant = kind === 'group' ? 'group' : kind === 'self' ? 'self' : 'user';
 
     const moreButton = (
         <button type="button" onClick={moreMenu ? undefined : onMore} aria-label={moreLabel} className={SLOT}>
@@ -97,7 +98,7 @@ export const ChatRoomHeader = ({
                 </div>
 
                 <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
-                    {avatar ?? <DefaultAvatar size={42} variant={isDirect ? 'user' : 'group'} />}
+                    {avatar ?? <DefaultAvatar size={42} variant={fallbackVariant} />}
                     <div className="flex min-w-0 flex-1 flex-col">
                         <p className="min-w-0 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
                             {title}

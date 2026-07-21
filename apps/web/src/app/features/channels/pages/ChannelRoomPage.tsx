@@ -34,6 +34,7 @@ import {
     useChatScroll,
     useJoinPositions,
     useReadMarker,
+    useSelfChatTitle,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -84,6 +85,9 @@ export const ChannelRoomPage = () => {
     // Group = anything that is neither the self chat nor a 1:1 DM (stereo). The header
     // participant stack is group-only; self / 1:1 DM headers stay single-line.
     const isGroupChat = !!channel && !isSelfChat && channel.stereo !== 'dm';
+    // Self-chat title comes from the per-user join nick, falling back to my site
+    // profile nick (ADR-0026), not `channel.name`.
+    const selfChatTitle = useSelfChatTitle(channel);
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
@@ -374,8 +378,8 @@ export const ChannelRoomPage = () => {
     return (
         <div className="flex h-full flex-col bg-background">
             <ChatRoomHeader
-                kind={isSelfChat ? 'direct' : 'group'}
-                title={isSelfChat ? t('channelList.selfChannel') : channel?.displayName || t('chat.room.title')}
+                kind={isSelfChat ? 'self' : 'group'}
+                title={isSelfChat ? selfChatTitle : channel?.displayName || t('chat.room.title')}
                 avatar={headerAvatar}
                 meta={headerMeta}
                 onBack={() => navigate(-1)}
