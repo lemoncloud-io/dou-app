@@ -376,7 +376,11 @@ export const ChatRoomPage = () => {
             {isSystemSendOpen && <SystemSendPanel channelId={channelId} onClose={() => setIsSystemSendOpen(false)} />}
 
             {/* 메시지 목록 */}
-            <div ref={listRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+            <div아니
+                ref={listRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 space-y-2"
+            >
                 {isLoadingMore && <p className="text-center text-xs text-muted-foreground py-2">불러오는 중...</p>}
                 {!hasMore && chats.length > 0 && (
                     <p className="text-center text-xs text-muted-foreground py-2">처음 메시지입니다</p>
@@ -405,7 +409,7 @@ export const ChatRoomPage = () => {
                         )
                     )
                 )}
-            </div>
+            </div아니>
 
             {/* 입력 영역 */}
             <div className="flex gap-2 px-3 py-3 border-t border-border bg-card shrink-0">
@@ -482,15 +486,15 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
     return (
         <div className={`flex gap-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
             <Avatar thumbnail={thumbnail} label={nick ?? userName} />
-            <div className={`flex flex-col gap-0.5 max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
+            <div className={`flex min-w-0 flex-col gap-0.5 max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
                 {/* 디버깅용: 유저 이름 + 멤버 프로필 닉을 항상 함께 노출(프로필 없으면 표기). */}
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground break-all">
                     <span className="font-medium">user:</span> {userName}
                     {' · '}
                     <span className="font-medium">profile:</span> {nick ?? '없음'}
                 </p>
                 <div
-                    className={`rounded-2xl px-3 py-2 text-sm ${
+                    className={`min-w-0 max-w-full rounded-2xl px-3 py-2 text-sm ${
                         chat.isPending
                             ? 'bg-muted text-muted-foreground'
                             : isMine
@@ -498,7 +502,7 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                               : 'bg-card border border-border'
                     }`}
                 >
-                    <p className="break-words">{chat.content}</p>
+                    <p className="whitespace-pre-wrap break-words">{chat.content}</p>
                 </div>
                 {/* 유저id · 메시지no · 시각 · 안읽음 수 */}
                 <div className="flex gap-1.5 text-[10px] text-muted-foreground font-mono">
