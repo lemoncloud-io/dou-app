@@ -486,7 +486,9 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
     return (
         <div className={`flex gap-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
             <Avatar thumbnail={thumbnail} label={nick ?? userName} />
-            <div className={`flex min-w-0 flex-col gap-0.5 max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
+            <div
+                className={`flex min-w-0 flex-col gap-0.5 max-w-[min(75%,32rem)] ${isMine ? 'items-end' : 'items-start'}`}
+            >
                 {/* 디버깅용: 유저 이름 + 멤버 프로필 닉을 항상 함께 노출(프로필 없으면 표기). */}
                 <p className="text-[10px] text-muted-foreground break-all">
                     <span className="font-medium">user:</span> {userName}
