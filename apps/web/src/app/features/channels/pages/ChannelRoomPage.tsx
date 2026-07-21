@@ -79,7 +79,21 @@ export const ChannelRoomPage = () => {
     const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
-    const { getReadCount, isReady: isJoinReady } = useJoinPositions(stableChannelIdForChannelHook, activeMemberIds);
+
+    // Full channel roster (source of truth: channel.memberIds), always including me. This drives
+    // the per-member join sync registration so every participant's read cursor stays live — the
+    // read-count denominator (activeMemberIds) is a separate, active-only set.
+    const allMemberIds = useMemo(() => {
+        const ids = new Set<string>(channel?.memberIds ?? []);
+        if (userId) ids.add(userId);
+        return [...ids];
+    }, [channel?.memberIds, userId]);
+
+    const { getReadCount, isReady: isJoinReady } = useJoinPositions(
+        stableChannelIdForChannelHook,
+        activeMemberIds,
+        allMemberIds
+    );
 
     const isSelfChat = channel?.isSelfChat ?? false;
     // Group = anything that is neither the self chat nor a 1:1 DM (stereo). The header
@@ -399,7 +413,7 @@ export const ChannelRoomPage = () => {
                 <div
                     ref={messagesEndRef}
                     onScroll={handleMessagesScroll}
-                    className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-none pb-4 pt-2 gap-3"
+                    className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-none pb-4 pt-2 gap-3"
                 >
                     {isChatLoading ? (
                         <div className="flex min-h-full items-center justify-center">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainJoin } from '@chatic/data';
 
 interface ReadCount {
@@ -15,9 +15,11 @@ interface ReadCount {
  * `activeMemberIds` is the active-membership set (join rows with `joined !== 0`), derived
  * upstream in useChannelMembers. It is the unread denominator (total active members).
  *
- * The room does NOT register its own join (read-state) sync — global join sync is owned by the
- * home surface (useMyJoins). This hook only OBSERVES the join cache, so read cursors reflect
- * whatever that global sync (plus channel sync) has landed.
+ * `memberIds` is the FULL channel roster (channel.memberIds + me). The room registers a join
+ * (read-state) sync for EVERY member off this set so all participants' read cursors stay live
+ * while the room is mounted — the home surface (useMyJoins) only keeps MY join current, which
+ * leaves other members' cursors stale for read receipts. `registerJoin` refcounts by key, so
+ * re-registering my own join here dedups with the home registration (no double polling).
  *
  * Read cursor: the API join model stores the last-read number in `chatNo`, with our own
  * join also carrying an explicit `readNo` from readChat's optimistic patch, so a member's
@@ -29,10 +31,23 @@ interface ReadCount {
  * message's own sender has necessarily read it (sending auto-advances their cursor), so
  * they never inflate the unread count.
  */
-export const useJoinPositions = (channelId: string | null, activeMemberIds: string[]) => {
+export const useJoinPositions = (channelId: string | null, activeMemberIds: string[], memberIds: string[]) => {
     const { join: joinRepository } = useRuntimeRepositories();
+    const { isVerified } = useRuntimeSocketState();
 
     const [joins, setJoins] = useState<DomainJoin[]>([]);
+
+    // Register a join (read-state) sync for every channel member so all read cursors stay live
+    // while the room is mounted. Network-bound, so gated on isVerified (auto-retries on the
+    // false→true edge after re-auth/reconnect). memberKey represents the member set so the
+    // effect only re-runs when the roster actually changes (memberIds read once per key).
+    const memberKey = memberIds.join(',');
+    useEffect(() => {
+        if (!channelId || !isVerified || memberIds.length === 0) return;
+        const sync = getSyncManager();
+        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`));
+        return () => disposers.forEach(dispose => dispose());
+    }, [channelId, isVerified, memberKey]);
 
     // Observe the join cache directly so read cursors stay live for every member.
     useEffect(() => {
