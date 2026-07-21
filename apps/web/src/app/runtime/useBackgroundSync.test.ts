@@ -276,9 +276,25 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
-    it('클라우드 전환(상승 엣지 + sid 변경)에서 self 채널을 중복 없이 1회만 불러온다 (#7)', async () => {
-        // A cloud switch reboots the socket (verified false→true) AND lands on a new sid. Trigger 1
-        // and Trigger 4 must not both fire: Trigger 1 advances prevSiteRef so Trigger 4 stays quiet.
+    it('클라우드 서버에서는 self 채널을 불러오지 않는다 (렐리 서버 전용)', async () => {
+        // channel.get-self is a relay-only capability; on a cloud server the fetch is skipped even
+        // though a place is selected. The rest of the sync (channel delta) still runs.
+        setVerified(false);
+        setSession('cloud-a', 's1');
+        const { rerender } = renderHook(() => useBackgroundSync());
+
+        setVerified(true);
+        await act(async () => {
+            rerender();
+        });
+
+        expect(getSelfChannel).not.toHaveBeenCalled();
+        expect(syncChannels).toHaveBeenCalledTimes(1);
+    });
+
+    it('클라우드 전환(상승 엣지 + sid 변경)에서도 self 채널을 불러오지 않는다 (렐리 전용, #7)', async () => {
+        // A cloud switch reboots the socket (verified false→true) AND lands on a new sid. Since the
+        // target is a cloud server, the self-channel fetch is skipped regardless of trigger fan-out.
         setVerified(false);
         setSession('cloud-a', 's1');
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -289,8 +305,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
             rerender();
         });
 
-        expect(getSelfChannel).toHaveBeenCalledTimes(1);
-        expect(getSelfChannel).toHaveBeenCalled();
+        expect(getSelfChannel).not.toHaveBeenCalled();
         expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 

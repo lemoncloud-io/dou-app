@@ -39,6 +39,9 @@ export const useBackgroundSync = (): void => {
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;
+    // channel.get-self is a relay/default-server capability; cloud servers have no notes-to-self
+    // channel, so the self-channel fetch is gated to the relay server only.
+    const isRelayServer = session.activeServer.kind !== 'cloud';
 
     const isSwitching =
         useIsMutating({ mutationKey: SWITCH_SITE_MUTATION_KEY }) +
@@ -99,13 +102,15 @@ export const useBackgroundSync = (): void => {
     // switch); the cloud-wide delta sync (syncChannels) keeps the rest of the list converging, so no
     // full channel.mine snapshot is needed here.
     const loadSelfChannel = useCallback(async () => {
-        if (!activeSiteId) return;
+        // Only when a place is selected AND we are on the relay server (not a cloud server) —
+        // cloud servers do not expose channel.get-self.
+        if (!activeSiteId || !isRelayServer) return;
         try {
             await repos.channel.getSelfChannel();
         } catch {
             // best-effort: retried on the next place entry
         }
-    }, [repos.channel, activeSiteId]);
+    }, [repos.channel, activeSiteId, isRelayServer]);
 
     // prevSiteRef is shared by Trigger 1 and Trigger 4 (declared once, above both) so the rising edge
     // can advance the site watermark and Trigger 4 does not re-fire the same sync on a cloud switch.
