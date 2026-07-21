@@ -78,6 +78,19 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         expect(result.current.messages.map(m => m.id)).toEqual(['a', 'c']);
     });
 
+    it('pending(서버 chatNo 없음) 메시지는 상단이 아니라 맨 아래(최신)로 정렬한다', () => {
+        seedChats([
+            chat({ id: 'p', chatNo: 0, ownerId: 'me', stereo: 'text', isPending: true, createdAtMs: 300 }),
+            chat({ id: 'a', chatNo: 1, ownerId: 'me', stereo: 'text', createdAtMs: 100 }),
+            chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'text', createdAtMs: 200 }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        // chatNo 0(pending)이 맨 앞으로 밀리지 않고, 커밋된 1,2 뒤에 온다.
+        expect(result.current.messages.map(m => m.id)).toEqual(['a', 'b', 'p']);
+    });
+
     it('메시지가 없고 로딩이 끝나면 isEmpty=true', () => {
         seedChats([]);
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));

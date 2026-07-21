@@ -86,13 +86,24 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     }, [users]);
 
     // Sort oldest → newest so messages[last] is the latest (the page reads it for auto-read).
+    // Pending/failed (optimistic) rows have no server chatNo yet — they must sort AFTER all
+    // committed rows (i.e. as the newest, at the bottom), not at chatNo 0 which would pin them to
+    // the top. So a missing/zero chatNo is treated as +Infinity, with createdAt as the tiebreak
+    // (multiple pending rows, or a pending vs. its just-committed twin).
     // Own system rows (my join/leave) are hidden — they carry no information for their subject.
     // Read-marking is unaffected: stage 1 of useReadMarker sends channel.chatNo, which already
     // covers a hidden newest row.
     const messages = useMemo<ClientChatView[]>(() => {
+        const sortKey = (chat: DomainChat): number =>
+            chat.chatNo && chat.chatNo > 0 ? chat.chatNo : Number.POSITIVE_INFINITY;
         return chats
             .filter(chat => !isOwnSystemChat(chat, myUid))
-            .sort((a, b) => (a.chatNo ?? 0) - (b.chatNo ?? 0))
+            .sort((a, b) => {
+                const aNo = sortKey(a);
+                const bNo = sortKey(b);
+                if (aNo !== bNo) return aNo - bNo;
+                return (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0);
+            })
             .map(chat => ({
                 ...chat,
                 isOwner: !!chat.ownerId && chat.ownerId === myUid,
