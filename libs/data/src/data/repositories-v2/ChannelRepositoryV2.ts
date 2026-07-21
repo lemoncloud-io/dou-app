@@ -9,7 +9,7 @@ import type {
     ChannelDeleteInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type { ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
+import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
 import type { IChannelLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
@@ -43,7 +43,7 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
     deleteChannel(payload: ChannelDeleteInput): Promise<DomainChannel>;
 
-    getSelfChannel(payload?: ChannelGetSelfInput): Promise<ChannelView>;
+    getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel>;
     getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 
     cacheRead(id: string): Promise<DomainChannel | null>;
@@ -292,8 +292,20 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
     }
 
-    public getSelfChannel(payload?: ChannelGetSelfInput): Promise<ChannelView> {
-        return this.channelRemoteDataSource.getSelfChannel(payload ?? {});
+    // Fetch the "나와의 채팅" (notes-to-self) channel for the active site and cache it so it shows in
+    // the channel list. Mirrors createChannel's context handling: map under the normalized context
+    // (tags the active sid) and write under the live request context so list observers re-emit.
+    public async getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const domain = await this.channelRemoteDataSource.getSelfChannel(payload ?? {}, normalizedContext);
+        // Skip the cache write when the answering socket is still bound to a different cloud (the
+        // switch optimistic window) so we don't poison the target partition. Mirrors refreshList.
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid == null || (requestContext.cid || 'default') === rawContext.socketCid) {
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
+        }
+        return domain;
     }
 
     public getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView> {

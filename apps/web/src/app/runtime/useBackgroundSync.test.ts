@@ -21,7 +21,7 @@ jest.mock('../bridge', () => ({ useAppForeground: jest.fn() }));
 import { useAppForeground } from '../bridge';
 
 const refreshList = jest.fn();
-const refreshChannelList = jest.fn();
+const getSelfChannel = jest.fn();
 const syncChannels = jest.fn();
 const syncProfiles = jest.fn();
 const getMyProfile = jest.fn();
@@ -47,7 +47,7 @@ const setSession = (cid: string, selectedSiteId: string | null) => {
 beforeEach(() => {
     jest.clearAllMocks();
     refreshList.mockResolvedValue(undefined);
-    refreshChannelList.mockResolvedValue(undefined);
+    getSelfChannel.mockResolvedValue(undefined);
     syncChannels.mockResolvedValue({ syncedAt: 100 });
     syncProfiles.mockResolvedValue({ syncedAt: 200 });
     getSyncedAt.mockResolvedValue(0);
@@ -55,7 +55,7 @@ beforeEach(() => {
     getMyProfile.mockResolvedValue(undefined);
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         place: { refreshList },
-        channel: { refreshList: refreshChannelList, syncChannels },
+        channel: { getSelfChannel, syncChannels },
         profile: { syncProfiles },
         user: { getMyProfile },
         syncMeta: { getSyncedAt, setSyncedAt },
@@ -142,39 +142,38 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncProfiles).not.toHaveBeenCalled();
     });
 
-    it('verified 상승 엣지에서 활성 사이트 채널 스냅샷을 1회 풀 리프레시한다', async () => {
+    it('verified 상승 엣지에서 활성 사이트의 self(나와의 채팅) 채널을 1회 불러온다', async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
-        expect(refreshChannelList).not.toHaveBeenCalled();
+        expect(getSelfChannel).not.toHaveBeenCalled();
 
         setVerified(true);
         await act(async () => {
             rerender();
         });
 
-        expect(refreshChannelList).toHaveBeenCalledTimes(1);
-        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's1', detail: true, limit: 100 });
+        expect(getSelfChannel).toHaveBeenCalledTimes(1);
     });
 
-    it('주기 타이머 틱에서는 채널 풀 리프레시를 실행하지 않는다', async () => {
+    it('주기 타이머 틱에서는 self 채널을 불러오지 않는다', async () => {
         jest.useFakeTimers();
         setVerified(true);
         renderHook(() => useBackgroundSync());
 
         await act(async () => undefined); // mount rising edge
-        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(getSelfChannel).toHaveBeenCalledTimes(1);
 
         await act(async () => {
             jest.advanceTimersByTime(60_000);
         });
-        // The tick only runs delta syncs; the snapshot stays a rising-edge-only fetch.
-        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        // The tick only runs delta syncs; loading the self channel is place-entry-only.
+        expect(getSelfChannel).toHaveBeenCalledTimes(1);
         expect(syncChannels).toHaveBeenCalledTimes(2);
 
         jest.useRealTimers();
     });
 
-    it('활성 사이트가 없으면 채널 풀 리프레시를 건너뛴다', async () => {
+    it('활성 사이트가 없으면 self 채널 조회를 건너뛴다', async () => {
         setSession('default', null);
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -183,11 +182,11 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
             rerender();
         });
 
-        expect(refreshChannelList).not.toHaveBeenCalled();
+        expect(getSelfChannel).not.toHaveBeenCalled();
     });
 
-    it('채널 풀 리프레시 실패가 다른 동기화를 막지 않는다', async () => {
-        refreshChannelList.mockRejectedValue(new Error('boom'));
+    it('self 채널 조회 실패가 다른 동기화를 막지 않는다', async () => {
+        getSelfChannel.mockRejectedValue(new Error('boom'));
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
         setVerified(true);
@@ -199,17 +198,18 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
 
-    it('포그라운드 복귀 신호에서 목록 델타 + 채널 스냅샷을 갱신한다', async () => {
+    it('포그라운드 복귀 신호에서 목록 델타만 갱신하고 self 채널은 재조회하지 않는다', async () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
         await act(async () => undefined); // flush the mount rising edge
         syncChannels.mockClear();
-        refreshChannelList.mockClear();
+        getSelfChannel.mockClear();
 
         await fireForeground();
 
+        // Foreground is not a place entry — only the delta re-syncs; self channel is place-entry-only.
         expect(syncChannels).toHaveBeenCalledTimes(1);
-        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(getSelfChannel).not.toHaveBeenCalled();
     });
 
     it('미인증이면 포그라운드 복귀에서 쏘지 않고, 재인증 상승 엣지(Trigger 1)가 대신 동기화한다', async () => {
@@ -221,7 +221,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         await fireForeground();
         // 미인증 소켓에는 쏘지 않는다 — 헛된 왕복을 피하고 재인증까지 지연
         expect(syncChannels).not.toHaveBeenCalled();
-        expect(refreshChannelList).not.toHaveBeenCalled();
+        expect(getSelfChannel).not.toHaveBeenCalled();
 
         // SDK 재인증 → isVerified false→true 상승 엣지가 뒤이어 sync
         setVerified(true);
@@ -229,7 +229,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
             rerender();
         });
         expect(syncChannels).toHaveBeenCalledTimes(1);
-        expect(refreshChannelList).toHaveBeenCalledTimes(1);
+        expect(getSelfChannel).toHaveBeenCalledTimes(1);
     });
 
     it('전환 중이면 포그라운드 신호를 무시한다', async () => {
@@ -264,7 +264,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         const { rerender } = renderHook(() => useBackgroundSync());
         await act(async () => undefined); // 마운트 상승 엣지(s1) flush
         syncChannels.mockClear();
-        refreshChannelList.mockClear();
+        getSelfChannel.mockClear();
 
         // 사이트 전환: s1 → s2. verified는 그대로 true(auth.switch가 authenticated 유지 → 상승 엣지 없음).
         setSession('default', 's2');
@@ -272,11 +272,11 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
             rerender();
         });
 
-        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(getSelfChannel).toHaveBeenCalled();
         expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
-    it('클라우드 전환(상승 엣지 + sid 변경)에서 채널 스냅샷을 중복 없이 1회만 갱신한다 (#7)', async () => {
+    it('클라우드 전환(상승 엣지 + sid 변경)에서 self 채널을 중복 없이 1회만 불러온다 (#7)', async () => {
         // A cloud switch reboots the socket (verified false→true) AND lands on a new sid. Trigger 1
         // and Trigger 4 must not both fire: Trigger 1 advances prevSiteRef so Trigger 4 stays quiet.
         setVerified(false);
@@ -289,8 +289,8 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
             rerender();
         });
 
-        expect(refreshChannelList).toHaveBeenCalledTimes(1);
-        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(getSelfChannel).toHaveBeenCalledTimes(1);
+        expect(getSelfChannel).toHaveBeenCalled();
         expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
@@ -299,20 +299,20 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setSwitching(true);
         const { rerender } = renderHook(() => useBackgroundSync());
         await act(async () => undefined);
-        refreshChannelList.mockClear();
+        getSelfChannel.mockClear();
 
         // sid는 낙관적으로 먼저 s2가 되지만 아직 전환 중이므로 fetch하지 않는다.
         setSession('default', 's2');
         await act(async () => {
             rerender();
         });
-        expect(refreshChannelList).not.toHaveBeenCalled();
+        expect(getSelfChannel).not.toHaveBeenCalled();
 
         // 전환 정착 → 발화.
         setSwitching(false);
         await act(async () => {
             rerender();
         });
-        expect(refreshChannelList).toHaveBeenCalledWith({ sid: 's2', detail: true, limit: 100 });
+        expect(getSelfChannel).toHaveBeenCalled();
     });
 });
