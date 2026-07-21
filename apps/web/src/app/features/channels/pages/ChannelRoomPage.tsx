@@ -1,4 +1,4 @@
-import { Loader2, PenLine, Settings, X } from 'lucide-react';
+import { Loader2, Settings, X } from 'lucide-react';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -102,6 +102,12 @@ export const ChannelRoomPage = () => {
     // Self-chat title comes from the per-user join nick, falling back to my site
     // profile nick (ADR-0026), not `channel.name`.
     const selfChatTitle = useSelfChatTitle(channel);
+    // Header title by channel type: self → selfChatTitle; dm → not special-cased yet. The rest —
+    // I own the channel → the owner-set channel.name (my own join nick is ignored); I'm a member →
+    // channel.displayName (my join nick, falling back to channel.name).
+    const roomTitle = isSelfChat
+        ? selfChatTitle
+        : (channel?.isOwner ? channel?.name : channel?.displayName) || t('chat.room.title');
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
@@ -389,11 +395,26 @@ export const ChannelRoomPage = () => {
               return <AvatarGroup avatars={avatars} count={channel?.memberCount ?? 1} max={5} />;
           })();
 
+    // Self-chat intro guide (Figma 3185-13109 / 3186-13530): a left-aligned block explaining the
+    // "나만의 기록" purpose. Unlike the old centered empty state, it stays pinned at the top of the
+    // thread even once messages exist, so it is rendered both in the empty branch and as the
+    // top-most element of the message list.
+    const selfChatIntro = (
+        <div className="flex flex-col items-start gap-1.5 px-4 pb-2 pt-2.5">
+            <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
+                {t('chat.room.emptyState.selfLine1')}
+            </p>
+            <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
+                {t('chat.room.emptyState.selfLine2')}
+            </p>
+        </div>
+    );
+
     return (
         <div className="flex h-full flex-col bg-background">
             <ChatRoomHeader
                 kind={isSelfChat ? 'self' : 'group'}
-                title={isSelfChat ? selfChatTitle : channel?.displayName || t('chat.room.title')}
+                title={roomTitle}
                 avatar={headerAvatar}
                 meta={headerMeta}
                 onBack={() => navigate(-1)}
@@ -422,46 +443,46 @@ export const ChannelRoomPage = () => {
                     ) : isChatEmpty ? (
                         <div className="flex min-h-full flex-1 flex-col">
                             <DateDivider label={formatDateSeparator(new Date())} />
-                            {isSelfChat ? (
-                                <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                                        <PenLine size={24} className="text-muted-foreground" />
-                                    </div>
-                                    <div className="text-center text-[16px] leading-[1.45] tracking-[-0.16px] text-muted-foreground">
-                                        <p>{t('chat.room.emptyState.selfLine1')}</p>
-                                        <p>{t('chat.room.emptyState.selfLine2')}</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                channel?.ownerId === userId &&
-                                !isGuest &&
-                                isCloudActive && (
-                                    <div className="flex flex-col items-start gap-6 px-4 py-2.5">
-                                        <div className="flex flex-col gap-1.5">
-                                            <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
-                                                {t('chat.room.emptyState.line1')}
-                                            </p>
-                                            <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
-                                                {t('chat.room.emptyState.line2')}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => navigate(ROUTES.channels.invite(stableChannelId))}
-                                            className="flex h-[50px] items-center gap-1.5 rounded-full border border-input-border pl-[25px] pr-[19px] text-[16px] font-semibold text-foreground"
-                                        >
-                                            {t('chat.room.emptyState.inviteButton')}
-                                            <IconChevronRight className="size-[18px]" />
-                                        </button>
-                                    </div>
-                                )
-                            )}
+                            {isSelfChat
+                                ? selfChatIntro
+                                : channel?.ownerId === userId &&
+                                  !isGuest &&
+                                  isCloudActive && (
+                                      <div className="flex flex-col items-start gap-6 px-4 py-2.5">
+                                          <div className="flex flex-col gap-1.5">
+                                              <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
+                                                  {t('chat.room.emptyState.line1')}
+                                              </p>
+                                              <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
+                                                  {t('chat.room.emptyState.line2')}
+                                              </p>
+                                          </div>
+                                          <button
+                                              onClick={() => navigate(ROUTES.channels.invite(stableChannelId))}
+                                              className="flex h-[50px] items-center gap-1.5 rounded-full border border-input-border pl-[25px] pr-[19px] text-[16px] font-semibold text-foreground"
+                                          >
+                                              {t('chat.room.emptyState.inviteButton')}
+                                              <IconChevronRight className="size-[18px]" />
+                                          </button>
+                                      </div>
+                                  )}
                         </div>
                     ) : (
                         <>
+                            {/* Self-chat is top-aligned (Figma 3186-13530): this flex-grow spacer is the
+                                first DOM child, so in the flex-col-reverse container it sits at the visual
+                                bottom and absorbs free space to push short threads to the top. It collapses
+                                to 0 once messages overflow, so tall threads scroll normally (newest at the
+                                bottom) — unlike `justify-end`, which clips overflowing content. */}
+                            {isSelfChat && <div aria-hidden className="flex-1" />}
                             {Object.entries(groupedMessages)
                                 .sort(([a], [b]) => b.localeCompare(a))
-                                .map(([dateKey, dateMessages]) => {
+                                .map(([dateKey, dateMessages], groupIndex, groupArr) => {
                                     const reversedMessages = [...dateMessages].reverse();
+                                    // Oldest day group (last after the descending sort). The self-chat
+                                    // intro renders just below this group's date divider so it reads
+                                    // [date][intro][messages] — matching the empty state and Figma.
+                                    const isOldestGroup = groupIndex === groupArr.length - 1;
 
                                     return (
                                         <div
@@ -572,6 +593,7 @@ export const ChannelRoomPage = () => {
                                                     />
                                                 );
                                             })}
+                                            {isSelfChat && isOldestGroup && selfChatIntro}
                                             <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
                                         </div>
                                     );
