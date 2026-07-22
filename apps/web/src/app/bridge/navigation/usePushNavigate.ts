@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { getSocketManager } from '@chatic/app-runtime';
@@ -36,10 +36,14 @@ const toLocationKey = (target: string): string => target.split('#')[0];
  * rolls the selection back. We therefore wait for the handshake (`isVerified`) before switching;
  * if it does not complete within the timeout we skip the switch and navigate best-effort.
  *
- * Push-driven navigation also normalizes the history stack instead of plainly pushing:
- * repeated push taps used to stack room entries (`[home, roomA, roomB, ...]`) so "back" walked
- * through stale rooms instead of leaving the chat. The rule here is the messenger convention —
- * entering via a push deep link always means back = home. See `navigateNormalized`.
+ * Push-driven navigation also normalizes the history stack instead of plainly pushing: repeated
+ * push taps used to stack room entries (`[home, roomA, roomB, ...]`) so "back" walked through
+ * stale rooms instead of leaving the chat. See `navigateNormalized` — it replaces the current
+ * entry rather than pushing, so the stack never grows on repeated taps.
+ *
+ * Overlapping push events are dropped: the store can deliver a duplicate/rapid second event while
+ * the first is still awaiting a cloud/site switch, which would interleave switches and
+ * double-navigate. An in-flight guard processes one push entry at a time.
  *
  * Must be used within the router tree (relies on `useNavigate`).
  */
@@ -48,17 +52,22 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const { switchCloud } = useSwitchCloudSession();
     const { switchSite } = useSiteSwitch();
+    // One push navigation is processed at a time; overlapping events are dropped (see below).
+    const inFlightRef = useRef(false);
 
     /**
-     * Navigates to a push target with the back stack normalized to `[..., home, target]`.
+     * Navigates to a push target without growing the history stack.
      *
      * - Already on the exact target (pathname + query): skip entirely — re-navigating would
      *   remount the page (scroll/input reset) and stack a duplicate history entry for the
      *   same screen. A matching pathname with a *different* query is NOT "already there":
      *   invite deeplinks land on `/` with their payload in query params, and skipping them
      *   used to silently swallow the invite popup when the user was already at home.
-     * - Otherwise rebase the *current* entry to home (`replace`) before pushing the target,
-     *   so back always lands on home no matter how deep the user was when tapping the push.
+     * - At home (`/`): push the target, so home stays below it and back = home.
+     * - Anywhere else: REPLACE the current entry with the target. On the shallow stacks push
+     *   entry usually hits (`[home, room]`) this yields `[home, target]` (back = home), and —
+     *   crucially — repeated push taps replace in place instead of stacking, so the history never
+     *   grows and never accumulates duplicate `home` entries the way a rebase-then-push did.
      *
      * The current location is read from `window.location` (not `useLocation`) because this
      * runs after async cloud/site switches and must see the location at call time, not the
@@ -71,16 +80,26 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 logger.info('ROUTER', `Already at push target; skipping navigation: ${target}`);
                 return;
             }
-            if (pathname !== ROUTES.root) {
-                navigate(ROUTES.root, { replace: true });
+            if (pathname === ROUTES.root) {
+                navigate(target);
+            } else {
+                navigate(target, { replace: true });
             }
-            navigate(target);
         },
         [navigate]
     );
 
     return useCallback(
         async (rawPath: string) => {
+            // Drop overlapping push navigations: a duplicate/rapid second event arriving while the
+            // first is still awaiting a cloud/site switch would interleave switches and
+            // double-navigate. Process one push entry at a time.
+            if (inFlightRef.current) {
+                logger.info('ROUTER', `Push navigation already in flight; dropping: ${rawPath}`);
+                return;
+            }
+            inFlightRef.current = true;
+
             const { target, cid, sid } = resolvePushNavigation(rawPath);
             logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid });
 
@@ -108,6 +127,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 logger.error('ROUTER', `Failed to navigate to: ${target}`, { error });
                 // Best-effort: attempt the route anyway so a switch failure doesn't strand the user.
                 navigateNormalized(target);
+            } finally {
+                inFlightRef.current = false;
             }
         },
         [navigateNormalized, selectedCloudId, selectedSiteId, switchCloud, switchSite]

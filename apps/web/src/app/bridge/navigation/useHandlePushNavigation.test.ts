@@ -151,14 +151,30 @@ describe('useHandlePushNavigation', () => {
     });
 
     describe('히스토리 정규화', () => {
-        it('방 화면에서 다른 방 푸시를 받으면 현재 엔트리를 홈으로 rebase한 뒤 target을 push한다', async () => {
+        it('방 화면에서 다른 방 푸시를 받으면 현재 엔트리를 target으로 replace한다 (스택 누적 없음)', async () => {
             setCurrentPath('/channels/roomA/room');
             setResolved({ target: '/channels/roomB/room', cid: null, sid: null });
 
             await invoke();
 
-            expect(navigate).toHaveBeenNthCalledWith(1, '/', { replace: true });
-            expect(navigate).toHaveBeenNthCalledWith(2, '/channels/roomB/room');
+            expect(navigate).toHaveBeenCalledTimes(1);
+            expect(navigate).toHaveBeenCalledWith('/channels/roomB/room', { replace: true });
+        });
+
+        it('반복 푸시는 매번 replace라 홈을 거치지 않고 히스토리가 누적되지 않는다', async () => {
+            setCurrentPath('/channels/roomA/room');
+            setResolved({ target: '/channels/roomB/room', cid: null, sid: null });
+            await invoke();
+
+            // 두 번째 푸시: 앞선 replace로 이동한 방에서 또 다른 방으로.
+            setCurrentPath('/channels/roomB/room');
+            setResolved({ target: '/channels/roomC/room', cid: null, sid: null });
+            await invoke();
+
+            // 홈으로 rebase(push)하는 일이 없어야 한다 — 매번 현재 엔트리를 대체.
+            expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
+            expect(navigate).toHaveBeenCalledWith('/channels/roomB/room', { replace: true });
+            expect(navigate).toHaveBeenCalledWith('/channels/roomC/room', { replace: true });
         });
 
         it('홈에 있으면 rebase 없이 target만 push한다', async () => {
@@ -189,14 +205,14 @@ describe('useHandlePushNavigation', () => {
             expect(navigate).not.toHaveBeenCalled();
         });
 
-        it('같은 pathname이라도 쿼리가 다르면 생략하지 않고 정규화 네비게이션한다', async () => {
+        it('같은 pathname이라도 쿼리가 다르면 생략하지 않고 target으로 replace한다', async () => {
             setCurrentPath('/channels/roomA/room');
             setResolved({ target: '/channels/roomA/room?from=push', cid: null, sid: null });
 
             await invoke();
 
-            expect(navigate).toHaveBeenNthCalledWith(1, '/', { replace: true });
-            expect(navigate).toHaveBeenNthCalledWith(2, '/channels/roomA/room?from=push');
+            expect(navigate).toHaveBeenCalledTimes(1);
+            expect(navigate).toHaveBeenCalledWith('/channels/roomA/room?from=push', { replace: true });
         });
 
         it('홈에서 초대 딥링크(쿼리만 다른 홈 타겟)를 받으면 rebase 없이 target을 push한다', async () => {
@@ -221,8 +237,48 @@ describe('useHandlePushNavigation', () => {
 
             await invoke('/channels/roomA/room', true);
 
-            expect(navigate).toHaveBeenNthCalledWith(1, '/', { replace: true });
-            expect(navigate).toHaveBeenNthCalledWith(2, '/channels/roomA/room');
+            expect(navigate).toHaveBeenCalledTimes(1);
+            expect(navigate).toHaveBeenCalledWith('/channels/roomA/room', { replace: true });
+        });
+    });
+
+    describe('in-flight 가드', () => {
+        it('처리 중 겹쳐 들어온 푸시는 드롭한다', async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's1' });
+            // Hold the handshake so the first push stays in flight while the second arrives.
+            let releaseHandshake!: () => void;
+            waitUntilVerified.mockImplementation(
+                () => new Promise<boolean>(resolve => (releaseHandshake = () => resolve(true)))
+            );
+
+            renderHook(() => useHandlePushNavigation());
+            const first = captured!({ data: { path: '/x', replace: false } });
+            await Promise.resolve(); // let the first reach the awaited handshake
+            const second = captured!({ data: { path: '/x', replace: false } });
+            await second; // dropped immediately while the first is in flight
+
+            expect(switchCloud).not.toHaveBeenCalled(); // first still awaiting the handshake
+
+            releaseHandshake();
+            await first;
+
+            // Only the first push proceeded through the switch + navigation.
+            expect(switchCloud).toHaveBeenCalledTimes(1);
+            expect(navigate).toHaveBeenCalledTimes(1);
+        });
+
+        it('처리 완료 후에는 같은 인스턴스에서 다음 푸시를 정상 처리한다 (가드 해제)', async () => {
+            renderHook(() => useHandlePushNavigation());
+
+            setResolved({ target: '/mypage', cid: null, sid: null });
+            await captured!({ data: { path: '/mypage', replace: false } });
+            expect(navigate).toHaveBeenCalledWith('/mypage');
+
+            navigate.mockClear();
+            setResolved({ target: '/settings', cid: null, sid: null });
+            await captured!({ data: { path: '/settings', replace: false } });
+            expect(navigate).toHaveBeenCalledWith('/settings'); // not dropped → guard reset
         });
     });
 });
