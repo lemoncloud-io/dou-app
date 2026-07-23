@@ -12,6 +12,8 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { KeyboardSafeAreaSpacer } from '../layouts';
+
 interface ReportIssueForm {
     title: string;
     message: string;
@@ -116,11 +118,7 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
                                 {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t('reportIssue.submit')}
                             </Button>
                         </div>
-                        <div
-                            className="shrink-0 touch-none bg-background"
-                            style={{ height: 'var(--keyboard-height, 0px)' }}
-                            onTouchMove={e => e.preventDefault()}
-                        />
+                        <KeyboardSafeAreaSpacer />
                     </div>
                 </form>
             </DialogContent>

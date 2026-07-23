@@ -94,6 +94,46 @@ describe('ChannelLocalDataSourceV2', () => {
         expect(result?.list.map(item => item.id)).toEqual(['ch-1']);
     });
 
+    // The channel cache is cloud-wide, so the observer scope must key by {cid, uid} only — NOT the
+    // transient active sid. Otherwise a cloud/site switch (which changes the provider sid) reemits
+    // under a scope the cloud-wide observer never subscribed to, and the rail stays stale until a
+    // manual refresh (the P1 bug). This locks the sid-independent reemit routing.
+    describe('cloud-wide reemit routing is sid-independent (P1)', () => {
+        const flush = () => jest.advanceTimersByTimeAsync(60); // past the 50ms reemit debounce
+
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        it('reemits a cloud-wide observer even when the active sid differs from subscribe time', async () => {
+            const storage = createMemoryStorage();
+            const provider = {
+                current: { cid: 'cloud-a', sid: 'site-1', uid: 'me' },
+                getContext() {
+                    return this.current;
+                },
+                setContext(c: any) {
+                    this.current = c;
+                },
+            };
+            const dataSource = new ChannelLocalDataSourceV2(provider as any, storage);
+
+            const cb = jest.fn();
+            // Cloud-wide subscription (sid: '') taken while the active place is site-1.
+            dataSource.observeList({ sid: '' } as any, cb);
+            await flush();
+            cb.mockClear();
+
+            // Active place moves to site-2, then a channel for site-2 is written. A scope keyed by sid
+            // would route this reemit to a different key and miss the observer.
+            provider.setContext({ cid: 'cloud-a', sid: 'site-2', uid: 'me' });
+            await dataSource.cacheWrite({ id: 'ch-9', sid: 'site-2', name: 'New site channel' } as any);
+            await flush();
+
+            expect(cb).toHaveBeenCalled();
+            expect(cb.mock.calls.at(-1)?.[0]?.list.map((c: any) => c.id)).toContain('ch-9');
+        });
+    });
+
     describe('상위 DataContext 따라가기 (독립 동작 안 함)', () => {
         it('contextOverride가 주어지면 provider보다 우선해 cid/sid를 적용한다', async () => {
             const storage = createMemoryStorage();

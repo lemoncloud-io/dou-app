@@ -9,9 +9,9 @@ import type {
     ChannelDeleteInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import type { ChannelView, UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
+import type { UnreadsSummaryView } from '@lemoncloud/chatic-socials-api';
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
-import type { IChannelLocalDataSourceV2 } from '../local/data-sources-v2';
+import type { IChannelLocalDataSourceV2, LocalDataSourceV2ContextOverride } from '../local/data-sources-v2';
 import type { IChannelRemoteDataSource } from '../remote/data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
@@ -24,7 +24,8 @@ export interface SyncChannelsResult {
 export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
         query: DomainChannelListPayload,
-        callback: (result: DomainListResult<DomainChannel> | null) => void
+        callback: (result: DomainListResult<DomainChannel> | null) => void,
+        contextOverride?: LocalDataSourceV2ContextOverride
     ): () => void;
     observeItem(id: string, callback: (item: DomainChannel | null) => void): () => void;
 
@@ -43,7 +44,7 @@ export interface IChannelRepositoryV2 extends DisposableRepositoryV2 {
     leaveChannel(payload: ChatLeaveInput): Promise<DomainChannel>;
     deleteChannel(payload: ChannelDeleteInput): Promise<DomainChannel>;
 
-    getSelfChannel(payload?: ChannelGetSelfInput): Promise<ChannelView>;
+    getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel>;
     getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 
     cacheRead(id: string): Promise<DomainChannel | null>;
@@ -68,9 +69,12 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
 
     public observeList(
         query: DomainChannelListPayload,
-        callback: (result: DomainListResult<DomainChannel> | null) => void
+        callback: (result: DomainListResult<DomainChannel> | null) => void,
+        contextOverride?: LocalDataSourceV2ContextOverride
     ): () => void {
-        return this.channelLocalDataSource.observeList(query, callback, this.getRepositoryContext());
+        // A caller-supplied override pins the observer scope to a known {cid, uid} (see
+        // useActiveCloudChannels); otherwise fall back to the live repository context.
+        return this.channelLocalDataSource.observeList(query, callback, contextOverride ?? this.getRepositoryContext());
     }
 
     public observeItem(id: string, callback: (item: DomainChannel | null) => void): () => void {
@@ -292,8 +296,20 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         }
     }
 
-    public getSelfChannel(payload?: ChannelGetSelfInput): Promise<ChannelView> {
-        return this.channelRemoteDataSource.getSelfChannel(payload ?? {});
+    // Fetch the "나와의 채팅" (notes-to-self) channel for the active site and cache it so it shows in
+    // the channel list. Mirrors createChannel's context handling: map under the normalized context
+    // (tags the active sid) and write under the live request context so list observers re-emit.
+    public async getSelfChannel(payload?: ChannelGetSelfInput): Promise<DomainChannel> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const domain = await this.channelRemoteDataSource.getSelfChannel(payload ?? {}, normalizedContext);
+        // Skip the cache write when the answering socket is still bound to a different cloud (the
+        // switch optimistic window) so we don't poison the target partition. Mirrors refreshList.
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid == null || (requestContext.cid || 'default') === rawContext.socketCid) {
+            await this.channelLocalDataSource.cacheWrite(domain, requestContext);
+        }
+        return domain;
     }
 
     public getUnreads(payload?: ChannelUnreadsInput): Promise<UnreadsSummaryView> {

@@ -1,6 +1,6 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainListResult, DomainPlace } from '../domain';
-import type { IPlaceLocalDataSourceV2 } from '../local/data-sources-v2';
+import type { IPlaceLocalDataSourceV2, LocalDataSourceV2ContextOverride } from '../local/data-sources-v2';
 import type {
     IPlaceRemoteDataSource,
     PlaceCreateInput,
@@ -14,7 +14,8 @@ import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 export interface IPlaceRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
         query: UserMySiteInput | undefined,
-        callback: (result: DomainListResult<DomainPlace> | null) => void
+        callback: (result: DomainListResult<DomainPlace> | null) => void,
+        contextOverride?: LocalDataSourceV2ContextOverride
     ): () => void;
     observeItem(id: string, callback: (item: DomainPlace | null) => void): () => void;
 
@@ -44,9 +45,12 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
 
     public observeList(
         query: UserMySiteInput | undefined,
-        callback: (result: DomainListResult<DomainPlace> | null) => void
+        callback: (result: DomainListResult<DomainPlace> | null) => void,
+        contextOverride?: LocalDataSourceV2ContextOverride
     ): () => void {
-        return this.placeLocalDataSource.observeList(query, callback, this.getRepositoryContext());
+        // A caller-supplied override pins the observer scope to a known {cid, uid} (see useHomePlaces);
+        // otherwise fall back to the live repository context.
+        return this.placeLocalDataSource.observeList(query, callback, contextOverride ?? this.getRepositoryContext());
     }
 
     public observeItem(id: string, callback: (item: DomainPlace | null) => void): () => void {

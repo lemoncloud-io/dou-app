@@ -4,7 +4,7 @@ import { useSessionSelection } from '@chatic/web-core';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
-import { useActiveCloudChannels, useChannelUnreads } from './hooks';
+import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from './hooks';
 import { sumSnapshot, writeCloudUnread } from './lib';
 
 /**
@@ -14,12 +14,16 @@ import { sumSnapshot, writeCloudUnread } from './lib';
  * Observes the active cloud's full channel list, write-throughs its total into the per-cloud
  * snapshot, and pushes the cross-cloud sum to the native badge. Inactive clouds keep their
  * last-visited total in the snapshot, so the badge reflects unread across every visited cloud
- * (best-effort). Cache observe only — no per-channel realtime registration; freshness rides
- * useBackgroundSync's periodic cloud-wide syncChannels delta.
+ * (best-effort). Read cursors come from the subscribed join list (useMyJoins registers a join sync
+ * per channel); channel metadata freshness rides useBackgroundSync's cloud-wide syncChannels delta.
  */
 export const UnreadBadgeRunner = (): null => {
     const cloudChannels = useActiveCloudChannels();
-    const { total } = useChannelUnreads(cloudChannels);
+    // Observe-only (sync: false): the app-global badge must not own per-channel join sync — that
+    // registration is scoped to the home surface so it tears down when home unmounts. The cursor
+    // still reflects my reads (join cache) and new messages (channel head via syncChannels), and
+    // reconciles on the next home visit.
+    const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
     const { selectedCloudId } = useSessionSelection();
 
     // Write-through the active cloud's total into the snapshot, then push the cross-cloud sum to

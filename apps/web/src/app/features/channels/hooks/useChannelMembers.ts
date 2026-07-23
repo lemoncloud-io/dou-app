@@ -23,8 +23,9 @@ interface UseChannelMembersParams {
  * same users + `$join` from one response, so a separate full-snapshot fetch would be redundant.
  *
  * `activeMemberIds` is derived here (the single owner of member/join hydration) as the
- * authoritative active-membership set — join rows with `joined !== 0`. Callers feed it to
- * the join/profile sync registrations so only active users are tracked.
+ * authoritative active-membership set — join rows with `joined !== 0`. Callers feed it to the
+ * profile sync registration and read-count denominator (active users only); the join read-state
+ * sync instead covers the full channel roster (channel.memberIds), registered in useJoinPositions.
  */
 export const useChannelMembers = ({ channelId, detail = true }: UseChannelMembersParams) => {
     const { user: userRepository, join: joinRepository } = useRuntimeRepositories();

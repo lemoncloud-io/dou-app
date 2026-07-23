@@ -5,7 +5,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
-import { AppHeader, DefaultAvatar, ProfileAvatar } from '@chatic/web-ui-kit';
+import { AppHeader, EmptyState, ProfileAvatar } from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -15,10 +15,11 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile, useMyUser, useUserPermissions } from '../../../hooks';
+import { useMyProfile, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import { ROUTES } from '../../../routes/paths';
-import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils/consts';
+import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
@@ -38,6 +39,7 @@ import {
     useHomeChannels,
     useHomePlaces,
     useInvitedClouds,
+    useMyJoins,
     usePlaceProfilePrompt,
     useScrollRestoration,
     useSwitchPlace,
@@ -52,14 +54,9 @@ export const HomePage = () => {
     // then reactive on cache emits), so a profile edit fans out here without a session refresh.
     const { isGuest } = useRuntimeProfile();
     const permissions = useUserPermissions();
-    // A guest who has accepted a cloud invite stays userType === TEMP_ACCOUNT, but holds invited
-    // clouds in the cache. This "invited guest" must be able to switch into those clouds, so the
-    // cloud-switch UI is offered to them even though they are still a guest.
     // useInvitedClouds hides clouds the signed-in account now owns, so an invited cloud that became
     // owned (guest → owner) no longer counts here and is shown only as an owned cloud.
-    const { hasInvitedClouds, invitedClouds } = useInvitedClouds();
-    const isInvitedGuest = isGuest && hasInvitedClouds;
-    const canSwitchCloud = !isGuest || isInvitedGuest;
+    const { invitedClouds } = useInvitedClouds();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
     // Connected to an invited cloud → drives the place-type caption.
@@ -72,21 +69,33 @@ export const HomePage = () => {
 
     // Cloud identity for the `cloud` header kind. CloudView has no image field, so AppHeader falls
     // back to a CloudAvatar (name initials) — we only supply the display name here.
+    // The active cloud is usually an owned catalog cloud, but an INVITED cloud is not in the catalog
+    // (it lives in invitedClouds), so look there too — matched by id or cid. Invited clouds may lack
+    // name/email (and even id), so fall back name → id → cid so both the header label and its
+    // initials avatar always have something to show instead of a blank "?".
     const { clouds } = useCloudSessionCatalog();
-    const activeCloud = clouds.find(cloud => cloud.id === selectedCloudId);
-    const cloudName = activeCloud ? getCloudDisplayName(activeCloud) : '';
+    const activeOwnedCloud = clouds.find(cloud => cloud.id === selectedCloudId);
+    const activeInvitedCloud = invitedClouds.find(
+        cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
+    );
+    const activeCloud = activeOwnedCloud ?? activeInvitedCloud;
+    const cloudName = activeCloud
+        ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || ''
+        : '';
 
-    // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise a valid
-    // membership reads as PRO (same convention as SubscriptionPage). CloudView carries no grade.
+    // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
+    // either a valid membership OR at least one activated cloud exists — owning a live cloud (status
+    // 'active' in the relay catalog above) already implies paid access. CloudView carries no grade.
     const { data: membership } = useMembershipInfo();
-    const planTier: 'free' | 'pro' = !isGuest && membership?.isValid ? 'pro' : 'free';
+    const hasActiveCloud = clouds.some(cloud => cloud.status === 'active');
+    const planTier: 'free' | 'pro' = !isGuest && (membership?.isValid || hasActiveCloud) ? 'pro' : 'free';
 
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
-    // Prompt to CREATE a per-place profile when the active place has none yet.
-    const { shouldPrompt: needsPlaceProfile, dismiss: dismissPlaceProfile } = usePlaceProfilePrompt();
+    // Prompt to CREATE a per-place profile when the active place has none yet (mandatory — no skip).
+    const { shouldPrompt: needsPlaceProfile, status: placeProfileStatus } = usePlaceProfilePrompt();
     const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
@@ -95,11 +104,12 @@ export const HomePage = () => {
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
-    // sites, not just the selected one. Unread derives from each channel's embedded `$join`/`metaNo`
-    // (kept live by the background channel sync) — no per-channel join sync here. The app-icon badge
-    // is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
+    // sites, not just the selected one. Unread derives from each channel head (`chatNo`/`metaNo`)
+    // and MY read cursor from the subscribed join list (useMyJoins), not the channel-embedded
+    // `$join`. The app-icon badge is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
     const cloudChannels = useActiveCloudChannels();
-    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels);
+    const myJoins = useMyJoins(cloudChannels);
+    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels, myJoins);
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on
     // navigation). Restore only once the list content has rendered so the offset isn't clamped
@@ -107,28 +117,22 @@ export const HomePage = () => {
     const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelsLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
 
-    // Header profile is resolved by tier (site → user account → setup prompt). The site profile
-    // (V2 per-site nick/thumbnail) only applies off the default cloud; an edit-screen save reflects
-    // immediately via the observed cache. `identity.userName` is intentionally excluded — it defaults
-    // to 'Unknown', which would mask the empty-account state that should show the setup prompt.
+    // Header identity is the PLACE (site) profile only — HomePage never uses the account/user
+    // record. On every cloud (relay included) the header shows the place profile nick/thumbnail;
+    // when it's missing we fall through to the setup prompt (never the account name), nudging the
+    // user to set up their place profile. A site-profile edit reflects immediately via the observed
+    // cache.
     const { profile: myProfile } = useMyProfile();
-    const myUser = useMyUser();
     const headerProfile = resolveHeaderProfile({
-        siteName: !isDefaultCloud ? myProfile?.nick : undefined,
-        siteImageUrl: !isDefaultCloud ? myProfile?.thumbnail : undefined,
-        accountName: myUser?.name,
-        accountImageUrl: myUser?.photo,
+        siteName: myProfile?.nick,
+        siteImageUrl: myProfile?.thumbnail,
     });
-    const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
-    // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When the
-    // active place has no photo (or on relay, which has no place profile), ProfileAvatar renders its
-    // default glyph (기본 아바타).
-    const displayImageUrl = isDefaultCloud ? undefined : (myProfile?.thumbnail ?? undefined);
 
-    // On an active site everyone has an editable site profile (incl. invited-cloud users), so show
-    // the profile header there regardless of guest/invited status. On the default cloud, keep hiding
-    // it for guests / invited users who have no editable relay profile.
-    const showProfileButton = !isDefaultCloud || !isGuest;
+    const displayName = headerProfile.kind === 'setup' ? t('homePage.setupProfile') : headerProfile.name || '-';
+    // Top-right avatar shows the PLACE (site) profile photo only — no account-photo fallback. When
+    // the active place has no photo, ProfileAvatar renders its default glyph (기본 아바타).
+    const displayImageUrl = myProfile?.thumbnail ?? undefined;
+
     // The per-place profile edit dialog needs an active site (the key `useMyProfile` reads). Works on
     // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
     // is active, since there'd be no profile to edit.
@@ -147,6 +151,23 @@ export const HomePage = () => {
     useEffect(() => {
         if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
     }, [needsPlaceProfile, isFirstRun]);
+
+    // Invite flow tail: the accept pipeline lands here and stashes the invited channel. Open it once
+    // the site profile exists — created via the mandatory prompt above, or already present (a re-entry
+    // needs no setup) → navigate straight through. See usePendingInviteChannel / useEnterInvitedChannel.
+    const pendingInviteChannelId = usePendingInviteChannel(state => state.channelId);
+    const clearPendingInviteChannel = usePendingInviteChannel(state => state.clearPendingChannel);
+    const openPendingInviteChannel = () => {
+        if (!pendingInviteChannelId) return;
+        const channelId = pendingInviteChannelId;
+        clearPendingInviteChannel();
+        navigate(ROUTES.channels.room(channelId), { replace: true });
+    };
+    useEffect(() => {
+        // Profile already set for the invited site → skip setup and open the pending channel directly.
+        if (pendingInviteChannelId && placeProfileStatus === 'present') openPendingInviteChannel();
+         
+    }, [pendingInviteChannelId, placeProfileStatus]);
 
     const handleCreatePlace = () => {
         if (!canAddPlace) {
@@ -226,9 +247,11 @@ export const HomePage = () => {
                 onPlanClick={() => navigate(ROUTES.subscription.root)}
                 onSearch={handleSearch}
                 searchLabel={t('homePage.search', '검색')}
-                onSwitcher={canSwitchCloud ? () => setIsCloudSessionOpen(true) : undefined}
+                // The cloud-switch entry is always available — even a plain guest can open the sheet
+                // to reach DoU Home, view invited clouds, or add a cloud (subscribe).
+                onSwitcher={() => setIsCloudSessionOpen(true)}
                 switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
-                avatar={showProfileButton ? profileMenu : <DefaultAvatar size={36} />}
+                avatar={profileMenu}
                 profileLabel={t('homePage.profile', '프로필')}
             />
 
@@ -238,7 +261,7 @@ export const HomePage = () => {
             <div
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[98px] pt-2"
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(var(--safe-bottom,0px)+96px)] pt-2"
             >
                 <PlaceList
                     places={places}
@@ -257,12 +280,20 @@ export const HomePage = () => {
                     <ChannelList
                         channels={channels}
                         unreadByChannel={unreadByChannel}
+                        joinByChannel={myJoins}
                         isLoading={isChannelsLoading}
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
                         isPro={planTier === 'pro'}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
+                    />
+                ) : !isPlacesLoading && !isSwitching ? (
+                    // No place is active in this cloud (none to auto-select) — guide the user to
+                    // connect to a place before a channel list can show.
+                    <EmptyState
+                        title={t('homePage.noPlaceTitle', '접속한 플레이스가 없어요')}
+                        description={t('homePage.noPlaceDescription', '플레이스에 접속해 대화를 시작해보세요')}
                     />
                 ) : null}
             </div>
@@ -272,11 +303,15 @@ export const HomePage = () => {
             <PlaceProfileCreateDialog
                 open={isPlaceProfileOpen}
                 placeName={activePlaceName}
-                onDone={() => setIsPlaceProfileOpen(false)}
-                onExit={() => {
+                // Profile setup is always mandatory (no cancel) — invite / place-create / onboarding
+                // all require it before proceeding.
+                dismissible={false}
+                onDone={() => {
                     setIsPlaceProfileOpen(false);
-                    dismissPlaceProfile();
+                    // Invite flow: continue to the channel that was waiting on profile setup.
+                    openPendingInviteChannel();
                 }}
+                onExit={() => setIsPlaceProfileOpen(false)}
             />
             <PlaceProfileEditDialog
                 open={isEditOpen}

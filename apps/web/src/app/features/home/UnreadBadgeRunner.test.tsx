@@ -11,6 +11,7 @@ jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn
 jest.mock('../../bridge/useHandleAppMessage', () => ({ useOnBackgroundStatusChanged: jest.fn() }));
 jest.mock('./hooks', () => ({
     useActiveCloudChannels: () => [],
+    useMyJoins: () => new Map(),
     useChannelUnreads: jest.fn(),
 }));
 jest.mock('./lib', () => ({

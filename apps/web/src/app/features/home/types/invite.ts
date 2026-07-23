@@ -23,6 +23,8 @@ export interface InviteParams {
 export type InviteInfo = MyInviteView & {
     /** the target cloud id (present at runtime, absent on the published view). */
     cloudId?: string;
+    /** the target cloud's display name (present at runtime, absent on the published view). */
+    cloudName?: string;
     /** invited place: intro copy + thumbnail (base64/url). */
     site$?: MyInviteView['site$'] & { intro?: string; thumbnail?: string };
     /** inviter avatar image url. */

@@ -29,8 +29,9 @@ export interface CollapsibleSectionProps {
  * Collapsible list section — a SectionHeader whose trailing chevron toggles the
  * body open/closed, used for the home Place / Chat sections. Supports controlled
  * (`open` + `onOpenChange`) and uncontrolled (`defaultOpen`) use; the chevron
- * rotates and the body unmounts while collapsed so nested rows unregister their
- * sync when hidden.
+ * rotates and the body height eases open/closed. Expanding mounts the body
+ * immediately; collapsing keeps it mounted through the animation and then
+ * unmounts it so nested rows unregister their sync while hidden.
  */
 export const CollapsibleSection = ({
     title,
@@ -46,6 +47,19 @@ export const CollapsibleSection = ({
     const isControlled = open !== undefined;
     const [internalOpen, setInternalOpen] = React.useState(defaultOpen);
     const isOpen = isControlled ? open : internalOpen;
+
+    // Body stays mounted while open and throughout a collapse animation, then unmounts once
+    // the height transition ends — preserving the "unregister sync when hidden" contract.
+    const [isBodyMounted, setIsBodyMounted] = React.useState(isOpen);
+    React.useEffect(() => {
+        if (isOpen) setIsBodyMounted(true);
+    }, [isOpen]);
+
+    // Unmount only after this wrapper's own height transition finishes; ignore transitions
+    // that bubble up from child rows (target !== the grid wrapper).
+    const handleBodyTransitionEnd = (event: React.TransitionEvent<HTMLDivElement>) => {
+        if (event.target === event.currentTarget && !isOpen) setIsBodyMounted(false);
+    };
 
     const toggle = () => {
         const next = !isOpen;
@@ -79,7 +93,19 @@ export const CollapsibleSection = ({
                     </>
                 }
             />
-            {isOpen && <div className="flex flex-col">{children}</div>}
+            {/* Animate height via a 0fr↔1fr grid row so expand/collapse eases instead of
+                snapping; the inner wrapper clips the body while the row-track transitions. */}
+            <div
+                className={cn(
+                    'grid transition-[grid-template-rows] duration-200 ease-out',
+                    isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                )}
+                onTransitionEnd={handleBodyTransitionEnd}
+            >
+                <div className="min-h-0 overflow-hidden">
+                    {isBodyMounted && <div className="flex flex-col">{children}</div>}
+                </div>
+            </div>
         </section>
     );
 };

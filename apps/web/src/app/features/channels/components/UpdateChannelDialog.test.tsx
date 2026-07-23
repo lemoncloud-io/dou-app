@@ -35,8 +35,9 @@ describe('UpdateChannelDialog — 역할별 2모드', () => {
         // Owner avatar exposes the photo-select affordance.
         expect(screen.getByLabelText('updateChannel.selectPhoto')).toBeInTheDocument();
 
-        const input = screen.getByPlaceholderText('updateChannel.namePlaceholder');
-        expect(input).toHaveValue('방');
+        // Field starts empty; the current room name (channel.name) is the placeholder for both roles.
+        const input = screen.getByPlaceholderText('방');
+        expect(input).toHaveValue('');
         fireEvent.change(input, { target: { value: '새 방 이름' } });
         fireEvent.click(screen.getByText('updateChannel.done'));
 
@@ -54,9 +55,9 @@ describe('UpdateChannelDialog — 역할별 2모드', () => {
         // Caption shows the owner-set room name.
         expect(screen.getByText('소유자방')).toBeInTheDocument();
 
-        // Placeholder falls back to the owner room name; field seeds from my nick.
+        // Placeholder shows the owner room name; field starts empty for both roles.
         const input = screen.getByPlaceholderText('소유자방');
-        expect(input).toHaveValue('내닉');
+        expect(input).toHaveValue('');
         fireEvent.change(input, { target: { value: '나만의 방 이름' } });
         fireEvent.click(screen.getByText('updateChannel.done'));
 

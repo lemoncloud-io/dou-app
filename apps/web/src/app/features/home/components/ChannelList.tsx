@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { useSessionIdentity } from '@chatic/web-core';
+import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import {
     DropdownMenu,
@@ -25,10 +27,19 @@ import {
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { ROUTES } from '../../../routes/paths';
-import { resolveChannelName } from '../../../utils';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
+
+// Coerce a possibly-string/number timestamp to epoch ms for comparison (0 when absent/invalid).
+const toTime = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+};
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -40,15 +51,27 @@ const ChannelSkeleton = () => (
     </div>
 );
 
-const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unread: number; myNick?: string }) => {
+const ChannelItem = ({
+    channel,
+    unread,
+    myNick,
+    joinNick,
+    uid,
+}: {
+    channel: DomainChannel;
+    unread: number;
+    myNick?: string;
+    joinNick?: string;
+    uid?: string;
+}) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
     // Self-chat is identified by stereo (ADR-0022), not member count.
     const isSelf = channel.stereo === 'self';
-    // For self-chat the title is the per-user join nick, falling back to my profile
-    // nick (resolved once by the parent), then the "나와의 채팅" label.
-    const selfChatTitle = resolveSelfChatTitle(channel.$join?.nick, myNick, t('channelList.selfChannel'));
+    // For self-chat the title follows: this channel's join nick (from the subscribed join list,
+    // freshest after a rename) → the embedded `$join` nick → my profile nick → "나와의 채팅" label.
+    const selfChatTitle = resolveSelfChatTitle(joinNick ?? channel.$join?.nick, myNick, t('channelList.selfChannel'));
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
@@ -64,11 +87,21 @@ const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unre
         return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Self-chat: join.nick → my site-profile nick → label (ADR-0026). Other rows:
-    // personal room name (my join.nick) overrides the owner-set channel name.
-    const name = isSelf ? selfChatTitle : resolveChannelName(channel) || t('channelList.unnamedChannel');
-    const preview = lastChat?.content || channel.desc || t('channelList.noDescription');
-    const time = formatTime(lastChat?.createdAt ?? channel.updatedAt);
+    // Title by channel type. self → selfChatTitle (above); dm → not handled yet (future). The rest:
+    //   - I own the channel → the owner-set `channel.name` (my own join nick is ignored).
+    //   - I'm a member     → my per-channel join nick, falling back to `channel.name`.
+    const unnamed = t('channelList.unnamedChannel');
+    const isOwner = !!uid && channel.ownerId === uid;
+    const memberNick = joinNick ?? channel.$join?.nick;
+    const groupTitle = isOwner
+        ? channel.name?.trim() || unnamed
+        : memberNick?.trim() || channel.name?.trim() || unnamed;
+    const name = isSelf ? selfChatTitle : groupTitle;
+
+    // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
+    // preview or timestamp shows (the message line is hidden).
+    const preview = lastChat?.content ?? '';
+    const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // No channel photo → the default person avatar (기본 아바타). Self-chat uses its
     // own solid-silhouette variant (Figma "1명 Profile"); other rows use the plain one.
@@ -97,7 +130,15 @@ const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unre
                     )}
                 </>
             }
-            subtitle={blurLastMessage ? <span className="select-none blur-[5px]">{preview}</span> : preview}
+            subtitle={
+                preview ? (
+                    blurLastMessage ? (
+                        <span className="select-none blur-[5px]">{preview}</span>
+                    ) : (
+                        preview
+                    )
+                ) : undefined
+            }
             trailing={
                 <div className="flex flex-col items-end gap-1">
                     <span className="text-[12px] leading-4 text-description">{time}</span>
@@ -112,6 +153,8 @@ const ChannelItem = ({ channel, unread, myNick }: { channel: DomainChannel; unre
 interface ChannelListProps {
     channels: DomainChannel[];
     unreadByChannel: Record<string, number>;
+    /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
+    joinByChannel?: Map<string, DomainJoin>;
     isLoading: boolean;
     /** Show the create (＋) popover in the section header. */
     canCreate?: boolean;
@@ -128,6 +171,7 @@ interface ChannelListProps {
 export const ChannelList = ({
     channels,
     unreadByChannel,
+    joinByChannel,
     isLoading,
     canCreate,
     isDefaultCloud,
@@ -140,6 +184,17 @@ export const ChannelList = ({
     // (not per row) since useMyProfile triggers a fetch.
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
+    // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
+    const { userId: uid } = useSessionIdentity();
+
+    // Order by the channel's join `updatedAt` (most recently active first), sourced from the
+    // subscribed join list, then the embedded `$join`, then the channel's own activity time.
+    const sortedChannels = useMemo(() => {
+        const activityAt = (channel: DomainChannel): number =>
+            toTime(joinByChannel?.get(channel.id)?.updatedAt ?? channel.$join?.updatedAt) ||
+            toTime(channel.lastActivityAt ?? channel.updatedAt);
+        return [...channels].sort((left, right) => activityAt(right) - activityAt(left));
+    }, [channels, joinByChannel]);
 
     const createMenu = canCreate ? (
         <DropdownMenu>
@@ -181,12 +236,14 @@ export const ChannelList = ({
             ) : channels.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
             ) : (
-                channels.map(channel => (
+                sortedChannels.map(channel => (
                     <ChannelItem
                         key={channel.id}
                         channel={channel}
                         unread={unreadByChannel[channel.id] ?? 0}
                         myNick={myNick}
+                        joinNick={joinByChannel?.get(channel.id)?.nick}
+                        uid={uid ?? undefined}
                     />
                 ))
             )}

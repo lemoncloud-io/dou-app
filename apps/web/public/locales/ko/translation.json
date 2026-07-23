@@ -299,7 +299,9 @@
         "switchCloud": "클라우드 전환",
         "directComingSoon": "1:1 대화는 준비 중이에요",
         "searchComingSoon": "검색은 준비 중이에요",
-        "notificationsComingSoon": "알림 설정은 준비 중이에요"
+        "notificationsComingSoon": "알림 설정은 준비 중이에요",
+        "noPlaceTitle": "접속한 플레이스가 없어요",
+        "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
@@ -319,6 +321,9 @@
         "tabMy": "내 클라우드",
         "tabInvited": "초대된 클라우드",
         "emptyInvited": "초대된 클라우드가 없어요",
+        "emptyInvitedDescription": "초대를 받으면 여기에 표시돼요",
+        "invitedOwnerLabel": "{{owner}}님의 클라우드",
+        "invitedFallbackLabel": "초대받은 클라우드",
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
         "cloudReady": "클라우드가 준비되었어요!",
         "disconnectCloud": "클라우드 해제",

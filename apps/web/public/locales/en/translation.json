@@ -299,7 +299,9 @@
         "directComingSoon": "1:1 chat is coming soon",
         "searchComingSoon": "Search is coming soon",
         "notificationsComingSoon": "Notification settings are coming soon",
-        "setupProfile": "Set up your profile"
+        "setupProfile": "Set up your profile",
+        "noPlaceTitle": "No place connected",
+        "noPlaceDescription": "Connect to a place to start chatting"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
@@ -319,6 +321,9 @@
         "tabMy": "My Clouds",
         "tabInvited": "Invited",
         "emptyInvited": "No invited clouds",
+        "emptyInvitedDescription": "Clouds you've been invited to will appear here",
+        "invitedOwnerLabel": "{{owner}}'s cloud",
+        "invitedFallbackLabel": "Invited cloud",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
         "cloudReady": "Your cloud is ready!",
         "disconnectCloud": "Disconnect Cloud",

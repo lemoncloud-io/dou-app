@@ -11,3 +11,20 @@ export type CloudTab = 'my' | 'invited';
 export const isProvisioning = (status?: CloudView['status']): boolean => status === 'reserved' || status === 'init';
 
 export const getCloudDisplayName = (cloud: CloudView): string => cloud.name ?? cloud.email?.split('@')[0] ?? '';
+
+/**
+ * Ordering for the cloud switcher list: the currently-selected cloud is pinned to the top, and the
+ * rest fall in creation order, newest first (`createdAt` descending). Clouds without a `createdAt`
+ * (e.g. invited clouds whose cache row does not persist it) sort last. View-only — does not mutate
+ * the source list.
+ */
+export const sortCloudsForSwitcher = <T extends { id?: string; createdAt?: number }>(
+    list: T[],
+    selectedId?: string | null
+): T[] =>
+    [...list].sort((a, b) => {
+        const aSelected = !!selectedId && a.id === selectedId;
+        const bSelected = !!selectedId && b.id === selectedId;
+        if (aSelected !== bSelected) return aSelected ? -1 : 1;
+        return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+    });

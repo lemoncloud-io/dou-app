@@ -41,8 +41,8 @@ export interface IChannelRemoteDataSource {
     /** 채널 동기화를 서버에 요청하고 도메인 모델 목록으로 반환합니다. */
     syncChannel(payload: ChannelSyncInput, context: DataContext): Promise<ChannelSyncResult>;
 
-    /** 자신의 개인 채널 정보를 요청합니다. (캐시 대상이 아닌 조회 pass-through) */
-    getSelfChannel(payload: ChannelGetSelfInput): Promise<ChannelView>;
+    /** 자신의 개인(나와의 채팅) 채널 정보를 요청하고 도메인 모델로 반환합니다. */
+    getSelfChannel(payload: ChannelGetSelfInput, context: DataContext): Promise<DomainChannel>;
     /** 읽지 않은 메시지 통계를 요청합니다. (도메인 엔티티가 아닌 집계 뷰) */
     getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView>;
 }
@@ -102,8 +102,9 @@ export class ChannelRemoteDataSource implements IChannelRemoteDataSource {
         return toDomainChannel((remote || {}) as ChannelView, context);
     }
 
-    public async getSelfChannel(payload: ChannelGetSelfInput): Promise<ChannelView> {
-        return this.gateway.getSelf(payload);
+    public async getSelfChannel(payload: ChannelGetSelfInput, context: DataContext): Promise<DomainChannel> {
+        const remote = await this.gateway.getSelf<ChannelView>(payload);
+        return toDomainChannel((remote || {}) as ChannelView, context);
     }
 
     public async getUnreads(payload: ChannelUnreadsInput): Promise<UnreadsSummaryView> {

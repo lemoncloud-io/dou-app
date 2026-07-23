@@ -152,13 +152,23 @@ describe('ChannelRepositoryV2', () => {
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
     });
 
-    it('passes through remote helper commands that do not mutate local cache themselves', async () => {
-        const { repository, channelRemoteDataSource } = createRepository();
-        channelRemoteDataSource.getSelfChannel.mockResolvedValue({ id: 'self-channel' });
+    it('getSelfChannel: 원격 조회 결과(나와의 채팅)를 로컬 캐시에 기록하고 반환한다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        channelRemoteDataSource.getSelfChannel.mockResolvedValue({ id: 'self-channel', sid: 'site-1' });
+
+        await expect(repository.getSelfChannel({} as any)).resolves.toEqual({ id: 'self-channel', sid: 'site-1' });
+        // The self channel must land in the cache so the channel list observers pick it up.
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            { id: 'self-channel', sid: 'site-1' },
+            expect.anything()
+        );
+    });
+
+    it('getUnreads: 로컬 캐시를 건드리지 않는 pass-through', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
         channelRemoteDataSource.getUnreads.mockResolvedValue({ total: 3 });
 
-        // These helpers are transport pass-throughs and should not invent local side effects.
-        await expect(repository.getSelfChannel({} as any)).resolves.toEqual({ id: 'self-channel' });
         await expect(repository.getUnreads({} as any)).resolves.toEqual({ total: 3 });
+        expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 });

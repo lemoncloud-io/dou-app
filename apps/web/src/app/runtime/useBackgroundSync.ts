@@ -15,10 +15,6 @@ import { useAppForeground } from '../bridge';
 // only re-discover added/removed entries here, so a coarse cadence is intentional.
 const BACKGROUND_SYNC_POLL_MS = 60_000;
 
-// channel.mine snapshot size, mirroring desktop-web useChannels. `detail: true` is required
-// so the snapshot carries lastChat$ and the mapper can derive lastActivityAt.
-const CHANNEL_SNAPSHOT_LIMIT = 100;
-
 /**
  * Global background sync — keeps place/channel/profile lists fresh regardless of route.
  * Ported from the testbed ChatHomePage `refreshActiveLists`, but lifted into the runtime
@@ -43,6 +39,9 @@ export const useBackgroundSync = (): void => {
 
     const cid = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : 'default';
     const activeSiteId = selectedSiteId;
+    // channel.get-self is a relay/default-server capability; cloud servers have no notes-to-self
+    // channel, so the self-channel fetch is gated to the relay server only.
+    const isRelayServer = session.activeServer.kind !== 'cloud';
 
     const isSwitching =
         useIsMutating({ mutationKey: SWITCH_SITE_MUTATION_KEY }) +
@@ -98,18 +97,20 @@ export const useBackgroundSync = (): void => {
         ]);
     }, [repos.place, repos.user, repos.channel, repos.profile, repos.syncMeta, cid, activeSiteId]);
 
-    // Full channel snapshot (channel.mine) for the active site. Delta sync above only carries
-    // changed rows, so the snapshot re-anchors the visible list. Runs on the rising edge only —
-    // site/cloud switches re-authenticate the socket, so every context change hits this path
-    // without paying a full fetch on each 60s tick.
-    const refreshChannelSnapshot = useCallback(async () => {
-        if (!activeSiteId) return;
+    // Load the "나와의 채팅" (notes-to-self) channel for the active site via channel.get-self, which
+    // caches it so it appears in the channel list. Runs on every place entry (rising edge + site
+    // switch); the cloud-wide delta sync (syncChannels) keeps the rest of the list converging, so no
+    // full channel.mine snapshot is needed here.
+    const loadSelfChannel = useCallback(async () => {
+        // Only when a place is selected AND we are on the relay server (not a cloud server) —
+        // cloud servers do not expose channel.get-self.
+        if (!activeSiteId || !isRelayServer) return;
         try {
-            await repos.channel.refreshList({ sid: activeSiteId, detail: true, limit: CHANNEL_SNAPSHOT_LIMIT });
+            await repos.channel.getSelfChannel();
         } catch {
-            // best-effort: the delta sync keeps the list converging until the next rising edge
+            // best-effort: retried on the next place entry
         }
-    }, [repos.channel, activeSiteId]);
+    }, [repos.channel, activeSiteId, isRelayServer]);
 
     // prevSiteRef is shared by Trigger 1 and Trigger 4 (declared once, above both) so the rising edge
     // can advance the site watermark and Trigger 4 does not re-fire the same sync on a cloud switch.
@@ -125,9 +126,9 @@ export const useBackgroundSync = (): void => {
             // here so Trigger 4 sees an unchanged sid and does not duplicate the fetch below.
             prevSiteRef.current = activeSiteId;
             void refreshActiveLists();
-            void refreshChannelSnapshot();
+            void loadSelfChannel();
         }
-    }, [isVerified, activeSiteId, refreshActiveLists, refreshChannelSnapshot]);
+    }, [isVerified, activeSiteId, refreshActiveLists, loadSelfChannel]);
 
     // Trigger 2 — periodic poll while verified, skipped during an in-flight switch (the optimistic
     // window can leave the old session briefly verified=true; the rising edge handles completion).
@@ -148,8 +149,8 @@ export const useBackgroundSync = (): void => {
         if (prevSiteRef.current === activeSiteId) return;
         prevSiteRef.current = activeSiteId;
         void refreshActiveLists();
-        void refreshChannelSnapshot();
-    }, [activeSiteId, isVerified, isSwitching, refreshActiveLists, refreshChannelSnapshot]);
+        void loadSelfChannel();
+    }, [activeSiteId, isVerified, isSwitching, refreshActiveLists, loadSelfChannel]);
 
     // Trigger 3 — app foreground return. The poll timer freezes while the WebView is suspended and
     // pushes may have been missed, so re-sync on resume. Gated on `isVerified` so we only fire against
@@ -168,6 +169,5 @@ export const useBackgroundSync = (): void => {
     useAppForeground(() => {
         if (!isVerified || isSwitching) return;
         void refreshActiveLists();
-        void refreshChannelSnapshot();
     });
 };

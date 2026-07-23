@@ -68,7 +68,7 @@ describe('ChannelRemoteDataSource', () => {
 
         it('getSelfChannel 호출 시 channel.get-self 액션으로 request를 전송해야 한다', async () => {
             const payload: ChannelGetSelfInput = {};
-            await dataSource.getSelfChannel(payload);
+            await dataSource.getSelfChannel(payload, context);
             expect(mockGateways.channel.getSelf).toHaveBeenCalledWith(payload);
         });
 

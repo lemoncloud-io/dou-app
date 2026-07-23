@@ -10,6 +10,7 @@ export * from './useInviteAccept';
 export * from './useInviteCountdown';
 export * from './useInvitedClouds';
 export * from './useLastChat';
+export * from './useMyJoins';
 export * from './usePlaceProfilePrompt';
 export * from './useScrollRestoration';
 export * from './useSwitchPlace';

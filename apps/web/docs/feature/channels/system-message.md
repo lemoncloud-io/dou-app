@@ -15,11 +15,11 @@
 
 서버 패키지(`@lemoncloud/chatic-socials-api`)가 스펙을 반영하면서 `ChatView`/`ChannelView`에 필드가 추가됐고, 도메인 타입이 상속으로 이를 **자동 포함**한다 — 로컬 타입 확장은 없다.
 
-| 타입                   | 필드                                      | 의미                                                                            |
-| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
-| `DomainChat.stereo`    | `'' \| 'user' \| 'system'`                | `system`이면 시스템 메시지                                                      |
-| `DomainChat.subType`   | `'' \| 'join' \| 'leave'` (`ChatSubType`) | 입장/퇴장 구분 코드                                                             |
-| `DomainChannel.metaNo` | `number?`                                 | 비집계 이벤트 누적(`chatNo − metaNo` = 사용자 메시지 수). **현재 미사용(후속)** |
+| 타입                   | 필드                                      | 의미                                                                                        |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `DomainChat.stereo`    | `'' \| 'user' \| 'system'`                | `system`이면 시스템 메시지                                                                  |
+| `DomainChat.subType`   | `'' \| 'join' \| 'leave'` (`ChatSubType`) | 입장/퇴장 구분 코드                                                                         |
+| `DomainChannel.metaNo` | `number?`                                 | 비집계 이벤트 누적(`chatNo − metaNo` = 사용자 메시지 수). 홈 안읽음 뱃지가 사용(§안읽은 수) |
 
 `ChatSubType`은 `@chatic/data`에서 re-export하므로 앱은 `import type { ChatSubType } from '@chatic/data'`로 쓴다.
 
@@ -71,7 +71,7 @@ if (message.isSystem) {
 - 시스템 메시지는 렌더 분기에서 일찍 반환되어 `ReadStatus`(읽음/안읽음 수)를 **그리지 않는다**.
 - `useJoinPositions.getReadCount`는 chatNo 커서 기반이라 별도 필터가 없어도 시스템 버블엔 표시되지 않는다.
 
-> 채널 **목록의 안읽음 뱃지**(홈)는 `home/lib/computeUnreads.ts`에서 `metaNo`로 보정해 시스템 메시지를 제외한다 — `unread = max(0, (latest − readNo) − (latestMeta − readMeta))`. 읽음 커서 metaNo(`join.metaNo`)가 아직 없으면 기존 동작으로 안전 degrade. 상세는 프론트 스펙 §4.
+> 채널 **목록의 안읽음 뱃지**(홈)는 `home/hooks/useChannelUnreads.ts`에서 `metaNo`로 시스템 메시지를 제외한다 — head를 사용자 메시지 수로 환산해 읽음 커서와 비교한다: `unread = max(0, (channel.chatNo − channel.metaNo) − readNo)`. 읽음 커서 `readNo`는 채널 임베드 `$join`이 아니라 **구독 join 목록**(`home/hooks/useMyJoins.ts`가 채널별 `registerJoin`으로 확보)의 `max(readNo, chatNo)`를 쓴다. join 행이 아직 없으면 0(뱃지 없음).
 
 ## 발행 경로 (참고)
 

@@ -37,29 +37,30 @@ beforeEach(() => {
 });
 
 describe('useActiveCloudChannels — 클라우드 전체 채널 구독', () => {
-    it('빈 sid로 클라우드 전체 채널을 구독한다', () => {
+    it('빈 sid로 클라우드 전체 채널을 구독하고 {cid, uid} 스코프로 고정한다', () => {
         emit([channel('c1', 's1'), channel('c2', 's2')]);
 
         const { result } = renderHook(() => useActiveCloudChannels());
 
-        expect(observeListMock).toHaveBeenCalledWith({ sid: '' }, expect.any(Function));
+        // The {cid, uid} override pins the observer scope independent of the provider commit lag.
+        expect(observeListMock).toHaveBeenCalledWith({ sid: '' }, expect.any(Function), { cid: 'cloud-A', uid: 'u1' });
         expect(result.current.map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    it('사이트 전환(sid 변경) 시 목록을 비우지 않고 재구독한다', () => {
+    it('사이트 전환(sid 변경)에는 재구독하지 않는다 (cloud-wide 집합은 사이트 무관)', () => {
         const dispose = emit([channel('c1', 's1')]);
         setSelection('cloud-A', 's1');
 
         const { result, rerender } = renderHook(() => useActiveCloudChannels());
         expect(result.current.map(c => c.id)).toEqual(['c1']);
 
-        // Same cloud/uid → the cloud-wide set is unchanged, so no empty flash on a site switch.
-        emit([channel('c1', 's1'), channel('c2', 's2')]);
+        // Same {cid, uid} scope across a site switch → no re-subscribe, no clear. The observer keeps
+        // matching cloud-wide writes without re-keying on the active sid.
         setSelection('cloud-A', 's2');
         rerender();
 
-        expect(dispose).toHaveBeenCalledTimes(1);
-        expect(result.current.map(c => c.id)).toEqual(['c1', 'c2']);
+        expect(dispose).not.toHaveBeenCalled();
+        expect(result.current.map(c => c.id)).toEqual(['c1']);
     });
 
     it('클라우드 변경 시 이전 목록을 비우고 재구독한다', () => {

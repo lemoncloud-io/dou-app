@@ -35,8 +35,13 @@ describe('CollapsibleSection', () => {
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
         fireEvent.click(toggle);
-        expect(screen.queryByText('row')).not.toBeInTheDocument();
         expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+        // The body stays mounted through the collapse animation and unmounts when the
+        // grid-row height transition ends.
+        const body = screen.getByText('row').closest('.grid') as HTMLElement;
+        fireEvent.transitionEnd(body, { propertyName: 'grid-template-rows' });
+        expect(screen.queryByText('row')).not.toBeInTheDocument();
     });
 
     it('is controlled by the open prop and reports changes via onOpenChange', () => {

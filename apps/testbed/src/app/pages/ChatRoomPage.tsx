@@ -171,6 +171,18 @@ export const ChatRoomPage = () => {
     // 헬퍼가 0을 반환한다.
     const countUnread = (chat: DomainChat): number => countUnreadMembers(chat, memberIds, cursorByUser);
 
+    // 채널 제목 규칙(홈/설정과 동일): self → 내 join nick(없으면 내 프로필 nick); dm → 미고려;
+    // 그 외 → 소유자면 channel.name, 멤버면 내 join.nick(없으면 channel.name).
+    const myJoinNick = useMemo(() => joins.find(j => j.userId === myUid)?.nick, [joins, myUid]);
+    const channelTitle = useMemo(() => {
+        if (!channel) return channelId;
+        const fallback = channel.name || channelId;
+        if (channel.stereo === 'self') return myJoinNick || profileMap.get(myUid)?.nick || fallback;
+        if (channel.stereo === 'dm') return fallback; // dm 미고려 (이후 추가 예정)
+        const isOwner = channel.ownerId === myUid;
+        return (isOwner ? channel.name : myJoinNick || channel.name) || channelId;
+    }, [channel, channelId, myUid, myJoinNick, profileMap]);
+
     // join(read-state) 플랜 등록 — 전체 멤버(channel.memberIds) 기준으로 `channelId@userId`마다 등록해
     // 모든 멤버의 읽음 커서가 갱신되게 한다. profile 등록과 달리 sid에 의존하지 않으므로 별도 effect로
     // 분리한다(예전엔 sid 게이트에 묶여 sid가 없으면 join이 통째로 등록되지 않았다). registerJoin은
@@ -355,7 +367,7 @@ export const ChatRoomPage = () => {
                     ←
                 </button>
                 <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{channel?.name ?? channelId}</p>
+                    <p className="font-semibold text-sm truncate">{channelTitle}</p>
                     <p className="text-xs text-muted-foreground font-mono truncate">{channelId}</p>
                 </div>
                 <button
@@ -376,7 +388,11 @@ export const ChatRoomPage = () => {
             {isSystemSendOpen && <SystemSendPanel channelId={channelId} onClose={() => setIsSystemSendOpen(false)} />}
 
             {/* 메시지 목록 */}
-            <div ref={listRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+            <div
+                ref={listRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 space-y-2"
+            >
                 {isLoadingMore && <p className="text-center text-xs text-muted-foreground py-2">불러오는 중...</p>}
                 {!hasMore && chats.length > 0 && (
                     <p className="text-center text-xs text-muted-foreground py-2">처음 메시지입니다</p>
@@ -482,15 +498,17 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
     return (
         <div className={`flex gap-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
             <Avatar thumbnail={thumbnail} label={nick ?? userName} />
-            <div className={`flex flex-col gap-0.5 max-w-[75%] ${isMine ? 'items-end' : 'items-start'}`}>
+            <div
+                className={`flex min-w-0 flex-col gap-0.5 max-w-[min(75%,32rem)] ${isMine ? 'items-end' : 'items-start'}`}
+            >
                 {/* 디버깅용: 유저 이름 + 멤버 프로필 닉을 항상 함께 노출(프로필 없으면 표기). */}
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground break-all">
                     <span className="font-medium">user:</span> {userName}
                     {' · '}
                     <span className="font-medium">profile:</span> {nick ?? '없음'}
                 </p>
                 <div
-                    className={`rounded-2xl px-3 py-2 text-sm ${
+                    className={`min-w-0 max-w-full rounded-2xl px-3 py-2 text-sm ${
                         chat.isPending
                             ? 'bg-muted text-muted-foreground'
                             : isMine
@@ -498,7 +516,7 @@ const ChatBubble = ({ chat, isMine, user, profile, unreadCount }: ChatBubbleProp
                               : 'bg-card border border-border'
                     }`}
                 >
-                    <p className="break-words">{chat.content}</p>
+                    <p className="whitespace-pre-wrap break-words">{chat.content}</p>
                 </div>
                 {/* 유저id · 메시지no · 시각 · 안읽음 수 */}
                 <div className="flex gap-1.5 text-[10px] text-muted-foreground font-mono">

@@ -4,7 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 
 import { useHandlePushNavigation } from '../../bridge';
-import { useActiveCloudChannels, useChannelUnreads } from '../../features/home/hooks';
+import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../features/home/hooks';
 import { useInAppPushMessage } from '../../features/notifications';
 import { useBackHandler, useDeviceSync } from '../../hooks';
 import { ROUTES } from '../../routes/paths';
@@ -38,7 +38,11 @@ export const UnifiedLayout = (): JSX.Element => {
     // Own the bottom-nav unread badge here (the layout that renders the nav), rather than inside
     // the nav component. The native app-icon badge is a separate concern owned by UnreadBadgeRunner.
     const showBottomNav = shouldShowBottomNav(pathname);
-    const { total: unreadTotal } = useChannelUnreads(useActiveCloudChannels());
+    const cloudChannels = useActiveCloudChannels();
+    // Observe-only (sync: false): this layout is mounted on every route, so it must not own the
+    // per-channel join sync (that stays scoped to HomePage). The nav badge total is derived from
+    // the observed join cache + channel head.
+    const { total: unreadTotal } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
 
     return (
         <div

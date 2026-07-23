@@ -23,6 +23,14 @@ export interface HomePlacesResult {
  * pre-commit uid, so the post-commit list fetch reemits against a different scope key and never
  * reaches it — the rail then stays stale until an unrelated remount. Re-subscribing on uid closes
  * that gap.
+ *
+ * SCOPE PINNING — the observer's scope key must be derived from THESE {cid, uid} values, not the
+ * live DataContextProvider. The provider is updated by an ancestor (RuntimeDataBinder), whose effect
+ * runs AFTER this descendant hook has already subscribed, so on a cloud switch the provider still
+ * reports the previous cid when observeList() runs → the observer registers under the stale scope and
+ * misses the post-commit write (needs a manual refresh to show up). Passing an explicit contextOverride
+ * keys the observer off the React session directly, independent of that effect ordering. See
+ * PlaceLocalDataSourceV2 reemit-routing tests.
  */
 export const useHomePlaces = (): HomePlacesResult => {
     const { place } = useRuntimeRepositories();
@@ -37,14 +45,19 @@ export const useHomePlaces = (): HomePlacesResult => {
     const [places, setPlaces] = useState<DomainPlace[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Re-subscribe on cloud/uid change and discard the prior cloud's rows.
+    // Re-subscribe on cloud/uid change and discard the prior cloud's rows. The explicit {cid, uid}
+    // override pins the observer scope to the target cloud, independent of the provider's commit lag.
     useEffect(() => {
         setPlaces([]);
         setIsLoading(true);
-        return place.observeList(undefined, result => {
-            setPlaces(result?.list ?? []);
-            setIsLoading(false);
-        });
+        return place.observeList(
+            undefined,
+            result => {
+                setPlaces(result?.list ?? []);
+                setIsLoading(false);
+            },
+            { cid, uid }
+        );
     }, [place, cid, uid]);
 
     return { places, isLoading };

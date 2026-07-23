@@ -57,7 +57,8 @@ export const MessageRow = ({
     return (
         <div className={cn('flex w-full gap-[5px] px-4', mine ? 'justify-end' : 'items-start', className)}>
             {!mine && <span className="shrink-0">{avatar}</span>}
-            <div className={cn('flex min-w-0 flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
+            {/* Cap the bubble column so long messages wrap instead of overflowing the row. */}
+            <div className={cn('flex min-w-0 max-w-[75%] flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
                 {children}
                 {meta}
             </div>

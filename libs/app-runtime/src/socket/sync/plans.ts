@@ -96,8 +96,12 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
                 const { join } = getRepositories();
                 void join.cacheWrite(toDomainJoin(view, getContext()));
             },
+            // A removed join (membership dropped: leave/kick) tombstones the local cache row so
+            // read-state observers (home unread, room read positions) stop counting it.
             onRemove: target => {
-                //TODO: Join 플랜 적용 개선필요
+                if (!target.id) return;
+                const { join } = getRepositories();
+                void join.cacheDelete(target.id);
             },
         }),
     ];

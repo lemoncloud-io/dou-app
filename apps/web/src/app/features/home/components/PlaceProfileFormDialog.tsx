@@ -6,6 +6,8 @@ import { resizeImageToBase64 } from '@chatic/shared';
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
 const SUCCESS_CLOSE_DELAY = 1300; // keep the success toast visible briefly before closing
@@ -51,6 +53,12 @@ export interface PlaceProfileFormDialogProps {
     photoOptional: string;
     /** Accessible label for the close (X) button. */
     closeLabel: string;
+    /**
+     * Whether the user may dismiss the dialog without saving. Defaults to true. When false the
+     * close (X) button, esc, and overlay-dismiss are all disabled — used for the mandatory
+     * first-time profile setup (relay/default place) where a profile is required to proceed.
+     */
+    dismissible?: boolean;
     /** Copy for the unsaved-changes exit guard. */
     exit: PlaceProfileExitCopy;
     /** Persists the profile; rejecting surfaces `saveError`. */
@@ -84,6 +92,7 @@ export const PlaceProfileFormDialog = ({
     photoLabel,
     photoOptional,
     closeLabel,
+    dismissible = true,
     exit,
     onSubmit,
     onDone,
@@ -147,8 +156,9 @@ export const PlaceProfileFormDialog = ({
     };
 
     // X / esc / overlay: confirm before leaving when there are unsaved changes, else exit directly.
+    // No-op when the dialog is mandatory (dismissible === false) so there's no way to skip setup.
     const requestClose = () => {
-        if (submitting) return;
+        if (submitting || !dismissible) return;
         if (isDirty) setAlertOpen(true);
         else onExit();
     };
@@ -170,7 +180,7 @@ export const PlaceProfileFormDialog = ({
     };
 
     return (
-        <Dialog open={open} onOpenChange={next => !next && requestClose()}>
+        <Dialog open={open} onOpenChange={next => !next && dismissible && requestClose()}>
             <DialogContent
                 className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
@@ -182,7 +192,14 @@ export const PlaceProfileFormDialog = ({
                 {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
                     screens so the layout (and the full-width CTA) never stretches. */}
                 <div className="flex h-full w-full max-w-[440px] flex-col">
-                    <ModalTopBar onClose={requestClose} closeLabel={closeLabel} />
+                    {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button.
+                        safeArea={false}: the native WebView is already inset below the status bar,
+                        so adding the safe-top inset here would double the top gap. */}
+                    <ModalTopBar
+                        onClose={dismissible ? requestClose : undefined}
+                        closeLabel={closeLabel}
+                        safeArea={false}
+                    />
 
                     {/* Scrollable content: min-h-0 lets it shrink+scroll so the CTA never overlaps on short
                     viewports. Section paddings mirror the Figma spec (title px-4, avatar px-[18px],
@@ -259,11 +276,7 @@ export const PlaceProfileFormDialog = ({
                         onClick={handleSubmit}
                         wrapperClassName="shrink-0"
                     />
-                    <div
-                        className="shrink-0 touch-none bg-background"
-                        style={{ height: 'var(--keyboard-height, 0px)' }}
-                        onTouchMove={e => e.preventDefault()}
-                    />
+                    <KeyboardSafeAreaSpacer />
                 </div>
 
                 <AlertDialog

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat } from '@chatic/data';
 
@@ -8,11 +8,14 @@ import { useLastChat } from './useLastChat';
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
+    useRuntimeSocketState: jest.fn(),
     useChatSync: jest.fn(),
 }));
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
 
 const chatObserveList = jest.fn();
+const chatRefreshList = jest.fn();
+const channelObserveItem = jest.fn();
 
 const chat = (chatNo: number, content: string, fields: Partial<DomainChat> = {}): DomainChat =>
     ({ chatNo, content, ...fields }) as unknown as DomainChat;
@@ -24,9 +27,23 @@ const seedChats = (chats: DomainChat[], dispose: () => void = () => undefined) =
         return dispose;
     });
 
+// Seed the observed channel head (chatNo). Emits synchronously so the head-driven refetch effect
+// sees it during mount (after the chat observe has set the cached tail).
+const seedChannelHead = (chatNo?: number) =>
+    channelObserveItem.mockImplementation((_id, cb) => {
+        if (chatNo !== undefined) cb({ chatNo });
+        return () => undefined;
+    });
+
 beforeEach(() => {
     jest.clearAllMocks();
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeList: chatObserveList } });
+    chatRefreshList.mockResolvedValue(undefined);
+    seedChannelHead(undefined); // no head emit by default
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+        chat: { observeList: chatObserveList, refreshList: chatRefreshList },
+        channel: { observeItem: channelObserveItem },
+    });
+    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
     (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
 });
 
@@ -95,5 +112,33 @@ describe('useLastChat — 홈 행의 마지막 메시지', () => {
         const { unmount } = renderHook(() => useLastChat('ch-1'));
         unmount();
         expect(dispose).toHaveBeenCalledTimes(1);
+    });
+
+    it('채널 head가 캐시 tail보다 앞서면 최신 페이지를 refetch한다', () => {
+        seedChats([chat(3, 'old')]); // cached tail = 3
+        seedChannelHead(5); // head 5 > 3 → refetch
+
+        renderHook(() => useLastChat('ch-1'));
+
+        expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1' });
+    });
+
+    it('채널 head가 캐시 tail 이하면 refetch하지 않는다', () => {
+        seedChats([chat(5, 'latest')]); // cached tail = 5
+        seedChannelHead(5); // head == tail → no refetch
+
+        renderHook(() => useLastChat('ch-1'));
+
+        expect(chatRefreshList).not.toHaveBeenCalled();
+    });
+
+    it('미검증(isVerified=false)이면 head가 앞서도 refetch하지 않는다', () => {
+        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        seedChats([chat(3, 'old')]);
+        seedChannelHead(9);
+
+        renderHook(() => useLastChat('ch-1'));
+
+        expect(chatRefreshList).not.toHaveBeenCalled();
     });
 });

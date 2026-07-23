@@ -177,6 +177,18 @@ describe('PlaceProfileFormDialog', () => {
         expect(onExit).toHaveBeenCalledTimes(1);
     });
 
+    describe('필수 모드(dismissible=false)', () => {
+        it('닫기(X) 버튼을 렌더하지 않는다', () => {
+            render(<PlaceProfileFormDialog {...baseProps({ dismissible: false })} />);
+            expect(screen.queryByRole('button', { name: 'close' })).not.toBeInTheDocument();
+        });
+
+        it('기본값(dismissible 생략)에서는 닫기 버튼이 있다', () => {
+            render(<PlaceProfileFormDialog {...baseProps()} />);
+            expect(screen.getByRole('button', { name: 'close' })).toBeInTheDocument();
+        });
+    });
+
     it('10MB 초과 이미지는 에러 토스트를 띄우고 리사이즈를 시도하지 않는다', () => {
         render(<PlaceProfileFormDialog {...baseProps()} />);
         fireEvent.change(fileInput(), { target: { files: [bigFile()] } });

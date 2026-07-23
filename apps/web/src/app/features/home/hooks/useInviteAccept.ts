@@ -75,12 +75,19 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             await runInviteFlow({ code, backend });
 
             // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
-            // the cloud sheet. Skipped when the invite carries no cloudId.
+            // the cloud sheet. Skipped when the invite carries no cloudId. Both id and cid are keyed
+            // to cloudId, so consumers that fall back id → cid always have a value.
+            // Store the display info too (name + owner) so the switcher renders a proper label and
+            // owner caption without a separate fetch: use the invite's cloudName as the label and
+            // the inviter as the owner.
             if (info?.cloudId) {
                 step = 'cache-cloud';
                 await cloud.cacheWrite({
                     id: info.cloudId,
                     cid: info.cloudId,
+                    name: info.cloudName,
+                    ownerId: info.inviter$?.id,
+                    owner$: info.inviter$ ? { id: info.inviter$.id, name: info.inviter$.name } : undefined,
                     backend: info.$envs?.backend,
                     wss: info.$envs?.wss,
                     cloudType: 'invited',

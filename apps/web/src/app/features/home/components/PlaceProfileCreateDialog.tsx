@@ -13,6 +13,11 @@ interface PlaceProfileCreateDialogProps {
     onDone: () => void;
     /** Called when the user chooses to leave without creating a profile. */
     onExit: () => void;
+    /**
+     * Whether the user may dismiss without creating a profile. Defaults to true. Pass false for the
+     * mandatory first-time setup on the relay/default place, which hides the close button.
+     */
+    dismissible?: boolean;
 }
 
 /**
@@ -21,7 +26,13 @@ interface PlaceProfileCreateDialogProps {
  * {@link PlaceProfileFormDialog} — supplies create-specific copy and a blank starting state; the
  * edit counterpart is {@link PlaceProfileEditDialog}. Persists via ProfileRepositoryV2.setMyProfile.
  */
-export const PlaceProfileCreateDialog = ({ open, placeName, onDone, onExit }: PlaceProfileCreateDialogProps) => {
+export const PlaceProfileCreateDialog = ({
+    open,
+    placeName,
+    onDone,
+    onExit,
+    dismissible = true,
+}: PlaceProfileCreateDialogProps) => {
     const { t } = useTranslation();
     const { profile: profileRepository } = useRuntimeRepositories();
 
@@ -40,6 +51,7 @@ export const PlaceProfileCreateDialog = ({ open, placeName, onDone, onExit }: Pl
             photoLabel={t('placeProfileCreate.photoLabel')}
             photoOptional={t('placeProfileCreate.photoOptional')}
             closeLabel={t('placeProfileCreate.close')}
+            dismissible={dismissible}
             exit={{
                 title: t('placeProfileCreate.exitTitle'),
                 description: t('placeProfileCreate.exitDescription'),
