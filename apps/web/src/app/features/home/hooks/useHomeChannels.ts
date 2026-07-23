@@ -20,13 +20,21 @@ export interface HomeChannelsResult {
  * The cache read on the relay cloud is not sid-isolated, so results are filtered to the active
  * site to avoid flashing the previous site's channels mid-switch.
  *
- * uid is part of the cache observer scope key ({cid, sid, uid}) and flips at cloud-switch commit,
- * which can lag the sid change (a cross-cloud switch may reuse a numerically equal sid). Re-keying
- * on uid too keeps the observer aligned with the scope the post-commit fetch reemits against.
+ * uid is part of the cache observer scope key ({cid, uid}) and flips at cloud-switch commit, which
+ * can lag the sid change (a cross-cloud switch may reuse a numerically equal sid). Re-keying on uid
+ * too keeps the observer aligned with the scope the post-commit fetch reemits against.
+ *
+ * SCOPE PINNING — the {cid, uid} override keys the observer off the React session, not the live
+ * DataContextProvider whose ancestor commits the new cloud AFTER this hook subscribes; without it a
+ * cloud switch registers the observer under the stale provider cid and misses the post-commit write
+ * (needs a manual refresh). The channel scope drops sid, so the per-site view stays isolated by the
+ * query `sid` (the list-key suffix), not the scope key. See PlaceLocalDataSourceV2 reemit tests.
  */
 export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
     const { channel } = useRuntimeRepositories();
-    const uid = useGlobalSession().identity.userId ?? undefined;
+    const session = useGlobalSession();
+    const uid = session.identity.userId ?? undefined;
+    const cid = session.cloud?.cloudId && session.cloud.cloudId !== 'default' ? session.cloud.cloudId : 'default';
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -37,12 +45,16 @@ export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
             return;
         }
         setIsLoading(true);
-        return channel.observeList({ sid }, result => {
-            const list = (result?.list ?? []).filter(c => c.sid === sid);
-            setChannels(list);
-            setIsLoading(false);
-        });
-    }, [channel, sid, uid]);
+        return channel.observeList(
+            { sid },
+            result => {
+                const list = (result?.list ?? []).filter(c => c.sid === sid);
+                setChannels(list);
+                setIsLoading(false);
+            },
+            { cid, uid }
+        );
+    }, [channel, sid, cid, uid]);
 
     return { channels, isLoading };
 };

@@ -41,7 +41,10 @@ describe('useHomeChannels — 채널 목록 구독', () => {
 
         const { result } = renderHook(() => useHomeChannels('s1'));
 
-        expect(observeListMock).toHaveBeenCalledWith({ sid: 's1' }, expect.any(Function));
+        expect(observeListMock).toHaveBeenCalledWith({ sid: 's1' }, expect.any(Function), {
+            cid: 'default',
+            uid: 'u1',
+        });
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c3']);
         expect(result.current.isLoading).toBe(false);
     });

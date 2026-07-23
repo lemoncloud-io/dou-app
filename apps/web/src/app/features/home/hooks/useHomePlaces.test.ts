@@ -47,9 +47,19 @@ describe('useHomePlaces — 플레이스 목록 구독', () => {
 
         const { result } = renderHook(() => useHomePlaces());
 
-        expect(observeListMock).toHaveBeenCalledWith(undefined, expect.any(Function));
+        // The {cid, uid} override pins the observer scope to the target cloud (relay → 'default').
+        expect(observeListMock).toHaveBeenCalledWith(undefined, expect.any(Function), { cid: 'default', uid: 'u1' });
         expect(result.current.places.map(p => p.id)).toEqual(['p1', 'p2']);
         expect(result.current.isLoading).toBe(false);
+    });
+
+    it('관찰자 스코프를 대상 클라우드의 {cid, uid}로 고정한다 (provider 커밋 지연 무관)', () => {
+        emit([place('a1')]);
+        setActiveServer('cloud', 'cloud-A', 'u9');
+
+        renderHook(() => useHomePlaces());
+
+        expect(observeListMock).toHaveBeenCalledWith(undefined, expect.any(Function), { cid: 'cloud-A', uid: 'u9' });
     });
 
     it('refreshList를 호출하지 않는다 (목록 발견은 전역 background sync 담당)', () => {
