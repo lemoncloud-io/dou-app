@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-07-23] - root@0.43.3, @chatic/web@0.37.3
+
+### Features
+
+- (web/mypage) add device global push-mute toggle
+- (app-runtime/socket) add kind-scoped socket routing for relay-pinned device push
+
+### Bug Fixes
+
+- (admin-v2) drop removed useTokenRefresh from app bootstrap
+- (web) align invite dialog and chat tests with updated backend model types
+
+### Refactor
+
+- (data) type device.update-remote response and reconcile push-mute from server echo
+
 ## [2026-07-23] - root@0.43.2, @chatic/web@0.37.2
 
 ### Features
