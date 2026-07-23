@@ -69,7 +69,7 @@ describe('createUploadHandlers (recovery messages)', () => {
             },
         ]);
 
-        const handlers = createUploadHandlers(bridge, uploadService, logger);
+        const handlers = createUploadHandlers(bridge, () => uploadService, logger);
         const res = await handlers.handleListRecoverableUploads();
 
         expect(res.success).toBe(true);
@@ -84,7 +84,7 @@ describe('createUploadHandlers (recovery messages)', () => {
 
         (uploadService.listRecoverableUploads as jest.Mock).mockResolvedValueOnce([]);
 
-        const handlers = createUploadHandlers(bridge, uploadService, logger);
+        const handlers = createUploadHandlers(bridge, () => uploadService, logger);
         const res = await handlers.handleRecoverUpload({ type: 'RecoverUpload', data: { uploadId: 'u1' } } as any);
 
         expect(res.success).toBe(false);
@@ -110,7 +110,7 @@ describe('createUploadHandlers (recovery messages)', () => {
             },
         ]);
 
-        const handlers = createUploadHandlers(bridge, uploadService, logger);
+        const handlers = createUploadHandlers(bridge, () => uploadService, logger);
         const res = await handlers.handleRecoverUpload({ type: 'RecoverUpload', data: { uploadId: 'u1' } } as any);
 
         expect(res.success).toBe(true);
@@ -136,7 +136,7 @@ describe('createUploadHandlers (recovery messages)', () => {
             },
         ]);
 
-        const handlers = createUploadHandlers(bridge, uploadService, logger);
+        const handlers = createUploadHandlers(bridge, () => uploadService, logger);
         const res = await handlers.handleRetryUpload({ type: 'RetryUpload', data: { uploadId: 'u1' } } as any);
 
         expect(res.success).toBe(true);

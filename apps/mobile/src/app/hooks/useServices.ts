@@ -1,7 +1,5 @@
 import {
     bootMetricsService,
-    cacheCrudService,
-    cacheSearchService,
     clipboardService,
     deviceService,
     smsService,
@@ -15,12 +13,13 @@ import {
     oAuthService,
     permissionService,
     preferenceService,
-    sqliteDatabase,
     subscriptionIapService,
-    testRecordService,
-    uploadService,
 } from '../services';
 
+// SQLite-backed services (cacheCrudService, cacheSearchService, testRecordService, uploadService,
+// sqliteDatabase) are deliberately not surfaced here — reading them constructs the database, and
+// this hook runs during MainScreen render (before load-start). Consumers access `provider.x` inside
+// their message callbacks so SQLite opens only on first use. See boot-optimization.md 4.4.
 export const useServices = () => ({
     logService: logger,
     logBufferService: logBufferService,
@@ -35,11 +34,6 @@ export const useServices = () => ({
     firebaseInstallationService: firebaseInstallationService,
     subscriptionIapService: subscriptionIapService,
     preferenceService: preferenceService,
-    cacheCrudService: cacheCrudService,
-    cacheSearchService: cacheSearchService,
-    testRecordService: testRecordService,
     keyValueStorage: keyValueStorage,
-    sqliteDatabase: sqliteDatabase,
-    uploadService: uploadService,
     bootMetricsService: bootMetricsService,
 });

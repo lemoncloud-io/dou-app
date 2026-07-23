@@ -1,9 +1,12 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
+import { provider } from '../../services';
 import type { WebMessageData } from '@chatic/app-messages';
 
 export const useTestRecordHandler = () => {
-    const { testRecordService, logService: logger } = useServices();
+    const { logService: logger } = useServices();
+    // `provider.testRecordService` is read inside each callback (not at render) so SQLite opens on the
+    // first actual test-record message, off the boot critical path (boot-optimization.md 4.4).
 
     const handleFetchTestRecord = useCallback(
         async (message: WebMessageData<'FetchTestRecord'>) => {
@@ -12,7 +15,7 @@ export const useTestRecordHandler = () => {
                 if (!data || data.key === undefined) {
                     throw new Error('Fetch key is missing');
                 }
-                const item = await testRecordService.fetch(data.key);
+                const item = await provider.testRecordService.fetch(data.key);
                 return {
                     type: 'OnFetchTestRecord' as const,
                     success: true,
@@ -27,14 +30,14 @@ export const useTestRecordHandler = () => {
                 };
             }
         },
-        [testRecordService, logger]
+        [logger]
     );
 
     const handleFetchAllTestRecords = useCallback(
         async (message: WebMessageData<'FetchAllTestRecords'>) => {
             const data = message?.data ?? (message as any);
             try {
-                const items = await testRecordService.fetchAll(data?.keys);
+                const items = await provider.testRecordService.fetchAll(data?.keys);
                 return {
                     type: 'OnFetchAllTestRecords' as const,
                     success: true,
@@ -49,7 +52,7 @@ export const useTestRecordHandler = () => {
                 };
             }
         },
-        [testRecordService, logger]
+        [logger]
     );
 
     const handleSaveTestRecord = useCallback(
@@ -59,7 +62,7 @@ export const useTestRecordHandler = () => {
                 if (!data || data.key === undefined || data.value === undefined) {
                     throw new Error('Save key or value is missing');
                 }
-                const success = await testRecordService.save(data.key, data.value);
+                const success = await provider.testRecordService.save(data.key, data.value);
                 return {
                     type: 'OnSaveTestRecord' as const,
                     success: true,
@@ -74,7 +77,7 @@ export const useTestRecordHandler = () => {
                 };
             }
         },
-        [testRecordService, logger]
+        [logger]
     );
 
     const handleSaveAllTestRecords = useCallback(
@@ -93,7 +96,7 @@ export const useTestRecordHandler = () => {
                     throw new Error(`items array is missing or invalid. keys in data: ${Object.keys(data ?? {})}`);
                 }
 
-                const success = await testRecordService.saveAll(items);
+                const success = await provider.testRecordService.saveAll(items);
                 return {
                     type: 'OnSaveAllTestRecords' as const,
                     success: true,
@@ -108,13 +111,13 @@ export const useTestRecordHandler = () => {
                 };
             }
         },
-        [testRecordService, logger]
+        [logger]
     );
 
     const handleClearTestRecords = useCallback(
         async (_message: WebMessageData<'ClearTestRecords'>) => {
             try {
-                const success = await testRecordService.clear();
+                const success = await provider.testRecordService.clear();
                 return {
                     type: 'OnClearTestRecords' as const,
                     success: true,
@@ -129,7 +132,7 @@ export const useTestRecordHandler = () => {
                 };
             }
         },
-        [testRecordService, logger]
+        [logger]
     );
 
     return {
