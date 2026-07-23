@@ -1,5 +1,50 @@
 # Changelog
 
+## [2026-07-23] - root@0.43.2, @chatic/web@0.37.2
+
+### Features
+
+- (web/home) make place-profile setup mandatory and harden absence detection
+- (web/home) enhance cloud display and PRO tier logic
+- (web/home) improve cloud switch sheet and restore guest entry
+- (web/channels) unify channel-settings header title with the role-based rule
+- (web/home) make header place-profile only, right avatar always clickable, cloud-name id fallback
+- (web/channels) redesign the self chat room + role-based header title
+- (web/channels) register chat-room join sync for the full member roster
+- (web/home) branch channel-list title by role (owner=channel.name, member=join.nick)
+- (web/channels) unify room-name placeholder to current room name / place profile
+- (web/home) title self channel by join-list nick first, sort channel list by join updatedAt
+- (web/home) show guidance on clouds with no active place
+- (web/home) strengthen place-profile setup UX
+- (app-runtime/sync) clean up removed join cache (implement JoinSyncPlan onRemove)
+- (web-ui-kit) animate collapsible section expand/collapse height
+
+### Bug Fixes
+
+- (web/home) show place/channel lists on first cloud connect without a refresh
+- (web/bridge) stop push navigation from piling up the history stack
+- (web/channels) sort pending messages to the bottom of chat list
+- (web) clean up safe-area handling for bottom CTAs and the top bar
+- (testbed) apply role-based chat-room header title rule and fix broken div tags
+- (web/home) fix stale last message in channel list (head-based refetch)
+- (testbed) add a max width cap to chat message bubbles
+- (web/channels) wrap long messages via min-w-0 on the message row
+- (web-ui-kit) cap message bubble column at max-w-75% to prevent horizontal overflow
+- (testbed) remove chat bubble horizontal overflow and wrap long messages
+- (web/home) base unread count on the subscribed join list and fix bottom spacing
+- (web/mypage) add bottom-nav spacing and fix the scroll container
+
+### Refactor
+
+- (web/sync) limit self-channel fetch to place-selected + relay-server
+- (web/home) scope my-join sync to home (app badge observes only)
+- (web/channels) remove chat-room join sync registration (global sync owned by home)
+- (web/sync) drop the full channel snapshot, load notes-to-self via getSelfChannel
+
+### Other
+
+- test: (web/channels) align room-name dialog tests with the empty-field/placeholder contract
+
 ## [2026-07-21] - No version updates
 
 ### Features
