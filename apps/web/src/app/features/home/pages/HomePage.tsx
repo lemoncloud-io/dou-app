@@ -17,6 +17,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { OnboardingModal } from '../../onboarding';
@@ -93,8 +94,8 @@ export const HomePage = () => {
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
-    // Prompt to CREATE a per-place profile when the active place has none yet.
-    const { shouldPrompt: needsPlaceProfile, dismiss: dismissPlaceProfile } = usePlaceProfilePrompt();
+    // Prompt to CREATE a per-place profile when the active place has none yet (mandatory — no skip).
+    const { shouldPrompt: needsPlaceProfile, status: placeProfileStatus } = usePlaceProfilePrompt();
     const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
@@ -150,6 +151,23 @@ export const HomePage = () => {
     useEffect(() => {
         if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
     }, [needsPlaceProfile, isFirstRun]);
+
+    // Invite flow tail: the accept pipeline lands here and stashes the invited channel. Open it once
+    // the site profile exists — created via the mandatory prompt above, or already present (a re-entry
+    // needs no setup) → navigate straight through. See usePendingInviteChannel / useEnterInvitedChannel.
+    const pendingInviteChannelId = usePendingInviteChannel(state => state.channelId);
+    const clearPendingInviteChannel = usePendingInviteChannel(state => state.clearPendingChannel);
+    const openPendingInviteChannel = () => {
+        if (!pendingInviteChannelId) return;
+        const channelId = pendingInviteChannelId;
+        clearPendingInviteChannel();
+        navigate(ROUTES.channels.room(channelId), { replace: true });
+    };
+    useEffect(() => {
+        // Profile already set for the invited site → skip setup and open the pending channel directly.
+        if (pendingInviteChannelId && placeProfileStatus === 'present') openPendingInviteChannel();
+         
+    }, [pendingInviteChannelId, placeProfileStatus]);
 
     const handleCreatePlace = () => {
         if (!canAddPlace) {
@@ -285,13 +303,15 @@ export const HomePage = () => {
             <PlaceProfileCreateDialog
                 open={isPlaceProfileOpen}
                 placeName={activePlaceName}
-                // On the relay/default place the first-time profile setup is mandatory — no cancel.
-                dismissible={!isDefaultCloud}
-                onDone={() => setIsPlaceProfileOpen(false)}
-                onExit={() => {
+                // Profile setup is always mandatory (no cancel) — invite / place-create / onboarding
+                // all require it before proceeding.
+                dismissible={false}
+                onDone={() => {
                     setIsPlaceProfileOpen(false);
-                    dismissPlaceProfile();
+                    // Invite flow: continue to the channel that was waiting on profile setup.
+                    openPendingInviteChannel();
                 }}
+                onExit={() => setIsPlaceProfileOpen(false)}
             />
             <PlaceProfileEditDialog
                 open={isEditOpen}

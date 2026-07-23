@@ -10,8 +10,6 @@ import {
     useSessionSelection,
 } from '@chatic/web-core';
 
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
-
 type PromptStatus = 'unknown' | 'present' | 'absent';
 
 /** A place profile counts as "set" once it carries a non-empty nick. */
@@ -24,8 +22,14 @@ const hasNick = (profile: DomainProfile | null): boolean => !!profile?.nick?.tri
  * cloud (web-core contextStore), so we do not gate on cloud type. Both `sid` and `uid` are needed
  * to key the profile (`${sid}@${uid}`); without them nothing is prompted.
  *
- * The decision is based SOLELY on getMyProfile(): a non-empty nick in the resolved profile means the
- * profile is set → prompt suppressed (`present`); an empty nick shows it (`absent`).
+ * The decision comes from getMyProfile(), but is only trusted when the response is FOR the site we
+ * asked about (`item.sid === requestedSid`) — a stale/transitional-context response is discarded
+ * (`unknown`) so a present profile is never misjudged absent. The verdict is asymmetric: a nick
+ * alone means `present` (that is the "profile set" signal), while `absent` is doubly confirmed
+ * against the server contract (no nick + active:false) since it opens the mandatory prompt; an
+ * inconclusive response stays `unknown`. Profile setup is MANDATORY — there is no skip/dismiss path,
+ * so the prompt stays until a profile is created. `status` is exposed so callers can act on the
+ * resolved state (e.g. the invite flow navigating to its pending channel once the profile is present).
  *
  * TIMING — the check must run only once the site switch has fully COMMITTED. `selectedSiteId` flips
  * optimistically at click (before `auth.switch`), and getMyProfile() reads against that optimistic
@@ -41,8 +45,6 @@ export const usePlaceProfilePrompt = () => {
     const { selectedSiteId: sid } = useSessionSelection();
     const { userId: uid } = useSessionIdentity();
     const { isVerified } = useRuntimeSocketState();
-    const skippedIds = usePreferenceStore(state => state.skippedPlaceProfileIds);
-    const skipPlaceProfile = usePreferenceStore(state => state.skipPlaceProfile);
 
     // A site/cloud switch is triggered elsewhere, so its per-hook `isSwitching` is invisible here;
     // detect it globally via the switch mutation keys (mirrors useBackgroundSync).
@@ -67,14 +69,33 @@ export const usePlaceProfilePrompt = () => {
         setStatus('unknown');
 
         let active = true;
+        // Capture the site we are asking about; the response must be for THIS site to be trusted.
+        const requestedSid = sid;
 
-        // Judge purely from getMyProfile(): nick present → no prompt, empty → prompt. It now runs
-        // against the committed context (gated by `settled`), so the answer is authoritative.
+        // Judge from getMyProfile(), but only when the response is for the requested site. `settled`
+        // gates the read to the committed context, yet an isVerified rising edge (boot/reconnect/
+        // cloud switch) can still fire it a beat before the server-side site context lands — that
+        // read returns a profile for a transitional/stale site. We detect it via
+        // `item.sid !== requestedSid` and hold `unknown` (re-reads on the next settle) so a present
+        // profile is never misjudged absent.
+        //
+        // The verdict is ASYMMETRIC: a nick IS the "profile set" signal, so `hasNick` alone means
+        // present (callers such as the invite flow navigate on `present`; gating that on active:true
+        // too could strand them if a profiled site ever omits `active`). Absence is the risky
+        // direction — it opens the mandatory prompt — so it is doubly confirmed against the server
+        // contract (absent ⇒ no nick + active:false); a no-nick response that is not explicitly
+        // active:false stays `unknown` rather than risking a false prompt.
         profileRepository
             .getMyProfile()
             .then(item => {
                 if (!active) return;
-                setStatus(hasNick(item) ? 'present' : 'absent');
+                if (!item || item.sid !== requestedSid) {
+                    setStatus('unknown');
+                    return;
+                }
+                if (hasNick(item)) setStatus('present');
+                else if (item.active === false) setStatus('absent');
+                else setStatus('unknown');
             })
             .catch(() => {
                 // A verified socket rarely rejects; treat a stray failure as inconclusive rather
@@ -85,13 +106,10 @@ export const usePlaceProfilePrompt = () => {
         return () => {
             active = false;
         };
-    }, [profileRepository, profileId, settled]);
+    }, [profileRepository, profileId, settled, sid]);
 
-    const shouldPrompt = status === 'absent' && !!sid && !skippedIds.includes(sid);
+    // Mandatory: no skip path — the prompt shows whenever the active site has no profile yet.
+    const shouldPrompt = status === 'absent' && !!sid;
 
-    const dismiss = () => {
-        if (sid) skipPlaceProfile(sid);
-    };
-
-    return { shouldPrompt, activeSid: sid, dismiss };
+    return { shouldPrompt, status };
 };

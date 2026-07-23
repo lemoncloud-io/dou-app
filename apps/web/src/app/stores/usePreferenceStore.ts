@@ -79,16 +79,6 @@ export const parseTheme = (value: unknown): Theme | null => {
     }
 };
 
-/** Parse a stored JSON string array; a corrupt/non-array value falls back to []. */
-const parseStringArray = (value: string): string[] => {
-    try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-        return [];
-    }
-};
-
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -99,8 +89,6 @@ interface PreferenceState {
     isFirstRun: boolean;
     /** Theme preference; 'system' resolves against the OS scheme (see app/theme). */
     theme: Theme;
-    /** Place (site) ids the user dismissed the profile-create prompt for. */
-    skippedPlaceProfileIds: string[];
     /** true when the user hid the floating issue-report button (restored from MyPage). */
     issueReportHidden: boolean;
 }
@@ -110,8 +98,6 @@ interface PreferenceActions {
     completeOnboarding: () => void;
     resetOnboarding: () => void;
     setTheme: (theme: Theme) => void;
-    /** Remember that the user skipped the profile-create prompt for `sid` so it is not shown again. */
-    skipPlaceProfile: (sid: string) => void;
     /** Show/hide the floating issue-report button. */
     setIssueReportHidden: (value: boolean) => void;
     /**
@@ -133,8 +119,6 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     // A corrupt cached value falls back to 'system' rather than leaking into the DOM class.
     theme: parseTheme(readPreference('theme')) ?? 'system',
 
-    skippedPlaceProfileIds: parseStringArray(readPreference('skippedPlaceProfiles')),
-
     issueReportHidden: readPreference('issueReportHidden') === 'true',
 
     setBlurLastMessage: (value: boolean) => {
@@ -155,15 +139,6 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     setTheme: (theme: Theme) => {
         set({ theme });
         persistPreference('theme', theme);
-    },
-
-    skipPlaceProfile: (sid: string) => {
-        set(state => {
-            if (!sid || state.skippedPlaceProfileIds.includes(sid)) return state;
-            const next = [...state.skippedPlaceProfileIds, sid];
-            persistPreference('skippedPlaceProfiles', JSON.stringify(next));
-            return { skippedPlaceProfileIds: next };
-        });
     },
 
     setIssueReportHidden: (value: boolean) => {
