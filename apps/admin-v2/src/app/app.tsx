@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 
-import { startWebCoreInit, useInitWebCore, useSessionAuth, useTokenRefresh } from '@chatic/web-core';
+import { startWebCoreInit, useInitWebCore } from '@chatic/web-core';
 
 import { AppRoutes } from './routes';
 
@@ -23,12 +23,12 @@ const Loading = () => (
 );
 
 const AppInner = () => {
+    // Boot relay-session init (incl. token hydration) is owned by useInitWebCore →
+    // initializeRelaySession; the standalone useTokenRefresh gate was removed from web-core
+    // (mirrors desktop-web). Render once web-core is ready.
     const isWebCoreReady = useInitWebCore();
-    const { isAuthenticated } = useSessionAuth();
-    const { isInitialized: isTokenInitialized } = useTokenRefresh(isWebCoreReady);
-    const canRenderApp = isWebCoreReady && (!isAuthenticated || isTokenInitialized);
 
-    if (!canRenderApp) {
+    if (!isWebCoreReady) {
         return <Loading />;
     }
 
