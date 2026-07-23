@@ -400,13 +400,15 @@ const buildNativeRouteState = (urlObj: URL, logger?: ILogService): NativeRouteSt
 
     if (root === 'main' && segments[1]?.toLowerCase() === 'modal') {
         logger?.info('DEEPLINK', '[deeplinkUtils] Native route → Modal', { params });
-        return { routes: [{ name: 'Main', state: { routes: [{ name: 'Modal', params }] } }] };
+        // Flat single-level route: after the RootNavigator/MainNavigator merge the native stack has no
+        // Main-nested child, so Modal is addressed as a top-level route (see boot-optimization.md 4.3).
+        return { routes: [{ name: 'Modal', params }] };
     }
 
     logger?.info('DEEPLINK', '[deeplinkUtils] Unknown native route, falling back to Main', {
         pathname: urlObj.pathname,
     });
-    return { routes: [{ name: 'Main', state: { routes: [{ name: 'Main' }] } }] };
+    return { routes: [{ name: 'Main' }] };
 };
 
 /**

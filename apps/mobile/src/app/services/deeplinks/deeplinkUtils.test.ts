@@ -143,12 +143,12 @@ describe('resolveDeepLink (통합 해석기)', () => {
     it('target=native main/modal은 Modal 라우트로 해석하고 url 파라미터를 전달한다', () => {
         const result = resolveDeepLink('chatic://main/modal?target=native&url=https://chatic.io');
 
+        // Flat single-level route after the navigator merge (boot-optimization.md 4.3): Modal is a
+        // top-level route, no longer nested under Main.
         expect(result).toEqual({
             kind: 'native',
             state: {
-                routes: [
-                    { name: 'Main', state: { routes: [{ name: 'Modal', params: { url: 'https://chatic.io' } }] } },
-                ],
+                routes: [{ name: 'Modal', params: { url: 'https://chatic.io' } }],
             },
         });
     });
@@ -156,9 +156,10 @@ describe('resolveDeepLink (통합 해석기)', () => {
     it('알 수 없는 native 라우트는 Main으로 폴백한다', () => {
         const result = resolveDeepLink('chatic://completelyUnknownRoute?target=native');
 
+        // Flat single-level Main route after the navigator merge (boot-optimization.md 4.3).
         expect(result).toEqual({
             kind: 'native',
-            state: { routes: [{ name: 'Main', state: { routes: [{ name: 'Main' }] } }] },
+            state: { routes: [{ name: 'Main' }] },
         });
     });
 
