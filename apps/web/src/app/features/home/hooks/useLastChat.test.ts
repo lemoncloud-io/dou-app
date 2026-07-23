@@ -68,7 +68,7 @@ describe('useLastChat — 홈 행의 마지막 메시지', () => {
 
     it('최신이 내 시스템 메시지면 그 이전 메시지를 반환한다', () => {
         seedChats([
-            chat(3, 'hello', { ownerId: 'u1', stereo: 'text' }),
+            chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }),
             chat(4, 'me joined', { ownerId: 'me', stereo: 'system' }),
         ]);
         const { result } = renderHook(() => useLastChat('ch-1'));
@@ -77,7 +77,7 @@ describe('useLastChat — 홈 행의 마지막 메시지', () => {
 
     it('타인의 시스템 메시지는 프리뷰로 유지한다', () => {
         seedChats([
-            chat(3, 'hello', { ownerId: 'u1', stereo: 'text' }),
+            chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }),
             chat(4, 'u1 joined', { ownerId: 'u1', stereo: 'system' }),
         ]);
         const { result } = renderHook(() => useLastChat('ch-1'));

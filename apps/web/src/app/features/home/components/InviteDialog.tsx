@@ -98,8 +98,9 @@ export const InviteDialog = ({ suppressed = false }: InviteDialogProps): JSX.Ele
         );
     }
 
-    // Accept screen. Fields the backend hasn't shipped yet (inviter image, place intro/thumbnail,
-    // member count) degrade gracefully inside the presentational screen.
+    // Accept screen. The invite Head types (UserHead/SiteHead/MyInviteView) only carry id/name, so
+    // inviter image, place intro/thumbnail, and member count are not available here — the screen's
+    // props are optional and degrade gracefully when omitted.
     return (
         <Dialog open onOpenChange={next => !next && requestClose()}>
             <DialogContent
@@ -112,11 +113,7 @@ export const InviteDialog = ({ suppressed = false }: InviteDialogProps): JSX.Ele
 
                 <InviteAcceptScreen
                     inviterName={info?.inviter$?.name}
-                    inviterImage={info?.inviter$?.image}
                     placeName={info?.site$?.name}
-                    placeIntro={info?.site$?.intro}
-                    placeThumbnail={info?.site$?.thumbnail}
-                    memberCount={info?.memberCount}
                     expiredAt={info?.expiredAt}
                     countdown={countdown}
                     isAccepting={isAccepting}
