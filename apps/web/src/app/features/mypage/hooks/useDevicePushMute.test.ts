@@ -1,0 +1,65 @@
+import { createElement, type ReactNode } from 'react';
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+
+import { useRuntimeRepositories } from '@chatic/app-runtime';
+
+import { useDevicePushMute } from './useDevicePushMute';
+
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+
+const toastMock = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+
+let mutedState = false;
+const setPushMutedMock = jest.fn((value: boolean) => {
+    mutedState = value;
+});
+jest.mock('../../../stores/usePreferenceStore', () => ({
+    usePreferenceStore: (selector: (state: { pushMuted: boolean; setPushMuted: (v: boolean) => void }) => unknown) =>
+        selector({ pushMuted: mutedState, setPushMuted: setPushMutedMock }),
+}));
+
+const updateRemotePushMuteMock = jest.fn();
+const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: new QueryClient() }, children);
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    mutedState = false;
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+        device: { updateRemotePushMute: updateRemotePushMuteMock },
+    });
+});
+
+describe('useDevicePushMute', () => {
+    it('토글 OFF는 muted:true를 relay 라우트로 보내고 낙관적으로 반영한다', async () => {
+        updateRemotePushMuteMock.mockResolvedValue({ muted: true });
+
+        const { result } = renderHook(() => useDevicePushMute(), { wrapper });
+        expect(result.current.pushEnabled).toBe(true); // default ON
+
+        act(() => result.current.setPushEnabled(false));
+
+        // Optimistic flip is synchronous.
+        expect(setPushMutedMock).toHaveBeenCalledWith(true);
+        // The write is dispatched via react-query mutate (microtask), so await it. Destination is
+        // pinned to relay — the whole point of the feature (regression guard).
+        await waitFor(() => expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true, { route: 'relay' }));
+    });
+
+    it('요청 실패 시 이전 값으로 롤백하고 에러 토스트를 띄운다', async () => {
+        updateRemotePushMuteMock.mockRejectedValue(new Error('boom'));
+
+        const { result } = renderHook(() => useDevicePushMute(), { wrapper });
+        act(() => result.current.setPushEnabled(false));
+
+        await waitFor(() => expect(toastMock).toHaveBeenCalled());
+        // optimistic true, then rolled back to the prior false.
+        expect(setPushMutedMock).toHaveBeenNthCalledWith(1, true);
+        expect(setPushMutedMock).toHaveBeenNthCalledWith(2, false);
+        expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+    });
+});

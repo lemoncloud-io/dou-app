@@ -91,6 +91,8 @@ interface PreferenceState {
     theme: Theme;
     /** true when the user hid the floating issue-report button (restored from MyPage). */
     issueReportHidden: boolean;
+    /** Device-global push mute (optimistic local mirror of device.update-remote; no server read). */
+    pushMuted: boolean;
 }
 
 interface PreferenceActions {
@@ -100,6 +102,8 @@ interface PreferenceActions {
     setTheme: (theme: Theme) => void;
     /** Show/hide the floating issue-report button. */
     setIssueReportHidden: (value: boolean) => void;
+    /** Optimistically mirror the device push-mute write (source of truth is device.update-remote). */
+    setPushMuted: (value: boolean) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -120,6 +124,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     theme: parseTheme(readPreference('theme')) ?? 'system',
 
     issueReportHidden: readPreference('issueReportHidden') === 'true',
+
+    pushMuted: readPreference('pushMuted') === 'true',
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -144,6 +150,11 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     setIssueReportHidden: (value: boolean) => {
         set({ issueReportHidden: value });
         persistPreference('issueReportHidden', value ? 'true' : 'false');
+    },
+
+    setPushMuted: (value: boolean) => {
+        set({ pushMuted: value });
+        persistPreference('pushMuted', value ? 'true' : 'false');
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {
