@@ -1,18 +1,25 @@
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { RecoverableUploadTaskInfo, WebMessageData } from '@chatic/app-messages';
 import type { ILogService, IUploadService } from '../../services';
+import { provider } from '../../services';
 import { useMemo } from 'react';
 import { useServices } from '../../hooks';
 
 export const useUploadHandler = (bridge: IAppBridgeHost) => {
-    const { uploadService, logService: logger } = useServices();
-    return useMemo(() => createUploadHandlers(bridge, uploadService, logger), [bridge, uploadService, logger]);
+    const { logService: logger } = useServices();
+    // The upload service is resolved lazily (getUploadService) so its SQLite-backed data source opens
+    // only when an upload message actually arrives, off the boot critical path (boot-optimization.md 4.4).
+    return useMemo(() => createUploadHandlers(bridge, () => provider.uploadService, logger), [bridge, logger]);
 };
 
-export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUploadService, logger: ILogService) => {
+export const createUploadHandlers = (
+    bridge: IAppBridgeHost,
+    getUploadService: () => IUploadService,
+    logger: ILogService
+) => {
     const startUploadForPayload = async (payload: any) => {
         const { uploadId } = payload;
-        void uploadService.uploadFile(
+        void getUploadService().uploadFile(
             payload,
             progress => {
                 logger.info(
@@ -62,7 +69,7 @@ export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUpl
         const { uploadId } = message.data;
         logger.info('UPLOAD', `[${uploadId}] Web requested pause`);
         try {
-            uploadService.pauseUpload(uploadId);
+            getUploadService().pauseUpload(uploadId);
             return { success: true };
         } catch (e: any) {
             logger.error('UPLOAD', `[${uploadId}] Pause error`, e);
@@ -74,7 +81,7 @@ export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUpl
         const { uploadId } = message.data;
         logger.info('UPLOAD', `[${uploadId}] Web requested resume`);
         try {
-            uploadService.resumeUpload(uploadId);
+            getUploadService().resumeUpload(uploadId);
             return { success: true };
         } catch (e: any) {
             logger.error('UPLOAD', `[${uploadId}] Resume error`, e);
@@ -86,7 +93,7 @@ export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUpl
         const { uploadId } = message.data;
         logger.info('UPLOAD', `[${uploadId}] Web requested cancel`);
         try {
-            uploadService.cancelUpload(uploadId);
+            getUploadService().cancelUpload(uploadId);
             return { success: true };
         } catch (e: any) {
             logger.error('UPLOAD', `[${uploadId}] Cancel error`, e);
@@ -96,7 +103,7 @@ export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUpl
 
     const handleListRecoverableUploads = async () => {
         try {
-            const tasks = (await uploadService.listRecoverableUploads()) as unknown as RecoverableUploadTaskInfo[];
+            const tasks = (await getUploadService().listRecoverableUploads()) as unknown as RecoverableUploadTaskInfo[];
             return { type: 'OnListRecoverableUploads' as const, success: true, data: { tasks } };
         } catch (e: any) {
             logger.error('UPLOAD', `[Recovery] ListRecoverableUploads error`, e);
@@ -113,7 +120,7 @@ export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUpl
         logger.info('UPLOAD', `[${uploadId}] Web requested recover`);
 
         try {
-            const tasks = await uploadService.listRecoverableUploads();
+            const tasks = await getUploadService().listRecoverableUploads();
             const target = tasks.find(t => t.uploadId === uploadId);
             if (!target) {
                 return {
@@ -140,7 +147,7 @@ export const createUploadHandlers = (bridge: IAppBridgeHost, uploadService: IUpl
         logger.info('UPLOAD', `[${uploadId}] Web requested retry`);
 
         try {
-            const tasks = await uploadService.listRecoverableUploads();
+            const tasks = await getUploadService().listRecoverableUploads();
             const target = tasks.find(t => t.uploadId === uploadId);
             if (!target) {
                 return {

@@ -12,7 +12,7 @@ import {
     type AppStateStatus,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deviceService, uploadService } from '../../../services';
+import { deviceService, provider } from '../../../services';
 import type { UploadTaskPersistedRecord } from '../../../services';
 import { FileManagerBridge } from '../../../bridge';
 import { useDebugTheme } from '../theme';
@@ -131,7 +131,7 @@ export const UploadTestScreen = () => {
     const handleLoadRecoverables = useCallback(async () => {
         addLog('info', '[Recovery] Loading recoverable upload tasks from local DB...');
         try {
-            const items = await uploadService.listRecoverableUploads();
+            const items = await provider.uploadService.listRecoverableUploads();
             setRecoverables(items);
 
             setUploads(prev => {
@@ -230,7 +230,7 @@ export const UploadTestScreen = () => {
             );
 
             try {
-                await uploadService.uploadFile(
+                await provider.uploadService.uploadFile(
                     {
                         uploadId: newUploadId,
                         fileUri: file.uri,
@@ -321,7 +321,7 @@ export const UploadTestScreen = () => {
     // 4. Pause Upload
     const handlePause = (item: UploadItem) => {
         addLog('info', `[Upload - ${item.uploadId.substring(14)}] Requesting PAUSE...`);
-        uploadService.pauseUpload(item.uploadId);
+        provider.uploadService.pauseUpload(item.uploadId);
     };
 
     // 5. Resume Upload
@@ -332,7 +332,7 @@ export const UploadTestScreen = () => {
             prev.map(u => (u.uploadId === item.uploadId ? { ...u, status: 'uploading', startTime: Date.now() } : u))
         );
 
-        uploadService.uploadFile(
+        provider.uploadService.uploadFile(
             {
                 uploadId: item.uploadId,
                 fileUri: item.fileUri,
@@ -416,7 +416,7 @@ export const UploadTestScreen = () => {
     // 6. Cancel Upload
     const handleCancel = (item: UploadItem) => {
         addLog('info', `[Upload - ${item.uploadId.substring(14)}] Requesting CANCEL...`);
-        uploadService.cancelUpload(item.uploadId);
+        provider.uploadService.cancelUpload(item.uploadId);
     };
 
     // Helper to format remaining time
