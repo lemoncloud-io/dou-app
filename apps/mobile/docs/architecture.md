@@ -31,8 +31,7 @@ flowchart TD
 | `src/main.tsx`                                       | React Native 앱 등록                                                          |
 | `src/main-web.tsx`                                   | 웹 타깃 entrypoint                                                            |
 | `src/app/App.tsx`                                    | navigation, 딥링크 linking, notification channel 초기화, debug overlay 마운트 |
-| `src/app/features/core/navigation/RootNavigator.tsx` | 루트 navigation stack                                                         |
-| `src/app/features/main/navigation/MainNavigator.tsx` | 메인 화면 navigation                                                          |
+| `src/app/features/core/navigation/RootNavigator.tsx` | 단일 native stack — MainScreen을 직접 호스팅 (boot-optimization.md 4.3)       |
 
 ## 계층별 책임
 
