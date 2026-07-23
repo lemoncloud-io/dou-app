@@ -7,6 +7,7 @@ describe('DeviceRepositoryV2', () => {
             saveDevice: jest.fn(),
             readDevice: jest.fn(),
             syncDevice: jest.fn(),
+            updateRemoteDevice: jest.fn().mockResolvedValue({}),
         };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
@@ -57,5 +58,24 @@ describe('DeviceRepositoryV2', () => {
         expect(payload).not.toHaveProperty('viewingType');
         expect(payload).not.toHaveProperty('viewingId');
         expect(payload).not.toHaveProperty('tick');
+    });
+
+    it('updateRemotePushMute는 muted만 담아 route를 그대로 넘긴다 (id 미전송)', async () => {
+        const { repository, deviceRemoteDataSource } = createRepository();
+
+        await repository.updateRemotePushMute(true, { route: 'relay' });
+
+        expect(deviceRemoteDataSource.updateRemoteDevice).toHaveBeenCalledWith({ muted: true }, 'relay');
+        // id는 서버가 커넥션에서 해석하므로 보내지 않는다.
+        const [payload] = deviceRemoteDataSource.updateRemoteDevice.mock.calls[0];
+        expect(payload).not.toHaveProperty('id');
+    });
+
+    it('updateRemotePushMute는 route 미지정 시 undefined로 위임한다 (data-source 기본값이 active)', async () => {
+        const { repository, deviceRemoteDataSource } = createRepository();
+
+        await repository.updateRemotePushMute(false);
+
+        expect(deviceRemoteDataSource.updateRemoteDevice).toHaveBeenCalledWith({ muted: false }, undefined);
     });
 });

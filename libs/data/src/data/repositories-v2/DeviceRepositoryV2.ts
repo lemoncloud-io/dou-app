@@ -1,5 +1,6 @@
 import type { DeviceStatus, ViewingType } from '@lemoncloud/chatic-sockets-lib';
 import type { IDeviceRemoteDataSource } from '../remote/data-sources';
+import type { SocketRoute } from '../remote/gateways';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -17,6 +18,15 @@ export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
      * alone and never disturbs the viewing pair. Fire-and-forget and tick-neutral.
      */
     syncStatus(status: DeviceStatus): void;
+
+    /**
+     * device.update-remote — set the connection-linked device's GLOBAL push mute (remote push
+     * settings owned by chatic-pushes-api). `id` is intentionally omitted so the server targets the
+     * device linked to the current connection. The DESTINATION is the caller's choice via
+     * `opts.route` (default `active`); push settings are relay-owned, so the mypage caller passes
+     * `route: 'relay'` to keep the write on the relay socket even while a cloud slot is active.
+     */
+    updateRemotePushMute(muted: boolean, opts?: { route?: SocketRoute }): Promise<void>;
 }
 
 /**
@@ -40,5 +50,11 @@ export class DeviceRepositoryV2 extends BaseRepositoryV2 implements IDeviceRepos
     public syncStatus(status: DeviceStatus): void {
         // Server-side partial merge: sending status alone keeps the viewing pair intact.
         this.deviceRemoteDataSource.syncDevice({ status });
+    }
+
+    public async updateRemotePushMute(muted: boolean, opts?: { route?: SocketRoute }): Promise<void> {
+        // Omit `id`: the server resolves the device from the current connection. Response is the
+        // pushes-api view (passed through untyped); the caller re-reads its own optimistic state.
+        await this.deviceRemoteDataSource.updateRemoteDevice({ muted }, opts?.route);
     }
 }

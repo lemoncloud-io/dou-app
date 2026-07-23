@@ -335,3 +335,64 @@ describe('SocketManager dual slots (active facade)', () => {
         expect(manager.isKindVerified('cloud')).toBe(false);
     });
 });
+
+describe('SocketManager getScopedClient (kind-scoped routing)', () => {
+    const RELAY_CONFIG: SocketBindingConfig = { url: 'wss://relay.test/socket', deviceId: 'device-1' };
+    const CLOUD_CONFIG: SocketBindingConfig = { url: 'wss://cloud.test/socket', deviceId: 'device-1' };
+
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('request는 active 슬롯이 cloud여도 지정한 relay 슬롯으로 나간다', async () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        relay.request.mockResolvedValue('relay-response');
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        manager.ensure(CLOUD_CONFIG, 'cloud'); // active facade = cloud
+
+        const scoped = manager.getScopedClient('relay');
+        const result = await scoped.request('device.update-remote', { muted: true });
+
+        expect(relay.request).toHaveBeenCalledWith('device.update-remote', { muted: true }, undefined);
+        expect(cloud.request).not.toHaveBeenCalled();
+        expect(result).toBe('relay-response');
+    });
+
+    it('슬롯 재바인드 후에도 최신 클라이언트로 위임한다 (지연 해석, stale 방지)', async () => {
+        const first = makeClient();
+        const second = makeClient();
+        second.request.mockResolvedValue('fresh');
+        mockedCreate.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+        const scoped = manager.getScopedClient('relay'); // captured BEFORE rebind
+        manager.ensure(OTHER_CONFIG, 'relay'); // rebuild relay slot (deviceId differs)
+
+        await scoped.request('device.update-remote', { muted: false });
+
+        expect(second.request).toHaveBeenCalled();
+        expect(first.request).not.toHaveBeenCalled();
+    });
+
+    it('바인딩되지 않은 슬롯 request는 throw한다 (조용한 폴백 없음)', () => {
+        const manager = new SocketManager();
+        const scoped = manager.getScopedClient('cloud');
+
+        expect(() => scoped.request('device.update-remote', { muted: true })).toThrow(/no cloud slot/);
+    });
+
+    it('onType은 아직 미구현이라 throw한다 (extension point)', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(() => manager.getScopedClient('relay').onType('x', () => undefined)).toThrow(/onType/);
+    });
+});

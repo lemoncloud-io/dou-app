@@ -11,7 +11,11 @@ import {
     createUserGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 
-import { createRemoteDataSources as createDataRemoteDataSources, type RemoteGatewayBundle } from '@chatic/data';
+import {
+    createRemoteDataSources as createDataRemoteDataSources,
+    type RemoteGatewayBundle,
+    type RoutedGateway,
+} from '@chatic/data';
 
 import { getSocketRuntime } from '../../socket/runtime';
 
@@ -19,11 +23,22 @@ export const createRemoteDataSources = () => {
     // Gateways bind to the SocketManager stable facade (request/send/onType); socket
     // replacement stays invisible to them. (Formerly the ManagedSocketClientProxy.)
     const socketClient = getSocketRuntime().socketManager;
+
+    // Build a gateway once per route so a data source can pick a destination at call time. `active`
+    // is the manager facade (active slot); `relay`/`cloud` are kind-pinned scoped clients that
+    // resolve their slot lazily — so a relay-only write lands on relay even while a cloud is active.
+    // See app-runtime socket/kind-scoped-routing.md.
+    const routed = <G>(create: (client: any) => G): RoutedGateway<G> => ({
+        active: create(socketClient),
+        relay: create(socketClient.getScopedClient('relay')),
+        cloud: create(socketClient.getScopedClient('cloud')),
+    });
+
     const authGateway = createAuthGateway(socketClient as any);
     const channelGateway = createChannelGateway(socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);
     const cloudGateway = createCloudGateway(socketClient as any);
-    const deviceGateway = createDeviceGateway(socketClient as any);
+    const deviceGateway = routed(createDeviceGateway);
     const userGateway = createUserGateway(socketClient as any);
     const placeGateway = createPlaceGateway(socketClient as any);
     const profileGateway = createProfileGateway(socketClient as any);
