@@ -13,10 +13,11 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 const PUSH_MUTE_ROUTE = 'relay' as const;
 
 /**
- * Device-global push mute toggle state + writer. There is no server read path for `muted`, so the
- * displayed state comes from a local, optimistic preference (`pushMuted`, default OFF = notifications
- * ON). Each toggle optimistically updates the store, sends device.update-remote over the relay
- * socket, and rolls back with an error toast on failure.
+ * Device-global push mute toggle state + writer. There is no standalone `muted` read endpoint, so
+ * the displayed state comes from a local preference (`pushMuted`, default OFF = notifications ON).
+ * Each toggle optimistically updates the store, sends device.update-remote over the relay socket,
+ * then reconciles to the server's authoritative `muted` echo on success (the write doubles as a
+ * read) or rolls back with an error toast on failure.
  */
 export const useDevicePushMute = () => {
     const { device } = useRuntimeRepositories();
@@ -32,8 +33,9 @@ export const useDevicePushMute = () => {
     const setPushEnabled = (enabled: boolean) => {
         const nextMuted = !enabled;
         const prevMuted = pushMuted;
-        setPushMuted(nextMuted); // optimistic; the write below is the source of truth
+        setPushMuted(nextMuted); // optimistic; the server echo below is the source of truth
         mutation.mutate(nextMuted, {
+            onSuccess: confirmedMuted => setPushMuted(confirmedMuted), // reconcile to the server value
             onError: () => {
                 setPushMuted(prevMuted); // rollback the optimistic flip
                 toast({ title: t('mypage.push.updateFailed'), variant: 'destructive' });

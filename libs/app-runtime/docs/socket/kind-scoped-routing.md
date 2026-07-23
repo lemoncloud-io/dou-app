@@ -51,8 +51,8 @@ cloud-specific 같은 케이스가 반복될 것이므로, 도메인마다 배�
 2. 마이페이지에서 "알림 받기" 토글을 끈다.
 3. `useDevicePushMute`가 `updateRemotePushMute(true, { route: 'relay' })` 호출(훅에 route 상수 고정).
 4. 라우팅이 relay 파사드의 device gateway를 골라 `device.update-remote { muted: true }`를 **relay 슬롯**으로 전송.
-5. 서버가 커넥션 연결 deviceId로 pushes-api에 PUT → `PushDeviceView`(muted:true) 응답.
-6. 훅은 로컬 preference(`pushMuted`)를 낙관적으로 이미 반영, 성공이면 유지.
+5. 서버가 커넥션 연결 deviceId로 pushes-api에 PUT → device push view(`muted:true`) 응답.
+6. 훅은 이미 낙관적으로 반영한 로컬 preference(`pushMuted`)를, 성공 시 **응답의 authoritative `muted`로 재조정**한다(write가 read를 겸함). 실패 시 롤백.
 
 ### S2. 요청 실패 → 롤백
 
@@ -127,8 +127,10 @@ relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScoped
   `this.device[route].updateRemote(payload)` 호출. 기존 save/read/sync는 `this.device.active`로.
 - [`data-sources/index.ts`](../../../../libs/data/src/data/remote/data-sources/index.ts) — `new DeviceRemoteDataSource(gateways.device)`가
   routed 묶음을 그대로 받도록 조정.
+- [`data-sources/DeviceRemoteDataSource.ts`](../../../../libs/data/src/data/remote/data-sources/DeviceRemoteDataSource.ts) —
+  응답을 `unknown` 대신 client-safe 뷰 `DevicePushView { id?; muted? }`로 타입. 외부 SDK 뷰(endpoint/installId 등)를 앱에 노출하지 않으면서 `muted`만 읽는다.
 - [`repositories-v2/DeviceRepositoryV2.ts`](../../../../libs/data/src/data/repositories-v2/DeviceRepositoryV2.ts) —
-  `updateRemotePushMute(muted: boolean, opts?: { route?: SocketRoute }): Promise<void>` 추가. id는 미전송.
+  `updateRemotePushMute(muted, opts?): Promise<boolean>` — id 미전송. 응답의 authoritative `muted`를 반환(없으면 요청값 폴백)하여 호출부가 서버 진실로 재조정하게 한다.
 - [`gateways/__mocks__/MockRemoteGateways.ts`](../../../../libs/data/src/data/remote/gateways/__mocks__/MockRemoteGateways.ts) —
   device mock에 routed 형태(active/relay/cloud 각 `updateRemote: jest.fn()`) 반영.
 
@@ -138,7 +140,7 @@ relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScoped
 - [`stores/usePreferenceStore.ts`](../../../../apps/web/src/app/stores/usePreferenceStore.ts) — `pushMuted`/`setPushMuted`
   (issueReportHidden 패턴 그대로).
 - `features/mypage/hooks/useDevicePushMute.ts`(신규) — `useRuntimeRepositories().device` + preference store.
-  `route: 'relay'`를 모듈 상수로 고정. 낙관적 set + 실패 롤백 + 토스트([`useToast`](../../../../apps/web/src/app/features/mypage/pages/AccountManagePage.tsx) 패턴).
+  `route: 'relay'`를 모듈 상수로 고정. 낙관적 set → **성공 시 서버 echo(`muted`)로 재조정** → 실패 시 롤백 + 토스트([`useToast`](../../../../apps/web/src/app/features/mypage/pages/AccountManagePage.tsx) 패턴).
 - [`features/mypage/pages/MyPage.tsx`](../../../../apps/web/src/app/features/mypage/pages/MyPage.tsx) — Settings `MenuCard`에
   `Switch` 행 1개. `checked = pushEnabled(= !muted)`, `onCheckedChange`로 write. 게스트 포함 노출.
 - [`public/locales/{ko,en}/translation.json`](../../../../apps/web/public/locales/ko/translation.json) — `mypage.pushNotifications` 등 키.

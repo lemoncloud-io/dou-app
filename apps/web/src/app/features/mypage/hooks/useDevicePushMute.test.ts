@@ -35,8 +35,10 @@ beforeEach(() => {
 });
 
 describe('useDevicePushMute', () => {
-    it('토글 OFF는 muted:true를 relay 라우트로 보내고 낙관적으로 반영한다', async () => {
-        updateRemotePushMuteMock.mockResolvedValue({ muted: true });
+    it('토글 OFF는 muted:true를 relay 라우트로 보내고, 성공 시 서버 echo로 재조정한다', async () => {
+        // Server echoes a value distinct from the optimistic flip to prove onSuccess reconciliation
+        // wins over the optimistic set.
+        updateRemotePushMuteMock.mockResolvedValue(false);
 
         const { result } = renderHook(() => useDevicePushMute(), { wrapper });
         expect(result.current.pushEnabled).toBe(true); // default ON
@@ -44,10 +46,12 @@ describe('useDevicePushMute', () => {
         act(() => result.current.setPushEnabled(false));
 
         // Optimistic flip is synchronous.
-        expect(setPushMutedMock).toHaveBeenCalledWith(true);
-        // The write is dispatched via react-query mutate (microtask), so await it. Destination is
-        // pinned to relay — the whole point of the feature (regression guard).
-        await waitFor(() => expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true, { route: 'relay' }));
+        expect(setPushMutedMock).toHaveBeenNthCalledWith(1, true);
+        // mutate dispatches the write on a microtask; once it resolves the server's authoritative
+        // echo reconciles the store.
+        await waitFor(() => expect(setPushMutedMock).toHaveBeenLastCalledWith(false));
+        // Destination is pinned to relay — the whole point of the feature (regression guard).
+        expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true, { route: 'relay' });
     });
 
     it('요청 실패 시 이전 값으로 롤백하고 에러 토스트를 띄운다', async () => {

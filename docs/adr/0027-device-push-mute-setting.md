@@ -87,8 +87,9 @@ kind) 소켓으로 API를 쏘는 케이스는 앞으로 반복되므로, 그 능
     - 전용 훅 `useDevicePushMute`가 `updateRemotePushMute(muted, { route: 'relay' })`로 **호출부에서 relay를 지정**한다.
       `route: 'relay'`는 훅 내 **상수로 고정 + 테스트로 못박아**, 데이터 계층 기본값(active)으로 새는 것을 방지한다.
 
-6. **초기 상태**: 서버 read가 없으므로 **기본 ON(알림 받기, `muted: false`) 가정**. write 결과(PushDeviceView.muted)를
-   로컬 preference에 낙관적으로 반영해 재진입 시 유지. 서버 진실과의 정합은 보장하지 않는다(수용된 한계).
+6. **초기 상태 / 재조정**: standalone muted read가 없으므로 첫 write 전 **기본 ON(알림 받기, `muted: false`) 가정**.
+   단, `device.update-remote` **응답에 authoritative `muted`가 담겨 오므로 write가 read를 겸한다** — 매 토글은 낙관적
+   반영 후 성공 시 응답의 `muted`로 재조정한다(응답에 없으면 요청값 폴백). 첫 write 전 초기값만 가정이고, 그 이후는 서버 진실을 따른다.
 
 7. **게스트 포함**: 로그인 여부와 무관하게 **모두에게 노출**. 푸시는 device(기기) 스코프이고 relay 슬롯은 게스트에게도 존재한다.
 
@@ -137,8 +138,8 @@ kind) 소켓으로 API를 쏘는 케이스는 앞으로 반복되므로, 그 능
 
 - **"relay에서만"이 데이터 계층 보증이 아니라 호출부 규약이 됐다.** 기본 route가 `'active'`라, push-mute 훅이
   `route:'relay'`를 빠뜨리면 클라우드로 조용히 샌다 → 훅 내 상수 고정 + 테스트로 완화(위 In scope 5).
-- **초기 상태가 서버 진실과 어긋날 수 있다.** read가 없어 기본 ON 가정 + 로컬 낙관값에 의존 —
-  다른 기기/재설치/서버측 변경과 드리프트 가능. (재검토 조건 1)
+- **첫 write 전 초기 상태만 서버 진실과 어긋날 수 있다.** standalone read가 없어 부팅 직후 첫 토글 전까지는 기본 ON 가정.
+  write 응답의 authoritative `muted`로 매번 재조정하므로 한 번이라도 토글하면 서버 값으로 수렴한다(드리프트 창이 첫 write 전으로 축소). (재검토 조건 1)
 - kind-scoped 파사드가 **지연 해석**을 안 하면 슬롯 재바인드 후 stale client를 잡는 버그 위험 → 코어 구현 시 필수 준수(테스트로 못박음).
 - **`route:'cloud'`인데 cloud 슬롯 미바인드면 request 시점에 throw**(조용한 active 폴백 안 함). "cloud로 갔다"는 계약을 지키기 위한 의도적 실패 — 호출부는 cloud가 의미 있을 때만 지정.
 - 코어 파사드의 **onType 미완성**(request/send만) — relay-push 소비자가 생기기 전까지 부분 구현. 그 전에 잘못 쓰면 안 되도록 명시적 throw/no-op + 문서화.

@@ -10,16 +10,28 @@ import type {
 } from '@lemoncloud/chatic-sockets-lib';
 import type { DeviceDomainGateway, RoutedGateway, SocketRoute } from '../gateways';
 
+/**
+ * Client-safe view of the `device.update-remote` response. The server passes through the pushes-api
+ * push-device view (endpoint / installId / status / platform / ...), but the app only needs the
+ * authoritative `muted` echo — kept minimal so the external SDK shape never leaks into the app, and
+ * so this doubles as a read (there is no standalone muted read endpoint). `muted` is optional because
+ * a misconfigured/legacy backend could omit it; callers fall back to the requested value.
+ */
+export interface DevicePushView {
+    id?: string;
+    muted?: boolean;
+}
+
 export interface IDeviceRemoteDataSource {
     saveDevice(payload: DeviceSaveInput): Promise<DeviceView>;
     readDevice(payload: DeviceReadInput): Promise<DeviceView>;
     syncDevice(payload: DeviceSyncInput): void;
     /**
-     * device.update-remote — update the connection-linked device's remote push settings (muted).
-     * `route` selects the destination slot (default `active`); push-mute must be sent to `relay`.
-     * Response is the pushes-api PushDeviceView, passed through untyped (SDK owns the shape).
+     * device.update-remote — update the connection-linked device's remote push settings (muted) and
+     * return the server's authoritative device push view. `route` selects the destination slot
+     * (default `active`); push-mute must be sent to `relay`.
      */
-    updateRemoteDevice<T = unknown>(payload: DeviceUpdateRemoteInput, route?: SocketRoute): Promise<T>;
+    updateRemoteDevice(payload: DeviceUpdateRemoteInput, route?: SocketRoute): Promise<DevicePushView>;
 }
 
 export class DeviceRemoteDataSource implements IDeviceRemoteDataSource {
@@ -38,10 +50,10 @@ export class DeviceRemoteDataSource implements IDeviceRemoteDataSource {
         this.gateway.active.sync(payload);
     }
 
-    public async updateRemoteDevice<T = unknown>(
+    public async updateRemoteDevice(
         payload: DeviceUpdateRemoteInput,
         route: SocketRoute = 'active'
-    ): Promise<T> {
-        return this.gateway[route].updateRemote<T>(payload);
+    ): Promise<DevicePushView> {
+        return this.gateway[route].updateRemote<DevicePushView>(payload);
     }
 }

@@ -7,7 +7,7 @@ describe('DeviceRepositoryV2', () => {
             saveDevice: jest.fn(),
             readDevice: jest.fn(),
             syncDevice: jest.fn(),
-            updateRemoteDevice: jest.fn().mockResolvedValue({}),
+            updateRemoteDevice: jest.fn().mockResolvedValue({ muted: true }),
         };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
@@ -60,12 +60,14 @@ describe('DeviceRepositoryV2', () => {
         expect(payload).not.toHaveProperty('tick');
     });
 
-    it('updateRemotePushMute는 muted만 담아 route를 그대로 넘긴다 (id 미전송)', async () => {
+    it('updateRemotePushMute는 muted만 담아 route를 그대로 넘기고 서버 echo(muted)를 반환한다 (id 미전송)', async () => {
         const { repository, deviceRemoteDataSource } = createRepository();
+        deviceRemoteDataSource.updateRemoteDevice.mockResolvedValue({ muted: true });
 
-        await repository.updateRemotePushMute(true, { route: 'relay' });
+        const result = await repository.updateRemotePushMute(true, { route: 'relay' });
 
         expect(deviceRemoteDataSource.updateRemoteDevice).toHaveBeenCalledWith({ muted: true }, 'relay');
+        expect(result).toBe(true); // authoritative echo from the server view
         // id는 서버가 커넥션에서 해석하므로 보내지 않는다.
         const [payload] = deviceRemoteDataSource.updateRemoteDevice.mock.calls[0];
         expect(payload).not.toHaveProperty('id');
@@ -77,5 +79,14 @@ describe('DeviceRepositoryV2', () => {
         await repository.updateRemotePushMute(false);
 
         expect(deviceRemoteDataSource.updateRemoteDevice).toHaveBeenCalledWith({ muted: false }, undefined);
+    });
+
+    it('updateRemotePushMute는 응답에 muted가 없으면 요청값으로 폴백한다', async () => {
+        const { repository, deviceRemoteDataSource } = createRepository();
+        deviceRemoteDataSource.updateRemoteDevice.mockResolvedValue({}); // legacy/misconfigured backend
+
+        const result = await repository.updateRemotePushMute(true, { route: 'relay' });
+
+        expect(result).toBe(true); // falls back to the requested value
     });
 });
