@@ -9,7 +9,7 @@ import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
-import { buildInjectedUniqueId } from './utils/buildInjectedUniqueId';
+import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
@@ -30,6 +30,19 @@ const appVersion = DeviceInfo.getVersion();
 const buildNumber = DeviceInfo.getBuildNumber();
 const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
+
+// Synchronous DeviceInfo bridge calls are read once at module load rather than on every render:
+// their values are stable per install/device and sit on the injection-script critical path (the
+// script is built before the WebView is created). getUniqueIdSync / getApplicationName / getDeviceId
+// each cross the native bridge, so caching them removes those round-trips from the boot path.
+const CACHED_DEVICE_INFO: CachedDeviceInfo = {
+    platform: Platform.OS.toLowerCase(),
+    applicationName: DeviceInfo.getApplicationName(),
+    deviceModel: DeviceInfo.getDeviceId() || '',
+    appVersion,
+    buildNumber,
+    deviceId: DeviceInfo.getUniqueIdSync(),
+};
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const { bridge, onMessage, ...restProps } = props;
@@ -55,35 +68,20 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         webViewRef.current?.reload();
     }, []);
 
-    const deviceId = DeviceInfo.getUniqueIdSync();
     const firebaseInstallId = useFirebaseInstallId();
-    // Push testing targets a device by `deviceId:firebaseInstallId`; until the async Firebase id
-    // resolves this falls back to the bare device id (see buildInjectedUniqueId).
-    const uniqueId = buildInjectedUniqueId(deviceId, firebaseInstallId);
     const versionCheck = getVersionCheckResult();
     const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
     const syncInjectionScript = getSyncInjectionScript({
         insets,
         keyboardHeight,
         debugModeEnabled,
-        deviceInfo: {
-            platform: Platform.OS.toLowerCase(),
-            applicationName: DeviceInfo.getApplicationName(),
+        deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: Config.VITE_ENV || 'PROD',
-            uniqueId,
-            deviceModel: DeviceInfo.getDeviceId() || '',
-            appVersion: DeviceInfo.getVersion(),
-            buildNumber: DeviceInfo.getBuildNumber(),
             appLanguage: getAppLanguage(),
-            installationId: deviceId,
-            // Migration targets: web registers devices with `uniqueDeviceId` once app
-            // versions carrying these fields are prevalent; the deprecated
-            // uniqueId/installationId stay injected for older web bundles.
-            uniqueDeviceId: deviceId,
-            firebaseInstallationId: firebaseInstallId ?? '',
+            firebaseInstallId,
             latestVersion: versionCheck?.latestVersion ?? '',
             shouldUpdate: versionCheck?.hasUpdate ?? false,
-        },
+        }),
     });
 
     useEffect(() => {
