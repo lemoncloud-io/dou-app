@@ -72,6 +72,14 @@ export const PREFERENCES = {
         localKey: 'chatic-issue-report-hidden',
         defaultValue: 'false',
     },
+    // Device-global push mute (server-owned by chatic-pushes-api via device.update-remote). There is
+    // no server read path, so this local cache is the optimistic display source; 'false' = unmuted
+    // (notifications ON) is the assumed default. 'local' (web) — the write is what actually persists.
+    pushMuted: {
+        strategy: 'local',
+        localKey: 'chatic-push-muted',
+        defaultValue: 'false',
+    },
     // -----------------------------------------------------------------------
     // Owned by i18next / useBackHandler — registered here for reference
     // -----------------------------------------------------------------------

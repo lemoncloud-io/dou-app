@@ -12,7 +12,7 @@ import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
-import { useAppIcon } from '../hooks';
+import { useAppIcon, useDevicePushMute } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
 import { debugOverlayActions, useDebugMode } from '../../debug';
 import { ROUTES } from '../../../routes/paths';
@@ -28,6 +28,7 @@ export const MyPage = () => {
     const myUser = useMyUser();
 
     const { setTheme, isDarkTheme } = useTheme();
+    const { pushEnabled, setPushEnabled } = useDevicePushMute();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding, blurLastMessage, setBlurLastMessage, issueReportHidden, setIssueReportHidden } =
         usePreferenceStore();
@@ -160,6 +161,12 @@ export const MyPage = () => {
 
                 {/* Settings — kept from the previous design, restyled onto the DS card. */}
                 <MenuCard>
+                    {/* Device-global push mute. ON = notifications received (muted:false). Sent to the
+                        relay socket even while a cloud is active — see useDevicePushMute. */}
+                    <ListRow
+                        title={t('mypage.pushNotifications')}
+                        trailing={<Switch checked={pushEnabled} onCheckedChange={setPushEnabled} />}
+                    />
                     <ListRow
                         title={t('mypage.darkMode')}
                         trailing={<Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />}

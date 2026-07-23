@@ -59,9 +59,10 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
             syncUsers: jest.fn(),
         },
         device: {
-            save: jest.fn(),
-            read: jest.fn(),
-            sync: jest.fn(),
+            // Routed gateway: one gateway instance per SocketRoute (active/relay/cloud).
+            active: { save: jest.fn(), read: jest.fn(), sync: jest.fn(), updateRemote: jest.fn() },
+            relay: { save: jest.fn(), read: jest.fn(), sync: jest.fn(), updateRemote: jest.fn() },
+            cloud: { save: jest.fn(), read: jest.fn(), sync: jest.fn(), updateRemote: jest.fn() },
         },
         sockets: {
             request: jest.fn(),

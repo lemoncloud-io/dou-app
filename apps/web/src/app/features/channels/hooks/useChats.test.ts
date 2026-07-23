@@ -47,7 +47,7 @@ beforeEach(() => {
 describe('useChats — 메시지 매핑/정렬/페이징', () => {
     it('오래된→최신 순으로 정렬하고 소유/시스템/이름/시각을 매핑한다', () => {
         seedChats([
-            chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'text', createdAtMs: 200 }),
+            chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'user', createdAtMs: 200 }),
             chat({ id: 'a', chatNo: 1, ownerId: 'u1', stereo: 'system', createdAtMs: 100 }),
         ]);
 
@@ -69,7 +69,7 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         seedChats([
             chat({ id: 'a', chatNo: 1, ownerId: 'u1', stereo: 'system', createdAtMs: 100 }),
             chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'system', createdAtMs: 200 }),
-            chat({ id: 'c', chatNo: 3, ownerId: 'me', stereo: 'text', createdAtMs: 300 }),
+            chat({ id: 'c', chatNo: 3, ownerId: 'me', stereo: 'user', createdAtMs: 300 }),
         ]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
@@ -80,9 +80,9 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
 
     it('pending(서버 chatNo 없음) 메시지는 상단이 아니라 맨 아래(최신)로 정렬한다', () => {
         seedChats([
-            chat({ id: 'p', chatNo: 0, ownerId: 'me', stereo: 'text', isPending: true, createdAtMs: 300 }),
-            chat({ id: 'a', chatNo: 1, ownerId: 'me', stereo: 'text', createdAtMs: 100 }),
-            chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'text', createdAtMs: 200 }),
+            chat({ id: 'p', chatNo: 0, ownerId: 'me', stereo: 'user', isPending: true, createdAtMs: 300 }),
+            chat({ id: 'a', chatNo: 1, ownerId: 'me', stereo: 'user', createdAtMs: 100 }),
+            chat({ id: 'b', chatNo: 2, ownerId: 'me', stereo: 'user', createdAtMs: 200 }),
         ]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));

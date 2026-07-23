@@ -14,7 +14,7 @@ describe('isOwnSystemChat — 내가 주체인 시스템 메시지 판별', () =
     });
 
     it('내가 보낸 일반 메시지는 false', () => {
-        expect(isOwnSystemChat(chat({ stereo: 'text', ownerId: 'me' }), 'me')).toBe(false);
+        expect(isOwnSystemChat(chat({ stereo: 'user', ownerId: 'me' }), 'me')).toBe(false);
         expect(isOwnSystemChat(chat({ ownerId: 'me' }), 'me')).toBe(false);
     });
 

@@ -57,6 +57,13 @@ export type SocketStateListener = (state: SocketState) => void;
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 
 /**
+ * A stable request surface pinned to ONE slot kind (see getScopedClient). Mirrors the subset of
+ * ISocketManager that gateways bind to, but every call resolves the slot lazily so it survives slot
+ * teardown/rebuild. See socket/kind-scoped-routing.md.
+ */
+export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send' | 'onType'>;
+
+/**
  * Dual-socket manager with an ACTIVE-FACADE interface (multi-socket-design.md §5-1): it holds a
  * relay slot (always) and a cloud slot (when cloud is active), but most methods operate on the
  * ACTIVE slot (cloud when present, else relay) so consumers (SyncManager/useRuntimeSocketState/gateways/
@@ -72,6 +79,13 @@ export interface ISocketManager {
      * notify each server's own socket (§8-5/§8-6).
      */
     getClient(kind?: SocketKind): ClientSocketV2 | null;
+    /**
+     * A stable request facade pinned to ONE slot `kind`, regardless of which slot is active. Unlike
+     * the active-facade methods (request/send = active slot), this always targets `kind` — e.g. a
+     * relay-only write while a cloud slot is active. Resolves the slot lazily on each call so it
+     * survives slot rebuild. `onType` is not yet supported (throws). See socket/kind-scoped-routing.md.
+     */
+    getScopedClient(kind: SocketKind): ScopedSocketClient;
     /** Observable state of the ACTIVE slot. */
     getSnapshot(): SocketState;
     subscribe(listener: SocketStateListener): () => void;

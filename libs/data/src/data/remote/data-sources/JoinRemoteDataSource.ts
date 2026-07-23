@@ -2,7 +2,9 @@ import type { JoinDomainGateway } from '../gateways';
 import type { ChannelJoinInput, ChatReadInput } from '@lemoncloud/chatic-sockets-api';
 import type { JoinView } from '@lemoncloud/chatic-socials-api';
 import type { JoinGetInput } from '@lemoncloud/chatic-sockets-lib';
-import type { JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
+// Use the explicit join-domain alias: the bare `JoinUpdateInput` barrel name now resolves to the
+// channel variant, but gateway.update expects the JOIN body ({ id, ... }).
+import type { JoinDomainUpdateInput as JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainJoin } from '../../domain';
 import { toDomainJoin } from '../../domain';
 import type { DataContext } from '../../repositories-v2/types';

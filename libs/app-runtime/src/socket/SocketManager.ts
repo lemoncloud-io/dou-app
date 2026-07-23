@@ -11,6 +11,7 @@ import {
 import { logger } from '@chatic/bridges';
 import type {
     ISocketManager,
+    ScopedSocketClient,
     SocketBindingConfig,
     SocketClientListener,
     SocketKind,
@@ -131,6 +132,42 @@ export class SocketManager implements ISocketManager {
     /** The cloud id the ACTIVE slot was bound to (frozen at bind), or null before the first bind. */
     public getBoundCid(): string | null {
         return this.getActiveEntry()?.boundCid ?? null;
+    }
+
+    /**
+     * A stable request facade pinned to ONE slot `kind` (relay/cloud), independent of the active
+     * slot. Every call re-resolves the slot's client (lazy), so it survives slot teardown/rebuild
+     * via ensure() — capturing the client eagerly would leave callers on a stale socket. Used for
+     * requests that must target a specific server regardless of which slot is active (e.g. a
+     * relay-only write while a cloud slot is active). `send` is supported symmetrically; `onType`
+     * is not yet implemented (relay-push subscriptions would need the same owned-subscription
+     * rebinding the active facade does — see socket/kind-scoped-routing.md extension point).
+     */
+    public getScopedClient(kind: SocketKind): ScopedSocketClient {
+        const requireSlot = (action: string): ClientSocketV2 => {
+            const client = this.entries.get(kind)?.client;
+            if (!client) {
+                throw new Error(`[SocketManager] no ${kind} slot bound for ${action}`);
+            }
+            return client;
+        };
+        return {
+            request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> =>
+                requireSlot(`request(${type})`).request(type as any, data as any, options) as Promise<T>,
+            send: <T = unknown>(type: string | SocketMessage<T>, data?: T): void => {
+                const client = requireSlot('send()');
+                if (typeof type === 'string') {
+                    client.send(type as any, data as any);
+                    return;
+                }
+                client.send(type);
+            },
+            onType: () => {
+                throw new Error(
+                    `[SocketManager] getScopedClient('${kind}').onType is not implemented (see socket/kind-scoped-routing.md)`
+                );
+            },
+        };
     }
 
     /**

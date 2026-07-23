@@ -3479,17 +3479,17 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@0.26.703":
-  version "0.26.703"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.703.tgz#cdc1c60fcc8076cae4536c332ed1862b803d5360"
-  integrity sha512-wugcEk3/nlFAMp2qhkO94q4ANOvRefF5TnqoBq58jUwFqhejiXKwM71sBZNxa6Y6mAqC7VpwfeDHsm3es4SWOw==
+"@lemoncloud/chatic-sockets-api@0.26.704":
+  version "0.26.704"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.704.tgz#b953bed87e45bcfdd0b95cdf0b7a2be19d1d552f"
+  integrity sha512-eHRdM+p/owJ28g6FtGYEH4V/IaXgNz0b+k6+JUbLlJqNdkyJs5Qh9gmWOKkMEHDtxu/r6fLr3+LD+nw9dihVfA==
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.4.6":
-  version "0.4.6"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.6.tgz#afa5cec40ef614fccb310ffaa4b6cede8461681d"
-  integrity sha512-4to9kMntb9ot8wpWgKWhyybbqH7xHzdx6mXow0BGzW+QYj8n42D0FnA+fttmE8ANtfqDltn2YgUxZ9Hg9FbPyA==
+"@lemoncloud/chatic-sockets-lib@0.4.8":
+  version "0.4.8"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.8.tgz#b7f3a0c49f930382b6062b936d2bf26f8179b459"
+  integrity sha512-OoU920Resd6Dx8bgp+Ie/ADSyTWSoERxYUrQxgb+jrTSPjHIKcM+/DcBmLF1gXqj7krgLpLRRJJSdg62iZs5ug==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"

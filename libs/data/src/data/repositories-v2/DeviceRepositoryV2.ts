@@ -1,5 +1,6 @@
 import type { DeviceStatus, ViewingType } from '@lemoncloud/chatic-sockets-lib';
 import type { IDeviceRemoteDataSource } from '../remote/data-sources';
+import type { SocketRoute } from '../remote/gateways';
 import type { DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -17,6 +18,16 @@ export interface IDeviceRepositoryV2 extends DisposableRepositoryV2 {
      * alone and never disturbs the viewing pair. Fire-and-forget and tick-neutral.
      */
     syncStatus(status: DeviceStatus): void;
+
+    /**
+     * device.update-remote — set the connection-linked device's GLOBAL push mute (remote push
+     * settings owned by chatic-pushes-api) and return the server's authoritative `muted`. `id` is
+     * intentionally omitted so the server targets the device linked to the current connection. The
+     * DESTINATION is the caller's choice via `opts.route` (default `active`); push settings are
+     * relay-owned, so the mypage caller passes `route: 'relay'` to keep the write on the relay socket
+     * even while a cloud slot is active.
+     */
+    updateRemotePushMute(muted: boolean, opts?: { route?: SocketRoute }): Promise<boolean>;
 }
 
 /**
@@ -40,5 +51,13 @@ export class DeviceRepositoryV2 extends BaseRepositoryV2 implements IDeviceRepos
     public syncStatus(status: DeviceStatus): void {
         // Server-side partial merge: sending status alone keeps the viewing pair intact.
         this.deviceRemoteDataSource.syncDevice({ status });
+    }
+
+    public async updateRemotePushMute(muted: boolean, opts?: { route?: SocketRoute }): Promise<boolean> {
+        // Omit `id`: the server resolves the device from the current connection. Return the server's
+        // authoritative `muted` echo so the caller can sync its optimistic state to the real value;
+        // fall back to the requested value if the response omits it.
+        const view = await this.deviceRemoteDataSource.updateRemoteDevice({ muted }, opts?.route);
+        return typeof view.muted === 'boolean' ? view.muted : muted;
     }
 }

@@ -159,6 +159,10 @@
     "mypage": {
         "loginPrompt": "Sign in",
         "loginDescription": "Sign in to safely manage your conversations.",
+        "pushNotifications": "Push Notifications",
+        "push": {
+            "updateFailed": "Couldn't update push notification settings."
+        },
         "darkMode": "Dark Mode",
         "messagePreview": "Message Preview",
         "issueReportButton": "Issue report button",
