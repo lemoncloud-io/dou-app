@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-07-24] - No version updates
+
+### Features
+
+- (device-push) disable push mute in web; pin relay route to data layer
+
+### Documentation
+
+- (adr) update device push mute routing and web support decision
+
+### Refactor
+
+- (socket) implement per-slot runtimes to fix device linking
+- (socket) pin device push mute to relay and enable per-slot sync runtimes
+
 ## [2026-07-23] - root@0.43.3, @chatic/web@0.37.3
 
 ### Features
