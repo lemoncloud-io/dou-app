@@ -27,12 +27,17 @@ describe('@chatic/app-runtime public surface', () => {
             'useSiteSwitch',
             'useSessionLogout',
             'useLogoutCloudSession',
+            // cache tier helpers (cold-db activation + invited-cloud durability)
+            'isNativeApp',
+            'useInvitedCloudColdRecovery',
+            'recoverInvitedCloudIfMissing',
             // sync registration hooks
             'useChatSync',
             'useChannelSync',
             'usePlaceSync',
             // lifecycle
             'RuntimeConnectionHost',
+            'RuntimeAuthHost',
             'useDeviceTokenRegistration',
             // manager entry points
             'getSocketManager',

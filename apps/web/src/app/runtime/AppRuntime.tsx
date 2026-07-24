@@ -14,6 +14,7 @@ import { Router } from '../routes';
 import { UnreadBadgeRunner } from '../features/home';
 import { IssueReportHost } from '../features/issue-report';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
+import { InvitedCloudColdSyncRunner } from './InvitedCloudColdSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
 
@@ -38,6 +39,7 @@ export const AppRuntime = () => {
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />
             <MyUserSeedRunner />
+            <InvitedCloudColdSyncRunner />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}

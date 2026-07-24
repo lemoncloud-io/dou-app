@@ -7,7 +7,7 @@ import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
 import { useEnterInvitedSite } from './useEnterInvitedSite';
 import type { InviteContext } from '../types';
-import { useInviteFlow } from '@chatic/web-core';
+import { upsertInvitedCloud, useInviteFlow } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
@@ -92,6 +92,9 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
                     wss: info.$envs?.wss,
                     cloudType: 'invited',
                 });
+                // Durable registry so this invited cloud can be recovered if the cache DB is wiped
+                // (invited clouds have no server enumeration API). See invitedCloudColdSync.
+                upsertInvitedCloud({ cloudId: info.cloudId, name: info.cloudName });
             }
 
             step = 'enter-cloud';
