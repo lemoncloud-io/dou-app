@@ -19,7 +19,7 @@ const asString = (value: unknown): string | undefined =>
  * also honor top-level `cid`/`sid` as a fallback for senders that flatten them onto `data`.
  * (Web port of the mobile `extractPushContext` in `deeplinkUtils.ts` — keep the two in sync.)
  */
-const extractPushContext = (data: InAppPushData): { cid?: string; sid?: string } => {
+export const extractPushContext = (data: InAppPushData): { cid?: string; sid?: string } => {
     let source: Record<string, unknown> = data;
 
     const { payload } = data;

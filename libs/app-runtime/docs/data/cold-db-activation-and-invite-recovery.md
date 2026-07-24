@@ -42,8 +42,9 @@
   `AppPolicyResolver` 유지).
 - 첫 부팅 시 `invitecloud` 타입만 hot→cold 일회 시딩(영구 완료 플래그).
 - 초대클라우드 id 레지스트리(localStorage `chatic-invited-clouds` 부활) write 지점 추가.
-- 부팅 복구: cold에 초대클라우드가 없고 레지스트리에 id가 있으면 릴레이 재발급으로 cold 재구성.
-- 푸시 안전망(best-effort): 유효한 `cid` 푸시 도착 시 재구성 + 해당 클라우드 채널 재싱크.
+- 부팅 복구: cold에 초대클라우드가 없고 레지스트리에 id가 있으면 릴레이 재발급으로 엔드포인트 재구성.
+- 푸시 안전망(best-effort): 유효한 `cid` 푸시 도착 시 엔드포인트 재구성.
+- 이름 동기화: 초대클라우드 소켓 verified 시 `getCloud`로 권위있는 name을 받아 갱신.
 
 **제외**
 
@@ -73,13 +74,13 @@
 1. 캐시 DB(IndexedDB/SQLite)가 통째로 비워짐. 그러나 localStorage 레지스트리 `chatic-invited-clouds`는 생존.
 2. 부팅 시 복구 루틴: cold에 `invitecloud`가 없고 레지스트리에 cloudId 목록이 있음을 감지.
 3. 각 cloudId에 대해 `issueCloudDelegationToken(cloudId)` 호출 → `backend`/`wss`/`cid` 재발급.
-4. `CacheCloudView { id, cid, name(레지스트리), backend, wss, cloudType:'invited' }`를 재구성해 cold에 write.
-5. 초대클라우드 목록 복원 완료.
+4. `CacheCloudView { id, cid, backend, wss, cloudType:'invited' }`(엔드포인트만)를 재구성해 cold에 write.
+5. 초대클라우드 목록 복원 완료. 이름은 이후 그 클라우드에 접속(verified)하면 `getCloud`로 채워진다.
 
 ### S4. 초대클라우드 없는 상태에서 푸시 도착 (푸시 안전망, best-effort)
 
 1. 푸시 도착. 페이로드 `cid`가 유효(비어있지 않음).
-2. 그 `cid`로 S3와 동일하게 재구성(레지스트리에 없어도 cid만으로 재발급 시도) + 해당 클라우드 채널 재싱크.
+2. 그 `cid`로 S3와 동일하게 엔드포인트 재구성(레지스트리에 없어도 cid만으로 재발급 시도). 이름은 이후 접속 시 채워짐.
 3. 푸시 `cid`가 비어있으면(배포 백엔드 다수) 어느 클라우드인지 특정 불가 → 안전망 미작동(후속 과제).
 
 ## 다이어그램
@@ -184,28 +185,37 @@ sequenceDiagram
   기능 이전에 초대를 수락한 기존 유저도 durable하게 등록된다.
 - 저장 매체: localStorage(캐시 DB와 독립, 캐시 클리어에도 생존).
 
-### 4) 부팅 복구 + 5) 푸시 안전망
+### 4) 부팅 복구 + 5) 푸시 안전망 + 6) 이름 동기화
 
-- 부팅 복구: `reconcileInvitedCloudsIntoCold`가 현재 캐시 목록에 없는 레지스트리 id마다
-  `issueCloudDelegationToken(cloudId)`([users.ts:38](../../../web-core/src/api/users.ts:38))로 backend/wss/cid를
-  재발급 → `CacheCloudView`([cache.ts:60-69](../../../app-messages/src/types/model/cache.ts:60))로 재구성 →
-  `cloud.cacheWrite`. 릴레이 호출은 `switchCloudSession`에서 이미 쓰이던 경로다
-  ([services.ts:350-357](../../../web-core/src/session/services.ts:350)).
-- 푸시 안전망: `recoverInvitedCloudIfMissing(cloud, cid)`가 캐시에 없는 클라우드만 위와 동일하게 재구성한다.
-  마운트는 `InvitedCloudColdSyncRunner`
-  ([apps/web/.../runtime/InvitedCloudColdSyncRunner.tsx](../../../../apps/web/src/app/runtime/InvitedCloudColdSyncRunner.tsx))가
-  `useOnReceiveNotification`으로 푸시를 구독해 `data.cid`를 넘긴다. `cid`가 빈 경우 no-op(완전 소실은 후속 과제).
-- 마운트: 위 Runner를 AppRuntime에 배치해 부팅 훅 `useInvitedCloudColdRecovery`(네이티브 한정 1회)와 푸시
-  구독을 함께 건다.
+복구는 **엔드포인트만** 재구성하고(`rehydrateInvitedCloud`: `issueCloudDelegationToken` →
+backend/wss/cid → `cloud.cacheWrite`, name 없음), **이름은 접속 후 `getCloud`로 따로 채운다**. 초대클라우드는
+릴레이 카탈로그에 없고 delegation 토큰에도 name이 없어, 권위있는 name의 유일 출처가 그 클라우드 소켓의
+`cloud.get`이기 때문이다.
+
+- 부팅 복구: `reconcileInvitedCloudsIntoCold`가 현재 캐시 목록에 없는 레지스트리 id마다 `rehydrateInvitedCloud`
+  ([users.ts:38](../../../web-core/src/api/users.ts:38)의 `issueCloudDelegationToken` 사용, `switchCloudSession`
+  [services.ts:350-357](../../../web-core/src/session/services.ts:350)와 동일 경로)로 `CacheCloudView`
+  ([cache.ts:60-69](../../../app-messages/src/types/model/cache.ts:60)) 엔드포인트를 재구성한다.
+- 푸시 안전망: `recoverInvitedCloudIfMissing(cloud, cid)`가 캐시에 없는 클라우드만 동일하게 재구성한다.
+  `InvitedCloudColdSyncRunner`
+  ([InvitedCloudColdSyncRunner.tsx](../../../../apps/web/src/app/runtime/InvitedCloudColdSyncRunner.tsx))가
+  `useOnReceiveNotification` 구독에서 `extractPushContext`(중첩 `payload`의 cid까지 읽음)로 cid를 뽑아 넘긴다.
+  `cid`가 빈 경우 no-op(완전 소실은 후속 과제).
+- 이름 동기화: `useInvitedCloudNameSync`가 소켓 `isVerified` + active cloud가 invited일 때 `syncInvitedCloudName`
+  → `cloud.getCloud({ id })`로 권위있는 name을 받아 cacheWrite + 레지스트리 갱신(verified 클라우드당 1회).
+  `switchCloud` 직후엔 소켓 연결 전이라, 반드시 `isVerified` 신호에 건다.
+- 마운트: 위 Runner를 AppRuntime에 배치해 부팅 훅 `useInvitedCloudColdRecovery`(네이티브 1회), 이름 동기화 훅
+  `useInvitedCloudNameSync`, 푸시 구독을 함께 건다.
 
 ## 검증 방법
 
 - **단위 테스트**
     - 레지스트리 (6): [cloudCore.registry.test.ts](../../../web-core/src/session/core/cloudCore.registry.test.ts) —
       빈 목록, 삽입, id 병합(name 갱신), cloudId 없는 항목 무시, 삭제, 손상 JSON 내성.
-    - coldSync (9): [invitedCloudColdSync.test.ts](../../src/data/invitedCloudColdSync.test.ts) — 레지스트리
-      backfill, 시딩 1회(플래그 가드), 빈 목록도 플래그 기록, 누락 id 재발급 복구, 캐시에 이미 있으면 미발급,
-      grant 소실 시 skip; 푸시 복구의 빈 cid/기존 캐시 no-op와 재구성.
+    - coldSync (14): [invitedCloudColdSync.test.ts](../../src/data/invitedCloudColdSync.test.ts) — 레지스트리
+      backfill, 시딩 1회(플래그 가드), 빈 목록도 플래그 기록, 누락 id 엔드포인트 재구성, 캐시에 이미 있으면
+      미발급, grant 소실 시 skip; 푸시 복구의 빈 cid/기존 캐시 no-op와 재구성; 이름 동기화(non-invited/변경없음/
+      실패 no-op, 변경 시 cacheWrite+레지스트리 갱신).
     - 실행: `cd libs/app-runtime && npx jest invitedCloudColdSync`,
       `npx nx test web-core -- --testPathPatterns=cloudCore.registry`.
     - `localFactory.selectStrategy` 플립은 module-level 메모이즈 + jsdom의 indexedDB 부재로 유닛 테스트가 취약해

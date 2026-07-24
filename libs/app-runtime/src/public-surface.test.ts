@@ -30,6 +30,7 @@ describe('@chatic/app-runtime public surface', () => {
             // cache tier helpers (cold-db activation + invited-cloud durability)
             'isNativeApp',
             'useInvitedCloudColdRecovery',
+            'useInvitedCloudNameSync',
             'recoverInvitedCloudIfMissing',
             // sync registration hooks
             'useChatSync',

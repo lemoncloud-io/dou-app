@@ -4,11 +4,13 @@ import {
     isNativeApp,
     recoverInvitedCloudIfMissing,
     useInvitedCloudColdRecovery,
+    useInvitedCloudNameSync,
     useRuntimeRepositories,
 } from '@chatic/app-runtime';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification } from '../bridge';
+import { extractPushContext } from '../features/notifications';
 
 /**
  * Keeps invited clouds durable against cold-DB loss. Mounted once under AppRuntime.
@@ -22,13 +24,17 @@ export const InvitedCloudColdSyncRunner = (): null => {
     const { cloud } = useRuntimeRepositories();
 
     useInvitedCloudColdRecovery();
+    useInvitedCloudNameSync();
 
     const handleReceiveNotification = useCallback(
         (message: AppMessageData<'OnReceiveNotification'>) => {
             // Cold DB only exists in the native WebView; match the boot hook's guard.
             if (!isNativeApp()) return;
-            const data = message.data?.notification?.data as Record<string, unknown> | undefined;
-            const cid = typeof data?.cid === 'string' ? data.cid : undefined;
+            const data = message.data?.notification?.data;
+            if (!data) return;
+            // cid usually lives inside the `payload` JSON string, with a top-level fallback —
+            // reuse the same extraction as push routing (do not read data.cid directly).
+            const { cid } = extractPushContext(data);
             void recoverInvitedCloudIfMissing(cloud, cid);
         },
         [cloud]
