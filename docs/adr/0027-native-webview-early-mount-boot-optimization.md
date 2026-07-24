@@ -94,6 +94,9 @@ WebView URL 로드에 불필요한 계층을 lazy getter로 전환(최초 접근
 **얻는 것**
 
 - 목표: 콜드부팅 `load-start` 중앙값 **−150ms 이상** 단축(BootMetrics 전후 비교로 판정).
+    - **실측(콜드 4회 중앙값): `load-start` 438 → 156.5ms, −281.5ms 로 목표 초과 달성.** 최대 기여는
+      4.1+4.3(`app-mount→main-screen` 220ms→≈0), 다음 4.4(`provider-ready` 54→4.5ms). 4.2는 측정상 무효.
+      상세는 boot-optimization.md 측정 결과.
 - 네이티브 컨테이너 1레이어 제거로 마운트 비용·구조 단순화.
 - 단계별 독립 커밋 → 효과 없거나 회귀 시 해당 단계만 리버트.
 

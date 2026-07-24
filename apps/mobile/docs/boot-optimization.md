@@ -188,3 +188,23 @@ provider.x`로 서비스를 즉시 읽고, 그 배럴이 부팅 경로에서 imp
 - **알려진 사전 실패(변경 무관 베이스라인):** typecheck의 nx-svg 타이핑 누락, 그리고 jest에서
   `useDeepLinkNavigation.test.ts`(native-stack ESM 미설정)·`useUploadHandler.test.ts`(전이 네이티브
   모듈 로드) 2개 스위트 — baseline에서도 동일하게 미실행.
+
+### 측정 결과 (실기기, 콜드 4회 중앙값)
+
+JS 엔트리 기준 마크(ms). 목표 `load-start` −150ms 대비 **−281.5ms 달성(약 1.9배)**.
+
+| 마크              |  Before |     After |          Δ |
+| ----------------- | ------: | --------: | ---------: |
+| provider-ready    |      54 |       4.5 |      −49.5 |
+| app-mount         |     140 |        82 |        −58 |
+| main-screen-mount |     360 |        80 |       −280 |
+| **load-start**    | **438** | **156.5** | **−281.5** |
+| web-app-ready     |     689 |     484.5 |     −204.5 |
+
+구간별 기여:
+
+- `app-mount → main-screen` **220ms → ≈0** (4.1 insets 왕복 제거 + 4.3 스택 2겹→1겹). 최대 기여.
+  병합 후 자식(MainScreen) effect가 부모(App)보다 먼저 실행돼 두 마크가 사실상 동시점이 됨.
+- `JS엔트리 → provider-ready` **54 → 4.5ms** (4.4 — SQLite open·DataSource·서비스 생성이 생성자에서 빠짐).
+- `main-screen → load-start` **≈77ms 유지** (4.2는 측정상 무효 — 이 구간은 WebView 인스턴스 생성이 지배.
+  브릿지 왕복 제거는 실제 이뤄졌으나 부팅 시간 영향은 미미). 저리스크·무해로 유지.
