@@ -5,6 +5,9 @@ import type { SocketSessionDelegate } from './types';
 
 export interface BootstrapSocketConnectionArgs {
     manager: ISocketManager;
+    /** The slot this boot addresses. Passed explicitly by the binder — never derived from the
+     * config, so a config missing `wssType` can no longer silently overwrite the relay slot. */
+    kind: SocketKind;
     config: SocketBindingConfig;
     delegate: SocketSessionDelegate;
 }
@@ -45,12 +48,11 @@ const DEVICE_SAVED_MESSAGE = 'device.save:ok';
  */
 export const bootstrapSocketConnection = async ({
     manager,
+    kind,
     config,
     delegate,
 }: BootstrapSocketConnectionArgs): Promise<() => void> => {
-    // The slot kind is carried on the config (relay vs cloud wss). Each slot is bootstrapped
-    // independently, so ensure/connect/setAuthenticated all address this kind.
-    const kind: SocketKind = config.wssType ?? 'relay';
+    // Each slot is bootstrapped independently; ensure/connect/setAuthenticated all address `kind`.
     const client = manager.ensure(config, kind);
     const auth = client.auth;
     const unsubscribes: Array<() => void> = [];

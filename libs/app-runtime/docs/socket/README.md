@@ -46,6 +46,7 @@ flowchart TD
 - kind별 인증 상태 미러링(`setAuthenticated`) + transport 연결과 합성한 `SocketState` 방송(`subscribe`)
 - active-facade `request/send/onType/onMessage/onState/onError`
 - client 교체 시 listener 재바인딩(`subscribeClient`)
+- 슬롯별 client 라이프사이클 방송(`subscribeSlotClients`) — 바인드/재빌드 시 `(kind, client)`, teardown 직전 `(kind, null)`. 같은 변경에서 active 알림(`subscribeClient`)보다 **먼저** 발화해, 슬롯별 부착물(SyncManager의 slot runtime)이 replay 전에 존재하도록 보장
 - `waitUntilVerified(timeoutMs=10_000)` — verified까지 대기(성공/실패 bool, reject 안 함)
 
 비책임:
@@ -60,7 +61,7 @@ flowchart TD
 
 책임 — 순서 **`ensure` → 구독 → `register`+게이트 닫기 → `device.save:ok`/disconnect 구독 → `connect`**:
 
-1. `kind = config.wssType ?? 'relay'`; `manager.ensure(config, kind)`
+1. `kind`는 SocketBinder가 슬롯별로 **명시 전달**(config에서 재유도하지 않음 — wssType 누락 시 relay 슬롯을 덮어쓰는 footgun 방지); `manager.ensure(config, kind)`
 2. `onAuthState` → `manager.setAuthenticated(kind, state==='authenticated')`; `expired` → `delegate.onAuthExpired(kind)`
 3. `onTokenRefresh` → `delegate.commitRefreshedToken(kind, view)`
 4. `delegate.getAuthRegistration(kind)` → `client.auth.register({ token, authId, sign })`(토큰만 시드) → `auth.stop()`(게이트 닫기: SDK의 `onState('connected')` 자동 발사 억제) — **`connect` 전에**

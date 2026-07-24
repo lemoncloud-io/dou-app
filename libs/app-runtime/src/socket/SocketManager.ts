@@ -15,6 +15,7 @@ import type {
     SocketBindingConfig,
     SocketClientListener,
     SocketKind,
+    SocketSlotClientListener,
     SocketState,
     SocketStateListener,
 } from './types';
@@ -81,6 +82,9 @@ export class SocketManager implements ISocketManager {
     private readonly stateListeners = new Set<SocketStateListener>();
     // Active-client listeners (e.g. SyncManager). Fired with the ACTIVE client on every active change.
     private readonly clientListeners = new Set<SocketClientListener>();
+    // Per-slot client listeners (e.g. the SyncManager's slot runtimes). Fired on every slot bind /
+    // rebuild / teardown regardless of which slot is active — see subscribeSlotClients.
+    private readonly slotClientListeners = new Set<SocketSlotClientListener>();
     // Push subscriptions registered via onType. Owned here so they survive active-client changes —
     // re-bound to the active client whenever the active slot changes.
     private readonly typeListeners = new Set<TypeListenerEntry>();
@@ -114,6 +118,9 @@ export class SocketManager implements ISocketManager {
         this.entries.set(kind, entry);
         this.bindEntry(kind, entry);
 
+        // Slot notification BEFORE the active-facade sync: per-slot attachments (slot runtimes)
+        // must exist by the time active-client listeners replay work onto them.
+        this.notifySlotClient(kind, client);
         this.syncActive(prevActiveClient);
         return client;
     }
@@ -139,9 +146,9 @@ export class SocketManager implements ISocketManager {
      * slot. Every call re-resolves the slot's client (lazy), so it survives slot teardown/rebuild
      * via ensure() — capturing the client eagerly would leave callers on a stale socket. Used for
      * requests that must target a specific server regardless of which slot is active (e.g. a
-     * relay-only write while a cloud slot is active). `send` is supported symmetrically; `onType`
-     * is not yet implemented (relay-push subscriptions would need the same owned-subscription
-     * rebinding the active facade does — see socket/kind-scoped-routing.md extension point).
+     * relay-only write while a cloud slot is active). `send` is supported symmetrically; the surface
+     * is request/send only (a kind-pinned onType would need the active facade's owned-subscription
+     * rebinding — add when a consumer exists, see socket/kind-scoped-routing.md).
      */
     public getScopedClient(kind: SocketKind): ScopedSocketClient {
         const requireSlot = (action: string): ClientSocketV2 => {
@@ -161,11 +168,6 @@ export class SocketManager implements ISocketManager {
                     return;
                 }
                 client.send(type);
-            },
-            onType: () => {
-                throw new Error(
-                    `[SocketManager] getScopedClient('${kind}').onType is not implemented (see socket/kind-scoped-routing.md)`
-                );
             },
         };
     }
@@ -243,6 +245,20 @@ export class SocketManager implements ISocketManager {
         listener(this.getActiveClient());
         return () => {
             this.clientListeners.delete(listener);
+        };
+    }
+
+    /**
+     * Subscribes to per-SLOT client lifecycle (see ISocketManager.subscribeSlotClients). Replays the
+     * currently bound slots immediately so a late subscriber still attaches to live clients.
+     */
+    public subscribeSlotClients(listener: SocketSlotClientListener): () => void {
+        this.slotClientListeners.add(listener);
+        for (const [kind, entry] of this.entries) {
+            listener(kind, entry.client);
+        }
+        return () => {
+            this.slotClientListeners.delete(listener);
         };
     }
 
@@ -408,6 +424,10 @@ export class SocketManager implements ISocketManager {
         const entry = this.entries.get(kind);
         if (!entry) return;
 
+        // Notify while the client is still alive so listeners can detach cleanly (e.g. a slot
+        // runtime stopping its controllers) before destroy() tears the transport down.
+        this.notifySlotClient(kind, null);
+
         for (const unsubscribe of entry.unsubscribes) {
             try {
                 unsubscribe();
@@ -451,6 +471,12 @@ export class SocketManager implements ISocketManager {
             throw new Error(`[SocketManager] Socket client not ready for ${action}`);
         }
         return client;
+    }
+
+    private notifySlotClient(kind: SocketKind, client: ClientSocketV2 | null): void {
+        for (const listener of this.slotClientListeners) {
+            listener(kind, client);
+        }
     }
 
     /** Re-binds every owned push subscription to the given (active) client. */

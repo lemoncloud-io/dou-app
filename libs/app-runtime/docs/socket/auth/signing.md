@@ -47,7 +47,7 @@ export const signServerAuth = (kind: 'relay' | 'cloud', target?: string): Promis
 export const commitServerRefreshedToken = (kind: 'relay' | 'cloud', view: AuthTokenView): Promise<void> | void;
 ```
 
-app-runtime의 [`SocketSessionDelegate`](../../../src/socket/auth/types.ts)는 이를 **모두 kind 인자로** 노출한다 — `getAuthRegistration(kind)` / `signAuth(kind, token, target?)` / `commitRefreshedToken(kind, view)` / `onAuthExpired(kind)`. 배선은 app-runtime의 [`useSocketSessionDelegate`](../../../src/connection/useSocketSessionDelegate.ts)가 소유하며, `kind`는 소켓 부팅 시([`bootstrapSocketConnection`](../../../src/socket/auth/bootstrapSocketConnection.ts)) `config.wssType`에서 고정돼 클로저로 흐른다. (app-runtime은 web-core/data만 의존 — 3축 경계 준수.)
+app-runtime의 [`SocketSessionDelegate`](../../../src/socket/auth/types.ts)는 이를 **모두 kind 인자로** 노출한다 — `getAuthRegistration(kind)` / `signAuth(kind, token, target?)` / `commitRefreshedToken(kind, view)` / `onAuthExpired(kind)`. 배선은 app-runtime의 [`useSocketSessionDelegate`](../../../src/connection/useSocketSessionDelegate.ts)가 소유하며, `kind`는 소켓 부팅 시([`bootstrapSocketConnection`](../../../src/socket/auth/bootstrapSocketConnection.ts)) SocketBinder가 슬롯별로 명시 전달한 값으로 고정돼 클로저로 흐른다. (app-runtime은 web-core/data만 의존 — 3축 경계 준수.)
 
 ---
 

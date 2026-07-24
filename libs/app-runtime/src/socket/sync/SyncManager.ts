@@ -7,29 +7,43 @@ import type {
 import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
 import { logger } from '@chatic/bridges';
-import type { ISocketManager } from '../types';
+import type { ISocketManager, SocketKind } from '../types';
 import { createSyncPlans } from './plans';
 import type { ISyncManager, SyncManagerDeps, SyncRuntimeOptions, SyncWatchEntry } from './types';
 
 const defaultBuildTargetKey = (target: SyncTargetDescriptor): string => `${target.type}:${target.id ?? ''}`;
 
+/**
+ * One runtime per bound slot. The runtime owns the slot's connect-driven device.save and its
+ * keepAlive/reconnect/rotation controllers, so it must live for the SLOT's lifetime — not only
+ * while the slot is active. `plans` are built per runtime so two live schedulers (relay + cloud)
+ * never share plan instances.
+ */
+interface SlotRuntimeEntry {
+    client: ClientSocketV2;
+    runtime: ClientSocketRuntime;
+    plans: DomainSyncPlan[];
+}
+
 export class SyncManager implements ISyncManager {
-    private readonly plans: DomainSyncPlan[];
+    private readonly buildPlans: () => DomainSyncPlan[];
     private readonly runtimeOptions: SyncRuntimeOptions;
     private readonly createRuntime: (client: ClientSocketV2, plans: DomainSyncPlan[]) => ClientSocketRuntime;
     private readonly buildTargetKey: (target: SyncTargetDescriptor) => string;
     private readonly watchEntries = new Map<string, SyncWatchEntry>();
+    private readonly unsubscribeSlots: () => void;
     private readonly unsubscribeClient: () => void;
-    private runtime: ClientSocketRuntime | null = null;
+    private readonly slotRuntimes = new Map<SocketKind, SlotRuntimeEntry>();
+    private activeClient: ClientSocketV2 | null = null;
 
     constructor(
         private readonly manager: ISocketManager,
         deps: SyncManagerDeps = {}
     ) {
-        this.plans = (deps.buildSyncPlans ?? createSyncPlans)();
+        this.buildPlans = deps.buildSyncPlans ?? createSyncPlans;
         this.runtimeOptions = deps.runtimeOptions ?? {};
         // createDeviceRuntime injects a DeviceSyncPlan and owns connect-driven device
-        // save; app domain plans are passed as extraSyncPlans and tuning options
+        // save; app domain plans are passed as `extraSyncPlans` and tuning options
         // (keepAlive/reconnect/rotation/devicePlan) are forwarded verbatim.
         this.createRuntime =
             deps.createRuntime ??
@@ -40,8 +54,19 @@ export class SyncManager implements ISyncManager {
                     ...this.runtimeOptions,
                 }));
         this.buildTargetKey = deps.buildTargetKey ?? defaultBuildTargetKey;
+        // Runtimes attach per SLOT (relay and cloud coexist): a backgrounded slot keeps its
+        // device.save-on-connect + keepAlive/reconnect/rotation alive, so a relay reconnect while a
+        // cloud is active still re-registers the device (device.save:ok also re-opens the auth gate
+        // in bootstrapSocketConnection). The active-only runtime this replaces left the relay
+        // connection device-less, breaking relay-pinned writes (device.update-remote → 400 no
+        // device linked).
+        this.unsubscribeSlots = this.manager.subscribeSlotClients((kind, client) => {
+            this.handleSlotClientChanged(kind, client);
+        });
+        // Sync TARGETS still follow the ACTIVE slot only. The manager notifies slot changes before
+        // active changes, so the runtime a replay lands on always exists.
         this.unsubscribeClient = this.manager.subscribeClient(client => {
-            this.handleClientChanged(client);
+            this.handleActiveClientChanged(client);
         });
     }
 
@@ -124,8 +149,13 @@ export class SyncManager implements ISyncManager {
     }
 
     public destroy(): void {
+        this.unsubscribeSlots();
         this.unsubscribeClient();
-        this.detachRuntime();
+        for (const [kind, entry] of this.slotRuntimes) {
+            this.slotRuntimes.delete(kind);
+            this.detachRuntime(entry.runtime);
+        }
+        this.activeClient = null;
         this.watchEntries.clear();
     }
 
@@ -140,16 +170,42 @@ export class SyncManager implements ISyncManager {
         this.watchEntries.delete(key);
     }
 
-    private handleClientChanged(client: ClientSocketV2 | null): void {
-        this.detachRuntime();
+    private handleSlotClientChanged(kind: SocketKind, client: ClientSocketV2 | null): void {
+        const existing = this.slotRuntimes.get(kind);
+        if (existing?.client === client) return;
+        if (existing) {
+            this.slotRuntimes.delete(kind);
+            this.detachRuntime(existing.runtime);
+        }
         if (!client) return;
 
-        this.runtime = this.createRuntime(client, this.plans);
-        // start() activates the runtime's connect-driven device save (the device
-        // runtime gates it behind an `active` flag) and the rotation controller.
-        // The onState listener is registered in the runtime constructor, so the
-        // `connected` event is caught even though connect() happens after this.
-        void this.runtime.start();
+        const plans = this.buildPlans();
+        const runtime = this.createRuntime(client, plans);
+        this.slotRuntimes.set(kind, { client, runtime, plans });
+        // start() activates the runtime's connect-driven device save (the device runtime gates it
+        // behind an `active` flag) and this slot's controllers. The onState listener is registered
+        // in the runtime constructor, so the `connected` event is caught even though connect()
+        // happens after this. Targets are NOT replayed here: on an active-slot mutation the
+        // manager's active-client notification follows and replays them exactly once.
+        void runtime.start();
+    }
+
+    private handleActiveClientChanged(client: ClientSocketV2 | null): void {
+        if (this.activeClient === client) return;
+
+        // Move sync targets off the outgoing active runtime — but keep the runtime running: its
+        // slot may merely be backgrounded (relay under a new cloud), and it must keep owning the
+        // slot's device save + keepAlive. A torn-down slot is detached via the slot notification.
+        const previous = this.findRuntimeByClient(this.activeClient);
+        if (previous) {
+            try {
+                previous.stopAllSync();
+            } catch (error) {
+                logger.warn('SOCKET', '[SyncManager] Failed to stop targets on the outgoing runtime', { error });
+            }
+        }
+
+        this.activeClient = client;
         this.replayTargets();
     }
 
@@ -170,12 +226,29 @@ export class SyncManager implements ISyncManager {
         return cid == null || cid === this.manager.getBoundCid();
     }
 
+    private getActiveEntry(): SlotRuntimeEntry | null {
+        return this.findEntryByClient(this.activeClient);
+    }
+
+    private findEntryByClient(client: ClientSocketV2 | null): SlotRuntimeEntry | null {
+        if (!client) return null;
+        for (const entry of this.slotRuntimes.values()) {
+            if (entry.client === client) return entry;
+        }
+        return null;
+    }
+
+    private findRuntimeByClient(client: ClientSocketV2 | null): ClientSocketRuntime | null {
+        return this.findEntryByClient(client)?.runtime ?? null;
+    }
+
     private startTarget(target: SyncTargetDescriptor, cid: string | null): void {
-        if (!this.runtime || this.plans.length === 0) return;
+        const entry = this.getActiveEntry();
+        if (!entry || entry.plans.length === 0) return;
         if (!this.isCidActive(cid)) return;
 
         try {
-            this.runtime.startSync(target);
+            entry.runtime.startSync(target);
         } catch (error) {
             logger.warn('SOCKET', '[SyncManager] Failed to start sync target', {
                 error,
@@ -188,14 +261,15 @@ export class SyncManager implements ISyncManager {
     // baseline align) is owned by the `useChatSync` hook, not here — SyncManager stays domain
     // unaware. A no-op until a runtime exists, so callers (hooks) don't have to gate on it.
     public updateLocalSnapshot(...args: Parameters<ClientSocketRuntime['updateLocalSnapshot']>): void {
-        this.runtime?.updateLocalSnapshot(...args);
+        this.getActiveEntry()?.runtime.updateLocalSnapshot(...args);
     }
 
     private stopTarget(target: SyncTargetDescriptor): void {
-        if (!this.runtime || this.plans.length === 0) return;
+        const entry = this.getActiveEntry();
+        if (!entry || entry.plans.length === 0) return;
 
         try {
-            this.runtime.stopSync(target);
+            entry.runtime.stopSync(target);
         } catch (error) {
             logger.warn('SOCKET', '[SyncManager] Failed to stop sync target', {
                 error,
@@ -204,11 +278,7 @@ export class SyncManager implements ISyncManager {
         }
     }
 
-    private detachRuntime(): void {
-        const runtime = this.runtime;
-        this.runtime = null;
-        if (!runtime) return;
-
+    private detachRuntime(runtime: ClientSocketRuntime): void {
         try {
             runtime.stopAllSync();
             void runtime.stop();
