@@ -1,12 +1,7 @@
-import type { NavigatorScreenParams } from '@react-navigation/native';
-
 export type RootStackParamList = {
-    Main: NavigatorScreenParams<MainStackParamList>;
-};
-
-export type MainStackParamList = {
-    // The Main screen no longer receives deep link data via route params — inbound navigation is
-    // delivered to the WebView through OnNavigate (see useDeepLinkNavigation).
+    // Single native stack: RootNavigator hosts MainScreen directly (the former MainNavigator layer was
+    // removed for boot performance — see boot-optimization.md 4.3). The Main screen takes no route
+    // params: deep link destinations reach the WebView via OnNavigate (see useDeepLinkNavigation).
     Main: undefined;
 };
 

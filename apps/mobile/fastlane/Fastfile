@@ -137,10 +137,18 @@ platform :android do
       project_dir: 'android'
     )
 
+    # Upload the AAB this lane just built. Do NOT rely on GRADLE_AAB_OUTPUT_PATH:
+    # the fastlane gradle action globs build/outputs/bundle/**/*.aab and returns
+    # the most recently modified one across ALL flavors. A stale dev AAB left in
+    # the tree (newer mtime, e.g. from a prior dev deploy) would then be uploaded
+    # to the prod app -> "APK has the wrong package name". Pin the flavor's path.
+    aab_path = "android/app/build/outputs/bundle/#{env}Release/app-#{env}-release.aab"
+    UI.user_error!("Built AAB not found at #{aab_path}") unless File.exist?(aab_path)
+
     upload_to_play_store(
       package_name: APP_IDS[env],
       track: track,
-      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      aab: aab_path,
       json_key: json_key,
       # Only the binary and its release notes are managed here; the store
       # listing is maintained in the Play Console UI.

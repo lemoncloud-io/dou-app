@@ -15,7 +15,7 @@ flowchart TD
 
 ## Provider
 
-`src/app/services/provider.ts`는 singleton dependency container다. 여기서 logging, MMKV, SQLite, data source, domain service가 한 번 조립된다.
+`src/app/services/provider.ts`는 singleton dependency container다. logging·MMKV·boot metrics·deeplink·notification·Crashlytics는 생성자에서 eager 조립되고, SQLite·data source·cache/upload 등 비필수 서비스는 lazy getter로 최초 접근 시 생성된다 (부팅 임계경로 최소화, boot-optimization.md 4.4).
 
 주요 instance:
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Config from 'react-native-config';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
 import { NavigationContainer } from '@react-navigation/native';
 
@@ -53,7 +53,9 @@ export const App = () => {
     const { backgroundColor } = useResolvedTheme();
 
     return (
-        <SafeAreaProvider style={{ backgroundColor }}>
+        // `initialWindowMetrics` seeds insets synchronously from the native initial frame, avoiding the
+        // async insets round-trip that would otherwise delay the first render of the navigator/MainScreen.
+        <SafeAreaProvider initialMetrics={initialWindowMetrics} style={{ backgroundColor }}>
             <SystemBars />
             <NavigationContainer ref={navigationRef}>
                 <View style={{ flex: 1, backgroundColor }}>

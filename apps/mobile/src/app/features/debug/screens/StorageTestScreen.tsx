@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FileManagerBridge } from '../../../bridge';
 import type { CacheType } from '@chatic/app-messages';
-import { useServices } from '../../../hooks';
+import { provider } from '../../../services';
 import { useDebugTheme } from '../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -25,7 +25,9 @@ const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'inv
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
     const colors = useDebugTheme();
-    const { sqliteDatabase, cacheCrudService } = useServices();
+    // Debug screen (not on the boot path): reading these getters here constructs the SQLite database
+    // on demand when the screen opens. See boot-optimization.md 4.4.
+    const { sqliteDatabase, cacheCrudService } = provider;
 
     const [dataType, setDataType] = useState<CacheType>(DATA_TYPES[0]);
 
