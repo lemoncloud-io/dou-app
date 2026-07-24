@@ -151,3 +151,21 @@ kind) 소켓으로 API를 쏘는 케이스는 앞으로 반복되므로, 그 능
 - 사용자 혼선(토글 표시값 ≠ 실제)이 문제되면 → 서버 **muted read-remote** 경로 신설 + 초기 동기화 재검토.
 - pushes-api `PUT /devices/<id>`가 부분 갱신이 아니라 전체 치환으로 확인되면 → 클라 body 구성 재검토(서버 스펙과 연동).
 - relay-only write가 늘어나면 → relay-pinned 파사드를 `ISocketManager`의 1급 API(예: 슬롯 지정 request)로 승격 검토.
+
+## 추록 (2026-07-23) — route 인자 노출 철회, 목적지를 데이터 소스에 고정
+
+운영 중 원 결정의 리스크("호출부가 `route:'relay'`를 빠뜨리면 active로 조용히 샌다")가 상시 비용으로
+확인되어, **"목적지는 호출부가 결정"을 부분 철회**한다:
+
+- `DeviceRemoteDataSource.updateRemoteDevice(payload)`가 **relay를 직접 고정**하고,
+  repository/훅의 `route` 인자·`PUSH_MUTE_ROUTE` 상수·누수 방지 테스트를 제거했다.
+  update-remote는 계약상 목적지가 relay 하나뿐이라(pushes-api가 relay 뒤), 호출 시점 선택지가
+  존재하지 않는 메서드에 선택 표면을 노출하는 것은 사고 표면만 늘리는 투기적 일반화였다.
+- **코어 `getScopedClient(kind)`와 routed 게이트웨이 묶음은 유지** — 재사용 프리미티브는 코어까지다.
+  호출 시점에 목적지가 정말 달라지는 두 번째 소비자가 생기면 그 메서드에만 `route`를 노출한다(S4).
+- 같은 정리에서 `ScopedSocketClient`의 미구현 `onType`(무조건 throw)을 타입 표면에서 제거했다 —
+  소비자가 생길 때 추가(extension point 문서 유지).
+
+관련: [kind-scoped-routing.md](../../libs/app-runtime/docs/socket/kind-scoped-routing.md) 설계 원칙 개정.
+또한 비셸(일반 브라우저)은 pushes-api에 push 디바이스가 없어 write가 404 — 마이페이지 토글은
+`isSupported`(`CHATIC_APP_PLATFORM`) 기준 disabled + "앱에서만 설정" 안내로 렌더한다.
