@@ -13,6 +13,9 @@
     "references": [
         {
             "path": "../../libs/web-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/app-runtime/tsconfig.lib.json"
         }
     ]
 }

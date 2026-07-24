@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { createCredentialsByProvider, fetchProfile } from '@chatic/web-core';
+import { createCredentialsByProvider, useRefreshRelaySession } from '@chatic/web-core';
 
 export const OAuthResponsePage = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { refreshRelaySession } = useRefreshRelaySession();
     const handled = useRef(false);
 
     useEffect(() => {
@@ -27,9 +28,12 @@ export const OAuthResponsePage = () => {
                     return;
                 }
 
-                // Exchange OAuth code for transport credentials, then hydrate profile.
+                // `createCredentialsByProvider` only builds transport (SDK/AWS) credentials; it does
+                // not flip session auth state. `refreshRelaySession({ syncProfile: true })` applies
+                // the relay session (setSessionAuthenticated + notify) so `isAuthenticated` is true
+                // before we navigate — otherwise ProtectedRoute bounces back to /auth/login.
                 await createCredentialsByProvider(provider, code);
-                await fetchProfile();
+                await refreshRelaySession({ syncProfile: true });
 
                 let redirectTo = '/socket-lab';
                 try {
@@ -47,7 +51,7 @@ export const OAuthResponsePage = () => {
         };
 
         void checkLoginResult();
-    }, [location.search, navigate]);
+    }, [location.search, navigate, refreshRelaySession]);
 
     return (
         <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">

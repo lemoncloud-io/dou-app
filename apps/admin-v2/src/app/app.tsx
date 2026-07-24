@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 
-import { startWebCoreInit, useInitWebCore } from '@chatic/web-core';
+import { RuntimeAuthHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { AppRoutes } from './routes';
 
@@ -16,43 +14,26 @@ const queryClient = new QueryClient({
     },
 });
 
-const Loading = () => (
-    <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        초기화 중...
-    </div>
-);
-
+/**
+ * Session + token lifecycle is owned by `RuntimeAuthHost` (app-runtime): it runs the single web-core
+ * init (`useInitWebCore` → `initializeRelaySession`, incl. transport bootstrap) and mounts the
+ * SDK-backed socket auth loop so tokens (and the HTTP signing credentials derived from them) stay
+ * fresh. It deliberately excludes guest keep-alive and chat data sync — admin requires an explicit
+ * login and needs no data scope. The host renders null until web-core is ready.
+ */
 const AppInner = () => {
-    // Boot relay-session init (incl. token hydration) is owned by useInitWebCore →
-    // initializeRelaySession; the standalone useTokenRefresh gate was removed from web-core
-    // (mirrors desktop-web). Render once web-core is ready.
-    const isWebCoreReady = useInitWebCore();
-
-    if (!isWebCoreReady) {
-        return <Loading />;
-    }
+    const binding = useRuntimeBinding();
 
     return (
-        <BrowserRouter>
-            <AppRoutes />
-        </BrowserRouter>
+        <RuntimeAuthHost binding={binding}>
+            <BrowserRouter>
+                <AppRoutes />
+            </BrowserRouter>
+        </RuntimeAuthHost>
     );
 };
 
 export default function App() {
-    const [transportReady, setTransportReady] = useState(false);
-
-    // Transport bootstrap before session init (mirrors app-runtime TransportBootstrap).
-    useEffect(() => {
-        startWebCoreInit()
-            .then(() => setTransportReady(true))
-            .catch(() => setTransportReady(true));
-    }, []);
-
-    if (!transportReady) {
-        return <Loading />;
-    }
-
     return (
         <QueryClientProvider client={queryClient}>
             <AppInner />
