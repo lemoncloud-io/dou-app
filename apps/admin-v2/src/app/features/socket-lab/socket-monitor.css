@@ -62,7 +62,9 @@
     --sm-border-hover: #2c3947;
     --sm-on-accent: #0a0d12;
 
-    height: 100vh;
+    /* Fill the PrivateLayout main area (which owns viewport height) rather than
+       the full viewport, so the top nav bar doesn't push the shell into overflow. */
+    height: 100%;
     width: 100%;
     display: flex;
     background: var(--sm-bg);
