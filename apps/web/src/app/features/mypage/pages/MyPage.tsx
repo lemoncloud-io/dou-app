@@ -28,7 +28,7 @@ export const MyPage = () => {
     const myUser = useMyUser();
 
     const { setTheme, isDarkTheme } = useTheme();
-    const { pushEnabled, setPushEnabled } = useDevicePushMute();
+    const { pushEnabled, setPushEnabled, isSupported: pushSupported } = useDevicePushMute();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding, blurLastMessage, setBlurLastMessage, issueReportHidden, setIssueReportHidden } =
         usePreferenceStore();
@@ -161,11 +161,15 @@ export const MyPage = () => {
 
                 {/* Settings — kept from the previous design, restyled onto the DS card. */}
                 <MenuCard>
-                    {/* Device-global push mute. ON = notifications received (muted:false). Sent to the
-                        relay socket even while a cloud is active — see useDevicePushMute. */}
+                    {/* Device-global push mute. ON = notifications received (muted:false). Outside a
+                        native shell no push device exists (the write would 404), so the toggle is
+                        disabled with a hint instead of erroring — see useDevicePushMute. */}
                     <ListRow
                         title={t('mypage.pushNotifications')}
-                        trailing={<Switch checked={pushEnabled} onCheckedChange={setPushEnabled} />}
+                        subtitle={pushSupported ? undefined : t('mypage.push.appOnly')}
+                        trailing={
+                            <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} disabled={!pushSupported} />
+                        }
                     />
                     <ListRow
                         title={t('mypage.darkMode')}

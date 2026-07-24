@@ -161,7 +161,8 @@
         "loginDescription": "로그인 하고, 대화내용을 안전하게 관리하세요.",
         "pushNotifications": "푸시 알림",
         "push": {
-            "updateFailed": "푸시 알림 설정을 변경하지 못했습니다."
+            "updateFailed": "푸시 알림 설정을 변경하지 못했습니다.",
+            "appOnly": "앱에서만 설정할 수 있어요"
         },
         "darkMode": "다크 모드",
         "messagePreview": "메시지 미리보기",

@@ -161,7 +161,8 @@
         "loginDescription": "Sign in to safely manage your conversations.",
         "pushNotifications": "Push Notifications",
         "push": {
-            "updateFailed": "Couldn't update push notification settings."
+            "updateFailed": "Couldn't update push notification settings.",
+            "appOnly": "Available only in the app"
         },
         "darkMode": "Dark Mode",
         "messagePreview": "Message Preview",
