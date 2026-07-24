@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { DEFAULT_WS_URL } from '../model/endpoint-presets';
+import { fetchObservedUsers } from '../api/userApi';
 import { useLoadTest } from '../hooks/use-load-test';
 import { useSandbox } from '../hooks/use-sandbox';
 import { useTheme } from '../hooks/use-theme';
@@ -23,6 +25,22 @@ export const SocketMonitorPage = () => {
     const wl = useWatchlist();
     const sandbox = useSandbox(endpoint);
     const load = useLoadTest();
+
+    // Deep link from report-logs: `/socket-lab?observe=<uid>` resolves the user and adds it to the
+    // Observe watchlist (tab already defaults to 'observe'). Handled once per uid.
+    const [searchParams] = useSearchParams();
+    const observeUid = searchParams.get('observe');
+    const observedHandled = useRef<string | null>(null);
+    useEffect(() => {
+        if (!observeUid || observedHandled.current === observeUid || wl.observedIds.has(observeUid)) {
+            return;
+        }
+        observedHandled.current = observeUid;
+        void fetchObservedUsers({ type: 'id', query: observeUid, stage: wl.stage }).then(res => {
+            const user = res.list[0];
+            if (user) wl.addUser(user);
+        });
+    }, [observeUid, wl]);
 
     const counts = { green: 0, yellow: 0, red: 0 };
     wl.observed.forEach(u => u.devices.forEach(d => (counts[d.status] += 1)));

@@ -21,7 +21,7 @@ export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './sessio
 export { useChatSync, useChannelSync, usePlaceSync } from './socket';
 
 // --- Lifecycle ------------------------------------------------------------------------------
-export { RuntimeConnectionHost } from './connection';
+export { RuntimeConnectionHost, RuntimeAuthHost } from './connection';
 export { useDeviceTokenRegistration } from './push';
 export type { DeviceTokenDelegate } from './push';
 
