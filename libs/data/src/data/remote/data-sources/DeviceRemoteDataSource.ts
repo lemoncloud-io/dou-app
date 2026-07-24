@@ -8,7 +8,7 @@ import type {
     DeviceUpdateRemoteInput,
     DeviceView,
 } from '@lemoncloud/chatic-sockets-lib';
-import type { DeviceDomainGateway, RoutedGateway, SocketRoute } from '../gateways';
+import type { DeviceDomainGateway, RoutedGateway } from '../gateways';
 
 /**
  * Client-safe view of the `device.update-remote` response. The server passes through the pushes-api
@@ -28,10 +28,10 @@ export interface IDeviceRemoteDataSource {
     syncDevice(payload: DeviceSyncInput): void;
     /**
      * device.update-remote — update the connection-linked device's remote push settings (muted) and
-     * return the server's authoritative device push view. `route` selects the destination slot
-     * (default `active`); push-mute must be sent to `relay`.
+     * return the server's authoritative device push view. Always sent over the RELAY slot: push
+     * settings live in chatic-pushes-api behind the relay server, regardless of which slot is active.
      */
-    updateRemoteDevice(payload: DeviceUpdateRemoteInput, route?: SocketRoute): Promise<DevicePushView>;
+    updateRemoteDevice(payload: DeviceUpdateRemoteInput): Promise<DevicePushView>;
 }
 
 export class DeviceRemoteDataSource implements IDeviceRemoteDataSource {
@@ -50,10 +50,11 @@ export class DeviceRemoteDataSource implements IDeviceRemoteDataSource {
         this.gateway.active.sync(payload);
     }
 
-    public async updateRemoteDevice(
-        payload: DeviceUpdateRemoteInput,
-        route: SocketRoute = 'active'
-    ): Promise<DevicePushView> {
-        return this.gateway[route].updateRemote<DevicePushView>(payload);
+    public async updateRemoteDevice(payload: DeviceUpdateRemoteInput): Promise<DevicePushView> {
+        // Destination pinned HERE, not chosen by callers: update-remote is relay-owned by contract
+        // (pushes-api sits behind the relay), so exposing a route would only invite a silent leak to
+        // the active (cloud) slot. Re-expose a route parameter only when a second, genuinely
+        // caller-dependent destination appears. See app-runtime socket/kind-scoped-routing.md.
+        return this.gateway.relay.updateRemote<DevicePushView>(payload);
     }
 }

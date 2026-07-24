@@ -16,10 +16,10 @@
 
 ### 1.2 부팅 등록 — `bootstrapSocketConnection`
 
-각 소켓 슬롯(relay/cloud)의 부팅은 순수 함수 [`bootstrapSocketConnection({ manager, config, delegate })`](../../../src/socket/auth/bootstrapSocketConnection.ts)가 시퀀싱한다. 순서는 **`ensure` → 구독 → `register` → `connect`** 이며, `register`가 `connect`보다 **먼저**다(근거 → [README.md §3](./README.md)).
+각 소켓 슬롯(relay/cloud)의 부팅은 순수 함수 [`bootstrapSocketConnection({ manager, kind, config, delegate })`](../../../src/socket/auth/bootstrapSocketConnection.ts)가 시퀀싱한다. 순서는 **`ensure` → 구독 → `register` → `connect`** 이며, `register`가 `connect`보다 **먼저**다(근거 → [README.md §3](./README.md)).
 
 ```ts
-const kind = config.wssType ?? 'relay';
+// kind는 SocketBinder가 슬롯별로 명시 전달한다 (config에서 재유도하지 않음).
 const client = manager.ensure(config, kind);
 const auth = client.auth;
 

@@ -203,6 +203,74 @@ describe('SocketManager subscribeClient', () => {
     });
 });
 
+describe('SocketManager subscribeSlotClients (per-slot lifecycle)', () => {
+    const RELAY_CONFIG: SocketBindingConfig = { url: 'wss://relay.test/socket', deviceId: 'device-1' };
+    const CLOUD_CONFIG: SocketBindingConfig = { url: 'wss://cloud.test/socket', deviceId: 'device-1' };
+
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('emits (kind, client) on bind, (kind, null) on teardown, and replays bound slots on subscribe', () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        const seen: Array<[string, unknown]> = [];
+        manager.subscribeSlotClients((kind, client) => seen.push([kind, client]));
+        expect(seen).toEqual([['relay', relay]]); // replay of the already-bound slot
+
+        manager.ensure(CLOUD_CONFIG, 'cloud');
+        manager.destroy('cloud');
+
+        expect(seen).toEqual([
+            ['relay', relay],
+            ['cloud', cloud],
+            ['cloud', null],
+        ]);
+    });
+
+    it('a slot rebuild emits (kind, null) with the OLD client still alive, then (kind, newClient)', () => {
+        const first = makeClient();
+        const second = makeClient();
+        mockedCreate.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+        const manager = new SocketManager();
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        const seen: Array<unknown> = [];
+        manager.subscribeSlotClients((kind, client) => {
+            // The null notification must precede client.destroy() so listeners detach cleanly.
+            if (client === null) expect(first.destroy).not.toHaveBeenCalled();
+            seen.push(client);
+        });
+
+        manager.ensure(OTHER_CONFIG, 'relay'); // rebuild (deviceId differs)
+
+        expect(seen).toEqual([first, null, second]);
+        expect(first.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('slot notification precedes the active-client notification for the same mutation', () => {
+        const relay = makeClient();
+        mockedCreate.mockReturnValueOnce(relay);
+
+        const manager = new SocketManager();
+        const order: string[] = [];
+        manager.subscribeSlotClients(() => order.push('slot'));
+        manager.subscribeClient(client => {
+            if (client) order.push('active');
+        });
+
+        manager.ensure(RELAY_CONFIG, 'relay');
+
+        expect(order).toEqual(['slot', 'active']);
+    });
+});
+
 describe('SocketManager dual slots (active facade)', () => {
     const RELAY_CONFIG: SocketBindingConfig = {
         url: 'wss://relay.test/socket',
@@ -384,15 +452,5 @@ describe('SocketManager getScopedClient (kind-scoped routing)', () => {
         const scoped = manager.getScopedClient('cloud');
 
         expect(() => scoped.request('device.update-remote', { muted: true })).toThrow(/no cloud slot/);
-    });
-
-    it('onType은 아직 미구현이라 throw한다 (extension point)', () => {
-        const relay = makeClient();
-        mockedCreate.mockReturnValueOnce(relay);
-
-        const manager = new SocketManager();
-        manager.ensure(RELAY_CONFIG, 'relay');
-
-        expect(() => manager.getScopedClient('relay').onType('x', () => undefined)).toThrow(/onType/);
     });
 });

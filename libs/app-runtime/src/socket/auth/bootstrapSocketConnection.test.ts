@@ -92,7 +92,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, order);
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
 
         // register seeds the token, stop() deactivates so the SDK's connect handler cannot auto-send,
         // and only then do we connect. No start() (no auth.update) until device.save:ok arrives.
@@ -109,7 +109,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, order);
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
         expect(auth.start).not.toHaveBeenCalled();
 
         client.emitMessage('device.save:ok');
@@ -123,7 +123,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, []);
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
 
         client.emitMessage('device.save:error');
         client.emitMessage('auth.update:ok');
@@ -137,7 +137,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, order);
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
 
         client.emitMessage('device.save:ok');
         expect(auth.start).toHaveBeenCalledTimes(1);
@@ -155,7 +155,7 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, []);
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
         expect(auth.stop).toHaveBeenCalledTimes(1); // setup
 
         client.emitState('connected');
@@ -172,7 +172,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
 
         auth.emitAuthState('authenticated');
         expect(manager.setAuthenticated).toHaveBeenCalledWith('relay', true);
@@ -193,7 +193,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
 
         const view = { Token: { identityToken: 'fresh' } };
         auth.emitTokenRefresh(view);
@@ -206,7 +206,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
         const delegate = makeDelegate();
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
 
         const registeredSign = auth.register.mock.calls[0][0].sign as (
             token: string,
@@ -221,7 +221,12 @@ describe('bootstrapSocketConnection', () => {
         const client = makeClient(auth);
         const manager = makeManager(client, []);
 
-        const cleanup = await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
+        const cleanup = await bootstrapSocketConnection({
+            manager,
+            kind: 'relay',
+            config: CONFIG,
+            delegate: makeDelegate(),
+        });
         cleanup();
 
         expect(auth.unsubAuthState).toHaveBeenCalledTimes(1);
@@ -237,7 +242,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, order);
         const delegate = makeDelegate({ getAuthRegistration: jest.fn().mockResolvedValue(null) });
 
-        await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
+        await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
 
         expect(auth.register).not.toHaveBeenCalled();
         expect(auth.stop).not.toHaveBeenCalled();
@@ -252,7 +257,7 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, order);
         const delegate = makeDelegate();
 
-        const cleanup = await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
+        const cleanup = await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate });
 
         expect(order).toEqual(['connect']);
         expect(delegate.getAuthRegistration).not.toHaveBeenCalled();

@@ -4,6 +4,7 @@ import { getSocketManager } from '../socket/runtime';
 import { reauthenticateActiveSocket } from '../socket';
 import type { SocketKind, SocketSessionDelegate } from '../socket';
 import type { RuntimeBinding, RuntimeSocketSlot } from '../runtime';
+import { socketRebootKey } from './socketRebootKey';
 
 export interface SocketReauthBinderProps {
     binding: RuntimeBinding;
@@ -14,12 +15,11 @@ export interface SocketReauthBinderProps {
 const SLOT_KINDS: readonly SocketKind[] = ['relay', 'cloud'] as const;
 
 /**
- * Per-slot reboot key — the SAME key SocketBinder reboots on (`url|deviceId|wssType`), deliberately
- * EXCLUDING `cid` and `identityToken`. When this key is unchanged the socket is NOT rebooting, so an
- * identity change on that slot must be re-authenticated in place rather than double-registered.
+ * Per-slot reboot key — the SAME key SocketBinder reboots on (socketRebootKey). When this key is
+ * unchanged the socket is NOT rebooting, so an identity change on that slot must be
+ * re-authenticated in place rather than double-registered.
  */
-const slotRebootKey = (slot?: RuntimeSocketSlot): string =>
-    slot ? `${slot.config.url}|${slot.config.deviceId}|${slot.config.wssType ?? ''}` : '';
+const slotRebootKey = (slot?: RuntimeSocketSlot): string => socketRebootKey(slot?.config);
 
 type SlotSnapshot = { reboot: string; token: string };
 

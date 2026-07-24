@@ -14,10 +14,11 @@
 
 ```mermaid
 flowchart TD
-  SocketManager["SocketManager (subscribeClient)"] --> SyncManager["SyncManager"]
-  SyncManager --> Runtime["createDeviceRuntime({ client, extraSyncPlans })"]
-  SyncManager --> Plans["createSyncPlans()"]
-  Runtime --> Scheduler["Library Sync Runtime"]
+  SocketManager["SocketManager (subscribeSlotClients + subscribeClient)"] --> SyncManager["SyncManager"]
+  SyncManager --> RelayRT["relay slot runtime<br/>createDeviceRuntime({ client, extraSyncPlans })"]
+  SyncManager --> CloudRT["cloud slot runtime (활성 시)"]
+  SyncManager --> Plans["createSyncPlans() — runtime마다 새로 생성"]
+  RelayRT --> Scheduler["Library Sync Runtime"]
   Scheduler --> Repos["Repositories (cacheWrite/cacheDelete)"]
   UI["useSyncTarget / features"] --> SyncManager
 ```
@@ -26,9 +27,11 @@ flowchart TD
 
 `createDeviceRuntime`는 엔진, `SyncManager`는 앱 계층 오케스트레이터다. manager가 흡수한 정책(모두 **구현됨**):
 
-- 현재 socket client 구독 → client 교체 시 runtime을 detach/재생성하고 `start()`.
+- **슬롯별 runtime 소유** — `subscribeSlotClients`로 relay/cloud 각 슬롯의 client를 구독, 슬롯이 바인드되면 runtime 생성 + `start()`, 슬롯이 내려가면 detach. runtime은 그 슬롯의 connect-driven `device.save`와 keepAlive/reconnect/rotation을 소유하므로 **슬롯 수명**을 따라야 한다 — active 여부가 아니라. (과거 active-전용 runtime은 클라우드 활성 시 relay runtime을 stop시켜, relay 재연결이 `device.save` 없이 뜨고 relay-핀 요청이 `400 no device linked`로 깨졌다. auth 게이트도 `device.save:ok`에 걸려 있어 relay 재인증까지 함께 죽는 문제였다.)
+- **sync target은 ACTIVE 슬롯만** — `subscribeClient`(active 추적)로 target을 active runtime으로만 이동: 이전 active runtime은 `stopAllSync()`(runtime 자체는 유지), 새 active runtime에 replay.
 - **ref-count target registry** — `buildTargetKey`(`${type}:${id}`) 기준. 첫 ref가 active 슬롯의 `boundCid`를 태깅하고 `startTarget`, 마지막 dispose가 `stopTarget`.
-- **replay + cross-cloud 가드** — client 교체 시 registry를 replay하되, 각 target은 자신의 `cid`가 새 client의 `boundCid`와 일치할 때만(`isCidActive`) 시작.
+- **replay + cross-cloud 가드** — active 교체 시 registry를 replay하되, 각 target은 자신의 `cid`가 새 client의 `boundCid`와 일치할 때만(`isCidActive`) 시작.
+- **plan은 runtime마다 생성** — relay/cloud 두 스케줄러가 동시에 살아 있으므로 plan 인스턴스를 공유하지 않는다.
 
 ## 책임 분리
 
@@ -36,7 +39,7 @@ flowchart TD
 
 책임:
 
-- `manager.subscribeClient` 구독 → client 생기면 `createDeviceRuntime({ client, extraSyncPlans: plans })`, 사라지면 detach.
+- `manager.subscribeSlotClients` 구독 → 슬롯별 client가 생기면 `createDeviceRuntime({ client, extraSyncPlans: plans })`, 슬롯이 내려가면 detach. `manager.subscribeClient`(active) 구독 → target을 active runtime으로 이동.
 - runtime `start()`/`stop()`, target `startTarget`/`stopTarget`(**private**).
 - ref-count registry + replay(위).
 - `updateLocalSnapshot(...args)` — runtime으로의 **도메인 무지** pass-through(runtime 없으면 no-op).
@@ -70,9 +73,10 @@ feature/UI 레이어는 보통 [`useSyncTarget`](../../../src/socket/sync/hooks/
 
 ## lifecycle 규칙
 
-- **client 생성/교체** — `SyncManager`가 감지 → 기존 runtime `stop`(`detachRuntime`) → 새 runtime 생성 + `start()` → registry replay(cid 일치분만).
+- **슬롯 바인드/재빌드** — 슬롯 알림(`subscribeSlotClients`)으로 그 슬롯의 기존 runtime `stop`(`detachRuntime`) → 새 runtime 생성 + `start()`. 다른 슬롯의 runtime은 건드리지 않는다.
+- **active 교체 (예: cloud 진입/이탈)** — 이전 active runtime은 `stopAllSync()`로 target만 내리고 **runtime은 계속 돈다**(백그라운드 슬롯의 device.save/keepAlive 유지). 새 active runtime에 registry replay(cid 일치분만). SocketManager는 같은 변경에 대해 슬롯 알림을 active 알림보다 먼저 보내므로 replay가 닿을 runtime은 항상 존재한다.
 - **connected / reconnect** — runtime 내부 scheduler가 처리. 같은 client lifecycle 안의 catch-up은 라이브러리 plan을 신뢰.
-- **destroy** — runtime `stop` + 참조 정리.
+- **destroy** — 모든 슬롯 runtime `stop` + 참조 정리.
 
 ## 모듈 구조
 

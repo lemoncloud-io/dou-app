@@ -6,6 +6,7 @@ import { getSocketManager } from '../socket/runtime';
 import { bootstrapSocketConnection } from '../socket';
 import type { ISocketManager, SocketBindingConfig, SocketKind, SocketSessionDelegate } from '../socket';
 import type { RuntimeBinding } from '../runtime';
+import { socketRebootKey } from './socketRebootKey';
 
 export interface SocketBinderProps {
     binding: RuntimeBinding;
@@ -32,7 +33,7 @@ const useSocketSlot = (
     delegate: SocketSessionDelegate
 ): void => {
     const cleanupRef = useRef<(() => void) | null>(null);
-    const rebootKey = config ? `${config.url}|${config.deviceId}|${config.wssType ?? kind}` : '';
+    const rebootKey = socketRebootKey(config);
     const configRef = useRef(config);
     configRef.current = config;
 
@@ -51,7 +52,7 @@ const useSocketSlot = (
         // Genuine reboot: `ensure` inside bootstrap tears down this kind's stale client (its config
         // differs) and builds a fresh one — no destroy-all, so the sibling slot is untouched.
         let active = true;
-        void bootstrapSocketConnection({ manager, config: current, delegate })
+        void bootstrapSocketConnection({ manager, kind, config: current, delegate })
             .then(cleanup => {
                 if (!active) {
                     cleanup();

@@ -56,12 +56,17 @@ export type SocketStateListener = (state: SocketState) => void;
 
 export type SocketClientListener = (client: ClientSocketV2 | null) => void;
 
+/** Fired per SLOT lifecycle: `client` on bind/rebuild, `null` when the slot is torn down. */
+export type SocketSlotClientListener = (kind: SocketKind, client: ClientSocketV2 | null) => void;
+
 /**
  * A stable request surface pinned to ONE slot kind (see getScopedClient). Mirrors the subset of
  * ISocketManager that gateways bind to, but every call resolves the slot lazily so it survives slot
- * teardown/rebuild. See socket/kind-scoped-routing.md.
+ * teardown/rebuild. Deliberately request/send only — a kind-pinned push subscription (onType) would
+ * need the active facade's owned-subscription rebinding; add it when a consumer exists. See
+ * socket/kind-scoped-routing.md.
  */
-export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send' | 'onType'>;
+export type ScopedSocketClient = Pick<ISocketManager, 'request' | 'send'>;
 
 /**
  * Dual-socket manager with an ACTIVE-FACADE interface (multi-socket-design.md §5-1): it holds a
@@ -83,7 +88,7 @@ export interface ISocketManager {
      * A stable request facade pinned to ONE slot `kind`, regardless of which slot is active. Unlike
      * the active-facade methods (request/send = active slot), this always targets `kind` — e.g. a
      * relay-only write while a cloud slot is active. Resolves the slot lazily on each call so it
-     * survives slot rebuild. `onType` is not yet supported (throws). See socket/kind-scoped-routing.md.
+     * survives slot rebuild. See socket/kind-scoped-routing.md.
      */
     getScopedClient(kind: SocketKind): ScopedSocketClient;
     /** Observable state of the ACTIVE slot. */
@@ -91,6 +96,16 @@ export interface ISocketManager {
     subscribe(listener: SocketStateListener): () => void;
     /** Fires with the ACTIVE slot's client, and again whenever the active slot changes. */
     subscribeClient(listener: SocketClientListener): () => void;
+    /**
+     * Fires per SLOT client lifecycle — (kind, client) on bind/rebuild, (kind, null) just before a
+     * teardown — independent of which slot is active, replaying currently bound slots on subscribe.
+     * For any one mutation the slot notification precedes the active-client notification, so a
+     * per-slot attachment (e.g. the SyncManager's slot runtime) exists by the time active-facade
+     * consumers react. Backs per-slot runtimes that must survive active-slot switches: each slot's
+     * device.save-on-connect and keepAlive/reconnect/rotation stay alive while backgrounded
+     * (relay-while-cloud), which the ACTIVE-only subscribeClient cannot express.
+     */
+    subscribeSlotClients(listener: SocketSlotClientListener): () => void;
     waitUntilVerified(timeoutMs?: number): Promise<boolean>;
     /**
      * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
