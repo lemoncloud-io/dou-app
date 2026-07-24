@@ -39,22 +39,14 @@ describe('DeviceRemoteDataSource', () => {
         expect(result).toBeUndefined();
     });
 
-    it('updateRemoteDevice 는 기본적으로 active 슬롯의 device.update-remote 로 위임한다', async () => {
-        mockGateways.device.active.updateRemote.mockResolvedValue({ muted: true } as any);
+    it('updateRemoteDevice 는 항상 relay 슬롯으로 위임한다 (정책이 데이터 소스에 고정, cloud 활성 무관)', async () => {
+        mockGateways.device.relay.updateRemote.mockResolvedValue({ muted: true } as any);
 
         const result = await dataSource.updateRemoteDevice({ muted: true });
 
-        expect(mockGateways.device.active.updateRemote).toHaveBeenCalledWith({ muted: true });
-        expect(result).toEqual({ muted: true });
-    });
-
-    it('updateRemoteDevice 에 route:relay 를 주면 relay 슬롯으로 위임한다 (cloud 활성 무관)', async () => {
-        mockGateways.device.relay.updateRemote.mockResolvedValue({ muted: false } as any);
-
-        await dataSource.updateRemoteDevice({ muted: false }, 'relay');
-
-        expect(mockGateways.device.relay.updateRemote).toHaveBeenCalledWith({ muted: false });
+        expect(mockGateways.device.relay.updateRemote).toHaveBeenCalledWith({ muted: true });
         expect(mockGateways.device.active.updateRemote).not.toHaveBeenCalled();
         expect(mockGateways.device.cloud.updateRemote).not.toHaveBeenCalled();
+        expect(result).toEqual({ muted: true });
     });
 });
