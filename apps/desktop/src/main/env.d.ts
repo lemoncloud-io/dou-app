@@ -8,8 +8,9 @@ interface ImportMetaEnv {
     readonly MAIN_VITE_CHANNEL?: string;
     /**
      * PoC only: absolute path to an unpacked web bundle. When set, the shell serves that
-     * directory under the custom-UI scheme and loads it instead of the remote web.
-     * Slice 03 replaces this with a tray-driven ZIP download; nothing outside dev sets it.
+     * directory under the custom-UI scheme and loads it instead of the remote web, taking
+     * precedence over whatever bundle was applied and persisted. Dev override — an unpacked
+     * directory skips the download/unzip round trip; nothing outside a local .env sets it.
      */
     readonly MAIN_VITE_CUSTOM_UI_ROOT?: string;
     /** FCM client config (CI-injected; .env.*.local for local builds) — see fcm.ts. */

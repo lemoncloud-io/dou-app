@@ -19,12 +19,19 @@ import {
     shell,
     Tray,
 } from 'electron';
-import { applyCustomUi, disableCustomUi, getActiveCustomUiRoot, restoreCustomUi } from './customUiBundle';
-import { CUSTOM_UI_SCHEME_PRIVILEGES, registerCustomUiProtocol } from './customUiProtocol';
+import {
+    applyCustomUi,
+    disableCustomUi,
+    getActiveCustomUiRoot,
+    restoreCustomUi,
+    serveCustomUi,
+} from './customUiBundle';
+import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
+import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
-import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl, setCustomUiActive } from './webUrl';
+import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
 // the package.json name ("@chatic/desktop") — the very name the packaged
@@ -294,18 +301,8 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
     });
 };
 
-/** System tray with close-to-tray so the renderer (and its WS) stays alive for background notifications. */
 /** PoC sample bundle — the same archive the mobile custom-web PoC defaults to. */
 const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
-
-/** IPC channel for the custom-UI PoC controls (see preload). Desktop-only, off the AppBridge. */
-const CUSTOM_UI_CHANNEL = 'chatic-custom-ui';
-
-interface CustomUiStatus {
-    active: boolean;
-    root: string | null;
-    error?: string;
-}
 
 const customUiStatus = (error?: string): CustomUiStatus => ({
     active: isCustomUiActive(),
@@ -421,6 +418,7 @@ const refreshTrayMenu = (): void => {
     if (tray && trayWindow && !trayWindow.isDestroyed()) tray.setContextMenu(buildTrayMenu(trayWindow));
 };
 
+/** System tray with close-to-tray so the renderer (and its WS) stays alive for background notifications. */
 const createTray = (win: BrowserWindow): void => {
     // tray.png ships via electron-builder extraResources in packaged builds; in dev it sits
     // beside the project root (out/main → ../../build). createFromPath tolerates a missing file
@@ -838,13 +836,9 @@ if (!singleInstanceLock) {
         // MAIN_VITE_CUSTOM_UI_ROOT is a developer override (unpacked directory, unset outside
         // a local .env) and wins over whatever the tray left persisted.
         const customUiOverride = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
-        if (customUiOverride) {
-            registerCustomUiProtocol(customUiOverride);
-            setCustomUiActive(true);
-        } else {
-            restoreCustomUi();
-        }
-        if (resolveWebUrl() !== DESKTOP_WEB_URL) console.info('[shell] custom UI active', resolveWebUrl());
+        if (customUiOverride) serveCustomUi(customUiOverride);
+        else restoreCustomUi();
+        if (isCustomUiActive()) console.info('[shell] custom UI active', getActiveCustomUiRoot());
 
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();

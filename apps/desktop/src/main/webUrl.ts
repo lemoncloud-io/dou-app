@@ -44,13 +44,16 @@ export const safeOrigin = (url: string): string | null => {
 };
 
 let remoteWebUrl = '';
-let customUiActive = false;
+/**
+ * Origins the Shell hands its bridge and navigation to — and, because the custom-UI origin is
+ * in here exactly when a bundle is being served, the only record of whether one is. A separate
+ * `active` boolean would be a second copy of that same fact, free to drift from this one.
+ */
 const trustedOrigins = new Set<string>();
 
 /** Bind the Shell to its remote web build. Call once at startup, before any window. */
 export const initWebUrl = (remote: string): void => {
     remoteWebUrl = remote;
-    customUiActive = false;
     trustedOrigins.clear();
     const origin = safeOrigin(remote);
     if (origin) trustedOrigins.add(origin);
@@ -63,13 +66,12 @@ export const initWebUrl = (remote: string): void => {
  * back to the remote web, and that load must not be refused by the navigation gates.
  */
 export const setCustomUiActive = (active: boolean): void => {
-    customUiActive = active;
     if (active) trustedOrigins.add(CUSTOM_UI_ORIGIN);
     else trustedOrigins.delete(CUSTOM_UI_ORIGIN);
 };
 
 /** Whether the shell is currently pointed at a custom bundle rather than the remote web. */
-export const isCustomUiActive = (): boolean => customUiActive;
+export const isCustomUiActive = (): boolean => trustedOrigins.has(CUSTOM_UI_ORIGIN);
 
 /**
  * Whether `url` is served by the custom bundle. Independent of activation state, because
@@ -78,7 +80,7 @@ export const isCustomUiActive = (): boolean => customUiActive;
 export const isCustomUiUrl = (url: string | undefined): boolean => !!url && safeOrigin(url) === CUSTOM_UI_ORIGIN;
 
 /** The URL every load site must use. */
-export const resolveWebUrl = (): string => (customUiActive ? CUSTOM_UI_URL : remoteWebUrl);
+export const resolveWebUrl = (): string => (isCustomUiActive() ? CUSTOM_UI_URL : remoteWebUrl);
 
 /** Whether `url` belongs to an origin the Shell hands its bridge and navigation to. */
 export const isTrustedUrl = (url: string | undefined): boolean => {

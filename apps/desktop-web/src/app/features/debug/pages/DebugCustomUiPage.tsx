@@ -2,26 +2,14 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
+import { getCustomUiApi, type CustomUiStatus } from '../../../shared';
+
 /** Sample bundle — the same archive the mobile custom-web PoC defaults to. */
 const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
 
-interface CustomUiStatus {
-    active: boolean;
-    root: string | null;
-    error?: string;
-}
-
-interface CustomUiApi {
-    apply: (zipUrl: string) => Promise<CustomUiStatus>;
-    disable: () => Promise<CustomUiStatus>;
-    status: () => Promise<CustomUiStatus>;
-}
-
-declare global {
-    interface Window {
-        electronAPI?: { customUi?: CustomUiApi };
-    }
-}
+// Read once: the shell injects it before any page script, and a per-render read would be a
+// fresh dependency for the status effect below.
+const api = getCustomUiApi();
 
 /**
  * Custom web bundle PoC (desktop shell only): swap the whole UI for a downloaded ZIP.
@@ -31,7 +19,6 @@ declare global {
  * bundle does.
  */
 export const DebugCustomUiPage = () => {
-    const api = typeof window === 'undefined' ? undefined : window.electronAPI?.customUi;
     const [zipUrl, setZipUrl] = useState(SAMPLE_ZIP_URL);
     const [status, setStatus] = useState<CustomUiStatus | null>(null);
     const [busy, setBusy] = useState(false);
@@ -39,7 +26,7 @@ export const DebugCustomUiPage = () => {
     useEffect(() => {
         if (!api) return;
         void api.status().then(setStatus);
-    }, [api]);
+    }, []);
 
     const run = async (request: Promise<CustomUiStatus>) => {
         setBusy(true);

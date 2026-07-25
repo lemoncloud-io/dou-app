@@ -21,11 +21,20 @@ const stateFile = (): string => join(app.getPath('userData'), 'chatic-custom-ui.
 
 let activeRoot: string | null = null;
 
-/** Point the shell at `root` and remember it for the next launch. */
-const activate = (root: string): void => {
+/**
+ * Serve `root` now, leaving the persisted record alone. The two callers that already know
+ * the record is right — restoring what was persisted, and the dev override that deliberately
+ * must not become persisted — go through here, so `activeRoot` keeps a single writer.
+ */
+export const serveCustomUi = (root: string): void => {
     registerCustomUiProtocol(root);
     setCustomUiActive(true);
     activeRoot = root;
+};
+
+/** Point the shell at `root` and remember it for the next launch. */
+const activate = (root: string): void => {
+    serveCustomUi(root);
     persistRoot(stateFile(), root);
 };
 
@@ -83,7 +92,9 @@ export const restoreCustomUi = (): boolean => {
         persistRoot(stateFile(), null);
         return false;
     }
-    activate(root);
+    // Not `activate` — the root came out of the record, so writing it straight back would be
+    // a no-op disk write on every launch.
+    serveCustomUi(root);
     return true;
 };
 

@@ -1,18 +1,11 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
+import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
+
 /** IPC channel for App(main) → Web(renderer) bridge messages. */
 const TO_WEB_CHANNEL = 'chatic-bridge:to-web';
 /** IPC channel for Web(renderer) → App(main) bridge messages. */
 const TO_APP_CHANNEL = 'chatic-bridge:to-app';
-/** IPC channel for the custom-UI PoC controls. One channel, so main gates the origin once. */
-const CUSTOM_UI_CHANNEL = 'chatic-custom-ui';
-
-/** Result of every custom-UI request; `error` is set instead of rejecting so the panel can show it. */
-interface CustomUiStatus {
-    active: boolean;
-    root: string | null;
-    error?: string;
-}
 
 /**
  * Device/app globals injected into the page's main world.
