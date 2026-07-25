@@ -28,6 +28,7 @@ import {
 } from './customUiBundle';
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
+import { isUsableBundleRoot } from './customUiState';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
@@ -317,33 +318,45 @@ const customUiStatus = (error?: string): CustomUiStatus => ({
  * Errors come back on the result instead of rejecting, because the panel needs to render
  * them and an IPC rejection reaches the renderer as an opaque, prefixed Error.
  */
+const asCustomUiRequest = (value: unknown): { action?: unknown; zipUrl?: unknown } =>
+    typeof value === 'object' && value !== null ? value : {};
+
 const registerCustomUiIpc = (win: BrowserWindow): void => {
     ipcMain.removeHandler(CUSTOM_UI_CHANNEL); // createWindow can re-run (macOS re-activate)
-    ipcMain.handle(CUSTOM_UI_CHANNEL, async (event, request: { action?: string; zipUrl?: string }) => {
-        if (!isTrustedUrl(event.senderFrame?.url)) return customUiStatus('untrusted frame');
+    // `raw` is renderer-controlled, so it arrives as unknown and is narrowed here. Annotating
+    // the parameter with the shape we hope for would assert, not check.
+    ipcMain.handle(CUSTOM_UI_CHANNEL, async (event, raw: unknown) => {
+        const senderUrl = event.senderFrame?.url;
+        if (!isTrustedUrl(senderUrl)) return customUiStatus('untrusted frame');
+        const { action, zipUrl } = asCustomUiRequest(raw);
 
-        if (request?.action === 'status') return customUiStatus();
+        if (action === 'status') return customUiStatus();
 
-        if (request?.action === 'disable') {
+        if (action === 'disable') {
             disableCustomUi();
             scheduleReload(win);
             return customUiStatus();
         }
 
-        if (request?.action === 'apply') {
-            const zipUrl = request.zipUrl;
-            if (!zipUrl) return customUiStatus('no zip URL given');
+        if (action === 'apply') {
+            // A bundle may switch itself OFF (that is why it is trusted) but not install the
+            // next one: chaining applies would let one bundle hand the shell to another
+            // indefinitely, with the user's only involvement being the first apply.
+            if (isCustomUiUrl(senderUrl)) return customUiStatus('a bundle cannot apply another bundle');
+            if (typeof zipUrl !== 'string' || !zipUrl) return customUiStatus('no zip URL given');
             try {
                 await applyCustomUi(zipUrl);
             } catch (error) {
-                disableCustomUi();
+                // Deliberately no disableCustomUi() — applyCustomUi leaves the served bundle
+                // untouched when it throws, so tearing it down here would kill a working UI
+                // over a failed download and leave that UI on screen with no handler.
                 return customUiStatus(String(error));
             }
             scheduleReload(win);
             return customUiStatus();
         }
 
-        return customUiStatus(`unknown action: ${String(request?.action)}`);
+        return customUiStatus(`unknown action: ${String(action)}`);
     });
 };
 
@@ -380,8 +393,8 @@ const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => 
                     .then(() => reloadForCustomUiChange(win))
                     .catch((error: unknown) => {
                         // A tray click that fails silently leaves no trace anywhere the user
-                        // looks, so surface it and stay on the remote web.
-                        disableCustomUi();
+                        // looks, so surface it. Whatever was being served keeps serving —
+                        // applyCustomUi does not touch it on the failure path.
                         dialog.showErrorBox('Custom UI failed', String(error));
                     });
             },
@@ -426,6 +439,9 @@ const createTray = (win: BrowserWindow): void => {
     const trayIconPath = app.isPackaged
         ? join(process.resourcesPath, 'tray.png')
         : join(__dirname, '../../build/tray.png');
+    // createWindow re-runs on a macOS re-activate; without this the previous native icon
+    // stays in the menu bar with a menu closed over the destroyed window.
+    tray?.destroy();
     tray = new Tray(nativeImage.createFromPath(trayIconPath));
     trayWindow = win;
     tray.setToolTip('DoU');
@@ -645,6 +661,13 @@ let resetLoadRetries: () => void = () => undefined;
  * before the branded error page, renderer crash + persistent-hang reloads, and the
  * wake-from-sleep reconnect. Re-binding on each createWindow() repoints the
  * module-level state at the new window.
+ *
+ * deep: over the 80-line limit on purpose. Every piece of recovery state — the load-retry
+ * and crash budgets, three timers, the error-page flag — is per-window closure state that
+ * five webContents listeners read and write, behind a one-argument call site. Deletion test:
+ * remove this and each listener grows its own copy of the budget/timer bookkeeping, which is
+ * how the budgets drift apart. Splitting by line count would thread a mutable state object
+ * through every seam: more interface, less depth.
  */
 const bindLoadRecovery = (win: BrowserWindow): void => {
     recoveryWindow = win;
@@ -684,7 +707,9 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     const fallbackToRemoteWeb = (reason: string): void => {
         console.warn('[shell] custom UI failed, falling back to remote web', reason);
         disableCustomUi();
-        if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
+        // Through reloadForCustomUiChange, not loadURL — an automatic fallback changes the
+        // custom-UI state exactly like a tray Reset does, so the tray has to stop offering one.
+        reloadForCustomUiChange(win);
     };
 
     win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
@@ -848,8 +873,12 @@ if (!singleInstanceLock) {
         // the bundle — switching afterwards would flash the remote web first.
         // MAIN_VITE_CUSTOM_UI_ROOT is a developer override (unpacked directory, unset outside
         // a local .env) and wins over whatever the tray left persisted.
+        // Gated like the restore path: an unservable root yields 404s, and a 404 WITH a body
+        // is a completed navigation to Chromium, so did-fail-load never fires and the window
+        // just renders "Not found" with no recovery. Better to ignore the override and boot.
         const customUiOverride = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
-        if (customUiOverride) serveCustomUi(customUiOverride);
+        if (customUiOverride && isUsableBundleRoot(customUiOverride)) serveCustomUi(customUiOverride);
+        else if (customUiOverride) console.warn('[shell] MAIN_VITE_CUSTOM_UI_ROOT has no index.html', customUiOverride);
         else restoreCustomUi();
         if (isCustomUiActive()) console.info('[shell] custom UI active', getActiveCustomUiRoot());
 

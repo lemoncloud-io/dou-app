@@ -25,7 +25,11 @@ export const DebugCustomUiPage = () => {
 
     useEffect(() => {
         if (!api) return;
-        void api.status().then(setStatus);
+        // Surfaced, not swallowed: an unhandled rejection here would leave status null, which
+        // renders as "inactive" — a confident answer the panel does not actually have.
+        api.status()
+            .then(setStatus)
+            .catch((error: unknown) => setStatus({ active: false, root: null, error: String(error) }));
     }, []);
 
     const run = async (request: Promise<CustomUiStatus>) => {

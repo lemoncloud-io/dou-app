@@ -41,9 +41,15 @@ describe('bundleRootFor', () => {
 
 describe('zipDownloadPath', () => {
     it('keeps the download beside the roots, not inside one', () => {
-        const path = zipDownloadPath(BASE);
-        expect(path).toBe(join(BASE, 'bundle.zip'));
+        const path = zipDownloadPath(BASE, 'https://cdn.example.com/a.zip');
         expect(path.startsWith(join(BASE, 'webroot'))).toBe(false);
+        expect(path.endsWith('.zip')).toBe(true);
+    });
+
+    it('gives each URL its own scratch file, so overlapping applies cannot overwrite each other', () => {
+        expect(zipDownloadPath(BASE, 'https://cdn.example.com/a.zip')).not.toBe(
+            zipDownloadPath(BASE, 'https://cdn.example.com/b.zip')
+        );
     });
 });
 
@@ -81,6 +87,16 @@ describe('resolveEntryPath', () => {
         expect(resolveEntryPath(ROOT, req('/%2e%2e/abc123-evil/index.html'))).toBe(
             join(ROOT, 'abc123-evil', 'index.html')
         );
+    });
+
+    it('confines traversal that URL parsing does NOT resolve — encoded slashes and backslashes', () => {
+        // The cases above survive because parsing normalizes them. These do not: an encoded
+        // slash keeps `..` from being a path segment, so the traversal is still intact when
+        // decodeURIComponent runs, and the root-prefix check is the only thing between it and
+        // a sibling directory. Without the `+ sep` these would resolve to `<root>-evil`.
+        expect(resolveEntryPath(ROOT, req('/..%2fabc123-evil/index.html'))).toBeNull();
+        expect(resolveEntryPath(ROOT, req('/%2e%2e%2fabc123-evil/index.html'))).toBeNull();
+        expect(resolveEntryPath(ROOT, req('/..%2f..%2fetc%2fpasswd'))).toBeNull();
     });
 
     it('treats a leading double slash as a relative path, not an absolute one', () => {

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { app } from 'electron';
@@ -42,12 +42,31 @@ const activate = (root: string): void => {
 export const getActiveCustomUiRoot = (): string | null => activeRoot;
 
 /**
+ * A ZIP entry can be a symlink, and extract-zip creates it without looking at where it
+ * points — its own bound check realpaths the containing directory, never the link. A
+ * `link -> /` entry therefore lands inside the extraction root, passes `resolveEntryPath`
+ * (which confines lexically, by string prefix) and is followed by `net.fetch`, so the
+ * bundle can read any file the user can and post it anywhere. Reject them at extract time:
+ * throwing from onEntry aborts the extraction into the catch below, which clears the root.
+ */
+const S_IFLNK = 0o120000;
+const rejectSymlinks = (entry: { fileName: string; externalFileAttributes: number }): void => {
+    const unixMode = (entry.externalFileAttributes >>> 16) & 0o170000;
+    if (unixMode === S_IFLNK) throw new Error(`symlink entry rejected: ${entry.fileName}`);
+};
+
+/**
  * Fetch `zipUrl`, unpack it, and switch the shell over to it.
  *
- * Throws — and leaves the shell on the remote web — if the download fails, the archive is
- * unreadable, or it has no index.html at its root. The caller reloads the window.
+ * Throws — leaving whatever was being served untouched — if the download fails, the archive
+ * is unreadable, or it has no index.html at its root. The caller reloads the window.
  */
 export const applyCustomUi = async (zipUrl: string): Promise<void> => {
+    // https only. This URL goes to the main process's fetch, which has no origin and no
+    // mixed-content rule, so a plain-http or file/localhost URL would make the shell a probe
+    // for whatever the renderer names. Not an allowlist (the plan excludes one) — a scheme floor.
+    if (!/^https:\/\//i.test(zipUrl)) throw new Error('bundle URL must be https');
+
     const dir = baseDir();
     await mkdir(dir, { recursive: true });
 
@@ -56,19 +75,26 @@ export const applyCustomUi = async (zipUrl: string): Promise<void> => {
     // Buffer the whole archive before writing: a stream that dies mid-flight would otherwise
     // leave a truncated zip on disk that the next run happily tries to unpack.
     const archive = Buffer.from(await response.arrayBuffer());
-    const zipPath = zipDownloadPath(dir);
+    const zipPath = zipDownloadPath(dir, zipUrl);
     await writeFile(zipPath, archive);
 
+    // Unpack beside the real root, not into it. Re-applying a URL resolves to the directory
+    // currently being served, so extracting in place would delete a working bundle before
+    // knowing the replacement is any good — and a failed extraction would leave the shell
+    // displaying a root whose files are gone.
     const root = bundleRootFor(dir, zipUrl);
-    // Clear first — unpacking over a previous extraction leaves files the new bundle dropped.
-    await rm(root, { recursive: true, force: true });
+    const staging = `${root}.incoming`;
+    await rm(staging, { recursive: true, force: true });
     try {
-        await extract(zipPath, { dir: root });
+        await extract(zipPath, { dir: staging, onEntry: rejectSymlinks });
         // index.html must sit at the archive root; no scanning of subdirectories, so a
         // wrongly-nested bundle fails loudly here instead of serving a blank window.
-        if (!existsSync(join(root, 'index.html'))) throw new Error('index.html not found at zip root');
-    } catch (error) {
+        if (!existsSync(join(staging, 'index.html'))) throw new Error('index.html not found at zip root');
+        // Only now is the previous extraction expendable.
         await rm(root, { recursive: true, force: true });
+        await rename(staging, root);
+    } catch (error) {
+        await rm(staging, { recursive: true, force: true });
         throw error;
     } finally {
         await rm(zipPath, { force: true }).catch(() => undefined);

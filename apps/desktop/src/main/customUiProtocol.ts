@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { net, protocol } from 'electron';
 
 import { resolveEntryPath } from './customUi';
-import { CUSTOM_UI_SCHEME } from './webUrl';
+import { CUSTOM_UI_SCHEME, isCustomUiUrl } from './webUrl';
 
 /**
  * Privileges the custom-UI scheme needs, registered before app ready.
@@ -26,10 +26,16 @@ let handled = false;
 /** Serve `root` under the custom-UI scheme, replacing any bundle already served. Requires app ready. */
 export const registerCustomUiProtocol = (root: string): void => {
     // protocol.handle throws on a scheme that already has a handler, and re-applying a
-    // bundle is the normal path — drop the previous one first.
+    // bundle is the normal path — drop the previous one first. The flag tracks what is
+    // actually registered (unhandle throws on a scheme with no handler), so it is cleared
+    // before handle() and only set after it returns.
     if (handled) protocol.unhandle(CUSTOM_UI_SCHEME);
-    handled = true;
+    handled = false;
     protocol.handle(CUSTOM_UI_SCHEME, async request => {
+        // handle() claims the whole scheme, so `chatic-local://anything/` would otherwise
+        // serve the bundle under an origin safeOrigin refuses to trust. Serve only the host
+        // the shell actually navigates to, so what is served and what is trusted agree.
+        if (!isCustomUiUrl(request.url)) return new Response('Not found', { status: 404 });
         const entry = resolveEntryPath(root, request.url);
         if (!entry) return new Response('Not found', { status: 404 });
         try {
@@ -39,6 +45,7 @@ export const registerCustomUiProtocol = (root: string): void => {
             return new Response('Not found', { status: 404 });
         }
     });
+    handled = true;
 };
 
 /** Stop serving the custom-UI scheme. Safe to call when nothing is registered. */

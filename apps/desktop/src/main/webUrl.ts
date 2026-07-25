@@ -25,9 +25,9 @@ export const CUSTOM_UI_URL = `${CUSTOM_UI_ORIGIN}/`;
  * Origin of `url`, or null when the shell has nothing it can compare.
  *
  * Chromium knows `chatic-local:` is a standard scheme (registerSchemesAsPrivileged), but
- * main runs on Node's URL, which grants a real origin only to http/https/ws/file — every
- * other scheme, ours included, stringifies as the opaque "null". Assemble ours by hand so
- * it can be matched, and let every other opaque origin stay unmatchable.
+ * main runs on Node's URL, which grants a real origin only to http/https/ws — every other
+ * scheme, ours and `file:` included, stringifies as the opaque "null". Assemble ours by hand
+ * so it can be matched, and let every other opaque origin stay unmatchable.
  */
 export const safeOrigin = (url: string): string | null => {
     let parsed: URL;

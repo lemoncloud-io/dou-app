@@ -20,8 +20,12 @@ export const hashUrl = (url: string): string => {
  */
 export const bundleRootFor = (baseDir: string, zipUrl: string): string => join(baseDir, 'webroot', hashUrl(zipUrl));
 
-/** Scratch path for the download. Outside `webroot/` so it is never servable. */
-export const zipDownloadPath = (baseDir: string): string => join(baseDir, 'bundle.zip');
+/**
+ * Scratch path for the download. Outside `webroot/` so it is never servable, and per-URL so
+ * two overlapping applies (the panel's busy flag does not gate the tray's Apply) cannot have
+ * one overwrite the archive the other is about to unpack.
+ */
+export const zipDownloadPath = (baseDir: string, zipUrl: string): string => join(baseDir, `${hashUrl(zipUrl)}.zip`);
 
 /**
  * Map a `chatic-local://bundle/...` request to the file that answers it, or null if the
@@ -52,9 +56,14 @@ export const resolveEntryPath = (root: string, requestUrl: string): string | nul
     const rootPath = resolve(root);
     const target = resolve(rootPath, relative === '' ? 'index.html' : relative);
 
-    // URL parsing already resolves dot segments (`/%2e%2e/x` arrives as `/x`), so this is a
-    // backstop, not the primary defence — it still fires for what parsing leaves alone, e.g. a
-    // Windows drive-letter entry (`C:/Windows/...`), which `resolve` would honour as absolute.
+    // URL parsing resolves SOME dot segments before this runs (`/%2e%2e/x` arrives as `/x`) —
+    // but not the ones that matter most. An encoded slash keeps the segment from being split,
+    // so `/..%2f..%2fetc%2fpasswd` and `/%2e%2e%2fx` survive parsing intact and only become
+    // real traversal after decodeURIComponent above; `..\..\` survives too (a backslash is not
+    // a separator for a non-special scheme). For all of those this check is the ONLY defence,
+    // not a backstop — do not delete it as redundant. It also catches what parsing ignores
+    // entirely, e.g. a Windows drive-letter entry (`C:/Windows/...`) that `resolve` would
+    // honour as absolute.
     // `startsWith(rootPath + sep)` — not `startsWith(rootPath)`, which would also admit a
     // sibling like `<root>-evil`, and not `=== rootPath`, which is the directory itself.
     return target.startsWith(rootPath + sep) ? target : null;

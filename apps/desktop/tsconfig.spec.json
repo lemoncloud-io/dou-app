@@ -1,9 +1,18 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "module": "commonjs",
-        "moduleResolution": "node",
+        // nodenext, not commonjs+node: the base config sets `customConditions`, which TS only
+        // permits with node16/nodenext/bundler resolution. apps/desktop has no `"type": "module"`,
+        // so nodenext still emits CommonJS — which is what ts-jest needs.
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
         "types": ["jest", "node"]
     },
-    "include": ["jest.config.js", "src/**/*.ts"]
+    // `exclude` is inherited, and tsconfig.json excludes *.test.ts so the build config ignores
+    // them — without this override that exclusion applies here too and this config would
+    // typecheck zero test files, leaving them in no project at all.
+    "exclude": ["node_modules", "out", "dist"],
+    // The suites plus whatever they import — which is exactly what jest loads. A wider
+    // `src/**/*.ts` would drag in index.ts, whose `import.meta` only electron-vite resolves.
+    "include": ["src/**/*.test.ts"]
 }

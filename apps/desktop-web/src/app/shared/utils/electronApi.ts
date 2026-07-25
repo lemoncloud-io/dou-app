@@ -7,6 +7,12 @@
  * (apps/desktop/src/preload/index.ts) belongs here; features import the types instead.
  *
  * Absent in a plain browser — every field is reached through the optional `electronAPI`.
+ *
+ * The main-process half of the custom-UI contract lives in
+ * `apps/desktop/src/main/customUiContract.ts`. Nx blocks app→app imports and a shared lib for
+ * three fields would be YAGNI, so the two are kept in sync by hand. Change one, change the
+ * other. Note nothing typechecks that the preload's `exposeInMainWorld` object satisfies the
+ * declaration below — that gap is inherent to contextBridge.
  */
 
 /** Result of every custom-UI request; `error` is set instead of rejecting so the caller can show it. */
