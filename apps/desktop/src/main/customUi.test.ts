@@ -61,7 +61,7 @@ describe('zipDownloadPath', () => {
         expect(path.endsWith('.zip')).toBe(true);
     });
 
-    it('gives each URL its own scratch file, so overlapping applies cannot overwrite each other', () => {
+    it('gives each URL its own scratch file', () => {
         expect(zipDownloadPath(BASE, 'https://cdn.example.com/a.zip')).not.toBe(
             zipDownloadPath(BASE, 'https://cdn.example.com/b.zip')
         );
@@ -89,8 +89,7 @@ describe('isSymlinkEntry', () => {
         expect(isSymlinkEntry(0x10)).toBe(false);
     });
 
-    it('does not mistake a socket or FIFO for a symlink', () => {
-        // The tell that the mask is the file-type field and not just the symlink bits.
+    it('admits sockets and FIFOs — only S_IFLNK is a symlink', () => {
         expect(isSymlinkEntry(attrs(0o140777))).toBe(false);
         expect(isSymlinkEntry(attrs(0o010644))).toBe(false);
     });
@@ -176,14 +175,16 @@ describe('resolveEntryPath', () => {
     // The invariant, stated once over every shape above and a few more. The cases individually
     // asserted earlier pin *which layer* happens to stop each one, which is incidental — Node
     // could change how it normalizes and leave the code just as safe. This is the property.
+    // The win32-only shapes (`..\..\`, `C:/…`) are deliberately absent: on a posix runner
+    // `resolve` treats both as ordinary filename characters, so they pass without the
+    // confinement check mattering and would read as coverage they are not. The drive-letter
+    // case customUi.ts cites stays unverified until this runs on Windows.
     it.each([
         '/../../../etc/passwd',
         '/%2e%2e/%2e%2e/etc/passwd',
         '/..%2f..%2fetc%2fpasswd',
         '/%2e%2e%2fabc123-evil/x',
         '/..%5c..%5cetc',
-        '/..\\..\\Windows\\win.ini',
-        '/C:/Windows/win.ini',
         '/app%00.js',
         '//etc/passwd',
         '///etc/passwd',

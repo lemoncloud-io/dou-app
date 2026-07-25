@@ -21,9 +21,9 @@ export const hashUrl = (url: string): string => {
 export const bundleRootFor = (baseDir: string, zipUrl: string): string => join(baseDir, 'webroot', hashUrl(zipUrl));
 
 /**
- * Scratch path for the download. Outside `webroot/` so it is never servable, and per-URL so
- * two overlapping applies (the panel's busy flag does not gate the tray's Apply) cannot have
- * one overwrite the archive the other is about to unpack.
+ * Scratch path for the download. Outside `webroot/` so it is never servable, and per-URL so a
+ * failed apply's leftover archive is scoped to the URL that produced it rather than to one
+ * shared file. Concurrency is not this function's job — applyCustomUi serializes applies.
  */
 export const zipDownloadPath = (baseDir: string, zipUrl: string): string => join(baseDir, `${hashUrl(zipUrl)}.zip`);
 
@@ -37,8 +37,10 @@ export const zipDownloadPath = (baseDir: string, zipUrl: string): string => join
  * Rejecting these is the only thing standing between a downloaded ZIP and arbitrary file
  * read, which is why it lives here, testable, rather than inline at the extract call.
  *
- * The mask must be `0o170000` (the file-type field), not `0o120000`: a narrower mask would
- * also match sockets and FIFOs, and reads as correct in a smoke test either way.
+ * The mask is `0o170000` (S_IFMT) because that is what the field is: st_mode's type bits are
+ * an enumeration, not a bitset, so the type has to be masked out whole and compared. A
+ * narrower `0o120000` happens to agree on every standard type — which is exactly why that
+ * shortcut survives review: right by luck, not by construction.
  */
 const S_IFMT = 0o170000;
 const S_IFLNK = 0o120000;

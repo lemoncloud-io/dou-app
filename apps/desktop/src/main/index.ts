@@ -546,10 +546,13 @@ const buildAppMenu = (): Menu => {
 /**
  * Lock the renderer to the trusted origins. Never open a new Electron window (which would
  * keep the preload bridge): external web links — message content and the like — go to the
- * system browser instead, everything else is denied. Navigation is gated on all four events
- * because each covers a hole the others do not: `will-navigate` is main-frame only,
- * `will-frame-navigate` catches subframes (a downloaded bundle iframing whatever it likes),
- * and `will-redirect` catches 30x, which neither of the other two sees.
+ * system browser instead, everything else is denied.
+ *
+ * `will-frame-navigate` is the real navigation gate: per Electron's own typings it fires for
+ * the main frame *and any subframe*, so it is a strict superset of `will-navigate` — which
+ * matters because a downloaded bundle can iframe whatever it likes. `will-navigate` is kept
+ * only as a redundant main-frame guard. Neither fires for server redirects; that is
+ * `will-redirect`'s job, and it is the one of the three that covers a genuinely distinct hole.
  */
 const bindNavigationGates = (win: BrowserWindow): void => {
     win.webContents.setWindowOpenHandler(({ url }) => {
@@ -696,19 +699,59 @@ let recoveryWindow: BrowserWindow | null = null;
 let onErrorPage = false;
 let resetLoadRetries: () => void = () => undefined;
 
+const reloadWeb = (win: BrowserWindow): void => {
+    if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
+};
+
+/** Give up and show the branded page. Both give-up paths land here, so they cannot drift. */
+const showErrorPage = (win: BrowserWindow, code: number, desc: string): void => {
+    if (win.isDestroyed()) return;
+    onErrorPage = true;
+    if (!win.isVisible()) win.show();
+    void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(code, desc))}`);
+};
+
+/**
+ * A hung bundle must not be reloaded into itself. reloadWeb resolves to the bundle while one
+ * is active, so a bundle that hangs on every load would re-hang, fire 'unresponsive' again,
+ * and repeat forever with no error page (the retry ladder and the crash cap are on other
+ * events). Treat it the way a load failure is treated — a bundle failure is not a transient
+ * blip — and drop back to the remote web.
+ */
+const recoverFromHang = (win: BrowserWindow): void => {
+    if (bundleFailed()) {
+        fallbackToRemoteWeb(win, 'renderer unresponsive');
+        return;
+    }
+    reloadWeb(win);
+};
+
+/**
+ * Wake from sleep: if the window got stranded on the error page while the network was down,
+ * reconnect once the OS reports the machine resumed. App-level and bound once; reads the
+ * module state so it follows a recreated window.
+ */
+const bindPowerResume = (): void => {
+    if (powerResumeBound) return;
+    powerResumeBound = true;
+    powerMonitor.on('resume', () => {
+        if (!onErrorPage || !recoveryWindow || recoveryWindow.isDestroyed()) return;
+        resetLoadRetries();
+        void recoveryWindow.loadURL(resolveWebUrl());
+    });
+};
+
 /**
  * Retry/recovery listeners for the remote web load: bounded backoff on load failures
  * before the branded error page, renderer crash + persistent-hang reloads, and the
  * wake-from-sleep reconnect. Re-binding on each createWindow() repoints the
  * module-level state at the new window.
  *
- * deep: over the 80-line limit on purpose. What is inside is exactly the state five
- * webContents listeners share — the load-retry and crash budgets, three timers, the
- * error-page flag — all per-window, behind a one-argument call site. Deletion test: remove
- * this and each listener grows its own copy of the budget/timer bookkeeping, which is how
- * the budgets drift apart. Splitting by line count would thread a mutable state object
- * through every seam: more interface, less depth. Anything that does NOT touch that state
- * belongs at module scope instead (see fallbackToRemoteWeb, bundleFailed).
+ * What stays inside is only what the listeners genuinely share as per-window closure state —
+ * the load-retry and crash budgets and the three timers. Everything else lives at module
+ * scope and takes `win` (reloadWeb, showErrorPage, recoverFromHang, fallbackToRemoteWeb,
+ * bundleFailed, bindPowerResume), which is what keeps this under the size limit honestly
+ * rather than by claiming an exception.
  */
 const bindLoadRecovery = (win: BrowserWindow): void => {
     recoveryWindow = win;
@@ -738,17 +781,6 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     resetLoadRetries = () => {
         loadRetries = 0;
     };
-    const reloadWeb = (): void => {
-        if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
-    };
-    /** Give up and show the branded page. Both give-up paths land here, so they cannot drift. */
-    const showErrorPage = (code: number, desc: string): void => {
-        if (win.isDestroyed()) return;
-        onErrorPage = true;
-        if (!win.isVisible()) win.show();
-        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(code, desc))}`);
-    };
-
     win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
         if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
         if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
@@ -760,10 +792,10 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
             const delay = RETRY_DELAYS_MS[loadRetries];
             loadRetries += 1;
             if (retryTimer) clearTimeout(retryTimer);
-            retryTimer = setTimeout(reloadWeb, delay);
+            retryTimer = setTimeout(() => reloadWeb(win), delay);
             return;
         }
-        showErrorPage(errorCode, errorDesc);
+        showErrorPage(win, errorCode, errorDesc);
     });
     // A successful load of the trusted web clears the retry budget + error state.
     win.webContents.on('did-finish-load', () => {
@@ -790,7 +822,7 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
             crashReloads += 1;
             loadRetries = 0;
             if (crashTimer) clearTimeout(crashTimer);
-            crashTimer = setTimeout(reloadWeb, CRASH_RELOAD_DELAY_MS);
+            crashTimer = setTimeout(() => reloadWeb(win), CRASH_RELOAD_DELAY_MS);
             return;
         }
         // A bundle that crashes the renderer on every load would burn the budget and land on
@@ -800,28 +832,15 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
             fallbackToRemoteWeb(win, `renderer ${details.reason}`);
             return;
         }
-        showErrorPage(0, `renderer ${details.reason}`);
+        showErrorPage(win, 0, `renderer ${details.reason}`);
     });
-    // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
+    // A hung renderer: recover only if it stays unresponsive (heavy JS bursts recover on
     // their own and 'responsive' cancels the timer) — losing in-flight state is better
     // than a permanently frozen window.
-    //
-    // A hung *bundle* must not be reloaded into itself. reloadWeb resolves to the bundle
-    // while one is active, so a bundle that hangs on every load would re-hang, fire
-    // 'unresponsive' again, and repeat forever with no error page (the retry ladder and the
-    // crash cap are on other events). Treat it the way did-fail-load treats a bundle that
-    // won't load — a bundle failure is not a transient blip — and drop back to the remote web.
-    const recoverFromHang = (): void => {
-        if (bundleFailed()) {
-            fallbackToRemoteWeb(win, 'renderer unresponsive');
-            return;
-        }
-        reloadWeb();
-    };
     win.webContents.on('unresponsive', () => {
         console.warn('[shell] renderer unresponsive');
         if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
-        unresponsiveTimer = setTimeout(recoverFromHang, 15_000);
+        unresponsiveTimer = setTimeout(() => recoverFromHang(win), 15_000);
     });
     win.webContents.on('responsive', () => {
         if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
@@ -834,17 +853,7 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
         if (crashTimer) clearTimeout(crashTimer);
     });
 
-    // Wake from sleep: if the window got stranded on the error page while the network was
-    // down, reconnect automatically once the OS reports the machine resumed. App-level and
-    // bound once; reads the module state so it follows a recreated window.
-    if (!powerResumeBound) {
-        powerResumeBound = true;
-        powerMonitor.on('resume', () => {
-            if (!onErrorPage || !recoveryWindow || recoveryWindow.isDestroyed()) return;
-            resetLoadRetries();
-            void recoveryWindow.loadURL(resolveWebUrl());
-        });
-    }
+    bindPowerResume();
 };
 
 // Deeplink plumbing — app-level url/argv events resolve before/after the window exists.
