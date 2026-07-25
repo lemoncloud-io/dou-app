@@ -1,4 +1,27 @@
-import { resolve, sep } from 'node:path';
+import { join, resolve, sep } from 'node:path';
+
+/**
+ * Deterministic djb2(xor) hash — ported from the mobile PoC so both shells name extraction
+ * roots the same way. Used only to give each bundle URL its own directory, never for
+ * integrity; no crypto dependency wanted in the main bundle.
+ */
+export const hashUrl = (url: string): string => {
+    let hash = 5381;
+    for (let i = 0; i < url.length; i += 1) {
+        hash = (hash * 33) ^ url.charCodeAt(i);
+    }
+    // >>> 0 converts the int32 to unsigned, so the hex never carries a leading '-'.
+    return (hash >>> 0).toString(16);
+};
+
+/**
+ * Where a bundle URL unpacks to. Per-URL so switching bundles cannot leave one bundle's
+ * stale files shadowing the next one's.
+ */
+export const bundleRootFor = (baseDir: string, zipUrl: string): string => join(baseDir, 'webroot', hashUrl(zipUrl));
+
+/** Scratch path for the download. Outside `webroot/` so it is never servable. */
+export const zipDownloadPath = (baseDir: string): string => join(baseDir, 'bundle.zip');
 
 /**
  * Map a `chatic-local://bundle/...` request to the file that answers it, or null if the

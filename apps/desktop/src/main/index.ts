@@ -6,6 +6,7 @@ import { AppBridgeHost } from '@chatic/bridges';
 import {
     app,
     BrowserWindow,
+    dialog,
     ipcMain,
     Menu,
     type MenuItemConstructorOptions,
@@ -18,6 +19,7 @@ import {
     shell,
     Tray,
 } from 'electron';
+import { applyCustomUi, disableCustomUi } from './customUiBundle';
 import { CUSTOM_UI_SCHEME_PRIVILEGES, registerCustomUiProtocol } from './customUiProtocol';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
@@ -290,6 +292,48 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
 };
 
 /** System tray with close-to-tray so the renderer (and its WS) stays alive for background notifications. */
+/** PoC sample bundle — the same archive the mobile custom-web PoC defaults to. */
+const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
+
+/**
+ * Custom-UI controls, in the tray rather than in the web UI: a loaded bundle owns the whole
+ * renderer, so a switch-off button living inside it would be unreachable the moment a bundle
+ * misbehaves. The tray belongs to main and survives whatever the bundle does.
+ *
+ * Dev channel only for now — the debug-mode gate that would expose this in a packaged
+ * production build needs a main-owned flag the renderer can set, which lands with the
+ * renderer-side controls.
+ */
+const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => {
+    if (!IS_DEV_CHANNEL) return [];
+    const reload = (): void => {
+        if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
+    };
+    return [
+        { type: 'separator' },
+        {
+            label: 'Apply custom UI (sample)',
+            click: () => {
+                void applyCustomUi(SAMPLE_CUSTOM_UI_ZIP)
+                    .then(reload)
+                    .catch((error: unknown) => {
+                        // A tray click that fails silently leaves no trace anywhere the user
+                        // looks, so surface it and stay on the remote web.
+                        disableCustomUi();
+                        dialog.showErrorBox('Custom UI failed', String(error));
+                    });
+            },
+        },
+        {
+            label: 'Reset custom UI',
+            click: () => {
+                disableCustomUi();
+                reload();
+            },
+        },
+    ];
+};
+
 const createTray = (win: BrowserWindow): void => {
     // tray.png ships via electron-builder extraResources in packaged builds; in dev it sits
     // beside the project root (out/main → ../../build). createFromPath tolerates a missing file
@@ -302,6 +346,7 @@ const createTray = (win: BrowserWindow): void => {
     tray.setContextMenu(
         Menu.buildFromTemplate([
             { label: 'Open DoU', click: () => (win.isVisible() ? win.focus() : win.show()) },
+            ...customUiTrayItems(win),
             { type: 'separator' },
             {
                 label: 'Quit',

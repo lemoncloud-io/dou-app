@@ -1,0 +1,68 @@
+import { existsSync } from 'node:fs';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import { app } from 'electron';
+import extract from 'extract-zip';
+
+import { bundleRootFor, zipDownloadPath } from './customUi';
+import { registerCustomUiProtocol, unregisterCustomUiProtocol } from './customUiProtocol';
+import { setCustomUiActive } from './webUrl';
+
+/**
+ * Download → unpack → serve a web bundle in place of the remote web (PoC).
+ *
+ * Under userData, which the dev channel already redirects to its own directory, so a dev
+ * build's bundles cannot leak into the installed app.
+ */
+const baseDir = (): string => join(app.getPath('userData'), 'custom-web');
+
+let activeRoot: string | null = null;
+
+/** The bundle currently being served, or null when the shell is on the remote web. */
+export const getActiveCustomUiRoot = (): string | null => activeRoot;
+
+/**
+ * Fetch `zipUrl`, unpack it, and switch the shell over to it.
+ *
+ * Throws — and leaves the shell on the remote web — if the download fails, the archive is
+ * unreadable, or it has no index.html at its root. The caller reloads the window.
+ */
+export const applyCustomUi = async (zipUrl: string): Promise<void> => {
+    const dir = baseDir();
+    await mkdir(dir, { recursive: true });
+
+    const response = await fetch(zipUrl);
+    if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
+    // Buffer the whole archive before writing: a stream that dies mid-flight would otherwise
+    // leave a truncated zip on disk that the next run happily tries to unpack.
+    const archive = Buffer.from(await response.arrayBuffer());
+    const zipPath = zipDownloadPath(dir);
+    await writeFile(zipPath, archive);
+
+    const root = bundleRootFor(dir, zipUrl);
+    // Clear first — unpacking over a previous extraction leaves files the new bundle dropped.
+    await rm(root, { recursive: true, force: true });
+    try {
+        await extract(zipPath, { dir: root });
+        // index.html must sit at the archive root; no scanning of subdirectories, so a
+        // wrongly-nested bundle fails loudly here instead of serving a blank window.
+        if (!existsSync(join(root, 'index.html'))) throw new Error('index.html not found at zip root');
+    } catch (error) {
+        await rm(root, { recursive: true, force: true });
+        throw error;
+    } finally {
+        await rm(zipPath, { force: true }).catch(() => undefined);
+    }
+
+    registerCustomUiProtocol(root);
+    setCustomUiActive(true);
+    activeRoot = root;
+};
+
+/** Return the shell to the remote web. Safe to call when no bundle is active. */
+export const disableCustomUi = (): void => {
+    unregisterCustomUiProtocol();
+    setCustomUiActive(false);
+    activeRoot = null;
+};

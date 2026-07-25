@@ -1,10 +1,51 @@
 import { join, sep } from 'node:path';
 
-import { resolveEntryPath } from './customUi';
+import { bundleRootFor, hashUrl, resolveEntryPath, zipDownloadPath } from './customUi';
 import { CUSTOM_UI_ORIGIN } from './webUrl';
 
 const ROOT = join(sep, 'tmp', 'custom-web', 'abc123');
+const BASE = join(sep, 'tmp', 'custom-web');
 const req = (path: string): string => `${CUSTOM_UI_ORIGIN}${path}`;
+
+describe('hashUrl', () => {
+    it('is deterministic for the same URL', () => {
+        expect(hashUrl('https://cdn.example.com/bundle.zip')).toBe(hashUrl('https://cdn.example.com/bundle.zip'));
+    });
+
+    it('separates different URLs, including ones differing only by host', () => {
+        expect(hashUrl('https://a.example.com/x.zip')).not.toBe(hashUrl('https://b.example.com/y.zip'));
+        expect(hashUrl('https://a.example.com/x.zip')).not.toBe(hashUrl('https://b.example.com/x.zip'));
+    });
+
+    it('never yields a negative or sign-prefixed value (it becomes a directory name)', () => {
+        for (const url of ['https://x.io/a.zip', 'https://y.io/' + 'z'.repeat(500), '']) {
+            expect(hashUrl(url)).toMatch(/^[0-9a-f]+$/);
+        }
+    });
+});
+
+describe('bundleRootFor', () => {
+    it('gives each zip URL its own extraction root under the base dir', () => {
+        const a = bundleRootFor(BASE, 'https://cdn.example.com/a.zip');
+        const b = bundleRootFor(BASE, 'https://cdn.example.com/b.zip');
+        expect(a).not.toBe(b);
+        expect(a.startsWith(join(BASE, 'webroot') + sep)).toBe(true);
+    });
+
+    it('is stable across calls, so a re-apply reuses the same root', () => {
+        expect(bundleRootFor(BASE, 'https://cdn.example.com/a.zip')).toBe(
+            bundleRootFor(BASE, 'https://cdn.example.com/a.zip')
+        );
+    });
+});
+
+describe('zipDownloadPath', () => {
+    it('keeps the download beside the roots, not inside one', () => {
+        const path = zipDownloadPath(BASE);
+        expect(path).toBe(join(BASE, 'bundle.zip'));
+        expect(path.startsWith(join(BASE, 'webroot'))).toBe(false);
+    });
+});
 
 describe('resolveEntryPath', () => {
     it('maps the bundle root to index.html', () => {

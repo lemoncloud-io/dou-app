@@ -21,7 +21,8 @@
     },
     "dependencies": {
         "@liamcottle/push-receiver": "^0.0.4",
-        "electron-updater": "^6.3.9"
+        "electron-updater": "^6.3.9",
+        "extract-zip": "^2.0.1"
     },
     "devDependencies": {
         "electron": "33.4.11",
