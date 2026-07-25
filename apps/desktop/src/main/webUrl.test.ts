@@ -113,6 +113,15 @@ describe('custom UI origin', () => {
         expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
     });
 
+    it('never comes up active from the remote URL alone — nothing is serving the scheme yet', () => {
+        // A misconfigured MAIN_VITE_DESKTOP_WEB_URL must not seed the custom-UI origin: no
+        // protocol handler is registered at init, so "active" here is a blank window with the
+        // remote URL no longer reachable.
+        initWebUrl(`${CUSTOM_UI_ORIGIN}/`);
+        expect(isCustomUiActive()).toBe(false);
+        expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
+    });
+
     it('reports whether the shell is on a bundle, so failures can fall back to the remote web', () => {
         expect(isCustomUiActive()).toBe(false);
         setCustomUiActive(true);

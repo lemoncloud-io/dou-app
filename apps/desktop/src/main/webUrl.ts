@@ -56,7 +56,9 @@ export const initWebUrl = (remote: string): void => {
     remoteWebUrl = remote;
     trustedOrigins.clear();
     const origin = safeOrigin(remote);
-    if (origin) trustedOrigins.add(origin);
+    // Never the custom-UI origin, whatever the build was configured with: presence in this set
+    // *is* "a bundle is being served", and at init nothing has registered a handler to serve one.
+    if (origin && origin !== CUSTOM_UI_ORIGIN) trustedOrigins.add(origin);
 };
 
 /**
