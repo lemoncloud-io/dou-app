@@ -19,7 +19,7 @@ import {
     shell,
     Tray,
 } from 'electron';
-import { applyCustomUi, disableCustomUi, restoreCustomUi } from './customUiBundle';
+import { applyCustomUi, disableCustomUi, getActiveCustomUiRoot, restoreCustomUi } from './customUiBundle';
 import { CUSTOM_UI_SCHEME_PRIVILEGES, registerCustomUiProtocol } from './customUiProtocol';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
@@ -163,6 +163,9 @@ protocol.registerSchemesAsPrivileged([CUSTOM_UI_SCHEME_PRIVILEGES]);
 /** Set on app quit so the window 'close' handler stops intercepting (close-to-tray otherwise keeps it alive). */
 let isQuitting = false;
 let tray: Tray | null = null;
+// The window the tray menu acts on. Module-scoped so refreshTrayMenu can rebuild after a
+// custom-UI change without threading the window through every caller.
+let trayWindow: BrowserWindow | null = null;
 
 /** Forward a deeplink URL to the web via the existing OnReceiveNotification event (web routes it). */
 const pushDeeplink = (host: AppBridgeHost, url: string): void => {
@@ -295,27 +298,89 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
 /** PoC sample bundle — the same archive the mobile custom-web PoC defaults to. */
 const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
 
+/** IPC channel for the custom-UI PoC controls (see preload). Desktop-only, off the AppBridge. */
+const CUSTOM_UI_CHANNEL = 'chatic-custom-ui';
+
+interface CustomUiStatus {
+    active: boolean;
+    root: string | null;
+    error?: string;
+}
+
+const customUiStatus = (error?: string): CustomUiStatus => ({
+    active: isCustomUiActive(),
+    root: getActiveCustomUiRoot(),
+    ...(error === undefined ? {} : { error }),
+});
+
+/**
+ * Debug-panel controls for the custom-UI PoC. Same origin gate as the AppBridge channel —
+ * a bundle served under the custom scheme is trusted too, so it can switch itself off.
+ *
+ * Errors come back on the result instead of rejecting, because the panel needs to render
+ * them and an IPC rejection reaches the renderer as an opaque, prefixed Error.
+ */
+const registerCustomUiIpc = (win: BrowserWindow): void => {
+    ipcMain.removeHandler(CUSTOM_UI_CHANNEL); // createWindow can re-run (macOS re-activate)
+    ipcMain.handle(CUSTOM_UI_CHANNEL, async (event, request: { action?: string; zipUrl?: string }) => {
+        if (!isTrustedUrl(event.senderFrame?.url)) return customUiStatus('untrusted frame');
+
+        if (request?.action === 'status') return customUiStatus();
+
+        if (request?.action === 'disable') {
+            disableCustomUi();
+            scheduleReload(win);
+            return customUiStatus();
+        }
+
+        if (request?.action === 'apply') {
+            const zipUrl = request.zipUrl;
+            if (!zipUrl) return customUiStatus('no zip URL given');
+            try {
+                await applyCustomUi(zipUrl);
+            } catch (error) {
+                disableCustomUi();
+                return customUiStatus(String(error));
+            }
+            scheduleReload(win);
+            return customUiStatus();
+        }
+
+        return customUiStatus(`unknown action: ${String(request?.action)}`);
+    });
+};
+
+/**
+ * Reload after the reply is on its way. Reloading inline would tear down the very frame
+ * awaiting the result, so the panel would never see whether its request succeeded.
+ */
+const scheduleReload = (win: BrowserWindow): void => {
+    setTimeout(() => reloadForCustomUiChange(win), 0);
+};
+
+/** Load whatever mode the shell is now in, and re-sync the tray to match. */
+const reloadForCustomUiChange = (win: BrowserWindow): void => {
+    if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
+    refreshTrayMenu();
+};
+
 /**
  * Custom-UI controls, in the tray rather than in the web UI: a loaded bundle owns the whole
  * renderer, so a switch-off button living inside it would be unreachable the moment a bundle
  * misbehaves. The tray belongs to main and survives whatever the bundle does.
  *
- * Dev channel only for now — the debug-mode gate that would expose this in a packaged
- * production build needs a main-owned flag the renderer can set, which lands with the
- * renderer-side controls.
+ * Apply is dev-channel only, but **Reset appears whenever a bundle is active** — including in
+ * a packaged production build, where the debug panel is the way one gets applied. Gating Reset
+ * on the channel too would leave exactly the users who can brick themselves with no way out.
  */
 const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => {
-    if (!IS_DEV_CHANNEL) return [];
-    const reload = (): void => {
-        if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
-    };
-    return [
-        { type: 'separator' },
-        {
+    const items: MenuItemConstructorOptions[] = [];
+    if (IS_DEV_CHANNEL) {
+        items.push({
             label: 'Apply custom UI (sample)',
             click: () => {
                 void applyCustomUi(SAMPLE_CUSTOM_UI_ZIP)
-                    .then(reload)
+                    .then(() => reloadForCustomUiChange(win))
                     .catch((error: unknown) => {
                         // A tray click that fails silently leaves no trace anywhere the user
                         // looks, so surface it and stay on the remote web.
@@ -323,15 +388,37 @@ const customUiTrayItems = (win: BrowserWindow): MenuItemConstructorOptions[] => 
                         dialog.showErrorBox('Custom UI failed', String(error));
                     });
             },
-        },
-        {
+        });
+    }
+    if (isCustomUiActive()) {
+        items.push({
             label: 'Reset custom UI',
             click: () => {
                 disableCustomUi();
-                reload();
+                reloadForCustomUiChange(win);
+            },
+        });
+    }
+    return items.length ? [{ type: 'separator' }, ...items] : [];
+};
+
+const buildTrayMenu = (win: BrowserWindow): Menu =>
+    Menu.buildFromTemplate([
+        { label: 'Open DoU', click: () => (win.isVisible() ? win.focus() : win.show()) },
+        ...customUiTrayItems(win),
+        { type: 'separator' },
+        {
+            label: 'Quit',
+            click: () => {
+                isQuitting = true;
+                app.quit();
             },
         },
-    ];
+    ]);
+
+/** Rebuild the menu after the custom-UI state changes, so Reset appears/disappears with it. */
+const refreshTrayMenu = (): void => {
+    if (tray && trayWindow && !trayWindow.isDestroyed()) tray.setContextMenu(buildTrayMenu(trayWindow));
 };
 
 const createTray = (win: BrowserWindow): void => {
@@ -342,21 +429,9 @@ const createTray = (win: BrowserWindow): void => {
         ? join(process.resourcesPath, 'tray.png')
         : join(__dirname, '../../build/tray.png');
     tray = new Tray(nativeImage.createFromPath(trayIconPath));
+    trayWindow = win;
     tray.setToolTip('DoU');
-    tray.setContextMenu(
-        Menu.buildFromTemplate([
-            { label: 'Open DoU', click: () => (win.isVisible() ? win.focus() : win.show()) },
-            ...customUiTrayItems(win),
-            { type: 'separator' },
-            {
-                label: 'Quit',
-                click: () => {
-                    isQuitting = true;
-                    app.quit();
-                },
-            },
-        ])
-    );
+    tray.setContextMenu(buildTrayMenu(win));
     tray.on('click', () => (win.isVisible() ? win.focus() : win.show()));
 };
 
@@ -515,6 +590,8 @@ const createWindow = (): BrowserWindow => {
         if (!isTrustedUrl(event.senderFrame?.url)) return;
         host.handleMessage(data);
     });
+
+    registerCustomUiIpc(win);
 
     // Persist size/position so the next launch reopens where the user left it.
     win.on('resized', () => saveWindowBounds(win));
