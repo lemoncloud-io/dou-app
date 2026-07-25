@@ -1,6 +1,3 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 /**
  * What survives a restart: the extraction root, and nothing else.
  *
@@ -10,6 +7,8 @@ import { join } from 'node:path';
  *
  * Electron-free so it is testable; the caller supplies the path under userData.
  */
+import { readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /** The bundle root to restore, or null when there is nothing usable recorded. */
 export const readPersistedRoot = (stateFile: string): string | null => {
@@ -38,7 +37,18 @@ export const persistRoot = (stateFile: string, root: string | null): void => {
 };
 
 /**
- * Whether `root` still holds a servable bundle. An extraction killed halfway leaves the
- * directory without its entry point, and restoring that is a blank window with no way back.
+ * Whether `root` holds a servable entry point. An extraction killed halfway leaves the
+ * directory without one, and restoring that is a blank window with no way back.
+ *
+ * `isFile`, not `existsSync`: a zip carrying DOS-only entry attributes makes extract-zip
+ * create `index.html` as a *directory*, which an existence check accepts. The bundle then
+ * 404s with a body — a completed navigation as far as Chromium is concerned — so no recovery
+ * path fires and the record restores it again at every launch.
  */
-export const isUsableBundleRoot = (root: string): boolean => existsSync(join(root, 'index.html'));
+export const hasEntryPoint = (root: string): boolean => {
+    try {
+        return statSync(join(root, 'index.html')).isFile();
+    } catch {
+        return false;
+    }
+};

@@ -1,6 +1,13 @@
 import { join, sep } from 'node:path';
 
-import { bundleRootFor, hashUrl, resolveEntryPath, zipDownloadPath } from './customUi';
+import {
+    bundleRootFor,
+    hashUrl,
+    isAllowedBundleUrl,
+    isSymlinkEntry,
+    resolveEntryPath,
+    zipDownloadPath,
+} from './customUi';
 import { CUSTOM_UI_ORIGIN } from './webUrl';
 
 const ROOT = join(sep, 'tmp', 'custom-web', 'abc123');
@@ -10,6 +17,14 @@ const req = (path: string): string => `${CUSTOM_UI_ORIGIN}${path}`;
 describe('hashUrl', () => {
     it('is deterministic for the same URL', () => {
         expect(hashUrl('https://cdn.example.com/bundle.zip')).toBe(hashUrl('https://cdn.example.com/bundle.zip'));
+    });
+
+    it('matches the mobile PoC, so both shells name the same bundle the same way', () => {
+        // Ported from apps/mobile customZipService; a silent divergence would only show up as
+        // the two shells disagreeing about which directory a bundle lives in.
+        expect(hashUrl('https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip')).toBe(
+            'f14cb6c8'
+        );
     });
 
     it('separates different URLs, including ones differing only by host', () => {
@@ -50,6 +65,52 @@ describe('zipDownloadPath', () => {
         expect(zipDownloadPath(BASE, 'https://cdn.example.com/a.zip')).not.toBe(
             zipDownloadPath(BASE, 'https://cdn.example.com/b.zip')
         );
+    });
+});
+
+describe('isSymlinkEntry', () => {
+    // extract-zip follows what it creates, and resolveEntryPath only confines lexically, so
+    // this predicate is the whole defence against a `link -> /` entry.
+    const attrs = (unixMode: number): number => (unixMode << 16) >>> 0;
+
+    it('rejects a symlink entry', () => {
+        expect(isSymlinkEntry(attrs(0o120777))).toBe(true);
+    });
+
+    it('admits regular files and directories', () => {
+        expect(isSymlinkEntry(attrs(0o100644))).toBe(false);
+        expect(isSymlinkEntry(attrs(0o040755))).toBe(false);
+    });
+
+    it('admits an entry with no unix mode at all (DOS attributes only)', () => {
+        // extract-zip writes those as plain files, so rejecting them would break bundles
+        // zipped on Windows.
+        expect(isSymlinkEntry(0)).toBe(false);
+        expect(isSymlinkEntry(0x10)).toBe(false);
+    });
+
+    it('does not mistake a socket or FIFO for a symlink', () => {
+        // The tell that the mask is the file-type field and not just the symlink bits.
+        expect(isSymlinkEntry(attrs(0o140777))).toBe(false);
+        expect(isSymlinkEntry(attrs(0o010644))).toBe(false);
+    });
+});
+
+describe('isAllowedBundleUrl', () => {
+    it('admits https only', () => {
+        expect(isAllowedBundleUrl('https://cdn.example.com/a.zip')).toBe(true);
+        expect(isAllowedBundleUrl('HTTPS://cdn.example.com/a.zip')).toBe(true);
+    });
+
+    it('refuses schemes that would make the main process a probe', () => {
+        for (const url of [
+            'http://cdn.example.com/a.zip',
+            'file:///a.zip',
+            'http://127.0.0.1:9200/',
+            'ftp://x/a.zip',
+        ]) {
+            expect(isAllowedBundleUrl(url)).toBe(false);
+        }
     });
 });
 
@@ -110,5 +171,25 @@ describe('resolveEntryPath', () => {
     it('refuses malformed percent-encoding and unparseable requests', () => {
         expect(resolveEntryPath(ROOT, req('/%E0%A4%A'))).toBeNull();
         expect(resolveEntryPath(ROOT, 'not a url')).toBeNull();
+    });
+
+    // The invariant, stated once over every shape above and a few more. The cases individually
+    // asserted earlier pin *which layer* happens to stop each one, which is incidental — Node
+    // could change how it normalizes and leave the code just as safe. This is the property.
+    it.each([
+        '/../../../etc/passwd',
+        '/%2e%2e/%2e%2e/etc/passwd',
+        '/..%2f..%2fetc%2fpasswd',
+        '/%2e%2e%2fabc123-evil/x',
+        '/..%5c..%5cetc',
+        '/..\\..\\Windows\\win.ini',
+        '/C:/Windows/win.ini',
+        '/app%00.js',
+        '//etc/passwd',
+        '///etc/passwd',
+        '/%2e%2e%2f%2e%2e%2f',
+    ])('never resolves outside the root: %s', path => {
+        const resolved = resolveEntryPath(ROOT, req(path));
+        expect(resolved === null || resolved.startsWith(ROOT + sep)).toBe(true);
     });
 });

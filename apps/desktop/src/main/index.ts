@@ -28,7 +28,7 @@ import {
 } from './customUiBundle';
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
-import { isUsableBundleRoot } from './customUiState';
+import { hasEntryPoint } from './customUiState';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
@@ -311,6 +311,27 @@ const customUiStatus = (error?: string): CustomUiStatus => ({
     ...(error === undefined ? {} : { error }),
 });
 
+/** Narrow renderer-controlled input to a shape whose fields are still `unknown`. */
+const asCustomUiRequest = (value: unknown): { action?: unknown; zipUrl?: unknown } =>
+    typeof value === 'object' && value !== null ? value : {};
+
+const handleCustomUiApply = async (senderUrl: string | undefined, zipUrl: unknown): Promise<CustomUiStatus> => {
+    // A bundle may switch itself OFF (that is why it is trusted) but not install the next
+    // one: chaining applies would let one bundle hand the shell to another indefinitely,
+    // with the user's only involvement being the first apply.
+    if (isCustomUiUrl(senderUrl)) return customUiStatus('a bundle cannot apply another bundle');
+    if (typeof zipUrl !== 'string' || !zipUrl) return customUiStatus('no zip URL given');
+    try {
+        await applyCustomUi(zipUrl);
+    } catch (error) {
+        // Deliberately no disableCustomUi() — applyCustomUi leaves the served bundle untouched
+        // when it throws, so tearing it down here would kill a working UI over a failed
+        // download and leave that UI on screen with no handler.
+        return customUiStatus(String(error));
+    }
+    return customUiStatus();
+};
+
 /**
  * Debug-panel controls for the custom-UI PoC. Same origin gate as the AppBridge channel —
  * a bundle served under the custom scheme is trusted too, so it can switch itself off.
@@ -318,9 +339,6 @@ const customUiStatus = (error?: string): CustomUiStatus => ({
  * Errors come back on the result instead of rejecting, because the panel needs to render
  * them and an IPC rejection reaches the renderer as an opaque, prefixed Error.
  */
-const asCustomUiRequest = (value: unknown): { action?: unknown; zipUrl?: unknown } =>
-    typeof value === 'object' && value !== null ? value : {};
-
 const registerCustomUiIpc = (win: BrowserWindow): void => {
     ipcMain.removeHandler(CUSTOM_UI_CHANNEL); // createWindow can re-run (macOS re-activate)
     // `raw` is renderer-controlled, so it arrives as unknown and is narrowed here. Annotating
@@ -339,21 +357,9 @@ const registerCustomUiIpc = (win: BrowserWindow): void => {
         }
 
         if (action === 'apply') {
-            // A bundle may switch itself OFF (that is why it is trusted) but not install the
-            // next one: chaining applies would let one bundle hand the shell to another
-            // indefinitely, with the user's only involvement being the first apply.
-            if (isCustomUiUrl(senderUrl)) return customUiStatus('a bundle cannot apply another bundle');
-            if (typeof zipUrl !== 'string' || !zipUrl) return customUiStatus('no zip URL given');
-            try {
-                await applyCustomUi(zipUrl);
-            } catch (error) {
-                // Deliberately no disableCustomUi() — applyCustomUi leaves the served bundle
-                // untouched when it throws, so tearing it down here would kill a working UI
-                // over a failed download and leave that UI on screen with no handler.
-                return customUiStatus(String(error));
-            }
-            scheduleReload(win);
-            return customUiStatus();
+            const status = await handleCustomUiApply(senderUrl, zipUrl);
+            if (!status.error) scheduleReload(win);
+            return status;
         }
 
         return customUiStatus(`unknown action: ${String(action)}`);
@@ -373,6 +379,26 @@ const reloadForCustomUiChange = (win: BrowserWindow): void => {
     if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
     refreshTrayMenu();
 };
+
+/**
+ * A bundle that will not load is not a network blip: retrying local files on the backoff
+ * ladder just delays the error page, and the persisted root would reproduce it at every
+ * launch. Drop back to the remote web instead, and forget the bundle.
+ */
+const fallbackToRemoteWeb = (win: BrowserWindow, reason: string): void => {
+    console.warn('[shell] custom UI failed, falling back to remote web', reason);
+    disableCustomUi();
+    // Through reloadForCustomUiChange, not loadURL — an automatic fallback changes the
+    // custom-UI state exactly like a tray Reset does, so the tray has to stop offering one.
+    reloadForCustomUiChange(win);
+};
+
+/**
+ * Whether the thing that just failed was the bundle. The three recovery listeners ask the
+ * same question from different evidence: a load failure names the URL that failed, while a
+ * crash or a hang only says the renderer is gone.
+ */
+const bundleFailed = (url?: string): boolean => (url === undefined ? isCustomUiActive() : isCustomUiUrl(url));
 
 /**
  * Custom-UI controls, in the tray rather than in the web UI: a loaded bundle owns the whole
@@ -517,6 +543,30 @@ const buildAppMenu = (): Menu => {
     return Menu.buildFromTemplate(template);
 };
 
+/**
+ * Lock the renderer to the trusted origins. Never open a new Electron window (which would
+ * keep the preload bridge): external web links — message content and the like — go to the
+ * system browser instead, everything else is denied. Navigation is gated on all four events
+ * because each covers a hole the others do not: `will-navigate` is main-frame only,
+ * `will-frame-navigate` catches subframes (a downloaded bundle iframing whatever it likes),
+ * and `will-redirect` catches 30x, which neither of the other two sees.
+ */
+const bindNavigationGates = (win: BrowserWindow): void => {
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:\/\//i.test(url) && !isTrustedUrl(url)) void shell.openExternal(url);
+        return { action: 'deny' };
+    });
+    win.webContents.on('will-navigate', (event, url) => {
+        if (!isTrustedUrl(url)) event.preventDefault();
+    });
+    win.webContents.on('will-frame-navigate', event => {
+        if (!isTrustedUrl(event.url)) event.preventDefault();
+    });
+    win.webContents.on('will-redirect', (event, url) => {
+        if (!isTrustedUrl(url)) event.preventDefault();
+    });
+};
+
 const createWindow = (): BrowserWindow => {
     const saved = loadWindowBounds();
     const win = new BrowserWindow({
@@ -547,20 +597,7 @@ const createWindow = (): BrowserWindow => {
         },
     });
 
-    // Lock the renderer to the trusted origin: never open a new Electron window
-    // (which would keep the preload bridge). External web links (message content,
-    // etc.) open in the system browser instead; everything else is denied.
-    win.webContents.setWindowOpenHandler(({ url }) => {
-        if (/^https?:\/\//i.test(url) && !isTrustedUrl(url)) void shell.openExternal(url);
-        return { action: 'deny' };
-    });
-    win.webContents.on('will-navigate', (event, url) => {
-        if (!isTrustedUrl(url)) event.preventDefault();
-    });
-    // Also block off-origin server redirects (will-navigate doesn't cover 30x).
-    win.webContents.on('will-redirect', (event, url) => {
-        if (!isTrustedUrl(url)) event.preventDefault();
-    });
+    bindNavigationGates(win);
 
     const host = new AppBridgeHost({
         sendToWeb: (message: string) => win.webContents.send(TO_WEB_CHANNEL, message),
@@ -599,7 +636,10 @@ const createWindow = (): BrowserWindow => {
         },
     }).catch(error => console.error('[fcm] start failed', error));
 
-    // Only accept bridge requests from the trusted origin's frame.
+    // Only accept bridge requests from the trusted origin's frame. Listeners are removed
+    // first because createWindow re-runs on a macOS re-activate — otherwise every bridge
+    // message would reach two AppBridgeHosts, one of them holding a destroyed window.
+    ipcMain.removeAllListeners(TO_APP_CHANNEL);
     ipcMain.on(TO_APP_CHANNEL, (event, data: string) => {
         if (!isTrustedUrl(event.senderFrame?.url)) return;
         host.handleMessage(data);
@@ -662,12 +702,13 @@ let resetLoadRetries: () => void = () => undefined;
  * wake-from-sleep reconnect. Re-binding on each createWindow() repoints the
  * module-level state at the new window.
  *
- * deep: over the 80-line limit on purpose. Every piece of recovery state — the load-retry
- * and crash budgets, three timers, the error-page flag — is per-window closure state that
- * five webContents listeners read and write, behind a one-argument call site. Deletion test:
- * remove this and each listener grows its own copy of the budget/timer bookkeeping, which is
- * how the budgets drift apart. Splitting by line count would thread a mutable state object
- * through every seam: more interface, less depth.
+ * deep: over the 80-line limit on purpose. What is inside is exactly the state five
+ * webContents listeners share — the load-retry and crash budgets, three timers, the
+ * error-page flag — all per-window, behind a one-argument call site. Deletion test: remove
+ * this and each listener grows its own copy of the budget/timer bookkeeping, which is how
+ * the budgets drift apart. Splitting by line count would thread a mutable state object
+ * through every seam: more interface, less depth. Anything that does NOT touch that state
+ * belongs at module scope instead (see fallbackToRemoteWeb, bundleFailed).
  */
 const bindLoadRecovery = (win: BrowserWindow): void => {
     recoveryWindow = win;
@@ -700,23 +741,19 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     const reloadWeb = (): void => {
         if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
     };
-
-    // A bundle that will not load is not a network blip: retrying local files on the backoff
-    // ladder just delays the error page, and the persisted root would reproduce it at every
-    // launch. Drop back to the remote web instead, and forget the bundle.
-    const fallbackToRemoteWeb = (reason: string): void => {
-        console.warn('[shell] custom UI failed, falling back to remote web', reason);
-        disableCustomUi();
-        // Through reloadForCustomUiChange, not loadURL — an automatic fallback changes the
-        // custom-UI state exactly like a tray Reset does, so the tray has to stop offering one.
-        reloadForCustomUiChange(win);
+    /** Give up and show the branded page. Both give-up paths land here, so they cannot drift. */
+    const showErrorPage = (code: number, desc: string): void => {
+        if (win.isDestroyed()) return;
+        onErrorPage = true;
+        if (!win.isVisible()) win.show();
+        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(code, desc))}`);
     };
 
     win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
         if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
         if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
-        if (isCustomUiUrl(validatedURL)) {
-            fallbackToRemoteWeb(`load failed (${errorCode} ${errorDesc})`);
+        if (bundleFailed(validatedURL)) {
+            fallbackToRemoteWeb(win, `load failed (${errorCode} ${errorDesc})`);
             return;
         }
         if (RETRYABLE_LOAD_ERRORS.has(errorCode) && loadRetries < RETRY_DELAYS_MS.length) {
@@ -726,15 +763,17 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
             retryTimer = setTimeout(reloadWeb, delay);
             return;
         }
-        onErrorPage = true;
-        if (!win.isVisible()) win.show();
-        void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderErrorHtml(errorCode, errorDesc))}`);
+        showErrorPage(errorCode, errorDesc);
     });
     // A successful load of the trusted web clears the retry budget + error state.
     win.webContents.on('did-finish-load', () => {
         if (isTrustedUrl(win.webContents.getURL())) {
             loadRetries = 0;
-            crashReloads = 0;
+            // Not while a bundle is serving. A bundle URL is trusted, so a bundle that loads
+            // fine and crashes a second later would refill the budget on every cycle and the
+            // crash path's fallback below could never be reached — the window would just
+            // black-flicker forever.
+            if (!isCustomUiActive()) crashReloads = 0;
             onErrorPage = false;
         }
     });
@@ -756,17 +795,12 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
         }
         // A bundle that crashes the renderer on every load would burn the budget and land on
         // the error page at each launch. Spend the budget, then blame the bundle, not the app.
-        if (isCustomUiActive()) {
+        if (bundleFailed()) {
             crashReloads = 0;
-            fallbackToRemoteWeb(`renderer ${details.reason}`);
+            fallbackToRemoteWeb(win, `renderer ${details.reason}`);
             return;
         }
-        onErrorPage = true;
-        if (!win.isDestroyed()) {
-            if (!win.isVisible()) win.show();
-            const html = renderErrorHtml(0, `renderer ${details.reason}`);
-            void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-        }
+        showErrorPage(0, `renderer ${details.reason}`);
     });
     // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
     // their own and 'responsive' cancels the timer) — losing in-flight state is better
@@ -778,8 +812,8 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     // crash cap are on other events). Treat it the way did-fail-load treats a bundle that
     // won't load — a bundle failure is not a transient blip — and drop back to the remote web.
     const recoverFromHang = (): void => {
-        if (isCustomUiActive()) {
-            fallbackToRemoteWeb('renderer unresponsive');
+        if (bundleFailed()) {
+            fallbackToRemoteWeb(win, 'renderer unresponsive');
             return;
         }
         reloadWeb();
@@ -877,9 +911,14 @@ if (!singleInstanceLock) {
         // is a completed navigation to Chromium, so did-fail-load never fires and the window
         // just renders "Not found" with no recovery. Better to ignore the override and boot.
         const customUiOverride = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
-        if (customUiOverride && isUsableBundleRoot(customUiOverride)) serveCustomUi(customUiOverride);
-        else if (customUiOverride) console.warn('[shell] MAIN_VITE_CUSTOM_UI_ROOT has no index.html', customUiOverride);
-        else restoreCustomUi();
+        if (customUiOverride && hasEntryPoint(customUiOverride)) {
+            serveCustomUi(customUiOverride);
+        } else {
+            // A typo'd override must not also cost the bundle the developer applied — fall
+            // through to the record rather than booting onto the remote web.
+            if (customUiOverride) console.warn('[shell] MAIN_VITE_CUSTOM_UI_ROOT has no index.html', customUiOverride);
+            restoreCustomUi();
+        }
         if (isCustomUiActive()) console.info('[shell] custom UI active', getActiveCustomUiRoot());
 
         Menu.setApplicationMenu(buildAppMenu());

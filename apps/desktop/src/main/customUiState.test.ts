@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { isUsableBundleRoot, persistRoot, readPersistedRoot } from './customUiState';
+import { hasEntryPoint, persistRoot, readPersistedRoot } from './customUiState';
 
 let dir: string;
 let stateFile: string;
@@ -49,12 +49,12 @@ describe('persistRoot', () => {
     });
 });
 
-describe('isUsableBundleRoot', () => {
+describe('hasEntryPoint', () => {
     it('accepts a root holding an index.html', () => {
         const root = join(dir, 'webroot', 'abc123');
         mkdirSync(root, { recursive: true });
         writeFileSync(join(root, 'index.html'), '<!doctype html>', 'utf8');
-        expect(isUsableBundleRoot(root)).toBe(true);
+        expect(hasEntryPoint(root)).toBe(true);
     });
 
     it('rejects a root left behind without an index.html', () => {
@@ -62,10 +62,19 @@ describe('isUsableBundleRoot', () => {
         // point; restoring it would load a blank window with no way back.
         const root = join(dir, 'webroot', 'half');
         mkdirSync(root, { recursive: true });
-        expect(isUsableBundleRoot(root)).toBe(false);
+        expect(hasEntryPoint(root)).toBe(false);
+    });
+
+    it('rejects an index.html that is a directory, not a file', () => {
+        // A zip carrying DOS-only entry attributes makes extract-zip create it as a directory.
+        // An existence check accepts that, and the bundle then 404s with a body — which is a
+        // completed navigation, so nothing recovers and the record restores it every launch.
+        const root = join(dir, 'webroot', 'dirindex');
+        mkdirSync(join(root, 'index.html'), { recursive: true });
+        expect(hasEntryPoint(root)).toBe(false);
     });
 
     it('rejects a root that no longer exists', () => {
-        expect(isUsableBundleRoot(join(dir, 'webroot', 'gone'))).toBe(false);
+        expect(hasEntryPoint(join(dir, 'webroot', 'gone'))).toBe(false);
     });
 });

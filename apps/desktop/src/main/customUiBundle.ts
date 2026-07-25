@@ -1,13 +1,13 @@
 import { existsSync } from 'node:fs';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { join, sep } from 'node:path';
 
 import { app } from 'electron';
 import extract from 'extract-zip';
 
-import { bundleRootFor, zipDownloadPath } from './customUi';
+import { bundleRootFor, isAllowedBundleUrl, isSymlinkEntry, zipDownloadPath } from './customUi';
 import { registerCustomUiProtocol, unregisterCustomUiProtocol } from './customUiProtocol';
-import { isUsableBundleRoot, persistRoot, readPersistedRoot } from './customUiState';
+import { hasEntryPoint, persistRoot, readPersistedRoot } from './customUiState';
 import { setCustomUiActive } from './webUrl';
 
 /**
@@ -41,66 +41,109 @@ const activate = (root: string): void => {
 /** The bundle currently being served, or null when the shell is on the remote web. */
 export const getActiveCustomUiRoot = (): string | null => activeRoot;
 
-/**
- * A ZIP entry can be a symlink, and extract-zip creates it without looking at where it
- * points — its own bound check realpaths the containing directory, never the link. A
- * `link -> /` entry therefore lands inside the extraction root, passes `resolveEntryPath`
- * (which confines lexically, by string prefix) and is followed by `net.fetch`, so the
- * bundle can read any file the user can and post it anywhere. Reject them at extract time:
- * throwing from onEntry aborts the extraction into the catch below, which clears the root.
- */
-const S_IFLNK = 0o120000;
+/** Throwing from onEntry aborts the extraction before the entry is written to disk. */
 const rejectSymlinks = (entry: { fileName: string; externalFileAttributes: number }): void => {
-    const unixMode = (entry.externalFileAttributes >>> 16) & 0o170000;
-    if (unixMode === S_IFLNK) throw new Error(`symlink entry rejected: ${entry.fileName}`);
+    if (isSymlinkEntry(entry.externalFileAttributes)) throw new Error(`symlink entry rejected: ${entry.fileName}`);
 };
 
-/**
- * Fetch `zipUrl`, unpack it, and switch the shell over to it.
- *
- * Throws — leaving whatever was being served untouched — if the download fails, the archive
- * is unreadable, or it has no index.html at its root. The caller reloads the window.
- */
-export const applyCustomUi = async (zipUrl: string): Promise<void> => {
-    // https only. This URL goes to the main process's fetch, which has no origin and no
-    // mixed-content rule, so a plain-http or file/localhost URL would make the shell a probe
-    // for whatever the renderer names. Not an allowlist (the plan excludes one) — a scheme floor.
-    if (!/^https:\/\//i.test(zipUrl)) throw new Error('bundle URL must be https');
+/** Delete every extraction root except `keep` — one unpacked web build per URL ever applied adds up. */
+const pruneOtherRoots = async (dir: string, keep: string): Promise<void> => {
+    const webroot = join(dir, 'webroot');
+    const entries = await readdir(webroot).catch(() => [] as string[]);
+    await Promise.all(
+        entries
+            .map(name => join(webroot, name))
+            .filter(path => path !== keep)
+            .map(path => rm(path, { recursive: true, force: true }).catch(() => undefined))
+    );
+};
 
-    const dir = baseDir();
-    await mkdir(dir, { recursive: true });
-
-    const response = await fetch(zipUrl);
+const downloadArchive = async (zipUrl: string): Promise<Buffer> => {
+    if (!isAllowedBundleUrl(zipUrl)) throw new Error('bundle URL must be https');
+    // `redirect: 'manual'`, because the scheme check above only ever sees the first hop —
+    // fetch follows redirects by default, so an https URL that 302s to http://169.254.169.254
+    // walks straight through it and turns the error string into a status oracle for internal hosts.
+    const response = await fetch(zipUrl, { redirect: 'manual' });
+    if (response.status >= 300 && response.status < 400) throw new Error('bundle URL must not redirect');
     if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
     // Buffer the whole archive before writing: a stream that dies mid-flight would otherwise
     // leave a truncated zip on disk that the next run happily tries to unpack.
-    const archive = Buffer.from(await response.arrayBuffer());
+    return Buffer.from(await response.arrayBuffer());
+};
+
+const unpackBundle = async (zipPath: string, root: string): Promise<void> => {
+    // Unpack beside the real root, not into it. Re-applying a URL resolves to the directory
+    // currently being served, so extracting in place would delete a working bundle before
+    // knowing the replacement is any good.
+    const staging = `${root}.incoming`;
+    const previous = `${root}.previous`;
+    await rm(staging, { recursive: true, force: true });
+    await extract(zipPath, { dir: staging, onEntry: rejectSymlinks });
+    // index.html must sit at the archive root, and be a FILE: a zip carrying DOS-only entry
+    // attributes makes extract-zip create `index.html` as a directory, which an existence
+    // check happily accepts — and the resulting bundle 404s with a body, which Chromium
+    // treats as a completed navigation, so no fallback ever fires.
+    if (!hasEntryPoint(staging)) {
+        await rm(staging, { recursive: true, force: true });
+        throw new Error('index.html not found at zip root');
+    }
+
+    // Move the live root aside rather than deleting it: rm-then-rename has a window where a
+    // failure (EPERM/EBUSY on Windows, a partial recursive delete) leaves the shell serving a
+    // root whose files are gone — and a 404 with a body raises no did-fail-load to recover from.
+    await rm(previous, { recursive: true, force: true });
+    const hadRoot = existsSync(root);
+    if (hadRoot) await rename(root, previous);
+    try {
+        await rename(staging, root);
+    } catch (error) {
+        if (hadRoot) await rename(previous, root).catch(() => undefined);
+        await rm(staging, { recursive: true, force: true }).catch(() => undefined);
+        throw error;
+    }
+    await rm(previous, { recursive: true, force: true }).catch(() => undefined);
+};
+
+const applyBundle = async (zipUrl: string): Promise<void> => {
+    const dir = baseDir();
+    await mkdir(dir, { recursive: true });
+
+    const archive = await downloadArchive(zipUrl);
     const zipPath = zipDownloadPath(dir, zipUrl);
     await writeFile(zipPath, archive);
 
-    // Unpack beside the real root, not into it. Re-applying a URL resolves to the directory
-    // currently being served, so extracting in place would delete a working bundle before
-    // knowing the replacement is any good — and a failed extraction would leave the shell
-    // displaying a root whose files are gone.
     const root = bundleRootFor(dir, zipUrl);
-    const staging = `${root}.incoming`;
-    await rm(staging, { recursive: true, force: true });
     try {
-        await extract(zipPath, { dir: staging, onEntry: rejectSymlinks });
-        // index.html must sit at the archive root; no scanning of subdirectories, so a
-        // wrongly-nested bundle fails loudly here instead of serving a blank window.
-        if (!existsSync(join(staging, 'index.html'))) throw new Error('index.html not found at zip root');
-        // Only now is the previous extraction expendable.
-        await rm(root, { recursive: true, force: true });
-        await rename(staging, root);
-    } catch (error) {
-        await rm(staging, { recursive: true, force: true });
-        throw error;
+        await unpackBundle(zipPath, root);
     } finally {
         await rm(zipPath, { force: true }).catch(() => undefined);
     }
 
     activate(root);
+    await pruneOtherRoots(dir, root);
+};
+
+let applyInFlight: Promise<unknown> = Promise.resolve();
+
+/**
+ * Fetch `zipUrl`, unpack it, and switch the shell over to it.
+ *
+ * Throws — leaving whatever was being served untouched — if the URL is not https or
+ * redirects, the download fails, the archive is unreadable or carries a symlink entry, or it
+ * has no index.html file at its root. The caller reloads the window.
+ *
+ * Serialized, because two applies of the SAME url share a staging dir, a scratch archive and
+ * a destination root — and that is the default case, not a contrived one: the tray's Apply
+ * has no busy flag and defaults to the very archive the debug panel pre-fills. Interleaved,
+ * one can rename a half-extracted tree into place and activate it.
+ */
+export const applyCustomUi = (zipUrl: string): Promise<void> => {
+    const next = applyInFlight.then(
+        () => applyBundle(zipUrl),
+        () => applyBundle(zipUrl)
+    );
+    applyInFlight = next.catch(() => undefined);
+    return next;
 };
 
 /**
@@ -114,7 +157,10 @@ export const applyCustomUi = async (zipUrl: string): Promise<void> => {
 export const restoreCustomUi = (): boolean => {
     const root = readPersistedRoot(stateFile());
     if (!root) return false;
-    if (!isUsableBundleRoot(root)) {
+    // Only ever a directory this module created. Nothing renderer-reachable writes the state
+    // file today, so this is defence in depth — it makes the file non-load-bearing.
+    const ours = root.startsWith(join(baseDir(), 'webroot') + sep);
+    if (!ours || !hasEntryPoint(root)) {
         persistRoot(stateFile(), null);
         return false;
     }
@@ -124,10 +170,17 @@ export const restoreCustomUi = (): boolean => {
     return true;
 };
 
-/** Return the shell to the remote web, now and at next launch. */
+/**
+ * Return the shell to the remote web, now and at next launch.
+ *
+ * Clearing the record is skipped when what is being served came from the dev override rather
+ * than the record: that bundle was never persisted, so forgetting one the user actually
+ * applied would be collateral damage from an env var.
+ */
 export const disableCustomUi = (): void => {
     unregisterCustomUiProtocol();
     setCustomUiActive(false);
+    const wasPersisted = activeRoot !== null && activeRoot === readPersistedRoot(stateFile());
     activeRoot = null;
-    persistRoot(stateFile(), null);
+    if (wasPersisted) persistRoot(stateFile(), null);
 };

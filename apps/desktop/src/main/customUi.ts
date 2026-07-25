@@ -28,6 +28,32 @@ export const bundleRootFor = (baseDir: string, zipUrl: string): string => join(b
 export const zipDownloadPath = (baseDir: string, zipUrl: string): string => join(baseDir, `${hashUrl(zipUrl)}.zip`);
 
 /**
+ * Whether a ZIP entry is a symlink, from its external attributes.
+ *
+ * extract-zip creates symlink entries without looking at where they point — its own bound
+ * check realpaths the containing directory, never the link. A `link -> /` entry therefore
+ * lands inside the extraction root, passes the lexical confinement in `resolveEntryPath`
+ * below, and is followed by `net.fetch`, so the bundle can read any file the user can.
+ * Rejecting these is the only thing standing between a downloaded ZIP and arbitrary file
+ * read, which is why it lives here, testable, rather than inline at the extract call.
+ *
+ * The mask must be `0o170000` (the file-type field), not `0o120000`: a narrower mask would
+ * also match sockets and FIFOs, and reads as correct in a smoke test either way.
+ */
+const S_IFMT = 0o170000;
+const S_IFLNK = 0o120000;
+export const isSymlinkEntry = (externalFileAttributes: number): boolean =>
+    ((externalFileAttributes >>> 16) & S_IFMT) === S_IFLNK;
+
+/**
+ * Scheme floor for a bundle URL. Main's fetch has no origin and no mixed-content rule, so an
+ * http/file/localhost URL would turn the shell into a probe for whatever the renderer names.
+ * Not an allowlist — the plan excludes one — and not sufficient on its own: the caller must
+ * also refuse redirects, which this cannot see.
+ */
+export const isAllowedBundleUrl = (url: string): boolean => /^https:\/\//i.test(url);
+
+/**
  * Map a `chatic-local://bundle/...` request to the file that answers it, or null if the
  * request has no answer inside `root`.
  *
