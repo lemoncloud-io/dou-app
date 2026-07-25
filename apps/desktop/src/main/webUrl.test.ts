@@ -2,6 +2,8 @@ import {
     CUSTOM_UI_ORIGIN,
     CUSTOM_UI_URL,
     initWebUrl,
+    isCustomUiActive,
+    isCustomUiUrl,
     isTrustedUrl,
     resolveWebUrl,
     safeOrigin,
@@ -109,5 +111,22 @@ describe('custom UI origin', () => {
         initWebUrl(REMOTE);
         expect(resolveWebUrl()).toBe(REMOTE);
         expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
+    });
+
+    it('reports whether the shell is on a bundle, so failures can fall back to the remote web', () => {
+        expect(isCustomUiActive()).toBe(false);
+        setCustomUiActive(true);
+        expect(isCustomUiActive()).toBe(true);
+        setCustomUiActive(false);
+        expect(isCustomUiActive()).toBe(false);
+    });
+
+    it('identifies a failing load as the bundle regardless of activation state', () => {
+        // did-fail-load reports the URL that failed; the answer must not depend on whether
+        // the shell has already been switched off the bundle.
+        expect(isCustomUiUrl(`${CUSTOM_UI_ORIGIN}/index.html`)).toBe(true);
+        expect(isCustomUiUrl(`${REMOTE}/chat`)).toBe(false);
+        expect(isCustomUiUrl('data:text/html,x')).toBe(false);
+        expect(isCustomUiUrl(undefined)).toBe(false);
     });
 });

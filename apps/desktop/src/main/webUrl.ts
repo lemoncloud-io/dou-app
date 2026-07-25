@@ -68,6 +68,15 @@ export const setCustomUiActive = (active: boolean): void => {
     else trustedOrigins.delete(CUSTOM_UI_ORIGIN);
 };
 
+/** Whether the shell is currently pointed at a custom bundle rather than the remote web. */
+export const isCustomUiActive = (): boolean => customUiActive;
+
+/**
+ * Whether `url` is served by the custom bundle. Independent of activation state, because
+ * load-failure handlers are told which URL failed and must classify it either way.
+ */
+export const isCustomUiUrl = (url: string | undefined): boolean => !!url && safeOrigin(url) === CUSTOM_UI_ORIGIN;
+
 /** The URL every load site must use. */
 export const resolveWebUrl = (): string => (customUiActive ? CUSTOM_UI_URL : remoteWebUrl);
 

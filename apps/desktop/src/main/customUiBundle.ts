@@ -7,6 +7,7 @@ import extract from 'extract-zip';
 
 import { bundleRootFor, zipDownloadPath } from './customUi';
 import { registerCustomUiProtocol, unregisterCustomUiProtocol } from './customUiProtocol';
+import { isUsableBundleRoot, persistRoot, readPersistedRoot } from './customUiState';
 import { setCustomUiActive } from './webUrl';
 
 /**
@@ -16,8 +17,17 @@ import { setCustomUiActive } from './webUrl';
  * build's bundles cannot leak into the installed app.
  */
 const baseDir = (): string => join(app.getPath('userData'), 'custom-web');
+const stateFile = (): string => join(app.getPath('userData'), 'chatic-custom-ui.json');
 
 let activeRoot: string | null = null;
+
+/** Point the shell at `root` and remember it for the next launch. */
+const activate = (root: string): void => {
+    registerCustomUiProtocol(root);
+    setCustomUiActive(true);
+    activeRoot = root;
+    persistRoot(stateFile(), root);
+};
 
 /** The bundle currently being served, or null when the shell is on the remote web. */
 export const getActiveCustomUiRoot = (): string | null => activeRoot;
@@ -55,14 +65,32 @@ export const applyCustomUi = async (zipUrl: string): Promise<void> => {
         await rm(zipPath, { force: true }).catch(() => undefined);
     }
 
-    registerCustomUiProtocol(root);
-    setCustomUiActive(true);
-    activeRoot = root;
+    activate(root);
 };
 
-/** Return the shell to the remote web. Safe to call when no bundle is active. */
+/**
+ * Re-enter the bundle that was active at last quit. Call before the first window, so the
+ * initial load already resolves to it — switching after the window exists would flash the
+ * remote web first.
+ *
+ * Anything unusable clears the record rather than retrying, so a bundle deleted from under
+ * the app costs one launch on the remote web instead of failing the same way every start.
+ */
+export const restoreCustomUi = (): boolean => {
+    const root = readPersistedRoot(stateFile());
+    if (!root) return false;
+    if (!isUsableBundleRoot(root)) {
+        persistRoot(stateFile(), null);
+        return false;
+    }
+    activate(root);
+    return true;
+};
+
+/** Return the shell to the remote web, now and at next launch. */
 export const disableCustomUi = (): void => {
     unregisterCustomUiProtocol();
     setCustomUiActive(false);
     activeRoot = null;
+    persistRoot(stateFile(), null);
 };

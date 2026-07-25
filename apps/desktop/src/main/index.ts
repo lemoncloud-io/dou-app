@@ -19,12 +19,12 @@ import {
     shell,
     Tray,
 } from 'electron';
-import { applyCustomUi, disableCustomUi } from './customUiBundle';
+import { applyCustomUi, disableCustomUi, restoreCustomUi } from './customUiBundle';
 import { CUSTOM_UI_SCHEME_PRIVILEGES, registerCustomUiProtocol } from './customUiProtocol';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
-import { initWebUrl, isTrustedUrl, resolveWebUrl, setCustomUiActive } from './webUrl';
+import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl, setCustomUiActive } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
 // the package.json name ("@chatic/desktop") — the very name the packaged
@@ -603,9 +603,22 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
         if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
     };
 
+    // A bundle that will not load is not a network blip: retrying local files on the backoff
+    // ladder just delays the error page, and the persisted root would reproduce it at every
+    // launch. Drop back to the remote web instead, and forget the bundle.
+    const fallbackToRemoteWeb = (reason: string): void => {
+        console.warn('[shell] custom UI failed, falling back to remote web', reason);
+        disableCustomUi();
+        if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
+    };
+
     win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
         if (errorCode === -3) return; // ERR_ABORTED — e.g. the splash being replaced by the app load.
         if (!isMainFrame || !isTrustedUrl(validatedURL)) return;
+        if (isCustomUiUrl(validatedURL)) {
+            fallbackToRemoteWeb(`load failed (${errorCode} ${errorDesc})`);
+            return;
+        }
         if (RETRYABLE_LOAD_ERRORS.has(errorCode) && loadRetries < RETRY_DELAYS_MS.length) {
             const delay = RETRY_DELAYS_MS[loadRetries];
             loadRetries += 1;
@@ -639,6 +652,13 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
             loadRetries = 0;
             if (crashTimer) clearTimeout(crashTimer);
             crashTimer = setTimeout(reloadWeb, CRASH_RELOAD_DELAY_MS);
+            return;
+        }
+        // A bundle that crashes the renderer on every load would burn the budget and land on
+        // the error page at each launch. Spend the budget, then blame the bundle, not the app.
+        if (isCustomUiActive()) {
+            crashReloads = 0;
+            fallbackToRemoteWeb(`renderer ${details.reason}`);
             return;
         }
         onErrorPage = true;
@@ -736,15 +756,18 @@ if (!singleInstanceLock) {
             callback(permission === 'notifications' || permission === 'clipboard-sanitized-write');
         });
 
-        // PoC escape hatch for the custom-UI slice: point MAIN_VITE_CUSTOM_UI_ROOT at an
-        // unpacked bundle and the shell serves it under chatic-local:// and loads that
-        // instead of the remote web. Unset everywhere but a developer's .env.local.
-        const customUiRoot = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
-        if (customUiRoot) {
-            registerCustomUiProtocol(customUiRoot);
+        // Custom UI, resolved before the first window so its initial load already points at
+        // the bundle — switching afterwards would flash the remote web first.
+        // MAIN_VITE_CUSTOM_UI_ROOT is a developer override (unpacked directory, unset outside
+        // a local .env) and wins over whatever the tray left persisted.
+        const customUiOverride = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
+        if (customUiOverride) {
+            registerCustomUiProtocol(customUiOverride);
             setCustomUiActive(true);
-            console.info('[shell] custom UI active', { root: customUiRoot, url: resolveWebUrl() });
+        } else {
+            restoreCustomUi();
         }
+        if (resolveWebUrl() !== DESKTOP_WEB_URL) console.info('[shell] custom UI active', resolveWebUrl());
 
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();
