@@ -10,6 +10,7 @@
         "build": "electron-vite build",
         "start": "electron-vite preview",
         "typecheck": "tsc -b tsconfig.json",
+        "test": "jest",
         "build:dev": "electron-vite build --mode dev",
         "build:prod": "electron-vite build --mode production",
         "package:mac:dev": "yarn build:dev && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --config electron-builder.dev.json",

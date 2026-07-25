@@ -20,6 +20,7 @@ import {
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
+import { initWebUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
 // the package.json name ("@chatic/desktop") — the very name the packaged
@@ -146,23 +147,10 @@ const TO_APP_CHANNEL = 'chatic-bridge:to-app';
  */
 const DESKTOP_WEB_URL = import.meta.env.MAIN_VITE_DESKTOP_WEB_URL ?? 'http://localhost:5005';
 
-/** Trusted origin for the remote web content. IPC + navigation are locked to it. */
-const trustedOrigin = (() => {
-    try {
-        return new URL(DESKTOP_WEB_URL).origin;
-    } catch {
-        return '';
-    }
-})();
-
-const isTrustedUrl = (url: string | undefined): boolean => {
-    if (!url) return false;
-    try {
-        return new URL(url).origin === trustedOrigin;
-    } catch {
-        return false;
-    }
-};
+// Hand the URL to webUrl.ts and read it back through resolveWebUrl() everywhere else —
+// the load sites and the origin gates must agree on one answer. Module scope so it runs
+// before any window (createWindow can also re-run after a macOS re-activate).
+initWebUrl(DESKTOP_WEB_URL);
 
 /** Set on app quit so the window 'close' handler stops intercepting (close-to-tray otherwise keeps it alive). */
 let isQuitting = false;
@@ -346,7 +334,7 @@ const renderErrorHtml = (code: number, desc: string): string => {
     // Strip HTML-significant chars before interpolating into the data: URL. desc is a Chromium
     // error enum (low risk), but escaping it keeps the page injection-safe as a matter of course.
     const sanitize = (value: string): string => String(value).replace(/[<>"]/g, '');
-    const target = sanitize(DESKTOP_WEB_URL);
+    const target = sanitize(resolveWebUrl());
     const safeDesc = sanitize(desc);
     const lang = app.getLocale().startsWith('ko') ? 'ko' : 'en';
     const strings = ERROR_STRINGS[lang];
@@ -506,7 +494,7 @@ const createWindow = (): BrowserWindow => {
     const loadApp = (): void => {
         if (appLoadStarted) return;
         appLoadStarted = true;
-        void win.loadURL(DESKTOP_WEB_URL);
+        void win.loadURL(resolveWebUrl());
     };
     win.webContents.once('did-finish-load', loadApp);
     void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(SPLASH_HTML)}`);
@@ -561,7 +549,7 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
         loadRetries = 0;
     };
     const reloadWeb = (): void => {
-        if (!win.isDestroyed()) void win.loadURL(DESKTOP_WEB_URL);
+        if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
     };
 
     win.webContents.on('did-fail-load', (_event, errorCode, errorDesc, validatedURL, isMainFrame) => {
@@ -636,7 +624,7 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
         powerMonitor.on('resume', () => {
             if (!onErrorPage || !recoveryWindow || recoveryWindow.isDestroyed()) return;
             resetLoadRetries();
-            void recoveryWindow.loadURL(DESKTOP_WEB_URL);
+            void recoveryWindow.loadURL(resolveWebUrl());
         });
     }
 };

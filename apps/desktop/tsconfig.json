@@ -15,7 +15,7 @@
         "skipLibCheck": true
     },
     "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "electron.vite.config.ts"],
-    "exclude": ["node_modules", "out", "dist"],
+    "exclude": ["node_modules", "out", "dist", "src/**/*.test.ts"],
     "references": [
         {
             "path": "../../libs/app-messages"
