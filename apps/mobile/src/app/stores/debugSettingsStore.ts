@@ -78,8 +78,8 @@ export const useDebugSettingsStore = create<DebugSettingsState>()(
             storage: storageAdapter,
             // customZipServerUrl은 runtime 전용 — persist에서 제외 (재시작 시 서버 기동 전 localhost 로딩 방지).
             // rest-destructure라 필드명 변경 시 컴파일 에러로 드러남 (문자열 키 필터는 조용히 새어나감).
-            // eslint-disable-next-line unused-imports/no-unused-vars -- 제외 대상 키를 omit하려면 이름으로 destructure 필요
-            partialize: ({ customZipServerUrl, ...rest }) => rest,
+            // 제외 대상 키를 omit하려면 이름으로 destructure 필요 — 바인딩은 `_` 접두로 unused 허용.
+            partialize: ({ customZipServerUrl: _customZipServerUrl, ...rest }) => rest,
         }
     )
 );
