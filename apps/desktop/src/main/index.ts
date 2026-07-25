@@ -746,10 +746,23 @@ const bindLoadRecovery = (win: BrowserWindow): void => {
     // A hung renderer: reload only if it stays unresponsive (heavy JS bursts recover on
     // their own and 'responsive' cancels the timer) — losing in-flight state is better
     // than a permanently frozen window.
+    //
+    // A hung *bundle* must not be reloaded into itself. reloadWeb resolves to the bundle
+    // while one is active, so a bundle that hangs on every load would re-hang, fire
+    // 'unresponsive' again, and repeat forever with no error page (the retry ladder and the
+    // crash cap are on other events). Treat it the way did-fail-load treats a bundle that
+    // won't load — a bundle failure is not a transient blip — and drop back to the remote web.
+    const recoverFromHang = (): void => {
+        if (isCustomUiActive()) {
+            fallbackToRemoteWeb('renderer unresponsive');
+            return;
+        }
+        reloadWeb();
+    };
     win.webContents.on('unresponsive', () => {
         console.warn('[shell] renderer unresponsive');
         if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
-        unresponsiveTimer = setTimeout(reloadWeb, 15_000);
+        unresponsiveTimer = setTimeout(recoverFromHang, 15_000);
     });
     win.webContents.on('responsive', () => {
         if (unresponsiveTimer) clearTimeout(unresponsiveTimer);
