@@ -1,4 +1,12 @@
-import { initWebUrl, isTrustedUrl, resolveWebUrl, safeOrigin } from './webUrl';
+import {
+    CUSTOM_UI_ORIGIN,
+    CUSTOM_UI_URL,
+    initWebUrl,
+    isTrustedUrl,
+    resolveWebUrl,
+    safeOrigin,
+    setCustomUiActive,
+} from './webUrl';
 
 const REMOTE = 'https://desktop.chatic.io';
 
@@ -56,5 +64,50 @@ describe('isTrustedUrl', () => {
         initWebUrl('');
         expect(isTrustedUrl(`${REMOTE}/`)).toBe(false);
         expect(isTrustedUrl('')).toBe(false);
+    });
+});
+
+describe('custom UI origin', () => {
+    beforeEach(() => initWebUrl(REMOTE));
+
+    it('gives the custom scheme a comparable origin', () => {
+        // Node's URL leaves non-special schemes with an opaque origin ("null"), so the
+        // shell has to assemble this one itself or it could never match.
+        expect(safeOrigin(`${CUSTOM_UI_ORIGIN}/assets/app.js`)).toBe(CUSTOM_UI_ORIGIN);
+    });
+
+    it('does not hand an origin to other opaque-origin URLs', () => {
+        expect(safeOrigin('data:text/html,x')).toBeNull();
+        expect(safeOrigin('chatic-local://somewhere-else/x')).toBeNull();
+    });
+
+    it('is neither loaded nor trusted while inactive', () => {
+        expect(resolveWebUrl()).toBe(REMOTE);
+        expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
+    });
+
+    it('becomes the loaded URL and a trusted origin once activated', () => {
+        setCustomUiActive(true);
+        expect(resolveWebUrl()).toBe(CUSTOM_UI_URL);
+        expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/index.html`)).toBe(true);
+    });
+
+    it('keeps trusting the remote origin while active, so a fallback load still works', () => {
+        setCustomUiActive(true);
+        expect(isTrustedUrl(`${REMOTE}/chat`)).toBe(true);
+    });
+
+    it('drops the origin from the trusted set on deactivate', () => {
+        setCustomUiActive(true);
+        setCustomUiActive(false);
+        expect(resolveWebUrl()).toBe(REMOTE);
+        expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
+    });
+
+    it('is reset by initWebUrl, so a re-init never inherits a stale activation', () => {
+        setCustomUiActive(true);
+        initWebUrl(REMOTE);
+        expect(resolveWebUrl()).toBe(REMOTE);
+        expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
     });
 });

@@ -12,15 +12,17 @@ import {
     nativeImage,
     Notification,
     powerMonitor,
+    protocol,
     screen,
     session,
     shell,
     Tray,
 } from 'electron';
+import { CUSTOM_UI_SCHEME_PRIVILEGES, registerCustomUiProtocol } from './customUiProtocol';
 import { startFcm, type FcmConfig } from './fcm';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
-import { initWebUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
+import { initWebUrl, isTrustedUrl, resolveWebUrl, setCustomUiActive } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
 // the package.json name ("@chatic/desktop") — the very name the packaged
@@ -151,6 +153,10 @@ const DESKTOP_WEB_URL = import.meta.env.MAIN_VITE_DESKTOP_WEB_URL ?? 'http://loc
 // the load sites and the origin gates must agree on one answer. Module scope so it runs
 // before any window (createWindow can also re-run after a macOS re-activate).
 initWebUrl(DESKTOP_WEB_URL);
+
+// Must run before app ready — after that the privileges are ignored, silently, and the
+// scheme degrades to an opaque non-secure origin.
+protocol.registerSchemesAsPrivileged([CUSTOM_UI_SCHEME_PRIVILEGES]);
 
 /** Set on app quit so the window 'close' handler stops intercepting (close-to-tray otherwise keeps it alive). */
 let isQuitting = false;
@@ -684,6 +690,16 @@ if (!singleInstanceLock) {
         session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
             callback(permission === 'notifications' || permission === 'clipboard-sanitized-write');
         });
+
+        // PoC escape hatch for the custom-UI slice: point MAIN_VITE_CUSTOM_UI_ROOT at an
+        // unpacked bundle and the shell serves it under chatic-local:// and loads that
+        // instead of the remote web. Unset everywhere but a developer's .env.local.
+        const customUiRoot = import.meta.env.MAIN_VITE_CUSTOM_UI_ROOT;
+        if (customUiRoot) {
+            registerCustomUiProtocol(customUiRoot);
+            setCustomUiActive(true);
+            console.info('[shell] custom UI active', { root: customUiRoot, url: resolveWebUrl() });
+        }
 
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();
