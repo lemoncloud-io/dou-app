@@ -1,12 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import type { DomainCloud, ICloudRepositoryV2 } from '@chatic/data';
-import {
-    getInvitedCloudRegistry,
-    issueCloudDelegationToken,
-    upsertInvitedCloud,
-    useSessionSelection,
-} from '@chatic/web-core';
+import { issueCloudDelegationToken, useSessionSelection } from '@chatic/web-core';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '../runtime';
 import { isNativeApp } from './factories/localFactory';
@@ -52,40 +47,20 @@ const rehydrateInvitedCloud = async (cloud: ICloudRepositoryV2, cloudId: string)
 };
 
 /**
- * Boot reconciliation for invited clouds against the cold DB. Runs once per session on native.
- *
- * 1. Read currently-cached invited clouds (hot-first → hot if present, else cold).
- * 2. Backfill the durable localStorage registry from them (covers users who accepted invites
- *    before the registry existed).
- * 3. One-time seed: re-write them so the cold tier receives them (writes are cold-first). Guarded
- *    by a localStorage flag.
- * 4. Recover registry entries absent from the current list (cache DB wiped, registry survived) by
- *    re-deriving endpoints from the relay.
+ * One-time seed of existing invited clouds from hot(IndexedDB) into cold(SQLite), on the first boot
+ * after cold activation. Invited clouds are the only local-only cache type (no server list API), so
+ * they must be promoted to the durable cold tier; every other type refills from server re-sync.
+ * Reads hot-first (returns existing hot rows) and writes them back cold-first. Guarded by a flag.
+ * The cache DB is the single source of truth — there is no separate registry.
  */
 export const reconcileInvitedCloudsIntoCold = async (cloud: ICloudRepositoryV2): Promise<void> => {
+    if (hasSeeded()) return;
     const result = await cloud.cacheReadList();
     const invited: DomainCloud[] = (result?.list ?? []).filter(c => c.cloudType === 'invited');
-
-    for (const c of invited) {
-        if (c.id) upsertInvitedCloud({ cloudId: c.id, name: c.name });
+    if (invited.length > 0) {
+        await cloud.cacheWriteMany(invited);
     }
-
-    if (!hasSeeded()) {
-        if (invited.length > 0) {
-            await cloud.cacheWriteMany(invited);
-        }
-        markSeeded();
-    }
-
-    const presentIds = new Set(invited.map(c => c.id));
-    for (const entry of getInvitedCloudRegistry()) {
-        if (presentIds.has(entry.cloudId)) continue;
-        try {
-            await rehydrateInvitedCloud(cloud, entry.cloudId);
-        } catch {
-            // Best-effort: skip clouds whose grant is gone.
-        }
-    }
+    markSeeded();
 };
 
 /**
@@ -125,7 +100,6 @@ export const syncInvitedCloudName = async (cloud: ICloudRepositoryV2, cloudId: s
     const name = fresh?.name;
     if (!name || name === existing.name) return;
     await cloud.cacheWrite({ id: cloudId, cid: existing.cid ?? cloudId, name, cloudType: 'invited' });
-    upsertInvitedCloud({ cloudId, name });
 };
 
 /**

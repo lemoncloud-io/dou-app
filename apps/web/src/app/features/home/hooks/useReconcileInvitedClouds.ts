@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { removeInvitedCloud, useCloudSessionCatalog } from '@chatic/web-core';
+import { useCloudSessionCatalog } from '@chatic/web-core';
 
 import { useInvitedClouds } from './useInvitedClouds';
 
@@ -30,9 +30,6 @@ export const useReconcileInvitedClouds = (): void => {
             void cloud.cacheDelete(c.id as string).catch(() => {
                 /* best-effort reconcile */
             });
-            // Drop it from the durable invited registry too, so recovery never resurrects a cloud
-            // that is now owned.
-            removeInvitedCloud(c.id as string);
         }
     }, [cloud, ownedClouds, invitedClouds]);
 };

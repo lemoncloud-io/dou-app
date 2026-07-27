@@ -14,9 +14,6 @@ export * from './api';
 // --- Session: global session context + shared session types ---------------------------------
 export * from './session/contexts';
 export * from './session/types';
-// Durable invited-cloud registry (localStorage), for cache-DB-loss recovery of invited clouds.
-export { getInvitedCloudRegistry, upsertInvitedCloud, removeInvitedCloud } from './session/core/cloudCore';
-export type { InvitedCloudRegistryEntry } from './session/core/cloudCore';
 
 // --- Hooks: background orchestration, session actions, and readers --------------------------
 export * from './hooks';

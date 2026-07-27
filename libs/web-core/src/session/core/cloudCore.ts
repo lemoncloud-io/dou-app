@@ -24,19 +24,6 @@ export interface CachedCloudTokens {
     cloudToken: UserTokenView;
 }
 
-/**
- * A durable registry entry for an invited cloud. Invited clouds have no server-side
- * enumeration API, so their ids are kept here in localStorage — a store independent of
- * the app-runtime cache DB (IndexedDB/SQLite). If the cache DB is wiped, this registry
- * survives and lets boot/push recovery re-derive `backend`/`wss` via
- * `issueCloudDelegationToken(cloudId)`. `name` is cosmetic (not re-derivable). See
- * libs/app-runtime/docs/data/cold-db-activation-and-invite-recovery.md.
- */
-export interface InvitedCloudRegistryEntry {
-    cloudId: string;
-    name?: string;
-}
-
 interface CloudCore {
     saveDelegationToken: (token: CloudDelegationTokenView) => void;
     getDelegationToken: () => CloudDelegationTokenView | null;
@@ -61,10 +48,6 @@ interface CloudCore {
     savePlaceOrder: (cloudId: string, order: string[]) => void;
     getPlaceOrder: (cloudId: string) => string[] | null;
     clearPlaceOrder: (cloudId: string) => void;
-    getInvitedCloudRegistry: () => InvitedCloudRegistryEntry[];
-    /** Insert or update a registry entry by cloudId (name is overwritten when provided). */
-    upsertInvitedCloud: (entry: InvitedCloudRegistryEntry) => void;
-    removeInvitedCloud: (cloudId: string) => void;
 }
 
 export const cloudCore: CloudCore = {
@@ -158,34 +141,6 @@ export const cloudCore: CloudCore = {
         notifySessionStateChanged();
     },
 
-    getInvitedCloudRegistry: (): InvitedCloudRegistryEntry[] => {
-        const raw = storage.get(CLOUD_INVITED_BUNDLES_KEY);
-        if (!raw) return [];
-        try {
-            const parsed = JSON.parse(raw) as InvitedCloudRegistryEntry[];
-            return Array.isArray(parsed) ? parsed.filter(e => !!e?.cloudId) : [];
-        } catch {
-            return [];
-        }
-    },
-
-    upsertInvitedCloud: (entry: InvitedCloudRegistryEntry): void => {
-        if (!entry?.cloudId) return;
-        const list = cloudCore.getInvitedCloudRegistry();
-        const idx = list.findIndex(e => e.cloudId === entry.cloudId);
-        if (idx >= 0) {
-            list[idx] = { ...list[idx], ...entry };
-        } else {
-            list.push({ cloudId: entry.cloudId, name: entry.name });
-        }
-        storage.set(CLOUD_INVITED_BUNDLES_KEY, JSON.stringify(list));
-    },
-
-    removeInvitedCloud: (cloudId: string): void => {
-        const list = cloudCore.getInvitedCloudRegistry().filter(e => e.cloudId !== cloudId);
-        storage.set(CLOUD_INVITED_BUNDLES_KEY, JSON.stringify(list));
-    },
-
     clearDelegationToken: (): void => {
         storage.remove(CLOUD_DELEGATION_TOKEN_KEY);
         storage.remove(CLOUD_TOKEN_KEY);
@@ -221,9 +176,3 @@ export const cloudCore: CloudCore = {
         return (token?.Token?.credential as AWSCredentials) ?? null;
     },
 };
-
-// Standalone re-exports of the invited-cloud registry ops, so consumers (app-runtime boot
-// recovery, apps/web invite-accept) can reach them without depending on the whole cloudCore object.
-export const getInvitedCloudRegistry = (): InvitedCloudRegistryEntry[] => cloudCore.getInvitedCloudRegistry();
-export const upsertInvitedCloud = (entry: InvitedCloudRegistryEntry): void => cloudCore.upsertInvitedCloud(entry);
-export const removeInvitedCloud = (cloudId: string): void => cloudCore.removeInvitedCloud(cloudId);
