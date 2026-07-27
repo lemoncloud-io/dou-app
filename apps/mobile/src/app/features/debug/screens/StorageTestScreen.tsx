@@ -281,7 +281,9 @@ export const StorageTestScreen = () => {
 
             {/* 생성/수정 편집기 */}
             {editorVisible && (
-                <View style={[styles.editorPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+                <View
+                    style={[styles.editorPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+                >
                     <Text style={[styles.editorTitle, { color: colors.text }]}>데이터 추가/수정 (JSON)</Text>
                     <TextInput
                         style={[styles.editorInput, { color: colors.text, borderColor: colors.border }]}
