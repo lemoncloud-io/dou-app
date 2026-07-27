@@ -4,6 +4,20 @@
 
 ### Features
 
+- (error-report) categorize and tag reports, attach breadcrumb context
+
+### Bug Fixes
+
+- (web/debug) keep scroll position stable when paging the log buffer
+
+### Documentation
+
+- (adr) add error-report categorization and enrichment ADR
+
+## [2026-07-27] - No version updates
+
+### Features
+
 - (debug) add full CRUD + clipboard copy to cache DB browsers
 - (app-runtime) activate native cold DB and make invited clouds recoverable
 
