@@ -1,9 +1,10 @@
-import type { LogEntry } from '@chatic/bridges';
+import type { LogEntry } from './types';
 
 /**
- * A log entry flattened into a plain, JSON-safe shape for the issue-report
- * payload. `data`/`error` are pre-stringified (and truncated) so the final
- * `JSON.stringify` in `reportIssue` never chokes on circular refs or throws.
+ * A log entry flattened into a plain, JSON-safe shape for report payloads
+ * (issue reports and error reports). `data`/`error` are pre-stringified (and
+ * truncated) so the final `JSON.stringify` at the transport layer never chokes
+ * on circular refs or throws.
  */
 export interface SerializedLog {
     level: string;
@@ -29,7 +30,7 @@ const truncate = (value: string, max: number): string =>
  * field can be omitted entirely.
  *
  * Note: values are NOT redacted (per ADR-0017 the v1 report attaches logs
- * as-is). `redactSensitive` from `@chatic/bridges` is available if that
+ * as-is). `redactSensitive` from this same package is available if that
  * decision is revisited.
  */
 export const safeStringify = (value: unknown): string | undefined => {
@@ -60,7 +61,7 @@ export const safeStringify = (value: unknown): string | undefined => {
  * Flatten log entries for transport, truncating each field and staying within
  * `TOTAL_CHAR_BUDGET`. Pass entries oldest→newest; when the budget is exceeded
  * the OLDEST entries are dropped (the newest logs — closest to the reported
- * issue — are the most useful, so they are kept). Output stays chronological.
+ * event — are the most useful, so they are kept). Output stays chronological.
  */
 export const serializeLogs = (entries: LogEntry[]): SerializedLog[] => {
     const out: SerializedLog[] = [];

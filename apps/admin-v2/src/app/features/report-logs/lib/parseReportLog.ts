@@ -38,6 +38,8 @@ export interface ReportPayload {
 export interface ReportLogRow {
     id: string;
     type: ReportType;
+    /** Error category from the title/payload, e.g. `script-error` / `network` (ADR-0029). */
+    category?: string;
     /** Platform parsed from the stored title bracket, e.g. `web` / `mobile`. */
     app?: string;
     env?: string;
@@ -89,14 +91,36 @@ const unwrapReport = (metaObj: Record<string, unknown>): { title?: string; paylo
     return { title: typeof metaObj.title === 'string' ? metaObj.title : undefined, payload: metaObj };
 };
 
-/** Parse the `[app] issue: ...` / `[app] error` title into app + type + label. */
-const parseTitle = (title?: string): { app?: string; type: ReportType; label?: string } => {
+/**
+ * Known error categories carried in the title as `[app] <category>` (ADR-0029).
+ * Mirrors `ErrorCategory` in `@chatic/web-core` — kept as a runtime Set here
+ * because the union type has no runtime value to iterate.
+ */
+const ERROR_CATEGORIES = new Set([
+    'script-error',
+    'unhandled-rejection',
+    'react-render',
+    'network',
+    'auth',
+    'http-4xx',
+    'http-5xx',
+    'unknown',
+]);
+
+/**
+ * Parse the report title into app + type + optional category/label.
+ * - `[app] issue: ...`      → issue
+ * - `[app] <category>`      → error, with category (new format, ADR-0029)
+ * - `[app] error`           → error (legacy format, no category)
+ */
+const parseTitle = (title?: string): { app?: string; type: ReportType; label?: string; category?: string } => {
     if (!title) return { type: 'unknown' };
     const bracket = title.match(/^\[([^\]]+)\]\s*(.*)$/);
     const app = bracket?.[1]?.trim();
     const rest = (bracket?.[2] ?? title).trim();
     const issue = rest.match(/^issue:\s*(.*)$/i);
     if (issue) return { app, type: 'issue', label: issue[1].trim() };
+    if (ERROR_CATEGORIES.has(rest)) return { app, type: 'error', category: rest };
     if (/^error\b/i.test(rest)) return { app, type: 'error' };
     return { app, type: 'unknown', label: rest || undefined };
 };
@@ -133,6 +157,8 @@ export const parseReportLog = (mock: RawMockView): ReportLogRow => {
     const type = parsed.type !== 'unknown' ? parsed.type : inferTypeFromPayload(payload);
     const app = parsed.app ?? (typeof payload?.app === 'string' ? payload.app : undefined);
     const env = typeof payload?.env === 'string' ? payload.env : undefined;
+    // Category: title token first (new format), else the payload `category` field.
+    const category = parsed.category ?? (typeof payload?.category === 'string' ? payload.category : undefined);
 
     // Human summary: issue label, else the error/payload message, else the title.
     const label =
@@ -147,6 +173,7 @@ export const parseReportLog = (mock: RawMockView): ReportLogRow => {
     return {
         id,
         type,
+        category,
         app,
         env,
         title: label,

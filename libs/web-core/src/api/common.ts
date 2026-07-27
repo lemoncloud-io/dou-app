@@ -1,19 +1,28 @@
 import { DOU_ENDPOINT, ENV } from '../session/core';
 import { webTransport } from '../transport';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
-import { isNative, logger } from '@chatic/bridges';
+import { classifyReport } from './reportCategory';
+import { isNative, logBuffer, logger, serializeLogs } from '@chatic/bridges';
 
 import type { SlackReportBody } from '@lemoncloud/chatic-backend-api';
-import type { AppType, ErrorReportPayload, IssueReportExtras } from './types';
+import type { AppType, ErrorReportContext, ErrorReportPayload, IssueReportExtras } from './types';
 
 const ERROR_REPORT_ENDPOINT = `${DOU_ENDPOINT}/hello/report`;
 
-// Throttling: 동일 에러 메시지는 60초 내 1회만 리포트
+// Throttling: 동일 (카테고리+메시지)는 60초 내 1회만 리포트.
+// message 단독 키였을 때는 "Network Error" 같은 동일 메시지가 서로 다른
+// 카테고리(예: network vs unknown)여도 한 버킷으로 붕괴했다. category를 키에
+// 넣어 카테고리가 다르면 각각 통과시킨다. (opaque "Script error."는 message도
+// 카테고리도 같아 여전히 한 버킷이다 — 이건 근본 원인 스파이크의 몫.) @see ADR-0029
 const THROTTLE_WINDOW_MS = 60_000;
 const recentErrors = new Map<string, number>();
 
-export const reportError = async (error: Error, errorInfo?: { componentStack?: string }): Promise<void> => {
-    const throttleKey = error.message;
+/** breadcrumb으로 붙일 최근 로그 개수 (링버퍼 tail). */
+const RECENT_LOG_COUNT = 50;
+
+export const reportError = async (error: Error, context?: ErrorReportContext): Promise<void> => {
+    const category = classifyReport(error, context);
+    const throttleKey = `${category}|${error.message}`;
     const now = Date.now();
     const lastReported = recentErrors.get(throttleKey);
     if (lastReported && now - lastReported < THROTTLE_WINDOW_MS) {
@@ -62,10 +71,20 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
         // 디바이스 정보 (모바일 WebView 주입값)
         const w = window as any;
 
+        // breadcrumb: 링버퍼의 최근 로그 tail. peek()는 oldest-first라 tail을 취해
+        // 가장 최근 항목을 얻는다 (issue-report의 buildReportContext와 동일 관용구).
+        const recentLogs = logBuffer.peek().slice(-RECENT_LOG_COUNT);
+
+        // location: window.onerror가 준 filename/lineno/colno. message가 opaque해도
+        // 브라우저가 채워주므로 opaque script error의 유일한 위치 단서가 된다.
+        const hasLocation =
+            context?.filename !== undefined || context?.lineno !== undefined || context?.colno !== undefined;
+
         const payload: ErrorReportPayload = {
+            category,
             message: error.message,
             stack: error.stack,
-            componentStack: errorInfo?.componentStack,
+            componentStack: context?.componentStack,
             app,
             env: ENV,
             url: window.location.href,
@@ -97,10 +116,16 @@ export const reportError = async (error: Error, errorInfo?: { componentStack?: s
             network: {
                 online: navigator.onLine,
             },
+            location: hasLocation
+                ? { filename: context?.filename, lineno: context?.lineno, colno: context?.colno }
+                : undefined,
+            logs: recentLogs.length ? serializeLogs(recentLogs) : undefined,
+            path: window.location.pathname,
         };
 
         const body: SlackReportBody = {
-            title: `[${app}] error`,
+            // 카테고리를 타이틀에 실어 Slack·admin 목록에서 성격을 즉시 구분한다.
+            title: `[${app}] ${category}`,
             message: JSON.stringify(payload, null, 2),
             silent: ENV !== 'prod',
             save: true,

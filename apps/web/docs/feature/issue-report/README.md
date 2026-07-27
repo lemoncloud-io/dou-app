@@ -112,8 +112,8 @@ apps/web/src/app/features/issue-report/
 ├─ hooks/
 │  └─ useDraggable.ts            # 포인터 드래그 + 뷰포트 클램프 + localStorage 영속 + 클릭 판정
 ├─ lib/
-│  ├─ buildReportContext.ts      # 로그50 + 디바이스/버전/온라인/뷰포트 조합 (순수 함수)
-│  └─ serializeLogs.ts           # LogEntry 안전 직렬화 + 크기 트렁케이션
+│  └─ buildReportContext.ts      # 로그50 + 디바이스/버전/온라인/뷰포트 조합 (순수 함수)
+│                                 # 로그 직렬화(serializeLogs)는 libs/logger로 이동, @chatic/bridges로 사용 (ADR-0029)
 ├─ index.ts
 └─ *.test.ts(x)
 ```
@@ -125,7 +125,7 @@ apps/web/src/app/features/issue-report/
 - **`components/IssueReportOverlay.tsx`** — `useDraggable('issue-report:overlay', 중앙 기본좌표)`로 이동하는 플로팅 패널. 헤더가 드래그 핸들(`MiniPanel.tsx:60-66`의 `cursor-move select-none touch-none` 패턴). 본문은 2필드뿐이라 `react-hook-form` 대신 controlled `useState`로 관리(커스텀 controlled `TextField`와 정합): web-ui-kit `TextField`(타이틀, `value`/`onChange(string)`) + `@chatic/ui-kit` `Textarea`(본문, web-ui-kit에 멀티라인 없음) + web-ui-kit `Button`(전송, `variant="solid" tone="green" fullWidth loading`) + `useToast`(`@chatic/ui-kit`). 제출은 `buildReportContext({deviceInfo, versionInfo})` → `reportIssue(title, body, extras)` → 성공 시 토스트·리셋·`onClose`, 실패 시 `logger.error('ISSUE_REPORT', ...)` + destructive 토스트(폼 유지). 하단 "숨기기"는 `setIssueReportHidden(true)` + `onClose`.
 - **`hooks/useDraggable.ts`** — `MiniPanel.tsx:30-52`의 포인터 드래그 + `clampToViewport`를 추출·일반화. 시그니처: `useDraggable(storageKey, getDefault) → { ref, position, dragHandlers, didDrag }`. 기능: (1) 마운트 시 localStorage 복원 후 클램프, (2) 포인터 업 시 localStorage 저장, (3) `resize` 리스너로 재클램프, (4) 포인터 이동량 < `DRAG_THRESHOLD_PX`(6)면 `didDrag()=false`로 클릭 허용. **뷰포트 방어**: `getViewportSize()`가 `window.innerWidth || document.documentElement.clientWidth`로 읽고, 0×0(레이아웃 전 WebView/headless)일 때 `clampToViewport`는 위치를 그대로 두어 (0,0) 붕괴를 막는다. 컴포넌트의 기본 좌표 계산도 0일 때 375×812로 폴백.
 - **`lib/buildReportContext.ts`** — `{ logs: serializeLogs(logBuffer.peek().slice(-50)), device, version, online: navigator.onLine, viewport, path }` 반환. **주의**: `logBuffer.peek()`는 FIFO(오래된 것부터)라 "최근 50개"는 전체를 peek해 `slice(-50)`로 꼬리를 취한다(`peek(50)`은 가장 오래된 50개가 되어 오답). 버퍼가 50개 미만이면 있는 만큼만 담긴다. `logBuffer`는 `@chatic/bridges` 재노출(`libs/logger/src/logger.ts:44`). `device`/`version`은 호출부가 `useDeviceInfo()`로 읽어 인자로 넘긴다(순수성 유지).
-- **`lib/serializeLogs.ts`** — `LogEntry`(`{level,tag,message,data,error,timestamp}`)를 안전 직렬화: `data`/`error`는 순환참조·비직렬화 값 방어 후 문자열화, 항목당·전체 문자 예산으로 트렁케이션(payload 비대화 방지, ADR 리스크 대응).
+- **`serializeLogs`(`@chatic/bridges` ← `libs/logger/src/serialize.ts`)** — `LogEntry`(`{level,tag,message,data,error,timestamp}`)를 안전 직렬화: `data`/`error`는 순환참조·비직렬화 값 방어 후 문자열화, 항목당·전체 문자 예산으로 트렁케이션(payload 비대화 방지). 원래 이 피처 전용이었으나 자동 에러 리포트(`reportError`)도 같은 breadcrumb을 붙이면서 `libs/logger`로 이동해 공유한다(ADR-0029).
 
 ### 기존 파일 변경
 
@@ -144,7 +144,7 @@ apps/web/src/app/features/issue-report/
 
 - **유닛 테스트** (ts-jest, `*.test.ts(x)` — 리포 관례, 4 스위트 54 케이스):
     - `hooks/useDraggable.test.tsx`: 기본/저장 위치 복원, 손상값 폴백, 클릭 vs 드래그 임계값, 드래그 시 localStorage 저장.
-    - `lib/serializeLogs.test.ts`: 순환참조·Error 직렬화, 필드/총량 트렁케이션.
+    - 로그 직렬화 회귀는 `libs/logger/src/serialize.spec.ts`로 이동(순환참조·Error 직렬화, 필드/총량 트렁케이션).
     - `lib/buildReportContext.test.ts`: 스냅샷 형태, 버퍼>50일 때 최근 50개(꼬리)만 포함.
     - `stores/usePreferenceStore.test.ts`(확장): `issueReportHidden` 기본값/토글/localStorage, native에서도 브리지 미저장(`local` 전략).
     - 실행: `cd apps/web && npx jest src/app/features/issue-report src/app/stores/usePreferenceStore.test.ts`

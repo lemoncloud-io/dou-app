@@ -95,4 +95,32 @@ describe('parseReportLog', () => {
         expect(row.title).toBe('(untitled)');
         expect(row.payload).toBeNull();
     });
+
+    it('parses category from the new `[app] <category>` title format (ADR-0029)', () => {
+        const row = parseReportLog({
+            id: 'm8',
+            meta: {
+                title: '[mobile] script-error',
+                message: JSON.stringify({ ...errorPayload, category: 'script-error', app: 'mobile' }),
+            },
+        });
+        expect(row.type).toBe('error');
+        expect(row.app).toBe('mobile');
+        expect(row.category).toBe('script-error');
+    });
+
+    it('keeps legacy `[app] error` titles working with no category', () => {
+        const row = parseReportLog({
+            id: 'm9',
+            meta: { title: '[mobile] error', message: JSON.stringify(errorPayload) },
+        });
+        expect(row.type).toBe('error');
+        expect(row.category).toBeUndefined();
+    });
+
+    it('falls back to the payload `category` field when the title has none', () => {
+        const row = parseReportLog({ id: 'm10', meta: { ...errorPayload, category: 'network' } });
+        expect(row.type).toBe('error');
+        expect(row.category).toBe('network');
+    });
 });

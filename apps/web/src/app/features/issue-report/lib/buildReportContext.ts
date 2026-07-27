@@ -1,9 +1,8 @@
-import { logBuffer } from '@chatic/bridges';
+import { logBuffer, serializeLogs } from '@chatic/bridges';
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
 import type { IssueReportExtras } from '@chatic/web-core';
 
 import { getViewportSize } from '../hooks';
-import { serializeLogs } from './serializeLogs';
 
 /** How many of the most recent log entries to attach. */
 export const RECENT_LOG_COUNT = 50;

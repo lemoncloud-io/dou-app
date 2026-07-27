@@ -1,6 +1,6 @@
-import type { LogEntry } from '@chatic/bridges';
+import type { LogEntry } from './types';
 
-import { PER_FIELD_CHAR_LIMIT, TOTAL_CHAR_BUDGET, safeStringify, serializeLogs } from './serializeLogs';
+import { PER_FIELD_CHAR_LIMIT, TOTAL_CHAR_BUDGET, safeStringify, serializeLogs } from './serialize';
 
 const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
     level: 'info',
