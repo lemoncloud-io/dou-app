@@ -4,8 +4,13 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { getCustomUiApi, type CustomUiStatus } from '../../../shared';
 
-/** Sample bundle — the same archive the mobile custom-web PoC defaults to. */
-const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
+/**
+ * Sample bundle. Desktop-shaped, and built to answer the questions this PoC exists to ask:
+ * it reports the scheme's origin and privileges, round-trips storage, calls the backend and
+ * prints how many bytes of the response it could actually read, and shows the ways back out.
+ * (The mobile PoC's archive is a phone-shaped UI that answers none of that.)
+ */
+const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktop.zip';
 
 // Read once: the shell injects it before any page script, and a per-render read would be a
 // fresh dependency for the status effect below.
@@ -14,9 +19,9 @@ const api = getCustomUiApi();
 /**
  * Custom web bundle PoC (desktop shell only): swap the whole UI for a downloaded ZIP.
  *
- * Applying reloads the window into the bundle, so this panel disappears with it — the way
- * back is the tray's "Reset custom UI", which lives in the shell and survives whatever the
- * bundle does.
+ * Applying reloads the window into the bundle, so this panel disappears with it — the way back
+ * is the shell's own "Reset custom UI", in the menu bar and the tray. Both live in main and so
+ * survive whatever the bundle does; a button inside the bundle would not.
  */
 export const DebugCustomUiPage = () => {
     const [zipUrl, setZipUrl] = useState(SAMPLE_ZIP_URL);
@@ -95,8 +100,9 @@ export const DebugCustomUiPage = () => {
             </div>
 
             <p className="text-xs text-muted-foreground">
-                Applying reloads the window into the bundle, so this panel goes with it. Get back via the tray menu →
-                Reset custom UI.
+                Applying reloads the window into the bundle, so this panel goes with it. Get back via the menu bar →
+                Custom UI → Reset custom UI (⌘⌥R), or the tray icon → Reset custom UI. Both live in the shell, so they
+                survive whatever the bundle does.
             </p>
         </div>
     );

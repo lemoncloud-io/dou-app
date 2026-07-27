@@ -302,8 +302,8 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
     });
 };
 
-/** PoC sample bundle — the same archive the mobile custom-web PoC defaults to. */
-const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
+/** PoC sample bundle — the desktop probe archive (see the debug panel for what it reports). */
+const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktop.zip';
 
 const customUiStatus = (error?: string): CustomUiStatus => ({
     active: isCustomUiActive(),
