@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 
 import { useRuntimeSocketState } from '@chatic/app-runtime';
 
-import { isDevEnv } from '../lib/isDevEnv';
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useDebugMode } from '../hooks';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
@@ -20,17 +19,17 @@ function MetricsSocketReporter() {
 }
 
 /**
- * Single web debug entry point, mounted at the app.tsx level (outside the
- * Router and AppRuntime) so it stays reachable during a boot hang. Gated by
- * the hidden 10-tap unlock everywhere, with auto-enable on DEV/LOCAL builds.
- * The env read lives here rather than in `isDevEnv` because `import.meta` is
- * unavailable under ts-jest.
+ * Single web debug entry point, mounted at the app.tsx level (outside the Router and AppRuntime)
+ * so it stays reachable during a boot hang. NEVER shown by default in any environment (PROD or
+ * DEV/LOCAL): the only trigger is the hidden 10-tap unlock. Visible iff debug mode is currently
+ * enabled, and the web can hide it again by disabling debug mode.
  */
 export const DebugOverlayHost = () => {
     const { isEnabled } = useDebugMode();
     const { isOpen, mode } = useDebugOverlayState();
 
-    if (!isDevEnv(import.meta.env.VITE_ENV) && !isEnabled) return null;
+    // Initially hidden everywhere; 10-tap (MyPage app version) is the sole entry, web disable exits.
+    if (!isEnabled) return null;
 
     return (
         <>
