@@ -38,6 +38,12 @@ export type PreferenceEntry = NativeLocalEntry | LocalEntry | SessionEntry;
 /** Theme preference value — 'system' resolves against the OS color scheme at runtime. */
 export type Theme = 'dark' | 'light' | 'system';
 
+/** Channel-list sort method, chosen per place. 'recent' matches the pre-setting default. */
+export type ChannelSortMethod = 'recent' | 'unread';
+
+/** Default channel sort when a place has no stored preference. */
+export const DEFAULT_CHANNEL_SORT: ChannelSortMethod = 'recent';
+
 export const PREFERENCES = {
     // -----------------------------------------------------------------------
     // Managed by usePreferenceStore
@@ -79,6 +85,15 @@ export const PREFERENCES = {
         strategy: 'local',
         localKey: 'chatic-push-muted',
         defaultValue: 'false',
+    },
+    // Per-place channel sort method. The value is a JSON map keyed by placeId
+    // ({"<placeId>":"unread", ...}) stored under one key — a place with no entry
+    // falls back to DEFAULT_CHANNEL_SORT. Client-only preference (no server sync),
+    // so 'local' (localStorage); the write is the source of truth.
+    channelSort: {
+        strategy: 'local',
+        localKey: 'chatic-channel-sort',
+        defaultValue: '{}',
     },
     // -----------------------------------------------------------------------
     // Owned by i18next / useBackHandler — registered here for reference

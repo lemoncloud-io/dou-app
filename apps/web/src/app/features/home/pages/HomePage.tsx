@@ -17,6 +17,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
@@ -144,6 +145,9 @@ export const HomePage = () => {
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
+    // Channel sort method for the active place (client preference, per place). Missing → default.
+    const channelSortMap = usePreferenceStore(s => s.channelSort);
+    const channelSortMethod = (selectedSiteId && channelSortMap[selectedSiteId]) || DEFAULT_CHANNEL_SORT;
     const { toast } = useToast();
 
     // Open the place-profile-create overlay once the prompt is due, but never over the first-run
@@ -166,7 +170,6 @@ export const HomePage = () => {
     useEffect(() => {
         // Profile already set for the invited site → skip setup and open the pending channel directly.
         if (pendingInviteChannelId && placeProfileStatus === 'present') openPendingInviteChannel();
-         
     }, [pendingInviteChannelId, placeProfileStatus]);
 
     const handleCreatePlace = () => {
@@ -228,6 +231,13 @@ export const HomePage = () => {
                 >
                     {t('homePage.menuProfile', '프로필')}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                    disabled={!hasActivePlace}
+                    onClick={() => selectedSiteId && navigate(ROUTES.place.settings(selectedSiteId))}
+                    className="cursor-pointer"
+                >
+                    {t('homePage.menuPlaceSettings', '플레이스 설정')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleNotifications} className="cursor-pointer">
                     {t('homePage.menuNotifications', '알림')}
                 </DropdownMenuItem>
@@ -285,6 +295,7 @@ export const HomePage = () => {
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
                         isPro={planTier === 'pro'}
+                        sortMethod={channelSortMethod}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
                     />

@@ -297,6 +297,7 @@
         "channelLimitReached": "You can create up to 100 group rooms",
         "profile": "Profile",
         "menuProfile": "Profile",
+        "menuPlaceSettings": "Place Settings",
         "menuNotifications": "Notifications",
         "menuSettings": "Settings",
         "search": "Search",
@@ -557,6 +558,20 @@
         "chat": "Chat",
         "noResults": "No results found.",
         "noHistory": "No search history."
+    },
+    "placeSettings": {
+        "title": "Place Settings",
+        "placeInfo": "Place Information",
+        "myProfile": "Place Profile",
+        "channelSort": "Sort Chats",
+        "notifications": "Notifications",
+        "ownerOnly": "Only the owner can change this",
+        "comingSoon": "Coming soon"
+    },
+    "channelSort": {
+        "title": "Sort Chats",
+        "recent": "Recent activity",
+        "unread": "Unread first"
     },
     "placeInfo": {
         "title": "Place Information",
