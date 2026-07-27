@@ -145,20 +145,20 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
         expect(syncStatus).toHaveBeenCalledWith('yellow');
     });
 
-    it('미인증 중 전환은 즉시 전송하되(게이트 없음), 재인증 시 다시 단언한다', () => {
+    it('미인증 중 전환은 전송하지 않고, 재인증 시 현재 status를 단언한다', () => {
         useRuntimeSocketStateMock.mockReturnValue({ isVerified: false });
         const { rerender } = renderHook(() => useDeviceSync());
         expect(syncStatus).not.toHaveBeenCalled();
 
-        // Optimistic send on a possibly-dead socket — not recorded as delivered.
+        // Disconnected: a visibility change records intent only — nothing is sent over a dead socket.
         emitVisibility(false);
-        expect(syncStatus).toHaveBeenNthCalledWith(1, 'yellow');
+        expect(syncStatus).not.toHaveBeenCalled();
 
-        // Re-auth → the possibly-lost yellow is re-asserted by the catch-up.
+        // Re-connect → the catch-up asserts the current (yellow) status exactly once.
         useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
-        expect(syncStatus).toHaveBeenNthCalledWith(2, 'yellow');
-        expect(syncStatus).toHaveBeenCalledTimes(2);
+        expect(syncStatus).toHaveBeenCalledTimes(1);
+        expect(syncStatus).toHaveBeenCalledWith('yellow');
     });
 });
 

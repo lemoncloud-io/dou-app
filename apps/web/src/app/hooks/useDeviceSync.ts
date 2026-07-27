@@ -17,14 +17,15 @@ const toStatus = (isForeground: boolean): PresenceStatus => (isForeground ? 'gre
  * hook would miss, and it also sees the channel→list exit.
  *
  * Viewing is scoped to the channel room only; settings/list/other routes clear it. Backgrounding
- * the app also clears the viewing pair (the server must nㅋot show this device "in" a room while it
+ * the app also clears the viewing pair (the server must not show this device "in" a room while it
  * is hidden), and returning to the foreground restores the current room. Each real change fires
  * exactly one device.sync (fire-and-forget), deduped via a ref so re-render churn does not
  * re-notify an unchanged target.
  *
- * Status transitions send immediately without gating on isVerified: device.sync is a
- * fire-and-forget `send` (not the self-healing request path), so a send on a dead socket is
- * silently lost — the verified rising edge below re-asserts the current status, which also
+ * Every device.sync send is gated on a connected socket (isVerified): device.sync is a
+ * fire-and-forget `send` (not the self-healing request path), so a send on a dead socket would be
+ * silently lost. While disconnected the hook only records the intended status/viewing in refs; the
+ * verified rising edge (the catch-up effect below) re-asserts both once connected — which also
  * covers the very first green after app start.
  */
 export const useDeviceSync = (): void => {
@@ -68,10 +69,13 @@ export const useDeviceSync = (): void => {
         statusRef.current = status;
         isForegroundRef.current = isForeground;
 
-        // Presence status: optimistic send even when unverified — harmless on a dead socket. Only a
-        // verified send is recorded, so a possibly-lost one is re-asserted on the next rising edge.
+        // Only sync while the socket is connected. When disconnected we just record the intent in
+        // the refs above; the verified catch-up effect below re-asserts status + viewing on reconnect.
+        if (!isVerified) return;
+
+        // Presence status: send on a real change and record it as delivered (we are verified here).
         if (lastSentStatusRef.current !== status) {
-            if (isVerified) lastSentStatusRef.current = status;
+            lastSentStatusRef.current = status;
             device.syncStatus(status);
         }
 
