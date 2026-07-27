@@ -193,10 +193,18 @@ export const LogBufferScreen = () => {
     const visibleLogs = useMemo(() => filterLogs(logs, { levels: activeLevels, query }), [logs, activeLevels, query]);
 
     // Each buffer entry is a distinct object even when content is identical
-    // (socket retries repeat the same tag/message/timestamp). Keying rows by
-    // their position in the loaded snapshot gives React unique, stable keys —
-    // content-based keys collide and break list reconciliation on filtering.
-    const keyByLog = useMemo(() => new Map(logs.map((log, index) => [log, index])), [logs]);
+    // (socket retries repeat the same tag/message/timestamp), so rows are keyed
+    // by position rather than content — content-based keys collide and break
+    // reconciliation on filtering.
+    //
+    // The key is the entry's rank FROM THE NEWEST end (`length-1-index`), not its
+    // raw oldest-first index. Paging (Load more) fetches a larger recent window,
+    // which PREPENDS older entries to `logs` and would shift every raw index —
+    // changing all keys, forcing React to tear down and rebuild the whole list,
+    // which clamps the scroll and drops the expanded row (the "보던 위치가 튄다"
+    // jump). Ranking from the newest end keeps already-shown rows' keys stable
+    // across paging, so only the new (older) rows mount, appended at the bottom.
+    const keyByLog = useMemo(() => new Map(logs.map((log, index) => [log, logs.length - 1 - index])), [logs]);
 
     const markRequest = useCallback((action: string) => {
         setLastAction(`${action} requested`);

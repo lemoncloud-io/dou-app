@@ -19,23 +19,33 @@ import { markBoot } from './features/debug/metrics/bootMarks';
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
-        reportError(event.error ?? new Error(event.message));
+        // Cross-origin script exceptions arrive with a null `event.error` and an
+        // opaque "Script error." message. Forward that fact plus the position the
+        // browser still exposes (filename/lineno/colno) so web-core can tag it as
+        // a script-error and keep a location breadcrumb. @see ADR-0029
+        reportError(event.error ?? new Error(event.message), {
+            source: 'window.onerror',
+            errorWasNull: event.error == null,
+            filename: event.filename || undefined,
+            lineno: event.lineno || undefined,
+            colno: event.colno || undefined,
+        });
     });
     window.addEventListener('unhandledrejection', event => {
         const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
-        reportError(error);
+        reportError(error, { source: 'unhandledrejection' });
     });
 }
 
 const queryCache = new QueryCache({
     onError: (error: Error): void => {
-        reportError(error);
+        reportError(error, { source: 'query' });
     },
 });
 
 const mutationCache = new MutationCache({
     onError: (error: Error): void => {
-        reportError(error);
+        reportError(error, { source: 'mutation' });
     },
 });
 
@@ -62,7 +72,7 @@ export function App() {
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', 'Application Error', { error, data: info });
-        reportError(error, { componentStack: info.componentStack ?? undefined });
+        reportError(error, { source: 'error-boundary', componentStack: info.componentStack ?? undefined });
     }, []);
 
     return (
