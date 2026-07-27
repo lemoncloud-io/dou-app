@@ -104,7 +104,15 @@ export const InviteDialog = ({ suppressed = false }: InviteDialogProps): JSX.Ele
     return (
         <Dialog open onOpenChange={next => !next && requestClose()}>
             <DialogContent
-                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background"
+                // The shared `slide-up` variant bakes in `pt-safe-top pb-safe-bottom` so its white
+                // sheet content clears the notch/home-indicator. This invite screen is instead a
+                // full-bleed branded surface that owns the whole viewport and applies the safe insets
+                // internally (header → top, footer → bottom). A className `p-0` can't win here: the
+                // custom `pt-safe-*` utilities aren't recognized by tailwind-merge, so both survive and
+                // the directional padding wins on CSS source order. Zero it inline so the colored
+                // surface reaches the very top/bottom edges (no white safe-area bands).
+                style={{ padding: 0 }}
                 hideClose
                 variant="slide-up"
             >
