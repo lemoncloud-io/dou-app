@@ -34,4 +34,24 @@ describe('ReadReceipt', () => {
         render(<ReadReceipt readCount={2} unreadCount={-1} readLabel="읽음" unreadLabel="안읽음" />);
         expect(screen.queryByText(/안읽음/)).toBeNull();
     });
+
+    describe('dm mode', () => {
+        it('shows the lone unread count while the peer has not read', () => {
+            render(<ReadReceipt mode="dm" readCount={1} unreadCount={1} readLabel="읽음" unreadLabel="안읽음" />);
+            expect(screen.getByText('1')).toHaveClass('text-main-accent');
+            expect(screen.queryByText(/읽음/)).toBeNull();
+        });
+
+        it('renders nothing once the peer has read', () => {
+            const { container } = render(
+                <ReadReceipt mode="dm" readCount={2} unreadCount={0} readLabel="읽음" unreadLabel="안읽음" />
+            );
+            expect(container).toBeEmptyDOMElement();
+        });
+
+        it('exposes the unread count to assistive tech', () => {
+            render(<ReadReceipt mode="dm" readCount={1} unreadCount={1} readLabel="읽음" unreadLabel="안읽음" />);
+            expect(screen.getByLabelText('안읽음 1')).toBeTruthy();
+        });
+    });
 });

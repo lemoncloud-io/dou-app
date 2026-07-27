@@ -27,6 +27,8 @@ export interface MessageReadInfo {
     readCount: number;
     /** Members who have not read this message yet. */
     unreadCount: number;
+    /** Receipt presentation: `count` (group N·M) or `dm` (1:1 "1" badge). Defaults to `count`. */
+    mode?: 'count' | 'dm';
 }
 
 export interface ChannelMessageRowProps {
@@ -160,6 +162,7 @@ export const ChannelMessageRow = ({
         } else if (read.show && message.chatNo !== undefined) {
             status = read.isReady ? (
                 <ReadReceipt
+                    mode={read.mode}
                     readCount={read.readCount}
                     unreadCount={read.unreadCount}
                     readLabel={t('chat.room.read')}
