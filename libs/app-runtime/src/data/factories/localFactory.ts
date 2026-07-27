@@ -13,10 +13,9 @@ import {
 } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
 import {
-    AppPolicyResolver,
     type CacheStorageStrategy,
-    HotColdCacheStorageStrategy,
     IndexedDbOnlyCacheStorageStrategy,
+    NativeDbOnlyCacheStorageStrategy,
 } from '../cacheStorageStrategies';
 
 export const isNativeApp = (): boolean => {
@@ -30,17 +29,17 @@ export interface CacheFactoryOptions {
     reporter?: CacheErrorReporter;
 }
 
-// Memoized so all cache types share one strategy instance (and one AppPolicyResolver).
+// Memoized so all cache types share one strategy instance.
 let sharedStrategy: CacheStorageStrategy | null = null;
 
 const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy => {
     if (!sharedStrategy) {
-        // Native WebView: Hot(IndexedDB) + Cold(NativeDB/SQLite) 2-tier. All 8 cache
-        // domains are registered on the native bridge (CacheCrudService), so the cold
-        // tier no longer conflicts with unregistered types.
-        // Web / desktop-web: IndexedDB only (no native cold tier).
+        // Native WebView: Cold(NativeDB/SQLite) only — a single durable store that survives WebView
+        // IndexedDB eviction and drops the hot/cold coordination pitfalls of the 2-tier strategy
+        // (cold-first write gate, missing cold→hot read fallback).
+        // Web / desktop-web: Hot(IndexedDB) only — no native bridge to reach a cold tier.
         sharedStrategy = isNativeApp()
-            ? new HotColdCacheStorageStrategy(webClient, { policyResolver: new AppPolicyResolver() })
+            ? new NativeDbOnlyCacheStorageStrategy(webClient)
             : new IndexedDbOnlyCacheStorageStrategy();
     }
     return sharedStrategy;
