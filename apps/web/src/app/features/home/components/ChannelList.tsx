@@ -63,7 +63,14 @@ const ChannelItem = ({
     const isSelf = channel.stereo === 'self';
     // For self-chat the title follows: this channel's join nick (from the subscribed join list,
     // freshest after a rename) → the embedded `$join` nick → my profile nick → "나와의 채팅" label.
-    const selfChatTitle = resolveSelfChatTitle(joinNick ?? channel.$join?.nick, myNick, t('channelList.selfChannel'));
+    // `uid` lets a default nick (server-seeded to the raw userId/UUID) be skipped so the human
+    // profile nick shows instead of the id.
+    const selfChatTitle = resolveSelfChatTitle(
+        joinNick ?? channel.$join?.nick,
+        myNick,
+        t('channelList.selfChannel'),
+        uid
+    );
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.

@@ -86,6 +86,39 @@ describe('ChannelList self-chat row', () => {
         expect(screen.getByText('MY_NICK')).toBeInTheDocument();
     });
 
+    it('서버 기본 nick(UUID)은 무시하고 내 프로필 nick으로 폴백한다', () => {
+        // Unnamed self-chat: the server seeds join.nick to the raw userId (a UUID). Caught by the
+        // UUID-shape guard regardless of the session uid.
+        const uuidNick = '6f9a03e5-5e28-424e-bc1f-1ebdb34631eb';
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({ id: 'self3', stereo: 'self', memberNo: 1, name: '', $join: { nick: uuidNick } }),
+                ]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByText('MY_NICK')).toBeInTheDocument();
+        expect(screen.queryByText(uuidNick)).not.toBeInTheDocument();
+    });
+
+    it('nick이 내 세션 userId와 같으면 무시하고 프로필 nick으로 폴백한다', () => {
+        render(
+            <ChannelList
+                channels={[
+                    // useSessionIdentity mock returns userId: 'me'; a nick equal to it is the default, not a name.
+                    makeChannel({ id: 'self4', stereo: 'self', memberNo: 1, name: '', $join: { nick: 'me' } }),
+                ]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByText('MY_NICK')).toBeInTheDocument();
+    });
+
     it('채널 목록을 join updatedAt 최신순으로 정렬한다', () => {
         render(
             <ChannelList
