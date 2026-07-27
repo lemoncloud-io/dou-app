@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DataRepositoriesV2 } from '@chatic/data';
 
+import { copyText } from '../../lib/copyText';
+
 type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile';
 
 type DomainRow = { id: string; [key: string]: unknown };
@@ -92,9 +94,18 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
                 <button
                     onClick={e => {
                         e.stopPropagation();
+                        copyText(JSON.stringify(row, null, 2));
+                    }}
+                    className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                    복사
+                </button>
+                <button
+                    onClick={e => {
+                        e.stopPropagation();
                         onEdit();
                     }}
-                    className="ml-auto shrink-0 text-primary hover:opacity-70"
+                    className="shrink-0 text-primary hover:opacity-70"
                 >
                     수정
                 </button>
@@ -293,7 +304,17 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 
             {results !== null && (
                 <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground">{results.length}건</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">{results.length}건</p>
+                        {results.length > 0 && (
+                            <button
+                                onClick={() => copyText(JSON.stringify(results, null, 2))}
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                                전체 복사
+                            </button>
+                        )}
+                    </div>
                     {results.length === 0 ? (
                         <p className="text-xs text-muted-foreground">결과 없음</p>
                     ) : (
