@@ -58,7 +58,9 @@ end
 # versionCode). The directory is generated per deploy and gitignored.
 def write_play_changelog(notes)
   locale = ENV.fetch('PLAY_LOCALE', 'en-US')
-  dir = File.join(Dir.pwd, 'fastlane', 'metadata', 'android', locale, 'changelogs')
+  # Anchor to this fastlane directory (__dir__), not Dir.pwd: running fastlane from
+  # apps/mobile/fastlane/ made `Dir.pwd/fastlane` resolve to a nested fastlane/fastlane/.
+  dir = File.join(__dir__, 'metadata', 'android', locale, 'changelogs')
   FileUtils.mkdir_p(dir)
   File.write(File.join(dir, 'default.txt'), notes)
 end
@@ -130,11 +132,17 @@ platform :android do
 
     write_play_changelog(release_notes)
 
+    # Anchor paths to this Fastfile's location (apps/mobile), not the current working
+    # directory: invoking fastlane from apps/mobile/fastlane/ (instead of apps/mobile/)
+    # made the relative `android/...` path resolve wrong and the AAB check fail.
+    app_root = File.expand_path('..', __dir__)
+    android_dir = File.join(app_root, 'android')
+
     gradle(
       task: 'bundle',
       flavor: env == 'dev' ? 'Dev' : 'Prod',
       build_type: 'Release',
-      project_dir: 'android'
+      project_dir: android_dir
     )
 
     # Upload the AAB this lane just built. Do NOT rely on GRADLE_AAB_OUTPUT_PATH:
@@ -142,7 +150,7 @@ platform :android do
     # the most recently modified one across ALL flavors. A stale dev AAB left in
     # the tree (newer mtime, e.g. from a prior dev deploy) would then be uploaded
     # to the prod app -> "APK has the wrong package name". Pin the flavor's path.
-    aab_path = "android/app/build/outputs/bundle/#{env}Release/app-#{env}-release.aab"
+    aab_path = File.join(android_dir, "app/build/outputs/bundle/#{env}Release/app-#{env}-release.aab")
     UI.user_error!("Built AAB not found at #{aab_path}") unless File.exist?(aab_path)
 
     upload_to_play_store(

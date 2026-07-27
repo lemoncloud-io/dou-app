@@ -6,6 +6,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     UIManager,
     View,
@@ -22,12 +23,35 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud'];
 
+// Per-type starter row for one-click create. cid/uid default to 'default' so the row is writable
+// without a live session; edit the JSON before saving to target a specific scope.
+const makeTemplate = (type: CacheType): Record<string, unknown> => {
+    const id = `dbg-${type}-${Date.now().toString(36)}`;
+    const base = { id, cid: 'default', uid: 'default' };
+    switch (type) {
+        case 'channel':
+            return { ...base, sid: '', name: 'Debug Channel' };
+        case 'chat':
+            return { ...base, channelId: '', chatNo: 0, content: 'debug message' };
+        case 'user':
+            return { ...base, name: 'Debug User' };
+        case 'join':
+            return { ...base, channelId: '', userId: '', readNo: 0 };
+        case 'site':
+            return { ...base, name: 'Debug Place' };
+        case 'invitecloud':
+            return { ...base, name: 'Debug Cloud' };
+        default:
+            return base;
+    }
+};
+
 export const StorageTestScreen = () => {
     const insets = useSafeAreaInsets();
     const colors = useDebugTheme();
     // Debug screen (not on the boot path): reading these getters here constructs the SQLite database
     // on demand when the screen opens. See boot-optimization.md 4.4.
-    const { sqliteDatabase, cacheCrudService } = provider;
+    const { sqliteDatabase, cacheCrudService, clipboardService } = provider;
 
     const [dataType, setDataType] = useState<CacheType>(DATA_TYPES[0]);
 
@@ -35,6 +59,10 @@ export const StorageTestScreen = () => {
     const [items, setItems] = useState<any[]>([]);
     const [resultLog, setResultLog] = useState<string>('Ready');
     const [isExpanded, setIsExpanded] = useState(true);
+
+    // 편집기(생성/수정) 상태
+    const [editorVisible, setEditorVisible] = useState(false);
+    const [editorText, setEditorText] = useState('');
 
     const togglePanel = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -70,6 +98,72 @@ export const StorageTestScreen = () => {
         } catch (e) {
             logError('Clear Error', e);
         }
+    };
+
+    const handleCopy = async (item: any) => {
+        try {
+            await clipboardService.setText(JSON.stringify(item, null, 2));
+            logResult('Copy', `Copied ${item.id} to clipboard.`);
+        } catch (e) {
+            logError('Copy', e);
+        }
+    };
+
+    const handleDelete = async (item: any) => {
+        try {
+            await cacheCrudService.delete({
+                type: dataType,
+                id: item.id,
+                cid: item.cid ?? 'default',
+                uid: item.uid ?? 'default',
+            });
+            logResult('Delete', `Deleted ${item.id} in ${dataType}.`);
+            await fetchItems();
+        } catch (e) {
+            logError('Delete', e);
+        }
+    };
+
+    // 생성: 이 타입의 템플릿으로 편집기를 연다.
+    const openCreate = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setEditorText(JSON.stringify(makeTemplate(dataType), null, 2));
+        setEditorVisible(true);
+    };
+
+    // 수정: 기존 행의 JSON으로 편집기를 채운다. 같은 id로 저장 → save가 upsert.
+    const openEdit = (item: any) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setEditorText(JSON.stringify(item, null, 2));
+        setEditorVisible(true);
+    };
+
+    const handleSave = async () => {
+        try {
+            const parsed = JSON.parse(editorText);
+            if (!parsed?.id) {
+                return logError('Save', 'id 필드가 필요합니다.');
+            }
+            await cacheCrudService.save({
+                type: dataType,
+                id: parsed.id,
+                item: parsed,
+                cid: parsed.cid ?? 'default',
+                uid: parsed.uid ?? 'default',
+            });
+            logResult('Save', `Saved ${parsed.id} in ${dataType}.`);
+            setEditorVisible(false);
+            setEditorText('');
+            await fetchItems();
+        } catch (e) {
+            logError('Save', e);
+        }
+    };
+
+    const closeEditor = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setEditorVisible(false);
+        setEditorText('');
     };
 
     const handleBackup = async () => {
@@ -115,6 +209,17 @@ export const StorageTestScreen = () => {
             <Text style={[styles.logData, { color: colors.mutedText }]}>
                 {item.content || item.name || item.text || JSON.stringify(item)}
             </Text>
+            <View style={styles.rowActions}>
+                <TouchableOpacity style={styles.rowActionButton} onPress={() => void handleCopy(item)}>
+                    <Text style={[styles.rowActionText, { color: colors.subtleText }]}>복사</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.rowActionButton} onPress={() => openEdit(item)}>
+                    <Text style={[styles.rowActionText, { color: '#4A90E2' }]}>수정</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.rowActionButton} onPress={() => void handleDelete(item)}>
+                    <Text style={[styles.rowActionText, { color: '#FF5A5F' }]}>삭제</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 
@@ -174,6 +279,39 @@ export const StorageTestScreen = () => {
                 )}
             </View>
 
+            {/* 생성/수정 편집기 */}
+            {editorVisible && (
+                <View
+                    style={[styles.editorPanel, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+                >
+                    <Text style={[styles.editorTitle, { color: colors.text }]}>데이터 추가/수정 (JSON)</Text>
+                    <TextInput
+                        style={[styles.editorInput, { color: colors.text, borderColor: colors.border }]}
+                        value={editorText}
+                        onChangeText={setEditorText}
+                        multiline
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        placeholder='{ "id": "...", ... }'
+                        placeholderTextColor={colors.subtleText}
+                    />
+                    <View style={styles.editorActions}>
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#27AE60' }]}
+                            onPress={() => void handleSave()}
+                        >
+                            <Text style={styles.buttonText}>저장</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: '#555' }]}
+                            onPress={closeEditor}
+                        >
+                            <Text style={styles.buttonText}>취소</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
             {/* 데이터 리스트 */}
             <FlatList
                 data={items}
@@ -198,6 +336,13 @@ export const StorageTestScreen = () => {
                         onPress={fetchItems}
                     >
                         <Text style={styles.buttonText}>Refresh</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#27AE60' }]}
+                        onPress={openCreate}
+                    >
+                        <Text style={styles.buttonText}>생성</Text>
                     </TouchableOpacity>
 
                     <View style={styles.divider} />
@@ -247,6 +392,19 @@ const styles = StyleSheet.create({
     cidPillSelected: { backgroundColor: '#50E3C2' },
     cidPillText: { color: '#AAA', fontSize: 11, fontWeight: '600' },
     cidPillTextSelected: { color: '#000' },
+    editorPanel: { padding: 16, borderBottomWidth: 1 },
+    editorTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 8 },
+    editorInput: {
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 10,
+        minHeight: 120,
+        maxHeight: 220,
+        fontSize: 12,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        textAlignVertical: 'top',
+    },
+    editorActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
     logList: { flex: 1, backgroundColor: '#000000' },
     logContent: { padding: 16 },
     logRow: { marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222', paddingBottom: 8 },
@@ -258,6 +416,9 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     logData: { color: '#888', fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', marginLeft: 4 },
+    rowActions: { flexDirection: 'row', gap: 16, marginTop: 8, marginLeft: 4 },
+    rowActionButton: { paddingVertical: 2 },
+    rowActionText: { fontSize: 12, fontWeight: '600' },
     emptyText: { color: '#444', textAlign: 'center', marginTop: 20 },
     bottomContainer: { backgroundColor: '#1E1E1E', borderTopWidth: 1, borderTopColor: '#333', paddingVertical: 12 },
     actionContainer: { paddingHorizontal: 16, alignItems: 'center', gap: 8 },
