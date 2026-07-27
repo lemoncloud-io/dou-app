@@ -374,10 +374,13 @@ const scheduleReload = (win: BrowserWindow): void => {
     setTimeout(() => reloadForCustomUiChange(win), 0);
 };
 
-/** Load whatever mode the shell is now in, and re-sync the tray to match. */
+/** Load whatever mode the shell is now in, and re-sync both escape hatches to match. */
 const reloadForCustomUiChange = (win: BrowserWindow): void => {
     if (!win.isDestroyed()) void win.loadURL(resolveWebUrl());
     refreshTrayMenu();
+    // The Custom UI menu appears and disappears with the bundle, so the menu bar has to be
+    // rebuilt here too — not only at startup.
+    Menu.setApplicationMenu(buildAppMenu());
 };
 
 /**
@@ -465,10 +468,15 @@ const createTray = (win: BrowserWindow): void => {
     const trayIconPath = app.isPackaged
         ? join(process.resourcesPath, 'tray.png')
         : join(__dirname, '../../build/tray.png');
+    const trayIcon = nativeImage.createFromPath(trayIconPath);
+    // macOS draws a non-template icon in its own colours, so a dark glyph on a dark menu bar
+    // is invisible — and an invisible tray is an invisible escape hatch. A template image is
+    // masked and re-tinted by the OS to match the bar in either appearance.
+    if (process.platform === 'darwin') trayIcon.setTemplateImage(true);
     // createWindow re-runs on a macOS re-activate; without this the previous native icon
     // stays in the menu bar with a menu closed over the destroyed window.
     tray?.destroy();
-    tray = new Tray(nativeImage.createFromPath(trayIconPath));
+    tray = new Tray(trayIcon);
     trayWindow = win;
     tray.setToolTip('DoU');
     tray.setContextMenu(buildTrayMenu(win));
@@ -518,6 +526,37 @@ const renderErrorHtml = (code: number, desc: string): string => {
 </div></body></html>`;
 };
 
+/**
+ * The same escape hatch as the tray, in the menu bar.
+ *
+ * A bundle owns the entire renderer, so everything that can undo it has to live in main. The
+ * tray alone is too thin a thread to hang that on: it needs an icon asset to resolve, and on
+ * macOS it competes for menu-bar space that may simply have run out. The application menu
+ * needs no asset, cannot be crowded out, and carries a keyboard shortcut — so a bundle that
+ * paints nothing useful is still recoverable without knowing where to click.
+ *
+ * Only present while a bundle is active, which is why the menu is rebuilt on every custom-UI
+ * change (see reloadForCustomUiChange).
+ */
+const customUiMenu = (): MenuItemConstructorOptions[] => {
+    if (!isCustomUiActive()) return [];
+    return [
+        {
+            label: 'Custom UI',
+            submenu: [
+                {
+                    label: 'Reset custom UI',
+                    accelerator: 'CommandOrControl+Alt+R',
+                    click: () => {
+                        disableCustomUi();
+                        if (trayWindow && !trayWindow.isDestroyed()) reloadForCustomUiChange(trayWindow);
+                    },
+                },
+            ],
+        },
+    ];
+};
+
 /** Native application menu with standard roles so copy/paste/zoom/window shortcuts work. */
 const buildAppMenu = (): Menu => {
     const isMac = process.platform === 'darwin';
@@ -538,6 +577,7 @@ const buildAppMenu = (): Menu => {
         { label: 'File', submenu: [{ role: 'close' }] },
         { role: 'editMenu' },
         { label: 'View', submenu: viewSubmenu },
+        ...customUiMenu(),
         { role: 'windowMenu' },
     ];
     return Menu.buildFromTemplate(template);
