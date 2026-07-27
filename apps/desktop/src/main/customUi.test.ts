@@ -4,6 +4,7 @@ import {
     bundleRootFor,
     hashUrl,
     isAllowedBundleUrl,
+    isDocumentRequest,
     isSymlinkEntry,
     resolveEntryPath,
     zipDownloadPath,
@@ -192,5 +193,32 @@ describe('resolveEntryPath', () => {
     ])('never resolves outside the root: %s', path => {
         const resolved = resolveEntryPath(ROOT, req(path));
         expect(resolved === null || resolved.startsWith(ROOT + sep)).toBe(true);
+    });
+});
+
+describe('isDocumentRequest', () => {
+    it.each([
+        ['Chromium navigation', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'],
+        ['bare', 'text/html'],
+        ['weighted', 'text/html;q=0.9'],
+        ['spaced, not first', 'application/xhtml+xml, text/html'],
+    ])('accepts a document navigation (%s)', (_label, accept) => {
+        expect(isDocumentRequest(accept)).toBe(true);
+    });
+
+    it.each([
+        ['subresource', '*/*'],
+        ['stylesheet', 'text/css,*/*;q=0.1'],
+        ['image', 'image/avif,image/webp,*/*'],
+        ['absent', null],
+        ['empty', ''],
+    ])('refuses everything else (%s)', (_label, accept) => {
+        expect(isDocumentRequest(accept)).toBe(false);
+    });
+
+    it('does not match a type that merely contains text/html', () => {
+        // A prefix test would let `text/html-fragment` through; the split is on whole types.
+        expect(isDocumentRequest('text/html-fragment')).toBe(false);
+        expect(isDocumentRequest('application/text/html')).toBe(false);
     });
 });

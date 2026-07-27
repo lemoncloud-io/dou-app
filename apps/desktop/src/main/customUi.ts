@@ -56,6 +56,21 @@ export const isSymlinkEntry = (externalFileAttributes: number): boolean =>
 export const isAllowedBundleUrl = (url: string): boolean => /^https:\/\//i.test(url);
 
 /**
+ * Whether a request that found no file should be answered with the SPA entry point.
+ *
+ * The web build routes with BrowserRouter, so `/settings` is a client route with nothing
+ * behind it on disk — only index.html can hand the path back to the router. Confining the
+ * fallback to document navigations is what keeps a missing asset a 404: answering
+ * `/assets/index-abc.js` with HTML would turn a shipping mistake into a syntax error in an
+ * unrelated place, and answering a bundle's own `fetch()` with HTML would do worse.
+ *
+ * Matched on Accept rather than on the path lacking an extension, because the routes that
+ * need this most do not lack one — `/auth/token/<jwt>` ends in a dot-separated segment.
+ */
+export const isDocumentRequest = (accept: string | null): boolean =>
+    (accept ?? '').split(',').some(entry => entry.split(';')[0].trim() === 'text/html');
+
+/**
  * Map a `chatic-local://bundle/...` request to the file that answers it, or null if the
  * request has no answer inside `root`.
  *

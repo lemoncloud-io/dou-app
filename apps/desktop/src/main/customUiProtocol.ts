@@ -1,8 +1,9 @@
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { net, protocol } from 'electron';
 
-import { resolveEntryPath } from './customUi';
+import { isDocumentRequest, resolveEntryPath } from './customUi';
 import { CUSTOM_UI_SCHEME, isCustomUiUrl } from './webUrl';
 
 /**
@@ -23,6 +24,22 @@ export const CUSTOM_UI_SCHEME_PRIVILEGES = {
 
 let handled = false;
 
+const notFound = (): Response => new Response('Not found', { status: 404 });
+
+/**
+ * Serve one file, or null when it is not there. Absence is checked in both shapes net.fetch
+ * can express it — a rejection and a non-ok response — so the caller does not depend on
+ * which one a given Electron build picks for a missing `file:` URL.
+ */
+const fileResponse = async (path: string): Promise<Response | null> => {
+    try {
+        const response = await net.fetch(pathToFileURL(path).toString());
+        return response.ok ? response : null;
+    } catch {
+        return null;
+    }
+};
+
 /** Serve `root` under the custom-UI scheme, replacing any bundle already served. Requires app ready. */
 export const registerCustomUiProtocol = (root: string): void => {
     // protocol.handle throws on a scheme that already has a handler, and re-applying a
@@ -35,15 +52,18 @@ export const registerCustomUiProtocol = (root: string): void => {
         // handle() claims the whole scheme, so `chatic-local://anything/` would otherwise
         // serve the bundle under an origin safeOrigin refuses to trust. Serve only the host
         // the shell actually navigates to, so what is served and what is trusted agree.
-        if (!isCustomUiUrl(request.url)) return new Response('Not found', { status: 404 });
+        if (!isCustomUiUrl(request.url)) return notFound();
         const entry = resolveEntryPath(root, request.url);
-        if (!entry) return new Response('Not found', { status: 404 });
-        try {
-            return await net.fetch(pathToFileURL(entry).toString());
-        } catch {
-            // Missing file — a bundle referencing an asset it did not ship.
-            return new Response('Not found', { status: 404 });
-        }
+        // Null means the path left the root. That gets a 404 and never the fallback below —
+        // a traversal attempt answered with 200 tells the caller the shape is worth refining.
+        if (!entry) return notFound();
+        const direct = await fileResponse(entry);
+        if (direct) return direct;
+        // Missing file. A client route needs the entry point; anything else is a bundle
+        // referencing an asset it did not ship, and should hear so.
+        if (!isDocumentRequest(request.headers.get('accept'))) return notFound();
+        // index.html sits inside root by construction, so this adds no traversal surface.
+        return (await fileResponse(join(root, 'index.html'))) ?? notFound();
     });
     handled = true;
 };
