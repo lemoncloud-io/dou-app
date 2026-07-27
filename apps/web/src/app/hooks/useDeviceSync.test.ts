@@ -161,3 +161,45 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
         expect(syncStatus).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('useDeviceSync — 가시성 기반 viewing 통지', () => {
+    it('채널 룸에서 백그라운드로 가면 viewing 짝을 비운다', () => {
+        setChannel('A');
+        renderHook(() => useDeviceSync());
+        expect(syncDevice).toHaveBeenNthCalledWith(1, 'channel', 'A');
+
+        emitVisibility(false);
+        expect(syncDevice).toHaveBeenNthCalledWith(2, '', '');
+        expect(syncDevice).toHaveBeenCalledTimes(2);
+    });
+
+    it('포그라운드 복귀 시 현재 채널 viewing을 복원한다', () => {
+        setChannel('A');
+        renderHook(() => useDeviceSync());
+        emitVisibility(false); // clears to ('', '')
+        syncDevice.mockClear();
+
+        emitVisibility(true);
+        expect(syncDevice).toHaveBeenNthCalledWith(1, 'channel', 'A');
+        expect(syncDevice).toHaveBeenCalledTimes(1);
+    });
+
+    it('비채널 라우트에서의 백그라운드/포그라운드는 viewing을 재통지하지 않는다', () => {
+        renderHook(() => useDeviceSync());
+        expect(syncDevice).not.toHaveBeenCalled();
+
+        emitVisibility(false);
+        emitVisibility(true);
+        expect(syncDevice).not.toHaveBeenCalled();
+    });
+
+    it('백그라운드에서 이미 비운 viewing은 중복 신호로 재통지하지 않는다', () => {
+        setChannel('A');
+        renderHook(() => useDeviceSync());
+        emitVisibility(false); // ('', '')
+        syncDevice.mockClear();
+
+        emitVisibility(false); // same direction — no re-clear
+        expect(syncDevice).not.toHaveBeenCalled();
+    });
+});
