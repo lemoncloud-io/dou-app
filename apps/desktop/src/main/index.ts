@@ -302,8 +302,13 @@ const registerHandlers = (host: AppBridgeHost, win: BrowserWindow): void => {
     });
 };
 
-/** PoC sample bundle — the desktop probe archive (see the debug panel for what it reports). */
-const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktop.zip';
+/**
+ * PoC sample bundle — a real desktop-web production build with the theme hue rotated, so
+ * applying it proves the actual app runs off the custom scheme and says so at a glance
+ * (violet chrome instead of lime). The earlier probe archive, `custom-web-poc-desktop.zip`,
+ * answers the scheme/CORS questions instead and is still reachable by pasting its URL.
+ */
+const SAMPLE_CUSTOM_UI_ZIP = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktopweb.zip';
 
 const customUiStatus = (error?: string): CustomUiStatus => ({
     active: isCustomUiActive(),

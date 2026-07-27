@@ -5,12 +5,16 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { getCustomUiApi, type CustomUiStatus } from '../../../shared';
 
 /**
- * Sample bundle. Desktop-shaped, and built to answer the questions this PoC exists to ask:
- * it reports the scheme's origin and privileges, round-trips storage, calls the backend and
- * prints how many bytes of the response it could actually read, and shows the ways back out.
- * (The mobile PoC's archive is a phone-shaped UI that answers none of that.)
+ * Sample bundle: a real desktop-web production build with every theme hue rotated 189°, so
+ * the whole app arrives violet instead of lime. That makes it the stronger demo — it shows
+ * the actual product running off the custom scheme, not a page written to talk about it, and
+ * the color leaves no doubt about which build the window is showing.
+ *
+ * Two other archives exist and can be pasted into the field below:
+ *   custom-web-poc-desktop.zip  — the probe page (origin, privileges, backend reachability)
+ *   custom-web-poc.zip          — the mobile PoC's phone-shaped build
  */
-const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktop.zip';
+const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktopweb.zip';
 
 // Read once: the shell injects it before any page script, and a per-render read would be a
 // fresh dependency for the status effect below.
