@@ -105,8 +105,12 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
         }
     };
 
+    // HOLD (보류): CreatePlace is temporarily disabled — force the dialog closed so it never opens,
+    // even when the caller sets `open`. To re-enable, restore `open={open}` below.
+    const isOpen = false;
+
     return (
-        <Dialog open={open} onOpenChange={next => !next && requestClose()}>
+        <Dialog open={isOpen} onOpenChange={next => !next && requestClose()}>
             <DialogContent
                 className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
