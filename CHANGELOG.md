@@ -1,5 +1,44 @@
 # Changelog
 
+## [2026-07-28] - root@0.44.0, @chatic/desktop-web@0.4.0
+
+### Features
+
+- (mobile) custom web ZIP PoC — download, unzip, serve via local static server
+- (desktop) default to the recolored desktop-web bundle
+- (desktop) default to the desktop probe bundle, not the mobile one
+- (desktop-web) drive the custom UI PoC from the debug panel
+- (desktop) keep the custom UI across restarts, and fall back when it breaks
+- (desktop) apply and reset a custom UI bundle from the tray
+- (desktop) serve a custom UI bundle over a privileged local scheme
+
+### Bug Fixes
+
+- (mobile) silence partialize unused-binding warning
+- (mobile) restrict SavePreference bridge writes to an allowlist
+- (desktop) hand a bundle's client routes back to its router
+- (desktop) make the custom-UI escape hatch reachable
+- (desktop) bound the download, and stop claiming what the code does not do
+- (desktop) refuse redirects, roll back a failed swap, serialize applies
+- (desktop) close the symlink escape and stop apply from destroying a live bundle
+- (desktop) fall back to the remote web when a custom bundle hangs
+- (desktop) keep initWebUrl from seeding the custom-UI origin
+
+### Refactor
+
+- (mobile) simplify customZip per /simplify review
+- (desktop) remove the duplicated state the custom UI PoC introduced
+- (desktop) funnel web URL and origin trust through one module
+
+### Chores
+
+- (mobile) default custom-web-zip input to the S3 sample bundle
+
+### Other
+
+- build: reconcile the lockfile after landing the mobile PoC on current develop
+- build: (mobile) wire native deps for custom web ZIP PoC
+
 ## [2026-07-28] - No version updates
 
 ### Features
