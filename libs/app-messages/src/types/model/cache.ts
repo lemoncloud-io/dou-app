@@ -160,6 +160,14 @@ export type ChatQueryOptions = BaseQueryOptions & {
     keyword?: string;
     limit?: number;
     cursorNo?: number;
+    /**
+     * 미전송 행(`chatNo: 0` — 전송 중이거나 실패)을 최신 페이지에 함께 실어 준다.
+     *
+     * 기본값 false이고 그때 동작은 이 옵션이 없던 때와 **완전히 같다**. 옵트인인 이유는
+     * 같은 실행기를 `apps/web`(모바일)도 지나기 때문이다 — 켜는 쪽만 동작이 바뀐다.
+     * 왜 필요한지는 `ChatQueryExecutor`의 주석 참조.
+     */
+    includeUnsent?: boolean;
 };
 
 export type InviteCloudQueryOptions = BaseQueryOptions;

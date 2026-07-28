@@ -103,7 +103,11 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
         // unsubscribe does not cancel one already in flight, so the outgoing channel's (or
         // cloud's) messages would land in the pane the incoming one just painted.
         let cancelled = false;
-        const unsubscribe = chatRepository.observeList({ channelId, limit: pageLimit }, result => {
+        // `includeUnsent` — desktop opt-in. Without it, `chat_no: 0` rows (sending / failed) sort
+        // lowest in the pagination index and fall off a newest-N page, so in any channel holding
+        // `pageLimit` committed messages a failed message never renders: no "Not delivered", no
+        // retry button. `apps/web` does not pass the flag, so its read path is unchanged.
+        const unsubscribe = chatRepository.observeList({ channelId, limit: pageLimit, includeUnsent: true }, result => {
             if (cancelled) return;
             setChats(result?.list ?? []);
             setIsLoading(false);
@@ -138,9 +142,14 @@ export const useChats = (channelId: string | null, latestChatNo?: number) => {
         // Read the oldest cached row from the ref so the cursor reflects the live
         // list without making `chats` a dependency. observeList is chat_no-descending,
         // so the smallest chatNo is the page boundary to fetch before.
+        //
+        // Skip `chatNo: 0` — that sentinel means "not sent yet", not "oldest". Since the list now
+        // carries unsent rows (includeUnsent above), letting one win here would ask the server for
+        // everything before chat_no 0, which is nothing: `fetchedCount === 0` sets hasMore false
+        // and load-more dies permanently.
         let oldestNo = Infinity;
         for (const chat of chatsRef.current) {
-            if (chat.chatNo != null && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
+            if (chat.chatNo != null && chat.chatNo > 0 && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
         }
         if (!Number.isFinite(oldestNo)) return;
 
