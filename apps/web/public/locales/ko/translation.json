@@ -298,6 +298,7 @@
         "channelLimitReached": "그룹방은 최대 100개까지 만들 수 있어요",
         "profile": "프로필",
         "menuProfile": "프로필",
+        "menuPlaceSettings": "플레이스 설정",
         "menuNotifications": "알림",
         "menuSettings": "설정",
         "search": "검색",
@@ -557,6 +558,20 @@
         "chat": "Chat",
         "noResults": "검색 결과가 없습니다.",
         "noHistory": "검색 내역이 없습니다."
+    },
+    "placeSettings": {
+        "title": "플레이스 설정",
+        "placeInfo": "플레이스 정보",
+        "myProfile": "플레이스 프로필",
+        "channelSort": "채팅방 정렬",
+        "notifications": "알림",
+        "ownerOnly": "오너만 변경할 수 있어요",
+        "comingSoon": "준비 중이에요"
+    },
+    "channelSort": {
+        "title": "채팅방 정렬",
+        "recent": "최근 활동순",
+        "unread": "안읽은 메시지 우선"
     },
     "placeInfo": {
         "title": "플레이스 정보",

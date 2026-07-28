@@ -4,7 +4,7 @@ import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
 import { PREFERENCES } from './preferenceKeys';
-import type { Theme } from './preferenceKeys';
+import type { ChannelSortMethod, Theme } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
 // Storage model
@@ -58,6 +58,31 @@ const persistPreference = (name: keyof typeof PREFERENCES, value: string): void 
 // Theme parsing
 // ---------------------------------------------------------------------------
 
+/**
+ * Parse the stored channel-sort JSON map. A corrupt or non-object value resets to an empty
+ * map so a single bad write can never break the channel list — places just fall back to the
+ * default sort. Unknown per-place values are read back verbatim and normalized at read time.
+ */
+const VALID_CHANNEL_SORTS: readonly ChannelSortMethod[] = ['recent', 'unread'];
+
+const parseChannelSort = (raw: string): Record<string, ChannelSortMethod> => {
+    try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+        // Keep only recognized per-place values so a corrupt/tampered entry can't leave the sort
+        // picker with no selection or feed an unknown method downstream.
+        const result: Record<string, ChannelSortMethod> = {};
+        for (const [placeId, method] of Object.entries(parsed)) {
+            if (VALID_CHANNEL_SORTS.includes(method as ChannelSortMethod)) {
+                result[placeId] = method as ChannelSortMethod;
+            }
+        }
+        return result;
+    } catch {
+        return {};
+    }
+};
+
 const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
 
 /**
@@ -93,6 +118,8 @@ interface PreferenceState {
     issueReportHidden: boolean;
     /** Device-global push mute (optimistic local mirror of device.update-remote; no server read). */
     pushMuted: boolean;
+    /** Per-place channel sort method, keyed by placeId. Missing key → DEFAULT_CHANNEL_SORT. */
+    channelSort: Record<string, ChannelSortMethod>;
 }
 
 interface PreferenceActions {
@@ -104,6 +131,8 @@ interface PreferenceActions {
     setIssueReportHidden: (value: boolean) => void;
     /** Optimistically mirror the device push-mute write (source of truth is device.update-remote). */
     setPushMuted: (value: boolean) => void;
+    /** Set the channel sort method for a single place; other places' preferences are preserved. */
+    setChannelSort: (placeId: string, method: ChannelSortMethod) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -112,7 +141,7 @@ interface PreferenceActions {
     hydrate: (key: PreferenceKey, value: unknown) => void;
 }
 
-export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(set => ({
+export const usePreferenceStore = create<PreferenceState & PreferenceActions>()((set, get) => ({
     // Initial values read from the local cache synchronously (avoids initial flash).
     // On native, PreferenceLoader fills in any key missing from the cache from the bridge.
     blurLastMessage: readPreference('blurLastMessage') === 'true',
@@ -126,6 +155,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     issueReportHidden: readPreference('issueReportHidden') === 'true',
 
     pushMuted: readPreference('pushMuted') === 'true',
+
+    channelSort: parseChannelSort(readPreference('channelSort')),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -155,6 +186,13 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     setPushMuted: (value: boolean) => {
         set({ pushMuted: value });
         persistPreference('pushMuted', value ? 'true' : 'false');
+    },
+
+    setChannelSort: (placeId: string, method: ChannelSortMethod) => {
+        // Merge into the existing map so switching one place's sort never drops another's.
+        const next = { ...get().channelSort, [placeId]: method };
+        set({ channelSort: next });
+        persistPreference('channelSort', JSON.stringify(next));
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

@@ -2,11 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { Calendar, Camera, Users } from 'lucide-react';
-
 import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
-import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
@@ -18,6 +17,11 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
 const MAX_NAME_LENGTH = 20;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
+/**
+ * Edit a place's own name + profile image — owner-only (server `isOwner`). Reached from the settings
+ * hub, whose row is already disabled for non-owners; the redirect here is a defensive backstop.
+ * Save goes through the shared {@link useUpdatePlace} (optimistic cache write). See ADR-0031.
+ */
 export const PlaceInfoPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -44,12 +48,23 @@ export const PlaceInfoPage = () => {
         return placeRepo.observeItem(placeId, setPlace);
     }, [placeRepo, placeId]);
 
-    // owner가 아니면 뒤로 이동
+    // Owner-only screen: a non-owner who reaches it directly is sent back.
     useEffect(() => {
-        if (place && place.isOwner) {
+        if (place && !place.isOwner) {
             navigate(-1);
         }
     }, [place, navigate]);
+
+    // Seed the form once per place when it first loads. Keyed by placeId so a later background
+    // re-emit of the observed place (sync / another device) can't clobber the user's in-progress edits.
+    const seededPlaceIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (place && seededPlaceIdRef.current !== placeId) {
+            seededPlaceIdRef.current = placeId ?? null;
+            setName(place.name ?? '');
+            setImageUrl(place.thumbnail ?? '');
+        }
+    }, [place, placeId]);
 
     const formatDate = useCallback(
         (timestamp?: number) => {
@@ -83,19 +98,17 @@ export const PlaceInfoPage = () => {
     const isNameValid = name.length > 0 && name.length <= MAX_NAME_LENGTH;
     const canSubmit = isDirty && isNameValid && !isPending;
 
-    const handleImageClick = () => {
-        fileInputRef.current?.click();
-    };
+    const handleImageClick = () => fileInputRef.current?.click();
 
     const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
+        event.target.value = '';
         if (!file) return;
 
         if (file.size > MAX_IMAGE_SIZE) {
             setImageSizeError(true);
             return;
         }
-
         setImageSizeError(false);
 
         try {
@@ -104,8 +117,6 @@ export const PlaceInfoPage = () => {
         } catch {
             setImageSizeError(true);
         }
-
-        event.target.value = '';
     };
 
     const handleSubmit = async () => {
@@ -128,7 +139,7 @@ export const PlaceInfoPage = () => {
         return (
             <KeyboardAwareLayout className="fixed inset-0 overflow-hidden" header={<PageHeader title={title} />}>
                 <div className="flex min-h-full items-center justify-center">
-                    <span className="text-muted-foreground">{t('placeInfo.notFound')}</span>
+                    <Text className="text-muted-foreground">{t('placeInfo.notFound')}</Text>
                 </div>
             </KeyboardAwareLayout>
         );
@@ -139,90 +150,57 @@ export const PlaceInfoPage = () => {
             className="fixed inset-0 overflow-hidden"
             header={<PageHeader title={title} />}
             footer={
-                <div className="border-t border-border/50 bg-background px-5 py-4">
-                    <button
-                        disabled={!canSubmit}
-                        onClick={handleSubmit}
-                        className={cn(
-                            'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                            canSubmit
-                                ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
-                                : 'bg-muted text-muted-foreground'
-                        )}
-                    >
-                        {t('placeInfo.confirm')}
-                    </button>
-                </div>
+                <FloatingButton
+                    label={t('placeInfo.confirm')}
+                    disabled={!canSubmit}
+                    loading={isPending}
+                    onClick={handleSubmit}
+                />
             }
         >
-            <div className="px-5 pt-4">
-                <div className="mb-6 flex items-center gap-3">
-                    <Calendar size={18} className="shrink-0 text-muted-foreground" />
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-[14px] font-semibold text-foreground">{t('placeInfo.createdDate')}</span>
-                        <span className="text-[14px] text-muted-foreground">{formatDate(place.createdAt)}</span>
-                    </div>
+            <div className="flex flex-col gap-6 px-5 pt-4">
+                {/* Created date */}
+                <div className="flex flex-col gap-0.5">
+                    <Text variant="label" className="text-foreground">
+                        {t('placeInfo.createdDate')}
+                    </Text>
+                    <Text className="text-muted-foreground">{formatDate(place.createdAt)}</Text>
                 </div>
-
-                <div className="mb-6 h-px bg-border" />
 
                 {/* Name */}
-                <div className="mb-6">
-                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
-                        {t('placeInfo.nameLabel')}
-                    </label>
-                    <div className="relative">
-                        <input
-                            className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground placeholder:text-muted-foreground"
-                            value={name}
-                            onChange={e => setName(e.target.value.slice(0, MAX_NAME_LENGTH))}
-                            placeholder={t('placeInfo.namePlaceholder')}
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-muted-foreground">
-                            {name.length}/{MAX_NAME_LENGTH}
-                        </span>
-                    </div>
-                    <p className="mt-2 text-[14px] text-muted-foreground">{t('placeInfo.nameDescription')}</p>
-                </div>
+                <TextField
+                    label={t('placeInfo.nameLabel')}
+                    value={name}
+                    onChange={setName}
+                    maxLength={MAX_NAME_LENGTH}
+                    placeholder={t('placeInfo.namePlaceholder')}
+                    description={t('placeInfo.nameDescription')}
+                />
 
-                {/* Image */}
-                <div className="mb-6">
-                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
+                {/* Image (optional) */}
+                <div className="flex flex-col gap-2">
+                    <Text variant="label" className="text-foreground">
                         {t('placeInfo.photoLabel')}{' '}
                         <span className="font-normal text-muted-foreground">{t('placeInfo.photoOptional')}</span>
-                    </label>
-                    <div className="relative inline-block">
-                        <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {imageUrl ? (
-                                <img
-                                    src={imageUrl}
-                                    alt="Place"
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                />
-                            ) : (
-                                <Users size={36} className="text-muted-foreground" />
-                            )}
-                        </div>
-                        <button
-                            onClick={handleImageClick}
-                            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#B0EA10] shadow-md"
-                            aria-label={t('placeInfo.changeImage')}
-                        >
-                            <Camera size={16} className="text-foreground" />
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            onChange={handleImageChange}
-                            className="hidden"
-                        />
-                    </div>
+                    </Text>
+                    <ProfileAvatar
+                        src={imageUrl || undefined}
+                        glyph="group"
+                        onSelect={handleImageClick}
+                        selectLabel={t('placeInfo.changeImage')}
+                    />
                     {imageSizeError && (
-                        <p className="mt-2 text-[14px] text-destructive">{t('placeInfo.imageSizeError')}</p>
+                        <Text variant="caption" className="text-destructive">
+                            {t('placeInfo.imageSizeError')}
+                        </Text>
                     )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleImageChange}
+                        className="hidden"
+                    />
                 </div>
             </div>
         </KeyboardAwareLayout>

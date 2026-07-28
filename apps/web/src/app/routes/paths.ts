@@ -50,6 +50,11 @@ export const ROUTES = {
     // ── Place (Private) ──────────────────────────────────────────
     place: {
         detail: (placeId: string) => `/place/${placeId}`,
+        // Settings hub reached from the home profile dropdown, and its sub-pages.
+        settings: (placeId: string) => `/place/${placeId}/settings`,
+        settingsInfo: (placeId: string) => `/place/${placeId}/settings/info`,
+        settingsProfile: (placeId: string) => `/place/${placeId}/settings/profile`,
+        settingsSort: (placeId: string) => `/place/${placeId}/settings/sort`,
     },
 
     // ── Subscription (Private) ───────────────────────────────────

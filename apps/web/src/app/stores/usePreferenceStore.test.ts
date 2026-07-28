@@ -29,6 +29,7 @@ const resetStore = () => {
         isFirstRun: true,
         theme: 'system',
         issueReportHidden: false,
+        channelSort: {},
     });
     jest.clearAllMocks();
 };
@@ -291,6 +292,48 @@ describe('setIssueReportHidden — 이슈 리포트 버튼 숨김', () => {
     it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
         mockIsNative.mockReturnValue(true);
         usePreferenceStore.getState().setIssueReportHidden(true);
+        expect(mockSavePreference).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// setChannelSort — 플레이스별 채팅방 정렬 기준 (local 전략, JSON 맵)
+// ---------------------------------------------------------------------------
+
+describe('setChannelSort — 채팅방 정렬 기준', () => {
+    beforeEach(() => {
+        mockIsNative.mockReturnValue(false);
+        resetStore();
+    });
+
+    it('플레이스별로 정렬 기준을 상태와 localStorage(JSON 맵)에 저장한다', () => {
+        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
+
+        expect(usePreferenceStore.getState().channelSort['place-1']).toBe('unread');
+        expect(JSON.parse(localStorage.getItem('chatic-channel-sort') ?? '{}')).toEqual({ 'place-1': 'unread' });
+    });
+
+    it('다른 플레이스의 정렬 기준을 덮어쓰지 않고 병합한다', () => {
+        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
+        usePreferenceStore.getState().setChannelSort('place-2', 'recent');
+
+        expect(usePreferenceStore.getState().channelSort).toEqual({ 'place-1': 'unread', 'place-2': 'recent' });
+        expect(JSON.parse(localStorage.getItem('chatic-channel-sort') ?? '{}')).toEqual({
+            'place-1': 'unread',
+            'place-2': 'recent',
+        });
+    });
+
+    it('같은 플레이스를 다시 설정하면 값이 교체된다', () => {
+        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
+        usePreferenceStore.getState().setChannelSort('place-1', 'recent');
+
+        expect(usePreferenceStore.getState().channelSort['place-1']).toBe('recent');
+    });
+
+    it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
+        mockIsNative.mockReturnValue(true);
+        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
         expect(mockSavePreference).not.toHaveBeenCalled();
     });
 });

@@ -26,20 +26,12 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
-
-// Coerce a possibly-string/number timestamp to epoch ms for comparison (0 when absent/invalid).
-const toTime = (value: unknown): number => {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
-        const parsed = Date.parse(value);
-        return Number.isFinite(parsed) ? parsed : 0;
-    }
-    return 0;
-};
+import { sortChannels } from '../lib/sortChannels';
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -162,6 +154,8 @@ interface ChannelListProps {
     isDefaultCloud?: boolean;
     /** Drives the PRO upsell badge on "그룹 방 만들기". */
     isPro?: boolean;
+    /** Sort method for this place's channel list (client preference). Defaults to 'recent'. */
+    sortMethod?: ChannelSortMethod;
     /** Relay: start a 1:1 chat (not implemented yet — placeholder). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
@@ -176,6 +170,7 @@ export const ChannelList = ({
     canCreate,
     isDefaultCloud,
     isPro,
+    sortMethod = 'recent',
     onCreateOneOnOne,
     onCreateGroup,
 }: ChannelListProps) => {
@@ -187,14 +182,12 @@ export const ChannelList = ({
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
     const { userId: uid } = useSessionIdentity();
 
-    // Order by the channel's join `updatedAt` (most recently active first), sourced from the
-    // subscribed join list, then the embedded `$join`, then the channel's own activity time.
-    const sortedChannels = useMemo(() => {
-        const activityAt = (channel: DomainChannel): number =>
-            toTime(joinByChannel?.get(channel.id)?.updatedAt ?? channel.$join?.updatedAt) ||
-            toTime(channel.lastActivityAt ?? channel.updatedAt);
-        return [...channels].sort((left, right) => activityAt(right) - activityAt(left));
-    }, [channels, joinByChannel]);
+    // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
+    // channels above). See sortChannels (pure, unit-tested).
+    const sortedChannels = useMemo(
+        () => sortChannels({ channels, joinByChannel, unreadByChannel, sortMethod }),
+        [channels, joinByChannel, unreadByChannel, sortMethod]
+    );
 
     const createMenu = canCreate ? (
         <DropdownMenu>
