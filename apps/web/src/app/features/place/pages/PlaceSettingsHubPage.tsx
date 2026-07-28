@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
-import { IconChevronRight, ListRow, MenuCard } from '@chatic/web-ui-kit';
+import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
 import { ChannelSortSheet } from '../components/ChannelSortSheet';
@@ -14,10 +14,11 @@ import { ROUTES } from '../../../routes/paths';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /**
- * Place settings hub — the landing screen reached from the home profile dropdown. A titled list of
- * rows that navigate to each sub-page (place info / my place profile / channel sort). Place info is
- * owner-only, so its row is disabled for non-owners (server `isOwner` is the authority — ADR-0031).
- * "알림" is a not-yet-implemented placeholder (disabled). Channel-room management is a follow-up.
+ * Place settings hub — the landing screen reached from the home profile dropdown. Three titled
+ * cards: "프로필" (my profile / place profile), "알림" (place push toggle) and "채팅방" (chat sort /
+ * chat management). The place-profile row is owner-only, so it is disabled for non-owners (server
+ * `isOwner` is the authority — ADR-0031). The notification toggle and chat management are
+ * not-yet-implemented placeholders.
  */
 export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
@@ -44,28 +45,43 @@ export const PlaceSettingsHubPage = () => {
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('placeSettings.title')} />
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-                <MenuCard>
-                    <ListRow
-                        title={t('placeSettings.placeInfo')}
-                        subtitle={isOwner ? undefined : t('placeSettings.ownerOnly')}
-                        trailing={chevron}
-                        disabled={!isOwner}
-                        onClick={placeId ? go(ROUTES.place.settingsInfo(placeId)) : undefined}
-                    />
+            <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 py-2.5">
+                <MenuCard title={t('placeSettings.sectionProfile')}>
                     <ListRow
                         title={t('placeSettings.myProfile')}
                         trailing={chevron}
                         onClick={placeId ? go(ROUTES.place.settingsProfile(placeId)) : undefined}
                     />
                     <ListRow
+                        title={t('placeSettings.placeProfile')}
+                        subtitle={isOwner ? undefined : t('placeSettings.ownerOnly')}
+                        trailing={chevron}
+                        disabled={!isOwner}
+                        onClick={placeId ? go(ROUTES.place.settingsInfo(placeId)) : undefined}
+                    />
+                </MenuCard>
+
+                <MenuCard title={t('placeSettings.sectionNotifications')}>
+                    {/* UI-only toggle: place push notifications have no backend support yet, so the
+                        switch is rendered disabled and holds no state. */}
+                    <ListRow
+                        title={t('placeSettings.placeNotifications')}
+                        trailing={<Switch checked={false} disabled label={t('placeSettings.placeNotifications')} />}
+                    />
+                    <p className="pl-4 pr-3 text-[13px] leading-[1.2] tracking-[-0.065px] text-description">
+                        {t('placeSettings.placeNotificationsDescription')}
+                    </p>
+                </MenuCard>
+
+                <MenuCard title={t('placeSettings.sectionChats')}>
+                    <ListRow
                         title={t('placeSettings.channelSort')}
                         trailing={chevron}
                         onClick={placeId ? () => setIsSortSheetOpen(true) : undefined}
                     />
-                    {/* Place notifications are not implemented yet — shown disabled as a placeholder. */}
+                    {/* Chat-room management is not implemented yet — shown disabled as a placeholder. */}
                     <ListRow
-                        title={t('placeSettings.notifications')}
+                        title={t('placeSettings.channelManage')}
                         subtitle={t('placeSettings.comingSoon')}
                         trailing={chevron}
                         disabled

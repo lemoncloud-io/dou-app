@@ -558,10 +558,15 @@
     },
     "placeSettings": {
         "title": "플레이스 설정",
-        "placeInfo": "플레이스 정보",
-        "myProfile": "플레이스 프로필",
+        "sectionProfile": "프로필",
+        "sectionNotifications": "알림",
+        "sectionChats": "채팅방",
+        "myProfile": "내 프로필",
+        "placeProfile": "플레이스 프로필",
+        "placeNotifications": "플레이스 알림",
+        "placeNotificationsDescription": "해당 플레이스의 푸시 알림을 받습니다.",
         "channelSort": "채팅방 정렬",
-        "notifications": "알림",
+        "channelManage": "채팅방 관리",
         "ownerOnly": "오너만 변경할 수 있어요",
         "comingSoon": "준비 중이에요"
     },

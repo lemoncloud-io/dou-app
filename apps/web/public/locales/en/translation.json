@@ -558,10 +558,15 @@
     },
     "placeSettings": {
         "title": "Place Settings",
-        "placeInfo": "Place Information",
-        "myProfile": "Place Profile",
+        "sectionProfile": "Profile",
+        "sectionNotifications": "Notifications",
+        "sectionChats": "Chats",
+        "myProfile": "My Profile",
+        "placeProfile": "Place Profile",
+        "placeNotifications": "Place Notifications",
+        "placeNotificationsDescription": "Receive push notifications from this place.",
         "channelSort": "Sort Chats",
-        "notifications": "Notifications",
+        "channelManage": "Manage Chats",
         "ownerOnly": "Only the owner can change this",
         "comingSoon": "Coming soon"
     },
