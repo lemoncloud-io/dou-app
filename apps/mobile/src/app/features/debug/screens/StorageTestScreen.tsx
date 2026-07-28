@@ -21,7 +21,27 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud'];
+const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'meta'];
+
+// `meta` rows are sync cursors (e.g. `channel-sync:<cid>`): `syncedAt` is the server watermark and
+// `__cacheMeta` carries the local save time + expiry the TTL is computed from. Surface them readably
+// so cold-cache staleness (an idle cursor past the delta window) can be diagnosed on-device.
+const formatTime = (ms?: number): string => {
+    if (!ms) return '-';
+    const d = new Date(ms);
+    const ago = Math.round((Date.now() - ms) / 1000);
+    return `${d.toLocaleTimeString()} (${ago}s ago)`;
+};
+
+const describeMeta = (item: any): string => {
+    const cacheMeta = item?.__cacheMeta ?? {};
+    const expired = typeof cacheMeta.expiresAt === 'number' ? cacheMeta.expiresAt <= Date.now() : undefined;
+    return [
+        `syncedAt: ${formatTime(item?.syncedAt)}`,
+        `savedAt:  ${formatTime(cacheMeta.lastSyncedAt)}`,
+        `expiresAt: ${formatTime(cacheMeta.expiresAt)}${expired === undefined ? '' : expired ? ' [EXPIRED]' : ' [valid]'}`,
+    ].join('\n');
+};
 
 // Per-type starter row for one-click create. cid/uid default to 'default' so the row is writable
 // without a live session; edit the JSON before saving to target a specific scope.
@@ -41,6 +61,9 @@ const makeTemplate = (type: CacheType): Record<string, unknown> => {
             return { ...base, name: 'Debug Place' };
         case 'invitecloud':
             return { ...base, name: 'Debug Cloud' };
+        case 'meta':
+            // Sync-cursor row: id is the cursor kind, `syncedAt` the server watermark.
+            return { id: `channel-sync:${base.cid}`, cid: base.cid, uid: base.uid, syncedAt: Date.now() };
         default:
             return base;
     }
@@ -207,7 +230,9 @@ export const StorageTestScreen = () => {
                 </Text>
             </View>
             <Text style={[styles.logData, { color: colors.mutedText }]}>
-                {item.content || item.name || item.text || JSON.stringify(item)}
+                {dataType === 'meta'
+                    ? describeMeta(item)
+                    : item.content || item.name || item.text || JSON.stringify(item)}
             </Text>
             <View style={styles.rowActions}>
                 <TouchableOpacity style={styles.rowActionButton} onPress={() => void handleCopy(item)}>
