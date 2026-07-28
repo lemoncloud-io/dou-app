@@ -1208,6 +1208,11 @@
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.28.4.tgz#a70226016fabe25c5783b2f22d3e1c9bc5ca3326"
   integrity sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==
 
+"@babel/runtime@^7.29.2":
+  version "7.29.7"
+  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.29.7.tgz#12022450c45a4da6d8d8287b18a4ff2ddb23f768"
+  integrity sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==
+
 "@babel/template@^7.25.0", "@babel/template@^7.27.1", "@babel/template@^7.27.2", "@babel/template@^7.3.3":
   version "7.27.2"
   resolved "https://registry.yarnpkg.com/@babel/template/-/template-7.27.2.tgz#fa78ceed3c4e7b63ebf6cb39e5852fca45f6809d"
@@ -1535,6 +1540,28 @@
   integrity sha512-+MKAJEOfaBe5SmV6t34p80MMKhjvUz0vRrvVJbPT0WElzaOJ/1xs+D+KDv+tD/NE5ujfrChEcshd4fLn0wpiqg==
   dependencies:
     tslib "^2.0.0"
+
+"@dr.pogodin/js-utils@^0.1.8":
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/@dr.pogodin/js-utils/-/js-utils-0.1.8.tgz#767f6c560d8c4396d53a37cabf3437e19eab88f5"
+  integrity sha512-T9PSc/OgtmUWasX54VguGyqbgRu3LuGJzN4AKWfIKGyiCyPyoEPuUeMHVVDXWTr+SfnwoOi+mYWGZBpfR8qP+w==
+  dependencies:
+    "@babel/runtime" "^7.29.2"
+
+"@dr.pogodin/react-native-fs@*", "@dr.pogodin/react-native-fs@^2.39.2":
+  version "2.39.2"
+  resolved "https://registry.yarnpkg.com/@dr.pogodin/react-native-fs/-/react-native-fs-2.39.2.tgz#5908250e60e4a8a5db448b2611984d3e408a2cb4"
+  integrity sha512-o+5sLlI0RKspk0/+5+gIGNDaMr2EVJEwc0k0YhN+V13bWEwxdswfrqkllKb84PYalS0PNuDs9pW5t+Aq85pFpQ==
+  dependencies:
+    buffer "^6.0.3"
+    http-status-codes "^2.3.0"
+
+"@dr.pogodin/react-native-static-server@*", "@dr.pogodin/react-native-static-server@^0.27.0":
+  version "0.27.0"
+  resolved "https://registry.yarnpkg.com/@dr.pogodin/react-native-static-server/-/react-native-static-server-0.27.0.tgz#a7033f54c65de90d007d17c4753b9bcd8adcd333"
+  integrity sha512-W0HOPCxqJXzVv3BxbngELjhgzmg7Bf4b9RYRwrDa7ULH41NVo8xttn5/p1MSTDeUEK6zA7FbmORQa2x1rv4QHA==
+  dependencies:
+    "@dr.pogodin/js-utils" "^0.1.8"
 
 "@electron/asar@^3.2.7":
   version "3.4.1"
@@ -9348,6 +9375,14 @@ buffer@^5.1.0, buffer@^5.2.1, buffer@^5.4.3, buffer@^5.5.0:
     base64-js "^1.3.1"
     ieee754 "^1.1.13"
 
+buffer@^6.0.3:
+  version "6.0.3"
+  resolved "https://registry.yarnpkg.com/buffer/-/buffer-6.0.3.tgz#2ace578459cc8fbe2a70aaa8f52ee63b6a74c6c6"
+  integrity sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==
+  dependencies:
+    base64-js "^1.3.1"
+    ieee754 "^1.2.1"
+
 builder-util-runtime@9.2.10:
   version "9.2.10"
   resolved "https://registry.yarnpkg.com/builder-util-runtime/-/builder-util-runtime-9.2.10.tgz#a0f7d9e214158402e78b74a745c8d9f870c604bc"
@@ -13080,6 +13115,11 @@ http-signature@~1.2.0:
     assert-plus "^1.0.0"
     jsprim "^1.2.2"
     sshpk "^1.7.0"
+
+http-status-codes@^2.3.0:
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/http-status-codes/-/http-status-codes-2.3.0.tgz#987fefb28c69f92a43aecc77feec2866349a8bfc"
+  integrity sha512-RJ8XvFvpPM/Dmc5SV+dC4y5PCeOhT3x1Hq0NU3rjGeg5a/CqlhZ7uudknPwZFz4aeAXDcbAyaeP7GAo9lvngtA==
 
 http2-wrapper@^1.0.0-beta.5.2:
   version "1.0.3"
@@ -17859,6 +17899,11 @@ react-native-webview@*, react-native-webview@^13.16.0:
   dependencies:
     escape-string-regexp "^4.0.0"
     invariant "2.2.4"
+
+react-native-zip-archive@*, react-native-zip-archive@^8.0.1:
+  version "8.0.1"
+  resolved "https://registry.yarnpkg.com/react-native-zip-archive/-/react-native-zip-archive-8.0.1.tgz#99656973128bd5b2b70d1d2b3c538954c027e0cb"
+  integrity sha512-8prY/wP7ToaJvNDohcfEJnG+l1FxM7ToMvEt5sG6pprh4DKBaAU42pabu79uLyJTiTlyeHEz//KVZBz+pOTXRg==
 
 react-native@*, react-native@~0.83.0:
   version "0.83.1"

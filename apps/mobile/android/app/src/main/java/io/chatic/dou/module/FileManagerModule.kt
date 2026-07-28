@@ -10,7 +10,11 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import io.chatic.dou.service.UploadBackgroundService
 import java.io.File
+import java.io.FileOutputStream
 import java.io.RandomAccessFile
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -136,7 +140,7 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
                 val cleanPath = getCleanPath(path)
                 val file = File(cleanPath)
                 if (file.exists()) {
-                    val success = file.delete()
+                    val success = file.deleteRecursively()
                     promise.resolve(success)
                 } else {
                     promise.resolve(false)
@@ -144,6 +148,45 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
             }
         } catch (e: Exception) {
             promise.reject("UNLINK_FAILED", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun downloadFile(url: String, toPath: String, promise: Promise) {
+        thread {
+            val cleanPath = getCleanPath(toPath)
+            val file = File(cleanPath)
+            var connection: HttpURLConnection? = null
+            try {
+                connection = URL(url).openConnection() as HttpURLConnection
+                connection.connectTimeout = 15000
+                connection.readTimeout = 30000
+                connection.instanceFollowRedirects = true
+                val responseCode = connection.responseCode
+                if (responseCode < 200 || responseCode >= 300) {
+                    promise.reject("DOWNLOAD_FAILED", "HTTP $responseCode")
+                    return@thread
+                }
+                file.parentFile?.mkdirs()
+                if (file.exists()) {
+                    file.delete()
+                }
+                connection.inputStream.use { input ->
+                    FileOutputStream(file).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                promise.resolve(file.absolutePath)
+            } catch (e: Exception) {
+                try {
+                    file.delete()
+                } catch (ignored: Exception) {
+                    // ignore cleanup errors
+                }
+                promise.reject("DOWNLOAD_FAILED", e.message, e)
+            } finally {
+                connection?.disconnect()
+            }
         }
     }
 

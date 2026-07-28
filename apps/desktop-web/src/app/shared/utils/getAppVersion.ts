@@ -7,11 +7,7 @@
 
 declare const __APP_VERSION__: string;
 
-declare global {
-    interface Window {
-        electronAPI?: { appVersion: string; platform: string };
-    }
-}
+// `window.electronAPI` is declared once, in ./electronApi.
 
 interface AppVersionInfo {
     desktopWebVersion: string;

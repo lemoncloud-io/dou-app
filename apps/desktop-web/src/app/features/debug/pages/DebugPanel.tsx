@@ -6,16 +6,18 @@ import { useDebugModeStore, usePanelWidth } from '../../../shared';
 import { DebugAuthPage } from './DebugAuthPage';
 import { DebugBadgeCountPage } from './DebugBadgeCountPage';
 import { DebugChatPage } from './DebugChatPage';
+import { DebugCustomUiPage } from './DebugCustomUiPage';
 import { DebugStatePage } from './DebugStatePage';
 import { DebugSyncPage } from './DebugSyncPage';
 
-type TabId = 'state' | 'sync' | 'chat' | 'badge' | 'auth';
+type TabId = 'state' | 'sync' | 'chat' | 'badge' | 'customUi' | 'auth';
 
 const TABS: { id: TabId; label: string }[] = [
     { id: 'state', label: 'State' },
     { id: 'sync', label: 'Socket / Cache' },
     { id: 'chat', label: 'Cache stream' },
     { id: 'badge', label: 'OS badge' },
+    { id: 'customUi', label: 'Custom UI' },
     // Dev-only account switcher — tree-shaken from production builds so it never
     // surfaces in the installed app even when debug mode is toggled on.
     ...(import.meta.env.DEV ? [{ id: 'auth' as const, label: 'Login' }] : []),
@@ -26,6 +28,7 @@ const PAGES: Record<TabId, () => JSX.Element> = {
     sync: DebugSyncPage,
     chat: DebugChatPage,
     badge: DebugBadgeCountPage,
+    customUi: DebugCustomUiPage,
     auth: DebugAuthPage,
 };
 

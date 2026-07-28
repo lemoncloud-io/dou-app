@@ -8,7 +8,9 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# PoC: react-native-zip-archive(RNZipArchive)가 iOS 15.5를 요구하여 min을 상향
+# (RN 0.83 기본 min_ios_version_supported = 15.1)
+platform :ios, '15.5'
 prepare_react_native_project!
 
 require_relative '../../../node_modules/react-native-permissions/scripts/setup'

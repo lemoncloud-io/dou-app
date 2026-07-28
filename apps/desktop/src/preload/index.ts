@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
+import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
+
 /** IPC channel for App(main) → Web(renderer) bridge messages. */
 const TO_WEB_CHANNEL = 'chatic-bridge:to-web';
 /** IPC channel for Web(renderer) → App(main) bridge messages. */
@@ -48,10 +50,20 @@ contextBridge.exposeInMainWorld('ChaticMessageHandler', {
 /**
  * Expose app version and platform information for the renderer process.
  * Used by desktop-web to display version info in settings and debug pages.
+ *
+ * `customUi` drives the custom-web-bundle PoC from the debug panel. Deliberately not routed
+ * through the AppBridge message map: that wire contract is shared with mobile, and a desktop
+ * -only PoC has no business bumping BRIDGE_VERSION (ADR-0001).
  */
 contextBridge.exposeInMainWorld('electronAPI', {
     appVersion,
     platform: process.platform,
+    customUi: {
+        apply: (zipUrl: string): Promise<CustomUiStatus> =>
+            ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'apply', zipUrl }),
+        disable: (): Promise<CustomUiStatus> => ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'disable' }),
+        status: (): Promise<CustomUiStatus> => ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'status' }),
+    },
 });
 
 // Inject the CHATIC_APP_* globals into the page's main world. Values come from env, so we

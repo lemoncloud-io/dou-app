@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { getDefaultWebviewBaseUrl, useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
+import { useCustomZipLoader } from '../customZip';
 import { useDebugTheme } from '../theme';
 
 const isValidHttpUrl = (value: string): boolean => {
@@ -13,6 +14,15 @@ const isValidHttpUrl = (value: string): boolean => {
     }
 };
 
+const httpUrlError = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return isValidHttpUrl(trimmed) ? null : 'http 또는 https URL만 사용할 수 있습니다.';
+};
+
+// PoC 편의: 커스텀 web zip 입력칸 기본값 (검증용 샘플 번들)
+const DEFAULT_CUSTOM_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip';
+
 interface EnvironmentSettingsScreenProps {
     onCloseAfterWebViewReload?: () => void;
 }
@@ -20,11 +30,19 @@ interface EnvironmentSettingsScreenProps {
 export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: EnvironmentSettingsScreenProps) => {
     const colors = useDebugTheme();
     const defaultBaseUrl = getDefaultWebviewBaseUrl();
-    const { webviewBaseUrlOverride, setWebviewBaseUrlOverride, resetDebugSettings, getResolvedWebviewBaseUrl } =
-        useDebugSettingsStore();
+    const {
+        webviewBaseUrlOverride,
+        setWebviewBaseUrlOverride,
+        resetDebugSettings,
+        getResolvedWebviewBaseUrl,
+        customZipLocalRoot,
+        customZipServerUrl,
+    } = useDebugSettingsStore();
     const requestWebViewReload = useDebugRuntimeStore(state => state.requestWebViewReload);
+    const { status: zipStatus, error: zipError, applyZip, disableZip } = useCustomZipLoader();
 
     const [baseUrlInput, setBaseUrlInput] = useState(webviewBaseUrlOverride ?? '');
+    const [zipUrlInput, setZipUrlInput] = useState(DEFAULT_CUSTOM_ZIP_URL);
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -33,10 +51,7 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
 
     const resolvedBaseUrl = getResolvedWebviewBaseUrl();
 
-    const baseUrlError = useMemo(() => {
-        if (!baseUrlInput.trim()) return null;
-        return isValidHttpUrl(baseUrlInput.trim()) ? null : 'http 또는 https URL만 사용할 수 있습니다.';
-    }, [baseUrlInput]);
+    const baseUrlError = useMemo(() => httpUrlError(baseUrlInput), [baseUrlInput]);
 
     const saveBaseUrl = () => {
         if (baseUrlError) {
@@ -47,7 +62,11 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
         setMessage('BASE_URL 설정을 저장했습니다.');
     };
 
-    const resetAll = () => {
+    const resetAll = async () => {
+        // 전체 초기화가 store 필드만 지우면 로컬 서버가 고아로 남는다 — 커스텀 zip부터 정리
+        if (customZipLocalRoot || customZipServerUrl) {
+            await disableZip();
+        }
         resetDebugSettings();
         setMessage('환경설정을 기본값으로 복원했습니다.');
     };
@@ -56,6 +75,30 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
         requestWebViewReload();
         setMessage('웹뷰 재시작을 요청했습니다.');
         onCloseAfterWebViewReload?.();
+    };
+
+    const zipUrlError = useMemo(() => httpUrlError(zipUrlInput), [zipUrlInput]);
+
+    const isZipBusy = zipStatus === 'downloading' || zipStatus === 'extracting';
+
+    const applyCustomZip = async () => {
+        const trimmed = zipUrlInput.trim();
+        if (!trimmed || zipUrlError) {
+            setMessage(zipUrlError ?? 'ZIP URL을 입력해주세요.');
+            return;
+        }
+        // applyZip은 throw하지 않고 성공 여부를 반환 (상세 사유는 zipError로 표시)
+        const ok = await applyZip(trimmed);
+        setMessage(
+            ok
+                ? '커스텀 ZIP을 적용했습니다. 웹뷰가 재시작됩니다.'
+                : '커스텀 ZIP 적용에 실패했습니다. 기본 웹을 유지합니다.'
+        );
+    };
+
+    const removeCustomZip = async () => {
+        await disableZip();
+        setMessage('커스텀 ZIP을 해제했습니다. 기본 웹으로 복원됩니다.');
     };
 
     return (
@@ -101,6 +144,49 @@ export const EnvironmentSettingsScreen = ({ onCloseAfterWebViewReload }: Environ
                 <TouchableOpacity style={styles.warningButton} onPress={applyWebViewReload}>
                     <Text style={styles.warningButtonText}>적용 후 웹뷰 재시작</Text>
                 </TouchableOpacity>
+            </View>
+
+            <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[styles.title, { color: colors.text }]}>CUSTOM WEB ZIP</Text>
+                <Text style={[styles.label, { color: colors.subtleText }]}>서빙 상태</Text>
+                <Text style={[styles.mono, { color: colors.mutedText }]}>
+                    {customZipServerUrl ?? (customZipLocalRoot ? '복원 대기/실패' : '-')}
+                </Text>
+                <TextInput
+                    value={zipUrlInput}
+                    onChangeText={setZipUrlInput}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholder="https://example.com/custom-web.zip"
+                    placeholderTextColor={colors.subtleText}
+                    style={[styles.input, { color: colors.text, borderColor: zipUrlError ? '#EF4444' : colors.border }]}
+                />
+                {zipUrlError && <Text style={styles.errorText}>{zipUrlError}</Text>}
+                {zipError && <Text style={styles.errorText}>{zipError}</Text>}
+                <View style={styles.actions}>
+                    <TouchableOpacity
+                        style={[styles.primaryButton, isZipBusy && styles.disabledButton]}
+                        onPress={applyCustomZip}
+                        disabled={isZipBusy}
+                    >
+                        <Text style={styles.primaryButtonText}>
+                            {zipStatus === 'downloading'
+                                ? '다운로드 중…'
+                                : zipStatus === 'extracting'
+                                  ? '압축해제 중…'
+                                  : 'ZIP 적용'}
+                        </Text>
+                    </TouchableOpacity>
+                    {(customZipLocalRoot || customZipServerUrl) && (
+                        <TouchableOpacity
+                            style={[styles.secondaryButton, { borderColor: colors.border }]}
+                            onPress={removeCustomZip}
+                            disabled={isZipBusy}
+                        >
+                            <Text style={[styles.secondaryButtonText, { color: colors.text }]}>해제</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
             <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border }]} onPress={resetAll}>
@@ -185,6 +271,9 @@ const styles = StyleSheet.create({
     warningButtonText: {
         color: '#111827',
         fontWeight: '800',
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
     message: {
         fontSize: 13,

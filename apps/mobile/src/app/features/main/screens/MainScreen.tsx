@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
 import { Image, StyleSheet, View } from 'react-native';
 
@@ -11,6 +11,7 @@ import { useAppBridge } from '../../../webview/hooks';
 import { bootMetricsService, logger } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
+import { useCustomZipBootGate } from '../../debug/customZip';
 
 export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewRef = useRef<WebView>(null);
@@ -30,12 +31,18 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
 
+    // 커스텀 zip 복원 게이트: persist된 localRoot가 있으면 로컬 서버가 뜰 때까지 WebView 마운트 보류
+    // (서버 기동 전에 localhost를 로딩하면 흰 화면 — customZipServerUrl은 서버 start 후에만 set됨)
+    const { isRestoringCustomZip } = useCustomZipBootGate();
+
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
     // Single owner of inbound navigation: OS deep links, invite links, and notification taps → OnNavigate.
     const { deepLinkError, deepLinkErrorReason, handleDismissError, isRedirecting, handleWebViewLoad } =
         useDeepLinkNavigation(bridge);
-    // The WebView always loads the base URL; deep link destinations arrive via OnNavigate, not the source.
-    const [source] = useState<{ uri: string }>(() => ({ uri: webViewBaseUrl }));
+
+    // source는 mount 시점에 freeze하지 않고 resolved base URL로부터 파생한다 —
+    // 커스텀 zip on/off로 origin이 바뀌면 반영돼야 하고, 재로딩은 reloadToken key remount로 일어난다.
+    const webViewSource = useMemo(() => ({ uri: webViewBaseUrl }), [webViewBaseUrl]);
 
     const handleWebViewLoadStart = useCallback(() => {
         // 이미 웹앱 준비 완료 상태인 경우(SPA 네비게이션 등), 상태를 다시 준비중(false)으로 되돌리지 않습니다.
@@ -64,7 +71,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
         bootMetricsService.mark('main-screen-mount');
     }, []);
 
-    if (!source) {
+    if (!webViewBaseUrl || isRestoringCustomZip) {
         return (
             <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
                 <Image
@@ -83,8 +90,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     return (
         <View style={{ flex: 1, backgroundColor: isDark ? '#121212' : '#ffffff' }}>
             <AppWebView
+                key={webViewReloadToken}
                 ref={webViewRef}
-                source={source}
+                source={webViewSource}
                 bridge={bridge}
                 onMessage={onMessage}
                 scrollEnabled={false}

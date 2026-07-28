@@ -15,12 +15,22 @@ interface DebugSettingsState {
     overlayContentOpacity: number;
     /** Runtime debug unlock propagated from the web 10-tap gesture (works in PROD builds). */
     debugModeEnabled: boolean;
+    /** 커스텀 web zip이 압축해제된 로컬 루트 (persist — 재시작 시 서버 복원의 유일한 진실원) */
+    customZipLocalRoot: string | null;
+    /**
+     * 기동 중인 로컬 서버의 URL (runtime 전용, persist 제외).
+     * persist하면 재시작 시 서버가 뜨기 전에 WebView가 localhost를 로딩해 흰 화면이 된다 —
+     * 반드시 서버 start 성공 후에만 set.
+     */
+    customZipServerUrl: string | null;
     setWebviewBaseUrlOverride: (url: string | null) => void;
     setMockServiceMode: (mode: MockServiceMode) => void;
     setMockServiceBaseUrl: (url: string | null) => void;
     setOverlayBackdropOpacity: (opacity: number) => void;
     setOverlayContentOpacity: (opacity: number) => void;
     setDebugModeEnabled: (enabled: boolean) => void;
+    setCustomZipLocalRoot: (root: string | null) => void;
+    setCustomZipServerUrl: (url: string | null) => void;
     resetDebugSettings: () => void;
     getResolvedWebviewBaseUrl: () => string;
 }
@@ -32,6 +42,8 @@ export const defaultDebugSettings = {
     overlayBackdropOpacity: 0.35,
     overlayContentOpacity: 1,
     debugModeEnabled: false,
+    customZipLocalRoot: null,
+    customZipServerUrl: null,
 };
 
 const normalizeUrl = (url: string | null): string | null => {
@@ -55,12 +67,19 @@ export const useDebugSettingsStore = create<DebugSettingsState>()(
             setOverlayBackdropOpacity: opacity => set({ overlayBackdropOpacity: clampOverlayOpacity(opacity) }),
             setOverlayContentOpacity: opacity => set({ overlayContentOpacity: clampOverlayContentOpacity(opacity) }),
             setDebugModeEnabled: enabled => set({ debugModeEnabled: enabled }),
+            setCustomZipLocalRoot: root => set({ customZipLocalRoot: root }),
+            setCustomZipServerUrl: url => set({ customZipServerUrl: normalizeUrl(url) }),
             resetDebugSettings: () => set(defaultDebugSettings),
-            getResolvedWebviewBaseUrl: () => get().webviewBaseUrlOverride ?? getDefaultWebviewBaseUrl(),
+            getResolvedWebviewBaseUrl: () =>
+                get().customZipServerUrl ?? get().webviewBaseUrlOverride ?? getDefaultWebviewBaseUrl(),
         }),
         {
             name: 'debugSettings' as PreferenceKey,
             storage: storageAdapter,
+            // customZipServerUrl은 runtime 전용 — persist에서 제외 (재시작 시 서버 기동 전 localhost 로딩 방지).
+            // rest-destructure라 필드명 변경 시 컴파일 에러로 드러남 (문자열 키 필터는 조용히 새어나감).
+            // 제외 대상 키를 omit하려면 이름으로 destructure 필요 — 바인딩은 `_` 접두로 unused 허용.
+            partialize: ({ customZipServerUrl: _customZipServerUrl, ...rest }) => rest,
         }
     )
 );
