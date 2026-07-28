@@ -5,6 +5,8 @@ import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainChat } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
+import { getChatOutbox } from './useChatOutbox';
+
 /**
  * Message send/retry/discard through the engine's chat repository, which
  * handles optimistic insertion + socket dispatch. Sends are NOT serialized —
@@ -32,6 +34,9 @@ export const useChatMutations = () => {
                 return Promise.reject(new Error('cannot retry a message without channel/content'));
             }
             const staleId = message.id ?? message.tempId;
+            // A reconnect sweep may already hold this row; drop its queue entry so the button
+            // and the outbox don't both send it.
+            if (staleId) getChatOutbox()?.remove(staleId);
             if (staleId) void chatRepository.cacheDelete(staleId);
             // Preserve parentId so retrying a failed thread reply re-sends it into
             // the same thread. The server takes the parent's FULL id
@@ -54,6 +59,8 @@ export const useChatMutations = () => {
         (message: DomainChat): Promise<void> => {
             const staleId = message.id ?? message.tempId;
             if (!staleId) return Promise.resolve();
+            // Discarding is the user saying "don't send this" — retire any queued entry too.
+            getChatOutbox()?.remove(staleId);
             return chatRepository.cacheDelete(staleId);
         },
         [chatRepository]

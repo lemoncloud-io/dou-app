@@ -17,6 +17,7 @@ import {
     useMentionCapture,
     usePlaceUnreadCounts,
     useRefreshOnPush,
+    useChatOutbox,
     useCloudPushBadgeStore,
     useRetainLeavingCloudBadge,
     useSocketWakeRecovery,
@@ -49,6 +50,9 @@ const DesktopNotifications = () => {
     // Self-heal a socket left unverified after sleep/wake (cloud-token 400 loop)
     // by reloading the Electron renderer — automatic equivalent of a manual ctrl+r.
     useSocketWedgeReload();
+    // Offline outbox: once the socket is verified again, re-send the messages that failed
+    // while it was down. Desktop-only opt-in — apps/web keeps its manual resend button.
+    useChatOutbox();
     return null;
 };
 

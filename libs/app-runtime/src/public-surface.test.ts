@@ -39,7 +39,10 @@ describe('@chatic/app-runtime public surface', () => {
             // lifecycle
             'RuntimeConnectionHost',
             'RuntimeAuthHost',
+            'useConnectivity',
             'useDeviceTokenRegistration',
+            // offline outbox (engine machine; the app opts in — apps/web keeps manual resend)
+            'createChatOutbox',
             // manager entry points
             'getSocketManager',
             'getSyncManager',

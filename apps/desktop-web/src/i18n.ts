@@ -183,7 +183,9 @@ const resources = {
             'settings.startup': 'Startup',
             'settings.launchAtLogin': 'Launch at login',
             'settings.launchAtLoginHint': 'Start DoU automatically when you sign in to this computer.',
-            'connection.offline': 'You are offline — reconnecting…',
+            // 'offline' now means the browser itself reports no network, so reconnecting is the one
+            // thing that cannot be happening. A down socket on a working network says 'reconnecting'.
+            'connection.offline': 'No network connection',
             'connection.reconnecting': 'Reconnecting…',
             'update.available': 'Version {{version}} is available',
             'update.download': 'Update',
