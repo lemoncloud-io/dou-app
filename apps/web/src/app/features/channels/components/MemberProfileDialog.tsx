@@ -86,10 +86,13 @@ export const MemberProfileDialog = ({
                     <DialogDescription className="sr-only">Member profile</DialogDescription>
 
                     <div className="flex h-full w-full max-w-[440px] flex-col">
+                        {/* safeArea={false}: the native WebView is already inset below the status bar,
+                            so the safe-top inset would double the top gap — match the other modals. */}
                         <ModalTopBar
                             title={t('chat.settings.profileHeader')}
                             onClose={() => onOpenChange(false)}
                             closeLabel={t('chat.settings.close')}
+                            safeArea={false}
                         />
 
                         {/* Avatar + name */}
