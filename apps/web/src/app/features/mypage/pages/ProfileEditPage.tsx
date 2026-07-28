@@ -120,6 +120,13 @@ export const ProfileEditPage = () => {
                         type="text"
                         value={name}
                         onChange={e => setName(e.target.value.slice(0, 30))}
+                        enterKeyHint="done"
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                            }
+                        }}
                         className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
                     />
                     <div className="mt-2 flex justify-between">

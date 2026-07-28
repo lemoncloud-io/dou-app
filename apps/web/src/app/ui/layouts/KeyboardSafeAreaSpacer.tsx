@@ -22,7 +22,7 @@ export const KeyboardSafeAreaSpacer = () => {
         <div
             className="shrink-0 touch-none bg-background"
             style={{
-                height: `max(0px, calc(var(--safe-bottom, 0px) - ${CTA_BASE_PADDING}), calc(var(--keyboard-height, 0px) - ${CTA_BASE_PADDING}))`,
+                height: `max(0px, calc(var(--safe-bottom, 0px) - ${CTA_BASE_PADDING}))`,
             }}
             onTouchMove={e => e.preventDefault()}
         />

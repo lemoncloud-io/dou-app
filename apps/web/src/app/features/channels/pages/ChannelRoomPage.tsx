@@ -9,7 +9,6 @@ import { useSessionIdentity } from '@chatic/web-core';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { useAppChecker } from '@chatic/device-utils';
 import { useRuntimeSocketState, useRuntimeProfile } from '@chatic/app-runtime';
 import {
     AvatarGroup,
@@ -40,6 +39,7 @@ import {
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
+import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
@@ -65,9 +65,13 @@ export const ChannelRoomPage = () => {
     // DOM 접근을 위한 Ref (스크롤 컨테이너 ref는 useChatScroll이 소유)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
+    // Header/composer float as z-index overlays above the full-bleed message list (the translucent
+    // glass treatment) instead of being flex-col siblings that push it down — the rest is corrected
+    // via padding measured off their actual rendered height.
+    const { headerRef, footerRef: composerRef, headerHeight, footerHeight: composerHeight } = useChromeInsets();
+
     const { userId } = useSessionIdentity();
     const { isGuest, isCloudActive } = useRuntimeProfile();
-    const { isIOS } = useAppChecker();
     const { isVerified } = useRuntimeSocketState();
 
     // --- 데이터 패칭 Hooks ---
@@ -420,30 +424,36 @@ export const ChannelRoomPage = () => {
     );
 
     return (
-        <div className="flex h-full flex-col bg-background">
-            <ChatRoomHeader
-                kind={isSelfChat ? 'self' : isDmChat ? 'direct' : 'group'}
-                title={roomTitle}
-                avatar={headerAvatar}
-                meta={headerMeta}
-                onBack={() => navigate(-1)}
-                moreMenu={
-                    <DropdownMenuItem
-                        onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
-                        className="cursor-pointer gap-2"
-                    >
-                        <Settings size={16} />
-                        <span>{t('home.settings')}</span>
-                    </DropdownMenuItem>
-                }
-                className="border-b border-border"
-            />
+        <div className="relative flex h-full flex-col overflow-hidden bg-background">
+            <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
+                <ChatRoomHeader
+                    kind={isSelfChat ? 'self' : isDmChat ? 'direct' : 'group'}
+                    title={roomTitle}
+                    avatar={headerAvatar}
+                    meta={headerMeta}
+                    onBack={() => navigate(-1)}
+                    moreMenu={
+                        <DropdownMenuItem
+                            onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
+                            className="cursor-pointer gap-2"
+                        >
+                            <Settings size={16} />
+                            <span>{t('home.settings')}</span>
+                        </DropdownMenuItem>
+                    }
+                    className="border-b border-border"
+                />
+            </div>
 
-            <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="relative min-h-0 flex-1">
                 <div
                     ref={messagesEndRef}
                     onScroll={handleMessagesScroll}
-                    className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-none pb-4 pt-2 gap-3"
+                    className="absolute inset-0 flex flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-none gap-3"
+                    style={{
+                        paddingTop: headerHeight + 8,
+                        paddingBottom: composerHeight + 16,
+                    }}
                 >
                     {isChatLoading ? (
                         <div className="flex min-h-full items-center justify-center">
@@ -620,23 +630,31 @@ export const ChannelRoomPage = () => {
                     )}
                 </div>
 
-                <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
+                <div
+                    className="pointer-events-none absolute inset-x-0 flex justify-center"
+                    style={{ top: headerHeight + 8 }}
+                >
                     <FloatingDateChip label={floatingDate} visible={showFloatingDate && !!floatingDate} />
                 </div>
             </div>
 
             <div
+                ref={composerRef}
                 // Extend the keep-keyboard-open tolerance to the whole bottom bar — a finger
                 // slipping off the input onto the surrounding padding shouldn't blur the
                 // textarea. Only the textarea itself keeps the caret.
                 onPointerDown={e => {
                     if (e.target !== inputRef.current) e.preventDefault();
                 }}
-                className="border-t border-border bg-background px-4 py-3"
+                // Floating composer (Figma 2948-28188 / 2948-29566): the bar itself has NO surface —
+                // the translucent pill is the only chrome, so the message list stays visible right up
+                // to the screen edge and scrolls behind it.
+                className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
-                    paddingBottom: isIOS
-                        ? `calc(12px + max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)))`
-                        : `calc(12px + var(--safe-bottom, 0px) + var(--keyboard-height, 0px))`,
+                    // 8px above the keyboard when it is up, otherwise clear the home indicator.
+                    // max(), never a sum — the keyboard already reaches the screen edge, so adding
+                    // the safe-bottom inset on top of it is what made the bottom gap look oversized.
+                    paddingBottom: `max(8px, var(--safe-bottom, 0px), calc(var(--keyboard-height, 0px) + 8px))`,
                 }}
             >
                 <MessageInput

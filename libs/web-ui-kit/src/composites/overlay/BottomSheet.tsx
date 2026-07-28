@@ -59,7 +59,8 @@ export const BottomSheet = ({
             >
                 {showHandle && <span className="mx-auto mt-2 h-1 w-8 shrink-0 rounded-full bg-input-border" />}
 
-                <div className="flex shrink-0 items-center justify-between px-4 py-3.5">
+                {/* Glass overlay header (Figma 3421-59848), same translucent treatment as ModalTopBar. */}
+                <div className="flex shrink-0 items-center justify-between bg-white/[0.32] px-4 py-3.5 backdrop-blur-xl dark:bg-black/[0.32]">
                     <SheetTitle
                         className={cn(
                             'truncate text-[17px] font-semibold leading-6 text-foreground',

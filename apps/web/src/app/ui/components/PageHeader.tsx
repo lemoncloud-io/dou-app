@@ -24,7 +24,7 @@ export const PageHeader = ({ title, onBack, rightAction, hideBack = false }: Pag
     };
 
     return (
-        <header className="relative flex items-center justify-center px-4 py-3 min-h-[48px]">
+        <header className="relative flex items-center justify-center bg-white/[0.32] px-4 py-3 min-h-[48px] backdrop-blur-xl dark:bg-black/[0.32]">
             {!hideBack && (
                 <button onClick={handleBack} className="absolute left-4 p-2" aria-label="Back">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />

@@ -61,6 +61,13 @@ export const EmailStep = ({
                                     value={email}
                                     onChange={e => onEmailChange(e.target.value)}
                                     onBlur={onBlur}
+                                    enterKeyHint="done"
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                            e.preventDefault();
+                                            e.currentTarget.blur();
+                                        }
+                                    }}
                                     placeholder={t('addAccount.emailPlaceholder')}
                                     className={cn(
                                         'w-full rounded-[10px] border bg-surface p-3 px-4 pr-10 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
