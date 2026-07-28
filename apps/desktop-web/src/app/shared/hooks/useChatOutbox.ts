@@ -131,6 +131,12 @@ export interface LandingBatch {
     match(rows: DomainChat[], entry: OutboxEntry, myUid: string): DomainChat | null;
     /** Claims the row matched for this entry. Call only once the stale row is actually gone. */
     commit(entryId: string): void;
+    /**
+     * Drops recorded send times for entries outside `keep`. Every resend mints a NEW optimistic row
+     * id, so a message that keeps failing leaves one dead key behind per sweep — unbounded in a
+     * process that runs for days. Claims are NOT pruned: outliving sweeps is their whole job.
+     */
+    forget(keep: Set<string>): void;
 }
 
 export const createLandingBatch = (): LandingBatch => {
@@ -162,6 +168,11 @@ export const createLandingBatch = (): LandingBatch => {
             if (!rowId) return;
             matchedByEntry.delete(entryId);
             consumed.add(rowId);
+        },
+        forget: keep => {
+            for (const entryId of sentAtById.keys()) {
+                if (!keep.has(entryId)) sentAtById.delete(entryId);
+            }
         },
     };
 };
@@ -235,23 +246,37 @@ export const useChatOutbox = (): void => {
             // partitioned by (cid, uid) and ChannelLocalDataSourceV2 skips the place filter when
             // no sid resolves. A failed message in a place the user has since left must still go.
             const channels = await channelRepository.cacheReadList({ sid: '' });
-            for (const channel of channels?.list ?? []) {
-                if (!channel.id) continue;
-                // cursorNo:1 bounds the read to chat_no 0 — exactly the unsent rows. A plain
-                // limited page is chat_no-DESCENDING and would miss them entirely in any channel
-                // holding 50+ server messages.
-                const unsent = await chatRepository.cacheReadList({
-                    channelId: channel.id,
-                    cursorNo: 1,
-                    limit: SWEEP_LIMIT,
-                });
-                for (const row of selectResendableRows(unsent?.list ?? [], myUid ?? '')) {
+            const channelIds = (channels?.list ?? []).map(channel => channel.id).filter((id): id is string => !!id);
+
+            // Concurrent, following useMessageSearch: the reads are independent, and per-channel
+            // send order is preserved by the outbox's per-channel queue, not by read order. Issued
+            // sequentially these N round trips each queue behind the reconnect catch-up's writes on
+            // the same store — N stalls instead of one.
+            // cursorNo:1 bounds each read to chat_no 0 — exactly the unsent rows. A plain limited
+            // page is chat_no-DESCENDING and would miss them in any channel holding 50+ server rows.
+            const perChannel = await Promise.all(
+                channelIds.map(channelId =>
+                    chatRepository
+                        .cacheReadList({ channelId, cursorNo: 1, limit: SWEEP_LIMIT })
+                        .then(result => ({ channelId, rows: result?.list ?? [] }))
+                        .catch(() => ({ channelId, rows: [] as DomainChat[] }))
+                )
+            );
+
+            const swept = new Set<string>();
+            for (const { channelId, rows } of perChannel) {
+                for (const row of selectResendableRows(rows, myUid ?? '')) {
                     // The row's own createdAt is what the landing probe compares against — the
                     // enqueue time is a reconnect, potentially hours after the user pressed send.
                     batch.record(row.id, rowTime(row));
-                    outbox.enqueue({ id: row.id, channelId: channel.id, payload: toSendPayload(row) });
+                    swept.add(row.id);
+                    outbox.enqueue({ id: row.id, channelId, payload: toSendPayload(row) });
                 }
             }
+            // Every send mints a NEW optimistic row id, so a message that keeps failing leaves a
+            // dead key behind on every sweep — unbounded in a desktop app that runs for days.
+            // Safe here: the guard above proved nothing is in flight.
+            batch.forget(swept);
         })().catch(() => undefined);
     }, [chatRepository, channelRepository, myUid, isConnected, isVerified]);
 };

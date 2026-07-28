@@ -67,10 +67,18 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         return row;
     }
 
-    /** 채널별 상한을 적용할 대상 채널들. 상한 미설정이거나 chat이 아니면 빈 배열입니다. */
+    /**
+     * 상한을 적용할 대상 채널들. 상한 미설정이거나 chat이 아니면 빈 배열입니다.
+     *
+     * 미전송 행(`chat_no === UNSENT_CHAT_NO`)만 쓴 경우는 제외합니다 — eviction 경계는
+     * `EVICTABLE_CHAT_NO_FLOOR` 이상만 보고 계산되므로, 그런 쓰기는 **답을 바꿀 수 없습니다.**
+     * 낙관적 전송·실패 재마킹·outbox 재전송이 전부 여기 해당해서, 보내는 쪽 경로의 프로브가
+     * 절반 가까이 사라집니다.
+     */
     private cappedChannelIds(rows: IndexedDbRow<TType>[]): string[] {
         if (this.options.maxChatsPerChannel === undefined || this.type !== 'chat') return [];
-        return Array.from(new Set(rows.map(row => row.channel_id).filter((id): id is string => !!id)));
+        const evictable = rows.filter(row => (row.chat_no ?? UNSENT_CHAT_NO) >= EVICTABLE_CHAT_NO_FLOOR);
+        return Array.from(new Set(evictable.map(row => row.channel_id).filter((id): id is string => !!id)));
     }
 
     /**

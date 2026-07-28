@@ -32,6 +32,22 @@ export interface CacheFactoryOptions {
 
 // Memoized so all cache types share one strategy instance (and one AppPolicyResolver).
 let sharedStrategy: CacheStorageStrategy | null = null;
+let chatCacheLimit: number | undefined;
+
+/**
+ * Caps how many chat rows the browser cache keeps per channel. Unset = unbounded, which is what
+ * every client did before and still does unless it opts in.
+ *
+ * This is the APP's policy, not the engine's: the IndexedDB-only strategy serves every client
+ * without `window.ReactNativeWebView` — `apps/web` opened in a plain browser and `apps/admin-v2`
+ * included — so a limit baked into the engine would silently truncate their scrollback too.
+ *
+ * Must be called before the runtime mounts (the strategy is memoized on first cache access, which
+ * happens when `DataManager` is constructed). An app entry module is the right place.
+ */
+export const setChatCacheLimit = (maxChatsPerChannel: number): void => {
+    chatCacheLimit = maxChatsPerChannel;
+};
 
 const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy => {
     if (!sharedStrategy) {
@@ -41,7 +57,7 @@ const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy =>
         // Web / desktop-web: IndexedDB only (no native cold tier).
         sharedStrategy = isNativeApp()
             ? new HotColdCacheStorageStrategy(webClient, { policyResolver: new AppPolicyResolver() })
-            : new IndexedDbOnlyCacheStorageStrategy();
+            : new IndexedDbOnlyCacheStorageStrategy(chatCacheLimit);
     }
     return sharedStrategy;
 };

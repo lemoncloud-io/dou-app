@@ -99,19 +99,20 @@ export class AppPolicyResolver implements PolicyResolver {
 // ─── Strategy 구현체 ─────────────────────────────────────────────────
 
 /**
- * 채널당 메시지 캐시 상한. 이 경로는 DynamicCacheStorage를 거치지 않아 eviction 훅이
- * 붙지 않으므로(= 무제한 증가), 어댑터에 직접 상한을 준다.
- * 1000 = load-more 20페이지(ChatLocalDataSourceV2 기본 50건 · useChats LOAD_MORE_SIZE 50)분
- * 스크롤백. 제거된 과거는 refreshList(cursorNo)로 서버에서 다시 받아온다.
- */
-const MAX_CHATS_PER_CHANNEL = 1000;
-
-/**
- * 브라우저 환경용: IndexedDBAdapter 단독 사용
+ * 브라우저 환경용: IndexedDBAdapter 단독 사용.
+ *
+ * 채널당 메시지 상한은 **주입받는다**. 이 경로는 `DynamicCacheStorage`를 안 거쳐 eviction 훅이
+ * 없으므로(= 무제한 증가) 상한이 필요한 건 맞지만, **이 전략은 데스크탑 전용이 아니다** —
+ * `localFactory.selectStrategy`가 `window.ReactNativeWebView`가 없는 **모든** 클라이언트를 여기로
+ * 보낸다. 즉 평범한 브라우저로 연 `apps/web`과 `apps/admin-v2`도 이 전략을 쓴다.
+ * 상한을 모듈 상수로 박으면 그 클라이언트들의 스크롤백까지 조용히 잘라낸다.
+ * 미지정 = 무제한(기존 동작), 즉 정책을 가진 앱만 값을 넣는다.
  */
 export class IndexedDbOnlyCacheStorageStrategy implements CacheStorageStrategy {
+    constructor(private readonly maxChatsPerChannel?: number) {}
+
     create<TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType> {
-        return createIndexedDBAdapter(type, contextProvider, MAX_CHATS_PER_CHANNEL);
+        return createIndexedDBAdapter(type, contextProvider, this.maxChatsPerChannel);
     }
 }
 

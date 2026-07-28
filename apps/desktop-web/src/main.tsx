@@ -2,7 +2,18 @@ import { StrictMode } from 'react';
 
 import * as ReactDOM from 'react-dom/client';
 
+import { setChatCacheLimit } from '@chatic/app-runtime';
+
 import App from './app/app';
+
+// Desktop stays open for days, so an unbounded chat cache grows without end. 1000 per channel is
+// twenty load-more pages of scrollback (ChatLocalDataSourceV2 reads 50, useChats LOAD_MORE_SIZE is
+// 50); evicted history comes back from the server via refreshList(cursorNo).
+//
+// Set HERE and not in the engine: the IndexedDB-only strategy serves every non-native client, so a
+// limit living in libs/app-runtime would also truncate apps/web in a browser and apps/admin-v2.
+// Must run before render — the strategy is memoized the first time a repository is built.
+setChatCacheLimit(1000);
 
 // Desktop persistent storage (localStorage) is configured centrally in
 // libs/web-core/src/core/index.ts via usePersistentStorage, which the webCore

@@ -19,7 +19,7 @@ export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './sessio
 
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
-export { isNativeApp } from './data/factories/localFactory';
+export { isNativeApp, setChatCacheLimit } from './data/factories/localFactory';
 export {
     useInvitedCloudColdRecovery,
     useInvitedCloudNameSync,
