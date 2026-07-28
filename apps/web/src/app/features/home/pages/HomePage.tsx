@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { X } from 'lucide-react';
+
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
@@ -30,12 +32,12 @@ import {
     InviteDialog,
     PlaceList,
     PlaceProfileCreateDialog,
-    PlaceProfileEditDialog,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import {
     useActiveCloudChannels,
+    useCachedCloudNames,
     useChannelUnreads,
     useHomeChannels,
     useHomePlaces,
@@ -80,9 +82,13 @@ export const HomePage = () => {
         cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
     );
     const activeCloud = activeOwnedCloud ?? activeInvitedCloud;
-    const cloudName = activeCloud
-        ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || ''
-        : '';
+    // The locally cached name (written first by cloud.update/get) wins over the relay catalog so a
+    // just-edited subscription-cloud name shows immediately, before the catalog refetch catches up.
+    const cachedCloudNames = useCachedCloudNames();
+    const cachedCloudName = selectedCloudId ? cachedCloudNames[selectedCloudId] : undefined;
+    const cloudName =
+        cachedCloudName ??
+        (activeCloud ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || '' : '');
 
     // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
     // either a valid membership OR at least one activated cloud exists — owning a live cloud (status
@@ -98,7 +104,6 @@ export const HomePage = () => {
     // Prompt to CREATE a per-place profile when the active place has none yet (mandatory — no skip).
     const { shouldPrompt: needsPlaceProfile, status: placeProfileStatus } = usePlaceProfilePrompt();
     const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
-    const [isEditOpen, setIsEditOpen] = useState(false);
     const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
     // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
@@ -134,9 +139,9 @@ export const HomePage = () => {
     // the active place has no photo, ProfileAvatar renders its default glyph (기본 아바타).
     const displayImageUrl = myProfile?.thumbnail ?? undefined;
 
-    // The per-place profile edit dialog needs an active site (the key `useMyProfile` reads). Works on
+    // The place-settings menu entry needs an active site (its route is keyed by the site id). Works on
     // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
-    // is active, since there'd be no profile to edit.
+    // is active, since there'd be no place to configure.
     const hasActivePlace = !!selectedSiteId;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -203,13 +208,12 @@ export const HomePage = () => {
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => toast({ title: t('homePage.searchComingSoon', '검색은 준비 중이에요') });
-    // Notifications settings has no route yet (ADR-0013): placeholder, tracked as a follow-up.
-    const handleNotifications = () =>
-        toast({ title: t('homePage.notificationsComingSoon', '알림 설정은 준비 중이에요') });
 
-    // Right-side profile → dropdown (프로필 / 알림 / 설정). The header shows my place profile.
+    // Right-side profile → dropdown. The header shows my place profile; the only entry navigates to
+    // the place settings hub. Controlled open state so the header's close (X) can dismiss it.
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenu = (
-        <DropdownMenu>
+        <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
@@ -222,27 +226,22 @@ export const HomePage = () => {
             <DropdownMenuContent align="end" className="w-56">
                 <div className="flex items-center gap-2 px-2 py-2">
                     <ProfileAvatar src={displayImageUrl} size={32} />
-                    <span className="min-w-0 truncate text-sm font-semibold text-foreground">{displayName}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{displayName}</span>
+                    <button
+                        type="button"
+                        aria-label={t('homePage.menuClose', '닫기')}
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
-                <DropdownMenuItem
-                    disabled={!hasActivePlace}
-                    onClick={() => setIsEditOpen(true)}
-                    className="cursor-pointer"
-                >
-                    {t('homePage.menuProfile', '프로필')}
-                </DropdownMenuItem>
                 <DropdownMenuItem
                     disabled={!hasActivePlace}
                     onClick={() => selectedSiteId && navigate(ROUTES.place.settings(selectedSiteId))}
                     className="cursor-pointer"
                 >
                     {t('homePage.menuPlaceSettings', '플레이스 설정')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleNotifications} className="cursor-pointer">
-                    {t('homePage.menuNotifications', '알림')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate(ROUTES.mypage.root)} className="cursor-pointer">
-                    {t('homePage.menuSettings', '설정')}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -323,11 +322,6 @@ export const HomePage = () => {
                     openPendingInviteChannel();
                 }}
                 onExit={() => setIsPlaceProfileOpen(false)}
-            />
-            <PlaceProfileEditDialog
-                open={isEditOpen}
-                placeName={activePlaceName}
-                onClose={() => setIsEditOpen(false)}
             />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <SubscriptionRequiredDialog

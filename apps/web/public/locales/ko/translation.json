@@ -297,15 +297,12 @@
         "placeLimitReached": "플레이스는 최대 5개까지 만들 수 있어요",
         "channelLimitReached": "그룹방은 최대 100개까지 만들 수 있어요",
         "profile": "프로필",
-        "menuProfile": "프로필",
         "menuPlaceSettings": "플레이스 설정",
-        "menuNotifications": "알림",
-        "menuSettings": "설정",
+        "menuClose": "닫기",
         "search": "검색",
         "switchCloud": "클라우드 전환",
         "directComingSoon": "1:1 대화는 준비 중이에요",
         "searchComingSoon": "검색은 준비 중이에요",
-        "notificationsComingSoon": "알림 설정은 준비 중이에요",
         "noPlaceTitle": "접속한 플레이스가 없어요",
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요"
     },
@@ -663,7 +660,8 @@
         "exitContinue": "계속 설정"
     },
     "placeProfileEdit": {
-        "title": "<{{place}}>에\n적용 중인 프로필 입니다.",
+        "title": "플레이스 프로필",
+        "header": "내 프로필",
         "nameLabel": "이름",
         "nameHint": "20글자 이내로 입력해 주세요.",
         "namePlaceholder": "이름 입력",
@@ -671,13 +669,13 @@
         "photoOptional": "[선택]",
         "done": "완료",
         "close": "닫기",
-        "successToast": "프로필이 수정되었습니다.",
+        "successToast": "프로필 설정이 완료되었습니다.",
         "saveError": "프로필 수정에 실패했습니다.",
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
-        "exitTitle": "변경사항을 저장하지 않고 나갈까요?",
-        "exitDescription": "저장하지 않은 변경사항은 사라집니다.",
-        "exitLeave": "나가기",
-        "exitContinue": "계속 편집"
+        "exitTitle": "프로필 설정을 중단하시겠어요?",
+        "exitDescription": "설정을 중단하시면 변경사항은 저장되지 않습니다.",
+        "exitLeave": "중단",
+        "exitContinue": "계속 설정"
     },
     "profileEdit": {
         "title": "프로필 수정",
@@ -691,8 +689,8 @@
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
         "tabBasic": "기본 프로필",
         "tabCloud": "Cloud 프로필",
-        "cloudDescription1": "Cloud에서 사용할 이름과",
-        "cloudDescription2": "사진을 설정해 주세요",
+        "cloudDescription1": "Cloud에서 사용할",
+        "cloudDescription2": "이름을 설정해 주세요",
         "thumbnailLabel": "프로필 이미지",
         "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
         "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
