@@ -159,3 +159,6 @@ apps/mobile/fastlane/*.json
 
 
 storybook-static
+
+# Wayfinder maps / scratch working notes — local only, not shared
+/.scratch
