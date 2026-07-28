@@ -14,9 +14,14 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     profile: 30 * MINUTE_MS,
     site: 30 * MINUTE_MS,
     user: 30 * MINUTE_MS,
-    // Sync cursors expire after a day: a watermark idle beyond the server's delta-history
-    // window would silently miss removals, so an expired cursor forces a full re-sync (since=0).
-    meta: 1 * DAY_MS,
+    // Sync-cursor TTL. A watermark idle beyond the server's delta-history window points past the
+    // range channel.sync/profile.sync can replay, so its delta comes back incomplete and the list
+    // freezes stale until the cursor expires. On the cold (native) cache the cursor survives app
+    // restarts, so a 1-day TTL kept reopened-after-idle lists stale for up to a day. An expired
+    // cursor forces a full re-sync (since=0). Active use rarely hits this: each 60s poll re-saves the
+    // cursor and refreshes its TTL, so it only expires across an inactivity gap longer than the TTL.
+    // TEMP: dropped to 1 min to observe/diagnose cold-cache staleness; raise back to ~30 min after.
+    meta: 1 * MINUTE_MS,
 };
 
 /** 어댑터 공통 스코프 표현입니다. */
