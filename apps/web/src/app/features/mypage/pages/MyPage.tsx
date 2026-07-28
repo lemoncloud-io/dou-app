@@ -7,7 +7,7 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, IconUser, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
-import { useMembershipInfo, useSessionSelection } from '@chatic/web-core';
+import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
@@ -24,6 +24,7 @@ export const MyPage = () => {
     const { t, i18n } = useTranslation();
     const { isGuest, isCloudActive } = useRuntimeProfile();
     const { selectedCloudId } = useSessionSelection();
+    const { clouds } = useCloudSessionCatalog();
     const { data: membership } = useMembershipInfo();
     const myUser = useMyUser();
 
@@ -78,8 +79,12 @@ export const MyPage = () => {
     };
 
     const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
+    // The cloud-profile screen edits the cloud entity itself and is owner-only. The relay catalog
+    // lists owned clouds only, so membership here is the ownership signal; invited (non-owner) clouds
+    // never match and their header stays non-navigating.
+    const isCloudOwner = !isDefaultCloud && clouds.some(cloud => cloud.id === selectedCloudId);
     const handleProfileClick = () => {
-        navigate(isDefaultCloud ? ROUTES.mypage.account.edit : ROUTES.mypage.account.cloudProfile);
+        navigate(ROUTES.mypage.account.cloudProfile);
     };
 
     const handleThemeToggle = () => {
@@ -115,7 +120,7 @@ export const MyPage = () => {
                         </div>
                         <p className="text-[14px] text-description">{t('mypage.loginDescription')}</p>
                     </button>
-                ) : isDefaultCloud ? (
+                ) : isDefaultCloud || !isCloudOwner ? (
                     <div className="flex items-center gap-[9px]">
                         {profileAvatar}
                         {profileText}

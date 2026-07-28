@@ -1,4 +1,5 @@
 export * from './useActiveCloudChannels';
+export * from './useCachedCloudNames';
 export * from './useChannelUnreads';
 export * from './useCreatePlace';
 export * from './useEnterInvitedChannel';
