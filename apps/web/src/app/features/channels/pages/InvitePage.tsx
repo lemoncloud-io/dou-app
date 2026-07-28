@@ -11,6 +11,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { toError } from '../../../utils/errors';
 import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
@@ -284,11 +285,16 @@ export const InvitePage = () => {
             )}
 
             {showContactList && selectedIds.size > 0 && (
-                <div className="shrink-0 px-4 pb-4 pt-3">
-                    <Button tone="green" size="lg" fullWidth loading={isBatchInviting} onClick={handleBatchInvite}>
-                        {t('inviteFriends.inviteSelected', { count: selectedIds.size })}
-                    </Button>
-                </div>
+                <>
+                    <div className="shrink-0 px-4 pb-4 pt-3">
+                        <Button tone="green" size="lg" fullWidth loading={isBatchInviting} onClick={handleBatchInvite}>
+                            {t('inviteFriends.inviteSelected', { count: selectedIds.size })}
+                        </Button>
+                    </div>
+                    {/* The CTA above only pads itself by `pb-4`; this reserves the home-indicator
+                        inset and lifts it above the keyboard raised by the search field. */}
+                    <KeyboardSafeAreaSpacer />
+                </>
             )}
 
             <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} channelId={channelId} />

@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { useChromeInsets } from '../hooks/useChromeInsets';
+import { keyboardSafeBottom } from './KeyboardSafeAreaSpacer';
 
 interface KeyboardAwareLayoutProps {
     header?: ReactNode;
@@ -42,11 +43,11 @@ export const KeyboardAwareLayout = ({ header, footer, children, className }: Key
                 <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col">
                     {footer}
                     {/* Lifts the docked CTA above the on-screen keyboard so it stays reachable while
-                        typing. max(), never a sum — the keyboard already covers the home-indicator
-                        inset, so adding both over-pads and leaves the button floating too high. */}
+                        typing. No base padding is subtracted here: the footer is a caller-provided
+                        slot, so its own bottom padding (if any) is not assumed. */}
                     <div
                         className="shrink-0 touch-none bg-background"
-                        style={{ height: 'max(var(--safe-bottom, 0px), var(--keyboard-height, 0px))' }}
+                        style={{ height: keyboardSafeBottom() }}
                         onTouchMove={e => e.preventDefault()}
                     />
                 </div>

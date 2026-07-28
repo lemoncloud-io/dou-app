@@ -307,6 +307,14 @@ export const PlaceProfileForm = ({
                 className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
+                // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
+                // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
+                // full inset above the keyboard. Dropping it leaves the spacer as the single bottom
+                // inset, matching this same form's `container="page"` branch. Inline rather than a
+                // `pb-0` class: `pb-safe-bottom` is a custom spacing key tailwind-merge doesn't
+                // classify as padding-bottom, so both would survive and utility order would decide.
+                style={{ paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{title}</DialogTitle>
                 <DialogDescription className="sr-only">{subtitle ?? title}</DialogDescription>

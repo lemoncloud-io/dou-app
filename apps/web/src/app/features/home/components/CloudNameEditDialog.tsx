@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/u
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { keyboardSafeBottom } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useUpdateCloud } from '../hooks';
 
 interface CloudNameEditDialogProps {
@@ -106,7 +108,9 @@ export const CloudNameEditDialog = ({
                             {errors.name && <span className="text-[12px] text-destructive">{errors.name.message}</span>}
                         </div>
 
-                        <div className="mt-auto flex flex-col gap-3 pb-safe-bottom">
+                        {/* Bottom inset + keyboard clearance in one: the input autofocuses, so the
+                            keyboard is up immediately and would otherwise cover this CTA. */}
+                        <div className="mt-auto flex flex-col gap-3" style={{ paddingBottom: keyboardSafeBottom() }}>
                             <Button
                                 type="submit"
                                 disabled={!isValidName || isSubmitting}
