@@ -172,6 +172,30 @@ export class IndexedDBDatabase implements IIndexedDB {
         }
     }
 
+    async findNewestKeyBeyond(indexName: string, range: IDBKeyRange, skip: number): Promise<IDBValidKey | null> {
+        const db = await this.getDB();
+        return new Promise<IDBValidKey | null>((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const request = tx.objectStore(STORE_NAME).index(indexName).openKeyCursor(range, 'prev');
+            let advanced = false;
+
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (!cursor) {
+                    resolve(null);
+                    return;
+                }
+                if (!advanced && skip > 0) {
+                    advanced = true;
+                    cursor.advance(skip);
+                    return;
+                }
+                resolve(cursor.key);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
     async clearByRange(indexName: string, range: IDBKeyRange): Promise<void> {
         const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {
             const index = store.index(indexName);

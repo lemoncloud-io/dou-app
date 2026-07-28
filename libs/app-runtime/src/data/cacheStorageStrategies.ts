@@ -39,16 +39,15 @@ const getSharedDatabase = (): IndexedDBDatabase => {
 
 const createIndexedDBAdapter = <TType extends CacheType>(
     type: TType,
-    contextProvider: DataContextProvider
+    contextProvider: DataContextProvider,
+    maxChatsPerChannel?: number
 ): IndexedDBAdapter<TType> => {
     const db = getSharedDatabase();
     if (type === 'chat') {
-        return new IndexedDBAdapter(
-            db,
-            'chat',
-            contextProvider,
-            new ChatQueryExecutor()
-        ) as unknown as IndexedDBAdapter<TType>;
+        return new IndexedDBAdapter(db, 'chat', contextProvider, {
+            executor: new ChatQueryExecutor(),
+            maxChatsPerChannel,
+        }) as unknown as IndexedDBAdapter<TType>;
     }
     return new IndexedDBAdapter(db, type, contextProvider);
 };
@@ -100,11 +99,19 @@ export class AppPolicyResolver implements PolicyResolver {
 // ─── Strategy 구현체 ─────────────────────────────────────────────────
 
 /**
+ * 채널당 메시지 캐시 상한. 이 경로는 DynamicCacheStorage를 거치지 않아 eviction 훅이
+ * 붙지 않으므로(= 무제한 증가), 어댑터에 직접 상한을 준다.
+ * 1000 = load-more 20페이지(ChatLocalDataSourceV2 기본 50건 · useChats LOAD_MORE_SIZE 50)분
+ * 스크롤백. 제거된 과거는 refreshList(cursorNo)로 서버에서 다시 받아온다.
+ */
+const MAX_CHATS_PER_CHANNEL = 1000;
+
+/**
  * 브라우저 환경용: IndexedDBAdapter 단독 사용
  */
 export class IndexedDbOnlyCacheStorageStrategy implements CacheStorageStrategy {
     create<TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType> {
-        return createIndexedDBAdapter(type, contextProvider);
+        return createIndexedDBAdapter(type, contextProvider, MAX_CHATS_PER_CHANNEL);
     }
 }
 

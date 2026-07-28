@@ -79,6 +79,16 @@ export interface IIndexedDB {
      * 인덱스 기반으로 범위(IDBKeyRange)에 부합하는 모든 레코드를 삭제합니다.
      */
     clearByRange(indexName: string, range: IDBKeyRange): Promise<void>;
+
+    /**
+     * 인덱스 범위를 최신순으로 훑어 skip개를 건너뛴 첫 레코드의 **인덱스 키**를 반환합니다.
+     * 범위 내 레코드가 skip개 이하면 null입니다.
+     *
+     * key cursor + advance라 값을 역직렬화하지 않고, 단일 readonly 트랜잭션에서 끝나므로
+     * "개수를 센 뒤 그 개수로 다시 읽는" 2단계 조회의 경합(중간에 레코드가 바뀌면 경계가 어긋남)이
+     * 구조적으로 발생하지 않습니다.
+     */
+    findNewestKeyBeyond(indexName: string, range: IDBKeyRange, skip: number): Promise<IDBValidKey | null>;
 }
 
 /**
