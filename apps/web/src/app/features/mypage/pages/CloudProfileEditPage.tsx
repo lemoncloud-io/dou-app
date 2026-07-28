@@ -9,10 +9,11 @@ import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { cn } from '@chatic/lib/utils';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cloudsKeys, useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
+
+import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 
 import { useUpdateCloudProfile } from '../hooks';
 import { PageHeader } from '../../../ui/components';
@@ -104,48 +105,31 @@ export const CloudProfileEditPage = () => {
             className="fixed inset-0 overflow-hidden"
             header={<PageHeader title={t('profileEdit.tabCloud')} />}
             footer={
-                <div className="border-t border-border/50 bg-background px-5 py-4">
-                    <button
-                        onClick={handleSave}
-                        disabled={!isValid || !hasChanges || isPending || !canEdit}
-                        className={cn(
-                            'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                            isValid && hasChanges && !isPending && canEdit
-                                ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
-                                : 'bg-muted text-muted-foreground'
-                        )}
-                    >
-                        {t('profileEdit.save')}
-                    </button>
-                </div>
+                <FloatingButton
+                    label={t('profileEdit.save')}
+                    disabled={!isValid || !hasChanges || isPending || !canEdit}
+                    loading={isPending}
+                    onClick={handleSave}
+                />
             }
         >
-            <div className="px-5 pt-4">
-                <div className="mb-8">
-                    <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.cloudDescription1')}
-                    </p>
-                    <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.cloudDescription2')}
-                    </p>
-                </div>
-
-                <div className="mb-6">
-                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
-                        {t('profileEdit.nameLabel')}
-                    </label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={e => setName(e.target.value.slice(0, MAX_NAME_LENGTH))}
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
-                    />
-                    <div className="mt-2 flex justify-end">
-                        <span className="text-[14px] text-muted-foreground">
-                            {name.length}/{MAX_NAME_LENGTH}
-                        </span>
-                    </div>
-                </div>
+            {/* Same spacing rhythm as PlaceInfoPage, minus the photo block — the cloud model has no image field. */}
+            <div className="flex flex-col gap-8 py-10">
+                <TextField
+                    label={t('profileEdit.nameLabel')}
+                    required
+                    value={name}
+                    onChange={value => setName(value.slice(0, MAX_NAME_LENGTH))}
+                    maxLength={MAX_NAME_LENGTH}
+                    enterKeyHint="done"
+                    onKeyDown={e => {
+                        // "Done" key dismisses the keyboard; ignore Enter while an IME is composing.
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                            e.preventDefault();
+                            e.currentTarget.blur();
+                        }
+                    }}
+                />
             </div>
         </KeyboardAwareLayout>
     );

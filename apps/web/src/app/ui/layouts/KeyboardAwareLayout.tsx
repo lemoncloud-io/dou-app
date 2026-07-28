@@ -41,12 +41,12 @@ export const KeyboardAwareLayout = ({ header, footer, children, className }: Key
             {footer && (
                 <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col">
                     {footer}
-                    {/* Reserves the home-indicator inset only. The keyboard is deliberately not
-                        reserved for — the docked CTA stays put and the keyboard overlays it, so the
-                        gap below it does not grow as the keyboard rises. */}
+                    {/* Lifts the docked CTA above the on-screen keyboard so it stays reachable while
+                        typing. max(), never a sum — the keyboard already covers the home-indicator
+                        inset, so adding both over-pads and leaves the button floating too high. */}
                     <div
                         className="shrink-0 touch-none bg-background"
-                        style={{ height: 'var(--safe-bottom, 0px)' }}
+                        style={{ height: 'max(var(--safe-bottom, 0px), var(--keyboard-height, 0px))' }}
                         onTouchMove={e => e.preventDefault()}
                     />
                 </div>

@@ -173,6 +173,9 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         loadMore,
         inputRef,
+        // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
+        // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
+        composerHeight,
     });
 
     // 플로팅 날짜 pill: 스크롤 중 컨테이너 상단 경계에 걸친 날짜 그룹의 라벨을 찾아 표시하고,
@@ -452,6 +455,10 @@ export const ChannelRoomPage = () => {
                     className="absolute inset-0 flex flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-none gap-3"
                     style={{
                         paddingTop: headerHeight + 8,
+                        // Border-box composer height, so it already carries the input field, its
+                        // padding and — when the keyboard is up — `--keyboard-height`. The list
+                        // therefore always clears the composer and gains extra room to scroll the
+                        // last message above a raised keyboard.
                         paddingBottom: composerHeight + 16,
                     }}
                 >

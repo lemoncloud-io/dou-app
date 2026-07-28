@@ -20,15 +20,25 @@ export const useChromeInsets = () => {
         const footerEl = footerRef.current;
         if (!headerEl && !footerEl) return;
 
+        // Border-box, NOT contentRect: the chrome carries its insets as padding — the header's
+        // safe-top and the composer's keyboard/home-indicator bottom — and contentRect excludes
+        // padding. Measuring the content box under-reports by exactly those insets, which is what
+        // left the last chat message unreachable behind a raised keyboard.
+        const measure = (entry: ResizeObserverEntry): number =>
+            entry.borderBoxSize?.[0]?.blockSize ?? (entry.target as HTMLElement).offsetHeight;
+
         const observer = new ResizeObserver(entries => {
             for (const entry of entries) {
-                const height = entry.contentRect.height;
+                const height = measure(entry);
                 if (entry.target === headerEl) setHeaderHeight(height);
                 if (entry.target === footerEl) setFooterHeight(height);
             }
         });
-        if (headerEl) observer.observe(headerEl);
-        if (footerEl) observer.observe(footerEl);
+        // `box: 'border-box'` is required, not just cosmetic: ResizeObserver defaults to the
+        // content box, and a keyboard opening only changes the composer's padding — the content
+        // box stays identical, so the callback would never fire and the measurement would go stale.
+        if (headerEl) observer.observe(headerEl, { box: 'border-box' });
+        if (footerEl) observer.observe(footerEl, { box: 'border-box' });
         return () => observer.disconnect();
     });
 

@@ -10,7 +10,17 @@ interface UseChatScrollParams {
     loadMore: () => void;
     // Owned by the page (textarea), passed in so focus can re-anchor the view.
     inputRef: React.RefObject<HTMLTextAreaElement | null>;
+    /**
+     * Measured border-box height of the floating composer (already includes the
+     * `--keyboard-height` padding). Growing it is the only signal a native WebView gives when
+     * the software keyboard opens, so it doubles as the re-pin trigger. Defaults to 0.
+     */
+    composerHeight?: number;
 }
+
+// In the reversed list scrollTop 0 is the bottom; anything within this slack still counts as
+// "the user is reading the newest messages", so the view may be re-pinned under them.
+const BOTTOM_PIN_SLACK_PX = 48;
 
 /**
  * Scroll management for the reversed message list (`flex-col-reverse`: scrollTop 0 is the
@@ -19,10 +29,18 @@ interface UseChatScrollParams {
  *  - Preserve the viewport anchor across an older-page load (loadMore) — capture scrollTop
  *    before the new rows render, restore it in a layout effect after they do.
  *  - Trigger loadMore when scrolled near the top, debounced.
+ *  - Re-pin to the bottom when the composer grows (software keyboard / multi-line input).
  *
  * Returns the container ref to attach to the list and the debounced scroll handler.
  */
-export const useChatScroll = ({ messages, hasMore, isLoadingMore, loadMore, inputRef }: UseChatScrollParams) => {
+export const useChatScroll = ({
+    messages,
+    hasMore,
+    isLoadingMore,
+    loadMore,
+    inputRef,
+    composerHeight = 0,
+}: UseChatScrollParams) => {
     const containerRef = useRef<HTMLDivElement>(null);
     // scrollTop captured just before an older page renders, restored once messages grows.
     const scrollPreserveRef = useRef<number | null>(null);
@@ -72,6 +90,22 @@ export const useChatScroll = ({ messages, hasMore, isLoadingMore, loadMore, inpu
             input?.removeEventListener('focus', handleScrollAdjust);
         };
     }, [inputRef, scrollToBottom]);
+
+    // A native WebView does not fire `window.resize` when the software keyboard opens — the host
+    // injects `--keyboard-height`, which surfaces only as the composer growing taller (and the
+    // list's bottom padding growing with it). Re-pin on that growth so the newest message stays
+    // reachable. Only when the view is already at the bottom, so scrolling back through history
+    // isn't yanked away by a keyboard or a multi-line input.
+    const prevComposerHeightRef = useRef(composerHeight);
+    useEffect(() => {
+        const previous = prevComposerHeightRef.current;
+        prevComposerHeightRef.current = composerHeight;
+        if (composerHeight <= previous) return;
+
+        const el = containerRef.current;
+        if (!el || Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX) return;
+        scrollToBottom();
+    }, [composerHeight, scrollToBottom]);
 
     const handleScroll = useCallback(() => {
         const el = containerRef.current;

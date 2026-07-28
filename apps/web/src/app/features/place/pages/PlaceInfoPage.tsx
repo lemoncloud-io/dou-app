@@ -172,6 +172,14 @@ export const PlaceInfoPage = () => {
                     maxLength={MAX_NAME_LENGTH}
                     placeholder={t('placeInfo.namePlaceholder')}
                     description={t('placeInfo.nameDescription')}
+                    enterKeyHint="done"
+                    onKeyDown={e => {
+                        // "Done" key dismisses the keyboard; ignore Enter while an IME is composing.
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                            e.preventDefault();
+                            e.currentTarget.blur();
+                        }
+                    }}
                 />
 
                 <input
