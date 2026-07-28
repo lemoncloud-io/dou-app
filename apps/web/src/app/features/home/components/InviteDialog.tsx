@@ -64,7 +64,7 @@ export const InviteDialog = ({ suppressed = false }: InviteDialogProps): JSX.Ele
     const goHome = () => navigate(ROUTES.home, { replace: true });
     const doLogout = () => logout({ preserveUrl: true });
     // Block dismissal (X / esc / overlay) while the accept pipeline is in flight, so a mid-accept
-    // dismissal can't strip the URL and swallow a later failure dialog (mirrors PlaceProfileCreateDialog).
+    // dismissal can't strip the URL and swallow a later failure dialog.
     const requestClose = () => {
         if (!isAccepting) goHome();
     };

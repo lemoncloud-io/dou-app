@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 
 /**
- * Transient hand-off for the invite-accept flow: the channel to open AFTER the mandatory place
- * profile is set. The accept pipeline lands on home (so the profile gate can run) and stashes the
- * invited channel here; HomePage navigates to it once the profile exists (created just now, or
- * already present). Not persisted — it only bridges the accept → profile → channel hop.
+ * Transient hand-off for the invite-accept flow: the channel to open once the invitee lands on home.
+ * The accept pipeline routes through home (so the place connection settles there) and stashes the
+ * invited channel here; HomePage consumes the id and navigates straight to the room — there is no
+ * place-profile gate in between. Not persisted — it only bridges the accept → channel hop.
  */
 interface PendingInviteChannelState {
     channelId: string | null;

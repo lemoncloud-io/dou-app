@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
@@ -31,7 +31,6 @@ import {
     CreatePlaceDialog,
     InviteDialog,
     PlaceList,
-    PlaceProfileCreateDialog,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
@@ -43,7 +42,6 @@ import {
     useHomePlaces,
     useInvitedClouds,
     useMyJoins,
-    usePlaceProfilePrompt,
     useScrollRestoration,
     useSwitchPlace,
 } from '../hooks';
@@ -101,10 +99,9 @@ export const HomePage = () => {
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
-    // Prompt to CREATE a per-place profile when the active place has none yet (mandatory — no skip).
-    const { shouldPrompt: needsPlaceProfile, status: placeProfileStatus } = usePlaceProfilePrompt();
-    const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
-    const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
+    // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
+    // optional at entry; users set it up on their own terms from the place settings hub ('내 프로필').
+    // The header still nudges them via resolveHeaderProfile's `setup` state below.
     // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
 
@@ -155,27 +152,24 @@ export const HomePage = () => {
     const channelSortMethod = (selectedSiteId && channelSortMap[selectedSiteId]) || DEFAULT_CHANNEL_SORT;
     const { toast } = useToast();
 
-    // Open the place-profile-create overlay once the prompt is due, but never over the first-run
-    // onboarding modal (that flow takes precedence).
-    useEffect(() => {
-        if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
-    }, [needsPlaceProfile, isFirstRun]);
-
-    // Invite flow tail: the accept pipeline lands here and stashes the invited channel. Open it once
-    // the site profile exists — created via the mandatory prompt above, or already present (a re-entry
-    // needs no setup) → navigate straight through. See usePendingInviteChannel / useEnterInvitedChannel.
+    // Invite flow tail: the accept pipeline lands here and stashes the invited channel, then we open
+    // it straight through. There is NO place-profile gate any more — an invitee who has not set up an
+    // in-place profile used to be held on home behind the mandatory setup dialog; now they go directly
+    // to the room and can fill the profile in later from the place settings hub.
+    // See usePendingInviteChannel / useEnterInvitedChannel.
     const pendingInviteChannelId = usePendingInviteChannel(state => state.channelId);
     const clearPendingInviteChannel = usePendingInviteChannel(state => state.clearPendingChannel);
-    const openPendingInviteChannel = () => {
-        if (!pendingInviteChannelId) return;
-        const channelId = pendingInviteChannelId;
-        clearPendingInviteChannel();
-        navigate(ROUTES.channels.room(channelId), { replace: true });
-    };
+    // The store id is the only trigger, so there is nothing async left to wait on. Each id is consumed
+    // exactly once: clearing re-renders us with `null`, and the ref additionally absorbs a repeated
+    // effect run over the same (still captured) id, so we never clear/navigate twice.
+    const consumedInviteChannelRef = useRef<string | null>(null);
     useEffect(() => {
-        // Profile already set for the invited site → skip setup and open the pending channel directly.
-        if (pendingInviteChannelId && placeProfileStatus === 'present') openPendingInviteChannel();
-    }, [pendingInviteChannelId, placeProfileStatus]);
+        if (!pendingInviteChannelId) return;
+        if (consumedInviteChannelRef.current === pendingInviteChannelId) return;
+        consumedInviteChannelRef.current = pendingInviteChannelId;
+        clearPendingInviteChannel();
+        navigate(ROUTES.channels.room(pendingInviteChannelId), { replace: true });
+    }, [pendingInviteChannelId, clearPendingInviteChannel, navigate]);
 
     const handleCreatePlace = () => {
         if (!canAddPlace) {
@@ -266,11 +260,14 @@ export const HomePage = () => {
 
             {/* Place + Chat scroll together under the fixed header (accordion sections). The
                 bottom padding lets the last row scroll clear of the floating nav, whose pill the
-                content passes fully behind (no backdrop). */}
+                content passes fully behind (no backdrop).
+                FloatingTabBar occupies 62px (pill) + 18px (bottom offset) = 80px above --safe-bottom;
+                192px doubles the former 96px clearance, leaving ~112px of breathing room below the
+                last row. Kept in step with MyPage so the two bottom-nav tabs match. */}
             <div
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(var(--safe-bottom,0px)+96px)] pt-2"
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(var(--safe-bottom,0px)+192px)] pt-2"
             >
                 <PlaceList
                     places={places}
@@ -310,19 +307,6 @@ export const HomePage = () => {
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
-            <PlaceProfileCreateDialog
-                open={isPlaceProfileOpen}
-                placeName={activePlaceName}
-                // Profile setup is always mandatory (no cancel) — invite / place-create / onboarding
-                // all require it before proceeding.
-                dismissible={false}
-                onDone={() => {
-                    setIsPlaceProfileOpen(false);
-                    // Invite flow: continue to the channel that was waiting on profile setup.
-                    openPendingInviteChannel();
-                }}
-                onExit={() => setIsPlaceProfileOpen(false)}
-            />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}
