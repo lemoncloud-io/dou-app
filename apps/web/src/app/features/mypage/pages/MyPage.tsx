@@ -7,7 +7,7 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, IconUser, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
-import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
+import { useMembershipInfo } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
@@ -23,8 +23,6 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { isGuest, isCloudActive } = useRuntimeProfile();
-    const { selectedCloudId } = useSessionSelection();
-    const { clouds } = useCloudSessionCatalog();
     const { data: membership } = useMembershipInfo();
     const myUser = useMyUser();
 
@@ -78,13 +76,12 @@ export const MyPage = () => {
         navigate(ROUTES.auth.logout);
     };
 
-    const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
-    // The cloud-profile screen edits the cloud entity itself and is owner-only. The relay catalog
-    // lists owned clouds only, so membership here is the ownership signal; invited (non-owner) clouds
-    // never match and their header stays non-navigating.
-    const isCloudOwner = !isDefaultCloud && clouds.some(cloud => cloud.id === selectedCloudId);
+    // The header shows account-level data (name/email/photo), so tapping it opens the account profile
+    // editor, which edits exactly that. The cloud-entity name editor is a separate, owner-gated screen
+    // reachable from AccountInfoPage. No ownership gate here: any signed-in user can edit their own
+    // profile.
     const handleProfileClick = () => {
-        navigate(ROUTES.mypage.account.cloudProfile);
+        navigate(ROUTES.mypage.account.edit);
     };
 
     const handleThemeToggle = () => {
@@ -107,8 +104,13 @@ export const MyPage = () => {
         : `v${versionInfo?.webVersion}`;
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pb-[calc(var(--safe-bottom,0px)+96px)] pt-4">
-            {/* Account profile header — account-level profile (name/email/photo), not cloud/site. */}
+        // Bottom padding lets the last card scroll clear of the floating nav, which the content
+        // passes behind. FloatingTabBar occupies 62px (pill) + 18px (bottom offset) = 80px above
+        // --safe-bottom; 192px doubles the former 96px clearance. Kept in step with HomePage so the
+        // two bottom-nav tabs end with the same amount of space.
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pb-[calc(var(--safe-bottom,0px)+192px)] pt-4">
+            {/* Account profile header — account-level profile (name/email/photo), not cloud/site.
+                Tapping it opens the account profile editor (/mypage/edit). */}
             <div className="px-5 pb-3 pt-safe-top">
                 {isGuest ? (
                     <button onClick={() => navigate(ROUTES.mypage.login)} className="flex flex-col gap-1.5 text-left">
@@ -120,11 +122,6 @@ export const MyPage = () => {
                         </div>
                         <p className="text-[14px] text-description">{t('mypage.loginDescription')}</p>
                     </button>
-                ) : isDefaultCloud || !isCloudOwner ? (
-                    <div className="flex items-center gap-[9px]">
-                        {profileAvatar}
-                        {profileText}
-                    </div>
                 ) : (
                     <button onClick={handleProfileClick} className="flex items-center gap-[9px] text-left">
                         {profileAvatar}
