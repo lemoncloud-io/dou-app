@@ -9,6 +9,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
+import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 const LANGUAGE_OPTIONS = ['en'] as const;
@@ -91,6 +92,9 @@ export const SettingsPage = () => {
                         </div>
                     </div>
                 </section>
+
+                {/* Desktop shell only — renders nothing in a plain browser. */}
+                <LaunchAtLoginSection />
 
                 <section className="mt-8 flex flex-col gap-4">
                     <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

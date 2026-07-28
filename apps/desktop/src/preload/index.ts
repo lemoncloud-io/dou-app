@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
+import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '../main/loginItemContract';
+import { utf8ToBase64 } from './base64';
 
 /** IPC channel for App(main) → Web(renderer) bridge messages. */
 const TO_WEB_CHANNEL = 'chatic-bridge:to-web';
@@ -23,6 +25,7 @@ const argValue = (name: string): string => {
 const deviceId = argValue('chatic-device-id');
 const stage = argValue('chatic-stage') || 'dev';
 const appVersion = argValue('chatic-app-version') || '0.0.1';
+const language = argValue('chatic-language') || 'en';
 
 const deviceInfo = {
     CHATIC_APP_PLATFORM: 'desktop',
@@ -32,7 +35,7 @@ const deviceInfo = {
     CHATIC_APP_DEVICE_MODEL: process.platform,
     CHATIC_APP_CURRENT_VERSION: appVersion,
     CHATIC_APP_BUILD_NUMBER: '1',
-    CHATIC_APP_CURRENT_LANGUAGE: process.env.VITE_DESKTOP_LANGUAGE ?? 'en',
+    CHATIC_APP_CURRENT_LANGUAGE: language,
     CHATIC_APP_INSTALLATION_ID: deviceId,
     CHATIC_APP_LATEST_VERSION: appVersion,
     CHATIC_APP_SHOULD_UPDATE: 'false',
@@ -51,9 +54,10 @@ contextBridge.exposeInMainWorld('ChaticMessageHandler', {
  * Expose app version and platform information for the renderer process.
  * Used by desktop-web to display version info in settings and debug pages.
  *
- * `customUi` drives the custom-web-bundle PoC from the debug panel. Deliberately not routed
- * through the AppBridge message map: that wire contract is shared with mobile, and a desktop
- * -only PoC has no business bumping BRIDGE_VERSION (ADR-0001).
+ * `customUi` drives the custom-web-bundle PoC from the debug panel, and `loginItem` backs the
+ * launch-at-login setting. Both deliberately not routed through the AppBridge message map:
+ * that wire contract is shared with mobile, and a desktop-only feature has no business
+ * bumping BRIDGE_VERSION (ADR-0001).
  */
 contextBridge.exposeInMainWorld('electronAPI', {
     appVersion,
@@ -64,12 +68,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
         disable: (): Promise<CustomUiStatus> => ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'disable' }),
         status: (): Promise<CustomUiStatus> => ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'status' }),
     },
+    loginItem: {
+        get: (): Promise<LaunchAtLoginState> => ipcRenderer.invoke(LOGIN_ITEM_CHANNEL, { action: 'get' }),
+        set: (enabled: boolean): Promise<LaunchAtLoginState> =>
+            ipcRenderer.invoke(LOGIN_ITEM_CHANNEL, { action: 'set', enabled }),
+    },
 });
 
-// Inject the CHATIC_APP_* globals into the page's main world. Values come from env, so we
-// base64-encode the JSON (charset [A-Za-z0-9+/=], injection-safe) and decode it inside the
-// snippet — JSON.stringify alone would not escape </script>/U+2028/U+2029 in an env value.
-const deviceInfoBase64 = Buffer.from(JSON.stringify(deviceInfo), 'utf8').toString('base64');
+// Inject the CHATIC_APP_* globals into the page's main world. Values come from outside this
+// file, so we base64-encode the JSON (charset [A-Za-z0-9+/=], injection-safe) and decode it
+// inside the snippet — JSON.stringify alone would not escape </script>/U+2028/U+2029.
+const deviceInfoBase64 = utf8ToBase64(JSON.stringify(deviceInfo));
 
 webFrame.executeJavaScript(
     `(() => {` +
@@ -89,7 +98,7 @@ webFrame.executeJavaScript(
  */
 ipcRenderer.on(TO_WEB_CHANNEL, (_event, data: string) => {
     if (typeof data !== 'string') return;
-    const base64 = Buffer.from(data, 'utf8').toString('base64');
+    const base64 = utf8ToBase64(data);
     webFrame.executeJavaScript(
         `window.dispatchEvent(new MessageEvent('message', {` +
             `data: new TextDecoder().decode(Uint8Array.from(atob("${base64}"), c => c.charCodeAt(0)))` +
