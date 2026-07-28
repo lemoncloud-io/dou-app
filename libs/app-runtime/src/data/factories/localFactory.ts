@@ -29,8 +29,26 @@ export interface CacheFactoryOptions {
     reporter?: CacheErrorReporter;
 }
 
+// Cache types pinned to Hot(IndexedDB) regardless of environment, overriding the strategy selected
+// below. `profile` is here because the native Cold writer stamps the scope `uid` over the profile
+// OWNER's `uid`, collapsing every member of a place onto one canonical `sid@myUid` key so only a
+// single profile survives a list read (missing nicks/photos). Hot storage keeps the item verbatim,
+// so routing profile here fixes that without waiting on a native app release.
+// Trade-off: WebView IndexedDB can be evicted by the OS, which is exactly why the native path is
+// otherwise Cold-only. Profiles are server-derived display data and refetch on demand, so an
+// eviction costs a refetch rather than data loss.
+const HOT_ONLY_CACHE_TYPES = new Set<CacheType>(['profile']);
+
 // Memoized so all cache types share one strategy instance.
 let sharedStrategy: CacheStorageStrategy | null = null;
+let hotStrategy: CacheStorageStrategy | null = null;
+
+const getHotStrategy = (): CacheStorageStrategy => {
+    if (!hotStrategy) {
+        hotStrategy = new IndexedDbOnlyCacheStorageStrategy();
+    }
+    return hotStrategy;
+};
 
 const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy => {
     if (!sharedStrategy) {
@@ -49,7 +67,10 @@ const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy =>
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
-): CacheStorage<TType> => selectStrategy().create(type, contextProvider);
+): CacheStorage<TType> =>
+    HOT_ONLY_CACHE_TYPES.has(type)
+        ? getHotStrategy().create(type, contextProvider)
+        : selectStrategy().create(type, contextProvider);
 
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.
