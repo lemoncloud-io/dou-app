@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-07-28] - No version updates
+
+### Features
+
+- (web/place) add place settings hub with profile edit and channel sort
+
+### Documentation
+
+- (adr) add place settings hub ADR
+
 ## [2026-07-27] - No version updates
 
 ### Features
