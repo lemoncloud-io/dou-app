@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-07-28] - No version updates
+
+### Features
+
+- (web/channels) add 1:1 DM chat screen
+
 ## [2026-07-28] - root@0.44.0, @chatic/desktop-web@0.4.0
 
 ### Features
