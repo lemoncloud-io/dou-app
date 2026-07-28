@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 
-import { ChannelSortPage, PlaceInfoPage, PlaceProfilePage, PlaceSettingsHubPage } from '../pages';
+import { PlaceInfoPage, PlaceProfilePage, PlaceSettingsHubPage } from '../pages';
 
 export const PlaceRoutes = () => {
     return (
@@ -11,7 +11,6 @@ export const PlaceRoutes = () => {
             <Route path=":placeId/settings" element={<PlaceSettingsHubPage />} />
             <Route path=":placeId/settings/info" element={<PlaceInfoPage />} />
             <Route path=":placeId/settings/profile" element={<PlaceProfilePage />} />
-            <Route path=":placeId/settings/sort" element={<ChannelSortPage />} />
         </Routes>
     );
 };

@@ -567,21 +567,24 @@
     },
     "channelSort": {
         "title": "채팅방 정렬",
-        "recent": "최근 활동순",
-        "unread": "안읽은 메시지 우선"
+        "recent": "최신 메시지 순",
+        "unread": "안 읽은 메시지 순"
     },
     "placeInfo": {
-        "title": "플레이스 정보",
-        "createdDate": "만든 날짜",
+        "title": "플레이스 프로필",
         "confirm": "완료",
         "notFound": "플레이스를 찾을 수 없습니다",
-        "nameLabel": "이름 수정",
+        "nameLabel": "플레이스 이름",
         "namePlaceholder": "플레이스 이름을 입력해 주세요",
         "nameDescription": "20글자 이내로 입력해 주세요.",
-        "photoLabel": "사진",
+        "photoLabel": "플레이스 사진",
         "photoOptional": "[선택]",
         "imageSizeError": "이미지 크기가 10MB를 초과합니다",
-        "changeImage": "사진 변경"
+        "changeImage": "사진 변경",
+        "exitTitle": "프로필 설정을 중단하시겠어요?",
+        "exitDescription": "설정을 중단하시면 변경사항은 저장되지 않습니다.",
+        "exitLeave": "중단",
+        "exitContinue": "계속 설정"
     },
     "workspace": {
         "list": {

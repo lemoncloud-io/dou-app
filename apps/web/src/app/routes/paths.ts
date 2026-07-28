@@ -54,7 +54,6 @@ export const ROUTES = {
         settings: (placeId: string) => `/place/${placeId}/settings`,
         settingsInfo: (placeId: string) => `/place/${placeId}/settings/info`,
         settingsProfile: (placeId: string) => `/place/${placeId}/settings/profile`,
-        settingsSort: (placeId: string) => `/place/${placeId}/settings/sort`,
     },
 
     // ── Subscription (Private) ───────────────────────────────────

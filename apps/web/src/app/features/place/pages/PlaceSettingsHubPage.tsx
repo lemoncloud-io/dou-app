@@ -8,6 +8,7 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { IconChevronRight, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
+import { ChannelSortSheet } from '../components/ChannelSortSheet';
 import { ROUTES } from '../../../routes/paths';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -25,6 +26,7 @@ export const PlaceSettingsHubPage = () => {
     const { place: placeRepo } = useRuntimeRepositories();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
+    const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
 
     useEffect(() => {
         if (!placeId) {
@@ -59,7 +61,7 @@ export const PlaceSettingsHubPage = () => {
                     <ListRow
                         title={t('placeSettings.channelSort')}
                         trailing={chevron}
-                        onClick={placeId ? go(ROUTES.place.settingsSort(placeId)) : undefined}
+                        onClick={placeId ? () => setIsSortSheetOpen(true) : undefined}
                     />
                     {/* Place notifications are not implemented yet — shown disabled as a placeholder. */}
                     <ListRow
@@ -71,6 +73,8 @@ export const PlaceSettingsHubPage = () => {
                     />
                 </MenuCard>
             </div>
+
+            <ChannelSortSheet open={isSortSheetOpen} onOpenChange={setIsSortSheetOpen} placeId={placeId} />
         </div>
     );
 };

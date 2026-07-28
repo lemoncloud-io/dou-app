@@ -567,21 +567,24 @@
     },
     "channelSort": {
         "title": "Sort Chats",
-        "recent": "Recent activity",
+        "recent": "Latest message",
         "unread": "Unread first"
     },
     "placeInfo": {
-        "title": "Place Information",
-        "createdDate": "Created Date",
+        "title": "Place Profile",
         "confirm": "Done",
         "notFound": "Place not found",
-        "nameLabel": "Edit Name",
+        "nameLabel": "Place Name",
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
-        "photoLabel": "Photo",
+        "photoLabel": "Place Photo",
         "photoOptional": "[Optional]",
         "imageSizeError": "Image size exceeds 10MB",
-        "changeImage": "Change photo"
+        "changeImage": "Change photo",
+        "exitTitle": "Stop setting up the profile?",
+        "exitDescription": "If you stop, your changes won't be saved.",
+        "exitLeave": "Stop",
+        "exitContinue": "Keep editing"
     },
     "workspace": {
         "list": {

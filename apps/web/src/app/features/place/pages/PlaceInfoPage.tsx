@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
+import { AlertDialog, FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
@@ -23,7 +23,7 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
  * Save goes through the shared {@link useUpdatePlace} (optimistic cache write). See ADR-0031.
  */
 export const PlaceInfoPage = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
     const { placeId } = useParams<{ placeId: string }>();
@@ -36,6 +36,7 @@ export const PlaceInfoPage = () => {
     const [name, setName] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [imageSizeError, setImageSizeError] = useState(false);
+    const [isExitGuardOpen, setIsExitGuardOpen] = useState(false);
 
     const initialName = place?.name ?? '';
     const initialThumbnail = place?.thumbnail ?? '';
@@ -66,32 +67,6 @@ export const PlaceInfoPage = () => {
         }
     }, [place, placeId]);
 
-    const formatDate = useCallback(
-        (timestamp?: number) => {
-            if (!timestamp) return '-';
-            const date = new Date(timestamp);
-            const year = date.getFullYear();
-            const month = date.getMonth() + 1;
-            if (i18n.language === 'ko') return `${year}년 ${month}월`;
-            const monthNames = [
-                'January',
-                'February',
-                'March',
-                'April',
-                'May',
-                'June',
-                'July',
-                'August',
-                'September',
-                'October',
-                'November',
-                'December',
-            ];
-            return `${monthNames[month - 1]} ${year}`;
-        },
-        [i18n.language]
-    );
-
     const isNameDirty = name !== initialName;
     const isImageDirty = imageUrl !== initialThumbnail;
     const isDirty = isNameDirty || isImageDirty;
@@ -117,6 +92,12 @@ export const PlaceInfoPage = () => {
         } catch {
             setImageSizeError(true);
         }
+    };
+
+    // Back with unsaved edits asks first; a clean form leaves straight away.
+    const requestClose = () => {
+        if (isDirty) setIsExitGuardOpen(true);
+        else navigate(-1);
     };
 
     const handleSubmit = async () => {
@@ -148,7 +129,7 @@ export const PlaceInfoPage = () => {
     return (
         <KeyboardAwareLayout
             className="fixed inset-0 overflow-hidden"
-            header={<PageHeader title={title} />}
+            header={<PageHeader title={title} onBack={requestClose} />}
             footer={
                 <FloatingButton
                     label={t('placeInfo.confirm')}
@@ -158,18 +139,34 @@ export const PlaceInfoPage = () => {
                 />
             }
         >
-            <div className="flex flex-col gap-6 px-5 pt-4">
-                {/* Created date */}
-                <div className="flex flex-col gap-0.5">
-                    <Text variant="label" className="text-foreground">
-                        {t('placeInfo.createdDate')}
-                    </Text>
-                    <Text className="text-muted-foreground">{formatDate(place.createdAt)}</Text>
+            {/* Centered photo above the name field (Figma 3408-27580) — the place profile reads as a
+                profile screen, not a details list, so there is no created-date row. */}
+            <div className="flex flex-col gap-8 py-10">
+                <div className="flex flex-col items-center gap-4 px-[18px]">
+                    <ProfileAvatar
+                        src={imageUrl || undefined}
+                        glyph="group"
+                        onSelect={handleImageClick}
+                        selectLabel={t('placeInfo.changeImage')}
+                    />
+                    <div className="flex flex-col items-center gap-0.5">
+                        <Text variant="label" className="text-label">
+                            {t('placeInfo.photoLabel')}
+                        </Text>
+                        <Text variant="caption" className="text-placeholder">
+                            {t('placeInfo.photoOptional')}
+                        </Text>
+                    </div>
+                    {imageSizeError && (
+                        <Text variant="caption" className="text-destructive">
+                            {t('placeInfo.imageSizeError')}
+                        </Text>
+                    )}
                 </div>
 
-                {/* Name */}
                 <TextField
                     label={t('placeInfo.nameLabel')}
+                    required
                     value={name}
                     onChange={setName}
                     maxLength={MAX_NAME_LENGTH}
@@ -177,32 +174,25 @@ export const PlaceInfoPage = () => {
                     description={t('placeInfo.nameDescription')}
                 />
 
-                {/* Image (optional) */}
-                <div className="flex flex-col gap-2">
-                    <Text variant="label" className="text-foreground">
-                        {t('placeInfo.photoLabel')}{' '}
-                        <span className="font-normal text-muted-foreground">{t('placeInfo.photoOptional')}</span>
-                    </Text>
-                    <ProfileAvatar
-                        src={imageUrl || undefined}
-                        glyph="group"
-                        onSelect={handleImageClick}
-                        selectLabel={t('placeInfo.changeImage')}
-                    />
-                    {imageSizeError && (
-                        <Text variant="caption" className="text-destructive">
-                            {t('placeInfo.imageSizeError')}
-                        </Text>
-                    )}
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleImageChange}
-                        className="hidden"
-                    />
-                </div>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageChange}
+                    className="hidden"
+                />
             </div>
+
+            <AlertDialog
+                open={isExitGuardOpen}
+                onOpenChange={setIsExitGuardOpen}
+                title={t('placeInfo.exitTitle')}
+                description={t('placeInfo.exitDescription')}
+                cancelLabel={t('placeInfo.exitLeave')}
+                onCancel={() => navigate(-1)}
+                confirmLabel={t('placeInfo.exitContinue')}
+                onConfirm={() => undefined}
+            />
         </KeyboardAwareLayout>
     );
 };
