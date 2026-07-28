@@ -1,9 +1,6 @@
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from './types';
 import type { ChatQueryOptions } from '@chatic/app-messages';
-import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from './IndexedDBDatabase';
-
-/** 미전송 행의 `chat_no`. 이 값 미만은 없으므로 `[0, 1)`이 곧 "미전송 전부"다. */
-const UNSENT_CHAT_NO = 0;
+import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
 /**
  * 채팅 도메인('chat') 전용 쿼리 실행기 구현체입니다.

@@ -248,7 +248,7 @@ export const useChatOutbox = (): void => {
                 for (const row of selectResendableRows(unsent?.list ?? [], myUid ?? '')) {
                     // The row's own createdAt is what the landing probe compares against — the
                     // enqueue time is a reconnect, potentially hours after the user pressed send.
-                    batch.record(row.id, row.createdAtMs ?? row.createdAt ?? 0);
+                    batch.record(row.id, rowTime(row));
                     outbox.enqueue({ id: row.id, channelId: channel.id, payload: toSendPayload(row) });
                 }
             }

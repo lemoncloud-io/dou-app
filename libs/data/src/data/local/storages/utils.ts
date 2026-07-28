@@ -25,6 +25,15 @@ export interface AdapterScope {
     uid: string;
 }
 
+/**
+ * 브라우저가 저장 용량 때문에 쓰기를 거부했는가.
+ *
+ * 한 군데에 둡니다 — 이 술어는 시간이 지나며 자라기 마련이고(Safari 레거시 `QUOTA_EXCEEDED_ERR`,
+ * `code === 22`, 래핑된 에러), 복사본이 있으면 한쪽만 자라고 다른 쪽은 조용히 좁은 채로 남습니다.
+ */
+export const isQuotaExceededError = (error: unknown): boolean =>
+    error instanceof DOMException && error.name === 'QuotaExceededError';
+
 /** 도메인별 TTL(ms) 정책을 계산합니다. */
 export const resolveTtlMs = (type: CacheType): number => CACHE_TTL_MS[type];
 

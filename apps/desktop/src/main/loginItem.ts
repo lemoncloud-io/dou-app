@@ -22,7 +22,8 @@ export interface LoginItemController {
  */
 const SUPPORTED_PLATFORMS: readonly string[] = ['darwin', 'win32'];
 
-const UNSUPPORTED: LaunchAtLoginState = { enabled: false, supported: false };
+/** The one answer for "this build cannot register a login item" — the IPC gate returns it too. */
+export const LOGIN_ITEM_UNSUPPORTED: LaunchAtLoginState = { enabled: false, supported: false };
 
 /**
  * Launch-at-login, wrapped so the OS call has one caller and one test.
@@ -35,12 +36,12 @@ const UNSUPPORTED: LaunchAtLoginState = { enabled: false, supported: false };
 export const createLoginItem = (host: LoginItemHost, platform: string): LoginItemController => {
     const supported = SUPPORTED_PLATFORMS.includes(platform);
     const read = (): LaunchAtLoginState =>
-        supported ? { enabled: host.getLoginItemSettings().openAtLogin, supported: true } : UNSUPPORTED;
+        supported ? { enabled: host.getLoginItemSettings().openAtLogin, supported: true } : LOGIN_ITEM_UNSUPPORTED;
 
     return {
         read,
         write: (enabled: boolean): LaunchAtLoginState => {
-            if (!supported) return UNSUPPORTED;
+            if (!supported) return LOGIN_ITEM_UNSUPPORTED;
             host.setLoginItemSettings({ openAtLogin: enabled });
             return read();
         },

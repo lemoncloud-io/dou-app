@@ -8,6 +8,18 @@ export const TYPE_CID_UID_INDEX = 'type_cid_uid';
 export const CHAT_PAGINATION_INDEX = 'chat_pagination_index';
 
 /**
+ * `chat_no`가 이 값이면 서버 번호가 아직 없는 행입니다 — 전송 중이거나 실패한 메시지.
+ * `ChatLocalDataSourceV2`가 낙관적 전송에 이 값을 쓰고, `mappers.ts`가 서버 `chatNo` 없는 응답을
+ * 여기로 강등합니다.
+ *
+ * `CHAT_PAGINATION_INDEX`의 마지막 키 요소라서 **정렬상 최하위**이고, 그 사실이 두 곳의 동작을
+ * 지배합니다: 최신순 페이지 읽기는 이 행들을 놓치고(`ChatQueryExecutor.includeUnsent`),
+ * eviction은 이 행들을 건드리면 안 됩니다(`IndexedDBAdapter`). 상수가 한 곳에 있어야
+ * 그 둘이 같은 사실을 말하고 있다는 게 보입니다.
+ */
+export const UNSENT_CHAT_NO = 0;
+
+/**
  * IndexedDB 데이터베이스와 물리적으로 상호작용하는 구체적인 구현체입니다.
  */
 export class IndexedDBDatabase implements IIndexedDB {

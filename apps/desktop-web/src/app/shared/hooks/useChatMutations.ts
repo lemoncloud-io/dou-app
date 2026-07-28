@@ -5,7 +5,7 @@ import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainChat } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
-import { getChatOutbox } from './useChatOutbox';
+import { getChatOutbox, toSendPayload } from './useChatOutbox';
 
 /**
  * Message send/retry/discard through the engine's chat repository, which
@@ -38,16 +38,10 @@ export const useChatMutations = () => {
             // and the outbox don't both send it.
             if (staleId) getChatOutbox()?.remove(staleId);
             if (staleId) void chatRepository.cacheDelete(staleId);
-            // Preserve parentId so retrying a failed thread reply re-sends it into
-            // the same thread. The server takes the parent's FULL id
-            // `<channelId>:<chatNo>` — rows stranded by the old chatNo-send bug
-            // carry the bare chatNo, so rebuild the full id for those.
-            const parentId = message.parentId
-                ? message.parentId.includes(':')
-                    ? message.parentId
-                    : `${message.channelId}:${message.parentId}`
-                : undefined;
-            return chatRepository.sendChat({ channelId: message.channelId, content: message.content, parentId });
+            // Same payload the outbox builds — the manual button and the automatic resend must
+            // put the identical message on the wire. They had drifted: this path used to drop
+            // `contentType`, so retrying a non-text message re-sent it as plain text.
+            return chatRepository.sendChat(toSendPayload(message));
         },
         [chatRepository]
     );

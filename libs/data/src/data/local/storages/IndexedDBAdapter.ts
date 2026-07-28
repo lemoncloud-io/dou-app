@@ -1,17 +1,16 @@
 import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories-v2/types';
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '../databases';
-import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../databases';
+import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from '../databases';
 import type { AdapterScope } from './utils';
-import { createTtlMeta, withCacheMeta } from './utils';
+import { createTtlMeta, isQuotaExceededError, withCacheMeta } from './utils';
 import { BaseDbAdapter } from './types';
 
 /**
- * chat_no 0 = 서버 번호가 아직 없는 행입니다. ChatLocalDataSourceV2가 chatNo를 0으로 채우고
- * (낙관적 전송), 매퍼도 서버 chatNo가 없으면 0으로 강등합니다(mappers.ts `toNumberSafe(api.chatNo, 0)`).
- * useChats는 이 행들을 "가장 최신"으로 정렬하므로 eviction 범위에서 항상 제외합니다.
+ * eviction 대상의 하한. 미전송 행(`UNSENT_CHAT_NO` — 전송 중이거나 실패)은 서버 번호가 아직 없을 뿐
+ * 오래된 것이 아니고, `useChats`가 "가장 최신"으로 정렬해 보여 주므로 항상 범위 밖에 둡니다.
  */
-const EVICTABLE_CHAT_NO_FLOOR = 1;
+const EVICTABLE_CHAT_NO_FLOOR = UNSENT_CHAT_NO + 1;
 
 export interface IndexedDBAdapterOptions<TType extends CacheType> {
     /** 도메인별 쿼리 대리자 */
@@ -74,10 +73,6 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         return Array.from(new Set(rows.map(row => row.channel_id).filter((id): id is string => !!id)));
     }
 
-    private isQuotaExceeded(error: unknown): boolean {
-        return error instanceof DOMException && error.name === 'QuotaExceededError';
-    }
-
     /**
      * 상한이 설정된 경우에 한해 QuotaExceededError를 1회 복구 시도합니다.
      * 상한이 없으면(기본값) 예외를 그대로 던져 기존 동작을 유지합니다.
@@ -90,7 +85,7 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         try {
             await write();
         } catch (error) {
-            if (channelIds.length === 0 || !this.isQuotaExceeded(error)) throw error;
+            if (channelIds.length === 0 || !isQuotaExceededError(error)) throw error;
             await this.enforceChannelLimits(scope, channelIds);
             await write();
         }
@@ -127,13 +122,22 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
         await this.db.clearByRange(CHAT_PAGINATION_INDEX, IDBKeyRange.bound(lower, boundary));
     }
 
+    /**
+     * 쓰기 + 상한 유지를 한 곳에 묶습니다. 상한 프로토콜은 세 단계(대상 채널 계산 → quota 복구를
+     * 낀 쓰기 → 상한 적용)가 순서대로 맞물려야 하는데, 호출부마다 그걸 다시 적으면 한 줄만 빠져도
+     * 상한이 조용히 꺼집니다. 새 쓰기 경로는 이 함수만 지나면 됩니다.
+     */
+    private async persist(scope: AdapterScope, rows: IndexedDbRow<TType>[], write: () => Promise<void>): Promise<void> {
+        const channelIds = this.cappedChannelIds(rows);
+        await this.writeWithQuotaRecovery(write, scope, channelIds);
+        await this.enforceChannelLimits(scope, channelIds);
+    }
+
     async save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>> {
         const scope = this.getScope();
         const row = this.createSchema(scope.cid, scope.uid, id, item);
-        const channelIds = this.cappedChannelIds([row]);
 
-        await this.writeWithQuotaRecovery(() => this.db.save(row), scope, channelIds);
-        await this.enforceChannelLimits(scope, channelIds);
+        await this.persist(scope, [row], () => this.db.save(row));
         return item;
     }
 
@@ -147,10 +151,8 @@ export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTy
                 return this.createSchema(scope.cid, scope.uid, id, item);
             })
             .filter((row): row is IndexedDbRow<TType> => row !== null);
-        const channelIds = this.cappedChannelIds(rows);
 
-        await this.writeWithQuotaRecovery(() => this.db.saveAll(rows), scope, channelIds);
-        await this.enforceChannelLimits(scope, channelIds);
+        await this.persist(scope, rows, () => this.db.saveAll(rows));
         return items;
     }
 

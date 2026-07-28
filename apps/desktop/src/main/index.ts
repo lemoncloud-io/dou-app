@@ -30,7 +30,7 @@ import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
 import { hasEntryPoint } from './customUiState';
 import { startFcm, type FcmConfig } from './fcm';
-import { createLoginItem } from './loginItem';
+import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
@@ -388,7 +388,7 @@ const registerLoginItemIpc = (): void => {
     ipcMain.removeHandler(LOGIN_ITEM_CHANNEL); // createWindow can re-run (macOS re-activate)
     // `raw` is renderer-controlled, so it arrives as unknown and is narrowed here.
     ipcMain.handle(LOGIN_ITEM_CHANNEL, (event, raw: unknown): LaunchAtLoginState => {
-        if (!isTrustedUrl(event.senderFrame?.url)) return { enabled: false, supported: false };
+        if (!isTrustedUrl(event.senderFrame?.url)) return LOGIN_ITEM_UNSUPPORTED;
         const request = (raw ?? {}) as { action?: unknown; enabled?: unknown };
         if (request.action === 'set') return loginItem.write(request.enabled === true);
         return loginItem.read();

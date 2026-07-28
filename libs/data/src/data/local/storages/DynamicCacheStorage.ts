@@ -10,6 +10,7 @@ import type {
     CapacityPolicy,
 } from './dynamicCacheTypes';
 import { STAMPEDE_TIMEOUT_MS, StampedeTimeoutError } from './dynamicCacheTypes';
+import { isQuotaExceededError } from './utils';
 import { DefaultPolicyResolver, DefaultEvictionStrategy, DefaultCapacityPolicy } from './defaultPolicies';
 import { stableHash } from './stableHash';
 
@@ -89,13 +90,6 @@ export class DynamicCacheStorage<TType extends CacheType> implements CacheStorag
 
     // ─── Hot helpers ──────────────────────────────────────────────────
 
-    private isQuotaExceeded(error: unknown): boolean {
-        if (error instanceof DOMException) {
-            return error.name === 'QuotaExceededError';
-        }
-        return false;
-    }
-
     /**
      * Hot에 fire-and-forget으로 저장 + eviction hook chain.
      */
@@ -116,7 +110,7 @@ export class DynamicCacheStorage<TType extends CacheType> implements CacheStorag
             })
             .catch(error => {
                 this.safeReport(error, { tier: 'hot', operation: 'save', type: this.options.type });
-                if (this.isQuotaExceeded(error)) {
+                if (isQuotaExceededError(error)) {
                     this.evictionStrategy
                         .onQuotaExceeded(this.options.type ?? ('' as CacheType), this.hot)
                         .catch(() => {
@@ -144,7 +138,7 @@ export class DynamicCacheStorage<TType extends CacheType> implements CacheStorag
             })
             .catch(error => {
                 this.safeReport(error, { tier: 'hot', operation: 'saveAll', type: this.options.type });
-                if (this.isQuotaExceeded(error)) {
+                if (isQuotaExceededError(error)) {
                     this.evictionStrategy
                         .onQuotaExceeded(this.options.type ?? ('' as CacheType), this.hot)
                         .catch(() => {
