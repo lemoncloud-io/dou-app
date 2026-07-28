@@ -3,14 +3,17 @@ const CTA_BASE_PADDING = '1rem';
 
 /**
  * Bottom spacer for full-screen dialogs whose CTA (e.g. FloatingButton) is docked at the bottom.
- * Reserves room so the CTA clears BOTH the on-screen keyboard and the home-indicator safe-area
- * inset.
+ * Reserves room so the CTA clears the home-indicator safe-area inset.
  *
  * The CTA panel above already pads its own bottom by `CTA_BASE_PADDING` (`pb-4`), so this spacer
- * adds only the EXTRA beyond that base — the total bottom gap collapses to
- * `max(base, safe-bottom, keyboard-height)` rather than stacking base + inset (which over-pads on
- * devices with a home indicator, leaving the CTA floating too high). The native WebView is inset
- * below the status bar but extends under the home indicator, so only the bottom inset is applied.
+ * adds only the EXTRA beyond that base — the total bottom gap collapses to `max(base, safe-bottom)`
+ * rather than stacking base + inset (which over-pads on devices with a home indicator, leaving the
+ * CTA floating too high). The native WebView is inset below the status bar but extends under the
+ * home indicator, so only the bottom inset is applied.
+ *
+ * The on-screen keyboard is intentionally NOT reserved for: the docked button stays put and the
+ * keyboard overlays it, rather than riding up above the keyboard as it appears. (`--keyboard-height`
+ * is deliberately excluded from the height here.)
  *
  * `touch-none` + preventing touchmove stops the spacer from rubber-band scrolling the page.
  */
