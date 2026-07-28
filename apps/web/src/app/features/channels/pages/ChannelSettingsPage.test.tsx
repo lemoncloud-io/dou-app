@@ -135,6 +135,7 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => membersValue,
     useChannelMutations: () => ({ leaveChannel, deleteChannel, isPending: { delete: false, leave: false } }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
+    useDmPeer: () => null,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     useMyJoin: () => myJoinValue,
     useSelfChatTitle: () => 'SELF_TITLE',

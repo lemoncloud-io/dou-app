@@ -29,7 +29,7 @@ features/channels/
 
 ## 데이터 흐름
 
-repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md). 채팅방 화면 UI는 [chat-room-ui.md](./chat-room-ui.md), 채널 설정·프로필·알림 UI는 [channel-settings-ui.md](./channel-settings-ui.md).
+repository observe + sync 등록 모델을 따른다([architecture/data-flow.md](../../architecture/data-flow.md)). 훅별 상세는 [data-layer.md](./data-layer.md). 입퇴장 시스템 메시지 모델·렌더는 [system-message.md](./system-message.md). 채팅방 화면 UI는 [chat-room-ui.md](./chat-room-ui.md), 채널 설정·프로필·알림 UI는 [channel-settings-ui.md](./channel-settings-ui.md). 채널 유형별 상세는 나와의 채팅 [self-chat.md](./self-chat.md), 1:1(DM) [dm-chat.md](./dm-chat.md).
 
 요약:
 

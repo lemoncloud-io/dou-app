@@ -23,6 +23,7 @@ import {
     useChannelMembers,
     useChannelMutations,
     useChannelProfiles,
+    useDmPeer,
     useJoinMutations,
     useMyJoin,
     useSelfChatTitle,
@@ -124,6 +125,12 @@ export const ChannelSettingsPage = () => {
     const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
 
+    // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
+    // self-chat title are resolved here; the plain type flags derived from them stay past the return.
+    const dmPeer = useDmPeer(channel, members, profileMap, userId);
+    // Self-chat name comes from the per-user join nick, not `channel.name` (ADR-0022).
+    const selfChatTitle = useSelfChatTitle(channel);
+
     const openDialog = (type: DialogType) => setActiveDialog(type);
     const closeDialog = () => setActiveDialog(null);
 
@@ -172,16 +179,26 @@ export const ChannelSettingsPage = () => {
 
     const isSelfChat = !!channel?.isSelfChat;
     const isOwner = !!channel?.isOwner;
-    // Self-chat name comes from the per-user join nick, not `channel.name` (ADR-0022).
-    const selfChatTitle = useSelfChatTitle(channel);
-    // Title by channel type: self → selfChatTitle; dm → not handled yet (falls through). The rest —
+    // 1:1 DM (stereo): the room name is the peer and cannot be renamed (ADR-0032).
+    const isDmChat = channel?.stereo === 'dm';
+    // Title by channel type: self → selfChatTitle; dm → the peer's nick (ADR-0032). The rest —
     // I own it → the owner-set channel.name (my own join nick is ignored); I'm a member → my join
     // nick, falling back to channel.name.
     const roomTitle = isSelfChat
         ? selfChatTitle
-        : (isOwner ? channel?.name : (myJoin?.nick ?? channel?.name)) || t('chat.settings.roomName');
+        : isDmChat
+          ? dmPeer?.nick || t('chat.settings.roomName')
+          : (isOwner ? channel?.name : (myJoin?.nick ?? channel?.name)) || t('chat.settings.roomName');
 
-    const roomAvatar = channel?.thumbnail ? (
+    // DM always shows the peer avatar (matching the room header) — channel.thumbnail is ignored for
+    // DM. Otherwise: channel thumbnail → self glyph → group placeholder.
+    const roomAvatar = isDmChat ? (
+        dmPeer?.thumbnail ? (
+            <ImageAvatar src={dmPeer.thumbnail} alt={dmPeer.nick} size={40} />
+        ) : (
+            <DefaultAvatar size={40} variant="user" />
+        )
+    ) : channel?.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
     ) : isSelfChat ? (
         <DefaultAvatar size={40} variant="self" />
@@ -231,12 +248,13 @@ export const ChannelSettingsPage = () => {
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
                 {/* Room name — tap opens the name/info dialog. Self-chat edits the join
                     nick (SelfChatNameDialog); groups edit channel.name (UpdateChannelDialog,
-                    read-only for non-owner members). */}
+                    read-only for non-owner members). DM is not editable: the name is the peer,
+                    so the row is static (no chevron, no tap) (ADR-0032). */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
-                    trailing={<ChevronRight className="size-5 text-muted-foreground" />}
-                    onClick={() => openDialog(isSelfChat ? 'selfName' : 'update')}
+                    trailing={isDmChat ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
+                    onClick={isDmChat ? undefined : () => openDialog(isSelfChat ? 'selfName' : 'update')}
                 />
 
                 {isSelfChat ? (
@@ -263,7 +281,8 @@ export const ChannelSettingsPage = () => {
 
                         {/* Room members */}
                         <GroupLabel label={t('chat.settings.roomMembers')} />
-                        {isOwner && (
+                        {/* Add-friend is group-only — a DM is a fixed 1:1, so it never invites (ADR-0032). */}
+                        {isOwner && !isDmChat && (
                             <ListRow
                                 leading={
                                     <span className="flex size-10 items-center justify-center">
@@ -326,6 +345,9 @@ export const ChannelSettingsPage = () => {
                 isSelf={!!selectedMember && selectedMember.id === userId}
                 canKick={
                     isOwner &&
+                    // DM has no kick — a 1:1 ends via delete (owner) / leave (peer), never by
+                    // removing the peer into a lone-member room (ADR-0032).
+                    !isDmChat &&
                     !!selectedMember &&
                     selectedMember.id !== channel?.ownerId &&
                     selectedMember.id !== userId

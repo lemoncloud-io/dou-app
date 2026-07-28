@@ -32,6 +32,7 @@ import {
     useChatMutations,
     useChats,
     useChatScroll,
+    useDmPeer,
     useJoinPositions,
     useReadMarker,
     useSelfChatTitle,
@@ -96,18 +97,25 @@ export const ChannelRoomPage = () => {
     );
 
     const isSelfChat = channel?.isSelfChat ?? false;
+    // 1:1 DM (stereo). Header shows the peer's profile; no rename, no participant stack (ADR-0032).
+    const isDmChat = channel?.stereo === 'dm';
     // Group = anything that is neither the self chat nor a 1:1 DM (stereo). The header
     // participant stack is group-only; self / 1:1 DM headers stay single-line.
-    const isGroupChat = !!channel && !isSelfChat && channel.stereo !== 'dm';
+    const isGroupChat = !!channel && !isSelfChat && !isDmChat;
+    // DM peer (the other participant) for the header title/avatar — resolved from the roster with
+    // the site profile preferred over the member cache. Null for non-DM channels.
+    const dmPeer = useDmPeer(channel, members, profileMap, userId);
     // Self-chat title comes from the per-user join nick, falling back to my site
     // profile nick (ADR-0026), not `channel.name`.
     const selfChatTitle = useSelfChatTitle(channel);
-    // Header title by channel type: self → selfChatTitle; dm → not special-cased yet. The rest —
+    // Header title by channel type: self → selfChatTitle; dm → the peer's nick (ADR-0032). The rest —
     // I own the channel → the owner-set channel.name (my own join nick is ignored); I'm a member →
     // channel.displayName (my join nick, falling back to channel.name).
     const roomTitle = isSelfChat
         ? selfChatTitle
-        : (channel?.isOwner ? channel?.name : channel?.displayName) || t('chat.room.title');
+        : isDmChat
+          ? dmPeer?.nick || t('chat.room.title')
+          : (channel?.isOwner ? channel?.name : channel?.displayName) || t('chat.room.title');
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
@@ -361,11 +369,12 @@ export const ChannelRoomPage = () => {
         );
     }
 
-    // Header avatar — the channel thumbnail as an image when set; otherwise the
-    // ChatRoomHeader fallback glyph (person for self, group for everything else).
-    const headerAvatar = channel?.thumbnail ? (
+    // Header avatar — for DM the peer's thumbnail, otherwise the channel thumbnail; when neither
+    // is set, the ChatRoomHeader fallback glyph (person for self/direct, group for the rest).
+    const headerAvatarSrc = isDmChat ? dmPeer?.thumbnail : channel?.thumbnail;
+    const headerAvatar = headerAvatarSrc ? (
         <img
-            src={channel.thumbnail}
+            src={headerAvatarSrc}
             alt=""
             className="size-[42px] shrink-0 rounded-full border border-border object-cover"
         />
@@ -413,7 +422,7 @@ export const ChannelRoomPage = () => {
     return (
         <div className="flex h-full flex-col bg-background">
             <ChatRoomHeader
-                kind={isSelfChat ? 'self' : 'group'}
+                kind={isSelfChat ? 'self' : isDmChat ? 'direct' : 'group'}
                 title={roomTitle}
                 avatar={headerAvatar}
                 meta={headerMeta}
@@ -445,7 +454,10 @@ export const ChannelRoomPage = () => {
                             <DateDivider label={formatDateSeparator(new Date())} />
                             {isSelfChat
                                 ? selfChatIntro
-                                : channel?.ownerId === userId &&
+                                : // DM has no invite CTA — an empty thread (no bubbles) is its
+                                  // initial state (ADR-0032). The CTA is owner-only group behavior.
+                                  !isDmChat &&
+                                  channel?.ownerId === userId &&
                                   !isGuest &&
                                   isCloudActive && (
                                       <div className="flex flex-col items-start gap-6 px-4 py-2.5">
@@ -570,6 +582,7 @@ export const ChannelRoomPage = () => {
                                                             isReady: isJoinReady,
                                                             readCount,
                                                             unreadCount,
+                                                            mode: isDmChat ? 'dm' : 'count',
                                                         }}
                                                         isActionOpen={openActionMessageKey === messageActionKey}
                                                         isCopying={isCopyingMessage}
