@@ -10,8 +10,8 @@ let mockFlow: RelayInviteFlow;
 
 jest.mock('../../hooks', () => ({ useRelayInviteFlow: () => mockFlow }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-// The profile step and the phone-verification mock both reach for the runtime; stub them out so this
-// suite stays about the phase switch.
+// The profile and phone-verification steps both reach for the runtime; stub them out so this suite
+// stays about the phase switch.
 jest.mock('./RelayInviteProfileDialog', () => ({
     RelayInviteProfileDialog: ({ onDone, onExit }: { onDone: () => void; onExit: () => void }) => (
         <div>
@@ -20,7 +20,7 @@ jest.mock('./RelayInviteProfileDialog', () => ({
         </div>
     ),
 }));
-jest.mock('./trackAMock', () => ({
+jest.mock('../../../auth/components', () => ({
     PhoneVerifyScreen: ({ inviteCode, onVerified }: { inviteCode?: string; onVerified: () => void }) => (
         <button onClick={onVerified}>verify:{inviteCode}</button>
     ),

@@ -13,6 +13,9 @@ const mockNavigate = jest.fn();
 const mockLogout = jest.fn();
 const mockAcceptFn = jest.fn();
 
+// The relay branch of the router pulls in PhoneVerifyScreen, whose `import.meta` read ts-jest
+// cannot parse; the auth feature isolates it here precisely so importers can stub it out.
+jest.mock('../../auth/utils/env', () => ({ isDevBuild: () => false }));
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ search: mockSearch }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
 jest.mock('@chatic/web-core', () => ({ useInviteInfo: () => ({ data: mockInfo }) }));

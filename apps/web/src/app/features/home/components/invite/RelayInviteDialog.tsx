@@ -7,8 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { RelayInviteProfileDialog } from './RelayInviteProfileDialog';
-// TODO(track-a): replace with the real PhoneVerifyScreen — see trackAMock.tsx for the swap.
-import { PhoneVerifyScreen } from './trackAMock';
+import { PhoneVerifyScreen } from '../../../auth/components';
 import { RELAY_INVITE_DECLINE_ENABLED } from '../../flags';
 import { useRelayInviteFlow } from '../../hooks';
 
