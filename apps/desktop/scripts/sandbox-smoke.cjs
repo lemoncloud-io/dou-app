@@ -24,6 +24,7 @@
  * into nobody running it.
  */
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { existsSync } = require('node:fs');
 const path = require('node:path');
 
 const PRELOAD = path.join(__dirname, '..', 'out', 'preload', 'index.js');
@@ -175,6 +176,17 @@ const report = (title, checks, preloadErrors) => {
 };
 
 const run = async () => {
+    // Electron does not fail when `preload` points at a missing file — it logs and carries on. The
+    // run then dies deep inside a probe with "check the renderer console", which reads as a bridge
+    // defect rather than "you did not build". `test:sandbox` builds first; a direct `electron
+    // scripts/sandbox-smoke.cjs` does not.
+    if (!existsSync(PRELOAD)) {
+        console.error(
+            `sandbox smoke: no preload at ${PRELOAD}\nRun \`yarn build\` first (or use \`yarn test:sandbox\`).`
+        );
+        return 1;
+    }
+
     ipcMain.handle(LOGIN_ITEM_CHANNEL, () => INVOKE_SENTINEL);
 
     const armed = await probe(true);
@@ -182,6 +194,11 @@ const run = async () => {
 
     const control = await probe(false);
     report('CONTROL — argument-derived checks must FAIL', control.checks, control.preloadErrors);
+
+    // ARGUMENT_DERIVED holds check names as literals, so renaming a check would quietly drop it out
+    // of the vacuity test — the gate would stay green with one assertion no longer guarded.
+    const names = new Set(armed.checks.map(([name]) => name));
+    const orphaned = [...ARGUMENT_DERIVED].filter(name => !names.has(name));
 
     const armedFailures = armed.checks.filter(([, passed]) => !passed).map(([name]) => name);
     // A control check that PASSES means the assertion no longer depends on additionalArguments,
@@ -194,8 +211,10 @@ const run = async () => {
     if (armedFailures.length) console.log(`FAILED (armed): ${armedFailures.join(', ')}`);
     if (armed.preloadErrors.length) console.log('FAILED (armed): preload threw');
     if (vacuous.length) console.log(`FAILED (vacuous assertions — they pass without arguments): ${vacuous.join(', ')}`);
+    if (orphaned.length) console.log(`FAILED (ARGUMENT_DERIVED names no check has — renamed?): ${orphaned.join(', ')}`);
 
-    const ok = armedFailures.length === 0 && armed.preloadErrors.length === 0 && vacuous.length === 0;
+    const ok =
+        armedFailures.length === 0 && armed.preloadErrors.length === 0 && vacuous.length === 0 && orphaned.length === 0;
     console.log(ok ? 'sandbox smoke: PASS\n' : 'sandbox smoke: FAIL\n');
     return ok ? 0 : 1;
 };
