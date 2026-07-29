@@ -7,7 +7,9 @@ import { FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField } from '@ch
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
+// Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
+// which jest cannot resolve, breaking every test that renders this dialog.
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useChannel, useChannelMutations, useJoinMutations } from '../hooks';
 
 interface UpdateChannelDialogProps {
@@ -118,6 +120,13 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
+                // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
+                // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
+                // full inset above the keyboard. Inline rather than a `pb-0` class: `pb-safe-bottom` is
+                // a custom spacing key tailwind-merge doesn't classify as padding-bottom, so both would
+                // survive and utility order would decide the winner.
+                style={{ paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{t('updateChannel.readOnlyTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">Update room info</DialogDescription>

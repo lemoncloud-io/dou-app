@@ -82,7 +82,9 @@ export const ChatRoomHeader = ({
     return (
         <header
             className={cn(
-                'flex w-full flex-col bg-surface px-1.5 pb-2',
+                // Glass overlay header (Figma 3421-59848): translucent white so the scrolled
+                // content shows through when the header floats above it (z-index overlay layout).
+                'flex w-full flex-col bg-white/[0.32] px-1.5 pb-2 backdrop-blur-xl dark:bg-black/[0.32]',
                 // Keep at least the base 8px top padding, plus the safe-area inset.
                 safeArea ? 'pt-[calc(var(--safe-top,0px)+0.5rem)]' : 'pt-2',
                 className

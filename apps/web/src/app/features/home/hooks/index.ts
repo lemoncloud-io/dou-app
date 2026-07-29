@@ -1,4 +1,5 @@
 export * from './useActiveCloudChannels';
+export * from './useCachedCloudNames';
 export * from './useChannelUnreads';
 export * from './useCreatePlace';
 export * from './useEnterInvitedChannel';
@@ -11,7 +12,6 @@ export * from './useInviteCountdown';
 export * from './useInvitedClouds';
 export * from './useLastChat';
 export * from './useMyJoins';
-export * from './usePlaceProfilePrompt';
 export * from './useScrollRestoration';
 export * from './useSwitchPlace';
 export * from './useUpdateCloud';

@@ -18,8 +18,8 @@ interface PlaceProfileEditDialogProps {
 /**
  * Full-screen overlay to EDIT the per-place profile (nick + optional photo) for the active place.
  * Opened from the home header dropdown. Thin wrapper over {@link PlaceProfileFormDialog} — seeds the
- * current profile from {@link useMyProfile} and supplies edit-specific copy; the create counterpart
- * is {@link PlaceProfileCreateDialog}. Persists via ProfileRepositoryV2.setMyProfile.
+ * current profile from {@link useMyProfile} and supplies edit-specific copy. Persists via
+ * ProfileRepositoryV2.setMyProfile.
  */
 export const PlaceProfileEditDialog = ({ open, placeName, onClose }: PlaceProfileEditDialogProps) => {
     const { t } = useTranslation();
@@ -48,7 +48,12 @@ export const PlaceProfileEditDialog = ({ open, placeName, onClose }: PlaceProfil
                 leaveLabel: t('placeProfileEdit.exitLeave'),
                 continueLabel: t('placeProfileEdit.exitContinue'),
             }}
-            onSubmit={({ nick, thumbnail }) => profileRepository.setMyProfile({ nick, thumbnail })}
+            // Block body, not a concise arrow: setMyProfile resolves to the saved profile, and
+            // onSubmit is typed Promise<void>. Awaiting here discards the value instead of widening
+            // the form's contract.
+            onSubmit={async ({ nick, thumbnail }) => {
+                await profileRepository.setMyProfile({ nick, thumbnail });
+            }}
             onDone={onClose}
             onExit={onClose}
         />

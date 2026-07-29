@@ -3,7 +3,6 @@ export * from './CreateChannelDialog';
 export * from './CreatePlaceDialog';
 export * from './PlaceProfileForm';
 export * from './PlaceProfileFormDialog';
-export * from './PlaceProfileCreateDialog';
 export * from './PlaceProfileEditDialog';
 export * from './PlaceList';
 export * from './CloudSessionSheet';

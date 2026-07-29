@@ -23,5 +23,12 @@ export const useSelfChatTitle = (channel: DomainChannel | null | undefined): str
     const { t } = useTranslation();
     const { profile } = useMyProfile();
 
-    return resolveSelfChatTitle(channel?.$join?.nick, profile?.nick, t('channelList.selfChannel'));
+    // Pass the join's own userId so a default nick (server-seeded to that raw id/UUID) is skipped
+    // in favor of the human profile nick.
+    return resolveSelfChatTitle(
+        channel?.$join?.nick,
+        profile?.nick,
+        t('channelList.selfChannel'),
+        channel?.$join?.userId
+    );
 };

@@ -1,0 +1,16 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="86" height="86" viewBox="0 0 86 86" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="1&#235;&#170;&#133; Profile">
+<g clip-path="url(#clip0_3498_16139)">
+<rect width="86" height="86" rx="43" fill="var(--fill-0, white)"/>
+<g id="Vector">
+<path d="M63 31C63 35.4183 59.4183 39 55 39C50.5817 39 47 35.4183 47 31C47 26.5817 50.5817 23 55 23C59.4183 23 63 26.5817 63 31Z" fill="var(--fill-0, #102346)"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M43 0C19.2518 0 0 19.2518 0 43C0 66.7482 19.2518 86 43 86C66.7482 86 86 66.7482 86 43C86 19.2518 66.7482 0 43 0ZM39.7288 56.4473L22.5699 39.2884C19.1451 35.8636 13.6514 35.6806 10.0063 38.87L6.00402 42.4491C6.29855 22.2686 22.7494 6 43 6C63.4345 6 80 22.5655 80 43C80 50.8184 77.575 58.0704 73.4362 64.0449L66.1059 57.3958C61.9477 53.6535 55.7554 53.2808 51.1784 56.4974L49.9856 57.3357C46.805 59.571 42.4778 59.1962 39.7288 56.4473Z" fill="var(--fill-0, #102346)"/>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_3498_16139">
+<rect width="86" height="86" rx="43" fill="white"/>
+</clipPath>
+</defs>
+</svg>

@@ -93,10 +93,15 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         item: Partial<DomainProfile>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
-        const normalized = this.normalizeProfile(item, undefined, contextOverride);
+        // Load the cached row BEFORE normalizing so partial payloads merge instead of
+        // overwriting (mirrors cacheWriteMany): a profile.get/profile.set response that
+        // omits `thumbnail` must not wipe the photo already cached for that profile.
+        const existingId = this.makeProfileId(item, contextOverride);
+        const existing = existingId ? await this.cacheStorage.load(existingId) : null;
+
+        const normalized = this.normalizeProfile(item, existing ?? undefined, contextOverride);
         if (!normalized) return;
 
-        const existing = await this.cacheStorage.load(normalized.id);
         await this.cacheStorage.save(normalized.id, normalized);
         const legacyId = this.buildLegacyProfileId(normalized.sid, normalized.uid);
         if (legacyId && legacyId !== normalized.id) {

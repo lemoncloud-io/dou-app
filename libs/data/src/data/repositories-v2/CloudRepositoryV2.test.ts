@@ -60,7 +60,7 @@ describe('CloudRepositoryV2', () => {
         expect(result.id).toBe('cloud-1');
     });
 
-    it('rolls back the optimistic write when a remote update fails', async () => {
+    it('optimistically writes the edit, then rolls back when the remote update fails', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', name: 'Old' });
         const remote = createRemoteDataSource();
@@ -69,8 +69,101 @@ describe('CloudRepositoryV2', () => {
 
         await expect(repository.updateCloud({ id: 'cloud-1', name: 'New' } as any)).rejects.toThrow('boom');
 
-        // The last cacheWrite restores the previously cached snapshot.
+        // First: the optimistic write applies the new name to the cache.
+        expect(local.cacheWrite).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ id: 'cloud-1', name: 'New' }),
+            expect.anything()
+        );
+        // Last: the failure restores the previously cached snapshot exactly.
         expect(local.cacheWrite).toHaveBeenLastCalledWith({ id: 'cloud-1', name: 'Old' }, expect.anything());
+    });
+
+    it('reflects the edit in the cache optimistically before the server responds', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'owner' });
+        const remote = createRemoteDataSource();
+        let resolveUpdate: (value: unknown) => void = () => undefined;
+        remote.updateCloud.mockReturnValue(new Promise(resolve => (resolveUpdate = resolve)));
+        const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
+
+        const pending = repository.updateCloud({ id: 'cloud-1', name: 'New' } as any);
+        // Flush microtasks so the optimistic write lands while the remote call is still in flight.
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(remote.updateCloud).toHaveBeenCalled();
+        expect(local.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'cloud-1', name: 'New', cloudType: 'owner' }),
+            expect.anything()
+        );
+
+        resolveUpdate({ id: 'cloud-1', name: 'New' });
+        await pending;
+    });
+
+    it('keeps an invited cloud invited on an optimistic edit', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'invited' });
+        const remote = createRemoteDataSource();
+        remote.updateCloud.mockResolvedValue({ id: 'cloud-1', name: 'New' });
+        const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
+
+        await repository.updateCloud({ id: 'cloud-1', name: 'New' } as any);
+
+        // The optimistic write must not downgrade an invited cloud to the 'owner' default.
+        expect(local.cacheWrite).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ id: 'cloud-1', name: 'New', cloudType: 'invited' }),
+            expect.anything()
+        );
+    });
+
+    it('types a freshly mirrored subscription cloud as owner (not the invited default)', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue(null);
+        const remote = createRemoteDataSource();
+        remote.getCloud.mockResolvedValue({ id: 'cloud-1', name: 'Cloud One' });
+        const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
+
+        await repository.getCloud({ id: 'cloud-1' } as any);
+
+        // A new cloud reached via the command path is an owned/subscription cloud, so it must not
+        // fall back to the local source's 'invited' default (which would pollute useInvitedClouds).
+        expect(local.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'cloud-1', name: 'Cloud One', cloudType: 'owner' }),
+            expect.anything()
+        );
+    });
+
+    it('preserves an existing invited type when mirroring a get', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'invited' });
+        const remote = createRemoteDataSource();
+        remote.getCloud.mockResolvedValue({ id: 'cloud-1', name: 'Fresh' });
+        const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
+
+        await repository.getCloud({ id: 'cloud-1' } as any);
+
+        // An invited cloud (seeded by the invited-cloud flow) keeps its type across a name refresh.
+        expect(local.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'cloud-1', name: 'Fresh', cloudType: 'invited' }),
+            expect.anything()
+        );
+    });
+
+    it('persists the authoritative name into the cache on a successful update', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue(null);
+        const remote = createRemoteDataSource();
+        remote.updateCloud.mockResolvedValue({ id: 'cloud-1', name: 'New' });
+        const repository = new CloudRepositoryV2(remote as any, local as any, contextProvider);
+
+        await repository.updateCloud({ id: 'cloud-1', name: 'New' } as any);
+
+        expect(local.cacheWrite).toHaveBeenLastCalledWith(
+            expect.objectContaining({ id: 'cloud-1', name: 'New', cloudType: 'owner' }),
+            expect.anything()
+        );
     });
 
     it('optimistically removes a cloud and restores it when the remote delete fails', async () => {

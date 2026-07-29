@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
@@ -17,8 +19,9 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
-import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
+import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
+import { BottomNavSpacer } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { OnboardingModal } from '../../onboarding';
@@ -29,19 +32,17 @@ import {
     CreatePlaceDialog,
     InviteDialog,
     PlaceList,
-    PlaceProfileCreateDialog,
-    PlaceProfileEditDialog,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import {
     useActiveCloudChannels,
+    useCachedCloudNames,
     useChannelUnreads,
     useHomeChannels,
     useHomePlaces,
     useInvitedClouds,
     useMyJoins,
-    usePlaceProfilePrompt,
     useScrollRestoration,
     useSwitchPlace,
 } from '../hooks';
@@ -80,26 +81,42 @@ export const HomePage = () => {
         cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
     );
     const activeCloud = activeOwnedCloud ?? activeInvitedCloud;
-    const cloudName = activeCloud
-        ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || ''
-        : '';
+    // The locally cached name (written first by cloud.update/get) wins over the relay catalog so a
+    // just-edited subscription-cloud name shows immediately, before the catalog refetch catches up.
+    const cachedCloudNames = useCachedCloudNames();
+    const cachedCloudName = selectedCloudId ? cachedCloudNames[selectedCloudId] : undefined;
+    const cloudName =
+        cachedCloudName ??
+        (activeCloud ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || '' : '');
 
     // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
     // either a valid membership OR at least one activated cloud exists — owning a live cloud (status
     // 'active' in the relay catalog above) already implies paid access. CloudView carries no grade.
-    const { data: membership } = useMembershipInfo();
+    // useMembershipInfo has staleTime: 0 + refetchOnMount: 'always', so right after login/reload
+    // `membership` starts out `undefined` while the query is in flight. Without a guard, a
+    // membership-only PRO user (no owned cloud yet) would flash FREE for a beat before flipping to
+    // PRO once the fetch resolves. While that fetch is pending and we have no cloud-based fallback,
+    // leave the tier undecided (`undefined`) instead of guessing FREE: AppHeader already hides its
+    // badge when planTier is falsy, and PRO-gated UI below treats "undecided" as PRO-optimistic
+    // (not FREE) — the server remains the final authority on any gated action either way.
+    const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
     const hasActiveCloud = clouds.some(cloud => cloud.status === 'active');
-    const planTier: 'free' | 'pro' = !isGuest && (membership?.isValid || hasActiveCloud) ? 'pro' : 'free';
+    const isTierUndecided = !isGuest && isMembershipLoading && !hasActiveCloud;
+    const planTier: 'free' | 'pro' | undefined = isGuest
+        ? 'free'
+        : isTierUndecided
+          ? undefined
+          : membership?.isValid || hasActiveCloud
+            ? 'pro'
+            : 'free';
 
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
-    // Prompt to CREATE a per-place profile when the active place has none yet (mandatory — no skip).
-    const { shouldPrompt: needsPlaceProfile, status: placeProfileStatus } = usePlaceProfilePrompt();
-    const [isPlaceProfileOpen, setIsPlaceProfileOpen] = useState(false);
-    const [isEditOpen, setIsEditOpen] = useState(false);
-    const activePlaceName = places.find(place => place.id === selectedPlaceId)?.name ?? '';
+    // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
+    // optional at entry; users set it up on their own terms from the place settings hub ('내 프로필').
+    // The header still nudges them via resolveHeaderProfile's `setup` state below.
     // Real (creatable) places exclude relay subscription rows (stereo === 'place'); drives the cap.
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
 
@@ -134,9 +151,9 @@ export const HomePage = () => {
     // the active place has no photo, ProfileAvatar renders its default glyph (기본 아바타).
     const displayImageUrl = myProfile?.thumbnail ?? undefined;
 
-    // The per-place profile edit dialog needs an active site (the key `useMyProfile` reads). Works on
+    // The place-settings menu entry needs an active site (its route is keyed by the site id). Works on
     // the default cloud too — relay still supplies `selectedSiteId` — and is disabled only when no site
-    // is active, since there'd be no profile to edit.
+    // is active, since there'd be no place to configure.
     const hasActivePlace = !!selectedSiteId;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -145,32 +162,38 @@ export const HomePage = () => {
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
-    // Channel sort method for the active place (client preference, per place). Missing → default.
+    // Sort + pins are scoped to cid:sid — a place id is only unique within its cloud, so the same
+    // sid in another cloud must not inherit this cloud's settings.
+    const placeScope = placeScopeKey(selectedCloudId, selectedSiteId);
     const channelSortMap = usePreferenceStore(s => s.channelSort);
-    const channelSortMethod = (selectedSiteId && channelSortMap[selectedSiteId]) || DEFAULT_CHANNEL_SORT;
+    const channelSortMethod = (placeScope && channelSortMap[placeScope]) || DEFAULT_CHANNEL_SORT;
+    // Pinned channels for the active place (client preference, set from the chat-room management
+    // screen). Pinned rows float above the chosen sort order.
+    const pinnedChannelMap = usePreferenceStore(s => s.pinnedChannels);
+    const pinnedChannelIds = useMemo(
+        () => new Set(placeScope ? (pinnedChannelMap[placeScope] ?? []) : []),
+        [pinnedChannelMap, placeScope]
+    );
     const { toast } = useToast();
 
-    // Open the place-profile-create overlay once the prompt is due, but never over the first-run
-    // onboarding modal (that flow takes precedence).
-    useEffect(() => {
-        if (needsPlaceProfile && !isFirstRun) setIsPlaceProfileOpen(true);
-    }, [needsPlaceProfile, isFirstRun]);
-
-    // Invite flow tail: the accept pipeline lands here and stashes the invited channel. Open it once
-    // the site profile exists — created via the mandatory prompt above, or already present (a re-entry
-    // needs no setup) → navigate straight through. See usePendingInviteChannel / useEnterInvitedChannel.
+    // Invite flow tail: the accept pipeline lands here and stashes the invited channel, then we open
+    // it straight through. There is NO place-profile gate any more — an invitee who has not set up an
+    // in-place profile used to be held on home behind the mandatory setup dialog; now they go directly
+    // to the room and can fill the profile in later from the place settings hub.
+    // See usePendingInviteChannel / useEnterInvitedChannel.
     const pendingInviteChannelId = usePendingInviteChannel(state => state.channelId);
     const clearPendingInviteChannel = usePendingInviteChannel(state => state.clearPendingChannel);
-    const openPendingInviteChannel = () => {
-        if (!pendingInviteChannelId) return;
-        const channelId = pendingInviteChannelId;
-        clearPendingInviteChannel();
-        navigate(ROUTES.channels.room(channelId), { replace: true });
-    };
+    // The store id is the only trigger, so there is nothing async left to wait on. Each id is consumed
+    // exactly once: clearing re-renders us with `null`, and the ref additionally absorbs a repeated
+    // effect run over the same (still captured) id, so we never clear/navigate twice.
+    const consumedInviteChannelRef = useRef<string | null>(null);
     useEffect(() => {
-        // Profile already set for the invited site → skip setup and open the pending channel directly.
-        if (pendingInviteChannelId && placeProfileStatus === 'present') openPendingInviteChannel();
-    }, [pendingInviteChannelId, placeProfileStatus]);
+        if (!pendingInviteChannelId) return;
+        if (consumedInviteChannelRef.current === pendingInviteChannelId) return;
+        consumedInviteChannelRef.current = pendingInviteChannelId;
+        clearPendingInviteChannel();
+        navigate(ROUTES.channels.room(pendingInviteChannelId), { replace: true });
+    }, [pendingInviteChannelId, clearPendingInviteChannel, navigate]);
 
     const handleCreatePlace = () => {
         if (!canAddPlace) {
@@ -192,7 +215,7 @@ export const HomePage = () => {
             toast({ title: t('homePage.channelLimitReached') });
             return;
         }
-        if (planTier === 'pro') {
+        if (planTier !== 'free') {
             setIsDialogOpen(true);
         } else {
             setIsSubscriptionRequiredOpen(true);
@@ -203,13 +226,12 @@ export const HomePage = () => {
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => toast({ title: t('homePage.searchComingSoon', '검색은 준비 중이에요') });
-    // Notifications settings has no route yet (ADR-0013): placeholder, tracked as a follow-up.
-    const handleNotifications = () =>
-        toast({ title: t('homePage.notificationsComingSoon', '알림 설정은 준비 중이에요') });
 
-    // Right-side profile → dropdown (프로필 / 알림 / 설정). The header shows my place profile.
+    // Right-side profile → dropdown. The header shows my place profile; the only entry navigates to
+    // the place settings hub. Controlled open state so the header's close (X) can dismiss it.
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const profileMenu = (
-        <DropdownMenu>
+        <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
@@ -222,27 +244,22 @@ export const HomePage = () => {
             <DropdownMenuContent align="end" className="w-56">
                 <div className="flex items-center gap-2 px-2 py-2">
                     <ProfileAvatar src={displayImageUrl} size={32} />
-                    <span className="min-w-0 truncate text-sm font-semibold text-foreground">{displayName}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{displayName}</span>
+                    <button
+                        type="button"
+                        aria-label={t('homePage.menuClose', '닫기')}
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                    >
+                        <X size={18} />
+                    </button>
                 </div>
-                <DropdownMenuItem
-                    disabled={!hasActivePlace}
-                    onClick={() => setIsEditOpen(true)}
-                    className="cursor-pointer"
-                >
-                    {t('homePage.menuProfile', '프로필')}
-                </DropdownMenuItem>
                 <DropdownMenuItem
                     disabled={!hasActivePlace}
                     onClick={() => selectedSiteId && navigate(ROUTES.place.settings(selectedSiteId))}
                     className="cursor-pointer"
                 >
                     {t('homePage.menuPlaceSettings', '플레이스 설정')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleNotifications} className="cursor-pointer">
-                    {t('homePage.menuNotifications', '알림')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate(ROUTES.mypage.root)} className="cursor-pointer">
-                    {t('homePage.menuSettings', '설정')}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -265,13 +282,13 @@ export const HomePage = () => {
                 profileLabel={t('homePage.profile', '프로필')}
             />
 
-            {/* Place + Chat scroll together under the fixed header (accordion sections). The
-                bottom padding lets the last row scroll clear of the floating nav, whose pill the
-                content passes fully behind (no backdrop). */}
+            {/* Place + Chat scroll together under the fixed header (accordion sections). Trailing
+                clearance for the floating nav comes from BottomNavSpacer at the end of the content,
+                not from padding on this container — see BottomNavSpacer for why. */}
             <div
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(var(--safe-bottom,0px)+96px)] pt-2"
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2"
             >
                 <PlaceList
                     places={places}
@@ -294,8 +311,9 @@ export const HomePage = () => {
                         isLoading={isChannelsLoading}
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
-                        isPro={planTier === 'pro'}
+                        isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
+                        pinnedChannelIds={pinnedChannelIds}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
                     />
@@ -307,28 +325,12 @@ export const HomePage = () => {
                         description={t('homePage.noPlaceDescription', '플레이스에 접속해 대화를 시작해보세요')}
                     />
                 ) : null}
+
+                <BottomNavSpacer />
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
-            <PlaceProfileCreateDialog
-                open={isPlaceProfileOpen}
-                placeName={activePlaceName}
-                // Profile setup is always mandatory (no cancel) — invite / place-create / onboarding
-                // all require it before proceeding.
-                dismissible={false}
-                onDone={() => {
-                    setIsPlaceProfileOpen(false);
-                    // Invite flow: continue to the channel that was waiting on profile setup.
-                    openPendingInviteChannel();
-                }}
-                onExit={() => setIsPlaceProfileOpen(false)}
-            />
-            <PlaceProfileEditDialog
-                open={isEditOpen}
-                placeName={activePlaceName}
-                onClose={() => setIsEditOpen(false)}
-            />
             <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}

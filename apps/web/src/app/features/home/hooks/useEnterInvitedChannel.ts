@@ -7,10 +7,10 @@ import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel
 import { ROUTES } from '../../../routes/paths';
 
 /**
- * Step 3 of invite entry: always land on home so the mandatory place-profile gate can run for the
- * newly-entered site (first entry ⇒ no profile yet). When the invite carries a `channelId` it is
- * stashed as the pending invite channel; HomePage opens that room once the profile exists (created
- * just now, or already present). This enforces: accept → connect place → profile setup → channel.
+ * Step 3 of invite entry: always land on home so the newly-entered site becomes the active place.
+ * When the invite carries a `channelId` it is stashed as the pending invite channel and HomePage
+ * opens that room immediately — the place profile is optional and no longer gates entry, so the
+ * flow is: accept → connect place → channel.
  */
 export const useEnterInvitedChannel = () => {
     const navigate = useNavigateWithTransition();

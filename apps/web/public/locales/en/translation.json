@@ -296,15 +296,12 @@
         "placeLimitReached": "You can create up to 5 places",
         "channelLimitReached": "You can create up to 100 group rooms",
         "profile": "Profile",
-        "menuProfile": "Profile",
         "menuPlaceSettings": "Place Settings",
-        "menuNotifications": "Notifications",
-        "menuSettings": "Settings",
+        "menuClose": "Close",
         "search": "Search",
         "switchCloud": "Switch Cloud",
         "directComingSoon": "1:1 chat is coming soon",
         "searchComingSoon": "Search is coming soon",
-        "notificationsComingSoon": "Notification settings are coming soon",
         "setupProfile": "Set up your profile",
         "noPlaceTitle": "No place connected",
         "noPlaceDescription": "Connect to a place to start chatting"
@@ -390,6 +387,35 @@
         "createChat": "Create Chat",
         "createDirect": "1:1 Chat",
         "createGroup": "Create Group"
+    },
+    "channelManage": {
+        "title": "Manage chats",
+        "clearSelection": "Deselect",
+        "readAll": "Mark all read",
+        "readSelected": "Read {{count}}",
+        "readDone": "Rooms marked as read",
+        "readFailed": "Could not mark {{count}} room(s) as read.",
+        "nothingToRead": "No unread rooms.",
+        "pin": "Pin room",
+        "unpin": "Unpin room",
+        "pinned": "Room pinned.",
+        "unpinned": "Room unpinned.",
+        "deleteRooms": "Delete rooms",
+        "leaveRooms": "Leave rooms",
+        "deleteDone": "Deleted {{count}} room(s).",
+        "leaveDone": "Left {{count}} room(s).",
+        "deleteFailed": "Could not delete {{count}} room(s).",
+        "leaveFailed": "Could not leave {{count}} room(s).",
+        "deleteDialog": {
+            "title": "Delete the {{count}} selected chat room(s)?",
+            "description": "Deleting a room removes access for every participant, and the conversation is permanently deleted and cannot be recovered.",
+            "confirm": "Delete"
+        },
+        "leaveDialog": {
+            "title": "Leave the {{count}} selected chat room(s)?",
+            "description": "Leaving removes the room from your list; you need a new invite to rejoin.",
+            "confirm": "Leave"
+        }
     },
     "bottomNav": {
         "chat": "Chat",
@@ -561,30 +587,38 @@
     },
     "placeSettings": {
         "title": "Place Settings",
-        "placeInfo": "Place Information",
-        "myProfile": "Place Profile",
+        "sectionProfile": "Profile",
+        "sectionNotifications": "Notifications",
+        "sectionChats": "Chats",
+        "myProfile": "My Profile",
+        "placeProfile": "Place Profile",
+        "placeNotifications": "Place Notifications",
+        "placeNotificationsDescription": "Receive push notifications from this place.",
         "channelSort": "Sort Chats",
-        "notifications": "Notifications",
+        "channelManage": "Manage Chats",
         "ownerOnly": "Only the owner can change this",
         "comingSoon": "Coming soon"
     },
     "channelSort": {
         "title": "Sort Chats",
-        "recent": "Recent activity",
+        "recent": "Latest message",
         "unread": "Unread first"
     },
     "placeInfo": {
-        "title": "Place Information",
-        "createdDate": "Created Date",
+        "title": "Place Profile",
         "confirm": "Done",
         "notFound": "Place not found",
-        "nameLabel": "Edit Name",
+        "nameLabel": "Place Name",
         "namePlaceholder": "Enter place name",
         "nameDescription": "Please enter up to 20 characters.",
-        "photoLabel": "Photo",
+        "photoLabel": "Place Photo",
         "photoOptional": "[Optional]",
         "imageSizeError": "Image size exceeds 10MB",
-        "changeImage": "Change photo"
+        "changeImage": "Change photo",
+        "exitTitle": "Stop setting up the profile?",
+        "exitDescription": "If you stop, your changes won't be saved.",
+        "exitLeave": "Stop",
+        "exitContinue": "Keep editing"
     },
     "workspace": {
         "list": {
@@ -663,21 +697,22 @@
         "exitContinue": "Keep setting up"
     },
     "placeProfileEdit": {
-        "title": "The profile you use in\n<{{place}}>",
+        "title": "Place Profile",
+        "header": "My profile",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",
-        "namePlaceholder": "Enter a name",
+        "namePlaceholder": "Enter your name",
         "photoLabel": "Profile photo",
         "photoOptional": "[Optional]",
         "done": "Done",
         "close": "Close",
-        "successToast": "Profile updated.",
+        "successToast": "Profile setup complete.",
         "saveError": "Failed to update profile.",
         "imageSizeError": "Image must be 10MB or less",
-        "exitTitle": "Leave without saving changes?",
-        "exitDescription": "Your unsaved changes will be lost.",
-        "exitLeave": "Leave",
-        "exitContinue": "Keep editing"
+        "exitTitle": "Stop setting up your profile?",
+        "exitDescription": "If you stop, your changes won't be saved.",
+        "exitLeave": "Stop",
+        "exitContinue": "Keep setting up"
     },
     "profileEdit": {
         "title": "Edit Profile",
@@ -691,8 +726,8 @@
         "imageSizeError": "Image must be less than 10MB",
         "tabBasic": "Basic Profile",
         "tabCloud": "Cloud Profile",
-        "cloudDescription1": "Set your name and photo",
-        "cloudDescription2": "for Cloud",
+        "cloudDescription1": "Set the name",
+        "cloudDescription2": "for this Cloud",
         "thumbnailLabel": "Profile Image",
         "cloudSaveSuccess": "Cloud profile updated.",
         "cloudSaveError": "Failed to update Cloud profile."
@@ -833,6 +868,7 @@
     },
     "inviteLink": {
         "title": "Invite Link",
+        "copyLink": "Copy link",
         "share": "Share link",
         "shared": "Shared",
         "copyDone": "Link copied",

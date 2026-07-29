@@ -1,4 +1,11 @@
-import { hasLocalPreference, parseTheme, usePreferenceStore } from './usePreferenceStore';
+import {
+    hasLocalPreference,
+    parseChannelSort,
+    parsePinnedChannels,
+    parseTheme,
+    usePreferenceStore,
+} from './usePreferenceStore';
+import { placeScopeKey } from './preferenceKeys';
 import { appBridge } from '../bridge';
 
 // Mock isNative so we can test both branches without a real native environment.
@@ -30,6 +37,7 @@ const resetStore = () => {
         theme: 'system',
         issueReportHidden: false,
         channelSort: {},
+        pinnedChannels: {},
     });
     jest.clearAllMocks();
 };
@@ -306,34 +314,142 @@ describe('setChannelSort — 채팅방 정렬 기준', () => {
         resetStore();
     });
 
-    it('플레이스별로 정렬 기준을 상태와 localStorage(JSON 맵)에 저장한다', () => {
-        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
+    it('cid:sid 스코프별로 정렬 기준을 상태와 localStorage(JSON 맵)에 저장한다', () => {
+        usePreferenceStore.getState().setChannelSort('cloud-1:place-1', 'unread');
 
-        expect(usePreferenceStore.getState().channelSort['place-1']).toBe('unread');
-        expect(JSON.parse(localStorage.getItem('chatic-channel-sort') ?? '{}')).toEqual({ 'place-1': 'unread' });
-    });
-
-    it('다른 플레이스의 정렬 기준을 덮어쓰지 않고 병합한다', () => {
-        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
-        usePreferenceStore.getState().setChannelSort('place-2', 'recent');
-
-        expect(usePreferenceStore.getState().channelSort).toEqual({ 'place-1': 'unread', 'place-2': 'recent' });
+        expect(usePreferenceStore.getState().channelSort['cloud-1:place-1']).toBe('unread');
         expect(JSON.parse(localStorage.getItem('chatic-channel-sort') ?? '{}')).toEqual({
-            'place-1': 'unread',
-            'place-2': 'recent',
+            'cloud-1:place-1': 'unread',
         });
     });
 
-    it('같은 플레이스를 다시 설정하면 값이 교체된다', () => {
-        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
-        usePreferenceStore.getState().setChannelSort('place-1', 'recent');
+    it('다른 클라우드·플레이스의 정렬 기준을 덮어쓰지 않고 병합한다', () => {
+        usePreferenceStore.getState().setChannelSort('cloud-1:place-1', 'unread');
+        usePreferenceStore.getState().setChannelSort('cloud-2:place-2', 'recent');
 
-        expect(usePreferenceStore.getState().channelSort['place-1']).toBe('recent');
+        expect(usePreferenceStore.getState().channelSort).toEqual({
+            'cloud-1:place-1': 'unread',
+            'cloud-2:place-2': 'recent',
+        });
+        expect(JSON.parse(localStorage.getItem('chatic-channel-sort') ?? '{}')).toEqual({
+            'cloud-1:place-1': 'unread',
+            'cloud-2:place-2': 'recent',
+        });
+    });
+
+    it('같은 스코프를 다시 설정하면 값이 교체된다', () => {
+        usePreferenceStore.getState().setChannelSort('cloud-1:place-1', 'unread');
+        usePreferenceStore.getState().setChannelSort('cloud-1:place-1', 'recent');
+
+        expect(usePreferenceStore.getState().channelSort['cloud-1:place-1']).toBe('recent');
     });
 
     it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
         mockIsNative.mockReturnValue(true);
-        usePreferenceStore.getState().setChannelSort('place-1', 'unread');
+        usePreferenceStore.getState().setChannelSort('cloud-1:place-1', 'unread');
         expect(mockSavePreference).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// setChannelPinned — 플레이스별 채팅방 고정 (local 전략, JSON 맵, 서버 pin 필드 없음)
+// ---------------------------------------------------------------------------
+
+describe('setChannelPinned — 채팅방 고정', () => {
+    beforeEach(() => {
+        mockIsNative.mockReturnValue(false);
+        resetStore();
+    });
+
+    it('고정한 채널을 상태와 localStorage(JSON 맵)에 저장한다', () => {
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+
+        expect(usePreferenceStore.getState().pinnedChannels).toEqual({ 'cloud-1:place-1': ['ch-1'] });
+        expect(JSON.parse(localStorage.getItem('chatic-pinned-channels') ?? '{}')).toEqual({
+            'cloud-1:place-1': ['ch-1'],
+        });
+    });
+
+    it('같은 채널을 두 번 고정해도 중복되지 않는다', () => {
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+
+        expect(usePreferenceStore.getState().pinnedChannels['cloud-1:place-1']).toEqual(['ch-1']);
+    });
+
+    it('다른 클라우드·플레이스의 고정 목록을 덮어쓰지 않고 병합한다', () => {
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+        usePreferenceStore.getState().setChannelPinned('cloud-2:place-2', 'ch-2', true);
+
+        expect(usePreferenceStore.getState().pinnedChannels).toEqual({
+            'cloud-1:place-1': ['ch-1'],
+            'cloud-2:place-2': ['ch-2'],
+        });
+    });
+
+    it('해제하면 해당 채널만 목록에서 빠진다', () => {
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-2', true);
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', false);
+
+        expect(usePreferenceStore.getState().pinnedChannels['cloud-1:place-1']).toEqual(['ch-2']);
+    });
+
+    it('마지막 고정을 해제하면 스코프 항목 자체를 지운다', () => {
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', false);
+
+        expect(usePreferenceStore.getState().pinnedChannels).toEqual({});
+        expect(JSON.parse(localStorage.getItem('chatic-pinned-channels') ?? '{}')).toEqual({});
+    });
+
+    it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
+        mockIsNative.mockReturnValue(true);
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+        expect(mockSavePreference).not.toHaveBeenCalled();
+    });
+
+    it('같은 sid라도 클라우드가 다르면 고정이 섞이지 않는다', () => {
+        usePreferenceStore.getState().setChannelPinned('cloud-1:place-1', 'ch-1', true);
+        usePreferenceStore.getState().setChannelPinned('cloud-2:place-1', 'ch-9', true);
+
+        expect(usePreferenceStore.getState().pinnedChannels).toEqual({
+            'cloud-1:place-1': ['ch-1'],
+            'cloud-2:place-1': ['ch-9'],
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// placeScopeKey / 레거시 키 정리
+// ---------------------------------------------------------------------------
+
+describe('placeScopeKey — cid:sid 스코프', () => {
+    it('양쪽이 있을 때만 키를 만든다', () => {
+        expect(placeScopeKey('cloud-1', 'place-1')).toBe('cloud-1:place-1');
+        expect(placeScopeKey('default', 'place-1')).toBe('default:place-1');
+        expect(placeScopeKey(null, 'place-1')).toBeNull();
+        expect(placeScopeKey('cloud-1', undefined)).toBeNull();
+        expect(placeScopeKey('', '')).toBeNull();
+    });
+
+    it('cid 없이 저장된 레거시 항목은 읽을 때 버린다', () => {
+        // A bare placeId can't be attributed to a cloud, so honoring it would leak one cloud's
+        // setting into another cloud's same-id place.
+        localStorage.setItem(
+            'chatic-channel-sort',
+            JSON.stringify({ 'place-1': 'unread', 'cloud-1:place-1': 'unread' })
+        );
+        localStorage.setItem(
+            'chatic-pinned-channels',
+            JSON.stringify({ 'place-1': ['ch-legacy'], 'cloud-1:place-1': ['ch-1'] })
+        );
+
+        expect(parseChannelSort(localStorage.getItem('chatic-channel-sort') as string)).toEqual({
+            'cloud-1:place-1': 'unread',
+        });
+        expect(parsePinnedChannels(localStorage.getItem('chatic-pinned-channels') as string)).toEqual({
+            'cloud-1:place-1': ['ch-1'],
+        });
     });
 });

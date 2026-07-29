@@ -1,8 +1,13 @@
 import type { LogEntry } from '@chatic/bridges';
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
 
+// Only the log buffer is faked. serializeLogs stays REAL (bridges re-exports it from
+// @chatic/logger) so the assertions below exercise actual serialization — a stub would make the
+// ordering/budget expectations vacuous. Requiring @chatic/logger rather than @chatic/bridges keeps
+// the bridge's web/app/provider surface out of the test.
 jest.mock('@chatic/bridges', () => ({
     logBuffer: { peek: jest.fn(() => [] as LogEntry[]) },
+    serializeLogs: jest.requireActual('@chatic/logger').serializeLogs,
 }));
 
 import { logBuffer } from '@chatic/bridges';

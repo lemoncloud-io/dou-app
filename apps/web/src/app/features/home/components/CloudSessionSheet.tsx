@@ -15,7 +15,7 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
-import { useInvitedClouds } from '../hooks';
+import { useCachedCloudNames, useInvitedClouds } from '../hooks';
 import { readCloudUnreadSnapshot } from '../lib';
 import { CloudNameEditDialog } from './CloudNameEditDialog';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
@@ -47,6 +47,9 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     // (cloudType === 'invited') and are NOT in the catalog, so they are observed separately.
     const { clouds: catalogClouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
+    // Locally cached names (written first by cloud.update/get) override the relay catalog name so a
+    // just-edited subscription-cloud name shows immediately in the switcher.
+    const cachedCloudNames = useCachedCloudNames();
     const { switchCloud, isPending: isSwitching } = useSwitchCloudSession();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
     const { selectedCloudId } = useSessionSelection();
@@ -119,9 +122,15 @@ export const CloudSessionSheet = ({ open, onOpenChange }: CloudSessionSheetProps
     const isDefaultSelected = !selectedId || selectedId === 'default';
     const isLoading = isFetchingClouds && clouds.length === 0;
 
+    // Overlay the cached name first so the switcher shows the freshest subscription-cloud name.
+    const cloudsWithCachedNames = clouds.map(cloud => {
+        const cachedName = cloud.id ? cachedCloudNames[cloud.id] : undefined;
+        return cachedName ? { ...cloud, name: cachedName } : cloud;
+    });
+
     // Display order (spec 2-3 / 5-2): selected cloud pinned to top, then creation order (newest
     // first). View-only — logic/polling keeps using the unsorted `clouds`.
-    const sortedClouds = sortCloudsForSwitcher(clouds, selectedId);
+    const sortedClouds = sortCloudsForSwitcher(cloudsWithCachedNames, selectedId);
     const sortedInvited = sortCloudsForSwitcher(invitedClouds, selectedId);
 
     return (

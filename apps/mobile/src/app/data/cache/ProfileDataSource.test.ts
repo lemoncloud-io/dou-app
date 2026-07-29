@@ -73,32 +73,47 @@ describe('ProfileDataSource', () => {
         expect(params).toEqual(['c1', 'u1']);
     });
 
-    it('save는 INSERT OR REPLACE로 id/cid/uid가 병합된 data를 저장해야 한다', async () => {
+    it('save는 스코프 uid로 프로필 소유자 uid를 덮어쓰지 않고 id만 row key에 맞춰야 한다', async () => {
         const sqlite = createSqliteMock();
         const dataSource = new ProfileDataSource(sqlite, TABLE);
-        const profile = makeProfile({ id: 'ignored', cid: 'ignored', uid: 'ignored' });
+        // Profile of another member, cached under the logged-in user's ('me') scope.
+        const profile = makeProfile({ id: 'stale', sid: 's1', uid: 'u2', userId: 'u2', nick: 'Bob' } as any);
 
-        await dataSource.save('s1@u1', profile, 'c1', 'u1');
+        await dataSource.save('s1@u2', profile, 'c1', 'me');
 
         const [query, params] = (sqlite.execute as jest.Mock).mock.calls[0];
         expect(String(query)).toContain(`INSERT OR REPLACE INTO ${TABLE} (cid, uid, id, data)`);
-        expect(params.slice(0, 3)).toEqual(['c1', 'u1', 's1@u1']);
-        // Scope columns win over whatever the item carried.
-        expect(JSON.parse(params[3])).toMatchObject({ id: 's1@u1', cid: 'c1', uid: 'u1' });
+        // Scope lives in the row columns only.
+        expect(params.slice(0, 3)).toEqual(['c1', 'me', 's1@u2']);
+        const stored = JSON.parse(params[3]);
+        // The payload keeps the profile OWNER's uid; only `id` is aligned with the row key.
+        expect(stored).toMatchObject({ id: 's1@u2', sid: 's1', uid: 'u2', userId: 'u2', nick: 'Bob' });
     });
 
-    it('saveAll은 executeBatch로 일괄 upsert하고 빈 배열이면 아무것도 실행하지 않아야 한다', async () => {
+    it('saveAll은 executeBatch로 일괄 upsert하고 각 프로필의 소유자 uid를 보존해야 한다', async () => {
         const sqlite = createSqliteMock();
         const dataSource = new ProfileDataSource(sqlite, TABLE);
 
-        await dataSource.saveAll([], 'c1', 'u1');
+        await dataSource.saveAll([], 'c1', 'me');
         expect(sqlite.executeBatch).not.toHaveBeenCalled();
 
-        await dataSource.saveAll([{ id: 's1@u1', data: makeProfile() }], 'c1', 'u1');
+        await dataSource.saveAll(
+            [
+                { id: 's1@u1', data: makeProfile({ id: 's1@u1', uid: 'u1', userId: 'u1' }) },
+                { id: 's1@u2', data: makeProfile({ id: 's1@u2', uid: 'u2', userId: 'u2' }) },
+            ],
+            'c1',
+            'me'
+        );
         const commands = (sqlite.executeBatch as jest.Mock).mock.calls[0][0];
-        expect(commands).toHaveLength(1);
+        expect(commands).toHaveLength(2);
         expect(String(commands[0][0])).toContain(`INSERT OR REPLACE INTO ${TABLE}`);
-        expect(commands[0][1].slice(0, 3)).toEqual(['c1', 'u1', 's1@u1']);
+        expect(commands[0][1].slice(0, 3)).toEqual(['c1', 'me', 's1@u1']);
+        expect(commands[1][1].slice(0, 3)).toEqual(['c1', 'me', 's1@u2']);
+        // Every row must keep its own owner uid, otherwise the web layer collapses
+        // all member profiles onto the single canonical key `sid@myUid`.
+        expect(JSON.parse(commands[0][1][3])).toMatchObject({ id: 's1@u1', uid: 'u1' });
+        expect(JSON.parse(commands[1][1][3])).toMatchObject({ id: 's1@u2', uid: 'u2' });
     });
 
     it('remove는 id/cid/uid 조건으로 DELETE를 실행해야 한다', async () => {

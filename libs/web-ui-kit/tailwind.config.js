@@ -65,6 +65,8 @@ module.exports = {
                     foreground: 'hsl(var(--toast-foreground))',
                 },
                 verified: 'hsl(var(--verified))',
+                'point-blue': 'hsl(var(--point-blue))',
+                'point-pink': 'hsl(var(--point-pink))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

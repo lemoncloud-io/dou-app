@@ -7,6 +7,9 @@ import {
 // Isolate the pure orchestration functions from the React hooks' dependencies.
 jest.mock('../runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSocketState: jest.fn() }));
 jest.mock('./factories/localFactory', () => ({ isNativeApp: () => true }));
+// The hot(IndexedDB) reader pulls in the real cache-storage stack; stub it so these tests stay
+// pure — reconcile is exercised by injecting a readHotClouds reader directly.
+jest.mock('./cacheStorageStrategies', () => ({ createHotInviteCloudStorage: jest.fn() }));
 
 const mockIssue = jest.fn();
 
@@ -31,36 +34,62 @@ describe('invitedCloudColdSync', () => {
         localStorage.clear();
     });
 
-    describe('reconcileInvitedCloudsIntoCold (one-time hot→cold seed)', () => {
-        it('seeds invited clouds into cold once, then flags it', async () => {
+    describe('reconcileInvitedCloudsIntoCold (one-time hot→cold migration)', () => {
+        it('reads invited clouds from hot and writes them into cold once, then flags it', async () => {
             const cloud = createCloud();
-            cloud.cacheReadList.mockResolvedValue({
-                list: [
-                    { id: 'c1', name: 'One', cloudType: 'invited' },
-                    { id: 'c2', name: 'Two', cloudType: 'owner' }, // owned → filtered out
-                ],
-            });
+            // Hot(IndexedDB) holds both invited and owned rows; only invited must migrate to cold.
+            const readHot = jest.fn().mockResolvedValue([
+                { id: 'c1', name: 'One', cloudType: 'invited' },
+                { id: 'c2', name: 'Two', cloudType: 'owner' }, // owned → filtered out
+            ]);
 
-            await reconcileInvitedCloudsIntoCold(cloud as any);
+            await reconcileInvitedCloudsIntoCold(cloud as any, readHot);
 
+            expect(readHot).toHaveBeenCalledTimes(1);
             expect(cloud.cacheWriteMany).toHaveBeenCalledTimes(1);
             expect(cloud.cacheWriteMany).toHaveBeenCalledWith([{ id: 'c1', name: 'One', cloudType: 'invited' }]);
             expect(localStorage.getItem(SEED_FLAG_KEY)).toBe('1');
         });
 
-        it('marks seeded even when there is nothing to seed', async () => {
+        it('marks seeded even when hot has nothing to migrate', async () => {
             const cloud = createCloud();
-            await reconcileInvitedCloudsIntoCold(cloud as any);
+            const readHot = jest.fn().mockResolvedValue([]);
+
+            await reconcileInvitedCloudsIntoCold(cloud as any, readHot);
+
             expect(cloud.cacheWriteMany).not.toHaveBeenCalled();
             expect(localStorage.getItem(SEED_FLAG_KEY)).toBe('1');
         });
 
-        it('does nothing once the flag is set (no re-read, no re-seed)', async () => {
+        it('does nothing once the flag is set (no hot read, no re-migrate)', async () => {
             localStorage.setItem(SEED_FLAG_KEY, '1');
             const cloud = createCloud();
-            await reconcileInvitedCloudsIntoCold(cloud as any);
-            expect(cloud.cacheReadList).not.toHaveBeenCalled();
+            const readHot = jest.fn().mockResolvedValue([{ id: 'c1', cloudType: 'invited' }]);
+
+            await reconcileInvitedCloudsIntoCold(cloud as any, readHot);
+
+            expect(readHot).not.toHaveBeenCalled();
             expect(cloud.cacheWriteMany).not.toHaveBeenCalled();
+        });
+
+        it('leaves the flag unset so the next boot retries when the hot read fails', async () => {
+            const cloud = createCloud();
+            const readHot = jest.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+
+            await expect(reconcileInvitedCloudsIntoCold(cloud as any, readHot)).resolves.toBeUndefined();
+
+            expect(cloud.cacheWriteMany).not.toHaveBeenCalled();
+            expect(localStorage.getItem(SEED_FLAG_KEY)).toBeNull();
+        });
+
+        it('leaves the flag unset so the next boot retries when the cold write fails', async () => {
+            const cloud = createCloud();
+            cloud.cacheWriteMany.mockRejectedValue(new Error('cold write failed'));
+            const readHot = jest.fn().mockResolvedValue([{ id: 'c1', name: 'One', cloudType: 'invited' }]);
+
+            await expect(reconcileInvitedCloudsIntoCold(cloud as any, readHot)).resolves.toBeUndefined();
+
+            expect(localStorage.getItem(SEED_FLAG_KEY)).toBeNull();
         });
     });
 

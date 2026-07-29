@@ -82,7 +82,12 @@ export const CollapsibleSection = ({
     );
 
     return (
-        <section className={cn('flex w-full flex-col', className)}>
+        // shrink-0: this section is used as a flex item inside column scroll containers (home), and
+        // its body wrapper below is `overflow-hidden` — a shape where engines have historically
+        // disagreed about the automatic minimum size. Chrome keeps the content height either way;
+        // pinning shrink to 0 states the intent (a list section never shrinks) so a long list can
+        // only overflow the scroller, never get clipped.
+        <section className={cn('flex w-full shrink-0 flex-col', className)}>
             <SectionHeader
                 title={title}
                 count={count}

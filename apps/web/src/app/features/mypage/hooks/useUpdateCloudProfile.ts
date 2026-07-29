@@ -1,29 +1,25 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useRefreshCurrentCloudSession } from '@chatic/web-core';
 
 interface UpdateCloudProfileData {
-    name?: string;
-    photo?: string;
+    /** Target cloud id (the active/selected cloud). */
+    id: string;
+    name: string;
 }
 
 /**
- * Updates the current cloud-session user profile through the User domain socket
- * action ($backend.MyUserView), then re-issues the cloud token so the
- * session-derived cloud profile reflects the change. Replaces the former HTTP
- * `PUT /clouds/{cloudId}` flow on the cloud profile edit screen.
+ * Updates the CLOUD ENTITY's own name through the Cloud domain socket action (`cloud.update`).
+ *
+ * This edits the cloud itself (owner-only) — NOT the connected user's per-cloud profile, which the
+ * former implementation did via `user.updateProfile`. The cloud model has no image field, so the
+ * name is the only editable attribute (mirrors `useUpdateCloud`, kept feature-local to mypage).
  */
 export const useUpdateCloudProfile = () => {
-    const { user } = useRuntimeRepositories();
-    const { refreshCurrentCloudSession } = useRefreshCurrentCloudSession();
+    const { cloud } = useRuntimeRepositories();
 
     return useMutation({
-        mutationFn: async (data: UpdateCloudProfileData) => {
-            await user.updateProfile(data as Parameters<typeof user.updateProfile>[0]);
-            // Re-derive the session cloud profile from a fresh cloud token.
-            await refreshCurrentCloudSession();
-            return data;
-        },
+        mutationFn: ({ id, name }: UpdateCloudProfileData) =>
+            cloud.updateCloud({ id, name } as Parameters<typeof cloud.updateCloud>[0]),
     });
 };

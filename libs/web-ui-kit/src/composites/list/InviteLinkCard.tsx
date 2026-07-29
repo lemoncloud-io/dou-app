@@ -1,7 +1,6 @@
 import { cn } from '@chatic/lib/utils';
 
 import { ProfileAvatar } from '../../foundations/avatar/ProfileAvatar';
-import { IconLink } from '../../resources/icons';
 
 export interface InviteLinkCardProps {
     /** Group/room name shown as the card title. */
@@ -10,17 +9,17 @@ export interface InviteLinkCardProps {
     url: string;
     /** Room avatar image URL; falls back to the group placeholder glyph. */
     avatarSrc?: string;
-    /** Called when the trailing link/copy button is tapped. */
+    /** Called when the trailing copy action is tapped. */
     onCopy?: () => void;
-    /** Accessible label for the copy button (host supplies a localized string). */
+    /** Visible label of the trailing copy action (host supplies a localized string). */
     copyLabel?: string;
     className?: string;
 }
 
 /**
- * Invite-link card — the Figma "초대 링크" screen card: a rounded filled row with
- * the room avatar, its name + full invite URL, and a trailing circular button that
- * copies the link.
+ * Invite-link card — the Figma "초대 링크" screen card (3266-32893): a rounded filled row
+ * with the room avatar, its name + full invite URL, and a trailing underlined text link
+ * that copies the URL.
  */
 export const InviteLinkCard = ({
     name,
@@ -39,11 +38,10 @@ export const InviteLinkCard = ({
             </div>
             <button
                 type="button"
-                aria-label={copyLabel}
                 onClick={onCopy}
-                className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-foreground"
+                className="shrink-0 whitespace-nowrap text-[14px] font-medium tracking-[-0.14px] text-point-blue underline"
             >
-                <IconLink className="size-5" strokeWidth={2} />
+                {copyLabel}
             </button>
         </div>
     );

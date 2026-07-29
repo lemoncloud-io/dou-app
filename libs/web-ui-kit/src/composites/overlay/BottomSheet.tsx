@@ -53,13 +53,16 @@ export const BottomSheet = ({
                 side="bottom"
                 hideClose
                 className={cn(
-                    'flex max-h-[90vh] flex-col gap-0 rounded-t-[16px] border-0 bg-surface p-0 pb-safe-bottom',
+                    // overflow-hidden is what makes rounded-t actually visible: the glass header below
+                    // paints its own square backdrop-filter box and would otherwise cover the corners.
+                    'flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-t-[16px] border-0 bg-surface p-0 pb-safe-bottom',
                     className
                 )}
             >
                 {showHandle && <span className="mx-auto mt-2 h-1 w-8 shrink-0 rounded-full bg-input-border" />}
 
-                <div className="flex shrink-0 items-center justify-between px-4 py-3.5">
+                {/* Glass overlay header (Figma 3421-59848), same translucent treatment as ModalTopBar. */}
+                <div className="flex shrink-0 items-center justify-between bg-white/[0.32] px-4 py-3.5 backdrop-blur-xl dark:bg-black/[0.32]">
                     <SheetTitle
                         className={cn(
                             'truncate text-[17px] font-semibold leading-6 text-foreground',
@@ -73,7 +76,7 @@ export const BottomSheet = ({
                             type="button"
                             onClick={handleClose}
                             aria-label={closeLabel}
-                            className="flex size-6 shrink-0 items-center justify-center"
+                            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted p-1"
                         >
                             <IconClose className="size-[18px] text-foreground" />
                         </button>

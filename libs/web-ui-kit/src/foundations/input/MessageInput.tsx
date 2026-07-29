@@ -108,9 +108,10 @@ export const MessageInput = ({
         <div
             ref={containerRef}
             data-multiline="false"
+            data-no-autoscroll
             onPointerDown={handleContainerPointerDown}
             className={cn(
-                'flex w-full items-center gap-1.5 rounded-[100px] border bg-surface/90 px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color]',
+                'flex w-full items-center gap-1.5 rounded-[100px] border bg-white/[0.92] px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color] dark:bg-black/[0.92]',
                 'data-[multiline=true]:items-end data-[multiline=true]:rounded-2xl data-[multiline=true]:py-3',
                 canSend ? 'border-focus-border' : 'border-input-border',
                 className

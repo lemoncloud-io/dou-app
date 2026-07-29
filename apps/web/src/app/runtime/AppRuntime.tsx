@@ -11,6 +11,7 @@ import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
+import { useAutoScrollOnFocus } from '../ui/hooks';
 import { UnreadBadgeRunner } from '../features/home';
 import { IssueReportHost } from '../features/issue-report';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
@@ -32,6 +33,9 @@ import { PreferenceLoader } from './PreferenceLoader';
 export const AppRuntime = () => {
     const binding = useRuntimeBinding();
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
+
+    // Global focus-scroll for all text fields (touch only; excludes [data-no-autoscroll]).
+    useAutoScrollOnFocus();
 
     return (
         <RuntimeConnectionHost binding={binding}>

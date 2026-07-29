@@ -142,6 +142,47 @@ describe('ProfileLocalDataSourceV2', () => {
         expect(result?.list.map(item => item.id)).toEqual(['site-1@user-1']);
     });
 
+    it('keeps every member profile distinct instead of collapsing them onto the scope user', async () => {
+        const storage = createMemoryStorage();
+        const dataSource = new ProfileLocalDataSourceV2(contextProvider as any, storage);
+
+        // Members of the active place, cached under the logged-in user ('me') scope.
+        await dataSource.cacheWriteMany([
+            { sid: 'site-1', uid: 'user-1', nick: 'Alice', thumbnail: 'a.png' } as any,
+            { sid: 'site-1', uid: 'user-2', nick: 'Bob', thumbnail: 'b.png' } as any,
+            { sid: 'site-1', uid: 'user-3', nick: 'Carol', thumbnail: 'c.png' } as any,
+        ]);
+
+        const result = await dataSource.cacheReadList({ sid: 'site-1' });
+
+        // The dedupe map keys on the profile OWNER's uid; if a storage layer stamped the
+        // scope uid onto every row, all three would collapse onto `site-1@me`.
+        expect(result?.list.map(item => item.id).sort()).toEqual(['site-1@user-1', 'site-1@user-2', 'site-1@user-3']);
+        expect(result?.list.map(item => item.nick).sort()).toEqual(['Alice', 'Bob', 'Carol']);
+        expect(result?.list.every(item => !!item.thumbnail)).toBe(true);
+    });
+
+    it('merges cacheWrite payloads with the cached row so an omitted thumbnail is not wiped', async () => {
+        const storage = createMemoryStorage();
+        const dataSource = new ProfileLocalDataSourceV2(contextProvider as any, storage);
+
+        await dataSource.cacheWrite({
+            sid: 'site-1',
+            uid: 'user-1',
+            nick: 'Alice',
+            thumbnail: 'photo.png',
+            updatedAtMs: 100,
+        } as any);
+
+        // A profile.get/profile.set response that omits `thumbnail` must not clear the photo.
+        await dataSource.cacheWrite({ sid: 'site-1', uid: 'user-1', nick: 'Alicia', updatedAtMs: 200 } as any);
+
+        const loaded = await dataSource.cacheRead('site-1@user-1');
+
+        expect(loaded?.nick).toBe('Alicia');
+        expect((loaded as any)?.thumbnail).toBe('photo.png');
+    });
+
     it('throws when cacheWrite cannot resolve sid and uid', async () => {
         const storage = createMemoryStorage();
         const dataSource = new ProfileLocalDataSourceV2(

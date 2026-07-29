@@ -6,6 +6,7 @@ import { cn } from '@chatic/lib/utils';
 import { Logo } from '@chatic/assets';
 
 import { formatTime, VerificationCodeInput } from '../../../account';
+import { keyboardSafeBottom } from '../../../../ui/layouts/KeyboardSafeAreaSpacer';
 
 type LoadingState = 'idle' | 'verifying' | 'resending';
 
@@ -110,7 +111,8 @@ export const VerifyStep = ({
                 )}
             </div>
 
-            <div className="mt-auto px-0 pb-safe-bottom pt-5">
+            {/* Bottom inset + keyboard clearance: the code field keeps the keyboard up. */}
+            <div className="mt-auto px-0 pt-5" style={{ paddingBottom: keyboardSafeBottom() }}>
                 <button
                     onClick={onVerify}
                     disabled={!isCodeComplete || loadingState === 'verifying' || timeLeft === 0}

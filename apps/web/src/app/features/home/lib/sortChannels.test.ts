@@ -78,4 +78,47 @@ describe('sortChannels', () => {
             expect(ids(result)).toEqual(['c2', 'c3', 'c1']);
         });
     });
+
+    describe('고정된 방 (클라이언트 전용 핀)', () => {
+        it('고정된 방을 최상단으로 올린다', () => {
+            const result = sortChannels({
+                channels,
+                unreadByChannel: {},
+                sortMethod: 'recent',
+                pinnedChannelIds: new Set(['c1']),
+            });
+            expect(ids(result)).toEqual(['c1', 'c3', 'c2']);
+        });
+
+        it('고정된 방이 여러 개면 그들 사이도 최근 활동순이다', () => {
+            const result = sortChannels({
+                channels,
+                unreadByChannel: {},
+                sortMethod: 'recent',
+                pinnedChannelIds: new Set(['c1', 'c2']),
+            });
+            expect(ids(result)).toEqual(['c2', 'c1', 'c3']);
+        });
+
+        it('핀은 unread 정렬보다 우선한다', () => {
+            // c3 has no unread but is pinned; c1 has unread — the pin still wins.
+            const result = sortChannels({
+                channels,
+                unreadByChannel: { c1: 3 },
+                sortMethod: 'unread',
+                pinnedChannelIds: new Set(['c3']),
+            });
+            expect(ids(result)).toEqual(['c3', 'c1', 'c2']);
+        });
+
+        it('핀 집합이 비어 있으면 기존 정렬과 동일하다', () => {
+            const result = sortChannels({
+                channels,
+                unreadByChannel: {},
+                sortMethod: 'recent',
+                pinnedChannelIds: new Set(),
+            });
+            expect(ids(result)).toEqual(['c3', 'c2', 'c1']);
+        });
+    });
 });

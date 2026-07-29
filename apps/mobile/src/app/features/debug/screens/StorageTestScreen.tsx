@@ -21,7 +21,43 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud'];
+const DATA_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile', 'meta'];
+
+// `meta` rows are sync cursors (e.g. `channel-sync:<cid>`): `syncedAt` is the server watermark and
+// `__cacheMeta` carries the local save time + expiry the TTL is computed from. Surface them readably
+// so cold-cache staleness (an idle cursor past the delta window) can be diagnosed on-device.
+const formatTime = (ms?: number): string => {
+    if (!ms) return '-';
+    const d = new Date(ms);
+    const ago = Math.round((Date.now() - ms) / 1000);
+    return `${d.toLocaleTimeString()} (${ago}s ago)`;
+};
+
+const describeMeta = (item: any): string => {
+    const cacheMeta = item?.__cacheMeta ?? {};
+    const expired = typeof cacheMeta.expiresAt === 'number' ? cacheMeta.expiresAt <= Date.now() : undefined;
+    return [
+        `syncedAt: ${formatTime(item?.syncedAt)}`,
+        `savedAt:  ${formatTime(cacheMeta.lastSyncedAt)}`,
+        `expiresAt: ${formatTime(cacheMeta.expiresAt)}${expired === undefined ? '' : expired ? ' [EXPIRED]' : ' [valid]'}`,
+    ].join('\n');
+};
+
+// `profile` rows are place-scoped display profiles keyed by `<sid>@<uid>`, and their `thumbnail` is a
+// base64 blob — never render it, it would flood the list. Report identity (nick/sid/owner uid) plus
+// whether a thumbnail exists and how big it is, which is what missing-photo reports need to be triaged.
+const describeProfile = (item: any): string => {
+    const thumbnail = typeof item?.thumbnail === 'string' ? item.thumbnail : '';
+    // `uid` is the profile owner; a `userId` that disagrees means the row was written with a wrong scope.
+    const owner = item?.uid ?? '-';
+    const userId = item?.userId;
+    return [
+        `nick: ${item?.nick || '-'}`,
+        `sid: ${item?.sid || '-'}`,
+        `uid: ${owner}${userId && userId !== owner ? ` (userId: ${userId})` : ''}`,
+        `thumbnail: ${thumbnail ? `yes (${thumbnail.length} chars)` : 'none'}`,
+    ].join('\n');
+};
 
 // Per-type starter row for one-click create. cid/uid default to 'default' so the row is writable
 // without a live session; edit the JSON before saving to target a specific scope.
@@ -41,6 +77,23 @@ const makeTemplate = (type: CacheType): Record<string, unknown> => {
             return { ...base, name: 'Debug Place' };
         case 'invitecloud':
             return { ...base, name: 'Debug Cloud' };
+        case 'profile': {
+            // Profile rows are keyed by the canonical `<sid>@<uid>` id (not the `dbg-<type>-<ts>` scheme),
+            // where `uid` is the profile owner; edit sid/uid and the id together to target a real place.
+            const sid = 'debug-site';
+            return {
+                ...base,
+                id: `${sid}@${base.uid}`,
+                sid,
+                userId: base.uid,
+                nick: 'Debug Profile',
+                thumbnail: '',
+                updatedAtMs: Date.now(),
+            };
+        }
+        case 'meta':
+            // Sync-cursor row: id is the cursor kind, `syncedAt` the server watermark.
+            return { id: `channel-sync:${base.cid}`, cid: base.cid, uid: base.uid, syncedAt: Date.now() };
         default:
             return base;
     }
@@ -207,7 +260,11 @@ export const StorageTestScreen = () => {
                 </Text>
             </View>
             <Text style={[styles.logData, { color: colors.mutedText }]}>
-                {item.content || item.name || item.text || JSON.stringify(item)}
+                {dataType === 'meta'
+                    ? describeMeta(item)
+                    : dataType === 'profile'
+                      ? describeProfile(item)
+                      : item.content || item.name || item.text || JSON.stringify(item)}
             </Text>
             <View style={styles.rowActions}>
                 <TouchableOpacity style={styles.rowActionButton} onPress={() => void handleCopy(item)}>
