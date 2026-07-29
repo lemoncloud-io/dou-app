@@ -59,14 +59,10 @@ export const CreateChannelDialog = () => {
                 <DialogDescription className="sr-only">{t('channels.create.title')}</DialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="channel-name" required>
-                            {t('channels.create.nameLabel')}
-                        </Label>
+                        <Label htmlFor="channel-name">{t('channels.create.nameLabel')}</Label>
                         <Input
                             id="channel-name"
                             autoFocus
-                            required
-                            aria-required
                             value={name}
                             onChange={e => setName(e.target.value)}
                             placeholder={t('channels.create.namePlaceholder')}

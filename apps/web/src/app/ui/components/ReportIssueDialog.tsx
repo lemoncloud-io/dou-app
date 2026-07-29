@@ -8,13 +8,14 @@ import { reportIssue } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 // Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
 // which jest cannot resolve, breaking every test that renders this dialog.
 import { KeyboardSafeAreaSpacer } from '../layouts/KeyboardSafeAreaSpacer';
+
+import { RequiredLabel } from './RequiredLabel';
 
 interface ReportIssueForm {
     title: string;
@@ -91,12 +92,9 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
 
                         {/* Title Input */}
                         <div className="flex flex-col gap-1.5 px-4">
-                            <Label
-                                required
-                                className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground"
-                            >
+                            <RequiredLabel className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
                                 {t('reportIssue.titleLabel')}
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 {...register('title', { required: true })}
                                 placeholder={t('reportIssue.titlePlaceholder')}
@@ -107,12 +105,9 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
 
                         {/* Message Textarea */}
                         <div className="flex flex-col gap-1.5 px-4">
-                            <Label
-                                required
-                                className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground"
-                            >
+                            <RequiredLabel className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
                                 {t('reportIssue.messageLabel')}
-                            </Label>
+                            </RequiredLabel>
                             <Textarea
                                 {...register('message', { required: true })}
                                 placeholder={t('reportIssue.messagePlaceholder')}

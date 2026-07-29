@@ -8,11 +8,12 @@ import { logger } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { keyboardSafeBottom } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useUpdateCloud } from '../hooks';
+
+import { RequiredLabel } from '../../../ui/components/RequiredLabel';
 
 interface CloudNameEditDialogProps {
     open: boolean;
@@ -90,12 +91,9 @@ export const CloudNameEditDialog = ({
                         </p>
 
                         <div className="mt-8 flex flex-col gap-1.5">
-                            <Label
-                                required
-                                className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground"
-                            >
+                            <RequiredLabel className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
                                 {t('cloudNameEdit.nameLabel')}
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 {...register('name', {
                                     required: t('cloudNameEdit.validation.required'),
