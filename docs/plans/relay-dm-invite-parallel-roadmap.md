@@ -37,11 +37,39 @@ graph LR
   통합은 A 머지 후 rebase로.
 - B·D는 상호 독립.
 
+## 세션 운영 (워크트리)
+
+**트랙 하나 = Claude 세션 하나.** 한 세션이 여러 트랙을 오케스트레이션하면 그
+세션이 5개 트랙의 컨텍스트를 전부 떠안게 된다. 각 트랙은 자기 워크트리에서
+새 세션으로 시작하고, 이 문서와 ADR-0033을 읽는 것으로 컨텍스트를 세운다.
+
+**통합 브랜치는 `claude/1-1-chat-auth-social-roadmap-0e4b17`이다** — develop이
+아니다. ADR·로드맵이 이 브랜치에만 있고, 트랙 산출물도 여기로 모은 뒤 한 번에
+develop으로 올린다.
+
+**Track 0은 워크트리를 따로 쓰지 않고 통합 브랜치에서 직접 진행한다** — 전
+트랙이 그 결과를 기다리므로 머지 단계를 한 번 줄인다.
+
+Track 0이 끝난 **뒤에** 나머지 넷의 워크트리를 만든다 (계약 훅이 있어야
+A·B·C·D가 스텁 없이 바로 쓴다):
+
+```bash
+for t in a b c d; do
+  git worktree add ".claude/worktrees/relay-track-$t" -b "claude/relay-invite-track-$t" claude/1-1-chat-auth-social-roadmap-0e4b17
+done
+```
+
+각 워크트리에서 새 Claude 세션을 열고 아래 "세션 킥오프 프롬프트"의 해당 트랙
+블록을 첫 메시지로 붙여넣는다. 추천 모델 — Track 0·C: Opus / Track A: Fable /
+Track B·D: Sonnet.
+
 ## 공통 규칙
 
-- 브랜치: `claude/relay-invite-track-<0|a|b|c|d>` · 베이스 `develop` · 트랙당 PR 1개.
+- 브랜치: `claude/relay-invite-track-<0|a|b|c|d>` · 베이스는 **통합 브랜치**
+  (위 참조) · 트랙당 PR 1개는 통합 브랜치를 향한다.
 - **인터페이스 계약(아래 시그니처)을 바꿔야 하면 먼저 이 문서를 고치고 다른
-  트랙에 알린다.** 계약 밖 내부 구조는 트랙 재량.
+  트랙에 알린다.** 계약 밖 내부 구조는 트랙 재량. 문서 수정 커밋은 통합
+  브랜치에 먼저 올려 다른 트랙이 rebase로 받아 갈 수 있게 한다.
 - 스텁 규약 (ADR-0033 D1 "인터페이스 선반영"):
     - 백엔드 없는 액션은 `// TODO(backend): <요청목록 번호> — ADR-0033 인터페이스 선반영` 주석.
     - 사용자 노출은 `apps/web/src/app/features/**/flags.ts`류 상수로 게이팅해
@@ -98,17 +126,16 @@ useSentInviteLog(): {
 
 ## Track 0 — 공통 기반 (선행 · 반나절 규모)
 
-**범위**
+**범위** (1·2는 완료 — 통합 브랜치 `cd98a0492`·`249fe3543`)
 
-1. 의존성 범프: `@lemoncloud/chatic-sockets-lib` `0.4.8 → 0.4.9`,
-   `@lemoncloud/chatic-backend-api` `^0.26.405 → ^0.26.704`. 기존 스위트 회귀 확인
-   (특히 `libs/data`·`libs/app-runtime` 소켓 스펙).
-2. invite 게이트웨이 배선: `libs/data/src/data/remote/sockets/clients` +
-   `gateways/index.ts`에 `createInviteGateway` 연결 (기존 user/join 게이트웨이 패턴).
-   auth 게이트웨이의 `verifyHashAlias`/`attachSocial` 노출 확인.
-3. 위 인터페이스 계약의 훅 구현 + 단위 테스트 (MockSocketClient 패턴).
+1. ~~의존성 범프: `@lemoncloud/chatic-sockets-lib` `0.4.8 → 0.4.9`,
+   `@lemoncloud/chatic-backend-api` `^0.26.405 → ^0.26.704`.~~ **완료**
+2. ~~invite 게이트웨이 배선~~ **완료** — `libs/data/src/data/remote/gateways/index.ts`
+   에 연결되고 `libs/app-runtime`의 `useRuntimeGateways`로 노출된다
+   (`remoteFactory`·`DataManager`·`MockRemoteGateways` 포함).
+3. 위 인터페이스 계약의 훅 구현 + 단위 테스트 (MockSocketClient 패턴). **남음**
 4. 딥링크 파서 확장: `parseInviteDeeplink`(`apps/web/.../home/types/invite.ts`)가
-   `relay` 마커를 읽어 `isRelayInvite`를 노출.
+   `relay` 마커를 읽어 `isRelayInvite`를 노출. **남음**
 
 **완료 기준** — 훅이 dev 스테이지에서 `invite.create → list` 왕복에 성공하고,
 타 트랙이 import 가능한 상태로 develop에 머지.
@@ -126,13 +153,10 @@ useSentInviteLog(): {
    테스트로 고정.
 2. `PhoneVerifyScreen`: Figma `3421-59180 · 3421-59348 · 3421-59772 · 3428-59935 ·
 3428-60106 · 3428-60171 · 3430-60970 · 3432-61176 · 3428-60218 · 3432-61204 ·
-3432-61459 · 3432-61332 · 3435-61613 · 3428-60114 · 3435-62380`.
-    - 타이머는 send/resend 응답 `expiredAt` 기준. **"시간 연장" = `step=resend`**
-      (ADR-0033 D9). 연장·재전송 5회 제한은 클라 카운터로 두되 서버 429가 우선.
-    - 케이스: 발송 완료 토스트 / 오답(403, "인증번호를 정확히") / 만료(00:00,
-      "새로운 인증 요청") / 쿨다운·상한(429, "잠시 후"·"요청이 너무 많습니다") /
-      오답 5회(429, 재전송 유도 — 재전송해도 오답 카운터 유지 안내).
-    - dev 빌드 발송 스위치(`dryRun`/`slack`) 토글 노출(개발용).
+3432-61459 · 3432-61332 · 3435-61613 · 3428-60114 · 3435-62380`. - 타이머는 send/resend 응답 `expiredAt` 기준. **"시간 연장" = `step=resend`**
+   (ADR-0033 D9). 연장·재전송 5회 제한은 클라 카운터로 두되 서버 429가 우선. - 케이스: 발송 완료 토스트 / 오답(403, "인증번호를 정확히") / 만료(00:00,
+   "새로운 인증 요청") / 쿨다운·상한(429, "잠시 후"·"요청이 너무 많습니다") /
+   오답 5회(429, 재전송 유도 — 재전송해도 오답 카운터 유지 안내). - dev 빌드 발송 스위치(`dryRun`/`slack`) 토글 노출(개발용).
 3. 계정 갈라짐 방어 배너: "이미 계정이 있다면 소셜로 먼저 로그인하세요" —
    인증 UI 상단 슬롯. 소셜 로그인 진입은 기존 `mypage/LoginPage`(브릿지) 경로 재사용.
 4. 로그아웃 회귀 확인: `auth.logout` 후 디바이스 유저 복귀(기존 게스트 세션 부트
@@ -220,11 +244,15 @@ A 머지 전에는 계약 시그니처의 목 구현으로 진행.
 
 ## 통합 순서
 
-1. Track 0 → develop (즉시)
-2. A·B·D → 완료 순 머지 (상호 충돌 없음 — 접촉 파일: `paths.ts`·`HomePage.tsx`는
-   B가 소유, SocketManager는 A가 소유)
+전부 **통합 브랜치**(`claude/1-1-chat-auth-social-roadmap-0e4b17`)로 모은다.
+develop 머지는 통합 QA 통과 후 한 번에.
+
+1. Track 0 → 통합 브랜치 (즉시). 그다음 A·B·C·D 워크트리 생성.
+2. A·B·D → 완료 순 머지 (상호 충돌 없음 — 접촉 파일 소유권: `paths.ts`·
+   `HomePage.tsx`는 B, `SocketManager`는 A, 마이페이지 계정 화면은 D)
 3. C → A 머지 후 rebase·목 제거 → 머지
 4. 통합 QA: 2계정 E2E (발급→수락→양측 채널 확인), 로그아웃→재인증 복구, 만료 케이스
+5. 통합 브랜치 → develop PR 1건
 
 ## 백엔드 요청 목록 (chatic-backend-api / sockets-api 팀 전달용)
 
@@ -251,13 +279,12 @@ A 머지 전에는 계약 시그니처의 목 구현으로 진행.
 ### Track 0
 
 ```
-/dev-2_implement docs/plans/relay-dm-invite-parallel-roadmap.md 의 Track 0(공통 기반)을 구현해줘.
+/dev-2_implement docs/plans/relay-dm-invite-parallel-roadmap.md 의 Track 0(공통 기반) 나머지를 구현해줘.
 ADR: docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md
-범위: (1) chatic-sockets-lib 0.4.9 / chatic-backend-api ^0.26.704 범프 + 회귀 확인
-(2) libs/data에 createInviteGateway 배선(기존 user/join 게이트웨이 패턴)과 auth verifyHashAlias/attachSocial 노출
-(3) 로드맵 "인터페이스 계약" 절의 useRelayInvites / useRelayInviteMutations / useVerifyHashAlias / useAttachSocial 훅 + 단위 테스트(MockSocketClient 패턴)
-(4) parseInviteDeeplink에 relay 마커(isRelayInvite) 추가.
-계약 시그니처는 로드맵 문서가 원본이다 — 바꿔야 하면 로드맵부터 고치고 이유를 남겨라.
+통합 브랜치에서 직접 작업한다(별도 워크트리 없음). 의존성 범프와 게이트웨이 배선은 이미 끝났다(cd98a0492, 249fe3543) — libs/app-runtime의 useRuntimeGateways로 invite 게이트웨이가 나온다. 거기서 이어라.
+남은 범위: (1) 로드맵 "인터페이스 계약" 절의 useRelayInvites / useRelayInviteMutations / useVerifyHashAlias / useAttachSocial 훅 + 단위 테스트(MockSocketClient 패턴). 초대는 repositories-v2로 승격하지 않는다 — react-query다. 위치는 기존 useInviteInfo/useVerifyAlias 관례를 따라라.
+(2) parseInviteDeeplink(apps/web/.../home/types/invite.ts)에 relay 마커 → isRelayInvite 추가. 기존 클라우드 초대 판정(isInviteEntry)에 회귀 금지.
+계약 시그니처는 로드맵 문서가 원본이다 — 바꿔야 하면 로드맵부터 고치고 이유를 남겨라. 나머지 4개 트랙이 이 문서를 읽는다.
 검증: yarn web:test 관련 스위트 + libs/data·libs/app-runtime 스펙 + dev 스테이지에서 invite.create→list 왕복.
 ```
 
