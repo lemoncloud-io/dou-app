@@ -187,7 +187,18 @@
             "title": "내 정보",
             "profileEdit": "프로필 수정",
             "cloudProfileEdit": "Cloud 프로필 수정",
-            "withdrawal": "탈퇴"
+            "withdrawal": "탈퇴",
+            "social": {
+                "linked": "연동됨",
+                "link": "연동하기",
+                "unlink": "연동 해제",
+                "unlinkComingSoon": "곧 지원될 예정이에요",
+                "mobileOnly": "모바일 앱에서 진행해 주세요",
+                "linkSuccess": "연동됐어요",
+                "linkFailed": "연동에 실패했어요",
+                "alreadyLinkedElsewhere": "이미 다른 계정에 연동된 소셜 계정이에요",
+                "bannerTitle": "계정이 갈라지지 않도록 소셜 계정을 연결해 두세요"
+            }
         },
         "subscription": {
             "title": "구독 관리",

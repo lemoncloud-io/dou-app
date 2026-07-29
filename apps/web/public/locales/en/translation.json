@@ -187,7 +187,18 @@
             "title": "My Info",
             "profileEdit": "Edit Profile",
             "cloudProfileEdit": "Edit Cloud Profile",
-            "withdrawal": "Delete Account"
+            "withdrawal": "Delete Account",
+            "social": {
+                "linked": "Linked",
+                "link": "Link",
+                "unlink": "Unlink",
+                "unlinkComingSoon": "Coming soon",
+                "mobileOnly": "Please use the mobile app to continue",
+                "linkSuccess": "Linked successfully",
+                "linkFailed": "Failed to link account",
+                "alreadyLinkedElsewhere": "This social account is already linked to another account",
+                "bannerTitle": "Link a social account so your account doesn't split across devices"
+            }
         },
         "subscription": {
             "title": "Subscription",
