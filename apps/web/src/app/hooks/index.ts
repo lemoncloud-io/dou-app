@@ -1,5 +1,6 @@
 export * from './useActivePlaceName';
 export * from './useAttachSocial';
+export * from './useAwaitInviteChannel';
 export * from './useBackHandler';
 export * from './useDeviceSync';
 export * from './useMyProfile';
