@@ -1,7 +1,7 @@
 import { Loader2, Settings, X } from 'lucide-react';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -34,11 +34,13 @@ import {
     useChatScroll,
     useDmPeer,
     useJoinPositions,
+    useMessageJump,
     useMyJoin,
     useReadMarker,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { ROUTES } from '../../../routes/paths';
@@ -51,6 +53,7 @@ export const ChannelRoomPage = () => {
     const { t } = useTranslation();
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId } = useParams<{ channelId: string }>();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // UI 상태 관리
     const [content, setContent] = useState('');
@@ -190,6 +193,34 @@ export const ChannelRoomPage = () => {
         // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
         // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,
+    });
+
+    // 검색 결과의 메시지 클릭(?chatNo=)으로 진입한 경우, 점프 스토어에 요청을 등록하고 쿼리를
+    // 제거한다(새로고침 시 재점프 방지). 실제 스크롤/하이라이트/과거 페이지 로드는 useMessageJump가
+    // 소유한다 (docs/specs/search/message-jump.md).
+    useEffect(() => {
+        const raw = searchParams.get('chatNo');
+        if (!raw || !channelId) return;
+        const chatNo = Number(raw);
+        if (!Number.isInteger(chatNo) || chatNo <= 0) return;
+
+        useMessageJumpStore.getState().request(channelId, chatNo);
+        setSearchParams(
+            params => {
+                params.delete('chatNo');
+                return params;
+            },
+            { replace: true }
+        );
+    }, [searchParams, channelId, setSearchParams]);
+
+    useMessageJump({
+        channelId: stableChannelId,
+        containerRef: messagesEndRef,
+        messages,
+        hasMore,
+        isLoadingMore,
+        loadMore,
     });
 
     // 플로팅 날짜 pill: 스크롤 중 컨테이너 상단 경계에 걸친 날짜 그룹의 라벨을 찾아 표시하고,
@@ -581,41 +612,45 @@ export const ChannelRoomPage = () => {
                                                         : { readCount: 0, unreadCount: 0 };
 
                                                 return (
-                                                    <ChannelMessageRow
-                                                        key={message.id}
-                                                        message={message}
-                                                        showProfileAndName={showProfileAndName}
-                                                        showTimeAndStatus={showTimeAndStatus}
-                                                        ownerDisplayName={ownerDisplayName}
-                                                        ownerAvatar={ownerAvatar}
-                                                        time={formatTime(message.timestamp)}
-                                                        read={{
-                                                            show: showReadReceipt,
-                                                            isReady: isJoinReady,
-                                                            readCount,
-                                                            unreadCount,
-                                                            mode: isDmChat ? 'dm' : 'count',
-                                                        }}
-                                                        isActionOpen={openActionMessageKey === messageActionKey}
-                                                        isCopying={isCopyingMessage}
-                                                        onActionOpenChange={open => {
-                                                            if (!open && openActionMessageKey === messageActionKey) {
-                                                                setOpenActionMessageKey(null);
+                                                    <div key={message.id} data-chat-no={message.chatNo}>
+                                                        <ChannelMessageRow
+                                                            message={message}
+                                                            showProfileAndName={showProfileAndName}
+                                                            showTimeAndStatus={showTimeAndStatus}
+                                                            ownerDisplayName={ownerDisplayName}
+                                                            ownerAvatar={ownerAvatar}
+                                                            time={formatTime(message.timestamp)}
+                                                            read={{
+                                                                show: showReadReceipt,
+                                                                isReady: isJoinReady,
+                                                                readCount,
+                                                                unreadCount,
+                                                                mode: isDmChat ? 'dm' : 'count',
+                                                            }}
+                                                            isActionOpen={openActionMessageKey === messageActionKey}
+                                                            isCopying={isCopyingMessage}
+                                                            onActionOpenChange={open => {
+                                                                if (
+                                                                    !open &&
+                                                                    openActionMessageKey === messageActionKey
+                                                                ) {
+                                                                    setOpenActionMessageKey(null);
+                                                                }
+                                                            }}
+                                                            onLongPress={() =>
+                                                                handleOpenMessageActions(message, messageActionKey)
                                                             }
-                                                        }}
-                                                        onLongPress={() =>
-                                                            handleOpenMessageActions(message, messageActionKey)
-                                                        }
-                                                        onCopy={() => void handleCopyMessage(message.content ?? '')}
-                                                        onExpand={() =>
-                                                            setExpandedMessage({
-                                                                content: message.content ?? '',
-                                                                ownerName: message.ownerName,
-                                                            })
-                                                        }
-                                                        onRetry={() => handleRetryMessage(message)}
-                                                        onDelete={() => handleDeleteMessage(message.id)}
-                                                    />
+                                                            onCopy={() => void handleCopyMessage(message.content ?? '')}
+                                                            onExpand={() =>
+                                                                setExpandedMessage({
+                                                                    content: message.content ?? '',
+                                                                    ownerName: message.ownerName,
+                                                                })
+                                                            }
+                                                            onRetry={() => handleRetryMessage(message)}
+                                                            onDelete={() => handleDeleteMessage(message.id)}
+                                                        />
+                                                    </div>
                                                 );
                                             })}
                                             {isThreadStart && roomIntro}
