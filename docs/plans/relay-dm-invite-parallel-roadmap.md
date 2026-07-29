@@ -272,6 +272,44 @@ apps/web 118 suites / 782 tests · app-runtime 144 · web-core · web-ui-kit 전
 2. 통합 QA — 아래 목록.
 3. 통합 브랜치 → develop PR 1건.
 
+## 후속 세션 킥오프
+
+여기서부터는 새 세션이 이어받는다. 작업 위치는 **통합 브랜치 워크트리**
+`/Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/1-1-chat-auth-social-roadmap-0e4b17`
+(브랜치 `claude/1-1-chat-auth-social-roadmap-0e4b17`)이고, 트랙 워크트리 4개는
+병합이 끝났으니 필요 없으면 지운다:
+
+```bash
+for t in a b c d; do git worktree remove ".claude/worktrees/relay-track-$t" && git branch -d "claude/relay-invite-track-$t"; done
+```
+
+**Figma 접근 — 이것부터 알고 시작해라.** `plugin:figma:figma` 커넥터는 이 환경에서
+미인증이라 실패한다. Track A·B가 여기서 막혀 디자인을 못 보고 구현했다. **데스크톱
+앱 Figma 서버(`mcp__Figma__get_screenshot` / `mcp__Figma__get_design_context`)는
+정상 동작한다** — Track C가 그걸로 5개 노드를 읽었다. 이쪽을 써라.
+
+### 1순위 — Figma 대조 (develop PR보다 먼저)
+
+```
+docs/plans/relay-dm-invite-parallel-roadmap.md 와 docs/adr/0033-… 을 읽고, Track A·B가 구현한 화면을 Figma 디자인과 대조해서 어긋난 곳을 고쳐줘.
+통합 브랜치 워크트리에서 직접 작업한다. 두 트랙 다 Figma를 못 본 채 기존 화면 관용구로 구현했다(로드맵 "후속 과제" 1번).
+Figma는 mcp__Figma__get_screenshot / get_design_context 를 써라 — plugin:figma:figma 커넥터는 미인증이라 실패한다.
+대상 노드는 로드맵의 "Track A"·"Track B" 절에 화면별로 적혀 있다. Track C(수락 팝업 5개 노드)는 이미 대조된 상태라 건너뛴다.
+로직·계약·테스트는 검증돼 있으니 건드리지 말고 시각(레이아웃·간격·타이포·색·카피)만 맞춰라. 고칠 때마다 apps/web 스위트가 계속 통과해야 한다(현재 118 suites / 782 tests).
+검증: npx tsc -b apps/web/tsconfig.app.json · npx jest --config apps/web/jest.config.js --runInBand --watchman=false · 변경 파일만 eslint.
+```
+
+### 2순위 — 통합 QA
+
+아래 체크리스트는 dev 스테이지·네이티브 브릿지가 필요해 사람이 돌려야 한다.
+실패가 나오면 그 항목만 새 세션으로 넘긴다.
+
+### 3순위 — develop PR
+
+Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문에 백엔드 요청
+목록과 스텁 플래그(`features/invite/flags.ts`·`features/home/flags.ts`·
+`features/mypage/flags.ts`)를 함께 적는다.
+
 ## 통합 QA 체크리스트
 
 이 환경에 dev 스테이지·네이티브 브릿지가 없어 아래는 **전부 미실행**이다.
