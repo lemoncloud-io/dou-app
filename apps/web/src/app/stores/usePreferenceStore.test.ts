@@ -38,6 +38,7 @@ const resetStore = () => {
         issueReportHidden: false,
         channelSort: {},
         pinnedChannels: {},
+        dismissedUpdateVersion: '',
     });
     jest.clearAllMocks();
 };
@@ -417,6 +418,34 @@ describe('setChannelPinned — 채팅방 고정', () => {
             'cloud-1:place-1': ['ch-1'],
             'cloud-2:place-1': ['ch-9'],
         });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// dismissUpdate — 업데이트 안내 팝업 버전당 1회 dismiss (local 전략)
+// ---------------------------------------------------------------------------
+
+describe('dismissUpdate — 업데이트 안내 dismiss', () => {
+    beforeEach(() => {
+        mockIsNative.mockReturnValue(false);
+        resetStore();
+    });
+
+    it('기본값은 빈 문자열(dismiss된 적 없음)이다', () => {
+        expect(usePreferenceStore.getState().dismissedUpdateVersion).toBe('');
+    });
+
+    it('버전을 저장하면 상태와 localStorage에 반영된다', () => {
+        usePreferenceStore.getState().dismissUpdate('1.3.0');
+
+        expect(usePreferenceStore.getState().dismissedUpdateVersion).toBe('1.3.0');
+        expect(localStorage.getItem('chatic-dismissed-update-version')).toBe('1.3.0');
+    });
+
+    it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
+        mockIsNative.mockReturnValue(true);
+        usePreferenceStore.getState().dismissUpdate('1.3.0');
+        expect(mockSavePreference).not.toHaveBeenCalled();
     });
 });
 

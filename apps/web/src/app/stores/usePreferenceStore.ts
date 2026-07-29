@@ -147,6 +147,8 @@ interface PreferenceState {
     channelSort: Record<string, ChannelSortMethod>;
     /** Pinned channel ids per `<cid>:<sid>` scope (placeScopeKey). Client-only (no server pin field). */
     pinnedChannels: Record<string, string[]>;
+    /** Live store version the update prompt was last dismissed for; '' means never dismissed. */
+    dismissedUpdateVersion: string;
 }
 
 interface PreferenceActions {
@@ -162,6 +164,8 @@ interface PreferenceActions {
     setChannelSort: (scope: string, method: ChannelSortMethod) => void;
     /** Pin/unpin one channel within a place scope (placeScopeKey); other scopes are preserved. */
     setChannelPinned: (scope: string, channelId: string, pinned: boolean) => void;
+    /** Mark the update prompt as dismissed for the given live version; suppresses it until a newer version appears. */
+    dismissUpdate: (version: string) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -188,6 +192,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     channelSort: parseChannelSort(readPreference('channelSort')),
 
     pinnedChannels: parsePinnedChannels(readPreference('pinnedChannels')),
+
+    dismissedUpdateVersion: readPreference('dismissedUpdateVersion'),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -235,6 +241,11 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         else delete next[scope];
         set({ pinnedChannels: next });
         persistPreference('pinnedChannels', JSON.stringify(next));
+    },
+
+    dismissUpdate: (version: string) => {
+        set({ dismissedUpdateVersion: version });
+        persistPreference('dismissedUpdateVersion', version);
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

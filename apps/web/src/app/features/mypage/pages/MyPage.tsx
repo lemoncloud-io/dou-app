@@ -90,14 +90,14 @@ export const MyPage = () => {
     };
 
     const handleUpdateClick = () => {
+        if (isNative()) {
+            appBridge.openStore();
+            return;
+        }
+
         const storeUrl = getStoreUrl(deviceInfo?.platform);
         if (!storeUrl) return;
-
-        if (isNative()) {
-            appBridge.openURL(storeUrl);
-        } else {
-            window.open(storeUrl, '_blank');
-        }
+        window.open(storeUrl, '_blank');
     };
 
     const versionText = isMobilePlatform

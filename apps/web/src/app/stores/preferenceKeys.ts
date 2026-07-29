@@ -119,6 +119,14 @@ export const PREFERENCES = {
         localKey: 'chatic-pinned-channels',
         defaultValue: '{}',
     },
+    // Live store version the user last dismissed the update prompt for. A once-per-version nag:
+    // re-shown only when a newer live version appears. Purely a local UX guard (no server/native
+    // reader), so 'local' rather than 'native+local' — nothing consumes this key on the native side.
+    dismissedUpdateVersion: {
+        strategy: 'local',
+        localKey: 'chatic-dismissed-update-version',
+        defaultValue: '',
+    },
     // -----------------------------------------------------------------------
     // Owned by i18next / useBackHandler — registered here for reference
     // -----------------------------------------------------------------------
