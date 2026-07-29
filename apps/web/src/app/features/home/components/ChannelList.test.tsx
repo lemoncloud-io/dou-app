@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ChannelList } from './ChannelList';
 
@@ -30,13 +30,14 @@ jest.mock('@chatic/web-ui-kit', () => ({
     IconBolt: () => <i />,
     IconPlus: () => <i />,
     ImageAvatar: () => <img alt="" />,
-    ListRow: ({ title, subtitle }: any) => (
-        <div>
+    ListRow: ({ title, subtitle, onClick }: any) => (
+        <div onClick={onClick}>
             <div data-testid="row-title">{title}</div>
             <div>{subtitle}</div>
         </div>
     ),
     PlanBadge: () => <span>PRO</span>,
+    StatusBadge: ({ label }: any) => <span data-testid="status-badge">{label}</span>,
     UnreadBadge: () => <span data-testid="unread" />,
 }));
 
@@ -199,5 +200,56 @@ describe('ChannelList self-chat row', () => {
         );
 
         expect(screen.getByText('공지방')).toBeInTheDocument();
+    });
+});
+
+describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
+    it('sentInvites의 각 항목을 채널 위에 행으로 보여준다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+                sentInvites={[{ id: 'invite-1', state: 'pending', name: '홍길동' } as any]}
+            />
+        );
+
+        expect(screen.getByText('홍길동')).toBeInTheDocument();
+        expect(screen.getByTestId('status-badge')).toHaveTextContent('contactInvite.badge.pending');
+    });
+
+    it('초대 행을 탭하면 onSelectInvite에 invite id를 넘긴다', () => {
+        const onSelectInvite = jest.fn();
+        render(
+            <ChannelList
+                channels={[]}
+                unreadByChannel={{}}
+                isLoading={false}
+                sentInvites={[{ id: 'invite-1', state: 'pending', name: '홍길동' } as any]}
+                onSelectInvite={onSelectInvite}
+            />
+        );
+
+        fireEvent.click(screen.getByText('홍길동'));
+        expect(onSelectInvite).toHaveBeenCalledWith('invite-1');
+    });
+
+    it('채널은 없고 초대만 있으면 채널 없음 문구를 보여주지 않는다', () => {
+        render(
+            <ChannelList
+                channels={[]}
+                unreadByChannel={{}}
+                isLoading={false}
+                sentInvites={[{ id: 'invite-1', state: 'pending', name: '홍길동' } as any]}
+            />
+        );
+
+        expect(screen.queryByText('channelList.empty')).not.toBeInTheDocument();
+    });
+
+    it('채널도 초대도 없으면 기존처럼 채널 없음 문구를 보여준다', () => {
+        render(<ChannelList channels={[]} unreadByChannel={{}} isLoading={false} />);
+
+        expect(screen.getByText('channelList.empty')).toBeInTheDocument();
     });
 });

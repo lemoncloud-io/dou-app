@@ -5,6 +5,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import {
     DropdownMenu,
@@ -32,6 +33,7 @@ import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveChannelTitle } from '../lib/resolveChannelTitle';
 import { sortChannels } from '../lib/sortChannels';
+import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
@@ -154,10 +156,17 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** Relay: start a 1:1 chat (not implemented yet — placeholder). */
+    /** Relay: start a 1:1 chat — navigates to the contact-invite page (ADR-0033 Track B). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
+    /**
+     * Sent relay invites still worth a row — `pending`/`expired` only (ADR-0033 Track B). The
+     * host is expected to pass `[]` outside the default cloud, where 1:1 invites don't apply.
+     */
+    sentInvites?: MyInviteView[];
+    /** Tapping an invite row — the host navigates to that invite's waiting screen. */
+    onSelectInvite?: (inviteId: string) => void;
 }
 
 export const ChannelList = ({
@@ -172,6 +181,8 @@ export const ChannelList = ({
     pinnedChannelIds,
     onCreateOneOnOne,
     onCreateGroup,
+    sentInvites = [],
+    onSelectInvite,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     // My active-site profile nick — the self-chat title fallback. Resolved once here
@@ -219,6 +230,14 @@ export const ChannelList = ({
 
     return (
         <CollapsibleSection title={t('homePage.channels', '채널')} count={channels.length} actions={createMenu}>
+            {/* Sent-invite rows float above real channels — they are the newest, most actionable
+                entries, same spirit as a pinned channel. See useInviteListRows for what qualifies. */}
+            {sentInvites.map(invite => {
+                const id = invite.id;
+                if (!id) return null;
+                return <InviteChannelRow key={id} invite={invite} onClick={() => onSelectInvite?.(id)} />;
+            })}
+
             {isLoading && channels.length === 0 ? (
                 <>
                     <ChannelSkeleton />
@@ -226,7 +245,9 @@ export const ChannelList = ({
                     <ChannelSkeleton />
                 </>
             ) : channels.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+                sentInvites.length === 0 && (
+                    <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+                )
             ) : (
                 sortedChannels.map(channel => (
                     <ChannelItem

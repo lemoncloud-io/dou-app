@@ -47,6 +47,12 @@ export const ROUTES = {
         inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,
     },
 
+    // ── Invite (Private) — relay 1:1 invite sender flow (ADR-0033 Track B) ──
+    invite: {
+        contact: '/invite/contact',
+        waiting: (inviteId: string) => `/invite/${inviteId}/waiting`,
+    },
+
     // ── Place (Private) ──────────────────────────────────────────
     place: {
         detail: (placeId: string) => `/place/${placeId}`,

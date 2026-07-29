@@ -21,6 +21,10 @@ import { useChannelMutations, useChatMutations } from '../../channels/hooks';
 import { useChannelUnreads, useHomeChannels, useLastChat, useMyJoins } from '../../home/hooks';
 import { resolveChannelTitle, sortChannels } from '../../home/lib';
 import { useMyProfile } from '../../../hooks';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { ROUTES } from '../../../routes/paths';
+import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
+import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 
 /**
  * Chat-room management (Figma 3408-28373) — reached from the place settings hub. Rooms are
@@ -61,6 +65,14 @@ export const PlaceChannelManagePage = () => {
     // cloud half comes from the active session.
     const { selectedCloudId } = useSessionSelection();
     const placeScope = placeScopeKey(selectedCloudId, placeId);
+
+    // Sent relay invites (ADR-0033 Track B) only apply to the default (relay) cloud's place — a
+    // custom cloud's channels are invited via the cloud invite flow (ADR-0016) instead. Gate the
+    // rendering, not the fetch (useInviteListRows runs the same react-query hook regardless).
+    const isDefaultCloud = selectedCloudId === 'default';
+    const navigate = useNavigateWithTransition();
+    const { invites: sentInvitesAll } = useInviteListRows();
+    const sentInvites = isDefaultCloud ? sentInvitesAll : [];
     const sortMethodMap = usePreferenceStore(s => s.channelSort);
     const pinnedMap = usePreferenceStore(s => s.pinnedChannels);
     const setChannelPinned = usePreferenceStore(s => s.setChannelPinned);
@@ -221,6 +233,16 @@ export const PlaceChannelManagePage = () => {
             />
 
             <div className="min-h-0 flex-1 overflow-y-auto py-2">
+                {/* Sent-invite rows (default cloud only) float above the manageable channels —
+                    tapping goes to the waiting screen, which owns cancel/reissue (see
+                    InviteChannelRow). Not part of the checkbox/bulk-delete selection below: an
+                    invite id isn't a channel id, and the delete-vs-leave branching doesn't apply. */}
+                {sentInvites.map(invite => {
+                    const id = invite.id;
+                    if (!id) return null;
+                    return <InviteChannelRow key={id} invite={invite} onClick={() => navigate(ROUTES.invite.waiting(id))} />;
+                })}
+
                 {isLoading && sortedChannels.length === 0 ? (
                     Array.from({ length: 3 }).map((_, index) => (
                         <div key={index} className="flex items-center gap-3 px-4 py-3">
@@ -232,7 +254,9 @@ export const PlaceChannelManagePage = () => {
                         </div>
                     ))
                 ) : sortedChannels.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+                    sentInvites.length === 0 && (
+                        <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+                    )
                 ) : (
                     sortedChannels.map(channel => (
                         <ManageChannelRow

@@ -15,8 +15,19 @@ let placeValue: any;
 let channelsValue: any[];
 let unreadByChannel: Record<string, number>;
 let pinnedChannels: Record<string, string[]>;
+let selectedCloudId = 'cloud-1';
+let sentInvitesValue: any[] = [];
+
+const navigate = jest.fn();
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'place-1' }) }));
+jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('../../invite/hooks/useInviteListRows', () => ({
+    useInviteListRows: () => ({ invites: sentInvitesValue, isLoading: false }),
+}));
+jest.mock('../../invite/components/InviteChannelRow', () => ({
+    InviteChannelRow: ({ invite, onClick }: any) => <div onClick={onClick}>{invite.name}</div>,
+}));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
         // Surface interpolated counts so the button/dialog labels stay assertable.
@@ -30,7 +41,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('@chatic/web-core', () => ({
     reportError: jest.fn(),
     useSessionIdentity: () => ({ userId: 'me' }),
-    useSessionSelection: () => ({ selectedCloudId: 'cloud-1' }),
+    useSessionSelection: () => ({ selectedCloudId }),
 }));
 
 // app-runtime pulls the socket lib (needs TextEncoder, unavailable in jsdom) — stub the repos.
@@ -127,6 +138,8 @@ beforeEach(() => {
     channelsValue = [channel('ch-1'), channel('ch-2'), channel('self', { stereo: 'self' })];
     unreadByChannel = { 'ch-1': 2 };
     pinnedChannels = {};
+    selectedCloudId = 'cloud-1';
+    sentInvitesValue = [];
 });
 
 describe('PlaceChannelManagePage', () => {
@@ -220,5 +233,41 @@ describe('PlaceChannelManagePage', () => {
 
         fireEvent.click(screen.getByText('channelManage.clearSelection'));
         expect(screen.getByRole('checkbox', { name: 'ch-1' })).toHaveAttribute('aria-checked', 'false');
+    });
+});
+
+describe('PlaceChannelManagePage — 초대 행 (ADR-0033 Track B)', () => {
+    it('커스텀 클라우드에서는 sentInvites가 있어도 초대 행을 보여주지 않는다', () => {
+        selectedCloudId = 'cloud-1';
+        sentInvitesValue = [{ id: 'invite-1', state: 'pending', name: '홍길동' }];
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.queryByText('홍길동')).not.toBeInTheDocument();
+    });
+
+    it('default 클라우드에서는 sentInvites를 채널 위에 행으로 보여준다', () => {
+        selectedCloudId = 'default';
+        sentInvitesValue = [{ id: 'invite-1', state: 'pending', name: '홍길동' }];
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.getByText('홍길동')).toBeInTheDocument();
+    });
+
+    it('초대 행을 탭하면 대기 화면으로 이동한다', () => {
+        selectedCloudId = 'default';
+        sentInvitesValue = [{ id: 'invite-1', state: 'pending', name: '홍길동' }];
+        render(<PlaceChannelManagePage />);
+
+        fireEvent.click(screen.getByText('홍길동'));
+        expect(navigate).toHaveBeenCalledWith('/invite/invite-1/waiting');
+    });
+
+    it('default 클라우드에서 초대만 있고 채널이 없으면 채널 없음 문구를 보여주지 않는다', () => {
+        selectedCloudId = 'default';
+        channelsValue = [];
+        sentInvitesValue = [{ id: 'invite-1', state: 'pending', name: '홍길동' }];
+        render(<PlaceChannelManagePage />);
+
+        expect(screen.queryByText('channelList.empty')).not.toBeInTheDocument();
     });
 });

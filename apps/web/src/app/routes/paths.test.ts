@@ -25,6 +25,10 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.channels.root).toBe('/channels');
     });
 
+    it('invite 연락처 초대 경로를 노출한다(ADR-0033 Track B)', () => {
+        expect(ROUTES.invite.contact).toBe('/invite/contact');
+    });
+
     it('subscription 허브를 노출한다', () => {
         expect(ROUTES.subscription.root).toBe('/subscription');
         expect(ROUTES.subscription.plans).toBe('/subscription/plans');
@@ -65,6 +69,10 @@ describe('ROUTES — 파라미터 빌더', () => {
     it('주어진 인수를 그대로 보간한다', () => {
         // Guards against accidental double-encoding or fixed segments.
         expect(ROUTES.channels.room('a/b')).toBe('/channels/a/b/room');
+    });
+
+    it('inviteId로 초대 대기 화면 경로를 생성한다(코드가 아니라 id — 자격증명을 URL에 남기지 않는다)', () => {
+        expect(ROUTES.invite.waiting('invite-1')).toBe('/invite/invite-1/waiting');
     });
 });
 

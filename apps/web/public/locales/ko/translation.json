@@ -177,7 +177,7 @@
         "viewOnboarding": "온보딩 다시보기",
         "logout": "로그아웃",
         "appVersion": "버전",
-        "updateAvailable": "업데이트 필요",
+        "updateAvailable": "업데이트 가능",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -1178,5 +1178,78 @@
         "description": "최신 버전으로 업데이트하고 새로운 기능을 만나보세요.",
         "later": "나중에",
         "update": "업데이트"
+    },
+    "contactInvite": {
+        "title": "연락처로 초대",
+        "nameLabel": "이름",
+        "namePlaceholder": "상대방의 이름을 입력해 주세요",
+        "phoneLabel": "휴대폰 번호",
+        "phonePlaceholder": "휴대폰 번호를 입력해 주세요",
+        "phoneInvalidFormat": "올바르지 않은 전화번호 형식입니다",
+        "validityHint": "초대장은 발급 후 3일간 유효해요",
+        "submit": "초대장 보내기",
+        "unnamedRecipient": "상대방",
+        "maskedPhone": "010-****-{{last4}}",
+        "badge": {
+            "pending": "초대 대기 중",
+            "expired": "초대 만료"
+        },
+        "smsMessage": "{{senderName}}님이 DoU에서 1:1 대화를 신청했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
+        "defaultSenderName": "친구",
+        "sentToast": {
+            "sms": "문자 작성 화면으로 이동했어요",
+            "clipboard": "초대 링크를 클립보드에 복사했어요",
+            "deliveryFailed": "초대장은 보냈어요. 링크 전달만 다시 시도해 주세요"
+        },
+        "guestBlocked": "번호 인증 또는 로그인 후 초대할 수 있어요",
+        "issueFailed": "초대장을 보내지 못했어요. 잠시 후 다시 시도해 주세요",
+        "reinvite": {
+            "pending": {
+                "title": "이미 초대를 보냈어요",
+                "description": "상대방의 응답을 기다리고 있어요. 대기 화면에서 확인해 보세요.",
+                "confirm": "대기 화면 보기"
+            },
+            "expired": {
+                "title": "이전 초대가 만료됐어요",
+                "description": "새로 초대장을 보낼까요?"
+            },
+            "declined": {
+                "title": "상대방이 초대를 거절했어요",
+                "description": "새로 초대장을 보낼까요?"
+            },
+            "reissueConfirm": "새로 초대하기"
+        }
+    },
+    "inviteWaiting": {
+        "moreOptions": "더보기",
+        "cancelInvite": "초대 취소",
+        "goHome": "홈으로",
+        "notFound": {
+            "title": "초대 정보를 찾을 수 없어요",
+            "description": "삭제되었거나 잘못된 초대일 수 있어요."
+        },
+        "entering": "대화방에 입장하고 있어요...",
+        "accepted": {
+            "title": "상대방이 초대를 수락했어요!",
+            "description": "곧 대화방에서 만날 수 있어요. 잠시 후 홈에서 확인해 주세요."
+        },
+        "expired": {
+            "title": "초대가 만료됐어요",
+            "description": "유효 시간이 지나 더 이상 사용할 수 없어요."
+        },
+        "reissue": "초대 다시 하기",
+        "reissueMissingLog": "이 기기에 남은 정보가 없어 다시 초대할 수 없어요",
+        "reissueDone": "새 초대장을 보냈어요",
+        "reissueFailed": "다시 초대하지 못했어요. 잠시 후 다시 시도해 주세요",
+        "pending": {
+            "title": "친구의 응답을 기다리고 있어요",
+            "description": "초대가 수락되면 대화를 시작할 수 있어요."
+        },
+        "cancelDialog": {
+            "title": "초대를 취소할까요?",
+            "description": "취소하면 상대방이 이 초대로 대화에 참여할 수 없도록 목록에서 숨겨요.",
+            "confirm": "취소하기"
+        },
+        "canceledToast": "초대를 취소했어요"
     }
 }

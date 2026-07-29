@@ -177,7 +177,7 @@
         "viewOnboarding": "View Onboarding Again",
         "logout": "Logout",
         "appVersion": "Version",
-        "updateAvailable": "Update Required",
+        "updateAvailable": "Update Available",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -1178,5 +1178,77 @@
         "description": "Update to the latest version to get the newest features.",
         "later": "Later",
         "update": "Update"
+    },
+    "contactInvite": {
+        "title": "Invite by Contact",
+        "nameLabel": "Name",
+        "namePlaceholder": "Enter the recipient's name",
+        "phoneLabel": "Phone Number",
+        "phonePlaceholder": "Enter a phone number",
+        "phoneInvalidFormat": "Invalid phone number format",
+        "validityHint": "The invite stays valid for 3 days after it's sent",
+        "submit": "Send Invite",
+        "unnamedRecipient": "Recipient",
+        "maskedPhone": "010-****-{{last4}}",
+        "badge": {
+            "pending": "Invite pending",
+            "expired": "Invite expired"
+        },
+        "smsMessage": "{{senderName}} invited you to a 1:1 chat on DoU! Tap the link below to join.\n{{deeplink}}",
+        "defaultSenderName": "A friend",
+        "sentToast": {
+            "sms": "Opened the text message composer",
+            "clipboard": "Copied the invite link to your clipboard",
+            "deliveryFailed": "Invite sent — please try sharing the link again"
+        },
+        "guestBlocked": "Verify your phone number or log in before inviting",
+        "issueFailed": "Couldn't send the invite. Please try again in a moment",
+        "reinvite": {
+            "pending": {
+                "title": "You already sent an invite",
+                "description": "Still waiting on their response — check the waiting screen for the latest."
+            },
+            "expired": {
+                "title": "The previous invite expired",
+                "description": "Send a new invite instead?"
+            },
+            "declined": {
+                "title": "They declined the invite",
+                "description": "Send a new invite instead?"
+            },
+            "reissueConfirm": "Send new invite"
+        }
+    },
+    "inviteWaiting": {
+        "moreOptions": "More options",
+        "cancelInvite": "Cancel invite",
+        "goHome": "Go home",
+        "notFound": {
+            "title": "Couldn't find this invite",
+            "description": "It may have been removed, or the link may be invalid."
+        },
+        "entering": "Entering the chat...",
+        "accepted": {
+            "title": "They accepted your invite!",
+            "description": "You'll be in the chat shortly — check back from home in a moment."
+        },
+        "expired": {
+            "title": "This invite has expired",
+            "description": "It's past its validity window and can no longer be used."
+        },
+        "reissue": "Invite again",
+        "reissueMissingLog": "This device has no record of the recipient, so it can't reissue",
+        "reissueDone": "Sent a new invite",
+        "reissueFailed": "Couldn't reissue the invite. Please try again in a moment",
+        "pending": {
+            "title": "Waiting for their response",
+            "description": "You can start chatting once the invite is accepted."
+        },
+        "cancelDialog": {
+            "title": "Cancel this invite?",
+            "description": "Canceling hides it from your list so they can no longer join with it.",
+            "confirm": "Cancel invite"
+        },
+        "canceledToast": "Invite canceled"
     }
 }
