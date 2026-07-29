@@ -2,6 +2,7 @@ import type {
     OnBackgroundStatusChangedPayload,
     OnBackPressedPayload,
     OnChangeAppIconPayload,
+    OnCheckAppUpdatePayload,
     OnClearAppLogBufferPayload,
     OnClearCacheDataPayload,
     OnClearTestRecordsPayload,
@@ -36,6 +37,7 @@ import type {
     OnOpenPhotoLibraryPayload,
     OnOpenSettingsPayload,
     OnOpenShareSheetPayload,
+    OnOpenStorePayload,
     OnOpenSubscriptionManagementPayload,
     OnOpenURLPayload,
     OnNavigatePayload,
@@ -182,6 +184,10 @@ export type AppMessageDataMap = {
     OnUpdateStatus: OnUpdateStatusPayload;
     OnStartUpdateDownload: OnStartUpdateDownloadPayload;
     OnRestartToUpdate: OnRestartToUpdatePayload;
+
+    // 10. App Update (mobile)
+    OnCheckAppUpdate: OnCheckAppUpdatePayload;
+    OnOpenStore: OnOpenStorePayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

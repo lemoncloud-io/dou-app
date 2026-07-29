@@ -1,5 +1,6 @@
 import type {
     ChangeAppIconPayload,
+    CheckAppUpdatePayload,
     ClearCacheDataPayload,
     ClearTestRecordsPayload,
     DeleteAllCacheDataPayload,
@@ -43,6 +44,7 @@ import type {
     CreateDummyFilePayload,
     CloseModalPayload,
     OpenSettingsPayload,
+    OpenStorePayload,
     ListRecoverableUploadsPayload,
     GetContactsPayload,
     FetchSafeAreaPayload,
@@ -162,6 +164,10 @@ export type WebMessagePayloadMap = {
     // 9. Auto Update (desktop)
     StartUpdateDownload: StartUpdateDownloadPayload;
     RestartToUpdate: RestartToUpdatePayload;
+
+    // 10. App Update (mobile)
+    CheckAppUpdate: CheckAppUpdatePayload;
+    OpenStore: OpenStorePayload;
 };
 
 /** WebMessagePayloadMap의 Key들을 조합하여 가능한 모든 웹 메시지 타입(String Union)을 자동 생성합니다. */

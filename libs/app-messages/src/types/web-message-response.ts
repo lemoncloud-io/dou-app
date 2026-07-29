@@ -79,6 +79,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     ClearTestRecords: 'OnClearTestRecords',
     StartUpdateDownload: 'OnStartUpdateDownload',
     RestartToUpdate: 'OnRestartToUpdate',
+    CheckAppUpdate: 'OnCheckAppUpdate',
+    OpenStore: 'OnOpenStore',
 } as const satisfies Record<WebMessageType, AppMessageType>;
 
 export type WebMessageResponseTypeMap = typeof WEB_MESSAGE_RESPONSE_TYPE;
