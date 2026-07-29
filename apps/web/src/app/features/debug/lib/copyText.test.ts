@@ -1,10 +1,12 @@
 // Mock the bridge modules so the test controls the native/web branch directly.
 jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
-jest.mock('../../../bridge', () => ({ appBridge: { copyClipBoard: jest.fn() } }));
+// Mocked at the direct module path, matching how copyText imports it (the barrel would drag in
+// bridge/navigation, which cannot be parsed under ts-jest's CommonJS output).
+jest.mock('../../../bridge/appBridge', () => ({ appBridge: { copyClipBoard: jest.fn() } }));
 
 import { isNative } from '@chatic/bridges';
 
-import { appBridge } from '../../../bridge';
+import { appBridge } from '../../../bridge/appBridge';
 import { copyText } from './copyText';
 
 const isNativeMock = isNative as jest.Mock;

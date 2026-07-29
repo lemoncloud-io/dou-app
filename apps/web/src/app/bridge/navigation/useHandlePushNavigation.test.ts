@@ -9,7 +9,16 @@ import { pendingNavigationStore } from './pendingNavigationStore';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { useHandlePushNavigation } from './useHandlePushNavigation';
 
-jest.mock('@chatic/app-runtime', () => ({ getSocketManager: jest.fn() }));
+// The invited-cloud recovery step added to usePushNavigate pulls three more app-runtime exports.
+// isNativeApp must be present and falsy: an undefined stub throws inside the switch block, which
+// the best-effort catch swallows into a plain navigate — silently losing the cloud/site switch this
+// suite asserts on. The recovery itself is native-only, so it never runs here.
+jest.mock('@chatic/app-runtime', () => ({
+    getSocketManager: jest.fn(),
+    isNativeApp: jest.fn(() => false),
+    recoverInvitedCloudIfMissing: jest.fn(),
+    useRuntimeRepositories: jest.fn(() => ({ cloud: {} })),
+}));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('@chatic/web-core', () => ({
     useSessionSelection: jest.fn(),
