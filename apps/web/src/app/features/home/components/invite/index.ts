@@ -3,3 +3,4 @@ export * from './InvitePlaceCard';
 export * from './InviteTargetCard';
 export * from './InviteExpiryCard';
 export * from './InviteAcceptScreen';
+export * from './CloudInviteDialog';
