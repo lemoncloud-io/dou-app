@@ -10,6 +10,9 @@ describe('resolveAppLanguage', () => {
     it('keeps mobile parity: the bare subtag, never a PageLanguage rename', () => {
         // apps/mobile injects `languageCode`, so 'ja'/'zh' stay as-is even though PageLanguage
         // spells them 'jp'/'cn'. Renaming here would make the two clients disagree.
+        // Source of truth: apps/mobile/src/app/utils/device.ts:39 (`getAppLanguage`). This test
+        // cannot see that file, so it keeps passing if mobile starts mapping into PageLanguage —
+        // check there first if the two clients ever disagree on a language.
         expect(resolveAppLanguage('ja-JP')).toBe('ja');
         expect(resolveAppLanguage('zh-CN')).toBe('zh');
     });
