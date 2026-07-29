@@ -217,6 +217,20 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
         expect(mockLoginRelayByToken).toHaveBeenCalledTimes(1);
     });
 
+    it('[로그아웃 회귀] 디바이스 식별 저장소를 건드리지 않는다 — 로그아웃 후 같은 디바이스 유저로 복귀하는 전제', async () => {
+        // The post-logout recovery (useRelaySessionKeepAlive → loginRelayGuestByDevice) returns the
+        // SAME device user only because the persisted device id survives the promotion; web-core's
+        // loginRelayByToken test pins delegatorId the same way.
+        localStorage.setItem('chatic-device-id', 'device-1');
+        const { client } = makeFakeRelaySocket([]);
+        bootRelayManager(client);
+
+        await applySessionToken(mainUserToken());
+
+        expect(localStorage.getItem('chatic-device-id')).toBe('device-1');
+        expect(localStorage.length).toBe(1);
+    });
+
     it('SDK가 이미 새 토큰을 들고 있으면(binder 선행) 재인증은 no-op으로 수렴하고 ready만 기다린다', async () => {
         const order: string[] = [];
         const { client, auth } = makeFakeRelaySocket(order);
