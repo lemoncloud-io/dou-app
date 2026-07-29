@@ -165,6 +165,7 @@ import {
     commitServerRefreshedToken,
     getServerAuthRegistration,
     initializeRelaySession,
+    loginRelayByToken,
     loginRelayGuestByDevice,
     loginRelayUser,
     loginRelaySocial,
@@ -258,6 +259,29 @@ describe('session/services', () => {
         // (only guest login sets it / relay logout clears it).
         expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
+    });
+
+    it('loginRelayByToken은 발급된 토큰 뷰를 그대로 커밋하고 delegatorId는 건드리지 않는다 (소켓 verify-hash-alias 로그인)', async () => {
+        const tokenView = {
+            Token: { identityToken: 'main-user-token' },
+            uid: 'user-2',
+            $auth: { id: 'auth-2' },
+            $user: { userRole: 'user', name: 'Main' },
+        } as unknown as UserTokenView;
+
+        const result = await loginRelayByToken(tokenView);
+
+        expect(result).toBe(tokenView);
+        // Same commit as the HTTP login paths: creds rebuilt, token persisted, session authed.
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(tokenView.Token);
+        expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(tokenView);
+        expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
+        // No HTTP call happens — the token was already issued over the websocket.
+        expect(mockVerifyNativeAppToken).not.toHaveBeenCalled();
+        expect(mockLoginRelayRequest).not.toHaveBeenCalled();
+        // delegatorId is owned by guest login / relay logout; a promotion must not move it, or the
+        // post-logout guest recovery (device-user return) would break.
+        expect(mockIdentitySetDelegatorId).not.toHaveBeenCalled();
     });
 
     it('logs into relay with the generic relay login endpoint', async () => {

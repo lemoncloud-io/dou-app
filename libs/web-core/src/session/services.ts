@@ -182,6 +182,20 @@ export const loginRelaySocial = async ({
     return await applyRelaySession(tokenView);
 };
 
+/**
+ * Applies an ALREADY-ISSUED relay token view as the active session — the socket-login case
+ * (`auth.verify-hash-alias` step=check returns `$token` over the websocket, so there is no HTTP
+ * login call to run here). Same commit as the other login paths (applyRelaySession): rebuild AWS
+ * credentials, persist the token, mark authenticated. Like the social promotion, it does NOT touch
+ * delegatorId — that stays owned by loginRelayGuestByDevice / clearRelaySession.
+ *
+ * Refreshing the live SOCKET identity is not done here; app-runtime's applySessionToken owns that
+ * (web-core has no socket access) and calls this first so the store leads and the socket follows.
+ */
+export const loginRelayByToken = async (tokenView: UserTokenView): Promise<UserTokenView> => {
+    return await applyRelaySession(tokenView);
+};
+
 const relayRefreshFlight = createSerializedSingleFlight<void>();
 
 /**

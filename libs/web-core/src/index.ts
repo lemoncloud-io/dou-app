@@ -29,6 +29,7 @@ export {
     logoutCloudSession,
     logoutRelaySession,
     applySelectedSite,
+    loginRelayByToken,
 } from './session/services';
 export type { LogoutOptions, ServerKind } from './session/services';
 // Selected-site read model getter, for app-runtime's socket-driven site switch (auth.switch).
