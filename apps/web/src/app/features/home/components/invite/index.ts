@@ -4,3 +4,4 @@ export * from './InviteTargetCard';
 export * from './InviteExpiryCard';
 export * from './InviteAcceptScreen';
 export * from './CloudInviteDialog';
+export * from './RelayInviteDialog';

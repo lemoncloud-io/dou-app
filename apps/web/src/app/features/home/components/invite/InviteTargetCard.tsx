@@ -7,15 +7,17 @@ import { InviteCard } from './InviteCard';
 interface InviteTargetCardProps {
     /** Member count of the target room; when present a group badge is shown. */
     memberCount?: number;
+    /** Which kind of room the invite leads to. Relay invites are always 1:1 (ADR-0033). */
+    kind?: 'group' | 'oneToOne';
 }
 
 /**
- * Invite accept screen — the "You" block: who is joining. Shows the self avatar and the "group chat"
- * caption (Figma 3076-11341). Invites are always group chats today (1:1 is not shipped — ADR-0013),
- * so the caption is fixed to "group chat"; the "room friends N" badge is added only once the invite
+ * Invite accept screen — the "You" block: who is joining. Shows the self avatar and the room-kind
+ * caption (Figma 3076-11341 / 3077-11587). Cloud invites are group chats, so that stays the default;
+ * the relay 1:1 invite passes `oneToOne`. The "room friends N" badge is added only once the invite
  * metadata carries a member count (backend-denormalized; hidden until then).
  */
-export const InviteTargetCard = ({ memberCount }: InviteTargetCardProps) => {
+export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCardProps) => {
     const { t } = useTranslation();
 
     return (
@@ -26,7 +28,7 @@ export const InviteTargetCard = ({ memberCount }: InviteTargetCardProps) => {
                     {t('inviteAccept.target.you')}
                 </Text>
                 <Text as="p" className="text-[14px] font-medium leading-[1.4] text-description">
-                    {t('inviteAccept.target.group')}
+                    {t(kind === 'oneToOne' ? 'inviteAccept.target.oneToOne' : 'inviteAccept.target.group')}
                 </Text>
             </div>
             {memberCount != null && memberCount > 0 && (

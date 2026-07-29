@@ -13,6 +13,7 @@ export * from './useInvitedClouds';
 export * from './useLastChat';
 export * from './useMyJoins';
 export * from './useRelayInviteFlow';
+export * from './useSaveMyPlaceProfile';
 export * from './useScrollRestoration';
 export * from './useSwitchPlace';
 export * from './useUpdateCloud';

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button, IconClose, ProfileAvatar, Text, douMark } from '@chatic/web-ui-kit';
@@ -17,11 +18,22 @@ export interface InviteAcceptScreenProps {
     /** Expiry epoch (ms); with a countdown it renders the validity card. */
     expiredAt?: number;
     countdown: InviteCountdown | null;
+    /** Which kind of room the invite leads to; drives the "You" card caption. */
+    targetKind?: 'group' | 'oneToOne';
     /** True while the accept pipeline is in flight — disables dismissal and spins the CTA. */
     isAccepting: boolean;
     onAccept: () => void;
-    /** Dismiss request (X / decline); the caller blocks it while accepting. */
+    /** Dismiss request (X, and decline unless `onDecline` is given); blocked by the caller while accepting. */
     onClose: () => void;
+    /**
+     * Decline action, when it is more than a dismissal. Defaults to `onClose` — the cloud flow has no
+     * server-side decline, so there the two really are the same thing.
+     */
+    onDecline?: () => void;
+    /** Hide the decline button. Used to gate the relay decline stub (see features/home/flags.ts). */
+    showDecline?: boolean;
+    /** Overlay rendered above the screen, e.g. the "creating your room" spinner after an accept. */
+    overlay?: ReactNode;
 }
 
 /**
@@ -38,9 +50,13 @@ export const InviteAcceptScreen = ({
     memberCount,
     expiredAt,
     countdown,
+    targetKind,
     isAccepting,
     onAccept,
     onClose,
+    onDecline,
+    showDecline = true,
+    overlay,
 }: InviteAcceptScreenProps) => {
     const { t } = useTranslation();
 
@@ -104,10 +120,13 @@ export const InviteAcceptScreen = ({
                     </div>
                 </div>
 
-                {/* Place + target cards */}
+                {/* Place + target cards. A relay 1:1 invite carries no place metadata at all, so the
+                    place card folds away entirely rather than showing an empty shell. */}
                 <div className="flex flex-col gap-4">
-                    <InvitePlaceCard name={placeName} intro={placeIntro} thumbnail={placeThumbnail} />
-                    <InviteTargetCard memberCount={memberCount} />
+                    {(placeName || placeThumbnail) && (
+                        <InvitePlaceCard name={placeName} intro={placeIntro} thumbnail={placeThumbnail} />
+                    )}
+                    <InviteTargetCard memberCount={memberCount} kind={targetKind} />
                 </div>
 
                 {/* Link validity countdown (hidden when no expiry is known) */}
@@ -123,14 +142,24 @@ export const InviteAcceptScreen = ({
                 header's safe-top padding so the buttons clear the home indicator. */}
             <div className="relative z-10 shrink-0 rounded-t-[16px] bg-white/55 px-4 pb-[calc(var(--safe-bottom,0px)+1rem)] pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)] backdrop-blur-[16px] dark:bg-white/5">
                 <div className="flex gap-1.5">
-                    <Button variant="outline" fullWidth size="lg" onClick={onClose} disabled={isAccepting}>
-                        {t('inviteAccept.decline')}
-                    </Button>
+                    {showDecline && (
+                        <Button
+                            variant="outline"
+                            fullWidth
+                            size="lg"
+                            onClick={onDecline ?? onClose}
+                            disabled={isAccepting}
+                        >
+                            {t('inviteAccept.decline')}
+                        </Button>
+                    )}
                     <Button fullWidth size="lg" loading={isAccepting} onClick={onAccept}>
                         {t('inviteAccept.accept')}
                     </Button>
                 </div>
             </div>
+
+            {overlay}
         </div>
     );
 };

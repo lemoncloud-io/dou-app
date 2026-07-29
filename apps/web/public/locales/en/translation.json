@@ -1014,6 +1014,18 @@
             "generic": {
                 "title": "Failed to accept the invite.",
                 "description": "Please try again in a moment."
+            },
+            "notFound": {
+                "title": "This invite is not valid.",
+                "description": "The invite was cancelled or is no longer valid. Ask the sender for a new one."
+            },
+            "wrongNumber": {
+                "title": "This is not the invited number.",
+                "description": "Verify with the phone number the invite was sent to."
+            },
+            "taken": {
+                "title": "This invite has already been used.",
+                "description": "Someone else accepted it first."
             }
         },
         "failed": "Failed to accept invitation",
@@ -1024,6 +1036,15 @@
         "authVerifyFailed": "Authentication failed. Please try again.",
         "expired": "This invite has expired or is invalid.",
         "enterFailed": "The invite was accepted but entering failed. Please try again."
+    },
+    "relayInviteAccept": {
+        "verifyTitle": "Phone verification",
+        "preparingRoom": "Creating your chat room",
+        "channelPending": "Your chat room is on its way — it will show up in the list shortly.",
+        "profile": {
+            "title": "Create the profile\nyou will chat with",
+            "subtitle": "This is how you appear to the person who invited you."
+        }
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",

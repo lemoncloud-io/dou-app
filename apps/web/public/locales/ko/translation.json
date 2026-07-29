@@ -1014,6 +1014,18 @@
             "generic": {
                 "title": "초대 수락에 실패했습니다.",
                 "description": "잠시 후 다시 시도해 주세요."
+            },
+            "notFound": {
+                "title": "유효하지 않은 초대입니다.",
+                "description": "초대가 취소되었거나 더 이상 유효하지 않아 참여할 수 없습니다. 초대한 사람에게 새로운 초대를 받아 주세요."
+            },
+            "wrongNumber": {
+                "title": "초대받은 번호가 아닙니다.",
+                "description": "초대에 사용된 휴대폰 번호로 인증해 주세요."
+            },
+            "taken": {
+                "title": "이미 사용된 초대입니다.",
+                "description": "다른 사용자가 먼저 초대를 수락했습니다."
             }
         },
         "failed": "초대 수락에 실패했습니다",
@@ -1024,6 +1036,15 @@
         "authVerifyFailed": "인증에 실패했습니다. 다시 시도해 주세요.",
         "expired": "만료되었거나 유효하지 않은 초대입니다.",
         "enterFailed": "초대는 수락되었지만 입장에 실패했습니다. 다시 시도해 주세요."
+    },
+    "relayInviteAccept": {
+        "verifyTitle": "휴대폰 번호 인증",
+        "preparingRoom": "채팅방을 만들고 있어요",
+        "channelPending": "채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다.",
+        "profile": {
+            "title": "대화에 사용할\n프로필을 만들어 주세요",
+            "subtitle": "초대를 수락하면 상대에게 이 프로필로 보여요."
+        }
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
