@@ -117,6 +117,20 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchAppLogBufferSize', data: { nonce: 'nonce-4' } });
     });
 
+    it('sendSms는 수신자와 본문을 담아 request를 호출한다', () => {
+        appBridge.sendSms('01012345678', 'invite message');
+        expect(requestMock).toHaveBeenLastCalledWith({
+            type: 'SendSms',
+            data: { phoneNumbers: '01012345678', message: 'invite message' },
+        });
+
+        appBridge.sendSms(['01012345678', '01099998888'], 'batch message');
+        expect(requestMock).toHaveBeenLastCalledWith({
+            type: 'SendSms',
+            data: { phoneNumbers: ['01012345678', '01099998888'], message: 'batch message' },
+        });
+    });
+
     it('request-response 메서드는 Promise를 반환한다', () => {
         expect(appBridge.fetchFcmToken()).toBeInstanceOf(Promise);
         expect(appBridge.oauthLogin('google')).toBeInstanceOf(Promise);

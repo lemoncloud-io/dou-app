@@ -130,6 +130,20 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
+    // SMS (ADR-0033 — relay invite deeplink delivery)
+    // ---------------------------------------------------------------
+
+    /**
+     * Open the native SMS composer prefilled with `message` for `phoneNumbers`. Resolves with
+     * `data.success` reporting whether the composer opened — the user still has to send it
+     * themselves (there is no send-completion signal). Callers should fall back to a clipboard
+     * copy when this rejects (no native bridge) or resolves with `success: false`.
+     */
+    sendSms(phoneNumbers: string | string[], message: string): Promise<WebMessageResponse<'SendSms'>> {
+        return webClient.request({ type: 'SendSms', data: { phoneNumbers, message } });
+    },
+
+    // ---------------------------------------------------------------
     // In-app purchase
     // ---------------------------------------------------------------
 
