@@ -6,6 +6,7 @@ export * from './useDeviceSync';
 export * from './useMyProfile';
 export * from './useMyUser';
 export * from './useRelayInvites';
+export * from './useSentInviteLog';
 export * from './useTheme';
 export * from './useUserPermissions';
 export * from './useVerifyHashAlias';

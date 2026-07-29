@@ -121,6 +121,10 @@ applySessionToken($token: unknown): Promise<void>
 useSentInviteLog(): {
     record(invite: MyInviteView, input: { phone: string; name: string }): void;
     findByPhone(phone: string): { inviteId: string; name: string } | undefined;
+    /** 추가(구현 중 필요 확인 — 다른 트랙 미소비, additive라 하위 호환).
+     *  대기 화면의 "초대 다시 하기"는 route param으로 code가 아니라 id만 쥐고 있어
+     *  재발급(createInvite) 호출에 필요한 phone을 역조회해야 한다. */
+    findByInviteId(inviteId: string): { phone: string; inviteId: string; name: string } | undefined;
 }
 ```
 
