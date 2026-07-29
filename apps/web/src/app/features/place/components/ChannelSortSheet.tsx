@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 
+import { useSessionSelection } from '@chatic/web-core';
+
 import { BottomSheet, SheetOption } from '@chatic/web-ui-kit';
 
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
-import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
+import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 
@@ -21,17 +23,20 @@ interface ChannelSortSheetProps {
 
 /**
  * Channel sort picker — chooses how the home channel list is ordered for THIS place. The choice is
- * saved per place (localStorage, client-only) and applied immediately; there is no explicit save,
- * so picking an option closes the sheet. See ADR-0031.
+ * saved per cloud+place scope (localStorage, client-only) and applied immediately; there is no
+ * explicit save, so picking an option closes the sheet. See ADR-0031.
  */
 export const ChannelSortSheet = ({ open, onOpenChange, placeId }: ChannelSortSheetProps) => {
     const { t } = useTranslation();
-    const current = usePreferenceStore(s => (placeId ? s.channelSort[placeId] : undefined)) ?? DEFAULT_CHANNEL_SORT;
+    // The cloud half of the scope comes from the active session; callers only know the route's placeId.
+    const { selectedCloudId } = useSessionSelection();
+    const scope = placeScopeKey(selectedCloudId, placeId);
+    const current = usePreferenceStore(s => (scope ? s.channelSort[scope] : undefined)) ?? DEFAULT_CHANNEL_SORT;
     const setChannelSort = usePreferenceStore(s => s.setChannelSort);
 
     const handleSelect = (method: ChannelSortMethod) => () => {
-        if (!placeId) return;
-        setChannelSort(placeId, method);
+        if (!scope) return;
+        setChannelSort(scope, method);
         onOpenChange(false);
     };
 

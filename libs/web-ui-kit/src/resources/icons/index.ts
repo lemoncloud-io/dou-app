@@ -57,3 +57,5 @@ export const IconClock: LucideIcon = Clock;
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUserSolid.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
 export { IconUserSolid, type IconUserSolidProps } from './IconUserSolid';
+export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
+export { IconPin, type IconPinProps } from './IconPin';

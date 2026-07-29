@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
@@ -19,8 +19,9 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
-import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
+import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
+import { BottomNavSpacer } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { OnboardingModal } from '../../onboarding';
@@ -91,9 +92,23 @@ export const HomePage = () => {
     // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
     // either a valid membership OR at least one activated cloud exists — owning a live cloud (status
     // 'active' in the relay catalog above) already implies paid access. CloudView carries no grade.
-    const { data: membership } = useMembershipInfo();
+    // useMembershipInfo has staleTime: 0 + refetchOnMount: 'always', so right after login/reload
+    // `membership` starts out `undefined` while the query is in flight. Without a guard, a
+    // membership-only PRO user (no owned cloud yet) would flash FREE for a beat before flipping to
+    // PRO once the fetch resolves. While that fetch is pending and we have no cloud-based fallback,
+    // leave the tier undecided (`undefined`) instead of guessing FREE: AppHeader already hides its
+    // badge when planTier is falsy, and PRO-gated UI below treats "undecided" as PRO-optimistic
+    // (not FREE) — the server remains the final authority on any gated action either way.
+    const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
     const hasActiveCloud = clouds.some(cloud => cloud.status === 'active');
-    const planTier: 'free' | 'pro' = !isGuest && (membership?.isValid || hasActiveCloud) ? 'pro' : 'free';
+    const isTierUndecided = !isGuest && isMembershipLoading && !hasActiveCloud;
+    const planTier: 'free' | 'pro' | undefined = isGuest
+        ? 'free'
+        : isTierUndecided
+          ? undefined
+          : membership?.isValid || hasActiveCloud
+            ? 'pro'
+            : 'free';
 
     // === Data: place list, active place, channel list, unread ===
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
@@ -147,9 +162,18 @@ export const HomePage = () => {
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
-    // Channel sort method for the active place (client preference, per place). Missing → default.
+    // Sort + pins are scoped to cid:sid — a place id is only unique within its cloud, so the same
+    // sid in another cloud must not inherit this cloud's settings.
+    const placeScope = placeScopeKey(selectedCloudId, selectedSiteId);
     const channelSortMap = usePreferenceStore(s => s.channelSort);
-    const channelSortMethod = (selectedSiteId && channelSortMap[selectedSiteId]) || DEFAULT_CHANNEL_SORT;
+    const channelSortMethod = (placeScope && channelSortMap[placeScope]) || DEFAULT_CHANNEL_SORT;
+    // Pinned channels for the active place (client preference, set from the chat-room management
+    // screen). Pinned rows float above the chosen sort order.
+    const pinnedChannelMap = usePreferenceStore(s => s.pinnedChannels);
+    const pinnedChannelIds = useMemo(
+        () => new Set(placeScope ? (pinnedChannelMap[placeScope] ?? []) : []),
+        [pinnedChannelMap, placeScope]
+    );
     const { toast } = useToast();
 
     // Invite flow tail: the accept pipeline lands here and stashes the invited channel, then we open
@@ -191,7 +215,7 @@ export const HomePage = () => {
             toast({ title: t('homePage.channelLimitReached') });
             return;
         }
-        if (planTier === 'pro') {
+        if (planTier !== 'free') {
             setIsDialogOpen(true);
         } else {
             setIsSubscriptionRequiredOpen(true);
@@ -258,16 +282,13 @@ export const HomePage = () => {
                 profileLabel={t('homePage.profile', '프로필')}
             />
 
-            {/* Place + Chat scroll together under the fixed header (accordion sections). The
-                bottom padding lets the last row scroll clear of the floating nav, whose pill the
-                content passes fully behind (no backdrop).
-                FloatingTabBar occupies 62px (pill) + 18px (bottom offset) = 80px above --safe-bottom;
-                192px doubles the former 96px clearance, leaving ~112px of breathing room below the
-                last row. Kept in step with MyPage so the two bottom-nav tabs match. */}
+            {/* Place + Chat scroll together under the fixed header (accordion sections). Trailing
+                clearance for the floating nav comes from BottomNavSpacer at the end of the content,
+                not from padding on this container — see BottomNavSpacer for why. */}
             <div
                 ref={scrollContainerRef}
                 onScroll={handleListScroll}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[calc(var(--safe-bottom,0px)+192px)] pt-2"
+                className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2"
             >
                 <PlaceList
                     places={places}
@@ -290,8 +311,9 @@ export const HomePage = () => {
                         isLoading={isChannelsLoading}
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
-                        isPro={planTier === 'pro'}
+                        isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
+                        pinnedChannelIds={pinnedChannelIds}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
                     />
@@ -303,6 +325,8 @@ export const HomePage = () => {
                         description={t('homePage.noPlaceDescription', '플레이스에 접속해 대화를 시작해보세요')}
                     />
                 ) : null}
+
+                <BottomNavSpacer />
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />

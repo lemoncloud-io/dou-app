@@ -388,6 +388,35 @@
         "createDirect": "1:1 대화",
         "createGroup": "그룹 방 만들기"
     },
+    "channelManage": {
+        "title": "채팅방 관리",
+        "clearSelection": "선택 해제",
+        "readAll": "모두 읽음",
+        "readSelected": "{{count}} 읽음",
+        "readDone": "방 읽음 처리 완료",
+        "readFailed": "{{count}}개 방을 읽음 처리하지 못했어요.",
+        "nothingToRead": "읽지 않은 방이 없어요.",
+        "pin": "방 고정",
+        "unpin": "방 고정 해제",
+        "pinned": "방 고정이 완료되었습니다.",
+        "unpinned": "방 고정이 해제되었습니다.",
+        "deleteRooms": "방 삭제",
+        "leaveRooms": "방 나가기",
+        "deleteDone": "{{count}}개 방을 삭제했어요.",
+        "leaveDone": "{{count}}개 방에서 나갔어요.",
+        "deleteFailed": "{{count}}개 방을 삭제하지 못했어요.",
+        "leaveFailed": "{{count}}개 방에서 나가지 못했어요.",
+        "deleteDialog": {
+            "title": "선택한 {{count}}개의 채팅방을 삭제하시겠습니까?",
+            "description": "방을 삭제하면 모든 참여자도 이 채팅방에 접근할 수 없으며, 대화 내용은 영구적으로 삭제되어 복구할 수 없습니다.",
+            "confirm": "삭제"
+        },
+        "leaveDialog": {
+            "title": "선택한 {{count}}개의 채팅방에서 나가시겠습니까?",
+            "description": "방에서 나가면 대화 목록에서 사라지고, 다시 초대받아야 참여할 수 있습니다.",
+            "confirm": "나가기"
+        }
+    },
     "bottomNav": {
         "chat": "채팅",
         "my": "MY",

@@ -44,6 +44,20 @@ export type ChannelSortMethod = 'recent' | 'unread';
 /** Default channel sort when a place has no stored preference. */
 export const DEFAULT_CHANNEL_SORT: ChannelSortMethod = 'recent';
 
+/**
+ * Scope key for the per-place client preferences (channel sort, pinned channels).
+ *
+ * A site id is only unique WITHIN its cloud, so these preferences are keyed by `<cid>:<sid>` —
+ * otherwise the same place id in another cloud would silently inherit the first cloud's sort order
+ * and pins. Returns null when either half is unknown; callers then fall back to defaults and skip
+ * the write rather than storing a half-formed key.
+ */
+export const placeScopeKey = (cloudId?: string | null, placeId?: string | null): string | null =>
+    cloudId && placeId ? `${cloudId}:${placeId}` : null;
+
+/** A stored key belongs to the current scheme only if it carries both halves. */
+export const isPlaceScopeKey = (key: string): boolean => key.includes(':');
+
 export const PREFERENCES = {
     // -----------------------------------------------------------------------
     // Managed by usePreferenceStore
@@ -86,13 +100,23 @@ export const PREFERENCES = {
         localKey: 'chatic-push-muted',
         defaultValue: 'false',
     },
-    // Per-place channel sort method. The value is a JSON map keyed by placeId
-    // ({"<placeId>":"unread", ...}) stored under one key — a place with no entry
-    // falls back to DEFAULT_CHANNEL_SORT. Client-only preference (no server sync),
-    // so 'local' (localStorage); the write is the source of truth.
+    // Per-place channel sort method. The value is a JSON map keyed by the place scope
+    // ({"<cid>:<sid>":"unread", ...}) stored under one key — a place with no entry falls back
+    // to DEFAULT_CHANNEL_SORT. See placeScopeKey: the key carries the cloud id because a site
+    // id is only unique within its cloud. Client-only preference (no server sync), so 'local'
+    // (localStorage); the write is the source of truth.
     channelSort: {
         strategy: 'local',
         localKey: 'chatic-channel-sort',
+        defaultValue: '{}',
+    },
+    // Pinned channels, per place. The value is a JSON map of place scope → channelId[]
+    // ({"<cid>:<sid>":["<channelId>", ...]}) stored under one key; see placeScopeKey. Pinning is
+    // a CLIENT-ONLY concept — neither ChannelModel nor JoinModel carries a pin field — so 'local'
+    // (localStorage) and the write is the source of truth. Not synced across devices.
+    pinnedChannels: {
+        strategy: 'local',
+        localKey: 'chatic-pinned-channels',
         defaultValue: '{}',
     },
     // -----------------------------------------------------------------------

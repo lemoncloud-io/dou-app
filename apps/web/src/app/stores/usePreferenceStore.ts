@@ -4,6 +4,7 @@ import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
 import { PREFERENCES } from './preferenceKeys';
+import { isPlaceScopeKey } from './preferenceKeys';
 import type { ChannelSortMethod, Theme } from './preferenceKeys';
 
 // ---------------------------------------------------------------------------
@@ -65,17 +66,41 @@ const persistPreference = (name: keyof typeof PREFERENCES, value: string): void 
  */
 const VALID_CHANNEL_SORTS: readonly ChannelSortMethod[] = ['recent', 'unread'];
 
-const parseChannelSort = (raw: string): Record<string, ChannelSortMethod> => {
+export const parseChannelSort = (raw: string): Record<string, ChannelSortMethod> => {
     try {
         const parsed = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
         // Keep only recognized per-place values so a corrupt/tampered entry can't leave the sort
         // picker with no selection or feed an unknown method downstream.
         const result: Record<string, ChannelSortMethod> = {};
-        for (const [placeId, method] of Object.entries(parsed)) {
-            if (VALID_CHANNEL_SORTS.includes(method as ChannelSortMethod)) {
-                result[placeId] = method as ChannelSortMethod;
+        for (const [scope, method] of Object.entries(parsed)) {
+            // Legacy entries keyed by a bare placeId are dropped: they can't be attributed to a
+            // cloud, so honoring them would leak one cloud's sort into another's same-id place.
+            if (isPlaceScopeKey(scope) && VALID_CHANNEL_SORTS.includes(method as ChannelSortMethod)) {
+                result[scope] = method as ChannelSortMethod;
             }
+        }
+        return result;
+    } catch {
+        return {};
+    }
+};
+
+/**
+ * Parse the stored pinned-channel JSON map (placeId → channelId[]). Anything that isn't an array
+ * of non-empty strings is dropped, so a corrupt write degrades to "nothing pinned" rather than
+ * breaking the channel list ordering.
+ */
+export const parsePinnedChannels = (raw: string): Record<string, string[]> => {
+    try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+        const result: Record<string, string[]> = {};
+        for (const [scope, ids] of Object.entries(parsed)) {
+            // Same as channelSort: legacy bare-placeId entries are dropped rather than migrated.
+            if (!isPlaceScopeKey(scope) || !Array.isArray(ids)) continue;
+            const channelIds = ids.filter((id): id is string => typeof id === 'string' && id.length > 0);
+            if (channelIds.length > 0) result[scope] = channelIds;
         }
         return result;
     } catch {
@@ -118,8 +143,10 @@ interface PreferenceState {
     issueReportHidden: boolean;
     /** Device-global push mute (optimistic local mirror of device.update-remote; no server read). */
     pushMuted: boolean;
-    /** Per-place channel sort method, keyed by placeId. Missing key → DEFAULT_CHANNEL_SORT. */
+    /** Channel sort method per `<cid>:<sid>` scope (placeScopeKey). Missing → DEFAULT_CHANNEL_SORT. */
     channelSort: Record<string, ChannelSortMethod>;
+    /** Pinned channel ids per `<cid>:<sid>` scope (placeScopeKey). Client-only (no server pin field). */
+    pinnedChannels: Record<string, string[]>;
 }
 
 interface PreferenceActions {
@@ -131,8 +158,10 @@ interface PreferenceActions {
     setIssueReportHidden: (value: boolean) => void;
     /** Optimistically mirror the device push-mute write (source of truth is device.update-remote). */
     setPushMuted: (value: boolean) => void;
-    /** Set the channel sort method for a single place; other places' preferences are preserved. */
-    setChannelSort: (placeId: string, method: ChannelSortMethod) => void;
+    /** Set the sort method for one place scope (placeScopeKey); other scopes are preserved. */
+    setChannelSort: (scope: string, method: ChannelSortMethod) => void;
+    /** Pin/unpin one channel within a place scope (placeScopeKey); other scopes are preserved. */
+    setChannelPinned: (scope: string, channelId: string, pinned: boolean) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -157,6 +186,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     pushMuted: readPreference('pushMuted') === 'true',
 
     channelSort: parseChannelSort(readPreference('channelSort')),
+
+    pinnedChannels: parsePinnedChannels(readPreference('pinnedChannels')),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -188,11 +219,22 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         persistPreference('pushMuted', value ? 'true' : 'false');
     },
 
-    setChannelSort: (placeId: string, method: ChannelSortMethod) => {
+    setChannelSort: (scope: string, method: ChannelSortMethod) => {
         // Merge into the existing map so switching one place's sort never drops another's.
-        const next = { ...get().channelSort, [placeId]: method };
+        const next = { ...get().channelSort, [scope]: method };
         set({ channelSort: next });
         persistPreference('channelSort', JSON.stringify(next));
+    },
+
+    setChannelPinned: (scope: string, channelId: string, pinned: boolean) => {
+        const current = get().pinnedChannels[scope] ?? [];
+        const channelIds = pinned ? [...new Set([...current, channelId])] : current.filter(id => id !== channelId);
+        // Drop the scope entry entirely once nothing is pinned, so the stored map stays minimal.
+        const next = { ...get().pinnedChannels };
+        if (channelIds.length > 0) next[scope] = channelIds;
+        else delete next[scope];
+        set({ pinnedChannels: next });
+        persistPreference('pinnedChannels', JSON.stringify(next));
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

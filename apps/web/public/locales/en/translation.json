@@ -388,6 +388,35 @@
         "createDirect": "1:1 Chat",
         "createGroup": "Create Group"
     },
+    "channelManage": {
+        "title": "Manage chats",
+        "clearSelection": "Deselect",
+        "readAll": "Mark all read",
+        "readSelected": "Read {{count}}",
+        "readDone": "Rooms marked as read",
+        "readFailed": "Could not mark {{count}} room(s) as read.",
+        "nothingToRead": "No unread rooms.",
+        "pin": "Pin room",
+        "unpin": "Unpin room",
+        "pinned": "Room pinned.",
+        "unpinned": "Room unpinned.",
+        "deleteRooms": "Delete rooms",
+        "leaveRooms": "Leave rooms",
+        "deleteDone": "Deleted {{count}} room(s).",
+        "leaveDone": "Left {{count}} room(s).",
+        "deleteFailed": "Could not delete {{count}} room(s).",
+        "leaveFailed": "Could not leave {{count}} room(s).",
+        "deleteDialog": {
+            "title": "Delete the {{count}} selected chat room(s)?",
+            "description": "Deleting a room removes access for every participant, and the conversation is permanently deleted and cannot be recovered.",
+            "confirm": "Delete"
+        },
+        "leaveDialog": {
+            "title": "Leave the {{count}} selected chat room(s)?",
+            "description": "Leaving removes the room from your list; you need a new invite to rejoin.",
+            "confirm": "Leave"
+        }
+    },
     "bottomNav": {
         "chat": "Chat",
         "my": "MY",

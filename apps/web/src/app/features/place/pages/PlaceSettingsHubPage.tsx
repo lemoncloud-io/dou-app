@@ -17,8 +17,8 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
  * Place settings hub — the landing screen reached from the home profile dropdown. Three titled
  * cards: "프로필" (my profile / place profile), "알림" (place push toggle) and "채팅방" (chat sort /
  * chat management). The place-profile row is owner-only, so it is disabled for non-owners (server
- * `isOwner` is the authority — ADR-0031). The notification toggle and chat management are
- * not-yet-implemented placeholders.
+ * `isOwner` is the authority — ADR-0031). The notification toggle is still a placeholder (no
+ * backend support).
  */
 export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
@@ -79,13 +79,10 @@ export const PlaceSettingsHubPage = () => {
                         trailing={chevron}
                         onClick={placeId ? () => setIsSortSheetOpen(true) : undefined}
                     />
-                    {/* Chat-room management is not implemented yet — shown disabled as a placeholder. */}
                     <ListRow
                         title={t('placeSettings.channelManage')}
-                        subtitle={t('placeSettings.comingSoon')}
                         trailing={chevron}
-                        disabled
-                        onClick={() => undefined}
+                        onClick={placeId ? go(ROUTES.place.settingsChannels(placeId)) : undefined}
                     />
                 </MenuCard>
             </div>
