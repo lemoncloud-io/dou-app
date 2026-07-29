@@ -19,6 +19,7 @@ import {
     shell,
     Tray,
 } from 'electron';
+import { resolveAppLanguage } from './appLanguage';
 import {
     applyCustomUi,
     disableCustomUi,
@@ -658,7 +659,12 @@ const createWindow = (): BrowserWindow => {
                 `--chatic-device-id=${getOrCreateDeviceId()}`,
                 `--chatic-stage=${IS_DEV_CHANNEL ? 'dev' : 'prod'}`,
                 `--chatic-app-version=${app.getVersion()}`,
-                `--chatic-language=${process.env.VITE_DESKTOP_LANGUAGE ?? ''}`,
+                // `VITE_DESKTOP_LANGUAGE` is never `define`-replaced (no `define` in
+                // electron.vite.config.ts) and is set in no .env file, so in a packaged app it is
+                // always undefined and this argument shipped empty — the preload then fell back to
+                // 'en' unconditionally. Keep it as a runtime override for dev, but resolve the OS
+                // locale when it is absent, which is what mobile injects.
+                `--chatic-language=${resolveAppLanguage(process.env.VITE_DESKTOP_LANGUAGE || app.getLocale())}`,
             ],
             contextIsolation: true,
             nodeIntegration: false,
