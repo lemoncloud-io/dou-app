@@ -90,13 +90,15 @@ Why the planned migration was not the fix:
 - **There is no working abstraction to migrate into.** `EvictionStrategy` and
   `CapacityPolicy` have exactly one implementation each repo-wide, and both are inert:
   `DefaultEvictionStrategy`'s three hooks are no-ops and `DefaultCapacityPolicy.getLimit()`
-  returns `null` (`libs/data/src/data/local/storages/defaultPolicies.ts`). Worse,
-  `localFactory` builds `HotColdCacheStorageStrategy` with `policyResolver` only, so those
-  no-ops are what runs on the **native** path too. It is empty scaffolding, not a designed
-  mechanism being bypassed.
-- **`IndexedDBAdapter` is the more general home, not the narrower one.** It is the Hot tier
-  in _both_ strategies, so the native path can opt into the same cap by passing the same
-  option — which is not true of a fix that only exists inside `DynamicCacheStorage`.
+  returns `null` (`libs/data/src/data/local/storages/defaultPolicies.ts`). Worse, nothing
+  reaches them: they live inside `HotColdCacheStorageStrategy`, and `localFactory` no longer
+  constructs it on any path — native goes to `NativeDbOnlyCacheStorageStrategy` and everything
+  else to `IndexedDbOnlyCacheStorageStrategy`, neither of which wraps `DynamicCacheStorage`.
+  It is empty scaffolding, not a designed mechanism being bypassed.
+- **`IndexedDBAdapter` is the home the cap can actually reach.** It is what
+  `IndexedDbOnlyCacheStorageStrategy` builds, which is every non-native client. The native path
+  now stores through `NativeDBAdapter` alone and has no IndexedDB tier at all, so a cap that
+  lived inside `DynamicCacheStorage` would reach _neither_ path.
 - **The blast radius this ADR already rejected has not changed.** Routing browser clients
   through `DynamicCacheStorage` also changes their read-policy resolution and adds the
   stampede guard for every one of them — the same reason "Full bounded cache now" was
@@ -112,5 +114,6 @@ Two facts the bounding work established that this ADR did not anticipate:
 - **The quota safety net is gated on a limit being configured.** With no limit, eviction has
   nothing to evict, so retrying the write would meet the same full store — the gate does not
   remove a net that would otherwise work. The net promised "on every platform" by the
-  Decision above has in fact never existed on the native path, because the eviction hooks
-  there are the no-ops described earlier. That gap is unchanged by this work and remains owed.
+  Decision above has in fact never existed on the native path, which stores through
+  `NativeDBAdapter` alone and so never reaches the eviction hooks at all. That gap is unchanged
+  by this work and remains owed.
