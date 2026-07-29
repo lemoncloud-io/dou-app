@@ -13,10 +13,12 @@ import { useInviteCountdown } from '../../home/hooks';
 import { ConfirmDialog } from '../../channels/components';
 import { ROUTES } from '../../../routes/paths';
 import { toError } from '../../../utils/errors';
+import { INVITE_CANCEL_API_SUPPORTED } from '../flags';
 import { useAcceptedChannelSync } from '../hooks/useAcceptedChannelSync';
 import { useInviteWaitingStatus } from '../hooks/useInviteWaitingStatus';
 import { useLocallyCanceledInvites } from '../hooks/useLocallyCanceledInvites';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
+import { resolveCancelDialogDescriptionKey } from '../utils/inviteStatus';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
 /**
@@ -205,7 +207,7 @@ export const InviteWaitingPage = () => {
                 open={isCancelDialogOpen}
                 onOpenChange={setIsCancelDialogOpen}
                 title={t('inviteWaiting.cancelDialog.title')}
-                description={t('inviteWaiting.cancelDialog.description')}
+                description={t(resolveCancelDialogDescriptionKey(INVITE_CANCEL_API_SUPPORTED))}
                 confirmLabel={t('inviteWaiting.cancelDialog.confirm')}
                 onConfirm={handleCancelConfirm}
             />

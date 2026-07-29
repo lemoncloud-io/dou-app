@@ -160,7 +160,7 @@ stateDiagram-v2
 | `apps/web/src/app/bridge/appBridge.ts` | `sendSms(phoneNumbers, message)` 추가 — `SendSms`/`OnSendSms`(`@chatic/app-messages`) 배선. |
 | `apps/web/src/app/hooks/useSentInviteLog.ts` | 로컬 발급 이력(zustand + localStorage). 계약: `record(invite, {phone,name})` / `findByPhone(phone)` / `findByInviteId(inviteId)`(구현 중 추가 — 대기 화면 재발급용 역조회, additive). |
 | `apps/web/src/app/features/invite/flags.ts` | 백엔드 미지원 액션 게이팅 상수(취소·거절 상태·자동 만료 문구). |
-| `apps/web/src/app/features/invite/utils/inviteStatus.ts` | `MyInviteStatus` → 목록 뱃지(variant+label) 매핑 + 재초대 다이얼로그 변형 매핑. `expired` 폴백이 미래의 거절 상태까지 흡수(요청 2번 주석). |
+| `apps/web/src/app/features/invite/utils/inviteStatus.ts` | `MyInviteStatus` → 목록 뱃지/재초대 변형 매핑 + `flags.ts` 불리언 → i18n 키 리졸버(`resolveExpiredReinviteDescriptionKey`, `resolveCancelDialogDescriptionKey`) — 플래그가 실제로 카피를 게이팅하는 지점. |
 | `apps/web/src/app/features/invite/utils/inviteMessageCopy.ts` | SMS 본문 조립(`ContactInvitePage`/`InviteWaitingPage` 재발급 공용). |
 | `apps/web/src/app/features/invite/utils/sendInviteMessage.ts` | SMS 발송/클립보드 폴백 오케스트레이션. |
 | `apps/web/src/app/features/invite/hooks/useLocallyCanceledInvites.ts` | 취소 스텁 로컬 상태(localStorage id 집합). |
@@ -220,14 +220,16 @@ invite: {
 ## 알려진 갭 (백엔드 미지원 — ADR-0033 인터페이스 선반영)
 
 - **취소는 로컬 전용이다(요청 1번)**: 대기 화면에서 "초대 취소"를 확인하면 이 기기에서만 숨겨질
-  뿐 서버는 여전히 `pending`으로 인지한다 — 상대는 이론상 계속 수락할 수 있다.
-  `INVITE_CANCEL_API_SUPPORTED`가 뒤집히면 `useLocallyCanceledInvites` 대신 실제
-  `invite.cancel` 호출로 교체한다.
+  뿐 서버는 여전히 `pending`으로 인지한다 — 상대는 이론상 계속 수락할 수 있다. 확인 다이얼로그의
+  설명 카피는 이미 `INVITE_CANCEL_API_SUPPORTED`로 게이팅돼 있어(오늘은 "로컬에서만 사라진다"는
+  솔직한 문구) 실 API가 생기면 플래그를 뒤집고 `useLocallyCanceledInvites` 대신 실제
+  `invite.cancel` 호출로 교체하면 된다(`resolveCancelDialogDescriptionKey`).
 - **채널 회수 타이밍 미확정(요청 5번)**: `accepted` 이후 `channelId`가 언제 채워지는지 백엔드가
   아직 확정하지 않아, 대기 화면의 "실채널 전환"은 최선 노력이다(`useAcceptedChannelSync`의 짧은
   로컬 동기화 대기 + 홈 폴백). 확정되면 그 훅만 교체한다.
 - **재초대 시 이전 pending 미실효(요청 3번)**: 카피를 "자동 만료" 대신 사실 그대로 썼다.
-  `INVITE_AUTO_REVOKE_ON_REISSUE_SUPPORTED`가 뒤집히면 카피를 복원한다.
+  `INVITE_AUTO_REVOKE_ON_REISSUE_SUPPORTED`가 뒤집히면 `resolveExpiredReinviteDescriptionKey`가
+  자동으로 "자동 만료" 카피를 고른다(코드 변경 없음).
 - **"초대 거절" 상태 없음(요청 2번)**: `resolveInviteRowBadge`/`resolveReinviteVariant` 모두
   `expired`로 흡수한다. `ReinviteDialog`의 `declined` 카피는 준비돼 있지만 오늘은 어떤 리졸버도
   선택하지 않는다.

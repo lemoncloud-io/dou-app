@@ -37,3 +37,23 @@ export const resolveReinviteVariant = (state: MyInviteStatus | undefined): Reinv
     if (state === 'pending') return 'pending';
     return 'expired';
 };
+
+/**
+ * Which i18n key the re-invite dialog's `expired` description uses (ADR-0033 요청 3번 — 로드맵
+ * `INVITE_AUTO_REVOKE_ON_REISSUE_SUPPORTED`). Reissuing does not revoke the prior pending code
+ * server-side today, so the copy must not claim it does; once it does, the caller flips the flag
+ * and this starts returning the auto-revoke key with no other code change.
+ */
+export const resolveExpiredReinviteDescriptionKey = (autoRevokeSupported: boolean): string =>
+    autoRevokeSupported
+        ? 'contactInvite.reinvite.expired.descriptionAutoRevoke'
+        : 'contactInvite.reinvite.expired.description';
+
+/**
+ * Which i18n key the waiting screen's cancel-confirm dialog uses (ADR-0033 요청 1번 — 로드맵
+ * `INVITE_CANCEL_API_SUPPORTED`). Without a real `invite.cancel` API, confirming only hides the
+ * invite on this device (`useLocallyCanceledInvites`) — the recipient could, in principle, still
+ * accept it — so the copy says so instead of claiming the invite itself is invalidated.
+ */
+export const resolveCancelDialogDescriptionKey = (cancelApiSupported: boolean): string =>
+    cancelApiSupported ? 'inviteWaiting.cancelDialog.description' : 'inviteWaiting.cancelDialog.descriptionStub';

@@ -1211,7 +1211,8 @@
             },
             "expired": {
                 "title": "이전 초대가 만료됐어요",
-                "description": "새로 초대장을 보낼까요?"
+                "description": "새로 초대장을 보낼까요?",
+                "descriptionAutoRevoke": "새로 보내면 이전 링크는 자동으로 만료돼요. 새 초대장을 보낼까요?"
             },
             "declined": {
                 "title": "상대방이 초대를 거절했어요",
@@ -1247,7 +1248,8 @@
         },
         "cancelDialog": {
             "title": "초대를 취소할까요?",
-            "description": "취소하면 상대방이 이 초대로 대화에 참여할 수 없도록 목록에서 숨겨요.",
+            "description": "취소하면 상대방이 이 초대로 더 이상 대화에 참여할 수 없어요.",
+            "descriptionStub": "취소하면 내 목록에서만 사라져요. 상대방에게는 아직 유효할 수 있어요.",
             "confirm": "취소하기"
         },
         "canceledToast": "초대를 취소했어요"

@@ -41,6 +41,11 @@ describe('ReinviteDialog', () => {
         );
 
         expect(screen.getByText('contactInvite.reinvite.expired.title')).toBeInTheDocument();
+        // Today the backend does not revoke the prior code on reissue (요청 3번) — the honest
+        // (non-auto-revoke) description key must render, not the aspirational one.
+        expect(screen.getByText('contactInvite.reinvite.expired.description')).toBeInTheDocument();
+        expect(screen.queryByText('contactInvite.reinvite.expired.descriptionAutoRevoke')).not.toBeInTheDocument();
+
         fireEvent.click(screen.getByRole('button', { name: 'contactInvite.reinvite.reissueConfirm' }));
 
         expect(onReissue).toHaveBeenCalledTimes(1);

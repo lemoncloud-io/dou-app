@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertDialog } from '@chatic/web-ui-kit';
 
-import type { ReinviteVariant } from '../utils/inviteStatus';
+import { INVITE_AUTO_REVOKE_ON_REISSUE_SUPPORTED } from '../flags';
+import { resolveExpiredReinviteDescriptionKey, type ReinviteVariant } from '../utils/inviteStatus';
 
 interface ReinviteDialogProps {
     open: boolean;
@@ -43,12 +44,19 @@ export const ReinviteDialog = ({ open, onOpenChange, variant, onViewWaiting, onR
     }
 
     // `expired` and `declined` share the same shape (reissue vs. cancel) — only the copy differs.
+    // The `expired` description additionally branches on whether reissuing actually revokes the
+    // prior code server-side (요청 3번) — today it does not, so the copy must not claim it does.
+    const description =
+        variant === 'expired'
+            ? t(resolveExpiredReinviteDescriptionKey(INVITE_AUTO_REVOKE_ON_REISSUE_SUPPORTED))
+            : t(`contactInvite.reinvite.${variant}.description`);
+
     return (
         <AlertDialog
             open={open}
             onOpenChange={onOpenChange}
             title={t(`contactInvite.reinvite.${variant}.title`)}
-            description={t(`contactInvite.reinvite.${variant}.description`)}
+            description={description}
             cancelLabel={t('common.cancel')}
             confirmLabel={t('contactInvite.reinvite.reissueConfirm')}
             onConfirm={onReissue}

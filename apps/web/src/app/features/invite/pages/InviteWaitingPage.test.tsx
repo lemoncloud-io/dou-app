@@ -136,6 +136,11 @@ describe('InviteWaitingPage', () => {
 
         render(<InviteWaitingPage />);
         fireEvent.click(screen.getByText('inviteWaiting.cancelInvite'));
+
+        // INVITE_CANCEL_API_SUPPORTED defaults to false — the dialog must show the honest
+        // "local-only" stub copy, not the one that claims the invite itself is invalidated.
+        expect(screen.getByText('inviteWaiting.cancelDialog.descriptionStub')).toBeInTheDocument();
+
         fireEvent.click(screen.getByText('inviteWaiting.cancelDialog.confirm'));
 
         expect(markCanceled).toHaveBeenCalledWith('invite-1');

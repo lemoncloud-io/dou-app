@@ -1210,7 +1210,8 @@
             },
             "expired": {
                 "title": "The previous invite expired",
-                "description": "Send a new invite instead?"
+                "description": "Send a new invite instead?",
+                "descriptionAutoRevoke": "The previous link will expire automatically. Send a new invite?"
             },
             "declined": {
                 "title": "They declined the invite",
@@ -1246,7 +1247,8 @@
         },
         "cancelDialog": {
             "title": "Cancel this invite?",
-            "description": "Canceling hides it from your list so they can no longer join with it.",
+            "description": "Canceling means they can no longer join with this invite.",
+            "descriptionStub": "Canceling only removes it from your list — it may still be valid for them.",
             "confirm": "Cancel invite"
         },
         "canceledToast": "Invite canceled"
