@@ -33,15 +33,25 @@ flowchart TD
 ## 초대 링크 변환
 
 초대 링크는 웹이 인식 가능한 폼으로 변환해야 한다. `convertShortUrlWithEnvsSync`가 담당한다.
+입력 폼은 두 가지이고, **`relay` 플래그의 존재 여부가 판별자**다.
+
+**① 클라우드 폼** (백엔드 주소를 링크가 실어 나름)
 
 - **입력**: `https://app-dev.chatic.io/s?code=invt:910447:...&api=uzjpiaey7a&stage=dev`
 - **출력(상대 경로)**: `/?code=invt:910447:...&provider=invite&version=2&_backend=https://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev`
+
+**② 릴레이 폼** (릴레이 서버는 백엔드 주소가 필요 없음)
+
+- **입력**: `https://app-dev.chatic.io/s?code=invt:910447:...&relay`
+- **출력(상대 경로)**: `/?code=invt:910447:...&provider=invite&version=2&relay=1`
 
 변환 규칙:
 
 - `code`는 그대로 보존하고 `provider=invite`, `version=2`를 붙인다.
 - `_backend`는 `backend` 파라미터가 있으면 그대로, 없고 `api`+`stage`가 있으면 `https://{api}.execute-api.{region}.amazonaws.com/{stage}`로 조립한다 (`region`은 `INVITE_BACKEND_REGION = ap-northeast-2` 상수).
-- 그 외 쿼리 파라미터(`utm_*` 등)는 그대로 전달한다.
+- 릴레이 폼은 `_backend`를 **생략하는 대신 `relay=1`을 명시**한다. 웹이 "`_backend`가 없으니 릴레이"라고 추론하지 않고 마커로 판정하게 하기 위한 규격이다. 백엔드 주소는 웹의 `getDynamicRelayBackend()`(env 릴레이 엔드포인트)가 채운다.
+- `relay`는 **값이 아니라 존재 여부(`searchParams.has`)로 판별**한다. 값 없는 `&relay`는 `get('relay') === ''`(빈 문자열)이라 진위값 검사로는 놓친다. 들어온 형태(`&relay`, `relay=`)와 무관하게 출력은 항상 `relay=1`로 정규화한다.
+- 소비한 파라미터(`code`/`api`/`stage`/`backend`/`relay`)는 forward 루프에서 제외한다. 그 외 쿼리 파라미터(`utm_*` 등)는 그대로 전달한다.
 - **도메인은 넣지 않는다.** 출력은 호스트 없는 상대 경로이며, 최종 도메인은 하위 `toLocalUrl`이 `WEBVIEW_URL`로 붙인다. (예전의 `getFrontendDomainForUrl` "dev" 문자열 휴리스틱과 `FRONTEND_DOMAIN_*` 상수는 제거됨 — 도메인 소스는 `.env`의 `VITE_WEBVIEW_BASE_URL` 하나로 일원화.)
 
 ## OnNavigate 경로 계약

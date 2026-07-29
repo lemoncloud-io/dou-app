@@ -25,14 +25,19 @@ const extractShortCode = (path: string): string | null => {
 };
 
 /**
- * Check if URL matches the new dynamic invite URL pattern
+ * Check if URL matches the new dynamic invite URL pattern.
+ *
+ * Accepts the cloud form (`code` + `api`/`backend`) and the relay form (`code` + a bare `relay`
+ * flag, which carries no backend address). The flag is detected by presence: `&relay` parses to an
+ * empty-string value, so `get('relay')` is falsy for a valid relay link.
  */
 const isNewPattern = (urlStr: string): boolean => {
     try {
         const url = new URL(urlStr);
         const hasCode = url.searchParams.has('code');
         const hasApi = url.searchParams.has('api') || url.searchParams.has('backend');
-        return !!(hasCode && hasApi);
+        const hasRelay = url.searchParams.has('relay');
+        return !!(hasCode && (hasApi || hasRelay));
     } catch {
         return false;
     }
@@ -58,14 +63,18 @@ export const useWebRedirect = (deepLinkInfo: DeepLinkInfo, autoRedirect: boolean
                 const api = url.searchParams.get('api') || '';
                 const stage = url.searchParams.get('stage') || '';
                 const backendParam = url.searchParams.get('backend') || '';
+                const isRelay = url.searchParams.has('relay');
 
                 let backend = backendParam || '';
                 if (!backend && api && stage) {
                     backend = `https://${api}.execute-api.ap-northeast-2.amazonaws.com/${stage}`;
                 }
 
+                // Relay links get the explicit `relay=1` marker instead of a `_backend`; the web gates
+                // on the marker rather than inferring relay from a missing address.
+                const target = isRelay ? 'relay=1' : `_backend=${encodeURIComponent(backend)}`;
                 const webBase = `${WEB_CONFIG.protocol}://${WEB_CONFIG.domain}`;
-                const redirectUrl = `${webBase}/auth/login?code=${encodeURIComponent(code)}&provider=invite&version=2&_backend=${encodeURIComponent(backend)}`;
+                const redirectUrl = `${webBase}/auth/login?code=${encodeURIComponent(code)}&provider=invite&version=2&${target}`;
 
                 console.log('[WebRedirect] Direct redirect for new pattern:', redirectUrl);
                 window.location.href = redirectUrl;

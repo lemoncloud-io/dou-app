@@ -63,11 +63,20 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         expect(mockToast).not.toHaveBeenCalled();
     });
 
-    it('backend가 없으면 missingServerInfo 토스트를 띄우고 login을 시도하지 않는다', async () => {
+    it('backend도 relay 마커도 없으면 missingServerInfo 토스트를 띄우고 login을 시도하지 않는다', async () => {
         await runAccept(ctx({ params: { code: 'invt:1:abc' } } as Partial<InviteContext>));
 
         expect(mockToast).toHaveBeenCalledWith({ title: 'inviteAccept.missingServerInfo', variant: 'destructive' });
         expect(mockRunInviteFlow).not.toHaveBeenCalled();
+    });
+
+    it('relay 마커가 있으면 backend 없이도 login을 진행한다 (web-core가 릴레이 엔드포인트로 폴백)', async () => {
+        const result = await runAccept(ctx({ params: { code: 'invt:1:abc', relay: true } } as Partial<InviteContext>));
+
+        // backend stays undefined: registerUserWithInviteCode resolves getDynamicRelayBackend().
+        expect(mockRunInviteFlow).toHaveBeenCalledWith({ code: 'invt:1:abc', backend: undefined });
+        expect(mockToast).not.toHaveBeenCalled();
+        expect(result.current.errorKey).toBeNull();
     });
 
     it('login-invite 단계 400 실패 시 expired 키를 노출하고 step을 로그에 남긴다', async () => {

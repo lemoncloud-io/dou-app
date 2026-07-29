@@ -78,6 +78,54 @@ describe('convertShortUrlWithEnvsSync (신규 패턴 초대 링크)', () => {
     });
 });
 
+describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
+    it('relay 플래그만 있는 링크를 relay=1 마커로 변환하고 _backend는 넣지 않는다', () => {
+        const { url } = convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?code=ABC123&relay');
+
+        // Assert the raw string: order is deterministic (code, provider, version, relay).
+        expect(url).toBe('/?code=ABC123&provider=invite&version=2&relay=1');
+
+        const parsed = new URL(url, PARSE_BASE);
+        expect(parsed.pathname).toBe('/');
+        expect(parsed.searchParams.get('provider')).toBe('invite');
+        expect(parsed.searchParams.get('version')).toBe('2');
+        expect(parsed.searchParams.get('relay')).toBe('1');
+        expect(parsed.searchParams.has('_backend')).toBe(false);
+    });
+
+    it('값 없는 &relay(빈 문자열)도 릴레이로 인식한다 (get 진위값이 아니라 존재 여부로 판별)', () => {
+        // `get('relay')` is '' here, so a truthiness check would misread this as a non-relay link.
+        const bare = new URL('https://app-dev.chatic.io/s?code=ABC123&relay');
+        expect(bare.searchParams.get('relay')).toBe('');
+
+        expect(convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?code=ABC123&relay=').url).toBe(
+            '/?code=ABC123&provider=invite&version=2&relay=1'
+        );
+        expect(convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?relay&code=ABC123').url).toBe(
+            '/?code=ABC123&provider=invite&version=2&relay=1'
+        );
+    });
+
+    it('릴레이 링크도 초대와 무관한 그 외 쿼리 파라미터를 그대로 전달한다 (relay는 중복 전달하지 않음)', () => {
+        const { url } = convertShortUrlWithEnvsSync(
+            'https://app-dev.chatic.io/s?code=ABC123&relay&utm_source=kakao'
+        );
+
+        const parsed = new URL(url, PARSE_BASE);
+        expect(parsed.searchParams.get('utm_source')).toBe('kakao');
+        // Consumed by the converter, so it is emitted exactly once in its canonical form.
+        expect(parsed.searchParams.getAll('relay')).toEqual(['1']);
+    });
+
+    it('클라우드 폼(api+stage)은 그대로 _backend를 만들고 relay 마커를 붙이지 않는다', () => {
+        const { url } = convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?code=ABC123&api=myapi&stage=prod');
+
+        const parsed = new URL(url, PARSE_BASE);
+        expect(parsed.searchParams.get('_backend')).toBe('https://myapi.execute-api.ap-northeast-2.amazonaws.com/prod');
+        expect(parsed.searchParams.has('relay')).toBe(false);
+    });
+});
+
 describe('convertShortUrlWithEnvsSync (비초대 링크)', () => {
     it('초대가 아닌 커스텀 스킴 URL은 변환 없이 그대로 통과시킨다 (resolveWebPath가 정규화)', () => {
         const input = 'chatic-dev://auth/login?code=123';
@@ -103,6 +151,12 @@ describe('resolveDeepLink (통합 해석기)', () => {
             expect(parsed.searchParams.get('provider')).toBe('invite');
             expect(parsed.searchParams.get('code')).toBe('ABC123');
         }
+    });
+
+    it('릴레이 초대 링크도 web 경로로 해석한다 (예전에는 통과되어 웹에서 유실됐다)', () => {
+        const result = resolveDeepLink('https://app-dev.chatic.io/s?code=ABC123&relay');
+
+        expect(result).toEqual({ kind: 'web', path: '/?code=ABC123&provider=invite&version=2&relay=1' });
     });
 
     it('비초대 커스텀 스킴은 host 없는 pathname+search 상대 경로로 축약한다', () => {

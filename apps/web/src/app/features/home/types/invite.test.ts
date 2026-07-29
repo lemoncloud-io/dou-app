@@ -12,6 +12,18 @@ describe('parseInviteDeeplink', () => {
         expect(params.code).toBeNull();
         expect(params.backend).toBeUndefined();
         expect(params.version).toBeUndefined();
+        expect(params.relay).toBeUndefined();
+    });
+
+    it('릴레이 초대 링크의 relay 마커를 추출한다 (_backend 없음)', () => {
+        const params = parseInviteDeeplink('?provider=invite&code=abc&relay=1');
+        expect(params).toEqual({ provider: 'invite', code: 'abc', relay: true });
+        expect(params.backend).toBeUndefined();
+    });
+
+    it('값이 없는 relay(빈 문자열)도 마커로 인식한다 (존재 여부로 판별)', () => {
+        expect(parseInviteDeeplink('?provider=invite&code=abc&relay').relay).toBe(true);
+        expect(parseInviteDeeplink('?provider=invite&code=abc&relay=').relay).toBe(true);
     });
 });
 
@@ -25,8 +37,18 @@ describe('isInviteEntry', () => {
         expect(isInviteEntry(parseInviteDeeplink('?code=abc&_backend=https://api'))).toBe(false);
     });
 
+    it('provider=invite이고 code와 relay 마커가 있으면 _backend가 없어도 true', () => {
+        expect(isInviteEntry(parseInviteDeeplink('?provider=invite&code=abc&relay=1'))).toBe(true);
+        expect(isInviteEntry(parseInviteDeeplink('?provider=invite&code=abc&relay'))).toBe(true);
+    });
+
+    it('relay 마커만 있고 code가 없으면 false', () => {
+        expect(isInviteEntry(parseInviteDeeplink('?provider=invite&relay=1'))).toBe(false);
+    });
+
     it('code 또는 _backend가 누락되면 false (무시 대상)', () => {
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite&_backend=https://api'))).toBe(false);
+        // No `_backend` and no `relay` marker: nothing identifies a target, so the link is ignored.
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite&code=abc'))).toBe(false);
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite'))).toBe(false);
     });

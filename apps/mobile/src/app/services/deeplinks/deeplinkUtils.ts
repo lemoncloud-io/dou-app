@@ -120,6 +120,13 @@ export const extractCampaignParams = (url: string): Record<string, string> => {
 
 /**
  * Check if URL matches the new dynamic invite URL pattern
+ *
+ * Two accepted forms, both rooted at `/s` and both requiring `code`:
+ * - cloud : `api`(+`stage`) or `backend` carries the target backend address.
+ * - relay : a bare `relay` flag and no address at all — the relay server needs none.
+ *
+ * The relay flag is detected with `has()`, never the truthiness of `get()`: `&relay` parses to an
+ * empty-string value, so `get('relay')` is falsy for a perfectly valid relay link.
  */
 export const isNewPatternInviteUrl = (url: string): boolean => {
     try {
@@ -132,8 +139,9 @@ export const isNewPatternInviteUrl = (url: string): boolean => {
 
         const hasCode = parsed.searchParams.has('code');
         const hasApi = parsed.searchParams.has('api') || parsed.searchParams.has('backend');
+        const hasRelay = parsed.searchParams.has('relay');
 
-        return !!(hasCode && hasApi);
+        return !!(hasCode && (hasApi || hasRelay));
     } catch {
         return false;
     }
@@ -176,8 +184,11 @@ export const extractShortCode = (url: string): string | null => {
  * The frontend host is intentionally omitted: the WebView always loads from WEBVIEW_URL
  * (`VITE_WEBVIEW_BASE_URL`), and the OnNavigate contract carries only the relative path.
  *
- * - New-pattern invite links (`/s?code=…&api=…&stage=…`) are expanded to the home route with the
- *   invite markers (`provider=invite&version=2`) and a resolved `_backend`, returned as a relative URL.
+ * - Cloud invite links (`/s?code=…&api=…&stage=…`) are expanded to the home route with the invite
+ *   markers (`provider=invite&version=2`) and a resolved `_backend`, returned as a relative URL.
+ * - Relay invite links (`/s?code=…&relay`) get the same markers plus an explicit `relay=1` and no
+ *   `_backend`: the relay server needs no address, and the web gates on the marker rather than
+ *   inferring relay from a missing `_backend`.
  * - Everything else passes through unchanged; resolveWebPath reduces it to pathname+search+hash.
  */
 export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => {
@@ -188,6 +199,8 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
             const api = parsed.searchParams.get('api');
             const stage = parsed.searchParams.get('stage');
             const backendParam = parsed.searchParams.get('backend');
+            // A bare `&relay` yields an empty-string value, so presence is the only reliable signal.
+            const isRelay = parsed.searchParams.has('relay');
 
             if (!code) {
                 throw new Error('Missing code parameter in deep link');
@@ -205,12 +218,16 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
             // collapses the invite link to a bare "/". (Node/Jest reflects the mutation, which is why
             // the unit tests stayed green while the device silently lost the invite params.)
             const query = [`code=${encodeURIComponent(code)}`, 'provider=invite', 'version=2'];
+            // Canonicalize the incoming flag (bare `relay`, `relay=`, …) to a single `relay=1`.
+            if (isRelay) {
+                query.push('relay=1');
+            }
             if (backend) {
                 query.push(`_backend=${encodeURIComponent(backend)}`);
             }
             // Forward any other query parameters (e.g. utm_*) except the ones we consumed above.
             parsed.searchParams.forEach((value, key) => {
-                if (key !== 'code' && key !== 'api' && key !== 'stage' && key !== 'backend') {
+                if (key !== 'code' && key !== 'api' && key !== 'stage' && key !== 'backend' && key !== 'relay') {
                     query.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
                 }
             });
