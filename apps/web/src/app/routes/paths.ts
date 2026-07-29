@@ -68,6 +68,11 @@ export const ROUTES = {
         settingsChannels: (placeId: string) => `/place/${placeId}/settings/channels`,
     },
 
+    // ── Search (Private) ─────────────────────────────────────────
+    search: {
+        root: '/search',
+    },
+
     // ── Subscription (Private) ───────────────────────────────────
     subscription: {
         root: '/subscription',

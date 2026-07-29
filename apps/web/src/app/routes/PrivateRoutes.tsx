@@ -12,6 +12,7 @@ const SubscriptionRoutes = lazy(() =>
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
 const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default: m.PlaceRoutes })));
 const InviteRoutes = lazy(() => import('../features/invite').then(m => ({ default: m.InviteRoutes })));
+const SearchRoutes = lazy(() => import('../features/search').then(m => ({ default: m.SearchRoutes })));
 
 const RouteFallback = () => (
     <div className="flex h-full flex-col bg-background px-5 pt-safe-top">
@@ -76,6 +77,7 @@ export const privateRoutes = [
             { path: 'channels/*', element: withSuspense(ChannelRoutes) },
             { path: 'place/*', element: withSuspense(PlaceRoutes) },
             { path: 'invite/*', element: withSuspense(InviteRoutes) },
+            { path: 'search/*', element: withSuspense(SearchRoutes) },
         ],
     },
 ];

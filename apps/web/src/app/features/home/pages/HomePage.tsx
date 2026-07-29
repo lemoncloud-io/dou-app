@@ -252,7 +252,7 @@ export const HomePage = () => {
     const handleCreateOneOnOne = () => navigate(ROUTES.invite.contact);
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
-    const handleSearch = () => toast({ title: t('homePage.searchComingSoon', '검색은 준비 중이에요') });
+    const handleSearch = () => navigate(ROUTES.search.root);
 
     // Right-side profile → dropdown. The header shows my place profile; the only entry navigates to
     // the place settings hub. Controlled open state so the header's close (X) can dismiss it.

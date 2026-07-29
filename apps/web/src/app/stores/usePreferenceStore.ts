@@ -3,7 +3,7 @@ import { isNative } from '@chatic/bridges';
 import type { PreferenceKey } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
-import { PREFERENCES } from './preferenceKeys';
+import { MAX_RECENT_SEARCHES, PREFERENCES } from './preferenceKeys';
 import { isPlaceScopeKey } from './preferenceKeys';
 import type { ChannelSortMethod, Theme } from './preferenceKeys';
 
@@ -136,6 +136,21 @@ export const parseCloudPromoDismissedAt = (raw: string, now: number = Date.now()
     return parsed > now ? 0 : parsed;
 };
 
+/**
+ * Parse the stored recent-search JSON array. A corrupt or non-array value resets to an
+ * empty list so a single bad write can never break the search page — it just starts with
+ * no history. Non-string entries are dropped rather than failing the whole parse.
+ */
+export const parseRecentSearches = (raw: string): string[] => {
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((item): item is string => typeof item === 'string');
+    } catch {
+        return [];
+    }
+};
+
 const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
 
 /**
@@ -181,6 +196,8 @@ interface PreferenceState {
     canceledInviteIds: string[];
     /** Epoch ms the cloud-promo banner was last dismissed; 0 means never (see parseCloudPromoDismissedAt). */
     cloudPromoDismissedAt: number;
+    /** Recent search keywords, most-recent first, capped at MAX_RECENT_SEARCHES. */
+    recentSearches: string[];
 }
 
 interface PreferenceActions {
@@ -207,6 +224,12 @@ interface PreferenceActions {
      * compare the timestamp against CLOUD_PROMO_DISMISS_TTL_MS (see features/home/hooks/useCloudPromo).
      */
     dismissCloudPromo: () => void;
+    /** Add a keyword to recent searches (moves to front if already present, capped list). */
+    addRecentSearch: (keyword: string) => void;
+    /** Remove a single keyword from recent searches. */
+    removeRecentSearch: (keyword: string) => void;
+    /** Clear all recent searches. */
+    clearRecentSearches: () => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -239,6 +262,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     canceledInviteIds: parseInviteIds(readPreference('canceledInvites')),
 
     cloudPromoDismissedAt: parseCloudPromoDismissedAt(readPreference('cloudPromoDismissedAt')),
+
+    recentSearches: parseRecentSearches(readPreference('recentSearches')),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -311,6 +336,30 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         const dismissedAt = Date.now();
         set({ cloudPromoDismissedAt: dismissedAt });
         persistPreference('cloudPromoDismissedAt', String(dismissedAt));
+    },
+
+    addRecentSearch: (keyword: string) => {
+        const trimmed = keyword.trim();
+        if (!trimmed) return;
+        // Dedupe case-insensitively so 'Lemon' and 'lemon' don't both show up, then move
+        // the newest form to the front.
+        const withoutDuplicate = get().recentSearches.filter(
+            existing => existing.toLowerCase() !== trimmed.toLowerCase()
+        );
+        const next = [trimmed, ...withoutDuplicate].slice(0, MAX_RECENT_SEARCHES);
+        set({ recentSearches: next });
+        persistPreference('recentSearches', JSON.stringify(next));
+    },
+
+    removeRecentSearch: (keyword: string) => {
+        const next = get().recentSearches.filter(existing => existing !== keyword);
+        set({ recentSearches: next });
+        persistPreference('recentSearches', JSON.stringify(next));
+    },
+
+    clearRecentSearches: () => {
+        set({ recentSearches: [] });
+        persistPreference('recentSearches', JSON.stringify([]));
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

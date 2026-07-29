@@ -4,6 +4,7 @@ import {
     parseCloudPromoDismissedAt,
     parseInviteIds,
     parsePinnedChannels,
+    parseRecentSearches,
     parseTheme,
     usePreferenceStore,
 } from './usePreferenceStore';
@@ -42,6 +43,7 @@ const resetStore = () => {
         pinnedChannels: {},
         dismissedUpdateVersion: '',
         cloudPromoDismissedAt: 0,
+        recentSearches: [],
     });
     jest.clearAllMocks();
 };
@@ -583,5 +585,107 @@ describe('dismissCloudPromo — dismiss 기록', () => {
     it('local 전략이므로 네이티브 브릿지로 보내지 않는다', () => {
         usePreferenceStore.getState().dismissCloudPromo();
         expect(mockSavePreference).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// 최근검색어 — addRecentSearch / removeRecentSearch / clearRecentSearches (local 전략)
+// ---------------------------------------------------------------------------
+
+describe('최근검색어', () => {
+    beforeEach(() => {
+        mockIsNative.mockReturnValue(false);
+        resetStore();
+    });
+
+    it('검색어를 추가하면 맨 앞에 저장되고 localStorage에도 반영된다', () => {
+        usePreferenceStore.getState().addRecentSearch('lemon');
+
+        expect(usePreferenceStore.getState().recentSearches).toEqual(['lemon']);
+        expect(JSON.parse(localStorage.getItem('chatic-recent-searches') ?? '[]')).toEqual(['lemon']);
+    });
+
+    it('여러 검색어를 추가하면 최신순으로 앞에 쌓인다', () => {
+        usePreferenceStore.getState().addRecentSearch('lemon');
+        usePreferenceStore.getState().addRecentSearch('mango');
+
+        expect(usePreferenceStore.getState().recentSearches).toEqual(['mango', 'lemon']);
+    });
+
+    it('중복 검색어는 대소문자 무시하고 맨 앞으로 이동한다', () => {
+        usePreferenceStore.getState().addRecentSearch('lemon');
+        usePreferenceStore.getState().addRecentSearch('mango');
+        usePreferenceStore.getState().addRecentSearch('LEMON');
+
+        expect(usePreferenceStore.getState().recentSearches).toEqual(['LEMON', 'mango']);
+    });
+
+    it('공백만 있는 검색어는 무시한다', () => {
+        usePreferenceStore.getState().addRecentSearch('   ');
+        expect(usePreferenceStore.getState().recentSearches).toEqual([]);
+    });
+
+    it('앞뒤 공백은 트림한다', () => {
+        usePreferenceStore.getState().addRecentSearch('  lemon  ');
+        expect(usePreferenceStore.getState().recentSearches).toEqual(['lemon']);
+    });
+
+    it('최대 개수(10개)를 초과하면 가장 오래된 항목이 제거된다', () => {
+        for (let i = 0; i < 12; i += 1) {
+            usePreferenceStore.getState().addRecentSearch(`keyword-${i}`);
+        }
+
+        const result = usePreferenceStore.getState().recentSearches;
+        expect(result).toHaveLength(10);
+        expect(result[0]).toBe('keyword-11');
+        expect(result).not.toContain('keyword-0');
+        expect(result).not.toContain('keyword-1');
+    });
+
+    it('개별 검색어를 삭제할 수 있다', () => {
+        usePreferenceStore.getState().addRecentSearch('lemon');
+        usePreferenceStore.getState().addRecentSearch('mango');
+
+        usePreferenceStore.getState().removeRecentSearch('lemon');
+
+        expect(usePreferenceStore.getState().recentSearches).toEqual(['mango']);
+    });
+
+    it('전체 검색어를 삭제할 수 있다', () => {
+        usePreferenceStore.getState().addRecentSearch('lemon');
+        usePreferenceStore.getState().addRecentSearch('mango');
+
+        usePreferenceStore.getState().clearRecentSearches();
+
+        expect(usePreferenceStore.getState().recentSearches).toEqual([]);
+        expect(JSON.parse(localStorage.getItem('chatic-recent-searches') ?? '[]')).toEqual([]);
+    });
+
+    it('local 전략이라 네이티브에서도 브리지로 저장하지 않는다', () => {
+        mockIsNative.mockReturnValue(true);
+        usePreferenceStore.getState().addRecentSearch('lemon');
+        expect(mockSavePreference).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// parseRecentSearches (localStorage 원시 값 정규화)
+// ---------------------------------------------------------------------------
+
+describe('parseRecentSearches — 최근검색어 파싱', () => {
+    it('문자열 배열을 그대로 반환한다', () => {
+        expect(parseRecentSearches('["lemon","mango"]')).toEqual(['lemon', 'mango']);
+    });
+
+    it('손상된 JSON은 빈 배열로 폴백한다', () => {
+        expect(parseRecentSearches('{not valid json')).toEqual([]);
+    });
+
+    it('배열이 아닌 값(객체)은 빈 배열로 폴백한다', () => {
+        expect(parseRecentSearches('{"lemon":true}')).toEqual([]);
+    });
+
+    it('문자열이 아닌 항목은 걸러낸다', () => {
+        expect(parseRecentSearches('["lemon", 42, null, "mango"]')).toEqual(['lemon', 'mango']);
     });
 });

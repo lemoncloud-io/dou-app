@@ -349,7 +349,6 @@
         "search": "Search",
         "switchCloud": "Switch Cloud",
         "directComingSoon": "1:1 chat is coming soon",
-        "searchComingSoon": "Search is coming soon",
         "setupProfile": "Set up your profile",
         "noPlaceTitle": "No place connected",
         "noPlaceDescription": "Connect to a place to start chatting"
@@ -639,10 +638,15 @@
         "placeholder": "Search by room name or place",
         "recent": "Recent Searches",
         "clearAll": "Clear All",
+        "removeRecent": "Remove search term",
+        "clouds": "Clouds",
         "places": "Places",
+        "channels": "Channels",
         "chat": "Chat",
         "noResults": "No results found.",
-        "noHistory": "No search history."
+        "noHistory": "No search history.",
+        "navigateFailed": "Couldn't navigate there. Please try again shortly.",
+        "messageJumpFailed": "Couldn't find that message."
     },
     "placeSettings": {
         "title": "Place Settings",
