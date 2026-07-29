@@ -41,17 +41,11 @@ export const PlaceItem = ({
 
     // Avatar: the DoU brand mascot on a brand-green disc for the home (relay) place, a photo when
     // set, otherwise a name-initials avatar. Per Figma (2869:48261): a 42px brand-green circle with
-    // a hairline avatar-ring border. The mascot's source PNG has transparent margins, so it is scaled
-    // up inside a clipped 28px box to make its cloud fill the disc (matching the design proportions).
+    // a hairline avatar-ring border. The mascot renders at 32px (matching DouHomeItem's sizing) so
+    // it sits inset within the disc instead of touching its edge.
     const leading = isHomePlace ? (
         <span className="flex size-[42px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-avatar-ring bg-main-accent">
-            <span className="relative size-7 overflow-hidden">
-                <img
-                    src={douLogo}
-                    alt={displayName ?? ''}
-                    className="absolute left-[-13.54%] top-[-10.03%] h-[120.14%] w-[127.23%] max-w-none"
-                />
-            </span>
+            <img src={douLogo} alt={displayName ?? ''} className="h-8 w-8" />
         </span>
     ) : place.thumbnail ? (
         <ImageAvatar src={place.thumbnail} alt={displayName ?? ''} size={46} />
