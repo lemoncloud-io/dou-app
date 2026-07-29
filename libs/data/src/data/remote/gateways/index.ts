@@ -5,13 +5,20 @@ import type {
     CloudGateway,
     DeviceGateway,
     DomainGateway,
+    InviteGateway,
     JoinGateway,
     PlaceGateway,
     ProfileGateway,
     UserGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 
-export type AuthDomainGateway = Pick<AuthGateway, 'update'>;
+/**
+ * `update` authenticates whichever slot is active. `verifyHashAlias` (phone OTP send/resend/check —
+ * a successful check IS a login) and `attachSocial` are the relay DM-invite identity packets: the
+ * main user they resolve to lives in the central backend behind the relay, so the composition root
+ * binds those two to the relay slot. See ADR-0033.
+ */
+export type AuthDomainGateway = Pick<AuthGateway, 'update' | 'verifyHashAlias' | 'attachSocial'>;
 export type ChatDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete'>;
 export type ChannelDomainGateway = Pick<
     ChannelGateway,
@@ -37,6 +44,12 @@ export type CloudDomainGateway = Pick<CloudGateway, 'update' | 'get' | 'delete'>
 export type ProfileDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' | 'set' | 'sync'>;
 export type UserDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
     Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch'>;
+/**
+ * Relay 1:1 (DM) invite codes — distinct from `UserDomainGateway.invite`, which is the cloud
+ * bulk-invite action (ADR-0016). Issued and redeemed on the relay server, so the composition root
+ * pins this bundle entry to the relay slot rather than the active one. See ADR-0033.
+ */
+export type InviteDomainGateway = Pick<InviteGateway, 'create' | 'get' | 'list' | 'accept'>;
 
 export interface RemoteGatewayBundle {
     auth: AuthDomainGateway;
@@ -45,6 +58,7 @@ export interface RemoteGatewayBundle {
     join: JoinDomainGateway;
     place: PlaceDomainGateway;
     user: UserDomainGateway;
+    invite: InviteDomainGateway;
     // Device is ROUTED: save/read/sync go to `active`, while `update-remote` (relay-owned push
     // settings) is sent to whichever route the caller picks. See RoutedGateway / SocketRoute.
     device: RoutedGateway<DeviceDomainGateway>;
