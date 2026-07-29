@@ -30,6 +30,8 @@ import type { IUploadService } from './upload';
 import { SqliteUploadTaskDataSource, UploadService } from './upload';
 import type { IBootMetricsService } from './perf';
 import { BootMetricsService } from './perf';
+import type { IVersionService } from './version';
+import { VersionService } from './version';
 import DeviceInfo from 'react-native-device-info';
 
 import {
@@ -78,6 +80,7 @@ class DependencyProvider {
     private _firebaseInstallationService?: IFirebaseInstallationService;
     private _subscriptionIapService?: ISubscriptionIapService;
     private _preferenceService?: IPreferenceService;
+    private _versionService?: IVersionService;
     private _uploadService?: IUploadService;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
@@ -259,6 +262,13 @@ class DependencyProvider {
             this._preferenceService = new PreferenceService(this.logService, this.keyValueStorage);
         }
         return this._preferenceService;
+    }
+
+    public get versionService(): IVersionService {
+        if (!this._versionService) {
+            this._versionService = new VersionService(this.logService);
+        }
+        return this._versionService;
     }
 
     public static getInstance(): DependencyProvider {

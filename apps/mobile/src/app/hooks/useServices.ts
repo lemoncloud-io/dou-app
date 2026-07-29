@@ -14,6 +14,7 @@ import {
     permissionService,
     preferenceService,
     subscriptionIapService,
+    versionService,
 } from '../services';
 
 // SQLite-backed services (cacheCrudService, cacheSearchService, testRecordService, uploadService,
@@ -36,4 +37,5 @@ export const useServices = () => ({
     preferenceService: preferenceService,
     keyValueStorage: keyValueStorage,
     bootMetricsService: bootMetricsService,
+    versionService: versionService,
 });

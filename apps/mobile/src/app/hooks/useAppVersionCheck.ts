@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
-import DeviceInfo from 'react-native-device-info';
 
 import { getAppLanguage, t } from '../utils';
+import { versionService } from '../services';
 import { STORE_URLS } from '@chatic/shared';
-
-const IOS_BUNDLE_ID = 'io.chatic.dou';
-const APP_STORE_LOOKUP_URL = `https://itunes.apple.com/lookup?bundleId=${IOS_BUNDLE_ID}`;
 
 /**
  * Module-level cache for version check result.
@@ -38,47 +35,13 @@ export const onVersionCheckComplete = (listener: (result: VersionCheckResult) =>
     return () => listeners.delete(listener);
 };
 
-interface AppStoreLookupResponse {
-    resultCount: number;
-    results: Array<{
-        version: string;
-    }>;
-}
-
-/**
- * Parse version string into numeric parts for comparison
- */
-const parseVersion = (version: string): number[] => {
-    return version
-        .replace(/^v/, '')
-        .split('.')
-        .map(part => parseInt(part, 10) || 0);
-};
-
-/**
- * Compare two semantic versions
- * @returns true if latest is newer than current
- */
-const isNewerVersion = (latest: string, current: string): boolean => {
-    const latestParts = parseVersion(latest);
-    const currentParts = parseVersion(current);
-    const maxLength = Math.max(latestParts.length, currentParts.length);
-
-    for (let i = 0; i < maxLength; i++) {
-        const latestPart = latestParts[i] || 0;
-        const currentPart = currentParts[i] || 0;
-
-        if (latestPart > currentPart) return true;
-        if (latestPart < currentPart) return false;
-    }
-    return false;
-};
-
 /**
  * Hook to check for app updates and show native alert.
  *
- * Note: Currently iOS only. Android doesn't have a public Play Store API.
- * For Android, consider implementing a backend version endpoint.
+ * The actual live-version lookup and comparison lives in `versionService`
+ * (iOS only for now — Android safe-falls back to "no update" until a backend
+ * live-version endpoint exists). This hook only caches the result for the
+ * module-level singleton consumers below and drives the native alert.
  *
  * @param checkOnMount - Whether to check for updates on mount (default: true)
  */
@@ -109,34 +72,21 @@ export const useAppVersionCheck = (checkOnMount = true) => {
         );
     }, []);
 
-    // Check for updates on mount (iOS only, once)
+    // Check for updates on mount, once.
     useEffect(() => {
-        if (!checkOnMount || hasCheckedRef.current || Platform.OS !== 'ios') {
+        if (!checkOnMount || hasCheckedRef.current) {
             return;
         }
         hasCheckedRef.current = true;
 
         const checkVersion = async () => {
-            try {
-                const response = await fetch(APP_STORE_LOOKUP_URL, {
-                    method: 'GET',
-                    headers: { 'Cache-Control': 'no-cache' },
-                });
+            const check = await versionService.checkForUpdate();
+            if (!check.updateAvailable) return;
 
-                if (!response.ok) return;
-
-                const data: AppStoreLookupResponse = await response.json();
-                const latestVersion = data.results?.[0]?.version;
-
-                if (latestVersion && isNewerVersion(latestVersion, DeviceInfo.getVersion())) {
-                    const result: VersionCheckResult = { hasUpdate: true, latestVersion };
-                    versionCheckResult = result;
-                    setHasUpdate(true);
-                    listeners.forEach(fn => fn(result));
-                }
-            } catch {
-                // Silent fail - version check is not critical
-            }
+            const result: VersionCheckResult = { hasUpdate: true, latestVersion: check.latestVersion };
+            versionCheckResult = result;
+            setHasUpdate(true);
+            listeners.forEach(fn => fn(result));
         };
 
         void checkVersion();
