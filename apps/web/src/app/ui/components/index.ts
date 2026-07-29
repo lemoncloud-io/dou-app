@@ -1,4 +1,5 @@
 export * from './BottomNavigation';
+export * from './BottomNavSpacer';
 export * from './CloudLogo';
 export * from './LimitExceededDialog';
 export * from './PageHeader';

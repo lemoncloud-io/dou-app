@@ -12,6 +12,7 @@ import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
+import { BottomNavSpacer } from '../../../ui/components';
 import { useAppIcon, useDevicePushMute } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
 import { debugOverlayActions, useDebugMode } from '../../debug';
@@ -104,11 +105,9 @@ export const MyPage = () => {
         : `v${versionInfo?.webVersion}`;
 
     return (
-        // Bottom padding lets the last card scroll clear of the floating nav, which the content
-        // passes behind. FloatingTabBar occupies 62px (pill) + 18px (bottom offset) = 80px above
-        // --safe-bottom; 192px doubles the former 96px clearance. Kept in step with HomePage so the
-        // two bottom-nav tabs end with the same amount of space.
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pb-[calc(var(--safe-bottom,0px)+192px)] pt-4">
+        // Trailing clearance for the floating nav comes from BottomNavSpacer at the end of the
+        // content, not from padding on this container — see BottomNavSpacer for why.
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-4">
             {/* Account profile header — account-level profile (name/email/photo), not cloud/site.
                 Tapping it opens the account profile editor (/mypage/edit). */}
             <div className="px-5 pb-3 pt-safe-top">
@@ -265,6 +264,8 @@ export const MyPage = () => {
                     </MenuCard>
                 )}
             </div>
+
+            <BottomNavSpacer />
 
             {/* Logout Dialog */}
             <LogoutDialog
