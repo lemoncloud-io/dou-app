@@ -24,6 +24,12 @@ export { useRuntimeSocketState as useSocketState, useRuntimeProfile as useSessio
 // --- Session action hooks (socket-driven site switch / logout) ------------------------------
 export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './session';
 
+// --- Session actions (non-hook) --------------------------------------------------------------
+// verify-hash-alias `$token` → web-core commit + same-connection relay socket re-auth. Consumed by
+// the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
+export { applySessionToken } from './socket/auth/applySessionToken';
+export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
+
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
 export { isNativeApp, setChatCacheLimit } from './data/factories/localFactory';
