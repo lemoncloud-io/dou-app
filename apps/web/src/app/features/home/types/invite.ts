@@ -70,3 +70,14 @@ export const parseInviteDeeplink = (search: string): InviteParams => {
  */
 export const isInviteEntry = (params: InviteParams): boolean =>
     params.provider === 'invite' && !!params.code && (!!params.backend || !!params.relay);
+
+/**
+ * True when the entry is a relay 1:1 invite rather than a cloud invite, which decides whether the
+ * popup runs the relay accept flow (`invite.get` / phone verification / `invite.accept`) or the
+ * existing cloud one. See ADR-0033.
+ *
+ * Both kinds share the `invt:<id>:<code>` code shape, so the issuer's `relay` marker is the only
+ * discriminator available up front. A link that loses the marker on its way through the landing
+ * page or the native layer degrades to the cloud flow rather than failing.
+ */
+export const isRelayInvite = (params: InviteParams): boolean => isInviteEntry(params) && !!params.relay;

@@ -1,4 +1,4 @@
-import { isInviteEntry, parseInviteDeeplink } from './invite';
+import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from './invite';
 
 describe('parseInviteDeeplink', () => {
     it('provider, code, backend, version을 딥링크에서 추출한다', () => {
@@ -51,5 +51,22 @@ describe('isInviteEntry', () => {
         // No `_backend` and no `relay` marker: nothing identifies a target, so the link is ignored.
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite&code=abc'))).toBe(false);
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite'))).toBe(false);
+    });
+});
+
+describe('isRelayInvite', () => {
+    it('초대 진입이면서 relay 마커가 있으면 true', () => {
+        expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&relay=1'))).toBe(true);
+        // 릴레이 링크는 _backend를 싣지 않지만, 함께 와도 릴레이로 본다.
+        expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&_backend=https://api&relay'))).toBe(true);
+    });
+
+    it('마커가 없으면 클라우드 초대로 본다', () => {
+        expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&_backend=https://api'))).toBe(false);
+    });
+
+    it('초대 진입이 아니면 마커가 있어도 false', () => {
+        expect(isRelayInvite(parseInviteDeeplink('?provider=oauth&code=abc&_backend=https://api&relay'))).toBe(false);
+        expect(isRelayInvite(parseInviteDeeplink('?provider=invite&relay'))).toBe(false);
     });
 });
