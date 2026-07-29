@@ -233,7 +233,8 @@ A 머지 전에는 계약 시그니처의 목 구현으로 진행.
 
 **범위**
 
-1. 마이페이지 계정 관리(`AccountInfoPage`/`AccountManagePage`)에 소셜 연동 섹션:
+1. `AccountInfoPage`에 소셜 연동 섹션 (초안은 `AccountManagePage`도 지목했으나
+   그쪽은 `CloudView`(워크스페이스·구독) 전용이라 도메인이 다르다 — 제외가 맞다):
    provider 목록(google/apple/…)과 연동 상태.
 2. 연동 추가: `appBridge.oauthLogin(provider)`로 native token 획득 →
    `useAttachSocial().attach` (`auth.attach-social` — 세션은 바뀌지 않는다).
@@ -246,17 +247,62 @@ A 머지 전에는 계약 시그니처의 목 구현으로 진행.
 **완료 기준** — attach-social이 dev 스테이지에서 성공하고 재로그인 시 같은
 유저로 모이는 것 확인. 목록/해제는 스텁 + TODO 주석.
 
-## 통합 순서
+## 통합 — 완료 (2026-07-29)
 
-전부 **통합 브랜치**(`claude/1-1-chat-auth-social-roadmap-0e4b17`)로 모은다.
-develop 머지는 통합 QA 통과 후 한 번에.
+다섯 트랙 전부 통합 브랜치 `claude/1-1-chat-auth-social-roadmap-0e4b17`에 병합됐다.
+`develop` 대비 125파일 · +8255줄. 병합 순서는 D → A → C(목 교체) → B였고 충돌은
+없었다.
 
-1. Track 0 → 통합 브랜치 (즉시). 그다음 A·B·C·D 워크트리 생성.
-2. A·B·D → 완료 순 머지 (상호 충돌 없음 — 접촉 파일 소유권: `paths.ts`·
-   `HomePage.tsx`는 B, `SocketManager`는 A, 마이페이지 계정 화면은 D)
-3. C → A 머지 후 rebase·목 제거 → 머지
-4. 통합 QA: 2계정 E2E (발급→수락→양측 채널 확인), 로그아웃→재인증 복구, 만료 케이스
-5. 통합 브랜치 → develop PR 1건
+**통합 시점 검증 (실제 실행)** — `tsc -b apps/web/tsconfig.app.json` 클린 ·
+apps/web 118 suites / 782 tests · app-runtime 144 · web-core · web-ui-kit 전부 통과.
+
+**통합에서 고친 것**
+
+- `apps/web/jest.setup.ts` 신설 — `PhoneVerifyScreen`이 `@chatic/app-runtime`을
+  끌어오면서 jsdom에 없는 `TextEncoder`에서 터졌다. `libs/app-runtime/jest.setup.ts`의
+  기존 폴리필을 그대로 옮겼다.
+- `InviteDialog.test.tsx`가 `features/auth/utils/env`를 목한다 — ts-jest가
+  `import.meta`를 파싱하지 못한다. auth 피처가 그 목적으로 격리해 둔 모듈이다.
+- Track C의 `trackAMock.tsx` 삭제, `RelayInviteDialog`가 실제
+  `features/auth/components`의 `PhoneVerifyScreen`을 쓴다.
+
+**남은 단계**
+
+1. Figma 대조 — Track A·B가 디자인을 못 본 채 구현했다(아래 "후속 과제" 1번).
+2. 통합 QA — 아래 목록.
+3. 통합 브랜치 → develop PR 1건.
+
+## 통합 QA 체크리스트
+
+이 환경에 dev 스테이지·네이티브 브릿지가 없어 아래는 **전부 미실행**이다.
+
+- [ ] 2계정 E2E — 발급 → SMS 링크 전달 → 수락 → 양측 채널 확인
+- [ ] 디바이스 유저 → 번호 인증 → 같은 연결에서 `invite.create` 성공
+      (실서버 `$token`에 `$auth.id`가 실리는지 포함 — 없으면 `applySessionToken`이
+      커밋 전 reject한다)
+- [ ] 로그아웃 → 디바이스 유저 복귀 → 재인증
+- [ ] 만료·이미 참여·404 케이스 화면
+- [ ] 수락 후 DM 방 감지 — 새 방이 relay `selectedSiteId`가 아닌 sid로 들어오면
+      감지에 실패하고 폴백이 뜬다. 필터를 넓히는 건 한 줄
+- [ ] 네이티브 소셜 attach 성공 → 로그아웃 → 같은 계정 재로그인
+- [ ] SMS 작성기 실기기 동작 (본문 딥링크 프리필)
+
+## 후속 과제
+
+1. **Figma 대조** — Track A(전화번호 인증 15개 노드)·Track B(초대 폼·대기 화면·
+   리스트 통합)는 Figma MCP 인증 실패로 **디자인을 보지 못한 채** 기존 화면
+   관용구로 구현했다. Track C만 데스크톱 앱 Figma 서버로 5개 노드를 읽었다.
+   로직·계약은 검증됐지만 시각적 정확도는 미검증이다.
+2. **jest의 `import.meta` 파싱** — 지금은 모듈을 격리해 목으로 막는다. 레포에
+   `import.meta.env`를 쓰는 모듈이 4개 더 있고(`main.tsx`·`Sidebar.tsx`·
+   subscription 둘) 아직 어떤 테스트도 그것들을 import 하지 않아 안 터질 뿐이다.
+3. **채널 대기 유틸 2종** — `useAwaitInviteChannel`(수신자: channelId를 모른 채 새
+   `stereo==='dm'` 행을 감시, 20s)과 `useAcceptedChannelSync`(초대자: 초대 뷰에
+   실린 channelId를 감시, 8s). 지금은 입력이 달라 별개가 맞지만, 백엔드 요청 5번이
+   해결되면 하나로 합칠 후보다.
+4. **디자인 카피 수정 요청** — 유효시간 24시간 → 3일.
+5. **초대 취소의 반쪽 동작** — 취소해도 취소한 기기에서 숨겨질 뿐이고 수신자는
+   여전히 수락할 수 있다(백엔드 요청 1번 전까지).
 
 ## 백엔드 요청 목록 (chatic-backend-api / sockets-api 팀 전달용)
 
