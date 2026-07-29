@@ -7,7 +7,13 @@
 // See docs/public-surface.md.
 
 // --- Value-deriving hooks -------------------------------------------------------------------
-export { useRuntimeBinding, useRuntimeRepositories, useRuntimeSocketState, useRuntimeProfile } from './runtime';
+export {
+    useRuntimeBinding,
+    useRuntimeRepositories,
+    useRuntimeSocketState,
+    useRuntimeProfile,
+    useGlobalCacheSearch,
+} from './runtime';
 export type { SessionProfile } from './runtime';
 
 // Per-kind (relay/cloud) verified state — for reactively gating a getScopedClient-pinned request,
