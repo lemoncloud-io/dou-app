@@ -95,7 +95,7 @@ Why the planned migration was not the fix:
   no-ops are what runs on the **native** path too. It is empty scaffolding, not a designed
   mechanism being bypassed.
 - **`IndexedDBAdapter` is the more general home, not the narrower one.** It is the Hot tier
-  in *both* strategies, so the native path can opt into the same cap by passing the same
+  in _both_ strategies, so the native path can opt into the same cap by passing the same
   option — which is not true of a fix that only exists inside `DynamicCacheStorage`.
 - **The blast radius this ADR already rejected has not changed.** Routing browser clients
   through `DynamicCacheStorage` also changes their read-policy resolution and adds the
