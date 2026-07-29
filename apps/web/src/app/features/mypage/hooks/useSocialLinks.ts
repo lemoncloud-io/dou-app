@@ -62,11 +62,13 @@ const writeLinkedProvider = (uid: string, provider: SocialProvider): void => {
 /**
  * Social-link status + attach orchestration for the mypage account screen.
  *
- * There is no backend endpoint that lists a user's linked social accounts (`MyUserView.account$` is
- * the single ORIGINAL sign-up account, not the set of everything `auth.attach-social` has since
- * added — see apps/web/docs/feature/account/social-links.md). So "linked" here means "this device
- * remembers a successful attach for this uid", cached in localStorage and scoped by uid so a
- * different account on the same device never inherits another account's linked state.
+ * TODO(backend): request #6 — ADR-0033 interface pre-wiring. There is no backend endpoint that
+ * lists a user's linked social accounts (`MyUserView.account$` is the single ORIGINAL sign-up
+ * account, not the set of everything `auth.attach-social` has since added — see
+ * apps/web/docs/feature/account/social-links.md). So "linked" here means "this device remembers a
+ * successful attach for this uid", cached in localStorage and scoped by uid so a different account
+ * on the same device never inherits another account's linked state. Replace the cache read with a
+ * real list call once that endpoint ships.
  *
  * `attach-social` links a credential to the CURRENT (already main-user) session — it never changes
  * the session, so a successful attach only updates the local cache, never navigation or identity.
