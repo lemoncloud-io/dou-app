@@ -22,12 +22,9 @@ import { useSessionIdentity } from '@chatic/web-core';
  * failed rows back out of the cache, which also recovers messages that failed in a previous app
  * session — something a send-path hook could never do.
  *
- * **One attempt per ready-transition** (`maxAttempts: 1`). `sendChat` mints a NEW optimistic row
- * on every call, so a second in-connection attempt would leave the first attempt's failed row
- * orphaned next to it — two "Not delivered" bubbles for one message. Sending once per sweep keeps
- * the invariant *at most one `isFailed` row per undelivered message*, and the next sweep re-reads
- * whatever is still failed with its current id. The engine's backoff machinery is unused here by
- * choice, not by omission: the machine is shared, the retry policy is the app's.
+ * **One attempt per ready-transition**, which the engine now owns (see outbox.ts). Sending once per
+ * sweep keeps the invariant *at most one `isFailed` row per undelivered message*, and the next
+ * sweep re-reads whatever is still failed with its current id.
  */
 
 /** Unsent rows per channel. They carry `chat_no: 0` and are never evicted, so this is a ceiling. */
@@ -200,7 +197,6 @@ export const useChatOutbox = (): void => {
         };
 
         const outbox = createChatOutbox({
-            maxAttempts: 1,
             hasLanded: async entry => !!batch.match(await readNewestPage(entry.channelId), entry, uid),
             // The message is already in the timeline; drop the stale "Not delivered" row, and only
             // then claim the row it matched (see LandingBatch — a failed delete must stay retryable).

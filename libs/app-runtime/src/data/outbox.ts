@@ -1,7 +1,17 @@
 import type { ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 
 /**
- * Retry queue for chat sends that failed while the transport was down.
+ * Resend queue for chat sends that failed while the transport was down.
+ *
+ * **One attempt per ready transition, and that is structural — not a policy knob.**
+ * `ChatRepositoryV2.sendChat` mints a NEW optimistic row on every call
+ * (`optimistic-chat-send-${Date.now()}`) and, on failure, leaves *that* row marked `isFailed`.
+ * A queue entry only knows the id of the row it was built from, so a second attempt cannot reach
+ * the row the first attempt left behind: the user would see one "not delivered" bubble per attempt
+ * for a single message. So this machine sends once and drops the entry; whatever is still failed is
+ * picked up by the caller's next sweep, with its current row id. There is deliberately no attempt
+ * counter and no backoff timer — they could not be enabled correctly by any caller until the wire
+ * carries an idempotency key and the repository reuses the optimistic row.
  *
  * **Guarantee: at-least-once, in order, per channel.** Not exactly-once — the server has
  * delegated dedupe, retry and ordering to the client but the wire carries no idempotency key:
@@ -31,8 +41,6 @@ export interface OutboxEntry {
     id: string;
     channelId: string;
     payload: ChatSendInput;
-    /** Failed send attempts so far, against `maxAttempts`. */
-    attempts: number;
     enqueuedAt: number;
 }
 
@@ -45,21 +53,13 @@ export interface ChatOutboxOptions {
     hasLanded(entry: OutboxEntry): Promise<boolean>;
     /** Drops the stale local row once `hasLanded` says the send already succeeded. */
     discard(entry: OutboxEntry): Promise<void>;
-    /**
-     * The entry ran out of attempts and left the queue. Its row keeps the existing `isFailed`
-     * marking, so the manual retry button remains the user's way out.
-     */
-    onExhausted?(entry: OutboxEntry, error: unknown): void;
-    maxAttempts?: number;
-    baseBackoffMs?: number;
-    maxBackoffMs?: number;
     now?(): number;
 }
 
 export interface ChatOutbox {
     /** Activates the machine. Until this is called nothing is sent. */
     start(): void;
-    /** Deactivates and cancels pending retries; the queue is kept. */
+    /** Deactivates; the queue is kept. */
     stop(): void;
     /** Whether the transport can carry a send — pass `isConnected && isVerified`. */
     setReady(ready: boolean): void;
@@ -71,51 +71,16 @@ export interface ChatOutbox {
     flush(): Promise<void>;
 }
 
-const DEFAULT_MAX_ATTEMPTS = 5;
-const DEFAULT_BASE_BACKOFF_MS = 1_000;
-const DEFAULT_MAX_BACKOFF_MS = 30_000;
-
 export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
-    const {
-        send,
-        hasLanded,
-        discard,
-        onExhausted,
-        maxAttempts = DEFAULT_MAX_ATTEMPTS,
-        baseBackoffMs = DEFAULT_BASE_BACKOFF_MS,
-        maxBackoffMs = DEFAULT_MAX_BACKOFF_MS,
-        now = Date.now,
-    } = options;
+    const { send, hasLanded, discard, now = Date.now } = options;
 
     // Per channel, because order only has to hold WITHIN a channel — a stuck channel must not
     // block another's queue.
     const queues = new Map<string, OutboxEntry[]>();
     const chains = new Map<string, Promise<void>>();
     const scheduled = new Set<string>();
-    const timers = new Map<string, ReturnType<typeof setTimeout>>();
     let running = false;
     let ready = false;
-
-    const clearTimer = (channelId: string): void => {
-        const timer = timers.get(channelId);
-        if (timer === undefined) return;
-        clearTimeout(timer);
-        timers.delete(channelId);
-    };
-
-    const clearTimers = (): void => [...timers.keys()].forEach(clearTimer);
-
-    const scheduleRetry = (channelId: string, attempts: number): void => {
-        clearTimer(channelId);
-        const delay = Math.min(baseBackoffMs * 2 ** (attempts - 1), maxBackoffMs);
-        timers.set(
-            channelId,
-            setTimeout(() => {
-                timers.delete(channelId);
-                void drain(channelId);
-            }, delay)
-        );
-    };
 
     // Remove by IDENTITY, never by position: `remove()` can splice the queue from a UI event while
     // this drain is awaiting, and a positional shift would then drop whichever entry slid into
@@ -140,14 +105,11 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
             try {
                 await send(entry);
                 dequeue(queue, entry);
-            } catch (error) {
-                entry.attempts += 1;
-                if (entry.attempts < maxAttempts) {
-                    scheduleRetry(channelId, entry.attempts);
-                    return;
-                }
+            } catch {
+                // Retire the entry, never the message: the row keeps its `isFailed` marking, so the
+                // manual retry button stays the user's way out and the caller's next sweep re-queues
+                // it under whatever row id it carries by then.
                 dequeue(queue, entry);
-                onExhausted?.(entry, error);
             }
         }
         if (queue && !queue.length) queues.delete(channelId);
@@ -186,20 +148,16 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
         },
         stop: () => {
             running = false;
-            clearTimers();
         },
         setReady: (next: boolean) => {
             if (next === ready) return;
             ready = next;
-            // A backoff timer armed against the old connection is meaningless; the next ready
-            // transition drains everything anyway.
-            if (!ready) return clearTimers();
-            drainAll();
+            if (ready) drainAll();
         },
         enqueue: input => {
             const queue = queues.get(input.channelId) ?? [];
             if (queue.some(entry => entry.id === input.id)) return;
-            queue.push({ ...input, attempts: 0, enqueuedAt: now() });
+            queue.push({ ...input, enqueuedAt: now() });
             queues.set(input.channelId, queue);
             void drain(input.channelId);
         },
@@ -208,10 +166,7 @@ export const createChatOutbox = (options: ChatOutboxOptions): ChatOutbox => {
                 const index = queue.findIndex(entry => entry.id === id);
                 if (index < 0) continue;
                 queue.splice(index, 1);
-                if (!queue.length) {
-                    queues.delete(channelId);
-                    clearTimer(channelId);
-                }
+                if (!queue.length) queues.delete(channelId);
                 return;
             }
         },

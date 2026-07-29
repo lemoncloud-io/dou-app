@@ -9,7 +9,6 @@ interface Harness {
     send: jest.MockedFunction<ChatOutboxOptions['send']>;
     hasLanded: jest.MockedFunction<ChatOutboxOptions['hasLanded']>;
     discard: jest.MockedFunction<ChatOutboxOptions['discard']>;
-    onExhausted: jest.MockedFunction<NonNullable<ChatOutboxOptions['onExhausted']>>;
     sentIds: () => string[];
 }
 
@@ -17,10 +16,9 @@ const harness = (over: Partial<ChatOutboxOptions> = {}): Harness => {
     const send = jest.fn<Promise<unknown>, [OutboxEntry]>().mockResolvedValue(undefined);
     const hasLanded = jest.fn<Promise<boolean>, [OutboxEntry]>().mockResolvedValue(false);
     const discard = jest.fn<Promise<void>, [OutboxEntry]>().mockResolvedValue(undefined);
-    const onExhausted = jest.fn();
-    const outbox = createChatOutbox({ send, hasLanded, discard, onExhausted, baseBackoffMs: 1000, ...over });
+    const outbox = createChatOutbox({ send, hasLanded, discard, ...over });
 
-    return { outbox, send, hasLanded, discard, onExhausted, sentIds: () => send.mock.calls.map(([e]) => e.id) };
+    return { outbox, send, hasLanded, discard, sentIds: () => send.mock.calls.map(([e]) => e.id) };
 };
 
 /** Bring the outbox to the state it lives in on desktop: activated and on a verified socket. */
@@ -139,65 +137,46 @@ describe('createChatOutbox', () => {
         expect(outbox.pending()).toHaveLength(1);
     });
 
-    it('drains channels independently — a stuck channel does not block another', async () => {
+    it('drains channels independently — a rejecting channel does not stop another', async () => {
         const { outbox, send, sentIds } = harness();
         send.mockImplementation(entry =>
             entry.channelId === 'ch-1' ? Promise.reject(new Error('boom')) : Promise.resolve(undefined)
         );
-        outbox.start();
 
         outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
         outbox.enqueue({ id: 'b', channelId: 'ch-2', payload: payload('ch-2', 'b') });
-        outbox.setReady(true);
-        await outbox.flush();
+        await activate(outbox);
 
         expect(sentIds()).toEqual(['a', 'b']);
-        expect(outbox.pending('ch-1')).toHaveLength(1);
-        expect(outbox.pending('ch-2')).toHaveLength(0);
+        expect(outbox.pending()).toHaveLength(0);
     });
 
-    describe('retry budget', () => {
-        beforeEach(() => jest.useFakeTimers());
-        afterEach(() => jest.useRealTimers());
+    describe('a failed send', () => {
+        it('retires the entry without a second attempt, and never discards the row', async () => {
+            // One attempt per ready transition is structural: sendChat mints a new optimistic row
+            // per call, so attempt 2 would strand attempt 1's failed row next to its own.
+            const { outbox, send, discard, sentIds } = harness();
+            send.mockRejectedValueOnce(new Error('boom'));
 
-        it('holds the failing head in place and retries it after the backoff', async () => {
+            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
+            await activate(outbox);
+
+            expect(sentIds()).toEqual(['a']);
+            expect(outbox.pending()).toHaveLength(0);
+            // Retiring the queue entry must not delete the user's message — the row keeps its
+            // `isFailed` marking so the manual retry button stays authoritative.
+            expect(discard).not.toHaveBeenCalled();
+        });
+
+        it('does not block the entries behind it', async () => {
             const { outbox, send, sentIds } = harness();
             send.mockRejectedValueOnce(new Error('boom'));
-            outbox.start();
 
             outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
             outbox.enqueue({ id: 'b', channelId: 'ch-1', payload: payload('ch-1', 'b') });
-            outbox.setReady(true);
-            await outbox.flush();
+            await activate(outbox);
 
-            // The head failed, so its successor must NOT overtake it.
-            expect(sentIds()).toEqual(['a']);
-            expect(outbox.pending('ch-1').map(e => e.id)).toEqual(['a', 'b']);
-
-            jest.advanceTimersByTime(1000);
-            await outbox.flush();
-
-            expect(sentIds()).toEqual(['a', 'a', 'b']);
-            expect(outbox.pending()).toHaveLength(0);
-        });
-
-        it('retires an entry after maxAttempts, leaving its failed row for the manual retry button', async () => {
-            const { outbox, send, discard, onExhausted } = harness({ maxAttempts: 2 });
-            send.mockRejectedValue(new Error('boom'));
-            outbox.start();
-
-            outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: payload('ch-1', 'a') });
-            outbox.setReady(true);
-            await outbox.flush();
-
-            jest.advanceTimersByTime(1000);
-            await outbox.flush();
-
-            expect(send).toHaveBeenCalledTimes(2);
-            expect(onExhausted).toHaveBeenCalledTimes(1);
-            expect(onExhausted.mock.calls[0][0].id).toBe('a');
-            // The row stays `isFailed` — retiring the queue entry must not delete the user's message.
-            expect(discard).not.toHaveBeenCalled();
+            expect(sentIds()).toEqual(['a', 'b']);
             expect(outbox.pending()).toHaveLength(0);
         });
     });

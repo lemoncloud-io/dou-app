@@ -101,7 +101,6 @@ describe('createLandingBatch', () => {
         id: 'row-1',
         channelId: 'ch-1',
         payload: { channelId: 'ch-1', content: 'hello' },
-        attempts: 0,
         enqueuedAt: NOW,
         ...over,
     });
@@ -167,7 +166,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
             batch.commit(entry.id);
         });
         const outbox = createChatOutbox({
-            maxAttempts: 1,
             send,
             discard,
             hasLanded: async entry => !!batch.match(rows, entry, MY_UID),
@@ -241,7 +239,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
         const rows = [chat({ id: 'ch-1:7', chatNo: 7, content: 'ok' })];
         const batch = createLandingBatch();
         const outbox = createChatOutbox({
-            maxAttempts: 1,
             send: vi.fn().mockResolvedValue(undefined),
             discard: vi.fn().mockRejectedValue(new Error('cache delete failed')),
             hasLanded: async entry => !!batch.match(rows, entry, MY_UID),
@@ -260,28 +257,5 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
 
         expect(retry.discard).toHaveBeenCalledTimes(1);
         expect(retry.send).not.toHaveBeenCalled();
-    });
-
-    it('attempts a queued message once per ready-transition (maxAttempts 1)', async () => {
-        // sendChat mints a new optimistic row per call, so a second in-connection attempt would
-        // orphan the first attempt's failed row next to it.
-        const send = vi.fn().mockRejectedValue(new Error('still down'));
-        const onExhausted = vi.fn();
-        const outbox = createChatOutbox({
-            maxAttempts: 1,
-            send,
-            discard: vi.fn().mockResolvedValue(undefined),
-            hasLanded: async () => false,
-            onExhausted,
-        });
-
-        outbox.start();
-        outbox.enqueue({ id: 'a', channelId: 'ch-1', payload: { channelId: 'ch-1', content: 'ok' } });
-        outbox.setReady(true);
-        await outbox.flush();
-
-        expect(send).toHaveBeenCalledTimes(1);
-        expect(onExhausted).toHaveBeenCalledTimes(1);
-        expect(outbox.pending()).toHaveLength(0);
     });
 });
