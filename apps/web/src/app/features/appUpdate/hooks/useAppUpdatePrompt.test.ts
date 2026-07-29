@@ -14,6 +14,7 @@ jest.mock('../../../bridge', () => ({
     },
 }));
 
+// eslint-disable-next-line @typescript-eslint/no-empty-function
 let foregroundHandler: () => void = () => {};
 jest.mock('../../../bridge/useAppForeground', () => ({
     useAppForeground: (handler: () => void) => {
