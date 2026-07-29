@@ -91,7 +91,7 @@ export const InviteLinkPage = () => {
                     url={inviteLink}
                     avatarSrc={channel?.thumbnail ?? undefined}
                     onCopy={handleCopy}
-                    copyLabel={t('inviteLink.copyDone')}
+                    copyLabel={t('inviteLink.copyLink')}
                 />
 
                 <Button tone="green" size="lg" fullWidth onClick={handleShare}>

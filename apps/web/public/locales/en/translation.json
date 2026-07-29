@@ -839,6 +839,7 @@
     },
     "inviteLink": {
         "title": "Invite Link",
+        "copyLink": "Copy link",
         "share": "Share link",
         "shared": "Shared",
         "copyDone": "Link copied",

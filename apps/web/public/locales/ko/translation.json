@@ -839,6 +839,7 @@
     },
     "inviteLink": {
         "title": "초대 링크",
+        "copyLink": "링크 복사",
         "share": "링크 공유하기",
         "shared": "공유 완료",
         "copyDone": "링크 복사 완료",
