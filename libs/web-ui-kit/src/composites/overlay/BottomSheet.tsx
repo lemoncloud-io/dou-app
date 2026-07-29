@@ -53,7 +53,9 @@ export const BottomSheet = ({
                 side="bottom"
                 hideClose
                 className={cn(
-                    'flex max-h-[90vh] flex-col gap-0 rounded-t-[16px] border-0 bg-surface p-0 pb-safe-bottom',
+                    // overflow-hidden is what makes rounded-t actually visible: the glass header below
+                    // paints its own square backdrop-filter box and would otherwise cover the corners.
+                    'flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-t-[16px] border-0 bg-surface p-0 pb-safe-bottom',
                     className
                 )}
             >
@@ -74,7 +76,7 @@ export const BottomSheet = ({
                             type="button"
                             onClick={handleClose}
                             aria-label={closeLabel}
-                            className="flex size-6 shrink-0 items-center justify-center"
+                            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted p-1"
                         >
                             <IconClose className="size-[18px] text-foreground" />
                         </button>

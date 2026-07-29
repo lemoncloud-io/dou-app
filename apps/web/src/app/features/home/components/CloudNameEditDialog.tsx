@@ -90,7 +90,10 @@ export const CloudNameEditDialog = ({
                         </p>
 
                         <div className="mt-8 flex flex-col gap-1.5">
-                            <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
+                            <Label
+                                required
+                                className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground"
+                            >
                                 {t('cloudNameEdit.nameLabel')}
                             </Label>
                             <Input

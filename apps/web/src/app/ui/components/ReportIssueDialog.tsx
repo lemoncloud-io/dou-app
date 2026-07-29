@@ -91,7 +91,10 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
 
                         {/* Title Input */}
                         <div className="flex flex-col gap-1.5 px-4">
-                            <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
+                            <Label
+                                required
+                                className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground"
+                            >
                                 {t('reportIssue.titleLabel')}
                             </Label>
                             <Input
@@ -104,7 +107,10 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
 
                         {/* Message Textarea */}
                         <div className="flex flex-col gap-1.5 px-4">
-                            <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
+                            <Label
+                                required
+                                className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground"
+                            >
                                 {t('reportIssue.messageLabel')}
                             </Label>
                             <Textarea
