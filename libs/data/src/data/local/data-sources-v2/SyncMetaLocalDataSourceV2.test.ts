@@ -2,7 +2,11 @@ import type { CacheTtlMeta } from '@chatic/app-messages';
 import type { CacheStorage } from '../storages';
 import { SyncMetaLocalDataSourceV2 } from './SyncMetaLocalDataSourceV2';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+// Mirror of the sync-cursor TTL in storages/utils (`meta`). Kept explicit so the test pins the
+// intended window rather than tautologically re-deriving it from the code under test.
+// TEMP: matches the temporary 1-min TTL; bump back to 30 min when the code constant is restored.
+const TTL_MS = 1 * MINUTE_MS;
 
 describe('SyncMetaLocalDataSourceV2', () => {
     const createSource = (loaded?: { syncedAt?: number; __cacheMeta?: CacheTtlMeta } | null) => {
@@ -21,7 +25,7 @@ describe('SyncMetaLocalDataSourceV2', () => {
     // Adapters stamp __cacheMeta on save; tests reproduce it relative to now.
     const metaSavedAgo = (elapsedMs: number): CacheTtlMeta => {
         const lastSyncedAt = Date.now() - elapsedMs;
-        return { lastSyncedAt, expiresAt: lastSyncedAt + DAY_MS };
+        return { lastSyncedAt, expiresAt: lastSyncedAt + TTL_MS };
     };
 
     it('저장된 커서가 없으면 0을 반환한다', async () => {
@@ -30,12 +34,20 @@ describe('SyncMetaLocalDataSourceV2', () => {
     });
 
     it('TTL 이내의 커서는 저장된 syncedAt을 반환한다', async () => {
-        const { source } = createSource({ syncedAt: 1234, __cacheMeta: metaSavedAgo(60_000) });
+        const { source } = createSource({ syncedAt: 1234, __cacheMeta: metaSavedAgo(TTL_MS / 4) });
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(1234);
     });
 
-    it('TTL(1일)을 넘긴 커서는 만료로 보고 0을 반환한다', async () => {
-        const { source } = createSource({ syncedAt: 1234, __cacheMeta: metaSavedAgo(DAY_MS + 60_000) });
+    it('TTL을 넘긴 커서는 만료로 보고 0을 반환한다', async () => {
+        const { source } = createSource({ syncedAt: 1234, __cacheMeta: metaSavedAgo(TTL_MS + 60_000) });
+        await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
+    });
+
+    // Regression: on the cold (native) cache the cursor survives app restarts, so a cursor idle
+    // beyond the TTL used to be treated as valid (old 1-day window) — delta sync then replayed from a
+    // `since` past the server window and the channel list stayed stale. It must now expire.
+    it('오래 idle된 커서(cold 재오픈)는 만료로 보고 0을 반환한다', async () => {
+        const { source } = createSource({ syncedAt: 1234, __cacheMeta: metaSavedAgo(6 * 60 * MINUTE_MS) });
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
     });
 

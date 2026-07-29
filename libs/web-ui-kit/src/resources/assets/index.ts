@@ -2,3 +2,4 @@
 // (or Storybook) fingerprints and serves them — no reliance on a public dir.
 export { default as douLogo } from './dou-logo.svg';
 export { default as douMark } from './dou-mark.svg';
+export { default as defaultPlaceAvatar } from './default-place-avatar.svg';

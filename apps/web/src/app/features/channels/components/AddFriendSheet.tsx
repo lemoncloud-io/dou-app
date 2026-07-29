@@ -1,10 +1,11 @@
 import { Loader2, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
+import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { toError } from '../../../utils/errors';
 import { ROUTES } from '../../../routes/paths';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
@@ -71,6 +72,8 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
     const [name, setName] = useState('');
     const [phoneDigits, setPhoneDigits] = useState('');
     const [phoneError, setPhoneError] = useState('');
+    const fieldsRef = useRef<HTMLDivElement>(null);
+    useFormKeyboardFlow(fieldsRef);
     const { requestInviteLink, isPending } = useCreateInviteBatch();
 
     const handlePhoneChange = (value: string) => {
@@ -146,7 +149,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                 </div>
 
                 <div className="flex-1 overflow-y-auto overscroll-none">
-                    <div className="flex flex-col gap-[26px] px-4">
+                    <div ref={fieldsRef} className="flex flex-col gap-[26px] px-4">
                         <div className="flex flex-col gap-[2px]">
                             <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
                                 {t('addFriend.subtitle1')}

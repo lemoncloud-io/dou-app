@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { TextField } from '@chatic/web-ui-kit';
 
-import { KeyboardSafeAreaSpacer } from '../../../ui/layouts';
+// Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
+// which jest cannot resolve, breaking every test that renders this dialog.
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useMyProfile } from '../../../hooks';
 import { useChannel, useJoinMutations } from '../hooks';
 
@@ -76,6 +78,13 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
                 className="m-0 flex w-full max-w-full flex-col rounded-none bg-background"
                 hideClose
                 variant="slide-up"
+                // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
+                // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
+                // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
+                // full inset above the keyboard. Inline rather than a `pb-0` class: `pb-safe-bottom` is
+                // a custom spacing key tailwind-merge doesn't classify as padding-bottom, so both would
+                // survive and utility order would decide the winner.
+                style={{ paddingBottom: 0 }}
             >
                 <DialogDescription className="sr-only">Edit self-chat name</DialogDescription>
                 {/* Top Bar */}

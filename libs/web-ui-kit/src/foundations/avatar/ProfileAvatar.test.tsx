@@ -40,10 +40,24 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('.lucide-users')).not.toBeInTheDocument();
     });
 
-    it('renders the group glyph when glyph="group"', () => {
+    // The group placeholder is the hand-authored IconGroup (not lucide), on a solid brand-ink
+    // circle — so it is identified by that treatment rather than by a lucide class.
+    it('renders the group glyph on a brand-ink circle when glyph="group"', () => {
         const { container } = render(<ProfileAvatar glyph="group" />);
 
-        expect(container.querySelector('.lucide-users')).toBeInTheDocument();
+        expect(container.querySelector('.bg-brand-ink')).toBeInTheDocument();
+        expect(container.querySelector('svg')).toBeInTheDocument();
         expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
+    });
+
+    it('shows defaultImage instead of the user glyph, and never for the group glyph', () => {
+        // Queried by selector, not by role: the default empty alt makes the image presentational.
+        const { container, rerender } = render(<ProfileAvatar defaultImage="http://example.com/place.svg" />);
+        expect(container.querySelector('img')).toHaveAttribute('src', 'http://example.com/place.svg');
+        expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
+
+        // glyph="group" wins over defaultImage.
+        rerender(<ProfileAvatar glyph="group" defaultImage="http://example.com/place.svg" />);
+        expect(container.querySelector('img')).not.toBeInTheDocument();
     });
 });

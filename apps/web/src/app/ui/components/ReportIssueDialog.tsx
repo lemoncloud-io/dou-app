@@ -8,11 +8,14 @@ import { reportIssue } from '@chatic/web-core';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@chatic/ui-kit/components/ui/dialog';
 import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { KeyboardSafeAreaSpacer } from '../layouts';
+// Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
+// which jest cannot resolve, breaking every test that renders this dialog.
+import { KeyboardSafeAreaSpacer } from '../layouts/KeyboardSafeAreaSpacer';
+
+import { RequiredLabel } from './RequiredLabel';
 
 interface ReportIssueForm {
     title: string;
@@ -57,6 +60,13 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
                 className="m-0 flex h-full max-h-screen w-full max-w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
+                // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
+                // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
+                // full inset above the keyboard. Inline rather than a `pb-0` class: `pb-safe-bottom` is
+                // a custom spacing key tailwind-merge doesn't classify as padding-bottom, so both would
+                // survive and utility order would decide the winner.
+                style={{ paddingBottom: 0 }}
             >
                 <DialogDescription className="sr-only">{t('reportIssue.description')}</DialogDescription>
                 {/* Top Bar */}
@@ -82,9 +92,9 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
 
                         {/* Title Input */}
                         <div className="flex flex-col gap-1.5 px-4">
-                            <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
+                            <RequiredLabel className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
                                 {t('reportIssue.titleLabel')}
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 {...register('title', { required: true })}
                                 placeholder={t('reportIssue.titlePlaceholder')}
@@ -95,9 +105,9 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
 
                         {/* Message Textarea */}
                         <div className="flex flex-col gap-1.5 px-4">
-                            <Label className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
+                            <RequiredLabel className="text-[14px] font-normal leading-[1.571] tracking-[0.005em] text-muted-foreground">
                                 {t('reportIssue.messageLabel')}
-                            </Label>
+                            </RequiredLabel>
                             <Textarea
                                 {...register('message', { required: true })}
                                 placeholder={t('reportIssue.messagePlaceholder')}

@@ -59,7 +59,7 @@ export class ProfileDataSource implements ICacheDataSource<CacheProfileView, Pro
 
     public async save(id: string, item: CacheProfileView, cid: string, uid: string): Promise<void> {
         const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, data) VALUES (?, ?, ?, ?)`;
-        const dataToSave = JSON.stringify({ ...item, id, cid, uid });
+        const dataToSave = JSON.stringify(this.serialize(id, item));
         await this.database.execute(sql, [cid, uid, id, dataToSave]);
     }
 
@@ -69,9 +69,26 @@ export class ProfileDataSource implements ICacheDataSource<CacheProfileView, Pro
 
         const commands: [string, any[]][] = items.map(item => [
             sql,
-            [cid, uid, item.id, JSON.stringify({ ...item.data, id: item.id, cid, uid })],
+            [cid, uid, item.id, JSON.stringify(this.serialize(item.id, item.data))],
         ]);
         await this.database.executeBatch(commands);
+    }
+
+    /**
+     * Builds the JSON payload stored in the `data` column.
+     *
+     * Unlike every other domain (see `UserDataSource`), the profile payload must NOT be
+     * stamped with the scope `cid`/`uid`: `CacheProfileView.uid` is the profile OWNER's id,
+     * while the scope `uid` is the logged-in user. Overwriting it collapses every member's
+     * profile onto the single canonical key `sid@myUid` once the web layer re-derives ids
+     * from the payload (`ProfileLocalDataSourceV2.cacheReadList`), so a place with N members
+     * would read back as one profile and everyone else would lose their nick/thumbnail.
+     * The scope already lives in the dedicated `cid`/`uid` row columns, which is what every
+     * WHERE clause in this class matches on. Only `id` is aligned with the row key, matching
+     * the web `IndexedDBAdapter`, which otherwise stores the item verbatim.
+     */
+    private serialize(id: string, item: CacheProfileView): CacheProfileView {
+        return { ...item, id };
     }
 
     public async remove(id: string, cid: string, uid: string): Promise<void> {

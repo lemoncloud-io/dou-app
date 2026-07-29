@@ -1,16 +1,17 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import Config from 'react-native-config';
 
 import type { DebugOverlayEntryKey } from '../../debug/debugMenu';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// The "환경설정" item exposes the webview URL override (arbitrary-URL loading) — a production
+// security surface — so it is offered only on non-PROD builds, independent of the debug unlock
+// that gates the whole menu. Self-determined here rather than threaded as a prop.
+const ALLOW_ENVIRONMENT_SETTINGS = Config.VITE_ENV !== 'PROD';
+
 interface FloatingMenuProps {
     onOpenDebug: (entry: DebugOverlayEntryKey) => void;
-    /**
-     * Hidden for runtime-unlocked PROD sessions: the webview URL override must
-     * not be reachable in production builds (arbitrary-URL loading surface).
-     */
-    allowEnvironmentSettings?: boolean;
 }
 
 type FloatingMenuItem = {
@@ -19,7 +20,7 @@ type FloatingMenuItem = {
     onPress: () => void;
 };
 
-export const FloatingMenu = ({ onOpenDebug, allowEnvironmentSettings = true }: FloatingMenuProps) => {
+export const FloatingMenu = ({ onOpenDebug }: FloatingMenuProps) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const insets = useSafeAreaInsets();
 
@@ -70,7 +71,7 @@ export const FloatingMenu = ({ onOpenDebug, allowEnvironmentSettings = true }: F
 
     const menuItems: FloatingMenuItem[] = [
         { id: 'feature-tests', label: '기능 테스트', onPress: () => onOpenDebug('FeatureTests') },
-        ...(allowEnvironmentSettings
+        ...(ALLOW_ENVIRONMENT_SETTINGS
             ? [{ id: 'settings', label: '환경설정', onPress: () => onOpenDebug('EnvironmentSettings') }]
             : []),
         { id: 'monitoring', label: '모니터링', onPress: () => onOpenDebug('Monitoring') },

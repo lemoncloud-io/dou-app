@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import Config from 'react-native-config';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
 import { NavigationContainer } from '@react-navigation/native';
@@ -13,20 +12,14 @@ import { DebugOverlay } from './features/debug';
 import type { DebugOverlayEntryKey } from './features/debug/debugMenu';
 import { useDebugSettingsStore } from './stores';
 
-// Deep link / invite link / notification-tap capture is owned by useDeepLinkNavigation (mounted in
-// MainScreen): it resolves each via DeeplinkService and emits OnNavigate (web) or drives navigationRef
-// (native). React Navigation's linking config is intentionally unused, removing the getStateFromPath
-// URL-transport hop and its triple normalization.
-const SHOW_DEBUG_MENU = __DEV__ || Config.VITE_ENV !== 'PROD';
-
 export const App = () => {
     const { hasUpdate, showUpdateAlert } = useAppVersionCheck(true);
     const [isDebugOverlayVisible, setDebugOverlayVisible] = useState(false);
     const [debugOverlayEntry, setDebugOverlayEntry] = useState<DebugOverlayEntryKey>('FeatureTests');
-    // Runtime unlock propagated from the web 10-tap gesture — opens the debug
-    // menu in PROD builds too (see usePerfHandler / SetDebugMode).
+    // The debug menu (native FAB) is NEVER shown by default in any build — the ONLY trigger is the
+    // web 10-tap unlock, propagated here as `debugModeEnabled` (see usePerfHandler / SetDebugMode) and
+    // cleared by the web on start / on disable (SetDebugMode(false)). Env no longer gates the menu;
     const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
-    const showDebugMenu = SHOW_DEBUG_MENU || debugModeEnabled;
 
     // Signal that Firebase is ready for deep link processing immediately
     useEffect(() => {
@@ -60,10 +53,8 @@ export const App = () => {
             <NavigationContainer ref={navigationRef}>
                 <View style={{ flex: 1, backgroundColor }}>
                     <RootNavigator />
-                    {showDebugMenu && !isDebugOverlayVisible && (
-                        <FloatingMenu onOpenDebug={openDebugOverlay} allowEnvironmentSettings={SHOW_DEBUG_MENU} />
-                    )}
-                    {showDebugMenu && isDebugOverlayVisible && (
+                    {debugModeEnabled && !isDebugOverlayVisible && <FloatingMenu onOpenDebug={openDebugOverlay} />}
+                    {debugModeEnabled && isDebugOverlayVisible && (
                         <DebugOverlay initialEntry={debugOverlayEntry} onClose={() => setDebugOverlayVisible(false)} />
                     )}
                 </View>

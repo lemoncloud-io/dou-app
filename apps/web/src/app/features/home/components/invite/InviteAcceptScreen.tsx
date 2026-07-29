@@ -118,8 +118,10 @@ export const InviteAcceptScreen = ({
                 )}
             </div>
 
-            {/* Footer: decline / accept — raised frosted panel per Figma */}
-            <div className="relative z-10 shrink-0 rounded-t-[16px] bg-white/55 px-4 pb-4 pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)] backdrop-blur-[16px] dark:bg-white/5">
+            {/* Footer: decline / accept — raised frosted panel per Figma. The dialog no longer adds a
+                bottom safe inset (this screen is full-bleed), so the footer owns it here — mirrors the
+                header's safe-top padding so the buttons clear the home indicator. */}
+            <div className="relative z-10 shrink-0 rounded-t-[16px] bg-white/55 px-4 pb-[calc(var(--safe-bottom,0px)+1rem)] pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)] backdrop-blur-[16px] dark:bg-white/5">
                 <div className="flex gap-1.5">
                     <Button variant="outline" fullWidth size="lg" onClick={onClose} disabled={isAccepting}>
                         {t('inviteAccept.decline')}

@@ -1,7 +1,12 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { getSocketManager } from '@chatic/app-runtime';
+import {
+    getSocketManager,
+    isNativeApp,
+    recoverInvitedCloudIfMissing,
+    useRuntimeRepositories,
+} from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 
@@ -52,6 +57,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
     const { switchCloud } = useSwitchCloudSession();
     const { switchSite } = useSiteSwitch();
+    // Cloud repository for invited-cloud recovery (see the switch block below).
+    const { cloud } = useRuntimeRepositories();
     // One push navigation is processed at a time; overlapping events are dropped (see below).
     const inFlightRef = useRef(false);
 
@@ -118,6 +125,12 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                         navigateNormalized(target);
                         return;
                     }
+                    // Native cold-DB eviction can drop an INVITED source cloud from the cache, so a
+                    // deep-link / push-tap into it would have nothing to switch to. Re-derive and
+                    // re-cache it first (idempotent: a no-op when already cached), mirroring the
+                    // foreground-push recovery in InvitedCloudColdSyncRunner so both push entry
+                    // points behave identically. Relay-backed, so it runs after the handshake gate.
+                    if (cid && isNativeApp()) await recoverInvitedCloudIfMissing(cloud, cid);
                     // Cloud first (it clears the selected site), then site, then route.
                     if (cid && cid !== selectedCloudId) await switchCloud(cid);
                     if (sid && sid !== selectedSiteId) await switchSite(sid);
@@ -131,6 +144,6 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 inFlightRef.current = false;
             }
         },
-        [navigateNormalized, selectedCloudId, selectedSiteId, switchCloud, switchSite]
+        [navigateNormalized, selectedCloudId, selectedSiteId, switchCloud, switchSite, cloud]
     );
 };

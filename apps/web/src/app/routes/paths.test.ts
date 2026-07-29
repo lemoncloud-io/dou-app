@@ -55,6 +55,13 @@ describe('ROUTES — 파라미터 빌더', () => {
         expect(ROUTES.place.detail('p42')).toBe('/place/p42');
     });
 
+    it('place 설정 하위 경로를 생성한다', () => {
+        expect(ROUTES.place.settings('p42')).toBe('/place/p42/settings');
+        expect(ROUTES.place.settingsInfo('p42')).toBe('/place/p42/settings/info');
+        expect(ROUTES.place.settingsProfile('p42')).toBe('/place/p42/settings/profile');
+        expect(ROUTES.place.settingsChannels('p42')).toBe('/place/p42/settings/channels');
+    });
+
     it('주어진 인수를 그대로 보간한다', () => {
         // Guards against accidental double-encoding or fixed segments.
         expect(ROUTES.channels.room('a/b')).toBe('/channels/a/b/room');

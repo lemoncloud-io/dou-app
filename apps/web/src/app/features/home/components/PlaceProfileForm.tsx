@@ -39,7 +39,11 @@ export interface PlaceProfileFormProps {
     container?: PlaceProfileFormContainer;
     /** Controls visibility. Dialog: owned by the caller. Page: always mounted (pass true). */
     open: boolean;
-    /** Screen title; supports `\n` (rendered with `whitespace-pre-line`). */
+    /**
+     * Screen title; supports `\n` (rendered with `whitespace-pre-line`). The dialog container renders
+     * it as an in-body heading; the page container renders it in the top-bar PageHeader instead (a
+     * short label like "내 프로필"), so the in-body heading is dialog-only.
+     */
     title: string;
     /** Optional subtitle under the title. Omitted in the edit flow. */
     subtitle?: string;
@@ -193,20 +197,23 @@ export const PlaceProfileForm = ({
     // Scrollable body — shared verbatim by both containers.
     const body = (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {/* Title + optional subtitle */}
-            <div className="flex flex-col gap-2 px-4 py-4 text-center">
-                <Text
-                    as="h1"
-                    className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
-                >
-                    {title}
-                </Text>
-                {subtitle && (
-                    <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
-                        {subtitle}
+            {/* Title + optional subtitle. The page container shows the title in its PageHeader instead
+                (the settings-hub edit screen), so the in-body title is dialog-only. */}
+            {container !== 'page' && (
+                <div className="flex flex-col gap-2 px-4 py-4 text-center">
+                    <Text
+                        as="h1"
+                        className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
+                    >
+                        {title}
                     </Text>
-                )}
-            </div>
+                    {subtitle && (
+                        <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                            {subtitle}
+                        </Text>
+                    )}
+                </div>
+            )}
 
             {/* Avatar + name — the Figma py-40 / gap-32 block */}
             <div className="flex flex-col gap-8 py-10">
@@ -282,7 +289,7 @@ export const PlaceProfileForm = ({
         return (
             <div className="flex h-full flex-col bg-background pt-safe-top">
                 <div className="mx-auto flex h-full w-full max-w-[440px] flex-col">
-                    <PageHeader title="" onBack={requestClose} />
+                    <PageHeader title={title} onBack={requestClose} />
                     {body}
                     {noticeEl}
                     {footer}
@@ -300,6 +307,14 @@ export const PlaceProfileForm = ({
                 className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
+                // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
+                // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
+                // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
+                // full inset above the keyboard. Dropping it leaves the spacer as the single bottom
+                // inset, matching this same form's `container="page"` branch. Inline rather than a
+                // `pb-0` class: `pb-safe-bottom` is a custom spacing key tailwind-merge doesn't
+                // classify as padding-bottom, so both would survive and utility order would decide.
+                style={{ paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{title}</DialogTitle>
                 <DialogDescription className="sr-only">{subtitle ?? title}</DialogDescription>

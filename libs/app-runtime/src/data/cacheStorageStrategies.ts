@@ -52,6 +52,23 @@ const createIndexedDBAdapter = <TType extends CacheType>(
     return new IndexedDBAdapter(db, type, contextProvider);
 };
 
+/**
+ * Builds a hot(IndexedDB) reader for the invitecloud slot, bypassing the active
+ * CacheStorageStrategy. The boot migration uses it to reach invited clouds that an earlier 2-tier
+ * build persisted to hot IndexedDB, before native switched to cold(NativeDB)-only storage — the
+ * cold-only strategy can no longer see those hot rows on its own.
+ *
+ * invitecloud is globally scoped (resolveScopedContext forces cid/uid='global'), so the reader
+ * needs no live DataContext; the stub provider only satisfies the adapter constructor.
+ */
+export const createHotInviteCloudStorage = (): CacheStorage<'invitecloud'> => {
+    const stubProvider: DataContextProvider = {
+        getContext: () => ({ cid: 'global' }),
+        setContext: () => undefined,
+    };
+    return createIndexedDBAdapter('invitecloud', stubProvider);
+};
+
 // ─── 기본 Reporter ──────────────────────────────────────────────────
 
 const defaultReporter: CacheErrorReporter = (error, context) => {

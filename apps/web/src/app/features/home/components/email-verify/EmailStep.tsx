@@ -5,6 +5,8 @@ import { Loader2, X, XCircle } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Logo } from '@chatic/assets';
 
+import { keyboardSafeBottom } from '../../../../ui/layouts/KeyboardSafeAreaSpacer';
+
 interface EmailStepProps {
     email: string;
     hasError: boolean;
@@ -61,6 +63,13 @@ export const EmailStep = ({
                                     value={email}
                                     onChange={e => onEmailChange(e.target.value)}
                                     onBlur={onBlur}
+                                    enterKeyHint="done"
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                            e.preventDefault();
+                                            e.currentTarget.blur();
+                                        }
+                                    }}
                                     placeholder={t('addAccount.emailPlaceholder')}
                                     className={cn(
                                         'w-full rounded-[10px] border bg-surface p-3 px-4 pr-10 text-[16px] text-foreground outline-none transition-colors placeholder:text-placeholder',
@@ -92,7 +101,8 @@ export const EmailStep = ({
                 </div>
             </div>
 
-            <div className="mt-auto px-0 pb-safe-bottom pt-5">
+            {/* Bottom inset + keyboard clearance: the email field keeps the keyboard up. */}
+            <div className="mt-auto px-0 pt-5" style={{ paddingBottom: keyboardSafeBottom() }}>
                 <button
                     onClick={onSendCode}
                     disabled={!isEmailValid || loading}

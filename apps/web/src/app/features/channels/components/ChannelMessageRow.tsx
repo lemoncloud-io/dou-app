@@ -192,7 +192,10 @@ export const ChannelMessageRow = ({
                 <DropdownMenu open={isActionOpen} onOpenChange={onActionOpenChange}>
                     <DropdownMenuTrigger asChild>
                         <span
-                            className="inline-flex max-w-full"
+                            // `min-w-0`: as a flex item this span defaults to `min-width: auto`
+                            // (= its min-content width), and min-width beats max-width — a long
+                            // unbroken message would push it past `max-w-full` and out of the row.
+                            className="inline-flex min-w-0 max-w-full"
                             onPointerDown={handlePointerDown}
                             onPointerUp={clearTimer}
                             onPointerLeave={clearTimer}

@@ -13,9 +13,11 @@ describe('buildDeviceInfoRows', () => {
     });
 
     it('주입된 필드를 표시하고 복사값을 채운다', () => {
+        // Field names follow the source: the rows read uniqueDeviceId / firebaseInstallationId,
+        // not the deprecated deviceId / installId duplicates.
         const deviceInfo = {
-            deviceId: 'dev-1',
-            installId: 'inst-1',
+            uniqueDeviceId: 'dev-1',
+            firebaseInstallationId: 'inst-1',
             platform: 'ios',
             deviceModel: 'iPhone15',
             stage: 'dev',

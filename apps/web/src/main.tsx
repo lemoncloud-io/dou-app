@@ -36,6 +36,15 @@ pendingNavigationStore.start();
 // not count as readiness on the native side — this call is the real signal.
 appBridge.notifyWebAppReady();
 
+// Force the native debug menu off on every web start — the OTA-controllable kill switch for the
+// native floating debug button (FAB), which is gated on the native `debugModeEnabled` flag. Sent
+// right after WebAppReady so it rides the same buffered flush to a native side that is guaranteed to
+// be listening (a mount-time post can race ahead of the native router and be dropped). Entering the
+// debug menu is a per-session action afterwards (MyPage 10-tap → SetDebugMode(true)).
+// NOTE: this only hides the FAB on PROD builds, where the native gate is `debugModeEnabled` alone.
+// Non-PROD builds also show it via a compile-time flag the web cannot change — that needs a native build.
+appBridge.setDebugMode(false);
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 
 root.render(

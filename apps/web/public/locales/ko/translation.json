@@ -297,15 +297,12 @@
         "placeLimitReached": "플레이스는 최대 5개까지 만들 수 있어요",
         "channelLimitReached": "그룹방은 최대 100개까지 만들 수 있어요",
         "profile": "프로필",
-        "menuProfile": "프로필",
         "menuPlaceSettings": "플레이스 설정",
-        "menuNotifications": "알림",
-        "menuSettings": "설정",
+        "menuClose": "닫기",
         "search": "검색",
         "switchCloud": "클라우드 전환",
         "directComingSoon": "1:1 대화는 준비 중이에요",
         "searchComingSoon": "검색은 준비 중이에요",
-        "notificationsComingSoon": "알림 설정은 준비 중이에요",
         "noPlaceTitle": "접속한 플레이스가 없어요",
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요"
     },
@@ -390,6 +387,35 @@
         "createChat": "채팅 만들기",
         "createDirect": "1:1 대화",
         "createGroup": "그룹 방 만들기"
+    },
+    "channelManage": {
+        "title": "채팅방 관리",
+        "clearSelection": "선택 해제",
+        "readAll": "모두 읽음",
+        "readSelected": "{{count}} 읽음",
+        "readDone": "방 읽음 처리 완료",
+        "readFailed": "{{count}}개 방을 읽음 처리하지 못했어요.",
+        "nothingToRead": "읽지 않은 방이 없어요.",
+        "pin": "방 고정",
+        "unpin": "방 고정 해제",
+        "pinned": "방 고정이 완료되었습니다.",
+        "unpinned": "방 고정이 해제되었습니다.",
+        "deleteRooms": "방 삭제",
+        "leaveRooms": "방 나가기",
+        "deleteDone": "{{count}}개 방을 삭제했어요.",
+        "leaveDone": "{{count}}개 방에서 나갔어요.",
+        "deleteFailed": "{{count}}개 방을 삭제하지 못했어요.",
+        "leaveFailed": "{{count}}개 방에서 나가지 못했어요.",
+        "deleteDialog": {
+            "title": "선택한 {{count}}개의 채팅방을 삭제하시겠습니까?",
+            "description": "방을 삭제하면 모든 참여자도 이 채팅방에 접근할 수 없으며, 대화 내용은 영구적으로 삭제되어 복구할 수 없습니다.",
+            "confirm": "삭제"
+        },
+        "leaveDialog": {
+            "title": "선택한 {{count}}개의 채팅방에서 나가시겠습니까?",
+            "description": "방에서 나가면 대화 목록에서 사라지고, 다시 초대받아야 참여할 수 있습니다.",
+            "confirm": "나가기"
+        }
     },
     "bottomNav": {
         "chat": "채팅",
@@ -561,30 +587,38 @@
     },
     "placeSettings": {
         "title": "플레이스 설정",
-        "placeInfo": "플레이스 정보",
-        "myProfile": "플레이스 프로필",
+        "sectionProfile": "프로필",
+        "sectionNotifications": "알림",
+        "sectionChats": "채팅방",
+        "myProfile": "내 프로필",
+        "placeProfile": "플레이스 프로필",
+        "placeNotifications": "플레이스 알림",
+        "placeNotificationsDescription": "해당 플레이스의 푸시 알림을 받습니다.",
         "channelSort": "채팅방 정렬",
-        "notifications": "알림",
+        "channelManage": "채팅방 관리",
         "ownerOnly": "오너만 변경할 수 있어요",
         "comingSoon": "준비 중이에요"
     },
     "channelSort": {
         "title": "채팅방 정렬",
-        "recent": "최근 활동순",
-        "unread": "안읽은 메시지 우선"
+        "recent": "최신 메시지 순",
+        "unread": "안 읽은 메시지 순"
     },
     "placeInfo": {
-        "title": "플레이스 정보",
-        "createdDate": "만든 날짜",
+        "title": "플레이스 프로필",
         "confirm": "완료",
         "notFound": "플레이스를 찾을 수 없습니다",
-        "nameLabel": "이름 수정",
+        "nameLabel": "플레이스 이름",
         "namePlaceholder": "플레이스 이름을 입력해 주세요",
         "nameDescription": "20글자 이내로 입력해 주세요.",
-        "photoLabel": "사진",
+        "photoLabel": "플레이스 사진",
         "photoOptional": "[선택]",
         "imageSizeError": "이미지 크기가 10MB를 초과합니다",
-        "changeImage": "사진 변경"
+        "changeImage": "사진 변경",
+        "exitTitle": "프로필 설정을 중단하시겠어요?",
+        "exitDescription": "설정을 중단하시면 변경사항은 저장되지 않습니다.",
+        "exitLeave": "중단",
+        "exitContinue": "계속 설정"
     },
     "workspace": {
         "list": {
@@ -663,7 +697,8 @@
         "exitContinue": "계속 설정"
     },
     "placeProfileEdit": {
-        "title": "<{{place}}>에\n적용 중인 프로필 입니다.",
+        "title": "플레이스 프로필",
+        "header": "내 프로필",
         "nameLabel": "이름",
         "nameHint": "20글자 이내로 입력해 주세요.",
         "namePlaceholder": "이름 입력",
@@ -671,13 +706,13 @@
         "photoOptional": "[선택]",
         "done": "완료",
         "close": "닫기",
-        "successToast": "프로필이 수정되었습니다.",
+        "successToast": "프로필 설정이 완료되었습니다.",
         "saveError": "프로필 수정에 실패했습니다.",
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
-        "exitTitle": "변경사항을 저장하지 않고 나갈까요?",
-        "exitDescription": "저장하지 않은 변경사항은 사라집니다.",
-        "exitLeave": "나가기",
-        "exitContinue": "계속 편집"
+        "exitTitle": "프로필 설정을 중단하시겠어요?",
+        "exitDescription": "설정을 중단하시면 변경사항은 저장되지 않습니다.",
+        "exitLeave": "중단",
+        "exitContinue": "계속 설정"
     },
     "profileEdit": {
         "title": "프로필 수정",
@@ -691,8 +726,8 @@
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
         "tabBasic": "기본 프로필",
         "tabCloud": "Cloud 프로필",
-        "cloudDescription1": "Cloud에서 사용할 이름과",
-        "cloudDescription2": "사진을 설정해 주세요",
+        "cloudDescription1": "Cloud에서 사용할",
+        "cloudDescription2": "이름을 설정해 주세요",
         "thumbnailLabel": "프로필 이미지",
         "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
         "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
@@ -833,6 +868,7 @@
     },
     "inviteLink": {
         "title": "초대 링크",
+        "copyLink": "링크 복사",
         "share": "링크 공유하기",
         "shared": "공유 완료",
         "copyDone": "링크 복사 완료",

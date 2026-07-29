@@ -30,14 +30,18 @@ export const MessageBubble = ({
     return (
         <div
             className={cn(
-                'w-fit max-w-full px-[14px] py-2 text-[16px] leading-[1.28] tracking-[-0.08px]',
+                'w-fit min-w-0 max-w-full px-[14px] py-2 text-[16px] leading-[1.28] tracking-[-0.08px]',
                 mine
                     ? 'rounded-b-[18px] rounded-tl-[18px] bg-bubble-mine text-bubble-mine-foreground'
                     : 'rounded-b-[18px] rounded-tr-[18px] bg-bubble-other text-bubble-other-foreground',
                 className
             )}
         >
-            <span className="whitespace-pre-wrap break-words">{children}</span>
+            {/* `overflow-wrap: anywhere`, not `break-words`: only `anywhere` also shrinks the
+                min-content width, which is what the `w-fit` / `max-w-full` sizing above (and the
+                row's 75% cap) is measured against. With `break-word` a single very long token
+                keeps its full min-content width and blows the bubble out of the row. */}
+            <span className="whitespace-pre-wrap [overflow-wrap:anywhere]">{children}</span>
             {onExpand && (
                 <button
                     type="button"

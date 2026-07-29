@@ -1,4 +1,3 @@
-import { Camera, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,12 +5,14 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
-import { cn } from '@chatic/lib/utils';
+import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
+
 import { useUpdateProfile } from '../hooks';
 import { useMyUser } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 
+const MAX_NAME_LENGTH = 30;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const ProfileEditPage = () => {
@@ -22,7 +23,7 @@ export const ProfileEditPage = () => {
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
     const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
-    const [name, setName] = useState((profile?.name || '').slice(0, 30));
+    const [name, setName] = useState((profile?.name || '').slice(0, MAX_NAME_LENGTH));
     const [imageUrl, setImageUrl] = useState(profile?.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
@@ -32,13 +33,13 @@ export const ProfileEditPage = () => {
             const initName = profile.name || '';
             const initImage = profile.photo || '';
             initialRef.current = { name: initName, imageUrl: initImage, initialized: true };
-            if (!name && initName) setName(initName.slice(0, 30));
+            if (!name && initName) setName(initName.slice(0, MAX_NAME_LENGTH));
             if (!imageUrl && initImage) setImageUrl(initImage);
         }
     }, [profile]);
 
     const hasChanges = name !== initialRef.current.name || imageUrl !== initialRef.current.imageUrl;
-    const isValid = name.trim().length > 0 && name.length <= 30;
+    const isValid = name.trim().length > 0 && name.length <= MAX_NAME_LENGTH;
 
     const handleSave = async () => {
         if (!isValid || !hasChanges) return;
@@ -86,80 +87,62 @@ export const ProfileEditPage = () => {
             className="fixed inset-0 overflow-hidden"
             header={<PageHeader title={t('profileEdit.title')} />}
             footer={
-                <div className="border-t border-border/50 bg-background px-5 py-4">
-                    <button
-                        onClick={handleSave}
-                        disabled={!isValid || !hasChanges || isPending}
-                        className={cn(
-                            'w-full rounded-2xl py-4 text-[15px] font-semibold transition-all',
-                            isValid && hasChanges && !isPending
-                                ? 'bg-[#B0EA10] text-foreground active:scale-[0.98]'
-                                : 'bg-muted text-muted-foreground'
-                        )}
-                    >
-                        {t('profileEdit.save')}
-                    </button>
-                </div>
+                <FloatingButton
+                    label={t('profileEdit.save')}
+                    disabled={!isValid || !hasChanges || isPending}
+                    loading={isPending}
+                    onClick={handleSave}
+                />
             }
         >
-            <div className="px-5 pt-4">
-                <div className="mb-8">
-                    <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.description1')}
-                    </p>
-                    <p className="text-[22px] font-bold leading-tight text-foreground">
-                        {t('profileEdit.description2')}
-                    </p>
-                </div>
-
-                <div className="mb-6">
-                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
-                        {t('profileEdit.nameLabel')}
-                    </label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={e => setName(e.target.value.slice(0, 30))}
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3.5 text-[15px] text-foreground outline-none transition-colors focus:border-foreground"
+            {/* Same centered-photo-above-name rhythm as PlaceInfoPage so the profile screens match. */}
+            <div className="flex flex-col gap-8 py-10">
+                <div className="flex flex-col items-center gap-4 px-[18px]">
+                    <ProfileAvatar
+                        src={imageUrl || undefined}
+                        glyph="user"
+                        onSelect={handleImageClick}
+                        selectLabel={t('profileEdit.photoLabel')}
                     />
-                    <div className="mt-2 flex justify-between">
-                        <span className="text-[14px] text-muted-foreground">{t('profileEdit.nameHint')}</span>
-                        <span className="text-[14px] text-muted-foreground">{name.length}/30</span>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="mb-2 block text-[14px] font-semibold text-foreground">
-                        {t('profileEdit.photoLabel')}{' '}
-                        <span className="font-normal text-muted-foreground">{t('profileEdit.photoOptional')}</span>
-                    </label>
-                    <div className="relative inline-block">
-                        <div className="flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                            {imageUrl ? (
-                                <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" />
-                            ) : (
-                                <User size={36} className="text-muted-foreground" />
-                            )}
-                        </div>
-                        <button
-                            onClick={handleImageClick}
-                            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#B0EA10] shadow-md"
-                            aria-label="Change profile photo"
-                        >
-                            <Camera size={16} className="text-foreground" />
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            onChange={handleImageChange}
-                            className="hidden"
-                        />
+                    <div className="flex flex-col items-center gap-0.5">
+                        <Text variant="label" className="text-label">
+                            {t('profileEdit.photoLabel')}
+                        </Text>
+                        <Text variant="caption" className="text-placeholder">
+                            {t('profileEdit.photoOptional')}
+                        </Text>
                     </div>
                     {imageSizeError && (
-                        <p className="mt-2 text-[14px] text-destructive">{t('profileEdit.imageSizeError')}</p>
+                        <Text variant="caption" className="text-destructive">
+                            {t('profileEdit.imageSizeError')}
+                        </Text>
                     )}
                 </div>
+
+                <TextField
+                    label={t('profileEdit.nameLabel')}
+                    required
+                    value={name}
+                    onChange={value => setName(value.slice(0, MAX_NAME_LENGTH))}
+                    maxLength={MAX_NAME_LENGTH}
+                    description={t('profileEdit.nameHint')}
+                    enterKeyHint="done"
+                    onKeyDown={e => {
+                        // "Done" key dismisses the keyboard; ignore Enter while an IME is composing.
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                            e.preventDefault();
+                            e.currentTarget.blur();
+                        }
+                    }}
+                />
+
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageChange}
+                    className="hidden"
+                />
             </div>
         </KeyboardAwareLayout>
     );

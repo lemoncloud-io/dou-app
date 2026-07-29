@@ -1,5 +1,54 @@
 # Changelog
 
+## [2026-07-29] - root@0.45.0, @chatic/web@0.38.0
+
+### Features
+
+- (web/place) add the chat-room management screen
+- (web/channels) show the invite-link copy action as text
+- (web) add the Figma point blue and pink color tokens
+- (web) float header and bottom chrome as translucent overlays
+- (web) edit cloud name as the cloud entity and keep it fresh via cache
+- (debug) show meta sync cursors in cache storage viewer
+
+### Bug Fixes
+
+- (web) stop the bottom-nav clearance collapsing on a bad safe-area inset
+- (web) match the unread pill to the design system
+- (web) keep the bottom sheet's rounded corners under the glass header
+- (data) stop collapsing every place profile onto one cache key
+- (web/home) float the create-dialog headers and re-enable place creation
+- (web) keep bottom CTAs clear of the soft keyboard
+- (web/home) stop forcing place-profile setup on place entry
+- (web) make chrome insets, chat bubbles and profile sync behave under a keyboard
+- (web) stop reserving keyboard height in the bottom safe-area spacer
+- (app-runtime) migrate invited clouds from hot to cold on boot
+- (web/channels) match MemberProfileDialog header top spacing to other modals
+- (data) shorten meta sync-cursor TTL so stale channel lists re-sync
+- (debug-mode) gate debug features solely by 10-tap unlock
+- (app-runtime) use single-tier cache per platform (native cold-only, web hot-only)
+- (web) gate device.sync sends on a connected socket
+- (web/bridge) recover invited cloud on deep-link/push-tap before cloud switch
+- (web) clear device viewing target when the app goes to background
+- (web/home) make invite popup full-bleed so safe areas aren't white
+- (web/channels) fall back self-chat title to profile nick when join nick is a raw id
+
+### Refactor
+
+- (web) keep the required-field asterisk out of ui-kit and desktop-web
+- (web/place) split place settings into titled sections
+- (web/place) open channel sort as a bottom sheet and restyle the place profile
+- (web/home) route place-profile edit through the settings hub and trim the header menu
+
+### Chores
+
+- (web/mypage) open the account editor from the profile header
+- (web/home) temporarily disable the CreatePlace dialog
+
+### Other
+
+- test: (web) repair the four suites that had rotted against their sources
+
 ## [2026-07-28] - No version updates
 
 ### Features

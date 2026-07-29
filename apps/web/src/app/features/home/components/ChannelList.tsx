@@ -18,7 +18,7 @@ import {
     CollapsibleSection,
     DefaultAvatar,
     IconBolt,
-    IconPlus,
+    IconChatAdd,
     ImageAvatar,
     ListRow,
     PlanBadge,
@@ -30,7 +30,7 @@ import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
-import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
+import { resolveChannelTitle } from '../lib/resolveChannelTitle';
 import { sortChannels } from '../lib/sortChannels';
 
 const ChannelSkeleton = () => (
@@ -61,9 +61,6 @@ const ChannelItem = ({
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
     // Self-chat is identified by stereo (ADR-0022), not member count.
     const isSelf = channel.stereo === 'self';
-    // For self-chat the title follows: this channel's join nick (from the subscribed join list,
-    // freshest after a rename) → the embedded `$join` nick → my profile nick → "나와의 채팅" label.
-    const selfChatTitle = resolveSelfChatTitle(joinNick ?? channel.$join?.nick, myNick, t('channelList.selfChannel'));
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
@@ -79,16 +76,15 @@ const ChannelItem = ({
         return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Title by channel type. self → selfChatTitle (above); dm → not handled yet (future). The rest:
-    //   - I own the channel → the owner-set `channel.name` (my own join nick is ignored).
-    //   - I'm a member     → my per-channel join nick, falling back to `channel.name`.
-    const unnamed = t('channelList.unnamedChannel');
-    const isOwner = !!uid && channel.ownerId === uid;
-    const memberNick = joinNick ?? channel.$join?.nick;
-    const groupTitle = isOwner
-        ? channel.name?.trim() || unnamed
-        : memberNick?.trim() || channel.name?.trim() || unnamed;
-    const name = isSelf ? selfChatTitle : groupTitle;
+    // Title by channel type — shared with the chat-room management list (see resolveChannelTitle).
+    const name = resolveChannelTitle({
+        channel,
+        uid,
+        joinNick,
+        myNick,
+        selfLabel: t('channelList.selfChannel'),
+        unnamedLabel: t('channelList.unnamedChannel'),
+    });
 
     // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
     // preview or timestamp shows (the message line is hidden).
@@ -156,6 +152,8 @@ interface ChannelListProps {
     isPro?: boolean;
     /** Sort method for this place's channel list (client preference). Defaults to 'recent'. */
     sortMethod?: ChannelSortMethod;
+    /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
+    pinnedChannelIds?: ReadonlySet<string>;
     /** Relay: start a 1:1 chat (not implemented yet — placeholder). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
@@ -171,6 +169,7 @@ export const ChannelList = ({
     isDefaultCloud,
     isPro,
     sortMethod = 'recent',
+    pinnedChannelIds,
     onCreateOneOnOne,
     onCreateGroup,
 }: ChannelListProps) => {
@@ -185,8 +184,8 @@ export const ChannelList = ({
     // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
     // channels above). See sortChannels (pure, unit-tested).
     const sortedChannels = useMemo(
-        () => sortChannels({ channels, joinByChannel, unreadByChannel, sortMethod }),
-        [channels, joinByChannel, unreadByChannel, sortMethod]
+        () => sortChannels({ channels, joinByChannel, unreadByChannel, sortMethod, pinnedChannelIds }),
+        [channels, joinByChannel, unreadByChannel, sortMethod, pinnedChannelIds]
     );
 
     const createMenu = canCreate ? (
@@ -197,7 +196,7 @@ export const ChannelList = ({
                     aria-label={t('channelList.createChat', '채팅 만들기')}
                     className="flex size-6 items-center justify-center text-foreground"
                 >
-                    <IconPlus className="size-[18px]" />
+                    <IconChatAdd className="size-[18px]" />
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">

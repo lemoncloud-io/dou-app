@@ -8,10 +8,9 @@ export type { PlaceProfileExitCopy } from './PlaceProfileForm';
 export type PlaceProfileFormDialogProps = Omit<PlaceProfileFormProps, 'container'>;
 
 /**
- * Slide-up dialog variant of {@link PlaceProfileForm} — the form the home dropdown (edit) and the
- * mandatory first-time prompt (create) open. Kept as a named wrapper so existing callers
- * ({@link PlaceProfileEditDialog} / {@link PlaceProfileCreateDialog}) are unchanged; the settings
- * hub renders the same form with `container="page"`.
+ * Slide-up dialog variant of {@link PlaceProfileForm} — opened by {@link PlaceProfileEditDialog}
+ * from the channel settings screen. Kept as a named wrapper so that caller stays unchanged; the
+ * settings hub renders the same form with `container="page"`.
  */
 export const PlaceProfileFormDialog = (props: PlaceProfileFormDialogProps) => (
     <PlaceProfileForm container="dialog" {...props} />

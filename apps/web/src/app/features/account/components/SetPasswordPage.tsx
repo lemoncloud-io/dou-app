@@ -1,10 +1,11 @@
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { MIN_PASSWORD_LENGTH } from '../constants';
 import { FloatingButton } from './FloatingButton';
@@ -23,6 +24,8 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const fieldsRef = useRef<HTMLDivElement>(null);
+    useFormKeyboardFlow(fieldsRef);
 
     const passwordsMatch = password === confirmPassword;
     const isValid = password.length >= MIN_PASSWORD_LENGTH && confirmPassword.length > 0 && passwordsMatch;
@@ -65,7 +68,7 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
                     </p>
                 </div>
 
-                <div className="flex flex-col gap-5">
+                <div ref={fieldsRef} className="flex flex-col gap-5">
                     <div className="flex flex-col gap-2">
                         <label className="text-[14px] font-semibold text-label">
                             {t(`${translationPrefix}.passwordLabel`)}
