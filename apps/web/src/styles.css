@@ -44,6 +44,8 @@
         --surface: 0 0% 100%; /* #FFFFFF - input backgrounds */
         --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
         --verified: 211 100% 50%; /* #007AFF - blue verified/selected check (web-ui-kit VerifiedBadge) */
+        --point-blue: 215 90% 56%; /* #2A7EF4 - Figma point_blue, inline text links */
+        --point-pink: 348.6 100% 58.8%; /* #FF2D55 - Figma Colors/Pink, unread count pill */
         --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
         --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
@@ -113,6 +115,8 @@
         --surface: 0 0% 7%; /* same as bg */
         --main-accent: 76 93% 39%; /* #90C304 - same */
         --verified: 211 100% 50%; /* #007AFF - same */
+        --point-blue: 215 90% 56%; /* #2A7EF4 - same */
+        --point-pink: 348.6 100% 58.8%; /* #FF2D55 - same */
         --input-border: 0 0% 23%; /* #3A3C40 */
         --focus-border: 216 3% 64%; /* #9FA2A7 */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */

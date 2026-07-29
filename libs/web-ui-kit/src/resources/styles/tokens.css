@@ -54,6 +54,8 @@
     --toast: 222 75% 12%; /* #081837 — dark snackbar */
     --toast-foreground: 0 0% 98%; /* #FAFAFA */
     --verified: 211 100% 50%; /* #007AFF — blue verified/default check */
+    --point-blue: 215 90% 56%; /* #2A7EF4 — Figma point_blue, inline text links */
+    --point-pink: 348.6 100% 58.8%; /* #FF2D55 — Figma Colors/Pink, unread count pill */
 }
 
 .dark {
@@ -98,4 +100,6 @@
     --toast: 0 0% 96%; /* light snackbar on dark bg */
     --toast-foreground: 220 7% 14%;
     --verified: 211 100% 50%;
+    --point-blue: 215 90% 56%; /* #2A7EF4 — same */
+    --point-pink: 348.6 100% 58.8%; /* #FF2D55 — same */
 }
