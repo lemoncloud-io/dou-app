@@ -19,6 +19,7 @@ import {
     shell,
     Tray,
 } from 'electron';
+import { resolveAppLanguage } from './appLanguage';
 import {
     applyCustomUi,
     disableCustomUi,
@@ -30,6 +31,8 @@ import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
 import { hasEntryPoint } from './customUiState';
 import { startFcm, type FcmConfig } from './fcm';
+import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
+import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { fetchUrlMetadata } from './unfurl';
 import { startUpdater } from './updater';
 import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
@@ -371,6 +374,28 @@ const registerCustomUiIpc = (win: BrowserWindow): void => {
     });
 };
 
+const loginItem = createLoginItem(app, process.platform);
+
+/**
+ * Settings control for "launch at login". Same origin gate as the AppBridge and custom-UI
+ * channels; an untrusted frame is answered as unsupported, so it can neither read the
+ * setting nor register the app.
+ *
+ * Deliberately its own IPC channel rather than an AppBridge message: that wire contract is
+ * shared with mobile and a desktop-only setting has no business bumping BRIDGE_VERSION
+ * (ADR-0001). Same call the custom-UI PoC makes.
+ */
+const registerLoginItemIpc = (): void => {
+    ipcMain.removeHandler(LOGIN_ITEM_CHANNEL); // createWindow can re-run (macOS re-activate)
+    // `raw` is renderer-controlled, so it arrives as unknown and is narrowed here.
+    ipcMain.handle(LOGIN_ITEM_CHANNEL, (event, raw: unknown): LaunchAtLoginState => {
+        if (!isTrustedUrl(event.senderFrame?.url)) return LOGIN_ITEM_UNSUPPORTED;
+        const request = (raw ?? {}) as { action?: unknown; enabled?: unknown };
+        if (request.action === 'set') return loginItem.write(request.enabled === true);
+        return loginItem.read();
+    });
+};
+
 /**
  * Reload after the reply is on its way. Reloading inline would tear down the very frame
  * awaiting the result, so the panel would never see whether its request succeeded.
@@ -634,13 +659,19 @@ const createWindow = (): BrowserWindow => {
                 `--chatic-device-id=${getOrCreateDeviceId()}`,
                 `--chatic-stage=${IS_DEV_CHANNEL ? 'dev' : 'prod'}`,
                 `--chatic-app-version=${app.getVersion()}`,
+                // `VITE_DESKTOP_LANGUAGE` is never `define`-replaced (no `define` in
+                // electron.vite.config.ts) and is set in no .env file, so in a packaged app it is
+                // always undefined and this argument shipped empty — the preload then fell back to
+                // 'en' unconditionally. Keep it as a runtime override for dev, but resolve the OS
+                // locale when it is absent, which is what mobile injects.
+                `--chatic-language=${resolveAppLanguage(process.env.VITE_DESKTOP_LANGUAGE || app.getLocale())}`,
             ],
             contextIsolation: true,
             nodeIntegration: false,
-            // contextIsolation + nodeIntegration:false is the isolation boundary. sandbox stays
-            // off for now because the preload reads process.env (device id/stage/lang) and uses
-            // Buffer; enabling sandbox needs those moved to main + passed via additionalArguments.
-            // TODO: enable sandbox once preload env access is restructured.
+            // The preload no longer needs Node: every value it injects arrives via
+            // additionalArguments above, and base64 goes through preload/base64.ts instead of
+            // Buffer. So the renderer runs sandboxed on top of contextIsolation.
+            sandbox: true,
             backgroundThrottling: false,
         },
     });
@@ -694,6 +725,7 @@ const createWindow = (): BrowserWindow => {
     });
 
     registerCustomUiIpc(win);
+    registerLoginItemIpc();
 
     // Persist size/position so the next launch reopens where the user left it.
     win.on('resized', () => saveWindowBounds(win));

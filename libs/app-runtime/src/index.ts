@@ -19,7 +19,7 @@ export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './sessio
 
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
-export { isNativeApp } from './data/factories/localFactory';
+export { isNativeApp, setChatCacheLimit } from './data/factories/localFactory';
 export {
     useInvitedCloudColdRecovery,
     useInvitedCloudNameSync,
@@ -30,9 +30,18 @@ export {
 export { useChatSync, useChannelSync, usePlaceSync } from './socket';
 
 // --- Lifecycle ------------------------------------------------------------------------------
-export { RuntimeConnectionHost, RuntimeAuthHost } from './connection';
+// Named (not `export *`) because connection/index.ts also re-exports deriveConnectivity, which is
+// the testable inner truth table, not public surface.
+export { RuntimeConnectionHost, RuntimeAuthHost, useConnectivity } from './connection';
+export type { ConnectivityStatus } from './connection';
 export { useDeviceTokenRegistration } from './push';
 export type { DeviceTokenDelegate } from './push';
+
+// --- Offline outbox -------------------------------------------------------------------------
+// The machine only; ACTIVATION is the app's opt-in. apps/web never constructs one — it keeps its
+// manual resend button, so this export cannot change mobile behaviour by existing.
+export { createChatOutbox } from './data/outbox';
+export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } from './data/outbox';
 
 // --- Manager entry points -------------------------------------------------------------------
 export { getSocketManager, getSyncManager } from './socket/runtime';

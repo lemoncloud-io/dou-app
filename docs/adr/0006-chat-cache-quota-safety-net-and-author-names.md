@@ -75,3 +75,45 @@ messaging app:
   abstraction, so when the deferred full-bounding lands it should migrate the
   emergency logic into a real `EvictionStrategy` and route web through
   `DynamicCacheStorage`.
+
+## Update — full bounding landed, and did NOT take the migration this ADR planned
+
+Per-channel bounding shipped on `feature/louis-improve-desktop`
+(`IndexedDbOnlyCacheStorageStrategy` gets a limit, `IndexedDBAdapter` enforces it via
+`findNewestKeyBeyond` over `CHAT_PAGINATION_INDEX`). The last bullet above says that
+should have migrated into a real `EvictionStrategy` with browser clients routed through
+`DynamicCacheStorage`. **It did neither, deliberately** — this note supersedes that
+bullet so the next reader does not plan a migration that has been decided against.
+
+Why the planned migration was not the fix:
+
+- **There is no working abstraction to migrate into.** `EvictionStrategy` and
+  `CapacityPolicy` have exactly one implementation each repo-wide, and both are inert:
+  `DefaultEvictionStrategy`'s three hooks are no-ops and `DefaultCapacityPolicy.getLimit()`
+  returns `null` (`libs/data/src/data/local/storages/defaultPolicies.ts`). Worse, nothing
+  reaches them: they live inside `HotColdCacheStorageStrategy`, and `localFactory` no longer
+  constructs it on any path — native goes to `NativeDbOnlyCacheStorageStrategy` and everything
+  else to `IndexedDbOnlyCacheStorageStrategy`, neither of which wraps `DynamicCacheStorage`.
+  It is empty scaffolding, not a designed mechanism being bypassed.
+- **`IndexedDBAdapter` is the home the cap can actually reach.** It is what
+  `IndexedDbOnlyCacheStorageStrategy` builds, which is every non-native client. The native path
+  now stores through `NativeDBAdapter` alone and has no IndexedDB tier at all, so a cap that
+  lived inside `DynamicCacheStorage` would reach _neither_ path.
+- **The blast radius this ADR already rejected has not changed.** Routing browser clients
+  through `DynamicCacheStorage` also changes their read-policy resolution and adds the
+  stampede guard for every one of them — the same reason "Full bounded cache now" was
+  rejected under Considered Options.
+
+Two facts the bounding work established that this ADR did not anticipate:
+
+- **`IndexedDbOnlyCacheStorageStrategy` is not a desktop path.** `localFactory.selectStrategy`
+  routes every client without `window.ReactNativeWebView` to it — `apps/web` opened in a
+  browser and `apps/admin-v2` included. A capacity constant placed there silently truncates
+  their scrollback. The limit is therefore injected by the app that owns the policy
+  (`setChatCacheLimit`, called from `apps/desktop-web`'s entry); unset stays unbounded.
+- **The quota safety net is gated on a limit being configured.** With no limit, eviction has
+  nothing to evict, so retrying the write would meet the same full store — the gate does not
+  remove a net that would otherwise work. The net promised "on every platform" by the
+  Decision above has in fact never existed on the native path, which stores through
+  `NativeDBAdapter` alone and so never reaches the eviction hooks at all. That gap is unchanged
+  by this work and remains owed.

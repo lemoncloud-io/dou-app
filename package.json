@@ -88,6 +88,7 @@
     "desktop:dev:local": "MAIN_VITE_DESKTOP_WEB_URL=http://localhost:5005 yarn workspace @chatic/desktop dev",
     "desktop:build": "yarn workspace @chatic/desktop build",
     "desktop:typecheck": "yarn workspace @chatic/desktop typecheck",
+    "desktop:test:sandbox": "yarn workspace @chatic/desktop test:sandbox",
     "desktop:package:mac:dev": "yarn workspace @chatic/desktop package:mac:dev",
     "desktop:package:mac:prod:signed": "yarn workspace @chatic/desktop package:mac:prod:signed",
     "desktop:package:win:dev": "yarn workspace @chatic/desktop package:win:dev",

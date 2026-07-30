@@ -29,6 +29,7 @@ describe('@chatic/app-runtime public surface', () => {
             'useLogoutCloudSession',
             // cache tier helpers (cold-db activation + invited-cloud durability)
             'isNativeApp',
+            'setChatCacheLimit',
             'useInvitedCloudColdRecovery',
             'useInvitedCloudNameSync',
             'recoverInvitedCloudIfMissing',
@@ -39,7 +40,10 @@ describe('@chatic/app-runtime public surface', () => {
             // lifecycle
             'RuntimeConnectionHost',
             'RuntimeAuthHost',
+            'useConnectivity',
             'useDeviceTokenRegistration',
+            // offline outbox (engine machine; the app opts in — apps/web keeps manual resend)
+            'createChatOutbox',
             // manager entry points
             'getSocketManager',
             'getSyncManager',

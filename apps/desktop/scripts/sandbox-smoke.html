@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>sandbox smoke</title>
+<script>
+    // Record App -> Web bridge messages the way NativeBridgeAdapter does.
+    window.__msgs = [];
+    window.addEventListener('message', e => window.__msgs.push(e.data));
+</script>
+<body>
+    sandbox smoke
+</body>

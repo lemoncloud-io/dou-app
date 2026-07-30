@@ -6,6 +6,7 @@ export * from './useChats';
 export * from './useLastChat';
 export * from './useChannelChatFeeds';
 export * from './useChatMutations';
+export * from './useChatOutbox';
 export * from './useChannelMutations';
 export * from './useReadReceipts';
 export * from './useDesktopNotifications';

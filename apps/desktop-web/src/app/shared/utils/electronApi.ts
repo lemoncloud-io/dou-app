@@ -29,12 +29,33 @@ export interface CustomUiApi {
     status: () => Promise<CustomUiStatus>;
 }
 
+/**
+ * Reply to every launch-at-login request. Mirrors `LaunchAtLoginState` in
+ * `apps/desktop/src/main/loginItemContract.ts` — same hand-sync caveat as CustomUiStatus.
+ *
+ * `enabled` is always the OS read back, never the requested value: macOS 13+ can answer a
+ * registration with `requires-approval` and leave the app unregistered, so echoing the request
+ * would show a switch that is on while the app will not actually start.
+ */
+export interface LaunchAtLoginState {
+    enabled: boolean;
+    /** False where Electron has no login-item integration (Linux) — the UI hides the row. */
+    supported: boolean;
+}
+
+/** Desktop-only launch-at-login control. */
+export interface LaunchAtLoginApi {
+    get: () => Promise<LaunchAtLoginState>;
+    set: (enabled: boolean) => Promise<LaunchAtLoginState>;
+}
+
 declare global {
     interface Window {
         electronAPI?: {
             appVersion: string;
             platform: string;
             customUi?: CustomUiApi;
+            loginItem?: LaunchAtLoginApi;
         };
     }
 }
@@ -42,3 +63,7 @@ declare global {
 /** The custom-UI controls, or undefined outside the desktop shell. */
 export const getCustomUiApi = (): CustomUiApi | undefined =>
     typeof window === 'undefined' ? undefined : window.electronAPI?.customUi;
+
+/** The launch-at-login controls, or undefined outside the desktop shell. */
+export const getLoginItemApi = (): LaunchAtLoginApi | undefined =>
+    typeof window === 'undefined' ? undefined : window.electronAPI?.loginItem;
