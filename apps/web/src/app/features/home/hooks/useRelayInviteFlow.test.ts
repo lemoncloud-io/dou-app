@@ -4,7 +4,7 @@ import { useRelayInviteFlow } from './useRelayInviteFlow';
 
 const getInvite = jest.fn();
 const acceptInvite = jest.fn();
-const awaitChannel = jest.fn();
+const resolveChannel = jest.fn();
 const setPendingChannel = jest.fn();
 const navigate = jest.fn();
 const toast = jest.fn();
@@ -18,8 +18,10 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('../../../hooks', () => ({
     useRelayInviteMutations: () => ({ getInvite, acceptInvite }),
     useMyProfile: () => ({ profile: mockNick ? { nick: mockNick } : null }),
-    useAwaitInviteChannel: () => ({ awaitChannel }),
 }));
+// The 3-tier resolution has its own suite (useResolveInviteChannel.test.ts); mocking it here keeps this
+// one off real timers and lets it assert the hand-off instead.
+jest.mock('./useResolveInviteChannel', () => ({ useResolveInviteChannel: () => ({ resolveChannel }) }));
 jest.mock('../lib', () => ({ recordDeclinedInvite: (...args: unknown[]) => recordDeclinedInvite(...args) }));
 jest.mock('../../../stores/usePendingInviteChannel', () => ({
     usePendingInviteChannel: (selector: (s: unknown) => unknown) => selector({ setPendingChannel }),
@@ -33,6 +35,17 @@ const view = (over: Record<string, unknown> = {}) => ({ id: 'inv-1', state: 'pen
 /** A rejected socket call. The status is recovered from the message prefix (see getSocketErrorCode). */
 const socketError = (status: number) => Object.assign(new Error(`${status} FORBIDDEN - nope`), { errorCode: status });
 
+/** Pins channel resolution open so a test can inspect the phase while it is in flight. */
+const holdResolution = () => {
+    let release: (channelId: string | null) => void = () => undefined;
+    resolveChannel.mockReturnValue(
+        new Promise<string | null>(resolve => {
+            release = resolve;
+        })
+    );
+    return { release: (channelId: string | null) => release(channelId) };
+};
+
 const mount = () => renderHook(() => useRelayInviteFlow(CODE));
 
 beforeEach(() => {
@@ -40,7 +53,7 @@ beforeEach(() => {
     mockNick = '토끼';
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
-    awaitChannel.mockResolvedValue('ch-new');
+    resolveChannel.mockResolvedValue('ch-new');
 });
 
 describe('useRelayInviteFlow — 진입 조회', () => {
@@ -166,7 +179,7 @@ describe('useRelayInviteFlow — 수락 결과', () => {
     });
 
     it('채널이 제때 안 오면 안내 토스트와 함께 홈으로 보낸다', async () => {
-        awaitChannel.mockResolvedValue(null);
+        resolveChannel.mockResolvedValue(null);
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
@@ -175,6 +188,56 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'relayInviteAccept.channelPending' }));
         expect(setPendingChannel).not.toHaveBeenCalled();
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('수락 응답의 channelId를 해소 1단으로 넘긴다 (ADR-0035)', async () => {
+        acceptInvite.mockResolvedValue(view({ state: 'accepted', channelId: 'ch-accepted' }));
+        resolveChannel.mockResolvedValue('ch-accepted');
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-accepted'));
+        expect(resolveChannel).toHaveBeenCalledWith(CODE, { acceptedChannelId: 'ch-accepted' });
+    });
+
+    it('수락 응답에 channelId가 없으면 1단을 비운 채로 해소를 맡긴다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
+        expect(resolveChannel).toHaveBeenCalledWith(CODE, { acceptedChannelId: undefined });
+    });
+
+    it('1단으로 즉시 해소되면 채널 대기 페이즈를 거치지 않는다', async () => {
+        acceptInvite.mockResolvedValue(view({ state: 'accepted', channelId: 'ch-accepted' }));
+        const held = holdResolution();
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+        // Resolution is still in flight — with tier 1 in hand there is nothing to wait for, so the
+        // spinner phase must never be entered.
+        await waitFor(() => expect(resolveChannel).toHaveBeenCalled());
+        expect(result.current.phase).not.toBe('awaitingChannel');
+
+        await act(async () => held.release('ch-accepted'));
+        expect(setPendingChannel).toHaveBeenCalledWith('ch-accepted');
+    });
+
+    it('1단이 비면 해소가 끝날 때까지 채널 대기 페이즈에 머문다', async () => {
+        const held = holdResolution();
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('awaitingChannel'));
+        await act(async () => held.release('ch-new'));
+        expect(result.current.phase).toBe('closed');
     });
 
     it('accepted가 아니면 성공으로 치지 않는다', async () => {

@@ -5,7 +5,8 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useInviteCountdown, type InviteCountdown } from './useInviteCountdown';
-import { useAwaitInviteChannel, useMyProfile, useRelayInviteMutations, type RelayInviteView } from '../../../hooks';
+import { useResolveInviteChannel } from './useResolveInviteChannel';
+import { useMyProfile, useRelayInviteMutations, type RelayInviteView } from '../../../hooks';
 import { recordDeclinedInvite } from '../lib';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
@@ -97,7 +98,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const navigate = useNavigateWithTransition();
     const mutations = useRelayInviteMutations();
     const { profile } = useMyProfile();
-    const { awaitChannel } = useAwaitInviteChannel();
+    const { resolveChannel } = useResolveInviteChannel();
     const setPendingChannel = usePendingInviteChannel(state => state.setPendingChannel);
 
     const [phase, setPhase] = useState<RelayInvitePhase>('loading');
@@ -108,8 +109,8 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
     // Latest-value refs: the async steps read these long after the closure was created, and keeping
     // them out of the callback deps stops `advance` from churning identity on every render.
-    const latest = useRef({ mutations, nick: profile?.nick, awaitChannel, setPendingChannel, navigate, toast, t });
-    latest.current = { mutations, nick: profile?.nick, awaitChannel, setPendingChannel, navigate, toast, t };
+    const latest = useRef({ mutations, nick: profile?.nick, resolveChannel, setPendingChannel, navigate, toast, t });
+    latest.current = { mutations, nick: profile?.nick, resolveChannel, setPendingChannel, navigate, toast, t };
 
     // Generation counter: a step that resolves after the flow moved on (or unmounted) must not write.
     const runIdRef = useRef(0);
@@ -138,20 +139,29 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         setPhase('notice');
     }, []);
 
-    /** Accepted: hold on the spinner until the room shows up, then hand off to home's channel entry. */
-    const enterChannel = useCallback(async (run: number) => {
-        setPhase('awaitingChannel');
-        const channelId = await latest.current.awaitChannel();
-        if (isStale(run)) return;
+    /**
+     * Accepted: resolve the room the accept created, then hand off to home's channel entry.
+     *
+     * `acceptedChannelId` is tier 1 of the resolution (ADR-0035) — when the accept response already
+     * carried the room there is nothing to wait for, so the spinner phase is skipped entirely.
+     */
+    const enterChannel = useCallback(
+        async (run: number, acceptedChannelId?: string) => {
+            if (!acceptedChannelId) setPhase('awaitingChannel');
 
-        if (channelId) latest.current.setPendingChannel(channelId);
-        // Timed out: the accept is already on the server, so the room will show up in the list on the
-        // next background sync. Say so rather than leaving the user on a spinner.
-        else latest.current.toast({ title: latest.current.t('relayInviteAccept.channelPending') });
+            const channelId = await latest.current.resolveChannel(code, { acceptedChannelId });
+            if (isStale(run)) return;
 
-        setPhase('closed');
-        latest.current.navigate(ROUTES.home, { replace: true });
-    }, []);
+            if (channelId) latest.current.setPendingChannel(channelId);
+            // Unresolved: the accept is already on the server, so the room will show up in the list on the
+            // next background sync. Say so rather than leaving the user on a spinner.
+            else latest.current.toast({ title: latest.current.t('relayInviteAccept.channelPending') });
+
+            setPhase('closed');
+            latest.current.navigate(ROUTES.home, { replace: true });
+        },
+        [code]
+    );
 
     /**
      * Re-validate, then take exactly one step forward. Called by the accept button and by every step
@@ -179,12 +189,15 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         if (view.needVerify) return setPhase('verifying');
         if (!latest.current.nick) return setPhase('profiling');
 
+        let acceptedChannelId: string | undefined;
         try {
             const accepted = await latest.current.mutations.acceptInvite(code);
             if (isStale(run)) return;
             // `state` is the only success signal the response carries.
             if (accepted.state !== 'accepted') return fail('generic');
             setInvite(prev => ({ ...prev, ...accepted }));
+            // May be absent — the room is created asynchronously (ADR-0035 tier 1).
+            acceptedChannelId = accepted.channelId;
         } catch (error) {
             if (isStale(run)) return;
             const status = getSocketErrorCode(error);
@@ -194,7 +207,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             return fail(resolveNotice(status, 'accept'));
         }
 
-        await enterChannel(run);
+        await enterChannel(run, acceptedChannelId);
     }, [code, fail, enterChannel]);
 
     // Entry read. Unlike `advance` this stops at the accept screen — the user has not chosen yet.
