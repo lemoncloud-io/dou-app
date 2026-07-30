@@ -32,9 +32,8 @@ export const useChannelUnreads = (
         const byPlace: Record<string, number> = {};
         let total = 0;
         for (const ch of channels) {
-            // Channel head in the unified user+system sequence (lastChat$ is a fallback for older
-            // payloads that carried it; the server drives `chatNo`).
-            const headChatNo = ch.chatNo ?? ch.lastChat$?.chatNo ?? 0;
+            // Channel head in the unified user+system sequence.
+            const headChatNo = ch.chatNo ?? 0;
             const headMeta = ch.metaNo ?? 0;
             // User-message count at the head (system events netted out).
             const userHead = Math.max(0, headChatNo - headMeta);

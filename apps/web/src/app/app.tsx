@@ -13,6 +13,7 @@ import { logger } from '@chatic/bridges';
 import i18n from '../i18n';
 import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
+import { AppUpdatePromptHost } from './features/appUpdate';
 import { ThemeApplier } from './runtime/ThemeApplier';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 import { markBoot } from './features/debug/metrics/bootMarks';
@@ -83,6 +84,7 @@ export function App() {
                     <ThemeApplier />
                     <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
                         <GlobalBridgeListener />
+                        <AppUpdatePromptHost />
                         <Suspense fallback={<LoadingFallback />}>
                             <AppRuntime />
                         </Suspense>

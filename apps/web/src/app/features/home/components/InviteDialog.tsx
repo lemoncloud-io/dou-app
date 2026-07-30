@@ -37,8 +37,8 @@ interface InviteDialogProps {
 /**
  * Self-contained invite-accept overlay driven by the current URL.
  *
- * Renders nothing unless the link is a fully-formed invite entry (`provider=invite` + `code` +
- * `_backend`), so home can mount it unconditionally. `suppressed` withholds it while a
+ * Renders nothing unless the link is a fully-formed invite entry (`provider=invite` + `code` + either
+ * `_backend` or the `relay` marker), so home can mount it unconditionally. `suppressed` withholds it while a
  * higher-priority overlay (onboarding) is open. Dismiss/back strips the query string so the popup
  * cannot reappear. This orchestrator owns the overlay, routing and error dialogs; the visual accept
  * screen lives in the presentational InviteAcceptScreen. The accept pipeline (useInviteAccept) is

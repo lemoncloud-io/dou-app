@@ -65,6 +65,20 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
+    // App update
+    // ---------------------------------------------------------------
+
+    /** Ask native to check the current app version against the live store version. */
+    checkAppUpdate(): Promise<WebMessageResponse<'CheckAppUpdate'>> {
+        return webClient.request({ type: 'CheckAppUpdate', data: {} });
+    },
+
+    /** Open the platform app store listing. */
+    openStore(): void {
+        webClient.post({ type: 'OpenStore', data: {} });
+    },
+
+    // ---------------------------------------------------------------
     // Notification & device
     // ---------------------------------------------------------------
 

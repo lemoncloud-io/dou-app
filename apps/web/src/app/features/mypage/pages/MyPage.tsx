@@ -70,7 +70,9 @@ export const MyPage = () => {
     const hasSubscription = membership?.isValid === true;
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
-    const showUpdate = !!versionInfo?.shouldUpdate && isMobilePlatform;
+    // iOS only: Android has no live-version source yet (see ADR-0033), so the update row is
+    // gated on platform explicitly rather than relying solely on shouldUpdate staying false there.
+    const showUpdate = !!versionInfo?.shouldUpdate && deviceInfo?.platform === 'ios';
 
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
@@ -90,14 +92,14 @@ export const MyPage = () => {
     };
 
     const handleUpdateClick = () => {
+        if (isNative()) {
+            appBridge.openStore();
+            return;
+        }
+
         const storeUrl = getStoreUrl(deviceInfo?.platform);
         if (!storeUrl) return;
-
-        if (isNative()) {
-            appBridge.openURL(storeUrl);
-        } else {
-            window.open(storeUrl, '_blank');
-        }
+        window.open(storeUrl, '_blank');
     };
 
     const versionText = isMobilePlatform
@@ -227,26 +229,30 @@ export const MyPage = () => {
                     />
                     <ListRow
                         title={t('mypage.appVersion')}
-                        subtitle={versionText}
                         trailing={
-                            showUpdate ? (
-                                <span
-                                    role="button"
-                                    onClick={e => {
-                                        e.stopPropagation();
-                                        handleUpdateClick();
-                                    }}
-                                    className="flex items-center gap-1"
-                                >
+                            <span className="flex items-center gap-1">
+                                <span className="text-[14px] text-description">{versionText}</span>
+                                <Chevron />
+                            </span>
+                        }
+                        onClick={registerTap}
+                    />
+                    {/* Update availability is its own row (design), shown only where a live check
+                        exists — iOS only for now; Android has no live-version source yet. */}
+                    {showUpdate && (
+                        <ListRow
+                            title={t('mypage.appVersion')}
+                            trailing={
+                                <span className="flex items-center gap-1">
                                     <span className="text-[14px] font-medium text-primary">
                                         {t('mypage.updateAvailable')}
                                     </span>
                                     <IconChevronRight className="size-[18px] text-primary" />
                                 </span>
-                            ) : undefined
-                        }
-                        onClick={registerTap}
-                    />
+                            }
+                            onClick={handleUpdateClick}
+                        />
+                    )}
                     {isDebugMode && (
                         <ListRow
                             title="Debug Mode"

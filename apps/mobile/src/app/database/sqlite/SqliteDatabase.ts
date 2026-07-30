@@ -7,10 +7,15 @@ import { MIGRATIONS, TARGET_VERSION } from './schema';
 export class SqliteDatabase implements ISqliteDatabase {
     private readonly db: DB;
     private readonly logService: ILogService;
+    // Kicked off eagerly so every query below waits for migrations to land, regardless of
+    // whether/when a caller also invokes initTables() directly — a fresh install has no tables
+    // until this resolves, and a query racing ahead of it fails with "no such table: X".
+    private readonly ready: Promise<void>;
 
     constructor(logService: ILogService) {
         this.logService = logService;
         this.db = open({ name: 'dou.sqlite' });
+        this.ready = this.initTables();
     }
 
     public async initTables(): Promise<void> {
@@ -25,7 +30,9 @@ export class SqliteDatabase implements ISqliteDatabase {
                     for (let v = currentVersion; v < TARGET_VERSION; v++) {
                         const scripts = MIGRATIONS[v];
                         if (scripts) {
-                            scripts.forEach(sql => tx.execute(sql));
+                            for (const sql of scripts) {
+                                await tx.execute(sql);
+                            }
                             this.logService.info('SQLITE', `Step v${v} applied.`);
                         }
                     }
@@ -39,16 +46,19 @@ export class SqliteDatabase implements ISqliteDatabase {
         }
     }
 
-    public execute(query: string, params?: Scalar[]): Promise<QueryResult> {
+    public async execute(query: string, params?: Scalar[]): Promise<QueryResult> {
+        await this.ready;
         return this.db.execute(query, params);
     }
 
-    public executeBatch(commands: SQLBatchTuple[]): Promise<BatchQueryResult> {
+    public async executeBatch(commands: SQLBatchTuple[]): Promise<BatchQueryResult> {
+        await this.ready;
         return this.db.executeBatch(commands);
     }
 
     public async backup(destFilePath: string): Promise<void> {
         try {
+            await this.ready;
             const safePath = destFilePath.replace(/'/g, "''");
             await this.db.execute(`VACUUM INTO '${safePath}'`);
             this.logService.info('SQLITE', `Database backed up successfully to ${destFilePath}`);
@@ -60,6 +70,7 @@ export class SqliteDatabase implements ISqliteDatabase {
 
     public async restore(sourceFilePath: string): Promise<void> {
         try {
+            await this.ready;
             const safePath = sourceFilePath.replace(/'/g, "''");
             await this.db.execute(`ATTACH DATABASE '${safePath}' AS backup_db`);
 

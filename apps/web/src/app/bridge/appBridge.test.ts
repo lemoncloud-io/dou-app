@@ -124,4 +124,14 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(appBridge.fetchCurrentPurchases()).toBeInstanceOf(Promise);
         expect(appBridge.fetchProducts()).toBeInstanceOf(Promise);
     });
+
+    it('checkAppUpdate는 request로 CheckAppUpdate를 호출하고 Promise를 반환한다', () => {
+        expect(appBridge.checkAppUpdate()).toBeInstanceOf(Promise);
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'CheckAppUpdate', data: {} });
+    });
+
+    it('openStore는 fire-and-forget으로 post를 호출한다', () => {
+        appBridge.openStore();
+        expect(postMock).toHaveBeenLastCalledWith({ type: 'OpenStore', data: {} });
+    });
 });

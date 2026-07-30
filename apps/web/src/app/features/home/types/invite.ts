@@ -13,6 +13,12 @@ export interface InviteParams {
     code: string | null;
     backend?: string;
     version?: string;
+    /**
+     * Relay-server invite marker (`relay=1`). Relay links carry no `_backend` because the relay
+     * server needs no address — web-core falls back to the env relay endpoint. `true` or absent,
+     * never `false`, so the field follows the same optional shape as the rest.
+     */
+    relay?: true;
 }
 
 /**
@@ -50,13 +56,17 @@ export const parseInviteDeeplink = (search: string): InviteParams => {
         code: params.get('code'),
         backend: opt('_backend'),
         version: opt('_version'),
+        // Detected by presence, not value: emitters send `relay=1` but a hand-typed bare `&relay`
+        // parses to an empty string and must still count as a relay link.
+        relay: params.has('relay') ? true : undefined,
     };
 };
 
 /**
  * True when the deeplink is a fully-formed invite entry that should trigger the accept popup.
- * Requires the explicit `provider=invite` marker plus both `code` and `_backend`; any missing
- * field means the link is ignored (no popup) per the home invite-detection contract.
+ * Requires the explicit `provider=invite` marker plus `code`, and a resolvable target: either a
+ * `_backend` (cloud invite) or the `relay` marker (relay invite, which needs no address). Any other
+ * shape means the link is ignored (no popup) per the home invite-detection contract.
  */
 export const isInviteEntry = (params: InviteParams): boolean =>
-    params.provider === 'invite' && !!params.code && !!params.backend;
+    params.provider === 'invite' && !!params.code && (!!params.backend || !!params.relay);

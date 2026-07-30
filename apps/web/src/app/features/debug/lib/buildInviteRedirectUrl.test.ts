@@ -35,6 +35,28 @@ describe('buildInviteRedirectUrl', () => {
         expect(buildInviteRedirectUrl(SHARE_LINK).startsWith(DEFAULT_INVITE_REDIRECT_BASE)).toBe(true);
     });
 
+    it('converts a relay share link into a `relay=1` redirect with no _backend', () => {
+        const url = new URL(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=invt%3A910432%3Aabc&relay'));
+
+        expect(url.searchParams.get('code')).toBe('invt:910432:abc');
+        expect(url.searchParams.get('provider')).toBe('invite');
+        expect(url.searchParams.get('version')).toBe('2');
+        expect(url.searchParams.get('relay')).toBe('1');
+        expect(url.searchParams.has('_backend')).toBe(false);
+    });
+
+    it('accepts a relay link with a valueless flag and without api/stage', () => {
+        // A bare `&relay` reads as an empty string, so presence — not truthiness — is the discriminator.
+        expect(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&relay')).toBe(
+            'https://dou-dev.chatic.io/?code=c&provider=invite&version=2&relay=1'
+        );
+        expect(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&relay=')).toContain('relay=1');
+    });
+
+    it('still requires code for a relay link', () => {
+        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?relay')).toThrow('code');
+    });
+
     it('throws a descriptive error for an invalid URL or missing params', () => {
         expect(() => buildInviteRedirectUrl('not-a-url')).toThrow('유효한 URL이 아닙니다.');
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?api=x&stage=dev')).toThrow('code');

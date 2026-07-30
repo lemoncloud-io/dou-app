@@ -32,6 +32,10 @@
 
 ### 딥링크 기본 포맷 (서버 생성 규격)
 
+초대 링크는 두 가지 폼이 있고, **`relay` 플래그의 존재 여부가 판별자**다.
+
+**① 클라우드 폼** — 백엔드 주소를 링크가 실어 나른다.
+
 ```
 https://app.chatic.io/s?code=<inviteCode>&api=<apiId>&stage=<stage>
 ```
@@ -39,6 +43,18 @@ https://app.chatic.io/s?code=<inviteCode>&api=<apiId>&stage=<stage>
 - `code` : URL 인코딩된 초대 코드 (포맷: `invt:<id>:<code>`)
 - `api` : AWS API Gateway ID (예: `vjgudphpo4`)
 - `stage` : 배포 스테이지 (예: `dev`, `prod` 등)
+
+**② 릴레이 폼** — 릴레이 서버는 백엔드 주소가 필요 없으므로 `api`/`stage`가 없다.
+
+```
+https://app.chatic.io/s?code=<inviteCode>&relay
+```
+
+- `code` : 클라우드 폼과 동일
+- `relay` : 값 없는 플래그. 릴레이 서버 초대임을 표시한다.
+
+> [!IMPORTANT]
+> `relay`는 **값이 아니라 존재 여부로** 판별한다. 값 없는 `&relay`는 `searchParams.get('relay') === ''`(빈 문자열)이므로 `get()`의 진위값으로 검사하면 정상 링크를 놓친다. 반드시 `searchParams.has('relay')`를 쓴다.
 
 > [!TIP]
 > **하위 호환성**: 기존에 생성된 구형 단축 링크 패턴(`https://app.chatic.io/s/{shortCode}`)도 자동으로 감지되며, 기존과 동일하게 Firestore 조회 Fallback 경로를 통해 안전하게 우회 작동합니다.
@@ -50,9 +66,19 @@ https://app.chatic.io/s?code=<inviteCode>&api=<apiId>&stage=<stage>
 웹앱(`apps/web`) 진입 시, 최종적으로 도달하는 주소 스키마는 다음과 같습니다.
 랜딩 페이지와 모바일 네이티브 레이어가 아래의 규격을 맞춰 프론트엔드 URL을 동적으로 빌드해 줍니다.
 
+**① 클라우드 폼 → `_backend`**
+
 ```
 https://dou.chatic.io/auth/login?code=<inviteCode>&provider=invite&version=2&_backend=<backendUrl>
 ```
+
+**② 릴레이 폼 → `relay=1`**
+
+```
+https://dou.chatic.io/auth/login?code=<inviteCode>&provider=invite&version=2&relay=1
+```
+
+릴레이 폼은 `_backend`를 **생략하는 대신 `relay=1`을 명시**한다. 웹이 "`_backend`가 없으니 릴레이겠지"라고 추론하지 않고 마커로 판정하도록 하기 위한 의도적 규격이다. 백엔드 주소는 `getDynamicRelayBackend()`(env 릴레이 엔드포인트)가 채운다.
 
 ### 웹앱에서 추출하여 사용하는 최종 파라미터 매핑표
 
@@ -61,7 +87,11 @@ https://dou.chatic.io/auth/login?code=<inviteCode>&provider=invite&version=2&_ba
 | `code`             | 초대 코드          | `urlParams.get('code')`     | 디코딩된 초대 코드 (`invt:<id>:<code>`)                                                                  |
 | `provider`         | 가입 제공자        | `urlParams.get('provider')` | 항상 고정값인 `"invite"`가 주입됩니다.                                                                   |
 | `version`          | 딥링크 규격 버전   | `urlParams.get('version')`  | 항상 고정값인 `"2"`가 주입됩니다.                                                                        |
-| `_backend`         | REST API 서버 주소 | `urlParams.get('_backend')` | 조립 완료된 REST 백엔드 URL 주소 <br> `https://<apiId>.execute-api.ap-northeast-2.amazonaws.com/<stage>` |
+| `_backend`         | REST API 서버 주소 | `urlParams.get('_backend')` | 조립 완료된 REST 백엔드 URL 주소 <br> `https://<apiId>.execute-api.ap-northeast-2.amazonaws.com/<stage>` <br> **클라우드 폼에만 존재.** |
+| `relay`            | 릴레이 초대 마커   | `urlParams.has('relay')`    | **릴레이 폼에만 존재**하며 항상 `"1"`로 정규화됩니다. `_backend`와 상호배타적이며, 둘 중 하나는 반드시 있어야 초대 진입으로 인정됩니다(`isInviteEntry`). |
+
+> [!NOTE]
+> 진입 판정은 `provider === 'invite' && code && (_backend || relay)`다 (`apps/web/.../home/types/invite.ts`). 초대 정보 조회(`useInviteInfo`)와 수락(`registerUserWithInviteCode`)은 `backend`가 없으면 `getDynamicRelayBackend()`로 폴백한다.
 
 ---
 

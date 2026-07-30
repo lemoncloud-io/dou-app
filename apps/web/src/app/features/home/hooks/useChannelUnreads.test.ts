@@ -57,11 +57,11 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(2);
     });
 
-    it('lastChat$은 chatNo가 없을 때만 head 폴백으로 쓰인다', () => {
+    it('chatNo가 없으면 head는 0이다 (서버가 더 이상 보내지 않는 lastChat$에 기대지 않는다)', () => {
         const channels = [channel('c1', { lastChat$: { chatNo: 6 } as DomainChannel['lastChat$'] })];
         const joins = joinMap({ c1: join({ chatNo: 2 }) });
 
-        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(4);
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(0);
     });
 
     it('byPlace는 사이트(sid)별로 안읽음을 합산한다', () => {

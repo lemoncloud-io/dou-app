@@ -61,9 +61,11 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
     const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const accept = useCallback(async () => {
-        const { code, backend } = params;
+        const { code, backend, relay } = params;
         if (!code) return;
-        if (!backend) {
+        // Relay invites legitimately carry no backend address: registerUserWithInviteCode resolves the
+        // env relay endpoint. Only a link that is neither addressed nor marked relay is unusable.
+        if (!backend && !relay) {
             toast({ title: t('inviteAccept.missingServerInfo'), variant: 'destructive' });
             return;
         }

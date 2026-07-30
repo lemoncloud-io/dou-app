@@ -30,6 +30,8 @@ import type { IUploadService } from './upload';
 import { SqliteUploadTaskDataSource, UploadService } from './upload';
 import type { IBootMetricsService } from './perf';
 import { BootMetricsService } from './perf';
+import type { IVersionService } from './version';
+import { VersionService } from './version';
 import DeviceInfo from 'react-native-device-info';
 
 import {
@@ -78,6 +80,7 @@ class DependencyProvider {
     private _firebaseInstallationService?: IFirebaseInstallationService;
     private _subscriptionIapService?: ISubscriptionIapService;
     private _preferenceService?: IPreferenceService;
+    private _versionService?: IVersionService;
     private _uploadService?: IUploadService;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
@@ -140,10 +143,10 @@ class DependencyProvider {
 
     public get sqliteDatabase(): ISqliteDatabase {
         if (!this._sqliteDatabase) {
-            const db = new SqliteDatabase(this.logService);
             // Schemas are initialized on first DB access (was eager in the constructor before 4.4).
-            void db.initTables();
-            this._sqliteDatabase = db;
+            // SqliteDatabase itself gates every query on migrations completing, so no explicit
+            // initTables() call or await is needed here.
+            this._sqliteDatabase = new SqliteDatabase(this.logService);
         }
         return this._sqliteDatabase;
     }
@@ -259,6 +262,13 @@ class DependencyProvider {
             this._preferenceService = new PreferenceService(this.logService, this.keyValueStorage);
         }
         return this._preferenceService;
+    }
+
+    public get versionService(): IVersionService {
+        if (!this._versionService) {
+            this._versionService = new VersionService(this.logService);
+        }
+        return this._versionService;
     }
 
     public static getInstance(): DependencyProvider {

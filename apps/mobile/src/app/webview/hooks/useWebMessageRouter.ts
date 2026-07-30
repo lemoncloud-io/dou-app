@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
     useAppIconHandler,
+    useAppUpdateHandler,
     useCrudCacheHandler,
     useClipboardHandler,
     useDeviceHandler,
@@ -98,6 +99,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
 
     const { handleRequestPermission } = usePermissionHandler();
     const { handleOAuthLogin, handleOAuthLogout } = useOAuthHandler();
+    const { handleCheckAppUpdate, handleOpenStore } = useAppUpdateHandler();
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
     const { handleSendBootMetrics, handleSetDebugMode } = usePerfHandler();
@@ -148,6 +150,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleRequestPermission,
         handleOAuthLogin,
         handleOAuthLogout,
+        handleCheckAppUpdate,
+        handleOpenStore,
         handleOpenURL,
         handleSendSms,
         handleCreateDummyFile,
@@ -209,6 +213,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleRequestPermission,
             handleOAuthLogin,
             handleOAuthLogout,
+            handleCheckAppUpdate,
+            handleOpenStore,
             handleOpenURL,
             handleSendSms,
             handleCreateDummyFile,
@@ -278,6 +284,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             RequestPermission: message => handlersRef.current.handleRequestPermission(message),
             OAuthLogin: message => handlersRef.current.handleOAuthLogin(message),
             OAuthLogout: message => handlersRef.current.handleOAuthLogout(message),
+            CheckAppUpdate: message => handlersRef.current.handleCheckAppUpdate(message),
+            OpenStore: message => handlersRef.current.handleOpenStore(message),
             OpenURL: message => handlersRef.current.handleOpenURL(message),
             SendSms: message => handlersRef.current.handleSendSms(message),
             FetchAppIcon: message => handlersRef.current.handleFetchAppIcon(message),
