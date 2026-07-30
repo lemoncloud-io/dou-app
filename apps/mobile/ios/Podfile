@@ -53,14 +53,30 @@ target 'Chatic' do
     # ReactNativeStaticServer(lighttpd)의 CMake 빌드 스크립트가 ${TARGET_TEMP_DIR}/${PODS_TARGET_SRCROOT}를
     # quote 없이 넘겨서, 스킴/설정 이름에 공백이 있는 "Chatic Dev"/"Release Dev" 빌드에서 셸이 경로를
     # 단어 단위로 쪼개고 `cmake --build`가 "Unknown argument ..."로 실패한다. 두 변수를 quote해서 고친다.
+    #
+    # 그런데 quote만으로는 archive가 여전히 깨진다: TARGET_TEMP_DIR 자체가
+    # ArchiveIntermediates/Chatic Dev/.../Release Dev-iphoneos/... 처럼 공백을 포함한 경로라,
+    # 그 안에 `-GXcode`로 생성되는 CMake의 중첩 Xcode 프로젝트(lighttpd/mod_h2/...)가 만드는
+    # 응답 파일(.resp)이 그 공백을 escape하지 못해 clang이 경로를 단어 단위로 쪼갠다
+    # ("no such file or directory: 'Dev/IntermediateBuildFilesPath/...'"). 공백이 없는
+    # $TMPDIR 하위로 실제 빌드 디렉터리를 옮겨서 이 문제를 원천 차단한다.
     installer.pods_project.targets.each do |target|
       next unless target.name == 'ReactNativeStaticServer'
       target.build_phases.each do |phase|
         next unless phase.respond_to?(:shell_script) && phase.shell_script&.include?('${TARGET_TEMP_DIR}')
         next if phase.shell_script.include?('"${TARGET_TEMP_DIR}"')
         phase.shell_script = phase.shell_script
+          .sub(
+            'set -e',
+            "set -e\n\n" \
+            "      # 공백 없는 임시 디렉터리로 CMake 빌드 경로를 리다이렉트 (스킴/설정 이름 공백 우회)\n" \
+            '      SAFE_CONFIG="$(echo ${CONFIGURATION} | tr -d \' \')"' + "\n" \
+            '      TARGET_TEMP_DIR="${TMPDIR%/}/rnss-build-${TARGET_NAME}-${SAFE_CONFIG}-${EFFECTIVE_PLATFORM_NAME}"' + "\n" \
+            '      mkdir -p "$TARGET_TEMP_DIR"'
+          )
           .gsub('${PODS_TARGET_SRCROOT}', '"${PODS_TARGET_SRCROOT}"')
           .gsub('${TARGET_TEMP_DIR}', '"${TARGET_TEMP_DIR}"')
+          .gsub('${BUILT_PRODUCTS_DIR}', '"${BUILT_PRODUCTS_DIR}"')
       end
     end
 
