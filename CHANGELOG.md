@@ -1,5 +1,41 @@
 # Changelog
 
+## [2026-07-30] - root@0.46.1, @chatic/desktop-web@0.4.1
+
+### Features
+
+- (desktop) tell the truth about the connection, and resend what failed
+- (data) bound the desktop chat cache per channel
+- (desktop) run the renderer sandboxed and add launch-at-login
+
+### Bug Fixes
+
+- (desktop) stop reporting the app language as English on every machine
+- stop the desktop cache cap from applying to every browser client
+- (desktop-web) show messages that are still sending or failed
+
+### Documentation
+
+- (readme) list the sandbox gate under Code Quality
+- (adr-0006) correct the native-path claims after merging develop
+- (adr-0006) record that full bounding did not take the planned migration
+
+### Refactor
+
+- (app-runtime) delete the outbox retry path no caller can enable
+- dedup what the desktop work duplicated
+
+### Chores
+
+- keep wayfinder scratch maps out of the repo
+
+### Other
+
+- test: (desktop) fail the sandbox gate when it would test nothing
+- test: (desktop) add a sandbox smoke gate that proves its own sensitivity
+- style: (adr-0006) apply prettier to the amended section
+- test: (desktop) name the file the mobile-parity assertion is copied from
+
 ## [2026-07-30] - root@0.46.0, @chatic/web@0.39.0
 
 ### Features
