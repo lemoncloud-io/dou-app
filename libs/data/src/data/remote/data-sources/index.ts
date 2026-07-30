@@ -5,6 +5,8 @@ import type { IChannelRemoteDataSource } from './ChannelRemoteDataSource';
 import { ChannelRemoteDataSource } from './ChannelRemoteDataSource';
 import type { IChatRemoteDataSource } from './ChatRemoteDataSource';
 import { ChatRemoteDataSource } from './ChatRemoteDataSource';
+import type { IInviteRemoteDataSource } from './InviteRemoteDataSource';
+import { InviteRemoteDataSource } from './InviteRemoteDataSource';
 import type { IJoinRemoteDataSource } from './JoinRemoteDataSource';
 import { JoinRemoteDataSource } from './JoinRemoteDataSource';
 import type { IPlaceRemoteDataSource } from './PlaceRemoteDataSource';
@@ -23,6 +25,7 @@ import { ProfileRemoteDataSource } from './ProfileRemoteDataSource';
 export * from './AuthRemoteDataSource';
 export * from './ChannelRemoteDataSource';
 export * from './ChatRemoteDataSource';
+export * from './InviteRemoteDataSource';
 export * from './JoinRemoteDataSource';
 export * from './PlaceRemoteDataSource';
 export * from './UserRemoteDataSource';
@@ -35,6 +38,7 @@ export interface RemoteDataSources {
     auth: IAuthRemoteDataSource;
     channel: IChannelRemoteDataSource;
     chat: IChatRemoteDataSource;
+    invite: IInviteRemoteDataSource;
     join: IJoinRemoteDataSource;
     place: IPlaceRemoteDataSource;
     user: IUserRemoteDataSource;
@@ -51,6 +55,7 @@ export const createRemoteDataSources = ({ gateways }: { gateways: RemoteGatewayB
     auth: new AuthRemoteDataSource(gateways.auth),
     channel: new ChannelRemoteDataSource(gateways.channel),
     chat: new ChatRemoteDataSource(gateways.chat),
+    invite: new InviteRemoteDataSource(gateways.invite),
     join: new JoinRemoteDataSource(gateways.join),
     place: new PlaceRemoteDataSource(gateways.place),
     user: new UserRemoteDataSource(gateways.user),
