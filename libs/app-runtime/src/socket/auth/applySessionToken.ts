@@ -69,6 +69,15 @@ export const applySessionToken = async ($token: unknown, options?: ApplySessionT
     }
 
     await waitUntilAuthenticated(auth, options?.timeoutMs ?? DEFAULT_APPLY_TIMEOUT_MS);
+
+    // Post-condition. reauthenticateActiveSocket returns silently when the store has no registration
+    // to read back, and `ready()` resolves instantly on a socket that is still authenticated as the
+    // PREVIOUS identity — so without this check the two together would report success while the
+    // connection is still the device user, and the caller's next invite.create would 403. Rejecting
+    // here keeps the failure in the one place the UI can retry the switch alone (the OTP is spent).
+    if (auth.token !== identityToken) {
+        throw new Error('[applySessionToken] relay socket did not adopt the new identity');
+    }
 };
 
 /**

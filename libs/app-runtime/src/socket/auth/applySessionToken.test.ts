@@ -231,6 +231,26 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
         expect(localStorage.length).toBe(1);
     });
 
+    it('재인증이 조용히 건너뛰어져 소켓이 옛 신원에 남으면 reject한다 — 성공으로 위장하지 않는다', async () => {
+        // reauthenticateActiveSocket bails out silently when the store has no registration to read
+        // back. The socket then keeps the device identity AND stays `authenticated`, so ready()
+        // resolves instantly — the post-condition is the only thing standing between that and a
+        // caller that thinks it may now issue invites.
+        mockGetServerAuthRegistration.mockResolvedValue(null);
+        const order: string[] = [];
+        const { client, auth } = makeFakeRelaySocket(order);
+        const manager = bootRelayManager(client);
+
+        await expect(applySessionToken(mainUserToken())).rejects.toThrow(/did not adopt the new identity/);
+
+        expect(auth.register).not.toHaveBeenCalled();
+        expect(auth.token).toBe(GUEST_IDENTITY);
+        // The would-be next call really would have failed, which is what the reject prevents.
+        await expect(
+            manager.getScopedClient('relay').request('invite.create', { phone: '01012345678', name: '친구' })
+        ).rejects.toThrow(/^403/);
+    });
+
     it('SDK가 이미 새 토큰을 들고 있으면(binder 선행) 재인증은 no-op으로 수렴하고 ready만 기다린다', async () => {
         const order: string[] = [];
         const { client, auth } = makeFakeRelaySocket(order);
