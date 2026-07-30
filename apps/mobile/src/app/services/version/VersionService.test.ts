@@ -1,6 +1,9 @@
 import { isNewerVersion, parseVersion, VersionService } from './VersionService';
 import type { ILogService } from '../log';
 
+import DeviceInfo from 'react-native-device-info';
+import { Linking, Platform } from 'react-native';
+
 jest.mock('react-native-device-info', () => ({
     __esModule: true,
     default: { getVersion: jest.fn(() => '1.2.0') },
@@ -13,12 +16,11 @@ jest.mock('react-native', () => ({
 
 jest.mock('@chatic/shared', () => ({
     getStoreUrl: jest.fn((platform: string) =>
-        platform === 'ios' ? 'https://apps.apple.com/app/id6758658673' : 'https://play.google.com/store/apps/details?id=io.chatic.dou'
+        platform === 'ios'
+            ? 'https://apps.apple.com/app/id6758658673'
+            : 'https://play.google.com/store/apps/details?id=io.chatic.dou'
     ),
 }));
-
-import DeviceInfo from 'react-native-device-info';
-import { Linking, Platform } from 'react-native';
 
 let mockFetch: jest.Mock;
 
@@ -53,7 +55,10 @@ describe('VersionService', () => {
     });
 
     it('iOS에서 라이브 버전이 더 최신이면 updateAvailable: true를 반환한다', async () => {
-        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }) });
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }),
+        });
 
         const result = await service.checkForUpdate();
 
@@ -67,7 +72,10 @@ describe('VersionService', () => {
     });
 
     it('라이브 버전이 현재 버전과 같으면 updateAvailable: false를 반환한다', async () => {
-        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ resultCount: 1, results: [{ version: '1.2.0' }] }) });
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ resultCount: 1, results: [{ version: '1.2.0' }] }),
+        });
 
         const result = await service.checkForUpdate();
 
@@ -82,7 +90,10 @@ describe('VersionService', () => {
         expect(first.latestVersion).toBe('1.2.0');
 
         // A later call retries the lookup instead of reusing a failed result.
-        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }) });
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }),
+        });
         const second = await service.checkForUpdate();
         expect(second.updateAvailable).toBe(true);
     });
@@ -98,7 +109,10 @@ describe('VersionService', () => {
 
     it('성공한 조회 결과는 TTL 내 두 번째 호출에서 재조회하지 않는다', async () => {
         const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
-        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }) });
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }),
+        });
 
         await service.checkForUpdate();
         dateNowSpy.mockReturnValue(1_000_000 + 60_000); // 1 minute later, well within the 30-minute TTL
@@ -110,11 +124,17 @@ describe('VersionService', () => {
 
     it('TTL이 지나면 캐시를 버리고 다시 조회한다 (장기 세션에서도 새 버전을 놓치지 않기 위함)', async () => {
         const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
-        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }) });
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }),
+        });
 
         await service.checkForUpdate();
         dateNowSpy.mockReturnValue(1_000_000 + 31 * 60 * 1000); // 31 minutes later, past the 30-minute TTL
-        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ resultCount: 1, results: [{ version: '1.4.0' }] }) });
+        mockFetch.mockResolvedValue({
+            ok: true,
+            json: async () => ({ resultCount: 1, results: [{ version: '1.4.0' }] }),
+        });
         const result = await service.checkForUpdate();
 
         expect(mockFetch).toHaveBeenCalledTimes(2);

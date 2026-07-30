@@ -1,5 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 
+import { Alert, Linking } from 'react-native';
+import { getVersionCheckResult, onVersionCheckComplete, useAppVersionCheck } from './useAppVersionCheck';
+
 jest.mock('react-native', () => ({
     Alert: { alert: jest.fn() },
     Linking: { openURL: jest.fn(() => Promise.resolve()) },
@@ -22,9 +25,6 @@ const mockCheckForUpdate = jest.fn();
 jest.mock('../services', () => ({
     versionService: { checkForUpdate: (...args: unknown[]) => mockCheckForUpdate(...args) },
 }));
-
-import { Alert, Linking } from 'react-native';
-import { getVersionCheckResult, onVersionCheckComplete, useAppVersionCheck } from './useAppVersionCheck';
 
 // getVersionCheckResult/onVersionCheckComplete share a module-level singleton cache that is only
 // ever populated (never cleared) once an update is found — mirroring production, where a found
