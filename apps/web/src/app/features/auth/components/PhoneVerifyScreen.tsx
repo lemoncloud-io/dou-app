@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronLeft, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { applySessionToken } from '@chatic/app-runtime';
+import { AlertDialog, Button, TextField } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
@@ -11,28 +12,35 @@ import { cn } from '@chatic/lib/utils';
 // Concrete modules, not the account feature root: the root re-exports pages that pull web-core
 // (whose transport reads import.meta) and a components barrel that pulls @chatic/assets — both
 // unloadable under the jsdom test setup.
-import { VerificationCodeInput } from '../../account/components/VerificationCodeInput';
 import { VERIFICATION_CODE_LENGTH } from '../../account/constants';
 import { formatTime } from '../../account/utils';
 import { useVerifyHashAlias } from '../../../hooks/useVerifyHashAlias';
 import { getSocketErrorCode } from '../../../utils/errors';
 import { useOtpExpiryCountdown } from '../hooks/useOtpExpiryCountdown';
 import { isDevBuild } from '../utils/env';
-import { formatPhoneNumber, isValidKoreanPhone, PHONE_DIGITS_MAX } from '../utils/phone';
+import { isValidKoreanPhone, PHONE_DIGITS_MAX } from '../utils/phone';
 import { PhoneVerifyBanner } from './PhoneVerifyBanner';
 
 /**
  * Resend/extend cap enforced client-side BEFORE the server is asked; a server 429 (60s cooldown,
  * daily caps) always wins over this counter (roadmap Track A). "Extend time" and "resend" are the
- * same server step — the backend has no extend concept (ADR-0033 D9).
+ * same server step — the backend has no extend concept (ADR-0033 D9) — so one counter covers both,
+ * even though the design gives each control its own over-limit dialog.
  */
 const RESEND_LIMIT = 5;
 
-type Step = 'phone' | 'otp';
+/** Below this the countdown turns red (Figma 3428-60171 / 3432-61204 / 3430-60970). */
+const IMMINENT_SECONDS = 60;
+
+/** The raw phone field accepts what the user typed so a bad format is visible; digits drive logic. */
+const PHONE_INPUT_MAX = 20;
+
 type LoadingState = 'idle' | 'sending' | 'resending' | 'verifying';
+/** Which control tripped the client-side cap — picks the over-limit dialog's copy. */
+type LimitDialog = 'resend' | 'extend';
 
 export interface PhoneVerifyScreenProps {
-    /** Which flow summoned the screen — picks the description copy (the packets are identical). */
+    /** Which flow summoned the screen — picks the heading copy (the packets are identical). */
     context: 'invite-accept' | 'invite-create';
     /**
      * Invite code when verifying inside an accept flow. Sent with EVERY send/resend/check so a
@@ -53,21 +61,23 @@ export interface PhoneVerifyScreenProps {
  * `invite.create`/`invite.accept` without a 403. An empty `$token` means the number was merely
  * linked (session unchanged).
  *
- * Error copy branches on `getSocketErrorCode` only — server messages are not a contract. See
- * apps/web/docs/feature/auth/phone-verification.md for the full case table.
+ * Layout follows Figma 3421-59180 and siblings: ONE screen holding both fields, each with its
+ * action inline in the field (인증 요청 / 재전송) and the countdown + 시간 연장 on the code field's
+ * helper row — not a two-step wizard. Error copy branches on `getSocketErrorCode` only; server
+ * messages are not a contract. See apps/web/docs/feature/auth/phone-verification.md.
  */
 export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: PhoneVerifyScreenProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { send, check } = useVerifyHashAlias();
 
-    const [step, setStep] = useState<Step>('phone');
-    const [phoneDigits, setPhoneDigits] = useState('');
+    const [phoneInput, setPhoneInput] = useState('');
     const [phoneError, setPhoneError] = useState('');
     const [otp, setOtp] = useState('');
     const [otpError, setOtpError] = useState('');
     const [expiredAt, setExpiredAt] = useState<number | undefined>(undefined);
     const [resendCount, setResendCount] = useState(0);
+    const [limitDialog, setLimitDialog] = useState<LimitDialog | null>(null);
     const [loadingState, setLoadingState] = useState<LoadingState>('idle');
     // The $token of a successful check, kept until applySessionToken succeeds: the OTP is consumed
     // by then, so a failed session switch retries the SWITCH, never the check.
@@ -76,10 +86,15 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
     const [devDryRun, setDevDryRun] = useState(false);
     const [devSlack, setDevSlack] = useState(false);
 
+    const phoneDigits = phoneInput.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
     const countdown = useOtpExpiryCountdown(expiredAt);
     const isExpired = countdown?.isExpired ?? false;
     const isCodeComplete = otp.length === VERIFICATION_CODE_LENGTH;
     const resendExhausted = resendCount >= RESEND_LIMIT;
+    const isBusy = loadingState !== 'idle';
+    // A code is outstanding once a send/resend came back with an expiry. Retyping the number clears
+    // it, which re-arms 인증 요청 for the new number (Figma greys it out while a code is live).
+    const codeSent = expiredAt !== undefined;
     const showDevSwitches = isDevBuild();
 
     const devSwitches = () => ({
@@ -87,6 +102,16 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
         // Receiving over Slack means NOT over SMS (client guide §A-1 dev builds).
         ...(devSlack ? { slack: true, sms: false } : undefined),
     });
+
+    const handlePhoneChange = (value: string) => {
+        setPhoneInput(value.slice(0, PHONE_INPUT_MAX));
+        if (phoneError) setPhoneError('');
+        // A different number invalidates the outstanding code rather than silently checking it
+        // against the new one.
+        setExpiredAt(undefined);
+        setOtp('');
+        setOtpError('');
+    };
 
     const handleSend = async () => {
         if (!isValidKoreanPhone(phoneDigits)) {
@@ -100,7 +125,6 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
             setExpiredAt(result.expiredAt);
             setOtp('');
             setOtpError('');
-            setStep('otp');
             toast({ title: t('phoneVerify.sent') });
         } catch (error) {
             const code = getSocketErrorCode(error);
@@ -118,9 +142,15 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
         }
     };
 
-    /** Shared by the "resend" link and the "extend time" button — both are `step=resend` (D9). */
-    const handleResend = async () => {
-        if (resendExhausted) return;
+    /**
+     * Shared by 재전송 and 시간 연장 — both are `step=resend` (D9). Past the client cap the server
+     * is never asked; the design answers with a per-control dialog instead of a dead button.
+     */
+    const handleResend = async (origin: LimitDialog) => {
+        if (resendExhausted) {
+            setLimitDialog(origin);
+            return;
+        }
         setLoadingState('resending');
         try {
             const result = await send(phoneDigits, { code: inviteCode, resend: true, ...devSwitches() });
@@ -147,6 +177,7 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
         try {
             await applySessionToken(token);
             setPendingToken(null);
+            toast({ title: t('phoneVerify.verified') });
             onVerified();
         } catch {
             setPendingToken(token);
@@ -165,6 +196,7 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
                 return;
             }
             // Linked-only result: the session did not change, nothing to switch.
+            toast({ title: t('phoneVerify.verified') });
             onVerified();
         } catch (error) {
             const code = getSocketErrorCode(error);
@@ -190,15 +222,8 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
         await applyToken(pendingToken);
     };
 
-    const handleBackToPhone = () => {
-        setStep('phone');
-        setOtp('');
-        setOtpError('');
-        setExpiredAt(undefined);
-    };
-
     const handleOtpChange = (value: string) => {
-        setOtp(value);
+        setOtp(value.replace(/\D/g, '').slice(0, VERIFICATION_CODE_LENGTH));
         setOtpError('');
     };
 
@@ -207,11 +232,27 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
         if (isCodeComplete && loadingState === 'idle' && !isExpired && !pendingToken) {
             handleVerify();
         }
-         
     }, [isCodeComplete]);
 
-    const isBusy = loadingState !== 'idle';
-    const formattedPhone = formatPhoneNumber(phoneDigits);
+    const canRequestCode = isValidKoreanPhone(phoneDigits) && !codeSent && !isBusy;
+    // Expiry is surfaced on the code field even without a failed check, so the row never shows a
+    // live-looking timer next to a dead code.
+    const codeFieldError = otpError || (isExpired ? t('phoneVerify.codeExpired') : '');
+    const codeFieldDescription = resendCount > 0 ? t('phoneVerify.resendKeepsCounter') : t('phoneVerify.digitsOnly');
+
+    const inlineAction = (label: string, onClick: () => void, enabled: boolean, accent = false) => (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={!enabled}
+            className={cn(
+                'whitespace-nowrap text-[14px] font-medium underline',
+                !enabled ? 'text-placeholder' : accent ? 'text-point-blue' : 'text-foreground'
+            )}
+        >
+            {label}
+        </button>
+    );
 
     return (
         <Dialog open onOpenChange={value => !value && onClose()}>
@@ -219,54 +260,84 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
                 <DialogTitle className="sr-only">{t('phoneVerify.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('phoneVerify.title')}</DialogDescription>
 
-                {step === 'phone' && (
-                    <div className="flex h-full flex-col p-6 pt-safe-top">
-                        <div className="flex flex-col gap-5">
-                            <button onClick={onClose} className="-ml-2 self-start rounded-full p-1" aria-label="close">
-                                <ChevronLeft size={24} strokeWidth={2} />
-                            </button>
+                <div className="flex h-full flex-col pt-safe-top">
+                    <div className="flex h-[60px] shrink-0 items-center justify-end px-4">
+                        <button onClick={onClose} className="-mr-1 rounded-full p-1" aria-label="close">
+                            <X size={24} strokeWidth={2} />
+                        </button>
+                    </div>
 
+                    <div className="flex flex-1 flex-col gap-8 overflow-y-auto">
+                        <div className="flex flex-col gap-4 px-4">
+                            <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
+                                {context === 'invite-accept'
+                                    ? t('phoneVerify.descriptionInviteAccept')
+                                    : t('phoneVerify.descriptionInviteCreate')}
+                            </h2>
+                            <p className="whitespace-pre-line text-center text-[14px] font-medium leading-[20px] text-description">
+                                {t('phoneVerify.privacyNote')}
+                            </p>
+                        </div>
+
+                        <div className="px-4">
                             <PhoneVerifyBanner onClose={onClose} />
+                        </div>
 
-                            <div className="flex flex-col gap-[6px]">
-                                <h2 className="text-[18px] font-bold">{t('phoneVerify.title')}</h2>
-                                <p className="text-[14px] font-medium text-[#9FA2A7]">
-                                    {context === 'invite-accept'
-                                        ? t('phoneVerify.descriptionInviteAccept')
-                                        : t('phoneVerify.descriptionInviteCreate')}
-                                </p>
-                            </div>
+                        <div className="flex flex-col gap-6">
+                            <TextField
+                                label={t('phoneVerify.phoneLabel')}
+                                required
+                                value={phoneInput}
+                                onChange={handlePhoneChange}
+                                placeholder={t('phoneVerify.phonePlaceholder')}
+                                type="tel"
+                                inputMode="numeric"
+                                autoFocus
+                                error={phoneError || undefined}
+                                description={t('phoneVerify.digitsOnly')}
+                                trailing={inlineAction(t('phoneVerify.sendCode'), handleSend, canRequestCode, true)}
+                            />
 
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
-                                    {t('phoneVerify.phoneLabel')}
-                                </label>
-                                <div
-                                    className={cn(
-                                        'flex items-center rounded-[10px] border bg-background px-3 py-3',
-                                        phoneError ? 'border-destructive' : 'border-border'
-                                    )}
-                                >
-                                    <input
-                                        value={formattedPhone}
-                                        onChange={e => {
-                                            setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX));
-                                            if (phoneError) setPhoneError('');
-                                        }}
-                                        placeholder={t('phoneVerify.phonePlaceholder')}
-                                        type="tel"
-                                        autoFocus
-                                        className="flex-1 bg-transparent text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground"
-                                    />
-                                    <span className="shrink-0 text-[13px] font-medium tracking-[0.019em] text-muted-foreground">
-                                        {phoneDigits.length}/{PHONE_DIGITS_MAX}
-                                    </span>
-                                </div>
-                                {phoneError && <span className="text-[12px] text-destructive">{phoneError}</span>}
-                            </div>
+                            <TextField
+                                label={t('phoneVerify.codeLabel')}
+                                required
+                                value={otp}
+                                onChange={handleOtpChange}
+                                placeholder={t('phoneVerify.codePlaceholder')}
+                                inputMode="numeric"
+                                disabled={!codeSent}
+                                error={codeFieldError || undefined}
+                                description={codeFieldDescription}
+                                trailing={inlineAction(
+                                    t('phoneVerify.resend'),
+                                    () => handleResend('resend'),
+                                    codeSent && !isBusy
+                                )}
+                                helperTrailing={
+                                    codeSent && (
+                                        <span className="flex items-center gap-[6px] text-[12px] font-medium leading-[18px]">
+                                            <span
+                                                className={cn(
+                                                    (countdown?.secondsLeft ?? 0) <= IMMINENT_SECONDS
+                                                        ? 'text-destructive'
+                                                        : 'text-point-blue'
+                                                )}
+                                            >
+                                                {formatTime(countdown?.secondsLeft ?? 0)}
+                                            </span>
+                                            {inlineAction(
+                                                t('phoneVerify.extend'),
+                                                () => handleResend('extend'),
+                                                !isBusy,
+                                                true
+                                            )}
+                                        </span>
+                                    )
+                                }
+                            />
 
                             {showDevSwitches && (
-                                <div className="flex flex-col gap-2 rounded-[10px] border border-dashed border-input-border p-3">
+                                <div className="mx-4 flex flex-col gap-2 rounded-[10px] border border-dashed border-input-border p-3">
                                     <span className="text-[12px] font-semibold text-description">
                                         {t('phoneVerify.devDelivery')}
                                     </span>
@@ -289,130 +360,42 @@ export const PhoneVerifyScreen = ({ context, inviteCode, onVerified, onClose }: 
                                 </div>
                             )}
                         </div>
-
-                        <div className="mt-auto pt-5 pb-safe-bottom">
-                            <button
-                                onClick={handleSend}
-                                disabled={!isValidKoreanPhone(phoneDigits) || isBusy}
-                                className="flex w-full items-center justify-center rounded-full bg-foreground py-3 text-[16px] font-semibold text-background disabled:opacity-50"
-                            >
-                                {loadingState === 'sending' ? (
-                                    <Loader2 size={20} className="animate-spin" />
-                                ) : (
-                                    t('phoneVerify.sendCode')
-                                )}
-                            </button>
-                        </div>
                     </div>
-                )}
 
-                {step === 'otp' && (
-                    <div className="flex h-full flex-col p-6 pt-safe-top">
-                        <div className="flex flex-col gap-5">
-                            <button
-                                onClick={handleBackToPhone}
-                                className="-ml-2 self-start rounded-full p-1"
-                                aria-label="back"
+                    <div className="shrink-0 px-4 pb-safe-bottom pt-3">
+                        {pendingToken ? (
+                            <Button
+                                tone="green"
+                                size="lg"
+                                fullWidth
+                                loading={loadingState === 'verifying'}
+                                onClick={handleRetrySessionSwitch}
                             >
-                                <ChevronLeft size={24} strokeWidth={2} />
-                            </button>
-
-                            <div className="flex flex-col gap-[6px]">
-                                <h2 className="text-[18px] font-bold">{t('phoneVerify.otpTitle')}</h2>
-                                <p className="text-[14px] font-medium text-[#9FA2A7]">
-                                    {t('phoneVerify.otpDescription', { phone: formattedPhone })}
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col items-center gap-[22px]">
-                                <VerificationCodeInput
-                                    value={otp}
-                                    onChange={handleOtpChange}
-                                    hasError={!!otpError && !pendingToken}
-                                />
-
-                                {otpError && (
-                                    <p className="text-center text-[14px] font-medium tracking-[0.005em] text-[#FF4C35]">
-                                        {otpError}
-                                    </p>
-                                )}
-                                {!otpError && isExpired && (
-                                    <p className="text-center text-[14px] font-medium tracking-[0.005em] text-[#FF4C35]">
-                                        {t('phoneVerify.codeExpired')}
-                                    </p>
-                                )}
-
-                                <div className="flex w-full items-center justify-between px-1">
-                                    <div className="flex items-center gap-[6px] text-[13px] font-medium text-label">
-                                        <span>{t('phoneVerify.timeRemaining')}</span>
-                                        <span className={cn('w-[40px]', isExpired && 'text-[#FF4C35]')}>
-                                            {formatTime(countdown?.secondsLeft ?? 0)}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={handleResend}
-                                            disabled={isBusy || resendExhausted}
-                                            className="text-[13px] font-semibold text-main-accent underline disabled:opacity-50"
-                                        >
-                                            {t('phoneVerify.extend')}
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleResend}
-                                        disabled={isBusy || resendExhausted}
-                                        className="text-[14px] font-semibold text-[#90C304] underline disabled:opacity-50"
-                                    >
-                                        {loadingState === 'resending' ? (
-                                            <Loader2 size={14} className="animate-spin" />
-                                        ) : (
-                                            t('phoneVerify.resend')
-                                        )}
-                                    </button>
-                                </div>
-
-                                {resendExhausted && (
-                                    <p className="text-center text-[12px] font-medium text-description">
-                                        {t('phoneVerify.resendLimit')}
-                                    </p>
-                                )}
-                                {!resendExhausted && resendCount > 0 && (
-                                    <p className="text-center text-[12px] font-medium text-description">
-                                        {t('phoneVerify.resendKeepsCounter')}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="mt-auto pt-5 pb-safe-bottom">
-                            {pendingToken ? (
-                                <button
-                                    onClick={handleRetrySessionSwitch}
-                                    disabled={isBusy}
-                                    className="flex w-full items-center justify-center rounded-full bg-foreground py-3 text-[16px] font-semibold text-background disabled:opacity-50"
-                                >
-                                    {loadingState === 'verifying' ? (
-                                        <Loader2 size={20} className="animate-spin" />
-                                    ) : (
-                                        t('phoneVerify.retry')
-                                    )}
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={handleVerify}
-                                    disabled={!isCodeComplete || isBusy || isExpired}
-                                    className="flex w-full items-center justify-center rounded-full bg-foreground py-3 text-[16px] font-semibold text-background disabled:opacity-50"
-                                >
-                                    {loadingState === 'verifying' ? (
-                                        <Loader2 size={20} className="animate-spin" />
-                                    ) : (
-                                        t('phoneVerify.complete')
-                                    )}
-                                </button>
-                            )}
-                        </div>
+                                {t('phoneVerify.retry')}
+                            </Button>
+                        ) : (
+                            <Button
+                                tone="green"
+                                size="lg"
+                                fullWidth
+                                loading={loadingState === 'verifying'}
+                                disabled={!isCodeComplete || isBusy || isExpired}
+                                onClick={handleVerify}
+                            >
+                                {t('phoneVerify.complete')}
+                            </Button>
+                        )}
                     </div>
-                )}
+                </div>
+
+                <AlertDialog
+                    open={limitDialog !== null}
+                    onOpenChange={open => !open && setLimitDialog(null)}
+                    title={t(`phoneVerify.limit.${limitDialog ?? 'resend'}.title`)}
+                    description={t(`phoneVerify.limit.${limitDialog ?? 'resend'}.description`)}
+                    confirmLabel={t('common.confirm')}
+                    onConfirm={() => setLimitDialog(null)}
+                />
             </DialogContent>
         </Dialog>
     );

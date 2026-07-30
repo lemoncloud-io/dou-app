@@ -15,6 +15,7 @@
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
+        "confirm": "OK",
         "save": "Save Changes",
         "saving": "Saving..."
     },
@@ -1071,32 +1072,43 @@
         "socialFirstTitle": "Already have an account? Sign in with social first",
         "socialFirstDescription": "Verifying only your number creates a new account that can never be merged",
         "title": "Verify phone number",
-        "descriptionInviteAccept": "To accept the invite, verify the phone number it was sent to",
-        "descriptionInviteCreate": "To send a 1:1 invite, verify your phone number",
+        "descriptionInviteAccept": "So only the invited person can join,\nplease verify your phone number",
+        "descriptionInviteCreate": "To send a 1:1 invite,\nplease verify your phone number",
+        "privacyNote": "Your phone number is used only to verify\nyour identity for this invite.",
         "phoneLabel": "Phone number",
         "phonePlaceholder": "Enter your phone number",
         "phoneInvalidFormat": "Enter a valid phone number",
+        "digitsOnly": "Digits only, no hyphens.",
         "inviteMismatch": "This is not the invited number",
         "tooManyRequests": "Too many verification requests. Try again later",
         "sendCode": "Send code",
         "sendFailed": "Failed to send the code",
-        "sent": "Code sent",
-        "otpTitle": "Enter the code",
-        "otpDescription": "Enter the code sent to {{phone}}",
-        "timeRemaining": "Time left",
+        "sent": "Verification code sent.",
+        "codeLabel": "Verification code",
+        "codePlaceholder": "Enter the code",
         "extend": "Extend time",
         "resend": "Resend",
         "resent": "A new code was sent",
         "resendFailed": "Failed to resend",
         "resendKeepsCounter": "Resending does not reset previous wrong attempts",
-        "resendLimit": "You have used all resends. Try again later",
+        "limit": {
+            "resend": {
+                "title": "Resend limit reached",
+                "description": "A code can be resent up to 5 times.\nPlease request a new code."
+            },
+            "extend": {
+                "title": "Extend limit reached",
+                "description": "The code's time can be extended up to 5 times.\nPlease request a new code."
+            }
+        },
         "cooldown": "Try again in a moment",
-        "wrongCode": "Enter the code exactly as received",
+        "wrongCode": "Enter the code exactly as received.",
         "attemptsExceeded": "Wrong code entered 5+ times. Request a new code",
-        "codeExpired": "The code expired. Request a new one",
+        "codeExpired": "The code expired. Please request a new one.",
         "verifyFailed": "Verification failed",
         "sessionSwitchFailed": "Sign-in could not finish. Try again",
-        "complete": "Confirm",
+        "verified": "Verification complete.",
+        "complete": "Done",
         "retry": "Retry",
         "devDelivery": "Dev delivery switches",
         "devDryRun": "Skip delivery (dryRun)",
@@ -1180,19 +1192,27 @@
         "update": "Update"
     },
     "contactInvite": {
-        "title": "Invite by Contact",
-        "nameLabel": "Name",
+        "title": "Invite a Friend",
+        "heading": "Enter your friend's name and number\nand we'll text them an invite link!",
+        "headingNote": "The number is not saved and is used\nonly to send the invite link.",
+        "nameLabel": "Friend's name",
         "namePlaceholder": "Enter the recipient's name",
+        "nameHint": "Up to 20 characters.",
+        "nameTooLong": "Up to 20 characters.",
         "phoneLabel": "Phone Number",
         "phonePlaceholder": "Enter a phone number",
+        "phoneHint": "Digits only, no hyphens.",
         "phoneInvalidFormat": "Invalid phone number format",
-        "validityHint": "The invite stays valid for 3 days after it's sent",
-        "submit": "Send Invite",
+        "validityHint": "The invite link stays valid for 3 days.",
+        "submit": "Done",
         "unnamedRecipient": "Recipient",
         "maskedPhone": "010-****-{{last4}}",
         "badge": {
             "pending": "Invite pending",
             "expired": "Invite expired"
+        },
+        "rowStatus": {
+            "expired": "This invite link expired. Check its status."
         },
         "smsMessage": "{{senderName}} invited you to a 1:1 chat on DoU! Tap the link below to join.\n{{deeplink}}",
         "defaultSenderName": "A friend",
@@ -1210,14 +1230,14 @@
             },
             "expired": {
                 "title": "The previous invite expired",
-                "description": "Send a new invite instead?",
-                "descriptionAutoRevoke": "The previous link will expire automatically. Send a new invite?"
+                "description": "The old link can no longer be used.\nPlease send a new invite link.",
+                "descriptionAutoRevoke": "For a secure invite the old link\ncan no longer be used.\nPlease send a new invite link."
             },
             "declined": {
-                "title": "They declined the invite",
-                "description": "Send a new invite instead?"
+                "title": "They declined the previous invite",
+                "description": "You can send a new invite link\nto invite them again."
             },
-            "reissueConfirm": "Send new invite"
+            "reissueConfirm": "Invite again"
         }
     },
     "inviteWaiting": {
@@ -1234,9 +1254,11 @@
             "description": "You'll be in the chat shortly — check back from home in a moment."
         },
         "expired": {
-            "title": "This invite has expired",
-            "description": "It's past its validity window and can no longer be used."
+            "title": "This invite link has expired.",
+            "description": "Try sending the invite link again."
         },
+        "validityLabel": "Invite link valid for",
+        "composerPlaceholder": "Type a message",
         "reissue": "Invite again",
         "reissueMissingLog": "This device has no record of the recipient, so it can't reissue",
         "reissueDone": "Sent a new invite",

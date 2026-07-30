@@ -268,9 +268,54 @@ apps/web 118 suites / 782 tests · app-runtime 144 · web-core · web-ui-kit 전
 
 **남은 단계**
 
-1. Figma 대조 — Track A·B가 디자인을 못 본 채 구현했다(아래 "후속 과제" 1번).
+1. ~~Figma 대조~~ **완료** — 아래 "Figma 대조 결과" 절.
 2. 통합 QA — 아래 목록.
 3. 통합 브랜치 → develop PR 1건.
+
+## Figma 대조 결과 (2026-07-29)
+
+데스크톱 앱 Figma 서버(`mcp__Figma__get_screenshot`/`get_metadata`)로 Track A 15개·
+Track B 17개 노드를 읽고 대조했다. `3266-32434`(초대 폼 기본형)는 파일에서 사라져
+있어 `3266-35386`(입력됨)·`3268-35795`(에러)로 대체했다.
+
+**구조가 달랐던 것 (재구성)**
+
+- `PhoneVerifyScreen` — 디자인은 **단일 화면**이다. 구현은 2스텝 위저드였다.
+  번호·인증번호 두 필드를 한 화면에 두고, 발송/재전송은 필드 안 인라인 링크
+  (`인증 요청`·`재전송`), 타이머+`시간 연장`은 인증번호 필드의 helper 행으로 옮겼다.
+  6칸 `VerificationCodeInput` → 일반 입력, 뒤로가기 `‹` → 우상단 `X`,
+  검정 CTA → 초록 `완료`. 5회 초과는 인라인 문구 → 다이얼로그 2종
+  (`3432-61459` 재전송 / `3428-60218` 시간 연장).
+- `InviteWaitingPage` — 가운데 정렬 `EmptyState` → 채팅방 본문(날짜 구분선 + 좌측
+  정렬 상태 블록 + 유효시간 카드 + `초대 다시 하기`/`초대 취소` 인라인 액션 +
+  비활성 입력창). 취소는 헤더 `⋯` 메뉴에서 본문 인라인 버튼으로 이동했다.
+- `ContactInvitePage` — 가운데 정렬 히어로 블록(제목 2줄 + 안내 3줄)이 통째로
+  빠져 있었다. 두 필드를 `TextField`로 교체(필수 `*` 표시·이름 카운터·helper 문구),
+  번호 필드의 카운터 제거, 하이픈 자동 포맷 제거(디자인 helper가 "[-]제외, 숫자로만").
+
+**공용 컴포넌트 변경 (additive)**
+
+- `TextField` — `trailing`(필드 안 액션 슬롯)·`helperTrailing`(helper 행 우측 슬롯)
+  추가. 디자인의 "General Input"이 그 두 슬롯을 쓴다. 기존 사용처 영향 없음.
+- `AlertDialog` — description에 `whitespace-pre-line`. Figma 다이얼로그 카피가
+  전부 수동 개행이다.
+
+**의도적으로 디자인을 따르지 않은 것**
+
+| 무엇                    | 디자인        | 채택             | 이유                                                                              |
+| ----------------------- | ------------- | ---------------- | --------------------------------------------------------------------------------- |
+| 초대 유효시간 카피      | 24시간        | **3일**          | ADR-0033 D8. 디자인 수정 요청 중                                                  |
+| 재전송/시간 연장 카운터 | 각각 5회      | 공용 5회 카운터  | D9에서 둘 다 `step=resend`. 다이얼로그 문구만 누른 컨트롤에 맞춰 분기             |
+| 초대 대기 행 2번째 줄   | 없음          | 마스킹 번호 유지 | 동명이인 초대를 구분할 유일한 단서. 만료 행은 디자인대로 상태 문구                |
+| 만료 행 상태 문구       | 2줄           | 1줄              | `ListRow` subtitle이 `truncate`다. 공용 컴포넌트를 흔들지 않으려 한 문장으로 합침 |
+| 계정 갈라짐 방어 배너   | 디자인에 없음 | 히어로 아래 유지 | Track A-3 요구사항                                                                |
+
+**검증** — `tsc -b apps/web/tsconfig.app.json` 클린 · apps/web 118 suites /
+782 tests(기준선 그대로) · web-ui-kit 56 suites / 215 tests · 변경 파일 eslint 클린
+(`TextField.stories.tsx:5`의 `@nx/enforce-module-boundaries`는 기존 위반).
+`PhoneVerifyScreen.test.tsx`는 스텝 전환에 묶여 있던 셀렉터만 새 DOM에 맞췄고
+단언 의도는 그대로다. 픽셀 확인은 `TextField` 신규 슬롯을 Storybook에서만 했다 —
+앱은 백엔드가 없어 게스트 로그인에서 부팅이 멈춘다(아래 통합 QA 소관).
 
 ## 후속 세션 킥오프
 
@@ -288,16 +333,11 @@ for t in a b c d; do git worktree remove ".claude/worktrees/relay-track-$t" && g
 앱 Figma 서버(`mcp__Figma__get_screenshot` / `mcp__Figma__get_design_context`)는
 정상 동작한다** — Track C가 그걸로 5개 노드를 읽었다. 이쪽을 써라.
 
-### 1순위 — Figma 대조 (develop PR보다 먼저)
+### 1순위 — ~~Figma 대조~~ 완료
 
-```
-docs/plans/relay-dm-invite-parallel-roadmap.md 와 docs/adr/0033-… 을 읽고, Track A·B가 구현한 화면을 Figma 디자인과 대조해서 어긋난 곳을 고쳐줘.
-통합 브랜치 워크트리에서 직접 작업한다. 두 트랙 다 Figma를 못 본 채 기존 화면 관용구로 구현했다(로드맵 "후속 과제" 1번).
-Figma는 mcp__Figma__get_screenshot / get_design_context 를 써라 — plugin:figma:figma 커넥터는 미인증이라 실패한다.
-대상 노드는 로드맵의 "Track A"·"Track B" 절에 화면별로 적혀 있다. Track C(수락 팝업 5개 노드)는 이미 대조된 상태라 건너뛴다.
-로직·계약·테스트는 검증돼 있으니 건드리지 말고 시각(레이아웃·간격·타이포·색·카피)만 맞춰라. 고칠 때마다 apps/web 스위트가 계속 통과해야 한다(현재 118 suites / 782 tests).
-검증: npx tsc -b apps/web/tsconfig.app.json · npx jest --config apps/web/jest.config.js --runInBand --watchman=false · 변경 파일만 eslint.
-```
+"Figma 대조 결과" 절에 대조 범위·재구성한 화면·의도적 미채택 항목이 정리돼 있다.
+`get_design_context`는 이 환경에서 자주 타임아웃한다 — `get_metadata`(좌표·크기·
+레이어 이름)와 `get_screenshot`, `get_variable_defs`(색 토큰) 조합이 안정적이었다.
 
 ### 2순위 — 통합 QA
 
@@ -324,13 +364,14 @@ Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문�
       감지에 실패하고 폴백이 뜬다. 필터를 넓히는 건 한 줄
 - [ ] 네이티브 소셜 attach 성공 → 로그아웃 → 같은 계정 재로그인
 - [ ] SMS 작성기 실기기 동작 (본문 딥링크 프리필)
+- [ ] 재구성한 3개 화면 실기기 픽셀 확인 — `PhoneVerifyScreen`(발송 전/후·오답·
+      만료·5회 초과 다이얼로그), `ContactInvitePage`(기본·입력·에러), 초대 대기
+      화면(대기·만료). 안전영역·키보드 올라온 상태 포함
 
 ## 후속 과제
 
-1. **Figma 대조** — Track A(전화번호 인증 15개 노드)·Track B(초대 폼·대기 화면·
-   리스트 통합)는 Figma MCP 인증 실패로 **디자인을 보지 못한 채** 기존 화면
-   관용구로 구현했다. Track C만 데스크톱 앱 Figma 서버로 5개 노드를 읽었다.
-   로직·계약은 검증됐지만 시각적 정확도는 미검증이다.
+1. ~~**Figma 대조**~~ **완료** — "Figma 대조 결과" 절 참고. 남은 것은 실기기
+   픽셀 확인(통합 QA)과, 디자인 팀에 걸어 둔 유효시간 카피 수정(아래 4번)이다.
 2. **jest의 `import.meta` 파싱** — 지금은 모듈을 격리해 목으로 막는다. 레포에
    `import.meta.env`를 쓰는 모듈이 4개 더 있고(`main.tsx`·`Sidebar.tsx`·
    subscription 둘) 아직 어떤 테스트도 그것들을 import 하지 않아 안 터질 뿐이다.

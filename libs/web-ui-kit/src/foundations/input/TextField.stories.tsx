@@ -59,6 +59,51 @@ const OverLimitDemo = () => {
 
 export const OverLimit: Story = { render: () => <OverLimitDemo /> };
 
+const InlineAction = ({ label, tone = 'accent' }: { label: string; tone?: 'accent' | 'ink' | 'muted' }) => (
+    <button
+        type="button"
+        className={`whitespace-nowrap text-[14px] font-medium underline ${
+            tone === 'accent' ? 'text-point-blue' : tone === 'ink' ? 'text-foreground' : 'text-placeholder'
+        }`}
+    >
+        {label}
+    </button>
+);
+
+/** The phone-verification screen's shape: an in-field action plus a countdown on the helper row. */
+const WithActionsDemo = () => {
+    const [phone, setPhone] = useState('01012345678');
+    const [code, setCode] = useState('123456');
+    return (
+        <div className="flex flex-col gap-6">
+            <TextField
+                label="휴대폰 번호"
+                required
+                value={phone}
+                onChange={setPhone}
+                description="[-]제외, 숫자로만 입력해 주세요."
+                trailing={<InlineAction label="인증 요청" />}
+            />
+            <TextField
+                label="인증번호"
+                required
+                value={code}
+                onChange={setCode}
+                description="[-]제외, 숫자로만 입력해 주세요."
+                trailing={<InlineAction label="재전송" tone="ink" />}
+                helperTrailing={
+                    <span className="flex items-center gap-[6px] text-[12px] font-medium leading-[18px]">
+                        <span className="text-point-blue">02:59</span>
+                        <InlineAction label="시간 연장" />
+                    </span>
+                }
+            />
+        </div>
+    );
+};
+
+export const WithInlineActions: Story = { render: () => <WithActionsDemo /> };
+
 export const Success: Story = {
     render: () => (
         <TextField

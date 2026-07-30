@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { DefaultAvatar, ListRow, StatusBadge } from '@chatic/web-ui-kit';
+import { cn } from '@chatic/lib/utils';
 
 import { resolveInviteRowBadge } from '../utils/inviteStatus';
 
@@ -26,15 +27,22 @@ export const InviteChannelRow = ({ invite, onClick }: InviteChannelRowProps) => 
 
     const badge = resolveInviteRowBadge(invite.state);
     const name = invite.name || t('contactInvite.unnamedRecipient');
-    const subtitle = invite.last4 ? t('contactInvite.maskedPhone', { last4: invite.last4 }) : undefined;
+    const isSpent = badge?.variant === 'expired';
+    // A spent invite explains itself on the second line (Figma 3408-28373); a live one has no status
+    // to report, so it keeps the masked number — the only thing telling two same-named invites apart.
+    const subtitle = isSpent
+        ? t('contactInvite.rowStatus.expired')
+        : invite.last4
+          ? t('contactInvite.maskedPhone', { last4: invite.last4 })
+          : undefined;
 
     return (
         <ListRow
-            leading={<DefaultAvatar size={46} variant="user" className={badge?.variant === 'expired' ? 'opacity-50' : undefined} />}
+            leading={<DefaultAvatar size={46} variant="user" className={isSpent ? 'opacity-50' : undefined} />}
             title={
                 <>
                     {badge && <StatusBadge variant={badge.variant} label={t(badge.labelKey)} />}
-                    <span className="truncate">{name}</span>
+                    <span className={cn('truncate', isSpent && 'text-placeholder')}>{name}</span>
                 </>
             }
             subtitle={subtitle}

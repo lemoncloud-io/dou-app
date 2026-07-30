@@ -69,8 +69,10 @@ export const AlertDialog = ({
                         <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">
                             {title}
                         </AlertDialogTitle>
+                        {/* pre-line: the Figma dialogs hard-wrap their copy, so `\n` in a
+                            translation is a deliberate line break, not incidental whitespace. */}
                         {description && (
-                            <AlertDialogDescription className="text-[16px] font-medium leading-[1.45] tracking-[-0.08px] text-description">
+                            <AlertDialogDescription className="whitespace-pre-line text-[16px] font-medium leading-[1.45] tracking-[-0.08px] text-description">
                                 {description}
                             </AlertDialogDescription>
                         )}

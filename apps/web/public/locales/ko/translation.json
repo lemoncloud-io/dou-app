@@ -15,6 +15,7 @@
     "common": {
         "signout": "로그아웃",
         "cancel": "취소",
+        "confirm": "확인",
         "save": "변경사항 저장",
         "saving": "저장 중..."
     },
@@ -1071,32 +1072,43 @@
         "socialFirstTitle": "이미 계정이 있다면 소셜로 먼저 로그인하세요",
         "socialFirstDescription": "번호만 인증하면 새 계정이 만들어져 기존 계정과 합칠 수 없어요",
         "title": "휴대폰 번호 인증",
-        "descriptionInviteAccept": "초대를 수락하려면 초대받은 휴대폰 번호를 인증해 주세요",
-        "descriptionInviteCreate": "1:1 초대를 보내려면 휴대폰 번호를 인증해 주세요",
+        "descriptionInviteAccept": "초대받은 본인만 참여할 수 있도록\n휴대폰 번호 인증을 진행해 주세요",
+        "descriptionInviteCreate": "1:1 초대를 보내기 위해\n휴대폰 번호 인증을 진행해 주세요",
+        "privacyNote": "입력한 휴대폰 번호는 초대 확인을 위한\n본인 인증에만 사용됩니다.",
         "phoneLabel": "휴대폰 번호",
         "phonePlaceholder": "휴대폰 번호를 입력해 주세요",
         "phoneInvalidFormat": "올바른 휴대폰 번호를 입력해 주세요",
+        "digitsOnly": "[-]제외, 숫자로만 입력해 주세요.",
         "inviteMismatch": "초대받은 번호가 아니에요",
         "tooManyRequests": "인증 요청이 너무 많아요. 잠시 후 다시 시도해 주세요",
-        "sendCode": "인증번호 받기",
+        "sendCode": "인증 요청",
         "sendFailed": "인증번호 발송에 실패했어요",
-        "sent": "인증번호를 보냈어요",
-        "otpTitle": "인증번호 입력",
-        "otpDescription": "{{phone}}로 전송된 인증번호를 입력해 주세요",
-        "timeRemaining": "남은 시간",
+        "sent": "인증 번호 발송이 완료되었습니다.",
+        "codeLabel": "인증번호",
+        "codePlaceholder": "인증번호 입력",
         "extend": "시간 연장",
         "resend": "재전송",
         "resent": "새 인증번호를 보냈어요",
         "resendFailed": "재전송에 실패했어요",
         "resendKeepsCounter": "재전송해도 이전에 틀린 횟수는 유지돼요",
-        "resendLimit": "재전송 횟수를 모두 사용했어요. 잠시 후 다시 시도해 주세요",
+        "limit": {
+            "resend": {
+                "title": "인증번호 재전송 5회 초과",
+                "description": "인증번호는 최대 5회까지\n재전송할 수 있습니다.\n새로운 인증번호를 요청해 주세요."
+            },
+            "extend": {
+                "title": "시간 연장 5회 초과",
+                "description": "인증번호 시간 연장은\n최대 5회까지 연장 할 수 있어요.\n새로운 인증번호를 요청해 주세요."
+            }
+        },
         "cooldown": "잠시 후 다시 시도해 주세요",
-        "wrongCode": "인증번호를 정확히 입력해 주세요",
+        "wrongCode": "인증번호를 정확히 입력해 주세요.",
         "attemptsExceeded": "인증번호를 5회 이상 틀렸어요. 인증번호를 다시 받아 주세요",
-        "codeExpired": "인증번호가 만료되었어요. 새로운 인증번호를 요청해 주세요",
+        "codeExpired": "시간 만료로 새로운 인증 요청을 해주세요.",
         "verifyFailed": "인증에 실패했어요",
         "sessionSwitchFailed": "로그인 처리에 실패했어요. 다시 시도해 주세요",
-        "complete": "확인",
+        "verified": "인증이 완료되었습니다.",
+        "complete": "완료",
         "retry": "다시 시도",
         "devDelivery": "개발용 발송 스위치",
         "devDryRun": "발송 생략 (dryRun)",
@@ -1180,19 +1192,27 @@
         "update": "업데이트"
     },
     "contactInvite": {
-        "title": "연락처로 초대",
-        "nameLabel": "이름",
+        "title": "친구 초대",
+        "heading": "친구의 이름과 연락처를 입력하면\nSMS로 초대 링크를 보내요!",
+        "headingNote": "입력한 연락처는 저장되지 않으며,\n초대 링크 발송에만 사용됩니다.",
+        "nameLabel": "초대받을 친구 이름",
         "namePlaceholder": "상대방의 이름을 입력해 주세요",
+        "nameHint": "20글자 이내로 입력해 주세요.",
+        "nameTooLong": "20글자 이내로 입력해 주세요.",
         "phoneLabel": "휴대폰 번호",
         "phonePlaceholder": "휴대폰 번호를 입력해 주세요",
+        "phoneHint": "[-]제외, 숫자로만 입력해 주세요.",
         "phoneInvalidFormat": "올바르지 않은 전화번호 형식입니다",
-        "validityHint": "초대장은 발급 후 3일간 유효해요",
-        "submit": "초대장 보내기",
+        "validityHint": "초대 링크는 발급 후 3일 동안 유효합니다.",
+        "submit": "완료",
         "unnamedRecipient": "상대방",
         "maskedPhone": "010-****-{{last4}}",
         "badge": {
             "pending": "초대 대기 중",
             "expired": "초대 만료"
+        },
+        "rowStatus": {
+            "expired": "초대 링크가 만료되었어요. 초대 상태를 확인해 보세요."
         },
         "smsMessage": "{{senderName}}님이 DoU에서 1:1 대화를 신청했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
         "defaultSenderName": "친구",
@@ -1210,15 +1230,15 @@
                 "confirm": "대기 화면 보기"
             },
             "expired": {
-                "title": "이전 초대가 만료됐어요",
-                "description": "새로 초대장을 보낼까요?",
-                "descriptionAutoRevoke": "새로 보내면 이전 링크는 자동으로 만료돼요. 새 초대장을 보낼까요?"
+                "title": "이전 초대가 만료되었어요",
+                "description": "기존 링크는 더 이상 사용할 수 없습니다.\n새로운 초대 링크를 보내 주세요.",
+                "descriptionAutoRevoke": "안전한 초대를 위해 기존 링크는\n더 이상 사용할 수 없습니다.\n새로운 초대 링크를 보내 주세요."
             },
             "declined": {
-                "title": "상대방이 초대를 거절했어요",
-                "description": "새로 초대장을 보낼까요?"
+                "title": "상대방이 이전 초대를 거절했습니다.",
+                "description": "새로운 초대 링크를 보내\n다시 초대할 수 있습니다."
             },
-            "reissueConfirm": "새로 초대하기"
+            "reissueConfirm": "초대 다시 하기"
         }
     },
     "inviteWaiting": {
@@ -1235,16 +1255,18 @@
             "description": "곧 대화방에서 만날 수 있어요. 잠시 후 홈에서 확인해 주세요."
         },
         "expired": {
-            "title": "초대가 만료됐어요",
-            "description": "유효 시간이 지나 더 이상 사용할 수 없어요."
+            "title": "초대 링크가 만료되었습니다.",
+            "description": "초대 링크를 다시 전송해보세요."
         },
+        "validityLabel": "초대 링크 유효시간",
+        "composerPlaceholder": "메시지를 입력해 주세요",
         "reissue": "초대 다시 하기",
         "reissueMissingLog": "이 기기에 남은 정보가 없어 다시 초대할 수 없어요",
         "reissueDone": "새 초대장을 보냈어요",
         "reissueFailed": "다시 초대하지 못했어요. 잠시 후 다시 시도해 주세요",
         "pending": {
             "title": "친구의 응답을 기다리고 있어요",
-            "description": "초대가 수락되면 대화를 시작할 수 있어요."
+            "description": "초대를 수락하면 채팅방에서 대화를 시작할 수 있어요"
         },
         "cancelDialog": {
             "title": "초대를 취소할까요?",

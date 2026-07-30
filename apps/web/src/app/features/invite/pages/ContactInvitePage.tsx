@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
-import { Button } from '@chatic/web-ui-kit';
+import { Button, TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useRelayInviteMutations, useRelayInvites, useSentInviteLog } from '../../../hooks';
@@ -11,14 +11,15 @@ import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
-import { formatKoreanPhone, isValidKoreanPhone, normalizeKoreanPhone } from '../../channels/utils/koreanPhone';
+import { isValidKoreanPhone, normalizeKoreanPhone } from '../../channels/utils/koreanPhone';
 import { ReinviteDialog } from '../components/ReinviteDialog';
 import { resolveReinviteVariant, type ReinviteVariant } from '../utils/inviteStatus';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
 const NAME_MAX = 20;
-const PHONE_DIGITS_MAX = 11;
+/** Raw entry is kept as typed so a bad format stays visible (Figma 3268-35795); digits drive logic. */
+const PHONE_INPUT_MAX = 20;
 
 interface PendingReinvite {
     variant: ReinviteVariant;
@@ -39,7 +40,7 @@ export const ContactInvitePage = () => {
     useFormKeyboardFlow(fieldsRef);
 
     const [name, setName] = useState('');
-    const [phoneDigits, setPhoneDigits] = useState('');
+    const [phoneInput, setPhoneInput] = useState('');
     const [phoneError, setPhoneError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingReinvite, setPendingReinvite] = useState<PendingReinvite | null>(null);
@@ -49,9 +50,10 @@ export const ContactInvitePage = () => {
     const { record, findByPhone } = useSentInviteLog();
     const { profile: myProfile } = useMyProfile();
 
+    const phoneDigits = phoneInput.replace(/\D/g, '');
+
     const handlePhoneChange = (value: string) => {
-        const digits = value.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
-        setPhoneDigits(digits);
+        setPhoneInput(value.slice(0, PHONE_INPUT_MAX));
         if (phoneError) setPhoneError('');
     };
 
@@ -133,58 +135,62 @@ export const ContactInvitePage = () => {
         navigate(ROUTES.invite.waiting(pendingReinvite.inviteId));
     };
 
-    const isSubmitDisabled = !name.trim() || !phoneDigits || isSubmitting || !!phoneError;
+    // The counter is allowed to read "21/20" (Figma 3268-35795) rather than silently truncating.
+    const nameError = name.length > NAME_MAX ? t('contactInvite.nameTooLong') : '';
+    const isSubmitDisabled = !name.trim() || !phoneDigits || isSubmitting || !!phoneError || !!nameError;
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('contactInvite.title')} />
 
             <div className="flex flex-1 flex-col overflow-y-auto overscroll-none">
-                <div ref={fieldsRef} className="flex flex-col gap-[26px] px-4 pt-5">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
-                            {t('contactInvite.nameLabel')}
-                        </label>
-                        <div className="flex items-center rounded-[10px] border border-border bg-background px-3 py-3">
-                            <input
-                                value={name}
-                                onChange={e => setName(e.target.value.slice(0, NAME_MAX))}
-                                placeholder={t('contactInvite.namePlaceholder')}
-                                className="flex-1 bg-transparent text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground"
-                            />
-                            <span className="shrink-0 text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74">
-                                {name.length}/{NAME_MAX}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[14px] font-semibold leading-[1.286] tracking-[0.005em] text-muted-foreground">
-                            {t('contactInvite.phoneLabel')}
-                        </label>
-                        <div
-                            className={`flex items-center rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
-                        >
-                            <input
-                                value={formatKoreanPhone(phoneDigits)}
-                                onChange={e => handlePhoneChange(e.target.value)}
-                                placeholder={t('contactInvite.phonePlaceholder')}
-                                type="tel"
-                                className="flex-1 bg-transparent text-[16px] font-normal leading-[1.45] tracking-[-0.015em] text-foreground outline-none placeholder:text-muted-foreground"
-                            />
-                            <span className="shrink-0 text-[13px] font-medium tracking-[0.019em] text-muted-foreground opacity-74">
-                                {phoneDigits.length}/{PHONE_DIGITS_MAX}
-                            </span>
-                        </div>
-                        {phoneError && <span className="text-[12px] text-destructive">{phoneError}</span>}
+                <div className="flex flex-col gap-4 px-4 pt-6">
+                    <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
+                        {t('contactInvite.heading')}
+                    </h2>
+                    <div className="flex flex-col text-center text-[14px] font-medium leading-[20px]">
+                        <p className="whitespace-pre-line text-placeholder">{t('contactInvite.headingNote')}</p>
                         {/* Server-rendered validity — never a hardcoded duration (ADR-0033 D8). */}
-                        <span className="text-[12px] text-muted-foreground">{t('contactInvite.validityHint')}</span>
+                        <p className="text-description">{t('contactInvite.validityHint')}</p>
                     </div>
+                </div>
+
+                <div ref={fieldsRef} className="flex flex-col gap-6 pt-8">
+                    <TextField
+                        label={t('contactInvite.nameLabel')}
+                        required
+                        value={name}
+                        onChange={setName}
+                        placeholder={t('contactInvite.namePlaceholder')}
+                        maxLength={NAME_MAX}
+                        enforceMaxLength={false}
+                        error={nameError || undefined}
+                        description={t('contactInvite.nameHint')}
+                    />
+
+                    <TextField
+                        label={t('contactInvite.phoneLabel')}
+                        required
+                        value={phoneInput}
+                        onChange={handlePhoneChange}
+                        placeholder={t('contactInvite.phonePlaceholder')}
+                        type="tel"
+                        inputMode="numeric"
+                        error={phoneError || undefined}
+                        description={t('contactInvite.phoneHint')}
+                    />
                 </div>
             </div>
 
             <div className="shrink-0 px-4 pb-safe-bottom pt-3">
-                <Button tone="green" size="lg" fullWidth loading={isSubmitting} disabled={isSubmitDisabled} onClick={handleSubmit}>
+                <Button
+                    tone="green"
+                    size="lg"
+                    fullWidth
+                    loading={isSubmitting}
+                    disabled={isSubmitDisabled}
+                    onClick={handleSubmit}
+                >
                     {t('contactInvite.submit')}
                 </Button>
             </div>
