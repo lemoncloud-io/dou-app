@@ -4,7 +4,13 @@ export interface StorageAdapter {
     removeItem: (key: string) => void;
 }
 
-let _adapter: StorageAdapter = sessionStorage;
+const noopAdapter: StorageAdapter = {
+    getItem: () => null,
+    setItem: () => undefined,
+    removeItem: () => undefined,
+};
+
+let _adapter: StorageAdapter = typeof sessionStorage !== 'undefined' ? sessionStorage : noopAdapter;
 
 export const setStorageAdapter = (adapter: StorageAdapter): void => {
     _adapter = adapter;

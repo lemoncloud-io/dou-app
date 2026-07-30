@@ -25,7 +25,9 @@ export class SqliteDatabase implements ISqliteDatabase {
                     for (let v = currentVersion; v < TARGET_VERSION; v++) {
                         const scripts = MIGRATIONS[v];
                         if (scripts) {
-                            scripts.forEach(sql => tx.execute(sql));
+                            for (const sql of scripts) {
+                                await tx.execute(sql);
+                            }
                             this.logService.info('SQLITE', `Step v${v} applied.`);
                         }
                     }
