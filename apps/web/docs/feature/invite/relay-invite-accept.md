@@ -1,6 +1,6 @@
 # 중계 1:1 초대 수락 (Relay Invite Accept) — 수신자 흐름
 
-> 상태: Live · 최종 갱신: 2026-07-29 · 관련 ADR: [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
+> 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
 >
 > 로드맵 Track C: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) · 백엔드 계약: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §시나리오 B·C
 
@@ -72,10 +72,11 @@
    프로필 설정 오버레이(이름 필수 1~20자, 사진 선택).
 5. **재검증** → `pending` → `acceptInvite(code)`. 응답 `state==='accepted'`면 성공
    (성공 플래그는 따로 없다).
-6. 응답에 `channelId`가 **없다** — 방은 비동기 생성된다. "채팅방을 만들고 있어요" 오버레이를 띄운
-   채 `useAwaitInviteChannel`이 `channel.syncChannels` 델타를 3초 주기로 당기며
-   `channel.observeList({ sid })`로 새 `stereo==='dm'` 채널이 도착하기를 기다린다.
-7. 도착하면 `usePendingInviteChannel.setPendingChannel(id)` → 홈으로 이동 → HomePage의 기존 효과가
+6. **방 id를 3단으로 해소한다**(ADR-0035). 방은 "수락 순간" 생기지만 비동기라
+   (05-client-guide:58·222) 응답에 실려 오는지가 백엔드 진행에 달려 있다. 그래서 값이 이미 손에
+   있으면 기다리지 않고, 없을 때만 점점 넓은 수단으로 내려간다 — 자세한 것은 아래 "채널 해소 3단"
+   다이어그램.
+7. 해소되면 `usePendingInviteChannel.setPendingChannel(id)` → 홈으로 이동 → HomePage의 기존 효과가
    방으로 `replace` 이동한다([HomePage.tsx:184-196](../../../src/app/features/home/pages/HomePage.tsx),
    **무변경 재사용**).
 
@@ -121,11 +122,32 @@
 **백엔드 거절 API가 없다(요청 2번)** — 초대자 쪽에는 아무 신호도 가지 않는다. 버튼 노출은
 `RELAY_INVITE_DECLINE_ENABLED` 한 줄로 끈다.
 
-### 9. 채널이 안 오는 경우 (타임아웃 폴백)
+### 9. 수락 후 방 해소 — 3단 (ADR-0035)
 
-수락은 성공했는데 `CHANNEL_WAIT_TIMEOUT_MS`(20초) 안에 방이 안 보이면 오버레이를 접고 홈으로
+수락 응답(`MyInviteView`)에는 `channelId` 필드가 **이미 정의돼 있다** —
+`InviteModel.channelId`의 주석이 "수락으로 생긴 dm 방"이다. 백엔드가 그것을 채우는 시점이
+확정되지 않았을 뿐이므로(스펙 §미구현), 클라이언트는 **채워져 있으면 즉시 쓰고 없으면 내려가는**
+구조로 읽는다. 세 단 모두 같은 도착점(`setPendingChannel` → 홈 → 방)으로 수렴한다.
+
+- **1단 — 수락 응답 직독 (대기 0).** `acceptInvite` 응답에 `channelId`가 있으면 그대로 진입한다.
+  스피너를 아예 거치지 않는다. **같은 번호로 재초대해 기존 방이 재사용되는 경우**
+  (05-client-guide:257 "이미 방이 있으면 그 방으로 이어진다")가 여기 걸린다.
+- **2단 — `invite.get` 재조회.** 1단이 비면 초대를 다시 읽어 `channelId`가 채워졌는지 본다.
+  가이드가 명시적으로 권하는 방법이다("채널 목록이 갱신되기를 기다리거나 **다시 조회한다**",
+  05-client-guide:222). `CHANNEL_PROBE_DELAYS_MS = [0, 1500]` — 즉시 1회 + 1.5초 뒤 1회.
+  **2회로 제한한 이유**: 지연은 프로브 앞에 붙으므로 프로브를 늘리면 답도 늦어지고 더 견고한
+  3단 시작도 그만큼 밀린다. 3단은 실제 채널 행을 보는 데다 자체 3초 폴링이 있어, 3번째 프로브가
+  더 벌어 줄 것이 거의 없다. 이 단부터 "채팅방을 만들고 있어요" 오버레이가 뜬다.
+- **3단 — 채널 목록 감시 (기존 동작).** 2단도 비면 `useAwaitInviteChannel`이
+  `channel.syncChannels` 델타를 3초 주기로 당기며 `channel.observeList({ sid })`로 새
+  `stereo==='dm'` 채널을 기다린다. **여기가 종전의 유일한 경로였고 그대로 남는다.**
+
+**타임아웃 폴백** — 3단도 `CHANNEL_WAIT_TIMEOUT_MS`(20초) 안에 못 찾으면 오버레이를 접고 홈으로
 이동하며 안내 토스트를 띄운다("채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다."). 수락은 이미
 서버에 남았으므로 데이터 손실이 없고, 60초 백그라운드 sync가 결국 방을 데려온다.
+
+2단 프로브가 에러(네트워크·4xx)를 내도 흐름을 끊지 않는다 — 그 단을 포기하고 3단으로 내려간다.
+수락은 이미 성공했으므로 프로브 실패를 사용자에게 알릴 이유가 없다.
 
 ### 10. 온보딩 중 진입
 
@@ -172,7 +194,8 @@ stateDiagram-v2
 
     state accepted <<choice>>
     validated --> accepted: pending && !needVerify && profile.nick<br/>→ acceptInvite
-    accepted --> awaitingChannel: state==='accepted'
+    accepted --> closed: 1단 · 응답에 channelId<br/>→ pendingChannel (대기 없음)
+    accepted --> awaitingChannel: state==='accepted' && channelId 없음
     accepted --> verifying: 403 && 아직 인증 전
     accepted --> notice: 400→만료 · 403(인증 후)→번호 불일치<br/>404 · 409 · 그 외
 
@@ -181,7 +204,8 @@ stateDiagram-v2
     profiling --> submitting: 프로필 저장
     profiling --> review: 설정 중단
 
-    awaitingChannel --> closed: dm 채널 도착 → pendingChannel
+    awaitingChannel --> closed: 2단 · invite.get에 channelId → pendingChannel
+    awaitingChannel --> closed: 3단 · dm 채널 도착 → pendingChannel
     awaitingChannel --> closed: 20초 초과 → 안내 토스트
 
     notice --> closed: 확인
@@ -209,16 +233,29 @@ flowchart LR
     D7["channelDeleted<br/>3079-12154"] -.->|relay 트리거 없음<br/>UI만 유지| X[미배선]
 ```
 
-### 채널 sync 대기
+### 채널 해소 3단 (ADR-0035)
+
+```mermaid
+flowchart TD
+    ACC["acceptInvite 응답<br/>state==='accepted'"] --> T1{"1단<br/>응답에 channelId?"}
+    T1 -- yes --> DONE["setPendingChannel(id)<br/>→ 홈 → 방"]
+    T1 -- no --> SPIN["phase=awaitingChannel<br/>'채팅방을 만들고 있어요'"]
+
+    SPIN --> T2{"2단 · invite.get 재조회<br/>CHANNEL_PROBE_DELAYS_MS = [0, 1500]<br/>(즉시 1회 + 1.5초 뒤 1회)"}
+    T2 -- "channelId 채워짐" --> DONE
+    T2 -- "끝까지 비었거나 프로브 에러" --> T3{"3단 · useAwaitInviteChannel<br/>syncChannels 3초 폴링 +<br/>observeList 신규 dm · 20초"}
+    T3 -- 도착 --> DONE
+    T3 -- 20초 초과 --> FB["안내 토스트<br/>→ 홈 (60초 백그라운드 sync가 데려온다)"]
+```
+
+3단의 내부 동작 (종전과 동일):
 
 ```mermaid
 sequenceDiagram
-    participant UI as RelayInviteDialog
     participant H as useAwaitInviteChannel
     participant R as ChannelRepositoryV2
     participant S as sockets-api
 
-    UI->>H: awaitChannel()
     H->>R: cacheReadList({ sid }) — 기존 채널 스냅샷
     H->>R: observeList({ sid }, cb, { cid, uid })
     loop 3초마다 · 20초까지
@@ -227,11 +264,6 @@ sequenceDiagram
         S-->>R: 델타 → cacheWriteMany
         R-->>H: observeList 재방출
         H->>H: 스냅샷에 없던 stereo==='dm' 채널?
-    end
-    alt 도착
-        H-->>UI: channelId → setPendingChannel → 홈 → 방
-    else 20초 초과
-        H-->>UI: null → 홈 + 안내 토스트
     end
 ```
 
@@ -283,8 +315,39 @@ useRelayInviteFlow(code: string): {
   재사용한다.
 - 세대 카운터(`runIdRef`) + `aliveRef`로, 흐름이 앞서 나간 뒤 늦게 도착한 응답은 아무것도 쓰지
   않는다. 최신값(프로필 nick·게이트웨이·네비게이션)은 `latest` ref로 읽어 콜백 identity를 고정한다.
+- **수락 후 방 진입**은 `enterChannel(run, acceptedChannelId?)`이다. `acceptInvite` 응답의
+  `channelId`를 그대로 넘겨(1단) `useResolveInviteChannel`에 위임하고, 결과가 있으면
+  `setPendingChannel` + 홈 이동, `null`이면 안내 토스트 + 홈 이동으로 수렴한다. **1단이 맞으면
+  `awaitingChannel` 페이즈를 아예 거치지 않는다** — 보여 줄 대기가 없기 때문이다.
 
-### 채널 sync 대기 — [`hooks/useAwaitInviteChannel.ts`](../../../src/app/hooks/useAwaitInviteChannel.ts)
+### 채널 해소 3단 — [`features/home/hooks/useResolveInviteChannel.ts`](../../../src/app/features/home/hooks/useResolveInviteChannel.ts)
+
+1·2단을 담고 3단은 공유 훅에 위임한다. 이 파일에 모은 이유는 1·2단이 **초대 의미론에 묶여**
+있기 때문이다 — 1단은 수락 응답의 필드고 2단은 `invite.get`이다. 반면 3단은 초대를 모르는 순수
+채널 감시라 Track B도 쓴다(아래).
+
+```ts
+/** 2단 프로브 지연(ms). 첫 프로브는 지연 없이 나간다. */
+export const CHANNEL_PROBE_DELAYS_MS = [0, 1_500, 4_000];
+
+useResolveInviteChannel(): {
+    resolveChannel(code: string, opts?: {
+        acceptedChannelId?: string;      // 1단 — 수락 응답이 실어 온 값
+        probeDelaysMs?: number[];        // 2단 cadence (테스트가 줄인다)
+        knownChannelIds?: Iterable<string>; timeoutMs?: number; pollMs?: number;  // 3단 위임
+    }): Promise<string | null>;
+}
+```
+
+- **cadence를 옵션으로 노출하는 것은 이 리포의 관용구다** —
+  `awaitChannel({ timeoutMs, pollMs })`와 같은 이유(테스트가 실시간을 기다리지 않게).
+- `useAwaitInviteChannel`과 같은 계약을 유지한다: **절대 reject하지 않고**, 못 찾으면 `null`이다.
+  2단 프로브가 던지는 에러는 삼켜서 3단으로 내려간다 — 수락은 이미 성공했으므로 사용자에게 알릴
+  것이 없다.
+- 자체 `aliveRef`로 언마운트 후 프로브 루프를 조기 종료한다. 호출부(`useRelayInviteFlow`)의
+  세대 가드가 최종 방어선이지만, 지연 중 언마운트에서 불필요한 소켓 왕복을 만들지 않는다.
+
+### 채널 sync 대기 (3단) — [`hooks/useAwaitInviteChannel.ts`](../../../src/app/hooks/useAwaitInviteChannel.ts)
 
 앱 레벨 훅 디렉터리에 둔다 — **Track B의 초대 대기 화면도 같은 유틸을 쓴다**(로드맵 Track B-4).
 
@@ -323,9 +386,9 @@ useAwaitInviteChannel(): {
   빈 카드 껍데기만 남기 때문이다. 클라우드는 항상 `site$.name`이 있어 영향이 없다.
 - `InviteTargetCard`에 `kind?: 'group' | 'oneToOne'`을 추가해 이미 있던 미사용 키
   `inviteAccept.target.oneToOne`("1:1 대화")를 쓴다.
-- **표시명 `***<뒷4자리>`** — 번호로 만들어진 유저의 서버 표시명이다(백엔드가 고치지 않기로 한
-  항목). `ProfileAvatar`는 이니셜이 아니라 글리프를 그리므로 아바타는 영향이 없고, 이름은 서버 값을
-  그대로 보여준다. 헤딩 폴백은 `inviter$.name`이 **비어 있을 때만** 걸리므로 마스킹된 이름이 "이름
+- **표시명 `\***<뒷4자리>`** — 번호로 만들어진 유저의 서버 표시명이다(백엔드가 고치지 않기로 한
+항목). `ProfileAvatar`는 이니셜이 아니라 글리프를 그리므로 아바타는 영향이 없고, 이름은 서버 값을
+그대로 보여준다. 헤딩 폴백은 `inviter$.name`이 **비어 있을 때만** 걸리므로 마스킹된 이름이 "이름
   없음"으로 오해되지 않는다.
 
 ### 프로필 스텝
@@ -379,7 +442,8 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 | `features/home/components/invite/trackAMock.tsx`               | 신규 | Track A 계약 목 (교체 지점)  |
 | `features/home/components/invite/InviteAcceptScreen.tsx`       | 수정 | optional prop 4종            |
 | `features/home/components/invite/InviteTargetCard.tsx`         | 수정 | optional `kind`              |
-| `features/home/hooks/useRelayInviteFlow.ts`                    | 신규 | 상태 머신                    |
+| `features/home/hooks/useRelayInviteFlow.ts`                    | 수정 | 상태 머신 · 3단 해소 위임    |
+| `features/home/hooks/useResolveInviteChannel.ts`               | 신규 | 채널 해소 1·2단 (ADR-0035)   |
 | `features/home/hooks/useSaveMyPlaceProfile.ts`                 | 신규 | 프로필 저장(런타임 격리)     |
 | `features/home/flags.ts`                                       | 신규 | 스텁 게이팅                  |
 | `features/home/lib/relayInviteDecline.ts`                      | 신규 | 거절 로컬 기록(스텁)         |
@@ -389,13 +453,20 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 ## 검증 방법
 
 - **유닛 테스트** (신규 48케이스, 전부 통과)
-    - `features/home/hooks/useRelayInviteFlow.test.ts`(17) — 진입 조회 4, 스텝 순서·재검증·도중
-      만료·중단 5, 수락 결과(채널 도착/타임아웃/accepted 아님/403 두 갈래/400·409) 6, 거절 스텁 2.
+    - `features/home/hooks/useRelayInviteFlow.test.ts`(17 → **+3, ADR-0035**) — 진입 조회 4, 스텝
+      순서·재검증·도중 만료·중단 5, 수락 결과(채널 도착/타임아웃/accepted 아님/403 두 갈래/400·409) 6,
+      거절 스텁 2. **추가**: 수락 응답의 `channelId`를 그대로 넘기는지, 1단일 때 `awaitingChannel`을
+      거치지 않는지, 해소가 `null`이면 안내 토스트로 수렴하는지. 3단 위임은
+      `useResolveInviteChannel`을 목으로 두어 이 스위트가 실시간 타이머에 묶이지 않게 한다.
     - `features/home/components/invite/RelayInviteDialog.test.tsx`(14) — phase별 렌더, 거절이
       닫기와 다른 핸들러로 가는지, 안내 다이얼로그 5종, 플레이스 카드 미표시.
     - `features/home/components/InviteDialog.routing.test.tsx`(4) — relay 마커 유무로 갈리는 분기.
     - `hooks/useAwaitInviteChannel.test.ts`(7) — 새 dm 검출, 기존/타 플레이스/비-dm 무시, 스냅샷
       주입, 타임아웃 `null`+정리, 델타 폴링과 워터마크, 홈 목록과 같은 스코프.
+    - `features/home/hooks/useResolveInviteChannel.test.ts` **(신규 · ADR-0035)** — 1단 즉시 해소
+      (2·3단 미호출), 2단 프로브 성공, 프로브가 끝까지 비면 3단 위임, 프로브 에러도 3단으로 폴백,
+      3단 타임아웃 `null`, 언마운트 시 프로브 루프 조기 종료. `jest.useFakeTimers()` +
+      `probeDelaysMs` 주입으로 실시간을 기다리지 않는다(`useAwaitInviteChannel.test.ts`와 같은 패턴).
     - `features/home/lib/relayInviteDecline.test.ts`(6) — 기록/조회, 중복, 상한, 깨진 JSON, 저장
       페이로드가 id 목록뿐인지.
     - **회귀**: `features/home/components/InviteDialog.test.tsx`(10) **무수정 통과** — 클라우드
@@ -410,9 +481,18 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 
 ## 재검토 조건
 
-- **백엔드 요청 5번(수락 응답 channelId 또는 수락 알림)** 이 들어오면 `useAwaitInviteChannel`의
-  폴링을 걷어내고 응답/이벤트로 대체한다.
+- **백엔드가 `InviteModel.channelId`를 수락 시점에 채우기 시작하면**(백엔드 요청 5번) 1·2단이
+  자동으로 이겨 3단 폴링이 사실상 죽은 코드가 된다 — 그때 `useAwaitInviteChannel` 호출을 걷어낸다.
+  **클라 배포 없이 빨라지는 것이 이 3단 구조의 목적이다**(ADR-0035).
+- **수락 알림(소켓 이벤트)이 생기면** 2단 프로브를 이벤트 구독으로 대체한다. 관련 훅 포인트
+  `getSocketManager().onType()`이 이미 있으나 현재 아무도 쓰지 않고, 백엔드 emit 여부가
+  미검증이다(ADR-0035 대안 절).
 - **요청 1번(취소 API + `canceled`)** → `notFound`에서 취소를 분리하고 Figma 3079-12304 문구를 되살린다.
 - **요청 2번(거절 API + `rejected`)** → `flags.ts`의 스텁 주석과 `lib/relayInviteDecline.ts`를 걷어낸다.
-- **`syncChannels`가 붙이는 sid가 relay `selectedSiteId`와 어긋나는 것이 확인되면** 검출 필터를
-  "sid 무관 + 신규 dm"으로 넓힌다. 현재는 타임아웃 폴백이 안전망이다.
+- ~~`syncChannels`가 붙이는 sid가 relay `selectedSiteId`와 어긋나는 것이 확인되면 검출 필터를 넓힌다~~
+  — **조사 완료, 기각**(2026-07-30, ADR-0035 "조사 중 기각한 가설"). relay는 플레이스가 하나뿐이고
+  생성 경로가 이중으로 차단돼 있다(`canAddPlace`는 `isCloudActive`를 요구하고 relay는
+  `cid==='default'`라 거짓 — [HomePage.tsx:64-71](../../../src/app/features/home/pages/HomePage.tsx),
+  [useUserPermissions.ts:27-31](../../../src/app/hooks/useUserPermissions.ts)). 게다가
+  `syncChannels`가 `$.sid` 없는 행을 버리는데도 relay 홈에 DM 방이 정상 표시되므로 relay 채널은
+  기본 플레이스 sid를 갖는다. **필터는 그대로 둔다** — 다시 열지 말 것.
