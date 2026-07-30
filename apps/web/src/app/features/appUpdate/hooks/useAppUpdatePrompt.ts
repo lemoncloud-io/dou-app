@@ -4,6 +4,7 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useAppForeground } from '../../../bridge/useAppForeground';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { IS_APP_UPDATE_CHECK_ENABLED } from '../featureFlag';
 
 interface AppUpdatePromptState {
     open: boolean;
@@ -26,7 +27,7 @@ export const useAppUpdatePrompt = () => {
     // re-trigger the mount effect below and fire a redundant extra bridge round-trip right after
     // every dismiss/update.
     const check = useCallback(async () => {
-        if (!isNative()) return;
+        if (!IS_APP_UPDATE_CHECK_ENABLED || !isNative()) return;
         try {
             const response = await appBridge.checkAppUpdate();
             const { updateAvailable, latestVersion } = response.data;

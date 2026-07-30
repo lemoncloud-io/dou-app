@@ -12,6 +12,7 @@ import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
+import { IS_APP_UPDATE_CHECK_ENABLED } from '../../appUpdate';
 import { BottomNavSpacer } from '../../../ui/components';
 import { useAppIcon, useDevicePushMute } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
@@ -72,7 +73,7 @@ export const MyPage = () => {
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
     // iOS only: Android has no live-version source yet (see ADR-0033), so the update row is
     // gated on platform explicitly rather than relying solely on shouldUpdate staying false there.
-    const showUpdate = !!versionInfo?.shouldUpdate && deviceInfo?.platform === 'ios';
+    const showUpdate = IS_APP_UPDATE_CHECK_ENABLED && !!versionInfo?.shouldUpdate && deviceInfo?.platform === 'ios';
 
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
