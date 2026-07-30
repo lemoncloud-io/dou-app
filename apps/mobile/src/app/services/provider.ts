@@ -143,10 +143,10 @@ class DependencyProvider {
 
     public get sqliteDatabase(): ISqliteDatabase {
         if (!this._sqliteDatabase) {
-            const db = new SqliteDatabase(this.logService);
             // Schemas are initialized on first DB access (was eager in the constructor before 4.4).
-            void db.initTables();
-            this._sqliteDatabase = db;
+            // SqliteDatabase itself gates every query on migrations completing, so no explicit
+            // initTables() call or await is needed here.
+            this._sqliteDatabase = new SqliteDatabase(this.logService);
         }
         return this._sqliteDatabase;
     }
