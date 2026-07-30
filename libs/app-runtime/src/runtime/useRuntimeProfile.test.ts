@@ -64,6 +64,24 @@ describe('useRuntimeProfile', () => {
         expect(result.current.isGuest).toBe(false);
     });
 
+    it('stops reporting guest once the session switches identity, even if only the OLD uid is cached', () => {
+        // The guest→main promotion shape (phone verification: applySessionToken commits a new token
+        // but writes no user row). observeItem never emits for the new uid, so the previous identity's
+        // row is the only one in hand — it must not keep answering, or the invite gate dead-ends.
+        setSession({ userId: 'device-user', sessionUser: { userRole: 'guest', name: 'Guest' } });
+        emit({ userRole: 'guest', name: 'Guest cache' });
+
+        const { result, rerender } = renderHook(() => useRuntimeProfile());
+        expect(result.current.isGuest).toBe(true);
+
+        setSession({ userId: 'main-user', sessionUser: { userRole: 'user', name: 'Main' } });
+        emit(undefined); // no cached row for the promoted uid yet
+        rerender();
+
+        expect(result.current.userRole).toBe('user');
+        expect(result.current.isGuest).toBe(false);
+    });
+
     it('keeps guest when the cached row omits userRole (field-level fallback to the token seed)', () => {
         // A partial cache refresh (no userRole) must not flip a guest to non-guest — userRole falls
         // back to the token seed, while display fields still prefer the cached value.

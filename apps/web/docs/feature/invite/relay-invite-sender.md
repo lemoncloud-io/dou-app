@@ -26,8 +26,12 @@
 - **유효시간은 서버 값만 렌더한다.** `expiredAt` epoch(ms)를 그대로 카운트다운에 쓰고, 카피에
   기간을 하드코딩하지 않는다(ADR-0033 D8 — 3일).
 - **기존 프리미티브를 최우선으로 재사용한다.** 새 화면이라도 `web-ui-kit`에 이미 이 용도로 보이는
-  컴포넌트가 있으면(`EmptyState`의 "친구의 응답을 기다리고 있어요", `StatusBadge` `pending` 변형,
-  `ChatRoomHeader`, `useInviteCountdown`) 새로 만들지 않는다.
+  컴포넌트가 있으면(`ChatRoomHeader`, `DateDivider`, `MessageInput`, `StatusBadge`, `TextField`,
+  `BottomSheet`, `useInviteCountdown`) 새로 만들지 않는다.
+- **발급은 메인유저만 한다.** 게스트는 폼에 도달하지 않고 인증 유도 화면에서 끊긴다
+  ([ADR-0034](../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) — 상세는
+  [phone-verification.md](../auth/phone-verification.md)). 클라 게이트는 UX이고 서버 403이 계약이라
+  폴백 경로를 항상 남긴다.
 
 ## 범위
 
@@ -52,7 +56,8 @@
 
 ### S1. 연락처로 신규 초대 발급 → SMS 전달 → 대기 화면
 
-1. 홈 ＋메뉴 → "1:1 대화" → `ROUTES.invite.contact`로 이동.
+1. 홈 ＋메뉴 → "1:1 대화" → `ROUTES.invite.contact`로 이동. **게스트면 폼이 아니라 인증 유도
+   화면이 뜬다**(ADR-0034) — 인증을 마치면 `isGuest`가 반응형으로 풀려 같은 화면이 폼으로 바뀐다.
 2. 이름(최대 20자) + 휴대폰 번호(한국 형식) 입력. 형식 오류는 인라인 에러(Figma 3268-35795).
 3. 제출 시 로컬 발급 이력(`useSentInviteLog.findByPhone`)에 같은 번호가 없으면 바로
    `useRelayInviteMutations().createInvite({ phone, name })` 호출.
@@ -87,14 +92,15 @@
 
 ### S5. 대기 화면 — 만료 후 재발급
 
-1. `state === 'expired'`가 되면 `EmptyState`가 "초대가 만료됐어요" + "초대 다시 하기" 액션으로
-   전환.
+1. `state === 'expired'`가 되면 상태 블록이 적색 "초대 링크가 만료되었습니다." + "초대 링크를 다시
+   전송해보세요."로 바뀌고, 유효시간 카드의 남은 시간도 적색이 된다. 액션 행은 그대로 남는다.
 2. 탭 시 로컬 이력의 이름/번호로 새 `createInvite` → 새 invite의 대기 화면으로 교체 이동
    (`replace`), 새 SMS 작성기도 다시 연다.
 
 ### S6. 대기 화면 — 취소(스텁)
 
-1. 헤더 더보기 메뉴 → "초대 취소" → 확인 다이얼로그(Figma 3263-30207).
+1. 본문 액션 행의 "초대 취소" → 확인 다이얼로그(Figma 3263-30207). 디자인이 이 액션을 헤더
+   `⋯` 메뉴가 아니라 유효시간 카드 아래에 두므로 드롭다운 항목은 두지 않는다.
 2. 확인 시 실제 취소 API 호출 없음(요청 1번 미지원) — 로컬로만 이 invite id를 "취소함" 처리
    (`useLocallyCanceledInvites`)하고 취소 토스트(Figma 3413-18662) 후 홈으로 이동. 서버는 여전히
    `pending`으로 인지하므로 상대는 이론상 계속 수락할 수 있다 — "알려진 갭" 참고.
@@ -130,7 +136,7 @@ flowchart TD
     L -->|state=accepted| CH{channelId 있음?}
     CH -->|예| SYNC[channel.observeItem 대기] --> ROOM[채널 룸으로 이동]
     CH -->|아니오/타임아웃| HOME[홈 이동 안내]
-    W -->|더보기 · 초대 취소| CANCEL[ConfirmDialog] --> STUB["로컬 취소 처리(스텁)"] --> HOME
+    W -->|액션 행 · 초대 취소| CANCEL[ConfirmDialog] --> STUB["로컬 취소 처리(스텁)"] --> HOME
 ```
 
 ### 대기 화면 상태 전이
@@ -154,30 +160,30 @@ stateDiagram-v2
 
 ### 핵심 파일
 
-| 파일 | 역할 |
-| --- | --- |
-| `apps/web/src/app/features/channels/utils/koreanPhone.ts` | `normalizeKoreanPhone`/`isValidKoreanPhone`/`formatKoreanPhone` 공용 유틸(기존 `InvitePage.tsx`·`AddFriendSheet.tsx` 중복 제거 후 재사용). |
-| `apps/web/src/app/bridge/appBridge.ts` | `sendSms(phoneNumbers, message)` 추가 — `SendSms`/`OnSendSms`(`@chatic/app-messages`) 배선. |
-| `apps/web/src/app/hooks/useSentInviteLog.ts` | 로컬 발급 이력(zustand + localStorage). 계약: `record(invite, {phone,name})` / `findByPhone(phone)` / `findByInviteId(inviteId)`(구현 중 추가 — 대기 화면 재발급용 역조회, additive). |
-| `apps/web/src/app/features/invite/flags.ts` | 백엔드 미지원 액션 게이팅 상수(취소·거절 상태·자동 만료 문구). |
-| `apps/web/src/app/features/invite/utils/inviteStatus.ts` | `MyInviteStatus` → 목록 뱃지/재초대 변형 매핑 + `flags.ts` 불리언 → i18n 키 리졸버(`resolveExpiredReinviteDescriptionKey`, `resolveCancelDialogDescriptionKey`) — 플래그가 실제로 카피를 게이팅하는 지점. |
-| `apps/web/src/app/features/invite/utils/inviteMessageCopy.ts` | SMS 본문 조립(`ContactInvitePage`/`InviteWaitingPage` 재발급 공용). |
-| `apps/web/src/app/features/invite/utils/sendInviteMessage.ts` | SMS 발송/클립보드 폴백 오케스트레이션. |
-| `apps/web/src/app/features/invite/hooks/useLocallyCanceledInvites.ts` | 취소 스텁 로컬 상태(localStorage id 집합). |
-| `apps/web/src/app/features/invite/hooks/useInviteWaitingStatus.ts` | 대상 invite 조회 + 30초 폴링(포커스 폴링은 `useRelayInvites` 기본 동작). |
-| `apps/web/src/app/features/invite/hooks/useAcceptedChannelSync.ts` | 수락 감지 후 `channel.observeItem` 대기 + 타임아웃. |
-| `apps/web/src/app/features/invite/hooks/useInviteListRows.ts` | `useRelayInvites()` → `pending`/`expired` + 로컬 미취소 필터. `ChannelList`/`PlaceChannelManagePage` 공용 데이터소스. |
-| `apps/web/src/app/features/invite/components/ReinviteDialog.tsx` | 재초대 다이얼로그(3변형 — pending/expired/declined; declined는 오늘은 도달 불가). |
-| `apps/web/src/app/features/invite/components/InviteChannelRow.tsx` | 리스트 통합 공용 행(홈+관리 화면) — `ListRow` + `StatusBadge`로 조립. |
-| `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx` | 연락처 입력 → 발급/재초대 오케스트레이션. |
-| `apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx` | 대기/만료/수락/취소 화면. |
-| `apps/web/src/app/features/invite/index.tsx` | `InviteRoutes` — `contact`, `:inviteId/waiting`. |
-| `libs/web-ui-kit/src/foundations/badge/StatusBadge.tsx` | `variant`에 `expired`(muted 톤) 추가 — "초대 만료"/거절 통합 뱃지에 재사용. |
-| `apps/web/src/app/routes/paths.ts` | `ROUTES.invite.contact` / `ROUTES.invite.waiting(inviteId)` 추가. |
-| `apps/web/src/app/routes/PrivateRoutes.tsx` | `invite/*` lazy 마운트. |
-| `apps/web/src/app/features/home/pages/HomePage.tsx` | `handleCreateOneOnOne` → `navigate(ROUTES.invite.contact)`. `useInviteListRows()`를 default 클라우드에서만 `ChannelList`에 전달. |
-| `apps/web/src/app/features/home/components/ChannelList.tsx` | `sentInvites`/`onSelectInvite` prop 추가, 실채널 목록 위에 `InviteChannelRow` 렌더. |
-| `apps/web/src/app/features/place/pages/PlaceChannelManagePage.tsx` | `selectedCloudId === 'default'`일 때만 `useInviteListRows()`를 가져와 관리 목록 위에 초대 행 추가(탭 → 대기 화면; 기존 다중선택/삭제 플로우와는 분리). |
+| 파일                                                                  | 역할                                                                                                                                                                                                      |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/app/features/channels/utils/koreanPhone.ts`             | `normalizeKoreanPhone`/`isValidKoreanPhone`/`formatKoreanPhone` 공용 유틸(기존 `InvitePage.tsx`·`AddFriendSheet.tsx` 중복 제거 후 재사용).                                                                |
+| `apps/web/src/app/bridge/appBridge.ts`                                | `sendSms(phoneNumbers, message)` 추가 — `SendSms`/`OnSendSms`(`@chatic/app-messages`) 배선.                                                                                                               |
+| `apps/web/src/app/hooks/useSentInviteLog.ts`                          | 로컬 발급 이력(zustand + localStorage). 계약: `record(invite, {phone,name})` / `findByPhone(phone)` / `findByInviteId(inviteId)`(구현 중 추가 — 대기 화면 재발급용 역조회, additive).                     |
+| `apps/web/src/app/features/invite/flags.ts`                           | 백엔드 미지원 액션 게이팅 상수(취소·거절 상태·자동 만료 문구).                                                                                                                                            |
+| `apps/web/src/app/features/invite/utils/inviteStatus.ts`              | `MyInviteStatus` → 목록 뱃지/재초대 변형 매핑 + `flags.ts` 불리언 → i18n 키 리졸버(`resolveExpiredReinviteDescriptionKey`, `resolveCancelDialogDescriptionKey`) — 플래그가 실제로 카피를 게이팅하는 지점. |
+| `apps/web/src/app/features/invite/utils/inviteMessageCopy.ts`         | SMS 본문 조립(`ContactInvitePage`/`InviteWaitingPage` 재발급 공용).                                                                                                                                       |
+| `apps/web/src/app/features/invite/utils/sendInviteMessage.ts`         | SMS 발송/클립보드 폴백 오케스트레이션.                                                                                                                                                                    |
+| `apps/web/src/app/features/invite/hooks/useLocallyCanceledInvites.ts` | 취소 스텁 로컬 상태(localStorage id 집합).                                                                                                                                                                |
+| `apps/web/src/app/features/invite/hooks/useInviteWaitingStatus.ts`    | 대상 invite 조회 + 30초 폴링(포커스 폴링은 `useRelayInvites` 기본 동작).                                                                                                                                  |
+| `apps/web/src/app/features/invite/hooks/useAcceptedChannelSync.ts`    | 수락 감지 후 `channel.observeItem` 대기 + 타임아웃.                                                                                                                                                       |
+| `apps/web/src/app/features/invite/hooks/useInviteListRows.ts`         | `useRelayInvites()` → `pending`/`expired` + 로컬 미취소 필터. `ChannelList`/`PlaceChannelManagePage` 공용 데이터소스.                                                                                     |
+| `apps/web/src/app/features/invite/components/ReinviteDialog.tsx`      | 재초대 다이얼로그(3변형 — pending/expired/declined; declined는 오늘은 도달 불가).                                                                                                                         |
+| `apps/web/src/app/features/invite/components/InviteChannelRow.tsx`    | 리스트 통합 공용 행(홈+관리 화면) — `ListRow` + `StatusBadge`로 조립.                                                                                                                                     |
+| `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx`        | 연락처 입력 → 발급/재초대 오케스트레이션.                                                                                                                                                                 |
+| `apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx`        | 대기/만료/수락/취소 화면.                                                                                                                                                                                 |
+| `apps/web/src/app/features/invite/index.tsx`                          | `InviteRoutes` — `contact`, `:inviteId/waiting`.                                                                                                                                                          |
+| `libs/web-ui-kit/src/foundations/badge/StatusBadge.tsx`               | `variant`에 `expired`(muted 톤) 추가 — "초대 만료"/거절 통합 뱃지에 재사용.                                                                                                                               |
+| `apps/web/src/app/routes/paths.ts`                                    | `ROUTES.invite.contact` / `ROUTES.invite.waiting(inviteId)` 추가.                                                                                                                                         |
+| `apps/web/src/app/routes/PrivateRoutes.tsx`                           | `invite/*` lazy 마운트.                                                                                                                                                                                   |
+| `apps/web/src/app/features/home/pages/HomePage.tsx`                   | `handleCreateOneOnOne` → `navigate(ROUTES.invite.contact)`. `useInviteListRows()`를 default 클라우드에서만 `ChannelList`에 전달.                                                                          |
+| `apps/web/src/app/features/home/components/ChannelList.tsx`           | `sentInvites`/`onSelectInvite` prop 추가, 실채널 목록 위에 `InviteChannelRow` 렌더.                                                                                                                       |
+| `apps/web/src/app/features/place/pages/PlaceChannelManagePage.tsx`    | `selectedCloudId === 'default'`일 때만 `useInviteListRows()`를 가져와 관리 목록 위에 초대 행 추가(탭 → 대기 화면; 기존 다중선택/삭제 플로우와는 분리).                                                    |
 
 ### 라우팅
 
@@ -209,7 +215,7 @@ invite: {
 
 - 타입: `npx tsc --noEmit -p apps/web/tsconfig.app.json` — 클린(0 에러). 처음 실행 시 워크트리가
   한 번도 빌드된 적이 없어 라이브러리 프로젝트 레퍼런스(TS6305) 노이즈가 났었다 — `npx tsc
-  --build apps/web/tsconfig.app.json`로 참조 프로젝트를 한 번 빌드하면 사라진다(신규
+--build apps/web/tsconfig.app.json`로 참조 프로젝트를 한 번 빌드하면 사라진다(신규
   워크트리에서 한 번만 필요).
 - 단위 테스트: `npx jest --config apps/web/jest.config.js --runInBand --watchman=false` — apps/web
   전체 109 스위트 690개 통과. `libs/web-ui-kit`도 전체 56 스위트 215개 통과(`StatusBadge` 변형 추가).
@@ -233,6 +239,12 @@ invite: {
 - **"초대 거절" 상태 없음(요청 2번)**: `resolveInviteRowBadge`/`resolveReinviteVariant` 모두
   `expired`로 흡수한다. `ReinviteDialog`의 `declined` 카피는 준비돼 있지만 오늘은 어떤 리졸버도
   선택하지 않는다.
-- **`invite.list` 기본 10건 한도**: 재초대 감지·리스트 통합 모두 첫 페이지만 본다. 오래된 pending
-  invite가 10건을 넘으면 재초대 감지가 "이력 없음"으로 새어나갈 수 있다(안전한 방향의 실패 —
-  중복 코드가 생길 뿐 데이터 손상은 아님).
+- **`invite.list` 기본 10건 한도**: `useRelayInvites`가 `limit`을 보내지 않아 서버 기본값
+  10건에 갇히고, 재초대 감지·리스트 통합·대기 화면 모두 그 첫 페이지만 본다. **실패 방향은
+  "이력 없음"이 아니다** — `findByPhone`는 로컬 이력(`useSentInviteLog`)을 읽으므로 이력 자체는
+  항상 잡히고, 그다음 `invites.find(...)`가 못 찾아 `resolveReinviteVariant(undefined)`가
+  `'expired'`로 떨어진다. 즉 **아직 pending인 초대를 "이전 초대가 만료되었어요"로 오안내하고
+  재발급을 유도**해, 같은 번호에 유효한 코드가 둘 생긴다(요청 3번이 없으므로 이전 것이 죽지
+  않는다). 대기 화면도 같은 목록에서 찾으므로 밀려난 invite는 "초대 정보를 찾을 수 없어요"로
+  보인다. `InviteListInput`에 커서·오프셋이 없어 진짜 페이징은 불가능하고 `limit`이 유일한
+  수단이다 — 아직 적용하지 않았다.

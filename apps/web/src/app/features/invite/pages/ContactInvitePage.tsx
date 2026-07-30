@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
 import { Button, TextField } from '@chatic/web-ui-kit';
@@ -11,7 +12,9 @@ import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
+import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import { isValidKoreanPhone, normalizeKoreanPhone } from '../../channels/utils/koreanPhone';
+import { InviterVerifyPrompt } from '../components/InviterVerifyPrompt';
 import { ReinviteDialog } from '../components/ReinviteDialog';
 import { resolveReinviteVariant, type ReinviteVariant } from '../utils/inviteStatus';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
@@ -30,7 +33,11 @@ interface PendingReinvite {
 
 /**
  * 연락처로 초대 페이지 (ADR-0033 Track B) — the home ＋menu "1:1 대화" destination.
- * Figma 3266-32434 (기본) / 3266-35386 (입력됨) / 3268-35795 (검증 에러).
+ * Figma 3266-35386 (입력됨) / 3268-35795 (검증 에러) / 3578-67319 (게스트 인증 유도).
+ *
+ * Only a main user can issue a relay invite, so a device user never reaches the form: the page
+ * intercepts with `InviterVerifyPrompt` and verifies in a sheet first (ADR-0034). `isGuest` is
+ * reactive, so finishing verification swaps this screen to the form on the next render.
  */
 export const ContactInvitePage = () => {
     const { t } = useTranslation();
@@ -38,13 +45,18 @@ export const ContactInvitePage = () => {
     const navigate = useNavigateWithTransition();
     const fieldsRef = useRef<HTMLDivElement>(null);
     useFormKeyboardFlow(fieldsRef);
+    /** Verification is offered at most once per visit, so a 403 that verification cannot fix (a
+     *  withdrawn/suspended account) explains itself instead of reopening the sheet forever. */
+    const verifyOfferedRef = useRef(false);
 
     const [name, setName] = useState('');
     const [phoneInput, setPhoneInput] = useState('');
     const [phoneError, setPhoneError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingReinvite, setPendingReinvite] = useState<PendingReinvite | null>(null);
+    const [isVerifyOpen, setIsVerifyOpen] = useState(false);
 
+    const { isGuest } = useRuntimeProfile();
     const { invites } = useRelayInvites();
     const { createInvite } = useRelayInviteMutations();
     const { record, findByPhone } = useSentInviteLog();
@@ -90,13 +102,20 @@ export const ContactInvitePage = () => {
             navigate(ROUTES.invite.waiting(invite.id), { replace: true });
         } catch (error) {
             reportError(toError(error));
-            // 403 = not a main user yet (client guide §A-1). Track A's PhoneVerifyScreen is the
-            // sanctioned next step once it lands (roadmap 인터페이스 계약) — until then, surface it.
-            const isGuestBlocked = getSocketErrorCode(error) === 403;
-            toast({
-                title: isGuestBlocked ? t('contactInvite.guestBlocked') : t('contactInvite.issueFailed'),
-                variant: 'destructive',
-            });
+            // 403 covers more than "still a guest" — §에러 코드 also lists withdrawn/suspended
+            // accounts, for which verifying resolves to the SAME user and would 403 again. So offer
+            // verification once (the gate below normally catches a plain guest first, so reaching
+            // here means the client role lagged), then explain instead of looping.
+            if (getSocketErrorCode(error) === 403 && !verifyOfferedRef.current) {
+                verifyOfferedRef.current = true;
+                // The form keeps its input, so the user resubmits once verified — no auto-retry,
+                // which would fire on a stale closure.
+                setIsVerifyOpen(true);
+            } else if (getSocketErrorCode(error) === 403) {
+                toast({ title: t('contactInvite.issueForbidden'), variant: 'destructive' });
+            } else {
+                toast({ title: t('contactInvite.issueFailed'), variant: 'destructive' });
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -139,61 +158,72 @@ export const ContactInvitePage = () => {
     const nameError = name.length > NAME_MAX ? t('contactInvite.nameTooLong') : '';
     const isSubmitDisabled = !name.trim() || !phoneDigits || isSubmitting || !!phoneError || !!nameError;
 
+    // ONE return with the sheet in a fixed child slot. Two returns would put it at a different index
+    // per branch, and React reconciles by position — so the promotion (which flips `isGuest` as soon
+    // as the token is committed, BEFORE the socket switch settles) would unmount the live sheet
+    // mid-switch and throw away its `pendingToken` retry.
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('contactInvite.title')} />
 
-            <div className="flex flex-1 flex-col overflow-y-auto overscroll-none">
-                <div className="flex flex-col gap-4 px-4 pt-6">
-                    <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
-                        {t('contactInvite.heading')}
-                    </h2>
-                    <div className="flex flex-col text-center text-[14px] font-medium leading-[20px]">
-                        <p className="whitespace-pre-line text-placeholder">{t('contactInvite.headingNote')}</p>
-                        {/* Server-rendered validity — never a hardcoded duration (ADR-0033 D8). */}
-                        <p className="text-description">{t('contactInvite.validityHint')}</p>
+            {/* A guest cannot issue an invite, so the form is not rendered at all until verified. */}
+            {isGuest && <InviterVerifyPrompt onStart={() => setIsVerifyOpen(true)} />}
+
+            {!isGuest && (
+                <div className="flex flex-1 flex-col overflow-y-auto overscroll-none">
+                    <div className="flex flex-col gap-4 px-4 pt-6">
+                        <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
+                            {t('contactInvite.heading')}
+                        </h2>
+                        <div className="flex flex-col text-center text-[14px] font-medium leading-[20px]">
+                            <p className="whitespace-pre-line text-placeholder">{t('contactInvite.headingNote')}</p>
+                            {/* Server-rendered validity — never a hardcoded duration (ADR-0033 D8). */}
+                            <p className="text-description">{t('contactInvite.validityHint')}</p>
+                        </div>
+                    </div>
+
+                    <div ref={fieldsRef} className="flex flex-col gap-6 pt-8">
+                        <TextField
+                            label={t('contactInvite.nameLabel')}
+                            required
+                            value={name}
+                            onChange={setName}
+                            placeholder={t('contactInvite.namePlaceholder')}
+                            maxLength={NAME_MAX}
+                            enforceMaxLength={false}
+                            error={nameError || undefined}
+                            description={t('contactInvite.nameHint')}
+                        />
+
+                        <TextField
+                            label={t('contactInvite.phoneLabel')}
+                            required
+                            value={phoneInput}
+                            onChange={handlePhoneChange}
+                            placeholder={t('contactInvite.phonePlaceholder')}
+                            type="tel"
+                            inputMode="numeric"
+                            error={phoneError || undefined}
+                            description={t('contactInvite.phoneHint')}
+                        />
                     </div>
                 </div>
+            )}
 
-                <div ref={fieldsRef} className="flex flex-col gap-6 pt-8">
-                    <TextField
-                        label={t('contactInvite.nameLabel')}
-                        required
-                        value={name}
-                        onChange={setName}
-                        placeholder={t('contactInvite.namePlaceholder')}
-                        maxLength={NAME_MAX}
-                        enforceMaxLength={false}
-                        error={nameError || undefined}
-                        description={t('contactInvite.nameHint')}
-                    />
-
-                    <TextField
-                        label={t('contactInvite.phoneLabel')}
-                        required
-                        value={phoneInput}
-                        onChange={handlePhoneChange}
-                        placeholder={t('contactInvite.phonePlaceholder')}
-                        type="tel"
-                        inputMode="numeric"
-                        error={phoneError || undefined}
-                        description={t('contactInvite.phoneHint')}
-                    />
+            {!isGuest && (
+                <div className="shrink-0 px-4 pb-safe-bottom pt-3">
+                    <Button
+                        tone="green"
+                        size="lg"
+                        fullWidth
+                        loading={isSubmitting}
+                        disabled={isSubmitDisabled}
+                        onClick={handleSubmit}
+                    >
+                        {t('contactInvite.submit')}
+                    </Button>
                 </div>
-            </div>
-
-            <div className="shrink-0 px-4 pb-safe-bottom pt-3">
-                <Button
-                    tone="green"
-                    size="lg"
-                    fullWidth
-                    loading={isSubmitting}
-                    disabled={isSubmitDisabled}
-                    onClick={handleSubmit}
-                >
-                    {t('contactInvite.submit')}
-                </Button>
-            </div>
+            )}
 
             {pendingReinvite && (
                 <ReinviteDialog
@@ -203,6 +233,10 @@ export const ContactInvitePage = () => {
                     onViewWaiting={handleViewWaiting}
                     onReissue={handleReissue}
                 />
+            )}
+
+            {isVerifyOpen && (
+                <PhoneVerifySheet onVerified={() => setIsVerifyOpen(false)} onClose={() => setIsVerifyOpen(false)} />
             )}
         </div>
     );

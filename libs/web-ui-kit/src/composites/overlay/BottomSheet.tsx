@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Sheet as Root, SheetContent, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
+import { Sheet as Root, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -14,6 +14,12 @@ export interface BottomSheetProps {
     title?: string;
     /** Shows the close (X) button in the header. */
     onClose?: () => void;
+    /**
+     * Screen-reader description of the sheet's purpose. Radix warns when a dialog has neither a
+     * description nor an explicit opt-out, so omitting this opts out deliberately rather than by
+     * accident. Host supplies a localized string.
+     */
+    description?: string;
     /** Shows the top drag handle. */
     showHandle?: boolean;
     /** Scrollable body content. */
@@ -35,6 +41,7 @@ export const BottomSheet = ({
     open,
     onOpenChange,
     title,
+    description,
     onClose,
     showHandle = false,
     children,
@@ -52,6 +59,10 @@ export const BottomSheet = ({
             <SheetContent
                 side="bottom"
                 hideClose
+                // Radix links its own Description automatically, but warns when a dialog has neither
+                // one nor an explicit opt-out — so pass the key (with no value) only when there is
+                // nothing to link. Spreading it unconditionally would suppress the auto-link too.
+                {...(description ? {} : { 'aria-describedby': undefined })}
                 className={cn(
                     // overflow-hidden is what makes rounded-t actually visible: the glass header below
                     // paints its own square backdrop-filter box and would otherwise cover the corners.
@@ -71,6 +82,7 @@ export const BottomSheet = ({
                     >
                         {title}
                     </SheetTitle>
+                    {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
                     {onClose && (
                         <button
                             type="button"

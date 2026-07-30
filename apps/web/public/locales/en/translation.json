@@ -15,6 +15,7 @@
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
+        "close": "Close",
         "confirm": "OK",
         "save": "Save Changes",
         "saving": "Saving..."
@@ -1112,7 +1113,9 @@
         "retry": "Retry",
         "devDelivery": "Dev delivery switches",
         "devDryRun": "Skip delivery (dryRun)",
-        "devSlack": "Receive via Slack"
+        "devSlack": "Receive via Slack",
+        "sheetTitle": "Verify phone number",
+        "sheetDescription": "Enter your phone number and the code\nwe send you to confirm it is you"
     },
     "addAccount": {
         "title": "Add Account",
@@ -1221,7 +1224,6 @@
             "clipboard": "Copied the invite link to your clipboard",
             "deliveryFailed": "Invite sent — please try sharing the link again"
         },
-        "guestBlocked": "Verify your phone number or log in before inviting",
         "issueFailed": "Couldn't send the invite. Please try again in a moment",
         "reinvite": {
             "pending": {
@@ -1238,7 +1240,13 @@
                 "description": "You can send a new invite link\nto invite them again."
             },
             "reissueConfirm": "Invite again"
-        }
+        },
+        "verifyPrompt": {
+            "title": "To keep invites safe,\nplease verify your phone number",
+            "note": "This prevents spam and number misuse,\nand is only needed once.",
+            "cta": "Verify phone number"
+        },
+        "issueForbidden": "You can't send invites right now. If this persists after verifying, please contact support"
     },
     "inviteWaiting": {
         "moreOptions": "More options",
