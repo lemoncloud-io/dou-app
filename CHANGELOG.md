@@ -1,5 +1,38 @@
 # Changelog
 
+## [2026-07-30] - root@0.46.0, @chatic/web@0.39.0
+
+### Features
+
+- (web-ui-kit) swap in the new DoU character/wordmark artwork
+- (web/mypage) split the version row per Figma, gate update row to iOS
+- (deeplink) add relay invite link support
+- (web) add the app update prompt and wire it through appBridge
+- (mobile) add versionService and wire the app-update bridge handler
+- (app-messages) add CheckAppUpdate/OpenStore message contract
+
+### Bug Fixes
+
+- (mobile/ios) quote TARGET_TEMP_DIR in ReactNativeStaticServer's cmake build
+- (mobile/sqlite) gate every query on migrations completing
+- (core) improve database migrations and storage adapter robustness
+- (web) silence no-empty-function for the test's foreground-handler stub
+- (web/home) stop the DoU Home mascot clipping inside its avatar disc
+
+### Documentation
+
+- (adr) add app update check ADR
+
+### Chores
+
+- (web/home) drop the lastChat$ fallback from unread head calc
+- (mobile) fix import order in affected version-check tests
+- (mobile) bump app versions 0.21.1
+- (web/appupdate) drop remaining kill-switch gating
+- (web/appupdate) re-enable app update check feature
+- (web) temporarily disable the app-update-check feature
+- (mobile) bump app versions 0.21.0
+
 ## [2026-07-29] - root@0.45.0, @chatic/web@0.38.0
 
 ### Features
