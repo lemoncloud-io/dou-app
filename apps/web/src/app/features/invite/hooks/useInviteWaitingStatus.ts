@@ -12,9 +12,9 @@ const POLL_INTERVAL_MS = 30_000;
  * inviter's own `invite.list` (Track 0's `useRelayInvites`).
  *
  * The client guide has no accept-notification packet, so the inviter side only ever learns about
- * an acceptance by re-asking — `useRelayInvites` already refetches on window focus (react-query
- * default); this adds the roadmap's "+30s" cadence on top, scoped to the lifetime of this hook
- * (mount/unmount), so it only runs while the waiting screen is actually shown.
+ * an acceptance by re-asking — `useRelayInvites` opts into a window-focus refetch; this adds the
+ * roadmap's "+30s" cadence on top, scoped to the lifetime of this hook (mount/unmount), so it only
+ * runs while the waiting screen is actually shown.
  */
 export const useInviteWaitingStatus = (inviteId: string | undefined) => {
     const { invites, isLoading, refetch } = useRelayInvites();

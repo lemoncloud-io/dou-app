@@ -29,7 +29,8 @@ export const relayInviteKeys = {
  *
  * Polled rather than persisted: the backend has no accept notification yet, and invites have no
  * offline requirement, so ADR-0033 keeps them out of repositories-v2. Callers own the polling
- * cadence — this hook only refetches on window focus, which covers "user came back to the tab".
+ * cadence — this hook only refetches on window focus, which covers "user came back to the tab"
+ * (see the query options for why that needs an explicit opt-out of the app's global `staleTime`).
  *
  * `total` on the response counts the page, not the collection, so it is not surfaced; ask for the
  * next page and stop when it comes back empty.
@@ -43,6 +44,13 @@ export const useRelayInvites = (state?: InviteState) => {
             const result = await invite.list<InviteListPage>(state ? { state } : null);
             return result?.list ?? [];
         },
+        // Both options are load-bearing and must stay together. The app's QueryClient defaults to
+        // `staleTime: Infinity` (app.tsx) — under it a focus refetch never fires, because react-query
+        // only refetches queries it considers stale, so relying on the focus default alone would be a
+        // no-op here. An invite changes on someone ELSE's device (the recipient accepts) and there is
+        // no notification packet for it (백엔드 요청 #4), so coming back to the screen has to re-ask.
+        staleTime: 0,
+        refetchOnWindowFocus: true,
     });
 
     return {
