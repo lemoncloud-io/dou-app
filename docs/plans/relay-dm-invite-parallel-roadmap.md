@@ -137,9 +137,14 @@ useSentInviteLog(): {
 2. ~~invite 게이트웨이 배선~~ **완료** — `libs/data/src/data/remote/gateways/index.ts`
    에 연결되고 `libs/app-runtime`의 `useRuntimeGateways`로 노출된다
    (`remoteFactory`·`DataManager`·`MockRemoteGateways` 포함).
-3. 위 인터페이스 계약의 훅 구현 + 단위 테스트 (MockSocketClient 패턴). **남음**
-4. 딥링크 파서 확장: `parseInviteDeeplink`(`apps/web/.../home/types/invite.ts`)가
-   `relay` 마커를 읽어 `isRelayInvite`를 노출. **남음**
+3. ~~위 인터페이스 계약의 훅 구현 + 단위 테스트.~~ **완료** — 훅은 통합 시점에,
+   단위 테스트는 2026-07-30에 (`useRelayInvites.test.ts`·`useVerifyHashAlias.test.ts`·
+   `useAttachSocial.test.ts`). 테스트 seam은 MockSocketClient가 아니라 **게이트웨이
+   목**이다 — 훅이 소유한 것은 패킷 body(`step` 매핑·발송 스위치 생략·`invite.list`
+   봉투)와 캐시 무효화 키이고, 패킷의 **목적지**(relay 고정)는 한 층 아래
+   `libs/app-runtime/.../remoteFactory.test.ts`가 이미 덮는다.
+4. ~~딥링크 파서 확장: `parseInviteDeeplink`(`apps/web/.../home/types/invite.ts`)가
+   `relay` 마커를 읽어 `isRelayInvite`를 노출.~~ **완료**
 
 **완료 기준** — 훅이 dev 스테이지에서 `invite.create → list` 왕복에 성공하고,
 타 트랙이 import 가능한 상태로 develop에 머지.
@@ -360,13 +365,42 @@ Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문�
       커밋 전 reject한다)
 - [ ] 로그아웃 → 디바이스 유저 복귀 → 재인증
 - [ ] 만료·이미 참여·404 케이스 화면
-- [ ] 수락 후 DM 방 감지 — 새 방이 relay `selectedSiteId`가 아닌 sid로 들어오면
-      감지에 실패하고 폴백이 뜬다. 필터를 넓히는 건 한 줄
+- [ ] 수락 후 DM 방 감지 — **3단 해소 중 어디서 걸리는지 확인**(ADR-0035). 특히
+      `invite.accept` 응답과 직후 `invite.get`에 `channelId`가 실리는지가 백엔드 요청
+      5번의 근거 데이터다. 1·2단이 비어도 3단(종전 경로)이 받으므로 회귀는 없다.
+      ~~새 방이 relay `selectedSiteId`가 아닌 sid로 들어오면 감지 실패~~ — 조사 완료·기각
+      (relay는 플레이스가 하나뿐, ADR-0035 "조사 중 기각한 가설")
 - [ ] 네이티브 소셜 attach 성공 → 로그아웃 → 같은 계정 재로그인
 - [ ] SMS 작성기 실기기 동작 (본문 딥링크 프리필)
 - [ ] 재구성한 3개 화면 실기기 픽셀 확인 — `PhoneVerifyScreen`(발송 전/후·오답·
       만료·5회 초과 다이얼로그), `ContactInvitePage`(기본·입력·에러), 초대 대기
       화면(대기·만료). 안전영역·키보드 올라온 상태 포함
+
+## 로드맵 대조 감사 (2026-07-30)
+
+로드맵 각 항목을 코드와 대조해 "적혀 있으나 실제로는 안 된 것"을 찾아 고쳤다.
+트랙 범위 자체는 전부 구현돼 있었고, 아래 셋이 실제 갭이었다.
+
+1. **Track 0-3 단위 테스트 부재** → 훅 3개 스위트 추가(위 Track 0 절). 하위 스위트가
+   전부 이 훅들을 목으로 대체하고 있어, 봉투 키·`step` 매핑·무효화 키가 어긋나도
+   레포의 어떤 테스트도 눈치채지 못하는 상태였다.
+2. **"화면 포커스 시 폴링"이 무동작** → `useRelayInvites`에 `staleTime: 0` +
+   `refetchOnWindowFocus: true` 명시. 앱 전역 기본값이 `staleTime: Infinity`
+   (`app.tsx`)라서 쿼리가 영원히 fresh였고, react-query는 stale한 쿼리만 refetch하므로
+   포커스 기본값에 기대던 코드가 no-op이었다. 실주기는 30초 인터벌뿐이었다.
+   회귀 테스트가 수정 전에 실패하는 것까지 확인했다.
+   홈/관리 화면 초대 행(`useInviteListRows`)에는 인터벌을 **일부러 넣지 않았다** —
+   메인 화면에서 상시 폴링이 된다. 포커스 refetch + mutation 무효화로 충분하다.
+3. **죽은 플래그 2개** → `INVITE_REJECTED_STATE_SUPPORTED`는 실제로 배선했고
+   (`resolveInviteRowBadge`/`resolveReinviteVariant`가 `rejected`를 인식,
+   `contactInvite.badge.declined`·`rowStatus.declined` 카피 추가 — 백엔드가 상태를
+   주면 플래그 반전이 변경의 전부다), `INVITE_ACCEPT_CHANNEL_ID_TIMING_CONFIRMED`는
+   **삭제했다**. 후자의 문서화된 동작("channelId 없음 = 아직 모름")은 백엔드가 타이밍을
+   확정하든 말든 옳으므로 플래그로 가릴 게 없다 — 열려 있는 질문은 그것이 실제로
+   적용되는 `useAcceptedChannelSync`가 주석으로 들고 있다.
+
+**검증** — `tsc -b apps/web/tsconfig.app.json` 클린 · apps/web 125 suites /
+861 tests 통과 · 변경 파일 eslint·prettier 클린.
 
 ## 후속 과제
 
@@ -385,16 +419,21 @@ Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문�
 
 ## 백엔드 요청 목록 (chatic-backend-api / sockets-api 팀 전달용)
 
-| #   | 요청                                                                       | 근거 화면                                      | 클라 현 대응                                        |
-| --- | -------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------- |
-| 1   | 초대 취소 API (`invite.cancel`) + 수신자 조회 시 `canceled` 구분           | 대기 화면·관리 화면·수신자 취소 팝업           | 취소 버튼 스텁, 404를 "취소·유효하지 않음"으로 통합 |
-| 2   | 초대 거절 API + `rejected` 상태                                            | 수락 팝업 거절 버튼, 초대자측 "초대 거절" 뱃지 | 거절 버튼 스텁(닫기), 뱃지는 만료 취급              |
-| 3   | 재발급 시 같은 번호의 이전 pending 초대 자동 revoke                        | "이전 링크는 자동으로 만료됩니다" 카피         | 카피 보류/조정                                      |
-| 4   | 수락 알림 (소켓 이벤트 or push)                                            | 대기 화면 실시간 갱신                          | `invite.list` 폴링 (30초)                           |
-| 5   | dm `channelId` 회수 (수락 응답 동봉 or 초대 뷰 `channelId` 채움 시점 확정) | 수락 직후 입장                                 | 채널 sync 이벤트 대기 + 타임아웃 폴백               |
-| 6   | 소셜 연동 목록 조회 API                                                    | 소셜 관리 화면                                 | 로컬 캐시 + 스텁                                    |
-| 7   | 소셜 연동 해제 API                                                         | 소셜 관리 화면                                 | 해제 버튼 스텁                                      |
-| 8   | (선택) 발급 응답에 기존 dm 존재 시그널                                     | "이미 1:1 대화가 있어요" 다이얼로그            | v1 미구현 (ADR-0033 D2)                             |
+| #   | 요청                                                                                                                                                                                            | 근거 화면                                      | 클라 현 대응                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | 초대 취소 API (`invite.cancel`) + 수신자 조회 시 `canceled` 구분                                                                                                                                | 대기 화면·관리 화면·수신자 취소 팝업           | 취소 버튼 스텁, 404를 "취소·유효하지 않음"으로 통합                   |
+| 2   | 초대 거절 API + `rejected` 상태                                                                                                                                                                 | 수락 팝업 거절 버튼, 초대자측 "초대 거절" 뱃지 | 거절 버튼 스텁(닫기), 뱃지는 만료 취급 (아래 †)                       |
+| 3   | 재발급 시 같은 번호의 이전 pending 초대 자동 revoke                                                                                                                                             | "이전 링크는 자동으로 만료됩니다" 카피         | 카피 보류/조정                                                        |
+| 4   | 수락 알림 (소켓 이벤트 or push)                                                                                                                                                                 | 대기 화면 실시간 갱신                          | `invite.list` 폴링 (30초)                                             |
+| 5   | **이미 있는 `InviteModel.channelId`("수락으로 생긴 dm 방")를 수락 시점에 채워 달라** — 신규 필드·계약 확장이 아니다. 수락 응답에 실리는 것이 최선이고, 최소한 직후 `invite.get`에서 읽히면 된다 | 수락 직후 입장                                 | 3단 해소: 응답 직독 → `invite.get` 재조회 → 채널 목록 감시 (ADR-0035) |
+| 6   | 소셜 연동 목록 조회 API                                                                                                                                                                         | 소셜 관리 화면                                 | 로컬 캐시 + 스텁                                                      |
+| 7   | 소셜 연동 해제 API                                                                                                                                                                              | 소셜 관리 화면                                 | 해제 버튼 스텁                                                        |
+| 8   | (선택) 발급 응답에 기존 dm 존재 시그널                                                                                                                                                          | "이미 1:1 대화가 있어요" 다이얼로그            | v1 미구현 (ADR-0033 D2)                                               |
+
+† 요청 2 — 거절 **뱃지와 재초대 카피는 이미 배선돼 있다**
+(`INVITE_REJECTED_STATE_SUPPORTED` 뒤). `resolveInviteRowBadge`/`resolveReinviteVariant`가
+`rejected`를 인식하고 `contactInvite.badge.declined`·`rowStatus.declined` 카피도 있으니,
+백엔드가 상태를 주면 플래그 반전이 변경의 전부다. 거절 **버튼**은 여전히 스텁이다.
 
 **디자인 요청**: 유효시간 카피 24시간 → **3일**로 수정 (`3266-32434` 등 초대 폼,
 및 재초대 다이얼로그의 "자동 만료" 문구 — 요청 3 확정 전까지 보류).
