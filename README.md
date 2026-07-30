@@ -418,6 +418,7 @@ yarn prettier:staged        # Format staged files only
 # Test
 npx nx test web             # Test specific project
 npx nx test                 # Run all tests
+yarn desktop:test:sandbox   # Electron preload under sandbox — run when touching apps/desktop/src/preload
 
 # Cache
 yarn clean:cache            # Clear Vite/Nx caches
