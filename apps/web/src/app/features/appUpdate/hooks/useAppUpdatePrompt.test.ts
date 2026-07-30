@@ -1,14 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
 
-// Most tests exercise the real check/dismiss/foreground mechanics, independent of the temporary
-// kill switch — force it on here; the kill-switch behavior itself is covered separately below.
-let mockFeatureEnabled = true;
-jest.mock('../featureFlag', () => ({
-    get IS_APP_UPDATE_CHECK_ENABLED() {
-        return mockFeatureEnabled;
-    },
-}));
-
 const mockIsNative = jest.fn();
 jest.mock('@chatic/bridges', () => ({
     isNative: (...args: unknown[]) => mockIsNative(...args),
@@ -42,15 +33,15 @@ jest.mock('../../../stores/usePreferenceStore', () => {
 
 import { useAppUpdatePrompt } from './useAppUpdatePrompt';
 
-const flush = () => act(async () => {
-    await Promise.resolve();
-});
+const flush = () =>
+    act(async () => {
+        await Promise.resolve();
+    });
 
 describe('useAppUpdatePrompt', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         fakeDismissedUpdateVersion = '';
-        mockFeatureEnabled = true;
     });
 
     it('비네이티브에서는 마운트 시 checkAppUpdate를 호출하지 않는다', async () => {
@@ -66,7 +57,13 @@ describe('useAppUpdatePrompt', () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue({
             success: true,
-            data: { platform: 'ios', currentVersion: '1.0.0', latestVersion: '1.1.0', updateAvailable: true, storeUrl: 'x' },
+            data: {
+                platform: 'ios',
+                currentVersion: '1.0.0',
+                latestVersion: '1.1.0',
+                updateAvailable: true,
+                storeUrl: 'x',
+            },
         });
 
         const { result } = renderHook(() => useAppUpdatePrompt());
@@ -80,7 +77,13 @@ describe('useAppUpdatePrompt', () => {
         fakeDismissedUpdateVersion = '1.1.0';
         mockCheckAppUpdate.mockResolvedValue({
             success: true,
-            data: { platform: 'ios', currentVersion: '1.0.0', latestVersion: '1.1.0', updateAvailable: true, storeUrl: 'x' },
+            data: {
+                platform: 'ios',
+                currentVersion: '1.0.0',
+                latestVersion: '1.1.0',
+                updateAvailable: true,
+                storeUrl: 'x',
+            },
         });
 
         const { result } = renderHook(() => useAppUpdatePrompt());
@@ -103,7 +106,13 @@ describe('useAppUpdatePrompt', () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue({
             success: true,
-            data: { platform: 'ios', currentVersion: '1.0.0', latestVersion: '1.0.0', updateAvailable: false, storeUrl: 'x' },
+            data: {
+                platform: 'ios',
+                currentVersion: '1.0.0',
+                latestVersion: '1.0.0',
+                updateAvailable: false,
+                storeUrl: 'x',
+            },
         });
 
         renderHook(() => useAppUpdatePrompt());
@@ -122,7 +131,13 @@ describe('useAppUpdatePrompt', () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue({
             success: true,
-            data: { platform: 'ios', currentVersion: '1.0.0', latestVersion: '1.2.0', updateAvailable: true, storeUrl: 'x' },
+            data: {
+                platform: 'ios',
+                currentVersion: '1.0.0',
+                latestVersion: '1.2.0',
+                updateAvailable: true,
+                storeUrl: 'x',
+            },
         });
 
         const { result } = renderHook(() => useAppUpdatePrompt());
@@ -143,7 +158,13 @@ describe('useAppUpdatePrompt', () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue({
             success: true,
-            data: { platform: 'ios', currentVersion: '1.0.0', latestVersion: '1.2.0', updateAvailable: true, storeUrl: 'x' },
+            data: {
+                platform: 'ios',
+                currentVersion: '1.0.0',
+                latestVersion: '1.2.0',
+                updateAvailable: true,
+                storeUrl: 'x',
+            },
         });
 
         const { result } = renderHook(() => useAppUpdatePrompt());
@@ -153,21 +174,6 @@ describe('useAppUpdatePrompt', () => {
 
         expect(mockOpenStore).toHaveBeenCalled();
         expect(mockDismissUpdate).toHaveBeenCalledWith('1.2.0');
-        expect(result.current.open).toBe(false);
-    });
-
-    it('킬 스위치가 꺼져 있으면 네이티브에서 업데이트가 있어도 checkAppUpdate를 호출하지 않는다', async () => {
-        mockFeatureEnabled = false;
-        mockIsNative.mockReturnValue(true);
-        mockCheckAppUpdate.mockResolvedValue({
-            success: true,
-            data: { platform: 'ios', currentVersion: '1.0.0', latestVersion: '1.1.0', updateAvailable: true, storeUrl: 'x' },
-        });
-
-        const { result } = renderHook(() => useAppUpdatePrompt());
-        await flush();
-
-        expect(mockCheckAppUpdate).not.toHaveBeenCalled();
         expect(result.current.open).toBe(false);
     });
 });
