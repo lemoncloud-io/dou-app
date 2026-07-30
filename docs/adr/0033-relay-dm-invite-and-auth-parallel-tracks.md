@@ -99,6 +99,8 @@ Figma 디자인(채팅방 관리·초대·대기·수락·전화번호 인증 �
 - **초대 목록을 IndexedDB 리포지토리(repositories-v2)로 승격** — 초대는 오프라인
   요구가 없고 폴링으로 즉시 조회 가능하다. react-query 훅 + UI 병합으로 충분.
   버림 (수락 알림이 push 기반으로 바뀌면 재검토).
+  → **이 기각은 [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md)이
+  대체했다** (2026-07-30, 접근 표면 단일화 — 영속화 의무 없는 repository 승격).
 
 ## 결과 (Consequences)
 
