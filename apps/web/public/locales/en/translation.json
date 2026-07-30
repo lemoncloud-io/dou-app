@@ -1212,10 +1212,12 @@
         "maskedPhone": "010-****-{{last4}}",
         "badge": {
             "pending": "Invite pending",
-            "expired": "Invite expired"
+            "expired": "Invite expired",
+            "declined": "Invite declined"
         },
         "rowStatus": {
-            "expired": "This invite link expired. Check its status."
+            "expired": "This invite link expired. Check its status.",
+            "declined": "They declined this invite. You can invite them again."
         },
         "smsMessage": "{{senderName}} invited you to a 1:1 chat on DoU! Tap the link below to join.\n{{deeplink}}",
         "defaultSenderName": "A friend",

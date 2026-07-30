@@ -5,6 +5,7 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { DefaultAvatar, ListRow, StatusBadge } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/lib/utils';
 
+import { INVITE_REJECTED_STATE_SUPPORTED } from '../flags';
 import { resolveInviteRowBadge } from '../utils/inviteStatus';
 
 interface InviteChannelRowProps {
@@ -25,13 +26,15 @@ interface InviteChannelRowProps {
 export const InviteChannelRow = ({ invite, onClick }: InviteChannelRowProps) => {
     const { t } = useTranslation();
 
-    const badge = resolveInviteRowBadge(invite.state);
+    const badge = resolveInviteRowBadge(invite.state, INVITE_REJECTED_STATE_SUPPORTED);
     const name = invite.name || t('contactInvite.unnamedRecipient');
     const isSpent = badge?.variant === 'expired';
     // A spent invite explains itself on the second line (Figma 3408-28373); a live one has no status
     // to report, so it keeps the masked number — the only thing telling two same-named invites apart.
+    // Declined says why it is spent instead of blaming the clock (only reachable once the backend
+    // reports that state — 요청 2번).
     const subtitle = isSpent
-        ? t('contactInvite.rowStatus.expired')
+        ? t(badge?.kind === 'declined' ? 'contactInvite.rowStatus.declined' : 'contactInvite.rowStatus.expired')
         : invite.last4
           ? t('contactInvite.maskedPhone', { last4: invite.last4 })
           : undefined;

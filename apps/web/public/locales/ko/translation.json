@@ -1212,10 +1212,12 @@
         "maskedPhone": "010-****-{{last4}}",
         "badge": {
             "pending": "초대 대기 중",
-            "expired": "초대 만료"
+            "expired": "초대 만료",
+            "declined": "초대 거절"
         },
         "rowStatus": {
-            "expired": "초대 링크가 만료되었어요. 초대 상태를 확인해 보세요."
+            "expired": "초대 링크가 만료되었어요. 초대 상태를 확인해 보세요.",
+            "declined": "상대방이 초대를 거절했어요. 다시 초대할 수 있어요."
         },
         "smsMessage": "{{senderName}}님이 DoU에서 1:1 대화를 신청했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
         "defaultSenderName": "친구",

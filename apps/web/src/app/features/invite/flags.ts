@@ -10,7 +10,12 @@
 /** 요청 1 — `invite.cancel` API. Until it exists, cancel is confirm-dialog + local-only hide. */
 export const INVITE_CANCEL_API_SUPPORTED = false;
 
-/** 요청 2 — a `rejected`/declined invite state. Until it exists, declined rows read as expired. */
+/**
+ * 요청 2 — a `rejected`/declined invite state. `MyInviteStatus` is `pending | accepted | expired`
+ * today, so nothing can ever resolve to declined and a declined invite is indistinguishable from
+ * an expired one. The declined badge and re-invite copy are already built behind this flag
+ * (`resolveInviteRowBadge` / `resolveReinviteVariant`), so flipping it is the whole change.
+ */
 export const INVITE_REJECTED_STATE_SUPPORTED = false;
 
 /**
@@ -19,9 +24,7 @@ export const INVITE_REJECTED_STATE_SUPPORTED = false;
  */
 export const INVITE_AUTO_REVOKE_ON_REISSUE_SUPPORTED = false;
 
-/**
- * 요청 5 — the timing of `channelId` landing on the invite view after acceptance is not
- * finalized. Until it is, the waiting screen treats a missing `channelId` as "not yet known"
- * rather than an error, and falls back to a home redirect instead of a hard failure.
- */
-export const INVITE_ACCEPT_CHANNEL_ID_TIMING_CONFIRMED = false;
+// 요청 5 (`channelId` timing after acceptance) has no flag on purpose. Treating a missing
+// `channelId` as "not yet known" and falling back to a home redirect is what the waiting screen
+// should do whether or not the backend pins the timing down, so a flag here would gate nothing —
+// see `useAcceptedChannelSync`, which documents the open question where it actually applies.

@@ -16,6 +16,7 @@ import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import { isValidKoreanPhone, normalizeKoreanPhone } from '../../channels/utils/koreanPhone';
 import { InviterVerifyPrompt } from '../components/InviterVerifyPrompt';
 import { ReinviteDialog } from '../components/ReinviteDialog';
+import { INVITE_REJECTED_STATE_SUPPORTED } from '../flags';
 import { resolveReinviteVariant, type ReinviteVariant } from '../utils/inviteStatus';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
@@ -132,7 +133,7 @@ export const ContactInvitePage = () => {
         if (priorEntry) {
             const matched = invites.find(item => item.id === priorEntry.inviteId);
             setPendingReinvite({
-                variant: resolveReinviteVariant(matched?.state),
+                variant: resolveReinviteVariant(matched?.state, INVITE_REJECTED_STATE_SUPPORTED),
                 inviteId: priorEntry.inviteId,
                 phone: normalizedPhone,
             });
