@@ -271,31 +271,24 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
     clearRelaySession();
     notifySessionStateChanged();
 
-    let targetUrl = '/auth/login?logout=1';
+    // Land on home directly. `/auth/login` is only a shim that forwards to `/` (see apps/web
+    // LoginPage), so routing through it just added a redirect hop. We also do NOT rewind the
+    // history stack: back-navigating into an authenticated URL is already handled by the router,
+    // which falls unauthenticated paths back to `/` (see apps/web PublicRoutes).
+    //
+    // `logout=1` must survive onto the target: webTransport reads it from the freshly loaded
+    // document's query string to wipe the persisted `@`-prefixed storage keys.
+    const targetUrl = new URL('/', window.location.origin);
     if (options?.preserveUrl) {
         const params = new URLSearchParams(searchBeforeCleanup);
-        const loginUrl = new URL('/auth/login', window.location.origin);
         for (const key of ['code', 'provider', '_backend', '_wss']) {
             const value = params.get(key);
-            if (value) loginUrl.searchParams.set(key, value);
+            if (value) targetUrl.searchParams.set(key, value);
         }
-        loginUrl.searchParams.set('logout', '1');
-        targetUrl = loginUrl.toString();
     }
+    targetUrl.searchParams.set('logout', '1');
 
-    const stepsBack = window.history.length - 1;
-    if (stepsBack > 0) {
-        window.addEventListener(
-            'popstate',
-            () => {
-                window.location.replace(targetUrl);
-            },
-            { once: true }
-        );
-        window.history.go(-stepsBack);
-    } else {
-        window.location.replace(targetUrl);
-    }
+    window.location.replace(targetUrl.toString());
 };
 
 /**
