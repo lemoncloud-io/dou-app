@@ -50,7 +50,8 @@ SDK 비공개 API(start/stop) 의존.
    `useRuntimeRepositories().invite.list(...)`를 react-query로 감싼다 (폴링
    캐던스는 지금처럼 호출부 소유).
 2. `InviteRepositoryV2.list()`는 pass-through — local cache 없이
-   `InviteRemoteDataSource` → relay-핀 gateway로 위임하고 결과를 그대로 반환.
+   `InviteRemoteDataSource`로 위임하고 받은 배열을 그대로(같은 참조) 반환한다.
+   페이지 봉투를 벗기는 것은 relay-핀 gateway에 붙은 데이터소스의 몫이다.
 3. 발급/수락도 동일 경로의 command (`invite.create/accept`). UI는 gateway의
    존재를 모른다.
 
@@ -107,9 +108,10 @@ sequenceDiagram
     participant GW as invite gateway (relay-핀)
 
     UI->>Repo: list({state})
-    Repo->>RDS: list(payload)
+    Repo->>RDS: listInvites(payload)
     RDS->>GW: invite.list
-    GW-->>UI: 목록 (캐시 없음, 그대로 반환)
+    GW-->>RDS: 페이지 봉투 { list, total }
+    RDS-->>UI: MyInviteView[] (봉투 제거, total 폐기)
     Note over Repo: cacheWrite 없음 — remote-only.<br/>push 전환 시 observe*/local 추가 여지.
 ```
 
@@ -119,16 +121,30 @@ sequenceDiagram
 
 - **`InviteRemoteDataSource` 신설** (`libs/data/src/data/remote/data-sources/`):
   invite gateway(`remoteFactory.ts:44`에서 relay-핀 생성)를 감싸
-  list/create/get/accept 제공.
-- **`AuthRemoteDataSource` 확장** — 현재 `updateSocketAuth` 하나뿐이다
-  (`AuthRemoteDataSource.ts:5-16`). `verifyHashAlias`/`attachSocial`을 추가한다
-  (gateway 배선은 이미 relay-핀: `remoteFactory.ts:58-63`).
+  `listInvites`/`createInvite`/`getInvite`/`acceptInvite` 제공. gateway의
+  `<T>` 제네릭은 이 경계에서 확정된다 — `MyInviteView`·`RelayInviteView`(=
+  `MyInviteView & { needVerify?: boolean }`)로 못 박아 호출부가 응답 모양을 고르지
+  않게 한다. `listInvites`는 `invite.list`의 페이지 봉투를 벗겨 배열을
+  반환한다(`total`은 페이지 건수라 의도적으로 버린다 — `UserRemoteDataSource.fetchUsers`와
+  같은 관례).
+- **`AuthRemoteDataSource` 확장** — 기존 `updateSocketAuth`에 더해
+  `sendHashAliasOtp`/`checkHashAliasOtp`/`attachSocial`을 추가한다 (gateway 배선은
+  이미 relay-핀: `remoteFactory.ts:58-63`). `verifyHashAlias`를 그대로 반출하지
+  않고 step별로 쪼갠 이유: 응답 모양이 step에 종속(`send`→`sent/expiredAt`,
+  `check`→`attached/$token`)이라 단일 메서드로는 제네릭을 확정할 수 없다. `resend`
+  스위치→step 매핑과 "미지정 스위치는 페이로드에서 제외"(literal `false`는 채널을
+  끈다) 규칙도 이 경계가 소유한다.
 - **`InviteRepositoryV2` + `AuthRepositoryV2` 신설** — 둘 다 remote-only
   (`DeviceRepositoryV2` 패턴). auth를 `UserRepositoryV2`에 합치지 않는 이유:
   user repo는 이미 4개 데이터소스를 물고 있고(`repositories-v2/index.ts:53-59`),
   verifyHashAlias/attachSocial은 세션 정체성 커맨드라 도메인 성격이 다르다.
+  표면은 `invite.list/create/get/accept`,
+  `auth.sendPhoneVerification/checkPhoneVerification/attachSocial`. `get`/`accept`는
+  코드 문자열을 받아 데이터소스가 body(`{ code }`)로 감싼다 — 코드는 자격증명이라
+  본문 한 자리에만 실린다.
 - **`DataRepositoriesV2`에 `invite`/`auth` 슬롯 추가**
-  (`repositories-v2/index.ts:26-38`) 및 `repositoryFactory` 배선.
+  (`repositories-v2/index.ts`) — `repositoryFactory`는
+  `createRepositoriesV2`에 그대로 위임하므로 별도 배선 변경이 없다.
 - **표면 제거**: `DirectGateways` 타입·`getGateways()`(`data/types.ts:12`,
   `DataManager.ts:20,52-54`), `useRuntimeGateways`, `remoteFactory`의 gateways
   반출(`remoteFactory.ts:101-106`), app-runtime 배럴 export.
@@ -184,8 +200,10 @@ sequenceDiagram
   `useRuntimeProfile.test.ts` · `RuntimeConnectionHost.test.tsx` ·
   `SocketBinder.test.tsx` · `SocketReauthBinder.test.tsx` ·
   `invitedCloudColdSync.test.ts`, `libs/data` 스위트 전체.
-- 신규 유닛 테스트: InviteRepositoryV2/AuthRepositoryV2(pass-through 계약),
-  cloudScope(프레임 drop 판정 표), 크로스-스코프 읽기.
+- 신규 유닛 테스트: InviteRemoteDataSource(봉투 제거·코드 body 한정),
+  AuthRemoteDataSource(step 매핑·미지정 스위치 제외),
+  InviteRepositoryV2/AuthRepositoryV2(pass-through 계약 — 같은 참조 반환, reject
+  전파, 캐시 부재), cloudScope(프레임 drop 판정 표), 크로스-스코프 읽기.
 - 명령: `pnpm nx test data` · `pnpm nx test app-runtime` (+ 소비처 앱 lint/build).
 - 수동 확인 포인트: cloud 전환 중 채널 목록 flicker 없음(§8-4), 초대
   발급→수락 플로우, guest→main 승격 시 `isGuest` 즉시 반영, desktop-web 푸시
@@ -199,13 +217,19 @@ sequenceDiagram
 
 **트랙 1 — invite/auth 승격 (libs/data → app-runtime → apps/web 순)**
 
-1. `InviteRemoteDataSource` 신설 + `AuthRemoteDataSource` 확장 + 테스트.
-2. `InviteRepositoryV2`/`AuthRepositoryV2` 신설(remote-only), `DataRepositoriesV2`
-   슬롯·factory 배선 + 테스트.
-3. app-runtime: `repositoryFactory` 연결, `DirectGateways`/`getGateways`/
-   `useRuntimeGateways`/배럴 export 제거.
-4. apps/web 3훅 전환 (`useRelayInvites`/`useVerifyHashAlias`/`useAttachSocial`),
+1. ✅ `InviteRemoteDataSource` 신설 + `AuthRemoteDataSource` 확장 + 테스트.
+2. ✅ `InviteRepositoryV2`/`AuthRepositoryV2` 신설(remote-only), `DataRepositoriesV2`
+   슬롯 추가 + 테스트. `repositoryFactory`는 `createRepositoriesV2` 위임이라 무변경.
+3. ⏸ app-runtime: `DirectGateways`/`getGateways`/`useRuntimeGateways`/배럴 export
+   제거.
+4. ⏸ apps/web 3훅 전환 (`useRelayInvites`/`useVerifyHashAlias`/`useAttachSocial`),
    react-query 키·동작 불변 확인.
+
+> 3–4번 보류 이유: 표면 제거는 소비처 전환과 한 커밋이어야 하는데, relay 트랙이
+> 아직 `useRelayInvites`·invite 화면을 수정 중이다(미커밋). 1–2번은 순수 추가라
+> 충돌 없이 먼저 들어갔다. relay 브랜치 머지 후 3–4번을 한 세션으로 처리한다.
+> 신규 표면은 이미 `useRuntimeRepositories().invite`/`.auth`로 닿으므로, 전환은
+> 훅 안의 호출 대상만 바꾸는 기계적 작업이다.
 
 **트랙 2 — cloudScope 단일화 + 순환 컷** 5. `cloudScope` 모듈 신설, `dropForeignFrame`·`isCidActive`·socketAwareProvider
 판정 이전 + 판정 표 테스트. 6. `DataManager` boundCid 주입화 (data→socket 컷). 7. sync plan 조립을 `connection/`으로 이동 (socket→data 컷). 8. `invitedCloudColdSync` 훅 `runtime/` 이동 (data→runtime 컷).
@@ -229,4 +253,7 @@ sequenceDiagram
 - **auth 승격의 경계**: `verifyHashAlias` 성공 후 세션 토큰 반영은 여전히
   web-core 소유다. repository는 커맨드 전달만 하며 세션 상태를 만지지 않는다.
 - **병렬 트랙 충돌**: relay 트랙이 `useRelayInvites`·invite 화면을 계속 만지는
-  중이므로, 트랙 1은 특히 relay 로드맵 종료 후에만 착수한다.
+  중이다. 트랙 1의 1–2번(libs/data 순수 추가)은 겹치는 파일이 없어 선행했고,
+  3–4번(표면 제거 + 소비처 전환)은 relay 로드맵 종료 후로 보류했다. 그 사이 구
+  gateway 표면과 신규 repository 표면이 공존하지만, 신규 쪽 소비처가 아직 없어
+  동작 중복은 없다.
