@@ -979,6 +979,7 @@
         "decline": "Decline",
         "confirm": "OK",
         "close": "Close",
+        "retry": "Try again",
         "target": {
             "you": "You",
             "group": "Group chat",

@@ -979,6 +979,7 @@
         "decline": "거절",
         "confirm": "확인",
         "close": "닫기",
+        "retry": "다시 시도",
         "target": {
             "you": "You",
             "group": "그룹 대화",

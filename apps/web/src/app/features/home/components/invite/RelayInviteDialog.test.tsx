@@ -40,6 +40,7 @@ const flow = (over: Partial<RelayInviteFlow> = {}): RelayInviteFlow => ({
     onProfileSaved: jest.fn(),
     cancelStep: jest.fn(),
     dismissNotice: jest.fn(),
+    retry: jest.fn(),
     ...over,
 });
 
@@ -122,6 +123,35 @@ describe('RelayInviteDialog', () => {
         fireEvent.click(screen.getByRole('button', { name: 'inviteAccept.confirm' }));
         // Confirm and the primitive's own close both route here; dismissNotice is idempotent.
         expect(mockFlow.dismissNotice).toHaveBeenCalled();
+        // Terminal verdicts get one action: retrying would only replay the same answer.
+        expect(screen.queryByRole('button', { name: 'inviteAccept.retry' })).not.toBeInTheDocument();
+        expect(mockFlow.retry).not.toHaveBeenCalled();
+    });
+
+    it('generic 안내만 다시 시도를 제공한다', () => {
+        mockFlow = flow({ phase: 'notice', notice: 'generic' });
+        render(<RelayInviteDialog code={CODE} />);
+
+        expect(screen.getByText('inviteAccept.dialog.generic.title')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'inviteAccept.retry' }));
+
+        // The primitive closes itself after the confirm callback, so `dismissNotice` fires here too —
+        // ordered AFTER `retry`, which is what lets the flow's ref guard swallow it (see its suite).
+        expect(mockFlow.retry).toHaveBeenCalledTimes(1);
+        const retryOrder = (mockFlow.retry as jest.Mock).mock.invocationCallOrder[0];
+        const dismissOrder = (mockFlow.dismissNotice as jest.Mock).mock.invocationCallOrder[0];
+        expect(retryOrder).toBeLessThan(dismissOrder);
+    });
+
+    it('generic 안내의 닫기는 홈으로 보낸다', () => {
+        mockFlow = flow({ phase: 'notice', notice: 'generic' });
+        render(<RelayInviteDialog code={CODE} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'inviteAccept.close' }));
+
+        expect(mockFlow.dismissNotice).toHaveBeenCalled();
+        expect(mockFlow.retry).not.toHaveBeenCalled();
     });
 
     it('닫힌 뒤에는 아무것도 렌더하지 않는다', () => {

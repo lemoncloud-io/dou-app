@@ -9,10 +9,17 @@ const setPendingChannel = jest.fn();
 const navigate = jest.fn();
 const toast = jest.fn();
 const recordDeclinedInvite = jest.fn();
+const waitUntilKindVerified = jest.fn();
+const loggerError = jest.fn();
+const loggerWarn = jest.fn();
 
 let mockNick: string | undefined;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('@chatic/app-runtime', () => ({ getSocketManager: () => ({ waitUntilKindVerified }) }));
+jest.mock('@chatic/bridges', () => ({
+    logger: { error: (...a: unknown[]) => loggerError(...a), warn: (...a: unknown[]) => loggerWarn(...a) },
+}));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../hooks', () => ({
@@ -51,6 +58,7 @@ const mount = () => renderHook(() => useRelayInviteFlow(CODE));
 beforeEach(() => {
     jest.clearAllMocks();
     mockNick = '토끼';
+    waitUntilKindVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
     resolveChannel.mockResolvedValue('ch-new');
@@ -85,6 +93,58 @@ describe('useRelayInviteFlow — 진입 조회', () => {
         const { result } = mount();
 
         await waitFor(() => expect(result.current.notice).toBe('notFound'));
+    });
+});
+
+describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
+    /** Pins the handshake open so a test can assert nothing was sent while it is pending. */
+    const holdHandshake = () => {
+        let release: (verified: boolean) => void = () => undefined;
+        waitUntilKindVerified.mockReturnValue(
+            new Promise<boolean>(resolve => {
+                release = resolve;
+            })
+        );
+        return { release: (verified: boolean) => release(verified) };
+    };
+
+    it('relay 슬롯이 인증될 때까지 invite.get을 보내지 않는다', async () => {
+        const held = holdHandshake();
+        const { result } = mount();
+
+        // 콜드 부팅 재현: 핸드셰이크가 끝나기 전에는 한 발도 나가면 안 된다.
+        await waitFor(() => expect(waitUntilKindVerified).toHaveBeenCalledWith('relay', 10_000));
+        expect(getInvite).not.toHaveBeenCalled();
+        expect(result.current.phase).toBe('loading');
+
+        await act(async () => held.release(true));
+        await waitFor(() => expect(getInvite).toHaveBeenCalledWith(CODE));
+    });
+
+    it('active 슬롯이 아니라 relay 슬롯을 기다린다', async () => {
+        mount();
+
+        // cloud 세션이 떠 있으면 active는 cloud다 — waitUntilVerified로 걸면 relay를 안 기다린다.
+        await waitFor(() => expect(waitUntilKindVerified).toHaveBeenCalled());
+        expect(waitUntilKindVerified.mock.calls[0][0]).toBe('relay');
+    });
+
+    it('핸드셰이크가 타임아웃해도 조회는 시도한다 (best-effort)', async () => {
+        waitUntilKindVerified.mockResolvedValue(false);
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(getInvite).toHaveBeenCalledWith(CODE);
+        expect(loggerWarn).toHaveBeenCalled();
+    });
+
+    it('분류되지 않는 실패는 generic으로 떨어뜨리되 원인을 남긴다', async () => {
+        // "no relay slot bound" 류: status를 못 뽑으므로 generic이다. 로그가 없으면 진단이 불가능하다.
+        getInvite.mockRejectedValue(new Error('[SocketManager] no relay slot bound for request(invite.get)'));
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(loggerError).toHaveBeenCalled();
     });
 });
 
@@ -283,6 +343,61 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         await waitFor(() => expect(taken.result.current.phase).toBe('review'));
         act(() => taken.result.current.accept());
         await waitFor(() => expect(taken.result.current.notice).toBe('taken'));
+    });
+});
+
+describe('useRelayInviteFlow — 다시 시도', () => {
+    it('진입 조회부터 다시 돌려서 수락 화면으로 복구한다', async () => {
+        getInvite.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+
+        act(() => result.current.retry());
+
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(getInvite).toHaveBeenCalledTimes(2);
+        expect(result.current.notice).toBeNull();
+    });
+
+    it('수락 실패 뒤에도 조회부터 다시 시작한다', async () => {
+        acceptInvite.mockRejectedValueOnce(new Error('500 INTERNAL'));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+
+        act(() => result.current.retry());
+
+        // 재개가 아니라 재검증: generic은 무엇이 틀어졌는지 모른다는 뜻이라 상태부터 다시 읽는다.
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(acceptInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it('다시 시도 직후의 닫기 신호는 홈으로 보내지 않는다', async () => {
+        // AlertDialog는 confirm 콜백 바로 뒤에 onOpenChange(false)를 쏜다. 그게 dismiss로 읽히면
+        // 재조회 중에 홈으로 튕긴다.
+        getInvite.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+
+        act(() => {
+            result.current.retry();
+            result.current.dismissNotice();
+        });
+
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('안내를 그대로 닫으면 홈으로 간다', async () => {
+        getInvite.mockRejectedValue(new Error('503 SOCKET NOT CONNECTED'));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+
+        act(() => result.current.dismissNotice());
+
+        expect(result.current.phase).toBe('closed');
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
     });
 });
 

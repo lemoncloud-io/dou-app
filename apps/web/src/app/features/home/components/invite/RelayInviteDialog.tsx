@@ -34,16 +34,22 @@ export const RelayInviteDialog = ({ code }: RelayInviteDialogProps): JSX.Element
     // Already navigated home — the URL still carries the code for one more render.
     if (flow.phase === 'closed') return null;
 
-    // Terminal: expired / already joined / invalid / wrong number / taken. Red title per Figma.
+    // Expired / already joined / invalid / wrong number / taken. Red title per Figma.
     if (flow.phase === 'notice' && flow.notice) {
+        // `generic` is the only recoverable one — it means the failure could not be classified (a
+        // half-open socket, a 5xx), not that the invite is spent. Everything else is a verdict about
+        // the invite, so offering a retry there would just replay the same answer.
+        const isRecoverable = flow.notice === 'generic';
         return (
             <AlertDialog
                 open
                 onOpenChange={next => !next && flow.dismissNotice()}
                 title={<span className="text-destructive">{t(`inviteAccept.dialog.${flow.notice}.title`)}</span>}
                 description={t(`inviteAccept.dialog.${flow.notice}.description`)}
-                confirmLabel={t('inviteAccept.confirm')}
-                onConfirm={flow.dismissNotice}
+                cancelLabel={isRecoverable ? t('inviteAccept.close') : undefined}
+                onCancel={isRecoverable ? flow.dismissNotice : undefined}
+                confirmLabel={isRecoverable ? t('inviteAccept.retry') : t('inviteAccept.confirm')}
+                onConfirm={isRecoverable ? flow.retry : flow.dismissNotice}
             />
         );
     }

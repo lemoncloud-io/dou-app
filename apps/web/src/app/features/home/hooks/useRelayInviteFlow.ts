@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { getSocketManager } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -57,6 +59,30 @@ const resolveNotice = (status: number | undefined, stage: 'get' | 'accept'): Rel
     return 'generic';
 };
 
+/** Same bound the other deeplink entry points use for the socket handshake (see usePushNavigate). */
+const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+/**
+ * Hold until the RELAY slot has finished its handshake.
+ *
+ * An invite deeplink is the one entry that lands during boot: guest login → relay token → connect →
+ * `device.save` → `auth.update` all run while home is already mounting this flow. `invite.get` is a
+ * relay-pinned packet, so firing it early rejects with an unclassified failure — `[SocketManager] no
+ * relay slot bound`, `503 SOCKET NOT CONNECTED`, `401 UNAUTHORIZED` — none of which `resolveNotice`
+ * can map, so the user got the useless "generic" dialog on a perfectly valid invite.
+ *
+ * Kind-pinned, not `waitUntilVerified`: that one tracks the ACTIVE slot, which is cloud whenever a
+ * cloud session is up, and would let a relay request through mid-handshake.
+ *
+ * Best-effort — a timeout still proceeds, so a genuinely broken socket surfaces the server's own
+ * error rather than being swallowed as a wait.
+ */
+const awaitRelaySocket = async (): Promise<void> => {
+    const verified = await getSocketManager().waitUntilKindVerified('relay', HANDSHAKE_WAIT_TIMEOUT_MS);
+    if (verified) return;
+    logger.warn('INVITE', '[useRelayInviteFlow] relay handshake not verified; proceeding best-effort');
+};
+
 export interface RelayInviteFlow {
     phase: RelayInvitePhase;
     invite: RelayInviteInfo | null;
@@ -76,6 +102,11 @@ export interface RelayInviteFlow {
     cancelStep: () => void;
     /** Confirm on the notice dialog. */
     dismissNotice: () => void;
+    /**
+     * Re-run the flow from the invite read. Offered on `generic` only — every other notice is a
+     * verdict about the invite itself, which retrying cannot change.
+     */
+    retry: () => void;
 }
 
 /**
@@ -128,13 +159,24 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     // verification it means the number verified is not the invited one, which is terminal.
     const verifiedRef = useRef(false);
 
+    // Bumped by `retry` to re-run the entry read; a plain function call cannot restart an effect.
+    const [attempt, setAttempt] = useState(0);
+
+    // Whether the notice dialog is the thing on screen. The dialog fires its `onOpenChange(false)`
+    // synchronously right after the confirm callback, and reads that as a dismiss — so on retry it
+    // would navigate home out from under the restarted read. `phase` cannot arbitrate that (the
+    // setState has not landed yet), hence a ref the retry clears in the same tick.
+    const noticeOpenRef = useRef(false);
+
     const goHome = useCallback(() => {
         runIdRef.current += 1;
+        noticeOpenRef.current = false;
         setPhase('closed');
         latest.current.navigate(ROUTES.home, { replace: true });
     }, []);
 
     const fail = useCallback((next: RelayInviteNotice) => {
+        noticeOpenRef.current = true;
         setNotice(next);
         setPhase('notice');
     }, []);
@@ -174,10 +216,15 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
         let view: RelayInviteInfo;
         try {
+            await awaitRelaySocket();
             view = await latest.current.mutations.getInvite(code);
         } catch (error) {
             if (isStale(run)) return;
-            return fail(resolveNotice(getSocketErrorCode(error), 'get'));
+            const status = getSocketErrorCode(error);
+            logger.error('INVITE', `[useRelayInviteFlow] invite.get failed on advance (status=${status ?? '-'})`, {
+                error,
+            });
+            return fail(resolveNotice(status, 'get'));
         }
         if (isStale(run)) return;
         setInvite(view);
@@ -204,6 +251,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             // Not yet a main user: the server re-judges regardless of `needVerify`, so send them to
             // verification instead of dead-ending. Once verified, a 403 really is a number mismatch.
             if (status === 403 && !verifiedRef.current) return setPhase('verifying');
+            logger.error('INVITE', `[useRelayInviteFlow] invite.accept failed (status=${status ?? '-'})`, { error });
             return fail(resolveNotice(status, 'accept'));
         }
 
@@ -218,6 +266,8 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
         void (async () => {
             try {
+                // The gate matters most here: this is the one read that races the app's cold boot.
+                await awaitRelaySocket();
                 const view = await latest.current.mutations.getInvite(code);
                 if (isStale(run)) return;
                 setInvite(view);
@@ -226,10 +276,15 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
                 setPhase('review');
             } catch (error) {
                 if (isStale(run)) return;
-                fail(resolveNotice(getSocketErrorCode(error), 'get'));
+                const status = getSocketErrorCode(error);
+                logger.error('INVITE', `[useRelayInviteFlow] invite.get failed on entry (status=${status ?? '-'})`, {
+                    error,
+                });
+                fail(resolveNotice(status, 'get'));
             }
         })();
-    }, [code, fail]);
+        // `attempt` is the retry trigger — re-running this effect IS the retry.
+    }, [code, fail, attempt]);
 
     // The link can lapse while the accept screen is open — the countdown is the only thing watching.
     useEffect(() => {
@@ -265,6 +320,18 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         onVerified,
         onProfileSaved: useCallback(() => void advance(), [advance]),
         cancelStep: useCallback(() => setPhase('review'), []),
-        dismissNotice: goHome,
+        // Only closes while the notice is genuinely up, so the dismiss the dialog fires on its way
+        // out of a retry cannot send the user home mid-read.
+        dismissNotice: useCallback(() => {
+            if (!noticeOpenRef.current) return;
+            goHome();
+        }, [goHome]),
+        // Back to the entry read rather than resuming the failed step: a `generic` means we could not
+        // classify what went wrong, so the invite's current state is exactly what we need to re-establish.
+        retry: useCallback(() => {
+            noticeOpenRef.current = false;
+            setNotice(null);
+            setAttempt(n => n + 1);
+        }, []),
     };
 };
