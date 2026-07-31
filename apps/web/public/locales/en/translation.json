@@ -180,6 +180,7 @@
         "logout": "Logout",
         "appVersion": "Version",
         "updateAvailable": "Update Required",
+        "upToDate": "Up to date",
         "language": {
             "ko": "한국어",
             "en": "English",
