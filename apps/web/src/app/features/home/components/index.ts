@@ -7,4 +7,3 @@ export * from './PlaceProfileEditDialog';
 export * from './PlaceList';
 export * from './CloudSessionSheet';
 export * from './SubscriptionRequiredDialog';
-export * from './InviteDialog';

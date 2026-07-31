@@ -18,6 +18,10 @@ import { ROUTES } from './paths';
  *
  * A link we cannot convert (no `code`, or a half-specified cloud address) falls back to `/` — there
  * is nothing useful to show, and the home screen is the right landing spot.
+ *
+ * A convertible one goes straight to `/invite/accept`. Routing it through `/` would work too (the
+ * root gate would forward it on), but the extra hop is pointless where we already know it is an
+ * invite.
  */
 export const ShareLinkRedirect = (): JSX.Element => {
     const { search } = useLocation();
@@ -25,7 +29,7 @@ export const ShareLinkRedirect = (): JSX.Element => {
     // Widened from the `'/'` literal `ROUTES.root` carries: the success path appends a query string.
     let target: string = ROUTES.root;
     try {
-        target = `${ROUTES.root}?${buildInviteEntryParams(search).toString()}`;
+        target = `${ROUTES.invite.accept}?${buildInviteEntryParams(search).toString()}`;
     } catch (error) {
         console.warn('[ShareLinkRedirect] unconvertible share link, falling back to root', { search, error });
     }

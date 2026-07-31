@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 
 import { HomeRoutes } from '../features/home';
 import { UnifiedLayout } from '../ui/layouts';
+import { InviteEntryGate } from './InviteEntryGate';
 
 const ChannelRoutes = lazy(() => import('../features/channels').then(m => ({ default: m.ChannelRoutes })));
 const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ default: m.MyPageRoutes })));
@@ -59,7 +60,16 @@ export const privateRoutes = [
         path: '/',
         element: <UnifiedLayout />,
         children: [
-            { index: true, element: <HomeRoutes /> },
+            // The gate forwards an invite landing to `/invite/accept` instead of rendering home —
+            // `/?provider=invite&…` is the address every already-installed native app still builds.
+            {
+                index: true,
+                element: (
+                    <InviteEntryGate>
+                        <HomeRoutes />
+                    </InviteEntryGate>
+                ),
+            },
             { path: 'mypage/*', element: withSuspense(MyPageRoutes) },
             { path: 'subscription/*', element: withSuspense(SubscriptionRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },

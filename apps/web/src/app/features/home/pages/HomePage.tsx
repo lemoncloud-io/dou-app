@@ -30,7 +30,6 @@ import {
     CloudSessionSheet,
     CreateChannelDialog,
     CreatePlaceDialog,
-    InviteDialog,
     PlaceList,
     SubscriptionRequiredDialog,
 } from '../components';
@@ -344,7 +343,6 @@ export const HomePage = () => {
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
-            <InviteDialog suppressed={isFirstRun} />
         </div>
     );
 };

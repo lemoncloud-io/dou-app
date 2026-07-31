@@ -1,15 +1,18 @@
 import type { JSX } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
+import { resolveInviteAcceptRedirect } from '../../invite/accept/lib/inviteEntryRedirect';
 import { ROUTES } from '../../../routes/paths';
 
 /**
- * Invite handling moved to the home route, so `/auth/login` is now a thin compatibility shim:
- * it forwards to root carrying the original query string, so already-distributed deeplinks
- * (`/auth/login?provider=invite&code=...&_backend=...`) keep working and land on the home
- * invite popup. Non-invite landings simply fall through to home as well.
+ * `/auth/login` is a compatibility shim, not a screen.
+ *
+ * It is still the address the landing page and the native converter build, so already-distributed
+ * deeplinks (`/auth/login?provider=invite&code=...&_backend=...`) arrive here and are forwarded on
+ * with their query string intact — to the accept page when they carry an invite, to home when they
+ * do not.
  */
 export const LoginPage = (): JSX.Element => {
-    const location = useLocation();
-    return <Navigate to={`${ROUTES.home}${location.search}`} replace />;
+    const { search } = useLocation();
+    return <Navigate to={resolveInviteAcceptRedirect(search) ?? `${ROUTES.home}${search}`} replace />;
 };
