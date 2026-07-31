@@ -312,6 +312,7 @@ export const HomePage = () => {
                         channels={channels}
                         unreadByChannel={unreadByChannel}
                         joinByChannel={myJoins}
+                        sid={selectedPlaceId}
                         isLoading={isChannelsLoading}
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}

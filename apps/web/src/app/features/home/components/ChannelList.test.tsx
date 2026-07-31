@@ -16,6 +16,11 @@ jest.mock('../hooks/useLastChat', () => ({ useLastChat: () => null }));
 // resolveSelfChatTitle is the real pure fn (unit-tested separately).
 jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: 'MY_NICK' } }) }));
 
+// The list-level DM peer lookup (one profile subscription for every DM row) is covered by
+// useDmPeers.test.ts; here we inject its result so rows can be driven without the runtime.
+const mockDmPeers = new Map<string, { id: string; profileNick?: string; thumbnail?: string }>();
+jest.mock('../../channels/hooks', () => ({ useDmPeers: () => mockDmPeers }));
+
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
     DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
@@ -29,9 +34,10 @@ jest.mock('@chatic/web-ui-kit', () => ({
     DefaultAvatar: () => <div data-testid="default-avatar" />,
     IconBolt: () => <i />,
     IconPlus: () => <i />,
-    ImageAvatar: () => <img alt="" />,
-    ListRow: ({ title, subtitle, onClick }: any) => (
+    ImageAvatar: ({ src }: any) => <img alt="" src={src} data-testid="image-avatar" />,
+    ListRow: ({ leading, title, subtitle, onClick }: any) => (
         <div onClick={onClick}>
+            <div data-testid="row-leading">{leading}</div>
             <div data-testid="row-title">{title}</div>
             <div>{subtitle}</div>
         </div>
@@ -200,6 +206,87 @@ describe('ChannelList self-chat row', () => {
         );
 
         expect(screen.getByText('공지방')).toBeInTheDocument();
+    });
+});
+
+// ADR-0039: DM 행은 채널이 아니라 사람을 보여준다. 이름·아바타·인원수 셋 다 그 결과다.
+describe('ChannelList — 1:1(DM) 행', () => {
+    const dmChannel = (over: any = {}) =>
+        makeChannel({ id: 'dm1', stereo: 'dm', memberNo: 2, name: '', ownerId: 'me', ...over });
+
+    beforeEach(() => mockDmPeers.clear());
+
+    it('상대 프로필 닉을 제목으로 쓴다', () => {
+        mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
+
+        render(<ChannelList channels={[dmChannel()]} unreadByChannel={{}} isLoading={false} />);
+
+        expect(screen.getByText('토끼')).toBeInTheDocument();
+    });
+
+    it('내가 오너여도 channel.name이 아니라 상대 닉을 쓴다', () => {
+        mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
+
+        render(<ChannelList channels={[dmChannel({ name: '서버 이름' })]} unreadByChannel={{}} isLoading={false} />);
+
+        expect(screen.getByText('토끼')).toBeInTheDocument();
+        expect(screen.queryByText('서버 이름')).not.toBeInTheDocument();
+    });
+
+    it('내 join.nick이 있으면 상대 닉을 이긴다', () => {
+        mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
+
+        render(
+            <ChannelList
+                channels={[dmChannel()]}
+                unreadByChannel={{}}
+                joinByChannel={new Map([['dm1', { nick: '토끼친구' } as any]])}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByText('토끼친구')).toBeInTheDocument();
+    });
+
+    it('상대 프로필이 없으면 DM 전용 라벨로 떨어진다', () => {
+        mockDmPeers.set('dm1', { id: 'peer' });
+
+        render(<ChannelList channels={[dmChannel()]} unreadByChannel={{}} isLoading={false} />);
+
+        expect(screen.getByText('chat.dm.unnamedPeer')).toBeInTheDocument();
+    });
+
+    it('아바타로 상대 thumbnail을 쓴다 (채널 thumbnail은 무시)', () => {
+        mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼', thumbnail: 'peer.png' });
+
+        render(
+            <ChannelList channels={[dmChannel({ thumbnail: 'channel.png' })]} unreadByChannel={{}} isLoading={false} />
+        );
+
+        expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'peer.png');
+    });
+
+    it('상대 thumbnail이 없으면 기본 아바타를 쓴다', () => {
+        mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
+
+        render(<ChannelList channels={[dmChannel()]} unreadByChannel={{}} isLoading={false} />);
+
+        expect(screen.getByTestId('default-avatar')).toBeInTheDocument();
+    });
+
+    it('인원수 pill을 숨긴다 (그룹 행에는 남아 있다)', () => {
+        mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
+
+        render(
+            <ChannelList
+                channels={[dmChannel(), makeChannel({ id: 'g1', stereo: 'group', name: '공지방', memberNo: 5 })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.queryByText('2')).not.toBeInTheDocument();
+        expect(screen.getByText('5')).toBeInTheDocument();
     });
 });
 

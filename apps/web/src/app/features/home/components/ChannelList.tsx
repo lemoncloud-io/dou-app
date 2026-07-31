@@ -26,6 +26,7 @@ import {
     UnreadBadge,
 } from '@chatic/web-ui-kit';
 
+import { useDmPeers, type DmPeer } from '../../channels/hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
@@ -51,18 +52,24 @@ const ChannelItem = ({
     myNick,
     joinNick,
     uid,
+    dmPeer,
 }: {
     channel: DomainChannel;
     unread: number;
     myNick?: string;
     joinNick?: string;
     uid?: string;
+    /** The 1:1 peer for this row (from the list-level useDmPeers). Undefined for non-DM rows. */
+    dmPeer?: DmPeer;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
     // Self-chat is identified by stereo (ADR-0022), not member count.
     const isSelf = channel.stereo === 'self';
+    // 1:1 DM (stereo): the row shows the peer, not the channel — its own name/photo/member count
+    // are all either absent or meaningless (ADR-0039).
+    const isDm = channel.stereo === 'dm';
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
@@ -84,8 +91,10 @@ const ChannelItem = ({
         uid,
         joinNick,
         myNick,
+        peerNick: dmPeer?.profileNick,
         selfLabel: t('channelList.selfChannel'),
         unnamedLabel: t('channelList.unnamedChannel'),
+        dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
 
     // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
@@ -93,10 +102,12 @@ const ChannelItem = ({
     const preview = lastChat?.content ?? '';
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
-    // No channel photo → the default person avatar (기본 아바타). Self-chat uses its
-    // own solid-silhouette variant (Figma "1명 Profile"); other rows use the plain one.
-    const leading = channel.thumbnail ? (
-        <ImageAvatar src={channel.thumbnail} alt="" size={46} />
+    // A DM shows the peer's avatar, matching the room header — a DM channel has no photo of its own.
+    // Otherwise the channel photo, and with no photo the default person avatar (기본 아바타):
+    // self-chat uses its own solid-silhouette variant (Figma "1명 Profile"), other rows the plain one.
+    const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
+    const leading = avatarSrc ? (
+        <ImageAvatar src={avatarSrc} alt="" size={46} />
     ) : (
         <DefaultAvatar size={46} variant={isSelf ? 'self' : 'user'} />
     );
@@ -112,8 +123,9 @@ const ChannelItem = ({
                         </Badge>
                     )}
                     <span className="truncate">{name}</span>
-                    {/* Group member count — an inline gray pill after the name (Figma 2931-8611). */}
-                    {(channel.memberNo ?? 0) > 1 && (
+                    {/* Group member count — an inline gray pill after the name (Figma 2931-8611).
+                        Hidden for a DM: it is always 2, so the number carries no information. */}
+                    {!isDm && (channel.memberNo ?? 0) > 1 && (
                         <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
                             {channel.memberNo}
                         </span>
@@ -145,6 +157,12 @@ interface ChannelListProps {
     unreadByChannel: Record<string, number>;
     /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
     joinByChannel?: Map<string, DomainJoin>;
+    /**
+     * Active place id — scopes the one profile subscription that names every DM row. Required, not
+     * optional: forgetting it fails silently (every DM row quietly falls back to `channel.name` or
+     * the unnamed label), which is the drift this list exists to avoid.
+     */
+    sid: string;
     isLoading: boolean;
     /** Show the create (＋) popover in the section header. */
     canCreate?: boolean;
@@ -173,6 +191,7 @@ export const ChannelList = ({
     channels,
     unreadByChannel,
     joinByChannel,
+    sid,
     isLoading,
     canCreate,
     isDefaultCloud,
@@ -191,6 +210,8 @@ export const ChannelList = ({
     const myNick = myProfile?.nick;
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
     const { userId: uid } = useSessionIdentity();
+    // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
+    const dmPeers = useDmPeers(sid, channels, uid);
 
     // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
     // channels above). See sortChannels (pure, unit-tested).
@@ -257,6 +278,7 @@ export const ChannelList = ({
                         myNick={myNick}
                         joinNick={joinByChannel?.get(channel.id)?.nick}
                         uid={uid ?? undefined}
+                        dmPeer={dmPeers.get(channel.id)}
                     />
                 ))
             )}

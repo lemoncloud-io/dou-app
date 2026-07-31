@@ -70,6 +70,9 @@ jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: 'ë‚
 jest.mock('../../channels/hooks', () => ({
     useChannelMutations: () => ({ deleteChannel, leaveChannel }),
     useChatMutations: () => ({ readMessage }),
+    // DM rows are named from one page-level profile subscription (useDmPeers.test.ts covers it);
+    // this list has no DM rows, so an empty map is the whole contract here.
+    useDmPeers: () => new Map(),
 }));
 jest.mock('../../channels/components', () => ({
     ConfirmDialog: (p: any) =>

@@ -9,6 +9,7 @@ import { ChatAvatar, DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, S
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
+import { resolveDmTitle } from '../utils/dmTitle';
 
 import { useActivePlaceName } from '../../../hooks';
 import { PlaceProfileEditDialog } from '../../home/components';
@@ -16,7 +17,7 @@ import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
-import { SelfChatNameDialog } from '../components/SelfChatNameDialog';
+import { JoinNickDialog } from '../components/JoinNickDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import {
     useChannel,
@@ -30,7 +31,7 @@ import {
 } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'selfName' | null;
+type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'joinNick' | null;
 
 interface SelectedMember {
     id: string;
@@ -179,22 +180,28 @@ export const ChannelSettingsPage = () => {
 
     const isSelfChat = !!channel?.isSelfChat;
     const isOwner = !!channel?.isOwner;
-    // 1:1 DM (stereo): the room name is the peer and cannot be renamed (ADR-0032).
+    // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
-    // Title by channel type: self → selfChatTitle; dm → the peer's nick (ADR-0032). The rest —
-    // I own it → the owner-set channel.name (my own join nick is ignored); I'm a member → my join
-    // nick, falling back to channel.name.
+    // Title by channel type: self → selfChatTitle; dm → the shared DM chain (my join nick → peer
+    // profile nick → channel.name → label; ADR-0039). The rest — I own it → the owner-set
+    // channel.name (my own join nick is ignored); I'm a member → my join nick, then channel.name.
     const roomTitle = isSelfChat
         ? selfChatTitle
         : isDmChat
-          ? dmPeer?.nick || t('chat.settings.roomName')
+          ? resolveDmTitle({
+                joinNick: myJoin?.nick,
+                peerNick: dmPeer?.profileNick,
+                channelName: channel?.name,
+                unnamedLabel: t('chat.dm.unnamedPeer'),
+                selfUserId: userId,
+            })
           : (isOwner ? channel?.name : (myJoin?.nick ?? channel?.name)) || t('chat.settings.roomName');
 
     // DM always shows the peer avatar (matching the room header) — channel.thumbnail is ignored for
     // DM. Otherwise: channel thumbnail → self glyph → group placeholder.
     const roomAvatar = isDmChat ? (
         dmPeer?.thumbnail ? (
-            <ImageAvatar src={dmPeer.thumbnail} alt={dmPeer.nick} size={40} />
+            <ImageAvatar src={dmPeer.thumbnail} alt={roomTitle} size={40} />
         ) : (
             <DefaultAvatar size={40} variant="user" />
         )
@@ -246,15 +253,16 @@ export const ChannelSettingsPage = () => {
 
             {/* Content — scrolls when the member list grows past the viewport. */}
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
-                {/* Room name — tap opens the name/info dialog. Self-chat edits the join
-                    nick (SelfChatNameDialog); groups edit channel.name (UpdateChannelDialog,
-                    read-only for non-owner members). DM is not editable: the name is the peer,
-                    so the row is static (no chevron, no tap) (ADR-0032). */}
+                {/* Room name — tap opens the name/info dialog. Self-chat and DM edit MY join nick
+                    (JoinNickDialog, private to me); groups edit channel.name (UpdateChannelDialog,
+                    read-only for non-owner members). DM naming is open again — the join nick is the
+                    top of its title chain, so with no way to write it that tier would be dead
+                    (ADR-0039, reversing ADR-0032). */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
-                    trailing={isDmChat ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
-                    onClick={isDmChat ? undefined : () => openDialog(isSelfChat ? 'selfName' : 'update')}
+                    trailing={<ChevronRight className="size-5 text-muted-foreground" />}
+                    onClick={() => openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')}
                 />
 
                 {isSelfChat ? (
@@ -312,10 +320,16 @@ export const ChannelSettingsPage = () => {
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
                 channelId={channelId}
             />
-            <SelfChatNameDialog
-                open={activeDialog === 'selfName'}
-                onOpenChange={open => (open ? openDialog('selfName') : closeDialog())}
+            {/* One mount, not one per variant: the dialog fetches my profile on mount, so two
+                instances cost two round-trips and only ever one of them can be open. The placeholder
+                is the name the room falls back to right now, so clearing the field visibly returns
+                to it — for a DM that is the title chain minus my own nick. */}
+            <JoinNickDialog
+                open={activeDialog === 'joinNick'}
+                onOpenChange={open => (open ? openDialog('joinNick') : closeDialog())}
                 channelId={channelId}
+                variant={isSelfChat ? 'self' : 'dm'}
+                fallbackName={isSelfChat ? undefined : dmPeer?.profileNick || channel?.name || t('chat.dm.unnamedPeer')}
             />
             <ConfirmDialog
                 open={activeDialog === 'delete'}

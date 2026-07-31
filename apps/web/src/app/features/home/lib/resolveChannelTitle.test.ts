@@ -6,7 +6,7 @@ import type { DomainChannel } from '@chatic/data';
 const channel = (overrides: Partial<DomainChannel>): DomainChannel =>
     ({ id: 'ch-1', ...overrides }) as unknown as DomainChannel;
 
-const labels = { selfLabel: '나와의 채팅', unnamedLabel: '이름 없는 채팅방' };
+const labels = { selfLabel: '나와의 채팅', unnamedLabel: '이름 없는 채팅방', dmUnnamedLabel: '대화 상대' };
 
 describe('resolveChannelTitle', () => {
     describe('self 채널', () => {
@@ -45,6 +45,59 @@ describe('resolveChannelTitle', () => {
         it('nick도 프로필 닉도 없으면 self 라벨을 쓴다', () => {
             const title = resolveChannelTitle({ channel: channel({ stereo: 'self' }), uid: 'me', ...labels });
             expect(title).toBe('나와의 채팅');
+        });
+    });
+
+    // ADR-0039: DM은 owner/member 분기에 도달하지 않는다. 초대자가 owner이므로 그 분기에
+    // 걸리면 서버가 만든 channel.name이 이기고 상대 프로필이 무시된다 — 방 화면과 어긋나는 원인.
+    describe('DM 채널', () => {
+        it('내 join nick을 최우선한다', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', name: '서버 이름', ownerId: 'me' }),
+                uid: 'me',
+                joinNick: '토끼친구',
+                peerNick: '토끼',
+                ...labels,
+            });
+            expect(title).toBe('토끼친구');
+        });
+
+        it('join nick이 없으면 상대 프로필 닉을 쓴다 — 내가 오너여도 channel.name이 이기지 못한다', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', name: '서버 이름', ownerId: 'me' }),
+                uid: 'me',
+                peerNick: '토끼',
+                ...labels,
+            });
+            expect(title).toBe('토끼');
+        });
+
+        it('상대 프로필이 없으면 channel.name으로 폴백한다', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', name: '서버 이름', ownerId: 'me' }),
+                uid: 'me',
+                ...labels,
+            });
+            expect(title).toBe('서버 이름');
+        });
+
+        it('체인이 전부 비면 DM 전용 라벨을 쓴다 (그룹의 unnamed 라벨이 아니다)', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', ownerId: 'me' }),
+                uid: 'me',
+                ...labels,
+            });
+            expect(title).toBe('대화 상대');
+        });
+
+        it('임베드된 $join.nick도 읽는다', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', $join: { nick: '임베드닉' } as never, name: '서버 이름' }),
+                uid: 'me',
+                peerNick: '토끼',
+                ...labels,
+            });
+            expect(title).toBe('임베드닉');
         });
     });
 

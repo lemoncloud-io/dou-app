@@ -455,6 +455,14 @@
         "members": "{{count}}명"
     },
     "chat": {
+        "dm": {
+            "unnamedPeer": "대화 상대",
+            "intro": {
+                "title": "{{name}}님이 채팅방에 입장했습니다.",
+                "titleUnnamed": "대화 상대가 채팅방에 입장했습니다.",
+                "description": "1:1 대화를 시작해 보세요."
+            }
+        },
         "room": {
             "title": "채팅방",
             "loading": "채널 정보를 불러오는 중...",
@@ -918,6 +926,18 @@
         "done": "완료",
         "success": "채널 정보가 업데이트되었습니다",
         "error": "채널 업데이트에 실패했습니다"
+    },
+    "dmChat": {
+        "name": {
+            "title": "이름 수정",
+            "label": "방 이름",
+            "placeholder": "대화 상대",
+            "helper": "20글자 이내로 입력해 주세요.",
+            "done": "완료",
+            "saving": "저장 중...",
+            "success": "이름이 변경되었습니다",
+            "error": "이름 변경에 실패했습니다"
+        }
     },
     "selfChat": {
         "name": {

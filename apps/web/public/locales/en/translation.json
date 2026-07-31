@@ -455,6 +455,14 @@
         "members": "{{count}} members"
     },
     "chat": {
+        "dm": {
+            "unnamedPeer": "Chat partner",
+            "intro": {
+                "title": "{{name}} entered the chat room.",
+                "titleUnnamed": "Your chat partner entered the chat room.",
+                "description": "Start a 1:1 conversation."
+            }
+        },
         "room": {
             "title": "Chat Room",
             "loading": "Loading channel info...",
@@ -918,6 +926,18 @@
         "done": "Done",
         "success": "Channel updated successfully",
         "error": "Failed to update channel"
+    },
+    "dmChat": {
+        "name": {
+            "title": "Edit name",
+            "label": "Room name",
+            "placeholder": "Chat partner",
+            "helper": "Enter up to 20 characters.",
+            "done": "Done",
+            "saving": "Saving...",
+            "success": "Name updated",
+            "error": "Failed to update name"
+        }
     },
     "selfChat": {
         "name": {

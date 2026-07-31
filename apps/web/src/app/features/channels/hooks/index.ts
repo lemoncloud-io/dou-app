@@ -3,6 +3,7 @@ export * from './useSelfChatTitle';
 export * from './useChannelMembers';
 export * from './useChannelProfiles';
 export * from './useDmPeer';
+export * from './useDmPeers';
 export * from './useJoinPositions';
 export * from './useReadMarker';
 export * from './useChatScroll';

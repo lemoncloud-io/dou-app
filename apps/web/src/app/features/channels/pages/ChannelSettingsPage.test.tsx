@@ -14,6 +14,7 @@ const toast = jest.fn();
 let channelValue: any;
 let membersValue: any;
 let myJoinValue: any;
+let dmPeerValue: any;
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -75,8 +76,15 @@ let profileProps: any;
 jest.mock('../components/UpdateChannelDialog', () => ({
     UpdateChannelDialog: (p: any) => <div data-testid="update" data-open={String(p.open)} />,
 }));
-jest.mock('../components/SelfChatNameDialog', () => ({
-    SelfChatNameDialog: (p: any) => <div data-testid="self-name" data-open={String(p.open)} />,
+// One component, two mounts (self / dm) — key the testid off the variant so each can be asserted.
+jest.mock('../components/JoinNickDialog', () => ({
+    JoinNickDialog: (p: any) => (
+        <div
+            data-testid={p.variant === 'dm' ? 'dm-name' : 'self-name'}
+            data-open={String(p.open)}
+            data-fallback={p.fallbackName ?? ''}
+        />
+    ),
 }));
 jest.mock('../components/ConfirmDialog', () => ({
     ConfirmDialog: (p: any) => (p.open ? <button onClick={p.onConfirm}>{p.confirmLabel}</button> : null),
@@ -114,6 +122,19 @@ const SELF_CHANNEL = {
     },
     isError: false,
 };
+// 1:1 room. The inviter owns it, which is why the owner/member title branch is wrong for a DM.
+const DM_CHANNEL = {
+    channel: {
+        isOwner: true,
+        isSelfChat: false,
+        stereo: 'dm',
+        ownerId: 'me',
+        name: '서버 이름',
+        displayName: '서버 이름',
+        sid: 's1',
+    },
+    isError: false,
+};
 const MEMBERS = {
     members: [
         { id: 'owner1', name: '오너', $join: { joined: 1 } },
@@ -127,6 +148,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     membersValue = MEMBERS;
     myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → on
+    dmPeerValue = null;
     profileProps = undefined;
 });
 
@@ -135,7 +157,7 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => membersValue,
     useChannelMutations: () => ({ leaveChannel, deleteChannel, isPending: { delete: false, leave: false } }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
-    useDmPeer: () => null,
+    useDmPeer: () => dmPeerValue,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     useMyJoin: () => myJoinValue,
     useSelfChatTitle: () => 'SELF_TITLE',
@@ -176,13 +198,63 @@ describe('ChannelSettingsPage', () => {
         expect(screen.queryByText('chat.settings.leaveRoom')).not.toBeInTheDocument();
     });
 
-    it('self 채팅: 이름 행을 탭하면 SelfChatNameDialog가 열린다', () => {
+    it('self 채팅: 이름 행을 탭하면 JoinNickDialog(self)가 열린다', () => {
         channelValue = SELF_CHANNEL;
         render(<ChannelSettingsPage />);
 
         expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'false');
         fireEvent.click(screen.getByText('SELF_TITLE'));
         expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'true');
+    });
+
+    // ADR-0039: DM 방 이름 변경을 되살렸다. join.nick이 제목 체인의 최상단인데 쓸 경로가
+    // 없으면 그 단계가 영구히 죽은 분기가 된다.
+    describe('1:1(DM) 방', () => {
+        it('제목이 상대 프로필 닉이고 channel.name이 아니다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByText('토끼')).toBeInTheDocument();
+            expect(screen.queryByText('서버 이름')).not.toBeInTheDocument();
+        });
+
+        it('내 join.nick이 있으면 그것을 쓴다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            myJoinValue = { userId: 'me', nick: '토끼친구' };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByText('토끼친구')).toBeInTheDocument();
+        });
+
+        it('이름 행을 탭하면 JoinNickDialog(dm)가 열린다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'false');
+            fireEvent.click(screen.getByText('토끼'));
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'true');
+            // channel.name을 쓰는 그룹 다이얼로그가 아니다.
+            expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'false');
+        });
+
+        it('폴백 이름을 다이얼로그 플레이스홀더로 넘긴다', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('dm-name')).toHaveAttribute('data-fallback', '토끼');
+        });
+
+        it('"친구 추가" 행은 여전히 숨는다 (ADR-0032 유지)', () => {
+            channelValue = DM_CHANNEL;
+            dmPeerValue = { id: 'peer', profileNick: '토끼' };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.queryByText('chat.settings.addFriend')).not.toBeInTheDocument();
+        });
     });
 
     it('방 이름을 탭하면 정보 다이얼로그가 열린다 (모드 분기는 다이얼로그 내부에서 파생)', () => {

@@ -17,7 +17,7 @@ import { toError } from '../../../utils/errors';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
-import { useChannelMutations, useChatMutations } from '../../channels/hooks';
+import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
 import { useChannelUnreads, useHomeChannels, useLastChat, useMyJoins } from '../../home/hooks';
 import { resolveChannelTitle, sortChannels } from '../../home/lib';
 import { useMyProfile } from '../../../hooks';
@@ -60,6 +60,9 @@ export const PlaceChannelManagePage = () => {
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, myJoins);
     const { profile: myProfile } = useMyProfile();
     const { userId: uid } = useSessionIdentity();
+    // 1:1 peers for every DM row, from ONE place-level profile subscription — the same source the
+    // home list uses, so both lists name a DM identically (ADR-0039).
+    const dmPeers = useDmPeers(placeId ?? null, channels, uid);
 
     // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
     // cloud half comes from the active session.
@@ -240,40 +243,47 @@ export const PlaceChannelManagePage = () => {
                 {sentInvites.map(invite => {
                     const id = invite.id;
                     if (!id) return null;
-                    return <InviteChannelRow key={id} invite={invite} onClick={() => navigate(ROUTES.invite.waiting(id))} />;
+                    return (
+                        <InviteChannelRow
+                            key={id}
+                            invite={invite}
+                            onClick={() => navigate(ROUTES.invite.waiting(id))}
+                        />
+                    );
                 })}
 
-                {isLoading && sortedChannels.length === 0 ? (
-                    Array.from({ length: 3 }).map((_, index) => (
-                        <div key={index} className="flex items-center gap-3 px-4 py-3">
-                            <div className="size-[46px] animate-pulse rounded-full bg-muted" />
-                            <div className="flex flex-1 flex-col gap-1.5">
-                                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-                                <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+                {isLoading && sortedChannels.length === 0
+                    ? Array.from({ length: 3 }).map((_, index) => (
+                          <div key={index} className="flex items-center gap-3 px-4 py-3">
+                              <div className="size-[46px] animate-pulse rounded-full bg-muted" />
+                              <div className="flex flex-1 flex-col gap-1.5">
+                                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                                  <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+                              </div>
+                          </div>
+                      ))
+                    : sortedChannels.length === 0
+                      ? sentInvites.length === 0 && (
+                            <div className="py-8 text-center text-sm text-muted-foreground">
+                                {t('channelList.empty')}
                             </div>
-                        </div>
-                    ))
-                ) : sortedChannels.length === 0 ? (
-                    sentInvites.length === 0 && (
-                        <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
-                    )
-                ) : (
-                    sortedChannels.map(channel => (
-                        <ManageChannelRow
-                            key={channel.id}
-                            channel={channel}
-                            uid={uid ?? undefined}
-                            myNick={myProfile?.nick}
-                            joinNick={myJoins.get(channel.id)?.nick}
-                            unread={unreadByChannel[channel.id] ?? 0}
-                            selectable={isSelectable(channel)}
-                            checked={selectedIds.has(channel.id)}
-                            onToggle={checked => toggleSelected(channel.id, checked)}
-                            pinned={pinnedChannelIds.has(channel.id)}
-                            onTogglePin={pinned => handleTogglePin(channel.id, pinned)}
-                        />
-                    ))
-                )}
+                        )
+                      : sortedChannels.map(channel => (
+                            <ManageChannelRow
+                                key={channel.id}
+                                channel={channel}
+                                uid={uid ?? undefined}
+                                myNick={myProfile?.nick}
+                                joinNick={myJoins.get(channel.id)?.nick}
+                                dmPeer={dmPeers.get(channel.id)}
+                                unread={unreadByChannel[channel.id] ?? 0}
+                                selectable={isSelectable(channel)}
+                                checked={selectedIds.has(channel.id)}
+                                onToggle={checked => toggleSelected(channel.id, checked)}
+                                pinned={pinnedChannelIds.has(channel.id)}
+                                onTogglePin={pinned => handleTogglePin(channel.id, pinned)}
+                            />
+                        ))}
             </div>
 
             {/* Bottom actions — mark read (all, or just the selection) and remove the selection. */}
@@ -329,6 +339,8 @@ interface ManageChannelRowProps {
     uid?: string;
     myNick?: string;
     joinNick?: string;
+    /** The 1:1 peer for this row (from the page-level useDmPeers). Undefined for non-DM rows. */
+    dmPeer?: DmPeer;
     unread: number;
     selectable: boolean;
     checked: boolean;
@@ -346,6 +358,7 @@ const ManageChannelRow = ({
     uid,
     myNick,
     joinNick,
+    dmPeer,
     unread,
     selectable,
     checked,
@@ -355,6 +368,8 @@ const ManageChannelRow = ({
 }: ManageChannelRowProps) => {
     const { t, i18n } = useTranslation();
     const isSelf = channel.stereo === 'self';
+    // 1:1 DM: the row shows the peer, so the avatar comes from them, not from the channel.
+    const isDm = channel.stereo === 'dm';
     const lastChat = useLastChat(channel.id);
 
     const name = resolveChannelTitle({
@@ -362,9 +377,13 @@ const ManageChannelRow = ({
         uid,
         joinNick,
         myNick,
+        peerNick: dmPeer?.profileNick,
         selfLabel: t('channelList.selfChannel'),
         unnamedLabel: t('channelList.unnamedChannel'),
+        dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
+
+    const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
 
     const time = lastChat?.createdAt
         ? new Date(lastChat.createdAt).toLocaleTimeString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', {
@@ -376,8 +395,8 @@ const ManageChannelRow = ({
     return (
         <ManageChannelItem
             leading={
-                channel.thumbnail ? (
-                    <ImageAvatar src={channel.thumbnail} alt="" size={46} />
+                avatarSrc ? (
+                    <ImageAvatar src={avatarSrc} alt="" size={46} />
                 ) : (
                     <DefaultAvatar size={46} variant={isSelf ? 'self' : 'user'} />
                 )

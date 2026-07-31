@@ -16,23 +16,39 @@ import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpac
 import { useMyProfile } from '../../../hooks';
 import { useChannel, useJoinMutations } from '../hooks';
 
-interface SelfChatNameDialogProps {
+interface JoinNickDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     channelId?: string;
+    /** Which room kind is being named — selects the copy namespace. Defaults to the self-chat. */
+    variant?: 'self' | 'dm';
+    /**
+     * The name the room currently falls back to, shown as the placeholder. Omit for a self-chat: it
+     * defaults to my own place-profile nick, which is that room's fallback identity.
+     */
+    fallbackName?: string;
 }
 
-// Self-chat names live on the per-user join `nick`, capped at 20 characters
-// (Figma 3165-26764). An empty value clears the custom name so the title falls
-// back to the owner's name.
+// Room names given by a member live on the per-user join `nick`, capped at 20 characters
+// (Figma 3165-26764). An empty value clears the custom name so the title falls back down its chain.
 const MAX_NAME_LENGTH = 20;
 
 /**
- * Edit a self-chat ("나와의 채팅") name. Unlike {@link UpdateChannelDialog} (which
- * edits `channel.name` + thumbnail via `channel.update`), this writes the current
- * user's join `nick` via `join.update` (ADR-0026) and is name-only.
+ * Edit MY name for a room — the per-user join `nick`, written via `join.update` (ADR-0026) and
+ * invisible to everyone else. Unlike {@link UpdateChannelDialog} (which edits `channel.name` +
+ * thumbnail via `channel.update`, i.e. the room name everyone sees), this is name-only and private.
+ *
+ * Two variants share it because they need exactly the same write with different copy:
+ *  - `self` — naming "나와의 채팅"; the fallback is my own place-profile nick
+ *  - `dm` — naming a 1:1 room; the fallback is the peer (see resolveDmTitle / ADR-0039)
  */
-export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNameDialogProps) => {
+export const JoinNickDialog = ({
+    open,
+    onOpenChange,
+    channelId,
+    variant = 'self',
+    fallbackName,
+}: JoinNickDialogProps) => {
     const { t } = useTranslation();
     const { channel } = useChannel(channelId ?? null);
     const { updateJoin, isPending } = useJoinMutations();
@@ -40,9 +56,11 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
     const { profile } = useMyProfile();
     const { toast } = useToast();
 
-    // A self-chat's default name (when no custom join nick is set) is my place-profile nick, so
-    // surface it as the placeholder — the same fallback identity used by useSelfChatTitle.
-    const placeProfileName = profile?.nick;
+    const copy = variant === 'dm' ? 'dmChat.name' : 'selfChat.name';
+
+    // The name shown when no custom join nick is set — the caller's fallback, or for a self-chat my
+    // place-profile nick (the identity useSelfChatTitle falls back to).
+    const placeholderName = fallbackName ?? profile?.nick;
 
     const [name, setName] = useState('');
 
@@ -54,8 +72,8 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
     const handleSubmit = async () => {
         if (!channelId) return;
 
-        // For a self-chat the only member/join is mine; prefer the join's userId
-        // and fall back to the session identity.
+        // `channel.$join` is always MY join row, so prefer its userId and fall back
+        // to the session identity.
         const joinUserId = channel?.$join?.userId ?? userId;
         if (!joinUserId) return;
 
@@ -64,11 +82,11 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
             // resolves the join row from channelId + userId at write time, so pass
             // userId + nick via a cast (mirrors the settings notify toggle).
             await updateJoin({ channelId, userId: joinUserId, nick: name.trim() } as never);
-            toast({ title: t('selfChat.name.success') });
+            toast({ title: t(`${copy}.success`) });
             onOpenChange(false);
         } catch (error) {
-            logger.error('CHAT', 'Failed to update self-chat name', { error, data: { channelId } });
-            toast({ title: t('selfChat.name.error'), variant: 'destructive' });
+            logger.error('CHAT', 'Failed to update join nick', { error, data: { channelId, variant } });
+            toast({ title: t(`${copy}.error`), variant: 'destructive' });
         }
     };
 
@@ -86,12 +104,12 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
                 // survive and utility order would decide the winner.
                 style={{ paddingBottom: 0 }}
             >
-                <DialogDescription className="sr-only">Edit self-chat name</DialogDescription>
+                <DialogDescription className="sr-only">Edit my name for this room</DialogDescription>
                 {/* Top Bar */}
                 <div className="flex items-center justify-between bg-background px-1.5 py-3">
                     <div className="h-11 w-11" />
                     <DialogTitle className="text-[16px] font-semibold leading-[1.625] tracking-[0.005em] text-foreground">
-                        {t('selfChat.name.title')}
+                        {t(`${copy}.title`)}
                     </DialogTitle>
                     <button onClick={() => onOpenChange(false)} className="flex h-11 w-11 items-center justify-center">
                         <X className="h-6 w-6 text-foreground" />
@@ -108,12 +126,12 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
                 >
                     <div className="flex flex-col gap-6 pt-6">
                         <TextField
-                            label={t('selfChat.name.label')}
+                            label={t(`${copy}.label`)}
                             value={name}
                             onChange={setName}
                             maxLength={MAX_NAME_LENGTH}
-                            placeholder={placeProfileName || t('selfChat.name.placeholder')}
-                            description={t('selfChat.name.helper')}
+                            placeholder={placeholderName || t(`${copy}.placeholder`)}
+                            description={t(`${copy}.helper`)}
                         />
                     </div>
 
@@ -125,7 +143,7 @@ export const SelfChatNameDialog = ({ open, onOpenChange, channelId }: SelfChatNa
                                 disabled={isPending.update}
                                 className="flex h-[50px] items-center justify-center gap-1.5 rounded-full bg-[#B0EA10] px-6 py-3 text-[16px] font-semibold leading-[1.375] tracking-[0.005em] text-[#222325] hover:bg-[#9DD00E] disabled:bg-muted disabled:text-muted-foreground"
                             >
-                                {isPending.update ? t('selfChat.name.saving') : t('selfChat.name.done')}
+                                {isPending.update ? t(`${copy}.saving`) : t(`${copy}.done`)}
                             </Button>
                         </div>
                         <KeyboardSafeAreaSpacer />
