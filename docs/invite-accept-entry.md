@@ -1,6 +1,6 @@
 # 초대 수락 진입 (Invite Accept Entry)
 
-> 상태: Live · 최종 갱신: 2026-07-31 · 관련 ADR: [ADR-0016](adr/0016-invite-accept-popup-web-ui-kit.md) · [ADR-0033](adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0035](adr/0035-relay-invite-accepted-channel-resolution.md) · [ADR-0037](adr/0037-invite-accept-popup-group-and-dm-variants.md)
+> 상태: Live · 최종 갱신: 2026-07-31 · 관련 ADR: [ADR-0016](adr/0016-invite-accept-popup-web-ui-kit.md) · [ADR-0033](adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0035](adr/0035-relay-invite-accepted-channel-resolution.md) · [ADR-0037](adr/0037-invite-accept-popup-group-and-dm-variants.md) · [ADR-0039](adr/0039-dm-display-name-chain-and-invite-profile-release.md)
 >
 > "팝업 → 페이지" 전환 결정 자체는 아직 ADR이 없다. `dev-1_interview`로 ADR-0038을 남기고 이 헤더를 갱신할 것.
 
@@ -40,7 +40,7 @@
 5. 온보딩을 마치거나 SKIP하면 `isFirstRun`이 뒤집히고, 게이트가 다시 평가되어 `/invite/accept?…`로 넘어간다.
 6. 아직 게스트 로그인 전이면 페이지가 **초대 로딩 화면**을 띄운 채 기다린다. 로그인이 끝나 `isAuthenticated`가 뒤집히면 라우터가 재생성되고 같은 경로가 다시 매칭된다.
 7. 릴레이 소켓 핸드셰이크를 기다린 뒤 `invite.get`. 결과가 올 때까지도 로딩 화면이다.
-8. 수락 화면. "수락" → 전화 인증 → 플레이스 프로필 → `invite.accept` 순으로 한 단계씩 전진하며, 매 단계 앞에서 `invite.get`을 다시 쏴 만료·선점을 재확인한다.
+8. 수락 화면. "수락" → 전화 인증 → `invite.accept` 순으로 한 단계씩 전진하며, 매 단계 앞에서 `invite.get`을 다시 쏴 만료·선점을 재확인한다. **플레이스 프로필은 묻지 않는다** — 수락 앞에 세울 만한 값이 아니고, 프로필은 플레이스 설정 허브에서 사후에 만든다(ADR-0039 결정 5).
 9. 수락 성공 → 방 id를 `usePendingInviteChannel`에 넣고 `/`로 이동 → 홈이 그 id를 소비해 대화방으로 replace 이동한다(`HomePage.tsx:188`).
 
 ### S2. 클라우드(그룹) 초대 — 이미 쓰던 사람
@@ -151,15 +151,12 @@ stateDiagram-v2
     review --> closed: 닫기 / 거절
 
     submitting --> verifying: needVerify 또는 403(미인증)
-    submitting --> profiling: nick 없음
     submitting --> awaitingChannel: accepted, channelId 없음
     submitting --> closed: accepted, channelId 있음
     submitting --> notice: 실패
 
     verifying --> submitting: 인증 완료 → advance
     verifying --> review: 취소
-    profiling --> submitting: 프로필 저장 → advance
-    profiling --> review: 취소
 
     awaitingChannel --> closed: 방 확정 또는 타임아웃
     notice --> closed: 확인
@@ -167,9 +164,9 @@ stateDiagram-v2
     closed --> [*]: / 로 이동
 ```
 
-`loading`은 로딩 화면, `notice`는 `AlertDialog`, `profiling`은 프로필 다이얼로그, `verifying`은 `PhoneVerifyScreen`(자체 Dialog를 가진다), 나머지는 수락 화면이 페이지를 차지한다.
+`loading`은 로딩 화면, `notice`는 `AlertDialog`, `verifying`은 `PhoneVerifyScreen`(자체 Dialog를 가진다), 나머지는 수락 화면이 페이지를 차지한다.
 
-모든 전이가 `advance`를 거치고, `advance`의 첫 동작은 또 한 번의 `invite.get`이다. 전화 인증에 몇 분이 걸리는 동안 초대가 만료되거나 선점될 수 있기 때문이다.
+전이의 유일한 조건 분기는 `needVerify` 하나다(ADR-0039가 프로필 스텝을 없앤 뒤로). 그래도 모든 전이가 `advance`를 거치고 `advance`의 첫 동작은 또 한 번의 `invite.get`이다 — 전화 인증에 몇 분이 걸리는 동안 초대가 만료되거나 선점될 수 있고, 그 이유는 스텝 수와 무관하다.
 
 ## 상세 구현
 
@@ -229,9 +226,12 @@ features/invite/
       ├─ InviteAcceptLoading
       ├─ InviteCard / InvitePlaceCard / InviteTargetCard / InviteExpiryCard
       ├─ CloudInviteAccept      ADR-0016 REST 수락 파이프라인
-      ├─ RelayInviteAccept      ADR-0033 릴레이 상태 기계의 뷰
-      └─ RelayInviteProfileDialog
+      └─ RelayInviteAccept      ADR-0033 릴레이 상태 기계의 뷰
 ```
+
+플레이스 프로필 폼(`PlaceProfileForm` 계열)은 `features/home/`·`features/place/`에 그대로 남는다 — 수락 흐름이 쓰지 않게 되었을 뿐 플레이스 설정 허브(ADR-0031)와 홈 드롭다운이 계속 쓴다.
+
+**단, i18n `placeProfileCreate.*`(16키)는 이제 소비처가 없다.** 남은 프로필 UI는 전부 `placeProfileEdit.*`를 쓰고, `placeProfileCreate.*`를 읽던 것은 삭제된 `RelayInviteProfileDialog` 하나뿐이었다. 지우지 않고 둔 이유는 ADR-0039가 범위 밖으로 미룬 "프로필 미설정자 재권유 UX"가 바로 이 카피를 필요로 할 가능성이 크기 때문이다. 그 후속을 하지 않기로 결정하면 함께 지울 것.
 
 수신 흐름은 팝업이 홈에 마운트돼 있었다는 이유만으로 `features/home/`에 살았다. 외부 소비자는 발신측 대기 화면이 쓰는 카운트다운 하나뿐이었고, 그건 `features/invite/hooks/`로 올렸다.
 
@@ -247,15 +247,17 @@ features/invite/
 npx nx test web
 ```
 
-| 파일                                                     | 검증 대상                                                                                                   |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `features/invite/accept/lib/inviteEntryRedirect.test.ts` | 릴레이/클라우드/비초대/반쪽 링크, 미소비 파라미터 보존                                                      |
-| `routes/InviteEntryGate.test.tsx`                        | 초대→리다이렉트 / 비초대→children / `isFirstRun`→보류(쿼리 보존) / 온보딩 완료 후 리다이렉트                |
-| `features/invite/accept/InviteAcceptPage.test.tsx`       | 릴레이·클라우드·bare relay 분기, 비초대 시 `/` replace, 미인증 시 로딩 + 데이터 훅 미호출, 백 핸들러 마운트 |
-| `routes/inviteAcceptRoute.test.ts`                       | `/invite/accept`가 `/invite/*` splat을 이기는지 (점수 기반이라 회귀 위험)                                   |
-| `routes/ShareLinkRedirect.test.tsx`                      | `/s` 변환 결과와 목적지가 `/`인지                                                                           |
-| `features/auth/pages/LoginPage.test.tsx`                 | 초대든 아니든 쿼리를 달고 `/`로                                                                             |
-| `routes/PublicRoutes.test.tsx`                           | 비로그인 `/` 대기와 쿼리 보존                                                                               |
+| 파일                                                           | 검증 대상                                                                                                   |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `features/invite/accept/lib/inviteEntryRedirect.test.ts`       | 릴레이/클라우드/비초대/반쪽 링크, 미소비 파라미터 보존                                                      |
+| `routes/InviteEntryGate.test.tsx`                              | 초대→리다이렉트 / 비초대→children / `isFirstRun`→보류(쿼리 보존) / 온보딩 완료 후 리다이렉트                |
+| `features/invite/accept/InviteAcceptPage.test.tsx`             | 릴레이·클라우드·bare relay 분기, 비초대 시 `/` replace, 미인증 시 로딩 + 데이터 훅 미호출, 백 핸들러 마운트 |
+| `routes/inviteAcceptRoute.test.ts`                             | `/invite/accept`가 `/invite/*` splat을 이기는지 (점수 기반이라 회귀 위험)                                   |
+| `routes/ShareLinkRedirect.test.tsx`                            | `/s` 변환 결과와 목적지가 `/`인지                                                                           |
+| `features/auth/pages/LoginPage.test.tsx`                       | 초대든 아니든 쿼리를 달고 `/`로                                                                             |
+| `routes/PublicRoutes.test.tsx`                                 | 비로그인 `/` 대기와 쿼리 보존                                                                               |
+| `features/invite/accept/hooks/useRelayInviteFlow.test.ts`      | 스텝 순서(인증 → 수락), 전이마다 `invite.get` 재검증, 인증 중 만료, 에러 → notice 분류                      |
+| `features/invite/accept/components/RelayInviteAccept.test.tsx` | `phase` → 화면 매핑                                                                                         |
 
 **수동 확인** — 각 진입 경로를 실제로 밟는다. 웹은 nx serve 타깃이 없고 vite를 직접 띄운다:
 

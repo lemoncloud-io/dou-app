@@ -88,7 +88,7 @@ flowchart TD
       O -->|no| Label["selfChannel 라벨 '나와의 채팅'"]
     end
     subgraph 저장["이름 수정"]
-      Row["설정 이름 행 탭"] --> Dlg["SelfChatNameDialog<br/>TextField maxLength=20"]
+      Row["설정 이름 행 탭"] --> Dlg["JoinNickDialog variant=self<br/>TextField maxLength=20"]
       Dlg -->|저장| Mut["useJoinMutations.updateJoin"]
       Mut --> Repo["join.updateJoin({channelId,userId,nick})"]
       Repo --> Cache["낙관적 캐시 → $join.nick 갱신"]
@@ -116,7 +116,7 @@ flowchart LR
 ```mermaid
 flowchart TD
   P[ChannelSettingsPage] --> Name["이름 행 (항상)"]
-  Name -->|self| SelfDlg["SelfChatNameDialog (join.nick)"]
+  Name -->|self| SelfDlg["JoinNickDialog variant=self (join.nick)"]
   Name -->|owner group| UpdDlg["UpdateChannelDialog (channel.name)"]
   P --> K{isSelfChat?}
   K -->|yes| Friend["'방 친구' 소유자 1명만"]
@@ -173,19 +173,21 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
   맞춘다.
 - **설정 `ChannelSettingsPage`**
   ([ChannelSettingsPage.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.tsx)) — - 이름 행: self·비-self 모두 `trailing`에 `>`(ChevronRight)를 두고 탭 가능. 탭 시
-  `openDialog(isSelfChat ? 'selfName' : 'update')`로 self는 `SelfChatNameDialog`,
-  비-self는 `UpdateChannelDialog`(멤버는 `readOnly`)를 연다. 제목은 self면
+  `openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')`로 self·DM은 `JoinNickDialog`,
+  그룹은 `UpdateChannelDialog`(멤버는 `readOnly`)를 연다. 제목은 self면
   `useSelfChatTitle`, 아니면 `channel.name`. - 이름 행 아바타(`roomAvatar`): 썸네일 있으면 `ImageAvatar`, 없으면 self는
   `DefaultAvatar`(사람 글리프), 그룹은 기존 `ChatAvatar`. - 멤버 행 렌더는 `memberList` 지역 변수로 추출해 self "방 친구" 섹션과 그룹 멤버 섹션이
   공유한다(로딩/멤버맵/빈 상태 동일). - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
 삭제/나가기</>)}`. self는 소유자 1명만 "방 친구"에 노출되고, 대화방 알림·친구 추가·방
-  나가기/삭제는 미노출. `SelfChatNameDialog`는 다른 다이얼로그와 함께 배선.
+  나가기/삭제는 미노출. `JoinNickDialog`는 다른 다이얼로그와 함께 배선.
 
-### apps/web — 신규 다이얼로그
+### apps/web — 이름 편집 다이얼로그
 
-- **`SelfChatNameDialog`** (신규, `components/`) — self 이름 전용 편집.
+- **`JoinNickDialog`** (`components/`) — 내 `join.nick` 편집.
   `UpdateChannelDialog`(채널명+썸네일, `channel.update`)와 저장 경로·레이아웃이 달라
-  전용 컴포넌트로 분리한다. web-ui-kit `TextField`
+  전용 컴포넌트로 분리한다. 원래 `SelfChatNameDialog`였고, ADR-0039가 DM 방 이름 변경을 열면서
+  **DM과 공용**이 되어 개명했다 — `variant: 'self' | 'dm'`이 카피 네임스페이스를, `fallbackName`이
+  placeholder를 고른다(자세한 것은 [[dm-chat]]). 아래는 self 변형 기준이다. web-ui-kit `TextField`
   ([TextField.tsx](../../../../../libs/web-ui-kit/src/foundations/input/TextField.tsx))
   사용: `label`(방 이름), `value`/`onChange`, `maxLength={20}`(카운터 `N/20` + 하드 캡),
   `description`("20글자 이내로 입력해 주세요"). 열릴 때 `channel.$join?.nick` 프리필. 저장 →
@@ -229,11 +231,12 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
 - **유닛 테스트(통과 — `channels` + 홈 `ChannelList`)**
     - [selfChatTitle.test.ts](../../src/app/features/channels/utils/selfChatTitle.test.ts) —
       파생 순서(nick → site 프로필 nick → 라벨), 트림/공백/누락 fallback.
-    - [SelfChatNameDialog.test.tsx](../../src/app/features/channels/components/SelfChatNameDialog.test.tsx) —
+    - [JoinNickDialog.test.tsx](../../src/app/features/channels/components/JoinNickDialog.test.tsx) —
       현재 nick 프리필, 라벨/헬퍼/완료 노출, 저장 시 `$join.userId`+트림 nick 호출·닫힘, 빈 값 저장(nick 제거).
+      dm 변형 케이스도 같은 파일에 있다.
     - [ChannelSettingsPage.test.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.test.tsx) —
       self: 파생 제목 행 + "방 친구"(소유자) 렌더, 대화방 설정/친구추가/삭제/나가기 미노출, 이름 행
-      탭 → `SelfChatNameDialog` 오픈. 비-self 소유자/멤버 회귀.
+      탭 → `JoinNickDialog` 오픈. 비-self 소유자/멤버 회귀.
     - [ChannelList.test.tsx](../../src/app/features/home/components/ChannelList.test.tsx) —
       `stereo==='self'` 행은 파생 제목 + MY 배지, 그룹 행은 `channel.name` + MY 없음.
     - 명령: `npx jest --config apps/web/jest.config.js --rootDir apps/web channels ChannelList`.

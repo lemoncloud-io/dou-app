@@ -3,11 +3,17 @@
 > 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: [0037](../../../../../docs/adr/0037-invite-accept-popup-group-and-dm-variants.md), [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
 >
 > 로드맵 Track C: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) · 백엔드 계약: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §시나리오 B·C
+>
+> **알려진 드리프트:** 아래 파일 경로 다수가 "팝업 → 페이지" 전환(수신 코드가 `features/home/` →
+> `features/invite/accept/`로 이동, `InviteDialog` → `RelayInviteAccept`) 이전을 가리킨다. 그 전환은
+> ADR-0038 대기 중이며, 진입 구조는 [docs/invite-accept-entry.md](../../../../../docs/invite-accept-entry.md)가
+> 최신이다. 이 문서의 상태 머신·시나리오 서술은 최신이다(ADR-0039 반영).
 
 ## 목적
 
 휴대폰 번호로 발급된 **중계(relay) 1:1 초대 딥링크**를 받은 사람이, 앱을 열고 → 번호를 인증하고 →
-플레이스 프로필을 만들고 → 초대를 수락해 → 새로 생긴 DM 방에 입장하기까지의 흐름을 담당한다.
+초대를 수락해 → 새로 생긴 DM 방에 입장하기까지의 흐름을 담당한다. 플레이스 프로필은 **묻지 않는다**
+(ADR-0039 결정 5) — 수락 앞에 세울 만한 값이 아니고, 프로필은 플레이스 설정 허브에서 사후에 만든다.
 
 기존 클라우드 초대([invite-accept](../home/invite-accept.md), ADR-0016)와 **딥링크 진입점을
 공유**하지만 백엔드 계약이 완전히 다르다 — 클라우드 초대는 REST 초대 파이프라인
@@ -23,14 +29,14 @@
 - **분기는 서버 `state` / `errorCode`로만 한다.** 에러 메시지 문자열 파싱 금지
   (`getSocketErrorCode`). 클라우드 쪽 `resolveInviteErrorKey`(substring 매칭)를 재사용하지 않는
   이유다.
-- **스텝 전환마다 초대를 재검증한다.** 인증·프로필 입력에 수 분이 걸리고 그사이 초대가 만료·선점될
+- **스텝 전환마다 초대를 재검증한다.** 번호 인증에 수 분이 걸리고 그사이 초대가 만료·선점될
   수 있다(05-client-guide §B-2). 모든 전환이 `advance()` 하나를 지나고, 그 첫 동작이
   `getInvite(code)`다 — 호출부가 잊을 수 없는 구조로 만든다.
 - **초대 코드는 자격증명이다.** 로그·쿼리키·localStorage·라우트 파라미터 어디에도 남기지 않는다.
   로컬 기록이 필요한 곳(거절 스텁)은 `invite.id`로 남긴다.
 - **백엔드가 없는 액션은 인터페이스만 선반영한다**(ADR-0033 D1). 디자인의 버튼은 그대로 만들되
   동작은 로컬로 끝내고, 노출은 [flags.ts](../../../src/app/features/home/flags.ts) 한 줄로 끈다.
-- **뷰는 재사용, 오케스트레이션만 새로 쓴다.** 수락 화면·상태 다이얼로그·프로필 폼·채널 입장
+- **뷰는 재사용, 오케스트레이션만 새로 쓴다.** 수락 화면·상태 다이얼로그·채널 입장
   핸드오프는 전부 기존 자산이다. 새 라우트를 만들지 않아 `paths.ts`·`HomePage.tsx`를 건드리지
   않는다.
 - **Track A 의존은 목 한 파일로 격리한다.** `PhoneVerifyScreen`·`applySessionToken`은 로드맵
@@ -68,27 +74,23 @@
 3. `수락` → **재검증** → 여전히 `pending` + `needVerify` → `PhoneVerifyScreen`
    (`context='invite-accept'`, `inviteCode=code`)이 같은 풀스크린 서피스에 뜬다. 인증이 끝나면
    (`onVerified`) 세션은 이미 메인유저로 전환된 상태다(Track A 책임).
-4. **재검증** → `pending` → relay 플레이스 프로필(`useMyProfile().profile?.nick`)이 비어 있으면
-   프로필 설정 오버레이(이름 필수 1~20자, 사진 선택).
-5. **재검증** → `pending` → `acceptInvite(code)`. 응답 `state==='accepted'`면 성공
-   (성공 플래그는 따로 없다).
-6. **방 id를 3단으로 해소한다**(ADR-0035). 방은 "수락 순간" 생기지만 비동기라
+4. **재검증** → `pending` → `acceptInvite(code)`. 응답 `state==='accepted'`면 성공
+   (성공 플래그는 따로 없다). 프로필 판정은 없다 — 수락을 막지 않는다.
+5. **방 id를 3단으로 해소한다**(ADR-0035). 방은 "수락 순간" 생기지만 비동기라
    (05-client-guide:58·222) 응답에 실려 오는지가 백엔드 진행에 달려 있다. 그래서 값이 이미 손에
    있으면 기다리지 않고, 없을 때만 점점 넓은 수단으로 내려간다 — 자세한 것은 아래 "채널 해소 3단"
    다이어그램.
-7. 해소되면 `usePendingInviteChannel.setPendingChannel(id)` → 홈으로 이동 → HomePage의 기존 효과가
+6. 해소되면 `usePendingInviteChannel.setPendingChannel(id)` → 홈으로 이동 → HomePage의 기존 효과가
    방으로 `replace` 이동한다([HomePage.tsx:184-196](../../../src/app/features/home/pages/HomePage.tsx),
    **무변경 재사용**).
 
 ### 2. 이미 메인유저인 기기 (needVerify=false)
 
-2번까지 동일. `수락` → 재검증 → `needVerify` 거짓 → 인증 스텝을 건너뛰고 프로필 판정으로 간다.
-프로필도 있으면 곧장 `acceptInvite`.
+2번까지 동일. `수락` → 재검증 → `needVerify` 거짓 → 인증 스텝을 건너뛰고 곧장 `acceptInvite`.
 
 ### 3. 기기 교체 (시나리오 C)
 
-앱이 따로 할 일이 없다 — 1번과 완전히 같고, 인증 단계에서 서버가 기존 유저를 찾아 준다. 프로필
-판정에서 기존 `profile.nick`이 이미 있으므로 프로필 스텝은 자동으로 건너뛰어진다.
+앱이 따로 할 일이 없다 — 1번과 완전히 같고, 인증 단계에서 서버가 기존 유저를 찾아 준다.
 
 ### 4. 만료된 초대
 
@@ -190,10 +192,9 @@ stateDiagram-v2
     submitting --> validated: getInvite 재검증
     validated --> notice: expired / accepted / 404 / 400 / 403
     validated --> verifying: pending && needVerify
-    validated --> profiling: pending && !needVerify && !profile.nick
 
     state accepted <<choice>>
-    validated --> accepted: pending && !needVerify && profile.nick<br/>→ acceptInvite
+    validated --> accepted: pending && !needVerify<br/>→ acceptInvite
     accepted --> closed: 1단 · 응답에 channelId<br/>→ pendingChannel (대기 없음)
     accepted --> awaitingChannel: state==='accepted' && channelId 없음
     accepted --> verifying: 403 && 아직 인증 전
@@ -201,8 +202,6 @@ stateDiagram-v2
 
     verifying --> submitting: onVerified
     verifying --> review: 인증 중단
-    profiling --> submitting: 프로필 저장
-    profiling --> review: 설정 중단
 
     awaitingChannel --> closed: 2단 · invite.get에 channelId → pendingChannel
     awaitingChannel --> closed: 3단 · dm 채널 도착 → pendingChannel
@@ -288,17 +287,19 @@ sequenceDiagram
 
 ```ts
 useRelayInviteFlow(code: string): {
-    phase: 'loading' | 'review' | 'submitting' | 'verifying' | 'profiling' | 'awaitingChannel' | 'notice' | 'closed';
+    phase: 'loading' | 'review' | 'submitting' | 'verifying' | 'awaitingChannel' | 'notice' | 'closed';
     invite: RelayInviteInfo | null;      // MyInviteView & { needVerify?, expiredAt?, inviter$.image? }
     notice: 'expired' | 'alreadyJoined' | 'notFound' | 'wrongNumber' | 'taken' | 'generic' | null;
     countdown: InviteCountdown | null;
     accept(); decline(); close();
-    onVerified(); onProfileSaved(); cancelStep(); dismissNotice();
+    onVerified(); cancelStep(); dismissNotice();
 }
 ```
 
-핵심은 `advance()` 하나다 — 재검증하고 그 결과로 다음 `phase`를 정한다. `accept`, `onVerified`,
-`onProfileSaved`가 전부 이걸 부르므로 재검증이 구조적으로 보장된다.
+핵심은 `advance()` 하나다 — 재검증하고 그 결과로 다음 `phase`를 정한다. `accept`와 `onVerified`가
+전부 이걸 부르므로 재검증이 구조적으로 보장된다. ADR-0039가 프로필 스텝을 없앤 뒤 조건 분기는
+`needVerify` 하나만 남았지만, 재검증 구조는 그대로다 — 인증에 수 분이 걸리는 사실은 스텝 수와
+무관하다.
 
 - Track 0 훅 사용: `useRelayInviteMutations().getInvite / acceptInvite`
   ([useRelayInvites.ts](../../../src/app/hooks/useRelayInvites.ts)).
@@ -307,14 +308,11 @@ useRelayInviteFlow(code: string): {
   status가 조회/수락에서 다른 뜻이라 `stage`를 함께 본다.
 - 수락 `403`은 `verifiedRef`로 갈린다 — 인증 전이면 "아직 디바이스 유저"라서 인증 스텝으로, 인증
   후면 번호 불일치라서 종료. 서버는 `needVerify`와 무관하게 다시 판정하므로 이 경로가 필요하다.
-- 프로필 판정: `useMyProfile().profile?.nick`. relay 플레이스에서도 `selectedSiteId`가 relay
-  core에서 나오므로 그대로 동작한다(ADR-0020 결정 3). 값이 아직 안 왔으면 프로필 스텝을 한 번 더
-  태우는데, 저장이 멱등이라 안전하다.
 - `expiredAt`은 발행된 `MyInviteView`에 선언돼 있지 않다(런타임에는 온다) — 기존
   `InviteInfo`([types/invite.ts](../../../src/app/features/home/types/invite.ts))의 확장 지점을
   재사용한다.
 - 세대 카운터(`runIdRef`) + `aliveRef`로, 흐름이 앞서 나간 뒤 늦게 도착한 응답은 아무것도 쓰지
-  않는다. 최신값(프로필 nick·게이트웨이·네비게이션)은 `latest` ref로 읽어 콜백 identity를 고정한다.
+  않는다. 최신값(게이트웨이·네비게이션)은 `latest` ref로 읽어 콜백 identity를 고정한다.
 - **수락 후 방 진입**은 `enterChannel(run, acceptedChannelId?)`이다. `acceptInvite` 응답의
   `channelId`를 그대로 넘겨(1단) `useResolveInviteChannel`에 위임하고, 결과가 있으면
   `setPendingChannel` + 홈 이동, `null`이면 안내 토스트 + 홈 이동으로 수렴한다. **1단이 맞으면
@@ -397,19 +395,19 @@ useAwaitInviteChannel(): {
 그대로 보여준다. 헤딩 폴백은 `inviter$.name`이 **비어 있을 때만** 걸리므로 마스킹된 이름이 "이름
   없음"으로 오해되지 않는다.
 
-### 프로필 스텝
+### 프로필 스텝 — 제거됨 (ADR-0039 결정 5)
 
-[`invite/RelayInviteProfileDialog.tsx`](../../../src/app/features/home/components/invite/RelayInviteProfileDialog.tsx)
-— 공유 `PlaceProfileFormDialog`(ADR-0020) 위의 얇은 래퍼. 편집 래퍼와 달리 저장/이탈 핸들러가
-갈라져 있어, 중단하면 홈이 아니라 초대 화면으로 돌아간다. 문구는 `placeProfileCreate.*`를 쓰되
-제목·부제만 `relayInviteAccept.profile.*`로 덮는다(그 네임스페이스는 플레이스 이름을 끼워 넣는데,
-relay 플레이스에는 보여 줄 이름이 없다).
+수락 앞에 프로필 설정을 세우지 않는다. `RelayInviteProfileDialog`와 `useSaveMyPlaceProfile`은
+삭제됐고, `relayInviteAccept.profile.*` 키도 지웠다. 프로필은 플레이스 설정 허브(ADR-0031)와 홈
+드롭다운에서 사후에 만든다 — 커밋 `98a4685ff`(2026-07-28)가 플레이스 진입 시의 강요를 걷어낸
+정리의 마무리이며, 이로써 앱에 프로필 강제 지점이 남지 않는다.
 
-저장은 [`hooks/useSaveMyPlaceProfile.ts`](../../../src/app/features/home/hooks/useSaveMyPlaceProfile.ts)
-를 거친다. `PlaceProfileEditDialog`처럼 `useRuntimeRepositories`를 직접 부르면 `@chatic/app-runtime`
-(→ sockets-lib → `lemon-model`)이 **`InviteDialog`의 정적 모듈 그래프에 들어와** 클라우드 회귀
-스위트가 `TextEncoder` 부재로 죽는다. 훅으로 빼면 그 의존이 이미 목킹되는 `features/home/hooks`
-배럴 뒤로 숨는다.
+i18n `placeProfileCreate.*`(16키)는 소비처를 잃었지만 **지우지 않고 남겼다** — ADR-0039가 범위 밖으로
+미룬 "프로필 미설정자 재권유 UX"가 그 카피를 쓸 가능성이 크다. 그 후속을 하지 않기로 정하면 함께
+지울 것.
+
+대가는 표시명이다: 프로필 없는 상대가 흔해지므로 DM 이름이 `channel.name` 또는 공통 라벨로 내려간다
+— 완화는 [[dm-chat]]의 표시 이름 체인이 담당한다.
 
 ### 스텁 — 거절 버튼
 
@@ -439,22 +437,20 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 
 ### 파일 목록
 
-| 파일                                                           | 상태 | 역할                         |
-| -------------------------------------------------------------- | ---- | ---------------------------- |
-| `features/home/components/InviteDialog.tsx`                    | 수정 | 훅 없는 진입 라우터          |
-| `features/home/components/invite/CloudInviteDialog.tsx`        | 신규 | 기존 본문 이동(로직 무변경)  |
-| `features/home/components/invite/RelayInviteDialog.tsx`        | 신규 | relay 오케스트레이터(뷰)     |
-| `features/home/components/invite/RelayInviteProfileDialog.tsx` | 신규 | 프로필 스텝 래퍼             |
-| `features/home/components/invite/trackAMock.tsx`               | 신규 | Track A 계약 목 (교체 지점)  |
-| `features/home/components/invite/InviteAcceptScreen.tsx`       | 수정 | optional prop 4종            |
-| `features/home/components/invite/InviteTargetCard.tsx`         | 수정 | optional `kind`              |
-| `features/home/hooks/useRelayInviteFlow.ts`                    | 수정 | 상태 머신 · 3단 해소 위임    |
-| `features/home/hooks/useResolveInviteChannel.ts`               | 신규 | 채널 해소 1·2단 (ADR-0035)   |
-| `features/home/hooks/useSaveMyPlaceProfile.ts`                 | 신규 | 프로필 저장(런타임 격리)     |
-| `features/home/flags.ts`                                       | 신규 | 스텁 게이팅                  |
-| `features/home/lib/relayInviteDecline.ts`                      | 신규 | 거절 로컬 기록(스텁)         |
-| `hooks/useAwaitInviteChannel.ts`                               | 신규 | 채널 sync 대기(Track B 공유) |
-| `public/locales/{ko,en}/translation.json`                      | 수정 | 신규 문구(추가만)            |
+| 파일                                                     | 상태 | 역할                         |
+| -------------------------------------------------------- | ---- | ---------------------------- |
+| `features/home/components/InviteDialog.tsx`              | 수정 | 훅 없는 진입 라우터          |
+| `features/home/components/invite/CloudInviteDialog.tsx`  | 신규 | 기존 본문 이동(로직 무변경)  |
+| `features/home/components/invite/RelayInviteDialog.tsx`  | 신규 | relay 오케스트레이터(뷰)     |
+| `features/home/components/invite/trackAMock.tsx`         | 신규 | Track A 계약 목 (교체 지점)  |
+| `features/home/components/invite/InviteAcceptScreen.tsx` | 수정 | optional prop 4종            |
+| `features/home/components/invite/InviteTargetCard.tsx`   | 수정 | optional `kind`              |
+| `features/home/hooks/useRelayInviteFlow.ts`              | 수정 | 상태 머신 · 3단 해소 위임    |
+| `features/home/hooks/useResolveInviteChannel.ts`         | 신규 | 채널 해소 1·2단 (ADR-0035)   |
+| `features/home/flags.ts`                                 | 신규 | 스텁 게이팅                  |
+| `features/home/lib/relayInviteDecline.ts`                | 신규 | 거절 로컬 기록(스텁)         |
+| `hooks/useAwaitInviteChannel.ts`                         | 신규 | 채널 sync 대기(Track B 공유) |
+| `public/locales/{ko,en}/translation.json`                | 수정 | 신규 문구(추가만)            |
 
 ## 검증 방법
 
@@ -480,7 +476,7 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 - **정적 검사**: `npx tsc --noEmit -p apps/web/tsconfig.app.json` 0 errors — 선행으로
   `npx tsc --build apps/web/tsconfig.app.json`을 돌려 프로젝트 참조를 빌드해야 한다(안 하면 TS6305
   노이즈에 실제 오류가 묻힌다). 변경 파일 eslint 0 errors.
-- **수동 확인(dev 스테이지)**: 신규 기기에서 딥링크→인증→프로필→수락→입장 풀 시나리오, 만료 /
+- **수동 확인(dev 스테이지)**: 신규 기기에서 딥링크→인증→수락→입장 풀 시나리오, 만료 /
   이미참여 / 404. 채널 지연은 백엔드 상태에 달려 있어 타임아웃 폴백은 `CHANNEL_WAIT_TIMEOUT_MS`를
   낮춰 강제 재현한다. **인증 스텝은 Track A 머지 전까지 목이므로**, 실제 인증을 타는 수동 시나리오는
   통합(rebase) 이후에 돌린다.
