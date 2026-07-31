@@ -78,6 +78,11 @@ Figma 디자인(채팅방 관리·초대·대기·수락·전화번호 인증 �
     번호 인증, 인증 후 relay 플레이스 프로필(`profile.nick`)이 없으면 프로필 설정,
     그다음 `invite.accept` → 채널 sync 대기 → 입장. 표시명 `***<뒷4자리>` 유저가
     존재하므로 표시단에서 감안한다.
+
+    > **개정 (2026-07-31, [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) 결정 5)**
+    > 프로필 스텝을 **삭제**했다. 순서는 **인증 → 수락**이다. 프로필은 플레이스 설정
+    > 허브에서 사후 설정한다. 표시명 `***<뒷4자리>`에 대한 감안은 그래서 더 중요해졌다.
+
 11. **산출물은 ADR(본 문서) + 로드맵 + 트랙별 킥오프 프롬프트.** 로드맵:
     [docs/plans/relay-dm-invite-parallel-roadmap.md](../plans/relay-dm-invite-parallel-roadmap.md).
 
