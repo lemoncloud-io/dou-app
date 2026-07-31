@@ -16,6 +16,7 @@ import { BottomNavSpacer } from '../../../ui/components';
 import { useAppIcon, useDevicePushMute } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
 import { debugOverlayActions, useDebugMode } from '../../debug';
+import { useAppUpdateStatus } from '../../appUpdate';
 import { ROUTES } from '../../../routes/paths';
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
@@ -33,6 +34,7 @@ export const MyPage = () => {
     const { resetOnboarding, blurLastMessage, setBlurLastMessage, issueReportHidden, setIssueReportHidden } =
         usePreferenceStore();
     const { isEnabled: isDebugMode, registerTap } = useDebugMode();
+    const { updateAvailable } = useAppUpdateStatus();
     const {
         isSupported: isIconChangeSupported,
         currentIcon,
@@ -70,9 +72,11 @@ export const MyPage = () => {
     const hasSubscription = membership?.isValid === true;
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
+    // Sourced from the live bridge check, not from versionInfo.shouldUpdate: the latter comes from
+    // the boot-time injection, which is always false on a cold start (see useAppUpdateStatus).
     // iOS only: Android has no live-version source yet (see ADR-0033), so the update row is
-    // gated on platform explicitly rather than relying solely on shouldUpdate staying false there.
-    const showUpdate = !!versionInfo?.shouldUpdate && deviceInfo?.platform === 'ios';
+    // gated on platform explicitly rather than relying solely on the check staying false there.
+    const showUpdate = updateAvailable && deviceInfo?.platform === 'ios';
 
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
