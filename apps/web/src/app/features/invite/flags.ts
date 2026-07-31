@@ -1,5 +1,5 @@
 /**
- * Interface-pre-wiring gates for the relay 1:1 invite sender flow (ADR-0033 Track B).
+ * Interface-pre-wiring gates for the relay 1:1 invite flow (ADR-0033).
  *
  * The Figma designs include actions the backend does not support yet. Rather than build them
  * fully and half-wire them, each gap gets a single boolean here — the UI reads the flag instead
@@ -17,6 +17,15 @@ export const INVITE_CANCEL_API_SUPPORTED = false;
  * (`resolveInviteRowBadge` / `resolveReinviteVariant`), so flipping it is the whole change.
  */
 export const INVITE_REJECTED_STATE_SUPPORTED = false;
+
+/**
+ * 요청 2 (수신측) — show the "거절" button on the invite accept screen.
+ *
+ * Same missing API as the flag above, seen from the other end: with no reject endpoint the button
+ * only closes the screen and records the decline locally, and the inviter is never told. Flip to
+ * `false` to hide it until the API lands.
+ */
+export const RELAY_INVITE_DECLINE_ENABLED = true;
 
 /**
  * 요청 3 — reissuing an invite to the same phone does not revoke the prior pending code

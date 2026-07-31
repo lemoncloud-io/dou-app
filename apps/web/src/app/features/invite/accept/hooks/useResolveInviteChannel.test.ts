@@ -5,7 +5,7 @@ import { CHANNEL_PROBE_DELAYS_MS, useResolveInviteChannel } from './useResolveIn
 const awaitChannel = jest.fn();
 const getInvite = jest.fn();
 
-jest.mock('../../../hooks', () => ({
+jest.mock('../../../../hooks', () => ({
     useAwaitInviteChannel: () => ({ awaitChannel }),
     useRelayInviteMutations: () => ({ getInvite }),
 }));

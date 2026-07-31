@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { useSessionLogout } from '../../../../runtime/useSessionLogout';
-import { useInviteAccept, useInviteCountdown } from '../../hooks';
-import type { InviteInfo, InviteParams } from '../../types';
+import { useInviteAccept } from '../hooks';
+import { useInviteCountdown } from '../../hooks/useInviteCountdown';
+import type { InviteInfo, InviteParams } from '../types';
 import { ROUTES } from '../../../../routes/paths';
 
 /** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */

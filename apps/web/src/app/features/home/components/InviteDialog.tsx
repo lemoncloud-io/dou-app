@@ -2,8 +2,8 @@ import type { JSX } from 'react';
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { CloudInviteDialog, RelayInviteDialog } from './invite';
-import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from '../types';
+import { CloudInviteDialog, RelayInviteDialog } from '../../invite/accept/components';
+import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from '../../invite/accept/types';
 
 interface InviteDialogProps {
     /** When true the popup is withheld (e.g. first-run onboarding takes precedence). */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { useAwaitInviteChannel, useRelayInviteMutations } from '../../../hooks';
+import { useAwaitInviteChannel, useRelayInviteMutations } from '../../../../hooks';
 
 /**
  * Delays before each tier-2 `invite.get` probe, applied before the probe it precedes.

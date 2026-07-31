@@ -22,7 +22,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('../../../hooks', () => ({
+jest.mock('../../../../hooks', () => ({
     useRelayInviteMutations: () => ({ getInvite, acceptInvite }),
     useMyProfile: () => ({ profile: mockNick ? { nick: mockNick } : null }),
 }));
@@ -30,7 +30,7 @@ jest.mock('../../../hooks', () => ({
 // one off real timers and lets it assert the hand-off instead.
 jest.mock('./useResolveInviteChannel', () => ({ useResolveInviteChannel: () => ({ resolveChannel }) }));
 jest.mock('../lib', () => ({ recordDeclinedInvite: (...args: unknown[]) => recordDeclinedInvite(...args) }));
-jest.mock('../../../stores/usePendingInviteChannel', () => ({
+jest.mock('../../../../stores/usePendingInviteChannel', () => ({
     usePendingInviteChannel: (selector: (s: unknown) => unknown) => selector({ setPendingChannel }),
 }));
 

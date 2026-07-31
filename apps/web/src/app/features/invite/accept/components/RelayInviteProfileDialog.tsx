@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { PlaceProfileFormDialog } from '../PlaceProfileFormDialog';
-import { useSaveMyPlaceProfile } from '../../hooks';
+import { PlaceProfileFormDialog } from '../../../home/components/PlaceProfileFormDialog';
+import { useSaveMyPlaceProfile } from '../../../home/hooks';
 
 interface RelayInviteProfileDialogProps {
     /** The profile was saved — the accept flow moves on. */

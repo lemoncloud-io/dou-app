@@ -3,12 +3,12 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { RelayInviteDialog } from './RelayInviteDialog';
-import type { RelayInviteFlow } from '../../hooks';
+import type { RelayInviteFlow } from '../hooks';
 
 // Mutable per-test flow state (must be `mock`-prefixed to be usable inside jest.mock factories).
 let mockFlow: RelayInviteFlow;
 
-jest.mock('../../hooks', () => ({ useRelayInviteFlow: () => mockFlow }));
+jest.mock('../hooks', () => ({ useRelayInviteFlow: () => mockFlow }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 // The profile and phone-verification steps both reach for the runtime; stub them out so this suite
 // stays about the phase switch.

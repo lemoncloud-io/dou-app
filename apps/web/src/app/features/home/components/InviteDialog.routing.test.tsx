@@ -10,7 +10,7 @@ let mockSearch = '';
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ search: mockSearch }) }));
 // Both branches are stubbed to sentinels: this suite is about which one the deeplink picks, and
 // mounting either for real would drag in its data layer.
-jest.mock('./invite', () => ({
+jest.mock('../../invite/accept/components', () => ({
     CloudInviteDialog: () => <div>cloud-branch</div>,
     RelayInviteDialog: ({ code }: { code: string }) => <div>relay-branch:{code}</div>,
 }));

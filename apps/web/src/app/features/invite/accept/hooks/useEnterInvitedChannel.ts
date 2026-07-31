@@ -3,8 +3,8 @@ import { useCallback } from 'react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
-import { ROUTES } from '../../../routes/paths';
+import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
+import { ROUTES } from '../../../../routes/paths';
 
 /**
  * Step 3 of invite entry: always land on home so the newly-entered site becomes the active place.

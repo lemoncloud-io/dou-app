@@ -9,7 +9,7 @@ import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { RelayInviteProfileDialog } from './RelayInviteProfileDialog';
 import { PhoneVerifyScreen } from '../../../auth/components';
 import { RELAY_INVITE_DECLINE_ENABLED } from '../../flags';
-import { useRelayInviteFlow } from '../../hooks';
+import { useRelayInviteFlow } from '../hooks';
 
 /** Full-bleed dialog surface shared by the accept screen and the verification step. */
 const FULL_SCREEN_CONTENT = 'm-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none';

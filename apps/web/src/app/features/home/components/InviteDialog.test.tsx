@@ -20,10 +20,10 @@ jest.mock('react-router-dom', () => ({ useLocation: () => ({ search: mockSearch 
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
 jest.mock('@chatic/web-core', () => ({ useInviteInfo: () => ({ data: mockInfo }) }));
 jest.mock('../../../runtime/useSessionLogout', () => ({ useSessionLogout: () => mockLogout }));
-jest.mock('../hooks', () => ({
+jest.mock('../../invite/accept/hooks', () => ({
     useInviteAccept: () => ({ ...mockAccept, accept: mockAcceptFn }),
-    useInviteCountdown: () => null,
 }));
+jest.mock('../../invite/hooks/useInviteCountdown', () => ({ useInviteCountdown: () => null }));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k }),
 }));

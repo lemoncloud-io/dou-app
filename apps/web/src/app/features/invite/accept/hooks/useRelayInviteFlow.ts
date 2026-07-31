@@ -6,14 +6,14 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useInviteCountdown, type InviteCountdown } from './useInviteCountdown';
+import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
-import { useMyProfile, useRelayInviteMutations, type RelayInviteView } from '../../../hooks';
+import { useMyProfile, useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
 import { recordDeclinedInvite } from '../lib';
-import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
+import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
-import { getSocketErrorCode } from '../../../utils/errors';
-import { ROUTES } from '../../../routes/paths';
+import { getSocketErrorCode } from '../../../../utils/errors';
+import { ROUTES } from '../../../../routes/paths';
 
 /**
  * The invite as the accept screen reads it. `expiredAt` and the inviter's avatar arrive at runtime

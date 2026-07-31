@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 import { InviteExpiryCard } from './InviteExpiryCard';
-import type { InviteCountdown } from '../../hooks';
+import type { InviteCountdown } from '../../hooks/useInviteCountdown';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({

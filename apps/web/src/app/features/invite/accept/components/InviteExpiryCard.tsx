@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { IconClockSolid, Text } from '@chatic/web-ui-kit';
 
 import { InviteCard } from './InviteCard';
-import type { InviteCountdown } from '../../hooks';
+import type { InviteCountdown } from '../../hooks/useInviteCountdown';
 
 interface InviteExpiryCardProps {
     /** Live remaining-time breakdown from useInviteCountdown. */

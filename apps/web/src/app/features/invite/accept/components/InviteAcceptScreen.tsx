@@ -6,7 +6,7 @@ import { Button, IconClose, ProfileAvatar, Text, douMark } from '@chatic/web-ui-
 import { InvitePlaceCard } from './InvitePlaceCard';
 import { InviteTargetCard } from './InviteTargetCard';
 import { InviteExpiryCard } from './InviteExpiryCard';
-import type { InviteCountdown } from '../../hooks';
+import type { InviteCountdown } from '../../hooks/useInviteCountdown';
 
 export interface InviteAcceptScreenProps {
     inviterName?: string;
@@ -32,7 +32,7 @@ export interface InviteAcceptScreenProps {
      * server-side decline, so there the two really are the same thing.
      */
     onDecline?: () => void;
-    /** Hide the decline button. Used to gate the relay decline stub (see features/home/flags.ts). */
+    /** Hide the decline button. Used to gate the relay decline stub (see features/invite/flags.ts). */
     showDecline?: boolean;
     /** Overlay rendered above the screen, e.g. the "creating your room" spinner after an accept. */
     overlay?: ReactNode;

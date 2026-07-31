@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { InviteAcceptScreen, type InviteAcceptScreenProps } from './InviteAcceptScreen';
-import type { InviteCountdown } from '../../hooks';
+import type { InviteCountdown } from '../../hooks/useInviteCountdown';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({

@@ -1,4 +1,4 @@
-import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from './invite';
+import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from './types';
 
 describe('parseInviteDeeplink', () => {
     it('provider, code, backend, version을 딥링크에서 추출한다', () => {

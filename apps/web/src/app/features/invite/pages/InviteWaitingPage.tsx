@@ -11,7 +11,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
 
 import { useMyProfile, useRelayInviteMutations, useSentInviteLog } from '../../../hooks';
-import { useInviteCountdown } from '../../home/hooks';
+import { useInviteCountdown } from '../hooks/useInviteCountdown';
 import { ConfirmDialog } from '../../channels/components';
 import { ROUTES } from '../../../routes/paths';
 import { toError } from '../../../utils/errors';
