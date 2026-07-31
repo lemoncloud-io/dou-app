@@ -986,7 +986,7 @@
             "roomFriends": "{{count}} members"
         },
         "expiry": {
-            "label": "Invite link expires in",
+            "label": "Invite link valid for",
             "remaining": "{{time}} left",
             "days": "{{n}}d",
             "hours": "{{n}}h",

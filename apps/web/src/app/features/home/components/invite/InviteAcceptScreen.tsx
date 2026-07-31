@@ -15,10 +15,12 @@ export interface InviteAcceptScreenProps {
     placeIntro?: string;
     placeThumbnail?: string;
     memberCount?: number;
-    /** Expiry epoch (ms); with a countdown it renders the validity card. */
-    expiredAt?: number;
+    /** Live countdown for the invite link; `null` (no expiry known) hides the validity card. */
     countdown: InviteCountdown | null;
-    /** Which kind of room the invite leads to; drives the "You" card caption. */
+    /**
+     * Which kind of room the invite leads to. Drives the "You" card caption **and** whether the place
+     * card exists at all — a 1:1 invite has no place to show (ADR-0037).
+     */
     targetKind?: 'group' | 'oneToOne';
     /** True while the accept pipeline is in flight — disables dismissal and spins the CTA. */
     isAccepting: boolean;
@@ -48,7 +50,6 @@ export const InviteAcceptScreen = ({
     placeIntro,
     placeThumbnail,
     memberCount,
-    expiredAt,
     countdown,
     targetKind,
     isAccepting,
@@ -59,6 +60,10 @@ export const InviteAcceptScreen = ({
     overlay,
 }: InviteAcceptScreenProps) => {
     const { t } = useTranslation();
+
+    // A 1:1 invite never shows a place, and a group invite only shows one it has something to say about
+    // — an icon-only shell is worse than no card (ADR-0037 decision 1).
+    const showPlaceCard = targetKind !== 'oneToOne' && Boolean(placeName || placeThumbnail);
 
     const heading = inviterName ? (
         <>
@@ -108,31 +113,32 @@ export const InviteAcceptScreen = ({
                 <div className="flex flex-col items-center gap-2 pt-2">
                     <ProfileAvatar src={inviterImage} size={86} />
                     <div className="flex flex-col items-center gap-1 px-4 text-center">
+                        {/* Figma `blue_bk` (#102346). Reverted on dark, where the navy loses contrast
+                            against the dark surface. */}
                         <Text
                             as="h1"
-                            className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
+                            className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-brand-ink dark:text-foreground"
                         >
                             {heading}
                         </Text>
-                        <Text className="break-keep text-[14px] font-medium leading-[1.45] text-description">
+                        <Text className="break-keep text-[14px] font-medium leading-[1.45] text-label">
                             {t('inviteAccept.description')}
                         </Text>
                     </div>
                 </div>
 
-                {/* Place + target cards. A relay 1:1 invite carries no place metadata at all, so the
-                    place card folds away entirely rather than showing an empty shell. */}
+                {/* Place + target cards. Which cards exist is the group / 1:1 difference. */}
                 <div className="flex flex-col gap-4">
-                    {(placeName || placeThumbnail) && (
+                    {showPlaceCard && (
                         <InvitePlaceCard name={placeName} intro={placeIntro} thumbnail={placeThumbnail} />
                     )}
                     <InviteTargetCard memberCount={memberCount} kind={targetKind} />
                 </div>
 
                 {/* Link validity countdown (hidden when no expiry is known) */}
-                {expiredAt && countdown && (
+                {countdown && (
                     <div className="flex justify-center pb-2">
-                        <InviteExpiryCard expiredAt={expiredAt} countdown={countdown} />
+                        <InviteExpiryCard countdown={countdown} />
                     </div>
                 )}
             </div>

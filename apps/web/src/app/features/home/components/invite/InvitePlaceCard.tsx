@@ -1,4 +1,4 @@
-import { IconImage, Text } from '@chatic/web-ui-kit';
+import { IconImageSolid, Text } from '@chatic/web-ui-kit';
 
 import { InviteCard } from './InviteCard';
 
@@ -7,7 +7,7 @@ interface InvitePlaceCardProps {
     name?: string;
     /** Intro copy (backend-provided; hidden when absent). */
     intro?: string;
-    /** Place thumbnail (base64/url); falls back to the generic PlaceAvatar. */
+    /** Place thumbnail (base64/url); falls back to the picture-placeholder glyph. */
     thumbnail?: string;
 }
 
@@ -20,10 +20,12 @@ export const InvitePlaceCard = ({ name, intro, thumbnail }: InvitePlaceCardProps
         {thumbnail ? (
             <img src={thumbnail} alt="" className="size-10 shrink-0 rounded-full object-cover" />
         ) : (
-            // No thumbnail: the Figma picture-placeholder — brand-ink disc with a white image glyph.
-            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-ink">
-                <IconImage size={20} className="text-white" />
-            </span>
+            // No thumbnail: the Figma picture-placeholder glyph, which carries its own disc with the
+            // photo motif knocked out — hence no coloured wrapper here. Because the motif is a
+            // cut-out, the glyph colour must contrast with the card *behind* it: brand-ink over the
+            // light glass is 14:1, but only 1.2:1 over the dark card, so dark mode inverts to a light
+            // disc with a dark motif (8.7:1).
+            <IconImageSolid size={40} className="shrink-0 text-brand-ink dark:text-white/80" />
         )}
         <div className="flex w-full flex-col items-center gap-1 text-center">
             {name && (
@@ -32,7 +34,7 @@ export const InvitePlaceCard = ({ name, intro, thumbnail }: InvitePlaceCardProps
                 </Text>
             )}
             {intro && (
-                <Text as="p" className="break-keep text-[14px] font-medium leading-[1.4] text-description">
+                <Text as="p" className="break-keep text-[14px] font-medium leading-[1.4] text-label">
                     {intro}
                 </Text>
             )}

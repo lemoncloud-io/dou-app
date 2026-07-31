@@ -88,7 +88,6 @@ export const RelayInviteDialog = ({ code }: RelayInviteDialogProps): JSX.Element
                 <InviteAcceptScreen
                     inviterName={flow.invite?.inviter$?.name}
                     inviterImage={flow.invite?.inviter$?.image}
-                    expiredAt={flow.invite?.expiredAt}
                     countdown={flow.countdown}
                     targetKind="oneToOne"
                     isAccepting={isBusy}

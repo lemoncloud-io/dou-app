@@ -131,8 +131,9 @@ describe('RelayInviteDialog', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    // A relay 1:1 invite is not into a place, so the cloud screen's place card folds away even when
-    // the view happens to carry a site.
+    // A relay 1:1 invite is not into a place. Two things guarantee the card stays away: this dialog
+    // never forwards `site$` to the screen, and the screen gates the card on `targetKind` regardless
+    // (ADR-0037). The mock carries a site precisely so neither guard can be dropped unnoticed.
     it('플레이스 카드를 그리지 않는다', () => {
         mockFlow = flow({
             invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' }, site$: { name: '북클럽' } },

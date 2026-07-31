@@ -112,7 +112,6 @@ export const CloudInviteDialog = ({ params }: CloudInviteDialogProps): JSX.Eleme
                 <InviteAcceptScreen
                     inviterName={info?.inviter$?.name}
                     placeName={info?.site$?.name}
-                    expiredAt={info?.expiredAt}
                     countdown={countdown}
                     isAccepting={isAccepting}
                     onAccept={accept}

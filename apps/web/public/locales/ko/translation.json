@@ -986,7 +986,7 @@
             "roomFriends": "방 친구 {{count}}"
         },
         "expiry": {
-            "label": "초대 링크 유효기간",
+            "label": "초대 링크 유효시간",
             "remaining": "{{time}} 남음",
             "days": "{{n}}일",
             "hours": "{{n}}시간",
