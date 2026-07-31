@@ -1,6 +1,6 @@
 # 중계 1:1 초대 수락 (Relay Invite Accept) — 수신자 흐름
 
-> 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
+> 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: [0037](../../../../../docs/adr/0037-invite-accept-popup-group-and-dm-variants.md), [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
 >
 > 로드맵 Track C: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) · 백엔드 계약: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §시나리오 B·C
 
@@ -370,7 +370,7 @@ useAwaitInviteChannel(): {
   지켜 델타를 잃지 않는다([useBackgroundSync.ts:73-82](../../../src/app/runtime/useBackgroundSync.ts)).
 - 입장: `usePendingInviteChannel.setPendingChannel(id)` 후 홈으로 `replace`. **HomePage 무변경.**
 
-### 수락 화면 (Figma 3077-11587)
+### 수락 화면 (Figma 3072-10943 — 1:1 변형)
 
 `InviteAcceptScreen`을 공유하고, optional prop 넷을 넓혔다 — **기본값이 현행이라 클라우드 쪽은
 동작이 같다**:
@@ -382,10 +382,16 @@ useAwaitInviteChannel(): {
 | `showDecline` | 플래그            | `true`            |
 | `overlay`     | 채널 대기 스피너  | 없음              |
 
-- 플레이스 카드는 **이름도 썸네일도 없으면 접힌다.** relay 1:1 초대는 플레이스로 들어가는 게 아니라
-  빈 카드 껍데기만 남기 때문이다. 클라우드는 항상 `site$.name`이 있어 영향이 없다.
-- `InviteTargetCard`에 `kind?: 'group' | 'oneToOne'`을 추가해 이미 있던 미사용 키
-  `inviteAccept.target.oneToOne`("1:1 대화")를 쓴다.
+- 플레이스 카드는 **`targetKind='oneToOne'`이라 아예 렌더되지 않는다** — 메타 유무와 무관하다
+  (ADR-0037 결정 1). 1:1 대화에 플레이스는 의미가 없다. 종전에는 "이름도 썸네일도 없으면 접힌다"는
+  데이터 기준이었고, 이제 방 종류 기준이다.
+- `InviteTargetCard`의 `kind?: 'group' | 'oneToOne'`이 `inviteAccept.target.oneToOne`("1:1 대화")을
+  고른다.
+- 유효시간 카드는 `expiredAt` 대신 `countdown`만 받는다. 24시간 미만이면 `HH:mm:ss`, 그 이상이면
+  `n일 n시간`으로 표기가 갈린다(ADR-0037 결정 3) — 초대 링크는 서버에서 3일이다.
+
+수락 화면 자체의 상세는 [invite-accept](../home/invite-accept.md)가 소유한다.
+
 - **표시명 `\***<뒷4자리>`** — 번호로 만들어진 유저의 서버 표시명이다(백엔드가 고치지 않기로 한
 항목). `ProfileAvatar`는 이니셜이 아니라 글리프를 그리므로 아바타는 영향이 없고, 이름은 서버 값을
 그대로 보여준다. 헤딩 폴백은 `inviter$.name`이 **비어 있을 때만** 걸리므로 마스킹된 이름이 "이름
