@@ -102,7 +102,12 @@ https://dou.chatic.io/auth/login?code=<inviteCode>&provider=invite&version=2&rel
 | `relay`            | 릴레이 초대 마커   | `urlParams.has('relay')`    | **릴레이 폼에만 존재**하며 항상 `"1"`로 정규화됩니다. `_backend`와 상호배타적이며, 둘 중 하나는 반드시 있어야 초대 진입으로 인정됩니다(`isInviteEntry`). |
 
 > [!NOTE]
-> 진입 판정은 `provider === 'invite' && code && (_backend || relay)`다 (`apps/web/.../home/types/invite.ts`). 초대 정보 조회(`useInviteInfo`)와 수락(`registerUserWithInviteCode`)은 `backend`가 없으면 `getDynamicRelayBackend()`로 폴백한다.
+> 진입 판정은 `provider === 'invite' && code && (_backend || relay)`다 (`apps/web/.../invite/accept/types.ts`). 초대 정보 조회(`useInviteInfo`)와 수락(`registerUserWithInviteCode`)은 `backend`가 없으면 `getDynamicRelayBackend()`로 폴백한다.
+
+> [!IMPORTANT]
+> **위 파라미터가 달린 `/`는 최종 목적지가 아니라 진입점이다.** 웹은 초대를 홈 위 팝업이 아니라 자기 라우트 `/invite/accept`에서 수락한다. `/`로 도착한 초대는 `InviteEntryGate`가 그 라우트로 넘긴다.
+>
+> **그러니 링크 생성 쪽은 이 표대로 `/`(또는 `/auth/login`)를 계속 겨냥하면 된다.** 이미 배포된 네이티브 앱이 영원히 이 주소를 만들어낼 것이므로 게이트는 영구적이며, 링크 규격을 바꿀 필요는 없다. 웹 내부 구조는 [초대 수락 진입](invite-accept-entry.md) 참고.
 
 ---
 
