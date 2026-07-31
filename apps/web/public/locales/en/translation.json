@@ -973,6 +973,7 @@
     },
     "inviteAccept": {
         "title": "You've been invited to DoU",
+        "loading": "Checking your invitation",
         "invitedBy": " invited you to DoU",
         "description": "Accept the invitation to start chatting.",
         "accept": "Accept",

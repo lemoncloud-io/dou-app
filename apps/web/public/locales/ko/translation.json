@@ -973,6 +973,7 @@
     },
     "inviteAccept": {
         "title": "DoU에 당신을 초대했어요",
+        "loading": "초대장을 확인하고 있어요",
         "invitedBy": "님이\nDoU에 당신을 초대했어요",
         "description": "초대 수락하고 대화를 시작해 보세요.",
         "accept": "수락",
