@@ -18,6 +18,18 @@ describe('InviteChannelRow', () => {
         expect(screen.getByText('contactInvite.badge.pending')).toBeInTheDocument();
     });
 
+    // Figma `1명 Profile`(3209:14450) — 링 있는 brand-ink 원 + solid 실루엣. 기본값 `variant="user"`는
+    // 링 없는 lucide 아웃라인이라 조용히 되돌아가도 다른 단정으로는 잡히지 않는다.
+    it('아바타로 solid 실루엣 글리프를 쓴다 (lucide 아웃라인이 아니다)', () => {
+        const { container } = render(
+            <InviteChannelRow invite={invite({ state: 'pending', name: '홍길동' })} onClick={jest.fn()} />
+        );
+        const avatar = container.querySelector('.bg-brand-ink') as HTMLElement;
+
+        expect(avatar.className).toContain('border-border');
+        expect(avatar.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
+    });
+
     it('expired invite는 expired 뱃지 키를 보여준다', () => {
         render(<InviteChannelRow invite={invite({ state: 'expired', name: '이순신' })} onClick={jest.fn()} />);
 

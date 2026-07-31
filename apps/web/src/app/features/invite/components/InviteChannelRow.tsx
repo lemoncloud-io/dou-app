@@ -41,7 +41,12 @@ export const InviteChannelRow = ({ invite, onClick }: InviteChannelRowProps) => 
 
     return (
         <ListRow
-            leading={<DefaultAvatar size={46} variant="user" className={isSpent ? 'opacity-50' : undefined} />}
+            leading={
+                // Figma draws this row's avatar as `1명 Profile` (3209:14450) — the solid silhouette
+                // on a ringed brand-ink circle, which `variant="self"` renders. The default
+                // `variant="user"` is the ringless lucide outline and was the wrong glyph.
+                <DefaultAvatar size={42} variant="self" className={isSpent ? 'opacity-50' : undefined} />
+            }
             title={
                 <>
                     {badge && <StatusBadge variant={badge.variant} label={t(badge.labelKey)} />}

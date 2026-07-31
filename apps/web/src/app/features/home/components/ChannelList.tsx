@@ -38,7 +38,7 @@ import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
-        <div className="size-[46px] animate-pulse rounded-full bg-muted" />
+        <div className="size-[42px] animate-pulse rounded-full bg-muted" />
         <div className="flex flex-1 flex-col gap-1.5">
             <div className="h-4 w-32 animate-pulse rounded bg-muted" />
             <div className="h-3 w-48 animate-pulse rounded bg-muted" />
@@ -107,9 +107,9 @@ const ChannelItem = ({
     // self-chat uses its own solid-silhouette variant (Figma "1명 Profile"), other rows the plain one.
     const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
     const leading = avatarSrc ? (
-        <ImageAvatar src={avatarSrc} alt="" size={46} />
+        <ImageAvatar src={avatarSrc} alt="" size={42} />
     ) : (
-        <DefaultAvatar size={46} variant={isSelf ? 'self' : 'user'} />
+        <DefaultAvatar size={42} variant={isSelf ? 'self' : 'user'} />
     );
 
     return (
