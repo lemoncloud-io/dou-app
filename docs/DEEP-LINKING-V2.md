@@ -44,17 +44,23 @@ https://app.chatic.io/s?code=<inviteCode>&api=<apiId>&stage=<stage>
 - `api` : AWS API Gateway ID (예: `vjgudphpo4`)
 - `stage` : 배포 스테이지 (예: `dev`, `prod` 등)
 
-**② 릴레이 폼** — 릴레이 서버는 백엔드 주소가 필요 없으므로 `api`/`stage`가 없다.
+`api`+`stage` 대신 완성된 주소를 `backend=<backendUrl>`로 실어 보낼 수도 있다. 세 변환기(랜딩 · 모바일 · 웹 디버그 도구) 모두 `backend`가 있으면 그대로 쓰고, 없을 때만 `api`+`stage`로 조립한다.
+
+**② 릴레이 폼** — 릴레이 서버는 백엔드 주소가 필요 없으므로 `api`/`stage`/`backend`가 **하나도** 없다.
 
 ```
 https://app.chatic.io/s?code=<inviteCode>&relay
+https://app.chatic.io/s?code=<inviteCode>          # 플래그 없이 code만 오는 형태도 릴레이다
 ```
 
 - `code` : 클라우드 폼과 동일
-- `relay` : 값 없는 플래그. 릴레이 서버 초대임을 표시한다.
+- `relay` : 값 없는 플래그. 릴레이 서버 초대임을 표시한다. **선택적**이다.
 
 > [!IMPORTANT]
 > `relay`는 **값이 아니라 존재 여부로** 판별한다. 값 없는 `&relay`는 `searchParams.get('relay') === ''`(빈 문자열)이므로 `get()`의 진위값으로 검사하면 정상 링크를 놓친다. 반드시 `searchParams.has('relay')`를 쓴다.
+
+> [!IMPORTANT]
+> **입력 링크 판별은 `relay` 플래그에만 의존하면 안 된다.** 주소 파라미터(`api`/`stage`/`backend`)가 하나도 없으면 그것만으로 릴레이다 — 릴레이 서버는 실어 보낼 주소가 없기 때문이다. 변환기는 이렇게 판별한 뒤 **출력에는 `relay=1`을 명시**한다. 3장의 "웹은 `_backend` 부재로 릴레이를 추론하지 않는다"는 규칙은 **웹 진입 단계**에 대한 것이고, 여기 입력 링크 판별과는 별개다.
 
 > [!TIP]
 > **하위 호환성**: 기존에 생성된 구형 단축 링크 패턴(`https://app.chatic.io/s/{shortCode}`)도 자동으로 감지되며, 기존과 동일하게 Firestore 조회 Fallback 경로를 통해 안전하게 우회 작동합니다.
@@ -80,14 +86,19 @@ https://dou.chatic.io/auth/login?code=<inviteCode>&provider=invite&version=2&rel
 
 릴레이 폼은 `_backend`를 **생략하는 대신 `relay=1`을 명시**한다. 웹이 "`_backend`가 없으니 릴레이겠지"라고 추론하지 않고 마커로 판정하도록 하기 위한 의도적 규격이다. 백엔드 주소는 `getDynamicRelayBackend()`(env 릴레이 엔드포인트)가 채운다.
 
+> [!IMPORTANT]
+> **웹도 `/s`를 직접 처리한다** (`apps/web/.../routes/ShareLinkRedirect.tsx`). 모바일 네이티브 변환기가 인식하지 못한 링크는 변환 없이 WebView로 넘어와 `/s?code=…` 로 도착하는데, 라우트가 없으면 `*` 폴백이 `/`로 보내면서 **쿼리스트링을 통째로 버린다**. 이 라우트가 같은 변환 규칙(`buildInviteEntryParams`)을 적용해 `/`로 리다이렉트한다.
+>
+> 변환 규칙 자체는 `buildInviteEntryParams` 한 곳에만 있고 `/s` 라우트와 디버그 변환기가 공유한다. 네이티브를 고치면 스토어 배포 후 업데이트한 사용자만 구제되지만, 이 라우트는 웹 번들과 함께 나가므로 **이미 설치된 모든 앱 버전에 즉시 적용**된다.
+
 ### 웹앱에서 추출하여 사용하는 최종 파라미터 매핑표
 
-| 추출할 파라미터 키 | 변수 역할          | 값 추출 예시                | 설명                                                                                                     |
-| :----------------- | :----------------- | :-------------------------- | :------------------------------------------------------------------------------------------------------- |
-| `code`             | 초대 코드          | `urlParams.get('code')`     | 디코딩된 초대 코드 (`invt:<id>:<code>`)                                                                  |
-| `provider`         | 가입 제공자        | `urlParams.get('provider')` | 항상 고정값인 `"invite"`가 주입됩니다.                                                                   |
-| `version`          | 딥링크 규격 버전   | `urlParams.get('version')`  | 항상 고정값인 `"2"`가 주입됩니다.                                                                        |
-| `_backend`         | REST API 서버 주소 | `urlParams.get('_backend')` | 조립 완료된 REST 백엔드 URL 주소 <br> `https://<apiId>.execute-api.ap-northeast-2.amazonaws.com/<stage>` <br> **클라우드 폼에만 존재.** |
+| 추출할 파라미터 키 | 변수 역할          | 값 추출 예시                | 설명                                                                                                                                                     |
+| :----------------- | :----------------- | :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `code`             | 초대 코드          | `urlParams.get('code')`     | 디코딩된 초대 코드 (`invt:<id>:<code>`)                                                                                                                  |
+| `provider`         | 가입 제공자        | `urlParams.get('provider')` | 항상 고정값인 `"invite"`가 주입됩니다.                                                                                                                   |
+| `version`          | 딥링크 규격 버전   | `urlParams.get('version')`  | 항상 고정값인 `"2"`가 주입됩니다.                                                                                                                        |
+| `_backend`         | REST API 서버 주소 | `urlParams.get('_backend')` | 조립 완료된 REST 백엔드 URL 주소 <br> `https://<apiId>.execute-api.ap-northeast-2.amazonaws.com/<stage>` <br> **클라우드 폼에만 존재.**                  |
 | `relay`            | 릴레이 초대 마커   | `urlParams.has('relay')`    | **릴레이 폼에만 존재**하며 항상 `"1"`로 정규화됩니다. `_backend`와 상호배타적이며, 둘 중 하나는 반드시 있어야 초대 진입으로 인정됩니다(`isInviteEntry`). |
 
 > [!NOTE]

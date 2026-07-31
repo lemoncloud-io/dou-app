@@ -27,17 +27,19 @@ const extractShortCode = (path: string): string | null => {
 /**
  * Check if URL matches the new dynamic invite URL pattern.
  *
- * Accepts the cloud form (`code` + `api`/`backend`) and the relay form (`code` + a bare `relay`
- * flag, which carries no backend address). The flag is detected by presence: `&relay` parses to an
- * empty-string value, so `get('relay')` is falsy for a valid relay link.
+ * On the `/s` entry point a `code` is all it takes: the cloud form adds an address (`api`+`stage` or
+ * `backend`), and the relay form adds nothing at all — the relay server has no address to carry, and
+ * the `relay` flag is optional. Requiring an address or the flag here silently rejected code-only
+ * relay links, which then fell through to the "unsupported deep link" dead end.
+ *
+ * The `/s` gate matters: it keeps any other page that happens to carry a `code` param — an OAuth
+ * callback, most obviously — out of the invite branch.
  */
-const isNewPattern = (urlStr: string): boolean => {
+export const isNewPattern = (urlStr: string): boolean => {
     try {
         const url = new URL(urlStr);
-        const hasCode = url.searchParams.has('code');
-        const hasApi = url.searchParams.has('api') || url.searchParams.has('backend');
-        const hasRelay = url.searchParams.has('relay');
-        return !!(hasCode && (hasApi || hasRelay));
+        const isSPath = url.pathname === '/s' || url.pathname === '/s/';
+        return isSPath && url.searchParams.has('code');
     } catch {
         return false;
     }
@@ -63,7 +65,10 @@ export const useWebRedirect = (deepLinkInfo: DeepLinkInfo, autoRedirect: boolean
                 const api = url.searchParams.get('api') || '';
                 const stage = url.searchParams.get('stage') || '';
                 const backendParam = url.searchParams.get('backend') || '';
-                const isRelay = url.searchParams.has('relay');
+                // No address param at all means relay: the relay server has none to carry, so the
+                // `relay` flag is optional on the way in. We still emit an explicit `relay=1` below.
+                const hasAddress = !!backendParam || !!api || !!stage;
+                const isRelay = url.searchParams.has('relay') || !hasAddress;
 
                 let backend = backendParam || '';
                 if (!backend && api && stage) {

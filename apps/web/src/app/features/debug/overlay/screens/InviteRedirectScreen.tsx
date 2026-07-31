@@ -4,9 +4,9 @@ import { useMemo, useState } from 'react';
 import { buildInviteRedirectUrl, DEFAULT_INVITE_REDIRECT_BASE } from '../../lib';
 
 /**
- * Debug tool: paste a share link — cloud (…/s?code=…&api=…&stage=…) or relay (…/s?code=…&relay) —
- * preview the converted invite redirect URL, and navigate to it. The redirect base is editable so any
- * environment can be targeted.
+ * Debug tool: paste a share link — cloud (…/s?code=…&api=…&stage=… or …/s?code=…&backend=…) or relay
+ * (…/s?code=…, with or without the `relay` flag) — preview the converted invite redirect URL, and
+ * navigate to it. The redirect base is editable so any environment can be targeted.
  */
 export const InviteRedirectScreen = () => {
     const [input, setInput] = useState('');
@@ -32,8 +32,8 @@ export const InviteRedirectScreen = () => {
                 <div className="mb-6 mt-6">
                     <h1 className="text-[20px] font-semibold leading-[1.35]">초대 링크 변환</h1>
                     <p className="mt-1 text-[13px] text-muted-foreground">
-                        공유 링크(클라우드 …/s?code=…&api=…&stage=… / 릴레이 …/s?code=…&relay)를 초대 링크로
-                        변환해 이동합니다.
+                        공유 링크(클라우드 …/s?code=…&api=…&stage=… 또는 …/s?code=…&backend=… / 릴레이 …/s?code=… — 주소
+                        파라미터 없으면 릴레이)를 초대 링크로 변환해 이동합니다.
                     </p>
                 </div>
 
