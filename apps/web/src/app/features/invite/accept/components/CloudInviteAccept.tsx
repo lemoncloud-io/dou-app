@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useInviteInfo } from '@chatic/web-core';
 import { AlertDialog } from '@chatic/web-ui-kit';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { useSessionLogout } from '../../../../runtime/useSessionLogout';
@@ -28,21 +27,21 @@ const resolveDialogVariant = (errorKey: string | null): InviteDialogVariant | nu
     return 'generic';
 };
 
-interface CloudInviteDialogProps {
-    /** Parsed invite deeplink; the router guarantees this is a fully-formed cloud invite entry. */
+interface CloudInviteAcceptProps {
+    /** Parsed invite deeplink; the page guarantees this is a fully-formed cloud invite entry. */
     params: InviteParams;
 }
 
 /**
- * Cloud invite-accept overlay (ADR-0016). Mounted by InviteDialog once the deeplink is known to be a
- * cloud invite rather than a relay 1:1 one — URL detection and the onboarding suppression live in that
- * router, so this component may assume it should render.
+ * Cloud invite acceptance (ADR-0016). Rendered by InviteAcceptPage once the deeplink is known to be a
+ * cloud invite rather than a relay 1:1 one — the URL detection lives there, so this component may
+ * assume it should render.
  *
- * Dismiss/back strips the query string so the popup cannot reappear. This orchestrator owns the
- * overlay, routing and error dialogs; the visual accept screen lives in the presentational
- * InviteAcceptScreen. The accept pipeline (useInviteAccept) is unchanged.
+ * This orchestrator owns the routing and the error dialogs; the visual accept screen lives in the
+ * presentational InviteAcceptScreen, and the accept pipeline in useInviteAccept. Dismissing leaves
+ * for home, which drops the invite out of the URL so it cannot reappear.
  */
-export const CloudInviteDialog = ({ params }: CloudInviteDialogProps): JSX.Element | null => {
+export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Element | null => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const logout = useSessionLogout();
@@ -94,40 +93,21 @@ export const CloudInviteDialog = ({ params }: CloudInviteDialogProps): JSX.Eleme
 
     // Accept screen. `InviteInfo` extends the published Head types with the fields the backend
     // denormalizes into the invite response but has not shipped yet (inviter image, place
-    // intro/thumbnail, member count — see types/invite.ts). Forward all of them: they are optional and
+    // intro/thumbnail, member count — see ./types). Forward all of them: they are optional and
     // the screen degrades gracefully while they are absent, so this wiring is what lets each one light
     // up with no further code change (ADR-0033 D1).
     return (
-        <Dialog open onOpenChange={next => !next && requestClose()}>
-            <DialogContent
-                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background"
-                // The shared `slide-up` variant bakes in `pt-safe-top pb-safe-bottom` so its white
-                // sheet content clears the notch/home-indicator. This invite screen is instead a
-                // full-bleed branded surface that owns the whole viewport and applies the safe insets
-                // internally (header → top, footer → bottom). A className `p-0` can't win here: the
-                // custom `pt-safe-*` utilities aren't recognized by tailwind-merge, so both survive and
-                // the directional padding wins on CSS source order. Zero it inline so the colored
-                // surface reaches the very top/bottom edges (no white safe-area bands).
-                style={{ padding: 0 }}
-                hideClose
-                variant="slide-up"
-            >
-                <DialogTitle className="sr-only">{t('inviteAccept.title')}</DialogTitle>
-                <DialogDescription className="sr-only">{t('inviteAccept.description')}</DialogDescription>
-
-                <InviteAcceptScreen
-                    inviterName={info?.inviter$?.name}
-                    inviterImage={info?.inviter$?.image}
-                    placeName={info?.site$?.name}
-                    placeIntro={info?.site$?.intro}
-                    placeThumbnail={info?.site$?.thumbnail}
-                    memberCount={info?.memberCount}
-                    countdown={countdown}
-                    isAccepting={isAccepting}
-                    onAccept={accept}
-                    onClose={requestClose}
-                />
-            </DialogContent>
-        </Dialog>
+        <InviteAcceptScreen
+            inviterName={info?.inviter$?.name}
+            inviterImage={info?.inviter$?.image}
+            placeName={info?.site$?.name}
+            placeIntro={info?.site$?.intro}
+            placeThumbnail={info?.site$?.thumbnail}
+            memberCount={info?.memberCount}
+            countdown={countdown}
+            isAccepting={isAccepting}
+            onAccept={accept}
+            onClose={requestClose}
+        />
     );
 };

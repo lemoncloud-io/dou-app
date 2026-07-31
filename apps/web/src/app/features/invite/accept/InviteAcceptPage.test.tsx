@@ -19,8 +19,8 @@ jest.mock('../../../hooks/useBackHandler', () => ({ useBackHandler: () => mockBa
 // Every branch is stubbed to a sentinel: this suite is about which one the deeplink picks, and
 // mounting any of them for real would drag in its data layer.
 jest.mock('./components', () => ({
-    CloudInviteDialog: () => <div>cloud-branch</div>,
-    RelayInviteDialog: ({ code }: { code: string }) => <div>relay-branch:{code}</div>,
+    CloudInviteAccept: () => <div>cloud-branch</div>,
+    RelayInviteAccept: ({ code }: { code: string }) => <div>relay-branch:{code}</div>,
     InviteAcceptLoading: () => <div>loading-branch</div>,
 }));
 

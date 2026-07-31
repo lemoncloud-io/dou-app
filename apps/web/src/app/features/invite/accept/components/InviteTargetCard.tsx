@@ -21,7 +21,7 @@ interface InviteTargetCardProps {
  * review, so switching to `variant="group"` later is a one-word change).
  *
  * The "room friends N" badge appears only once the invite metadata carries a member count. The field is
- * wired all the way through (`InviteInfo.memberCount` → CloudInviteDialog → here), but the backend does
+ * wired all the way through (`InviteInfo.memberCount` → CloudInviteAccept → here), but the backend does
  * not denormalize it yet, so in practice the badge stays hidden until it does (ADR-0037 context 1).
  */
 export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCardProps) => {

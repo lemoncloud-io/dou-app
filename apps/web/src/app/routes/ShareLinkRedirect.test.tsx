@@ -38,13 +38,15 @@ const landOn = async (initialPath: string) => {
     };
 };
 
+// 목적지는 언제나 '/' 다. 수락 페이지로 넘기는 판단은 InviteEntryGate 한 곳이 소유하며, 여기서
+// 질러가면 첫 실행 온보딩 우선순위를 조용히 건너뛴다.
 describe('ShareLinkRedirect — /s 공유 링크 리다이렉트', () => {
     it('주소 파라미터가 없는 code-only 릴레이 링크를 relay=1 초대 진입으로 바꿔 보낸다', async () => {
         // This is the link an un-updated mobile WebView hands over verbatim; without this route it
         // hits the router's '*' fallback and the whole query string is dropped.
         const { pathname, params } = await landOn('/s?code=invt%3A1000072-2%3Ae3faf0d0');
 
-        expect(pathname).toBe(ROUTES.invite.accept);
+        expect(pathname).toBe(ROUTES.root);
         expect(params.get('code')).toBe('invt:1000072-2:e3faf0d0');
         expect(params.get('provider')).toBe('invite');
         expect(params.get('version')).toBe('2');
@@ -55,7 +57,7 @@ describe('ShareLinkRedirect — /s 공유 링크 리다이렉트', () => {
     it('relay 플래그가 붙은 링크도 동일하게 처리한다', async () => {
         const { pathname, params } = await landOn('/s?code=c&relay');
 
-        expect(pathname).toBe(ROUTES.invite.accept);
+        expect(pathname).toBe(ROUTES.root);
         expect(params.get('relay')).toBe('1');
         expect(params.has('_backend')).toBe(false);
     });
@@ -63,12 +65,12 @@ describe('ShareLinkRedirect — /s 공유 링크 리다이렉트', () => {
     it('클라우드 폼은 _backend를 조립해 보낸다', async () => {
         const { pathname, params } = await landOn('/s?code=c&api=uzjpiaey7a&stage=dev');
 
-        expect(pathname).toBe(ROUTES.invite.accept);
+        expect(pathname).toBe(ROUTES.root);
         expect(params.get('_backend')).toBe('https://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev');
         expect(params.has('relay')).toBe(false);
     });
 
-    it('변환할 수 없는 링크는 수락 페이지가 아니라 파라미터 없이 루트로 보낸다', async () => {
+    it('변환할 수 없는 링크는 파라미터 없이 루트로 보낸다', async () => {
         jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
         const { pathname, params } = await landOn('/s?nonsense=1');

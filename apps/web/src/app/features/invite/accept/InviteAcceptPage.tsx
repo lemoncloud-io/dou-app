@@ -4,7 +4,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 import { useSessionAuth } from '@chatic/web-core';
 
-import { CloudInviteDialog, InviteAcceptLoading, RelayInviteDialog } from './components';
+import { CloudInviteAccept, InviteAcceptLoading, RelayInviteAccept } from './components';
 import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from './types';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import { ROUTES } from '../../../routes/paths';
@@ -49,9 +49,9 @@ export const InviteAcceptPage = (): JSX.Element => {
                 <InviteAcceptLoading />
             ) : isRelayInvite(params) ? (
                 // `isRelayInvite` implies `isInviteEntry`, which already asserted a non-empty code.
-                <RelayInviteDialog code={params.code as string} />
+                <RelayInviteAccept code={params.code as string} />
             ) : (
-                <CloudInviteDialog params={params} />
+                <CloudInviteAccept params={params} />
             )}
         </div>
     );

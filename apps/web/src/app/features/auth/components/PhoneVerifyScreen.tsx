@@ -15,7 +15,7 @@ export interface PhoneVerifyScreenProps extends PhoneVerifyShellProps {
 }
 
 /**
- * Full-screen phone verification — the shell the ACCEPT flow uses (Track C's RelayInviteDialog).
+ * Full-screen phone verification — the shell the ACCEPT flow uses (Track C's RelayInviteAccept).
  * Chrome only: a top-right close, the centered hero, the account-split banner and a pinned CTA. All
  * behaviour lives in `usePhoneVerify`; the fields come from `PhoneVerifyFields`.
  *
