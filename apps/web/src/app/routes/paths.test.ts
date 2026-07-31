@@ -29,6 +29,10 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.invite.contact).toBe('/invite/contact');
     });
 
+    it('invite 수락 경로를 노출한다', () => {
+        expect(ROUTES.invite.accept).toBe('/invite/accept');
+    });
+
     it('subscription 허브를 노출한다', () => {
         expect(ROUTES.subscription.root).toBe('/subscription');
         expect(ROUTES.subscription.plans).toBe('/subscription/plans');
