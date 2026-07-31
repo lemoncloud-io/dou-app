@@ -179,6 +179,63 @@ describe('SocketManager waitUntilVerified', () => {
     });
 });
 
+describe('SocketManager waitUntilKindVerified', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('resolves true immediately when that slot is already verified', async () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
+
+        await expect(manager.waitUntilKindVerified('relay', 1000)).resolves.toBe(true);
+    });
+
+    it('resolves once that slot completes its handshake, even before it is bound', async () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+
+        // The invite deeplink's case: the waiter starts before SocketBinder has booted the slot.
+        const pending = manager.waitUntilKindVerified('relay', 1000);
+        manager.ensure(CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
+
+        await expect(pending).resolves.toBe(true);
+    });
+
+    it('waits on the named slot, not the active one', async () => {
+        jest.useFakeTimers();
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.ensure(OTHER_CONFIG, 'cloud'); // cloud present → cloud is the ACTIVE slot
+
+        const pending = manager.waitUntilKindVerified('relay', 1000);
+        // Verifying the active slot must not release a relay waiter — that is the whole point.
+        manager.setAuthenticated('cloud', true);
+        expect(manager.getSnapshot().isVerified).toBe(true);
+
+        jest.advanceTimersByTime(1000);
+        await expect(pending).resolves.toBe(false);
+        jest.useRealTimers();
+    });
+
+    it('resolves false on timeout rather than rejecting, so callers can proceed best-effort', async () => {
+        jest.useFakeTimers();
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+
+        const pending = manager.waitUntilKindVerified('relay', 1000);
+        jest.advanceTimersByTime(1000);
+
+        await expect(pending).resolves.toBe(false);
+        jest.useRealTimers();
+    });
+});
+
 describe('SocketManager subscribeClient', () => {
     beforeEach(() => {
         mockedCreate.mockReset();

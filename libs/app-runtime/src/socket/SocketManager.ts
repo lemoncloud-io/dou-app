@@ -85,6 +85,10 @@ export class SocketManager implements ISocketManager {
     // Per-slot client listeners (e.g. the SyncManager's slot runtimes). Fired on every slot bind /
     // rebuild / teardown regardless of which slot is active — see subscribeSlotClients.
     private readonly slotClientListeners = new Set<SocketSlotClientListener>();
+    // Per-slot verification listeners, fired whenever a slot's authenticated/connected inputs move —
+    // for ANY slot, not just the active one. Backs waitUntilKindVerified; the active-slot
+    // stateListeners above cannot express "relay is up" while a cloud slot is active.
+    private readonly kindVerifiedListeners = new Set<(kind: SocketKind) => void>();
     // Push subscriptions registered via onType. Owned here so they survive active-client changes —
     // re-bound to the active client whenever the active slot changes.
     private readonly typeListeners = new Set<TypeListenerEntry>();
@@ -236,6 +240,36 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * The per-kind counterpart of waitUntilVerified: resolves once THAT slot is auth-verified, or
+     * `false` after `timeoutMs`. Never rejects, so a caller gating a request can still proceed
+     * best-effort and let the real server error surface.
+     *
+     * Required by anything pinned to a slot via getScopedClient — waitUntilVerified tracks the
+     * ACTIVE slot, so gating a relay-pinned request with it would wait on cloud whenever a cloud
+     * session is up and fire at relay while its handshake is still in flight.
+     */
+    public waitUntilKindVerified(kind: SocketKind, timeoutMs: number = DEFAULT_VERIFY_TIMEOUT_MS): Promise<boolean> {
+        if (this.isKindVerified(kind)) {
+            return Promise.resolve(true);
+        }
+        return new Promise<boolean>(resolve => {
+            let settled = false;
+            const finish = (verified: boolean) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                this.kindVerifiedListeners.delete(onChange);
+                resolve(verified);
+            };
+            const timer = setTimeout(() => finish(false), timeoutMs);
+            const onChange = (changed: SocketKind) => {
+                if (changed === kind && this.isKindVerified(kind)) finish(true);
+            };
+            this.kindVerifiedListeners.add(onChange);
+        });
+    }
+
+    /**
      * Subscribes to ACTIVE-client replacement (bind, active-slot switch, teardown). Fires immediately
      * with the current active client. Used by the sync adapter to re-bind its runtime to the active
      * socket (relay auth-only slot never becomes the sync target unless it is active).
@@ -271,6 +305,7 @@ export class SocketManager implements ISocketManager {
         const entry = this.entries.get(kind);
         if (!entry) return;
         entry.authenticated = value;
+        this.notifyKindVerified(kind);
         if (this.getActiveKind() === kind) {
             this.setState(this.computeState(entry));
         }
@@ -402,6 +437,7 @@ export class SocketManager implements ISocketManager {
         entry.unsubscribes.push(
             entry.client.onState((event: ClientSocketStateEvent) => {
                 entry.connState = event.next;
+                this.notifyKindVerified(kind);
                 // Only the active slot drives the observable state; background (relay-while-cloud)
                 // transport changes are tracked on the entry but not surfaced.
                 if (this.getActiveKind() === kind) {
@@ -418,6 +454,13 @@ export class SocketManager implements ISocketManager {
                 });
             })
         );
+    }
+
+    /** Announces that `kind`'s verification inputs moved; waiters re-read isKindVerified themselves. */
+    private notifyKindVerified(kind: SocketKind): void {
+        for (const listener of this.kindVerifiedListeners) {
+            listener(kind);
+        }
     }
 
     private teardownEntry(kind: SocketKind): void {
