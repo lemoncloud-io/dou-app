@@ -59,3 +59,8 @@ export { IconGroup, type IconGroupProps } from './IconGroup';
 export { IconUserSolid, type IconUserSolidProps } from './IconUserSolid';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
+// Duotone glyphs — filled shapes with a half/40%-opacity companion layer. The lucide
+// outline equivalents (IconClock, IconUsers, IconImage) stay for other callers.
+export { IconClockSolid, type IconClockSolidProps } from './IconClockSolid';
+export { IconUsersGroup, type IconUsersGroupProps } from './IconUsersGroup';
+export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';
