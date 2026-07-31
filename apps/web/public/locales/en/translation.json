@@ -1065,11 +1065,7 @@
     "relayInviteAccept": {
         "verifyTitle": "Phone verification",
         "preparingRoom": "Creating your chat room",
-        "channelPending": "Your chat room is on its way — it will show up in the list shortly.",
-        "profile": {
-            "title": "Create the profile\nyou will chat with",
-            "subtitle": "This is how you appear to the person who invited you."
-        }
+        "channelPending": "Your chat room is on its way — it will show up in the list shortly."
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",

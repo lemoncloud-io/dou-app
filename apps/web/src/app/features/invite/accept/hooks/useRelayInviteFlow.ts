@@ -8,7 +8,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
-import { useMyProfile, useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
+import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
 import { recordDeclinedInvite } from '../lib';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
@@ -31,8 +31,6 @@ export type RelayInvitePhase =
     | 'submitting'
     /** phone verification (Track A's PhoneVerifyScreen) */
     | 'verifying'
-    /** place-profile setup */
-    | 'profiling'
     /** accepted; waiting for the asynchronously created DM room */
     | 'awaitingChannel'
     /** terminal: a notice dialog is up */
@@ -96,9 +94,7 @@ export interface RelayInviteFlow {
     close: () => void;
     /** Phone verification finished; the session is already the main user. */
     onVerified: () => void;
-    /** The place profile was saved. */
-    onProfileSaved: () => void;
-    /** The user backed out of verification / profile setup. */
+    /** The user backed out of verification. */
     cancelStep: () => void;
     /** Confirm on the notice dialog. */
     dismissNotice: () => void;
@@ -110,15 +106,14 @@ export interface RelayInviteFlow {
 }
 
 /**
- * The relay 1:1 invite accept state machine (ADR-0033 D10):
- * `invite.get` → phone verification if needed → place profile if missing → `invite.accept` →
- * wait for the DM room → enter it.
+ * The relay 1:1 invite accept state machine (ADR-0033 D10, as revised by ADR-0039):
+ * `invite.get` → phone verification if needed → `invite.accept` → wait for the DM room → enter it.
  *
  * Every step transition goes through `advance`, whose first act is another `invite.get`. That is not
  * defensiveness for its own sake — verifying a phone number takes minutes, and an invite that expires
  * or gets claimed in the meantime must surface as a notice rather than a confusing accept failure
- * (05-client-guide §B-2). Routing all three entry points through one function is what makes that
- * re-check impossible to forget.
+ * (05-client-guide §B-2). Routing every entry point through one function is what makes that re-check
+ * impossible to forget.
  *
  * Success is `state === 'accepted'`; there is no success flag. Re-accepting the same code is safe, so
  * a retry after a dropped connection costs nothing.
@@ -128,7 +123,6 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
     const mutations = useRelayInviteMutations();
-    const { profile } = useMyProfile();
     const { resolveChannel } = useResolveInviteChannel();
     const setPendingChannel = usePendingInviteChannel(state => state.setPendingChannel);
 
@@ -140,8 +134,8 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
     // Latest-value refs: the async steps read these long after the closure was created, and keeping
     // them out of the callback deps stops `advance` from churning identity on every render.
-    const latest = useRef({ mutations, nick: profile?.nick, resolveChannel, setPendingChannel, navigate, toast, t });
-    latest.current = { mutations, nick: profile?.nick, resolveChannel, setPendingChannel, navigate, toast, t };
+    const latest = useRef({ mutations, resolveChannel, setPendingChannel, navigate, toast, t });
+    latest.current = { mutations, resolveChannel, setPendingChannel, navigate, toast, t };
 
     // Generation counter: a step that resolves after the flow moved on (or unmounted) must not write.
     const runIdRef = useRef(0);
@@ -232,9 +226,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         if (view.state === 'expired') return fail('expired');
         if (view.state === 'accepted') return fail('alreadyJoined');
 
-        // Order is fixed by ADR-0033 D10: verify, then profile, then accept.
+        // Verify, then accept. The place profile is NOT asked for here (ADR-0039 revising
+        // ADR-0033 D10): it is not worth standing in front of an accept, and it is set later from
+        // the place settings hub.
         if (view.needVerify) return setPhase('verifying');
-        if (!latest.current.nick) return setPhase('profiling');
 
         let acceptedChannelId: string | undefined;
         try {
@@ -318,7 +313,6 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         decline,
         close,
         onVerified,
-        onProfileSaved: useCallback(() => void advance(), [advance]),
         cancelStep: useCallback(() => setPhase('review'), []),
         // Only closes while the notice is genuinely up, so the dismiss the dialog fires on its way
         // out of a retry cannot send the user home mid-read.

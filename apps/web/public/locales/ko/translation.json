@@ -1065,11 +1065,7 @@
     "relayInviteAccept": {
         "verifyTitle": "휴대폰 번호 인증",
         "preparingRoom": "채팅방을 만들고 있어요",
-        "channelPending": "채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다.",
-        "profile": {
-            "title": "대화에 사용할\n프로필을 만들어 주세요",
-            "subtitle": "초대를 수락하면 상대에게 이 프로필로 보여요."
-        }
+        "channelPending": "채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다."
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",

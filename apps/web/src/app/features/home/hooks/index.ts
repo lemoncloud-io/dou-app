@@ -7,7 +7,6 @@ export * from './useHomePlaces';
 export * from './useInvitedClouds';
 export * from './useLastChat';
 export * from './useMyJoins';
-export * from './useSaveMyPlaceProfile';
 export * from './useScrollRestoration';
 export * from './useSwitchPlace';
 export * from './useUpdateCloud';

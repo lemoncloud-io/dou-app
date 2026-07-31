@@ -13,8 +13,6 @@ const waitUntilKindVerified = jest.fn();
 const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
-let mockNick: string | undefined;
-
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/app-runtime', () => ({ getSocketManager: () => ({ waitUntilKindVerified }) }));
 jest.mock('@chatic/bridges', () => ({
@@ -24,7 +22,9 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../../hooks', () => ({
     useRelayInviteMutations: () => ({ getInvite, acceptInvite }),
-    useMyProfile: () => ({ profile: mockNick ? { nick: mockNick } : null }),
+    // Kept deliberately: the flow must not read it any more (ADR-0039 dropped the profile step), and a
+    // reintroduced gate has to fail on an assertion below rather than on a missing-module error.
+    useMyProfile: () => ({ profile: null }),
 }));
 // The 3-tier resolution has its own suite (useResolveInviteChannel.test.ts); mocking it here keeps this
 // one off real timers and lets it assert the hand-off instead.
@@ -57,7 +57,6 @@ const mount = () => renderHook(() => useRelayInviteFlow(CODE));
 
 beforeEach(() => {
     jest.clearAllMocks();
-    mockNick = '토끼';
     waitUntilKindVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
@@ -148,9 +147,9 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     });
 });
 
-describe('useRelayInviteFlow — 스텝 순서 (ADR-0033 D10)', () => {
-    it('needVerify면 인증 → 프로필 → 수락 순으로 진행한다', async () => {
-        mockNick = undefined;
+// ADR-0039가 ADR-0033 D10을 개정해 프로필 스텝을 없앴다: 인증만 남는다.
+describe('useRelayInviteFlow — 스텝 순서', () => {
+    it('needVerify면 인증 → 수락 순으로 진행한다', async () => {
         getInvite.mockResolvedValue(view({ needVerify: true }));
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
@@ -162,15 +161,19 @@ describe('useRelayInviteFlow — 스텝 순서 (ADR-0033 D10)', () => {
         // Verified: the session is now the main user, so the server stops asking.
         getInvite.mockResolvedValue(view({ needVerify: false }));
         act(() => result.current.onVerified());
-        await waitFor(() => expect(result.current.phase).toBe('profiling'));
-        expect(acceptInvite).not.toHaveBeenCalled();
-
-        mockNick = '토끼';
-        act(() => result.current.onProfileSaved());
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
     });
 
-    it('인증도 프로필도 필요 없으면 곧바로 수락한다', async () => {
+    it('플레이스 프로필이 없어도 수락을 막지 않는다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+    });
+
+    it('인증이 필요 없으면 곧바로 수락한다', async () => {
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
@@ -180,7 +183,6 @@ describe('useRelayInviteFlow — 스텝 순서 (ADR-0033 D10)', () => {
     });
 
     it('스텝 전환마다 getInvite로 재검증한다', async () => {
-        mockNick = undefined;
         getInvite.mockResolvedValue(view({ needVerify: true }));
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
@@ -192,10 +194,6 @@ describe('useRelayInviteFlow — 스텝 순서 (ADR-0033 D10)', () => {
         getInvite.mockResolvedValue(view());
         act(() => result.current.onVerified());
         await waitFor(() => expect(getInvite).toHaveBeenCalledTimes(3));
-
-        mockNick = '토끼';
-        act(() => result.current.onProfileSaved());
-        await waitFor(() => expect(getInvite).toHaveBeenCalledTimes(4));
     });
 
     it('인증 도중 만료되면 수락하지 않고 만료 안내로 떨어진다', async () => {

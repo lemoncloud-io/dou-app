@@ -6,7 +6,6 @@ import { AlertDialog, Text } from '@chatic/web-ui-kit';
 
 import { InviteAcceptLoading } from './InviteAcceptLoading';
 import { InviteAcceptScreen } from './InviteAcceptScreen';
-import { RelayInviteProfileDialog } from './RelayInviteProfileDialog';
 import { PhoneVerifyScreen } from '../../../auth/components';
 import { RELAY_INVITE_DECLINE_ENABLED } from '../../flags';
 import { useRelayInviteFlow } from '../hooks';
@@ -50,10 +49,6 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
                 onConfirm={isRecoverable ? flow.retry : flow.dismissNotice}
             />
         );
-    }
-
-    if (flow.phase === 'profiling') {
-        return <RelayInviteProfileDialog onDone={flow.onProfileSaved} onExit={flow.cancelStep} />;
     }
 
     if (flow.phase === 'verifying') {

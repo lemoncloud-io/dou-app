@@ -10,16 +10,8 @@ let mockFlow: RelayInviteFlow;
 
 jest.mock('../hooks', () => ({ useRelayInviteFlow: () => mockFlow }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-// The profile and phone-verification steps both reach for the runtime; stub them out so this suite
-// stays about the phase switch.
-jest.mock('./RelayInviteProfileDialog', () => ({
-    RelayInviteProfileDialog: ({ onDone, onExit }: { onDone: () => void; onExit: () => void }) => (
-        <div>
-            <button onClick={onDone}>profile-done</button>
-            <button onClick={onExit}>profile-exit</button>
-        </div>
-    ),
-}));
+// The phone-verification step reaches for the runtime; stub it out so this suite stays about the
+// phase switch.
 jest.mock('../../../auth/components', () => ({
     PhoneVerifyScreen: ({ inviteCode, onVerified }: { inviteCode?: string; onVerified: () => void }) => (
         <button onClick={onVerified}>verify:{inviteCode}</button>
@@ -37,7 +29,6 @@ const flow = (over: Partial<RelayInviteFlow> = {}): RelayInviteFlow => ({
     decline: jest.fn(),
     close: jest.fn(),
     onVerified: jest.fn(),
-    onProfileSaved: jest.fn(),
     cancelStep: jest.fn(),
     dismissNotice: jest.fn(),
     retry: jest.fn(),
@@ -96,17 +87,6 @@ describe('RelayInviteAccept', () => {
         fireEvent.click(screen.getByRole('button', { name: `verify:${CODE}` }));
 
         expect(mockFlow.onVerified).toHaveBeenCalledTimes(1);
-    });
-
-    it('프로필 스텝은 저장/이탈을 각각 다른 핸들러로 잇는다', () => {
-        mockFlow = flow({ phase: 'profiling' });
-        render(<RelayInviteAccept code={CODE} />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'profile-done' }));
-        expect(mockFlow.onProfileSaved).toHaveBeenCalledTimes(1);
-
-        fireEvent.click(screen.getByRole('button', { name: 'profile-exit' }));
-        expect(mockFlow.cancelStep).toHaveBeenCalledTimes(1);
     });
 
     it.each([
