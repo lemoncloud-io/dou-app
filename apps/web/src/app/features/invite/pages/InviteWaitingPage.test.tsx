@@ -49,7 +49,7 @@ jest.mock('../../../hooks', () => ({
 }));
 jest.mock('../../home/hooks', () => ({
     useInviteCountdown: (expiredAt?: number) =>
-        expiredAt ? { days: 0, hours: 1, minutes: 30, isExpired: false, isImminent: false } : null,
+        expiredAt ? { days: 0, hours: 1, minutes: 30, seconds: 0, isExpired: false, isImminent: false } : null,
 }));
 jest.mock('../hooks/useInviteWaitingStatus', () => ({
     useInviteWaitingStatus: () => ({ invite: mockInvite, isLoading: mockIsLoading, refetch: jest.fn() }),

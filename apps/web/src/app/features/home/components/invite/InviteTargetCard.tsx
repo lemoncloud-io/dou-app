@@ -20,9 +20,9 @@ interface InviteTargetCardProps {
  * **both** kinds rather than the three-person group glyph (ADR-0037 decision 5 — flagged for designer
  * review, so switching to `variant="group"` later is a one-word change).
  *
- * The "room friends N" badge appears only once the invite metadata carries a member count. Nothing
- * passes one today — the invite Head types have no such field — so in practice it stays hidden; the UI
- * is built ahead of the backend per ADR-0033 D1 and lights up with no code change.
+ * The "room friends N" badge appears only once the invite metadata carries a member count. The field is
+ * wired all the way through (`InviteInfo.memberCount` → CloudInviteDialog → here), but the backend does
+ * not denormalize it yet, so in practice the badge stays hidden until it does (ADR-0037 context 1).
  */
 export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCardProps) => {
     const { t } = useTranslation();
@@ -41,12 +41,13 @@ export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCa
             {memberCount != null && memberCount > 0 && (
                 <Badge
                     icon={<IconUsersGroup size={18} />}
-                    // A lighter glass pill than the card it sits on, lifted by a soft shadow (Figma
-                    // 3076-11378). Overrides the tone's fill/text instead of adding a Badge variant —
-                    // this is the only place in the app that needs the treatment. The dark fill is
-                    // bumped because the card is already `white/10` there: matching it would leave the
-                    // pill with no edge to read against.
-                    className="gap-1.5 bg-white/20 px-3.5 py-2 text-[13px] leading-4 text-label shadow-[0px_0px_6px_0px_rgba(0,0,0,0.04)] dark:bg-white/20"
+                    // Figma 3076-11378: white 20% painted *over* the InviteCard it sits in, so the pill
+                    // ends up lighter than the card in both themes, lifted by a soft shadow. One fill
+                    // for both themes on purpose — a `dark:` override matching the card's own
+                    // `white/10` would leave the pill with no edge to read against. Styled through
+                    // className rather than a new Badge variant (and so tw-merge drops the default
+                    // tone) because this is the only place in the app that needs the treatment.
+                    className="gap-1.5 bg-white/20 px-3.5 py-2 text-[13px] leading-4 text-label shadow-[0px_0px_6px_0px_rgba(0,0,0,0.04)]"
                 >
                     {t('inviteAccept.target.roomFriends', { count: memberCount })}
                 </Badge>

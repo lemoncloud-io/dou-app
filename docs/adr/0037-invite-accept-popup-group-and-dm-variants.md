@@ -59,7 +59,8 @@ relay 초대가 플레이스 메타를 실어오더라도 1:1에서는 뜨지 �
 
 ### 3. 유효시간을 한 줄로 바꾼다 — 24시간 미만만 `HH:mm:ss`
 
-- `useInviteCountdown`에 `seconds`를 추가하고 `TICK_MS`를 `30_000` → `1_000`으로.
+- `useInviteCountdown`에 `seconds`를 추가하고, tick을 **화면에 보이는 것에 맞춰 자체 조정**한다 —
+  마지막 하루는 1초, 그 위는 1분, 만료되면 정지. 옵션을 노출하지 않아 호출부 계약은 그대로다.
 - `InviteExpiryCard`에서 절대 만료시각 줄(`formatDeadline`)을 **삭제**한다.
 - `IMMINENT_MINUTES = 10` 이하 빨강 처리는 유지한다(디자인에 없지만 유용한 정보). 판정은
   `isExpired || isImminent` — `isImminent`는 만료 순간 거짓으로 돌아가므로 그것만 보면 죽은 링크가
@@ -167,9 +168,10 @@ kit에 이미 있는 3인 글리프(`variant='group'`)를 그룹에 쓰지 않�
   이 ADR이 답하지 않는다.
 - **방 종류가 여전히 플로우 하드코딩이다.** relay로 그룹방을 초대하는 경로가
   생기면 즉시 깨진다 — `stereo`를 실어오게 만들 때까지의 부채로 남긴다.
-- `TICK_MS` 1초는 `useInviteCountdown`을 공유하는
+- 초 단위 tick은 `useInviteCountdown`을 공유하는
   [`InviteWaitingPage`](../../apps/web/src/app/features/invite/pages/InviteWaitingPage.tsx)에도
-  적용된다. 렌더 빈도가 30배로 늘지만 카운트다운 칩 하나라 실질 비용은 작다.
+  적용된다. 자체 조정 tick이 그 비용을 마지막 하루로 한정하지만, 그 구간에서는 분 단위만 보여주는
+  화면이 매초 리렌더된다. 필요해지면 `tickMs`를 옵션으로 노출하는 것이 다음 수단이다.
 - 절대 만료시각 표기를 잃는다. "언제까지"를 정확히 알고 싶은 사용자는 남은 시간에서
   역산해야 한다.
 - 그룹 아바타가 1인 글리프인 채로 남는다 — 디자인 확인 대기 항목.

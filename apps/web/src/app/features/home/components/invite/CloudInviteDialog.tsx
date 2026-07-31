@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { useSessionLogout } from '../../../../runtime/useSessionLogout';
 import { useInviteAccept, useInviteCountdown } from '../../hooks';
-import type { InviteParams } from '../../types';
+import type { InviteInfo, InviteParams } from '../../types';
 import { ROUTES } from '../../../../routes/paths';
 
 /** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */
@@ -46,8 +46,11 @@ export const CloudInviteDialog = ({ params }: CloudInviteDialogProps): JSX.Eleme
     const navigate = useNavigateWithTransition();
     const logout = useSessionLogout();
 
-    // Invite metadata (inviter / place / expiry) to populate the screen.
-    const { data: info } = useInviteInfo(params.code, params.backend);
+    // Invite metadata (inviter / place / expiry) to populate the screen. Widened to `InviteInfo`, which
+    // declares the fields the backend denormalizes into the response but the published `MyInviteView`
+    // does not yet carry — all optional, so this is the same widening `useInviteAccept` already takes.
+    const { data } = useInviteInfo(params.code, params.backend);
+    const info: InviteInfo | undefined = data;
     const { accept, isAccepting, missingDelegator, errorKey } = useInviteAccept({ params, info });
     const countdown = useInviteCountdown(info?.expiredAt);
 
@@ -88,9 +91,11 @@ export const CloudInviteDialog = ({ params }: CloudInviteDialogProps): JSX.Eleme
         );
     }
 
-    // Accept screen. The invite Head types (UserHead/SiteHead/MyInviteView) only carry id/name, so
-    // inviter image, place intro/thumbnail, and member count are not available here — the screen's
-    // props are optional and degrade gracefully when omitted.
+    // Accept screen. `InviteInfo` extends the published Head types with the fields the backend
+    // denormalizes into the invite response but has not shipped yet (inviter image, place
+    // intro/thumbnail, member count — see types/invite.ts). Forward all of them: they are optional and
+    // the screen degrades gracefully while they are absent, so this wiring is what lets each one light
+    // up with no further code change (ADR-0033 D1).
     return (
         <Dialog open onOpenChange={next => !next && requestClose()}>
             <DialogContent
@@ -111,7 +116,11 @@ export const CloudInviteDialog = ({ params }: CloudInviteDialogProps): JSX.Eleme
 
                 <InviteAcceptScreen
                     inviterName={info?.inviter$?.name}
+                    inviterImage={info?.inviter$?.image}
                     placeName={info?.site$?.name}
+                    placeIntro={info?.site$?.intro}
+                    placeThumbnail={info?.site$?.thumbnail}
+                    memberCount={info?.memberCount}
                     countdown={countdown}
                     isAccepting={isAccepting}
                     onAccept={accept}

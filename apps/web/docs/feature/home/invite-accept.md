@@ -74,9 +74,9 @@ relay 초대의 스텝 오케스트레이션(인증→프로필→수락→채�
 소개) → **대상 카드**(1인 solid 아바타 + "You" + "그룹 대화" + 방 친구 칩) → 유효시간 카드 →
 거절/수락.
 
-**방 친구 칩은 실제로 뜨지 않는다.** `useInviteInfo`가 주는 Head 타입에 멤버수가 없기 때문이다
-([CloudInviteDialog.tsx:91-93](../../../src/app/features/home/components/invite/CloudInviteDialog.tsx)).
-칩 UI는 준비돼 있고 값이 오는 순간 뜬다.
+**방 친구 칩은 실제로 뜨지 않는다.** `InviteInfo`가 `memberCount`를 선언하고 `CloudInviteDialog`가
+그것을 화면까지 넘기지만, 백엔드가 아직 비정규화해 주지 않는다. 배선은 끝나 있으니 값이 오는 순간
+칩이 뜬다 — 플레이스 소개·썸네일·초대자 사진도 같은 상태다.
 
 ### 2. 1:1 초대 진입 (relay)
 
@@ -90,10 +90,12 @@ relay 마커가 있으면 relay 분기. 화면은 같은 `InviteAcceptScreen`이
 
 `expiredAt`이 있으면 유효시간 카드가 뜬다. 초대 링크는 서버에서 3일이므로 두 표기를 오간다:
 
-- **24시간 이상 남음** → `2일 5시간 남음`. 갓 받은 링크가 여기 걸린다.
+- **24시간 이상 남음** → `2일 5시간 남음`. 갓 받은 링크가 여기 걸린다. 이 표기는 한 시간에 한 번만
+  바뀌므로 훅도 **분 단위로만** 재평가한다.
 - **24시간 미만** → `HH:mm:ss 남음` (매초 갱신). 마지막 하루에 들어오면 디자인 그대로 초 단위로
   줄어든다.
-- **10분 이하 또는 이미 만료** → 남은 시간이 적색(`text-destructive`).
+- **10분 이하 또는 이미 만료** → 남은 시간이 적색(`text-destructive`). 경계는 정확히 10:00이다
+  (`00:10:59`가 아니다 — ms로 비교한다).
 - **0에 도달** → relay는 만료 다이얼로그로 전이한다(relay 문서 시나리오 4). cloud는 그런 전이가
   없어 화면에 머무르며 `00:00:00 남음`을 적색으로 보여주고, 수락을 누르면 `inviteAccept.expired`로
   걸린다.
@@ -298,14 +300,31 @@ export interface InviteCountdown {
     days: number; hours: number; minutes: number;
     seconds: number;        // 신규 — HH:mm:ss 표기용
     isExpired: boolean;
-    isImminent: boolean;    // 10분 이하
+    isImminent: boolean;    // 10분 이하 (ms 비교)
 }
 useInviteCountdown(expiredAt?: number): InviteCountdown | null
 ```
 
-`TICK_MS`가 `30_000` → `1_000`이 된다. 초 단위 표기가 매초 갱신돼야 하기 때문이다. **이 훅은
-[`InviteWaitingPage`](../../../src/app/features/invite/pages/InviteWaitingPage.tsx)와 공유하므로
-그 화면도 매초 리렌더된다** — 대기 화면은 분 단위만 보여줘서 시각 변화는 없다.
+**tick은 화면에 실제로 보이는 것을 따라간다.** 옵션을 노출하지 않고 훅이 스스로 정한다:
+
+- 마지막 하루(`days === 0`) → 1초. `HH:mm:ss`가 매초 바뀐다.
+- 그 위 → 1분. `n일 n시간`은 한 시간에 한 번만 바뀌므로 매초 재평가하면 60배 헛일이다. 대가로 일
+  경계에서 최대 59초 낡은 값을 보여줄 수 있다 — 시간 단위로 바뀌는 표기라 무해하다.
+- 만료 → **정지.** `compute`가 매번 새 객체를 주므로 React가 bail out할 수 없어, 멈추지 않으면
+  다시는 바뀔 수 없는 문자열을 위해 무한히 리렌더한다. 형제 훅
+  [`useOtpExpiryCountdown`](../../../src/app/features/auth/hooks/useOtpExpiryCountdown.ts)이 이미
+  쓰는 자기종료 형태를 따른다.
+
+각 tick은 고정 간격이 아니라 **표시값이 다음에 바뀌는 순간**에 예약된다(`remaining % step || step`).
+고정 `setInterval`은 드리프트로 두 tick이 같은 초에 떨어질 수 있어, 초 단위 표기가 2초 멈췄다가 2초씩
+뛰는 것이 눈에 보인다.
+
+`totalSeconds`는 `ceil`이다 — 살아 있는 링크가 `00:00:00`을 보여주지 않도록 그 표기를 만료 전용으로
+남긴다.
+
+**이 훅은 [`InviteWaitingPage`](../../../src/app/features/invite/pages/InviteWaitingPage.tsx)와
+공유한다.** 그 화면은 분 단위만 보여주므로, 3일 링크라면 분 tick을 타서 종전과 사실상 같은 비용이고,
+마지막 하루에만 초 tick을 탄다.
 
 ### web-ui-kit — 아이콘 3종
 
@@ -348,18 +367,22 @@ useInviteCountdown(expiredAt?: number): InviteCountdown | null
 
 ## 검증 방법
 
-- **유닛 테스트** — `apps/web` 129 suites / 894 tests, web-ui-kit 57 suites / 230 tests 전부 통과.
+- **유닛 테스트** — `apps/web` 129 suites / 900 tests, web-ui-kit 57 suites / 230 tests 전부 통과.
     - [`icons/DuotoneIcons.test.tsx`](../../../../../libs/web-ui-kit/src/resources/icons/DuotoneIcons.test.tsx)(15)
       — 세 아이콘을 `describe.each`로 묶어 viewBox·`size`·`currentColor`·`aria-hidden`을 확인하고,
       이중 톤 레이어링을 따로 검증한다(시계는 `opacity 0.5` 다이얼 + 불투명 침, 칩은 6 path 중
-      정확히 4개가 `0.4`, 사진은 `evenodd`가 살아 있는지). `evenodd`가 빠지면 컷아웃이 메워져 그냥
-      원판이 되므로 이 단정이 회귀를 잡는다.
-    - `features/home/hooks/useInviteCountdown.test.ts`(5) — `seconds` 분해, 1초 tick 전진.
-    - `features/home/components/invite/InviteExpiryCard.test.tsx`(6) — `HH:mm:ss`, 제로 패딩,
-      24시간 이상 `n일 n시간`, 시간 0이면 `n일`, 임박 적색 / 평시 `text-label`.
-    - `features/home/components/invite/InviteAcceptScreen.test.tsx`(10) — 그룹/1:1 변형(플레이스
-      카드 유무·캡션), `targetKind` 생략 시 그룹 취급, **1:1은 플레이스 메타가 있어도 카드 없음**,
-      그룹이지만 보여 줄 것 없으면 접힘, 칩은 `memberCount` 도착 시에만, 거절 라우팅과 게이팅.
+      정확히 4개가 `0.4`, 사진은 `evenodd` **＋ 컷아웃 서브패스 2개**). `evenodd`만 보면 서브패스가
+      지워져 그냥 원판이 돼도 통과하므로 `M` 개수까지 센다.
+    - `features/home/hooks/useInviteCountdown.test.ts`(9) — `seconds` 분해, 1초 tick 전진, 임박
+      경계가 10:59가 아니라 정확히 10:00, `ceil`이 `00:00:00`을 만료 전용으로 남기는지, **만료 후
+      타이머가 0개로 정지**하는지, 하루 이상 남았을 때 1초에는 안 움직이고 1분에 움직이는지.
+    - `features/home/components/invite/InviteExpiryCard.test.tsx`(7) — `HH:mm:ss`, 제로 패딩,
+      24시간 이상 `n일 n시간`, 시간 0이면 `n일`, 임박 적색 / 평시 `text-label`, 만료 후에도 적색.
+    - `features/home/components/invite/InviteAcceptScreen.test.tsx`(11) — 그룹/1:1 변형, `targetKind`
+      생략 시 그룹 취급, **1:1은 플레이스 메타가 있어도 카드 없음**, 보여 줄 것 없으면 접힘, 소개만
+      있어도 렌더, 칩은 `memberCount` 도착 시에만, 거절 라우팅과 게이팅. 카드 존재는 문구가 아니라
+      `data-testid="invite-place-card"`로 단정한다 — 문구만 보면 prop을 안 넘긴 케이스에서 게이트를
+      통째로 지워도 통과한다(뮤테이션으로 확인).
     - **회귀**: `InviteDialog.test.tsx` 무수정 통과. `RelayInviteDialog.test.tsx`의 "플레이스 카드를
       그리지 않는다"는 이제 이중으로 보장된다(다이얼로그가 `site$`를 전달하지 않음 **＋** 화면이
       `targetKind`로 차단) — 목이 일부러 site를 실어 두므로 두 가드 중 하나가 빠지면 실패한다.
@@ -375,8 +398,9 @@ useInviteCountdown(expiredAt?: number): InviteCountdown | null
 
 ## 남은 것
 
-- **방 친구 칩은 아직 실화면에 뜬 적이 없다.** `memberCount`가 어디서도 오지 않는다. 백엔드가 값을
-  채우는 날 처음 렌더되므로 그때 패딩·줄바꿈을 확인해야 한다.
+- **방 친구 칩은 아직 실화면에 뜬 적이 없다.** 배선은 끝났지만 백엔드가 `memberCount`를
+  비정규화하지 않는다. 값이 오는 날 처음 렌더되므로 그때 패딩·줄바꿈을 확인해야 한다. 플레이스
+  소개·썸네일·초대자 사진도 같다.
 - **유효시간 24시간 이상 구간의 문구는 우리가 정한 것이다.** 디자인은 `HH:mm:ss`만 그렸다.
   ADR-0033 D8의 카피 수정 요청이 아직 열려 있고, 디자이너 확인이 필요하다.
 - **그룹 대상 카드의 아바타가 1인 글리프다.** 디자인 파일을 따랐다(ADR-0037 결정 5). 디자인이

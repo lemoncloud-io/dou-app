@@ -59,8 +59,10 @@ export { IconGroup, type IconGroupProps } from './IconGroup';
 export { IconUserSolid, type IconUserSolidProps } from './IconUserSolid';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
-// Duotone glyphs — filled shapes with a half/40%-opacity companion layer. The lucide
-// outline equivalents (IconClock, IconUsers, IconImage) stay for other callers.
+// Duotone glyphs — filled shapes with a half/40%-opacity companion layer. Their lucide
+// outline counterparts (IconClock, IconUsers, IconImage) remain exported: this barrel is
+// the kit's single icon source, so an alias staying available without a current caller is
+// the normal state, not dead code.
 export { IconClockSolid, type IconClockSolidProps } from './IconClockSolid';
 export { IconUsersGroup, type IconUsersGroupProps } from './IconUsersGroup';
 export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';

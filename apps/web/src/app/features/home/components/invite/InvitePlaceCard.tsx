@@ -16,7 +16,9 @@ interface InvitePlaceCardProps {
  * intro come from backend-denormalized invite metadata; both degrade gracefully when missing.
  */
 export const InvitePlaceCard = ({ name, intro, thumbnail }: InvitePlaceCardProps) => (
-    <InviteCard>
+    // testid: whether this card exists at all is the group / 1:1 difference (ADR-0037), and asserting
+    // on its copy alone can't tell "card absent" from "card present but empty".
+    <InviteCard data-testid="invite-place-card">
         {thumbnail ? (
             <img src={thumbnail} alt="" className="size-10 shrink-0 rounded-full object-cover" />
         ) : (

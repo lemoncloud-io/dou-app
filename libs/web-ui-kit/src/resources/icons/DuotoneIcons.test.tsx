@@ -73,5 +73,8 @@ describe('duotone layering', () => {
 
         // Without evenodd the ridge cut-out would fill solid and the glyph would be a plain disc.
         expect(disc).toBeTruthy();
+        // ...and evenodd only cuts anything out if the second subpath is still there, so assert the
+        // shape has both: outer disc + the knocked-out ridge.
+        expect(disc?.getAttribute('d')?.match(/M/g)).toHaveLength(2);
     });
 });

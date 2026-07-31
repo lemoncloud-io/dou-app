@@ -50,6 +50,7 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
     it('shows the place card and the group caption for a group invite', () => {
         setup({ targetKind: 'group', placeName: '레몬클라우드', placeIntro: '함께 일하는 공간' });
 
+        expect(screen.getByTestId('invite-place-card')).toBeTruthy();
         expect(screen.getByText('레몬클라우드')).toBeTruthy();
         expect(screen.getByText('함께 일하는 공간')).toBeTruthy();
         expect(screen.getByText('그룹 대화')).toBeTruthy();
@@ -58,7 +59,7 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
     it('treats an omitted targetKind as a group invite (the cloud flow never passes one)', () => {
         setup({ placeName: '레몬클라우드' });
 
-        expect(screen.getByText('레몬클라우드')).toBeTruthy();
+        expect(screen.getByTestId('invite-place-card')).toBeTruthy();
         expect(screen.getByText('그룹 대화')).toBeTruthy();
     });
 
@@ -66,15 +67,24 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
         // The gate is the room kind, not the data — a 1:1 chat has no place to show (ADR-0037).
         setup({ targetKind: 'oneToOne', placeName: '레몬클라우드', placeIntro: '함께 일하는 공간' });
 
-        expect(screen.queryByText('레몬클라우드')).toBeNull();
-        expect(screen.queryByText('함께 일하는 공간')).toBeNull();
+        expect(screen.queryByTestId('invite-place-card')).toBeNull();
         expect(screen.getByText('1:1 대화')).toBeTruthy();
     });
 
     it('folds the place card away for a group invite with nothing to show', () => {
+        // Asserts on the card, not its copy: with no place props passed, a copy-only assertion would
+        // hold even if the gate were removed entirely.
         setup({ targetKind: 'group' });
+
+        expect(screen.queryByTestId('invite-place-card')).toBeNull();
         expect(screen.getByText('그룹 대화')).toBeTruthy();
-        expect(screen.queryByText('함께 일하는 공간')).toBeNull();
+    });
+
+    it('shows the place card for a group invite carrying only an intro', () => {
+        setup({ targetKind: 'group', placeIntro: '함께 일하는 공간' });
+
+        expect(screen.getByTestId('invite-place-card')).toBeTruthy();
+        expect(screen.getByText('함께 일하는 공간')).toBeTruthy();
     });
 
     it('shows the room-friends chip only once a member count arrives', () => {
