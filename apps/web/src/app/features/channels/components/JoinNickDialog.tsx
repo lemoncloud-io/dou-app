@@ -59,7 +59,7 @@ export const JoinNickDialog = ({
     const copy = variant === 'dm' ? 'dmChat.name' : 'selfChat.name';
 
     // The name shown when no custom join nick is set — the caller's fallback, or for a self-chat my
-    // place-profile nick (the identity useSelfChatTitle falls back to).
+    // place-profile nick (the identity the self-chat title chain falls back to — useChannelTitle).
     const placeholderName = fallbackName ?? profile?.nick;
 
     const [name, setName] = useState('');

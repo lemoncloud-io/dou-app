@@ -31,7 +31,10 @@ jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.tit
 
 // Shared hooks barrel + cross-feature dialog import both pull @chatic/app-runtime (socket lib
 // needs TextEncoder, unavailable in jsdom) — stub them to keep the suite runtime-free.
-jest.mock('../../../hooks', () => ({ useActivePlaceName: () => 'MyPlace' }));
+jest.mock('../../../hooks', () => ({
+    useActivePlaceName: () => 'MyPlace',
+    useMyProfile: () => ({ profile: { nick: '내프로필' } }),
+}));
 let placeSettingsProps: any;
 jest.mock('../../home/components', () => ({
     PlaceProfileEditDialog: (p: any) => {
@@ -115,6 +118,7 @@ const SELF_CHANNEL = {
     channel: {
         isOwner: true,
         isSelfChat: true,
+        stereo: 'self',
         ownerId: 'me',
         name: '나와의 채팅',
         displayName: '나와의 채팅',
@@ -160,7 +164,9 @@ jest.mock('../hooks', () => ({
     useDmPeer: () => dmPeerValue,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     useMyJoin: () => myJoinValue,
-    useSelfChatTitle: () => 'SELF_TITLE',
+    // The title chain is what these tests are checking, so run the real hook — only the barrel
+    // around it (which drags in the socket runtime) is stubbed.
+    useChannelTitle: jest.requireActual('../hooks/useChannelTitle').useChannelTitle,
 }));
 
 describe('ChannelSettingsPage', () => {
@@ -189,7 +195,7 @@ describe('ChannelSettingsPage', () => {
         render(<ChannelSettingsPage />);
 
         // Title comes from the self-chat derivation (join nick → my name), not channel.name.
-        expect(screen.getByText('SELF_TITLE')).toBeInTheDocument();
+        expect(screen.getByText('내프로필')).toBeInTheDocument();
         expect(screen.getByText('chat.settings.roomMembers')).toBeInTheDocument();
         expect(screen.getByTestId('member-me')).toBeInTheDocument();
         expect(screen.queryByText('chat.settings.roomSettingsGroup')).not.toBeInTheDocument();
@@ -203,7 +209,7 @@ describe('ChannelSettingsPage', () => {
         render(<ChannelSettingsPage />);
 
         expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'false');
-        fireEvent.click(screen.getByText('SELF_TITLE'));
+        fireEvent.click(screen.getByText('내프로필'));
         expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'true');
     });
 

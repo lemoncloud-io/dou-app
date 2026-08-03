@@ -9,7 +9,6 @@ import { ChatAvatar, DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, S
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
-import { resolveDmTitle } from '../utils/dmTitle';
 
 import { useActivePlaceName } from '../../../hooks';
 import { PlaceProfileEditDialog } from '../../home/components';
@@ -24,10 +23,10 @@ import {
     useChannelMembers,
     useChannelMutations,
     useChannelProfiles,
+    useChannelTitle,
     useDmPeer,
     useJoinMutations,
     useMyJoin,
-    useSelfChatTitle,
 } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
@@ -127,10 +126,10 @@ export const ChannelSettingsPage = () => {
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
 
     // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
-    // self-chat title are resolved here; the plain type flags derived from them stay past the return.
+    // room title are resolved here; the plain type flags derived from them stay past the return.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    // Self-chat name comes from the per-user join nick, not `channel.name` (ADR-0022).
-    const selfChatTitle = useSelfChatTitle(channel);
+    // The same chain the room header and the home list use — settings must not invent a third one.
+    const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
     const closeDialog = () => setActiveDialog(null);
@@ -182,20 +181,6 @@ export const ChannelSettingsPage = () => {
     const isOwner = !!channel?.isOwner;
     // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
-    // Title by channel type: self → selfChatTitle; dm → the shared DM chain (my join nick → peer
-    // profile nick → channel.name → label; ADR-0039). The rest — I own it → the owner-set
-    // channel.name (my own join nick is ignored); I'm a member → my join nick, then channel.name.
-    const roomTitle = isSelfChat
-        ? selfChatTitle
-        : isDmChat
-          ? resolveDmTitle({
-                joinNick: myJoin?.nick,
-                peerNick: dmPeer?.profileNick,
-                channelName: channel?.name,
-                unnamedLabel: t('chat.dm.unnamedPeer'),
-                selfUserId: userId,
-            })
-          : (isOwner ? channel?.name : (myJoin?.nick ?? channel?.name)) || t('chat.settings.roomName');
 
     // DM always shows the peer avatar (matching the room header) — channel.thumbnail is ignored for
     // DM. Otherwise: channel thumbnail → self glyph → group placeholder.

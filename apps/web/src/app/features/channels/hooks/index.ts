@@ -1,5 +1,5 @@
 export * from './useChannel';
-export * from './useSelfChatTitle';
+export * from './useChannelTitle';
 export * from './useChannelMembers';
 export * from './useChannelProfiles';
 export * from './useDmPeer';

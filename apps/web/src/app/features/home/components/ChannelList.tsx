@@ -32,7 +32,7 @@ import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
-import { resolveChannelTitle } from '../lib/resolveChannelTitle';
+import { resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../lib/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 

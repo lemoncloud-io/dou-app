@@ -489,8 +489,8 @@
                 "leave": " left the chat room."
             },
             "emptyState": {
-                "line1": "Invite friends to",
-                "line2": "start chatting.",
+                "line1": "You created a group room.",
+                "line2": "Invite friends and start the conversation.",
                 "inviteButton": "Invite Friends",
                 "selfLine1": "Start your own record",
                 "selfLine2": "Freely save notes, links, and more"

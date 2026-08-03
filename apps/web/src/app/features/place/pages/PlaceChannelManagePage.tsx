@@ -19,7 +19,8 @@ import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceK
 import { ConfirmDialog } from '../../channels/components';
 import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
 import { useChannelUnreads, useHomeChannels, useLastChat, useMyJoins } from '../../home/hooks';
-import { resolveChannelTitle, sortChannels } from '../../home/lib';
+import { resolveChannelTitle } from '../../channels/lib';
+import { sortChannels } from '../../home/lib';
 import { useMyProfile } from '../../../hooks';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { ROUTES } from '../../../routes/paths';

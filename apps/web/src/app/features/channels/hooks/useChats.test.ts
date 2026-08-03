@@ -119,6 +119,37 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         await waitFor(() => expect(result.current.hasMore).toBe(false));
     });
 
+    it('캐시가 요청한 페이지를 못 채우면 loadMore 없이도 스레드 시작으로 본다', () => {
+        // A room this short never overflows the viewport, so the scroll listener never fires
+        // loadMore and hasMore stays true — the intro must not wait on that.
+        seedChats([chat({ id: 'a', chatNo: 1, ownerId: 'u1', createdAtMs: 100 })]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.hasMore).toBe(true); // pagination itself stays enabled
+        expect(result.current.isThreadStartLoaded).toBe(true);
+    });
+
+    it('페이지가 가득 찼으면 아직 스레드 시작이 아니다', () => {
+        seedChats(Array.from({ length: 3 }, (_, i) => chat({ id: `c${i}`, chatNo: i + 1, ownerId: 'u1' })));
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 3 }));
+
+        expect(result.current.isThreadStartLoaded).toBe(false);
+    });
+
+    it('loadMore가 빈 결과를 주면 스레드 시작으로 확정된다', async () => {
+        seedChats(Array.from({ length: 3 }, (_, i) => chat({ id: `c${i}`, chatNo: i + 1, ownerId: 'u1' })));
+        chatRefreshList.mockResolvedValue({ fetchedCount: 0, cursorNo: 1 });
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 3 }));
+        await act(async () => {
+            await result.current.loadMore();
+        });
+
+        await waitFor(() => expect(result.current.isThreadStartLoaded).toBe(true));
+    });
+
     it('loadMore: 순서가 섞여 있어도 가장 작은 chatNo를 cursor로 넘긴다', async () => {
         seedChats([
             chat({ id: 'a', chatNo: 5, ownerId: 'u1', createdAtMs: 500 }),

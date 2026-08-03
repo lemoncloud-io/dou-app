@@ -16,19 +16,19 @@ import {
     DateDivider,
     DefaultAvatar,
     FloatingDateChip,
-    IconChevronRight,
     ImageAvatar,
     MessageInput,
-    SystemMessage,
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { RoomIntro } from '../components/RoomIntro';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
     useChannel,
     useChannelMembers,
     useChannelProfiles,
+    useChannelTitle,
     useChatMutations,
     useChats,
     useChatScroll,
@@ -36,12 +36,10 @@ import {
     useJoinPositions,
     useMyJoin,
     useReadMarker,
-    useSelfChatTitle,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
-import { resolveDmTitle } from '../utils/dmTitle';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { ROUTES } from '../../../routes/paths';
 
@@ -116,23 +114,9 @@ export const ChannelRoomPage = () => {
     // the cache (see useMyJoin). The DM title reads the nick off it, so a rename in settings has to
     // land here immediately or the header disagrees with every other surface.
     const myJoin = useMyJoin(stableChannelIdForChannelHook);
-    // Self-chat title comes from the per-user join nick, falling back to my site
-    // profile nick (ADR-0026), not `channel.name`.
-    const selfChatTitle = useSelfChatTitle(channel);
-    // Header title by channel type: self → selfChatTitle; dm → the shared DM chain (my join nick →
-    // peer profile nick → channel.name → label; ADR-0039). The rest — I own the channel → the
-    // owner-set channel.name (my own join nick is ignored); I'm a member → channel.displayName.
-    const roomTitle = isSelfChat
-        ? selfChatTitle
-        : isDmChat
-          ? resolveDmTitle({
-                joinNick: myJoin?.nick ?? channel?.$join?.nick,
-                peerNick: dmPeer?.profileNick,
-                channelName: channel?.name,
-                unnamedLabel: t('chat.dm.unnamedPeer'),
-                selfUserId: userId,
-            })
-          : (channel?.isOwner ? channel?.name : channel?.displayName) || t('chat.room.title');
+    // One title chain for every surface (see useChannelTitle): the header must read exactly what
+    // the home list row reads, so neither the branch nor the fallback label lives here.
+    const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
@@ -153,6 +137,7 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         isError: isChatError,
         hasMore,
+        isThreadStartLoaded,
         loadMore,
     } = useChats(memoizedChatParams);
 
@@ -424,26 +409,17 @@ export const ChannelRoomPage = () => {
               return <AvatarGroup avatars={avatars} count={channel?.memberCount ?? 1} max={5} />;
           })();
 
-    // Intro block for self-chat (Figma 3185-13109 / 3186-13530) and 1:1 (Figma 3086-14439). Unlike
-    // a centered empty state it stays pinned at the top of the thread even once messages exist, so
-    // it renders both in the empty branch and as the top-most element of the message list.
-    //
-    // The DM line names the peer from their place profile ONLY — it states who joined, so my private
-    // alias for the room has no place in it — and says it without a name when there is no profile
-    // (ADR-0039). The stream's own join notice (SystemNotice pill) is left in place: the repeated
-    // sentence is intended.
-    const roomIntro = isSelfChat ? (
-        <SystemMessage title={t('chat.room.emptyState.selfLine1')} description={t('chat.room.emptyState.selfLine2')} />
-    ) : isDmChat ? (
-        <SystemMessage
-            title={
-                dmPeer?.profileNick
-                    ? t('chat.dm.intro.title', { name: dmPeer.profileNick })
-                    : t('chat.dm.intro.titleUnnamed')
-            }
-            description={t('chat.dm.intro.description')}
+    // The thread's opening description block — one per stereo (see RoomIntro). It is not an empty
+    // state: it renders in the empty branch AND at the top of a live thread, so it survives the
+    // first message. A DM cannot be invited into, and a guest / inactive cloud cannot issue one.
+    const roomIntro = (
+        <RoomIntro
+            variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
+            peerNick={dmPeer?.profileNick}
+            isGroupOwner={isGroupChat && channel?.ownerId === userId}
+            onInvite={!isGuest && isCloudActive ? () => navigate(ROUTES.channels.invite(stableChannelId)) : undefined}
         />
-    ) : null;
+    );
 
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
@@ -489,29 +465,6 @@ export const ChannelRoomPage = () => {
                         <div className="flex min-h-full flex-1 flex-col">
                             <DateDivider label={formatDateSeparator(new Date())} />
                             {roomIntro}
-                            {
-                                // The "초대하기" CTA is owner-only group behavior — a DM cannot be
-                                // invited into, and its intro block above already fills the empty thread.
-                                isGroupChat && channel?.ownerId === userId && !isGuest && isCloudActive && (
-                                    <div className="flex flex-col items-start gap-6 px-4 py-2.5">
-                                        <div className="flex flex-col gap-1.5">
-                                            <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
-                                                {t('chat.room.emptyState.line1')}
-                                            </p>
-                                            <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
-                                                {t('chat.room.emptyState.line2')}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => navigate(ROUTES.channels.invite(stableChannelId))}
-                                            className="flex h-[50px] items-center gap-1.5 rounded-full border border-input-border pl-[25px] pr-[19px] text-[16px] font-semibold text-foreground"
-                                        >
-                                            {t('chat.room.emptyState.inviteButton')}
-                                            <IconChevronRight className="size-[18px]" />
-                                        </button>
-                                    </div>
-                                )
-                            }
                         </div>
                     ) : (
                         <>
@@ -525,13 +478,13 @@ export const ChannelRoomPage = () => {
                                 .sort(([a], [b]) => b.localeCompare(a))
                                 .map(([dateKey, dateMessages], groupIndex, groupArr) => {
                                     const reversedMessages = [...dateMessages].reverse();
-                                    // Oldest LOADED day group (last after the descending sort). The
-                                    // self-chat / 1:1 intro renders just below this group's date divider
-                                    // so it reads [date][intro][messages] — matching the empty state and
-                                    // Figma. Gated on `!hasMore` because "oldest loaded" is only the real
-                                    // thread start once pagination is exhausted; otherwise the intro would
-                                    // sit mid-history and re-parent on every loadMore.
-                                    const isThreadStart = groupIndex === groupArr.length - 1 && !hasMore;
+                                    // Oldest LOADED day group (last after the descending sort). The intro
+                                    // renders just below this group's date divider so it reads
+                                    // [date][intro][messages] — matching the empty state and Figma.
+                                    // `isThreadStartLoaded` keeps it off mid-history: "oldest loaded" is
+                                    // only the real thread start once nothing older is left, otherwise the
+                                    // block would re-parent on every loadMore.
+                                    const isThreadStart = groupIndex === groupArr.length - 1 && isThreadStartLoaded;
 
                                     return (
                                         <div

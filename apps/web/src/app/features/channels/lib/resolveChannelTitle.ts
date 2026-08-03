@@ -1,7 +1,7 @@
 import type { DomainChannel } from '@chatic/data';
 
-import { resolveDmTitle } from '../../channels/utils/dmTitle';
-import { resolveSelfChatTitle } from '../../channels/utils/selfChatTitle';
+import { resolveDmTitle } from '../utils/dmTitle';
+import { resolveSelfChatTitle } from '../utils/selfChatTitle';
 
 export interface ResolveChannelTitleInput {
     channel: DomainChannel;

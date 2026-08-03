@@ -150,6 +150,17 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
         isLoadingMore,
         isError,
         hasMore,
+        /**
+         * The oldest loaded row really is the thread's first, so anything anchored to the start of
+         * the conversation (the room intro) can render.
+         *
+         * `!hasMore` alone is not enough: it only turns false once a `loadMore` comes back empty,
+         * and a thread shorter than the viewport never overflows — so the scroll listener never
+         * fires one and `hasMore` stays true forever. A page the cache could not fill is the other
+         * way to know there is nothing older. Kept separate from `hasMore` on purpose: a short
+         * cache during hydration must not disable pagination.
+         */
+        isThreadStartLoaded: !hasMore || chats.length < pageLimit,
         loadMore,
     };
 };
