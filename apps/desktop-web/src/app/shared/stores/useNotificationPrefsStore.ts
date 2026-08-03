@@ -25,7 +25,21 @@ interface NotificationPrefsState {
     snoozeUntil: number | null;
     /** Recurring quiet window; null = off. Mutes banners + toasts while inside it. */
     quietHours: QuietHours | null;
+    /**
+     * Whether this device asked pushes-api to stop sending it push notifications.
+     *
+     * A different axis from everything above: those decide whether the *renderer*
+     * raises a banner while the app is running, this one decides whether the server
+     * sends the device anything at all. Muting here still leaves in-app notifications
+     * working, and turning them off here still lets the server push.
+     *
+     * Local because there is no read endpoint — `device.update-remote` is a write whose
+     * response echoes the authoritative value, so this mirror is seeded by our own
+     * writes and reconciled to that echo. Default OFF, i.e. push allowed.
+     */
+    pushMuted: boolean;
     setDesktopEnabled: (enabled: boolean) => void;
+    setPushMuted: (muted: boolean) => void;
     toggleMute: (channelId: string) => void;
     setChannelNotify: (channelId: string, mode: ChannelNotifyMode) => void;
     setSnooze: (untilMs: number | null) => void;
@@ -51,7 +65,9 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
             channelNotify: {},
             snoozeUntil: null,
             quietHours: null,
+            pushMuted: false,
             setDesktopEnabled: enabled => set({ desktopEnabled: enabled }),
+            setPushMuted: muted => set({ pushMuted: muted }),
             setSnooze: untilMs => set({ snoozeUntil: untilMs }),
             setQuietHours: quietHours => set({ quietHours }),
             toggleMute: channelId =>

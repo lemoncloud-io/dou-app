@@ -9,6 +9,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore, VersionInfo } from '../../../shared';
+import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
@@ -25,6 +26,7 @@ export const SettingsPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const { theme, setTheme } = useTheme();
+    const pushMute = useDevicePushMute();
     const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
     const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
@@ -115,6 +117,38 @@ export const SettingsPage = () => {
                             onCheckedChange={setDesktopEnabled}
                             aria-label={t('settings.desktopNotifications')}
                         />
+                    </div>
+
+                    {/* A different axis from the switch above: that one stops this app from
+                        raising a banner, this one stops the server from sending the device
+                        anything — including while the app is closed. */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                                <span className="text-sm font-medium text-foreground">{t('settings.devicePush')}</span>
+                                <span id="device-push-hint" className="text-xs text-muted-foreground">
+                                    {t(
+                                        pushMute.isSupported
+                                            ? 'settings.devicePushHint'
+                                            : 'settings.devicePushShellOnly'
+                                    )}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={pushMute.pushEnabled}
+                                onCheckedChange={pushMute.setPushEnabled}
+                                disabled={!pushMute.isSupported || pushMute.isPending}
+                                aria-label={t('settings.devicePush')}
+                                // Point at whichever line is currently under the switch, so the
+                                // reason it is off — or the reason it is disabled — is read with it.
+                                aria-describedby={pushMute.hasFailed ? 'device-push-error' : 'device-push-hint'}
+                            />
+                        </div>
+                        {pushMute.hasFailed && (
+                            <span id="device-push-error" className="text-xs text-destructive">
+                                {t('settings.devicePushFailed')}
+                            </span>
+                        )}
                     </div>
 
                     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
