@@ -28,11 +28,12 @@ export interface MessageGroup {
 }
 
 /** A row in the message pane: a day divider, the unread marker, the thread
- * "N replies" divider, or an author block. */
+ * "N replies" divider, a system notice, or an author block. */
 export type MessageRowItem =
     | { kind: 'date'; key: string; timestamp: number }
     | { kind: 'unread'; key: string }
     | { kind: 'replies'; key: string; count: number }
+    | { kind: 'system'; key: string; chat: DomainChat; authorName: string }
     | { kind: 'group'; group: MessageGroup };
 
 /** Identity of the signed-in user, used to name their own (and optimistic) messages. */
@@ -160,6 +161,22 @@ export const buildMessageRows = (
                 key: `date:${dayMs}:${message.id ?? message.tempId ?? message.chatNo}`,
                 timestamp: dayMs,
             });
+        }
+
+        // A server-generated event (someone joined or left) is a notice, not a message:
+        // it breaks the author block, never merges with the messages around it, and does
+        // not anchor the unread divider — landing on "new messages" only to find a join
+        // event is worse than landing on the first real message below it.
+        if (message.stereo === 'system') {
+            flush();
+            rows.push({
+                kind: 'system',
+                key: message.id ?? message.tempId ?? `system:${message.channelId}:${message.chatNo}`,
+                chat: message,
+                authorName: resolveOwnerName(message, viewer, names) ?? '',
+            });
+            lastTimestamp = timestamp;
+            continue;
         }
 
         // Mark the first unread message from someone else (relative to where the

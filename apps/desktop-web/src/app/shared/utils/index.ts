@@ -10,6 +10,7 @@ export * from './mentionMatch';
 export * from './myNames';
 export * from './dnd';
 export * from './stripMarkdown';
+export * from './notifiableChat';
 export * from './dmDisplay';
 export * from './readCacheRecords';
 export * from './resolvePushCloudId';

@@ -81,6 +81,8 @@ const resources = {
             'chat.thread.composerPlaceholder': 'Reply…',
             'chat.thread.resize': 'Resize thread panel',
             'chat.thread.unavailable': "This message isn't loaded yet — scroll up in the channel to load it.",
+            'chat.system.join': '{{name}} joined the channel',
+            'chat.system.leave': '{{name}} left the channel',
             'chat.newMessages': 'New messages',
             'sidebar.dms': 'Direct messages',
             'dm.you': 'You',

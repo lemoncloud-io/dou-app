@@ -9,6 +9,7 @@ import { cn } from '@chatic/lib/utils';
 import { Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
 import { buildMessageRows, isOwnMessage, type MessageViewer, type ThreadMeta } from '../utils';
 import { DateSeparator } from './DateSeparator';
+import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
 
 interface MessageListProps {
@@ -455,6 +456,9 @@ export const MessageList = ({
                 )}
                 {rows.map(row => {
                     if (row.kind === 'date') return <DateSeparator key={row.key} timestamp={row.timestamp} />;
+                    if (row.kind === 'system') {
+                        return <SystemNotice key={row.key} chat={row.chat} authorName={row.authorName} />;
+                    }
                     if (row.kind === 'unread') {
                         return (
                             <div

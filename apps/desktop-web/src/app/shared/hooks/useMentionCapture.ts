@@ -1,7 +1,7 @@
 import { getGlobalSessionContext } from '@chatic/web-core';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isMentioned, resolveMyMentionNames } from '../utils';
+import { isMentioned, isNotifiableChat, resolveMyMentionNames } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';
 
 const chatAuthorId = (chat: ChannelLastChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
@@ -24,6 +24,10 @@ export const useMentionCapture = (): void => {
         const content = chat.content ?? '';
         // Cheap pre-filter: only '@'-bearing messages can mention me (or @channel/@here).
         if (!content || !content.includes('@')) return;
+        // The '@' filter above catches most system rows, but a join event for a channel
+        // or member whose name contains '@' slips through — and the inbox must only ever
+        // hold things people wrote.
+        if (!isNotifiableChat(chat)) return;
 
         const identity = getGlobalSessionContext().identity;
         const authorId = chatAuthorId(chat);
