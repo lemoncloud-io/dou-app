@@ -14,6 +14,8 @@ let mockInvite: any;
 let mockIsLoading = false;
 let mockSyncStatus: 'unknown' | 'waiting' | 'ready' | 'timeout' = 'unknown';
 let mockIsCanceled = false;
+/** Live store behind `markCanceled`, so a cancel the page makes is visible to `isCanceled`. */
+const canceledIds = new Set<string>();
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ inviteId: 'invite-1' }) }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -58,7 +60,10 @@ jest.mock('../hooks/useAcceptedChannelSync', () => ({
     useAcceptedChannelSync: () => ({ status: mockSyncStatus }),
 }));
 jest.mock('../hooks/useLocallyCanceledInvites', () => ({
-    useLocallyCanceledInvites: () => ({ isCanceled: () => mockIsCanceled, markCanceled }),
+    useLocallyCanceledInvites: () => ({
+        isCanceled: (id: string) => mockIsCanceled || canceledIds.has(id),
+        markCanceled,
+    }),
 }));
 jest.mock('../utils/sendInviteMessage', () => ({
     sendInviteMessage: (...args: unknown[]) => sendInviteMessage(...args),
@@ -73,6 +78,8 @@ describe('InviteWaitingPage', () => {
         mockIsLoading = true;
         mockSyncStatus = 'unknown';
         mockIsCanceled = false;
+        canceledIds.clear();
+        markCanceled.mockImplementation((id: string) => canceledIds.add(id));
         sendInviteMessage.mockResolvedValue('sms');
     });
 
@@ -116,6 +123,22 @@ describe('InviteWaitingPage', () => {
             { phone: '01012345678', name: '홍길동' }
         );
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true }));
+    });
+
+    it('재발급이 끝나면 직전 초대를 취소 처리하되 홈으로 튕기지 않는다', async () => {
+        mockIsLoading = false;
+        mockInvite = { id: 'invite-1', state: 'pending', name: '홍길동' };
+        findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '01012345678', name: '홍길동' });
+        createInvite.mockResolvedValue({ id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' });
+
+        render(<InviteWaitingPage />);
+        fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+        await waitFor(() => expect(markCanceled).toHaveBeenCalledWith('invite-1'));
+        expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true });
+        // The cancel is this screen's own, so the "canceled invite" redirect must stay out of it —
+        // otherwise the reissue lands on home instead of the new invite's waiting screen.
+        expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
     });
 
     it('로그에 없는(스토리지 소실 등) invite는 재발급하지 않고 안내 토스트만 띄운다', () => {

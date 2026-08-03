@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
@@ -54,9 +54,17 @@ export const InviteWaitingPage = () => {
 
     const goHome = () => navigate(ROUTES.home, { replace: true });
 
-    // A cancel confirmed on a prior visit — this device should never show it as live again.
+    /** Set while this screen retires an invite itself, so the redirect below leaves that cancel alone. */
+    const reissueCancelRef = useRef(false);
     useEffect(() => {
-        if (canceledLocally) goHome();
+        reissueCancelRef.current = false;
+    }, [inviteId]);
+
+    // A cancel confirmed on a prior visit — this device should never show it as live again. A cancel
+    // this screen just made as part of a reissue is exempt: it is already replacing the route with
+    // the new invite's waiting screen, and bouncing home would swallow that.
+    useEffect(() => {
+        if (canceledLocally && !reissueCancelRef.current) goHome();
     }, [canceledLocally]);
 
     // The channel synced locally — hand off to the real room.
@@ -83,6 +91,14 @@ export const InviteWaitingPage = () => {
 
             const body = composeInviteSmsBody(t, myProfile?.nick, newInvite.deeplink ?? '');
             await sendInviteMessage(logEntry.phone, body);
+
+            // 재초대는 새 코드를 발행하는 것이므로 직전 초대는 여기서 무효가 된다. 서버 취소
+            // (요청 1, INVITE_CANCEL_API_SUPPORTED)가 아직 없어 옛 코드는 만료까지 살아 있고,
+            // 로컬 스탬프로 목록과 대기 화면에서만 걷어낸다. 플래그가 켜지면 create 앞에서 서버
+            // 취소를 먼저 보내고 실패 시 발행을 중단하도록 바꾸면 된다 — 지금 순서를 뒤집으면
+            // 발행이 실패했을 때 되살릴 수 없는 초대만 잃는다.
+            reissueCancelRef.current = true;
+            markCanceled(inviteId);
 
             toast({ title: t('inviteWaiting.reissueDone') });
             navigate(ROUTES.invite.waiting(newInvite.id), { replace: true });
