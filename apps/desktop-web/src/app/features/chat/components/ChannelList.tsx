@@ -170,8 +170,11 @@ export const ChannelList = ({
             return {
                 label: t('dm.you'),
                 icon: (
-                    <Avatar className="h-5 w-5 shrink-0 rounded">
-                        <AvatarFallback className="rounded text-[9px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
+                    <Avatar className="h-5 w-5 shrink-0 rounded-full">
+                        <AvatarFallback
+                            className="rounded-full text-[9px] font-semibold"
+                            style={avatarStyle(myUid ?? 'me')}
+                        >
                             {t('dm.you').charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -187,10 +190,10 @@ export const ChannelList = ({
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),
             icon: (
-                <Avatar className="h-5 w-5 shrink-0 rounded">
+                <Avatar className="h-5 w-5 shrink-0 rounded-full">
                     {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
                     <AvatarFallback
-                        className="rounded text-[9px] font-semibold"
+                        className="rounded-full text-[9px] font-semibold"
                         style={avatarStyle(counterpartId || display.name)}
                     >
                         {display.name.charAt(0).toUpperCase() || '?'}

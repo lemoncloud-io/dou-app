@@ -146,11 +146,13 @@ export const MessageRow = memo(
             // list hover.
             <div className="group flex gap-3 rounded-md px-2 py-1 -mx-2 transition-colors ease-tactile hover:bg-accent/70">
                 <UserProfilePopover {...profileProps}>
-                    <button type="button" className="focus-ring tactile h-9 w-9 shrink-0 rounded-md">
-                        <Avatar className="h-9 w-9 rounded-md">
+                    {/* The focus ring traces the button, so its radius has to follow the
+                        avatar's — a square ring around a round disc reads as a bug. */}
+                    <button type="button" className="focus-ring tactile h-8 w-8 shrink-0 rounded-full">
+                        <Avatar className="h-8 w-8 rounded-full">
                             {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
                             <AvatarFallback
-                                className="rounded-md text-sm font-semibold"
+                                className="rounded-full text-caption font-semibold"
                                 style={avatarStyle(group.colorSeed)}
                             >
                                 {initial}
@@ -159,7 +161,7 @@ export const MessageRow = memo(
                     </button>
                 </UserProfilePopover>
                 <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-1.5">
                         {group.namePending ? (
                             <Skeleton className="h-3.5 w-24 rounded" />
                         ) : (
@@ -342,7 +344,7 @@ export const MessageRow = memo(
                                             {meta.repliers.length > 0 ? (
                                                 <span className="flex shrink-0 items-center gap-0.5">
                                                     {meta.repliers.map(replier => (
-                                                        <Avatar key={replier.key} className="h-5 w-5 rounded">
+                                                        <Avatar key={replier.key} className="h-5 w-5 rounded-full">
                                                             {replier.thumbnail && (
                                                                 <AvatarImage
                                                                     src={replier.thumbnail}

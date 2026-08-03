@@ -47,9 +47,9 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect }: MentionAut
                         i === activeIndex ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60'
                     )}
                 >
-                    <Avatar className="h-5 w-5 rounded">
+                    <Avatar className="h-5 w-5 rounded-full">
                         {item.thumbnail && <AvatarImage src={item.thumbnail} alt={item.name} />}
-                        <AvatarFallback className="rounded text-[9px] font-semibold" style={avatarStyle(item.id)}>
+                        <AvatarFallback className="rounded-full text-[9px] font-semibold" style={avatarStyle(item.id)}>
                             {item.name.charAt(0).toUpperCase() || '?'}
                         </AvatarFallback>
                     </Avatar>
