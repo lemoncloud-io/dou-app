@@ -279,6 +279,12 @@ export const ChannelRoomPage = () => {
         }
     };
 
+    // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
+    // pointer and mouse handlers — see the wrapper below for why both are needed.
+    const keepCaretOnInput = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+        if (e.target !== inputRef.current) e.preventDefault();
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.nativeEvent.isComposing) return;
         if (isMobile && e.key === 'Enter') return;
@@ -629,10 +635,12 @@ export const ChannelRoomPage = () => {
                 ref={composerRef}
                 // Extend the keep-keyboard-open tolerance to the whole bottom bar — a finger
                 // slipping off the input onto the surrounding padding shouldn't blur the
-                // textarea. Only the textarea itself keeps the caret.
-                onPointerDown={e => {
-                    if (e.target !== inputRef.current) e.preventDefault();
-                }}
+                // textarea. Only the textarea itself keeps the caret. `mousedown` as well as
+                // `pointerdown`: on iOS WKWebView the focus move is the `mousedown` default
+                // action, so cancelling `pointerdown` alone does not hold the caret (the same
+                // reason MessageInput cancels both).
+                onPointerDown={keepCaretOnInput}
+                onMouseDown={keepCaretOnInput}
                 // Floating composer (Figma 2948-28188 / 2948-29566): the bar itself has NO surface —
                 // the translucent pill is the only chrome, so the message list stays visible right up
                 // to the screen edge and scrolls behind it.
