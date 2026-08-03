@@ -3,3 +3,5 @@
 export { default as douLogo } from './dou-logo.svg';
 export { default as douMark } from './dou-mark.svg';
 export { default as defaultPlaceAvatar } from './default-place-avatar.svg';
+// Figma "Icon/My Cloud/내 클라우드" — the cloud-promo banner and the cloud guide hero share it.
+export { default as myCloudIllustration } from './my-cloud.svg';
