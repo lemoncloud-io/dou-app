@@ -112,6 +112,15 @@ export const appBridge = {
         webClient.post({ type: 'SavePreference', data });
     },
 
+    /**
+     * Persist a preference and wait for the native confirmation. Rejects on a `success: false`
+     * response and on timeout, so the caller can retry — see usePreferenceStore's theme sync,
+     * where a silently dropped write leaves the native status bar disagreeing with the page.
+     */
+    savePreferenceConfirmed(data: Payload<'SavePreference'>): Promise<WebMessageResponse<'SavePreference'>> {
+        return webClient.request({ type: 'SavePreference', data });
+    },
+
     /** Request the current value of a preference key from native storage. */
     fetchPreference: (data: Payload<'FetchPreference'>): Promise<WebMessageResponse<'FetchPreference'>> => {
         return webClient.request({ type: 'FetchPreference', data });

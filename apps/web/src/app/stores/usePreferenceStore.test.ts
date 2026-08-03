@@ -6,6 +6,7 @@ import {
     parsePinnedChannels,
     parseRecentSearches,
     parseTheme,
+    readInitialTheme,
     usePreferenceStore,
 } from './usePreferenceStore';
 import { placeScopeKey } from './preferenceKeys';
@@ -19,6 +20,7 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('../bridge', () => ({
     appBridge: {
         savePreference: jest.fn(),
+        savePreferenceConfirmed: jest.fn(() => Promise.resolve({ success: true })),
     },
 }));
 
@@ -26,6 +28,10 @@ import { isNative } from '@chatic/bridges';
 
 const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
 const mockSavePreference = appBridge.savePreference as jest.MockedFunction<typeof appBridge.savePreference>;
+const mockSavePreferenceConfirmed = appBridge.savePreferenceConfirmed as jest.MockedFunction<
+    typeof appBridge.savePreferenceConfirmed
+>;
+const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -37,7 +43,7 @@ const resetStore = () => {
     usePreferenceStore.setState({
         blurLastMessage: false,
         isFirstRun: true,
-        theme: 'system',
+        theme: 'light',
         channelSort: {},
         pinnedChannels: {},
         dismissedUpdateVersion: '',
@@ -45,6 +51,10 @@ const resetStore = () => {
         recentSearches: [],
     });
     jest.clearAllMocks();
+    // clearAllMocks resets calls but not implementations, so a mockRejectedValue from a retry
+    // test would leak into the next one.
+    mockSavePreferenceConfirmed.mockReset();
+    mockSavePreferenceConfirmed.mockResolvedValue({ success: true } as never);
 };
 
 // ---------------------------------------------------------------------------
@@ -167,18 +177,49 @@ describe('usePreferenceStore — native 환경', () => {
     });
 
     describe('setTheme — 테마 설정', () => {
-        it('savePreference bridge를 평문 값으로 호출한다', () => {
+        it('확인형 bridge를 평문 값으로 호출한다', () => {
             usePreferenceStore.getState().setTheme('dark');
 
-            expect(mockSavePreference).toHaveBeenCalledWith({
+            // Confirmed, not fire-and-forget: native owns the status bar, so a dropped write
+            // leaves the two layers permanently disagreeing with nothing to detect it.
+            expect(mockSavePreferenceConfirmed).toHaveBeenCalledWith({
                 key: 'theme',
                 value: 'dark',
             });
+            expect(mockSavePreference).not.toHaveBeenCalled();
         });
 
         it('native 환경에서도 localStorage 캐시에 함께 쓴다 (write-through)', () => {
             usePreferenceStore.getState().setTheme('light');
             expect(localStorage.getItem('vite-ui-theme')).toBe('light');
+        });
+
+        it('bridge가 실패하면 한 번 재시도한다', async () => {
+            mockSavePreferenceConfirmed.mockRejectedValueOnce(new Error('dropped'));
+
+            usePreferenceStore.getState().setTheme('dark');
+            await flush();
+
+            expect(mockSavePreferenceConfirmed).toHaveBeenCalledTimes(2);
+        });
+
+        it('재시도까지 실패해도 상태와 캐시는 유지되고 예외가 새지 않는다', async () => {
+            mockSavePreferenceConfirmed.mockRejectedValue(new Error('offline'));
+
+            expect(() => usePreferenceStore.getState().setTheme('dark')).not.toThrow();
+            await flush();
+
+            // Optimistic: the toggle must not be blocked or rolled back by a dead bridge.
+            expect(usePreferenceStore.getState().theme).toBe('dark');
+            expect(localStorage.getItem('vite-ui-theme')).toBe('dark');
+            expect(mockSavePreferenceConfirmed).toHaveBeenCalledTimes(2);
+        });
+
+        it('성공하면 재시도하지 않는다', async () => {
+            usePreferenceStore.getState().setTheme('dark');
+            await flush();
+
+            expect(mockSavePreferenceConfirmed).toHaveBeenCalledTimes(1);
         });
     });
 });
@@ -236,8 +277,74 @@ describe('usePreferenceStore — hydrate', () => {
     it('해석 불가능한 theme 값은 무시하고 기본값을 유지한다', () => {
         usePreferenceStore.getState().hydrate('theme', 'not-a-theme');
 
-        expect(usePreferenceStore.getState().theme).toBe('system');
+        expect(usePreferenceStore.getState().theme).toBe('light');
         expect(localStorage.getItem('vite-ui-theme')).toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// readInitialTheme (첫 페인트 값 결정: 로컬 캐시 -> 네이티브 주입 -> 라이트)
+// ---------------------------------------------------------------------------
+
+describe('readInitialTheme — 초기 테마 결정', () => {
+    type ThemeWindow = { CHATIC_APP_THEME?: unknown };
+
+    beforeEach(() => {
+        localStorage.clear();
+        delete (window as unknown as ThemeWindow).CHATIC_APP_THEME;
+    });
+
+    it('저장값도 주입값도 없으면 라이트다', () => {
+        // The whole point of the light default: no OS scheme is consulted here.
+        expect(readInitialTheme()).toBe('light');
+    });
+
+    it('로컬 캐시가 있으면 그것을 쓴다', () => {
+        localStorage.setItem('vite-ui-theme', 'dark');
+
+        expect(readInitialTheme()).toBe('dark');
+    });
+
+    it('로컬 캐시가 비었으면 네이티브 주입값으로 복원한다', () => {
+        (window as unknown as ThemeWindow).CHATIC_APP_THEME = 'dark';
+
+        expect(readInitialTheme()).toBe('dark');
+    });
+
+    it('주입값을 로컬 캐시에 기록해 다음 부팅과 PreferenceLoader 브릿지 읽기를 건너뛰게 한다', () => {
+        (window as unknown as ThemeWindow).CHATIC_APP_THEME = 'dark';
+
+        readInitialTheme();
+
+        expect(localStorage.getItem('vite-ui-theme')).toBe('dark');
+        expect(hasLocalPreference('theme')).toBe(true);
+    });
+
+    it('로컬 캐시가 주입값보다 우선한다', () => {
+        localStorage.setItem('vite-ui-theme', 'light');
+        (window as unknown as ThemeWindow).CHATIC_APP_THEME = 'dark';
+
+        expect(readInitialTheme()).toBe('light');
+    });
+
+    it('주입값이 레거시 봉투 형태여도 파싱한다', () => {
+        (window as unknown as ThemeWindow).CHATIC_APP_THEME = '{"state":{"theme":"dark"},"version":0}';
+
+        expect(readInitialTheme()).toBe('dark');
+        expect(localStorage.getItem('vite-ui-theme')).toBe('dark');
+    });
+
+    it('손상된 주입값은 무시하고 라이트로 떨어진다', () => {
+        (window as unknown as ThemeWindow).CHATIC_APP_THEME = 'not-a-theme';
+
+        expect(readInitialTheme()).toBe('light');
+        expect(localStorage.getItem('vite-ui-theme')).toBeNull();
+    });
+
+    it("저장된 'system'은 사용자 선택으로 존중한다", () => {
+        localStorage.setItem('vite-ui-theme', 'system');
+
+        expect(readInitialTheme()).toBe('system');
     });
 });
 

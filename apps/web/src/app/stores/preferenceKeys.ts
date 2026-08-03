@@ -87,8 +87,12 @@ export const PREFERENCES = {
         nativeKey: 'theme',
         // Legacy ThemeProvider key — kept so an existing user's explicit choice survives the migration.
         localKey: 'vite-ui-theme',
-        // 'system' follows the OS scheme: mobile OS inside the WebView, prefers-color-scheme on web.
-        defaultValue: 'system',
+        // Light, deliberately NOT 'system'. The OS scheme is resolved independently by the web
+        // (matchMedia) and by the native shell (RN useColorScheme), so letting it decide the default
+        // means the two layers can disagree for any frame where only one of them has resolved —
+        // which showed up as a dark flash behind a light-themed app. 'system' stays a valid value
+        // but has no UI entry point in this release. See docs: apps/mobile/docs/theme.md.
+        defaultValue: 'light',
     },
     // Device-global push mute (server-owned by chatic-pushes-api via device.update-remote). There is
     // no server read path, so this local cache is the optimistic display source; 'false' = unmuted

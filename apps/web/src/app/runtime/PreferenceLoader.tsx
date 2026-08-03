@@ -17,7 +17,14 @@ const MANAGED_KEYS = ['blurLastMessage', 'isFirstRun', 'theme'] as const;
  * localStorage wins and never triggers a bridge round-trip. When the bridge has
  * no value either, the store keeps its synchronous default.
  *
- * Renders nothing; mounted once under AppRuntime beside NativeHandshake.
+ * For `theme` this is only a FALLBACK. The shell injects the persisted theme as
+ * `window.CHATIC_APP_THEME` before content loads and readInitialTheme() seeds the
+ * cache from it, so the bridge read here is skipped except on older shells that
+ * predate the injection. It has to be a fallback: this component is mounted inside
+ * AppRuntime, which gates its subtree on session readiness, so its values arrive
+ * well after the first paint.
+ *
+ * Renders nothing; mounted once under AppRuntime.
  */
 export const PreferenceLoader = (): null => {
     const hydrate = usePreferenceStore(state => state.hydrate);
