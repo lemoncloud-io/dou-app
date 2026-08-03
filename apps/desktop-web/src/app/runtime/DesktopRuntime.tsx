@@ -23,9 +23,16 @@ import {
     useSocketWakeRecovery,
     useSocketWedgeReload,
     useUnreadStore,
+    startSocketFrameLog,
 } from '../shared';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
+
+// Debug frame log: start recording inbound socket envelopes for the whole session, so the
+// debug page opens onto a buffer that was already filling. Module-scope (not an effect) —
+// it binds through subscribeClient and is idempotent per client, and must not be tied to a
+// component's lifetime.
+startSocketFrameLog();
 
 /** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {

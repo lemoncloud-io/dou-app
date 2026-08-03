@@ -7,11 +7,9 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 const updateRemotePushMute = vi.fn();
 
 // The hook's only collaborator is the device repository; faking the runtime lets the
-// test drive what the server "answered" without standing up a socket. `getSocketManager`
-// is here because the stores barrel subscribes to the live client at module load.
+// test drive what the server "answered" without standing up a socket.
 vi.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: () => ({ device: { updateRemotePushMute } }),
-    getSocketManager: () => ({ subscribeClient: () => () => undefined }),
 }));
 
 import { useNotificationPrefsStore } from '../../../shared/stores';

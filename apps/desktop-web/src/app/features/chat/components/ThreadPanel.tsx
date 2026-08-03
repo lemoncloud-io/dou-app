@@ -52,10 +52,15 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
 
     const { root, threadMessages, replyCount } = useMemo(() => {
         const thread = buildThread(messages, rootId);
+        // A deleted reply is gone here too — the panel is another view of the same
+        // messages, and a delete that only took effect in the main feed would leave the
+        // message readable one click away. The root is kept even when deleted: it renders
+        // as a tombstone so the replies below it still have something to hang from.
+        const replies = thread.replies.filter(reply => !reply.hidden);
         return {
             root: thread.root,
-            threadMessages: thread.root ? [thread.root, ...thread.replies] : thread.replies,
-            replyCount: thread.replies.length,
+            threadMessages: thread.root ? [thread.root, ...replies] : replies,
+            replyCount: replies.length,
         };
     }, [messages, rootId]);
 

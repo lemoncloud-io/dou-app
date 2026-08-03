@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Reply, Trash2 } from 'lucide-react';
+import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, Trash2 } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -9,8 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 
 import { getActiveServerContext } from '@chatic/web-core';
 
-import { threadRootId, type MessageGroup } from '../utils';
+import { canModifyMessage, threadRootId, type MessageGroup } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import { useMessageActions } from '../hooks';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { RichText } from './RichText';
 
@@ -109,6 +110,11 @@ export const MessageRow = memo(
     }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
+        // Which message in this block is open in the inline editor, and the text so far.
+        // Local to the row: one message is edited at a time and the draft dies with it.
+        const [editingKey, setEditingKey] = useState<string | null>(null);
+        const [draft, setDraft] = useState('');
+        const { editMessage, deleteMessage, failedId } = useMessageActions();
         const savedItems = useSavedItemsStore(s => s.items);
         const toggleSaved = useSavedItemsStore(s => s.toggle);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -215,18 +221,65 @@ export const MessageRow = memo(
                                             {msgTime}
                                         </span>
                                     )}
-                                    <p
-                                        className={cn(
-                                            // Opt message text back into selection: the app body sets
-                                            // user-select:none for chrome (Slack/Discord-style), which
-                                            // otherwise blocks copying message content.
-                                            'select-text whitespace-pre-wrap break-words text-body',
-                                            isFailed ? 'text-destructive' : 'text-foreground',
-                                            isPending && 'opacity-50'
-                                        )}
-                                    >
-                                        <RichText content={content} selfNames={selfNames} />
-                                    </p>
+                                    {message.hidden ? (
+                                        // Only reached for a deleted message that has replies
+                                        // (ChatPane keeps those); the thread bar below still
+                                        // renders, so the conversation under it stays reachable.
+                                        <p className="whitespace-pre-wrap break-words text-body italic text-muted-foreground">
+                                            {t('chat.deletedRoot')}
+                                        </p>
+                                    ) : editingKey === key ? (
+                                        // The message becomes its own editor in place, so the
+                                        // surrounding conversation stays readable while you fix a
+                                        // typo. Enter saves, Escape abandons — no dialog.
+                                        <div className="flex flex-col gap-1">
+                                            <textarea
+                                                autoFocus
+                                                rows={Math.min(8, draft.split('\n').length)}
+                                                value={draft}
+                                                onChange={e => setDraft(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Escape') {
+                                                        e.preventDefault();
+                                                        setEditingKey(null);
+                                                        return;
+                                                    }
+                                                    if (e.key !== 'Enter' || e.shiftKey) return;
+                                                    e.preventDefault();
+                                                    const next = draft.trim();
+                                                    setEditingKey(null);
+                                                    // An edit to nothing is a delete everywhere else;
+                                                    // here it would just blank the row, so ignore it.
+                                                    if (next && next !== content && message.id) {
+                                                        editMessage(message.id, next);
+                                                    }
+                                                }}
+                                                aria-label={t('chat.edit')}
+                                                className="focus-ring w-full resize-none rounded-md border border-input bg-background px-2 py-1.5 text-body text-foreground"
+                                            />
+                                            <span className="text-micro text-muted-foreground">
+                                                {t('chat.editHint')}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <p
+                                            className={cn(
+                                                // Opt message text back into selection: the app body sets
+                                                // user-select:none for chrome (Slack/Discord-style), which
+                                                // otherwise blocks copying message content.
+                                                'select-text whitespace-pre-wrap break-words text-body',
+                                                isFailed ? 'text-destructive' : 'text-foreground',
+                                                isPending && 'opacity-50'
+                                            )}
+                                        >
+                                            <RichText content={content} selfNames={selfNames} />
+                                        </p>
+                                    )}
+                                    {failedId === message.id && (
+                                        <span className="mt-0.5 block text-caption text-destructive">
+                                            {t('chat.editFailed')}
+                                        </span>
+                                    )}
                                     {/* Unfurl the first link only (Slack-style single card).
                                         Message-level, not RichText: the formatter stays pure and
                                         the card renders outside the host <p>. */}
@@ -287,6 +340,31 @@ export const MessageRow = memo(
                                                         }
                                                     />
                                                 </button>
+                                            )}
+                                            {canModifyMessage(message, group.isMine) && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setDraft(content);
+                                                            setEditingKey(key);
+                                                        }}
+                                                        title={t('chat.edit')}
+                                                        aria-label={t('chat.edit')}
+                                                        className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => message.id && deleteMessage(message.id)}
+                                                        title={t('chat.delete')}
+                                                        aria-label={t('chat.delete')}
+                                                        className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-destructive/10 hover:text-destructive"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
                                             )}
                                             {content && (
                                                 <button

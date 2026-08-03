@@ -22,3 +22,20 @@ import type { DomainChat } from '@chatic/data';
  * actually has `'reaction'` in `ChatSubType`.
  */
 export const isFeedVisible = (chat: DomainChat): boolean => !chat.parentId && !chat.hidden;
+
+/**
+ * A deleted message that other people replied to.
+ *
+ * Deleting normally removes the row outright, which is what Slack does and what the
+ * reader expects. A thread root is the exception: its replies are matched to it by id,
+ * so removing it would leave a conversation hanging off nothing — the replies would
+ * still exist with no way to reach them and no indication of what they answered. Those
+ * roots keep their place in the feed as a tombstone.
+ *
+ * "Replied to" means replies are actually loaded. A root whose thread has not been
+ * paged in yet reads as an ordinary message and is removed like one; if the replies
+ * arrive later the tombstone appears with them, which is the same information showing
+ * up at the same time as the reason to show it.
+ */
+export const isDeletedThreadRoot = (chat: DomainChat, threadIndex: ReadonlyMap<string, unknown>): boolean =>
+    !!chat.hidden && !chat.parentId && chat.chatNo != null && threadIndex.has(String(chat.chatNo));

@@ -23,7 +23,7 @@ import {
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
-import { buildMemberNames, buildThreadIndex, isFeedVisible } from '../utils';
+import { buildMemberNames, buildThreadIndex, isDeletedThreadRoot, isFeedVisible } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -68,12 +68,18 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 : undefined,
         [jumpRequest, channelId]
     );
-    // Threads are hidden from the main feed (ADR 0008) and so are deleted rows, which
-    // the server keeps as `hidden` instead of removing — `isFeedVisible` owns both
-    // rules. Reply counts still come from the full set so a root's "N replies" footer
-    // is correct; replies keep arriving in the cache via chat:create.
-    const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
+    // Thread replies are hidden from the main feed (ADR 0008) and so are deleted rows,
+    // which the server keeps as `hidden` instead of removing — `isFeedVisible` owns both
+    // rules. The one exception is a deleted message that has replies: it stays as a
+    // tombstone, because the replies hang off its id and would otherwise be unreachable.
+    // That is why the thread index is built first; the filter depends on it.
+    // Reply counts still come from the full set so a root's "N replies" footer is
+    // correct; replies keep arriving in the cache via chat:create.
     const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
+    const topLevel = useMemo(
+        () => messages.filter(m => isFeedVisible(m) || isDeletedThreadRoot(m, threadIndex)),
+        [messages, threadIndex]
+    );
     const { isVerified } = useSocketState();
     const [sendTick, setSendTick] = useState(0);
 
