@@ -73,7 +73,7 @@ const ChannelRow = ({ channel, label, icon, isActive, isDm, onSelect, rowRef }: 
     const { t } = useTranslation();
     const id = channel.id ?? '';
     const unread = channel.unreadCount ?? 0;
-    const indicator = unreadIndicator({ unread: channel.unreadCount, isDm, isActive });
+    const indicator = unreadIndicator({ unread, isDm, isActive });
     const lastChat = useLastChat(id, lastChatNoOf(channel));
     const time = relativeTime(lastChat?.createdAt ?? channel.lastActivityAt);
     return (
@@ -139,7 +139,7 @@ export const ChannelList = ({
     const { t } = useTranslation();
     const myUid = useSessionIdentity().userId;
     const placeProfiles = useSiteProfileMap();
-    // Tick once a minute so the relative "11m" preview times stay current.
+    // Tick once a minute so each row's relative "11m" last-activity time stays current.
     useTick(60_000);
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
@@ -170,11 +170,8 @@ export const ChannelList = ({
             return {
                 label: t('dm.you'),
                 icon: (
-                    <Avatar className="h-5 w-5 shrink-0 rounded-full">
-                        <AvatarFallback
-                            className="rounded-full text-[9px] font-semibold"
-                            style={avatarStyle(myUid ?? 'me')}
-                        >
+                    <Avatar className="h-5 w-5 shrink-0">
+                        <AvatarFallback className="text-[9px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
                             {t('dm.you').charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -190,10 +187,10 @@ export const ChannelList = ({
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),
             icon: (
-                <Avatar className="h-5 w-5 shrink-0 rounded-full">
+                <Avatar className="h-5 w-5 shrink-0">
                     {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
                     <AvatarFallback
-                        className="rounded-full text-[9px] font-semibold"
+                        className="text-[9px] font-semibold"
                         style={avatarStyle(counterpartId || display.name)}
                     >
                         {display.name.charAt(0).toUpperCase() || '?'}

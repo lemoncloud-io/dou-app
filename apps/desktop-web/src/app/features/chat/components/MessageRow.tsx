@@ -149,12 +149,9 @@ export const MessageRow = memo(
                     {/* The focus ring traces the button, so its radius has to follow the
                         avatar's — a square ring around a round disc reads as a bug. */}
                     <button type="button" className="focus-ring tactile h-8 w-8 shrink-0 rounded-full">
-                        <Avatar className="h-8 w-8 rounded-full">
+                        <Avatar className="h-8 w-8">
                             {group.avatar && <AvatarImage src={group.avatar} alt={group.ownerName} />}
-                            <AvatarFallback
-                                className="rounded-full text-caption font-semibold"
-                                style={avatarStyle(group.colorSeed)}
-                            >
+                            <AvatarFallback className="text-caption font-semibold" style={avatarStyle(group.colorSeed)}>
                                 {initial}
                             </AvatarFallback>
                         </Avatar>
@@ -344,7 +341,7 @@ export const MessageRow = memo(
                                             {meta.repliers.length > 0 ? (
                                                 <span className="flex shrink-0 items-center gap-0.5">
                                                     {meta.repliers.map(replier => (
-                                                        <Avatar key={replier.key} className="h-5 w-5 rounded-full">
+                                                        <Avatar key={replier.key} className="h-5 w-5">
                                                             {replier.thumbnail && (
                                                                 <AvatarImage
                                                                     src={replier.thumbnail}
