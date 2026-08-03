@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useRuntimeGateways } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 
@@ -8,15 +8,15 @@ import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 export type RelayInviteView = MyInviteView & { needVerify?: boolean };
 
 /**
- * The paged envelope `invite.list` answers with, narrowed to what the caller reads.
+ * How many invite cards to ask for in one `invite.list`.
  *
- * Declared here rather than imported: the backend package publishes only its view types at the
- * package root, and the count it carries is the page's rather than the collection's — so paging
- * means asking for the next page and stopping on an empty one, and nothing else is usable.
+ * Explicit because the server's default page size is small enough that a sender who has issued a
+ * while accumulates rows past it, and this hook does not page — an invite outside the window simply
+ * stops appearing (a sent-invite row vanishes, and `resolveReinviteVariant` sees `undefined` and
+ * offers the wrong copy). One larger page is the cheap fix; real paging stays open until the list
+ * has a reason to grow past this.
  */
-interface InviteListPage {
-    list?: MyInviteView[];
-}
+const INVITE_LIST_LIMIT = 100;
 
 /** Read/write the same cache entries, so a mutation can invalidate what the list hook renders. */
 export const relayInviteKeys = {
@@ -27,23 +27,18 @@ export const relayInviteKeys = {
 /**
  * The inviter's own invite cards (`invite.list`), newest first.
  *
- * Polled rather than persisted: the backend has no accept notification yet, and invites have no
- * offline requirement, so ADR-0033 keeps them out of repositories-v2. Callers own the polling
- * cadence — this hook only refetches on window focus, which covers "user came back to the tab"
- * (see the query options for why that needs an explicit opt-out of the app's global `staleTime`).
- *
- * `total` on the response counts the page, not the collection, so it is not surfaced; ask for the
- * next page and stop when it comes back empty.
+ * Read through `InviteRepositoryV2` like every other data access (ADR-0036) — the repository is an
+ * access surface, not a cache obligation, so each call still goes straight to the relay-pinned
+ * gateway behind it. Callers own the polling cadence; this hook only refetches on window focus,
+ * which covers "user came back to the tab" (see the query options for why that needs an explicit
+ * opt-out of the app's global `staleTime`).
  */
 export const useRelayInvites = (state?: InviteState) => {
-    const { invite } = useRuntimeGateways();
+    const { invite } = useRuntimeRepositories();
 
     const query = useQuery({
         queryKey: relayInviteKeys.list(state),
-        queryFn: async () => {
-            const result = await invite.list<InviteListPage>(state ? { state } : null);
-            return result?.list ?? [];
-        },
+        queryFn: () => invite.list({ limit: INVITE_LIST_LIMIT, ...(state ? { state } : {}) }),
         // Both options are load-bearing and must stay together. The app's QueryClient defaults to
         // `staleTime: Infinity` (app.tsx) — under it a focus refetch never fires, because react-query
         // only refetches queries it considers stale, so relying on the focus default alone would be a
@@ -72,25 +67,25 @@ export const useRelayInvites = (state?: InviteState) => {
  * query key, a log, or a URL other than the deeplink itself.
  */
 export const useRelayInviteMutations = () => {
-    const { invite } = useRuntimeGateways();
+    const { invite } = useRuntimeRepositories();
     const queryClient = useQueryClient();
 
     const invalidateList = () => queryClient.invalidateQueries({ queryKey: relayInviteKeys.all });
 
     const createMutation = useMutation({
-        mutationFn: (input: { phone: string; name: string }) => invite.create<MyInviteView>(input),
+        mutationFn: (input: { phone: string; name: string }) => invite.create(input),
         onSuccess: invalidateList,
     });
 
     // `invite.get` is a read, but it is code-driven rather than route-driven and must re-run on every
     // step transition to catch an expiry mid-flow, so it is a mutation instead of a cached query.
     const getMutation = useMutation({
-        mutationFn: (code: string) => invite.get<RelayInviteView>({ code }),
+        mutationFn: (code: string) => invite.get(code),
     });
 
     const acceptMutation = useMutation({
         // Idempotent server-side: re-accepting the same code after a dropped connection succeeds.
-        mutationFn: (code: string) => invite.accept<MyInviteView>({ code }),
+        mutationFn: (code: string) => invite.accept(code),
         onSuccess: invalidateList,
     });
 

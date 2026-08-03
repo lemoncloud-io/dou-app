@@ -4,20 +4,18 @@ import { DataContextHolder } from '@chatic/data';
 import { createLocalDataSources } from './factories/localFactory';
 import { createRemoteDataSources } from './factories/remoteFactory';
 import { createRepositories } from './factories/repositoryFactory';
-import type { DirectGateways, IDataManager } from './types';
+import type { IDataManager } from './types';
 import { DEFAULT_CONTEXT } from './types';
 import { getSocketManager } from '../socket/runtime';
 
 export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
     private readonly repositories: DataRepositoriesV2;
-    private readonly gateways: DirectGateways;
 
     constructor(initialContext: DataContext = DEFAULT_CONTEXT) {
         this.contextHolder = new DataContextHolder(initialContext);
 
-        const { remoteDataSources, gateways } = createRemoteDataSources();
-        this.gateways = { invite: gateways.invite, auth: gateways.auth };
+        const { remoteDataSources } = createRemoteDataSources();
         const localDataSources = createLocalDataSources({ contextProvider: this.contextHolder });
 
         // Repositories see a context augmented with the live socket's bound cloud (socketCid), so
@@ -47,10 +45,6 @@ export class DataManager implements IDataManager {
 
     public getRepositories(): DataRepositoriesV2 {
         return this.repositories;
-    }
-
-    public getGateways(): DirectGateways {
-        return this.gateways;
     }
 
     public getContext(): DataContext {

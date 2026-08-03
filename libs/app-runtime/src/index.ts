@@ -7,15 +7,8 @@
 // See docs/public-surface.md.
 
 // --- Value-deriving hooks -------------------------------------------------------------------
-export {
-    useRuntimeBinding,
-    useRuntimeGateways,
-    useRuntimeRepositories,
-    useRuntimeSocketState,
-    useRuntimeProfile,
-} from './runtime';
+export { useRuntimeBinding, useRuntimeRepositories, useRuntimeSocketState, useRuntimeProfile } from './runtime';
 export type { SessionProfile } from './runtime';
-export type { DirectGateways } from './data/types';
 
 // Back-compat aliases (pre-rename names) kept so desktop-web keeps compiling without churn while it is
 // mid-refactor. New code uses the useRuntime* names above; migrate desktop-web and drop these later.

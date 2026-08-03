@@ -1,7 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeGateways } from '@chatic/app-runtime';
-import type { AttachSocialView } from '@lemoncloud/chatic-backend-api';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 /**
  * Native token bundle for `auth.attach-social`. Which field carries the credential depends on the
@@ -20,10 +19,10 @@ export type AttachSocialTokens = Record<string, unknown> & { provider: string };
  * user. Branch with `getSocketErrorCode`.
  */
 export const useAttachSocial = () => {
-    const { auth } = useRuntimeGateways();
+    const { auth } = useRuntimeRepositories();
 
     const mutation = useMutation({
-        mutationFn: (tokens: AttachSocialTokens) => auth.attachSocial<AttachSocialView>(tokens),
+        mutationFn: (tokens: AttachSocialTokens) => auth.attachSocial(tokens),
     });
 
     return {

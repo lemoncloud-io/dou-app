@@ -14,11 +14,11 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeGateways } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { relayInviteKeys, useRelayInviteMutations, useRelayInvites } from './useRelayInvites';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeGateways: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
 
 const list = jest.fn();
 const create = jest.fn();
@@ -37,18 +37,20 @@ const wrapper = ({ children }: { children: ReactNode }) =>
 
 beforeEach(() => {
     jest.clearAllMocks();
-    list.mockResolvedValue({ list: [] });
+    list.mockResolvedValue([]);
     create.mockResolvedValue({ id: 'invite-1' });
     get.mockResolvedValue({ id: 'invite-1', state: 'pending' });
     accept.mockResolvedValue({ id: 'invite-1', state: 'accepted' });
-    (useRuntimeGateways as jest.Mock).mockReturnValue({ invite: { list, create, get, accept } });
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { list, create, get, accept } });
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
 });
 
 describe('useRelayInvites', () => {
-    it('invite.list의 { list } 봉투를 벗겨 배열로 노출한다', async () => {
-        list.mockResolvedValue({ list: [{ id: 'a' }, { id: 'b' }] });
+    // 봉투 벗기기는 InviteRemoteDataSource의 계약이고 거기서 검증된다 — 여기서는 리포지토리가
+    // 준 배열이 그대로 노출되는지, 그리고 undefined가 UI로 새지 않는지만 본다.
+    it('리포지토리가 준 배열을 그대로 노출한다', async () => {
+        list.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
 
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
 
@@ -56,27 +58,18 @@ describe('useRelayInvites', () => {
         expect(result.current.invites).toEqual([{ id: 'a' }, { id: 'b' }]);
     });
 
-    it('봉투에 list가 없으면 빈 배열이다 — undefined가 UI로 새지 않는다', async () => {
-        list.mockResolvedValue({});
-
+    it('state 인자가 없어도 limit은 항상 실린다 — 서버 기본 페이지가 목록을 잘라먹지 않게', async () => {
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
-        expect(result.current.invites).toEqual([]);
-    });
-
-    it('state 인자가 없으면 필터를 보내지 않는다(null)', async () => {
-        const { result } = renderHook(() => useRelayInvites(), { wrapper });
-
-        await waitFor(() => expect(result.current.isLoading).toBe(false));
-        expect(list).toHaveBeenCalledWith(null);
+        expect(list).toHaveBeenCalledWith({ limit: 100 });
     });
 
     it('state 인자는 필터로 실려 나가고, 캐시 키도 state별로 갈린다', async () => {
         const { result } = renderHook(() => useRelayInvites('pending'), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
-        expect(list).toHaveBeenCalledWith({ state: 'pending' });
+        expect(list).toHaveBeenCalledWith({ limit: 100, state: 'pending' });
         expect(relayInviteKeys.list('pending')).not.toEqual(relayInviteKeys.list());
         expect(queryClient.getQueryData(relayInviteKeys.list('pending'))).toEqual([]);
     });
@@ -120,7 +113,7 @@ describe('useRelayInviteMutations', () => {
 
         const view = await result.current.getInvite('invt:1:secret');
 
-        expect(get).toHaveBeenCalledWith({ code: 'invt:1:secret' });
+        expect(get).toHaveBeenCalledWith('invt:1:secret');
         expect(view.needVerify).toBe(true);
     });
 

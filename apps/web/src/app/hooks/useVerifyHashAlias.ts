@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { useRuntimeGateways } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { UserTokenView, VerifyHashAliasView } from '@lemoncloud/chatic-backend-api';
 
 /** Send-side switches. `resend` picks the step; the rest are dev delivery controls. */
@@ -45,25 +45,18 @@ export interface VerifyHashAliasCheckResult {
  * Phone numbers and codes stay in the request body — never log them or put them in a query key.
  */
 export const useVerifyHashAlias = () => {
-    const { auth } = useRuntimeGateways();
+    const { auth } = useRuntimeRepositories();
 
+    // `send` vs `resend` and the "omit an unset switch so the server default survives" rule both live
+    // in the repository now — the packet's three steps are its business, not this hook's.
     const sendMutation = useMutation({
-        mutationFn: ({ phone, opts }: { phone: string; opts?: VerifyHashAliasSendOptions }) => {
-            const { resend, ...switches } = opts ?? {};
-            // Omit unset switches entirely so the server's defaults survive (a literal `false` would
-            // turn a channel off).
-            return auth.verifyHashAlias<VerifyHashAliasSendResult>({
-                kind: 'phone',
-                step: resend ? 'resend' : 'send',
-                phone,
-                ...switches,
-            });
-        },
+        mutationFn: ({ phone, opts }: { phone: string; opts?: VerifyHashAliasSendOptions }) =>
+            auth.sendPhoneVerification(phone, opts),
     });
 
     const checkMutation = useMutation({
         mutationFn: ({ phone, otp, code }: { phone: string; otp: string; code?: string }) =>
-            auth.verifyHashAlias<VerifyHashAliasCheckResult>({ kind: 'phone', step: 'check', phone, otp, code }),
+            auth.checkPhoneVerification(phone, otp, { code }),
     });
 
     return {

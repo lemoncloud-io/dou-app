@@ -17,7 +17,6 @@ describe('@chatic/app-runtime public surface', () => {
         const EXPECTED = [
             // value-deriving hooks
             'useRuntimeBinding',
-            'useRuntimeGateways',
             'useRuntimeRepositories',
             'useRuntimeSocketState',
             'useRuntimeProfile',

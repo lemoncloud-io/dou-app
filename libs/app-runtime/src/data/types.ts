@@ -1,20 +1,16 @@
-import type { DataContext, DataRepositoriesV2, RemoteGatewayBundle } from '@chatic/data';
+import type { DataContext, DataRepositoriesV2 } from '@chatic/data';
 
 export const DEFAULT_CONTEXT: DataContext = {
     cid: 'default',
 };
 
-/**
- * The gateway subset the app may call directly. Everything else goes through repositories so the
- * cache stays the single source of truth; these two are the ADR-0033 carve-out — relay invites are
- * polled, never persisted, so they have no repository to go through.
- */
-export type DirectGateways = Pick<RemoteGatewayBundle, 'invite' | 'auth'>;
+// There is no direct-gateway escape hatch. Every read and write goes through a repository so the
+// access surface stays one shape (ADR-0036); the ADR-0033 carve-out for relay invites and the
+// identity packets is gone — InviteRepositoryV2 / AuthRepositoryV2 front them now, remote-only.
 
 export interface IDataManager {
     ensure(context: DataContext): DataRepositoriesV2;
     getRepositories(): DataRepositoriesV2;
-    getGateways(): DirectGateways;
     getContext(): DataContext;
     destroy(): void;
 }

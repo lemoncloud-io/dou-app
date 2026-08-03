@@ -10,11 +10,11 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeGateways } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { useAttachSocial } from './useAttachSocial';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeGateways: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
 
 const attachSocial = jest.fn();
 
@@ -30,7 +30,7 @@ const renderAttach = () => renderHook(() => useAttachSocial(), { wrapper });
 beforeEach(() => {
     jest.clearAllMocks();
     attachSocial.mockResolvedValue({ attached: true });
-    (useRuntimeGateways as jest.Mock).mockReturnValue({ auth: { attachSocial } });
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({ auth: { attachSocial } });
 });
 
 describe('useAttachSocial', () => {
