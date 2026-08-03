@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
-import { Button, TextField } from '@chatic/web-ui-kit';
+import { TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useRelayInviteMutations, useRelayInvites, useSentInviteLog } from '../../../hooks';
@@ -164,14 +164,25 @@ export const ContactInvitePage = () => {
     // as the token is committed, BEFORE the socket switch settles) would unmount the live sheet
     // mid-switch and throw away its `pendingToken` retry.
     return (
-        <div className="flex h-full flex-col bg-background pt-safe-top">
-            <PageHeader title={t('contactInvite.title')} />
-
+        <KeyboardAwareLayout
+            header={<PageHeader title={t('contactInvite.title')} />}
+            // The guest branch carries its own inline CTA (Figma 3578-67319), so no docked panel there.
+            footer={
+                isGuest ? undefined : (
+                    <FloatingButton
+                        label={t('contactInvite.submit')}
+                        loading={isSubmitting}
+                        disabled={isSubmitDisabled}
+                        onClick={handleSubmit}
+                    />
+                )
+            }
+        >
             {/* A guest cannot issue an invite, so the form is not rendered at all until verified. */}
             {isGuest && <InviterVerifyPrompt onStart={() => setIsVerifyOpen(true)} />}
 
             {!isGuest && (
-                <div className="flex flex-1 flex-col overflow-y-auto overscroll-none">
+                <>
                     <div className="flex flex-col gap-4 px-4 pt-6">
                         <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
                             {t('contactInvite.heading')}
@@ -183,7 +194,7 @@ export const ContactInvitePage = () => {
                         </div>
                     </div>
 
-                    <div ref={fieldsRef} className="flex flex-col gap-6 pt-8">
+                    <div ref={fieldsRef} className="flex flex-col gap-6 pb-6 pt-8">
                         <TextField
                             label={t('contactInvite.nameLabel')}
                             required
@@ -208,22 +219,7 @@ export const ContactInvitePage = () => {
                             description={t('contactInvite.phoneHint')}
                         />
                     </div>
-                </div>
-            )}
-
-            {!isGuest && (
-                <div className="shrink-0 px-4 pb-safe-bottom pt-3">
-                    <Button
-                        tone="green"
-                        size="lg"
-                        fullWidth
-                        loading={isSubmitting}
-                        disabled={isSubmitDisabled}
-                        onClick={handleSubmit}
-                    >
-                        {t('contactInvite.submit')}
-                    </Button>
-                </div>
+                </>
             )}
 
             {pendingReinvite && (
@@ -239,6 +235,6 @@ export const ContactInvitePage = () => {
             {isVerifyOpen && (
                 <PhoneVerifySheet onVerified={() => setIsVerifyOpen(false)} onClose={() => setIsVerifyOpen(false)} />
             )}
-        </div>
+        </KeyboardAwareLayout>
     );
 };
