@@ -2,9 +2,12 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { Button } from '@chatic/web-ui-kit';
+import { FloatingButton } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
+// Concrete module, not the layouts root: that re-exports route layouts which pull web-core,
+// unloadable under the jsdom test setup.
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { usePhoneVerify, type PhoneVerifyShellProps } from '../hooks/usePhoneVerify';
 import { PhoneVerifyBanner } from './PhoneVerifyBanner';
 import { PhoneVerifyFields } from './PhoneVerifyFields';
@@ -62,17 +65,17 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                         <PhoneVerifyFields state={fields} autoFocusPhone />
                     </div>
 
-                    <div className="shrink-0 px-4 pb-safe-bottom pt-3">
-                        <Button
-                            tone="green"
-                            size="lg"
-                            fullWidth
+                    {/* The docked CTA panel every other form screen uses (Figma "Solid button"): the
+                        shadowed white bar, plus the spacer that keeps it clear of the home indicator
+                        and rides it above the keyboard. */}
+                    <div className="shrink-0">
+                        <FloatingButton
+                            label={t(submit.isRetry ? 'phoneVerify.retry' : 'phoneVerify.complete')}
                             loading={submit.loading}
                             disabled={submit.disabled}
                             onClick={submit.onSubmit}
-                        >
-                            {t(submit.isRetry ? 'phoneVerify.retry' : 'phoneVerify.complete')}
-                        </Button>
+                        />
+                        <KeyboardSafeAreaSpacer />
                     </div>
                 </div>
             </DialogContent>
