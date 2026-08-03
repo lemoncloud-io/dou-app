@@ -32,10 +32,7 @@ const SavedRow = ({ item, channelName, removeLabel, onOpen, onRemove }: SavedRow
         >
             <Avatar className="mt-0.5 h-9 w-9 shrink-0">
                 {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
-                <AvatarFallback
-                    className="rounded-md text-sm font-semibold"
-                    style={avatarStyle(item.colorSeed ?? item.ownerName)}
-                >
+                <AvatarFallback className="text-sm font-semibold" style={avatarStyle(item.colorSeed ?? item.ownerName)}>
                     {item.ownerName.charAt(0).toUpperCase() || '?'}
                 </AvatarFallback>
             </Avatar>

@@ -3,11 +3,14 @@ import { Link2 } from 'lucide-react';
 
 import { isNative, webClient } from '@chatic/bridges';
 
+/**
+ * What the chip renders — a view model, not the wire contract. The shell sends
+ * more (see `OnFetchUrlMetadataPayload` in libs/app-messages); anything not
+ * listed here is dropped on arrival.
+ */
 export interface UrlMetadata {
     url: string;
     title: string;
-    description?: string;
-    imageUrl?: string;
     siteName?: string;
 }
 
@@ -36,13 +39,8 @@ const requestMetadata = (url: string): Promise<UrlMetadata | null> => {
         .then(response => {
             const data = response.data;
             if (!data?.success || !data.title) return null;
-            return {
-                url: data.url,
-                title: data.title,
-                description: data.description,
-                imageUrl: data.imageUrl,
-                siteName: data.siteName,
-            };
+            // `data.imageUrl` is deliberately not carried over — see the component.
+            return { url: data.url, title: data.title, siteName: data.siteName };
         })
         .catch(() => null)
         .then(meta => {
@@ -65,17 +63,16 @@ interface LinkPreviewCardProps {
  * yields no usable metadata. Block-level <span>s because the host paragraph
  * is a <p>.
  *
- * The chip shows only `siteName` + `title`. `description` and `imageUrl` keep
- * arriving from the shell (main still sends both — see
- * apps/desktop/src/main/unfurl.ts) and stay on the type because that is the
- * shell's contract, not because the chip wants them.
+ * The chip shows only the source name and the title. Dropping the `og:image`
+ * thumbnail is deliberate and load-bearing: rendering it would make every
+ * reader's browser fetch that URL directly, handing the third-party host each
+ * reader's IP, user-agent, and the moment they scrolled the message into view.
+ * `unfurl.ts` in the shell never forwards image bytes for the same reason, so
+ * the only way to keep that property on this side is to never request the image.
  *
- * Dropping the thumbnail is deliberate and load-bearing: rendering `imageUrl`
- * would make every reader's browser fetch that URL directly, handing the
- * third-party host each reader's IP, user-agent, and the moment they scrolled
- * the message into view. Unfurl itself never forwards image bytes, so the only
- * way to keep that property is to not request the image. `LinkPreviewCard.spec.tsx`
- * pins it — this comment alone would not stop the thumbnail coming back.
+ * `requestMetadata` therefore drops `imageUrl` on arrival rather than carrying
+ * it unused: a URL the component does not hold cannot be rendered by accident.
+ * `LinkPreviewCard.spec.tsx` pins the behaviour from the outside as well.
  */
 export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => metadataCache.get(url) ?? null);

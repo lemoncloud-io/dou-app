@@ -21,8 +21,12 @@ interface UnreadIndicatorInput {
  * afternoon. Showing the number everywhere made every row equally loud, which
  * is the same as no signal at all.
  *
- * The open row stays silent regardless — pre-existing behaviour, kept here so
- * the whole "is there a badge" question has a single answer to read.
+ * The open row stays silent regardless — pre-existing behaviour, folded in so a
+ * sidebar row asks this question once instead of deriving it twice.
+ *
+ * Scope is the channel sidebar. The place and cloud rails badge on their own
+ * rules (`PlaceRail` always counts, `CloudRail` always dots) and do not come
+ * through here — changing this function does not change them.
  */
 export const unreadIndicator = ({ unread, isDm, isActive }: UnreadIndicatorInput): UnreadIndicator => {
     if (isActive) return 'none';

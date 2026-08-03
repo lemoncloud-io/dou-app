@@ -45,13 +45,18 @@ const ChannelSkeleton = () => (
     </div>
 );
 
+/**
+ * Which sidebar section a channel belongs to. Also decides its unread badge
+ * shape, so section and badge are the same call rather than two claims that
+ * happen to agree.
+ */
+const isDmBucket = (channel: DomainChannel): boolean => isDmChannel(channel) || isSelfChannel(channel);
+
 interface ChannelRowProps {
     channel: DomainChannel;
     label: string;
     icon: ReactNode;
     isActive: boolean;
-    /** DM/self rows badge the count; channel rows badge a dot. See `unreadIndicator`. */
-    isDm: boolean;
     onSelect: (channelId: string) => void;
     /** Attached to the active row so keyboard nav / selection can scroll it into view. */
     rowRef?: React.Ref<HTMLButtonElement>;
@@ -69,11 +74,11 @@ interface ChannelRowProps {
  * re-derives "is there something unread" for the name emphasis, or the two would
  * drift apart the moment one of them grew a condition.
  */
-const ChannelRow = ({ channel, label, icon, isActive, isDm, onSelect, rowRef }: ChannelRowProps) => {
+const ChannelRow = ({ channel, label, icon, isActive, onSelect, rowRef }: ChannelRowProps) => {
     const { t } = useTranslation();
     const id = channel.id ?? '';
     const unread = channel.unreadCount ?? 0;
-    const indicator = unreadIndicator({ unread, isDm, isActive });
+    const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
     const lastChat = useLastChat(id, lastChatNoOf(channel));
     const time = relativeTime(lastChat?.createdAt ?? channel.lastActivityAt);
     return (
@@ -151,7 +156,7 @@ export const ChannelList = ({
     const { regular, dms } = useMemo(() => {
         const split = { regular: [] as DomainChannel[], dms: [] as DomainChannel[] };
         for (const channel of channels) {
-            (isDmChannel(channel) || isSelfChannel(channel) ? split.dms : split.regular).push(channel);
+            (isDmBucket(channel) ? split.dms : split.regular).push(channel);
         }
         return split;
     }, [channels]);
@@ -243,9 +248,7 @@ export const ChannelList = ({
         if (next) onSelect(next);
     };
 
-    // `isDm` mirrors the bucket the channel was sorted into above (DMs + self),
-    // so the badge shape and the section a row appears in can never disagree.
-    const row = (channel: DomainChannel, label: string, icon: ReactNode, isDm: boolean) => {
+    const row = (channel: DomainChannel, label: string, icon: ReactNode) => {
         const id = channel.id ?? '';
         const isActive = id === selectedChannelId;
         return (
@@ -255,7 +258,6 @@ export const ChannelList = ({
                 label={label}
                 icon={icon}
                 isActive={isActive}
-                isDm={isDm}
                 onSelect={onSelect}
                 rowRef={isActive ? activeRef : undefined}
             />
@@ -268,11 +270,11 @@ export const ChannelList = ({
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-0.5 p-2">
             <QuickSwitcher channels={channels} onSelect={onSelect} />
             <SearchDialog channels={channels} onSelect={onSelect} />
-            {visibleRegular.map(channel => row(channel, channel.name ?? channel.id ?? '', '#', false))}
+            {visibleRegular.map(channel => row(channel, channel.name ?? channel.id ?? '', '#'))}
             {visibleDms.length > 0 && (
                 <h3 className="mb-0.5 mt-4 px-3 text-overline text-muted-foreground/80">{t('sidebar.dms')}</h3>
             )}
-            {visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon, true))}
+            {visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon))}
         </nav>
     );
 };
