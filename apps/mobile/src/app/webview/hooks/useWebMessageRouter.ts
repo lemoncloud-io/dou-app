@@ -19,6 +19,7 @@ import {
     useTestRecordHandler,
     useResumeOverlay,
     usePerfHandler,
+    useUnfurlHandler,
 } from './index';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -103,6 +104,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleFetchAppIcon, handleFetchAppIconList, handleChangeAppIcon } = useAppIconHandler();
     const { handleCopyToClipboard } = useClipboardHandler();
     const { handleSendBootMetrics, handleSetDebugMode } = usePerfHandler();
+    const { handleFetchUrlMetadata } = useUnfurlHandler();
 
     const {
         handleFetchTestRecord,
@@ -173,6 +175,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSaveTestRecord,
         handleSaveAllTestRecords,
         handleClearTestRecords,
+        handleFetchUrlMetadata,
     });
 
     useEffect(() => {
@@ -236,6 +239,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleListRecoverableUploads,
             handleRecoverUpload,
             handleRetryUpload,
+            handleFetchUrlMetadata,
         };
     });
 
@@ -303,6 +307,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             DismissResumeOverlay: message => handlersRef.current.handleDismissResumeOverlay(message),
             SendBootMetrics: message => handlersRef.current.handleSendBootMetrics(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
+            FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
         };
 
         // Bridge에 핸들러 등록

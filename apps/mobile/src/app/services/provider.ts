@@ -32,6 +32,8 @@ import type { IBootMetricsService } from './perf';
 import { BootMetricsService } from './perf';
 import type { IVersionService } from './version';
 import { VersionService } from './version';
+import type { IUnfurlService } from './unfurl';
+import { UnfurlService } from './unfurl';
 import DeviceInfo from 'react-native-device-info';
 
 import {
@@ -81,6 +83,7 @@ class DependencyProvider {
     private _subscriptionIapService?: ISubscriptionIapService;
     private _preferenceService?: IPreferenceService;
     private _versionService?: IVersionService;
+    private _unfurlService?: IUnfurlService;
     private _uploadService?: IUploadService;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
@@ -269,6 +272,13 @@ class DependencyProvider {
             this._versionService = new VersionService(this.logService);
         }
         return this._versionService;
+    }
+
+    public get unfurlService(): IUnfurlService {
+        if (!this._unfurlService) {
+            this._unfurlService = new UnfurlService(this.logService);
+        }
+        return this._unfurlService;
     }
 
     public static getInstance(): DependencyProvider {

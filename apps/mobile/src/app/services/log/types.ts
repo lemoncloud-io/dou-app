@@ -25,7 +25,8 @@ export type LogTag =
     | 'PUSH_QUEUE'
     | 'PUSH_EVENT'
     | 'PERF'
-    | 'VERSION';
+    | 'VERSION'
+    | 'UNFURL';
 
 export type LogListener = (level: LogLevel, tag: LogTag, message: string, data?: any, error?: any) => void;
 
