@@ -11,7 +11,7 @@ import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { useActivePlaceName } from '../../../hooks';
-import { PlaceProfileEditDialog } from '../../home/components';
+import { PlaceProfileCreateDialog, PlaceProfileEditDialog } from '../../home/components';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -30,7 +30,7 @@ import {
 } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'joinNick' | null;
+type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'profileCreate' | 'joinNick' | null;
 
 interface SelectedMember {
     id: string;
@@ -123,7 +123,7 @@ export const ChannelSettingsPage = () => {
 
     // Site profiles (nick/avatar) for the member list; same source as the room.
     const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
-    const { profileMap } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
+    const { profileMap, hasSnapshot: hasProfileSnapshot } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
 
     // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
     // room title are resolved here; the plain type flags derived from them stay past the return.
@@ -207,7 +207,22 @@ export const ChannelSettingsPage = () => {
             const memberId = member.id ?? '';
             // Site profile (nick/avatar) takes precedence over the user-cache name.
             const memberProfile = memberId ? profileMap.get(memberId) : undefined;
-            const memberName = memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
+            // My own row with no place profile: prompt instead of naming me. The user-cache `name` is
+            // NOT a usable fallback here — it is `***<last 4>` for a phone signup (ADR-0033 D10) or a
+            // raw UUID, the very values ADR-0039 kept out of the title chain. Every stereo shares this
+            // list, so the nudge is not gated on self-chat (ADR-0040).
+            //
+            // `hasProfileSnapshot` is load-bearing, and isMembersLoading CANNOT stand in for it: that
+            // flag flips on the user cache's first emit and knows nothing about profiles, while this
+            // hook is downstream of the channel row (it needs `sid`) and then does its own async
+            // bootstrap. Members routinely arrive first, so reading absence from an empty profileMap
+            // would nudge users who do have a profile — and the row is tappable, so a mistaken tap
+            // opens a blank create form whose save overwrites the real nick.
+            const needsProfileSetup =
+                !!memberId && memberId === userId && hasProfileSnapshot && !memberProfile?.nick?.trim();
+            const memberName = needsProfileSetup
+                ? t('chat.settings.profileSetupRequired')
+                : memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
 
             const memberView = {
                 id: memberId,
@@ -222,7 +237,10 @@ export const ChannelSettingsPage = () => {
                     isMe={memberId === userId}
                     isOwner={memberId === channel?.ownerId}
                     isPendingInvite={member.$join?.joined === 0}
-                    onClick={() => openMemberProfile(memberView)}
+                    needsProfileSetup={needsProfileSetup}
+                    // With no profile, skip the member-profile sheet and go straight to creating one —
+                    // that sheet's only self action is "프로필 설정" anyway, so it would be a dead tap.
+                    onClick={() => (needsProfileSetup ? openDialog('profileCreate') : openMemberProfile(memberView))}
                 />
             );
         })
@@ -359,6 +377,21 @@ export const ChannelSettingsPage = () => {
                 open={activeDialog === 'profileSettings'}
                 placeName={activePlaceName}
                 onClose={closeDialog}
+            />
+            {/* Reached from my own member row when it has no profile yet. `exit` is supplied so a
+                half-typed name still gets the unsaved-changes guard — unlike the invite paths, backing
+                out here costs nothing, so there is no reason to leave silently (ADR-0040 / ADR-0041). */}
+            <PlaceProfileCreateDialog
+                open={activeDialog === 'profileCreate'}
+                placeName={activePlaceName}
+                onDone={closeDialog}
+                onExit={closeDialog}
+                exit={{
+                    title: t('placeProfileCreate.exitTitle'),
+                    description: t('placeProfileCreate.exitDescription'),
+                    leaveLabel: t('placeProfileCreate.exitLeave'),
+                    continueLabel: t('placeProfileCreate.exitContinue'),
+                }}
             />
         </div>
     );

@@ -1,6 +1,6 @@
 # 나와의 채팅 (Self Chat)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0026](../../../../../docs/adr/0026-self-chat-channel-type.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0026](../../../../../docs/adr/0026-self-chat-channel-type.md), [ADR-0039](../../../../../docs/adr/0039-dm-display-name-chain-and-invite-profile-release.md) (체인 통일), [ADR-0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (레거시 리졸버 제거 · en 라벨)
 
 ## 목적
 
@@ -148,14 +148,20 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
   ([utils/selfChatTitle.ts](../../src/app/features/channels/utils/selfChatTitle.ts)) — 순수
   함수. `nick.trim()` → `siteProfileNick.trim()` → `fallbackLabel` 순으로 첫 비어있지 않은
   값을 반환.
-- **`useSelfChatTitle(channel)`**
-  ([hooks/useSelfChatTitle.ts](../../src/app/features/channels/hooks/useSelfChatTitle.ts)) —
-  `nick`은 `channel.$join?.nick`, 없으면 **활성 site 프로필 nick**(`useMyProfile().profile?.nick`)
-  으로 폴백한다. 이는 계정(user 레코드) 이름이 아니라 **site 프로필의 이름**이다 — user
-  레코드의 `name`은 raw id/UUID일 수 있어 쓰지 않는다. 그래도 없으면
-  `channelList.selfChannel` 라벨. `isSelfChat`인 곳에서만 쓴다. `useMyProfile`은 호출당
-  `getMyProfile()` fetch가 있어 리스트에서 per-row로 호출하지 말고 부모에서 1회 해석해
-  순수 함수로 넘긴다(홈 `ChannelList`).
+- **`resolveChannelTitle`**
+  ([lib/resolveChannelTitle.ts](../../src/app/features/channels/lib/resolveChannelTitle.ts)) —
+  `stereo`로 분기하는 **네 화면 공용** 진입점. self면 위 순수 함수로, dm이면 `resolveDmTitle`로
+  보낸다(ADR-0039). self 전용이던 `useSelfChatTitle`은 여기에 흡수돼 사라졌다.
+- **`useChannelTitle(channel, { joinNick, peerNick })`**
+  ([hooks/useChannelTitle.ts](../../src/app/features/channels/hooks/useChannelTitle.ts)) —
+  단일 채널 화면(룸·설정)용 래퍼. 식별자와 `myNick`(`useMyProfile().profile?.nick`)·i18n 라벨을
+  채워 `resolveChannelTitle`에 넘긴다. `myNick`은 계정(user 레코드) 이름이 아니라 **site 프로필의
+  이름**이다 — user 레코드의 `name`은 `***<뒷4자리>`(전화번호 가입) 또는 raw UUID일 수 있어 쓰지
+  않는다. `useMyProfile`은 호출당 `getMyProfile()` fetch가 있어 **리스트에서 per-row로 호출하지
+  않는다** — 홈 `ChannelList`는 부모에서 1회 해석해 순수 함수로 넘긴다.
+- **표시 이름 리졸버는 이것 하나다.** 가드 없는 레거시 `resolveChannelName`(`app/utils/channel.ts`)과
+  그것을 노출하던 `ClientChannelView.displayName`은 제거됐다(ADR-0040 결정 2) — `stereo` 분기도
+  raw-UUID 가드도 없어 같은 채널이 화면에 따라 UUID로 보일 수 있었다.
 
 ### apps/web — 화면
 
@@ -174,10 +180,12 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
 - **설정 `ChannelSettingsPage`**
   ([ChannelSettingsPage.tsx](../../src/app/features/channels/pages/ChannelSettingsPage.tsx)) — - 이름 행: self·비-self 모두 `trailing`에 `>`(ChevronRight)를 두고 탭 가능. 탭 시
   `openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')`로 self·DM은 `JoinNickDialog`,
-  그룹은 `UpdateChannelDialog`(멤버는 `readOnly`)를 연다. 제목은 self면
-  `useSelfChatTitle`, 아니면 `channel.name`. - 이름 행 아바타(`roomAvatar`): 썸네일 있으면 `ImageAvatar`, 없으면 self는
+  그룹은 `UpdateChannelDialog`(멤버는 `readOnly`)를 연다. 제목은 유형 무관하게 `useChannelTitle`
+  (= 공용 체인)이다. - 이름 행 아바타(`roomAvatar`): 썸네일 있으면 `ImageAvatar`, 없으면 self는
   `DefaultAvatar`(사람 글리프), 그룹은 기존 `ChatAvatar`. - 멤버 행 렌더는 `memberList` 지역 변수로 추출해 self "방 친구" 섹션과 그룹 멤버 섹션이
-  공유한다(로딩/멤버맵/빈 상태 동일). - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
+  공유한다(로딩/멤버맵/빈 상태 동일). **내 행에 프로필이 없으면 이름 자리에 `프로필 설정 필요`가
+  오고 탭이 프로필 생성으로 간다** — self 전용이 아니라 세 유형 공통이며, 소유 문서는
+  [[place-profile-prompt]](../home/place-profile-prompt.md)다. - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
 삭제/나가기</>)}`. self는 소유자 1명만 "방 친구"에 노출되고, 대화방 알림·친구 추가·방
   나가기/삭제는 미노출. `JoinNickDialog`는 다른 다이얼로그와 함께 배선.
 

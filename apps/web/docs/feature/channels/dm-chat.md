@@ -238,7 +238,7 @@ flowchart TB
   `가장 오래된 로드 그룹 && !hasMore` — `!hasMore`가 없으면 페이지네이션 중인 방에서 인트로가
   히스토리 중간에 뜨고 `loadMore`마다 옮겨다닌다.
 - **[ChannelSettingsPage.tsx](../../../src/app/features/channels/pages/ChannelSettingsPage.tsx)** —
-  같은 체인(`joinNick`은 `useMyJoin`). `useDmPeer`/`useSelfChatTitle`은 `isError` early return
+  같은 체인(`joinNick`은 `useMyJoin`). `useDmPeer`/`useChannelTitle`은 `isError` early return
   **위에서** 호출한다(Rules of Hooks). 방 이름 행은 dm에서도 `>` + `onClick`을 갖고
   `JoinNickDialog`를 연다. "친구 추가"는 `isOwner && !isDmChat`, `MemberProfileDialog`의
   `canKick`도 `!isDmChat`로 게이트.

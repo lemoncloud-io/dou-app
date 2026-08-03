@@ -353,7 +353,7 @@
         "close": "닫기"
     },
     "placeList": {
-        "defaultPlace": "DoU Home",
+        "defaultPlace": "두유 홈",
         "errorLoading": "플레이스를 불러오지 못했어요",
         "retry": "재시도",
         "empty": "플레이스가 없어요",
@@ -580,6 +580,7 @@
             "profileHeader": "프로필",
             "close": "닫기",
             "profileSettings": "프로필 설정",
+            "profileSetupRequired": "프로필 설정 필요",
             "friendSettings": "친구 설정",
             "removeMember": "내보내기",
             "comingSoon": "준비 중인 기능이에요",
@@ -701,7 +702,7 @@
         "invalidCode": "유효하지 않은 초대 코드입니다. 코드를 다시 확인해 주세요."
     },
     "placeProfileCreate": {
-        "title": "<{{place}}>에\n사용할 프로필을 만들어 주세요",
+        "title": "<{{place}}>에\n사용할 내 프로필을 만들어 주세요",
         "subtitle": "현재 플레이스에서만 사용할 프로필을 설정해요!\n플레이스마다 새로운 나로 참여할 수 있습니다.",
         "nameLabel": "이름",
         "nameHint": "20글자 이내로 입력해 주세요.",
@@ -714,7 +715,7 @@
         "saveError": "프로필 설정에 실패했습니다.",
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
         "exitTitle": "프로필 설정을 중단하시겠어요?",
-        "exitDescription": "이름을 설정해야 DoU를 시작할 수 있어요!\n플레이스에 사용될 프로필을 설정해 주세요!",
+        "exitDescription": "지금 중단하면 프로필이 만들어지지 않습니다.\n플레이스 설정에서 언제든 다시 설정할 수 있어요.",
         "exitLeave": "나가기",
         "exitContinue": "계속 설정"
     },

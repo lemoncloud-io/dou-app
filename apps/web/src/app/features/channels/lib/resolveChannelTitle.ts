@@ -44,7 +44,7 @@ export const resolveChannelTitle = ({
     unnamedLabel,
     dmUnnamedLabel,
 }: ResolveChannelTitleInput): string => {
-    // Self-chat is identified by stereo (ADR-0022), not member count.
+    // Self-chat is identified by stereo (ADR-0026), not member count.
     if (channel.stereo === 'self') {
         return resolveSelfChatTitle(joinNick ?? channel.$join?.nick, myNick, selfLabel, uid);
     }

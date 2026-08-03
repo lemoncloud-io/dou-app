@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { cn } from '@chatic/lib/utils';
 import { DefaultAvatar, ImageAvatar, ListRow, StatusBadge } from '@chatic/web-ui-kit';
 
 interface Member {
@@ -13,6 +14,11 @@ interface MemberListItemProps {
     isMe?: boolean;
     isOwner?: boolean;
     isPendingInvite?: boolean;
+    /**
+     * My own row has no place profile yet, so `member.name` is the nudge copy rather than a person's
+     * name (ADR-0040). Underlines it to read as the actionable link Figma 3185-13278 shows.
+     */
+    needsProfileSetup?: boolean;
     /** When set, the row becomes a button that opens the member profile. */
     onClick?: () => void;
 }
@@ -24,6 +30,7 @@ export const MemberListItem = ({
     isMe = false,
     isOwner = false,
     isPendingInvite = false,
+    needsProfileSetup = false,
     onClick,
 }: MemberListItemProps) => {
     const { t } = useTranslation();
@@ -52,7 +59,15 @@ export const MemberListItem = ({
                 <>
                     {/* Figma places the status pill before the name. */}
                     {badge && <StatusBadge variant={badge.variant} label={badge.label} />}
-                    <span className={`truncate ${isPendingInvite ? 'text-muted-foreground' : ''}`}>{member.name}</span>
+                    <span
+                        className={cn(
+                            'truncate',
+                            isPendingInvite && 'text-muted-foreground',
+                            needsProfileSetup && 'underline'
+                        )}
+                    >
+                        {member.name}
+                    </span>
                 </>
             }
         />

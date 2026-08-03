@@ -5,6 +5,8 @@ import type { DomainPlace } from '@chatic/data';
 
 import { ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge, douLogo } from '@chatic/web-ui-kit';
 
+import { resolvePlaceDisplayName } from '../lib';
+
 interface PlaceItemProps {
     place: DomainPlace;
     isSelected: boolean;
@@ -36,7 +38,8 @@ export const PlaceItem = ({
     // metadata (name, thumbnail, …) live and unregisters on unmount.
     usePlaceSync(place.id);
 
-    const displayName = isHomePlace ? t('placeList.defaultPlace') : place.name;
+    // Shared with useActivePlaceName so the row and the profile dialog titles can't drift.
+    const displayName = resolvePlaceDisplayName(place, { isDefaultCloud: !!isHomePlace }, t);
     const hasUnread = !!unreadCount && unreadCount > 0;
 
     // Avatar: the DoU brand mascot on a brand-green disc for the home (relay) place, a photo when

@@ -72,8 +72,12 @@ export interface PlaceProfileFormProps {
      * (relay/default place). Only meaningful for the dialog container.
      */
     dismissible?: boolean;
-    /** Copy for the unsaved-changes exit guard. */
-    exit: PlaceProfileExitCopy;
+    /**
+     * Copy for the unsaved-changes exit guard. When omitted, X / esc / overlay / back exit
+     * immediately without a guard — the invite paths (ADR-0041) do that, since backing out there
+     * means the invite was never sent or accepted. Supply it to keep the guard (the edit flows do).
+     */
+    exit?: PlaceProfileExitCopy;
     /** Persists the profile; rejecting surfaces `saveError`. */
     onSubmit: (value: { nick: string; thumbnail?: string }) => Promise<void>;
     /** Called after a successful save (once the success toast has shown). */
@@ -172,9 +176,10 @@ export const PlaceProfileForm = ({
 
     // X / esc / overlay / page back: confirm before leaving when there are unsaved changes, else exit
     // directly. No-op when mandatory (dismissible === false) so there's no way to skip setup.
+    // With no `exit` copy the guard is off entirely — leaving is immediate even when dirty.
     const requestClose = () => {
         if (submitting || !dismissible) return;
-        if (isDirty) setAlertOpen(true);
+        if (exit && isDirty) setAlertOpen(true);
         else onExit();
     };
 
@@ -271,7 +276,8 @@ export const PlaceProfileForm = ({
         />
     );
 
-    const exitGuard = (
+    // Null without `exit` copy: requestClose never opens it in that mode, so there is nothing to render.
+    const exitGuard = exit ? (
         <AlertDialog
             open={alertOpen}
             onOpenChange={setAlertOpen}
@@ -282,7 +288,7 @@ export const PlaceProfileForm = ({
             confirmLabel={exit.continueLabel}
             onConfirm={() => undefined}
         />
-    );
+    ) : null;
 
     // Page container: a full-screen route with a back-button header (no overlay / esc dismissal).
     if (container === 'page') {

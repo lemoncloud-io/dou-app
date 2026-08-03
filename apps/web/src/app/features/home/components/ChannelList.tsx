@@ -65,7 +65,7 @@ const ChannelItem = ({
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
-    // Self-chat is identified by stereo (ADR-0022), not member count.
+    // Self-chat is identified by stereo (ADR-0026), not member count.
     const isSelf = channel.stereo === 'self';
     // 1:1 DM (stereo): the row shows the peer, not the channel — its own name/photo/member count
     // are all either absent or meaningless (ADR-0039).

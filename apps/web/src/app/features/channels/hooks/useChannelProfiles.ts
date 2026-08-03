@@ -25,6 +25,8 @@ export const useChannelProfiles = (
     const { isVerified } = useRuntimeSocketState();
 
     const [profiles, setProfiles] = useState<DomainProfile[]>([]);
+    // Whether this hook has produced a reading yet — see `hasSnapshot` in the return.
+    const [hasSnapshot, setHasSnapshot] = useState(false);
 
     // Join into a stable dependency so the registration effect only re-runs on a real membership
     // change, not on every render's new array identity.
@@ -34,9 +36,16 @@ export const useChannelProfiles = (
     useEffect(() => {
         if (!sid) {
             setProfiles([]);
+            setHasSnapshot(false);
             return;
         }
-        return profileRepository.observeList({ sid }, result => setProfiles(result?.list ?? []));
+        // A site switch invalidates the previous site's reading; callers must not treat the old
+        // answer as this site's.
+        setHasSnapshot(false);
+        return profileRepository.observeList({ sid }, result => {
+            setProfiles(result?.list ?? []);
+            setHasSnapshot(true);
+        });
     }, [profileRepository, sid]);
 
     // Register a profile sync target for EVERY active member, synchronously, so an early cleanup
@@ -64,6 +73,10 @@ export const useChannelProfiles = (
                 );
             } catch {
                 // Bootstrap is best-effort: the registered poll picks the member up on the next tick.
+            } finally {
+                // Settle the reading even if the cache held nothing and `observeList` never emitted,
+                // so a caller waiting on `hasSnapshot` cannot wait forever.
+                if (!disposed) setHasSnapshot(true);
             }
         })();
 
@@ -83,5 +96,12 @@ export const useChannelProfiles = (
         return map;
     }, [profiles]);
 
-    return { profileMap };
+    /**
+     * `hasSnapshot` distinguishes "no profile" from "not read yet". `profileMap` starts empty, and
+     * this hook is downstream of the channel row (it needs `sid`), so an empty map is the normal
+     * state for the first renders — a caller that reads absence from it alone will conclude "this
+     * member has no profile" about everyone. Only meaningful for absence; presence in `profileMap`
+     * is self-evident.
+     */
+    return { profileMap, hasSnapshot };
 };

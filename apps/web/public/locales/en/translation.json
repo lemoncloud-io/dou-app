@@ -397,7 +397,7 @@
         "retry": "Retry",
         "empty": "No channels yet. Create a new chat room!",
         "unnamedChannel": "Unnamed Channel",
-        "selfChannel": "My Chat",
+        "selfChannel": "Self Chat",
         "createChat": "Create Chat",
         "createDirect": "1:1 Chat",
         "createGroup": "Create Group"
@@ -580,6 +580,7 @@
             "profileHeader": "Profile",
             "close": "Close",
             "profileSettings": "Profile settings",
+            "profileSetupRequired": "Profile setup needed",
             "friendSettings": "Friend settings",
             "removeMember": "Remove",
             "comingSoon": "This feature is coming soon",
@@ -701,7 +702,7 @@
         "invalidCode": "Invalid invite code. Please check and try again."
     },
     "placeProfileCreate": {
-        "title": "Create a profile for\n<{{place}}>",
+        "title": "Create your profile for\n<{{place}}>",
         "subtitle": "Set up a profile just for this place!\nYou can join as a new you in every place.",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",
@@ -714,7 +715,7 @@
         "saveError": "Failed to set up the profile.",
         "imageSizeError": "Image must be 10MB or less",
         "exitTitle": "Stop setting up your profile?",
-        "exitDescription": "You need to set a name to start DoU!\nPlease set up the profile for this place!",
+        "exitDescription": "Stopping now means no profile is created.\nYou can set it up any time from place settings.",
         "exitLeave": "Leave",
         "exitContinue": "Keep setting up"
     },

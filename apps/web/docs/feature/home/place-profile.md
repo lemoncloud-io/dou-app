@@ -1,12 +1,12 @@
 # 플레이스 프로필 (생성·수정)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [0012](../../../../../docs/adr/0012-place-profile-creation.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [0012](../../../../../docs/adr/0012-place-profile-creation.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md), [0040](../../../../../docs/adr/0040-self-chat-title-and-profile-setup-nudge.md) (생성 래퍼 복원 · `exit` 선택화)
 
 ## 목적
 
 플레이스(=Site)마다 사용자가 쓰는 프로필(이름·사진)을 **만들고 고치는** 화면. 두 흐름을 하나의 공통 오버레이로 제공한다.
 
-- **생성**: 활성 플레이스에 내 프로필이 아직 없을 때 홈이 감지해 풀스크린 오버레이로 띄운다.
+- **생성**: 프로필이 없어서 막히는 자리에서 띄운다 — 방 설정의 내 멤버 행(ADR-0040)과 초대 두 경로(ADR-0041). 홈 진입 시 자동으로 강요하던 경로는 `98a4685ff`로 사라졌다. 언제 띄우는지는 [place-profile-prompt.md](./place-profile-prompt.md)가 소유한다.
 - **수정**: 홈 헤더 드롭다운의 "프로필"에서 열어 이미 있는 프로필을 고친다.
 
 플레이스(공간) 자체를 개설하는 [CreatePlaceDialog](../../../src/app/features/home/components/CreatePlaceDialog.tsx), 클라우드 프로필을 고치는 [CloudProfileEditPage](../../../src/app/features/mypage/pages/CloudProfileEditPage.tsx)와는 별개다.
@@ -98,15 +98,18 @@ flowchart TD
     - `isValidName = trim 1자 이상 && length ≤ 20`, `isOverLimit = length > 20`.
     - `canSubmit = isValidName && isDirty && !submitting`. (생성은 초기값이 비어 있어 dirty가 name 필수와 사실상 일치)
 - 레이아웃/컴포넌트: 기존 생성 다이얼로그와 동일(`Dialog` slide-up 풀스크린 + `ModalTopBar`(onClose) + 스크롤 본문 + `FloatingButton`, a11y용 `sr-only` 타이틀). `TextField`는 `required maxLength={20} enforceMaxLength={false}`, 초과 시 `error`.
-- 저장/토스트/이탈: `onSubmit` 성공 → `successToast`(`variant=positive`) 잠깐 표시 후 `SUCCESS_CLOSE_DELAY(1300ms)` 뒤 `onDone`; 실패/이미지초과 → `variant=error` 인라인 토스트. `requestClose`: 제출 중이면 무시, `isDirty`면 `AlertDialog`, 아니면 `onExit`.
+- 저장/토스트/이탈: `onSubmit` 성공 → `successToast`(`variant=positive`) 잠깐 표시 후 `SUCCESS_CLOSE_DELAY(1300ms)` 뒤 `onDone`; 실패/이미지초과 → `variant=error` 인라인 토스트. `requestClose`: 제출 중이면 무시, **`exit` 카피가 있고** `isDirty`면 `AlertDialog`, 아니면 `onExit`. `exit`의 부재 자체가 가드 스위치다 — 별도 boolean을 두지 않는다.
 
 ### 2) 생성 래퍼 — `PlaceProfileCreateDialog`
 
-`PlaceProfileFormDialog`에 생성 문구를 주입하는 얇은 래퍼로 축소. 시그니처(`open/placeName/onDone/onExit`)·동작 불변.
+`PlaceProfileFormDialog`에 생성 문구를 주입하는 얇은 래퍼. 시그니처는 `{ open, placeName, onDone, onExit, exit? }`.
 
 - `title = t('placeProfileCreate.title', { place })`, `subtitle = t('placeProfileCreate.subtitle')`, 초기값 없음.
-- `onSubmit = ({nick, thumbnail}) => profileRepository.setMyProfile({ nick, thumbnail: thumbnail || undefined })`.
+- `onSubmit = async ({nick, thumbnail}) => { await profileRepository.setMyProfile({ nick, thumbnail }); }`.
 - 문구는 기존 `placeProfileCreate.*` 키 유지.
+- **`placeName`은 호출자가 해석한 값을 넘긴다** — `useActivePlaceName()`이 `resolvePlaceDisplayName`을 거치므로 홈 플레이스는 백엔드 원문(`default`)이 아니라 `두유 홈`으로 온다.
+- **`exit`은 선택이다.** 넘기면 미저장 이탈 가드가 붙고(방 설정 유도 경로), 생략하면 X가 곧바로 닫는다(초대 경로 — 되돌아가면 초대를 안 한 것일 뿐이라 물을 것이 없다). `dismissible`은 노출하지 않는다 — 강제 생성 경로가 없다.
+- 이 파일은 `98a4685ff`가 지웠다가 ADR-0040이 되살린 것이다.
 
 ### 3) 수정 래퍼 — `PlaceProfileEditDialog`
 

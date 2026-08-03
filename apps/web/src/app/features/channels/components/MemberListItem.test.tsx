@@ -79,6 +79,23 @@ describe('MemberListItem', () => {
         expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
     });
 
+    // ADR-0040: 내 프로필이 없을 때 이름 자리에 오는 유도 문구는 눌러야 하는 링크처럼 읽혀야
+    // 한다 (Figma 3185-13278). 문구 선택은 호출자(ChannelSettingsPage) 몫이고, 여기서는 표기만.
+    it('needsProfileSetup이면 이름에 밑줄을 붙인다', () => {
+        render(<MemberListItem member={member} isMe needsProfileSetup />);
+        expect(screen.getByText('레모닝')).toHaveClass('underline');
+    });
+
+    it('기본값에서는 이름에 밑줄이 없다', () => {
+        render(<MemberListItem member={member} isMe />);
+        expect(screen.getByText('레모닝')).not.toHaveClass('underline');
+    });
+
+    it('유도 상태에서도 MY 뱃지는 그대로 노출된다', () => {
+        render(<MemberListItem member={member} isMe needsProfileSetup />);
+        expect(screen.getByTestId('badge')).toHaveAttribute('data-variant', 'mine');
+    });
+
     it('avatar가 있으면 ImageAvatar, 없으면 DefaultAvatar를 사용한다', () => {
         const { rerender } = render(<MemberListItem member={member} />);
         expect(screen.getByTestId('default-avatar')).toBeInTheDocument();
