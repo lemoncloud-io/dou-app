@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
-import { TextField } from '@chatic/web-ui-kit';
+import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useMyProfile, useRelayInviteMutations, useRelayInvites, useSentInviteLog } from '../../../hooks';
 import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { PageHeader } from '../../../ui/components';
+import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
