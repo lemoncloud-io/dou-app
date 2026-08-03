@@ -63,12 +63,19 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
         expect(screen.getByText('그룹 대화')).toBeTruthy();
     });
 
-    it('drops the place card entirely for a 1:1 invite, even when place metadata is present', () => {
-        // The gate is the room kind, not the data — a 1:1 chat has no place to show (ADR-0037).
+    it('shows the place card for a 1:1 invite too', () => {
+        // The gate is the data, not the room kind: a 1:1 invite is still an invite INTO a place, and
+        // the 1:1 design node draws the card (reversing ADR-0037 decision 1).
         setup({ targetKind: 'oneToOne', placeName: '레몬클라우드', placeIntro: '함께 일하는 공간' });
 
-        expect(screen.queryByTestId('invite-place-card')).toBeNull();
+        expect(screen.getByTestId('invite-place-card')).toBeTruthy();
         expect(screen.getByText('1:1 대화')).toBeTruthy();
+    });
+
+    it('folds the place card away for a 1:1 invite with no place data', () => {
+        setup({ targetKind: 'oneToOne' });
+
+        expect(screen.queryByTestId('invite-place-card')).toBeNull();
     });
 
     it('folds the place card away for a group invite with nothing to show', () => {

@@ -394,13 +394,7 @@ const ManageChannelRow = ({
 
     return (
         <ManageChannelItem
-            leading={
-                avatarSrc ? (
-                    <ImageAvatar src={avatarSrc} alt="" size={42} />
-                ) : (
-                    <DefaultAvatar size={42} variant={isSelf ? 'self' : 'user'} />
-                )
-            }
+            leading={avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />}
             title={
                 <>
                     {isSelf && (

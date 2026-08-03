@@ -62,10 +62,11 @@ export const InviteAcceptScreen = ({
 }: InviteAcceptScreenProps) => {
     const { t } = useTranslation();
 
-    // A 1:1 invite never shows a place, and a group invite only shows one it has something to say about
-    // — an icon-only shell is worse than no card (ADR-0037 decision 1). Every field the card can render
+    // Both target kinds show the place — the invite is INTO a place either way, and the 1:1 design node
+    // draws the card too (ADR-0037 decision 1 read that as leftover from the group node; it was not).
+    // Still gated on having something to say: an icon-only shell is worse than no card, and every field
     // counts, or an intro-only invite would silently drop its copy.
-    const showPlaceCard = targetKind !== 'oneToOne' && Boolean(placeName || placeIntro || placeThumbnail);
+    const showPlaceCard = Boolean(placeName || placeIntro || placeThumbnail);
 
     const heading = inviterName ? (
         <>

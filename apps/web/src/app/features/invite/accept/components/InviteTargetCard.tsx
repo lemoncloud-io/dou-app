@@ -29,7 +29,7 @@ export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCa
 
     return (
         <InviteCard>
-            <DefaultAvatar size={40} variant="self" />
+            <DefaultAvatar size={40} />
             <div className="flex w-full flex-col items-center gap-1 text-center">
                 <Text as="p" className="text-[16px] font-semibold leading-[1.4] text-foreground">
                     {t('inviteAccept.target.you')}

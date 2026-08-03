@@ -208,7 +208,7 @@ export const ChannelSettingsPage = () => {
     ) : channel?.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
     ) : isSelfChat ? (
-        <DefaultAvatar size={40} variant="self" />
+        <DefaultAvatar size={40} />
     ) : (
         <ChatAvatar size="sm" />
     );

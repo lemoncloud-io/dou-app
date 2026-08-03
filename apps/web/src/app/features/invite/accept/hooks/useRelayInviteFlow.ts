@@ -16,10 +16,11 @@ import { getSocketErrorCode } from '../../../../utils/errors';
 import { ROUTES } from '../../../../routes/paths';
 
 /**
- * The invite as the accept screen reads it. `expiredAt` and the inviter's avatar arrive at runtime
- * but are not on the published view — the same extension point the cloud flow uses (see InviteInfo).
+ * The invite as the accept screen reads it. `expiredAt`, the inviter's avatar and the place's
+ * intro/thumbnail arrive at runtime but are not on the published view — the same extension point the
+ * cloud flow uses (see InviteInfo). `site$.name` IS published; only the two extras are runtime-only.
  */
-export type RelayInviteInfo = RelayInviteView & Pick<InviteInfo, 'expiredAt' | 'inviter$'>;
+export type RelayInviteInfo = RelayInviteView & Pick<InviteInfo, 'expiredAt' | 'inviter$' | 'site$'>;
 
 /** Where the accept flow currently is. See the state diagram in the feature doc. */
 export type RelayInvitePhase =

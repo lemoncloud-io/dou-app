@@ -103,14 +103,9 @@ const ChannelItem = ({
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // A DM shows the peer's avatar, matching the room header — a DM channel has no photo of its own.
-    // Otherwise the channel photo, and with no photo the default person avatar (기본 아바타):
-    // self-chat uses its own solid-silhouette variant (Figma "1명 Profile"), other rows the plain one.
+    // Otherwise the channel photo, and with no photo the default person avatar (Figma "1명 Profile").
     const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
-    const leading = avatarSrc ? (
-        <ImageAvatar src={avatarSrc} alt="" size={42} />
-    ) : (
-        <DefaultAvatar size={42} variant={isSelf ? 'self' : 'user'} />
-    );
+    const leading = avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />;
 
     return (
         <ListRow

@@ -144,13 +144,22 @@ describe('RelayInviteAccept', () => {
     // A relay 1:1 invite is not into a place. Two things guarantee the card stays away: this dialog
     // never forwards `site$` to the screen, and the screen gates the card on `targetKind` regardless
     // (ADR-0037). The mock carries a site precisely so neither guard can be dropped unnoticed.
-    it('플레이스 카드를 그리지 않는다', () => {
+    it('초대가 실어온 플레이스 이름을 그린다', () => {
         mockFlow = flow({
             invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' }, site$: { name: '북클럽' } },
         });
         render(<RelayInviteAccept code={CODE} />);
 
         expect(screen.getByText('Sunny')).toBeInTheDocument();
-        expect(screen.queryByText('북클럽')).not.toBeInTheDocument();
+        expect(screen.getByText('북클럽')).toBeInTheDocument();
+    });
+
+    // relay invite.get이 site$를 채워주지 않는 현재 상태 — 카드가 조용히 접힌다(ADR-0033 D1 선반영).
+    it('플레이스 메타가 없으면 카드가 접힌다', () => {
+        mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' } } });
+        render(<RelayInviteAccept code={CODE} />);
+
+        expect(screen.getByText('Sunny')).toBeInTheDocument();
+        expect(screen.queryByTestId('invite-place-card')).not.toBeInTheDocument();
     });
 });
