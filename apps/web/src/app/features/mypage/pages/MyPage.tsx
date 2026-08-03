@@ -6,7 +6,7 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { IconChevronRight, IconUser, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
+import { IconChevronRight, IconUserOutline, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { useMembershipInfo } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
@@ -55,7 +55,7 @@ export const MyPage = () => {
             {displayImageUrl ? (
                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
             ) : (
-                <IconUser size={20} className="text-placeholder" />
+                <IconUserOutline size={20} className="text-placeholder" />
             )}
         </span>
     );

@@ -1,19 +1,22 @@
 import * as React from 'react';
 
-export interface IconUserSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
+export interface IconUserProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
     /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
 /**
- * Solid single-person glyph — a filled head + shoulders silhouette. Extracted
- * from the Figma "나와의 채팅 1명 Profile" avatar (node 3185:13127) rather than
- * reusing the lucide outline `User`, so the self-chat default avatar matches the
- * design exactly. The `viewBox` (0 0 42 42) matches the avatar circle, so the
- * glyph sits circle-relative when rendered at the avatar's full size. Fills with
- * `currentColor`, so callers set the color via `className`/`color`.
+ * The single-person glyph — a filled head + shoulders silhouette, extracted from the Figma
+ * `1명 Profile` avatar (node 3185:13127). This is THE user glyph for avatars: the room avatar has
+ * exactly two images, this and {@link IconGroup}, so there is no outline variant to choose between
+ * (the lucide outline lives on as `IconUserOutline` for grey placeholder slots, which are a
+ * different job).
+ *
+ * The `viewBox` (0 0 42 42) matches the avatar circle, so the glyph sits circle-relative when
+ * rendered at the avatar's full size. Fills with `currentColor`, so callers set the color via
+ * `className`/`color`.
  */
-export const IconUserSolid = ({ size = 24, className, ...props }: IconUserSolidProps) => (
+export const IconUser = ({ size = 24, className, ...props }: IconUserProps) => (
     <svg
         width={size}
         height={size}
