@@ -23,6 +23,7 @@ import {
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
+import { LinkedText } from '../components/LinkedText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { resolveChannelAvatar } from '../lib';
@@ -735,8 +736,7 @@ export const ChannelRoomPage = () => {
                                                                 message.id ? reactions.get(message.id) : undefined
                                                             }
                                                             onToggleReaction={(emoji, isMine) =>
-                                                                message.id &&
-                                                                toggleReaction(message.id, emoji, isMine)
+                                                                message.id && toggleReaction(message.id, emoji, isMine)
                                                             }
                                                             reactionFailed={
                                                                 !!message.id && reactionFailedId === message.id
@@ -822,7 +822,9 @@ export const ChannelRoomPage = () => {
                     </header>
                     <div className="flex-1 overflow-y-auto px-4 py-3">
                         <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
-                            {expandedMessage?.content}
+                            {/* Full content, so no `truncated` — a URL the bubble had to cut is a
+                                complete, tappable link here. */}
+                            {expandedMessage && <LinkedText text={expandedMessage.content} />}
                         </p>
                     </div>
                 </DialogContent>

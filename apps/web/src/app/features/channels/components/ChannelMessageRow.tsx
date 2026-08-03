@@ -8,6 +8,10 @@ import { cn } from '@chatic/ui-kit';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
+import { extractFirstUrl } from '../utils/linkTokens';
+import { openExternalUrl } from '../utils/openExternalUrl';
+import { LinkedText } from './LinkedText';
+import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
 import { ThreadFooter } from './ThreadFooter';
 
@@ -92,6 +96,14 @@ export const ChannelMessageRow = ({
     const mine = message.isOwner;
     const content = message.content ?? '';
     const isLong = !message.isPending && !message.isFailed && content.length > MAX_MESSAGE_LENGTH;
+    // Found in the full content, not the truncated bubble text: a long message still deserves a
+    // card for the link it had to cut — and the card is then the only way to reach it.
+    // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
+    // not keep unfurling, which would also keep fetching the page on every render pass.
+    const previewUrl =
+        message.isPending || message.isFailed || message.isSystem || message.hidden
+            ? undefined
+            : extractFirstUrl(content);
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.
@@ -100,6 +112,9 @@ export const ChannelMessageRow = ({
     // Long-press (or right-click) opens the action sheet — the timer lives here since
     // the web-ui-kit bubble is purely presentational.
     const timerRef = useRef<number | null>(null);
+    // Long-pressing a link should copy, not navigate. The gesture still ends in a `click` on the
+    // anchor, so the menu and the browser would both open; this flag swallows that click.
+    const longPressFiredRef = useRef(false);
     const clearTimer = () => {
         if (timerRef.current !== null) {
             window.clearTimeout(timerRef.current);
@@ -111,8 +126,10 @@ export const ChannelMessageRow = ({
         if (!content) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         clearTimer();
+        longPressFiredRef.current = false;
         timerRef.current = window.setTimeout(() => {
             timerRef.current = null;
+            longPressFiredRef.current = true;
             onLongPress();
         }, LONG_PRESS_DELAY_MS);
     };
@@ -120,7 +137,12 @@ export const ChannelMessageRow = ({
         if (!content) return;
         event.preventDefault();
         clearTimer();
+        longPressFiredRef.current = true;
         onLongPress();
+    };
+    const handleUrlClick = (url: string) => {
+        if (longPressFiredRef.current) return;
+        openExternalUrl(url);
     };
 
     // Avatar slot for `other` rows — the real avatar on the first message of a
@@ -222,10 +244,23 @@ export const ChannelMessageRow = ({
                         onExpand={isLong ? onExpand : undefined}
                         expandLabel={t('chat.room.viewAll')}
                     >
-                        {isLong ? `${content.slice(0, MAX_MESSAGE_LENGTH)}...` : content}
+                        {/* The ellipsis stays outside LinkedText so it can't be swallowed
+                            into a URL at the cut. `truncated` also stops a URL that runs
+                            to the cut from being linked at all — it may be a fragment. */}
+                        <LinkedText
+                            text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
+                            truncated={isLong}
+                            onUrlClick={handleUrlClick}
+                        />
+                        {isLong && '...'}
                     </MessageBubble>
                 </span>
             </div>
+            {/* Ordered as the message, then metadata about it: the unfurl card belongs to the
+                content, reactions and the thread footer comment on it. All three sit outside the
+                long-press target — inside it the gesture would eat taps on the card — so each
+                becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
+            {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (
                 <ReactionChips tallies={tallies} nameOf={nameOf ?? (id => id)} onToggle={onToggleReaction} />
             )}
