@@ -1,13 +1,17 @@
 import type { DomainChat } from '@chatic/data';
 
 /**
- * Whether a chat belongs in the main channel feed.
+ * Whether a chat belongs in the main channel feed *on its own merits*.
  *
- * This is the single place that answers "should this row appear", because three
- * separate reasons to hide a row arrived from three different directions and, kept
- * apart, they drift: thread replies live in the panel (ADR 0008), deleted messages
+ * Three separate reasons to hide a row arrived from three different directions and,
+ * kept apart, they drift: thread replies live in the panel (ADR 0008), deleted messages
  * come back from the server as `hidden` rows rather than disappearing, and reaction
  * events are ordinary chats the reader must never see as messages.
+ *
+ * Not the whole feed rule. `isDeletedThreadRoot` grants an exception this predicate
+ * cannot see, because it depends on the thread index rather than the chat alone — so
+ * a feed reads `isFeedVisible(c) || isDeletedThreadRoot(c, threadIndex)`, and any new
+ * feed-like surface has to do the same.
  *
  * A deleted message is worth spelling out. The server's delete is a soft delete —
  * `chat.delete` maps to `PUT { hidden: true }`, so the row survives and returns on

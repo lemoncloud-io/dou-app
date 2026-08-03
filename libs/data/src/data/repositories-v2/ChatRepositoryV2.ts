@@ -177,17 +177,53 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     /**
      * Publish a reaction on/off event.
      *
-     * Unlike every other mutation here there is nothing to write optimistically: the
-     * reaction is not a field on the target message but a separate event chat, and the
-     * caller derives display state by folding those events. Writing the returned event
-     * into the cache lets that fold see it immediately, without waiting for the
-     * broadcast echo — the echo carries the same `chatNo`, so it lands on the same row.
+     * The reaction is not a field on the target message but a separate event chat, so
+     * the optimistic write is an event of our own: a provisional row with no `chatNo`,
+     * which the fold sorts last and therefore treats as the newest state for that
+     * (message, person, emoji). The chip flips on the click, not on the round trip.
+     *
+     * On success the provisional row is replaced by the server's event; the broadcast
+     * echo carries the same `chatNo` and lands on that same row. On failure it is
+     * removed, so the chip returns to what the remaining events say — there is no
+     * previous value to restore, because the event never existed anywhere but here.
      */
     public async setReaction(payload: ChatReactionInput): Promise<DomainChat> {
         const requestContext = this.getRequestContext();
-        const event = await this.chatRemoteDataSource.setReaction(payload, this.getNormalizedContext(requestContext));
-        await this.chatLocalDataSource.cacheWrite(event, requestContext);
-        return event;
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const { chatId, emoji, action } = payload as { chatId: string; emoji: string; action: string };
+        const now = Date.now();
+        const provisionalId = `optimistic-reaction-${chatId}-${emoji}-${now}`;
+        const provisional: DomainChat = {
+            id: provisionalId,
+            tempId: provisionalId,
+            cid: normalizedContext.cid ?? 'default',
+            // The event belongs to the target's channel — the id is `<channelId>:<chatNo>`.
+            channelId: chatId.split(':')[0] ?? '',
+            chatNo: 0,
+            stereo: 'system',
+            subType: 'reaction',
+            reaction$: { chatId, emoji, action },
+            ownerId: normalizedContext.uid,
+            createdAt: now,
+            updatedAt: now,
+            createdAtMs: now,
+            updatedAtMs: now,
+            isPending: true,
+            isFailed: false,
+        } as DomainChat;
+        await this.chatLocalDataSource.cacheWrite(provisional, requestContext);
+
+        try {
+            const event = await this.chatRemoteDataSource.setReaction(payload, normalizedContext);
+            await this.chatLocalDataSource.cacheWrite(event, requestContext);
+            if (event.id && event.id !== provisionalId) {
+                await this.chatLocalDataSource.cacheDelete(provisionalId, requestContext);
+            }
+            return event;
+        } catch (error) {
+            await this.chatLocalDataSource.cacheDelete(provisionalId, requestContext);
+            throw error;
+        }
     }
 
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {

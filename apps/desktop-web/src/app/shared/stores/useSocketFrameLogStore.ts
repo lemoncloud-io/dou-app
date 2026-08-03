@@ -35,6 +35,7 @@ export const useSocketFrameLogStore = create<SocketFrameLogState>(set => ({
 
 let seq = 0;
 let unbindFrame: (() => void) | undefined;
+let started = false;
 
 /**
  * Start recording inbound socket frames into the ring buffer. Called once from the
@@ -46,6 +47,10 @@ let unbindFrame: (() => void) | undefined;
  * that touched any store — including tests for unrelated hooks — need a live socket
  * runtime to exist.
  *
+ * Guarded rather than merely documented as call-once: `subscribeClient` is not
+ * idempotent, so a second call would register a second subscriber and overwrite the
+ * module-level unbind handle, leaking the first listener.
+ *
  * `onMessage` requires a live client and is NOT rebind-safe (unlike `onType`), so
  * calling it before the socket connects throws `Socket client not ready`. Bind through
  * `subscribeClient` instead: attach when a client appears, detach when it goes, and
@@ -54,6 +59,8 @@ let unbindFrame: (() => void) | undefined;
  * type for the debug display and read the chat number loosely.
  */
 export const startSocketFrameLog = (): void => {
+    if (started) return;
+    started = true;
     getSocketManager().subscribeClient(client => {
         unbindFrame?.();
         unbindFrame = undefined;
