@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link2 } from 'lucide-react';
 
 import { isNative, webClient } from '@chatic/bridges';
 
@@ -58,11 +59,23 @@ interface LinkPreviewCardProps {
 }
 
 /**
- * Slack-style unfurl card under a message link. Desktop shell only — the
- * renderer can't read cross-origin pages, so the main process fetches and
- * parses og: tags (FetchUrlMetadata). Renders nothing in a plain browser or
- * when the page yields no usable metadata. Block-level <span>s because the
- * host paragraph is a <p>.
+ * Compact unfurl chip under a message link. Desktop shell only — the renderer
+ * can't read cross-origin pages, so the main process fetches and parses og:
+ * tags (FetchUrlMetadata). Renders nothing in a plain browser or when the page
+ * yields no usable metadata. Block-level <span>s because the host paragraph
+ * is a <p>.
+ *
+ * The chip shows only `siteName` + `title`. `description` and `imageUrl` keep
+ * arriving from the shell (main still sends both — see
+ * apps/desktop/src/main/unfurl.ts) and stay on the type because that is the
+ * shell's contract, not because the chip wants them.
+ *
+ * Dropping the thumbnail is deliberate and load-bearing: rendering `imageUrl`
+ * would make every reader's browser fetch that URL directly, handing the
+ * third-party host each reader's IP, user-agent, and the moment they scrolled
+ * the message into view. Unfurl itself never forwards image bytes, so the only
+ * way to keep that property is to not request the image. `LinkPreviewCard.spec.tsx`
+ * pins it — this comment alone would not stop the thumbnail coming back.
  */
 export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => metadataCache.get(url) ?? null);
@@ -85,23 +98,20 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
             href={meta.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="focus-ring my-1 flex max-w-md items-stretch gap-3 overflow-hidden rounded-md border border-hairline bg-elevated p-2.5 no-underline shadow-raised transition-colors ease-tactile hover:bg-accent/40"
+            className="focus-ring my-1 flex max-w-sm items-center gap-2.5 overflow-hidden rounded-md border border-hairline bg-elevated px-2.5 py-2 no-underline transition-colors ease-tactile hover:bg-accent/40"
         >
-            <span className="block w-1 shrink-0 rounded-full bg-primary/40" aria-hidden />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {meta.siteName && (
-                    <span className="block truncate text-caption font-medium text-muted-foreground">
-                        {meta.siteName}
-                    </span>
-                )}
-                <span className="block truncate text-callout font-semibold text-primary-ink">{meta.title}</span>
-                {meta.description && (
-                    <span className="line-clamp-2 block text-caption text-muted-foreground">{meta.description}</span>
-                )}
+            <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-accent/60 text-muted-foreground"
+                aria-hidden
+            >
+                <Link2 size={14} />
             </span>
-            {meta.imageUrl && (
-                <img src={meta.imageUrl} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-md object-cover" />
-            )}
+            <span className="flex min-w-0 flex-1 flex-col">
+                {meta.siteName && (
+                    <span className="block truncate text-micro text-muted-foreground">{meta.siteName}</span>
+                )}
+                <span className="block truncate text-caption font-medium text-foreground">{meta.title}</span>
+            </span>
         </a>
     );
 };
