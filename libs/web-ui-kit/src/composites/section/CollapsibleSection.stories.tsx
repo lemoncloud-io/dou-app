@@ -31,6 +31,33 @@ export const Collapsed: Story = { args: { defaultOpen: false } };
 export const WithCount: Story = { args: { title: 'Chat', count: 4 } };
 
 /**
+ * The cloud-switcher shape: a sub-caption under the title and a pinned footer button. Toggle this
+ * story closed to confirm both survive the collapse — only the rows disappear.
+ */
+export const WithDescriptionAndFooter: Story = {
+    args: {
+        title: '내 클라우드',
+        count: 2,
+        description: '나만의 공간에서 그룹 대화 시작',
+        // Mirrors the real consumer (apps/web .../cloud-session/AddAccountButton.tsx).
+        footer: (
+            <div className="px-4 pb-2 pt-3">
+                <button
+                    type="button"
+                    className="w-full rounded-full border border-input-border px-6 py-3 text-[16px] font-semibold"
+                >
+                    ＋ 클라우드 추가
+                </button>
+            </div>
+        ),
+    },
+};
+
+export const CollapsedWithDescriptionAndFooter: Story = {
+    args: { ...WithDescriptionAndFooter.args, defaultOpen: false },
+};
+
+/**
  * The home layout in miniature: two sections inside a fixed-height flex-column scroll container,
  * with more rows than fit. Use this to check that a long list overflows the scroller
  * (scrollHeight > clientHeight) and that the trailing spacer is included, rather than the sections

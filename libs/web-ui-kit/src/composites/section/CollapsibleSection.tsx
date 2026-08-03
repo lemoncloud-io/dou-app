@@ -8,8 +8,18 @@ import { SectionHeader } from './SectionHeader';
 export interface CollapsibleSectionProps {
     /** Section title (e.g. "Place", "Chat"). */
     title: string;
-    /** Optional accent count next to the title. */
+    /** Optional count next to the title. */
     count?: number;
+    /**
+     * Sub-caption under the title. Part of the HEADER, not the body — it stays visible while the
+     * section is collapsed (the cloud switcher relies on this, Figma 3486-25889).
+     */
+    description?: string;
+    /**
+     * Pinned area below the body and OUTSIDE the collapsible region, so it stays visible while the
+     * section is collapsed (e.g. the switcher's "add cloud" button).
+     */
+    footer?: React.ReactNode;
     /** Extra actions rendered to the left of the collapse chevron (e.g. a create button). */
     actions?: React.ReactNode;
     /** Controlled open state; pair with `onOpenChange`. Omit for uncontrolled. */
@@ -32,10 +42,15 @@ export interface CollapsibleSectionProps {
  * rotates and the body height eases open/closed. Expanding mounts the body
  * immediately; collapsing keeps it mounted through the animation and then
  * unmounts it so nested rows unregister their sync while hidden.
+ *
+ * Only `children` collapses. `description` and `footer` sit outside the animated
+ * region and stay visible in either state.
  */
 export const CollapsibleSection = ({
     title,
     count,
+    description,
+    footer,
     actions,
     open,
     defaultOpen = true,
@@ -98,6 +113,10 @@ export const CollapsibleSection = ({
                     </>
                 }
             />
+            {/* Header sub-caption — deliberately outside the collapsible region below. */}
+            {description && (
+                <p className="px-4 pb-2 text-[14px] leading-[1.4] tracking-[-0.01em] text-description">{description}</p>
+            )}
             {/* Animate height via a 0fr↔1fr grid row so expand/collapse eases instead of
                 snapping; the inner wrapper clips the body while the row-track transitions. */}
             <div
@@ -111,6 +130,7 @@ export const CollapsibleSection = ({
                     {isBodyMounted && <div className="flex flex-col">{children}</div>}
                 </div>
             </div>
+            {footer}
         </section>
     );
 };

@@ -59,3 +59,4 @@ export { IconGroup, type IconGroupProps } from './IconGroup';
 export { IconUserSolid, type IconUserSolidProps } from './IconUserSolid';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
+export { IconCheckCircleSolid, type IconCheckCircleSolidProps } from './IconCheckCircleSolid';

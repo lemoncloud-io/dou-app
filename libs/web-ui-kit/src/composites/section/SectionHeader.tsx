@@ -5,7 +5,12 @@ import { cn } from '@chatic/lib/utils';
 export interface SectionHeaderProps {
     /** Section title (e.g. "Place", "Chat", "친구 선택"). */
     title: string;
-    /** Optional accent count shown next to the title. */
+    /**
+     * Optional count shown next to the title, in the same colour as the title.
+     *
+     * It used to render in accent green (ADR-0014); the current design renders it as plain
+     * foreground (Figma 3486-26403 uses #0c1014), and every consumer moved with it — see ADR-0034.
+     */
     count?: number;
     /** Right-aligned actions (icon buttons, chevrons, ...). */
     actions?: React.ReactNode;
@@ -25,7 +30,7 @@ export const SectionHeader = ({ title, count, actions, className }: SectionHeade
                     {title}
                 </span>
                 {count != null && (
-                    <span className="text-[18px] font-semibold leading-[25px] text-main-accent">{count}</span>
+                    <span className="text-[18px] font-semibold leading-[25px] text-foreground">{count}</span>
                 )}
             </div>
             {actions && <div className="flex items-center gap-3">{actions}</div>}
