@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/componen
 
 import { getActiveServerContext } from '@chatic/web-core';
 
-import { canModifyMessage, threadRootId, type MessageGroup, type ReactionTally } from '../utils';
+import { canModifyMessage, hasMyReaction, threadRootId, type MessageGroup, type ReactionTally } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { EmojiPicker } from './EmojiPicker';
@@ -50,7 +50,7 @@ interface MessageRowProps {
     /** Folded reactions for the whole feed, keyed by message id. */
     reactions?: ReadonlyMap<string, ReactionTally[]>;
     /** Resolves a reactor's display name for the chip's label. */
-    reactorName?: (userId: string) => string;
+    reactorName: (userId: string) => string;
     /** root id → loaded reply aggregate; a message with an entry shows a thread footer. */
     threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
@@ -68,6 +68,10 @@ interface MessageRowProps {
  * stranded by the old null-ack bug, or a tab killed mid-send) — surface it as
  * failed so Retry/Delete apply, instead of dimming it forever.
  */
+/** Shared shape of every icon button in the message hover toolbar; each adds its own hover pair. */
+const TOOLBAR_BUTTON =
+    'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile';
+
 const STUCK_PENDING_MS = 60_000;
 
 const formatTime = (ms: number): string => {
@@ -211,6 +215,12 @@ export const MessageRow = memo(
                             // supplied for the main feed; the thread panel passes none, so replies
                             // never get a footer.
                             const meta = message.chatNo != null ? threadMeta?.get(String(message.chatNo)) : undefined;
+                            // Reactions on this message, if any — `foldReactions` never stores an
+                            // empty array, so presence is the same question as "has reactions".
+                            const tallies = message.id ? reactions?.get(message.id) : undefined;
+                            // A row the server has accepted: it has an id to address and is neither
+                            // in flight nor failed. Every toolbar action needs exactly this.
+                            const isSettled = !!message.id && !isPending && !isFailed;
                             return (
                                 // Reserve the toolbar slot: both actions in the main feed, copy
                                 // only in the (narrower) thread panel — a full 80px reserve there
@@ -294,10 +304,10 @@ export const MessageRow = memo(
                                         Message-level, not RichText: the formatter stays pure and
                                         the card renders outside the host <p>. */}
                                     {firstUrl && <LinkPreviewCard url={firstUrl} />}
-                                    {message.id && reactions?.get(message.id) && (
+                                    {tallies && (
                                         <ReactionBar
-                                            tallies={reactions.get(message.id) ?? []}
-                                            nameOf={reactorName ?? (id => id)}
+                                            tallies={tallies}
+                                            nameOf={reactorName}
                                             onToggle={(emoji, isMine) =>
                                                 message.id && toggleReaction(message.id, emoji, isMine)
                                             }
@@ -308,7 +318,7 @@ export const MessageRow = memo(
                                     message's first line so it stays inside the hover band. It
                                     slides in on hover — peripheral vision picks up the motion
                                     onset where a static pill goes unnoticed on wide windows. */}
-                                    {((onOpenThread && message.id && !isPending && !isFailed) || content) && (
+                                    {((onOpenThread && isSettled) || content) && (
                                         <div
                                             className={cn(
                                                 'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
@@ -317,14 +327,17 @@ export const MessageRow = memo(
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
                                             )}
                                         >
-                                            {message.id && !isPending && !isFailed && (
+                                            {isSettled && (
                                                 <Popover>
                                                     <PopoverTrigger asChild>
                                                         <button
                                                             type="button"
                                                             title={t('chat.reaction.add')}
                                                             aria-label={t('chat.reaction.add')}
-                                                            className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                            className={cn(
+                                                                TOOLBAR_BUTTON,
+                                                                'hover:bg-accent hover:text-foreground'
+                                                            )}
                                                         >
                                                             <SmilePlus size={16} />
                                                         </button>
@@ -333,33 +346,37 @@ export const MessageRow = memo(
                                                         {/* Picking one you already used toggles it
                                                             off, rather than publishing a second
                                                             redundant `on` the fold would dedupe. */}
+                                                        {/* Picking one you already used turns it off.
+                                                            `hasMyReaction` normalises first, so a picker
+                                                            that emits `❤️` still matches a stored `❤`. */}
                                                         <EmojiPicker
                                                             onPick={emoji =>
                                                                 message.id &&
                                                                 toggleReaction(
                                                                     message.id,
                                                                     emoji,
-                                                                    !!reactions
-                                                                        ?.get(message.id)
-                                                                        ?.find(tally => tally.emoji === emoji)?.mine
+                                                                    hasMyReaction(tallies, emoji)
                                                                 )
                                                             }
                                                         />
                                                     </PopoverContent>
                                                 </Popover>
                                             )}
-                                            {onOpenThread && message.id && !isPending && !isFailed && (
+                                            {onOpenThread && isSettled && (
                                                 <button
                                                     type="button"
                                                     onClick={() => onOpenThread(threadRootId(message))}
                                                     title={t('chat.thread.replyAction')}
                                                     aria-label={t('chat.thread.replyAction')}
-                                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                    className={cn(
+                                                        TOOLBAR_BUTTON,
+                                                        'hover:bg-accent hover:text-foreground'
+                                                    )}
                                                 >
                                                     <Reply size={16} />
                                                 </button>
                                             )}
-                                            {content && !isPending && !isFailed && (
+                                            {content && isSettled && (
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -379,7 +396,10 @@ export const MessageRow = memo(
                                                     title={savedItems[key] ? t('chat.unsave') : t('chat.save')}
                                                     aria-label={savedItems[key] ? t('chat.unsave') : t('chat.save')}
                                                     aria-pressed={!!savedItems[key]}
-                                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                    className={cn(
+                                                        TOOLBAR_BUTTON,
+                                                        'hover:bg-accent hover:text-foreground'
+                                                    )}
                                                 >
                                                     <Bookmark
                                                         size={16}
@@ -401,7 +421,10 @@ export const MessageRow = memo(
                                                         }}
                                                         title={t('chat.edit')}
                                                         aria-label={t('chat.edit')}
-                                                        className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                        className={cn(
+                                                            TOOLBAR_BUTTON,
+                                                            'hover:bg-accent hover:text-foreground'
+                                                        )}
                                                     >
                                                         <Pencil size={16} />
                                                     </button>
@@ -410,7 +433,10 @@ export const MessageRow = memo(
                                                         onClick={() => message.id && deleteMessage(message.id)}
                                                         title={t('chat.delete')}
                                                         aria-label={t('chat.delete')}
-                                                        className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-destructive/10 hover:text-destructive"
+                                                        className={cn(
+                                                            TOOLBAR_BUTTON,
+                                                            'hover:bg-destructive/10 hover:text-destructive'
+                                                        )}
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -422,7 +448,10 @@ export const MessageRow = memo(
                                                     onClick={() => copy(key, content)}
                                                     title={isCopied ? t('chat.copied') : t('chat.copy')}
                                                     aria-label={t('chat.copy')}
-                                                    className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                    className={cn(
+                                                        TOOLBAR_BUTTON,
+                                                        'hover:bg-accent hover:text-foreground'
+                                                    )}
                                                 >
                                                     {isCopied ? (
                                                         <Check size={16} className="text-primary-ink" />

@@ -55,12 +55,15 @@ const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 // unresolved so it never shows, falling back to "You" / the roster / a skeleton.
 const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
 
-// A message is "mine" when its owner matches either my account id (optimistic
-// messages carry it) or my per-channel cloud user id (the server rewrites the
-// owner to this once the message persists) — so own messages stay identified
-// across the optimistic→persisted swap.
-export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean =>
-    (!!viewer.uid && chat.ownerId === viewer.uid) || (!!viewer.cloudUid && chat.ownerId === viewer.cloudUid);
+// An id is "mine" when it matches either my account id (optimistic messages carry it)
+// or my per-channel cloud user id (the server rewrites the owner to this once the
+// message persists) — so my own rows stay identified across the optimistic→persisted
+// swap. Every surface that asks "is this me" goes through here; the rule is subtle
+// enough that a second copy would drift.
+export const isViewerId = (userId: string | undefined, viewer: MessageViewer): boolean =>
+    (!!viewer.uid && userId === viewer.uid) || (!!viewer.cloudUid && userId === viewer.cloudUid);
+
+export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean => isViewerId(chat.ownerId, viewer);
 
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.

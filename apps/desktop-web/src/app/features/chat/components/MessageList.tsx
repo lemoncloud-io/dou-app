@@ -144,7 +144,7 @@ export const MessageList = ({
     // would re-render every row on each list render.
     const reactorName = useMemo(() => {
         const resolve = (userId: string): string => {
-            if (userId === viewer.uid || (!!viewer.cloudUid && userId === viewer.cloudUid)) return viewer.name;
+            if (isViewerId(userId, viewer)) return viewer.name;
             return names?.get(userId) ?? '';
         };
         return resolve;
@@ -158,7 +158,7 @@ export const MessageList = ({
         const view = new Map<string, ThreadMetaView>();
         for (const [rootKey, meta] of threadMeta) {
             const repliers = meta.repliers.slice(0, MAX_FOOTER_REPLIERS).map(replier => {
-                const isMine = replier.id === viewer.uid || (!!viewer.cloudUid && replier.id === viewer.cloudUid);
+                const isMine = isViewerId(replier.id, viewer);
                 const place = isMine
                     ? ((viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
                       (viewer.uid ? placeProfiles[viewer.uid] : undefined))

@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { ChatSubType, DomainChat } from '@chatic/data';
 
 /**
  * What a system row should print. Either a localized sentence built from the
@@ -7,7 +7,9 @@ import type { DomainChat } from '@chatic/data';
  */
 export type SystemMessageText = { kind: 'i18n'; key: string; name: string } | { kind: 'raw'; text: string };
 
-const SUFFIX_KEYS: Record<string, string> = {
+// Keyed by the contract union rather than bare string, so a subtype added to the
+// package shows up here as a missing entry rather than silently taking the fallback.
+const SUFFIX_KEYS: Partial<Record<ChatSubType, string>> = {
     join: 'chat.system.join',
     leave: 'chat.system.leave',
 };

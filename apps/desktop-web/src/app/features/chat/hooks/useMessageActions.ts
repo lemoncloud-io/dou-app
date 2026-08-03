@@ -41,5 +41,5 @@ export const useMessageActions = () => {
         remove.mutate(id, { onError: () => setFailedId(id) });
     };
 
-    return { editMessage, deleteMessage, failedId, isSaving: edit.isPending };
+    return { editMessage, deleteMessage, failedId };
 };

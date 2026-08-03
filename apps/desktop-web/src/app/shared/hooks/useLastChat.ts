@@ -4,6 +4,8 @@ import type { DomainChat } from '@chatic/data';
 
 import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 
+import { isNotifiableChat } from '../utils';
+
 // Observe a small window (not just the newest row) so the preview can fall through to
 // the previous MAIN message when the newest rows are thread replies or system
 // (join/leave) chats — neither may surface as a channel's last-message preview.
@@ -14,7 +16,7 @@ const PREVIEW_LOOKBACK = 20;
  * those too (ChatPane: `!m.parentId`) — and, additionally, not a system (join/leave)
  * row, so a channel's preview line is always a real message.
  */
-const isPreviewable = (chat: DomainChat): boolean => !chat.parentId && chat.stereo !== 'system';
+const isPreviewable = (chat: DomainChat): boolean => !chat.parentId && isNotifiableChat(chat);
 
 /**
  * Last MAIN-channel message for a desktop channel-list row's preview. The channel
