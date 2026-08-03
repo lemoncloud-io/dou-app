@@ -27,6 +27,16 @@ describe('BottomSheet', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
+    it('rides above the soft keyboard and gives back the same height', () => {
+        render(<BottomSheet open onOpenChange={jest.fn()} title="신고하기" footer={<button>신고</button>} />);
+
+        // jsdom cannot evaluate the vars, so the contract is the declaration: lifted by the keyboard
+        // height and capped by the same amount, which is what keeps the footer CTA reachable.
+        const panel = screen.getByRole('dialog');
+        expect(panel).toHaveClass('[transform:translateY(calc(-1*var(--keyboard-height,0px)))]');
+        expect(panel).toHaveClass('max-h-[calc(90vh-var(--keyboard-height,0px))]');
+    });
+
     it('renders nothing when closed', () => {
         render(<BottomSheet open={false} onOpenChange={jest.fn()} title="신고하기" />);
 

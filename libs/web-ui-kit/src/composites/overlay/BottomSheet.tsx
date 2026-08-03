@@ -36,6 +36,10 @@ export interface BottomSheetProps {
  * with a rounded top, an optional drag handle and title/close header, a
  * scrollable body, and a pinned footer. Built on the shared Radix Sheet
  * (side="bottom"); honors the bottom safe-area inset.
+ *
+ * Keyboard-aware: focusing a field inside the body lifts the whole panel above the soft keyboard and
+ * shrinks its max height by the same amount, so the focused field and the footer CTA both stay
+ * reachable instead of sitting behind the keyboard. See the `--keyboard-height` classes below.
  */
 export const BottomSheet = ({
     open,
@@ -66,7 +70,18 @@ export const BottomSheet = ({
                 className={cn(
                     // overflow-hidden is what makes rounded-t actually visible: the glass header below
                     // paints its own square backdrop-filter box and would otherwise cover the corners.
-                    'flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-t-[16px] border-0 bg-surface p-0 pb-safe-bottom',
+                    'flex flex-col gap-0 overflow-hidden rounded-t-[16px] border-0 bg-surface p-0',
+                    // Keyboard: ride above the soft keyboard rather than being buried under it, and
+                    // give back exactly the height gained so the lifted panel cannot run off the top
+                    // of the screen — the body scroll area absorbs the difference. `--keyboard-height`
+                    // is injected by the native WebView (absent in a browser, where the keyboard never
+                    // rises and both terms collapse to `bottom-0` / `90vh`).
+                    'max-h-[calc(90vh-var(--keyboard-height,0px))]',
+                    '[transform:translateY(calc(-1*var(--keyboard-height,0px)))]',
+                    // Home-indicator inset, dropped while the keyboard is up: the keyboard already
+                    // covers it and the panel has been lifted clear of both, so keeping it would just
+                    // float the footer CTA above the keyboard by a stray 34px.
+                    'pb-[max(0px,calc(var(--safe-bottom,0px)-var(--keyboard-height,0px)))]',
                     className
                 )}
             >
