@@ -330,9 +330,19 @@ export const MessageRow = memo(
                                                         </button>
                                                     </PopoverTrigger>
                                                     <PopoverContent align="end" side="top" className="w-auto p-2">
+                                                        {/* Picking one you already used toggles it
+                                                            off, rather than publishing a second
+                                                            redundant `on` the fold would dedupe. */}
                                                         <EmojiPicker
                                                             onPick={emoji =>
-                                                                message.id && toggleReaction(message.id, emoji, false)
+                                                                message.id &&
+                                                                toggleReaction(
+                                                                    message.id,
+                                                                    emoji,
+                                                                    !!reactions
+                                                                        ?.get(message.id)
+                                                                        ?.find(tally => tally.emoji === emoji)?.mine
+                                                                )
                                                             }
                                                         />
                                                     </PopoverContent>

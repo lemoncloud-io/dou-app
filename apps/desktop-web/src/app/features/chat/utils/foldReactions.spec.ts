@@ -81,6 +81,18 @@ describe('foldReactions', () => {
         expect(tallies.get('C1:9')).toHaveLength(1);
     });
 
+    // The chip lookup is `reactions.get(message.id)`, so the fold has to key by exactly
+    // the target message's `id`. Both sides are server-assigned (`ChatModel.id :=
+    // <channelId>:<chatNo>`, and `reaction$.chatId` points at one), and `toDomainChat`
+    // passes `id` through untouched — this pins the client's half of that assumption,
+    // which nothing else in the suite would notice breaking.
+    it('keys the tally by the target message id the UI looks up', () => {
+        const target = message(1);
+        const tallies = foldReactions([target, reaction(2, 'ada', '👍', 'on', target.id ?? '')], ME);
+
+        expect(tallies.get(target.id ?? '')).toHaveLength(1);
+    });
+
     it('ignores ordinary messages and malformed events', () => {
         const noTarget = { ...reaction(2, 'ada', '👍'), reaction$: { emoji: '👍' } } as DomainChat;
 
