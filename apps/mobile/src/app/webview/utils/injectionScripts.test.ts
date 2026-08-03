@@ -1,4 +1,4 @@
-import { getDebugModeScript, getDeviceInfoScript } from './injectionScripts';
+import { getDebugModeScript, getDeviceInfoScript, getSyncInjectionScript, getThemeScript } from './injectionScripts';
 import type { DeviceInfoParams } from './injectionScripts';
 
 const makeParams = (overrides: Partial<DeviceInfoParams> = {}): DeviceInfoParams => ({
@@ -67,5 +67,29 @@ describe('getDebugModeScript — 디버그 모드 언락 주입 스크립트', (
     it('영속화된 언락 상태를 boolean 전역으로 주입한다', () => {
         expect(getDebugModeScript(true)).toContain('window.CHATIC_APP_DEBUG_MODE = true;');
         expect(getDebugModeScript(false)).toContain('window.CHATIC_APP_DEBUG_MODE = false;');
+    });
+});
+
+describe('getThemeScript — 테마 주입 스크립트', () => {
+    it('영속화된 테마를 문자열 전역으로 주입한다', () => {
+        // JSON.stringify, not a quoted template hole: the result is evaluated as JS, so the
+        // value has to be escaped at the sink rather than trusted from two modules away.
+        expect(getThemeScript('light')).toContain('window.CHATIC_APP_THEME = "light";');
+        expect(getThemeScript('dark')).toContain('window.CHATIC_APP_THEME = "dark";');
+    });
+});
+
+describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
+    it('테마를 포함해 주입한다', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+        });
+
+        // The web's pre-paint script reads this global before the first paint, so it must
+        // ride along in the same script that is injected before content loads.
+        expect(script).toContain('window.CHATIC_APP_THEME = "dark";');
     });
 });

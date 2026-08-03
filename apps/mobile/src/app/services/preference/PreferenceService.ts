@@ -29,6 +29,23 @@ export class PreferenceService implements IPreferenceService {
         }
     }
 
+    public getSync<T = any>(key: PreferenceKey): T | null {
+        try {
+            return this.storage.getSync<T>(key);
+        } catch (error) {
+            this.logService.error('PREFERENCE', `Failed to get preference: ${key}`, error as Error);
+            return null;
+        }
+    }
+
+    public setSync<T = any>(key: PreferenceKey, value: T): void {
+        try {
+            this.storage.setSync(key, value);
+        } catch (error) {
+            this.logService.error('PREFERENCE', `Failed to set preference: ${key}`, error as Error);
+        }
+    }
+
     public async remove(key: PreferenceKey): Promise<void> {
         try {
             return this.storage.remove(key);

@@ -116,7 +116,9 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.4)',
     },
     container: {
-        backgroundColor: 'white',
+        // No backgroundColor here: the theme-resolved color is applied inline at the call site,
+        // which would override anything set here. A hardcoded 'white' only misleads readers into
+        // thinking this sheet stays white in dark mode.
         width: '100%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -2 },

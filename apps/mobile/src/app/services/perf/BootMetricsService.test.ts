@@ -10,6 +10,10 @@ const createStorage = (): IKeyValueStorage & { data: Map<string, unknown> } => {
             data.set(key, value);
         }),
         get: jest.fn(async (key: string) => (data.has(key) ? data.get(key) : null)) as IKeyValueStorage['get'],
+        setSync: jest.fn((key: string, value: unknown) => {
+            data.set(key, value);
+        }),
+        getSync: jest.fn((key: string) => (data.has(key) ? data.get(key) : null)) as IKeyValueStorage['getSync'],
         remove: jest.fn(async (key: string) => {
             data.delete(key);
         }),

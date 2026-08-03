@@ -1,5 +1,7 @@
 import type { EdgeInsets } from 'react-native-safe-area-context';
 
+import type { ThemeMode } from '../../stores/themeMode';
+
 /**
  * Parameter interface for injecting device information
  */
@@ -103,6 +105,27 @@ export const getDebugModeScript = (enabled: boolean): string => `
 `;
 
 /**
+ * Generates a script exposing the persisted theme to the web, so the WebView's pre-paint
+ * script can pick it up on the FIRST paint instead of waiting for a bridge round-trip.
+ *
+ * This is the restore path after a WebView cache wipe: localStorage is empty, but native
+ * still holds the theme. Injected before content loads (see AppWebView's
+ * `injectedJavaScriptBeforeContentLoaded`), so `index.html` can read it while deciding the
+ * initial `<html>` class, `theme-color`, and `--splash-bg`. A bridge message could not
+ * arrive in time — it lands after the first paint.
+ *
+ * The value is already normalized by themeStorage, so the web never sees a legacy envelope.
+ *
+ * `JSON.stringify` rather than a quoted template hole: this string is handed to
+ * `evaluateJavaScript`, so an unescaped quote/backslash/newline in the value would be code,
+ * not data. The `ThemeMode` type plus the bridge-side validation make that unreachable today —
+ * escaping at the sink is what keeps it unreachable if a future caller is less careful.
+ */
+export const getThemeScript = (theme: ThemeMode): string => `
+    window.CHATIC_APP_THEME = ${JSON.stringify(theme)};
+`;
+
+/**
  * Parameters for generating the combined synchronous injection script.
  */
 export interface SyncInjectionScriptParams {
@@ -111,10 +134,12 @@ export interface SyncInjectionScriptParams {
     deviceInfo: DeviceInfoParams;
     /** Persisted runtime debug unlock (see debugSettingsStore.debugModeEnabled). */
     debugModeEnabled?: boolean;
+    /** Persisted theme mode (see themeStore) — seeds the web's first paint. */
+    theme: ThemeMode;
 }
 
 /**
- * Combines safe area, device info, and debug mode scripts into a single script.
+ * Combines safe area, device info, debug mode, and theme scripts into a single script.
  * The legacy console-override relay (`__console__`) is gone — the structured
  * `SendLog` pipeline is the only web→native log channel (ADR-0047).
  *
@@ -123,13 +148,14 @@ export interface SyncInjectionScriptParams {
  * landing in the merged buffer / future breadcrumbs) instead of surfacing as
  * an opaque "Script error.". Syntax errors cannot be caught this way — those
  * are prevented at build time by JSON.stringify interpolation (see
- * getDeviceInfoScript).
+ * getDeviceInfoScript and getThemeScript).
  */
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     try {
         ${getSafeAreaScript(params.insets, params.keyboardHeight)}
         ${getDeviceInfoScript(params.deviceInfo)}
         ${getDebugModeScript(params.debugModeEnabled ?? false)}
+        ${getThemeScript(params.theme)}
     } catch (e) {
         try {
             window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({

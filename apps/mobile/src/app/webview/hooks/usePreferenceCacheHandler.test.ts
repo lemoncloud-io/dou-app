@@ -11,6 +11,8 @@ const preferenceService = {
 };
 const logService = { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() };
 
+// Only the stores are mocked. `parseThemeMode` is imported from stores/themeMode, which is
+// provider-free, so the value validation below runs against the parser that actually ships.
 jest.mock('../../stores', () => ({
     useThemeStore: { getState: () => ({ setTheme }) },
     useLanguageStore: { getState: () => ({ setLanguage }) },
@@ -72,6 +74,34 @@ describe('handleSavePreference — bridge write allowlist', () => {
 
         expect(setTheme).toHaveBeenCalledWith('dark');
         expect(preferenceService.set).not.toHaveBeenCalled();
+        expect(res.success).toBe(true);
+    });
+
+    it("'theme'에 인식할 수 없는 값이 오면 거부하고 스토어를 건드리지 않는다", async () => {
+        const res = await save('theme', 'purple');
+
+        // Persisting a bogus value would degrade the status bar to light on every
+        // boot, with nothing in the app able to explain why.
+        expect(setTheme).not.toHaveBeenCalled();
+        expect(res.success).toBe(false);
+        expect((res as any).error.code).toBe('PREF_INVALID_VALUE');
+        expect(logService.warn).toHaveBeenCalled();
+    });
+
+    it("'theme'에 스크립트 탈출을 노린 값이 오면 거부한다", async () => {
+        // The stored theme is interpolated into an injected WebView script, so this bridge is
+        // the boundary that keeps page-controlled text out of it.
+        const res = await save('theme', "light'; window.__pwned=1; //");
+
+        expect(setTheme).not.toHaveBeenCalled();
+        expect(res.success).toBe(false);
+        expect((res as any).error.code).toBe('PREF_INVALID_VALUE');
+    });
+
+    it("'theme'에 레거시 봉투가 와도 정규화해 받아들인다", async () => {
+        const res = await save('theme', '{"state":{"theme":"dark"},"version":0}');
+
+        expect(setTheme).toHaveBeenCalledWith('dark');
         expect(res.success).toBe(true);
     });
 
