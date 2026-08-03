@@ -20,14 +20,18 @@ interface KeyboardAwareLayoutProps {
  * opaque gap. The body is compensated with padding equal to the header/footer's
  * measured height (via ResizeObserver) so content starts below the fold on
  * first paint and simply scrolls underneath the overlay afterwards.
+ *
+ * The scaffold is tagged `data-chrome-root` and its two overlays `data-chrome-overlay`, so
+ * `useAutoScrollOnFocus` can subtract them from the visible band — a focused field sitting behind
+ * the docked CTA is inside the viewport but not actually readable.
  */
 export const KeyboardAwareLayout = ({ header, footer, children, className }: KeyboardAwareLayoutProps) => {
     const { headerRef, footerRef, headerHeight, footerHeight } = useChromeInsets();
 
     return (
-        <div className={cn('relative flex h-full flex-col overflow-hidden bg-background', className)}>
+        <div data-chrome-root className={cn('relative flex h-full flex-col overflow-hidden bg-background', className)}>
             {header && (
-                <div ref={headerRef} className="absolute inset-x-0 top-0 z-20 pt-safe-top">
+                <div ref={headerRef} data-chrome-overlay="top" className="absolute inset-x-0 top-0 z-20 pt-safe-top">
                     {header}
                 </div>
             )}
@@ -40,7 +44,11 @@ export const KeyboardAwareLayout = ({ header, footer, children, className }: Key
             </div>
 
             {footer && (
-                <div ref={footerRef} className="absolute inset-x-0 bottom-0 z-20 flex flex-col">
+                <div
+                    ref={footerRef}
+                    data-chrome-overlay="bottom"
+                    className="absolute inset-x-0 bottom-0 z-20 flex flex-col"
+                >
                     {footer}
                     {/* Lifts the docked CTA above the on-screen keyboard so it stays reachable while
                         typing. No base padding is subtracted here: the footer is a caller-provided
