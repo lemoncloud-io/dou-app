@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { isNative } from '@chatic/bridges';
 
-import { SOCIAL_UNLINK_ENABLED } from '../flags';
+import { SOCIAL_LINK_ENABLED, SOCIAL_UNLINK_ENABLED } from '../flags';
 import { useSocialLinks, type SocialProvider } from '../hooks';
 import { AppleIcon, GoogleIcon } from './SocialProviderIcons';
 
@@ -67,6 +67,9 @@ export const SocialLinkSection = () => {
     const { t } = useTranslation();
     const { isGuest } = useRuntimeProfile();
     const { isLinked, linkProvider, requestUnlink, isLinking } = useSocialLinks();
+
+    // Held back until the backend can say what is actually linked (see SOCIAL_LINK_ENABLED).
+    if (!SOCIAL_LINK_ENABLED) return null;
 
     if (isGuest) return null;
 

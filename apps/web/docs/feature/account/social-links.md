@@ -1,10 +1,16 @@
 # 마이페이지 소셜 연동 (Track D)
 
-> 상태: Live · 최종 갱신: 2026-07-29 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live(화면 비노출) · 최종 갱신: 2026-07-31 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
 >
 > 대상: `apps/web/src/app/features/mypage`(`AccountInfoPage` 신규 섹션 + 신규 hooks/components)
 >
 > 같은 폴더의 [README.md](./README.md)는 이메일 가입·비밀번호 재설정(`apps/web/src/app/features/account`)을 다루는 **별개 문서**다 — "account"라는 이름만 같을 뿐 대상 코드가 다르다. 이 문서가 다루는 화면은 `features/mypage`에 있다.
+
+> **2026-07-31 — 섹션 전체를 숨겼다.** `flags.ts`의 `SOCIAL_LINK_ENABLED = false`가
+> `SocialLinkSection`을 `null`로 만든다. 이유는 연동 자체가 아니라 **읽기**다: 목록 조회 패킷이
+> 없어(요청 6번) "연동됨"은 localStorage에 남긴 로컬 추측이고, 캐시가 지워지면 "연동 안 됨"으로
+> 돌아가며 다른 기기의 연동은 영영 모른다. 거짓말할 수 있는 계정 보안 컨트롤은 안 보이는 편이
+> 낫다. 아래 서술은 **플래그를 켰을 때의 동작**이고, 배선은 그대로 남아 있어 켜는 것은 한 줄이다.
 
 ## 목적
 
@@ -164,11 +170,11 @@ flowchart TD
 
 전부 `getSocketErrorCode(error)`(`apps/web/src/app/utils/errors.ts:20`)로 분기하고 에러 문자열은 파싱하지 않는다(로드맵 공통 규칙).
 
-| code            | 의미                        | 처리                                                  |
-| --------------- | --------------------------- | ------------------------------------------------------ |
-| 409              | 이미 다른 유저 소유         | "이미 다른 계정에 연동된 소셜 계정이에요" 에러 토스트 |
-| 403              | 세션이 메인유저 아님        | 이론상 이 화면 도달 전 `isGuest` 가드로 걸러짐 — 방어적으로 일반 실패 토스트 |
-| 기타/미분류      | 네트워크 등                 | 일반 실패 토스트(`linkFailed`)                        |
+| code        | 의미                 | 처리                                                                         |
+| ----------- | -------------------- | ---------------------------------------------------------------------------- |
+| 409         | 이미 다른 유저 소유  | "이미 다른 계정에 연동된 소셜 계정이에요" 에러 토스트                        |
+| 403         | 세션이 메인유저 아님 | 이론상 이 화면 도달 전 `isGuest` 가드로 걸러짐 — 방어적으로 일반 실패 토스트 |
+| 기타/미분류 | 네트워크 등          | 일반 실패 토스트(`linkFailed`)                                               |
 
 ## 검증 방법
 
