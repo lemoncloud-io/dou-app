@@ -61,6 +61,8 @@ export const ROUTES = {
     subscription: {
         root: '/subscription',
         plans: '/subscription/plans',
+        // Read-only pitch for "내 클라우드"; reached from the MyPage subscription card (ADR-0034).
+        guide: '/subscription/guide',
     },
 
     // ── MyPage hub (Private) ─────────────────────────────────────

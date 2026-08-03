@@ -1,6 +1,8 @@
 export * from './useActiveCloudChannels';
+export * from './useAddCloudFlow';
 export * from './useCachedCloudNames';
 export * from './useChannelUnreads';
+export * from './useCloudPromo';
 export * from './useCreatePlace';
 export * from './useEnterInvitedChannel';
 export * from './useEnterInvitedCloud';
@@ -14,5 +16,4 @@ export * from './useLastChat';
 export * from './useMyJoins';
 export * from './useScrollRestoration';
 export * from './useSwitchPlace';
-export * from './useUpdateCloud';
 export * from './useUpdatePlace';

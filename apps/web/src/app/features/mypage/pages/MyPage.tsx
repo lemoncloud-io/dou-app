@@ -152,6 +152,12 @@ export const MyPage = () => {
                             trailing={<Chevron />}
                             onClick={() => navigate(ROUTES.subscription.root)}
                         />
+                        {/* Read-only pitch for "내 클라우드" — the only entry point (ADR-0034). */}
+                        <ListRow
+                            title={t('mypage.subscription.cloudGuide.entry')}
+                            trailing={<Chevron />}
+                            onClick={() => navigate(ROUTES.subscription.guide)}
+                        />
                         {isCloudActive && (
                             <ListRow
                                 title={t('mypage.accountManage.title')}

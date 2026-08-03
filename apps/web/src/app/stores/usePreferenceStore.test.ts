@@ -1,6 +1,7 @@
 import {
     hasLocalPreference,
     parseChannelSort,
+    parseCloudPromoDismissedAt,
     parsePinnedChannels,
     parseTheme,
     usePreferenceStore,
@@ -39,6 +40,7 @@ const resetStore = () => {
         channelSort: {},
         pinnedChannels: {},
         dismissedUpdateVersion: '',
+        cloudPromoDismissedAt: 0,
     });
     jest.clearAllMocks();
 };
@@ -480,5 +482,67 @@ describe('placeScopeKey — cid:sid 스코프', () => {
         expect(parsePinnedChannels(localStorage.getItem('chatic-pinned-channels') as string)).toEqual({
             'cloud-1:place-1': ['ch-1'],
         });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// parseCloudPromoDismissedAt / dismissCloudPromo (클라우드 프로모 배너 24h dismiss)
+// ---------------------------------------------------------------------------
+
+describe('parseCloudPromoDismissedAt — 배너 dismiss 시각 파싱', () => {
+    const NOW = 1_800_000_000_000;
+
+    it('정상 epoch ms 문자열을 숫자로 반환한다', () => {
+        expect(parseCloudPromoDismissedAt(String(NOW - 1000), NOW)).toBe(NOW - 1000);
+    });
+
+    it('빈 값은 0(닫힌 적 없음)이다', () => {
+        expect(parseCloudPromoDismissedAt('', NOW)).toBe(0);
+    });
+
+    it('숫자가 아니거나 0 이하인 값은 0으로 강등한다', () => {
+        // A corrupt write must not be able to hide the banner forever.
+        expect(parseCloudPromoDismissedAt('not-a-number', NOW)).toBe(0);
+        expect(parseCloudPromoDismissedAt('0', NOW)).toBe(0);
+        expect(parseCloudPromoDismissedAt('-5', NOW)).toBe(0);
+        expect(parseCloudPromoDismissedAt('Infinity', NOW)).toBe(0);
+    });
+
+    it('공백 문자열과 지수 표기 오버플로도 0으로 강등한다', () => {
+        expect(parseCloudPromoDismissedAt('   ', NOW)).toBe(0);
+        expect(parseCloudPromoDismissedAt('1e400', NOW)).toBe(0);
+    });
+
+    it('미래 시각도 0으로 강등한다', () => {
+        // Only a clock change or a bad write can produce this; honoring it would hide the banner
+        // until that future date.
+        expect(parseCloudPromoDismissedAt(String(NOW + 1), NOW)).toBe(0);
+    });
+});
+
+describe('dismissCloudPromo — dismiss 기록', () => {
+    beforeEach(() => {
+        // Explicitly native: without this the "no bridge write" assertion below would pass
+        // vacuously whenever isNative() happens to be false, proving nothing about the strategy.
+        mockIsNative.mockReturnValue(true);
+        resetStore();
+    });
+
+    // In an afterEach so a failing assertion can't leave Date.now frozen for the rest of the file.
+    afterEach(() => jest.restoreAllMocks());
+
+    it('현재 시각을 스토어와 localStorage에 함께 쓴다', () => {
+        const now = 1_800_000_000_000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+
+        usePreferenceStore.getState().dismissCloudPromo();
+
+        expect(usePreferenceStore.getState().cloudPromoDismissedAt).toBe(now);
+        expect(localStorage.getItem('chatic-cloud-promo-dismissed-at')).toBe(String(now));
+    });
+
+    it('local 전략이므로 네이티브 브릿지로 보내지 않는다', () => {
+        usePreferenceStore.getState().dismissCloudPromo();
+        expect(mockSavePreference).not.toHaveBeenCalled();
     });
 });

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlaceSync } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
-import { ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge, douLogo } from '@chatic/web-ui-kit';
+import { ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge } from '@chatic/web-ui-kit';
 
 interface PlaceItemProps {
     place: DomainPlace;
@@ -11,43 +11,25 @@ interface PlaceItemProps {
     isDisabled: boolean;
     onSelectPlace: (placeId: string) => void;
     unreadCount?: number;
-    /** Place-type caption below the name (기본/내/초대받은 플레이스). */
+    /** Place-type caption below the name (내/초대받은 플레이스). */
     subtitle: string;
-    /**
-     * True on the relay/default cloud. The relay always shows the user's single personal place,
-     * whose backend name is "default"/"#default" (id "0000"); we brand it as "DoU Home" with the
-     * DoU mascot instead of surfacing that raw name. (The legacy `place.id === 'default'` never
-     * matches real relay places, so the cloud context is the reliable signal.)
-     */
-    isHomePlace?: boolean;
 }
 
-export const PlaceItem = ({
-    place,
-    isSelected,
-    isDisabled,
-    onSelectPlace,
-    unreadCount,
-    subtitle,
-    isHomePlace,
-}: PlaceItemProps) => {
+/**
+ * One row of the cloud-mode Place section. There is no relay variant: relay hides the whole section
+ * (ADR-0034), so the former "DoU Home" branding of the single relay place is gone.
+ */
+export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unreadCount, subtitle }: PlaceItemProps) => {
     const { t } = useTranslation();
     // Register this place as a sync target while it is rendered; the runtime keeps its
     // metadata (name, thumbnail, …) live and unregisters on unmount.
     usePlaceSync(place.id);
 
-    const displayName = isHomePlace ? t('placeList.defaultPlace') : place.name;
+    const displayName = place.name;
     const hasUnread = !!unreadCount && unreadCount > 0;
 
-    // Avatar: the DoU brand mascot on a brand-green disc for the home (relay) place, a photo when
-    // set, otherwise a name-initials avatar. Per Figma (2869:48261): a 42px brand-green circle with
-    // a hairline avatar-ring border. The mascot renders at 32px (matching DouHomeItem's sizing) so
-    // it sits inset within the disc instead of touching its edge.
-    const leading = isHomePlace ? (
-        <span className="flex size-[42px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-avatar-ring bg-main-accent">
-            <img src={douLogo} alt={displayName ?? ''} className="h-8 w-8" />
-        </span>
-    ) : place.thumbnail ? (
+    // Avatar: the place photo when set, otherwise a name-initials avatar.
+    const leading = place.thumbnail ? (
         <ImageAvatar src={place.thumbnail} alt={displayName ?? ''} size={46} />
     ) : (
         <PlaceAvatar name={displayName ?? ''} size="lg" />

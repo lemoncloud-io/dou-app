@@ -108,6 +108,20 @@ export const parsePinnedChannels = (raw: string): Record<string, string[]> => {
     }
 };
 
+/**
+ * Parse the stored cloud-promo dismiss timestamp into epoch ms, or 0 for "never dismissed".
+ *
+ * Anything unusable degrades to 0 so the banner SHOWS rather than staying hidden: a corrupt write
+ * must not be able to suppress it permanently. A timestamp in the future is treated the same way —
+ * it can only come from a clock change or a bad write, and honouring it would hide the banner for
+ * as long as that future date is away.
+ */
+export const parseCloudPromoDismissedAt = (raw: string, now: number = Date.now()): number => {
+    const parsed = Number(raw);
+    if (!raw || !Number.isFinite(parsed) || parsed <= 0) return 0;
+    return parsed > now ? 0 : parsed;
+};
+
 const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
 
 /**
@@ -149,6 +163,8 @@ interface PreferenceState {
     pinnedChannels: Record<string, string[]>;
     /** Live store version the update prompt was last dismissed for; '' means never dismissed. */
     dismissedUpdateVersion: string;
+    /** Epoch ms the cloud-promo banner was last dismissed; 0 means never (see parseCloudPromoDismissedAt). */
+    cloudPromoDismissedAt: number;
 }
 
 interface PreferenceActions {
@@ -166,6 +182,11 @@ interface PreferenceActions {
     setChannelPinned: (scope: string, channelId: string, pinned: boolean) => void;
     /** Mark the update prompt as dismissed for the given live version; suppresses it until a newer version appears. */
     dismissUpdate: (version: string) => void;
+    /**
+     * Record "dismissed now" for the cloud-promo banner. Expiry is NOT enforced here — readers
+     * compare the timestamp against CLOUD_PROMO_DISMISS_TTL_MS (see features/home/hooks/useCloudPromo).
+     */
+    dismissCloudPromo: () => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -194,6 +215,8 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     pinnedChannels: parsePinnedChannels(readPreference('pinnedChannels')),
 
     dismissedUpdateVersion: readPreference('dismissedUpdateVersion'),
+
+    cloudPromoDismissedAt: parseCloudPromoDismissedAt(readPreference('cloudPromoDismissedAt')),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -246,6 +269,12 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     dismissUpdate: (version: string) => {
         set({ dismissedUpdateVersion: version });
         persistPreference('dismissedUpdateVersion', version);
+    },
+
+    dismissCloudPromo: () => {
+        const dismissedAt = Date.now();
+        set({ cloudPromoDismissedAt: dismissedAt });
+        persistPreference('cloudPromoDismissedAt', String(dismissedAt));
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

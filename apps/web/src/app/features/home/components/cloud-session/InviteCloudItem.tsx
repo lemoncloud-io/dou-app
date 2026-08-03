@@ -1,9 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { Check } from 'lucide-react';
-
 import { cn } from '@chatic/lib/utils';
-import { CloudAvatar } from '@chatic/web-ui-kit';
+import { CloudAvatar, IconCheckCircleSolid } from '@chatic/web-ui-kit';
 import type { DomainCloud } from '@chatic/data';
 
 import { SELECTED_HIGHLIGHT } from './shared';
@@ -41,30 +39,28 @@ export const InviteCloudItem = ({
             }}
             disabled={disabled}
             className={cn(
-                'flex w-full items-center gap-[5px] rounded-xl px-2 py-2 transition-colors',
+                'flex w-full items-center gap-3 rounded-xl px-2 py-2 transition-colors',
                 isSelected && SELECTED_HIGHLIGHT,
                 disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
-            <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center">
-                {isSelected && <Check size={22} className="text-[#C139E3]" strokeWidth={2} />}
-            </div>
-            <div className="flex flex-1 items-center gap-3 pr-[6px]">
-                {/* Owner's representative avatar — AppHeader-style initials avatar derived from the
-                    cloud name (no image field exists in the model). */}
-                <CloudAvatar name={displayName} size="lg" />
-                <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-[6px]">
-                        <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
-                            {displayName}
-                        </span>
-                        {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
-                    </div>
-                    <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
-                        {subtitle}
+            {/* Owner's representative avatar — AppHeader-style initials avatar derived from the
+                cloud name (no image field exists in the model). */}
+            <CloudAvatar name={displayName} size="lg" />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex items-center gap-[6px]">
+                    <span className="truncate text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                        {displayName}
                     </span>
+                    {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
                 </div>
+                <span className="truncate text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-description">
+                    {subtitle}
+                </span>
             </div>
+            {/* Same trailing lime disc as the owned rows — this row was still on the old leading
+                purple check that ADR-0014 replaced everywhere else. */}
+            {isSelected && <IconCheckCircleSolid size={28} className="shrink-0 text-primary" />}
         </button>
     );
 };

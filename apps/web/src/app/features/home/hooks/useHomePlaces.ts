@@ -11,7 +11,7 @@ export interface HomePlacesResult {
 
 /**
  * Observes the place (site) list for the active cloud. List discovery (fetch) is owned globally
- * by useBackgroundSync, and per-place realtime sync is registered by the rendered PlaceItem
+ * by useBackgroundSync, and per-place realtime sync is registered by the rendered PlaceItem — which means RELAY has no place sync target at all, since relay does not render the Place section (ADR-0034); only place metadata rides on that plan, so the relay channel list is unaffected
  * (usePlaceSync), so this hook only subscribes to the cache.
  *
  * The subscription is re-created whenever the active cloud (cid) OR the derived uid changes so

@@ -4,37 +4,33 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { useClouds, useProductPlans } from '@chatic/web-core';
+import { useClouds } from '@chatic/web-core';
 
-import { useSubscriptionIap } from '../hooks';
+import { useAllowedProduct, useSubscriptionIap } from '../hooks';
 import { EmailVerifyDialog } from '../../home/components/EmailVerifyDialog';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
 import { PageState, type PurchaseProduct } from '../types';
-import { ALLOWED_PRODUCT_ID_ANDROID, ALLOWED_PRODUCT_ID_IOS, POLICY_BASE_URL } from '../consts';
+import { POLICY_BASE_URL } from '../consts';
 
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
-    const isOnMobileApp = isNative();
-    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
+    // Platform sniffing + allowed-product resolution is shared with the cloud guide (useAllowedProduct)
+    // so the two screens can never disagree about which store's product applies.
+    const { isOnMobileApp, isIOS, product, isLoading: isPlansLoading } = useAllowedProduct();
     const { purchaseAndValidate, fetchNativeProducts } = useSubscriptionIap();
     const { data: cloudsData } = useClouds({ limit: -1 });
     const clouds = cloudsData?.list ?? [];
 
-    const platform = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
-    const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
-        platform ? { platform, limit: -1 } : { limit: -1 }
-    );
-
-    const allowedProductId = isIOS ? ALLOWED_PRODUCT_ID_IOS : ALLOWED_PRODUCT_ID_ANDROID;
-    const products = (plansData?.list ?? []).filter(p => p.id === allowedProductId);
+    // This page only ever renders inside the native shell (it is IAP-only), so the native-gated
+    // `product` from the hook is the same set the old unfiltered filter produced.
+    const products = product ? [product] : [];
 
     const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
     const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
