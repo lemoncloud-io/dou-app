@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
-import { AlertCircle, Check, Loader2, Pencil } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { CloudAvatar } from '@chatic/web-ui-kit';
+import { CloudAvatar, IconCheckCircleSolid } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { CLOUD_AVATAR_CLASS, SELECTED_HIGHLIGHT, getCloudDisplayName, isProvisioning } from './shared';
@@ -38,9 +38,12 @@ interface CloudItemProps {
     hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
     onErrorClick: () => void;
-    onEditCloud?: (cloud: CloudView) => void;
 }
 
+/**
+ * One owned-cloud row of the switcher. Renaming is NOT offered here — the Figma switcher has no
+ * pencil and `/mypage/cloud-profile` is the single rename path (ADR-0034).
+ */
 export const CloudItem = ({
     cloud,
     isSelected,
@@ -48,7 +51,6 @@ export const CloudItem = ({
     hasUnread,
     onSelectCloud,
     onErrorClick,
-    onEditCloud,
 }: CloudItemProps) => {
     const { t } = useTranslation();
     const isError = cloud.status === 'error';
@@ -93,18 +95,6 @@ export const CloudItem = ({
                             {displayName}
                         </span>
                         {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
-                        {isActive && onEditCloud && (
-                            <button
-                                type="button"
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    onEditCloud(cloud);
-                                }}
-                                className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
-                            >
-                                <Pencil size={14} />
-                            </button>
-                        )}
                         <CloudStatusBadge status={cloud.status} />
                     </div>
                 ) : (
@@ -115,7 +105,7 @@ export const CloudItem = ({
                         </span>
                     </div>
                 )}
-                <span className="text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
+                <span className="truncate text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-description">
                     {cloud.email ?? ''}
                 </span>
                 {isProvisioning(cloud.status) && (
@@ -127,12 +117,9 @@ export const CloudItem = ({
                     <span className="text-left text-[11px] leading-[1.3] text-red-400">{cloud.error}</span>
                 )}
             </div>
-            {/* Selection mark — trailing filled green check badge (Figma 2933-9794/9956). */}
-            {isSelected && (
-                <span className="flex shrink-0 items-center justify-center rounded-full bg-[#b0ea10] p-1.5">
-                    <Check size={16} className="text-white" strokeWidth={3} />
-                </span>
-            )}
+            {/* Selection mark — trailing filled lime check disc (Figma 3477-23611). `text-primary`
+                IS the lime: --primary resolves to hsl(76 87% 49%) === #b0ea10 (Figma main1_Color). */}
+            {isSelected && <IconCheckCircleSolid size={28} className="shrink-0 text-primary" />}
         </button>
     );
 };

@@ -125,6 +125,20 @@ export const parsePinnedChannels = (raw: string): Record<string, string[]> => {
     }
 };
 
+/**
+ * Parse the stored cloud-promo dismiss timestamp into epoch ms, or 0 for "never dismissed".
+ *
+ * Anything unusable degrades to 0 so the banner SHOWS rather than staying hidden: a corrupt write
+ * must not be able to suppress it permanently. A timestamp in the future is treated the same way —
+ * it can only come from a clock change or a bad write, and honouring it would hide the banner for
+ * as long as that future date is away.
+ */
+export const parseCloudPromoDismissedAt = (raw: string, now: number = Date.now()): number => {
+    const parsed = Number(raw);
+    if (!raw || !Number.isFinite(parsed) || parsed <= 0) return 0;
+    return parsed > now ? 0 : parsed;
+};
+
 const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
 
 /**
@@ -170,6 +184,8 @@ interface PreferenceState {
     canceledInviteIds: string[];
     /** Received invite ids the user declined (no reject API — ADR-0033 #2). Newest last, ring-capped. */
     declinedInviteIds: string[];
+    /** Epoch ms the cloud-promo banner was last dismissed; 0 means never (see parseCloudPromoDismissedAt). */
+    cloudPromoDismissedAt: number;
 }
 
 interface PreferenceActions {
@@ -191,6 +207,11 @@ interface PreferenceActions {
     markInviteCanceled: (inviteId: string) => void;
     /** Remember that a received invite was declined on this device. Idempotent, ring-capped. */
     markInviteDeclined: (inviteId: string) => void;
+    /**
+     * Record "dismissed now" for the cloud-promo banner. Expiry is NOT enforced here — readers
+     * compare the timestamp against CLOUD_PROMO_DISMISS_TTL_MS (see features/home/hooks/useCloudPromo).
+     */
+    dismissCloudPromo: () => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -223,6 +244,7 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     canceledInviteIds: parseInviteIds(readPreference('canceledInvites')),
 
     declinedInviteIds: parseInviteIds(readPreference('declinedInvites')),
+    cloudPromoDismissedAt: parseCloudPromoDismissedAt(readPreference('cloudPromoDismissedAt')),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -291,6 +313,12 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         const next = [...get().declinedInviteIds.filter(id => id !== inviteId), inviteId].slice(-DECLINED_INVITES_MAX);
         set({ declinedInviteIds: next });
         persistPreference('declinedInvites', JSON.stringify(next));
+    },
+
+    dismissCloudPromo: () => {
+        const dismissedAt = Date.now();
+        set({ cloudPromoDismissedAt: dismissedAt });
+        persistPreference('cloudPromoDismissedAt', String(dismissedAt));
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

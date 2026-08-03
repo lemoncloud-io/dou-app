@@ -6,5 +6,6 @@ export * from './PlaceProfileFormDialog';
 export * from './PlaceProfileCreateDialog';
 export * from './PlaceProfileEditDialog';
 export * from './PlaceList';
+export * from './CloudPromoBanner';
 export * from './CloudSessionSheet';
 export * from './SubscriptionRequiredDialog';

@@ -1,9 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { Check } from 'lucide-react';
-
 import { cn } from '@chatic/lib/utils';
-import { douLogo } from '@chatic/web-ui-kit';
+import { IconCheckCircleSolid, douLogo } from '@chatic/web-ui-kit';
 
 import { SELECTED_HIGHLIGHT } from './shared';
 
@@ -39,11 +37,7 @@ export const DouHomeItem = ({ isSelected, isDisabled, onSelect }: DouHomeItemPro
             <span className="flex-1 text-left text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                 {t('cloudSessionSheet.douHome', '두유 홈')}
             </span>
-            {isSelected && (
-                <span className="flex shrink-0 items-center justify-center rounded-full bg-[#b0ea10] p-1.5">
-                    <Check size={16} className="text-white" strokeWidth={3} />
-                </span>
-            )}
+            {isSelected && <IconCheckCircleSolid size={28} className="shrink-0 text-primary" />}
         </button>
     );
 };

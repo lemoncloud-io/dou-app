@@ -27,6 +27,7 @@ import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
+    CloudPromoBanner,
     CloudSessionSheet,
     CreateChannelDialog,
     CreatePlaceDialog,
@@ -36,6 +37,7 @@ import {
 import { getCloudDisplayName } from '../components/cloud-session';
 import {
     useActiveCloudChannels,
+    useAddCloudFlow,
     useCachedCloudNames,
     useChannelUnreads,
     useHomeChannels,
@@ -111,8 +113,14 @@ export const HomePage = () => {
             : 'free';
 
     // === Data: place list, active place, channel list, unread ===
+    // Relay hides the Place SECTION (a relay cloud always has exactly one place), but these hooks
+    // still run in every mode: ChannelList keys off `selectedPlaceId`, and on relay that value only
+    // ever comes from useSwitchPlace's auto-select. Dropping them would empty the relay home.
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
+
+    // Subscribe-a-cloud flow, shared with the switcher sheet (owns the 1-cloud cap guard).
+    const { requestAddCloud, addCloudDialog } = useAddCloudFlow();
 
     // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
     // optional at entry; users set it up on their own terms from the place settings hub ('내 프로필').
@@ -294,18 +302,24 @@ export const HomePage = () => {
                 onScroll={handleListScroll}
                 className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2"
             >
-                <PlaceList
-                    places={places}
-                    selectedPlaceId={selectedPlaceId}
-                    unreadByPlace={unreadByPlace}
-                    isLoading={isPlacesLoading}
-                    isSwitching={isSwitching}
-                    onSelectPlace={switchPlace}
-                    onCreatePlace={handleCreatePlace}
-                    isInvitedCloud={isInvitedCloud}
-                    isDefaultCloud={isDefaultCloud}
-                    canAddPlace={canAddPlace}
-                />
+                {/* Relay: no Place section — the single relay place is auto-connected, so the list
+                    carries no information. Its slot goes to the cloud upsell instead. The banner
+                    carries its own margin so it leaves no ghost box once it self-hides. */}
+                {isDefaultCloud ? (
+                    <CloudPromoBanner onAddCloud={requestAddCloud} className="mx-4 mb-2" />
+                ) : (
+                    <PlaceList
+                        places={places}
+                        selectedPlaceId={selectedPlaceId}
+                        unreadByPlace={unreadByPlace}
+                        isLoading={isPlacesLoading}
+                        isSwitching={isSwitching}
+                        onSelectPlace={switchPlace}
+                        onCreatePlace={handleCreatePlace}
+                        isInvitedCloud={isInvitedCloud}
+                        canAddPlace={canAddPlace}
+                    />
+                )}
 
                 {selectedPlaceId ? (
                     <ChannelList
@@ -338,12 +352,17 @@ export const HomePage = () => {
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
             <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
-            <CloudSessionSheet open={isCloudSessionOpen} onOpenChange={setIsCloudSessionOpen} />
+            <CloudSessionSheet
+                open={isCloudSessionOpen}
+                onOpenChange={setIsCloudSessionOpen}
+                onAddCloud={requestAddCloud}
+            />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
+            {addCloudDialog}
         </div>
     );
 };

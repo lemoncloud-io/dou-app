@@ -13,7 +13,8 @@ interface UpdateCloudProfileData {
  *
  * This edits the cloud itself (owner-only) — NOT the connected user's per-cloud profile, which the
  * former implementation did via `user.updateProfile`. The cloud model has no image field, so the
- * name is the only editable attribute (mirrors `useUpdateCloud`, kept feature-local to mypage).
+ * name is the only editable attribute. This is now the ONLY cloud-rename path: the switcher's
+ * inline rename (and the home `useUpdateCloud` it used) were removed in ADR-0034.
  */
 export const useUpdateCloudProfile = () => {
     const { cloud } = useRuntimeRepositories();

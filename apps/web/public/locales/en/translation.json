@@ -18,7 +18,8 @@
         "close": "Close",
         "confirm": "OK",
         "save": "Save Changes",
-        "saving": "Saving..."
+        "saving": "Saving...",
+        "back": "Back"
     },
     "nav": {
         "authTest": "Auth Test",
@@ -251,7 +252,34 @@
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
             "inUse": "Subscribed",
-            "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account."
+            "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account.",
+            "cloudGuide": {
+                "entry": "Learn about My Cloud",
+                "heroAccent": "My Cloud",
+                "heroRest": "\nCreate places and chat\nwith all your friends",
+                "free": {
+                    "name": "DoU Home",
+                    "badge": "FREE",
+                    "headline": "Start chatting right away",
+                    "limit1": "1:1 chats with friends only",
+                    "limit2": "No cloud of your own",
+                    "limit3": "No group chats"
+                },
+                "pro": {
+                    "name": "My Cloud",
+                    "badge": "PRO",
+                    "headline": "A space you build yourself",
+                    "benefit1Title": "Your own cloud",
+                    "benefit1Description": "Create places and manage group chats freely",
+                    "benefit2Title": "Create places",
+                    "benefit2Description": "A space per topic",
+                    "benefit3Title": "Group chat rooms",
+                    "benefit3Description": "Chat with many friends inside a place"
+                },
+                "ctaCaption": "Subscribe to build your own space",
+                "ctaWithTrial": "Start {{days}}-day free trial",
+                "ctaPlain": "Get started"
+            }
         },
         "accountManage": {
             "title": "Account Management",
@@ -335,12 +363,10 @@
         "statusSuspended": "Suspended",
         "statusExpired": "Expired",
         "setupProfile": "Please set up your profile",
-        "addAccount": "Add Account",
+        "addAccount": "Add Cloud",
         "empty": "No clouds registered",
         "switchFailed": "Failed to switch cloud",
         "invited": "Invited",
-        "tabMy": "My Clouds",
-        "tabInvited": "Invited",
         "emptyInvited": "No invited clouds",
         "emptyInvitedDescription": "Clouds you've been invited to will appear here",
         "invitedOwnerLabel": "{{owner}}'s cloud",
@@ -354,7 +380,12 @@
         "placeAuthFailed": "Failed to authenticate place",
         "channelLoadFailed": "Failed to load channels",
         "cloudSessionExpired": "Cloud session expired. Switched to default mode.",
-        "close": "Close"
+        "close": "Close",
+        "sectionHome": "Home",
+        "myCloudsDescription": "Start group chats in your own space",
+        "toggleSection": "Toggle section",
+        "sectionMy": "My Clouds",
+        "sectionInvited": "Invited"
     },
     "placeList": {
         "defaultPlace": "DoU Home",
@@ -370,7 +401,6 @@
         "selectCloud": "Please select a cloud first",
         "settings": "Settings",
         "addPlace": "Add Place",
-        "subtitleDefault": "Default Place",
         "subtitleOwned": "My Place",
         "subtitleInvited": "Invited Place",
         "hasUnread": "Unread",
@@ -1195,19 +1225,6 @@
             "tooShort": "Name must be at least 2 characters"
         }
     },
-    "cloudNameEdit": {
-        "title": "Change Cloud Name",
-        "description": "Change the display name of your cloud.",
-        "nameLabel": "Cloud Name",
-        "placeholder": "Enter a name",
-        "save": "Save",
-        "success": "Cloud name has been changed.",
-        "error": "Failed to change the name.",
-        "validation": {
-            "required": "Please enter a name.",
-            "tooShort": "Must be at least 2 characters."
-        }
-    },
     "reportIssue": {
         "title": "Report Issue",
         "description": "Having a problem? Describe it and we'll look into it.",
@@ -1315,5 +1332,10 @@
             "confirm": "Cancel invite"
         },
         "canceledToast": "Invite canceled"
+    },
+    "cloudPromo": {
+        "title": "Create places in your own cloud\nand chat together!",
+        "action": "Add Cloud",
+        "dismiss": "Dismiss"
     }
 }

@@ -44,6 +44,9 @@ export type ChannelSortMethod = 'recent' | 'unread';
 /** Default channel sort when a place has no stored preference. */
 export const DEFAULT_CHANNEL_SORT: ChannelSortMethod = 'recent';
 
+/** How long a dismissed cloud-promo banner stays hidden before it is shown again (24h, ADR-0034). */
+export const CLOUD_PROMO_DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Scope key for the per-place client preferences (channel sort, pinned channels).
  *
@@ -145,6 +148,15 @@ export const PREFERENCES = {
         strategy: 'local',
         localKey: 'chatic-web-relay-invite-declined',
         defaultValue: '[]',
+    },
+    // Epoch ms of the last time the cloud-promo banner was dismissed; '' means never. The banner
+    // reappears once CLOUD_PROMO_DISMISS_TTL_MS has passed, so this is a timestamp rather than a
+    // boolean. Home and the cloud switcher share this single key on purpose — dismissing in one
+    // place hides it in both (ADR-0034). Local-only: nothing on the native side reads it.
+    cloudPromoDismissedAt: {
+        strategy: 'local',
+        localKey: 'chatic-cloud-promo-dismissed-at',
+        defaultValue: '',
     },
     // -----------------------------------------------------------------------
     // Owned by i18next / useBackHandler — registered here for reference
