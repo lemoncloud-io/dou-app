@@ -112,6 +112,8 @@ const resources = {
             'activity.resize': 'Resize activity panel',
             'chat.failed': 'Not delivered',
             'chat.retry': 'Retry',
+            'chat.reaction.add': 'Add reaction',
+            'chat.reaction.who': '{{emoji}} — {{names}}',
             'chat.edit': 'Edit message',
             'chat.editHint': 'Enter to save · Esc to cancel',
             'chat.editFailed': "Couldn't save that change. Try again.",

@@ -1,7 +1,13 @@
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainChat, DomainListResult } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { ChatDeleteInput, ChatGetInput, ChatUpdateInput, IChatRemoteDataSource } from '../remote/data-sources';
+import type {
+    ChatDeleteInput,
+    ChatGetInput,
+    ChatReactionInput,
+    ChatUpdateInput,
+    IChatRemoteDataSource,
+} from '../remote/data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -21,6 +27,7 @@ export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
     sendChat(payload: ChatSendInput): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
     deleteChat(payload: ChatDeleteInput): Promise<DomainChat>;
+    setReaction(payload: ChatReactionInput): Promise<DomainChat>;
 
     cacheRead(id: string): Promise<DomainChat | null>;
     cacheReadList(query: ChatFeedInput): Promise<DomainListResult<DomainChat> | null>;
@@ -165,6 +172,22 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
             }
             throw error;
         }
+    }
+
+    /**
+     * Publish a reaction on/off event.
+     *
+     * Unlike every other mutation here there is nothing to write optimistically: the
+     * reaction is not a field on the target message but a separate event chat, and the
+     * caller derives display state by folding those events. Writing the returned event
+     * into the cache lets that fold see it immediately, without waiting for the
+     * broadcast echo — the echo carries the same `chatNo`, so it lands on the same row.
+     */
+    public async setReaction(payload: ChatReactionInput): Promise<DomainChat> {
+        const requestContext = this.getRequestContext();
+        const event = await this.chatRemoteDataSource.setReaction(payload, this.getNormalizedContext(requestContext));
+        await this.chatLocalDataSource.cacheWrite(event, requestContext);
+        return event;
     }
 
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {

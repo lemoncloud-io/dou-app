@@ -23,7 +23,7 @@ import {
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
-import { buildMemberNames, buildThreadIndex, isDeletedThreadRoot, isFeedVisible } from '../utils';
+import { buildMemberNames, buildThreadIndex, foldReactions, isDeletedThreadRoot, isFeedVisible } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -80,6 +80,9 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
         () => messages.filter(m => isFeedVisible(m) || isDeletedThreadRoot(m, threadIndex)),
         [messages, threadIndex]
     );
+    // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
+    // the events this reads, so folding `topLevel` would always come back empty.
+    const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
     const { isVerified } = useSocketState();
     const [sendTick, setSendTick] = useState(0);
 
@@ -191,6 +194,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
             <MessageList
                 key={channelId}
                 messages={topLevel}
+                reactions={reactions}
                 isLoading={isLoading}
                 viewer={viewer}
                 names={memberNames}

@@ -1,18 +1,21 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, Trash2 } from 'lucide-react';
+import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, SmilePlus, Trash2 } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 
 import { getActiveServerContext } from '@chatic/web-core';
 
-import { canModifyMessage, threadRootId, type MessageGroup } from '../utils';
+import { canModifyMessage, threadRootId, type MessageGroup, type ReactionTally } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
-import { useMessageActions } from '../hooks';
+import { useMessageActions, useReactions } from '../hooks';
+import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { ReactionBar } from './ReactionBar';
 import { RichText } from './RichText';
 
 // Active place id (with the relay 'default' sentinel), read at call time so a saved item is
@@ -44,6 +47,10 @@ interface MessageRowProps {
     onRetry?: (message: DomainChat) => void;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
+    /** Folded reactions for the whole feed, keyed by message id. */
+    reactions?: ReadonlyMap<string, ReactionTally[]>;
+    /** Resolves a reactor's display name for the chip's label. */
+    reactorName?: (userId: string) => string;
     /** root id → loaded reply aggregate; a message with an entry shows a thread footer. */
     threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
@@ -102,6 +109,8 @@ export const MessageRow = memo(
         group,
         onRetry,
         onDiscard,
+        reactions,
+        reactorName,
         threadMeta,
         onOpenThread,
         selfNames,
@@ -115,6 +124,7 @@ export const MessageRow = memo(
         const [editingKey, setEditingKey] = useState<string | null>(null);
         const [draft, setDraft] = useState('');
         const { editMessage, deleteMessage, failedId } = useMessageActions();
+        const { toggleReaction } = useReactions();
         const savedItems = useSavedItemsStore(s => s.items);
         const toggleSaved = useSavedItemsStore(s => s.toggle);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -284,6 +294,15 @@ export const MessageRow = memo(
                                         Message-level, not RichText: the formatter stays pure and
                                         the card renders outside the host <p>. */}
                                     {firstUrl && <LinkPreviewCard url={firstUrl} />}
+                                    {message.id && reactions?.get(message.id) && (
+                                        <ReactionBar
+                                            tallies={reactions.get(message.id) ?? []}
+                                            nameOf={reactorName ?? (id => id)}
+                                            onToggle={(emoji, isMine) =>
+                                                message.id && toggleReaction(message.id, emoji, isMine)
+                                            }
+                                        />
+                                    )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
@@ -298,6 +317,27 @@ export const MessageRow = memo(
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
                                             )}
                                         >
+                                            {message.id && !isPending && !isFailed && (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            title={t('chat.reaction.add')}
+                                                            aria-label={t('chat.reaction.add')}
+                                                            className="focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                                                        >
+                                                            <SmilePlus size={16} />
+                                                        </button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent align="end" side="top" className="w-auto p-2">
+                                                        <EmojiPicker
+                                                            onPick={emoji =>
+                                                                message.id && toggleReaction(message.id, emoji, false)
+                                                            }
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            )}
                                             {onOpenThread && message.id && !isPending && !isFailed && (
                                                 <button
                                                     type="button"

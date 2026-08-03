@@ -7,13 +7,15 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
 import { Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
-import { buildMessageRows, isOwnMessage, type MessageViewer, type ThreadMeta } from '../utils';
+import { buildMessageRows, isOwnMessage, type MessageViewer, type ReactionTally, type ThreadMeta } from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
 
 interface MessageListProps {
     messages: DomainChat[];
+    /** Folded reactions keyed by the message they belong to; absent in the thread panel. */
+    reactions?: ReadonlyMap<string, ReactionTally[]>;
     isLoading: boolean;
     viewer: MessageViewer;
     /** channel member id → display name, used to name authors when owner$ is absent. */
@@ -61,6 +63,7 @@ const isWindowActive = (): boolean =>
 
 export const MessageList = ({
     messages,
+    reactions,
     isLoading,
     viewer,
     names,
@@ -135,6 +138,17 @@ export const MessageList = ({
         () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount),
         [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
     );
+
+    // Name a reactor the same way an author is named: my own id resolves to me, others
+    // through the roster. Memoised because MessageRow is memo'd — a fresh closure here
+    // would re-render every row on each list render.
+    const reactorName = useMemo(() => {
+        const resolve = (userId: string): string => {
+            if (userId === viewer.uid || (!!viewer.cloudUid && userId === viewer.cloudUid)) return viewer.name;
+            return names?.get(userId) ?? '';
+        };
+        return resolve;
+    }, [names, viewer.uid, viewer.cloudUid, viewer.name]);
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -500,6 +514,8 @@ export const MessageList = ({
                             selfNames={selfNames}
                             highlightChatNo={highlightChatNo ?? undefined}
                             withDayInTime={threadReplyCount !== undefined}
+                            reactions={reactions}
+                            reactorName={reactorName}
                         />
                     );
                 })}

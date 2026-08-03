@@ -27,6 +27,12 @@ describe('isFeedVisible', () => {
     it('keeps a join/leave system row — it renders as a notice, not a message', () => {
         expect(isFeedVisible(chat({ stereo: 'system', subType: 'join' }))).toBe(true);
     });
+
+    // These are the input to foldReactions, shown as chips under the message they
+    // point at. As feed rows they would be empty lines.
+    it('drops a reaction event', () => {
+        expect(isFeedVisible(chat({ stereo: 'system', subType: 'reaction' }))).toBe(false);
+    });
 });
 
 describe('isDeletedThreadRoot', () => {

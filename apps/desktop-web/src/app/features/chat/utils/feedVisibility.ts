@@ -17,11 +17,12 @@ import type { DomainChat } from '@chatic/data';
  * two agree.
  *
  * System rows (join/leave) are deliberately *visible* — they render as a notice line
- * rather than a message. Reaction events are system rows too but must not appear;
- * that clause arrives with the reaction slice, once the installed contract package
- * actually has `'reaction'` in `ChatSubType`.
+ * rather than a message. Reaction events are system rows too, but they are the input to
+ * `foldReactions`, not something to read: they appear as chips under the message they
+ * point at, never as a row of their own.
  */
-export const isFeedVisible = (chat: DomainChat): boolean => !chat.parentId && !chat.hidden;
+export const isFeedVisible = (chat: DomainChat): boolean =>
+    !chat.parentId && !chat.hidden && chat.subType !== 'reaction';
 
 /**
  * A deleted message that other people replied to.
