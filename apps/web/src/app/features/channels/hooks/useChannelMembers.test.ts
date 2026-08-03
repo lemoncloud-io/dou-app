@@ -64,4 +64,57 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
 
         expect(result.current.activeMemberIds).toEqual(['u1', 'u3']);
     });
+
+    // 멤버십은 로스터/join(둘 다 sync plan 있음)이 정하고 user 캐시는 신원만 장식한다.
+    // 이전 파생(`users.map`)은 user 행이 없는 멤버를 통째로 잃었다 — self 방에서는 그게 전부다.
+    describe('멤버십 축', () => {
+        it('user 캐시가 비어도 로스터만으로 멤버를 만든다 (self 방: 나 혼자)', () => {
+            seedUsers([]);
+            seedJoins([]);
+
+            const { result } = renderHook(() => useChannelMembers({ channelId: 'c1', memberIds: ['me'] }));
+
+            expect(result.current.members.map(m => m.id)).toEqual(['me']);
+        });
+
+        it('user 캐시가 비어도 join 행만으로 멤버를 만든다', () => {
+            seedUsers([]);
+            seedJoins([join('me', 1)]);
+
+            const { result } = renderHook(() => useChannelMembers({ channelId: 'c1' }));
+
+            expect(result.current.members.map(m => m.id)).toEqual(['me']);
+            expect(result.current.members[0].$join?.joined).toBe(1);
+        });
+
+        it('user 캐시가 있으면 신원을 붙이고 join도 함께 매단다', () => {
+            seedUsers([{ id: 'u1', name: '레모닝' } as { id: string }]);
+            seedJoins([join('u1', 1, { nick: '방별명' })]);
+
+            const { result } = renderHook(() => useChannelMembers({ channelId: 'c1', memberIds: ['u1'] }));
+
+            expect(result.current.members).toHaveLength(1);
+            expect(result.current.members[0]).toMatchObject({ id: 'u1', name: '레모닝' });
+            expect(result.current.members[0].$join?.nick).toBe('방별명');
+        });
+
+        it('로스터 순서를 지키고, 로스터에 없는 멤버는 뒤에 한 번만 붙인다', () => {
+            seedUsers([{ id: 'u3' } as { id: string }]);
+            seedJoins([join('u2', 1)]);
+
+            const { result } = renderHook(() => useChannelMembers({ channelId: 'c1', memberIds: ['u1', 'u2'] }));
+
+            expect(result.current.members.map(m => m.id)).toEqual(['u1', 'u2', 'u3']);
+        });
+
+        it('join 스트림만 emit해도 로딩이 풀린다 (user 캐시는 sync plan이 없다)', () => {
+            userObserveList.mockImplementation(() => () => undefined); // 한 번도 emit하지 않음
+            seedJoins([join('me', 1)]);
+
+            const { result } = renderHook(() => useChannelMembers({ channelId: 'c1' }));
+
+            expect(result.current.isLoading).toBe(false);
+            expect(result.current.members.map(m => m.id)).toEqual(['me']);
+        });
+    });
 });

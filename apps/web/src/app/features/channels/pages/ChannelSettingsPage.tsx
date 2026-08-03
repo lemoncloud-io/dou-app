@@ -55,6 +55,9 @@ export const ChannelSettingsPage = () => {
     const { members, isLoading: isMembersLoading } = useChannelMembers({
         channelId: channelId || '',
         detail: true,
+        // The roster names members before any per-channel sync lands — without it a self-chat shows
+        // an empty "방 친구", since its one member has no user-cache row to be found by.
+        memberIds: channel?.memberIds,
     });
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();

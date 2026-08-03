@@ -79,10 +79,17 @@ export const ChannelRoomPage = () => {
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
+    // Resolved before the member hook so its roster (`channel.memberIds`) can seed the member list —
+    // the two have no dependency on each other beyond that.
+    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
+
     // Loads member user identities (name/avatar fallback) + join read-state into the cache and
     // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.
-    const { members, activeMemberIds } = useChannelMembers({ channelId: stableChannelId, detail: true });
-    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
+    const { members, activeMemberIds } = useChannelMembers({
+        channelId: stableChannelId,
+        detail: true,
+        memberIds: channel?.memberIds,
+    });
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
 

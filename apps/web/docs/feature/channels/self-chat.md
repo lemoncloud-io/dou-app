@@ -185,9 +185,16 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
   `DefaultAvatar`(사람 글리프), 그룹은 기존 `ChatAvatar`. - 멤버 행 렌더는 `memberList` 지역 변수로 추출해 self "방 친구" 섹션과 그룹 멤버 섹션이
   공유한다(로딩/멤버맵/빈 상태 동일). **내 행에 프로필이 없으면 이름 자리에 `프로필 설정 필요`가
   오고 탭이 프로필 생성으로 간다** — self 전용이 아니라 세 유형 공통이며, 소유 문서는
-  [[place-profile-prompt]](../home/place-profile-prompt.md)다. - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
+  [[place-profile-prompt]](../home/place-profile-prompt.md)다.
+    - **self의 "방 친구"가 비어 보이던 원인 (2026-08-03 수정).** `useChannelMembers`가 멤버를
+      `users.map(...)`으로 만들어 **user 캐시에 행이 있는 멤버만** 존재했다. 런타임 sync plan은
+      channel·chat·join·profile에만 있고 **user에는 없어** `syncChannelUsers`가 유일한 적재
+      경로인데, self 방은 멤버가 나 하나여서 그 경로가 비면 목록이 영구히 `멤버가 없습니다`였다.
+      이제 멤버십은 **로스터(`channel.memberIds`) + join 행**이 정하고(둘 다 sync plan 있음) user
+      캐시는 신원만 장식한다. `ChannelMember`도 `Partial<DomainUser> & { id }`로 바뀌어 신원 없는
+      멤버를 표현할 수 있다. `isLoading`도 두 스트림 중 하나만 emit하면 풀린다. - self 분기: `{isSelfChat ? (<GroupLabel 방친구 /> + memberList) : (<>알림·친구추가·멤버·
 삭제/나가기</>)}`. self는 소유자 1명만 "방 친구"에 노출되고, 대화방 알림·친구 추가·방
-  나가기/삭제는 미노출. `JoinNickDialog`는 다른 다이얼로그와 함께 배선.
+      나가기/삭제는 미노출. `JoinNickDialog`는 다른 다이얼로그와 함께 배선.
 
 ### apps/web — 이름 편집 다이얼로그
 
