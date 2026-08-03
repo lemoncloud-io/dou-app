@@ -48,7 +48,7 @@ relay 초대의 스텝 오케스트레이션(인증→프로필→수락→채�
 - `InviteDialog` 진입 라우터(cloud/relay 분기, 온보딩 억제).
 - `CloudInviteDialog` — cloud 초대 오케스트레이션 + 실패 다이얼로그 6종.
 - 공유 수락 화면: 브랜드 헤더, 초대자 헤딩, 플레이스/대상/유효시간 카드, 거절·수락 푸터.
-- **그룹 / 1:1 변형**(ADR-0037): 플레이스 카드 유무, 대상 카드의 캡션과 방 친구 칩.
+- **그룹 / 1:1 변형**(ADR-0037): 대상 카드의 캡션과 방 친구 칩. (플레이스 카드는 2026-07-31부터 두 변형 공통 — ADR-0037 결정 1 철회)
 - 유효시간 카운트다운 훅 + 카드(24시간 미만 `HH:mm:ss`, 그 이상 `n일 n시간`).
 - web-ui-kit 아이콘 3종 추가(duotone 시계 · 방 친구 · 사진 placeholder).
 
@@ -80,9 +80,10 @@ relay 초대의 스텝 오케스트레이션(인증→프로필→수락→채�
 
 ### 2. 1:1 초대 진입 (relay)
 
-relay 마커가 있으면 relay 분기. 화면은 같은 `InviteAcceptScreen`이지만 **플레이스 카드가 아예
-없다** — 1:1 대화에 플레이스는 의미가 없다(ADR-0037 결정 1). 대상 카드 캡션은 "1:1 대화"이고
-방 친구 칩도 없다.
+relay 마커가 있으면 relay 분기. 화면은 같은 `InviteAcceptScreen`이고 **플레이스 카드도 같이
+뜬다** — 초대는 어느 쪽이든 플레이스로 들어가는 것이다(ADR-0037 결정 1 철회). 단 relay
+`invite.get`이 `site$`를 채워주는지 확인되지 않아 실제로는 접혀 있을 수 있다. 대상 카드 캡션은
+"1:1 대화"이고 방 친구 칩은 없다.
 
 이후 스텝(인증→프로필→수락→방 입장)은 [relay-invite-accept](../invite/relay-invite-accept.md).
 
@@ -150,8 +151,8 @@ flowchart TD
 ```mermaid
 flowchart TD
     TK{targetKind}
-    TK -- "'group' (cloud)" --> G1[플레이스 카드 렌더]
-    TK -- "'oneToOne' (relay)" --> O1[플레이스 카드 없음]
+    TK -- "'group' (cloud)" --> G1[방 친구 칩 · 그룹 캡션]
+    TK -- "'oneToOne' (relay)" --> O1[1:1 캡션 · 칩 없음]
     G1 --> G2["대상 카드<br/>캡션 '그룹 대화'"]
     O1 --> O2["대상 카드<br/>캡션 '1:1 대화'"]
     G2 --> G3{memberCount?}
@@ -256,9 +257,9 @@ flowchart LR
   다크 모드에서는 대비가 죽으므로 `dark:text-foreground`로 되돌린다.
 - 본문 서브텍스트와 카드 보조 줄은 `text-label`(`#53555B`) — `text-description`(`#84888F`)이
   아니다.
-- 플레이스 카드 게이트는 `showPlaceCard = targetKind !== 'oneToOne' && (placeName || placeThumbnail)`
-  이다. **1:1이면 메타가 있어도 절대 안 뜨고**(ADR-0037 결정 1), 그룹이면 보여 줄 것이 있을 때만
-  뜬다 — 아이콘만 있는 빈 껍데기는 카드가 없는 것보다 나쁘다("데이터가 없으면 우아하게 접는다").
+- 플레이스 카드 게이트는 `showPlaceCard = placeName || placeIntro || placeThumbnail`이다. **방
+  종류를 보지 않는다**(ADR-0037 결정 1 철회) — 보여 줄 것이 있을 때만 뜨고, 아이콘만 있는 빈
+  껍데기는 카드가 없는 것보다 나쁘다("데이터가 없으면 우아하게 접는다").
 - 푸터: 프로스티드 패널(`bg-white/55 dark:bg-white/5 backdrop-blur-[16px]`, 상단 라운드 16 +
   그림자) 안에 `Button` 거절(`variant="outline"`) / 수락(solid). `size="lg"`가 `h-[50px]`로
   디자인과 일치한다([Button.tsx:23](../../../../../libs/web-ui-kit/src/foundations/button/Button.tsx)).
@@ -277,10 +278,10 @@ flowchart LR
   카드(`white/10`) 위에서는 1.2:1로 사실상 안 보인다. 그래서 `dark:text-white/80`으로 반전해 밝은
   원판 + 어두운 모티프(8.7:1)로 만든다.
 - [`invite/InviteTargetCard.tsx`](../../../src/app/features/home/components/invite/InviteTargetCard.tsx)
-  — `DefaultAvatar size={40} variant="self"` + `You` + 캡션 + 방 친구 칩.
-  `variant="self"`가 Figma `1명 Profile` 글리프(`IconUserSolid`)를 그린다 — 기본값 `'user'`는
-  lucide 외곽선이라 디자인과 다르다. **그룹도 같은 1인 글리프를 쓴다**(ADR-0037 결정 5, 디자인
-  확인 대기). 칩은 `Badge` + className으로 유리 스타일(`bg-white/20`, shadow, `px-3.5 py-2`,
+  — `DefaultAvatar size={40}` + `You` + 캡션 + 방 친구 칩. 기본값 `variant='user'`가 Figma
+  `1명 Profile` 글리프(`IconUser`)를 그린다 — 아바타에 1인 이미지는 그것 하나뿐이다(2026-07-31
+  이후, lucide 외곽선은 `IconUserOutline`으로 분리). **그룹도 같은 1인 글리프를 쓴다**(ADR-0037
+  결정 5, 디자인 확인 대기). 칩은 `Badge` + className으로 유리 스타일(`bg-white/20`, shadow, `px-3.5 py-2`,
   13px)을 입히고 아이콘은 `IconUsersGroup size={18}`이다. 다크에서도 `white/20`을 유지한다 —
   카드가 이미 `white/10`이라 같은 값을 쓰면 칩 경계가 사라진다.
 - [`invite/InviteExpiryCard.tsx`](../../../src/app/features/home/components/invite/InviteExpiryCard.tsx)
@@ -328,7 +329,7 @@ useInviteCountdown(expiredAt?: number): InviteCountdown | null
 
 ### web-ui-kit — 아이콘 3종
 
-`libs/web-ui-kit/src/resources/icons/`에 기존 커스텀 글리프 규약(`IconGroup`·`IconUserSolid`)대로
+`libs/web-ui-kit/src/resources/icons/`에 기존 커스텀 글리프 규약(`IconGroup`·`IconUser`)대로
 `currentColor` React 컴포넌트로 두고 배럴에 노출한다.
 
 | 이름             | Figma 노드                                                  | viewBox     | 비고                                             |
@@ -351,7 +352,7 @@ useInviteCountdown(expiredAt?: number): InviteCountdown | null
 (86px)와 **같은 도형이다**(좌표가 정확히 0.4651배). 그 에셋은 `#102346`이 박힌 URL 임포트라
 다크 모드 대응도 `currentColor`도 안 되고 소비처가 `CreatePlaceDialog`의 업로드 기본 이미지
 하나뿐이므로, 그것은 그대로 두고 컴포넌트를 새로 만든다. 마찬가지로 카드2 글리프는 기존
-`IconUserSolid`와 같은 도형(0.952배)이라 **새 에셋이 필요 없다**.
+`IconUser`(당시 `IconUserSolid`)와 같은 도형(0.952배)이라 **새 에셋이 필요 없다**.
 
 ### i18n
 
@@ -383,9 +384,8 @@ useInviteCountdown(expiredAt?: number): InviteCountdown | null
       있어도 렌더, 칩은 `memberCount` 도착 시에만, 거절 라우팅과 게이팅. 카드 존재는 문구가 아니라
       `data-testid="invite-place-card"`로 단정한다 — 문구만 보면 prop을 안 넘긴 케이스에서 게이트를
       통째로 지워도 통과한다(뮤테이션으로 확인).
-    - **회귀**: `InviteDialog.test.tsx` 무수정 통과. `RelayInviteDialog.test.tsx`의 "플레이스 카드를
-      그리지 않는다"는 이제 이중으로 보장된다(다이얼로그가 `site$`를 전달하지 않음 **＋** 화면이
-      `targetKind`로 차단) — 목이 일부러 site를 실어 두므로 두 가드 중 하나가 빠지면 실패한다.
+    - **회귀**: `InviteDialog.test.tsx` 무수정 통과. relay 쪽 플레이스 카드 케이스는 2026-07-31에
+      뒤집혔다 — 이제 `site$`가 있으면 카드가 뜨고, 없으면 접히는 두 케이스를 각각 고정한다.
 - **정적 검사**: web-ui-kit `tsc --build tsconfig.lib.json` 0 errors. 변경 파일 eslint 0 errors.
   `apps/web` 타입체크는 이 워크트리에서 `routes/ShareLinkRedirect.tsx`(다른 작업분, untracked) 때문에
   2건 실패하지만 **이 기능의 파일에서는 0건**이다.

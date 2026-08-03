@@ -380,7 +380,8 @@ useAwaitInviteChannel(): {
 | `showDecline` | 플래그            | `true`            |
 | `overlay`     | 채널 대기 스피너  | 없음              |
 
-- 플레이스 카드는 **`targetKind='oneToOne'`이라 아예 렌더되지 않는다** — 메타 유무와 무관하다
+- 플레이스 카드는 **메타가 있으면 렌더된다**(ADR-0037 결정 1 철회, 2026-07-31). `RelayInviteAccept`가
+  `site$`의 이름/소개/썸네일을 넘기고, relay `invite.get`이 채워주지 않는 동안에는 조용히 접힌다
   (ADR-0037 결정 1). 1:1 대화에 플레이스는 의미가 없다. 종전에는 "이름도 썸네일도 없으면 접힌다"는
   데이터 기준이었고, 이제 방 종류 기준이다.
 - `InviteTargetCard`의 `kind?: 'group' | 'oneToOne'`이 `inviteAccept.target.oneToOne`("1:1 대화")을

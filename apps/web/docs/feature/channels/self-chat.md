@@ -26,12 +26,12 @@ self 채널 이름을 **각 유저 join의 nick**으로 수정할 수 있게 한
   개념이 없다 — 기존 파생(`showReadReceipt = !isSelfChat && …`)을 유지한다.
 - **누락 컴포넌트만 web-ui-kit에 신규 정의.** 이름수정 UI는 기존 `TextField`(카운터·
   헬퍼·상태 내장)로 충족. 다만 self 기본 아바타는 디자인이 달라(아래) web-ui-kit에 글리프
-  1개(`IconUserSolid`) + 아바타/헤더 변형을 추가한다. 라이브러리 컨벤션(stateless·slot·
+  1개(`IconUser`) + 아바타/헤더 변형을 추가한다. 라이브러리 컨벤션(stateless·slot·
   i18n-agnostic·토큰·`*.test.tsx`+`*.stories.tsx`)을 따른다.
 - **self 기본 아바타는 전용 디자인.** 그룹/일반 유저 placeholder와 다르다 — 네이비
   (`brand-ink`) 원 + gray_blue(`border`) 헤어라인 링 + **흰색 solid 사람 실루엣**(Figma
   "1명 Profile", node 3185:13127). 기존 `variant='user'`(링 없음 + lucide 아웃라인)와 구분
-  된다. 실루엣 글리프는 Figma에서 추출해 `resources/icons/IconUserSolid`로 자산화한다.
+  된다. 실루엣 글리프는 Figma에서 추출해 `resources/icons/IconUser`로 자산화한다.
 - **그 외 아이콘은 `resources/icons` 시맨틱 별칭 재사용**(빈 상태 펜=`PenLine`, 뒤로/더보기
   등 기존 매핑).
 
@@ -49,7 +49,7 @@ site 프로필 nick`으로 통일. 저장은 `useJoinMutations.updateJoin`(`join
    추가·방 나가기/삭제는 self에서 미노출.
 5. **룸/홈 Figma 반영** — 룸 빈 상태(펜 안내)·메시지(전부 mine·읽음숫자 없음)·헤더(self
    전용 아바타 + 제목), 홈 아이템(MY 배지 + self 아바타 + 제목), 설정 이름 행/방 친구 아바타.
-6. **self 전용 기본 아바타** — `IconUserSolid` + `DefaultAvatar`/`ChatRoomHeader` self 변형.
+6. **기본 아바타의 1인 글리프** — `IconUser` + `DefaultAvatar`/`ChatRoomHeader` 배선.
 
 **제외**
 
@@ -201,22 +201,21 @@ self 제목 파생을 순수 함수 + 훅으로 추출해 홈·룸·설정이 �
 이름수정은 기존 `TextField`, 메시지/헤더/리스트/배지는 기존 컴포넌트로 충족. self 기본
 아바타 전용 디자인을 위해 다음을 추가/확장한다:
 
-- **`IconUserSolid`** (신규,
-  [resources/icons/IconUserSolid.tsx](../../../../../libs/web-ui-kit/src/resources/icons/IconUserSolid.tsx)) —
+- **`IconUser`** ([resources/icons/IconUser.tsx](../../../../../libs/web-ui-kit/src/resources/icons/IconUser.tsx),
+  2026-07-31에 `IconUserSolid`에서 개명) —
   Figma "1명 Profile"(3185:13127)에서 추출한 solid 사람 실루엣(머리+어깨 2 path,
   `currentColor`). `viewBox="0 0 42 42"`가 아바타 원과 일치해, 아바타 전체 크기로 렌더하면
   실루엣이 원 기준 위치에 정확히 앉는다. `IconGroup`과 동일 패턴. `resources/icons` 배럴에 export.
-- **`DefaultAvatar` `variant='self'` 추가**
+- **`DefaultAvatar`**
   ([DefaultAvatar.tsx](../../../../../libs/web-ui-kit/src/foundations/avatar/DefaultAvatar.tsx)) —
-  `bg-brand-ink` + `border border-border`(링) + `IconUserSolid`(size=원 지름, 흰색). 기존
-  `user`/`group` 변형과 호출부는 불변.
+  `bg-brand-ink` + `border border-border`(링) + `IconUser`(size=원 지름, 흰색). 아바타 이미지는
+  `user`/`group` **둘뿐**이라 한때 있던 `self` 변형은 `user`로 접혔다(2026-07-31).
 - **`ChatRoomHeader` `kind='self'` 추가**
   ([ChatRoomHeader.tsx](../../../../../libs/web-ui-kit/src/composites/header/ChatRoomHeader.tsx)) —
-  fallback 아바타를 `DefaultAvatar variant='self'`로 매핑(`group`→group, `self`→self, 그 외
-  →user). thumbnail이 있으면 host가 `avatar` slot으로 주입.
+  fallback 아바타를 매핑한다(`group`→group, 그 외→user — `direct`/`self`가 1인 글리프를 공유).
+  thumbnail이 있으면 host가 `avatar` slot으로 주입.
 
-소비처: 룸 `kind={isSelfChat ? 'self' : 'group'}`, 설정 이름 행 아바타 `variant='self'`, 홈
-목록 self 행 `variant='self'`.
+소비처: 룸 `kind={isSelfChat ? 'self' : 'group'}`. 설정 이름 행과 홈 목록 행은 기본값을 쓴다.
 
 ### i18n
 
