@@ -140,6 +140,11 @@ const resources = {
             'sidebar.search': 'Search channels',
             'sidebar.channels': 'Channels',
             'sidebar.noMatches': 'No channels match your search',
+            // Screen-reader text for the sidebar unread markers. The channel dot
+            // carries no number, so without these the badge is colour-only.
+            'sidebar.unread': 'Unread',
+            'sidebar.unreadCount_one': '{{count}} unread message',
+            'sidebar.unreadCount_other': '{{count}} unread messages',
             'sidebar.editMyProfile': 'Edit my profile here',
             'rail.addChannel': 'Add channel',
             'rail.menu.profile': 'Profile',
