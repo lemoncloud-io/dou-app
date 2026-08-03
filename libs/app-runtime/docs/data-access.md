@@ -145,9 +145,9 @@ sequenceDiagram
 - **`DataRepositoriesV2`에 `invite`/`auth` 슬롯 추가**
   (`repositories-v2/index.ts`) — `repositoryFactory`는
   `createRepositoriesV2`에 그대로 위임하므로 별도 배선 변경이 없다.
-- **표면 제거**: `DirectGateways` 타입·`getGateways()`(`data/types.ts:12`,
-  `DataManager.ts:20,52-54`), `useRuntimeGateways`, `remoteFactory`의 gateways
-  반출(`remoteFactory.ts:101-106`), app-runtime 배럴 export.
+- **표면 제거(완료)**: `DirectGateways` 타입·`getGateways()`·`useRuntimeGateways`·
+  `remoteFactory`의 gateways 반출·app-runtime 배럴 export가 모두 사라졌다. 게이트웨이
+  번들은 데이터소스를 조립하는 동안만 존재하고 밖으로 나오지 않는다.
 - **소비처 전환** (apps/web 3훅): `useRelayInvites.ts:38,67` ·
   `useVerifyHashAlias.ts` · `useAttachSocial.ts` — react-query 구조는 유지하고
   호출 대상만 repository로.
@@ -220,16 +220,15 @@ sequenceDiagram
 1. ✅ `InviteRemoteDataSource` 신설 + `AuthRemoteDataSource` 확장 + 테스트.
 2. ✅ `InviteRepositoryV2`/`AuthRepositoryV2` 신설(remote-only), `DataRepositoriesV2`
    슬롯 추가 + 테스트. `repositoryFactory`는 `createRepositoriesV2` 위임이라 무변경.
-3. ⏸ app-runtime: `DirectGateways`/`getGateways`/`useRuntimeGateways`/배럴 export
-   제거.
-4. ⏸ apps/web 3훅 전환 (`useRelayInvites`/`useVerifyHashAlias`/`useAttachSocial`),
-   react-query 키·동작 불변 확인.
+3. ✅ app-runtime: `DirectGateways`/`getGateways`/`useRuntimeGateways`/배럴 export
+   제거. `public-surface.test.ts`가 배럴을 고정하고 있어 export 삭제가 의도적 행위로
+   드러난다.
+4. ✅ apps/web 3훅 전환 (`useRelayInvites`/`useVerifyHashAlias`/`useAttachSocial`).
+   react-query 키·무효화·포커스 refetch는 불변이고, 훅이 하던 패킷 조립(step 파생,
+   미지정 스위치 생략, `{ list }` 봉투 벗기기)은 이미 그 계약을 검증하던
+   데이터소스로 돌아갔다 — 훅 테스트의 해당 단정은 중복이라 함께 정리했다.
 
-> 3–4번 보류 이유: 표면 제거는 소비처 전환과 한 커밋이어야 하는데, relay 트랙이
-> 아직 `useRelayInvites`·invite 화면을 수정 중이다(미커밋). 1–2번은 순수 추가라
-> 충돌 없이 먼저 들어갔다. relay 브랜치 머지 후 3–4번을 한 세션으로 처리한다.
-> 신규 표면은 이미 `useRuntimeRepositories().invite`/`.auth`로 닿으므로, 전환은
-> 훅 안의 호출 대상만 바꾸는 기계적 작업이다.
+> 트랙 1 완료. 남은 것은 트랙 2 이후다.
 
 **트랙 2 — cloudScope 단일화 + 순환 컷** 5. `cloudScope` 모듈 신설, `dropForeignFrame`·`isCidActive`·socketAwareProvider
 판정 이전 + 판정 표 테스트. 6. `DataManager` boundCid 주입화 (data→socket 컷). 7. sync plan 조립을 `connection/`으로 이동 (socket→data 컷). 8. `invitedCloudColdSync` 훅 `runtime/` 이동 (data→runtime 컷).

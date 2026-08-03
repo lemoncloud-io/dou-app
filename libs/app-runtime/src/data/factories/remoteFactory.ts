@@ -98,10 +98,7 @@ export const createRemoteDataSources = () => {
         profile: profileGateway,
     };
 
-    return {
-        remoteDataSources: createDataRemoteDataSources({ gateways }),
-        // Handed back so the react-query flows that deliberately skip repositories-v2 (relay
-        // invites — ADR-0033) reach the same gateway instances instead of building their own.
-        gateways,
-    };
+    // Gateways are not handed back: every caller goes through a repository (ADR-0036), so the bundle
+    // exists only long enough to build the data sources.
+    return { remoteDataSources: createDataRemoteDataSources({ gateways }) };
 };

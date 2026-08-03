@@ -52,6 +52,11 @@ ADR-0033의 대안 "초대 목록을 repositories-v2로 승격 — 버림"을 **
   표면"으로 재정의한다 (libs/data README 갱신 필요).
 - `useRuntimeGateways` / `DirectGateways` 표면은 제거한다.
 
+    > **이행 완료 (2026-07-31)** — `useRuntimeGateways`·`DirectGateways`·`getGateways`·
+    > `remoteFactory`의 gateways 반출이 모두 삭제됐고, `apps/web`의 세 훅
+    > (`useRelayInvites`·`useVerifyHashAlias`·`useAttachSocial`)이 `InviteRepositoryV2`/
+    > `AuthRepositoryV2`로 전환됐다. 게이트웨이를 직접 잡는 경로는 남아 있지 않다.
+
 ### 2. app-runtime 구조 정리 — 점검된 꼬임 전면 채택
 
 - **cid/스코프 부기 단일화**: 6곳에 분산된 규칙을 한 모듈로 모은다 (cross-cloud

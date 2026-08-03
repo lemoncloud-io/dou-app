@@ -135,7 +135,7 @@ useSentInviteLog(): {
 1. ~~의존성 범프: `@lemoncloud/chatic-sockets-lib` `0.4.8 → 0.4.9`,
    `@lemoncloud/chatic-backend-api` `^0.26.405 → ^0.26.704`.~~ **완료**
 2. ~~invite 게이트웨이 배선~~ **완료** — `libs/data/src/data/remote/gateways/index.ts`
-   에 연결되고 `libs/app-runtime`의 `useRuntimeGateways`로 노출된다
+   에 연결되고 `libs/app-runtime`의 `useRuntimeGateways`로 노출된다(현재는 폐지 — `useRuntimeRepositories().invite`)
    (`remoteFactory`·`DataManager`·`MockRemoteGateways` 포함).
 3. ~~위 인터페이스 계약의 훅 구현 + 단위 테스트.~~ **완료** — 훅은 통합 시점에,
    단위 테스트는 2026-07-30에 (`useRelayInvites.test.ts`·`useVerifyHashAlias.test.ts`·
@@ -449,7 +449,7 @@ Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문�
 ```
 /dev-2_implement docs/plans/relay-dm-invite-parallel-roadmap.md 의 Track 0(공통 기반) 나머지를 구현해줘.
 ADR: docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md
-통합 브랜치에서 직접 작업한다(별도 워크트리 없음). 의존성 범프와 게이트웨이 배선은 이미 끝났다(cd98a0492, 249fe3543) — libs/app-runtime의 useRuntimeGateways로 invite 게이트웨이가 나온다. 거기서 이어라.
+통합 브랜치에서 직접 작업한다(별도 워크트리 없음). 의존성 범프와 게이트웨이 배선은 이미 끝났다(cd98a0492, 249fe3543) — ~~libs/app-runtime의 useRuntimeGateways로 invite 게이트웨이가 나온다~~ → **2026-07-31부터 `useRuntimeRepositories().invite`(InviteRepositoryV2)** 다. 게이트웨이 직접 표면은 ADR-0036으로 폐지됐다. 거기서 이어라.
 남은 범위: (1) 로드맵 "인터페이스 계약" 절의 useRelayInvites / useRelayInviteMutations / useVerifyHashAlias / useAttachSocial 훅 + 단위 테스트(MockSocketClient 패턴). 초대는 repositories-v2로 승격하지 않는다 — react-query다. 위치는 기존 useInviteInfo/useVerifyAlias 관례를 따라라.
 (2) parseInviteDeeplink(apps/web/.../home/types/invite.ts)에 relay 마커 → isRelayInvite 추가. 기존 클라우드 초대 판정(isInviteEntry)에 회귀 금지.
 계약 시그니처는 로드맵 문서가 원본이다 — 바꿔야 하면 로드맵부터 고치고 이유를 남겨라. 나머지 4개 트랙이 이 문서를 읽는다.
