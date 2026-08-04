@@ -1,5 +1,118 @@
 # Changelog
 
+## [2026-08-04] - root@0.47.0, @chatic/web@0.40.0, @chatic/landing@0.4.1
+
+### Features
+
+- (web/subscription) require a linked social account before charging
+- (web/auth) prove an account through one packet, and read what is linked
+- (web) ask for a place profile where a name should be
+- (web/channels) one title chain per channel, one intro per stereo
+- (web/mypage) hold the social-link section back until linking can be read
+- (web/invite) show the invited place on a 1:1 accept screen
+- (web/channels) name a 1:1 room the same way on every surface
+- (web-ui-kit) match SystemMessage to the Figma chat-entry spec
+- (web/mypage) keep the store row on iOS and branch its label
+- (web/invite) open an invite on its own page instead of over home
+- (web/invite) add the /invite/accept route
+- (web/invite) add the redirect layer for the invite accept route
+- (app-runtime) wait on a specific socket slot's handshake
+- (web/invite) split the accept popup into group and 1:1 variants
+- (web-ui-kit) add the invite accept screen's duotone glyphs
+- (web/invite) resolve an accepted invite's room in three tiers
+- (data) add remote-only invite and auth repositories
+- (data) add the invite source and the auth identity packets
+- (web/invite) gate relay invite issuance behind phone verification
+- (web/invite) add relay 1:1 invite sender flow
+- (web-ui-kit) add expired variant to StatusBadge
+- (web/hooks) add local sent-invite log for relay invite tracking
+- (web/bridge) add SMS composer bridge for relay invite delivery
+- (web/invite) add the relay invite accept popup
+- (web/invite) orchestrate the relay invite accept steps
+- (web) wait for the DM room an accepted invite creates
+- (web/invite) add the relay invite stubs and Track A contract mocks
+- (web/auth) add the phone-verification screen for the relay invite flows
+- (app-runtime) apply the verify-hash-alias session token to the relay socket
+- (web-core) commit an already-issued relay token as the active session
+- (web/mypage) add social-link section to account info (Track D)
+- (web/home) detect the relay marker on invite deeplinks
+- (web) add the relay invite and phone-verification contract hooks
+- (data) wire the relay invite socket gateway
+
+### Bug Fixes
+
+- (data) drop unusable channel rows and honour an empty snapshot
+- (web/channels) wait for a channel instead of calling a cache miss an absence
+- (web/push) leave a way back when a push opens a room
+- (web-ui-kit) hold the caret through a tapped send button
+- (web/channels) let a member exist without a cached user row
+- (web/auth) dock the phone-verify CTA on a floating panel
+- (web-ui-kit) ride a bottom sheet above the soft keyboard
+- (web/invite) retire the previous invite when reissuing
+- (web/ui) scroll a focused field clear of the docked CTA
+- (web/invite) restore the imports the contact-invite CTA switch needs
+- (web) align channel list row avatars with Figma
+- (web/invite) recognise a code-only share link as a relay invite
+- (web/invite) stop a booting relay socket failing the accept as unclassified
+- (web/appupdate) source the update row from the live check
+- (web/invite) stop the countdown leaking ticks and wire the dropped invite fields
+- (mobile/ios) build ReactNativeStaticServer in a space-free temp dir
+- (web/invite) wire the rejected-state flag and drop the dead one
+- (web/invite) refetch the invite list on window focus
+- (web) restore develop's updateAvailable copy after the rebase merge
+- (web-core) send logout straight home instead of rewinding history
+- (app-runtime) reject when the relay socket keeps the old identity
+- (web) align Track A·B relay invite screens with Figma
+- (web/invite) make the cancel/reissue flags actually gate copy
+
+### Documentation
+
+- retire the manual test-flow notes
+- (web) follow the place card reversal and the avatar glyph rename
+- (adr) reverse the 1:1 place card exclusion and reset invite validity to 1 day
+- (test-flows) add the 1:1 invite and DM chat manual flow
+- (adr) record the DM name chain and the invite profile release
+- (web/channels) rewrite the DM feature doc around the shared name chain
+- (spec) mark the invite accept entry live
+- (spec) plan the invite accept page split from home
+- (adr) record the group and 1:1 invite accept variants
+- (adr) record the three-tier resolution for an accepted invite's room
+- (plans) record the roadmap audit and the three gaps it closed
+- (adr) unify the data access surface on repositories
+- (plans) hand the invite follow-up work to a fresh session
+- (plans) record the invite track integration and what remains
+- (web/invite) mark the relay invite accept spec live
+- (web/invite) spec the relay 1:1 invite accept flow
+- (web/auth) document the phone-verification architecture as Live
+- (web/mypage) cite ADR-0033 request #6 in the social-link cache TODO
+- (web/account) add social-links architecture doc for Track D
+- (plans) base the invite tracks on the integration branch
+- (adr) add relay DM invite ADR and parallel-track roadmap
+
+### Refactor
+
+- (app-runtime) stop handing the gateway bundle back out
+- route every read and write through a repository
+- (web) keep invite cancel and decline ids in the preference store
+- (web-ui-kit) make the solid silhouette the only user avatar glyph
+- (web/invite) stop asking for a place profile before accepting
+- (web/invite) take the Dialog costume off the accept screen
+- (web/invite) move the accept flow out of the home feature
+- (web/channels) extract shared korean phone helpers
+- (web/invite) swap the Track A mock for the real phone-verification screen
+- (web/invite) split the invite dialog into a deeplink router
+- (web/mypage) share Google/Apple provider icons between screens
+
+### Chores
+
+- (web/invite) drop an unused Button import
+- (deps) bump chatic-sockets-lib to 0.4.9 and backend-api to 0.26.704
+
+### Other
+
+- test: (web/hooks) cover the phone-verification and social-attach hooks
+- test: (app-runtime) pin device-id storage survival across the session switch
+
 ## [2026-07-30] - root@0.46.1, @chatic/desktop-web@0.4.1
 
 ### Features
