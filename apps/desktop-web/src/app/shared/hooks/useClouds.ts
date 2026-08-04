@@ -41,32 +41,39 @@ export const useClouds = () => {
 
     const clouds = useMemo<RailCloud[]>(() => {
         const byId = new Map<string, RailCloud>();
+        // The joined-clouds store is the only source carrying a just-joined cloud's name — the
+        // cache row is written without one — so every entry falls back to it for the name.
+        const joinedName = (id: string) => joinedClouds[id]?.name;
+        const invitedTile = (id: string, name?: string): RailCloud => ({
+            id,
+            name: name ?? joinedName(id),
+            status: 'active',
+            kind: 'invited',
+        });
+
         for (const c of rawClouds) {
             if (c.id && c.id !== 'default') {
-                byId.set(c.id, { id: c.id, name: c.name, status: c.status as string | undefined, kind: 'owned' });
+                const name = c.name ?? joinedName(c.id);
+                byId.set(c.id, { id: c.id, name, status: c.status as string | undefined, kind: 'owned' });
             }
         }
         // Invited clouds, restored from their durable cache row. Owned entries win — the same cloud
         // can be cached as invited and later show up owned once signed in as its owner.
         for (const c of cachedClouds) {
             if (c.cloudType === 'invited' && c.id && c.id !== 'default' && !byId.has(c.id)) {
-                byId.set(c.id, { id: c.id, name: c.name, status: 'active', kind: 'invited' });
+                byId.set(c.id, invitedTile(c.id, c.name));
             }
         }
-        // Merge invite-joined clouds the broker list hasn't returned yet (eventual
-        // consistency), so a just-joined cloud shows in the rail immediately. It also carries the
-        // cloud's name, which the cache row does not — fill that in rather than shadowing it.
+        // A cloud joined via invite can be in neither of the above yet: the broker list is
+        // eventually consistent and the cache row lands moments later. Show it right away.
         for (const j of Object.values(joinedClouds)) {
-            const existing = byId.get(j.id);
-            if (existing) existing.name = existing.name ?? j.name;
-            else if (j.id !== 'default') byId.set(j.id, { id: j.id, name: j.name, status: 'active', kind: 'invited' });
+            if (j.id !== 'default' && !byId.has(j.id)) byId.set(j.id, invitedTile(j.id, j.name));
         }
-        // The cloud the session is inside always gets a tile, even when neither source lists it —
-        // its channels are on screen, so a rail without it reads as "my cloud disappeared" and
-        // leaves no tile for the active highlight to land on. Name unknown here; the tile falls
-        // back to the id's initial.
+        // The cloud the session is inside always gets a tile, even when no source lists it — its
+        // channels are on screen, so a rail without it reads as "my cloud disappeared" and leaves
+        // no tile for the active highlight to land on.
         if (activeCloudId && activeCloudId !== 'default' && !byId.has(activeCloudId)) {
-            byId.set(activeCloudId, { id: activeCloudId, status: 'active', kind: 'invited' });
+            byId.set(activeCloudId, invitedTile(activeCloudId));
         }
         // The Default Cloud ('Home') is always the first rail entry — it's the Guest
         // Session's Self Channel and the return path from any joined cloud.

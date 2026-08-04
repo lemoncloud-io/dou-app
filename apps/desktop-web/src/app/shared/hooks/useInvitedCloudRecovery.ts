@@ -31,10 +31,12 @@ export const useInvitedCloudRecovery = (): void => {
     const { selectedCloudId } = useSessionSelection();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const recoveredRef = useRef<string | null>(null);
+    // Depend on the answer, not the catalog array: it gets a new identity on every poll, and the
+    // ref would then be absorbing re-runs it was never meant to guard.
+    const isOwned = ownedClouds.some(c => c.id === selectedCloudId);
 
     useEffect(() => {
-        if (!isVerified || !selectedCloudId || selectedCloudId === 'default') return;
-        if (ownedClouds.some(c => c.id === selectedCloudId)) return;
+        if (!isVerified || !selectedCloudId || selectedCloudId === 'default' || isOwned) return;
         if (recoveredRef.current === selectedCloudId) return;
         recoveredRef.current = selectedCloudId;
 
@@ -42,5 +44,5 @@ export const useInvitedCloudRecovery = (): void => {
             await recoverInvitedCloudIfMissing(cloud, selectedCloudId);
             await syncInvitedCloudName(cloud, selectedCloudId);
         })();
-    }, [cloud, isVerified, selectedCloudId, ownedClouds]);
+    }, [cloud, isVerified, selectedCloudId, isOwned]);
 };

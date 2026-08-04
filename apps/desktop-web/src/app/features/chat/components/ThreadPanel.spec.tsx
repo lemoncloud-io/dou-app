@@ -58,21 +58,24 @@ const chat = (chatNo: number, extra: Partial<DomainChat>): DomainChat =>
         ...extra,
     }) as DomainChat;
 
+// A root, one reply, and someone's 👍 on the root — the reaction arrives as its own chat.
+const THREAD_WITH_REACTION: DomainChat[] = [
+    chat(1, { content: 'root' }),
+    chat(2, { content: 'reply', parentId: 'C1:1' }),
+    chat(3, {
+        ownerId: 'bob',
+        subType: 'reaction',
+        parentId: 'C1:1',
+        reaction$: { chatId: 'C1:1', emoji: '👍', action: 'on' },
+    } as Partial<DomainChat>),
+];
+
 describe('ThreadPanel', () => {
     it('shows the reactions on a threaded message', () => {
-        // The server keeps no reaction state: a reaction is its own chat, and the tallies are
-        // folded out of the loaded feed. The panel renders the same messages as the feed, so a
-        // message with reactions has to carry them here too (.claude/20260804/DEBUG-15-17-00.md).
-        messages = [
-            chat(1, { content: 'root' }),
-            chat(2, { content: 'reply', parentId: 'C1:1' }),
-            chat(3, {
-                ownerId: 'bob',
-                subType: 'reaction',
-                parentId: 'C1:1',
-                reaction$: { chatId: 'C1:1', emoji: '👍', action: 'on' },
-            } as Partial<DomainChat>),
-        ];
+        // The server keeps no reaction state: the tallies are folded out of the loaded feed. The
+        // panel renders the same messages as the feed, so a message with reactions has to carry
+        // them here too (.claude/20260804/DEBUG-15-17-00.md).
+        messages = THREAD_WITH_REACTION;
 
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
@@ -82,16 +85,7 @@ describe('ThreadPanel', () => {
     });
 
     it('counts only real replies, not the reaction events', () => {
-        messages = [
-            chat(1, { content: 'root' }),
-            chat(2, { content: 'reply', parentId: 'C1:1' }),
-            chat(3, {
-                ownerId: 'bob',
-                subType: 'reaction',
-                parentId: 'C1:1',
-                reaction$: { chatId: 'C1:1', emoji: '👍', action: 'on' },
-            } as Partial<DomainChat>),
-        ];
+        messages = THREAD_WITH_REACTION;
 
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
