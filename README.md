@@ -410,6 +410,7 @@ The CI pipeline automatically detects which apps have changed and only builds/de
 # Lint
 yarn lint                   # Check for issues
 yarn lint:fix               # Auto-fix issues
+yarn check:undefined-names  # Fail on TS2304 — a name used but never imported; run after moving symbols
 
 # Format
 yarn prettier               # Format all files
@@ -425,6 +426,13 @@ yarn clean:cache            # Clear Vite/Nx caches
 ```
 
 Pre-commit hooks (via Husky) automatically run linting and formatting on staged files. Commit messages are enforced with [Conventional Commits](https://www.conventionalcommits.org/) via Commitlint.
+
+`yarn check:undefined-names` is deliberately outside those hooks — it type-checks all 24
+projects and takes about 20 seconds, which is too slow per commit. Run it yourself after any
+change that moves or extracts a symbol. It catches what nothing else here can: ESLint disables
+`no-undef` on TypeScript files, Vite strips types without resolving free identifiers, and a test
+only sees the error if something renders that line. Pass a project name to narrow it
+(`yarn check:undefined-names desktop-web`).
 
 ## Contributing
 
