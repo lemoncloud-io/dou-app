@@ -7,7 +7,14 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 
 import { Skeleton, resolveDisplay, useSiteProfileMap } from '../../../shared';
-import { buildMessageRows, isOwnMessage, type MessageViewer, type ReactionTally, type ThreadMeta } from '../utils';
+import {
+    buildMessageRows,
+    isOwnMessage,
+    isViewerId,
+    type MessageViewer,
+    type ReactionTally,
+    type ThreadMeta,
+} from '../utils';
 import { DateSeparator } from './DateSeparator';
 import { SystemNotice } from './SystemNotice';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
