@@ -8,10 +8,11 @@
 
 ## 화면
 
-| 페이지                  | 경로(`ROUTES.subscription.*`) | 설명                               |
-| ----------------------- | ----------------------------- | ---------------------------------- |
-| `SubscriptionPage`      | `/subscription`               | 구독 현황(현재 멤버십, 복원, 약관) |
-| `SubscriptionPlansPage` | `/subscription/plans`         | 플랜 선택 → 구매 흐름              |
+| 페이지                  | 경로(`ROUTES.subscription.*`) | 설명                                                                  |
+| ----------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `SubscriptionPage`      | `/subscription`               | 구독 현황(현재 멤버십, 복원, 약관)                                    |
+| `SubscriptionPlansPage` | `/subscription/plans`         | 플랜 선택 → 구매 흐름                                                 |
+| `CloudGuidePage`        | `/subscription/guide`         | 클라우드 안내(구독 전 가치 설명) — [cloud-guide.md](./cloud-guide.md) |
 
 ## 구조
 
@@ -20,6 +21,8 @@ features/subscription/
   pages/
     SubscriptionPage.tsx
     SubscriptionPlansPage.tsx
+    CloudGuidePage.tsx        # 클라우드 안내 (읽기 전용, CTA만 plans로 navigate)
+    cloud-guide/              #   PlanCompareCard · GuideBulletList (이 화면 전용 조각)
   hooks/
     useSubscriptionIap.ts   # IAP: 구매·검증·복원 (appBridge 경유)
   types/

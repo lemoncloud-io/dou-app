@@ -17,12 +17,15 @@ interface PlaceListProps {
     onCreatePlace?: () => void;
     /** True while connected to an invited cloud — drives the place-type caption. */
     isInvitedCloud?: boolean;
-    /** True on the relay/default cloud — its single personal place renders as "DoU Home". */
-    isDefaultCloud?: boolean;
-    /** Owner-only: shows the "add place" row (hidden on relay / for invited users). */
+    /** Owner-only: shows the "add place" row (hidden for invited users). */
     canAddPlace?: boolean;
 }
 
+/**
+ * Place section — CLOUD MODE ONLY. Relay never renders this list: it always has exactly one place
+ * and it is auto-connected, so HomePage shows the cloud promo banner in this slot instead
+ * (ADR-0034). That is why there is no `isDefaultCloud` branch here any more.
+ */
 export const PlaceList = ({
     places: rawPlaces,
     selectedPlaceId,
@@ -32,18 +35,16 @@ export const PlaceList = ({
     onSelectPlace,
     onCreatePlace,
     isInvitedCloud,
-    isDefaultCloud,
     canAddPlace,
 }: PlaceListProps) => {
     const { t } = useTranslation();
     // Exclude relay subscription rows (stereo === 'place'); they are not selectable places.
     const places = rawPlaces.filter(p => p.stereo !== 'place');
 
-    const placeSubtitle = (place: DomainPlace): string => {
-        if (isDefaultCloud) return t('placeList.subtitleDefault', '기본 플레이스');
-        if (isInvitedCloud) return t('placeList.subtitleInvited', '초대받은 플레이스');
-        return t('placeList.subtitleOwned', '내 플레이스');
-    };
+    const placeSubtitle = (): string =>
+        isInvitedCloud
+            ? t('placeList.subtitleInvited', '초대받은 플레이스')
+            : t('placeList.subtitleOwned', '내 플레이스');
 
     if (isLoading) {
         return (
@@ -71,8 +72,7 @@ export const PlaceList = ({
                     isDisabled={!!isSwitching}
                     unreadCount={unreadByPlace?.[place.id]}
                     onSelectPlace={onSelectPlace}
-                    subtitle={placeSubtitle(place)}
-                    isHomePlace={isDefaultCloud}
+                    subtitle={placeSubtitle()}
                 />
             ))}
             {canAddPlace && onCreatePlace && (

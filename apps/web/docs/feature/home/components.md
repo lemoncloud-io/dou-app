@@ -7,11 +7,11 @@
 ```
 components/
   index.ts                       # 배럴
-  PlaceList.tsx + PlaceItem.tsx   # 플레이스 섹션 (CollapsibleSection + ListRow; PlaceItem은 usePlaceSync 등록)
+  PlaceList.tsx + PlaceItem.tsx   # 플레이스 섹션 — 클라우드 모드 전용 (CollapsibleSection + ListRow; PlaceItem은 usePlaceSync 등록)
+  CloudPromoBanner.tsx            # 클라우드 유도 배너 (중계 홈 + 시트 공용; useCloudPromo가 노출/24h dismiss 판정)
   ChannelList.tsx                 # 채널 섹션 (CollapsibleSection + ListRow; ChannelItem은 useChannelSync + useLastChat 등록, ＋ 생성 팝오버 내장)
   CreateChannelDialog.tsx
   CreatePlaceDialog.tsx
-  CloudNameEditDialog.tsx
   SubscriptionRequiredDialog.tsx
 
   InviteDialog.tsx                # 초대 수락 오케스트레이터 (URL 구동, 풀스크린 Dialog + 실패 AlertDialog; useInviteAccept/useInviteCountdown)
@@ -22,13 +22,13 @@ components/
     InviteTargetCard.tsx          #     You 카드 (1:1 / 방 친구 N 배지)
     InviteExpiryCard.tsx          #     초대 링크 유효기간 카운트다운
 
-  CloudSessionSheet.tsx           # 메인 시트 로직 (BottomSheet; 목록/전환/연결끊기)
-  cloud-session/                  #   시트 구성 요소 (ProfileSection은 ADR-0013에서 제거 — 프로필은 헤더 드롭다운으로)
-    shared.ts                     #     스타일 상수 + isProvisioning/getCloudDisplayName + CloudTab
-    CloudItem.tsx                 #     내 클라우드 행 (+ CloudStatusBadge)
+  CloudSessionSheet.tsx           # 메인 시트 로직 (BottomSheet + CollapsibleSection 3개; 목록/전환/중계 복귀)
+  cloud-session/                  #   시트 구성 요소 (ProfileSection은 ADR-0013에서, TabBar는 ADR-0034에서 제거)
+    shared.ts                     #     스타일 상수 + isProvisioning/getCloudDisplayName/sortCloudsForSwitcher
+    DouHomeItem.tsx               #     Home 섹션의 중계(default) 행
+    CloudItem.tsx                 #     내 클라우드 행 (+ CloudStatusBadge; 이름 편집은 ADR-0034에서 제거)
     InviteCloudItem.tsx           #     초대 클라우드 행 (DomainCloud)
-    TabBar.tsx
-    AddAccountButton.tsx
+    AddAccountButton.tsx          #     '내 클라우드' 섹션 footer의 ＋ 클라우드 추가 (개수 무관 상시 노출)
 
   SubscriptionSelectDialog.tsx    # 요금제 선택 다이얼로그 (로직)
   subscription-select/

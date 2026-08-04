@@ -69,4 +69,60 @@ describe('CollapsibleSection', () => {
 
         expect(screen.getByRole('button', { name: 'add' })).toBeInTheDocument();
     });
+
+    it('renders no description or footer node when neither is supplied', () => {
+        const { container } = render(
+            <CollapsibleSection title="Place">
+                <div>row</div>
+            </CollapsibleSection>
+        );
+
+        // Guards the existing home Place/Chat markup: consumers that never pass the new props get
+        // exactly two children — the header and the animated body wrapper.
+        const section = container.querySelector('section') as HTMLElement;
+        expect(section.children).toHaveLength(2);
+    });
+
+    it('places description and footer OUTSIDE the collapsing wrapper', () => {
+        render(
+            <CollapsibleSection
+                title="내 클라우드"
+                description="나만의 공간에서 그룹 대화 시작"
+                footer={<button>add cloud</button>}
+            >
+                <div>row</div>
+            </CollapsibleSection>
+        );
+
+        // The `.grid` wrapper is what animates to 0fr and clips its content, so containment — not
+        // mere presence — is the real guarantee. jsdom applies no CSS, so asserting "still in the
+        // document" after a collapse would pass even if these nodes were moved inside the clip.
+        const clipped = screen.getByText('row').closest('.grid') as HTMLElement;
+        expect(clipped).not.toBeNull();
+        expect(clipped.contains(screen.getByText('나만의 공간에서 그룹 대화 시작'))).toBe(false);
+        expect(clipped.contains(screen.getByRole('button', { name: 'add cloud' }))).toBe(false);
+    });
+
+    it('keeps description and footer mounted while the body is collapsed', () => {
+        render(
+            <CollapsibleSection
+                title="내 클라우드"
+                description="나만의 공간에서 그룹 대화 시작"
+                footer={<button>add cloud</button>}
+                toggleLabel="toggle"
+            >
+                <div>row</div>
+            </CollapsibleSection>
+        );
+
+        // Collapse and let the height transition finish so the body unmounts.
+        const body = screen.getByText('row').closest('.grid') as HTMLElement;
+        fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
+        fireEvent.transitionEnd(body, { propertyName: 'grid-template-rows' });
+
+        // Only `children` unmounts — the header caption and the footer survive.
+        expect(screen.queryByText('row')).not.toBeInTheDocument();
+        expect(screen.getByText('나만의 공간에서 그룹 대화 시작')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'add cloud' })).toBeInTheDocument();
+    });
 });
