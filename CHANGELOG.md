@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-08-04] - root@0.48.0, @chatic/web@0.41.0
+
+### Features
+
+- (web-ui-kit) promote the plan comparison card and match the guide to Figma
+- (web) rework relay home and cloud switcher, add the cloud guide screen
+- (web-ui-kit) add PromoBanner and collapsible section header/footer slots
+
+### Bug Fixes
+
+- (web/home) stop the switcher shimmering forever and count only owned clouds
+- (web/home) send the promo link to the cloud guide and stop the page scrolling sideways
+
+### Documentation
+
+- (web) record ADR-0034 and refresh the home/subscription feature docs
+
+### Other
+
+- test: (web/home) mock the relay-invite rows HomePage now reads
+- test: (web/home) cover the relay-home branch and the switcher's section layout
+
 ## [2026-08-04] - root@0.47.0, @chatic/web@0.40.0, @chatic/landing@0.4.1
 
 ### Features
