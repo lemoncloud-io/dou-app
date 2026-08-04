@@ -3,19 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 
+import { useRecentEmojiStore } from '../stores';
 import { EMOJI_CATEGORIES } from '../utils';
-
-const RECENT_KEY = 'chatic.emoji.recent';
-const RECENT_MAX = 16;
-
-const readRecent = (): string[] => {
-    try {
-        const parsed: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
-        return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-        return [];
-    }
-};
 
 interface EmojiPickerProps {
     onPick: (emoji: string) => void;
@@ -28,13 +17,12 @@ interface EmojiPickerProps {
  */
 export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
     const { t } = useTranslation();
-    const [recent, setRecent] = useState(readRecent);
+    const recent = useRecentEmojiStore(s => s.recent);
+    const remember = useRecentEmojiStore(s => s.remember);
     const [categoryKey, setCategoryKey] = useState(EMOJI_CATEGORIES[0].key);
 
     const pick = (emoji: string) => {
-        const next = [emoji, ...recent.filter(e => e !== emoji)].slice(0, RECENT_MAX);
-        setRecent(next);
-        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        remember(emoji);
         onPick(emoji);
     };
 

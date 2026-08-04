@@ -23,6 +23,7 @@ import {
 } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
+import { quickEmoji, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
@@ -179,6 +180,13 @@ export const MessageRow = memo(
         // left open, the grid covers the conversation and the click reads as if it did
         // not register — there is no visible chip while the request is in flight.
         const [pickerKey, setPickerKey] = useState<string | null>(null);
+        // Set when the picker closes because something was chosen, so the close handler
+        // can tell a pick from an Escape. A ref, not state: it is read once during the
+        // close and must not schedule a render of its own.
+        const pickedRef = useRef(false);
+        const recentEmoji = useRecentEmojiStore(s => s.recent);
+        const remember = useRecentEmojiStore(s => s.remember);
+        const quick = quickEmoji(recentEmoji);
         const { editMessage, deleteMessage, failure } = useMessageActions();
         const { toggleReaction, failedId: reactionFailedId } = useReactions();
         const savedItems = useSavedItemsStore(s => s.items);
@@ -461,6 +469,35 @@ export const MessageRow = memo(
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
                                             )}
                                         >
+                                            {/* One-click reactions, the ones this person actually
+                                                uses. Reacting is the most frequent thing anyone
+                                                does to a message, and routing it through a grid
+                                                every time costs two clicks and covers the
+                                                conversation. Slack puts the same row here. */}
+                                            {isSettled &&
+                                                quick.map(emoji => (
+                                                    <ToolbarButton
+                                                        key={emoji}
+                                                        label={t('chat.reaction.quick', { emoji })}
+                                                        pressed={hasMyReaction(tallies, emoji)}
+                                                        className={cn(
+                                                            'text-base leading-none hover:bg-accent',
+                                                            hasMyReaction(tallies, emoji) && 'bg-accent'
+                                                        )}
+                                                        onClick={() => {
+                                                            remember(emoji);
+                                                            if (message.id) {
+                                                                toggleReaction(
+                                                                    message.id,
+                                                                    emoji,
+                                                                    hasMyReaction(tallies, emoji)
+                                                                );
+                                                            }
+                                                        }}
+                                                    >
+                                                        <span aria-hidden>{emoji}</span>
+                                                    </ToolbarButton>
+                                                ))}
                                             {isSettled && (
                                                 <Popover
                                                     open={pickerKey === key}
@@ -485,15 +522,30 @@ export const MessageRow = memo(
                                                             {t('chat.reaction.add')}
                                                         </TooltipContent>
                                                     </Tooltip>
-                                                    <PopoverContent align="end" side="top" className="w-auto p-2">
-                                                        {/* Picking one you already used toggles it
-                                                            off, rather than publishing a second
-                                                            redundant `on` the fold would dedupe. */}
-                                                        {/* Picking one you already used turns it off.
-                                                            `hasMyReaction` normalises first, so a picker
-                                                            that emits `❤️` still matches a stored `❤`. */}
+                                                    <PopoverContent
+                                                        align="end"
+                                                        side="top"
+                                                        className="w-auto p-2"
+                                                        // Radix hands focus back to the trigger on close,
+                                                        // which lights `focus-within` and leaves the whole
+                                                        // toolbar hanging over a message the pointer left
+                                                        // long ago. Only take that back when the close came
+                                                        // from a pick — Escape still returns focus, which is
+                                                        // what a keyboard user is asking for.
+                                                        onCloseAutoFocus={event => {
+                                                            if (!pickedRef.current) return;
+                                                            pickedRef.current = false;
+                                                            event.preventDefault();
+                                                        }}
+                                                    >
+                                                        {/* Picking one you already used turns it off,
+                                                            rather than publishing a second redundant `on`
+                                                            the fold would dedupe. `hasMyReaction`
+                                                            normalises first, so a picker that emits `❤️`
+                                                            still matches a stored `❤`. */}
                                                         <EmojiPicker
                                                             onPick={emoji => {
+                                                                pickedRef.current = true;
                                                                 setPickerKey(null);
                                                                 if (message.id) {
                                                                     toggleReaction(

@@ -125,6 +125,9 @@ describe('MessageList', () => {
         );
 
         expect(screen.getByText('reacted to')).toBeDefined();
-        expect(screen.getByText('👍')).toBeDefined();
+        // Named, not matched on the glyph: the toolbar's quick-reaction buttons carry
+        // the same emoji, so a bare text query finds two things and cannot say which
+        // one is the tally.
+        expect(screen.getByLabelText('👍 — Me, Ada')).toBeDefined();
     });
 });
