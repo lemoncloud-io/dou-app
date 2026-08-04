@@ -124,13 +124,18 @@ flowchart TD
 `pages/cloud-guide/` 하위에 모아 페이지는 조립만 한다(홈의 무거운 컴포넌트 관례와 동일 —
 [home/components.md](../home/components.md)).
 
-- `cloud-guide/PlanCompareCard.tsx` — 카드 껍데기: 헤더 스트립(제목) + `PlanBadge` + 헤드라인 + 자식 슬롯.
-  `tier` prop으로 FREE/PRO를 가른다 — PRO는 라임(`bg-primary`) 헤더와 라임 보더, FREE는 `bg-secondary` 헤더와
-  중립 보더.
-- `cloud-guide/GuideBulletList.tsx` — 8px 원형 불릿 목록. `tone="muted"`(FREE 제한: 마커·본문 모두 흐리게) /
-  `tone="emphasis"`(PRO 혜택: 제목 강조 + 설명 흐리게). kit
+비교 카드는 **kit 컴포넌트**다(`libs/web-ui-kit/src/composites/subscription/`):
+
+- `PlanCompareCard` — 헤더 스트립(제목) + `PlanBadge` + 헤드라인 + 자식 슬롯. `tier="free" | "paid"`로 갈린다.
+  유료 카드는 라임을 세 방식으로 쓴다 — solid 헤더(`bg-primary`), 24% 알파 헤어라인 보더, 부드러운 외곽
+  글로우. 알파는 리터럴 rgba가 아니라 `hsl(var(--primary)/…)`로 써서 토큰을 따라간다.
+- `PlanBulletList` — 8px 원형 불릿 목록. `tone="muted"`(무료 제한: 마커·본문 모두 흐리게) /
+  `tone="emphasis"`(유료 혜택: 16px 제목 강조 + 설명 흐리게). kit
   [`BenefitItem`](../../../../libs/web-ui-kit/src/composites/subscription/BenefitItem.tsx)은 리딩 슬롯이 32px
-  아이콘 전제라 이 디자인(점 + 텍스트)과 맞지 않아 **재사용하지 않았다**.
+  아이콘 전제라 이 디자인(점 + 텍스트)과 맞지 않아 재사용하지 않았다.
+- **`--brand-ink`(#102346)는 라이트/다크 값이 같다.** 그래서 라임 채움 위(유료 헤더 제목)에서만 쓰고, `surface`
+  나 `secondary` 위 텍스트는 테마를 따르는 `foreground`를 쓴다. 그러지 않으면 다크모드에서 거의 검정 배경에
+  네이비가 얹힌다.
 - 히어로·3점 장식·스크린샷은 페이지 본문에 직접 둔다(재사용 대상이 아니다).
 
 kit에서 가져오는 것: `ScreenLayout`(헤더/스크롤/고정 푸터 3분할이 이 화면에 그대로 맞았다), `ModalTopBar`
@@ -139,7 +144,9 @@ kit에서 가져오는 것: `ScreenLayout`(헤더/스크롤/고정 푸터 3분�
 
 `FloatingButton`은 라벨을 `label` prop으로 받고 `link` 슬롯을 버튼 **아래**에 그린다. Figma는 보조 문구가 버튼
 위이므로 `wrapperClassName="flex-col-reverse"`로 패널의 컬럼 방향만 뒤집어 썼다 — 새 prop을 추가하는 대신
-기존 슬롯을 활용한 것이다.
+기존 슬롯을 활용한 것이다. 같은 `wrapperClassName`이 `rounded-none shadow-none`도 얹는다: 디자인의 CTA는
+띄워진 카드가 아니라 페이지에 평평하게 붙어 있다. `bg-surface`는 유지한다 — 고정 푸터라 스크롤 콘텐츠가
+비쳐 보이면 안 되고, `surface`는 두 테마 모두 페이지 배경과 같은 값이다.
 
 같은 `wrapperClassName`에 `pb-[calc(var(--safe-bottom,0px)+1rem)]`도 실린다. `ScreenLayout`은 footer가 있으면
 하단 인셋을 footer에 위임하고(`pb-safe-bottom`은 footer 없는 분기에서만 나온다), `FLOATING_PANEL`은 `pb-4`만
@@ -191,9 +198,9 @@ npx nx test web
   **같은 파일의 `locale keys` 스위트**가 페이지가 읽는 21개 키가 ko/en 양쪽에 실제로 존재하는지 JSON을 직접
   읽어 확인한다 — `react-i18next`를 통째로 목킹해 키를 그대로 돌려주기 때문에, 이 스위트가 없으면 오타난 키도
   테스트를 통과하고 화면에 raw 키가 노출된다.
-- `PlanCompareCard.test.tsx` — 헤더·배지·헤드라인·자식 렌더, `data-tier`로 tier 구분. tailwind 클래스가 아니라
-  `data-tier`를 단정하므로 순수 리스타일에는 깨지지 않고 tier가 뒤바뀌면 깨진다.
-- `GuideBulletList.test.tsx` — `description` 있는 항목에만 둘째 줄, `tone`별 강조/흐림 전환.
+- kit 쪽 `PlanCompareCard.test.tsx` / `PlanBulletList.test.tsx` — 헤더·배지·헤드라인·자식 렌더, `data-tier`로
+  tier 구분(클래스가 아니라 `data-tier`를 단정하므로 순수 리스타일에는 깨지지 않고 tier가 뒤바뀌면 깨진다),
+  유료 카드만 글로우를 갖는지, `tone`별 강조/흐림 전환. `npx nx test web-ui-kit`로 돈다.
 
 **빌드**
 

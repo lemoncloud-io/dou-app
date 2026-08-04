@@ -7,14 +7,16 @@ import {
     IconBack,
     IconButton,
     ModalTopBar,
+    PlanBulletList,
+    PlanCompareCard,
     ScreenLayout,
     myCloudIllustration,
+    type PlanBullet,
 } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
 import { useAllowedProduct } from '../hooks';
 import cloudGuidePreview from '../../../../assets/cloud-guide-preview.png';
-import { GuideBulletList, PlanCompareCard, type GuideBullet } from './cloud-guide';
 
 /**
  * "내 클라우드" guide (`/subscription/guide`, Figma 3519-29515) — a read-only pitch comparing the
@@ -36,12 +38,12 @@ export const CloudGuidePage = () => {
             ? t('mypage.subscription.cloudGuide.ctaWithTrial', { days: trialDays })
             : t('mypage.subscription.cloudGuide.ctaPlain');
 
-    const freeItems: GuideBullet[] = [
+    const freeItems: PlanBullet[] = [
         { title: t('mypage.subscription.cloudGuide.free.limit1') },
         { title: t('mypage.subscription.cloudGuide.free.limit2') },
         { title: t('mypage.subscription.cloudGuide.free.limit3') },
     ];
-    const proItems: GuideBullet[] = [
+    const proItems: PlanBullet[] = [
         {
             title: t('mypage.subscription.cloudGuide.pro.benefit1Title'),
             description: t('mypage.subscription.cloudGuide.pro.benefit1Description'),
@@ -76,9 +78,18 @@ export const CloudGuidePage = () => {
                     onClick={() => navigate(ROUTES.subscription.plans)}
                     // FloatingButton renders `link` BELOW the button; Figma puts the caption above
                     // it (3519-30594 sits over 3519-30588), so reverse the panel's column.
-                    wrapperClassName="flex-col-reverse pb-[calc(var(--safe-bottom,0px)+1rem)]"
+                    // Three overrides on the shared floating panel:
+                    //  - flex-col-reverse: FloatingButton draws `link` BELOW the button, Figma puts
+                    //    the caption above it (3519-30594 over 3519-30588).
+                    //  - no shadow / no rounded top: the design's CTA sits flush on the page, not on
+                    //    a raised card. `bg-surface` stays so scrolled content cannot show through
+                    //    the pinned footer (surface === background in both themes).
+                    //  - safe-area: ScreenLayout delegates the bottom inset to the footer and the
+                    //    panel only supplies pb-4; `pb-safe-bottom` would land in the same twMerge
+                    //    group and REPLACE that 16px, so it is added with calc().
+                    wrapperClassName="flex-col-reverse rounded-none pb-[calc(var(--safe-bottom,0px)+1rem)] shadow-none"
                     link={
-                        <p className="text-center text-[14px] leading-[1.4] tracking-[-0.07px] text-description">
+                        <p className="text-center text-[15px] font-medium leading-[normal] tracking-[-0.075px] text-foreground">
                             {t('mypage.subscription.cloudGuide.ctaCaption')}
                         </p>
                     }
@@ -89,7 +100,7 @@ export const CloudGuidePage = () => {
             <section className="flex items-end justify-between gap-4 px-4 pb-6 pt-6">
                 {/* whitespace-pre-line: heroRest carries the line breaks from the localized copy. */}
                 <h1 className="flex-1 whitespace-pre-line text-[20px] font-bold leading-[1.35] tracking-[-0.1px] text-foreground">
-                    <span className="text-primary">{t('mypage.subscription.cloudGuide.heroAccent')}</span>
+                    <span className="text-main-accent">{t('mypage.subscription.cloudGuide.heroAccent')}</span>
                     {t('mypage.subscription.cloudGuide.heroRest')}
                 </h1>
                 <img src={myCloudIllustration} alt="" className="size-[102px] shrink-0" />
@@ -102,7 +113,7 @@ export const CloudGuidePage = () => {
                     tierLabel={t('mypage.subscription.cloudGuide.free.badge')}
                     headline={t('mypage.subscription.cloudGuide.free.headline')}
                 >
-                    <GuideBulletList items={freeItems} />
+                    <PlanBulletList items={freeItems} />
                 </PlanCompareCard>
 
                 {/* Static descending dots between the cards — decoration, not a carousel indicator. */}
@@ -114,11 +125,11 @@ export const CloudGuidePage = () => {
 
                 <PlanCompareCard
                     name={t('mypage.subscription.cloudGuide.pro.name')}
-                    tier="pro"
+                    tier="paid"
                     tierLabel={t('mypage.subscription.cloudGuide.pro.badge')}
                     headline={t('mypage.subscription.cloudGuide.pro.headline')}
                 >
-                    <GuideBulletList items={proItems} tone="emphasis" />
+                    <PlanBulletList items={proItems} tone="emphasis" />
                     {/* App preview, cropped to its top inside a device-like frame. */}
                     <div className="flex justify-center pt-4">
                         <div className="h-[229px] w-[196px] overflow-hidden rounded-t-3xl border-x-[6px] border-t-[6px] border-secondary">
