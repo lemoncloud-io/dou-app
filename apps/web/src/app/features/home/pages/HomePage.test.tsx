@@ -73,6 +73,10 @@ jest.mock('../hooks', () => ({
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
 }));
 jest.mock('../lib', () => ({ resolveHeaderProfile: () => ({ kind: 'site', name: 'me' }) }));
+// Relay invite rows (added to the page independently of this change).
+jest.mock('../../invite/hooks/useInviteListRows', () => ({
+    useInviteListRows: () => ({ invites: [], isLoading: false }),
+}));
 
 beforeEach(() => jest.clearAllMocks());
 
