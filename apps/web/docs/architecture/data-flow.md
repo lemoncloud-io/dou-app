@@ -105,11 +105,13 @@ const refreshActiveLists = useCallback(async () => {
 }, [repos, cid, activeSiteId]);
 ```
 
-### (a) 앱 진입 + (b) 사이트/클라우드 전환 확정 — `isVerified` 상승 엣지
+### (a) 앱 진입 + (b) 클라우드 전환 확정 — `isVerified` 상승 엣지
 
-둘 다 **`useRuntimeSocketState().isVerified`의 false→true 상승 엣지** 하나로 포착한다. 전환은 재인증을 거치므로 `isVerified`가 하강 후 재상승한다 = "전환 확정 완료". 상승 엣지에서만 부르므로, 전환 낙관 구간(아직 옛 세션이 `verified=true`)에는 fetch하지 않아 이전 데이터가 새 `sid`/`cid`로 오염되지 않는다.
+둘 다 **`useRuntimeSocketState().isVerified`의 false→true 상승 엣지** 하나로 포착한다. 클라우드 전환은 소켓을 재부팅하므로 `isVerified`가 하강 후 재상승한다 = "전환 확정 완료". 상승 엣지에서만 부르므로, 전환 낙관 구간(아직 옛 세션이 `verified=true`)에는 fetch하지 않아 이전 데이터가 새 `sid`/`cid`로 오염되지 않는다.
 
-상승 엣지에서는 `refreshActiveLists`(델타)와 함께 **활성 사이트 채널 풀 스냅샷**(`channel.refreshList` = `channel.mine`)도 1회 실행한다. 델타 sync는 변경분만 나르므로, 진입/재연결/전환 시점에 스냅샷으로 보이는 목록을 재고정한다. 매 60초 틱에는 풀 fetch 비용을 내지 않는다 — 전환도 재인증(상승 엣지)을 거치므로 이 경로 하나로 충분하다.
+**사이트 전환은 이 엣지에 안 걸린다.** 같은 소켓에서 SDK `auth.switch`로 site만 옮기고 `authenticated`를 유지하므로 하강이 없다 — 그래서 sid 변경을 보는 트리거가 따로 있다(아래 (e)). 클라우드 전환은 상승 엣지가 sid 워터마크(`prevSiteRef`)를 먼저 올려 두어 (e)가 같은 fetch를 두 번 하지 않는다.
+
+상승 엣지에서 도는 것은 `refreshActiveLists`(델타)와 `loadSelfChannel`(`channel.get-self`, 릴레이 서버 한정)뿐이다. **채널 풀 스냅샷(`channel.mine`)은 돌지 않는다** — 목록 수렴은 클라우드 전역 델타인 `channel.syncChannels`가 담당한다(§6).
 
 ```ts
 const prevVerifiedRef = useRef(false);
@@ -117,10 +119,11 @@ useEffect(() => {
     const becameVerified = !prevVerifiedRef.current && isVerified;
     prevVerifiedRef.current = isVerified;
     if (becameVerified) {
-        refreshActiveLists();
-        refreshChannelSnapshot(); // channel.mine { sid: activeSiteId, detail: true }
+        prevSiteRef.current = activeSiteId; // (d)가 중복 fetch하지 않도록 워터마크 선반영
+        void refreshActiveLists();
+        void loadSelfChannel();
     }
-}, [isVerified, refreshActiveLists, refreshChannelSnapshot]);
+}, [isVerified, activeSiteId, refreshActiveLists, loadSelfChannel]);
 ```
 
 ### (c) 주기 폴링 — 두 계층
@@ -135,8 +138,24 @@ useEffect(() => {
 WebView가 백그라운드에서 suspend되면 폴링 타이머가 얼고 소켓 push를 놓칠 수 있다. 소켓이 살아남아 재연결(=상승 엣지)이 없으면 그 갭을 메울 경로가 없으므로, **포그라운드 복귀를 명시적 리프레시 트리거로 쓴다.**
 
 - **감지**: `apps/web/src/app/bridge/useAppVisibility` — 네이티브 `OnBackgroundStatusChanged` + 웹 폴백 `visibilitychange`를 합치고 방향별 ~1초 dedup한 단일 가시성 신호(`isForeground: boolean`). `useAppForeground`는 이것의 포그라운드 필터 래퍼다. (GlobalBridgeListener의 resume 오버레이 dismiss도 같은 훅을 쓰고, `useDeviceSync`의 presence status 통지(green/yellow → `device.sync`)는 양방향 신호를 직접 구독한다.)
-- **목록**: `useBackgroundSync` 트리거 3 — verified·비전환 중이면 `refreshActiveLists()` + 채널 스냅샷 실행.
+- **목록**: `useBackgroundSync` 트리거 3 — verified·비전환 중이면 `refreshActiveLists()` 실행.
 - **채팅 피드**: `useForegroundChatRefresh(channelId)` — chat 플랜은 폴링이 없어(라이브 push + 재연결 catch-up뿐) 놓친 push는 자동 복구되지 않는다. 이 훅은 `usePrimeChat`(cold일 때만 fetch)의 **의도적 보완**으로, **warm 캐시일 때만** 베이스라인 재정렬 후 최신 페이지를 refetch한다 — 진입 시(푸시 탭: 방 마운트 전에 포그라운드 신호가 지나가는 케이스) + 복귀 시. 두 정책은 거울상이므로 한쪽을 바꾸면 반드시 같이 바꾼다.
+
+### (e) 사이트 전환 — 활성 `sid` 변경
+
+사이트 전환은 (a)/(b)의 상승 엣지를 만들지 않으므로(같은 소켓, `authenticated` 유지) 별도 트리거가 필요하다. 이게 없으면 **전환으로만 도달한 사이트는 한 번도 fetch되지 않아 채널 목록이 빈 채로 남는다.**
+
+```ts
+useEffect(() => {
+    if (!isVerified || isSwitching || !activeSiteId) return;
+    if (prevSiteRef.current === activeSiteId) return; // 클라우드 전환은 (a)/(b)가 이미 올려놨다
+    prevSiteRef.current = activeSiteId;
+    void refreshActiveLists();
+    void loadSelfChannel();
+}, [activeSiteId, isVerified, isSwitching, refreshActiveLists, loadSelfChannel]);
+```
+
+전환이 끝난 뒤(`verified` + 비전환 중)에만 돌므로 낙관 구간의 stale fetch를 피한다. `prevSiteRef`는 (a)/(b)와 공유한다.
 
 ---
 
