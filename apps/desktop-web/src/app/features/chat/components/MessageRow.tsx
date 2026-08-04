@@ -267,6 +267,11 @@ export const MessageRow = memo(
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
                             const isEditing = editingKey === key;
+                            // Keep the toolbar up whenever it owns something the reader is
+                            // still looking at — the emoji grid, the delete dialog, or the
+                            // "Copied" tick that has not timed out yet. All three outlive the
+                            // hover that opened them.
+                            const isToolbarPinned = isCopied || pickerKey === key || confirmingKey === key;
                             // What Save is allowed to do. An edit to nothing is a delete
                             // everywhere else and would only blank the row here, and an edit
                             // to the same text is a no-op — so neither is offered. Disabling
@@ -416,12 +421,20 @@ export const MessageRow = memo(
                                     save, or copy, and `content` often survives the soft delete —
                                     so Copy would hand back the text the row is telling you is
                                     gone. The thread footer below stays, which is what keeps a
-                                    deleted root's replies reachable. */}
+                                    deleted root's replies reachable.
+
+                                    Pinned open while something it opened is still on screen.
+                                    Radix portals the picker and the dialog out of this row, so
+                                    moving the pointer into either one ends `group-hover` and
+                                    `focus-within` never applies — the toolbar would vanish out
+                                    from under the control the reader is using. Slack keeps the
+                                    pill above the open picker for the same reason: it is the
+                                    only thing still tying the grid to the message it acts on. */}
                                     {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
                                         <div
                                             className={cn(
                                                 'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
-                                                isCopied
+                                                isToolbarPinned
                                                     ? 'translate-x-0 opacity-100'
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
                                             )}
