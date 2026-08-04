@@ -150,9 +150,18 @@ export const ChannelRoomPage = () => {
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
 
+    /**
+     * Leave for home when the channel is GONE — the row was there and disappeared (left the channel,
+     * cache cleared). `useChannel` only reports an absence once it has actually resolved one, so this
+     * no longer fires while a push-opened room is still being fetched; doing so used to unmount the
+     * sync that was fetching it and made the room permanently unenterable.
+     *
+     * An unresolvable channel (`isChannelError`) is NOT redirected: the error screen below explains
+     * itself and its 돌아가기 keeps the history entry the user came from.
+     */
     useEffect(() => {
-        if (isChannelLoading) return;
-        if (!channel || isChannelError) {
+        if (isChannelLoading || isChannelError) return;
+        if (!channel) {
             void navigate(ROUTES.root, { replace: true });
         }
     }, [channel, isChannelLoading, isChannelError, navigate]);
