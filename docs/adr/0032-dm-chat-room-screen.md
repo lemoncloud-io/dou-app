@@ -1,6 +1,10 @@
 # ADR-0032: 1:1(DM) 채팅 화면
 
-> 상태: Accepted · 결정일: 2026-07-27
+> 상태: Superseded by [ADR-0039](0039-dm-display-name-chain-and-invite-profile-release.md) · 결정일: 2026-07-27
+>
+> ADR-0039가 **결정 3**(DM 방 이름 변경 불가, 헤더는 항상 상대 nick 파생)과 **결정 5**
+> (빈 상태 = 버블 없음)를 철회하고, 헤더 이름을 `join.nick` 우선 체인으로 바꿨다.
+> 나머지 결정(DM 식별, `kind='direct'`, 읽음 '1' 뱃지)은 ADR-0039가 승계한다.
 
 ## 맥락 (Context)
 

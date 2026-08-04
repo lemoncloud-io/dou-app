@@ -87,15 +87,18 @@ export const MessageInput = ({
 
     const canSend = !disabled && value.trim().length > 0;
 
-    // Keep the mobile keyboard open when the composer chrome — the pill padding, the
-    // gap next to the textarea, or the send button — is tapped instead of the textarea.
-    // Only the textarea itself should take/hold the caret; any other target inside the
-    // pill preventDefaults so focus never leaves the textarea (a finger slipping a few
-    // px off the send button no longer blurs it and drops the keyboard).
-    const handleContainerPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (event.target !== textareaRef.current) {
-            event.preventDefault();
-        }
+    // Keep the mobile keyboard open when the composer chrome — the pill padding, the gap next to
+    // the textarea, or the send button — is tapped instead of the textarea. Only the textarea
+    // itself should take/hold the caret; a finger slipping a few px off the send button must not
+    // blur it and drop the keyboard.
+    //
+    // Both `pointerdown` and `mousedown`, because iOS (WKWebView) needs the latter: a tap there
+    // runs touchstart → touchend → mousedown → mouseup → click, and WebKit moves focus as the
+    // `mousedown` default action, so cancelling `pointerdown` alone does not hold the caret.
+    // Cancelling `mousedown` leaves `click` intact, so the send button keeps firing. Never cancel
+    // `touchstart` — that suppresses the very click that sends.
+    const keepCaretOnTextarea = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+        if (event.target !== textareaRef.current) event.preventDefault();
     };
 
     const handleSend = () => {
@@ -109,8 +112,13 @@ export const MessageInput = ({
             ref={containerRef}
             data-multiline="false"
             data-no-autoscroll
-            onPointerDown={handleContainerPointerDown}
+            onPointerDown={keepCaretOnTextarea}
+            onMouseDown={keepCaretOnTextarea}
             className={cn(
+                // `touch-action: manipulation` — no double-tap gesture on the composer, so rapid
+                // repeat sends are handled as plain taps instead of a zoom candidate WebKit has to
+                // disambiguate (which is what made send-send-send drop the keyboard).
+                'touch-manipulation',
                 'flex w-full items-center gap-1.5 rounded-[100px] border bg-white/[0.92] px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color] dark:bg-black/[0.92]',
                 'data-[multiline=true]:items-end data-[multiline=true]:rounded-2xl data-[multiline=true]:py-3',
                 canSend ? 'border-focus-border' : 'border-input-border',
@@ -131,11 +139,19 @@ export const MessageInput = ({
             <button
                 type="button"
                 onClick={handleSend}
-                disabled={!canSend}
+                // Idle (nothing to send) is `aria-disabled`, NOT the `disabled` attribute: a
+                // disabled form control gets no pointer events at all — not even bubbling ones —
+                // so the container's keep-the-keyboard preventDefault above would never run and
+                // tapping it would blur the textarea and drop the software keyboard. The real
+                // attribute is reserved for the whole-composer `disabled` state, where the
+                // textarea is disabled too and there is no keyboard left to preserve.
+                disabled={disabled}
+                aria-disabled={!canSend}
                 aria-label="Send"
                 className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-full p-[9px] transition-colors',
-                    canSend ? 'bg-brand-ink' : 'bg-control-idle'
+                    canSend ? 'bg-brand-ink' : 'bg-control-idle',
+                    !canSend && 'cursor-not-allowed'
                 )}
             >
                 <IconSend className="size-[18px] text-white" strokeWidth={2.5} />

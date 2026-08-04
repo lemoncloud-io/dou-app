@@ -17,10 +17,15 @@ import { toError } from '../../../utils/errors';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
-import { useChannelMutations, useChatMutations } from '../../channels/hooks';
+import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
 import { useChannelUnreads, useHomeChannels, useLastChat, useMyJoins } from '../../home/hooks';
-import { resolveChannelTitle, sortChannels } from '../../home/lib';
+import { resolveChannelTitle } from '../../channels/lib';
+import { sortChannels } from '../../home/lib';
 import { useMyProfile } from '../../../hooks';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { ROUTES } from '../../../routes/paths';
+import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
+import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 
 /**
  * Chat-room management (Figma 3408-28373) — reached from the place settings hub. Rooms are
@@ -56,11 +61,22 @@ export const PlaceChannelManagePage = () => {
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, myJoins);
     const { profile: myProfile } = useMyProfile();
     const { userId: uid } = useSessionIdentity();
+    // 1:1 peers for every DM row, from ONE place-level profile subscription — the same source the
+    // home list uses, so both lists name a DM identically (ADR-0039).
+    const dmPeers = useDmPeers(placeId ?? null, channels, uid);
 
     // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
     // cloud half comes from the active session.
     const { selectedCloudId } = useSessionSelection();
     const placeScope = placeScopeKey(selectedCloudId, placeId);
+
+    // Sent relay invites (ADR-0033 Track B) only apply to the default (relay) cloud's place — a
+    // custom cloud's channels are invited via the cloud invite flow (ADR-0016) instead. Gate the
+    // rendering, not the fetch (useInviteListRows runs the same react-query hook regardless).
+    const isDefaultCloud = selectedCloudId === 'default';
+    const navigate = useNavigateWithTransition();
+    const { invites: sentInvitesAll } = useInviteListRows();
+    const sentInvites = isDefaultCloud ? sentInvitesAll : [];
     const sortMethodMap = usePreferenceStore(s => s.channelSort);
     const pinnedMap = usePreferenceStore(s => s.pinnedChannels);
     const setChannelPinned = usePreferenceStore(s => s.setChannelPinned);
@@ -221,35 +237,54 @@ export const PlaceChannelManagePage = () => {
             />
 
             <div className="min-h-0 flex-1 overflow-y-auto py-2">
-                {isLoading && sortedChannels.length === 0 ? (
-                    Array.from({ length: 3 }).map((_, index) => (
-                        <div key={index} className="flex items-center gap-3 px-4 py-3">
-                            <div className="size-[46px] animate-pulse rounded-full bg-muted" />
-                            <div className="flex flex-1 flex-col gap-1.5">
-                                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-                                <div className="h-3 w-48 animate-pulse rounded bg-muted" />
-                            </div>
-                        </div>
-                    ))
-                ) : sortedChannels.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
-                ) : (
-                    sortedChannels.map(channel => (
-                        <ManageChannelRow
-                            key={channel.id}
-                            channel={channel}
-                            uid={uid ?? undefined}
-                            myNick={myProfile?.nick}
-                            joinNick={myJoins.get(channel.id)?.nick}
-                            unread={unreadByChannel[channel.id] ?? 0}
-                            selectable={isSelectable(channel)}
-                            checked={selectedIds.has(channel.id)}
-                            onToggle={checked => toggleSelected(channel.id, checked)}
-                            pinned={pinnedChannelIds.has(channel.id)}
-                            onTogglePin={pinned => handleTogglePin(channel.id, pinned)}
+                {/* Sent-invite rows (default cloud only) float above the manageable channels —
+                    tapping goes to the waiting screen, which owns cancel/reissue (see
+                    InviteChannelRow). Not part of the checkbox/bulk-delete selection below: an
+                    invite id isn't a channel id, and the delete-vs-leave branching doesn't apply. */}
+                {sentInvites.map(invite => {
+                    const id = invite.id;
+                    if (!id) return null;
+                    return (
+                        <InviteChannelRow
+                            key={id}
+                            invite={invite}
+                            onClick={() => navigate(ROUTES.invite.waiting(id))}
                         />
-                    ))
-                )}
+                    );
+                })}
+
+                {isLoading && sortedChannels.length === 0
+                    ? Array.from({ length: 3 }).map((_, index) => (
+                          <div key={index} className="flex items-center gap-3 px-4 py-3">
+                              <div className="size-[42px] animate-pulse rounded-full bg-muted" />
+                              <div className="flex flex-1 flex-col gap-1.5">
+                                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                                  <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+                              </div>
+                          </div>
+                      ))
+                    : sortedChannels.length === 0
+                      ? sentInvites.length === 0 && (
+                            <div className="py-8 text-center text-sm text-muted-foreground">
+                                {t('channelList.empty')}
+                            </div>
+                        )
+                      : sortedChannels.map(channel => (
+                            <ManageChannelRow
+                                key={channel.id}
+                                channel={channel}
+                                uid={uid ?? undefined}
+                                myNick={myProfile?.nick}
+                                joinNick={myJoins.get(channel.id)?.nick}
+                                dmPeer={dmPeers.get(channel.id)}
+                                unread={unreadByChannel[channel.id] ?? 0}
+                                selectable={isSelectable(channel)}
+                                checked={selectedIds.has(channel.id)}
+                                onToggle={checked => toggleSelected(channel.id, checked)}
+                                pinned={pinnedChannelIds.has(channel.id)}
+                                onTogglePin={pinned => handleTogglePin(channel.id, pinned)}
+                            />
+                        ))}
             </div>
 
             {/* Bottom actions — mark read (all, or just the selection) and remove the selection. */}
@@ -305,6 +340,8 @@ interface ManageChannelRowProps {
     uid?: string;
     myNick?: string;
     joinNick?: string;
+    /** The 1:1 peer for this row (from the page-level useDmPeers). Undefined for non-DM rows. */
+    dmPeer?: DmPeer;
     unread: number;
     selectable: boolean;
     checked: boolean;
@@ -322,6 +359,7 @@ const ManageChannelRow = ({
     uid,
     myNick,
     joinNick,
+    dmPeer,
     unread,
     selectable,
     checked,
@@ -331,6 +369,8 @@ const ManageChannelRow = ({
 }: ManageChannelRowProps) => {
     const { t, i18n } = useTranslation();
     const isSelf = channel.stereo === 'self';
+    // 1:1 DM: the row shows the peer, so the avatar comes from them, not from the channel.
+    const isDm = channel.stereo === 'dm';
     const lastChat = useLastChat(channel.id);
 
     const name = resolveChannelTitle({
@@ -338,9 +378,13 @@ const ManageChannelRow = ({
         uid,
         joinNick,
         myNick,
+        peerNick: dmPeer?.profileNick,
         selfLabel: t('channelList.selfChannel'),
         unnamedLabel: t('channelList.unnamedChannel'),
+        dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
+
+    const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
 
     const time = lastChat?.createdAt
         ? new Date(lastChat.createdAt).toLocaleTimeString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', {
@@ -351,13 +395,7 @@ const ManageChannelRow = ({
 
     return (
         <ManageChannelItem
-            leading={
-                channel.thumbnail ? (
-                    <ImageAvatar src={channel.thumbnail} alt="" size={46} />
-                ) : (
-                    <DefaultAvatar size={46} variant={isSelf ? 'self' : 'user'} />
-                )
-            }
+            leading={avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />}
             title={
                 <>
                     {isSelf && (

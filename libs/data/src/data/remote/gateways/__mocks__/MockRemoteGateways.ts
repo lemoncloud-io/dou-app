@@ -12,6 +12,7 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
     ({
         auth: {
             update: jest.fn(),
+            linkAccount: jest.fn(),
         },
         channel: {
             create: jest.fn(),
@@ -57,6 +58,12 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
             invite: jest.fn(),
             inviteBatch: jest.fn(),
             syncUsers: jest.fn(),
+        },
+        invite: {
+            create: jest.fn(),
+            get: jest.fn(),
+            list: jest.fn(),
+            accept: jest.fn(),
         },
         device: {
             // Routed gateway: one gateway instance per SocketRoute (active/relay/cloud).

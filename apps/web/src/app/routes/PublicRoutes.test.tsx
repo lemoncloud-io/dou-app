@@ -3,6 +3,13 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 
 import { publicRoutes } from './PublicRoutes';
 
+// The root entry is now InviteEntryGate, which reads `isFirstRun`. Stubbing the store keeps this
+// suite about routing: the real one reaches the bridge barrel, and through it web-core's
+// `import.meta`, which ts-jest cannot parse. InviteEntryGate.test.tsx covers the gate's own logic.
+jest.mock('../stores/usePreferenceStore', () => ({
+    usePreferenceStore: (selector: (state: { isFirstRun: boolean }) => unknown) => selector({ isFirstRun: false }),
+}));
+
 // Build a standalone memory router over the unauthenticated route set.
 const makeRouter = (initialPath: string) => createMemoryRouter(publicRoutes, { initialEntries: [initialPath] });
 

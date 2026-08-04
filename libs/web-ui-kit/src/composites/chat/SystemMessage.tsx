@@ -9,14 +9,17 @@ export interface SystemMessageProps {
 }
 
 /**
- * In-room system notice — the Figma chat-entry banner: a bold notice with an
- * optional supporting line, rendered inline in the message stream.
+ * In-room intro/notice block — the Figma chat-entry banner (`3086:14439`): a bold notice with an
+ * optional supporting line, left-aligned inline in the message stream.
+ *
+ * Used for the 1:1 entry notice and the self-chat intro, both of which sit pinned above the oldest
+ * message group rather than scrolling away with it.
  */
 export const SystemMessage = ({ title, description, className }: SystemMessageProps) => {
     return (
-        <div className={cn('flex w-full flex-col gap-1 px-4 py-2', className)}>
-            <p className="text-[16px] font-semibold leading-[22px] tracking-[-0.08px] text-foreground">{title}</p>
-            {description && <p className="text-[15px] leading-5 tracking-[-0.075px] text-label">{description}</p>}
+        <div className={cn('flex w-full flex-col items-start gap-1.5 px-4 pb-2 pt-2.5', className)}>
+            <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">{title}</p>
+            {description && <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-label">{description}</p>}
         </div>
     );
 };

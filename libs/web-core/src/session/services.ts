@@ -182,6 +182,20 @@ export const loginRelaySocial = async ({
     return await applyRelaySession(tokenView);
 };
 
+/**
+ * Applies an ALREADY-ISSUED relay token view as the active session — the socket-login case
+ * (`auth.verify-hash-alias` step=check returns `$token` over the websocket, so there is no HTTP
+ * login call to run here). Same commit as the other login paths (applyRelaySession): rebuild AWS
+ * credentials, persist the token, mark authenticated. Like the social promotion, it does NOT touch
+ * delegatorId — that stays owned by loginRelayGuestByDevice / clearRelaySession.
+ *
+ * Refreshing the live SOCKET identity is not done here; app-runtime's applySessionToken owns that
+ * (web-core has no socket access) and calls this first so the store leads and the socket follows.
+ */
+export const loginRelayByToken = async (tokenView: UserTokenView): Promise<UserTokenView> => {
+    return await applyRelaySession(tokenView);
+};
+
 const relayRefreshFlight = createSerializedSingleFlight<void>();
 
 /**
@@ -257,31 +271,24 @@ export const logoutRelaySession = async (options?: LogoutOptions): Promise<void>
     clearRelaySession();
     notifySessionStateChanged();
 
-    let targetUrl = '/auth/login?logout=1';
+    // Land on home directly. `/auth/login` is only a shim that forwards to `/` (see apps/web
+    // LoginPage), so routing through it just added a redirect hop. We also do NOT rewind the
+    // history stack: back-navigating into an authenticated URL is already handled by the router,
+    // which falls unauthenticated paths back to `/` (see apps/web PublicRoutes).
+    //
+    // `logout=1` must survive onto the target: webTransport reads it from the freshly loaded
+    // document's query string to wipe the persisted `@`-prefixed storage keys.
+    const targetUrl = new URL('/', window.location.origin);
     if (options?.preserveUrl) {
         const params = new URLSearchParams(searchBeforeCleanup);
-        const loginUrl = new URL('/auth/login', window.location.origin);
         for (const key of ['code', 'provider', '_backend', '_wss']) {
             const value = params.get(key);
-            if (value) loginUrl.searchParams.set(key, value);
+            if (value) targetUrl.searchParams.set(key, value);
         }
-        loginUrl.searchParams.set('logout', '1');
-        targetUrl = loginUrl.toString();
     }
+    targetUrl.searchParams.set('logout', '1');
 
-    const stepsBack = window.history.length - 1;
-    if (stepsBack > 0) {
-        window.addEventListener(
-            'popstate',
-            () => {
-                window.location.replace(targetUrl);
-            },
-            { once: true }
-        );
-        window.history.go(-stepsBack);
-    } else {
-        window.location.replace(targetUrl);
-    }
+    window.location.replace(targetUrl.toString());
 };
 
 /**

@@ -5,6 +5,7 @@ import {
     createCloudGateway,
     createDeviceGateway,
     createDomainGateway,
+    createInviteGateway,
     createJoinGateway,
     createPlaceGateway,
     createProfileGateway,
@@ -34,6 +35,14 @@ export const createRemoteDataSources = () => {
         cloud: create(socketClient.getScopedClient('cloud')),
     });
 
+    // Relay-pinned gateways. The 1:1 invite domain and the phone/social identity packets are owned
+    // by the central backend behind the RELAY server, so they must not follow the active slot into
+    // a cloud. Same policy shape as device.update-remote: the destination is fixed at composition
+    // time instead of exposed as a route, so no caller can leak it. See socket/kind-scoped-routing.md.
+    const relayClient = socketClient.getScopedClient('relay');
+    const relayAuthGateway = createAuthGateway(relayClient as any);
+    const inviteGateway = createInviteGateway(relayClient as any);
+
     const authGateway = createAuthGateway(socketClient as any);
     const channelGateway = createChannelGateway(socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);
@@ -46,7 +55,11 @@ export const createRemoteDataSources = () => {
     const socketsGateway = createDomainGateway('sockets', socketClient as any);
 
     const gateways: RemoteGatewayBundle = {
-        auth: authGateway,
+        auth: {
+            // auth.update authenticates whichever slot is active; the identity packet stays on relay.
+            update: authGateway.update,
+            linkAccount: relayAuthGateway.linkAccount,
+        },
         channel: channelGateway,
         chat: chatGateway,
         join: {
@@ -73,6 +86,7 @@ export const createRemoteDataSources = () => {
             inviteBatch: userGateway.inviteBatch,
             syncUsers: channelGateway.syncUsers,
         },
+        invite: inviteGateway,
         device: deviceGateway,
         sockets: socketsGateway,
         cloud: {
@@ -83,7 +97,7 @@ export const createRemoteDataSources = () => {
         profile: profileGateway,
     };
 
-    return {
-        remoteDataSources: createDataRemoteDataSources({ gateways }),
-    };
+    // Gateways are not handed back: every caller goes through a repository (ADR-0036), so the bundle
+    // exists only long enough to build the data sources.
+    return { remoteDataSources: createDataRemoteDataSources({ gateways }) };
 };

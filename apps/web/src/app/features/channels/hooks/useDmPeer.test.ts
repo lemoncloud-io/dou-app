@@ -30,7 +30,7 @@ describe('useDmPeer', () => {
         expect(result.current?.id).toBe('peer');
     });
 
-    it('prefers the site profile nick/thumbnail over the member cache', () => {
+    it('takes the nick and thumbnail from the site profile', () => {
         const { result } = renderHook(() =>
             useDmPeer(
                 channel({ stereo: 'dm', memberIds: ['me', 'peer'] }),
@@ -39,19 +39,34 @@ describe('useDmPeer', () => {
                 'me'
             )
         );
-        expect(result.current).toMatchObject({ id: 'peer', nick: 'Profile Nick', thumbnail: 'profile.png' });
+        expect(result.current).toMatchObject({ id: 'peer', profileNick: 'Profile Nick', thumbnail: 'profile.png' });
     });
 
-    it('falls back to the member-cache name when no profile is cached', () => {
+    // The member-cache name is NOT a fallback: the list surfaces cannot hydrate it, so including it
+    // would make the room title disagree with the home list (see resolveDmTitle).
+    it('leaves profileNick undefined when no profile is cached', () => {
         const { result } = renderHook(() =>
             useDmPeer(
                 channel({ stereo: 'dm', memberIds: ['me', 'peer'] }),
-                [member('peer', { name: 'Cache Name' })],
+                [member('peer', { name: 'Cache Name', nick: 'Cache Nick' })],
                 new Map(),
                 'me'
             )
         );
-        expect(result.current).toMatchObject({ id: 'peer', nick: 'Cache Name' });
+        expect(result.current).toMatchObject({ id: 'peer' });
+        expect(result.current?.profileNick).toBeUndefined();
+    });
+
+    it('still falls back to the member-cache thumbnail', () => {
+        const { result } = renderHook(() =>
+            useDmPeer(
+                channel({ stereo: 'dm', memberIds: ['me', 'peer'] }),
+                [member('peer', { thumbnail: 'cache.png' })],
+                new Map(),
+                'me'
+            )
+        );
+        expect(result.current?.thumbnail).toBe('cache.png');
     });
 
     it('resolves the peer from the member list when the roster is empty', () => {

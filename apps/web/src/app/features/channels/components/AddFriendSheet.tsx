@@ -12,6 +12,7 @@ import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useCreateInviteBatch } from '../hooks';
+import { formatKoreanPhone, isValidKoreanPhone } from '../utils/koreanPhone';
 
 interface AddFriendSheetProps {
     open: boolean;
@@ -50,20 +51,6 @@ const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'te
 
 const NAME_MAX = 20;
 const PHONE_DIGITS_MAX = 11;
-
-// Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
-const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
-
-const isValidKoreanPhone = (digits: string): boolean => {
-    if (digits.length < 10 || digits.length > 11) return false;
-    return KOREAN_MOBILE_PREFIXES.some(prefix => digits.startsWith(prefix));
-};
-
-const formatPhoneNumber = (digits: string): string => {
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-};
 
 export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheetProps) => {
     const { t } = useTranslation();
@@ -175,7 +162,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
                                 className={`flex items-center rounded-[10px] border bg-background px-3 py-3 ${phoneError ? 'border-destructive' : 'border-border'}`}
                             >
                                 <input
-                                    value={formatPhoneNumber(phoneDigits)}
+                                    value={formatKoreanPhone(phoneDigits)}
                                     onChange={e => handlePhoneChange(e.target.value)}
                                     placeholder={t('addFriend.phonePlaceholder')}
                                     type="tel"

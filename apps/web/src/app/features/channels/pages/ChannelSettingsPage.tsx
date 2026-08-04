@@ -11,26 +11,26 @@ import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { useActivePlaceName } from '../../../hooks';
-import { PlaceProfileEditDialog } from '../../home/components';
+import { PlaceProfileCreateDialog, PlaceProfileEditDialog } from '../../home/components';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
-import { SelfChatNameDialog } from '../components/SelfChatNameDialog';
+import { JoinNickDialog } from '../components/JoinNickDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import {
     useChannel,
     useChannelMembers,
     useChannelMutations,
     useChannelProfiles,
+    useChannelTitle,
     useDmPeer,
     useJoinMutations,
     useMyJoin,
-    useSelfChatTitle,
 } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'selfName' | null;
+type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'profileCreate' | 'joinNick' | null;
 
 interface SelectedMember {
     id: string;
@@ -55,6 +55,9 @@ export const ChannelSettingsPage = () => {
     const { members, isLoading: isMembersLoading } = useChannelMembers({
         channelId: channelId || '',
         detail: true,
+        // The roster names members before any per-channel sync lands — without it a self-chat shows
+        // an empty "방 친구", since its one member has no user-cache row to be found by.
+        memberIds: channel?.memberIds,
     });
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
@@ -123,13 +126,13 @@ export const ChannelSettingsPage = () => {
 
     // Site profiles (nick/avatar) for the member list; same source as the room.
     const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
-    const { profileMap } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
+    const { profileMap, hasSnapshot: hasProfileSnapshot } = useChannelProfiles(channel?.sid ?? null, memberUserIds);
 
     // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
-    // self-chat title are resolved here; the plain type flags derived from them stay past the return.
+    // room title are resolved here; the plain type flags derived from them stay past the return.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    // Self-chat name comes from the per-user join nick, not `channel.name` (ADR-0022).
-    const selfChatTitle = useSelfChatTitle(channel);
+    // The same chain the room header and the home list use — settings must not invent a third one.
+    const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
 
     const openDialog = (type: DialogType) => setActiveDialog(type);
     const closeDialog = () => setActiveDialog(null);
@@ -179,29 +182,21 @@ export const ChannelSettingsPage = () => {
 
     const isSelfChat = !!channel?.isSelfChat;
     const isOwner = !!channel?.isOwner;
-    // 1:1 DM (stereo): the room name is the peer and cannot be renamed (ADR-0032).
+    // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
-    // Title by channel type: self → selfChatTitle; dm → the peer's nick (ADR-0032). The rest —
-    // I own it → the owner-set channel.name (my own join nick is ignored); I'm a member → my join
-    // nick, falling back to channel.name.
-    const roomTitle = isSelfChat
-        ? selfChatTitle
-        : isDmChat
-          ? dmPeer?.nick || t('chat.settings.roomName')
-          : (isOwner ? channel?.name : (myJoin?.nick ?? channel?.name)) || t('chat.settings.roomName');
 
     // DM always shows the peer avatar (matching the room header) — channel.thumbnail is ignored for
     // DM. Otherwise: channel thumbnail → self glyph → group placeholder.
     const roomAvatar = isDmChat ? (
         dmPeer?.thumbnail ? (
-            <ImageAvatar src={dmPeer.thumbnail} alt={dmPeer.nick} size={40} />
+            <ImageAvatar src={dmPeer.thumbnail} alt={roomTitle} size={40} />
         ) : (
             <DefaultAvatar size={40} variant="user" />
         )
     ) : channel?.thumbnail ? (
         <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
     ) : isSelfChat ? (
-        <DefaultAvatar size={40} variant="self" />
+        <DefaultAvatar size={40} />
     ) : (
         <ChatAvatar size="sm" />
     );
@@ -215,7 +210,22 @@ export const ChannelSettingsPage = () => {
             const memberId = member.id ?? '';
             // Site profile (nick/avatar) takes precedence over the user-cache name.
             const memberProfile = memberId ? profileMap.get(memberId) : undefined;
-            const memberName = memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
+            // My own row with no place profile: prompt instead of naming me. The user-cache `name` is
+            // NOT a usable fallback here — it is `***<last 4>` for a phone signup (ADR-0033 D10) or a
+            // raw UUID, the very values ADR-0039 kept out of the title chain. Every stereo shares this
+            // list, so the nudge is not gated on self-chat (ADR-0040).
+            //
+            // `hasProfileSnapshot` is load-bearing, and isMembersLoading CANNOT stand in for it: that
+            // flag flips on the user cache's first emit and knows nothing about profiles, while this
+            // hook is downstream of the channel row (it needs `sid`) and then does its own async
+            // bootstrap. Members routinely arrive first, so reading absence from an empty profileMap
+            // would nudge users who do have a profile — and the row is tappable, so a mistaken tap
+            // opens a blank create form whose save overwrites the real nick.
+            const needsProfileSetup =
+                !!memberId && memberId === userId && hasProfileSnapshot && !memberProfile?.nick?.trim();
+            const memberName = needsProfileSetup
+                ? t('chat.settings.profileSetupRequired')
+                : memberProfile?.nick || member.name || memberId || t('chat.settings.unknownUser');
 
             const memberView = {
                 id: memberId,
@@ -230,7 +240,10 @@ export const ChannelSettingsPage = () => {
                     isMe={memberId === userId}
                     isOwner={memberId === channel?.ownerId}
                     isPendingInvite={member.$join?.joined === 0}
-                    onClick={() => openMemberProfile(memberView)}
+                    needsProfileSetup={needsProfileSetup}
+                    // With no profile, skip the member-profile sheet and go straight to creating one —
+                    // that sheet's only self action is "프로필 설정" anyway, so it would be a dead tap.
+                    onClick={() => (needsProfileSetup ? openDialog('profileCreate') : openMemberProfile(memberView))}
                 />
             );
         })
@@ -246,15 +259,16 @@ export const ChannelSettingsPage = () => {
 
             {/* Content — scrolls when the member list grows past the viewport. */}
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
-                {/* Room name — tap opens the name/info dialog. Self-chat edits the join
-                    nick (SelfChatNameDialog); groups edit channel.name (UpdateChannelDialog,
-                    read-only for non-owner members). DM is not editable: the name is the peer,
-                    so the row is static (no chevron, no tap) (ADR-0032). */}
+                {/* Room name — tap opens the name/info dialog. Self-chat and DM edit MY join nick
+                    (JoinNickDialog, private to me); groups edit channel.name (UpdateChannelDialog,
+                    read-only for non-owner members). DM naming is open again — the join nick is the
+                    top of its title chain, so with no way to write it that tier would be dead
+                    (ADR-0039, reversing ADR-0032). */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
-                    trailing={isDmChat ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
-                    onClick={isDmChat ? undefined : () => openDialog(isSelfChat ? 'selfName' : 'update')}
+                    trailing={<ChevronRight className="size-5 text-muted-foreground" />}
+                    onClick={() => openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')}
                 />
 
                 {isSelfChat ? (
@@ -312,10 +326,16 @@ export const ChannelSettingsPage = () => {
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
                 channelId={channelId}
             />
-            <SelfChatNameDialog
-                open={activeDialog === 'selfName'}
-                onOpenChange={open => (open ? openDialog('selfName') : closeDialog())}
+            {/* One mount, not one per variant: the dialog fetches my profile on mount, so two
+                instances cost two round-trips and only ever one of them can be open. The placeholder
+                is the name the room falls back to right now, so clearing the field visibly returns
+                to it — for a DM that is the title chain minus my own nick. */}
+            <JoinNickDialog
+                open={activeDialog === 'joinNick'}
+                onOpenChange={open => (open ? openDialog('joinNick') : closeDialog())}
                 channelId={channelId}
+                variant={isSelfChat ? 'self' : 'dm'}
+                fallbackName={isSelfChat ? undefined : dmPeer?.profileNick || channel?.name || t('chat.dm.unnamedPeer')}
             />
             <ConfirmDialog
                 open={activeDialog === 'delete'}
@@ -360,6 +380,21 @@ export const ChannelSettingsPage = () => {
                 open={activeDialog === 'profileSettings'}
                 placeName={activePlaceName}
                 onClose={closeDialog}
+            />
+            {/* Reached from my own member row when it has no profile yet. `exit` is supplied so a
+                half-typed name still gets the unsaved-changes guard — unlike the invite paths, backing
+                out here costs nothing, so there is no reason to leave silently (ADR-0040 / ADR-0041). */}
+            <PlaceProfileCreateDialog
+                open={activeDialog === 'profileCreate'}
+                placeName={activePlaceName}
+                onDone={closeDialog}
+                onExit={closeDialog}
+                exit={{
+                    title: t('placeProfileCreate.exitTitle'),
+                    description: t('placeProfileCreate.exitDescription'),
+                    leaveLabel: t('placeProfileCreate.exitLeave'),
+                    continueLabel: t('placeProfileCreate.exitContinue'),
+                }}
             />
         </div>
     );

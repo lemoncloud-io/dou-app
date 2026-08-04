@@ -5,6 +5,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import {
     DropdownMenu,
@@ -25,17 +26,19 @@ import {
     UnreadBadge,
 } from '@chatic/web-ui-kit';
 
+import { useDmPeers, type DmPeer } from '../../channels/hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
-import { resolveChannelTitle } from '../lib/resolveChannelTitle';
+import { resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../lib/sortChannels';
+import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
 const ChannelSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3">
-        <div className="size-[46px] animate-pulse rounded-full bg-muted" />
+        <div className="size-[42px] animate-pulse rounded-full bg-muted" />
         <div className="flex flex-1 flex-col gap-1.5">
             <div className="h-4 w-32 animate-pulse rounded bg-muted" />
             <div className="h-3 w-48 animate-pulse rounded bg-muted" />
@@ -49,18 +52,24 @@ const ChannelItem = ({
     myNick,
     joinNick,
     uid,
+    dmPeer,
 }: {
     channel: DomainChannel;
     unread: number;
     myNick?: string;
     joinNick?: string;
     uid?: string;
+    /** The 1:1 peer for this row (from the list-level useDmPeers). Undefined for non-DM rows. */
+    dmPeer?: DmPeer;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const blurLastMessage = usePreferenceStore(s => s.blurLastMessage);
-    // Self-chat is identified by stereo (ADR-0022), not member count.
+    // Self-chat is identified by stereo (ADR-0026), not member count.
     const isSelf = channel.stereo === 'self';
+    // 1:1 DM (stereo): the row shows the peer, not the channel — its own name/photo/member count
+    // are all either absent or meaningless (ADR-0039).
+    const isDm = channel.stereo === 'dm';
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
@@ -82,8 +91,10 @@ const ChannelItem = ({
         uid,
         joinNick,
         myNick,
+        peerNick: dmPeer?.profileNick,
         selfLabel: t('channelList.selfChannel'),
         unnamedLabel: t('channelList.unnamedChannel'),
+        dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
 
     // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
@@ -91,13 +102,10 @@ const ChannelItem = ({
     const preview = lastChat?.content ?? '';
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
-    // No channel photo → the default person avatar (기본 아바타). Self-chat uses its
-    // own solid-silhouette variant (Figma "1명 Profile"); other rows use the plain one.
-    const leading = channel.thumbnail ? (
-        <ImageAvatar src={channel.thumbnail} alt="" size={46} />
-    ) : (
-        <DefaultAvatar size={46} variant={isSelf ? 'self' : 'user'} />
-    );
+    // A DM shows the peer's avatar, matching the room header — a DM channel has no photo of its own.
+    // Otherwise the channel photo, and with no photo the default person avatar (Figma "1명 Profile").
+    const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
+    const leading = avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />;
 
     return (
         <ListRow
@@ -110,8 +118,9 @@ const ChannelItem = ({
                         </Badge>
                     )}
                     <span className="truncate">{name}</span>
-                    {/* Group member count — an inline gray pill after the name (Figma 2931-8611). */}
-                    {(channel.memberNo ?? 0) > 1 && (
+                    {/* Group member count — an inline gray pill after the name (Figma 2931-8611).
+                        Hidden for a DM: it is always 2, so the number carries no information. */}
+                    {!isDm && (channel.memberNo ?? 0) > 1 && (
                         <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
                             {channel.memberNo}
                         </span>
@@ -143,6 +152,12 @@ interface ChannelListProps {
     unreadByChannel: Record<string, number>;
     /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
     joinByChannel?: Map<string, DomainJoin>;
+    /**
+     * Active place id — scopes the one profile subscription that names every DM row. Required, not
+     * optional: forgetting it fails silently (every DM row quietly falls back to `channel.name` or
+     * the unnamed label), which is the drift this list exists to avoid.
+     */
+    sid: string;
     isLoading: boolean;
     /** Show the create (＋) popover in the section header. */
     canCreate?: boolean;
@@ -154,16 +169,24 @@ interface ChannelListProps {
     sortMethod?: ChannelSortMethod;
     /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** Relay: start a 1:1 chat (not implemented yet — placeholder). */
+    /** Relay: start a 1:1 chat — navigates to the contact-invite page (ADR-0033 Track B). */
     onCreateOneOnOne?: () => void;
     /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
+    /**
+     * Sent relay invites still worth a row — `pending`/`expired` only (ADR-0033 Track B). The
+     * host is expected to pass `[]` outside the default cloud, where 1:1 invites don't apply.
+     */
+    sentInvites?: MyInviteView[];
+    /** Tapping an invite row — the host navigates to that invite's waiting screen. */
+    onSelectInvite?: (inviteId: string) => void;
 }
 
 export const ChannelList = ({
     channels,
     unreadByChannel,
     joinByChannel,
+    sid,
     isLoading,
     canCreate,
     isDefaultCloud,
@@ -172,6 +195,8 @@ export const ChannelList = ({
     pinnedChannelIds,
     onCreateOneOnOne,
     onCreateGroup,
+    sentInvites = [],
+    onSelectInvite,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     // My active-site profile nick — the self-chat title fallback. Resolved once here
@@ -180,6 +205,8 @@ export const ChannelList = ({
     const myNick = myProfile?.nick;
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
     const { userId: uid } = useSessionIdentity();
+    // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
+    const dmPeers = useDmPeers(sid, channels, uid);
 
     // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
     // channels above). See sortChannels (pure, unit-tested).
@@ -219,6 +246,14 @@ export const ChannelList = ({
 
     return (
         <CollapsibleSection title={t('homePage.channels', '채널')} count={channels.length} actions={createMenu}>
+            {/* Sent-invite rows float above real channels — they are the newest, most actionable
+                entries, same spirit as a pinned channel. See useInviteListRows for what qualifies. */}
+            {sentInvites.map(invite => {
+                const id = invite.id;
+                if (!id) return null;
+                return <InviteChannelRow key={id} invite={invite} onClick={() => onSelectInvite?.(id)} />;
+            })}
+
             {isLoading && channels.length === 0 ? (
                 <>
                     <ChannelSkeleton />
@@ -226,7 +261,9 @@ export const ChannelList = ({
                     <ChannelSkeleton />
                 </>
             ) : channels.length === 0 ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+                sentInvites.length === 0 && (
+                    <div className="py-8 text-center text-sm text-muted-foreground">{t('channelList.empty')}</div>
+                )
             ) : (
                 sortedChannels.map(channel => (
                     <ChannelItem
@@ -236,6 +273,7 @@ export const ChannelList = ({
                         myNick={myNick}
                         joinNick={joinByChannel?.get(channel.id)?.nick}
                         uid={uid ?? undefined}
+                        dmPeer={dmPeers.get(channel.id)}
                     />
                 ))
             )}

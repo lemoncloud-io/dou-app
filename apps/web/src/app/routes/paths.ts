@@ -47,6 +47,17 @@ export const ROUTES = {
         inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,
     },
 
+    // ── Invite (ADR-0033) ────────────────────────────────────────
+    invite: {
+        // Accepting an invite (Common — see CommonRoutes). Deliberately NOT private: an invite
+        // deeplink routinely lands before the background guest login finishes, and the signed-out
+        // router's '*' fallback would drop the query string with it.
+        accept: '/invite/accept',
+        // Sending an invite (Private — Track B).
+        contact: '/invite/contact',
+        waiting: (inviteId: string) => `/invite/${inviteId}/waiting`,
+    },
+
     // ── Place (Private) ──────────────────────────────────────────
     place: {
         detail: (placeId: string) => `/place/${placeId}`,

@@ -1,0 +1,98 @@
+import { renderHook } from '@testing-library/react';
+
+import { useSubscriptionIap } from './useSubscriptionIap';
+import { useLinkedAccounts } from '../../../hooks';
+import { appBridge } from '../../../bridge';
+
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: jest.fn() }) }));
+
+const validateMutate = jest.fn().mockResolvedValue({ isValid: true });
+const membershipMutate = jest.fn().mockResolvedValue({});
+jest.mock('@chatic/web-core', () => ({
+    cloudsKeys: { all: ['clouds'] },
+    subscriptionKeys: { all: ['subscription'] },
+    useValidateApple: () => ({ mutateAsync: validateMutate }),
+    useValidateGoogle: () => ({ mutateAsync: validateMutate }),
+    useValidateMembership: () => ({ mutateAsync: membershipMutate }),
+}));
+
+jest.mock('../../../hooks', () => ({ useLinkedAccounts: jest.fn() }));
+jest.mock('../../../bridge', () => ({
+    appBridge: {
+        purchase: jest.fn(),
+        finishPurchaseTransaction: jest.fn().mockResolvedValue(undefined),
+        fetchCurrentPurchases: jest.fn().mockResolvedValue({ data: { purchases: [] } }),
+        fetchProducts: jest.fn().mockResolvedValue({ data: { products: [] } }),
+    },
+    // The purchase result arrives as a push event; these register callbacks the tests never fire.
+    useOnPurchaseSuccess: jest.fn(),
+    useOnPurchaseError: jest.fn(),
+}));
+jest.mock('../consts', () => ({ APP_ID: 'app', IS_DEV: false }));
+
+const setSocial = (social: 'linked' | 'absent' | 'unknown') =>
+    (useLinkedAccounts as jest.Mock).mockReturnValue({ phone: 'unknown', social });
+
+const product = { id: 'plan-1' };
+
+beforeEach(() => {
+    jest.clearAllMocks();
+});
+
+describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가드', () => {
+    it('소셜이 없다고 서버가 말했으면 스토어를 열기 전에 거절한다', async () => {
+        setSocial('absent');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.purchaseAndValidate(product)).rejects.toThrow(
+            'mypage.subscription.socialLinkRequired'
+        );
+
+        // 결제가 시작조차 되지 않아야 한다 — validateMembership은 구매 뒤에 돌기 때문에,
+        // 여기서 막지 않으면 돈은 나가고 구독은 붙을 곳이 없다.
+        expect(appBridge.purchase).not.toHaveBeenCalled();
+        expect(membershipMutate).not.toHaveBeenCalled();
+    });
+
+    it("'unknown'은 막지 않는다 — 백필 전 기존 유료 사용자를 세우면 안 된다", async () => {
+        setSocial('unknown');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        // 푸시 이벤트가 오지 않으므로 resolve되지 않는다. 중요한 것은 거절되지 않고
+        // 스토어 호출까지 갔다는 사실이다.
+        void result.current.purchaseAndValidate(product);
+
+        expect(appBridge.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: 'plan-1' }));
+    });
+
+    it('연동이 확인되면 정상적으로 스토어를 연다', async () => {
+        setSocial('linked');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        void result.current.purchaseAndValidate(product);
+
+        expect(appBridge.purchase).toHaveBeenCalled();
+    });
+
+    it('복구(restore)는 막지 않는다 — 이미 존재하는 결제는 누군가의 것이다', async () => {
+        setSocial('absent');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        const restored = await result.current.restorePurchases();
+
+        // 가드에 걸려 throw하지 않고, 서버 판정에 맡긴 뒤 0건으로 끝난다.
+        expect(restored).toBe(0);
+        expect(appBridge.fetchCurrentPurchases).toHaveBeenCalled();
+    });
+
+    it('화면이 미리 안내할 수 있도록 판정을 내보낸다', () => {
+        setSocial('absent');
+        const { result } = renderHook(() => useSubscriptionIap());
+        expect(result.current.isMissingSocialForCloud).toBe(true);
+
+        setSocial('unknown');
+        const { result: unknownResult } = renderHook(() => useSubscriptionIap());
+        expect(unknownResult.current.isMissingSocialForCloud).toBe(false);
+    });
+});

@@ -16,25 +16,26 @@ import {
     DateDivider,
     DefaultAvatar,
     FloatingDateChip,
-    IconChevronRight,
     ImageAvatar,
     MessageInput,
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { RoomIntro } from '../components/RoomIntro';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
     useChannel,
     useChannelMembers,
     useChannelProfiles,
+    useChannelTitle,
     useChatMutations,
     useChats,
     useChatScroll,
     useDmPeer,
     useJoinPositions,
+    useMyJoin,
     useReadMarker,
-    useSelfChatTitle,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
@@ -78,10 +79,17 @@ export const ChannelRoomPage = () => {
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
+    // Resolved before the member hook so its roster (`channel.memberIds`) can seed the member list —
+    // the two have no dependency on each other beyond that.
+    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
+
     // Loads member user identities (name/avatar fallback) + join read-state into the cache and
     // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.
-    const { members, activeMemberIds } = useChannelMembers({ channelId: stableChannelId, detail: true });
-    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
+    const { members, activeMemberIds } = useChannelMembers({
+        channelId: stableChannelId,
+        detail: true,
+        memberIds: channel?.memberIds,
+    });
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
 
@@ -106,20 +114,16 @@ export const ChannelRoomPage = () => {
     // Group = anything that is neither the self chat nor a 1:1 DM (stereo). The header
     // participant stack is group-only; self / 1:1 DM headers stay single-line.
     const isGroupChat = !!channel && !isSelfChat && !isDmChat;
-    // DM peer (the other participant) for the header title/avatar — resolved from the roster with
-    // the site profile preferred over the member cache. Null for non-DM channels.
+    // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
+    // from the site profile only. Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    // Self-chat title comes from the per-user join nick, falling back to my site
-    // profile nick (ADR-0026), not `channel.name`.
-    const selfChatTitle = useSelfChatTitle(channel);
-    // Header title by channel type: self → selfChatTitle; dm → the peer's nick (ADR-0032). The rest —
-    // I own the channel → the owner-set channel.name (my own join nick is ignored); I'm a member →
-    // channel.displayName (my join nick, falling back to channel.name).
-    const roomTitle = isSelfChat
-        ? selfChatTitle
-        : isDmChat
-          ? dmPeer?.nick || t('chat.room.title')
-          : (channel?.isOwner ? channel?.name : channel?.displayName) || t('chat.room.title');
+    // My join row from the join cache stream — NOT `channel.$join`, which is a projection that lags
+    // the cache (see useMyJoin). The DM title reads the nick off it, so a rename in settings has to
+    // land here immediately or the header disagrees with every other surface.
+    const myJoin = useMyJoin(stableChannelIdForChannelHook);
+    // One title chain for every surface (see useChannelTitle): the header must read exactly what
+    // the home list row reads, so neither the branch nor the fallback label lives here.
+    const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
     // Read receipts show for real groups only; the mode follows the active roster size
     // (the getReadCount denominator): 2 members read as a 1:1 (binary), 3+ as counts.
     const activeCount = activeMemberIds.length;
@@ -140,14 +144,24 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         isError: isChatError,
         hasMore,
+        isThreadStartLoaded,
         loadMore,
     } = useChats(memoizedChatParams);
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
 
+    /**
+     * Leave for home when the channel is GONE — the row was there and disappeared (left the channel,
+     * cache cleared). `useChannel` only reports an absence once it has actually resolved one, so this
+     * no longer fires while a push-opened room is still being fetched; doing so used to unmount the
+     * sync that was fetching it and made the room permanently unenterable.
+     *
+     * An unresolvable channel (`isChannelError`) is NOT redirected: the error screen below explains
+     * itself and its 돌아가기 keeps the history entry the user came from.
+     */
     useEffect(() => {
-        if (isChannelLoading) return;
-        if (!channel || isChannelError) {
+        if (isChannelLoading || isChannelError) return;
+        if (!channel) {
             void navigate(ROUTES.root, { replace: true });
         }
     }, [channel, isChannelLoading, isChannelError, navigate]);
@@ -272,6 +286,12 @@ export const ChannelRoomPage = () => {
         } finally {
             setIsCopyingMessage(false);
         }
+    };
+
+    // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
+    // pointer and mouse handlers — see the wrapper below for why both are needed.
+    const keepCaretOnInput = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+        if (e.target !== inputRef.current) e.preventDefault();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -411,19 +431,16 @@ export const ChannelRoomPage = () => {
               return <AvatarGroup avatars={avatars} count={channel?.memberCount ?? 1} max={5} />;
           })();
 
-    // Self-chat intro guide (Figma 3185-13109 / 3186-13530): a left-aligned block explaining the
-    // "나만의 기록" purpose. Unlike the old centered empty state, it stays pinned at the top of the
-    // thread even once messages exist, so it is rendered both in the empty branch and as the
-    // top-most element of the message list.
-    const selfChatIntro = (
-        <div className="flex flex-col items-start gap-1.5 px-4 pb-2 pt-2.5">
-            <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
-                {t('chat.room.emptyState.selfLine1')}
-            </p>
-            <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
-                {t('chat.room.emptyState.selfLine2')}
-            </p>
-        </div>
+    // The thread's opening description block — one per stereo (see RoomIntro). It is not an empty
+    // state: it renders in the empty branch AND at the top of a live thread, so it survives the
+    // first message. A DM cannot be invited into, and a guest / inactive cloud cannot issue one.
+    const roomIntro = (
+        <RoomIntro
+            variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
+            peerNick={dmPeer?.profileNick}
+            isGroupOwner={isGroupChat && channel?.ownerId === userId}
+            onInvite={!isGuest && isCloudActive ? () => navigate(ROUTES.channels.invite(stableChannelId)) : undefined}
+        />
     );
 
     return (
@@ -469,32 +486,7 @@ export const ChannelRoomPage = () => {
                     ) : isChatEmpty ? (
                         <div className="flex min-h-full flex-1 flex-col">
                             <DateDivider label={formatDateSeparator(new Date())} />
-                            {isSelfChat
-                                ? selfChatIntro
-                                : // DM has no invite CTA — an empty thread (no bubbles) is its
-                                  // initial state (ADR-0032). The CTA is owner-only group behavior.
-                                  !isDmChat &&
-                                  channel?.ownerId === userId &&
-                                  !isGuest &&
-                                  isCloudActive && (
-                                      <div className="flex flex-col items-start gap-6 px-4 py-2.5">
-                                          <div className="flex flex-col gap-1.5">
-                                              <p className="text-[18px] font-semibold leading-[26px] tracking-[-0.09px] text-foreground">
-                                                  {t('chat.room.emptyState.line1')}
-                                              </p>
-                                              <p className="text-[16px] leading-[22px] tracking-[-0.08px] text-description">
-                                                  {t('chat.room.emptyState.line2')}
-                                              </p>
-                                          </div>
-                                          <button
-                                              onClick={() => navigate(ROUTES.channels.invite(stableChannelId))}
-                                              className="flex h-[50px] items-center gap-1.5 rounded-full border border-input-border pl-[25px] pr-[19px] text-[16px] font-semibold text-foreground"
-                                          >
-                                              {t('chat.room.emptyState.inviteButton')}
-                                              <IconChevronRight className="size-[18px]" />
-                                          </button>
-                                      </div>
-                                  )}
+                            {roomIntro}
                         </div>
                     ) : (
                         <>
@@ -508,10 +500,13 @@ export const ChannelRoomPage = () => {
                                 .sort(([a], [b]) => b.localeCompare(a))
                                 .map(([dateKey, dateMessages], groupIndex, groupArr) => {
                                     const reversedMessages = [...dateMessages].reverse();
-                                    // Oldest day group (last after the descending sort). The self-chat
-                                    // intro renders just below this group's date divider so it reads
+                                    // Oldest LOADED day group (last after the descending sort). The intro
+                                    // renders just below this group's date divider so it reads
                                     // [date][intro][messages] — matching the empty state and Figma.
-                                    const isOldestGroup = groupIndex === groupArr.length - 1;
+                                    // `isThreadStartLoaded` keeps it off mid-history: "oldest loaded" is
+                                    // only the real thread start once nothing older is left, otherwise the
+                                    // block would re-parent on every loadMore.
+                                    const isThreadStart = groupIndex === groupArr.length - 1 && isThreadStartLoaded;
 
                                     return (
                                         <div
@@ -623,7 +618,7 @@ export const ChannelRoomPage = () => {
                                                     />
                                                 );
                                             })}
-                                            {isSelfChat && isOldestGroup && selfChatIntro}
+                                            {isThreadStart && roomIntro}
                                             <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
                                         </div>
                                     );
@@ -649,10 +644,12 @@ export const ChannelRoomPage = () => {
                 ref={composerRef}
                 // Extend the keep-keyboard-open tolerance to the whole bottom bar — a finger
                 // slipping off the input onto the surrounding padding shouldn't blur the
-                // textarea. Only the textarea itself keeps the caret.
-                onPointerDown={e => {
-                    if (e.target !== inputRef.current) e.preventDefault();
-                }}
+                // textarea. Only the textarea itself keeps the caret. `mousedown` as well as
+                // `pointerdown`: on iOS WKWebView the focus move is the `mousedown` default
+                // action, so cancelling `pointerdown` alone does not hold the caret (the same
+                // reason MessageInput cancels both).
+                onPointerDown={keepCaretOnInput}
+                onMouseDown={keepCaretOnInput}
                 // Floating composer (Figma 2948-28188 / 2948-29566): the bar itself has NO surface —
                 // the translucent pill is the only chrome, so the message list stays visible right up
                 // to the screen edge and scrolls behind it.

@@ -6,7 +6,7 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { IconChevronRight, IconUser, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
+import { IconChevronRight, IconUserOutline, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { useMembershipInfo } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
@@ -16,6 +16,7 @@ import { BottomNavSpacer } from '../../../ui/components';
 import { useAppIcon, useDevicePushMute } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
 import { debugOverlayActions, useDebugMode } from '../../debug';
+import { useAppUpdateStatus } from '../../appUpdate';
 import { ROUTES } from '../../../routes/paths';
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
@@ -33,6 +34,7 @@ export const MyPage = () => {
     const { resetOnboarding, blurLastMessage, setBlurLastMessage, issueReportHidden, setIssueReportHidden } =
         usePreferenceStore();
     const { isEnabled: isDebugMode, registerTap } = useDebugMode();
+    const { updateAvailable } = useAppUpdateStatus();
     const {
         isSupported: isIconChangeSupported,
         currentIcon,
@@ -53,7 +55,7 @@ export const MyPage = () => {
             {displayImageUrl ? (
                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
             ) : (
-                <IconUser size={20} className="text-placeholder" />
+                <IconUserOutline size={20} className="text-placeholder" />
             )}
         </span>
     );
@@ -70,9 +72,12 @@ export const MyPage = () => {
     const hasSubscription = membership?.isValid === true;
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
-    // iOS only: Android has no live-version source yet (see ADR-0033), so the update row is
-    // gated on platform explicitly rather than relying solely on shouldUpdate staying false there.
-    const showUpdate = !!versionInfo?.shouldUpdate && deviceInfo?.platform === 'ios';
+    // The store row is always present on iOS and only its trailing label branches, so tapping
+    // through to the store never depends on an update existing. iOS only: Android has no
+    // live-version source yet (see ADR-0033), so "최신 버전" there would be a guess, not a check.
+    // `updateAvailable` is the live bridge check, not versionInfo.shouldUpdate — the latter comes
+    // from the boot-time injection, which is always false on a cold start (see useAppUpdateStatus).
+    const showStoreRow = deviceInfo?.platform === 'ios';
 
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const handleLogout = () => {
@@ -91,7 +96,7 @@ export const MyPage = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
-    const handleUpdateClick = () => {
+    const handleOpenStore = () => {
         if (isNative()) {
             appBridge.openStore();
             return;
@@ -237,20 +242,27 @@ export const MyPage = () => {
                         }
                         onClick={registerTap}
                     />
-                    {/* Update availability is its own row (design), shown only where a live check
-                        exists — iOS only for now; Android has no live-version source yet. */}
-                    {showUpdate && (
+                    {/* Store row (design): its own row below the version row so the version row can
+                        keep the debug-unlock tap gate. Always tappable through to the store; only
+                        the label branches on whether a newer store build exists. */}
+                    {showStoreRow && (
                         <ListRow
                             title={t('mypage.appVersion')}
                             trailing={
                                 <span className="flex items-center gap-1">
-                                    <span className="text-[14px] font-medium text-primary">
-                                        {t('mypage.updateAvailable')}
-                                    </span>
-                                    <IconChevronRight className="size-[18px] text-primary" />
+                                    {updateAvailable ? (
+                                        <span className="text-[14px] font-medium text-primary">
+                                            {t('mypage.updateAvailable')}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[14px] text-description">{t('mypage.upToDate')}</span>
+                                    )}
+                                    <IconChevronRight
+                                        className={`size-[18px] ${updateAvailable ? 'text-primary' : 'text-description'}`}
+                                    />
                                 </span>
                             }
-                            onClick={handleUpdateClick}
+                            onClick={handleOpenStore}
                         />
                     )}
                     {isDebugMode && (

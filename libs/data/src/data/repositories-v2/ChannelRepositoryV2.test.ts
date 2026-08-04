@@ -147,7 +147,7 @@ describe('ChannelRepositoryV2', () => {
         const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
         channelRemoteDataSource.fetchChannel.mockResolvedValue({ list: [] });
 
-        await repository.refreshList();
+        await repository.refreshList({});
 
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
     });

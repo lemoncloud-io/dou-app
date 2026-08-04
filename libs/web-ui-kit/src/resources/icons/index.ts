@@ -50,12 +50,20 @@ export const IconPlan: LucideIcon = Sparkles;
 export const IconBolt: LucideIcon = Zap;
 export const IconImage: LucideIcon = ImageGlyph;
 export const IconLink: LucideIcon = Link2;
-export const IconUser: LucideIcon = User;
+/** Outline person — grey placeholder slots only. Avatars use the solid `IconUser`. */
+export const IconUserOutline: LucideIcon = User;
 export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;
 
-// Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUserSolid.tsx.
+// Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
-export { IconUserSolid, type IconUserSolidProps } from './IconUserSolid';
+export { IconUser, type IconUserProps } from './IconUser';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
+// Duotone glyphs — filled shapes with a half/40%-opacity companion layer. Their lucide
+// outline counterparts (IconClock, IconUsers, IconImage) remain exported: this barrel is
+// the kit's single icon source, so an alias staying available without a current caller is
+// the normal state, not dead code.
+export { IconClockSolid, type IconClockSolidProps } from './IconClockSolid';
+export { IconUsersGroup, type IconUsersGroupProps } from './IconUsersGroup';
+export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';

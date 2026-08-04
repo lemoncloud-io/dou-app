@@ -53,14 +53,60 @@ describe('buildInviteRedirectUrl', () => {
         expect(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&relay=')).toContain('relay=1');
     });
 
-    it('still requires code for a relay link', () => {
-        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?relay')).toThrow('code');
+    it('uses a ready-made `backend` param verbatim instead of composing one', () => {
+        const url = new URL(
+            buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&backend=https%3A%2F%2Fapi.example.com%2Fdev')
+        );
+
+        expect(url.searchParams.get('_backend')).toBe('https://api.example.com/dev');
+        expect(url.searchParams.get('code')).toBe('c');
     });
 
-    it('throws a descriptive error for an invalid URL or missing params', () => {
+    it('prefers `backend` over api/stage when both are present', () => {
+        const url = new URL(
+            buildInviteRedirectUrl(
+                'https://app-dev.chatic.io/s?code=c&api=uzjpiaey7a&stage=dev&backend=https%3A%2F%2Fapi.example.com%2Fdev'
+            )
+        );
+
+        expect(url.searchParams.get('_backend')).toBe('https://api.example.com/dev');
+    });
+
+    it('accepts a `backend` link without api/stage', () => {
+        // The landing and mobile converters accept this form, so the debug tool must not reject it.
+        expect(() =>
+            buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&backend=https%3A%2F%2Fapi.example.com%2Fdev')
+        ).not.toThrow();
+    });
+
+    it('treats a code-only link as relay — the relay server has no api/stage/backend to carry', () => {
+        const url = new URL(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=invt%3A910432%3Aabc'));
+
+        expect(url.searchParams.get('code')).toBe('invt:910432:abc');
+        expect(url.searchParams.get('relay')).toBe('1');
+        expect(url.searchParams.has('_backend')).toBe(false);
+    });
+
+    it('treats a code-only link as relay even with unrelated params present', () => {
+        // utm/ref params are not addresses, so they must not push the link into the cloud branch.
+        const url = new URL(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&utm_source=kakao'));
+
+        expect(url.searchParams.get('relay')).toBe('1');
+        expect(url.searchParams.has('_backend')).toBe(false);
+    });
+
+    it('still requires code for a relay link', () => {
+        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?relay')).toThrow('code');
+        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s')).toThrow('code');
+    });
+
+    it('throws a descriptive error for an invalid URL or a partial cloud address', () => {
         expect(() => buildInviteRedirectUrl('not-a-url')).toThrow('유효한 URL이 아닙니다.');
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?api=x&stage=dev')).toThrow('code');
-        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&stage=dev')).toThrow('api');
+        // A half-specified address is a broken cloud link, not a relay link — do not silently relay it.
+        expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&stage=dev')).toThrow(
+            'api 또는 backend'
+        );
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&api=x')).toThrow('stage');
     });
 });

@@ -9,43 +9,41 @@ import { isNative, logger } from '@chatic/bridges';
 
 import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
-
-const GoogleIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-            d="M19.6 10.227c0-.709-.064-1.39-.182-2.045H10v3.868h5.382a4.6 4.6 0 0 1-1.996 3.018v2.51h3.232c1.891-1.742 2.982-4.305 2.982-7.35Z"
-            fill="#4285F4"
-        />
-        <path
-            d="M10 20c2.7 0 4.964-.895 6.618-2.423l-3.232-2.509c-.895.6-2.04.955-3.386.955-2.605 0-4.81-1.76-5.595-4.123H1.064v2.59A9.996 9.996 0 0 0 10 20Z"
-            fill="#34A853"
-        />
-        <path
-            d="M4.405 11.9A6.01 6.01 0 0 1 4.09 10c0-.663.114-1.308.314-1.9V5.51H1.064A9.996 9.996 0 0 0 0 10c0 1.614.386 3.14 1.064 4.49l3.34-2.59Z"
-            fill="#FBBC05"
-        />
-        <path
-            d="M10 3.977c1.468 0 2.786.505 3.823 1.496l2.868-2.868C14.959.99 12.695 0 10 0A9.996 9.996 0 0 0 1.064 5.51l3.34 2.59C5.192 5.736 7.396 3.977 10 3.977Z"
-            fill="#EA4335"
-        />
-    </svg>
-);
-
-const AppleIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M13.5 1c.1 1.4-.4 2.7-1.2 3.7-.8.9-2 1.6-3.2 1.5-.1-1.3.5-2.7 1.3-3.6C11.2 1.6 12.5 1 13.5 1ZM17.9 14.5c-.5 1.1-1 2-1.8 2.9-.7.9-1.5 1.8-2.7 1.8-1.1 0-1.5-.7-2.8-.7-1.4 0-1.8.7-2.9.7-1.1 0-1.9-.8-2.7-1.8C3.8 16 2.9 13.8 2.9 11.7c0-3.5 2.3-5.4 4.5-5.4 1.2 0 2.2.8 2.9.8.7 0 1.9-.8 3.3-.8 1.1 0 2.9.6 3.9 2.3-3.4 1.9-2.8 6.8.4 5.9Z" />
-    </svg>
-);
+import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
+import { isDevBuild } from '../../auth/utils/env';
+import { AppleIcon, GoogleIcon } from '../components';
 
 export const LoginPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
+    const [isPhoneOpen, setIsPhoneOpen] = useState(false);
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
+    /**
+     * Phone sign-in is a development-build affordance for now: production keeps social as the only way
+     * in. Held back rather than removed because the flow itself is wired and tested — flipping this is
+     * how it ships once the account-split guidance and the subscription/email coupling are settled.
+     */
+    const showPhoneLogin = isDevBuild();
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
+
+    /**
+     * Clean up the history stack: [/, /mypage, /mypage/login] → [/]. Going back to the first entry and
+     * replacing prevents a back-navigation loop into a login page the user has already passed. Shared
+     * by both sign-in methods — either one leaves this screen behind for good.
+     */
+    const leaveForHome = () => {
+        const stepsBack = window.history.length - 1;
+        if (stepsBack > 0) {
+            window.addEventListener('popstate', () => window.location.replace('/'), { once: true });
+            window.history.go(-stepsBack);
+        } else {
+            window.location.replace('/');
+        }
+    };
 
     const handleOAuthLogin = async (provider: 'google' | 'apple') => {
         setIsOAuthPending(true);
@@ -66,15 +64,7 @@ export const LoginPage = () => {
             // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
             await loginRelaySocial({ body: result, provider: result.provider });
 
-            // Clean up history stack: [/, /mypage, /mypage/login] → [/]
-            // Going back to the first entry and replacing prevents a back-navigation loop
-            const stepsBack = window.history.length - 1;
-            if (stepsBack > 0) {
-                window.addEventListener('popstate', () => window.location.replace('/'), { once: true });
-                window.history.go(-stepsBack);
-            } else {
-                window.location.replace('/');
-            }
+            leaveForHome();
         } catch (e) {
             setIsOAuthPending(false);
             setActiveProvider(null);
@@ -102,6 +92,7 @@ export const LoginPage = () => {
                     <div className="flex flex-col gap-3">
                         <button
                             onClick={() => handleOAuthLogin('google')}
+                            data-testid="login-google"
                             disabled={isLoading}
                             aria-busy={isLoading && activeProvider === 'google'}
                             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-white py-[14px] text-[15px] font-medium text-[#222325] disabled:opacity-50 dark:border-[#3A3A3A] dark:bg-[#1C1C1E] dark:text-white"
@@ -131,9 +122,53 @@ export const LoginPage = () => {
                         )}
                     </div>
                 ) : (
+                    // Which copy is true depends on whether anything else is offered below: with phone
+                    // login hidden the app really is the only way in, but where it shows, only SOCIAL is.
                     <p className="text-center text-[14px] text-muted-foreground">
-                        {t('mypageLogin.mobileOnly', { defaultValue: 'Please use the mobile app to sign in.' })}
+                        {showPhoneLogin
+                            ? t('mypageLogin.socialMobileOnly', {
+                                  defaultValue: 'Social sign-in is available in the mobile app.',
+                              })
+                            : t('mypageLogin.mobileOnly', { defaultValue: 'Please use the mobile app to sign in.' })}
                     </p>
+                )}
+
+                {/*
+                 * Phone login is held to development builds.
+                 *
+                 * Where it IS shown it sits BELOW social on purpose. This screen is where
+                 * `PhoneVerifyBanner` sends a user who might already have a social account, and the
+                 * account-split hazard is one-way: proving a number on a fresh device mints a SEPARATE
+                 * user that can never be merged. Seeing social first, with the warning directly above
+                 * the number, is the whole defense — the server cannot prevent this (ADR-0042 §9).
+                 *
+                 * It also needs no `isNative()` gate — a socket call works in a browser — but production
+                 * keeps it hidden anyway, so social remains the only production sign-in and the
+                 * mobile-only copy above stays the whole truth there.
+                 */}
+                {showPhoneLogin && (
+                    <div className="mt-8 flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="h-px flex-1 bg-border" />
+                            <span className="text-[13px] text-muted-foreground">{t('mypageLogin.or')}</span>
+                            <span className="h-px flex-1 bg-border" />
+                        </div>
+
+                        <p className="text-center text-[13px] leading-[1.5] text-description">
+                            {isOnMobileApp
+                                ? t('mypageLogin.socialFirstNotice')
+                                : t('mypageLogin.socialFirstNoticeBrowser')}
+                        </p>
+
+                        <button
+                            onClick={() => setIsPhoneOpen(true)}
+                            disabled={isLoading}
+                            data-testid="login-phone"
+                            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
+                        >
+                            {t('mypageLogin.continueWithPhone')}
+                        </button>
+                    </div>
                 )}
 
                 <p className="mt-6 text-center text-[12px] leading-[1.5] text-description">
@@ -142,6 +177,12 @@ export const LoginPage = () => {
                     })}
                 </p>
             </div>
+
+            {/* `login`: this is a device session proving a number to become that number's main user, so
+                a `$token` comes back and `usePhoneVerify` installs it before `onVerified` fires. */}
+            {isPhoneOpen && (
+                <PhoneVerifySheet mode="login" onVerified={leaveForHome} onClose={() => setIsPhoneOpen(false)} />
+            )}
         </div>
     );
 };

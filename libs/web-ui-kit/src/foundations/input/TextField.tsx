@@ -28,6 +28,16 @@ export interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInput
     error?: string;
     /** Completed/valid state — greens the border and shows a trailing check. */
     success?: boolean;
+    /**
+     * Action rendered inside the field, after the counter — the design guide's in-field text link
+     * (e.g. 인증 요청 / 재전송). Sits inside the border, so it stays put while the value scrolls.
+     */
+    trailing?: React.ReactNode;
+    /**
+     * Content pinned to the right of the helper line, opposite `description`/`error` (e.g. the OTP
+     * countdown + 시간 연장). Renders the helper row even when there is no helper text.
+     */
+    helperTrailing?: React.ReactNode;
 }
 
 /**
@@ -48,6 +58,8 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
             description,
             error,
             success = false,
+            trailing,
+            helperTrailing,
             className,
             id,
             ...props
@@ -107,19 +119,23 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
                             </span>
                         )}
                         {success && <IconCheck className="size-[18px] shrink-0 text-main-accent" strokeWidth={2.5} />}
+                        {trailing && <span className="shrink-0 px-1">{trailing}</span>}
                     </div>
                 </div>
 
-                {helperText && (
-                    <p
-                        id={helperId}
-                        className={cn(
-                            'pl-0.5 text-[12px] leading-[18px]',
-                            error ? 'text-destructive' : success ? 'text-main-accent' : 'text-description'
-                        )}
-                    >
-                        {helperText}
-                    </p>
+                {(helperText || helperTrailing) && (
+                    <div className="flex w-full items-center justify-between gap-2">
+                        <p
+                            id={helperId}
+                            className={cn(
+                                'pl-0.5 text-[12px] leading-[18px]',
+                                error ? 'text-destructive' : success ? 'text-main-accent' : 'text-description'
+                            )}
+                        >
+                            {helperText}
+                        </p>
+                        {helperTrailing && <span className="shrink-0">{helperTrailing}</span>}
+                    </div>
                 )}
             </div>
         );

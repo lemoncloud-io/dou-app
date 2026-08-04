@@ -16,26 +16,10 @@ import { toError } from '../../../utils/errors';
 import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
 import { PermissionDeniedBanner } from '../components/PermissionDeniedBanner';
+import { isValidKoreanPhone, normalizeKoreanPhone } from '../utils/koreanPhone';
 
 /** A single invite batch selects at most this many friends. */
 const MAX_INVITE_SELECTION = 100;
-
-// Valid Korean mobile prefixes: 010, 011, 016, 017, 018, 019
-const KOREAN_MOBILE_PREFIXES = ['010', '011', '016', '017', '018', '019'];
-
-/** +82 국제 형식을 로컬 형식(0XX...)으로 정규화 */
-const normalizeKoreanPhone = (digits: string): string => {
-    if (digits.startsWith('82') && digits.length >= 12) {
-        return '0' + digits.slice(2);
-    }
-    return digits;
-};
-
-const isValidKoreanPhone = (digits: string): boolean => {
-    const normalized = normalizeKoreanPhone(digits);
-    if (normalized.length < 10 || normalized.length > 11) return false;
-    return KOREAN_MOBILE_PREFIXES.some(prefix => normalized.startsWith(prefix));
-};
 
 /** 연락처에서 유효한 한국 휴대폰 번호를 추출합니다. 유효하지 않으면 null을 반환합니다. */
 const extractValidPhone = (contact: ContactInfo): string | null => {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { IconChatBubble, IconUser } from '../../resources/icons';
+import { IconChatBubble, IconUserOutline } from '../../resources/icons';
 import { FloatingTabBar } from './FloatingTabBar';
 
 const meta: Meta<typeof FloatingTabBar> = {
@@ -37,7 +37,7 @@ const Demo = ({ badge }: { badge?: number }) => {
                 {
                     key: 'my',
                     label: 'MY',
-                    icon: <IconUser className="size-6" />,
+                    icon: <IconUserOutline className="size-6" />,
                     active: active === 'my',
                 },
             ]}

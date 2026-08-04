@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Sheet as Root, SheetContent, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
+import { Sheet as Root, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -14,6 +14,12 @@ export interface BottomSheetProps {
     title?: string;
     /** Shows the close (X) button in the header. */
     onClose?: () => void;
+    /**
+     * Screen-reader description of the sheet's purpose. Radix warns when a dialog has neither a
+     * description nor an explicit opt-out, so omitting this opts out deliberately rather than by
+     * accident. Host supplies a localized string.
+     */
+    description?: string;
     /** Shows the top drag handle. */
     showHandle?: boolean;
     /** Scrollable body content. */
@@ -30,11 +36,16 @@ export interface BottomSheetProps {
  * with a rounded top, an optional drag handle and title/close header, a
  * scrollable body, and a pinned footer. Built on the shared Radix Sheet
  * (side="bottom"); honors the bottom safe-area inset.
+ *
+ * Keyboard-aware: focusing a field inside the body lifts the whole panel above the soft keyboard and
+ * shrinks its max height by the same amount, so the focused field and the footer CTA both stay
+ * reachable instead of sitting behind the keyboard. See the `--keyboard-height` classes below.
  */
 export const BottomSheet = ({
     open,
     onOpenChange,
     title,
+    description,
     onClose,
     showHandle = false,
     children,
@@ -52,10 +63,25 @@ export const BottomSheet = ({
             <SheetContent
                 side="bottom"
                 hideClose
+                // Radix links its own Description automatically, but warns when a dialog has neither
+                // one nor an explicit opt-out — so pass the key (with no value) only when there is
+                // nothing to link. Spreading it unconditionally would suppress the auto-link too.
+                {...(description ? {} : { 'aria-describedby': undefined })}
                 className={cn(
                     // overflow-hidden is what makes rounded-t actually visible: the glass header below
                     // paints its own square backdrop-filter box and would otherwise cover the corners.
-                    'flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-t-[16px] border-0 bg-surface p-0 pb-safe-bottom',
+                    'flex flex-col gap-0 overflow-hidden rounded-t-[16px] border-0 bg-surface p-0',
+                    // Keyboard: ride above the soft keyboard rather than being buried under it, and
+                    // give back exactly the height gained so the lifted panel cannot run off the top
+                    // of the screen — the body scroll area absorbs the difference. `--keyboard-height`
+                    // is injected by the native WebView (absent in a browser, where the keyboard never
+                    // rises and both terms collapse to `bottom-0` / `90vh`).
+                    'max-h-[calc(90vh-var(--keyboard-height,0px))]',
+                    '[transform:translateY(calc(-1*var(--keyboard-height,0px)))]',
+                    // Home-indicator inset, dropped while the keyboard is up: the keyboard already
+                    // covers it and the panel has been lifted clear of both, so keeping it would just
+                    // float the footer CTA above the keyboard by a stray 34px.
+                    'pb-[max(0px,calc(var(--safe-bottom,0px)-var(--keyboard-height,0px)))]',
                     className
                 )}
             >
@@ -71,6 +97,7 @@ export const BottomSheet = ({
                     >
                         {title}
                     </SheetTitle>
+                    {description && <SheetDescription className="sr-only">{description}</SheetDescription>}
                     {onClose && (
                         <button
                             type="button"

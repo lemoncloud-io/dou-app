@@ -2,14 +2,22 @@ import { useEffect, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainUser } from '@chatic/data';
+import type { LinkedAccountsView } from '@lemoncloud/chatic-backend-api';
 import { useSessionIdentity } from '@chatic/web-core';
 
 /**
- * The domain user carries the backend display fields (`photo`/`email`) at runtime — via
- * `toDomainUser`'s spread of the backend `$user` and the session seed — but the socials-api
- * `DomainUser` type only declares `name`/`nick`/`thumbnail`, so surface them explicitly here.
+ * The domain user carries the backend display fields (`photo`/`email`) and the linked-credential slots
+ * (`link$`) at runtime — via `toDomainUser`'s spread of the backend `$user` and the session seed — but
+ * the socials-api `DomainUser` type only declares `name`/`nick`/`thumbnail`, so surface them
+ * explicitly here.
+ *
+ * `link$` rides all the way through because every hop is a spread, not a field allowlist:
+ * `UserRemoteDataSource` pulls `$user` out of `UserProfile$`, `toDomainUser` spreads it, and
+ * `UserLocalDataSourceV2.cacheWrite` merges it into the IndexedDB row. Nothing declares it, so it is
+ * invisible to the compiler until a reader widens the type — which is exactly what this alias does
+ * for `photo`/`email` already (ADR-0042 §5).
  */
-export type MyUser = DomainUser & { photo?: string; email?: string };
+export type MyUser = DomainUser & { photo?: string; email?: string; link$?: LinkedAccountsView };
 
 /**
  * Current-session user (name/photo/email) sourced from UserRepositoryV2 (the socket `user.profile`

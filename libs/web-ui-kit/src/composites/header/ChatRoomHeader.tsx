@@ -71,7 +71,9 @@ export const ChatRoomHeader = ({
     safeArea = true,
     className,
 }: ChatRoomHeaderProps) => {
-    const fallbackVariant = kind === 'group' ? 'group' : kind === 'self' ? 'self' : 'user';
+    // The avatar has two images, so `direct` and `self` share the single-person one — only a group
+    // room gets its own glyph.
+    const fallbackVariant = kind === 'group' ? 'group' : 'user';
 
     const moreButton = (
         <button type="button" onClick={moreMenu ? undefined : onMore} aria-label={moreLabel} className={SLOT}>

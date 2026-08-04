@@ -12,7 +12,6 @@ import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { resolvePushNavigation } from './resolvePushNavigation';
-import { ROUTES } from '../../routes/paths';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
@@ -24,6 +23,16 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * carry their whole meaning in query params — a pathname-only match would drop them.
  */
 const toLocationKey = (target: string): string => target.split('#')[0];
+
+/**
+ * Is this pathname a channel room? Mirrors `ROUTES.channels.room` — kept as a pattern because the
+ * route builder takes an id and this has to match any of them.
+ *
+ * Only a room is treated as a disposable history entry (see `navigateNormalized`): rooms are peers
+ * that a push hops between, so stacking them buries the screen the user actually wants to return to.
+ * Every other screen is somewhere the user chose to be.
+ */
+const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/room$/.test(pathname);
 
 /**
  * Shared navigation primitive for push-originated route changes — native `OnNavigate`
@@ -63,18 +72,22 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const inFlightRef = useRef(false);
 
     /**
-     * Navigates to a push target without growing the history stack.
+     * Navigates to a push target while keeping "back" meaningful.
      *
      * - Already on the exact target (pathname + query): skip entirely — re-navigating would
      *   remount the page (scroll/input reset) and stack a duplicate history entry for the
      *   same screen. A matching pathname with a *different* query is NOT "already there":
      *   invite deeplinks land on `/` with their payload in query params, and skipping them
      *   used to silently swallow the invite popup when the user was already at home.
-     * - At home (`/`): push the target, so home stays below it and back = home.
-     * - Anywhere else: REPLACE the current entry with the target. On the shallow stacks push
-     *   entry usually hits (`[home, room]`) this yields `[home, target]` (back = home), and —
-     *   crucially — repeated push taps replace in place instead of stacking, so the history never
-     *   grows and never accumulates duplicate `home` entries the way a rebase-then-push did.
+     * - Leaving a channel ROOM: REPLACE it. Rooms are peers a push hops between, so repeated
+     *   taps would otherwise stack `[home, roomA, roomB, …]` and make "back" walk through stale
+     *   rooms instead of leaving the chat.
+     * - Anywhere else: PUSH, so the screen the user was on stays underneath and back returns to it.
+     *
+     * The second rule used to read "anywhere but home", which is what made back unusable: a push
+     * tapped from `/mypage` REPLACED mypage, so back skipped it — and when mypage was the only
+     * entry there was nothing left to go back to at all. Only a room is disposable; every other
+     * screen is one the user chose.
      *
      * The current location is read from `window.location` (not `useLocation`) because this
      * runs after async cloud/site switches and must see the location at call time, not the
@@ -87,10 +100,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 logger.info('ROUTER', `Already at push target; skipping navigation: ${target}`);
                 return;
             }
-            if (pathname === ROUTES.root) {
-                navigate(target);
-            } else {
+            if (isChannelRoomPath(pathname)) {
                 navigate(target, { replace: true });
+            } else {
+                navigate(target);
             }
         },
         [navigate]

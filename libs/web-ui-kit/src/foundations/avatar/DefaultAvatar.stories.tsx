@@ -13,4 +13,4 @@ type Story = StoryObj<typeof DefaultAvatar>;
 export const AppHeaderSize: Story = { args: { size: 36 } };
 export const ChatRoomHeaderSize: Story = { args: { size: 42 } };
 export const GroupChannel: Story = { args: { size: 42, variant: 'group' } };
-export const SelfChat: Story = { args: { size: 42, variant: 'self' } };
+export const SinglePerson: Story = { args: { size: 42, variant: 'user' } };

@@ -8,6 +8,12 @@ import type { ChannelMember } from '../types';
 interface UseChannelMembersParams {
     channelId: string;
     detail?: boolean;
+    /**
+     * The channel's full roster (`channel.memberIds`). Optional but strongly preferred: it is the
+     * only membership source that is authoritative BEFORE any per-channel sync lands, so passing it
+     * makes the member list appear immediately instead of waiting on `syncChannelUsers`.
+     */
+    memberIds?: string[];
 }
 
 /**
@@ -27,12 +33,14 @@ interface UseChannelMembersParams {
  * profile sync registration and read-count denominator (active users only); the join read-state
  * sync instead covers the full channel roster (channel.memberIds), registered in useJoinPositions.
  */
-export const useChannelMembers = ({ channelId, detail = true }: UseChannelMembersParams) => {
+export const useChannelMembers = ({ channelId, detail = true, memberIds }: UseChannelMembersParams) => {
     const { user: userRepository, join: joinRepository } = useRuntimeRepositories();
     const { isVerified } = useRuntimeSocketState();
 
     const [users, setUsers] = useState<DomainUser[]>([]);
     const [joins, setJoins] = useState<DomainJoin[]>([]);
+    // Cleared by EITHER stream emitting. Keying it to the user stream alone would hang the list on
+    // the one source with no sync plan — and the roster below can already name members without it.
     const [isLoading, setIsLoading] = useState(!!channelId);
 
     // Incremental channel-users sync cursor (since). Reset per channel; advanced per sync.
@@ -58,6 +66,7 @@ export const useChannelMembers = ({ channelId, detail = true }: UseChannelMember
         }
         return joinRepository.observeList({ channelId, activeOnly: false }, result => {
             setJoins(result?.list ?? []);
+            setIsLoading(false);
         });
     }, [joinRepository, channelId]);
 
@@ -89,13 +98,30 @@ export const useChannelMembers = ({ channelId, detail = true }: UseChannelMember
             .catch(() => undefined);
     }, [userRepository, channelId, detail, isVerified]);
 
+    // Membership first, identity second. The spine is the roster + join rows (both synced by the
+    // runtime); the user cache only decorates a row it happens to hold. Building the list the other
+    // way round — `users.map(...)` — silently hid every member whose user row had not synced, which
+    // for a self-chat is the only member there is.
     const members = useMemo<ChannelMember[]>(() => {
+        const userById = new Map<string, DomainUser>();
+        for (const user of users) if (user.id) userById.set(user.id, user);
+
         const joinByUserId = new Map<string, DomainJoin>();
-        for (const join of joins) {
-            if (join.userId) joinByUserId.set(join.userId, join);
+        for (const join of joins) if (join.userId) joinByUserId.set(join.userId, join);
+
+        // Roster order first (the server's order, owner-first), then anyone the caches know about
+        // but the roster does not yet list.
+        const ordered = [...(memberIds ?? []), ...joinByUserId.keys(), ...userById.keys()];
+
+        const rows: ChannelMember[] = [];
+        const seen = new Set<string>();
+        for (const id of ordered) {
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            rows.push({ ...userById.get(id), id, $join: joinByUserId.get(id) });
         }
-        return users.map(user => ({ ...user, $join: user.id ? joinByUserId.get(user.id) : undefined }));
-    }, [users, joins]);
+        return rows;
+    }, [users, joins, memberIds]);
 
     // Active-membership set: join rows still joined (`joined !== 0`), deduped by user id. This is
     // the authoritative input for the join/profile sync registrations downstream.

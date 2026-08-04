@@ -27,6 +27,8 @@ describe('@chatic/app-runtime public surface', () => {
             'useSiteSwitch',
             'useSessionLogout',
             'useLogoutCloudSession',
+            // session actions (non-hook) — verify-hash-alias $token → relay session/socket switch
+            'applySessionToken',
             // cache tier helpers (cold-db activation + invited-cloud durability)
             'isNativeApp',
             'setChatCacheLimit',

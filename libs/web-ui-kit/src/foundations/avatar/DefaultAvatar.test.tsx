@@ -27,20 +27,20 @@ describe('DefaultAvatar', () => {
         expect(root.querySelector('svg')).toBeTruthy();
     });
 
-    it('has no ring for the default user variant', () => {
+    it('rings the default user variant too', () => {
         const { container } = render(<DefaultAvatar />);
         const root = container.firstElementChild as HTMLElement;
 
-        expect(root.className).not.toContain('border-border');
+        expect(root.className).toContain('border-border');
     });
 
-    it('adds a hairline ring and a solid-person glyph for the self variant', () => {
-        const { container } = render(<DefaultAvatar variant="self" />);
+    // The room avatar has exactly two images and this is the single-person one: the custom solid
+    // silhouette (viewBox 0 0 42 42), never the lucide outline.
+    it('draws the solid silhouette for the user variant', () => {
+        const { container } = render(<DefaultAvatar variant="user" />);
         const root = container.firstElementChild as HTMLElement;
 
         expect(root.className).toContain('bg-brand-ink');
-        expect(root.className).toContain('border-border');
-        // The self glyph is the custom solid silhouette (viewBox 0 0 42 42), not the lucide outline.
         expect(root.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
     });
 });

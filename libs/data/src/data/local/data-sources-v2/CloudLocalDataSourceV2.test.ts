@@ -71,7 +71,7 @@ describe('CloudLocalDataSourceV2', () => {
         jest.runAllTimers();
         await flushPromises();
 
-        await dataSource.cacheWrite({ id: 'cloud-1', name: 'Cloud One' } as any);
+        await dataSource.cacheWrite({ id: 'cloud-1', cid: 'cloud-1', name: 'Cloud One' } as any);
 
         // Flush the debounced re-emit that follows the write.
         jest.runAllTimers();
@@ -86,7 +86,10 @@ describe('CloudLocalDataSourceV2', () => {
         const storage = createMemoryStorage();
         const dataSource = new CloudLocalDataSourceV2(contextProvider as any, storage);
 
-        await dataSource.cacheWriteMany([{ id: 'cloud-1', name: 'One' } as any, { id: 'cloud-2', name: 'Two' } as any]);
+        await dataSource.cacheWriteMany([
+            { id: 'cloud-1', cid: 'cloud-1', name: 'One' } as any,
+            { id: 'cloud-2', cid: 'cloud-2', name: 'Two' } as any,
+        ]);
         await dataSource.cacheClear();
 
         const result = await dataSource.cacheReadList();
@@ -99,8 +102,8 @@ describe('CloudLocalDataSourceV2', () => {
         const storage = createMemoryStorage();
         const dataSource = new CloudLocalDataSourceV2(contextProvider as any, storage);
 
-        await dataSource.cacheWrite({ id: 'cloud-1', name: 'One' } as any);
-        await dataSource.cacheWrite({ id: 'cloud-2', name: 'Two', cloudType: 'owner' } as any);
+        await dataSource.cacheWrite({ id: 'cloud-1', cid: 'cloud-1', name: 'One' } as any);
+        await dataSource.cacheWrite({ id: 'cloud-2', cid: 'cloud-2', name: 'Two', cloudType: 'owner' } as any);
 
         // Unclassified clouds fall back to 'invited'; explicit ownership is kept verbatim.
         expect((await dataSource.cacheRead('cloud-1'))?.cloudType).toBe('invited');

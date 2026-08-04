@@ -22,15 +22,18 @@ export interface ClientChannelView extends DomainChannel {
     isOwner: boolean;
     isSelfChat: boolean;
     memberCount: number;
-    /**
-     * Room name to show the current user: my personal `join.nick` (set by an
-     * invited member, "shown only to me") overrides the owner-set `name`.
-     * Empty when neither is set — callers apply their own i18n fallback.
-     */
-    displayName: string;
 }
 
-/** A channel member: the cached user joined with their per-channel join row. */
-export interface ChannelMember extends DomainUser {
+/**
+ * A channel member: a participant id, optionally decorated with whatever the caches know.
+ *
+ * Identity is `Partial`, not required, because membership and identity hydrate through different
+ * paths with different guarantees. The roster (`channel.memberIds`) and the join cache both have
+ * runtime sync plans; the USER cache has none — `syncChannelUsers` is its only writer. Requiring a
+ * cached user row would therefore drop real members, which is exactly how a self-chat ended up with
+ * an empty "방 친구": one participant, no user row, nothing rendered.
+ */
+export type ChannelMember = Partial<DomainUser> & {
+    id: string;
     $join?: DomainJoin;
-}
+};

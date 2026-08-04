@@ -108,6 +108,12 @@ export interface ISocketManager {
     subscribeSlotClients(listener: SocketSlotClientListener): () => void;
     waitUntilVerified(timeoutMs?: number): Promise<boolean>;
     /**
+     * Per-kind counterpart of waitUntilVerified: resolves when THAT slot completes its handshake,
+     * `false` on timeout, never rejects. Anything pinned to a slot via getScopedClient must gate on
+     * this — waitUntilVerified would wait on cloud whenever a cloud session is up.
+     */
+    waitUntilKindVerified(kind: SocketKind, timeoutMs?: number): Promise<boolean>;
+    /**
      * Mirrors the SDK AuthController's `authenticated` state for a specific slot. The ACTIVE slot's
      * `isVerified` is derived from this AND that slot being connected. Replaces markVerified/markUnverified.
      */

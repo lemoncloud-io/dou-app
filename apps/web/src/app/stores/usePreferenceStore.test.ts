@@ -1,6 +1,7 @@
 import {
     hasLocalPreference,
     parseChannelSort,
+    parseInviteIds,
     parsePinnedChannels,
     parseTheme,
     usePreferenceStore,
@@ -479,6 +480,48 @@ describe('placeScopeKey — cid:sid 스코프', () => {
         });
         expect(parsePinnedChannels(localStorage.getItem('chatic-pinned-channels') as string)).toEqual({
             'cloud-1:place-1': ['ch-1'],
+        });
+    });
+
+    // Moved here with the ids themselves: the invite feature used to hand-roll this in its own
+    // localStorage helpers (useLocallyCanceledInvites / relayInviteDecline).
+    describe('invite id lists', () => {
+        it('손상된 값은 "기록 없음"으로 degrade한다 — 던지지 않는다', () => {
+            expect(parseInviteIds('not json')).toEqual([]);
+            expect(parseInviteIds('{"a":1}')).toEqual([]);
+            expect(parseInviteIds('[1, null, "", "ok"]')).toEqual(['ok']);
+        });
+
+        it('취소는 중복 없이 쌓이고 localStorage에 반영된다', () => {
+            usePreferenceStore.setState({ canceledInviteIds: [] });
+
+            usePreferenceStore.getState().markInviteCanceled('invite-1');
+            usePreferenceStore.getState().markInviteCanceled('invite-1');
+            usePreferenceStore.getState().markInviteCanceled('invite-2');
+
+            expect(usePreferenceStore.getState().canceledInviteIds).toEqual(['invite-1', 'invite-2']);
+            expect(localStorage.getItem('dou.relayInvite.locallyCanceled.v1')).toBe('["invite-1","invite-2"]');
+        });
+
+        it('거절은 50개 링으로 오래된 것부터 밀려난다', () => {
+            usePreferenceStore.setState({ declinedInviteIds: [] });
+
+            for (let i = 0; i < 55; i += 1) usePreferenceStore.getState().markInviteDeclined(`invite-${i}`);
+
+            const ids = usePreferenceStore.getState().declinedInviteIds;
+            expect(ids).toHaveLength(50);
+            expect(ids).not.toContain('invite-0');
+            expect(ids).toContain('invite-54');
+        });
+
+        it('같은 초대를 다시 거절하면 중복되지 않고 가장 최근 자리로 옮겨진다', () => {
+            usePreferenceStore.setState({ declinedInviteIds: [] });
+
+            usePreferenceStore.getState().markInviteDeclined('invite-1');
+            usePreferenceStore.getState().markInviteDeclined('invite-2');
+            usePreferenceStore.getState().markInviteDeclined('invite-1');
+
+            expect(usePreferenceStore.getState().declinedInviteIds).toEqual(['invite-2', 'invite-1']);
         });
     });
 });

@@ -91,6 +91,23 @@ export const parseChannelSort = (raw: string): Record<string, ChannelSortMethod>
  * of non-empty strings is dropped, so a corrupt write degrades to "nothing pinned" rather than
  * breaking the channel list ordering.
  */
+/**
+ * A stored JSON array of ids. Anything else — a corrupt value, a non-array, non-string members —
+ * degrades to "nothing recorded" rather than throwing, matching the other parsers here.
+ */
+export const parseInviteIds = (raw: string): string[] => {
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((id): id is string => typeof id === 'string' && id.length > 0);
+    } catch {
+        return [];
+    }
+};
+
+/** Cap the decline ring so a long-lived install cannot grow the entry without bound; oldest drops. */
+const DECLINED_INVITES_MAX = 50;
+
 export const parsePinnedChannels = (raw: string): Record<string, string[]> => {
     try {
         const parsed = JSON.parse(raw);
@@ -149,6 +166,10 @@ interface PreferenceState {
     pinnedChannels: Record<string, string[]>;
     /** Live store version the update prompt was last dismissed for; '' means never dismissed. */
     dismissedUpdateVersion: string;
+    /** Sent invite ids hidden by the local cancel stub (no `invite.cancel` API — ADR-0033 #1). */
+    canceledInviteIds: string[];
+    /** Received invite ids the user declined (no reject API — ADR-0033 #2). Newest last, ring-capped. */
+    declinedInviteIds: string[];
 }
 
 interface PreferenceActions {
@@ -166,6 +187,10 @@ interface PreferenceActions {
     setChannelPinned: (scope: string, channelId: string, pinned: boolean) => void;
     /** Mark the update prompt as dismissed for the given live version; suppresses it until a newer version appears. */
     dismissUpdate: (version: string) => void;
+    /** Hide a sent invite on this device (local cancel stub). Idempotent. */
+    markInviteCanceled: (inviteId: string) => void;
+    /** Remember that a received invite was declined on this device. Idempotent, ring-capped. */
+    markInviteDeclined: (inviteId: string) => void;
     /**
      * Override store values from the bridge fallback read (native FetchPreference).
      * Called by PreferenceLoader only when the local cache is empty; also seeds the
@@ -194,6 +219,10 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     pinnedChannels: parsePinnedChannels(readPreference('pinnedChannels')),
 
     dismissedUpdateVersion: readPreference('dismissedUpdateVersion'),
+
+    canceledInviteIds: parseInviteIds(readPreference('canceledInvites')),
+
+    declinedInviteIds: parseInviteIds(readPreference('declinedInvites')),
 
     setBlurLastMessage: (value: boolean) => {
         set({ blurLastMessage: value });
@@ -246,6 +275,22 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     dismissUpdate: (version: string) => {
         set({ dismissedUpdateVersion: version });
         persistPreference('dismissedUpdateVersion', version);
+    },
+
+    markInviteCanceled: (inviteId: string) => {
+        if (!inviteId || get().canceledInviteIds.includes(inviteId)) return;
+        const next = [...get().canceledInviteIds, inviteId];
+        set({ canceledInviteIds: next });
+        persistPreference('canceledInvites', JSON.stringify(next));
+    },
+
+    markInviteDeclined: (inviteId: string) => {
+        if (!inviteId) return;
+        // Re-declining moves the id to the newest slot rather than duplicating it, so the ring
+        // evicts genuinely stale entries first.
+        const next = [...get().declinedInviteIds.filter(id => id !== inviteId), inviteId].slice(-DECLINED_INVITES_MAX);
+        set({ declinedInviteIds: next });
+        persistPreference('declinedInvites', JSON.stringify(next));
     },
 
     hydrate: (key: PreferenceKey, value: unknown) => {

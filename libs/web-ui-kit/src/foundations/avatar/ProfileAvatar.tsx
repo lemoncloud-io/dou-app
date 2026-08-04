@@ -1,6 +1,6 @@
 import { cn } from '@chatic/lib/utils';
 
-import { IconGroup, IconPlus, IconUser } from '../../resources/icons';
+import { IconGroup, IconPlus, IconUserOutline } from '../../resources/icons';
 
 export interface ProfileAvatarProps {
     /** Image URL; when absent a placeholder glyph (or `defaultImage`) is shown. */
@@ -63,7 +63,7 @@ export const ProfileAvatar = ({
                 ) : isGroup ? (
                     <IconGroup size={glyphSize} className="text-white" />
                 ) : (
-                    <IconUser size={glyphSize} className="text-placeholder" />
+                    <IconUserOutline size={glyphSize} className="text-placeholder" />
                 )}
             </span>
             {onSelect && (

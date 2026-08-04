@@ -36,6 +36,12 @@ export const useRuntimeProfile = (): SessionProfile => {
             setCachedUser(null);
             return;
         }
+        // Drop whatever row we held before subscribing to THIS uid. `observeItem` only ever assigns a
+        // truthy row, so without this a previous identity's cache would keep answering for the new one
+        // until (and unless) a row for the new uid emits — and since `userRole` resolves cached-first,
+        // a guest→main promotion would keep reporting `isGuest: true` forever. Falling back to the
+        // token seed is safe: it describes the identity the session just switched to.
+        setCachedUser(getActiveSessionUser() as SessionUserView | null);
         return user.observeItem(uid, next => {
             if (next) setCachedUser(next as unknown as SessionUserView);
         });

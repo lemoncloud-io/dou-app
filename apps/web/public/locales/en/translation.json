@@ -15,6 +15,8 @@
     "common": {
         "signout": "Sign Out",
         "cancel": "Cancel",
+        "close": "Close",
+        "confirm": "OK",
         "save": "Save Changes",
         "saving": "Saving..."
     },
@@ -178,6 +180,7 @@
         "logout": "Logout",
         "appVersion": "Version",
         "updateAvailable": "Update Required",
+        "upToDate": "Up to date",
         "language": {
             "ko": "한국어",
             "en": "English",
@@ -187,7 +190,21 @@
             "title": "My Info",
             "profileEdit": "Edit Profile",
             "cloudProfileEdit": "Edit Cloud Profile",
-            "withdrawal": "Delete Account"
+            "withdrawal": "Delete Account",
+            "social": {
+                "linked": "Linked",
+                "link": "Link",
+                "unlink": "Unlink",
+                "unlinkComingSoon": "Coming soon",
+                "mobileOnly": "Please use the mobile app to continue",
+                "linkSuccess": "Linked successfully",
+                "linkFailed": "Failed to link account",
+                "alreadyLinkedElsewhere": "This social account is already linked to another account",
+                "bannerTitle": "Link a social account so your account doesn't split across devices",
+                "phone": "Phone number",
+                "phoneMasked": "Linked ({{last4}})",
+                "typeAlreadyLinked": "You have already linked a different account."
+            }
         },
         "subscription": {
             "title": "Subscription",
@@ -233,7 +250,8 @@
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
-            "inUse": "Subscribed"
+            "inUse": "Subscribed",
+            "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account."
         },
         "accountManage": {
             "title": "Account Management",
@@ -383,7 +401,7 @@
         "retry": "Retry",
         "empty": "No channels yet. Create a new chat room!",
         "unnamedChannel": "Unnamed Channel",
-        "selfChannel": "My Chat",
+        "selfChannel": "Self Chat",
         "createChat": "Create Chat",
         "createDirect": "1:1 Chat",
         "createGroup": "Create Group"
@@ -441,6 +459,14 @@
         "members": "{{count}} members"
     },
     "chat": {
+        "dm": {
+            "unnamedPeer": "Chat partner",
+            "intro": {
+                "title": "{{name}} entered the chat room.",
+                "titleUnnamed": "Your chat partner entered the chat room.",
+                "description": "Start a 1:1 conversation."
+            }
+        },
         "room": {
             "title": "Chat Room",
             "loading": "Loading channel info...",
@@ -467,8 +493,8 @@
                 "leave": " left the chat room."
             },
             "emptyState": {
-                "line1": "Invite friends to",
-                "line2": "start chatting.",
+                "line1": "You created a group room.",
+                "line2": "Invite friends and start the conversation.",
                 "inviteButton": "Invite Friends",
                 "selfLine1": "Start your own record",
                 "selfLine2": "Freely save notes, links, and more"
@@ -558,6 +584,7 @@
             "profileHeader": "Profile",
             "close": "Close",
             "profileSettings": "Profile settings",
+            "profileSetupRequired": "Profile setup needed",
             "friendSettings": "Friend settings",
             "removeMember": "Remove",
             "comingSoon": "This feature is coming soon",
@@ -679,7 +706,7 @@
         "invalidCode": "Invalid invite code. Please check and try again."
     },
     "placeProfileCreate": {
-        "title": "Create a profile for\n<{{place}}>",
+        "title": "Create your profile for\n<{{place}}>",
         "subtitle": "Set up a profile just for this place!\nYou can join as a new you in every place.",
         "nameLabel": "Name",
         "nameHint": "Please enter up to 20 characters.",
@@ -692,7 +719,7 @@
         "saveError": "Failed to set up the profile.",
         "imageSizeError": "Image must be 10MB or less",
         "exitTitle": "Stop setting up your profile?",
-        "exitDescription": "You need to set a name to start DoU!\nPlease set up the profile for this place!",
+        "exitDescription": "Stopping now means no profile is created.\nYou can set it up any time from place settings.",
         "exitLeave": "Leave",
         "exitContinue": "Keep setting up"
     },
@@ -751,7 +778,12 @@
         "mobileOnly": "Please use the mobile app to sign in.",
         "termsAgreement": "By continuing, you agree\nto our Terms & Privacy Policy",
         "signup": "Sign Up",
-        "forgotPassword": "Forgot Password"
+        "forgotPassword": "Forgot Password",
+        "or": "or",
+        "continueWithPhone": "Continue with phone number",
+        "socialMobileOnly": "Social sign-in is available in the mobile app.",
+        "socialFirstNotice": "If you already have an account, sign in with social first.",
+        "socialFirstNoticeBrowser": "If you already have an account, sign in with social in the app."
     },
     "resetPassword": {
         "emailLabel": "Email",
@@ -905,6 +937,18 @@
         "success": "Channel updated successfully",
         "error": "Failed to update channel"
     },
+    "dmChat": {
+        "name": {
+            "title": "Edit name",
+            "label": "Room name",
+            "placeholder": "Chat partner",
+            "helper": "Enter up to 20 characters.",
+            "done": "Done",
+            "saving": "Saving...",
+            "success": "Name updated",
+            "error": "Failed to update name"
+        }
+    },
     "selfChat": {
         "name": {
             "title": "Edit name",
@@ -960,12 +1004,14 @@
     },
     "inviteAccept": {
         "title": "You've been invited to DoU",
+        "loading": "Checking your invitation",
         "invitedBy": " invited you to DoU",
         "description": "Accept the invitation to start chatting.",
         "accept": "Accept",
         "decline": "Decline",
         "confirm": "OK",
         "close": "Close",
+        "retry": "Try again",
         "target": {
             "you": "You",
             "group": "Group chat",
@@ -973,7 +1019,7 @@
             "roomFriends": "{{count}} members"
         },
         "expiry": {
-            "label": "Invite link expires in",
+            "label": "Invite link valid for",
             "remaining": "{{time}} left",
             "days": "{{n}}d",
             "hours": "{{n}}h",
@@ -1003,6 +1049,18 @@
             "generic": {
                 "title": "Failed to accept the invite.",
                 "description": "Please try again in a moment."
+            },
+            "notFound": {
+                "title": "This invite is not valid.",
+                "description": "The invite was cancelled or is no longer valid. Ask the sender for a new one."
+            },
+            "wrongNumber": {
+                "title": "This is not the invited number.",
+                "description": "Verify with the phone number the invite was sent to."
+            },
+            "taken": {
+                "title": "This invite has already been used.",
+                "description": "Someone else accepted it first."
             }
         },
         "failed": "Failed to accept invitation",
@@ -1013,6 +1071,11 @@
         "authVerifyFailed": "Authentication failed. Please try again.",
         "expired": "This invite has expired or is invalid.",
         "enterFailed": "The invite was accepted but entering failed. Please try again."
+    },
+    "relayInviteAccept": {
+        "verifyTitle": "Phone verification",
+        "preparingRoom": "Creating your chat room",
+        "channelPending": "Your chat room is on its way — it will show up in the list shortly."
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",
@@ -1034,6 +1097,56 @@
         "title": "Service Unavailable",
         "description": "The server is currently under maintenance. Please try again later.",
         "retry": "Reload"
+    },
+    "phoneVerify": {
+        "socialFirstTitle": "Already have an account? Sign in with social first",
+        "socialFirstDescription": "Verifying only your number creates a new account that can never be merged",
+        "title": "Verify phone number",
+        "descriptionInviteAccept": "So only the invited person can join,\nplease verify your phone number",
+        "descriptionInviteCreate": "To send a 1:1 invite,\nplease verify your phone number",
+        "privacyNote": "Your phone number is used only to verify\nyour identity for this invite.",
+        "phoneLabel": "Phone number",
+        "phonePlaceholder": "Enter your phone number",
+        "phoneInvalidFormat": "Enter a valid phone number",
+        "digitsOnly": "Digits only, no hyphens.",
+        "inviteMismatch": "This is not the invited number",
+        "tooManyRequests": "Too many verification requests. Try again later",
+        "sendCode": "Send code",
+        "sendFailed": "Failed to send the code",
+        "sent": "Verification code sent.",
+        "codeLabel": "Verification code",
+        "codePlaceholder": "Enter the code",
+        "extend": "Extend time",
+        "resend": "Resend",
+        "resent": "A new code was sent",
+        "resendFailed": "Failed to resend",
+        "resendKeepsCounter": "Resending does not reset previous wrong attempts",
+        "limit": {
+            "resend": {
+                "title": "Resend limit reached",
+                "description": "A code can be resent up to 5 times.\nPlease request a new code."
+            },
+            "extend": {
+                "title": "Extend limit reached",
+                "description": "The code's time can be extended up to 5 times.\nPlease request a new code."
+            }
+        },
+        "cooldown": "Try again in a moment",
+        "wrongCode": "Enter the code exactly as received.",
+        "attemptsExceeded": "Wrong code entered 5+ times. Request a new code",
+        "codeExpired": "The code expired. Please request a new one.",
+        "verifyFailed": "Verification failed",
+        "sessionSwitchFailed": "Sign-in could not finish. Try again",
+        "verified": "Verification complete.",
+        "complete": "Done",
+        "retry": "Retry",
+        "devDelivery": "Dev delivery switches",
+        "devDryRun": "Skip delivery (dryRun)",
+        "devSlack": "Receive via Slack",
+        "sheetTitle": "Verify phone number",
+        "sheetDescription": "Enter your phone number and the code\nwe send you to confirm it is you",
+        "linkOccupied": "This number is already linked to another account.",
+        "linkTypeAlreadyLinked": "You have already linked a different number."
     },
     "addAccount": {
         "title": "Add Account",
@@ -1111,5 +1224,96 @@
         "description": "Update to the latest version to get the newest features.",
         "later": "Later",
         "update": "Update"
+    },
+    "contactInvite": {
+        "title": "Invite a Friend",
+        "heading": "Enter your friend's name and number\nand we'll text them an invite link!",
+        "headingNote": "The number is not saved and is used\nonly to send the invite link.",
+        "nameLabel": "Friend's name",
+        "namePlaceholder": "Enter the recipient's name",
+        "nameHint": "Up to 20 characters.",
+        "nameTooLong": "Up to 20 characters.",
+        "phoneLabel": "Phone Number",
+        "phonePlaceholder": "Enter a phone number",
+        "phoneHint": "Digits only, no hyphens.",
+        "phoneInvalidFormat": "Invalid phone number format",
+        "validityHint": "The invite link stays valid for 3 days.",
+        "submit": "Done",
+        "unnamedRecipient": "Recipient",
+        "maskedPhone": "010-****-{{last4}}",
+        "badge": {
+            "pending": "Invite pending",
+            "expired": "Invite expired",
+            "declined": "Invite declined"
+        },
+        "rowStatus": {
+            "expired": "This invite link expired. Check its status.",
+            "declined": "They declined this invite. You can invite them again."
+        },
+        "smsMessage": "{{senderName}} invited you to a 1:1 chat on DoU! Tap the link below to join.\n{{deeplink}}",
+        "defaultSenderName": "A friend",
+        "sentToast": {
+            "sms": "Opened the text message composer",
+            "clipboard": "Copied the invite link to your clipboard",
+            "deliveryFailed": "Invite sent — please try sharing the link again"
+        },
+        "issueFailed": "Couldn't send the invite. Please try again in a moment",
+        "reinvite": {
+            "pending": {
+                "title": "You already sent an invite",
+                "description": "Still waiting on their response — check the waiting screen for the latest."
+            },
+            "expired": {
+                "title": "The previous invite expired",
+                "description": "The old link can no longer be used.\nPlease send a new invite link.",
+                "descriptionAutoRevoke": "For a secure invite the old link\ncan no longer be used.\nPlease send a new invite link."
+            },
+            "declined": {
+                "title": "They declined the previous invite",
+                "description": "You can send a new invite link\nto invite them again."
+            },
+            "reissueConfirm": "Invite again"
+        },
+        "verifyPrompt": {
+            "title": "To keep invites safe,\nplease verify your phone number",
+            "note": "This prevents spam and number misuse,\nand is only needed once.",
+            "cta": "Verify phone number"
+        },
+        "issueForbidden": "You can't send invites right now. If this persists after verifying, please contact support"
+    },
+    "inviteWaiting": {
+        "moreOptions": "More options",
+        "cancelInvite": "Cancel invite",
+        "goHome": "Go home",
+        "notFound": {
+            "title": "Couldn't find this invite",
+            "description": "It may have been removed, or the link may be invalid."
+        },
+        "entering": "Entering the chat...",
+        "accepted": {
+            "title": "They accepted your invite!",
+            "description": "You'll be in the chat shortly — check back from home in a moment."
+        },
+        "expired": {
+            "title": "This invite link has expired.",
+            "description": "Try sending the invite link again."
+        },
+        "validityLabel": "Invite link valid for",
+        "composerPlaceholder": "Type a message",
+        "reissue": "Invite again",
+        "reissueMissingLog": "This device has no record of the recipient, so it can't reissue",
+        "reissueDone": "Sent a new invite",
+        "reissueFailed": "Couldn't reissue the invite. Please try again in a moment",
+        "pending": {
+            "title": "Waiting for their response",
+            "description": "You can start chatting once the invite is accepted."
+        },
+        "cancelDialog": {
+            "title": "Cancel this invite?",
+            "description": "Canceling means they can no longer join with this invite.",
+            "descriptionStub": "Canceling only removes it from your list — it may still be valid for them.",
+            "confirm": "Cancel invite"
+        },
+        "canceledToast": "Invite canceled"
     }
 }

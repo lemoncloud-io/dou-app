@@ -15,7 +15,7 @@
 | 페이지                                       | 경로(`ROUTES.mypage.*`)  | 설명                                                               |
 | -------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
 | `MyPage`                                     | `/mypage`                | 허브 — 프로필 + 카드형 설정 메뉴(아래 [허브 재설계](#허브-재설계)) |
-| `AccountInfoPage`                            | `/mypage/account`        | 계정 정보                                                          |
+| `AccountInfoPage`                            | `/mypage/account`        | 계정 정보 + [소셜 연동](../account/social-links.md)                |
 | `AccountManagePage`                          | `/mypage/account-manage` | 계정 관리(클라우드 세션)                                           |
 | `ProfileEditPage`                            | `/mypage/edit`           | 기본 클라우드(relay) 프로필 편집                                   |
 | `CloudProfileEditPage`                       | `/mypage/cloud-profile`  | 클라우드 프로필(이름) 편집                                         |
@@ -70,6 +70,7 @@ features/mypage/
   pages/      # 위 화면들
   hooks/
     useAppIcon.ts   # 네이티브 앱 아이콘 (지원여부/현재/목록 fetch + 변경 + 라벨)
+    useSocialLinks.ts   # 소셜 연동 상태(uid 스코프 로컬 캐시) + attach 오케스트레이션 — 상세: ../account/social-links.md
   consts/     # 정책 콘텐츠 재노출 등
   components/
   routes/

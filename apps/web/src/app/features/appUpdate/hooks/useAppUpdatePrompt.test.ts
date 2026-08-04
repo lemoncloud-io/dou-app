@@ -22,16 +22,30 @@ jest.mock('../../../bridge/useAppForeground', () => ({
     },
 }));
 
+// A real (tiny) zustand store rather than a static fake: `open` is derived from the persisted
+// dismissal, so dismissing has to actually re-render the hook the way the app store does.
 const mockDismissUpdate = jest.fn();
-let fakeDismissedUpdateVersion = '';
 jest.mock('../../../stores/usePreferenceStore', () => {
-    const fakeState = () => ({ dismissedUpdateVersion: fakeDismissedUpdateVersion, dismissUpdate: mockDismissUpdate });
-    const usePreferenceStore = (selector: (state: unknown) => unknown) => selector(fakeState());
-    usePreferenceStore.getState = fakeState;
-    return { usePreferenceStore };
+    const { create } = jest.requireActual('zustand');
+    return {
+        usePreferenceStore: create((set: (partial: unknown) => void) => ({
+            dismissedUpdateVersion: '',
+            dismissUpdate: (version: string) => {
+                mockDismissUpdate(version);
+                set({ dismissedUpdateVersion: version });
+            },
+        })),
+    };
 });
 
+import { usePreferenceStore } from '../../../stores/usePreferenceStore';
+import { useAppUpdateStore } from './useAppUpdateStatus';
 import { useAppUpdatePrompt } from './useAppUpdatePrompt';
+
+const updateResponse = (latestVersion: string, updateAvailable = true) => ({
+    success: true,
+    data: { platform: 'ios', currentVersion: '1.0.0', latestVersion, updateAvailable, storeUrl: 'x' },
+});
 
 const flush = () =>
     act(async () => {
@@ -41,7 +55,8 @@ const flush = () =>
 describe('useAppUpdatePrompt', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        fakeDismissedUpdateVersion = '';
+        usePreferenceStore.setState({ dismissedUpdateVersion: '' });
+        useAppUpdateStore.setState({ updateAvailable: false, latestVersion: '' });
     });
 
     it('비네이티브에서는 마운트 시 checkAppUpdate를 호출하지 않는다', async () => {
@@ -55,16 +70,7 @@ describe('useAppUpdatePrompt', () => {
 
     it('네이티브에서 업데이트가 있고 아직 dismiss하지 않은 버전이면 다이얼로그를 연다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockCheckAppUpdate.mockResolvedValue({
-            success: true,
-            data: {
-                platform: 'ios',
-                currentVersion: '1.0.0',
-                latestVersion: '1.1.0',
-                updateAvailable: true,
-                storeUrl: 'x',
-            },
-        });
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.1.0'));
 
         const { result } = renderHook(() => useAppUpdatePrompt());
         await flush();
@@ -74,17 +80,8 @@ describe('useAppUpdatePrompt', () => {
 
     it('이미 해당 버전을 dismiss했으면 다이얼로그를 열지 않는다', async () => {
         mockIsNative.mockReturnValue(true);
-        fakeDismissedUpdateVersion = '1.1.0';
-        mockCheckAppUpdate.mockResolvedValue({
-            success: true,
-            data: {
-                platform: 'ios',
-                currentVersion: '1.0.0',
-                latestVersion: '1.1.0',
-                updateAvailable: true,
-                storeUrl: 'x',
-            },
-        });
+        usePreferenceStore.setState({ dismissedUpdateVersion: '1.1.0' });
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.1.0'));
 
         const { result } = renderHook(() => useAppUpdatePrompt());
         await flush();
@@ -104,16 +101,7 @@ describe('useAppUpdatePrompt', () => {
 
     it('foreground로 복귀하면 다시 checkAppUpdate를 호출한다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockCheckAppUpdate.mockResolvedValue({
-            success: true,
-            data: {
-                platform: 'ios',
-                currentVersion: '1.0.0',
-                latestVersion: '1.0.0',
-                updateAvailable: false,
-                storeUrl: 'x',
-            },
-        });
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.0.0', false));
 
         renderHook(() => useAppUpdatePrompt());
         await flush();
@@ -129,16 +117,7 @@ describe('useAppUpdatePrompt', () => {
 
     it('dismiss는 현재 latestVersion으로 dismissUpdate를 호출하고 다이얼로그를 닫는다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockCheckAppUpdate.mockResolvedValue({
-            success: true,
-            data: {
-                platform: 'ios',
-                currentVersion: '1.0.0',
-                latestVersion: '1.2.0',
-                updateAvailable: true,
-                storeUrl: 'x',
-            },
-        });
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 
         const { result } = renderHook(() => useAppUpdatePrompt());
         await flush();
@@ -154,18 +133,45 @@ describe('useAppUpdatePrompt', () => {
         expect(mockCheckAppUpdate).toHaveBeenCalledTimes(1);
     });
 
+    it('dismiss한 뒤 같은 버전이 다시 확인돼도 다이얼로그를 다시 열지 않는다', async () => {
+        mockIsNative.mockReturnValue(true);
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
+
+        const { result } = renderHook(() => useAppUpdatePrompt());
+        await flush();
+        act(() => result.current.dismiss());
+        await flush();
+
+        await act(async () => {
+            foregroundHandler();
+            await Promise.resolve();
+        });
+
+        expect(result.current.open).toBe(false);
+    });
+
+    it('dismiss한 버전보다 더 새로운 버전이 나오면 다시 다이얼로그를 연다', async () => {
+        mockIsNative.mockReturnValue(true);
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
+
+        const { result } = renderHook(() => useAppUpdatePrompt());
+        await flush();
+        act(() => result.current.dismiss());
+        await flush();
+        expect(result.current.open).toBe(false);
+
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.3.0'));
+        await act(async () => {
+            foregroundHandler();
+            await Promise.resolve();
+        });
+
+        expect(result.current.open).toBe(true);
+    });
+
     it('goToStore는 appBridge.openStore를 호출하고 dismissUpdate도 함께 호출한 뒤 다이얼로그를 닫는다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockCheckAppUpdate.mockResolvedValue({
-            success: true,
-            data: {
-                platform: 'ios',
-                currentVersion: '1.0.0',
-                latestVersion: '1.2.0',
-                updateAvailable: true,
-                storeUrl: 'x',
-            },
-        });
+        mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 
         const { result } = renderHook(() => useAppUpdatePrompt());
         await flush();

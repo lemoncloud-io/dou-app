@@ -30,7 +30,6 @@ import {
     CloudSessionSheet,
     CreateChannelDialog,
     CreatePlaceDialog,
-    InviteDialog,
     PlaceList,
     SubscriptionRequiredDialog,
 } from '../components';
@@ -47,6 +46,7 @@ import {
     useSwitchPlace,
 } from '../hooks';
 import { resolveHeaderProfile } from '../lib';
+import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -121,6 +121,10 @@ export const HomePage = () => {
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
+    // Sent relay invites (ADR-0033 Track B) — 1:1 DM invites only make sense on the default
+    // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
+    // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
+    const { invites: sentInvites } = useInviteListRows();
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
     // sites, not just the selected one. Unread derives from each channel head (`chatNo`/`metaNo`)
     // and MY read cursor from the subscribed join list (useMyJoins), not the channel-embedded
@@ -221,8 +225,8 @@ export const HomePage = () => {
             setIsSubscriptionRequiredOpen(true);
         }
     };
-    // Relay 1:1 chat creation is not implemented yet (ADR-0013): placeholder.
-    const handleCreateOneOnOne = () => toast({ title: t('homePage.directComingSoon', '1:1 대화는 준비 중이에요') });
+    // Relay 1:1 chat creation (ADR-0033 Track B): contact entry → invite.create → SMS handoff.
+    const handleCreateOneOnOne = () => navigate(ROUTES.invite.contact);
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => toast({ title: t('homePage.searchComingSoon', '검색은 준비 중이에요') });
@@ -308,6 +312,7 @@ export const HomePage = () => {
                         channels={channels}
                         unreadByChannel={unreadByChannel}
                         joinByChannel={myJoins}
+                        sid={selectedPlaceId}
                         isLoading={isChannelsLoading}
                         canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
@@ -316,6 +321,8 @@ export const HomePage = () => {
                         pinnedChannelIds={pinnedChannelIds}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
+                        sentInvites={isDefaultCloud ? sentInvites : []}
+                        onSelectInvite={inviteId => navigate(ROUTES.invite.waiting(inviteId))}
                     />
                 ) : !isPlacesLoading && !isSwitching ? (
                     // No place is active in this cloud (none to auto-select) — guide the user to
@@ -337,7 +344,6 @@ export const HomePage = () => {
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
-            <InviteDialog suppressed={isFirstRun} />
         </div>
     );
 };

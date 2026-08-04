@@ -132,20 +132,25 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
             mappingContext
         );
 
-        const domainList = (remote.list || []).filter(item => !item.id || !this.leftChannelIds.has(item.id));
+        // An id-less row cannot be keyed, so it is dropped here rather than passed on for
+        // `cacheWriteMany` to filter: it would otherwise still count toward `domainList.length` below
+        // and let a response carrying nothing usable authorize the prune.
+        const domainList = (remote.list || []).filter(item => !!item.id && !this.leftChannelIds.has(item.id));
+
+        // Nothing usable came back — leave the cache entirely alone. Right after a switch the socket
+        // is bound to the new cloud but its session/site may not be ready, so `channel.mine` answers
+        // with an empty list; writing or pruning against that would wipe the real (sync-plan-populated)
+        // channels and leave "No channels yet". A genuinely empty cloud settles on a later response.
+        if (domainList.length === 0) return;
 
         await this.channelLocalDataSource.cacheWriteMany(domainList, requestContext);
 
-        const serverIds = new Set(domainList.map(item => item.id).filter(Boolean));
+        const serverIds = new Set(domainList.map(item => item.id));
         const localResult = await this.channelLocalDataSource.cacheReadList(query, requestContext);
         const staleIds = (localResult?.list || [])
             .map(item => item.id)
             .filter((id): id is string => !!id && !serverIds.has(id));
-        // Only prune when the server actually returned channels. Right after a switch the socket
-        // is bound to the new cloud but its session/site may not be ready, so channel.mine returns
-        // an empty list — pruning against that would wipe the real (sync-plan-populated) channels
-        // and leave "No channels yet". A genuinely empty cloud settles once a real response arrives.
-        if (staleIds.length > 0 && domainList.length > 0) {
+        if (staleIds.length > 0) {
             await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
         }
     }
