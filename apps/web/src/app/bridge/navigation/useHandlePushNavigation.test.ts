@@ -196,6 +196,27 @@ describe('useHandlePushNavigation', () => {
             expect(navigate).toHaveBeenCalledWith('/channels/roomA/room');
         });
 
+        it('방이 아닌 화면에서 받은 푸시는 그 화면을 남기고 push한다 (뒤로가기가 돌아올 자리)', async () => {
+            // 회귀: 마이페이지에서 인앱 메시지를 탭하면 마이페이지를 replace해서 뒤로가기가
+            // 건너뛰었고, 마이페이지가 유일한 엔트리면 돌아갈 곳이 아예 없었다.
+            setCurrentPath('/mypage');
+            setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
+
+            await invoke();
+
+            expect(navigate).toHaveBeenCalledTimes(1);
+            expect(navigate).toHaveBeenCalledWith('/channels/roomA/room');
+        });
+
+        it('방의 하위 화면(설정)도 남기고 push한다 — 방 자체만 버릴 수 있다', async () => {
+            setCurrentPath('/channels/roomA/settings');
+            setResolved({ target: '/channels/roomB/room', cid: null, sid: null });
+
+            await invoke();
+
+            expect(navigate).toHaveBeenCalledWith('/channels/roomB/room');
+        });
+
         it('이미 target 경로에 있으면 네비게이션을 생략한다', async () => {
             setCurrentPath('/channels/roomA/room');
             setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
@@ -241,13 +262,14 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('네이티브 replace 플래그와 무관하게 정규화 규칙대로 네비게이션한다', async () => {
+            // 네이티브가 replace를 요청해도 규칙이 이긴다 — 방이 아닌 화면이므로 push다.
             setCurrentPath('/mypage');
             setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
 
             await invoke('/channels/roomA/room', true);
 
             expect(navigate).toHaveBeenCalledTimes(1);
-            expect(navigate).toHaveBeenCalledWith('/channels/roomA/room', { replace: true });
+            expect(navigate).toHaveBeenCalledWith('/channels/roomA/room');
         });
     });
 
