@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 import { useSessionAuth } from '@chatic/web-core';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
+import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import { AppRouter } from '../routes';
 import {
@@ -128,14 +129,20 @@ export const DesktopRuntime = () => {
 
     return (
         <RuntimeConnectionHost binding={binding}>
-            <BackgroundSyncRunner />
-            <AuthedNotifications />
-            <ShellUnreadSync />
-            <ConnectionBanner />
-            {/* Desktop auto-update banner — always mounted (no-op in browser). */}
-            <UpdateBanner />
-            <AppRouter />
-            <Toaster />
+            {/* One provider for the whole app: Radix tooltip roots require an ancestor
+                provider, and a chat pane renders dozens of message toolbars at once.
+                `delayDuration` is short because these tooltips name icon-only controls —
+                the label is the only way to learn what a button does. */}
+            <TooltipProvider delayDuration={300}>
+                <BackgroundSyncRunner />
+                <AuthedNotifications />
+                <ShellUnreadSync />
+                <ConnectionBanner />
+                {/* Desktop auto-update banner — always mounted (no-op in browser). */}
+                <UpdateBanner />
+                <AppRouter />
+                <Toaster />
+            </TooltipProvider>
         </RuntimeConnectionHost>
     );
 };

@@ -46,7 +46,21 @@ describe('useMessageActions', () => {
         const { result } = renderHook(() => useMessageActions(), { wrapper });
 
         act(() => result.current.deleteMessage('C1:7'));
-        await waitFor(() => expect(result.current.failedId).toBe('C1:7'));
+        await waitFor(() => expect(result.current.failure?.id).toBe('C1:7'));
+    });
+
+    // The row prints a different sentence for each: "couldn't save that change" is the
+    // wrong thing to say about a delete that did not go through.
+    it('says which of the two operations failed', async () => {
+        deleteChat.mockRejectedValue(new Error('offline'));
+        updateChat.mockRejectedValue(new Error('offline'));
+        const { result } = renderHook(() => useMessageActions(), { wrapper });
+
+        act(() => result.current.deleteMessage('C1:7'));
+        await waitFor(() => expect(result.current.failure?.kind).toBe('delete'));
+
+        act(() => result.current.editMessage('C1:7', 'next'));
+        await waitFor(() => expect(result.current.failure?.kind).toBe('edit'));
     });
 
     it('clears the previous failure when another message is acted on', async () => {
@@ -54,9 +68,9 @@ describe('useMessageActions', () => {
         const { result } = renderHook(() => useMessageActions(), { wrapper });
 
         act(() => result.current.deleteMessage('C1:7'));
-        await waitFor(() => expect(result.current.failedId).toBe('C1:7'));
+        await waitFor(() => expect(result.current.failure?.id).toBe('C1:7'));
 
         await act(async () => result.current.editMessage('C1:8', 'next'));
-        await waitFor(() => expect(result.current.failedId).toBeNull());
+        await waitFor(() => expect(result.current.failure).toBeNull());
     });
 });

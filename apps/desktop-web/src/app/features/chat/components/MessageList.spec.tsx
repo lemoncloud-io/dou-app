@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
+import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 // The row's action controls reach for the chat repository and the active place at
 // module scope; neither is available outside the app shell. Nothing here asserts on
@@ -26,8 +27,13 @@ Element.prototype.scrollIntoView = vi.fn();
 
 const VIEWER = { uid: 'me', name: 'Me', cloudUid: 'me-cloud' };
 
+// Mirrors the app's provider tree (`DesktopRuntime`). The tooltip provider is not
+// optional scaffolding: Radix throws "`Tooltip` must be used within `TooltipProvider`"
+// without it, so leaving it out here would make this suite disagree with the app.
 const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    <QueryClientProvider client={new QueryClient()}>
+        <TooltipProvider>{children}</TooltipProvider>
+    </QueryClientProvider>
 );
 
 const message = (chatNo: number, ownerId: string, content: string): DomainChat =>

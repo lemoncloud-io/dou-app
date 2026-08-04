@@ -9,7 +9,9 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * One instance per author block rather than per message: only one message can be
  * under the cursor at a time, so a mutation pair per rendered row would be dozens of
  * idle hooks per screen for a control that is used once. The message is named at call
- * time instead, and `failedId` says which row the failure belongs to.
+ * time instead, and `failure` says which row the failure belongs to — and which of the
+ * two operations it was, because "couldn't save that change" is the wrong thing to say
+ * about a delete that did not go through.
  *
  * Both operations go straight to the chat repository, which already writes the change
  * to the local cache before the request and restores the previous record if it fails —
@@ -20,9 +22,15 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * drops the row locally. The two agree because `isFeedVisible` filters `hidden`, so a
  * deleted message stays gone when the cache refills from a sync.
  */
+/** Which operation failed, so the row can say the right thing about it. */
+export interface MessageActionFailure {
+    id: string;
+    kind: 'edit' | 'delete';
+}
+
 export const useMessageActions = () => {
     const { chat: chatRepository } = useRuntimeRepositories();
-    const [failedId, setFailedId] = useState<string | null>(null);
+    const [failure, setFailure] = useState<MessageActionFailure | null>(null);
 
     const edit = useMutation({
         mutationFn: ({ id, content }: { id: string; content: string }) => chatRepository.updateChat({ id, content }),
@@ -32,14 +40,14 @@ export const useMessageActions = () => {
     });
 
     const editMessage = (id: string, content: string) => {
-        setFailedId(null);
-        edit.mutate({ id, content }, { onError: () => setFailedId(id) });
+        setFailure(null);
+        edit.mutate({ id, content }, { onError: () => setFailure({ id, kind: 'edit' }) });
     };
 
     const deleteMessage = (id: string) => {
-        setFailedId(null);
-        remove.mutate(id, { onError: () => setFailedId(id) });
+        setFailure(null);
+        remove.mutate(id, { onError: () => setFailure({ id, kind: 'delete' }) });
     };
 
-    return { editMessage, deleteMessage, failedId };
+    return { editMessage, deleteMessage, failure };
 };

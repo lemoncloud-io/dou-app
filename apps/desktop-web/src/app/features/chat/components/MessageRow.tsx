@@ -6,10 +6,13 @@ import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, Smil
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
 
 import { getActiveServerContext } from '@chatic/web-core';
 
+import { ConfirmDialog } from '../../channels';
 import { canModifyMessage, hasMyReaction, threadRootId, type MessageGroup, type ReactionTally } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
@@ -72,6 +75,41 @@ interface MessageRowProps {
 const TOOLBAR_BUTTON =
     'focus-ring tactile flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile';
 
+interface ToolbarButtonProps {
+    label: string;
+    onClick: () => void;
+    children: React.ReactNode;
+    /** Hover/active colours — destructive controls tint red instead of neutral. */
+    className?: string;
+    pressed?: boolean;
+}
+
+/**
+ * One icon control in the message toolbar.
+ *
+ * Every control here is icon-only, so the label is not decoration — it is the only
+ * way to learn what a button does. It comes through a tooltip anchored to the
+ * trigger rather than the native `title` attribute, which the browser places on its
+ * own terms and delays by about a second. `aria-label` carries the same string;
+ * assistive tech reads that, not the tooltip.
+ */
+const ToolbarButton = ({ label, onClick, children, className, pressed }: ToolbarButtonProps) => (
+    <Tooltip>
+        <TooltipTrigger asChild>
+            <button
+                type="button"
+                onClick={onClick}
+                aria-label={label}
+                aria-pressed={pressed}
+                className={cn(TOOLBAR_BUTTON, className)}
+            >
+                {children}
+            </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+);
+
 const STUCK_PENDING_MS = 60_000;
 
 const formatTime = (ms: number): string => {
@@ -127,7 +165,10 @@ export const MessageRow = memo(
         // Local to the row: one message is edited at a time and the draft dies with it.
         const [editingKey, setEditingKey] = useState<string | null>(null);
         const [draft, setDraft] = useState('');
-        const { editMessage, deleteMessage, failedId } = useMessageActions();
+        // Which message in this block is awaiting delete confirmation. Same shape as
+        // `editingKey`: one message at a time, so one dialog is ever mounted.
+        const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
+        const { editMessage, deleteMessage, failure } = useMessageActions();
         const { toggleReaction, failedId: reactionFailedId } = useReactions();
         const savedItems = useSavedItemsStore(s => s.items);
         const toggleSaved = useSavedItemsStore(s => s.toggle);
@@ -221,6 +262,19 @@ export const MessageRow = memo(
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
+                            const isEditing = editingKey === key;
+                            // What Save is allowed to do. An edit to nothing is a delete
+                            // everywhere else and would only blank the row here, and an edit
+                            // to the same text is a no-op — so neither is offered. Disabling
+                            // the button says that; silently ignoring the keypress did not.
+                            const trimmedDraft = draft.trim();
+                            const isEditDirty = !!trimmedDraft && trimmedDraft !== content;
+                            const cancelEdit = () => setEditingKey(null);
+                            // Enter and the Save button share this so the two can never drift.
+                            const saveEdit = () => {
+                                setEditingKey(null);
+                                if (isEditDirty && message.id) editMessage(message.id, trimmedDraft);
+                            };
                             return (
                                 // Reserve the toolbar slot: both actions in the main feed, copy
                                 // only in the (narrower) thread panel — a full 80px reserve there
@@ -251,8 +305,10 @@ export const MessageRow = memo(
                                     ) : editingKey === key ? (
                                         // The message becomes its own editor in place, so the
                                         // surrounding conversation stays readable while you fix a
-                                        // typo. Enter saves, Escape abandons — no dialog.
-                                        <div className="flex flex-col gap-1">
+                                        // typo. Capped to the reading measure rather than the pane:
+                                        // a nine-character message in a window-wide field is hard to
+                                        // scan and does not look like the message it replaces.
+                                        <div className="flex max-w-prose flex-col gap-1.5">
                                             <textarea
                                                 autoFocus
                                                 rows={Math.min(8, draft.split('\n').length)}
@@ -261,25 +317,45 @@ export const MessageRow = memo(
                                                 onKeyDown={e => {
                                                     if (e.key === 'Escape') {
                                                         e.preventDefault();
-                                                        setEditingKey(null);
+                                                        cancelEdit();
                                                         return;
                                                     }
                                                     if (e.key !== 'Enter' || e.shiftKey) return;
                                                     e.preventDefault();
-                                                    const next = draft.trim();
-                                                    setEditingKey(null);
-                                                    // An edit to nothing is a delete everywhere else;
-                                                    // here it would just blank the row, so ignore it.
-                                                    if (next && next !== content && message.id) {
-                                                        editMessage(message.id, next);
-                                                    }
+                                                    saveEdit();
                                                 }}
                                                 aria-label={t('chat.edit')}
+                                                aria-describedby={`${key}-edit-hint`}
                                                 className="focus-ring w-full resize-none rounded-md border border-input bg-background px-2 py-1.5 text-body text-foreground"
                                             />
-                                            <span className="text-micro text-muted-foreground">
-                                                {t('chat.editHint')}
-                                            </span>
+                                            {/* Buttons and shortcuts both, deliberately. The
+                                                shortcuts are faster once known and the buttons are
+                                                how you find out — and how you leave the editor
+                                                without taking your hand off the mouse. */}
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    onClick={saveEdit}
+                                                    disabled={!isEditDirty}
+                                                    className="h-7 px-3 text-caption"
+                                                >
+                                                    {t('chat.editSave')}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={cancelEdit}
+                                                    className="h-7 px-3 text-caption"
+                                                >
+                                                    {t('common.cancel')}
+                                                </Button>
+                                                <span
+                                                    id={`${key}-edit-hint`}
+                                                    className="text-micro text-muted-foreground"
+                                                >
+                                                    {t('chat.editHint')}
+                                                </span>
+                                            </div>
                                         </div>
                                     ) : (
                                         <p
@@ -295,9 +371,9 @@ export const MessageRow = memo(
                                             <RichText content={content} selfNames={selfNames} />
                                         </p>
                                     )}
-                                    {failedId === message.id && (
+                                    {failure?.id === message.id && (
                                         <span className="mt-0.5 block text-caption text-destructive">
-                                            {t('chat.editFailed')}
+                                            {failure.kind === 'delete' ? t('chat.deleteFailed') : t('chat.editFailed')}
                                         </span>
                                     )}
                                     {/* Unfurl the first link only (Slack-style single card).
@@ -325,8 +401,12 @@ export const MessageRow = memo(
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
                                     slides in on hover — peripheral vision picks up the motion
-                                    onset where a static pill goes unnoticed on wide windows. */}
-                                    {((onOpenThread && isSettled) || content) && (
+                                    onset where a static pill goes unnoticed on wide windows.
+
+                                    Gone while the editor is open. Leaving it up offered Delete
+                                    beside a draft in progress, and gave the row two competing
+                                    sets of controls with no sign which one was live. */}
+                                    {!isEditing && ((onOpenThread && isSettled) || content) && (
                                         <div
                                             className={cn(
                                                 'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
@@ -337,19 +417,25 @@ export const MessageRow = memo(
                                         >
                                             {isSettled && (
                                                 <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            title={t('chat.reaction.add')}
-                                                            aria-label={t('chat.reaction.add')}
-                                                            className={cn(
-                                                                TOOLBAR_BUTTON,
-                                                                'hover:bg-accent hover:text-foreground'
-                                                            )}
-                                                        >
-                                                            <SmilePlus size={16} />
-                                                        </button>
-                                                    </PopoverTrigger>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <PopoverTrigger asChild>
+                                                                <button
+                                                                    type="button"
+                                                                    aria-label={t('chat.reaction.add')}
+                                                                    className={cn(
+                                                                        TOOLBAR_BUTTON,
+                                                                        'hover:bg-accent hover:text-foreground'
+                                                                    )}
+                                                                >
+                                                                    <SmilePlus size={16} />
+                                                                </button>
+                                                            </PopoverTrigger>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            {t('chat.reaction.add')}
+                                                        </TooltipContent>
+                                                    </Tooltip>
                                                     <PopoverContent align="end" side="top" className="w-auto p-2">
                                                         {/* Picking one you already used toggles it
                                                             off, rather than publishing a second
@@ -371,22 +457,19 @@ export const MessageRow = memo(
                                                 </Popover>
                                             )}
                                             {onOpenThread && isSettled && (
-                                                <button
-                                                    type="button"
+                                                <ToolbarButton
+                                                    label={t('chat.thread.replyAction')}
                                                     onClick={() => onOpenThread(threadRootId(message))}
-                                                    title={t('chat.thread.replyAction')}
-                                                    aria-label={t('chat.thread.replyAction')}
-                                                    className={cn(
-                                                        TOOLBAR_BUTTON,
-                                                        'hover:bg-accent hover:text-foreground'
-                                                    )}
+                                                    className="hover:bg-accent hover:text-foreground"
                                                 >
                                                     <Reply size={16} />
-                                                </button>
+                                                </ToolbarButton>
                                             )}
                                             {content && isSettled && (
-                                                <button
-                                                    type="button"
+                                                <ToolbarButton
+                                                    label={savedItems[key] ? t('chat.unsave') : t('chat.save')}
+                                                    pressed={!!savedItems[key]}
+                                                    className="hover:bg-accent hover:text-foreground"
                                                     onClick={() =>
                                                         toggleSaved({
                                                             id: key,
@@ -401,13 +484,6 @@ export const MessageRow = memo(
                                                             parentId: message.parentId,
                                                         })
                                                     }
-                                                    title={savedItems[key] ? t('chat.unsave') : t('chat.save')}
-                                                    aria-label={savedItems[key] ? t('chat.unsave') : t('chat.save')}
-                                                    aria-pressed={!!savedItems[key]}
-                                                    className={cn(
-                                                        TOOLBAR_BUTTON,
-                                                        'hover:bg-accent hover:text-foreground'
-                                                    )}
                                                 >
                                                     <Bookmark
                                                         size={16}
@@ -417,58 +493,68 @@ export const MessageRow = memo(
                                                                 : undefined
                                                         }
                                                     />
-                                                </button>
-                                            )}
-                                            {canModifyMessage(message, group.isMine) && (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setDraft(content);
-                                                            setEditingKey(key);
-                                                        }}
-                                                        title={t('chat.edit')}
-                                                        aria-label={t('chat.edit')}
-                                                        className={cn(
-                                                            TOOLBAR_BUTTON,
-                                                            'hover:bg-accent hover:text-foreground'
-                                                        )}
-                                                    >
-                                                        <Pencil size={16} />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => message.id && deleteMessage(message.id)}
-                                                        title={t('chat.delete')}
-                                                        aria-label={t('chat.delete')}
-                                                        className={cn(
-                                                            TOOLBAR_BUTTON,
-                                                            'hover:bg-destructive/10 hover:text-destructive'
-                                                        )}
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </>
+                                                </ToolbarButton>
                                             )}
                                             {content && (
-                                                <button
-                                                    type="button"
+                                                <ToolbarButton
+                                                    label={isCopied ? t('chat.copied') : t('chat.copy')}
                                                     onClick={() => copy(key, content)}
-                                                    title={isCopied ? t('chat.copied') : t('chat.copy')}
-                                                    aria-label={t('chat.copy')}
-                                                    className={cn(
-                                                        TOOLBAR_BUTTON,
-                                                        'hover:bg-accent hover:text-foreground'
-                                                    )}
+                                                    className="hover:bg-accent hover:text-foreground"
                                                 >
                                                     {isCopied ? (
                                                         <Check size={16} className="text-primary-ink" />
                                                     ) : (
                                                         <Copy size={16} />
                                                     )}
-                                                </button>
+                                                </ToolbarButton>
+                                            )}
+                                            {canModifyMessage(message, group.isMine) && (
+                                                <>
+                                                    <ToolbarButton
+                                                        label={t('chat.edit')}
+                                                        onClick={() => {
+                                                            setDraft(content);
+                                                            setEditingKey(key);
+                                                        }}
+                                                        className="hover:bg-accent hover:text-foreground"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </ToolbarButton>
+                                                    {/* Delete last, behind a rule. It was one of six
+                                                        identical icons, a mouse-width from Edit, and
+                                                        the only one you cannot undo — the strip gave
+                                                        the reader nothing to aim by. */}
+                                                    <span
+                                                        aria-hidden
+                                                        className="mx-0.5 h-5 w-px shrink-0 bg-hairline"
+                                                    />
+                                                    <ToolbarButton
+                                                        label={t('chat.delete')}
+                                                        onClick={() => setConfirmingKey(key)}
+                                                        className="hover:bg-destructive/10 hover:text-destructive"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </ToolbarButton>
+                                                </>
                                             )}
                                         </div>
+                                    )}
+                                    {/* Delete is a soft delete on the server, but nothing in this
+                                        client can bring the message back, and the control sits in a
+                                        row of five benign ones. The dialog quotes the message so the
+                                        answer is about *this* message, not "delete something?". */}
+                                    {confirmingKey === key && (
+                                        <ConfirmDialog
+                                            open
+                                            onOpenChange={next => !next && setConfirmingKey(null)}
+                                            title={t('chat.deleteConfirm.title')}
+                                            description={content || t('chat.deleteConfirm.noPreview')}
+                                            confirmLabel={t('chat.deleteConfirm.action')}
+                                            onConfirm={() => {
+                                                setConfirmingKey(null);
+                                                if (message.id) deleteMessage(message.id);
+                                            }}
+                                        />
                                     )}
                                     {isFailed && (
                                         <span className="mt-0.5 flex items-center gap-1.5 text-caption text-destructive">
