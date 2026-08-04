@@ -226,16 +226,34 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         }
     }
 
+    /**
+     * Delete a message.
+     *
+     * The server's delete is a soft delete — `chat.delete` maps to `PUT { hidden: true }`
+     * and the row survives — so the optimistic write marks the cached row `hidden`
+     * rather than removing it. Dropping it locally would disagree with the server twice
+     * over: the row reappears on the next sync, and a client that renders deleted
+     * messages as "This message was deleted." would show nothing until then and a
+     * tombstone afterwards, for the same message.
+     *
+     * On failure the previous record is restored. A row that was not cached to begin
+     * with has nothing to mark and nothing to restore; the server's answer is written
+     * either way, so the cache ends up agreeing with it.
+     */
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {
         const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const existing = await this.chatLocalDataSource.cacheRead(chatId, requestContext);
 
-        await this.chatLocalDataSource.cacheDelete(chatId, requestContext);
+        if (existing) {
+            await this.chatLocalDataSource.cacheWrite({ ...existing, hidden: true }, requestContext);
+        }
 
         try {
-            return await this.chatRemoteDataSource.deleteChat(payload, normalizedContext);
+            const domainChat = await this.chatRemoteDataSource.deleteChat(payload, normalizedContext);
+            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
+            return domainChat;
         } catch (error) {
             if (existing) {
                 await this.chatLocalDataSource.cacheWrite(existing, requestContext);

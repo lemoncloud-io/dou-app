@@ -141,6 +141,24 @@ describe('ChatRepositoryV2', () => {
         );
     });
 
+    // The server soft-deletes (`PUT { hidden: true }`), so the optimistic write has to
+    // mark the row rather than drop it — otherwise the row is missing until the next
+    // sync brings it back, and a client that renders deleted messages shows nothing and
+    // then a tombstone for the same message.
+    it('marks the chat hidden rather than removing it when deleteChat is issued', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
+        chatRemoteDataSource.deleteChat.mockResolvedValue({ id: 'm1', content: 'before', hidden: true });
+
+        await repository.deleteChat({ id: 'm1' } as any);
+
+        expect(chatLocalDataSource.cacheDelete).not.toHaveBeenCalledWith('m1', expect.anything());
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'm1', hidden: true }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+    });
+
     it('restores the deleted chat when deleteChat fails', async () => {
         const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
         chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
@@ -148,15 +166,13 @@ describe('ChatRepositoryV2', () => {
 
         await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
 
-        expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith('m1', {
+        // The record goes back exactly as it was — not merely un-hidden, which would
+        // leave a `hidden: false` the server never sent.
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith({ id: 'm1', content: 'before' }, {
             cid: 'cloud-a',
             sid: 'site-1',
             uid: 'me',
         });
-        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
-            expect.objectContaining({ id: 'm1', content: 'before' }),
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
-        );
     });
 
     it('delegates cache helper methods to the local datasource', async () => {
