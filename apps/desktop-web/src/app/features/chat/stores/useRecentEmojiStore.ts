@@ -5,11 +5,17 @@ import { persist } from 'zustand/middleware';
 const RECENT_MAX = 16;
 
 /**
- * What a reader sees before they have picked anything. Deliberately the three that
- * carry the most meaning with the least ambiguity — agreement, warmth, acknowledged —
- * rather than the first three of any category.
+ * The one-click reactions in the message toolbar.
+ *
+ * Fixed, and deliberately not driven by the recently-used list. Reordering these on
+ * every pick defeats the point of having them: the value of a button two pixels from
+ * the pointer is that the hand learns where it is, and a row that rearranges itself
+ * has to be read every time — slower than the picker it was meant to replace.
+ *
+ * Two, not more. These are the answers that need no words — agreement and
+ * acknowledgement; anything with actual meaning behind it belongs in the picker.
  */
-export const DEFAULT_QUICK_EMOJI = ['👍', '❤️', '😄'] as const;
+export const QUICK_REACTIONS = ['👍', '🆗'] as const;
 
 interface RecentEmojiState {
     /** Most recent first. */
@@ -38,15 +44,3 @@ export const useRecentEmojiStore = create<RecentEmojiState>()(
     )
 );
 
-/**
- * The emoji to offer as one-click reactions, newest habit first.
- *
- * Falls back to the defaults only while there is no history at all, and tops up a
- * short history rather than showing one lonely button — the row should be the same
- * width every time, so it stays somewhere the hand can learn.
- */
-export const quickEmoji = (recent: string[], count = 3): string[] => {
-    const seen = new Set(recent.slice(0, count));
-    const filler = DEFAULT_QUICK_EMOJI.filter(e => !seen.has(e));
-    return [...recent.slice(0, count), ...filler].slice(0, count);
-};

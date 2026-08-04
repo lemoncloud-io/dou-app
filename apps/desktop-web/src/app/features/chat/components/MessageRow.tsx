@@ -23,7 +23,7 @@ import {
 } from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
-import { quickEmoji, useRecentEmojiStore } from '../stores';
+import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
 import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
@@ -184,9 +184,7 @@ export const MessageRow = memo(
         // can tell a pick from an Escape. A ref, not state: it is read once during the
         // close and must not schedule a render of its own.
         const pickedRef = useRef(false);
-        const recentEmoji = useRecentEmojiStore(s => s.recent);
         const remember = useRecentEmojiStore(s => s.remember);
-        const quick = quickEmoji(recentEmoji);
         const { editMessage, deleteMessage, failure } = useMessageActions();
         const { toggleReaction, failedId: reactionFailedId } = useReactions();
         const savedItems = useSavedItemsStore(s => s.items);
@@ -469,13 +467,17 @@ export const MessageRow = memo(
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
                                             )}
                                         >
-                                            {/* One-click reactions, the ones this person actually
-                                                uses. Reacting is the most frequent thing anyone
-                                                does to a message, and routing it through a grid
-                                                every time costs two clicks and covers the
-                                                conversation. Slack puts the same row here. */}
+                                            {/* One-click reactions. Reacting is the most frequent
+                                                thing anyone does to a message, and routing it
+                                                through a grid every time costs two clicks and
+                                                covers the conversation while you hunt.
+
+                                                Always the same two, in the same order — see
+                                                QUICK_REACTIONS. A row that reorders itself has to
+                                                be read before it can be used, which is the cost
+                                                these buttons exist to remove. */}
                                             {isSettled &&
-                                                quick.map(emoji => (
+                                                QUICK_REACTIONS.map(emoji => (
                                                     <ToolbarButton
                                                         key={emoji}
                                                         label={t('chat.reaction.quick', { emoji })}
