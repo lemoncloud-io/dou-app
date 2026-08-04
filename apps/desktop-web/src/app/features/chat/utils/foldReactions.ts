@@ -27,7 +27,7 @@ export interface ReactionTally {
  * Fold key only. Stripping U+FE0F turns codepoints like ❤ (U+2764) back into their
  * text presentation, so what gets *displayed* is the string the event carried.
  */
-export const reactionKey = (emoji: string): string => emoji.normalize('NFC').replace(/\uFE0F/g, '');
+const reactionKey = (emoji: string): string => emoji.normalize('NFC').replace(/\uFE0F/g, '');
 
 interface ReactionEvent {
     targetId: string;
