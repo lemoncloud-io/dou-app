@@ -22,9 +22,10 @@
 
 - **읽기 전용 화면.** 서버 상태를 바꾸는 동작이 없다. 유일한 부수효과는 CTA의 navigate다. 그래서 결제·IAP·
   이메일 인증 로직은 이 화면에 들어오지 않는다.
-- **구매 전환 경로를 늘리지 않는다.** 홈 배너와 전환 시트의 `＋ 클라우드 추가`는 **이 화면을 경유하지 않고**
-  기존 `SubscriptionSelectDialog → EmailVerifyDialog → IAP`로 직행한다. 검증된 결제 플로우에 스텝을 끼우지
-  않기 위한 결정이다(ADR-0034). 이 화면은 마이페이지에서만 들어온다.
+- **맥락에 따라 경유 여부가 갈린다.** 이 화면은 **중계 홈 배너**와 **마이페이지 구독 카드**에서 들어온다.
+  전환 시트 footer의 `＋ 클라우드 추가`는 이 화면을 건너뛰고 `SubscriptionSelectDialog → EmailVerifyDialog →
+IAP`로 직행한다 — 거기까지 들어온 사용자는 이미 무엇을 사는지 알고 있어 설명이 오히려 불필요한 스텝이다
+  (ADR-0034 개정 1).
 - **트라이얼 일수를 하드코딩하지 않는다.** "7일"은 제품 정책 약속이므로 `product.trialDays`에서 읽는다. 값을
   못 구하면 일수를 언급하지 않는 문구로 폴백한다 — 없는 혜택을 약속하는 쪽이 훨씬 나쁘다.
 - **web-ui-kit으로 조립.** 카드·배지·버튼·링크를 새로 그리지 않고 kit에서 가져온다. 이 화면 전용 조각만
@@ -35,21 +36,21 @@
 **포함**
 
 - `/subscription/guide` 라우트와 페이지 컴포넌트.
-- 마이페이지 "구독" MenuCard의 진입 행.
+- 진입점 둘 — 마이페이지 "구독" MenuCard의 행, 중계 홈의 클라우드 유도 배너 링크.
 - 플랜 비교 카드 2종(FREE 제한 목록 / PRO 혜택 목록 + 스크린샷).
 - 하단 고정 CTA — 보조 문구 + `무료 시작하기` 버튼 → `/subscription/plans`.
 
 **제외**
 
 - 결제·IAP·이메일 인증(전부 `/subscription/plans`와 `EmailVerifyDialog` 소유).
-- 홈 배너 / 전환 시트 → [home/README.md](../home/README.md).
+- 홈 배너 자체의 노출 판정·dismiss / 전환 시트 → [home/README.md](../home/README.md).
 - 구독 현황 표시(`/subscription`) 변경.
 - 게스트 게이팅 정책 변경(아래 리스크 참고).
 
 ## 시나리오
 
-1. **진입** — 마이페이지(`/mypage`) → "구독" MenuCard의 `나만의 클라우드 알아보기` 행 탭 →
-   `/subscription/guide`. 상단 `ModalTopBar`의 back으로 마이페이지로 돌아온다.
+1. **진입** — 두 경로가 있다. 마이페이지(`/mypage`) → "구독" MenuCard의 `나만의 클라우드 알아보기` 행, 또는
+   중계 홈의 클라우드 유도 배너 → `클라우드 추가 >`. 상단 `ModalTopBar`의 back으로 직전 화면으로 돌아온다.
 2. **읽기** — 단일 세로 스크롤. 히어로(3줄 타이틀 + 클라우드 일러스트) → `DoU Home` 카드 → 3점 장식 →
    `내 클라우드` 카드 → 하단 CTA. 카드 사이의 3점은 크기가 커지는 **정적 장식**이며 캐러셀 인디케이터가
    아니다(Figma에서 `Ellipse 673/674/675`, 8→11→14px).
@@ -67,9 +68,10 @@
 ```mermaid
 flowchart LR
     MP["/mypage<br/>구독 MenuCard"] -->|나만의 클라우드 알아보기| G["/subscription/guide"]
-    G -->|back| MP
+    HB["중계 홈 배너<br/>클라우드 추가 >"] --> G
+    G -->|back| BACK[직전 화면]
     G -->|CTA| PL["/subscription/plans<br/>플랜 선택 + IAP"]
-    HB[홈 배너 · 전환 시트<br/>＋ 클라우드 추가] -->|경유하지 않음| SD[SubscriptionSelectDialog<br/>→ EmailVerify → IAP]
+    SH["전환 시트 footer<br/>＋ 클라우드 추가"] -->|경유하지 않음| SD[SubscriptionSelectDialog<br/>→ EmailVerify → IAP]
 ```
 
 **화면 구성**

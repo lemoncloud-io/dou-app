@@ -119,8 +119,11 @@ export const HomePage = () => {
     const { places, isLoading: isPlacesLoading } = useHomePlaces();
     const { selectedPlaceId, switchPlace, isSwitching } = useSwitchPlace(places);
 
-    // Subscribe-a-cloud flow, shared with the switcher sheet (owns the 1-cloud cap guard).
+    // Subscribe-a-cloud flow. The switcher sheet's footer button opens the plan picker directly
+    // (the user is already deep in cloud management there); the home banner instead sends first-time
+    // users to the guide, which explains what a cloud is before asking them to pay.
     const { requestAddCloud, addCloudDialog } = useAddCloudFlow();
+    const openCloudGuide = () => navigate(ROUTES.subscription.guide);
 
     // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
     // optional at entry; users set it up on their own terms from the place settings hub ('내 프로필').
@@ -304,9 +307,9 @@ export const HomePage = () => {
             >
                 {/* Relay: no Place section — the single relay place is auto-connected, so the list
                     carries no information. Its slot goes to the cloud upsell instead. The banner
-                    carries its own margin so it leaves no ghost box once it self-hides. */}
+                    owns its own gutter and renders nothing when hidden, so no ghost box remains. */}
                 {isDefaultCloud ? (
-                    <CloudPromoBanner onAddCloud={requestAddCloud} className="mx-4 mb-2" />
+                    <CloudPromoBanner onAddCloud={openCloudGuide} className="pb-2" />
                 ) : (
                     <PlaceList
                         places={places}

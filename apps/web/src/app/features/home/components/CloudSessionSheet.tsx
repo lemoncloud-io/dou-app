@@ -146,7 +146,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
     ) : clouds.length === 0 ? (
         // No cloud yet: pitch one. The banner hides itself once dismissed, leaving just the footer
         // button — see useCloudPromo.
-        <CloudPromoBanner className="mx-4 mb-1" />
+        <CloudPromoBanner className="pb-1" />
     ) : (
         <div className="flex flex-col gap-1 px-2">
             {sortedClouds.map(cloud => (

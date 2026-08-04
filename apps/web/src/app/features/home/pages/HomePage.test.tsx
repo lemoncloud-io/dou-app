@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { HomePage } from './HomePage';
+import { ROUTES } from '../../../routes/paths';
 
 // This suite covers ONE thing: how HomePage branches on relay vs cloud (ADR-0034). Children are
 // stubbed to markers so the assertions are about which sections mount, not their internals.
@@ -10,7 +11,8 @@ import { HomePage } from './HomePage';
 let selectedCloudId: string | null = 'default';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
+const navigateMock = jest.fn();
+jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigateMock }));
 jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: false }) }));
 jest.mock('@chatic/web-core', () => ({
     useCloudSessionCatalog: () => ({ clouds: [] }),
@@ -46,7 +48,9 @@ jest.mock('../../onboarding', () => ({ OnboardingModal: () => null }));
 
 jest.mock('../components', () => ({
     ChannelList: () => <div data-testid="channel-list" />,
-    CloudPromoBanner: () => <div data-testid="promo-banner" />,
+    CloudPromoBanner: ({ onAddCloud }: { onAddCloud?: () => void }) => (
+        <button data-testid="promo-banner" onClick={onAddCloud} />
+    ),
     CloudSessionSheet: () => null,
     CreateChannelDialog: () => null,
     CreatePlaceDialog: () => null,
@@ -118,6 +122,15 @@ describe('HomePage — relay mode', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'no-cloud');
+    });
+
+    it('sends the banner action to the cloud guide, not straight to the plan picker', () => {
+        render(<HomePage />);
+        fireEvent.click(screen.getByTestId('promo-banner'));
+
+        // First-time users get the explanation before being asked to pay. The switcher sheet's own
+        // footer button still opens the plan picker directly.
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
 });
 
