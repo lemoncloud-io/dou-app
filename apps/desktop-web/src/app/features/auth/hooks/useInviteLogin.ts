@@ -98,10 +98,13 @@ export const useInviteLogin = () => {
                 if (cloudId) {
                     // Invited clouds aren't in the relay catalog — persist locally (with the
                     // invite's backend/wss) so the rail surfaces it and the cloud switch can
-                    // resolve its endpoints. Mirrors apps/web useInviteAccept.
+                    // resolve its endpoints. Mirrors apps/web useInviteAccept. The name goes in
+                    // too: this row is the cloud's only durable record, and without it a rail
+                    // rebuilt from the cache can label the tile with nothing but its id.
                     await cloudRepository.cacheWrite({
                         id: cloudId,
                         cid: cloudId,
+                        name: info?.cloudName ?? undefined,
                         backend: info?.$envs?.backend ?? backend ?? undefined,
                         wss: info?.$envs?.wss ?? undefined,
                         cloudType: 'invited',
