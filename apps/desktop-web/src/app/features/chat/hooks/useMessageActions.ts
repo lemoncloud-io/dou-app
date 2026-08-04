@@ -18,9 +18,11 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
  * the optimistic contract this app relies on everywhere. Repeating that here would give
  * the cache two writers racing over one row.
  *
- * Delete is a soft delete on the server (`hidden: true`) even though the repository
- * drops the row locally. The two agree because `isFeedVisible` filters `hidden`, so a
- * deleted message stays gone when the cache refills from a sync.
+ * Delete is a soft delete on both sides: the server maps `chat.delete` to
+ * `PUT { hidden: true }` and the repository marks the cached row rather than dropping
+ * it. The row therefore survives the delete and survives the next sync, and the feed
+ * keeps it in place as a tombstone — `isFeedVisible` deliberately does not filter
+ * `hidden`, and `MessageRow` renders "This message was deleted." for it.
  */
 /** Which operation failed, so the row can say the right thing about it. */
 export interface MessageActionFailure {

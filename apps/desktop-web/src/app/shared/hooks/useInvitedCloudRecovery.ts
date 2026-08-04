@@ -40,9 +40,12 @@ export const useInvitedCloudRecovery = (): void => {
         if (recoveredRef.current === selectedCloudId) return;
         recoveredRef.current = selectedCloudId;
 
+        // Best-effort for real: both helpers swallow their own network failures, but the cache
+        // reads and writes around those are outside their try blocks, so a rejection here would
+        // otherwise surface as an unhandled rejection rather than leaving the rail as it was.
         void (async () => {
             await recoverInvitedCloudIfMissing(cloud, selectedCloudId);
             await syncInvitedCloudName(cloud, selectedCloudId);
-        })();
+        })().catch(() => undefined);
     }, [cloud, isVerified, selectedCloudId, isOwned]);
 };
