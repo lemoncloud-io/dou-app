@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
+import { ROUTES } from '../../../routes/paths';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useClouds } from '@chatic/web-core';
@@ -25,6 +27,7 @@ export const SubscriptionPlansPage = () => {
     // so the two screens can never disagree about which store's product applies.
     const { isOnMobileApp, isIOS, product, isLoading: isPlansLoading } = useAllowedProduct();
     const { purchaseAndValidate, fetchNativeProducts } = useSubscriptionIap();
+    const { isGuest } = useRuntimeProfile();
     const { data: cloudsData } = useClouds({ limit: -1 });
     const clouds = cloudsData?.list ?? [];
 
@@ -49,6 +52,13 @@ export const SubscriptionPlansPage = () => {
 
     const handleSubscribe = async () => {
         if (!selectedProduct || isBlocked) return;
+        // A guest session has no account for the receipt to attach to, so send them to login before the
+        // email step rather than after. `purchaseAndValidate` also refuses, but only once the email
+        // dialog has already opened — which reads as "collect my email, then fail".
+        if (isGuest) {
+            navigate(ROUTES.mypage.login);
+            return;
+        }
         if (clouds.length >= 1) {
             toast({ title: t('addAccount.limitExceeded'), variant: 'destructive' });
             return;

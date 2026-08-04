@@ -6,9 +6,12 @@ import { Loader2, X } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { isNative } from '@chatic/bridges';
+import { useNavigateWithTransition } from '@chatic/shared';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
 import { reportError, useProductPlans } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
+import { ROUTES } from '../../../routes/paths';
 
 import { EmailVerifyDialog } from './EmailVerifyDialog';
 import { useSubscriptionIap } from '../../subscription/hooks/useSubscriptionIap';
@@ -39,6 +42,8 @@ export const SubscriptionSelectDialog = ({
     onError,
 }: SubscriptionSelectDialogProps) => {
     const { t, i18n } = useTranslation();
+    const navigate = useNavigateWithTransition();
+    const { isGuest } = useRuntimeProfile();
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const { fetchNativeProducts, purchaseAndValidate } = useSubscriptionIap();
@@ -73,6 +78,13 @@ export const SubscriptionSelectDialog = ({
 
     const handleNext = async () => {
         if (!selectedProduct || isBlocked) return;
+        // Same guest gate as the plans page: close the sheet and route to login instead of collecting an
+        // email for a purchase that has no account to attach to.
+        if (isGuest) {
+            handleClose();
+            navigate(ROUTES.mypage.login);
+            return;
+        }
         setPageState(PageState.Fetching);
         try {
             const nativeProducts = await fetchNativeProducts();

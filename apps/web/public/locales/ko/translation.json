@@ -218,6 +218,8 @@
             "empty": "구독 중인 상품이 없어요",
             "emptyDescription": "구독 상품을 확인해 보세요",
             "viewPlans": "구독 상품 보기",
+            "loginRequired": "구독은 로그인 후에 이용할 수 있어요",
+            "loginCta": "로그인하고 구독하기",
             "plans": "구독 상품",
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
