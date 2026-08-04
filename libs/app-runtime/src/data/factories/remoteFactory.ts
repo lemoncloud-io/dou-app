@@ -56,10 +56,9 @@ export const createRemoteDataSources = () => {
 
     const gateways: RemoteGatewayBundle = {
         auth: {
-            // auth.update authenticates whichever slot is active; the identity packets stay on relay.
+            // auth.update authenticates whichever slot is active; the identity packet stays on relay.
             update: authGateway.update,
-            verifyHashAlias: relayAuthGateway.verifyHashAlias,
-            attachSocial: relayAuthGateway.attachSocial,
+            linkAccount: relayAuthGateway.linkAccount,
         },
         channel: channelGateway,
         chat: chatGateway,

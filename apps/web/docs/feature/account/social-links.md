@@ -1,28 +1,35 @@
-# 마이페이지 소셜 연동 (Track D)
+# 마이페이지 계정 연동 (번호 · 소셜)
 
-> 상태: Live(화면 비노출) · 최종 갱신: 2026-07-31 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) 결정 7 · [ADR-0042](../../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md#track-d--소셜-관리](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
 >
-> 대상: `apps/web/src/app/features/mypage`(`AccountInfoPage` 신규 섹션 + 신규 hooks/components)
+> 대상: `apps/web/src/app/features/mypage`(`AccountInfoPage`의 `AccountLinkSection` + `useSocialLinks`)
 >
 > 같은 폴더의 [README.md](./README.md)는 이메일 가입·비밀번호 재설정(`apps/web/src/app/features/account`)을 다루는 **별개 문서**다 — "account"라는 이름만 같을 뿐 대상 코드가 다르다. 이 문서가 다루는 화면은 `features/mypage`에 있다.
+>
+> 수단·모드·단계 계약과 `linkAccount` 배선은 [account-linking.md](../auth/account-linking.md)가 소유한다. 번호 인증 화면 자체는 [phone-verification.md](../auth/phone-verification.md)가 소유한다.
 
-> **2026-07-31 — 섹션 전체를 숨겼다.** `flags.ts`의 `SOCIAL_LINK_ENABLED = false`가
-> `SocialLinkSection`을 `null`로 만든다. 이유는 연동 자체가 아니라 **읽기**다: 목록 조회 패킷이
-> 없어(요청 6번) "연동됨"은 localStorage에 남긴 로컬 추측이고, 캐시가 지워지면 "연동 안 됨"으로
-> 돌아가며 다른 기기의 연동은 영영 모른다. 거짓말할 수 있는 계정 보안 컨트롤은 안 보이는 편이
-> 낫다. 아래 서술은 **플래그를 켰을 때의 동작**이고, 배선은 그대로 남아 있어 켜는 것은 한 줄이다.
+> **2026-08-03 — 섹션을 열었다.** 숨겨 두었던 이유는 연동이 아니라 **읽기**였다. 목록 조회 패킷이
+> 없어 "연동됨"이 localStorage 추측이었고, 캐시가 지워지면 "연동 안 됨"으로 돌아가며 다른 기기의
+> 연동은 영영 몰랐다. **`UserView.link$`가 그 읽기다**(ADR-0042 §5) — 그래서 `SOCIAL_LINK_ENABLED`
+> 플래그를 켜지 않고 **지웠고**, localStorage 캐시도 함께 없앴다. 대신 섹션은 `link$`가
+> `'unknown'`일 때 스스로 접힌다. 같은 신중함의 더 좁고 자동인 버전이다.
 
 ## 목적
 
-번호 인증만으로 메인유저가 된 계정(또는 소셜로 가입한 계정)에 구글/애플 같은 추가 소셜 로그인 수단을 "붙여서", 이후 어느 기기에서 그 소셜 계정으로 로그인해도 같은 유저로 모이게 한다. 이는 client-guide가 명시하는 "계정 갈라짐"(소셜 가입자가 새 기기에서 소셜 로그인 없이 번호부터 인증하면 별개 유저가 생기고 되돌릴 수 없는 사고)을 줄이는 방어 수단이기도 하다.
+계정을 증명하는 수단(번호·소셜)을 한 화면에서 보여 주고 더 달 수 있게 한다. 수단이 둘 이상이면
+어느 기기에서 어느 수단으로 로그인해도 같은 유저로 모인다.
+
+이는 client-guide가 명시하는 "계정 갈라짐"(소셜 가입자가 새 기기에서 소셜 로그인 없이 번호부터
+인증하면 별개 유저가 생기고 되돌릴 수 없는 사고)을 줄이는 **유일한 사전 방어**이기도 하다.
 
 ## 설계 원칙
 
-- **attach는 로그인이 아니다.** `auth.attach-social`은 이미 메인유저인 세션에 소셜 자격을 추가로 붙이는 패킷이며 **세션이 바뀌지 않는다**(`chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §알아 둘 제약 인용 블록). 디바이스 유저의 소셜 로그인(세션이 바뀌는 쪽)은 backend의 기존 REST 소셜 경로이고 이 화면·이 트랙의 책임이 아니다 — 절대 혼동하지 않는다.
-- **서버가 모르는 것을 안다고 하지 않는다.** 연동 목록 조회 API가 없는 한(백엔드 요청 6번), 이 화면이 보여주는 "연동됨"은 "서버가 확인해 준 상태"가 아니라 **"이 기기가 마지막으로 attach 성공을 기억하는 상태"**다. 데이터 모델 자체(uid 스코프 로컬 캐시)가 이 사실을 강제한다.
+- **연동은 로그인이 아니다.** `auth.link-account`의 `mode: 'link'`는 이미 메인유저인 세션에 자격을 추가로 붙이며 **세션이 바뀌지 않는다** — 토큰도 오지 않는다. 디바이스 유저의 소셜 로그인(세션이 바뀌는 쪽)은 backend의 기존 REST 소셜 경로이고 이 화면의 책임이 아니다 — 절대 혼동하지 않는다.
+- **서버가 모르는 것을 안다고 하지 않는다.** 이제 서버가 `link$`로 말해 주므로 이 원칙은 폐기되지 않고 **모양만 바뀌었다** — 서버가 아무 말도 하지 않았을 때(`'unknown'`) 화면이 상태를 단정하지 않는다. 거짓말할 수 있는 계정 보안 컨트롤은 접히는 편이 낫다.
+- **"없음"과 "모름"을 섞지 않는다.** `link$`가 안 오는 이유는 프로필 미도착이거나 서버가 그 자리를 짓지 않은 것이고, 둘 다 "연동 안 됨"과 구별할 수 없다. 섞으면 이미 소셜로 가입한 유저에게 연동을 다시 권하고 403(`type-linked`)을 맞는다.
+- **막는 이유는 `verify`로 먼저 묻는다.** `linkable: false`와 `reason`을 응답으로 주는 것은 `verify`뿐이고 `confirm`은 같은 상황을 409·403으로 던진다. 그래서 확정 전에 물어 사용자에게 이유를 보여 준다.
 - **가짜 성공을 만들지 않는다.** 해제(unlink) API가 없으므로(요청 7번), 버튼을 눌러도 실제로 풀리지 않는데 "해제됨"이라고 표시하는 일은 없다 — 해제 컨트롤은 스텁 상태를 시각적으로 드러내고, 탭하면 안내만 준다.
-- **기존 화면의 시각 언어를 그대로 쓴다.** 이 트랙에는 Figma 노드가 지정되지 않았다 — `AccountInfoPage`의 기존 카드(`rounded-[18px] bg-card ... shadow-[...]`)·행(`flex w-full items-center justify-between py-3 pl-4 pr-3`) 클래스와 `mypage/LoginPage.tsx`의 provider 아이콘·iOS 게이팅을 그대로 재사용한다. 새 컴포넌트/새 스타일을 발명하지 않는다.
-- **로컬 캐시는 기기가 아니라 계정(uid) 스코프다.** 같은 기기에서 로그아웃 후 다른 계정으로 로그인해도 이전 계정의 연동 상태를 보여주지 않는다.
+- **기존 화면의 시각 언어를 그대로 쓴다.** 이 영역에는 Figma 노드가 지정되지 않았다 — `AccountInfoPage`의 기존 카드(`rounded-[18px] bg-card ... shadow-[...]`)·행(`flex w-full items-center justify-between py-3 pl-4 pr-3`) 클래스와 `mypage/LoginPage.tsx`의 provider 아이콘·iOS 게이팅을 그대로 재사용한다. 새 컴포넌트/새 스타일을 발명하지 않는다.
 - **에러는 코드로만 분기한다.** `getSocketErrorCode`(`apps/web/src/app/utils/errors.ts`) 없이 에러 메시지 문자열을 파싱하지 않는다(로드맵 공통 규칙).
 
 ## 범위
@@ -47,11 +54,16 @@
 
 ### 시나리오 1 — 메인유저가 구글 계정을 처음 연동한다 (네이티브)
 
-1. `/mypage/account` 진입 — "소셜 연동" 카드에 Google 행이 "연동하기" 버튼과 함께 보인다(로컬 캐시에 없음).
+1. `/mypage/account` 진입 — "계정 연동" 카드에 Google 행이 "연동하기" 버튼과 함께 보인다
+   (`link$.social`이 없다고 서버가 말했을 때만).
 2. 탭 → `appBridge.oauthLogin('google')` 호출 → 네이티브가 구글 로그인 시트를 띄우고 `idToken`/`accessToken` 등을 반환.
-3. 사용자가 네이티브 시트에서 취소하면 `result`가 `null` — 조용히 아무 것도 하지 않는다(에러가 아니므로 토스트 없음, 캐시 불변).
-4. 성공하면 `useAttachSocial().attach(result)` 호출 → `auth.attach-social`이 `{ attached: true }`로 응답 → 로컬 캐시에 `google`을 uid 스코프로 기록 → 행이 즉시 "연동됨"으로 바뀐다. **세션 전환도 화면 전환도 없다** — 사용자는 그대로 `AccountInfoPage`에 남는다.
-5. 그 소셜 계정이 이미 다른 유저 소유라면(`409`) "이미 다른 계정에 연동된 소셜 계정이에요" 에러 토스트, 캐시 변경 없음.
+3. 사용자가 네이티브 시트에서 취소하면 `result`가 `null` — 조용히 아무 것도 하지 않는다(에러가 아니므로 토스트 없음, 상태 불변).
+4. 성공하면 **`verifySocial(tokens)`** 이 먼저 나간다. `linkable: false`면 이유별 토스트를 띄우고
+   확정하지 않는다 — `'type-linked'`(이미 다른 소셜을 달아 둠) / `'occupied'`(남의 계정).
+5. `linkable: true`면 **`confirmSocial(tokens)`** 이 확정한다. **로컬 기록을 남기지 않는다** —
+   `user.profile`이 갱신되면 행이 "연동됨"으로 바뀐다. **세션 전환도 화면 전환도 없다.**
+6. 확정에서 그 소셜 계정이 이미 다른 유저 소유로 판정되면(`409`) "이미 다른 계정에 연동된 소셜
+   계정이에요", 같은 수단을 이미 달아 둔 경우(`403`) "이미 다른 계정을 연동해 두셨어요".
 
 ### 시나리오 2 — 비네이티브(브라우저) 접근
 
@@ -60,18 +72,30 @@
 
 ### 시나리오 3 — 이미 연동된 상태에서 재방문
 
-1. 로컬 캐시에 `google`이 있는 채로 재진입 → 새 attach 호출 없이 즉시 "연동됨" 표시.
-2. 같은 계정으로 **다른 기기**에서 재방문 → 그 기기엔 캐시가 없으므로 다시 "연동하기"로 보인다. 서버는 실제로 연동된 상태를 알고 있지만 클라이언트가 조회할 방법이 없어 생기는 **알려진 제약**이다(요청 6번 해결 전까지 불가피 — 아래 "운영 주의" 참고).
+1. `link$.social`이 있는 채로 재진입 → 새 호출 없이 즉시 "연동됨" 표시.
+2. 같은 계정으로 **다른 기기**에서 재방문 → **같게 보인다.** 상태가 서버에 있으므로 기기가 바뀌어도,
+   캐시를 지워도 그대로다. 이전 판의 알려진 제약(요청 6번)이 이렇게 해소됐다.
+3. `link$`가 아직 안 왔거나 서버가 그 자리를 짓지 않았으면 **섹션이 접힌다** — "연동하기"로도
+   "연동됨"으로도 보이지 않는다.
+
+### 시나리오 3-b — 번호를 연동한다
+
+1. 번호 행의 "연동하기" 탭 → `PhoneVerifySheet`가 `mode="link"`로 열린다.
+2. 발송 → 6자리 입력 시 **`verify`**가 나가고, `linkable: false`면 이유를 인라인으로 보여 주며
+   확정 버튼이 열리지 않는다(`'occupied'` = 남의 계정, `'type-linked'` = 이미 다른 번호를 달아 둠).
+3. `linkable: true`면 CTA가 `confirm`을 부른다. **토큰이 오지 않고 세션이 그대로다.**
+4. 연동 후 행은 서버가 준 마스킹 꼬리로 "연동됨 (5678)"이 된다 — 번호 원문은 서버에 없다.
 
 ### 시나리오 4 — 해제를 시도한다
 
 1. "연동됨" 행의 해제 컨트롤은 비활성(회색, 스텁 표시)으로 노출된다.
 2. 탭하면 "곧 지원될 예정이에요" 안내만 뜨고 캐시·상태는 그대로다 — 풀리지 않은 연동을 풀렸다고 보고하지 않는다.
 
-### 시나리오 5 (선택) — 번호만 있는 메인유저에게 유도 배너
+### 시나리오 5 — 수단이 하나도 없는 메인유저에게 유도 문구
 
-1. 메인유저(`!isGuest`)이고 로컬 캐시에 연동된 provider가 하나도 없으면 카드 위에 짧은 안내 문구("계정이 갈라지지 않도록 소셜 계정을 연결해 두세요")를 보여준다.
-2. 닫기 컨트롤은 없다 — `LicensesPage`의 설명 문구(`mb-3 px-1 text-[13px] text-muted-foreground`)와 같은 정적 캡션이다. 상태를 저장하지 않으므로 매 진입마다 같은 조건으로 재평가되고, provider를 하나라도 연동하면 다음부터 자동으로 사라진다(dismiss 상태를 별도로 관리할 필요가 없다).
+1. 메인유저(`!isGuest`)이고 **서버가 번호도 소셜도 없다고 말했으면**(`phone === 'absent' && social === 'absent'`) 카드 위에 짧은 안내 문구("계정이 갈라지지 않도록 소셜 계정을 연결해 두세요")를 보여준다.
+2. 이전 판의 "이 기기에 캐시가 없음"이라는 근사치를 서버 진실로 바꿨다 — 소셜로 가입한 유저가 매 기기에서 이 문구를 다시 보던 문제가 사라졌다.
+3. 닫기 컨트롤은 없다 — `LicensesPage`의 설명 문구(`mb-3 px-1 text-[13px] text-muted-foreground`)와 같은 정적 캡션이다. 상태를 저장하지 않으므로 매 진입마다 같은 조건으로 재평가되고, 수단을 하나라도 연동하면 다음부터 자동으로 사라진다.
 
 ## 다이어그램
 
@@ -125,13 +149,31 @@ flowchart TD
 
 ## 상세 구현
 
-### `useMyUser`/`MyUserView`에 연동 목록 소스가 있는지 조사한 근거 (백엔드 요청 6번 확인)
+### 연동 상태의 출처 — `UserView.link$` (백엔드 요청 6번 해소)
 
-- `apps/web/src/app/hooks/useMyUser.ts:12`가 반환하는 `MyUser`는 `DomainUser(=CacheUserView) & { photo?: string; email?: string }`뿐이다 — 소셜 연동 관련 필드가 전혀 없다.
-- 백엔드 원시 타입 `MyUserView`(`node_modules/@lemoncloud/chatic-backend-api/dist/view/types.d.ts:77-85`)는 `accountId`/`account$`(**단수**, `AccountView` 하나)만 갖는다. 이는 이 유저를 만든 **하나의 원 계정**(최초 가입 수단)만 가리키며, attach로 추가된 나머지 소셜 계정들의 목록이 아니다. `useMyUser`는 이 필드조차 런타임 타입에 노출하지 않는다(주석에서 `photo`/`email`만 명시적으로 확장했다고 밝힘).
-- `AccountStereo` LUT(`node_modules/@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types.d.ts`)에 `social`(예: `google:123455`) 타입이 있어 "연동"이라는 개념 자체는 서버 모델에 존재한다. 하지만 **한 유저에 딸린 모든 Account를 나열하는 조회 패킷/REST가 소켓 게이트웨이(`createInviteGateway`/`createAuthGateway`)에도, `chatic-backend-api`에도 없다.**
-- `AttachSocialView`(`.../view/types.d.ts:409-412`)는 `{ attached?: boolean }` 뿐이라 attach 응답 자체도 목록을 주지 않는다.
-- **결론**: 연동 목록을 서버에서 읽을 방법이 현재 없다 — 로드맵의 가정(요청 6번)이 타입 레벨에서도 확인된다. 로컬 캐시(uid 스코프)로 대응한다.
+이 문서의 이전 판은 "연동 목록을 서버에서 읽을 방법이 없다"고 결론 내리고 localStorage 캐시로
+대응했다. **`chatic-backend-api@0.26.706`이 그 결론을 뒤집었다.**
+
+- `UserView.link$`(`node_modules/@lemoncloud/chatic-backend-api/dist/modules/auth/views.d.ts:69`)가
+  `LinkedAccountsView`다 — `{ phone?, email?, social? }`이고 각 항목이
+  `LinkedAccountView { hint?, provider?, linkedAt? }`(`:327-334`)다. 수단마다 자리가 하나이고,
+  표시 값만 담는다(`accountId`는 노출되지 않는다).
+- 이전 판이 지적한 `MyUserView.account$`는 여전히 **최초 가입 계정 하나**이고 연동 목록이 아니다 —
+  그 지적은 유효하다. 답은 `account$`가 아니라 `link$`였다.
+- **읽기 경로는 이미 열려 있었다.** 앱은 이미 `user.profile`을 부르고(`useMyUser.ts:39` →
+  `UserRepositoryV2.getMyProfile`), 파이프라인 전 구간이 spread라 모르는 필드가 버려지지 않는다
+  (`UserRemoteDataSource.ts:71` → `mappers.ts:172` → `UserLocalDataSourceV2.ts:96` → IndexedDB).
+  **막던 것은 타입뿐이다** — 경계 타입이 socials-api의 `UserView`인데 페이로드는 backend-api의
+  `MyUserView`다.
+- 그래서 `MyUser`(`useMyUser.ts:12`)에 `link$`를 더해 넓혔다. `photo`/`email`이 이미 쓰는 기법
+  그대로다. 대가: 서버가 모양을 바꿔도 컴파일이 잡아 주지 않는다.
+- 판정은 `useLinkedAccounts`(`apps/web/src/app/hooks/useLinkedAccounts.ts`)가 **3상태**로 돌려준다 —
+  `'linked'` · `'absent'` · `'unknown'`. `link$` 객체가 없으면 `'unknown'`, 있으면 그 안의 항목
+  유무가 그대로 판정이다(서버가 뷰를 지었다는 뜻이라 빠진 항목은 정말 없는 것).
+
+**아직 확인이 필요한 것:** 이미 소셜로 가입한 기존 유저의 `link$`를 채우는 **일회성 백필**이
+백엔드 구현 계획의 순서에 없다. 안 돌았다면 그 유저들은 `'absent'`가 아니라 빈 `link$` 또는
+`link$` 자체가 없어 `'unknown'`으로 읽히고, 섹션이 접힌다 — 틀린 상태를 보여주지는 않는다.
 
 ### `AccountManagePage.tsx`를 제외한 근거
 
@@ -145,55 +187,71 @@ flowchart TD
 - 브라우저에서 provider 원시 토큰을 직접 받으려면(예: Google Identity Services JS SDK) 별도의 신규 브라우저 OAuth 통합이 필요하며, 이는 이번 트랙 범위 밖이다(로드맵에 없는 신규 작업 — "운영 주의"에 기록).
 - **결론**: 비네이티브 경로는 attach를 수행할 수 없다 — "모바일 앱에서 진행해 주세요" 안내로 폴백한다.
 
-### 신규/변경 파일
+### 파일과 역할
 
-1. **`apps/web/src/app/features/mypage/hooks/useSocialLinks.ts`** (신규)
-    - uid로 스코프한 localStorage 캐시(`chatic-linked-social-providers`, 값은 `{ [uid]: string[] }` JSON) — `channelSort`/`pinnedChannels`(`apps/web/src/app/stores/preferenceKeys.ts:108-121`)와 동일한 "스코프 키 → 값" 저장 관용구를 그대로 따른다.
-    - `usePreferenceStore`를 확장하지 않고 별도 파일로 둔 이유: (a) 이 캐시는 "기기 설정"이 아니라 "계정에 딸린 연동 상태"라는 다른 성격의 데이터이고, (b) 여러 트랙이 동시에 워크트리에서 작업 중인 상황에서 공유 스토어 파일을 건드리면 병합 충돌 위험이 커진다(로드맵 "통합 순서"의 파일 소유권 원칙을 스토어까지 보수적으로 확장 적용).
-    - attach 오케스트레이션(oauthLogin 호출 → 취소/토큰 분기 → `useAttachSocial().attach` → 성공 시 캐시 기록 → 에러 코드 분기 토스트)까지 이 훅 하나가 담당한다. `mypage/hooks`의 기존 관용구(`useDevicePushMute.ts`가 상태+뮤테이션+토스트를 한 훅에 묶는 방식)를 그대로 따른다.
-    - 반환: `{ isLinked(provider), linkProvider(provider): Promise<void>, requestUnlink(): void, isLinking: boolean }`.
-    - **왜 로직을 훅에 몰아넣는가**: `mypage/README.md`가 명시하듯 이 앱의 페이지·다이얼로그류 컴포넌트(`AppIconSelectSheet`/`LogoutDialog`/`WithdrawalDialog` 등)는 유닛 테스트 대상이 아니고 프리뷰로 검증한다 — 오직 `hooks/*.ts`만 테스트된다. 그래서 테스트가 필요한 로직은 전부 훅으로, `SocialLinkSection`은 훅을 호출하는 얇은 프레젠테이션으로 남긴다.
-2. **`apps/web/src/app/features/mypage/flags.ts`** (신규)
-    - `SOCIAL_UNLINK_ENABLED = false` 한 줄 — 요청 7번(연동 해제 API)이 열리면 이 값만 뒤집는다(로드맵 공통 규칙의 스텁 게이팅 관용구).
-3. **`apps/web/src/app/features/mypage/components/SocialProviderIcons.tsx`** (신규)
-    - `mypage/pages/LoginPage.tsx`에 있던 `GoogleIcon`/`AppleIcon` 인라인 SVG를 추출해 공유한다(중복 제거, 같은 비주얼 재사용 — "새 디자인 언어를 만들지 마라"를 코드로도 지킨다). `LoginPage.tsx`는 이 파일에서 import하도록 갱신.
-4. **`apps/web/src/app/features/mypage/components/SocialLinkSection.tsx`** (신규)
-    - `AccountInfoPage`의 기존 카드(`rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none`)·행(`flex w-full items-center justify-between py-3 pl-4 pr-3`) 클래스를 그대로 사용.
-    - `useRuntimeProfile().isGuest`면 `null` 렌더(방어적 가드 — 이 화면 진입 자체가 이미 `MyPage`에서 `!isGuest`로 걸러지지만, 직접 URL 접근에 대비).
-    - provider 행은 `mypage/LoginPage.tsx`와 동일하게 JSX에서 직접 결정한다: Google은 항상, Apple은 `isNative() && CHATIC_APP_PLATFORM === 'ios'`일 때만 — 훅에 provider 목록을 하드코딩하지 않는다(기존 `LoginPage.tsx:117` 패턴 재사용).
-    - (선택) 배너도 이 컴포넌트 내부에 조건부로 포함 — 크기가 작아 별도 파일 불필요.
-5. **`AccountInfoPage.tsx`** (변경) — Profile Card 아래 `<SocialLinkSection />` 삽입.
-6. **`apps/web/public/locales/{ko,en}/translation.json`** (변경) — `mypage.accountInfo.social.*` 신규 키(linked/link/unlink/unlinkComingSoon/mobileOnly/linkSuccess/linkFailed/alreadyLinkedElsewhere/bannerTitle).
-7. **`apps/web/docs/feature/mypage/README.md`** (변경, 최소) — 화면/구조 표에 소셜 연동 섹션 한 줄 추가 + 이 문서로 링크(문서 드리프트 방지).
+| 파일                                      | 역할                                                                                                                                                                                                                                                 |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hooks/useSocialLinks.ts`                 | 소셜 연동 오케스트레이션 — `oauthLogin` → 취소/토큰 분기 → `verifySocial` → `linkable` 분기 → `confirmSocial` → 에러 코드 토스트. 상태는 `useLinkedAccounts()`에서 읽는다. 반환: `{ isLinked, linkProvider, requestUnlink, isLinking, socialState }` |
+| `components/AccountLinkSection.tsx`       | 카드 + 행 세 개(번호 · Google · iOS면 Apple). `isGuest`거나 어느 상태든 `'unknown'`이면 `null`. 번호 행이 `PhoneVerifySheet`를 `mode="link"`로 연다                                                                                                  |
+| `components/SocialProviderIcons.tsx`      | `GoogleIcon`/`AppleIcon` — `LoginPage`와 공유                                                                                                                                                                                                        |
+| `flags.ts`                                | `SOCIAL_UNLINK_ENABLED = false`만 남았다. `SOCIAL_LINK_ENABLED`는 존재 이유(읽기 부재)가 사라져 **삭제**했다                                                                                                                                         |
+| `pages/AccountInfoPage.tsx:46`            | `<AccountLinkSection />` 마운트                                                                                                                                                                                                                      |
+| `public/locales/{ko,en}/translation.json` | `mypage.accountInfo.social.*` — 기존 키 + `phone`·`phoneMasked`·`typeAlreadyLinked`                                                                                                                                                                  |
+
+**왜 로직을 훅에 몰아넣는가**: `mypage/README.md`가 명시하듯 이 앱의 페이지·다이얼로그류
+컴포넌트는 유닛 테스트 대상이 아니고 프리뷰로 검증한다 — 오직 `hooks/*.ts`만 테스트된다. 그래서
+테스트가 필요한 로직은 전부 훅으로, `AccountLinkSection`은 훅을 호출하는 얇은 프레젠테이션으로
+남긴다.
+
+provider 행은 `mypage/LoginPage.tsx`와 동일하게 JSX에서 직접 결정한다: Google은 항상, Apple은
+`isNative() && CHATIC_APP_PLATFORM === 'ios'`일 때만 — 훅에 provider 목록을 하드코딩하지 않는다.
 
 ### 에러 분기
 
-전부 `getSocketErrorCode(error)`(`apps/web/src/app/utils/errors.ts:20`)로 분기하고 에러 문자열은 파싱하지 않는다(로드맵 공통 규칙).
+`verify`가 먼저 답하므로 대부분의 거절은 에러가 아니라 **응답**으로 온다. 아래는 그래도 확정이
+던지는 경우다. 전부 `getSocketErrorCode(error)`(`apps/web/src/app/utils/errors.ts:20`)로 분기하고
+에러 문자열은 파싱하지 않는다.
 
-| code        | 의미                 | 처리                                                                         |
-| ----------- | -------------------- | ---------------------------------------------------------------------------- |
-| 409         | 이미 다른 유저 소유  | "이미 다른 계정에 연동된 소셜 계정이에요" 에러 토스트                        |
-| 403         | 세션이 메인유저 아님 | 이론상 이 화면 도달 전 `isGuest` 가드로 걸러짐 — 방어적으로 일반 실패 토스트 |
-| 기타/미분류 | 네트워크 등          | 일반 실패 토스트(`linkFailed`)                                               |
+| 자리           | 값                                         | 처리                                                                                             |
+| -------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `verify` 응답  | `linkable: false`, `reason: 'occupied'`    | "이미 다른 계정에 연동된 소셜 계정이에요" — 확정하지 않는다                                      |
+| `verify` 응답  | `linkable: false`, `reason: 'type-linked'` | "이미 다른 계정을 연동해 두셨어요"                                                               |
+| `confirm` 에러 | `409`                                      | 위 `occupied`와 같은 문구                                                                        |
+| `confirm` 에러 | `403`                                      | 위 `type-linked`와 같은 문구 (메인유저 아님도 여기 섞이지만 이 화면은 `isGuest`로 이미 걸러진다) |
+| 기타/미분류    | —                                          | 일반 실패 토스트(`linkFailed`)                                                                   |
 
 ## 검증 방법
 
-- **유닛 테스트**: `apps/web/src/app/features/mypage/hooks/useSocialLinks.test.ts` (11개, 전부 통과)
-    - 초기 상태는 미연동, uid 스코프 격리(다른 uid로 바뀌면 이전 캐시가 보이지 않음).
-    - `linkProvider` 성공 시 캐시 반영 + `isLinked` true 전환 + 성공 토스트.
-    - 네이티브 취소(`result: null`) → attach 미호출, 캐시·토스트 불변.
-    - attach 실패 409 → `alreadyLinkedElsewhere` 문구, 그 외 실패 → `linkFailed` 문구(둘 다 `getSocketErrorCode`로 분기, 문자열 매칭 없음).
-    - 비네이티브(`isNative() === false`)에서 `linkProvider` 호출 시 `oauthLogin`/`attach` 미호출, 안내 토스트만.
-    - `requestUnlink` 호출 시 캐시 불변 + 안내 토스트만(스텁 계약 검증).
-    - 손상된 로컬 캐시 JSON 방어, `uid`가 없을 때 빈 목록.
-    - 실행: `npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "useSocialLinks"` → `Tests: 11 passed, 11 total`.
-- **정적 검사**: `npx tsc --noEmit -p apps/web/tsconfig.app.json` → 에러 0(리포 전체 기준). 변경 파일 전부 `npx eslint <파일> --fix` → 에러 0(경고는 `@nx/enforce-module-boundaries`의 캐시된 프로젝트 그래프 부재 알림뿐, 기존 환경 이슈).
-- **회귀**: `npx jest --config apps/web/jest.config.js --runInBand --watchman=false`(apps/web 전체) → `Test Suites: 97 passed, Tests: 613 passed`. `LoginPage.tsx`의 아이콘 추출·barrel 변경으로 인한 회귀 없음.
-- **수동 확인(dev 스테이지, 프리뷰) — 미실행**: `mypage/README.md` 관례대로 페이지 자체는 프리뷰로 확인하는 항목이나, 이 세션에서는 dev 스테이지 접근·네이티브 브릿지가 없어 수행하지 못했다. 배포 전 다음을 프리뷰/기기에서 확인 필요: 네이티브 앱에서 google attach 성공 → 로그아웃 → 같은 소셜 계정으로 재로그인 시 동일 유저로 귀속(로드맵 Track D 완료 기준), 비네이티브 폴백 문구, 게스트 미노출, 다크모드.
+- **유닛 테스트**: `apps/web/src/app/features/mypage/hooks/useSocialLinks.test.ts`
+    - 연동 상태가 `link$`에서 나온다 / 기록된 provider가 아니면 미연동으로 읽힌다.
+    - `verify` → `confirm` 순서, 그리고 `linkable: false`가 **확정 전에** 끊는지.
+    - 네이티브 취소(`result: null`) → 아무 호출도 없고 토스트도 없다.
+    - 이유별·코드별 카피(`type-linked`/`occupied`, 409/403/기타).
+    - 비네이티브에서 `oauthLogin`을 부르지 않고 안내 토스트만.
+    - `requestUnlink`는 상태를 바꾸지 않는 스텁이다.
+    - 실행: `npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "useSocialLinks"`
+- **정적 검사**: `npx tsc -b apps/web/tsconfig.app.json` → 에러 0. 프로젝트 레퍼런스 빌드를 쓴다 —
+  라이브러리 `dist`가 낡은 상태에서 `--noEmit -p`를 쓰면 stale `.d.ts`를 읽어 실재하지 않는 에러가 난다.
+- **회귀**: `npx jest --config apps/web/jest.config.js --runInBand --watchman=false`(apps/web 전체).
+- **수동 확인 — 미실행**: `mypage/README.md` 관례대로 페이지 자체는 프리뷰로 확인하는 항목이나,
+  이 세션에는 dev 스테이지 접근·네이티브 브릿지가 없어 수행하지 못했다. 배포 전 확인 필요:
+  네이티브에서 google 연동 성공 → 다른 기기에서 같은 상태로 보이는지(`link$`의 핵심 이득),
+  번호 연동에서 `verify`가 `linkable`을 답하는지, `link$`가 없는 계정에서 섹션이 접히는지,
+  게스트 미노출, 다크모드.
 
 ## 운영 주의 (as-built)
 
-- **로컬 캐시의 기기 종속성**: 다른 기기·브라우저 캐시 삭제 시 서버는 여전히 연동 상태이지만 화면엔 "연동하기"로 다시 보일 수 있다(시나리오 3). 요청 6번(목록 조회 API)이 해결되기 전까지 근본 해결이 불가능한, 이 설계가 감수한 제약이다.
-- **같은 provider 재attach 시 서버 동작 미문서화**: 이미 같은 유저에 연동된 provider를 다시 attach했을 때 성공(no-op)인지 `409`인지 client-guide에 명시가 없다. 현재는 `409`를 "다른 계정 소유"로 일괄 안내한다 — dev 스테이지에서 실제 동작이 다르게 관찰되면 이 분기만 조정하면 된다.
+- **`link$` 백필이 안 돌았으면 섹션이 조용히 접힌다.** 기존 유저의 자리가 비어 `'unknown'`으로
+  읽히기 때문이다. 틀린 상태를 보여주지는 않지만, 이 화면의 가치가 백엔드 백필에 묶여 있다.
+- **`cacheWrite`는 merge라 stale `link$`가 남는다**(`UserLocalDataSourceV2.ts:96-102`). 한번 쓰인
+  값은 이후 응답이 그 자리를 빼먹어도 캐시에 남는다. 지금은 해제가 없어 무해하지만, 요청 7번을
+  열 때 replace 시맨틱을 함께 판단해야 한다.
+- **소셜 슬롯은 하나다.** `link$.social`이 단수이므로 `isLinked(provider)`는 "기록된 provider가
+  이것인가"다. 다른 provider는 미연동으로 보이고, 실제로 서버도 `type-linked`로 막는다. 수단당
+  여러 계정은 서버 미결정 항목이다.
+- **같은 provider 재연동 시 서버 동작 미문서화**: 이미 같은 유저에 연동된 provider를 다시 확정했을
+  때 성공(no-op)인지 에러인지 client-guide에 명시가 없다. 설계 문서는 "이미 자기 것이면 무해하게
+  다시 확정"이라고 적었으므로 성공을 기대하되, `verify`가 먼저 답하므로 사용자에게 도달하기 전에
+  걸러진다.
 - **해제(unlink)는 의도적으로 비활성 노출**: 완전히 숨기지 않고 회색 처리해 스텁의 존재를 드러낸다. 요청 7번 API가 열리면 `apps/web/src/app/features/mypage/flags.ts`의 `SOCIAL_UNLINK_ENABLED`를 `true`로 바꾸고 `useSocialLinks.requestUnlink`에 실제 호출을 채워 넣는다.
-- **비네이티브(브라우저) attach는 이번 범위에서 구조적으로 불가능**하다(상세 구현 참고) — 지원하려면 별도 브라우저 OAuth 통합이 필요하고, 이는 새 ADR/트랙으로 분리해야 한다.
+- **비네이티브(브라우저) 소셜 연동은 여전히 구조적으로 불가능**하다(상세 구현 참고) — 지원하려면 별도 브라우저 OAuth 통합이 필요하고, 이는 새 ADR로 분리해야 한다. **번호 연동은 브라우저에서도 된다** — 소켓 호출이라서다.

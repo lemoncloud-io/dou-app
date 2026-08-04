@@ -4,7 +4,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { PlaceProfileForm } from '../../home/components';
-import { useMyProfile } from '../../../hooks';
+import { useMyProfile, usePlaceProfileAbsent } from '../../../hooks';
 import { PageHeader } from '../../../ui';
 
 /**
@@ -21,14 +21,24 @@ export const PlaceProfilePage = () => {
     const navigate = useNavigateWithTransition();
     const { profile: profileRepository } = useRuntimeRepositories();
     const { profile: myProfile } = useMyProfile();
+    // Only a settled signal, not the verdict: `useMyProfile` cannot say whether its null means
+    // "loading" or "no profile", and this page must render an empty form in the second case.
+    const { absent } = usePlaceProfileAbsent();
 
     const close = () => navigate(-1);
     const title = t('placeProfileEdit.header');
 
-    // The shared form seeds its fields once on mount. `useMyProfile` starts null and resolves a render
-    // later, so mount the form only after the profile is available — otherwise it would latch empty
-    // values and a save could wipe the existing photo. Until then show just the titled header (back works).
-    if (!myProfile) {
+    // The shared form seeds its fields exactly once (`seededRef`), so what we wait for decides what the
+    // user sees. Two conditions, not one:
+    //   - `absent === undefined`: the read has not settled at all.
+    //   - `absent === false && !myProfile`: a profile exists but its row has not arrived. `absent`
+    //     resolves off `getMyProfile()` while `myProfile` comes through `observeItem`, whose re-emit
+    //     after the cache write is debounced ~50ms — so on a cold row `absent` lands FIRST. Mounting
+    //     there would latch a blank name over a real profile and let the user replace their nick
+    //     without ever seeing it.
+    // `absent === true` deliberately falls through with no row: that is the create case ADR-0041
+    // decision 7 opened, where an empty form is the correct thing to show.
+    if (absent === undefined || (absent === false && !myProfile)) {
         return (
             <div className="flex h-full flex-col bg-background pt-safe-top">
                 <PageHeader title={title} onBack={close} />
@@ -41,8 +51,8 @@ export const PlaceProfilePage = () => {
             container="page"
             open
             title={title}
-            initialNick={myProfile.nick ?? ''}
-            initialThumbnail={myProfile.thumbnail ?? ''}
+            initialNick={myProfile?.nick ?? ''}
+            initialThumbnail={myProfile?.thumbnail ?? ''}
             submitLabel={t('placeProfileEdit.done')}
             successToast={t('placeProfileEdit.successToast')}
             saveError={t('placeProfileEdit.saveError')}

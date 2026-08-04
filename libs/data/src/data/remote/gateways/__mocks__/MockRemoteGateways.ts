@@ -12,8 +12,7 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
     ({
         auth: {
             update: jest.fn(),
-            verifyHashAlias: jest.fn(),
-            attachSocial: jest.fn(),
+            linkAccount: jest.fn(),
         },
         channel: {
             create: jest.fn(),

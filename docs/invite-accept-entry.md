@@ -1,6 +1,6 @@
 # 초대 수락 진입 (Invite Accept Entry)
 
-> 상태: Live · 최종 갱신: 2026-07-31 · 관련 ADR: [ADR-0016](adr/0016-invite-accept-popup-web-ui-kit.md) · [ADR-0033](adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0035](adr/0035-relay-invite-accepted-channel-resolution.md) · [ADR-0037](adr/0037-invite-accept-popup-group-and-dm-variants.md) · [ADR-0039](adr/0039-dm-display-name-chain-and-invite-profile-release.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0041](adr/0041-place-profile-as-invite-precondition.md) · [ADR-0016](adr/0016-invite-accept-popup-web-ui-kit.md) · [ADR-0033](adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · [ADR-0035](adr/0035-relay-invite-accepted-channel-resolution.md) · [ADR-0037](adr/0037-invite-accept-popup-group-and-dm-variants.md) · [ADR-0039](adr/0039-dm-display-name-chain-and-invite-profile-release.md)
 >
 > "팝업 → 페이지" 전환 결정 자체는 아직 ADR이 없다. `dev-1_interview`로 ADR-0038을 남기고 이 헤더를 갱신할 것.
 
@@ -40,7 +40,7 @@
 5. 온보딩을 마치거나 SKIP하면 `isFirstRun`이 뒤집히고, 게이트가 다시 평가되어 `/invite/accept?…`로 넘어간다.
 6. 아직 게스트 로그인 전이면 페이지가 **초대 로딩 화면**을 띄운 채 기다린다. 로그인이 끝나 `isAuthenticated`가 뒤집히면 라우터가 재생성되고 같은 경로가 다시 매칭된다.
 7. 릴레이 소켓 핸드셰이크를 기다린 뒤 `invite.get`. 결과가 올 때까지도 로딩 화면이다.
-8. 수락 화면. "수락" → 전화 인증 → `invite.accept` 순으로 한 단계씩 전진하며, 매 단계 앞에서 `invite.get`을 다시 쏴 만료·선점을 재확인한다. **플레이스 프로필은 묻지 않는다** — 수락 앞에 세울 만한 값이 아니고, 프로필은 플레이스 설정 허브에서 사후에 만든다(ADR-0039 결정 5).
+8. 수락 화면. "수락" → 전화 인증 → **플레이스 프로필** → `invite.accept` 순으로 한 단계씩 전진하며, 매 단계 앞에서 `invite.get`을 다시 쏴 만료·선점을 재확인한다. 프로필 스텝은 프로필이 **없을 때만** 끼어들고, 강제가 아니라 `invite.accept`의 **전제조건**이다 — X를 누르면 수락하지 않고 수락 화면으로 돌아간다(ADR-0041 결정 3, ADR-0039 결정 5 철회). 수락 이후로 미루면 그사이 앱을 강제종료한 사용자가 이름 없는 채로 되돌릴 수 없게 DM에 남기 때문이다.
 9. 수락 성공 → 방 id를 `usePendingInviteChannel`에 넣고 `/`로 이동 → 홈이 그 id를 소비해 대화방으로 replace 이동한다(`HomePage.tsx:188`).
 
 ### S2. 클라우드(그룹) 초대 — 이미 쓰던 사람
@@ -151,6 +151,7 @@ stateDiagram-v2
     review --> closed: 닫기 / 거절
 
     submitting --> verifying: needVerify 또는 403(미인증)
+    submitting --> profiling: 프로필 없음
     submitting --> awaitingChannel: accepted, channelId 없음
     submitting --> closed: accepted, channelId 있음
     submitting --> notice: 실패
@@ -158,15 +159,20 @@ stateDiagram-v2
     verifying --> submitting: 인증 완료 → advance
     verifying --> review: 취소
 
+    profiling --> submitting: 프로필 저장 → advance
+    profiling --> review: 중단(모달 없이 즉시)
+
     awaitingChannel --> closed: 방 확정 또는 타임아웃
     notice --> closed: 확인
     notice --> loading: 재시도 (generic 한정)
     closed --> [*]: / 로 이동
 ```
 
-`loading`은 로딩 화면, `notice`는 `AlertDialog`, `verifying`은 `PhoneVerifyScreen`(자체 Dialog를 가진다), 나머지는 수락 화면이 페이지를 차지한다.
+`loading`은 로딩 화면, `notice`는 `AlertDialog`, `verifying`은 `PhoneVerifyScreen`(자체 Dialog를 가진다), `profiling`은 `PlaceProfileCreateDialog`, 나머지는 수락 화면이 페이지를 차지한다.
 
-전이의 유일한 조건 분기는 `needVerify` 하나다(ADR-0039가 프로필 스텝을 없앤 뒤로). 그래도 모든 전이가 `advance`를 거치고 `advance`의 첫 동작은 또 한 번의 `invite.get`이다 — 전화 인증에 몇 분이 걸리는 동안 초대가 만료되거나 선점될 수 있고, 그 이유는 스텝 수와 무관하다.
+전이의 조건 분기는 둘이다 — `needVerify`(서버 값)와 프로필 판정(ADR-0041). 순서가 뒤집히면 안 된다: 인증 전에는 아직 디바이스 유저라 프로필을 쓸 사이트가 없다. 그래서 인증을 지나면 저장 기록도 함께 버리고 다시 판정한다(승격이 신원을 바꾸므로).
+
+모든 전이가 `advance`를 거치고 `advance`의 첫 동작은 또 한 번의 `invite.get`이다 — 전화 인증이나 이름 입력에 몇 분이 걸리는 동안 초대가 만료되거나 선점될 수 있고, 그 이유는 스텝 수와 무관하다.
 
 ## 상세 구현
 
@@ -231,7 +237,7 @@ features/invite/
 
 플레이스 프로필 폼(`PlaceProfileForm` 계열)은 `features/home/`·`features/place/`에 그대로 남는다 — 수락 흐름이 쓰지 않게 되었을 뿐 플레이스 설정 허브(ADR-0031)와 홈 드롭다운이 계속 쓴다.
 
-**단, i18n `placeProfileCreate.*`(16키)는 이제 소비처가 없다.** 남은 프로필 UI는 전부 `placeProfileEdit.*`를 쓰고, `placeProfileCreate.*`를 읽던 것은 삭제된 `RelayInviteProfileDialog` 하나뿐이었다. 지우지 않고 둔 이유는 ADR-0039가 범위 밖으로 미룬 "프로필 미설정자 재권유 UX"가 바로 이 카피를 필요로 할 가능성이 크기 때문이다. 그 후속을 하지 않기로 결정하면 함께 지울 것.
+**~~단, i18n `placeProfileCreate.*`(16키)는 이제 소비처가 없다.~~** → 2026-08-03에 해소됐다: ADR-0041이 초대 두 경로에서 이 카피를 다시 소비하고, ADR-0040이 방 설정 유도에서도 쓴다. 아래 서술은 그 전 상태의 기록이다. 남은 프로필 UI는 전부 `placeProfileEdit.*`를 쓰고, `placeProfileCreate.*`를 읽던 것은 삭제된 `RelayInviteProfileDialog` 하나뿐이었다. 지우지 않고 둔 이유는 ADR-0039가 범위 밖으로 미룬 "프로필 미설정자 재권유 UX"가 바로 이 카피를 필요로 할 가능성이 크기 때문이다. 그 후속을 하지 않기로 결정하면 함께 지울 것.
 
 수신 흐름은 팝업이 홈에 마운트돼 있었다는 이유만으로 `features/home/`에 살았다. 외부 소비자는 발신측 대기 화면이 쓰는 카운트다운 하나뿐이었고, 그건 `features/invite/hooks/`로 올렸다.
 

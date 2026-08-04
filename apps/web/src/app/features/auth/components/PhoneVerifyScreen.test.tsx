@@ -3,7 +3,8 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const mockSend = jest.fn();
-const mockCheck = jest.fn();
+const mockVerify = jest.fn();
+const mockConfirm = jest.fn();
 const mockApplySessionToken = jest.fn();
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
@@ -21,8 +22,19 @@ jest.mock('@chatic/ui-kit/components/ui/dialog', () => ({
     DialogTitle: ({ children }: any) => <div>{children}</div>,
     DialogDescription: ({ children }: any) => <div>{children}</div>,
 }));
-jest.mock('../../../hooks/useVerifyHashAlias', () => ({
-    useVerifyHashAlias: () => ({ send: mockSend, check: mockCheck, isSending: false, isChecking: false }),
+// One packet (`auth.link-account`) behind four calls; the two social ones are unused by this shell.
+jest.mock('../../../hooks/useLinkAccount', () => ({
+    useLinkAccount: () => ({
+        send: mockSend,
+        verify: mockVerify,
+        confirm: mockConfirm,
+        verifySocial: jest.fn(),
+        confirmSocial: jest.fn(),
+        isSending: false,
+        isVerifying: false,
+        isConfirming: false,
+        isLinkingSocial: false,
+    }),
 }));
 jest.mock('../utils/env', () => ({ isDevBuild: jest.fn(() => false) }));
 
@@ -35,6 +47,8 @@ const FUTURE_EXPIRY = () => Date.now() + 180_000;
 const renderScreen = (overrides: Partial<React.ComponentProps<typeof PhoneVerifyScreen>> = {}) => {
     const props = {
         context: 'invite-accept' as const,
+        // The accept flow always proves a number to OPEN a session (ADR-0042 §3).
+        mode: 'login' as const,
         inviteCode: 'invt:i1:code',
         onVerified: jest.fn(),
         onClose: jest.fn(),
@@ -63,10 +77,17 @@ const requestCode = async (overrides: Partial<React.ComponentProps<typeof PhoneV
     return props;
 };
 
-/** Enters a full 6-digit code, which auto-submits the check. */
+/** Enters a full 6-digit code, which auto-submits the mode's prove step. */
 const pasteOtp = async (code = '123456') => {
     await act(async () => {
         fireEvent.change(screen.getByPlaceholderText('phoneVerify.codePlaceholder'), { target: { value: code } });
+    });
+};
+
+/** Taps the pinned CTA (완료 / 다시 시도). */
+const submitCta = async () => {
+    await act(async () => {
+        fireEvent.click(screen.getByText('phoneVerify.complete'));
     });
 };
 
@@ -88,12 +109,30 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(button).toBeEnabled();
     });
 
-    it('발송 성공 시 초대 코드를 동봉하고 인증번호 입력이 열린다', async () => {
+    it('발송 성공 시 mode와 초대 코드를 동봉하고 인증번호 입력이 열린다', async () => {
         await requestCode();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { code: 'invt:i1:code' });
+        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code' });
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeEnabled();
         expect(mockToast).toHaveBeenCalledWith({ title: 'phoneVerify.sent' });
+    });
+
+    it('초대받은 번호의 끝 4자리와 다르면 발송 자체를 하지 않는다 (ADR-0042 §8 사전 차단)', async () => {
+        renderScreen({ inviteLast4: '9999' });
+        typePhone(PHONE);
+        await submitSend();
+
+        expect(screen.getByText('phoneVerify.inviteMismatch')).toBeInTheDocument();
+        // The cheap check spends no delivery against the daily caps.
+        expect(mockSend).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
+
+        // 끝 4자리가 맞으면 그대로 통과한다 — 4자리는 판정이 아니라 선차단일 뿐이다.
+        mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
+        typePhone('01012349999');
+        await submitSend();
+
+        expect(mockSend).toHaveBeenCalledWith('01012349999', { mode: 'login', code: 'invt:i1:code' });
     });
 
     it('초대 맥락의 발송 400은 "초대받은 번호가 아니에요"로 안내한다 (§B-2 발송단 차단)', async () => {
@@ -133,7 +172,12 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone();
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { code: 'invt:i1:code', slack: true, sms: false });
+        expect(mockSend).toHaveBeenCalledWith(PHONE, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            slack: true,
+            sms: false,
+        });
     });
 
     it('dev 스위치를 켜지 않으면 발송 옵션에 스위치가 아예 실리지 않는다 (서버 기본값 보존)', async () => {
@@ -143,7 +187,7 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone();
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { code: undefined });
+        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: undefined });
     });
 });
 
@@ -153,12 +197,14 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
-    it('6자리를 채우면 자동 제출되고 check에 초대 코드가 동봉된다', async () => {
-        mockCheck.mockResolvedValueOnce({ attached: true, $token: undefined });
+    it('6자리를 채우면 login 모드는 verify를 건너뛰고 곧장 confirm한다 (ADR-0042 §4)', async () => {
+        mockConfirm.mockResolvedValueOnce({ linked: true, $token: undefined });
         const { onVerified } = await requestCode();
         await pasteOtp();
 
-        expect(mockCheck).toHaveBeenCalledWith(PHONE, '123456', { code: 'invt:i1:code' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'login' });
+        // `verify` would only repeat what confirm already proves, so login never asks.
+        expect(mockVerify).not.toHaveBeenCalled();
         // Linked-only result: no session change, so no switch — straight to onVerified.
         expect(mockApplySessionToken).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
@@ -166,7 +212,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
 
     it('$token이 오면 applySessionToken 완료 후에 onVerified를 부른다 (세션 전환까지가 완료)', async () => {
         const $token = { Token: { identityToken: 'main' }, $auth: { id: 'auth-1' } };
-        mockCheck.mockResolvedValueOnce({ attached: true, $token });
+        mockConfirm.mockResolvedValueOnce({ linked: true, $token });
         let resolveApply: () => void = () => undefined;
         mockApplySessionToken.mockReturnValueOnce(new Promise<void>(resolve => (resolveApply = resolve)));
 
@@ -181,7 +227,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
     });
 
     it('403 오답은 "인증번호를 정확히" 에러를 보여 주고 다시 시도할 수 있다', async () => {
-        mockCheck.mockRejectedValueOnce(new Error('403 FORBIDDEN - otp mismatch'));
+        mockConfirm.mockRejectedValueOnce(new Error('403 FORBIDDEN - otp mismatch'));
         const { onVerified } = await requestCode();
         await pasteOtp();
 
@@ -190,7 +236,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
     });
 
     it('429(오답 5회)는 재전송을 유도한다 — 재전송해도 카운터가 유지된다는 케이스', async () => {
-        mockCheck.mockRejectedValueOnce(new Error('429 TOO MANY REQUESTS - attempts exceeded'));
+        mockConfirm.mockRejectedValueOnce(new Error('429 TOO MANY REQUESTS - attempts exceeded'));
         await requestCode();
         await pasteOtp();
 
@@ -198,16 +244,16 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
     });
 
     it('400(미발송·만료)은 만료 안내를 보여 준다', async () => {
-        mockCheck.mockRejectedValueOnce(new Error('400 BAD REQUEST - expired'));
+        mockConfirm.mockRejectedValueOnce(new Error('400 BAD REQUEST - expired'));
         await requestCode();
         await pasteOtp();
 
         expect(screen.getByText('phoneVerify.codeExpired')).toBeInTheDocument();
     });
 
-    it('applySessionToken 실패 시 재시도 버튼이 나타나고, 재시도는 check 없이 전환만 다시 한다', async () => {
+    it('applySessionToken 실패 시 재시도 버튼이 나타나고, 재시도는 confirm 없이 전환만 다시 한다', async () => {
         const $token = { Token: { identityToken: 'main' }, $auth: { id: 'auth-1' } };
-        mockCheck.mockResolvedValueOnce({ attached: true, $token });
+        mockConfirm.mockResolvedValueOnce({ linked: true, $token });
         mockApplySessionToken.mockRejectedValueOnce(new Error('[applySessionToken] relay re-auth not confirmed'));
 
         const { onVerified } = await requestCode();
@@ -221,7 +267,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
             fireEvent.click(screen.getByText('phoneVerify.retry'));
         });
 
-        expect(mockCheck).toHaveBeenCalledTimes(1); // the OTP was consumed — never re-checked
+        expect(mockConfirm).toHaveBeenCalledTimes(1); // the OTP was consumed — never re-proved
         expect(mockApplySessionToken).toHaveBeenCalledTimes(2);
         expect(mockApplySessionToken).toHaveBeenLastCalledWith($token);
         expect(onVerified).toHaveBeenCalled();
@@ -235,7 +281,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
             fireEvent.click(screen.getByText('phoneVerify.extend'));
         });
 
-        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { code: 'invt:i1:code', resend: true });
+        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code', resend: true });
         expect(mockToast).toHaveBeenCalledWith({
             title: 'phoneVerify.resent',
             description: 'phoneVerify.resendKeepsCounter',
@@ -246,7 +292,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         await act(async () => {
             fireEvent.click(screen.getByText('phoneVerify.resend'));
         });
-        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { code: 'invt:i1:code', resend: true });
+        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code', resend: true });
     });
 
     it('재전송 중 429는 쿨다운 안내로 구분한다 (60초 제한)', async () => {
@@ -287,6 +333,78 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
     });
 });
 
+describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (isDevBuild as jest.Mock).mockReturnValue(false);
+    });
+
+    it('link 모드 발송에는 초대 코드를 싣지 않는다 (서버가 login에서만 읽는다)', async () => {
+        await requestCode({ mode: 'link' });
+
+        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'link', code: undefined });
+    });
+
+    it('6자리를 채우면 verify까지만 가고, 커밋은 CTA가 한다 (ADR-0042 §4)', async () => {
+        mockVerify.mockResolvedValueOnce({ linkable: true });
+        const { onVerified } = await requestCode({ mode: 'link' });
+        await pasteOtp();
+
+        expect(mockVerify).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockConfirm).not.toHaveBeenCalled();
+        expect(onVerified).not.toHaveBeenCalled();
+
+        // 연결은 세션을 건드리지 않으므로 $token도, 전환도 없다.
+        mockConfirm.mockResolvedValueOnce({ linked: true });
+        await submitCta();
+
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockApplySessionToken).not.toHaveBeenCalled();
+        expect(onVerified).toHaveBeenCalled();
+    });
+
+    it('linkable:false(type-linked)는 confirm 없이 "이미 다른 번호를 연결" 문구로 막는다', async () => {
+        mockVerify.mockResolvedValueOnce({ linkable: false, reason: 'type-linked' });
+        const { onVerified } = await requestCode({ mode: 'link' });
+        await pasteOtp();
+
+        expect(screen.getByText('phoneVerify.linkTypeAlreadyLinked')).toBeInTheDocument();
+        expect(mockConfirm).not.toHaveBeenCalled();
+        expect(onVerified).not.toHaveBeenCalled();
+    });
+
+    it('linkable:false(그 외)는 번호가 이미 남의 계정에 붙었다고 안내한다', async () => {
+        mockVerify.mockResolvedValueOnce({ linkable: false, reason: 'occupied' });
+        await requestCode({ mode: 'link' });
+        await pasteOtp();
+
+        expect(screen.getByText('phoneVerify.linkOccupied')).toBeInTheDocument();
+        expect(mockConfirm).not.toHaveBeenCalled();
+    });
+
+    it('verify를 지나쳐 confirm이 409면 같은 점유 안내로 떨어진다', async () => {
+        mockVerify.mockResolvedValueOnce({ linkable: true });
+        mockConfirm.mockRejectedValueOnce(new Error('409 CONFLICT - phone already linked'));
+        const { onVerified } = await requestCode({ mode: 'link' });
+        await pasteOtp();
+        await submitCta();
+
+        expect(screen.getByText('phoneVerify.linkOccupied')).toBeInTheDocument();
+        expect(onVerified).not.toHaveBeenCalled();
+    });
+
+    it('보증받지 못한 코드로 CTA를 누르면 confirm이 아니라 verify를 다시 거친다 (맨 409/403 방지)', async () => {
+        mockVerify.mockResolvedValue({ linkable: false, reason: 'occupied' });
+        await requestCode({ mode: 'link' });
+        await pasteOtp();
+
+        await submitCta();
+
+        expect(mockVerify).toHaveBeenCalledTimes(2);
+        expect(mockConfirm).not.toHaveBeenCalled();
+    });
+});
+
 describe('PhoneVerifyScreen — 타이머 만료', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -313,7 +431,7 @@ describe('PhoneVerifyScreen — 타이머 만료', () => {
         expect(screen.getByText('phoneVerify.complete').closest('button')).toBeDisabled();
 
         await pasteOtp();
-        expect(mockCheck).not.toHaveBeenCalled();
+        expect(mockConfirm).not.toHaveBeenCalled();
     });
 });
 

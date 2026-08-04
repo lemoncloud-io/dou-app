@@ -8,7 +8,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 // (whose transport reads import.meta) and a components barrel that pulls @chatic/assets — both
 // unloadable under the jsdom test setup.
 import { VERIFICATION_CODE_LENGTH } from '../../account/constants';
-import { useVerifyHashAlias } from '../../../hooks/useVerifyHashAlias';
+import { useLinkAccount, type AccountLinkMode } from '../../../hooks/useLinkAccount';
 import { getSocketErrorCode } from '../../../utils/errors';
 import { isDevBuild } from '../utils/env';
 import { isValidKoreanPhone, PHONE_DIGITS_MAX } from '../utils/phone';
@@ -32,11 +32,25 @@ export type PhoneVerifyLimit = 'resend' | 'extend';
 /** What the state machine itself needs. Chrome concerns (`onClose`, `context`) are not here. */
 export interface PhoneVerifyOptions {
     /**
-     * Invite code when verifying inside an accept flow. Sent with EVERY send/resend/check so a
-     * number that does not match the invite is rejected at SEND time with 400 (client guide §B-2).
+     * Which side of the proof this is, derived by the caller from the session role — guest sessions
+     * log in, main users link. Getting it wrong is an error rather than a fallback (main user +
+     * `login` = 400, guest + `link` = 403), so it is required rather than defaulted (ADR-0042 §3).
+     */
+    mode: AccountLinkMode;
+    /**
+     * Invite code when verifying inside an accept flow. Sent on SEND only — the unified contract has
+     * no slot for it on a prove step, and the number/invite cross-check happens once, at send time
+     * (client guide §B-2). Ignored unless `mode` is `'login'`, which is the only mode the server reads
+     * it in.
      */
     inviteCode?: string;
-    /** Fired after the check succeeded AND the session/socket switch finished (main user active). */
+    /**
+     * Last 4 digits of the invited number, when one is known. Compared BEFORE the send so a typo is
+     * caught without spending a delivery against the daily caps (ADR-0042 §8). Four digits are not a
+     * verdict — the server still cross-checks the whole number — so the 400 branch stays.
+     */
+    inviteLast4?: string;
+    /** Fired after the proof succeeded AND the session/socket switch finished (main user active). */
     onVerified: () => void;
 }
 
@@ -88,21 +102,32 @@ export interface PhoneVerifyController {
 }
 
 /**
- * The phone self-verification state machine over `auth.verify-hash-alias`, independent of how it is
- * presented. `PhoneVerifyScreen` (full-screen) and `PhoneVerifySheet` (bottom sheet) both drive it.
+ * The phone self-verification state machine over `auth.link-account`, independent of how it is
+ * presented. `PhoneVerifyScreen` (full-screen), `PhoneVerifySheet` (bottom sheet) and the mypage login
+ * section all drive it.
  *
- * A successful check IS a login: when the response carries `$token`, the device user just became a
- * main user and `applySessionToken` pushes that identity into web-core and the live relay socket
- * BEFORE `onVerified` fires — so the caller can immediately `invite.create`/`invite.accept` without
- * a 403. An empty `$token` means the number was merely linked (session unchanged).
+ * **The two modes end differently, so they take different routes through the packet's steps.**
+ * - `login` — confirming IS a login. The response carries `$token`, and `applySessionToken` pushes
+ *   that identity into web-core and the live relay socket BEFORE `onVerified` fires, so the caller can
+ *   immediately `invite.create`/`invite.accept` without a 403. `verify` is skipped: it would only
+ *   report that the code is valid, which `confirm` already proves (ADR-0042 §4).
+ * - `link` — confirming hangs the number on the session that is already a main user. No token comes
+ *   back. Here `verify` runs FIRST, because it is the only step that will say confirming is blocked
+ *   (`linkable: false` + `reason`); `confirm` answers the same situation with a 409/403. So the code
+ *   field verifies on completion and the CTA confirms.
  *
  * Error copy branches on `getSocketErrorCode` only — server messages are not a contract. See
  * apps/web/docs/feature/auth/phone-verification.md for the full case table.
  */
-export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): PhoneVerifyController => {
+export const usePhoneVerify = ({
+    mode,
+    inviteCode,
+    inviteLast4,
+    onVerified,
+}: PhoneVerifyOptions): PhoneVerifyController => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { send, check } = useVerifyHashAlias();
+    const { send, verify, confirm } = useLinkAccount();
 
     const [phoneInput, setPhoneInput] = useState('');
     const [phoneError, setPhoneError] = useState('');
@@ -115,6 +140,9 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
     // The $token of a successful check, kept until applySessionToken succeeds: the OTP is consumed
     // by then, so a failed session switch retries the SWITCH, never the check.
     const [pendingToken, setPendingToken] = useState<unknown>(null);
+    // `link` mode only: the verify step came back linkable, so the CTA may commit. Login mode never
+    // sets this — it confirms straight from the code field.
+    const [linkVerified, setLinkVerified] = useState(false);
     // Dev-only delivery switches; unset switches are omitted so server defaults survive (D13).
     const [devDryRun, setDevDryRun] = useState(false);
     const [devSlack, setDevSlack] = useState(false);
@@ -135,14 +163,19 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
         ...(devSlack ? { slack: true, sms: false } : undefined),
     });
 
+    // The server reads the invite code only on a `login` send. Passing it in `link` mode would be
+    // dead weight in a packet that carries a credential, so it is dropped at the boundary.
+    const sendInviteCode = mode === 'login' ? inviteCode : undefined;
+
     const handlePhoneChange = (value: string) => {
         setPhoneInput(value.slice(0, PHONE_INPUT_MAX));
         if (phoneError) setPhoneError('');
         // A different number invalidates the outstanding code rather than silently checking it
-        // against the new one.
+        // against the new one — including the verify verdict, which was about the OLD number.
         setExpiredAt(undefined);
         setOtp('');
         setOtpError('');
+        setLinkVerified(false);
     };
 
     const handleSend = async () => {
@@ -150,10 +183,16 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
             setPhoneError(t('phoneVerify.phoneInvalidFormat'));
             return;
         }
+        // Cheapest rejection first: four digits we already hold beat a round trip that would burn one
+        // of the day's deliveries. Not a verdict — the server re-checks the whole number at send.
+        if (inviteLast4 && !phoneDigits.endsWith(inviteLast4)) {
+            setPhoneError(t('phoneVerify.inviteMismatch'));
+            return;
+        }
         setLoadingState('sending');
         setPhoneError('');
         try {
-            const result = await send(phoneDigits, { code: inviteCode, ...devSwitches() });
+            const result = await send(phoneDigits, { mode, code: sendInviteCode, ...devSwitches() });
             setExpiredAt(result.expiredAt);
             setOtp('');
             setOtpError('');
@@ -185,7 +224,12 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
         }
         setLoadingState('resending');
         try {
-            const result = await send(phoneDigits, { code: inviteCode, resend: true, ...devSwitches() });
+            const result = await send(phoneDigits, {
+                mode,
+                code: sendInviteCode,
+                resend: true,
+                ...devSwitches(),
+            });
             setExpiredAt(result.expiredAt);
             setOtp('');
             setOtpError('');
@@ -219,32 +263,77 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
         }
     };
 
-    const handleVerify = async () => {
+    /**
+     * Shared failure copy for the prove steps.
+     *
+     * `403` is the one code that means two different things — a wrong OTP, or "you already linked a
+     * different value for this credential" on a `link` confirm (§에러 코드). `vouched` disambiguates:
+     * it is set only when a `verify` just accepted this very code, so a wrong OTP is no longer the
+     * likely reading and `type-linked` is.
+     */
+    const reportProveError = (error: unknown, { vouched = false }: { vouched?: boolean } = {}) => {
+        const code = getSocketErrorCode(error);
+        if (code === 403) {
+            setOtpError(t(vouched ? 'phoneVerify.linkTypeAlreadyLinked' : 'phoneVerify.wrongCode'));
+        } else if (code === 429) {
+            // 5 wrong answers — a fresh code will NOT reset the counter, but resending is still
+            // the guided way out (roadmap Track A case table).
+            setOtpError(t('phoneVerify.attemptsExceeded'));
+        } else if (code === 400) {
+            setOtpError(t('phoneVerify.codeExpired'));
+        } else if (code === 409) {
+            // `link` confirm only: the account turned out to belong to someone else.
+            setOtpError(t('phoneVerify.linkOccupied'));
+        } else {
+            toast({ title: t('phoneVerify.verifyFailed'), variant: 'destructive' });
+        }
+        setLoadingState('idle');
+    };
+
+    /**
+     * `link` mode's first step. Changes nothing, so it is safe on every code completion — and it is the
+     * only place the server will TELL us confirming is blocked instead of throwing.
+     */
+    const handleVerifyStep = async () => {
         setLoadingState('verifying');
         setOtpError('');
         try {
-            const result = await check(phoneDigits, otp, { code: inviteCode });
-            if (result.$token) {
+            const result = await verify(phoneDigits, otp, { mode });
+            // `linkable` is absent on the login-mode view; this step only runs for `link`.
+            if ('linkable' in result && !result.linkable) {
+                setLinkVerified(false);
+                setOtpError(
+                    result.reason === 'type-linked'
+                        ? t('phoneVerify.linkTypeAlreadyLinked')
+                        : t('phoneVerify.linkOccupied')
+                );
+                setLoadingState('idle');
+                return;
+            }
+            setLinkVerified(true);
+            setLoadingState('idle');
+        } catch (error) {
+            setLinkVerified(false);
+            reportProveError(error);
+        }
+    };
+
+    const handleConfirm = async () => {
+        setLoadingState('verifying');
+        setOtpError('');
+        try {
+            const result = await confirm(phoneDigits, otp, { mode });
+            // A token only ever rides on the login-mode confirm; `link` leaves the session alone.
+            if ('$token' in result && result.$token) {
                 await applyToken(result.$token);
                 return;
             }
-            // Linked-only result: the session did not change, nothing to switch.
             toast({ title: t('phoneVerify.verified') });
             onVerified();
         } catch (error) {
-            const code = getSocketErrorCode(error);
-            if (code === 403) {
-                setOtpError(t('phoneVerify.wrongCode'));
-            } else if (code === 429) {
-                // 5 wrong answers — a fresh code will NOT reset the counter, but resending is still
-                // the guided way out (roadmap Track A case table).
-                setOtpError(t('phoneVerify.attemptsExceeded'));
-            } else if (code === 400) {
-                setOtpError(t('phoneVerify.codeExpired'));
-            } else {
-                toast({ title: t('phoneVerify.verifyFailed'), variant: 'destructive' });
-            }
-            setLoadingState('idle');
+            // In `link` mode we only get here after a verify vouched for this code, so read a 403 as
+            // `type-linked` rather than a wrong OTP.
+            reportProveError(error, { vouched: mode === 'link' && linkVerified });
         }
     };
 
@@ -258,6 +347,8 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
     const handleOtpChange = (value: string) => {
         setOtp(value.replace(/\D/g, '').slice(0, VERIFICATION_CODE_LENGTH));
         setOtpError('');
+        // A different code has not been vouched for yet, so the CTA must go back through verify.
+        setLinkVerified(false);
     };
 
     /**
@@ -265,14 +356,28 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
      * not on a "is it complete" boolean, so pasting a corrected code over a full one still submits.
      * The ref — not `loadingState` — is the re-entry guard: a tap landing on the last typed digit
      * would otherwise race the state update and spend two of the five attempts on one code.
+     *
+     * Which step this fires depends on the mode: `login` commits right here, while `link` only asks
+     * whether committing is allowed and leaves the commit to the CTA (ADR-0042 §4).
      */
     const submittedOtpRef = useRef<string | null>(null);
     useEffect(() => {
         if (otp.length !== VERIFICATION_CODE_LENGTH) return;
         if (isExpired || pendingToken || submittedOtpRef.current === otp) return;
         submittedOtpRef.current = otp;
-        void handleVerify();
+        void (mode === 'link' ? handleVerifyStep() : handleConfirm());
     }, [otp]);
+
+    /**
+     * What the CTA does. In `link` mode a code that has not been vouched for goes through verify first,
+     * so a user who taps before the auto-submit lands still gets the `linkable` answer rather than a
+     * bare 409/403.
+     */
+    const handleSubmit = () => {
+        if (pendingToken) return void handleRetrySessionSwitch();
+        if (mode === 'link' && !linkVerified) return void handleVerifyStep();
+        void handleConfirm();
+    };
 
     return {
         fields: {
@@ -303,7 +408,7 @@ export const usePhoneVerify = ({ inviteCode, onVerified }: PhoneVerifyOptions): 
             isRetry: !!pendingToken,
             disabled: pendingToken ? isBusy : !isCodeComplete || isBusy || isExpired,
             loading: loadingState === 'verifying',
-            onSubmit: () => void (pendingToken ? handleRetrySessionSwitch() : handleVerify()),
+            onSubmit: handleSubmit,
         },
     };
 };

@@ -1,22 +1,26 @@
 # 전화번호 인증 (PhoneVerifyFields · 두 셸 · applySessionToken)
 
-> 상태: Live · 최종 갱신: 2026-07-30 · 관련 ADR: [ADR-0033](../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A · [ADR-0034](../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) · 로드맵: [relay-dm-invite-parallel-roadmap](../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0033](../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) Track A · [ADR-0034](../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) · [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) · 로드맵: [relay-dm-invite-parallel-roadmap](../../../../docs/plans/relay-dm-invite-parallel-roadmap.md)
 
 ## 목적
 
 1:1(DM) 중계 초대는 **번호의 주인만** 발급·수락할 수 있다. 디바이스 유저(게스트)는
-`invite.create`/`invite.accept`가 403으로 막히므로, 번호 소유 증명
-(`auth.verify-hash-alias`)으로 **메인유저로 승격**하는 입구가 필요하다.
+`invite.create`/`invite.accept`가 403으로 막히므로, 번호 소유 증명으로 **메인유저로 승격**하는
+입구가 필요하다. 번호가 없는 메인유저(소셜 가입자)에게 번호를 **연동**시키는 입구도 같은 자리를 쓴다.
+
+패킷은 `auth.link-account`이고, 수단·모드·단계 계약과 배선은
+[account-linking.md](./account-linking.md)가 소유한다 — 이 문서는 **번호 화면**을 다룬다.
 
 이 문서가 다루는 것:
 
-- **`applySessionToken($token)`** — `verify-hash-alias step=check` 성공 응답의
-  `$token`(새 세션)을 web-core 세션 저장소와 relay 소켓 연결 신원에 반영한다.
-  완료 후 같은 소켓 연결에서 `invite.create`가 403 없이 성공한다.
+- **`applySessionToken($token)`** — `mode: 'login'`의 `confirm` 성공 응답의 `$token`(새 세션)을
+  web-core 세션 저장소와 relay 소켓 연결 신원에 반영한다. 완료 후 같은 소켓 연결에서
+  `invite.create`가 403 없이 성공한다. `mode: 'link'`에는 토큰이 없어 이 경로를 타지 않는다.
 - **`usePhoneVerify` + `PhoneVerifyFields`** — 인증 로직과 입력 본문. 셸에 독립적이다.
-- **두 셸** — `PhoneVerifyScreen`(풀스크린, 수락 흐름) / `PhoneVerifySheet`(바텀시트,
-  발급 흐름). 같은 본문을 다른 chrome으로 감싼다.
-- **게스트 사전 게이트** — 발급 진입점에서 게스트를 폼 대신 인증 유도 화면으로 보낸다.
+- **두 셸** — `PhoneVerifyScreen`(풀스크린, 수락 흐름) / `PhoneVerifySheet`(바텀시트, 발급 흐름과
+  마이페이지). 같은 본문을 다른 chrome으로 감싼다.
+- **사전 게이트** — 발급 진입점에서 게스트와 번호 없는 메인유저를 폼 대신 인증 유도 화면으로 보낸다.
+- **`last4` 사전 대조** — 수락 흐름에서 발송 전에 초대 번호와 대조한다.
 
 백엔드 계약 원본: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md`
 (§A-1 인증 흐름 · §발송 제한 · §에러 코드).
@@ -41,6 +45,10 @@
   인증 동작은 변하지 않는다.
 - **게이트는 UX, 403이 계약이다.** 클라 역할 판정으로 미리 막되 서버 403 경로를 항상
   남긴다 — 메인유저 여부는 서버가 판정한다(가이드 §등장하는 유저 둘).
+- **모드는 호출부가 정하고, 기본값이 없다.** 게스트는 `login`, 메인유저는 `link`다. 어긋나면
+  폴백이 아니라 에러라서(400·403) `mode`를 필수 prop으로 둔다.
+- **왕복보다 싼 거절을 먼저 한다.** 이미 손에 있는 `last4`로 걸러낼 수 있는 오타에 하루 발송
+  상한을 태우지 않는다. 4자리는 확정 판정이 아니므로 서버 400 분기를 함께 남긴다.
 
 ## 범위
 
@@ -48,38 +56,51 @@
 
 - `applySessionToken($token)` (`@chatic/app-runtime` 공개 export) + web-core
   `loginRelayByToken`
-- `usePhoneVerify` (로직) · `PhoneVerifyFields` (입력 본문) ·
+- `usePhoneVerify` (로직, 두 모드) · `PhoneVerifyFields` (입력 본문) ·
   `PhoneVerifyScreen`(풀스크린 셸) · `PhoneVerifySheet`(바텀시트 셸)
-- 게스트 사전 게이트 + 인증 유도 화면 (`ContactInvitePage`, 홈 ＋버튼 1:1 초대 진입점)
-- 계정 갈라짐 방어 배너 — **풀스크린 셸에만** (ADR-0034 결정 4)
+- 사전 게이트 + 인증 유도 화면 (`ContactInvitePage`, 홈 ＋버튼 1:1 초대 진입점) — 게스트와
+  번호 없는 메인유저 둘 다
+- 마이페이지 번호 로그인 진입점 (`LoginPage`, ADR-0042 §9)
+- `last4` 발송 전 대조 (수락 흐름)
+- 계정 갈라짐 방어 — 풀스크린 셸은 이동 배너(ADR-0034 결정 4), `LoginPage`는 인라인 문구
 - `auth.logout` 후 디바이스 유저 복귀 회귀 확인
 
 **제외**
 
+- 수단·모드·단계 계약과 `linkAccount` 배선 — [account-linking.md](./account-linking.md) 소유
+- `link$` 읽기 자체 (`useLinkedAccounts`) — 같은 문서 소유. 이 문서는 게이트에서 쓰기만 한다
 - 초대 발급/수락 화면의 본문 자체 (Track B·C 소유)
 - 수락 흐름의 `needVerify` 판정·표현 — 서버 필드이고 풀스크린 유지 (ADR-0034 결정 2)
 - 클라우드·그룹 초대 경로의 게이트 (`channels/InvitePage`, `AddFriendSheet`)
-- `auth.attach-social` 소셜 연동 (Track D)
+- 소셜 연동 화면 — [social-links.md](../account/social-links.md) 소유
 - 번호 변경·번호만으로의 계정 복구 (백엔드 미지원)
 - cloud 슬롯 신원 갱신 — `$token`은 relay 신원이다. cloud 세션은 그대로 유효하다.
 
 ## 시나리오
 
-### 1. 초대자(게스트): 발급 전 번호 인증 — `PhoneVerifySheet`
+### 1. 초대자: 발급 전 번호 증명 — `PhoneVerifySheet`
 
 1. 홈 ＋버튼 → "1:1 대화" → `ROUTES.invite.contact`
    (`HomePage.tsx:230` `handleCreateOneOnOne`).
-2. `ContactInvitePage`가 `useRuntimeProfile().isGuest`를 보고 **폼 대신 인증 유도
+2. `ContactInvitePage`가 두 조건을 본다 — `useRuntimeProfile().isGuest`와
+   `useLinkedAccounts().phone === 'absent'`. **어느 쪽이든 참이면 폼 대신 인증 유도
    화면**을 렌더한다 — `친구 초대` 헤더는 공통, 본문은 "안전한 초대를 위해 / 휴대폰
    번호를 인증해 주세요" + 초록 CTA "휴대폰 번호 인증하기".
-3. CTA 탭 → `PhoneVerifySheet` 오픈. 시트 헤더는 "휴대폰 번호 인증" + 원형 X.
-4. 번호 입력 → 필드 안 [인증 요청] → `send(phone)`. 발송 완료 토스트, 인증번호 필드가
-   열리고 helper 우측에 `mm:ss` + [시간 연장]이 나타난다.
-5. 6자리 입력 시 자동 제출 → `check(phone, otp)`.
-6. `$token` 존재 → `applySessionToken` 완료까지 대기 → 인증 완료 토스트 → 시트 닫힘.
-7. `isGuest`가 반응형으로 `false`로 뒤집혀 **같은 화면이 초대 폼으로 바뀐다.** 별도
+3. CTA 탭 → `PhoneVerifySheet` 오픈(`mode`는 `isGuest ? 'login' : 'link'`). 시트 헤더는
+   "휴대폰 번호 인증" + 원형 X.
+4. 번호 입력 → 필드 안 [인증 요청] → `send(phone, { mode })`. 발송 완료 토스트, 인증번호
+   필드가 열리고 helper 우측에 `mm:ss` + [시간 연장]이 나타난다.
+5. 6자리 입력 시 자동 제출. **모드에 따라 다른 단계가 나간다** —
+   `login`은 `confirm`, `link`는 `verify`(그다음 CTA가 `confirm`).
+6. `login`: `$token` 존재 → `applySessionToken` 완료까지 대기 → 인증 완료 토스트 → 시트 닫힘.
+   `link`: 토큰이 없으므로 확정 성공이 곧 완료다.
+7. `isGuest`(또는 `link$.phone`)가 반응형으로 뒤집혀 **같은 화면이 초대 폼으로 바뀐다.** 별도
    리프레시·리마운트가 없다.
 8. 이름·번호를 채워 [완료] → `invite.create`가 403 없이 성공.
+
+**`phone`이 `'unknown'`이면 이 게이트는 걸리지 않는다.** 프로필이 아직 안 왔거나 서버가 그 자리를
+짓지 않은 상태이고, 그걸 "번호 없음"으로 읽으면 이미 번호를 가진 유저에게 인증을 다시 요구한다.
+모르면 `isGuest`만 보는 이전 동작으로 물러난다(ADR-0042 §5).
 
 ### 2. 초대자: 게스트가 아닌데 발급이 403 — 폴백
 
@@ -90,13 +111,39 @@
 ### 3. 수신자: 초대 수락 중 번호 인증 — `PhoneVerifyScreen`
 
 1. Track C가 `invite.get`에서 `needVerify=true`를 받고
-   `<PhoneVerifyScreen context="invite-accept" inviteCode={code} … />`를 띄운다.
+   `<PhoneVerifyScreen context="invite-accept" mode="login" inviteCode={code}
+inviteLast4={flow.invite?.last4} … />`를 띄운다. **항상 `login`이다** — 딥링크를 여는 시점의
+   세션은 디바이스 유저다.
 2. 히어로 아래 계정 갈라짐 방어 배너: "이미 계정이 있다면 소셜로 먼저 로그인하세요" —
    탭하면 `onClose()` 후 `/mypage/login`으로 이동.
-3. 번호 입력 → [인증 요청] → `send(phone, { code })`. 초대에 적힌 번호가 아니면
-   **발송 단계에서 400** → "초대받은 번호가 아니에요" 인라인 에러.
-4. 이후 4~6단계는 시나리오 1과 동일. 완료 후 Track C가 프로필 → `invite.accept`로
+3. 번호 입력 → [인증 요청]. **발송 전에 `last4`로 먼저 대조한다** — 뒷 4자리가 다르면 서버를
+   부르지 않고 그 자리에서 "초대받은 번호가 아니에요"를 띄운다. 4자리가 맞아도 확정이 아니므로
+   서버가 전체 번호를 다시 대조하고, 어긋나면 **발송 단계에서 400**으로 같은 문구가 뜬다.
+4. 이후 4~6단계는 시나리오 1의 `login` 경로와 동일. 완료 후 Track C가 프로필 → `invite.accept`로
    진행한다 — 같은 소켓 연결이 이미 메인유저 신원이라 403이 없다.
+
+`last4`가 응답에 없으면 사전 대조를 건너뛰고 서버 400에만 의존한다 — `invite.get`이 그 자리를
+싣는다는 보장이 문서에 없어서다.
+
+### 3-b. 마이페이지 로그인 화면의 번호 로그인 — `PhoneVerifySheet`
+
+`/mypage/login`은 소셜 버튼 아래에 "휴대폰 번호로 로그인"을 나란히 둔다(`mode="login"`).
+
+- **소셜이 위, 번호가 아래다.** 이 화면이 `PhoneVerifyBanner`의 도착지이고, 계정 갈라짐은 한
+  방향으로만 일어난다 — 새 기기에서 번호부터 증명하면 **합칠 수 없는 별개 유저**가 생긴다. 소셜을
+  먼저 보여 주고 경고를 번호 바로 위에 두는 것이 방어의 전부다.
+- **여기서는 이동 배너를 쓰지 않는다.** `PhoneVerifyBanner`는 `/mypage/login`으로 **보내는**
+  컴포넌트이므로 그 도착지에 달면 자기 자신을 가리킨다. 인라인 문구로 대신한다.
+- **`isNative()` 가드가 없다.** 소켓 호출이라 브라우저에서도 동작한다 — 소셜이 네이티브 전용이라
+  지금까지 브라우저는 로그인이 아예 불가능했고, 이 경로가 그것을 처음 연다.
+- **브라우저에서는 탈출구가 없다.** 소셜 로그인이 앱 전용이라 "소셜로 먼저"가 실행 불가능한
+  안내가 되므로, 브라우저에서는 "앱에서 소셜로 로그인해 주세요"로 바꿔 이동 링크 없이 안내만 한다.
+- 성공 후 히스토리 정리(`leaveForHome`)를 소셜 경로와 공유한다.
+
+### 3-c. 마이페이지 계정 화면의 번호 연동 — `PhoneVerifySheet`
+
+`AccountLinkSection`의 번호 행이 `mode="link"`로 같은 시트를 연다. 자세한 것은
+[social-links.md](../account/social-links.md)가 소유한다.
 
 ### 4. 재전송과 "시간 연장"
 
@@ -174,15 +221,15 @@ stateDiagram-v2
 ```mermaid
 sequenceDiagram
     participant UI as PhoneVerifyFields
-    participant H as useVerifyHashAlias
+    participant H as useLinkAccount
     participant WC as web-core<br/>(relay 토큰 저장소)
     participant AST as applySessionToken
     participant SDK as relay 슬롯 SDK<br/>AuthController
     participant SRV as relay 서버
 
-    UI->>H: check(phone, otp, {code})
-    H->>SRV: auth.verify-hash-alias step=check
-    SRV-->>H: { attached, $token }
+    UI->>H: confirm(phone, otp, { mode: 'login' })
+    H->>SRV: auth.link-account step=confirm
+    SRV-->>H: { loggedIn, isNew, $token }
     UI->>AST: applySessionToken($token)
     Note over AST: 사전 가드 — $auth.id 없으면<br/>커밋 전 reject
     AST->>WC: loginRelayByToken($token)
@@ -226,24 +273,25 @@ sequenceDiagram
 - SDK `register()`는 inactive면 resume하고 connected면 즉시 `auth.update`를 보낸다.
   `ready()`는 authenticated에 resolve, terminal expired에 reject.
 - 게이트웨이는 relay 슬롯에 고정돼 있다 —
-  `libs/app-runtime/src/data/factories/remoteFactory.ts`에서 invite +
-  `verifyHashAlias`/`attachSocial` 전부 `getScopedClient('relay')`.
-- `$token`의 필요 필드는 sockets-api fixture(`verify-hash-alias-sample.json`)에
-  `Token.{authId,accountId,identityId,identityToken}` + `$auth.id` + `userRole`로 실려
-  온다. 실서버 응답에 `$auth`가 없으면 커밋 전에 reject된다.
+  `libs/app-runtime/src/data/factories/remoteFactory.ts:57-61`에서 invite + `linkAccount`가
+  `getScopedClient('relay')`. 자세한 것은 [account-linking.md](./account-linking.md).
+- `$token`의 필요 필드는 `Token.{authId,accountId,identityId,identityToken}` + `$auth.id` +
+  `userRole`이다. 실서버 응답에 `$auth`가 없으면 커밋 전에 reject된다.
+- **`mode: 'link'`는 이 경로를 타지 않는다.** 확정 응답에 `$token`이 없고 세션이 그대로이므로
+  `applySessionToken`을 부르지 않는다(빈 토큰 no-op 경로도 그대로 남아 있다).
 
 ### 인증 본문·셸 쪽 (`apps/web/src/app/features/auth/`)
 
-| 파일                               | 역할                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hooks/usePhoneVerify.ts`          | 상태 기계 — 번호/OTP/에러/`expiredAt`/재전송 카운터/초과 다이얼로그/`pendingToken`/dev 스위치. `useVerifyHashAlias`(Track 0) 호출, `getSocketErrorCode` 분기, `applySessionToken` 대기. `{ fields, submit }` 두 묶음으로 돌려준다 — `fields`는 `PhoneVerifyFields`에 그대로 넘기고, `submit`(`isRetry`/`disabled`/`loading`/`onSubmit`)은 셸이 자기 위치에 버튼으로 그린다. `PhoneVerifyProps`(계약 시그니처)도 여기서 export한다 |
-| `components/PhoneVerifyFields.tsx` | 두 `TextField`(web-ui-kit) + dev 스위치 + 5회 초과 `AlertDialog`. 필드 안 액션은 `trailing`, 타이머+[시간 연장]은 `helperTrailing` 슬롯                                                                                                                                                                                                                                                                                           |
-| `components/PhoneVerifyScreen.tsx` | 풀스크린 `Dialog` 셸 — 우상단 X, 중앙 정렬 히어로, `PhoneVerifyBanner`, 하단 고정 초록 CTA. **props 계약 불변**(`context`/`inviteCode`/`onVerified`/`onClose`)                                                                                                                                                                                                                                                                    |
-| `components/PhoneVerifySheet.tsx`  | `BottomSheet` 셸 — `title`="휴대폰 번호 인증", `onClose`(원형 X 자동), 좌측 정렬 안내 2줄, `footer`에 초록 CTA. 같은 props                                                                                                                                                                                                                                                                                                        |
-| `components/PhoneVerifyBanner.tsx` | 계정 갈라짐 방어 배너 — 풀스크린 셸에서만 렌더                                                                                                                                                                                                                                                                                                                                                                                    |
-| `hooks/useOtpExpiryCountdown.ts`   | `expiredAt` 기준 1초 틱 `{secondsLeft, isExpired}`                                                                                                                                                                                                                                                                                                                                                                                |
-| `utils/phone.ts`                   | `isValidKoreanPhone` — 디자인이 하이픈 없는 원시 입력을 지정하므로 표시용 포맷터는 쓰지 않는다                                                                                                                                                                                                                                                                                                                                    |
-| `utils/env.ts`                     | `isDevBuild()` — `import.meta.env`를 이 모듈에만 격리(ts-jest가 못 읽어 테스트는 모듈째 mock)                                                                                                                                                                                                                                                                                                                                     |
+| 파일                               | 역할                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hooks/usePhoneVerify.ts`          | 상태 기계 — 번호/OTP/에러/`expiredAt`/재전송 카운터/초과 다이얼로그/`pendingToken`/`linkVerified`/dev 스위치. `useLinkAccount` 호출, `getSocketErrorCode` 분기, `applySessionToken` 대기. **`mode`가 필수 옵션**이고 `login`은 `confirm` 단발, `link`는 `verify`→CTA `confirm`으로 갈린다. `inviteLast4`가 있으면 발송 전에 대조한다. `{ fields, submit }` 두 묶음으로 돌려준다 — `fields`는 `PhoneVerifyFields`에 그대로 넘기고, `submit`(`isRetry`/`disabled`/`loading`/`onSubmit`)은 셸이 자기 위치에 버튼으로 그린다 |
+| `components/PhoneVerifyFields.tsx` | 두 `TextField`(web-ui-kit) + dev 스위치 + 5회 초과 `AlertDialog`. 필드 안 액션은 `trailing`, 타이머+[시간 연장]은 `helperTrailing` 슬롯                                                                                                                                                                                                                                                                                                                                                                                  |
+| `components/PhoneVerifyScreen.tsx` | 풀스크린 `Dialog` 셸 — 우상단 X, 중앙 정렬 히어로, `PhoneVerifyBanner`, 하단 고정 초록 CTA. **props 계약 불변**(`context`/`inviteCode`/`onVerified`/`onClose`)                                                                                                                                                                                                                                                                                                                                                           |
+| `components/PhoneVerifySheet.tsx`  | `BottomSheet` 셸 — `title`="휴대폰 번호 인증", `onClose`(원형 X 자동), 좌측 정렬 안내 2줄, `footer`에 초록 CTA. 같은 props                                                                                                                                                                                                                                                                                                                                                                                               |
+| `components/PhoneVerifyBanner.tsx` | 계정 갈라짐 방어 배너 — 풀스크린 셸에서만 렌더                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `hooks/useOtpExpiryCountdown.ts`   | `expiredAt` 기준 1초 틱 `{secondsLeft, isExpired}`                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `utils/phone.ts`                   | `isValidKoreanPhone` — 디자인이 하이픈 없는 원시 입력을 지정하므로 표시용 포맷터는 쓰지 않는다                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `utils/env.ts`                     | `isDevBuild()` — `import.meta.env`를 이 모듈에만 격리(ts-jest가 못 읽어 테스트는 모듈째 mock)                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 web-ui-kit 재사용: `TextField`(`trailing`·`helperTrailing` 슬롯), `BottomSheet`,
 `AlertDialog`, `Button`. **신규 컴포넌트·아이콘 추출은 없다** — 시트 헤더의 원형 X는
@@ -253,10 +301,11 @@ web-ui-kit 재사용: `TextField`(`trailing`·`helperTrailing` 슬롯), `BottomS
 - 완료 CTA는 `Button tone="green"`이다. 비활성은 `disabled:bg-control-idle` +
   `disabled:text-placeholder`로 회색이 되는데, 이게 Figma가 `Solid button_Black`으로
   표기한 렌더링이다.
-- `check`에도 `code`를 동봉한다 — 계약 시그니처에 있고 서버가 403 '초대 코드 불일치'로
-  검증한다.
+- **초대 코드는 `send`에만 실린다.** 통합 계약의 증명 단계 유니온에는 그 자리가 없다 — 번호·초대
+  대조는 발송에서 한 번 일어난다. `mode: 'link'`에서는 서버가 읽지도 않으므로 경계에서 떨어뜨린다.
 - 문구는 `public/locales/{ko,en}/translation.json`의 `phoneVerify.*` 블록. 시트 전용으로
-  `sheetTitle`·`sheetDescription`, 닫기 접근성 라벨로 `common.close`를 쓴다.
+  `sheetTitle`·`sheetDescription`, 닫기 접근성 라벨로 `common.close`를 쓴다. `link` 모드의 거절
+  카피는 `linkOccupied`(남의 계정)·`linkTypeAlreadyLinked`(이미 다른 번호)다.
 
 ### 발급 진입점 게이트 쪽 (`apps/web/src/app/features/invite/`)
 

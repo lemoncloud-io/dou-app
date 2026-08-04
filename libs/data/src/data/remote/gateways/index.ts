@@ -13,12 +13,16 @@ import type {
 } from '@lemoncloud/chatic-sockets-lib';
 
 /**
- * `update` authenticates whichever slot is active. `verifyHashAlias` (phone OTP send/resend/check —
- * a successful check IS a login) and `attachSocial` are the relay DM-invite identity packets: the
- * main user they resolve to lives in the central backend behind the relay, so the composition root
- * binds those two to the relay slot. See ADR-0033.
+ * `update` authenticates whichever slot is active. `linkAccount` is the unified account-proof packet
+ * (phone/email/social × link/login × send/resend/verify/confirm) and is a relay DM-invite identity
+ * packet: the main user it resolves to lives in the central backend behind the relay, so the
+ * composition root binds it to the relay slot. See ADR-0033, ADR-0042.
+ *
+ * The two packets it replaced (`verifyHashAlias`, `attachSocial`) are deliberately NOT listed. They
+ * still exist on the wire and on `AuthGateway` as `@deprecated`, but leaving them out of this Pick is
+ * what keeps a caller from reaching them — the backend deletes them once the app has no call sites.
  */
-export type AuthDomainGateway = Pick<AuthGateway, 'update' | 'verifyHashAlias' | 'attachSocial'>;
+export type AuthDomainGateway = Pick<AuthGateway, 'update' | 'linkAccount'>;
 export type ChatDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete'>;
 export type ChannelDomainGateway = Pick<
     ChannelGateway,

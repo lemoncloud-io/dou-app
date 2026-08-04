@@ -1,93 +1,48 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useSessionIdentity } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isNative, logger } from '@chatic/bridges';
 
 import { appBridge } from '../../../bridge';
-import { useAttachSocial } from '../../../hooks';
+import { useLinkAccount, useLinkedAccounts, type SocialAccountTokens } from '../../../hooks';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
-import type { AttachSocialTokens } from '../../../hooks/useAttachSocial';
 
 /** Providers this screen offers. Apple is further gated to iOS by the caller (mirrors LoginPage). */
 export type SocialProvider = 'google' | 'apple';
 
-const STORAGE_KEY = 'chatic-linked-social-providers';
-
-type LinkedProvidersByUser = Record<string, string[]>;
-
 /**
- * Reads the whole uid -> linked-provider-ids map. A corrupt or non-object value resets to an empty
- * map so one bad write can never break the section — it just falls back to "nothing linked" (the
- * safe direction, since it only offers to link again rather than claiming a false state).
- */
-const readAllLinkedProviders = (): LinkedProvidersByUser => {
-    if (typeof window === 'undefined') return {};
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return {};
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-
-        const result: LinkedProvidersByUser = {};
-        for (const [uid, providers] of Object.entries(parsed)) {
-            if (Array.isArray(providers)) {
-                result[uid] = providers.filter((p): p is string => typeof p === 'string');
-            }
-        }
-        return result;
-    } catch {
-        return {};
-    }
-};
-
-/** Linked provider ids for one uid (empty when the uid is unknown or nothing is cached yet). */
-export const readLinkedProviders = (uid: string | null | undefined): string[] => {
-    if (!uid) return [];
-    return readAllLinkedProviders()[uid] ?? [];
-};
-
-/** Records that `provider` attached successfully for `uid`. Idempotent — a repeat write is a no-op. */
-const writeLinkedProvider = (uid: string, provider: SocialProvider): void => {
-    if (typeof window === 'undefined') return;
-    const all = readAllLinkedProviders();
-    const current = all[uid] ?? [];
-    if (current.includes(provider)) return;
-    const next: LinkedProvidersByUser = { ...all, [uid]: [...current, provider] };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-};
-
-/**
- * Social-link status + attach orchestration for the mypage account screen.
+ * Social-link status + link orchestration for the mypage account screen.
  *
- * TODO(backend): request #6 — ADR-0033 interface pre-wiring. There is no backend endpoint that
- * lists a user's linked social accounts (`MyUserView.account$` is the single ORIGINAL sign-up
- * account, not the set of everything `auth.attach-social` has since added — see
- * apps/web/docs/feature/account/social-links.md). So "linked" here means "this device remembers a
- * successful attach for this uid", cached in localStorage and scoped by uid so a different account
- * on the same device never inherits another account's linked state. Replace the cache read with a
- * real list call once that endpoint ships.
+ * **Linked state now comes from the server.** `link$.social` on the user record says whether this user
+ * has a social credential and which provider it is, replacing the uid-scoped localStorage guess this
+ * hook used to keep (ADR-0042 §7). That guess could not see a link made on another device and read as
+ * "not linked" after a cache wipe; the server slot has neither problem.
  *
- * `attach-social` links a credential to the CURRENT (already main-user) session — it never changes
- * the session, so a successful attach only updates the local cache, never navigation or identity.
+ * The state is tri-valued on purpose. `'unknown'` means the profile has not landed or the server never
+ * built the slot, and the section must stay silent then rather than claim either answer — an
+ * account-security control that can lie is worse than one that admits it does not know.
+ *
+ * Linking runs `verify` before `confirm`: verify is the only step that reports `linkable: false` with a
+ * reason, while confirm answers the same situation with a 409/403. Neither ever changes the session —
+ * this is a link, not a login (guide §알아 둘 제약).
  */
 export const useSocialLinks = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
-    const { userId } = useSessionIdentity();
-    const { attach, isPending } = useAttachSocial();
+    const { verifySocial, confirmSocial, isLinkingSocial } = useLinkAccount();
+    const linked = useLinkedAccounts();
 
-    const [linkedProviders, setLinkedProviders] = useState<string[]>(() => readLinkedProviders(userId));
-
-    // Re-read whenever the session's uid changes (login/logout/account switch), so a stale cache
-    // from a previous account can never leak into the new one.
-    useEffect(() => {
-        setLinkedProviders(readLinkedProviders(userId));
-    }, [userId]);
-
-    const isLinked = useCallback((provider: SocialProvider) => linkedProviders.includes(provider), [linkedProviders]);
+    /**
+     * Whether THIS provider is the linked one. The server keeps a single social slot, so a provider
+     * other than the recorded one reads as unlinked — which is also what the server enforces
+     * (`type-linked`).
+     */
+    const isLinked = useCallback(
+        (provider: SocialProvider) => linked.social === 'linked' && linked.socialProvider === provider,
+        [linked.social, linked.socialProvider]
+    );
 
     const linkProvider = useCallback(
         async (provider: SocialProvider) => {
@@ -104,35 +59,59 @@ export const useSocialLinks = () => {
                 const result = response.data.result;
 
                 // null result means the user cancelled the native OAuth flow — not an error, so no
-                // toast and no cache change.
+                // toast and no state change.
                 if (!result) return;
 
-                await attach(result as AttachSocialTokens);
+                // The REQUESTED provider wins over whatever the bridge echoed back. `LoginPage` reads
+                // `result.provider` instead, but here the row the user tapped is the intent, and this
+                // way the field the packet requires is guaranteed to exist whatever shape the bridge
+                // returns. The server normalizes it to lowercase alpha either way.
+                const tokens = { ...(result as Record<string, unknown>), provider } as SocialAccountTokens;
 
-                if (userId) writeLinkedProvider(userId, provider);
-                setLinkedProviders(readLinkedProviders(userId));
+                // Ask before committing: this is the only answer that names WHY a link is refused.
+                const check = await verifySocial(tokens);
+                if (!check.linkable) {
+                    const reasonKey =
+                        check.reason === 'type-linked'
+                            ? 'mypage.accountInfo.social.typeAlreadyLinked'
+                            : 'mypage.accountInfo.social.alreadyLinkedElsewhere';
+                    toast({ title: t(reasonKey), variant: 'destructive' });
+                    return;
+                }
+
+                await confirmSocial(tokens);
+                // No local write: the row refreshes from `user.profile`, which is the only truth here.
                 toast({ title: t('mypage.accountInfo.social.linkSuccess') });
             } catch (e) {
-                logger.error('AUTH', '[useSocialLinks] attach-social failed', { error: toError(e) });
+                logger.error('AUTH', '[useSocialLinks] link-account (social) failed', { error: toError(e) });
                 const code = getSocketErrorCode(e);
                 const messageKey =
                     code === 409
                         ? 'mypage.accountInfo.social.alreadyLinkedElsewhere'
-                        : 'mypage.accountInfo.social.linkFailed';
+                        : code === 403
+                          ? 'mypage.accountInfo.social.typeAlreadyLinked'
+                          : 'mypage.accountInfo.social.linkFailed';
                 toast({ title: t(messageKey), variant: 'destructive' });
             }
         },
-        [attach, t, toast, userId]
+        [confirmSocial, t, toast, verifySocial]
     );
 
     /**
-     * Stub: there is no unlink endpoint yet (ADR-0033 request #7). This never mutates the cache or
-     * claims success — it only explains that the action isn't supported yet. The real unlink call
-     * gets wired in here once `SOCIAL_UNLINK_ENABLED` flips (see ../flags.ts).
+     * Stub: there is no unlink endpoint yet (ADR-0033 request #7, still open in ADR-0042). This never
+     * mutates state or claims success — it only explains that the action isn't supported yet. The real
+     * unlink call gets wired in here once `SOCIAL_UNLINK_ENABLED` flips (see ../flags.ts).
      */
     const requestUnlink = useCallback(() => {
         toast({ title: t('mypage.accountInfo.social.unlinkComingSoon') });
     }, [t, toast]);
 
-    return { isLinked, linkProvider, requestUnlink, isLinking: isPending };
+    return {
+        isLinked,
+        linkProvider,
+        requestUnlink,
+        isLinking: isLinkingSocial,
+        /** `'unknown'` while the server has not told us — callers hide the section rather than guess. */
+        socialState: linked.social,
+    };
 };

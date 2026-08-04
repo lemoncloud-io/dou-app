@@ -1,18 +1,44 @@
 import type { AuthUpdateInput } from '@lemoncloud/chatic-sockets-api';
 import type { AuthUpdateResponse } from '@lemoncloud/chatic-sockets-api/dist/lib/auth/types';
-import type { AttachSocialView, VerifyHashAliasView } from '@lemoncloud/chatic-backend-api';
+import type {
+    LinkSentView,
+    LinkVerifiedView,
+    LinkedView,
+    LoggedInView,
+    LoginVerifiedView,
+} from '@lemoncloud/chatic-backend-api';
 import type { AuthDomainGateway } from '../gateways';
+
+/**
+ * What the proof is FOR, and it is the request that says so — never the response (ADR-0042 §3).
+ * - `login`: a device (guest) session proves a number and becomes that number's main user. The
+ *   session changes and a `$token` comes back.
+ * - `link`: an already-main user hangs one more credential on the current session. The session does
+ *   NOT change and no token comes back.
+ *
+ * Picking the wrong one is an error, not a fallback: a main user calling `login` is 400, a device
+ * session calling `link` is 403. Callers derive this from the session role (`isGuest`) so neither
+ * error is reachable.
+ */
+export type AccountLinkMode = 'link' | 'login';
 
 /**
  * Delivery switches for the send side. `resend` picks the step; the rest are dev delivery controls.
  * Unset switches are omitted from the packet entirely so the server's defaults survive — a literal
  * `false` would turn a channel off rather than leave it alone.
  */
-export interface VerifyHashAliasSendOptions {
-    /** Invite code, when the verification happens inside an accept flow — matched against the invite's hash. */
+export interface PhoneCodeSendOptions {
+    /** Which side of the proof this is. */
+    mode: AccountLinkMode;
+    /**
+     * Invite code, when the send happens inside an accept flow. Read by the server ONLY on
+     * `mode: 'login'` send, and a number that does not match the invite gets no SMS at all.
+     */
     code?: string;
     /** Ask for a new code instead of the first one. */
     resend?: boolean;
+    /** ISO alpha-2 default country for a local (`0…`) number — server default `KR`. */
+    countryCode?: string;
     /** Run the flow without actually delivering the code. Caps and counters still apply. */
     dryRun?: boolean;
     /** Deliver over SMS (server default: true). */
@@ -21,42 +47,66 @@ export interface VerifyHashAliasSendOptions {
     slack?: boolean;
 }
 
-/** What `step=send`/`step=resend` answers with. `expiredAt` (epoch ms) drives the countdown. */
-export type VerifyHashAliasSendResult = Pick<VerifyHashAliasView, 'sent' | 'expiredAt'>;
-
-/** What `step=check` answers with. A non-empty `$token` means the session changed. */
-export type VerifyHashAliasCheckResult = Pick<VerifyHashAliasView, 'attached' | '$token'>;
+/** Shared by the two proof steps. The country code must match the one used to send. */
+export interface PhoneCodeProveOptions {
+    mode: AccountLinkMode;
+    countryCode?: string;
+}
 
 /**
- * Native token bundle for `auth.attach-social`. Which field carries the credential depends on the
- * provider (Apple uses `identityToken`), so the shape stays open and only `provider` is required.
+ * `step=verify` answers differently per mode: `link` reports whether confirming WOULD work, `login`
+ * only says the code is valid. Neither changes anything, so both are safe to call repeatedly.
  */
-export type AttachSocialTokens = Record<string, unknown> & { provider: string };
+export type PhoneCodeVerifyResult = LinkVerifiedView | LoginVerifiedView;
+
+/** `step=confirm` answers differently per mode: `link` links, `login` opens a session (`$token`). */
+export type PhoneCodeConfirmResult = LinkedView | LoggedInView;
+
+/**
+ * Native token bundle for a social proof. Which field carries the credential depends on the provider
+ * (Apple uses `identityToken`, Google `idToken`), so the shape stays open and only `provider` is
+ * required — the server does not validate the slot, the OAuth framework does.
+ */
+export type SocialAccountTokens = Record<string, unknown> & { provider: string };
 
 export interface IAuthRemoteDataSource {
     /** 서버에 인증 정보(토큰 등) 업데이트를 요청합니다. */
     updateSocketAuth(payload: AuthUpdateInput): Promise<AuthUpdateResponse>;
     /**
-     * `auth.verify-hash-alias` step=send/resend — deliver a phone OTP. The step is derived from
-     * `resend` so callers never spell the packet's three steps out.
+     * `auth.link-account` step=send/resend — deliver a phone OTP. The step is derived from `resend`
+     * so callers never spell the packet's four steps out.
      */
-    sendHashAliasOtp(phone: string, options?: VerifyHashAliasSendOptions): Promise<VerifyHashAliasSendResult>;
+    sendPhoneCode(phone: string, options: PhoneCodeSendOptions): Promise<LinkSentView>;
     /**
-     * `auth.verify-hash-alias` step=check — prove ownership of the number. A successful check IS a
-     * login when it promotes a device user; the new session arrives as `$token`.
+     * `auth.link-account` step=verify — check the code WITHOUT committing anything.
+     *
+     * On `mode: 'link'` this is the only place the server will TELL you that confirming is blocked
+     * (`linkable: false` + `reason`); confirm answers the same situation with 409/403 instead. That
+     * is why a linking screen verifies first.
      */
-    checkHashAliasOtp(phone: string, otp: string, code?: string): Promise<VerifyHashAliasCheckResult>;
-    /** `auth.attach-social` — link one more social account to a session that is already a main user. */
-    attachSocial(tokens: AttachSocialTokens): Promise<AttachSocialView>;
+    verifyPhoneCode(phone: string, otp: string, options: PhoneCodeProveOptions): Promise<PhoneCodeVerifyResult>;
+    /** `auth.link-account` step=confirm — commit. On `mode: 'login'` the response carries `$token`. */
+    confirmPhoneCode(phone: string, otp: string, options: PhoneCodeProveOptions): Promise<PhoneCodeConfirmResult>;
+    /**
+     * `auth.link-account` type=social step=verify — ask whether this social account CAN be linked.
+     * Social has no send step: Apple/Google already did the proving.
+     */
+    verifySocialAccount(tokens: SocialAccountTokens): Promise<LinkVerifiedView>;
+    /** `auth.link-account` type=social step=confirm — link it. Never a login; the session is unchanged. */
+    confirmSocialAccount(tokens: SocialAccountTokens): Promise<LinkedView>;
 }
 
 /**
- * Auth source. `update` authenticates whichever slot is active, while the two identity packets
- * (`verify-hash-alias`, `attach-social`) are bound to the RELAY slot by the composition root — the
- * main user they resolve to lives in the central backend behind the relay. See ADR-0033.
+ * Auth source. `update` authenticates whichever slot is active, while the account-proof packet
+ * (`link-account`) is bound to the RELAY slot by the composition root — the main user it resolves to
+ * lives in the central backend behind the relay. See ADR-0033, ADR-0042.
  *
- * Phone numbers and OTP codes are credentials: they stay in the packet body and never reach a log,
- * a cache key, or a query key.
+ * This layer owns the `type`/`mode`/`step` assembly so no caller above it spells a packet field out.
+ * The server does not judge whether a combination exists — the backend does — so this class only
+ * ever builds the combinations the union permits and lets TypeScript reject the rest.
+ *
+ * Phone numbers, e-mail addresses and OTP codes are credentials: they stay in the packet body and
+ * never reach a log, a cache key, or a query key.
  */
 export class AuthRemoteDataSource implements IAuthRemoteDataSource {
     constructor(private readonly gateway: AuthDomainGateway) {}
@@ -65,33 +115,69 @@ export class AuthRemoteDataSource implements IAuthRemoteDataSource {
         return this.gateway.update(payload);
     }
 
-    public async sendHashAliasOtp(
-        phone: string,
-        options: VerifyHashAliasSendOptions = {}
-    ): Promise<VerifyHashAliasSendResult> {
+    public async sendPhoneCode(phone: string, options: PhoneCodeSendOptions): Promise<LinkSentView> {
         // `resend` selects the step rather than riding along as a switch; there is no "extend the
         // timer" step, so extending IS resending (ADR-0033 D9) — a fresh code and a fresh
         // `expiredAt`, but the wrong-answer counter is NOT reset.
-        const { resend, ...switches } = options;
-        return this.gateway.verifyHashAlias<VerifyHashAliasSendResult>({
-            kind: 'phone',
+        const { mode, resend, ...rest } = options;
+        return this.gateway.linkAccount<LinkSentView>({
+            type: 'phone',
+            mode,
             step: resend ? 'resend' : 'send',
             phone,
-            ...switches,
+            ...rest,
         });
     }
 
-    public async checkHashAliasOtp(phone: string, otp: string, code?: string): Promise<VerifyHashAliasCheckResult> {
-        return this.gateway.verifyHashAlias<VerifyHashAliasCheckResult>({
-            kind: 'phone',
-            step: 'check',
+    public async verifyPhoneCode(
+        phone: string,
+        otp: string,
+        options: PhoneCodeProveOptions
+    ): Promise<PhoneCodeVerifyResult> {
+        // The invite code is NOT accepted here — the union has no slot for it on a prove step. The
+        // number/invite cross-check happens once, at send time (ADR-0042; guide §B-2).
+        return this.gateway.linkAccount<PhoneCodeVerifyResult>({
+            type: 'phone',
+            mode: options.mode,
+            step: 'verify',
             phone,
             otp,
-            code,
+            countryCode: options.countryCode,
         });
     }
 
-    public async attachSocial(tokens: AttachSocialTokens): Promise<AttachSocialView> {
-        return this.gateway.attachSocial<AttachSocialView>(tokens);
+    public async confirmPhoneCode(
+        phone: string,
+        otp: string,
+        options: PhoneCodeProveOptions
+    ): Promise<PhoneCodeConfirmResult> {
+        return this.gateway.linkAccount<PhoneCodeConfirmResult>({
+            type: 'phone',
+            mode: options.mode,
+            step: 'confirm',
+            phone,
+            otp,
+            countryCode: options.countryCode,
+        });
+    }
+
+    public async verifySocialAccount(tokens: SocialAccountTokens): Promise<LinkVerifiedView> {
+        // Social only ever links: there is no `mode: 'login'` for it, and a device session that wants
+        // to log in socially goes through the backend's REST path instead (guide §알아 둘 제약).
+        return this.gateway.linkAccount<LinkVerifiedView>({
+            ...tokens,
+            type: 'social',
+            mode: 'link',
+            step: 'verify',
+        });
+    }
+
+    public async confirmSocialAccount(tokens: SocialAccountTokens): Promise<LinkedView> {
+        return this.gateway.linkAccount<LinkedView>({
+            ...tokens,
+            type: 'social',
+            mode: 'link',
+            step: 'confirm',
+        });
     }
 }

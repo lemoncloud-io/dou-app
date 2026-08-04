@@ -7,13 +7,23 @@ import { reportError } from '@chatic/web-core';
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile, useRelayInviteMutations, useRelayInvites, useSentInviteLog } from '../../../hooks';
+import {
+    useActivePlaceName,
+    useLinkedAccounts,
+    useMyProfile,
+    usePlaceProfileAbsent,
+    useRelayInviteMutations,
+    useRelayInvites,
+    useSentInviteLog,
+    type AccountLinkMode,
+} from '../../../hooks';
 import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
+import { PlaceProfileCreateDialog } from '../../home/components/PlaceProfileCreateDialog';
 import { isValidKoreanPhone, normalizeKoreanPhone } from '../../channels/utils/koreanPhone';
 import { InviterVerifyPrompt } from '../components/InviterVerifyPrompt';
 import { ReinviteDialog } from '../components/ReinviteDialog';
@@ -56,13 +66,37 @@ export const ContactInvitePage = () => {
     const [phoneError, setPhoneError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingReinvite, setPendingReinvite] = useState<PendingReinvite | null>(null);
-    const [isVerifyOpen, setIsVerifyOpen] = useState(false);
+    /**
+     * Which proof the sheet is running, or `null` when it is closed. The mode is stored rather than
+     * derived at render time because the two ways in disagree: the gate picks from the session role,
+     * while the 403 fallback KNOWS the server does not see a main user regardless of what the role
+     * cache says.
+     */
+    const [verifyMode, setVerifyMode] = useState<AccountLinkMode | null>(null);
 
     const { isGuest } = useRuntimeProfile();
+    // A main user with no number of their own can still be asked for one (guide §A-1 left this open),
+    // but only when the server actually SAID so: `'unknown'` covers both "profile not loaded" and
+    // "the slot was never built", and treating either as absent would demand a number the user
+    // already has. So the gate narrows on `'absent'` alone (ADR-0042 §5, §6).
+    const linked = useLinkedAccounts();
+    const needsPhoneLink = !isGuest && linked.phone === 'absent';
+    /** Guests open a session; a main user without a number hangs one on the session they have. */
+    const gateVerifyMode: AccountLinkMode = isGuest ? 'login' : 'link';
     const { invites } = useRelayInvites();
     const { createInvite } = useRelayInviteMutations();
     const { record, findByPhone } = useSentInviteLog();
     const { profile: myProfile } = useMyProfile();
+    // Second gate, after the guest one (ADR-0041 decision 4). `undefined` while the read is in
+    // flight — the form must not render then either, or a submit could beat the verdict.
+    const { absent: isProfileAbsent, markPresent } = usePlaceProfileAbsent();
+    const placeName = useActivePlaceName();
+
+    /**
+     * Gates pass in order: prove a number first (a guest has none, and a main user may still lack
+     * one), then require a place profile, then show the form.
+     */
+    const showForm = !isGuest && !needsPhoneLink && isProfileAbsent === false;
 
     const phoneDigits = phoneInput.replace(/\D/g, '');
 
@@ -110,9 +144,13 @@ export const ContactInvitePage = () => {
             // here means the client role lagged), then explain instead of looping.
             if (getSocketErrorCode(error) === 403 && !verifyOfferedRef.current) {
                 verifyOfferedRef.current = true;
+                // ALWAYS `login` here, never the gate's mode. Reaching this branch means the server
+                // refused us as a main user, so the session has to be OPENED — sending `link` from a
+                // session the server still reads as a device user would 403 again, which is the very
+                // error this net exists to recover from.
                 // The form keeps its input, so the user resubmits once verified — no auto-retry,
                 // which would fire on a stale closure.
-                setIsVerifyOpen(true);
+                setVerifyMode('login');
             } else if (getSocketErrorCode(error) === 403) {
                 toast({ title: t('contactInvite.issueForbidden'), variant: 'destructive' });
             } else {
@@ -168,21 +206,23 @@ export const ContactInvitePage = () => {
         <KeyboardAwareLayout
             header={<PageHeader title={t('contactInvite.title')} />}
             // The guest branch carries its own inline CTA (Figma 3578-67319), so no docked panel there.
+            // No CTA either while a gate is unresolved or open — the form it submits is not on screen.
             footer={
-                isGuest ? undefined : (
+                showForm ? (
                     <FloatingButton
                         label={t('contactInvite.submit')}
                         loading={isSubmitting}
                         disabled={isSubmitDisabled}
                         onClick={handleSubmit}
                     />
-                )
+                ) : undefined
             }
         >
-            {/* A guest cannot issue an invite, so the form is not rendered at all until verified. */}
-            {isGuest && <InviterVerifyPrompt onStart={() => setIsVerifyOpen(true)} />}
+            {/* Neither a guest nor a number-less main user can issue, so the form waits. Both land on
+                the same prompt — what differs is the mode the sheet then runs in. */}
+            {(isGuest || needsPhoneLink) && <InviterVerifyPrompt onStart={() => setVerifyMode(gateVerifyMode)} />}
 
-            {!isGuest && (
+            {showForm && (
                 <>
                     <div className="flex flex-col gap-4 px-4 pt-6">
                         <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
@@ -233,8 +273,29 @@ export const ContactInvitePage = () => {
                 />
             )}
 
-            {isVerifyOpen && (
-                <PhoneVerifySheet onVerified={() => setIsVerifyOpen(false)} onClose={() => setIsVerifyOpen(false)} />
+            {verifyMode && (
+                <PhoneVerifySheet
+                    mode={verifyMode}
+                    onVerified={() => setVerifyMode(null)}
+                    onClose={() => setVerifyMode(null)}
+                />
+            )}
+
+            {/* Issuing an invite without a place profile would send an SMS signed "친구"
+                (contactInvite.defaultSenderName), so a profile is a precondition rather than a nag.
+                No `exit` copy: X leaves for home immediately, which simply means no invite was sent
+                (ADR-0041 decisions 2 and 4). `replace` so back cannot land on the dialog again.
+
+                `!needsPhoneLink` for the same reason as `!isGuest`: the gates are ordered, and a main
+                user who still owes a number would otherwise get this dialog stacked on top of the
+                verify prompt. Number first, then name. */}
+            {!isGuest && !needsPhoneLink && isProfileAbsent === true && (
+                <PlaceProfileCreateDialog
+                    open
+                    placeName={placeName}
+                    onDone={markPresent}
+                    onExit={() => navigate(ROUTES.home, { replace: true })}
+                />
             )}
         </KeyboardAwareLayout>
     );

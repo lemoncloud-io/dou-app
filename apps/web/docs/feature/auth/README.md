@@ -19,8 +19,10 @@
 ```
 features/auth/
   components/
-    PhoneVerifyScreen.tsx     # 전화번호 인증 풀스크린 (relay 초대용) → phone-verification.md
-    PhoneVerifyBanner.tsx     # 계정 갈라짐 방어 배너 (소셜 로그인 유도)
+    PhoneVerifyScreen.tsx     # 전화번호 인증 풀스크린 (relay 초대 수락용) → phone-verification.md
+    PhoneVerifySheet.tsx      # 같은 본문의 바텀시트 셸 (발급 · 마이페이지)
+    PhoneVerifyFields.tsx     # 두 셸이 공유하는 입력 본문
+    PhoneVerifyBanner.tsx     # 계정 갈라짐 방어 배너 (소셜 로그인으로 이동) — 풀스크린 셸 전용
   hooks/
     useInviteAccept.ts        # 초대 수락: 로그인 → 클라우드 진입 → 홈 이동
     useInviteCloudEntry.ts    # 토큰 기반 switchCloud + switchSite (로그인과 분리)
@@ -52,11 +54,14 @@ features/auth/
 ## 흐름 요약
 
 - **초대 수락** — 상세는 [invite.md](./invite.md).
-- **전화번호 인증 (relay 1:1 초대)** — 상세는
-  [phone-verification.md](./phone-verification.md). `PhoneVerifyScreen`이
-  `auth.verify-hash-alias`(send/resend/check)를 돌리고, check의 `$token`은
-  `applySessionToken`(`@chatic/app-runtime`)으로 같은 소켓 연결의 신원을
-  메인유저로 바꾼 뒤 `onVerified`를 부른다.
+- **계정 연동 통합 경로** — 상세는 [account-linking.md](./account-linking.md).
+  `auth.link-account` 하나가 번호·이메일·소셜을 받고, `type`×`mode`×`step`이 요청을 정한다.
+  게이트웨이·데이터 소스·`link$` 읽기가 여기 있다.
+- **전화번호 인증 (relay 1:1 초대 · 마이페이지)** — 상세는
+  [phone-verification.md](./phone-verification.md). `PhoneVerifyScreen`/`PhoneVerifySheet`가
+  `auth.link-account`를 돌린다. `mode: 'login'`의 `confirm`이 주는 `$token`은
+  `applySessionToken`(`@chatic/app-runtime`)으로 같은 소켓 연결의 신원을 메인유저로 바꾼 뒤
+  `onVerified`를 부른다. `mode: 'link'`는 세션을 건드리지 않는다.
 - **OAuth 콜백** — `useOAuthLogin`이 `code`/`provider`/`state` 파싱 → `createCredentialsByProvider`(또는 invite는 `loginWithInviteCode`) → `refreshRelaySession({ syncProfile: true })`로 세션 hydrate → `state.from`으로 이동.
 - **로그아웃** — `LogoutPage`가 `useClearCache().clearAllCache()`(전 레포 `cacheClear`)로 캐시를 비운 뒤 `useSessionLogout()`으로 릴레이 세션을 종료한다. 릴레이 로그아웃되면 **런타임이 자동으로 게스트 로그인**을 수행하므로 다음 세션은 깨끗한 캐시에서 시작한다.
 - **게스트/디바이스 로그인** — auth에서 다루지 않는다(런타임 자동 처리). 비-invite `/auth/login` 진입은 로딩 표시만.

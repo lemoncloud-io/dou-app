@@ -1,10 +1,14 @@
 /**
  * Destination policy for the relay-owned gateways.
  *
- * The 1:1 invite domain and the phone/social identity packets live in the central backend behind
- * the relay server, so they must reach the relay slot even while a cloud slot is active. The policy
- * is fixed here, at composition time — callers get no route argument to forget. Same guarantee the
+ * The 1:1 invite domain and the account-proof packet live in the central backend behind the relay
+ * server, so they must reach the relay slot even while a cloud slot is active. The policy is fixed
+ * here, at composition time — callers get no route argument to forget. Same guarantee the
  * device.update-remote wiring makes; see socket/kind-scoped-routing.md.
+ *
+ * Driven through the data sources rather than the gateway bundle: the factory deliberately does not
+ * hand the bundle back out (ADR-0036), so the only observable contract is which socket a repository
+ * call ends up on — which is also what actually matters.
  */
 import { createRemoteDataSources } from './remoteFactory';
 
@@ -40,40 +44,48 @@ describe('createRemoteDataSources — relay-pinned gateways', () => {
     };
 
     it.each([
-        ['create', 'invite.create', { phone: '01012345678', name: 'kim' }],
-        ['get', 'invite.get', { code: 'invt:1:abc' }],
-        ['accept', 'invite.accept', { code: 'invt:1:abc' }],
-    ])('sends invite.%s over the relay slot', async (method, type, input) => {
-        const { gateways } = createRemoteDataSources();
+        ['createInvite', 'invite.create', { phone: '01012345678', name: 'kim' }],
+        ['getInvite', 'invite.get', 'invt:1:abc'],
+        ['acceptInvite', 'invite.accept', 'invt:1:abc'],
+    ])('sends %s over the relay slot', async (method, type, input) => {
+        const { remoteDataSources } = createRemoteDataSources();
 
-        await (gateways.invite as any)[method](input);
+        await (remoteDataSources.invite as any)[method](input);
 
         expectRelayOnly(type);
     });
 
     it('sends invite.list over the relay slot', async () => {
-        const { gateways } = createRemoteDataSources();
+        const { remoteDataSources } = createRemoteDataSources();
 
-        await gateways.invite.list({ state: 'pending' });
+        await remoteDataSources.invite.listInvites({ state: 'pending' });
 
         expectRelayOnly('invite.list');
     });
 
-    it('sends the identity packets over the relay slot', async () => {
-        const { gateways } = createRemoteDataSources();
+    it('sends the account-proof packet over the relay slot on every step', async () => {
+        const { remoteDataSources } = createRemoteDataSources();
 
-        await gateways.auth.verifyHashAlias({ kind: 'phone', step: 'send', phone: '01012345678' });
-        expectRelayOnly('auth.verify-hash-alias');
+        await remoteDataSources.auth.sendPhoneCode('01012345678', { mode: 'login' });
+        expectRelayOnly('auth.link-account');
 
         relayRequest.mockClear();
-        await gateways.auth.attachSocial({ provider: 'google', idToken: 'tok' });
-        expectRelayOnly('auth.attach-social');
+        await remoteDataSources.auth.verifyPhoneCode('01012345678', '123456', { mode: 'link' });
+        expectRelayOnly('auth.link-account');
+
+        relayRequest.mockClear();
+        await remoteDataSources.auth.confirmPhoneCode('01012345678', '123456', { mode: 'login' });
+        expectRelayOnly('auth.link-account');
+
+        relayRequest.mockClear();
+        await remoteDataSources.auth.confirmSocialAccount({ provider: 'google', idToken: 'tok' });
+        expectRelayOnly('auth.link-account');
     });
 
     it('leaves auth.update on the active slot — it authenticates whichever socket is live', async () => {
-        const { gateways } = createRemoteDataSources();
+        const { remoteDataSources } = createRemoteDataSources();
 
-        await gateways.auth.update({ token: 'tok' } as never);
+        await remoteDataSources.auth.updateSocketAuth({ token: 'tok' } as never);
 
         expect(activeRequest).toHaveBeenCalled();
         expect(relayRequest).not.toHaveBeenCalled();

@@ -5,9 +5,11 @@ describe('AuthRepositoryV2', () => {
         // Remote-only: session-identity commands have no cached counterpart.
         const authRemoteDataSource = {
             updateSocketAuth: jest.fn(),
-            sendHashAliasOtp: jest.fn().mockResolvedValue({ sent: true }),
-            checkHashAliasOtp: jest.fn().mockResolvedValue({ attached: true }),
-            attachSocial: jest.fn().mockResolvedValue({ attached: true }),
+            sendPhoneCode: jest.fn().mockResolvedValue({ sent: true }),
+            verifyPhoneCode: jest.fn().mockResolvedValue({ step: 'verify', linkable: true }),
+            confirmPhoneCode: jest.fn().mockResolvedValue({ step: 'confirm', linked: true }),
+            verifySocialAccount: jest.fn().mockResolvedValue({ step: 'verify', linkable: true }),
+            confirmSocialAccount: jest.fn().mockResolvedValue({ step: 'confirm', linked: true }),
         };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
@@ -18,65 +20,86 @@ describe('AuthRepositoryV2', () => {
         return { repository, authRemoteDataSource };
     };
 
-    it('sendPhoneVerification은 번호와 옵션을 그대로 위임한다', async () => {
+    it('sendPhoneCode는 번호와 옵션을 그대로 위임한다', async () => {
         const { repository, authRemoteDataSource } = createRepository();
-        authRemoteDataSource.sendHashAliasOtp.mockResolvedValue({ sent: true, expiredAt: 123 });
+        authRemoteDataSource.sendPhoneCode.mockResolvedValue({ sent: true, expiredAt: 123 });
 
-        const result = await repository.sendPhoneVerification('01012345678', { resend: true });
+        const result = await repository.sendPhoneCode('01012345678', { mode: 'login', resend: true });
 
-        expect(authRemoteDataSource.sendHashAliasOtp).toHaveBeenCalledWith('01012345678', { resend: true });
+        expect(authRemoteDataSource.sendPhoneCode).toHaveBeenCalledWith('01012345678', {
+            mode: 'login',
+            resend: true,
+        });
         expect(result).toEqual({ sent: true, expiredAt: 123 });
     });
 
-    it('sendPhoneVerification은 옵션이 없으면 undefined로 위임한다 (빈 객체를 만들지 않는다)', async () => {
+    it('verifyPhoneCode는 mode와 countryCode를 그대로 위임한다', async () => {
         const { repository, authRemoteDataSource } = createRepository();
 
-        await repository.sendPhoneVerification('01012345678');
+        await repository.verifyPhoneCode('01012345678', '123456', { mode: 'link', countryCode: 'KR' });
 
-        expect(authRemoteDataSource.sendHashAliasOtp).toHaveBeenCalledWith('01012345678', undefined);
+        expect(authRemoteDataSource.verifyPhoneCode).toHaveBeenCalledWith('01012345678', '123456', {
+            mode: 'link',
+            countryCode: 'KR',
+        });
     });
 
-    it('checkPhoneVerification은 code를 풀어서 위임한다', async () => {
+    it('verifyPhoneCode의 linkable=false는 에러로 바꾸지 않고 응답으로 돌려준다', async () => {
         const { repository, authRemoteDataSource } = createRepository();
+        const blocked = { step: 'verify', linkable: false, reason: 'occupied' };
+        authRemoteDataSource.verifyPhoneCode.mockResolvedValue(blocked);
 
-        await repository.checkPhoneVerification('01012345678', '123456', { code: 'invt:1:secret' });
+        const result = await repository.verifyPhoneCode('01012345678', '123456', { mode: 'link' });
 
-        expect(authRemoteDataSource.checkHashAliasOtp).toHaveBeenCalledWith('01012345678', '123456', 'invt:1:secret');
-    });
-
-    it('checkPhoneVerification은 code가 없으면 undefined로 위임한다', async () => {
-        const { repository, authRemoteDataSource } = createRepository();
-
-        await repository.checkPhoneVerification('01012345678', '123456');
-
-        expect(authRemoteDataSource.checkHashAliasOtp).toHaveBeenCalledWith('01012345678', '123456', undefined);
+        // 막는 이유는 verify에서만 응답 자리로 온다 — confirm은 같은 상황을 409/403으로 던진다.
+        expect(result).toBe(blocked);
     });
 
     it('세션 전환 토큰은 해석하지 않고 그대로 반환한다', async () => {
         const { repository, authRemoteDataSource } = createRepository();
-        const checkResult = { attached: true, $token: { identityToken: 'tok' } };
-        authRemoteDataSource.checkHashAliasOtp.mockResolvedValue(checkResult);
+        const confirmResult = {
+            step: 'confirm',
+            mode: 'login',
+            loggedIn: true,
+            isNew: false,
+            $token: { identityToken: 'tok' },
+        };
+        authRemoteDataSource.confirmPhoneCode.mockResolvedValue(confirmResult);
 
-        const result = await repository.checkPhoneVerification('01012345678', '123456');
+        const result = await repository.confirmPhoneCode('01012345678', '123456', { mode: 'login' });
 
         // 토큰 설치는 web-core 소유다 (data-access.md "auth 승격의 경계").
-        expect(result).toBe(checkResult);
+        expect(result).toBe(confirmResult);
     });
 
-    it('attachSocial은 토큰 묶음을 그대로 위임한다', async () => {
+    it('verifySocialAccount는 토큰 묶음을 그대로 위임한다', async () => {
         const { repository, authRemoteDataSource } = createRepository();
 
-        const result = await repository.attachSocial({ provider: 'apple', identityToken: 'tok' });
+        await repository.verifySocialAccount({ provider: 'apple', identityToken: 'tok' });
 
-        expect(authRemoteDataSource.attachSocial).toHaveBeenCalledWith({ provider: 'apple', identityToken: 'tok' });
-        expect(result).toEqual({ attached: true });
+        expect(authRemoteDataSource.verifySocialAccount).toHaveBeenCalledWith({
+            provider: 'apple',
+            identityToken: 'tok',
+        });
+    });
+
+    it('confirmSocialAccount는 토큰 묶음을 그대로 위임한다', async () => {
+        const { repository, authRemoteDataSource } = createRepository();
+
+        const result = await repository.confirmSocialAccount({ provider: 'apple', identityToken: 'tok' });
+
+        expect(authRemoteDataSource.confirmSocialAccount).toHaveBeenCalledWith({
+            provider: 'apple',
+            identityToken: 'tok',
+        });
+        expect(result).toEqual({ step: 'confirm', linked: true });
     });
 
     it('원격 실패는 삼키지 않고 그대로 reject한다', async () => {
         const { repository, authRemoteDataSource } = createRepository();
         const failure = new Error('429');
-        authRemoteDataSource.sendHashAliasOtp.mockRejectedValue(failure);
+        authRemoteDataSource.sendPhoneCode.mockRejectedValue(failure);
 
-        await expect(repository.sendPhoneVerification('01012345678')).rejects.toBe(failure);
+        await expect(repository.sendPhoneCode('01012345678', { mode: 'login' })).rejects.toBe(failure);
     });
 });

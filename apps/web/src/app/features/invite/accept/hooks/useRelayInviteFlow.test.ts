@@ -10,21 +10,28 @@ const navigate = jest.fn();
 const toast = jest.fn();
 const recordDeclinedInvite = jest.fn();
 const waitUntilKindVerified = jest.fn();
+const isPlaceProfileAbsent = jest.fn();
+let mockSid: string | null = 'site-1';
 const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/app-runtime', () => ({ getSocketManager: () => ({ waitUntilKindVerified }) }));
+jest.mock('@chatic/app-runtime', () => ({
+    getSocketManager: () => ({ waitUntilKindVerified }),
+    // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
+    useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
+}));
 jest.mock('@chatic/bridges', () => ({
     logger: { error: (...a: unknown[]) => loggerError(...a), warn: (...a: unknown[]) => loggerWarn(...a) },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedSiteId: mockSid }) }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('../../../../hooks', () => ({
-    useRelayInviteMutations: () => ({ getInvite, acceptInvite }),
-    // Kept deliberately: the flow must not read it any more (ADR-0039 dropped the profile step), and a
-    // reintroduced gate has to fail on an assertion below rather than on a missing-module error.
-    useMyProfile: () => ({ profile: null }),
+jest.mock('../../../../hooks', () => ({ useRelayInviteMutations: () => ({ getInvite, acceptInvite }) }));
+// The judgement has its own suite (utils/placeProfile.test.ts). Mocked here so this one drives the
+// verdict directly instead of reconstructing get-mine responses.
+jest.mock('../../../../utils/placeProfile', () => ({
+    isPlaceProfileAbsent: (...args: unknown[]) => isPlaceProfileAbsent(...args),
 }));
 // The 3-tier resolution has its own suite (useResolveInviteChannel.test.ts); mocking it here keeps this
 // one off real timers and lets it assert the hand-off instead.
@@ -60,6 +67,9 @@ beforeEach(() => {
     waitUntilKindVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
+    // Default: a profile already exists, so the profile step stays out of the other tests' way.
+    mockSid = 'site-1';
+    isPlaceProfileAbsent.mockResolvedValue(false);
     resolveChannel.mockResolvedValue('ch-new');
 });
 
@@ -164,13 +174,68 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
     });
 
-    it('플레이스 프로필이 없어도 수락을 막지 않는다', async () => {
+    it('프로필이 없으면 수락하지 않고 프로필 설정으로 보낸다 (ADR-0041)', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
         act(() => result.current.accept());
 
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+        expect(acceptInvite).not.toHaveBeenCalled();
+    });
+
+    it('프로필을 저장하면 재검증 후 수락한다', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+
+        act(() => result.current.onProfileSaved());
+
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        // Re-validated on the way back in: entry read + accept attempt + post-save attempt.
+        expect(getInvite).toHaveBeenCalledTimes(3);
+    });
+
+    it('저장 뒤에는 판정을 다시 묻지 않는다 — profile.set이 곧바로 읽히지 않을 수 있다', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+
+        act(() => result.current.onProfileSaved());
+
+        // Still "absent" as far as the judgement knows, yet the accept goes through.
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+    });
+
+    it('인증이 프로필보다 먼저다 — 승격 전에는 쓸 사이트가 없다', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true }));
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+        expect(isPlaceProfileAbsent).not.toHaveBeenCalled();
+    });
+
+    it('프로필 화면에 머무는 동안 만료되면 수락하지 않고 만료 안내로 간다', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+
+        getInvite.mockResolvedValue(view({ state: 'expired' }));
+        act(() => result.current.onProfileSaved());
+
+        await waitFor(() => expect(result.current.notice).toBe('expired'));
+        expect(acceptInvite).not.toHaveBeenCalled();
     });
 
     it('인증이 필요 없으면 곧바로 수락한다', async () => {
@@ -221,6 +286,73 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
 
         act(() => result.current.cancelStep());
         expect(result.current.phase).toBe('review');
+    });
+
+    // setMyProfile은 sid를 요구하는데 이 라우트에는 sid를 세우는 코드가 없다(브라우저에서는
+    // sessionStorage라 새 탭이면 기존 사용자도 비어 있다). 게이트를 세우면 다이얼로그 안에서 저장이
+    // 던지고 초대를 영구히 수락할 수 없게 되므로, sid가 없으면 스텝을 건너뛴다.
+    it('활성 사이트가 없으면 프로필을 묻지 않고 수락한다 (수락 불가 방지)', async () => {
+        mockSid = null;
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        expect(isPlaceProfileAbsent).not.toHaveBeenCalled();
+    });
+
+    it('프로필 설정을 그만두고 다시 수락하면 판정을 다시 묻는다', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+
+        act(() => result.current.cancelStep());
+        act(() => result.current.accept());
+
+        // 저장한 적이 없으므로 profileSavedRef가 서지 않는다 — 두 번째 시도도 프로필을 요구한다.
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+        expect(isPlaceProfileAbsent).toHaveBeenCalledTimes(2);
+        expect(acceptInvite).not.toHaveBeenCalled();
+    });
+
+    // 승격은 신원을 바꾼다: 디바이스 유저로 저장한 프로필은 메인유저 사이트에 대해 아무것도 말해주지
+    // 않으므로, 인증을 지나면 판정이 다시 서야 한다. 안 그러면 이름 없는 채로 수락된다.
+    it('인증을 지나면 저장 기록을 버리고 프로필을 다시 판정한다', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        // needVerify=false로 들어와 프로필을 먼저 저장한다.
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+        act(() => result.current.onProfileSaved());
+
+        // 수락이 403 — 아직 디바이스 유저였다 → 인증으로 보낸다.
+        acceptInvite.mockRejectedValueOnce(socketError(403));
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+
+        act(() => result.current.onVerified());
+
+        // 승격된 신원에는 프로필이 없으므로 수락 전에 다시 프로필을 요구해야 한다.
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+        expect(acceptInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it('프로필 설정을 그만두면 수락하지 않고 수락 화면으로 돌아간다 (ADR-0041)', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+
+        act(() => result.current.cancelStep());
+
+        expect(result.current.phase).toBe('review');
+        expect(acceptInvite).not.toHaveBeenCalled();
     });
 });
 

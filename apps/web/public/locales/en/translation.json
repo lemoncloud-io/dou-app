@@ -200,7 +200,10 @@
                 "linkSuccess": "Linked successfully",
                 "linkFailed": "Failed to link account",
                 "alreadyLinkedElsewhere": "This social account is already linked to another account",
-                "bannerTitle": "Link a social account so your account doesn't split across devices"
+                "bannerTitle": "Link a social account so your account doesn't split across devices",
+                "phone": "Phone number",
+                "phoneMasked": "Linked ({{last4}})",
+                "typeAlreadyLinked": "You have already linked a different account."
             }
         },
         "subscription": {
@@ -774,7 +777,12 @@
         "mobileOnly": "Please use the mobile app to sign in.",
         "termsAgreement": "By continuing, you agree\nto our Terms & Privacy Policy",
         "signup": "Sign Up",
-        "forgotPassword": "Forgot Password"
+        "forgotPassword": "Forgot Password",
+        "or": "or",
+        "continueWithPhone": "Continue with phone number",
+        "socialMobileOnly": "Social sign-in is available in the mobile app.",
+        "socialFirstNotice": "If you already have an account, sign in with social first.",
+        "socialFirstNoticeBrowser": "If you already have an account, sign in with social in the app."
     },
     "resetPassword": {
         "emailLabel": "Email",
@@ -1135,7 +1143,9 @@
         "devDryRun": "Skip delivery (dryRun)",
         "devSlack": "Receive via Slack",
         "sheetTitle": "Verify phone number",
-        "sheetDescription": "Enter your phone number and the code\nwe send you to confirm it is you"
+        "sheetDescription": "Enter your phone number and the code\nwe send you to confirm it is you",
+        "linkOccupied": "This number is already linked to another account.",
+        "linkTypeAlreadyLinked": "You have already linked a different number."
     },
     "addAccount": {
         "title": "Add Account",

@@ -200,7 +200,10 @@
                 "linkSuccess": "연동됐어요",
                 "linkFailed": "연동에 실패했어요",
                 "alreadyLinkedElsewhere": "이미 다른 계정에 연동된 소셜 계정이에요",
-                "bannerTitle": "계정이 갈라지지 않도록 소셜 계정을 연결해 두세요"
+                "bannerTitle": "계정이 갈라지지 않도록 소셜 계정을 연결해 두세요",
+                "phone": "휴대폰 번호",
+                "phoneMasked": "연동됨 ({{last4}})",
+                "typeAlreadyLinked": "이미 다른 계정을 연동해 두셨어요"
             }
         },
         "subscription": {
@@ -774,7 +777,12 @@
         "mobileOnly": "모바일 앱에서 로그인해 주세요.",
         "termsAgreement": "계속 진행하시면 이용약관 및\n개인정보처리방침에 동의하게 됩니다",
         "signup": "회원가입",
-        "forgotPassword": "비밀번호 찾기"
+        "forgotPassword": "비밀번호 찾기",
+        "or": "또는",
+        "continueWithPhone": "휴대폰 번호로 로그인",
+        "socialMobileOnly": "소셜 로그인은 모바일 앱에서 할 수 있어요.",
+        "socialFirstNotice": "이미 계정이 있다면 소셜로 먼저 로그인해 주세요.",
+        "socialFirstNoticeBrowser": "이미 계정이 있다면 앱에서 소셜로 로그인해 주세요."
     },
     "resetPassword": {
         "emailLabel": "이메일",
@@ -1135,7 +1143,9 @@
         "devDryRun": "발송 생략 (dryRun)",
         "devSlack": "Slack으로 받기",
         "sheetTitle": "휴대폰 번호 인증",
-        "sheetDescription": "본인 확인을 위해 휴대폰 번호를 입력하고\n인증번호를 입력해 주세요"
+        "sheetDescription": "본인 확인을 위해 휴대폰 번호를 입력하고\n인증번호를 입력해 주세요",
+        "linkOccupied": "이미 다른 계정에 연결된 번호예요",
+        "linkTypeAlreadyLinked": "이미 다른 번호를 연결해 두셨어요"
     },
     "addAccount": {
         "title": "계정 추가",

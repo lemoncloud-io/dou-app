@@ -7,7 +7,9 @@ import { AlertDialog, Text } from '@chatic/web-ui-kit';
 import { InviteAcceptLoading } from './InviteAcceptLoading';
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { PhoneVerifyScreen } from '../../../auth/components';
+import { PlaceProfileCreateDialog } from '../../../home/components/PlaceProfileCreateDialog';
 import { RELAY_INVITE_DECLINE_ENABLED } from '../../flags';
+import { useActivePlaceName } from '../../../../hooks';
 import { useRelayInviteFlow } from '../hooks';
 
 interface RelayInviteAcceptProps {
@@ -27,6 +29,9 @@ interface RelayInviteAcceptProps {
 export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element | null => {
     const { t } = useTranslation();
     const flow = useRelayInviteFlow(code);
+    // Branded, so the relay's personal place reads "두유 홈" in the profile title rather than the raw
+    // backend name "default" (ADR-0040 decision 7).
+    const placeName = useActivePlaceName();
 
     // Already navigated home — the URL still carries the code for one more render.
     if (flow.phase === 'closed') return null;
@@ -51,13 +56,32 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
+    // Always `login` here: opening an invite deeplink puts you in a device session, so proving the
+    // number opens one rather than decorating one (ADR-0042 §3). `last4` lets a mistyped number fail
+    // before a delivery is spent — the server still cross-checks the whole number at send (§8).
     if (flow.phase === 'verifying') {
         return (
             <PhoneVerifyScreen
                 context="invite-accept"
+                mode="login"
                 inviteCode={code}
+                inviteLast4={flow.invite?.last4}
                 onVerified={flow.onVerified}
                 onClose={flow.cancelStep}
+            />
+        );
+    }
+
+    // Naming yourself is a precondition of the accept, not a gate on the app (ADR-0041): `onExit`
+    // shares `cancelStep` with verification because backing out of either means the same thing —
+    // return to the review screen, nothing accepted. No `exit` copy, so X leaves at once.
+    if (flow.phase === 'profiling') {
+        return (
+            <PlaceProfileCreateDialog
+                open
+                placeName={placeName}
+                onDone={flow.onProfileSaved}
+                onExit={flow.cancelStep}
             />
         );
     }

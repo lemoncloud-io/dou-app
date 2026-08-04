@@ -17,6 +17,30 @@ jest.mock('../../../auth/components', () => ({
         <button onClick={onVerified}>verify:{inviteCode}</button>
     ),
 }));
+// Same reason as PhoneVerifyScreen: the real dialog imports @chatic/app-runtime, whose config barrel
+// jest cannot parse. The stub also exposes whether `exit` was passed — omitting it is what makes X
+// leave without a confirmation modal (ADR-0041 decision 2).
+jest.mock('../../../home/components/PlaceProfileCreateDialog', () => ({
+    PlaceProfileCreateDialog: ({
+        placeName,
+        onDone,
+        onExit,
+        exit,
+    }: {
+        placeName: string;
+        onDone: () => void;
+        onExit: () => void;
+        exit?: unknown;
+    }) => (
+        <div>
+            <span>profile:{placeName}</span>
+            <span>guard:{exit ? 'on' : 'off'}</span>
+            <button onClick={onDone}>save-profile</button>
+            <button onClick={onExit}>exit-profile</button>
+        </div>
+    ),
+}));
+jest.mock('../../../../hooks', () => ({ useActivePlaceName: () => '두유 홈' }));
 
 const CODE = 'invt:1:secret';
 
@@ -29,6 +53,7 @@ const flow = (over: Partial<RelayInviteFlow> = {}): RelayInviteFlow => ({
     decline: jest.fn(),
     close: jest.fn(),
     onVerified: jest.fn(),
+    onProfileSaved: jest.fn(),
     cancelStep: jest.fn(),
     dismissNotice: jest.fn(),
     retry: jest.fn(),
@@ -161,5 +186,39 @@ describe('RelayInviteAccept', () => {
 
         expect(screen.getByText('Sunny')).toBeInTheDocument();
         expect(screen.queryByTestId('invite-place-card')).not.toBeInTheDocument();
+    });
+});
+
+describe('RelayInviteAccept — 프로필 스텝 (ADR-0041)', () => {
+    it('profiling이면 생성 다이얼로그를 브랜딩된 플레이스 이름으로 띄운다', () => {
+        mockFlow = flow({ phase: 'profiling' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        expect(screen.getByText('profile:두유 홈')).toBeInTheDocument();
+    });
+
+    it('이탈 가드를 넘기지 않는다 — X는 곧바로 나간다', () => {
+        mockFlow = flow({ phase: 'profiling' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        expect(screen.getByText('guard:off')).toBeInTheDocument();
+    });
+
+    it('저장은 onProfileSaved로, 이탈은 인증과 같은 cancelStep으로 간다', () => {
+        mockFlow = flow({ phase: 'profiling' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        fireEvent.click(screen.getByText('save-profile'));
+        expect(mockFlow.onProfileSaved).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByText('exit-profile'));
+        expect(mockFlow.cancelStep).toHaveBeenCalledTimes(1);
+    });
+
+    it('다른 페이즈에서는 뜨지 않는다', () => {
+        mockFlow = flow({ phase: 'review' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        expect(screen.queryByText(/^profile:/)).not.toBeInTheDocument();
     });
 });

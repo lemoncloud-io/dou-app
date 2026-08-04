@@ -1,6 +1,9 @@
 # ADR-0039: DM 표시 이름 체인 통일과 초대 수락의 프로필 강제 해제
 
-> 상태: Accepted · 결정일: 2026-07-31
+> 상태: Accepted (결정 5는 Superseded) · 결정일: 2026-07-31
+>
+> **결정 5는 [ADR-0041](0041-place-profile-as-invite-precondition.md)이 철회했다** (2026-08-03).
+> 표시 이름 체인에 관한 결정 1~4는 그대로 유효하다.
 
 ## 맥락 (Context)
 
@@ -97,6 +100,17 @@ DM에서는 `channel.name`을 보지 않는다.
 내린다.
 
 ### 5. 초대 수락의 `profiling` 스텝을 완전 삭제한다 — ADR-0033 D10 개정
+
+> **철회 (2026-08-03, [ADR-0041](0041-place-profile-as-invite-precondition.md))** — 이 결정은
+> 되돌려졌다. 순서는 다시 **인증 → 프로필 → 수락**이며 `profiling` 스텝이 `invite.accept` 앞에
+> 복원된다. 이 결정이 계산에 넣지 않은 실패 모드가 근거다: 프로필을 수락 **이후로** 미루면 그 사이
+> 앱을 강제종료한 사용자가 **이름 없는 채로 되돌릴 수 없게 DM에 남는다.** ADR-0041은 강제 게이트를
+> 세우는 대신 프로필 저장을 `invite.accept`의 전제조건으로 만들어(X는 수락하지 않고 돌아간다) 이
+> 결정이 확보한 "앱 전체 프로필 강제 0"은 유지한다. 아래 결정이 지운 코드(`RelayInviteProfileDialog`,
+> `useSaveMyPlaceProfile`, `'profiling'` phase)를 `5a61669a5`에서 되살린다. 단 트리거는 원본의
+> `!profile?.nick` 단독 판정이 아니라 3상태 판정이다 — 빈 폼이 헛등장하면 기존 프로필을 덮어쓴다.
+>
+> 아래 "i18n `placeProfileCreate.*`(16키)가 죽은 카피가 됐다"는 결과 항목도 함께 해소된다.
 
 수락 순서는 **인증 → 수락**이 된다.
 

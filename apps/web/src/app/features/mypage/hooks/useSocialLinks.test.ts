@@ -1,13 +1,11 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
-import { useSessionIdentity } from '@chatic/web-core';
 import { isNative } from '@chatic/bridges';
 
-import { readLinkedProviders, useSocialLinks } from './useSocialLinks';
+import type { LinkedAccounts } from '../../../hooks';
+import { useSocialLinks } from './useSocialLinks';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-
-jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
 
 jest.mock('@chatic/bridges', () => ({
     isNative: jest.fn(),
@@ -22,54 +20,105 @@ jest.mock('../../../bridge', () => ({
     appBridge: { oauthLogin: (provider: string) => oauthLoginMock(provider) },
 }));
 
-const attachMock = jest.fn();
-jest.mock('../../../hooks', () => ({ useAttachSocial: () => ({ attach: attachMock, isPending: false }) }));
+const verifySocialMock = jest.fn();
+const confirmSocialMock = jest.fn();
+/** Whether a link call is in flight — the hook forwards this as `isLinking`. */
+let mockIsLinkingSocial = false;
+/** What the server says this account has proved (`link$`), as `useLinkedAccounts` reads it. */
+let mockLinked: LinkedAccounts = { phone: 'absent', social: 'absent' };
 
-const STORAGE_KEY = 'chatic-linked-social-providers';
+jest.mock('../../../hooks', () => ({
+    useLinkAccount: () => ({
+        send: jest.fn(),
+        verify: jest.fn(),
+        confirm: jest.fn(),
+        verifySocial: verifySocialMock,
+        confirmSocial: confirmSocialMock,
+        isSending: false,
+        isVerifying: false,
+        isConfirming: false,
+        isLinkingSocial: mockIsLinkingSocial,
+    }),
+    useLinkedAccounts: () => mockLinked,
+}));
+
 const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
-const mockUseSessionIdentity = useSessionIdentity as jest.MockedFunction<typeof useSessionIdentity>;
 
-const setSessionUser = (userId: string | null) => {
-    mockUseSessionIdentity.mockReturnValue({
-        isInitialized: true,
-        isAuthenticated: !!userId,
-        error: null,
-        userId,
-        delegatorId: null,
-    });
-};
+const GOOGLE_TOKENS = { provider: 'google', idToken: 'tok' };
 
 beforeEach(() => {
     jest.clearAllMocks();
-    localStorage.clear();
     mockIsNative.mockReturnValue(true);
-    setSessionUser('user-1');
+    mockIsLinkingSocial = false;
+    mockLinked = { phone: 'absent', social: 'absent' };
+    oauthLoginMock.mockResolvedValue({ data: { result: { idToken: 'tok' } } });
+    verifySocialMock.mockResolvedValue({ linkable: true });
+    confirmSocialMock.mockResolvedValue({ linked: true });
 });
 
-describe('useSocialLinks', () => {
-    it('아무 것도 연동되지 않은 상태에서 시작한다', () => {
+describe('useSocialLinks — 연동 상태 (link$가 원본)', () => {
+    it('서버가 소셜을 담아 두지 않았으면 아무 것도 연동되지 않은 상태다', () => {
         const { result } = renderHook(() => useSocialLinks());
 
         expect(result.current.isLinked('google')).toBe(false);
         expect(result.current.isLinked('apple')).toBe(false);
+        expect(result.current.socialState).toBe('absent');
     });
 
-    it('attach 성공 시 로컬 캐시에 기록하고 isLinked가 true로 바뀐다', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', idToken: 'tok' } } });
-        attachMock.mockResolvedValue({ attached: true });
+    it('link$에 기록된 provider만 연동으로 읽는다 — 슬롯은 하나뿐이다', () => {
+        mockLinked = { phone: 'linked', social: 'linked', socialProvider: 'google' };
+
+        const { result } = renderHook(() => useSocialLinks());
+
+        expect(result.current.isLinked('google')).toBe(true);
+        // 다른 provider는 연동 안 된 것으로 읽힌다 — 서버도 `type-linked`로 막는다.
+        expect(result.current.isLinked('apple')).toBe(false);
+    });
+
+    it("서버가 말하기 전('unknown')에는 어느 쪽도 주장하지 않는다 — 섹션이 침묵할 수 있게", () => {
+        mockLinked = { phone: 'unknown', social: 'unknown' };
+
+        const { result } = renderHook(() => useSocialLinks());
+
+        expect(result.current.socialState).toBe('unknown');
+        expect(result.current.isLinked('google')).toBe(false);
+    });
+
+    it('isLinking은 link-account의 진행 상태를 그대로 넘긴다', () => {
+        mockIsLinkingSocial = true;
+
+        const { result } = renderHook(() => useSocialLinks());
+
+        expect(result.current.isLinking).toBe(true);
+    });
+});
+
+describe('useSocialLinks — 연동 (verify → confirm)', () => {
+    it('verify로 먼저 물어본 뒤에 confirm한다 — provider를 토큰에 실어 보낸다', async () => {
+        const order: string[] = [];
+        verifySocialMock.mockImplementation(() => {
+            order.push('verify');
+            return Promise.resolve({ linkable: true });
+        });
+        confirmSocialMock.mockImplementation(() => {
+            order.push('confirm');
+            return Promise.resolve({ linked: true });
+        });
 
         const { result } = renderHook(() => useSocialLinks());
         await act(async () => {
             await result.current.linkProvider('google');
         });
 
-        expect(attachMock).toHaveBeenCalledWith({ provider: 'google', idToken: 'tok' });
-        expect(result.current.isLinked('google')).toBe(true);
-        expect(readLinkedProviders('user-1')).toEqual(['google']);
-        expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'mypage.accountInfo.social.linkSuccess' }));
+        expect(order).toEqual(['verify', 'confirm']);
+        expect(verifySocialMock).toHaveBeenCalledWith(GOOGLE_TOKENS);
+        expect(confirmSocialMock).toHaveBeenCalledWith(GOOGLE_TOKENS);
+        expect(toastMock).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'mypage.accountInfo.social.linkSuccess' })
+        );
     });
 
-    it('네이티브 OAuth 취소(null)는 attach를 호출하지 않고 캐시도 바꾸지 않는다', async () => {
+    it('네이티브 OAuth 취소(null)는 verify도 confirm도 부르지 않고 토스트도 없다', async () => {
         oauthLoginMock.mockResolvedValue({ data: { result: null } });
 
         const { result } = renderHook(() => useSocialLinks());
@@ -77,41 +126,39 @@ describe('useSocialLinks', () => {
             await result.current.linkProvider('google');
         });
 
-        expect(attachMock).not.toHaveBeenCalled();
-        expect(result.current.isLinked('google')).toBe(false);
+        expect(verifySocialMock).not.toHaveBeenCalled();
+        expect(confirmSocialMock).not.toHaveBeenCalled();
         expect(toastMock).not.toHaveBeenCalled();
     });
 
-    it('409(이미 다른 계정 소유)는 전용 문구로 에러 토스트를 띄우고 캐시를 바꾸지 않는다', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', idToken: 'tok' } } });
-        attachMock.mockRejectedValue(new Error('409 CONFLICT - already linked'));
+    it('linkable:false(type-linked)는 confirm 전에 멈추고 "이미 다른 계정을 연동" 문구를 띄운다', async () => {
+        verifySocialMock.mockResolvedValue({ linkable: false, reason: 'type-linked' });
 
         const { result } = renderHook(() => useSocialLinks());
         await act(async () => {
             await result.current.linkProvider('google');
         });
 
-        expect(result.current.isLinked('google')).toBe(false);
-        expect(toastMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: 'mypage.accountInfo.social.alreadyLinkedElsewhere',
-                variant: 'destructive',
-            })
-        );
+        expect(confirmSocialMock).not.toHaveBeenCalled();
+        expect(toastMock).toHaveBeenCalledWith({
+            title: 'mypage.accountInfo.social.typeAlreadyLinked',
+            variant: 'destructive',
+        });
     });
 
-    it('그 외 실패는 일반 실패 문구로 에러 토스트를 띄운다', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', idToken: 'tok' } } });
-        attachMock.mockRejectedValue(new Error('500 INTERNAL'));
+    it('linkable:false(그 외 사유)는 남의 계정에 붙었다고 안내한다', async () => {
+        verifySocialMock.mockResolvedValue({ linkable: false, reason: 'occupied' });
 
         const { result } = renderHook(() => useSocialLinks());
         await act(async () => {
             await result.current.linkProvider('google');
         });
 
-        expect(toastMock).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'mypage.accountInfo.social.linkFailed', variant: 'destructive' })
-        );
+        expect(confirmSocialMock).not.toHaveBeenCalled();
+        expect(toastMock).toHaveBeenCalledWith({
+            title: 'mypage.accountInfo.social.alreadyLinkedElsewhere',
+            variant: 'destructive',
+        });
     });
 
     it('네이티브가 아니면 oauthLogin을 부르지 않고 안내 토스트만 띄운다', async () => {
@@ -123,18 +170,50 @@ describe('useSocialLinks', () => {
         });
 
         expect(oauthLoginMock).not.toHaveBeenCalled();
-        expect(attachMock).not.toHaveBeenCalled();
-        expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'mypage.accountInfo.social.mobileOnly' }));
+        expect(verifySocialMock).not.toHaveBeenCalled();
+        expect(toastMock).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'mypage.accountInfo.social.mobileOnly' })
+        );
     });
+});
 
-    it('requestUnlink은 스텁이다 — 캐시를 바꾸지 않고 안내 토스트만 띄운다', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', idToken: 'tok' } } });
-        attachMock.mockResolvedValue({ attached: true });
+describe('useSocialLinks — 실패 문구', () => {
+    it.each([
+        [409, 'mypage.accountInfo.social.alreadyLinkedElsewhere'],
+        [403, 'mypage.accountInfo.social.typeAlreadyLinked'],
+        [500, 'mypage.accountInfo.social.linkFailed'],
+    ])('%s는 전용 문구로 에러 토스트를 띄운다', async (code, title) => {
+        confirmSocialMock.mockRejectedValue(new Error(`${code} FAILED - link-account`));
 
         const { result } = renderHook(() => useSocialLinks());
         await act(async () => {
             await result.current.linkProvider('google');
         });
+
+        expect(toastMock).toHaveBeenCalledWith({ title, variant: 'destructive' });
+    });
+
+    it('verify 단계의 실패도 같은 문구 표를 쓴다', async () => {
+        verifySocialMock.mockRejectedValue(new Error('409 CONFLICT - already linked'));
+
+        const { result } = renderHook(() => useSocialLinks());
+        await act(async () => {
+            await result.current.linkProvider('google');
+        });
+
+        expect(confirmSocialMock).not.toHaveBeenCalled();
+        expect(toastMock).toHaveBeenCalledWith({
+            title: 'mypage.accountInfo.social.alreadyLinkedElsewhere',
+            variant: 'destructive',
+        });
+    });
+});
+
+describe('useSocialLinks — 해제', () => {
+    it('requestUnlink은 스텁이다 — 상태를 바꾸지 않고 안내 토스트만 띄운다', () => {
+        mockLinked = { phone: 'absent', social: 'linked', socialProvider: 'google' };
+
+        const { result } = renderHook(() => useSocialLinks());
         expect(result.current.isLinked('google')).toBe(true);
 
         act(() => result.current.requestUnlink());
@@ -144,49 +223,5 @@ describe('useSocialLinks', () => {
         expect(toastMock).toHaveBeenLastCalledWith(
             expect.objectContaining({ title: 'mypage.accountInfo.social.unlinkComingSoon' })
         );
-    });
-
-    it('다른 uid의 캐시는 새 uid에 보이지 않는다 (계정 스코프)', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', idToken: 'tok' } } });
-        attachMock.mockResolvedValue({ attached: true });
-
-        const { result, rerender } = renderHook(() => useSocialLinks());
-        await act(async () => {
-            await result.current.linkProvider('google');
-        });
-        expect(result.current.isLinked('google')).toBe(true);
-
-        setSessionUser('user-2');
-        rerender();
-
-        expect(result.current.isLinked('google')).toBe(false);
-    });
-
-    it('손상된 로컬 캐시 JSON은 빈 상태로 방어한다', () => {
-        localStorage.setItem(STORAGE_KEY, '{not-json');
-
-        const { result } = renderHook(() => useSocialLinks());
-
-        expect(result.current.isLinked('google')).toBe(false);
-        expect(readLinkedProviders('user-1')).toEqual([]);
-    });
-
-    it('uid가 없으면 항상 빈 목록을 돌려준다', () => {
-        expect(readLinkedProviders(null)).toEqual([]);
-        expect(readLinkedProviders(undefined)).toEqual([]);
-    });
-
-    it('waitFor로 attach 완료 후 isLinking이 다시 false인지 확인한다', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', idToken: 'tok' } } });
-        attachMock.mockResolvedValue({ attached: true });
-
-        const { result } = renderHook(() => useSocialLinks());
-        expect(result.current.isLinking).toBe(false);
-
-        await act(async () => {
-            await result.current.linkProvider('google');
-        });
-
-        await waitFor(() => expect(result.current.isLinking).toBe(false));
     });
 });

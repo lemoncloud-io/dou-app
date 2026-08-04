@@ -92,6 +92,11 @@ Figma 디자인(채팅방 관리·초대·대기·수락·전화번호 인증 �
     > 프로필 스텝을 **삭제**했다. 순서는 **인증 → 수락**이다. 프로필은 플레이스 설정
     > 허브에서 사후 설정한다. 표시명 `***<뒷4자리>`에 대한 감안은 그래서 더 중요해졌다.
 
+    > **재개정 (2026-08-03, [ADR-0041](0041-place-profile-as-invite-precondition.md) 결정 3)**
+    > 위 삭제를 철회했다. 순서는 **본 항목의 원안대로 인증 → 프로필 → 수락**으로 복귀한다.
+    > 다만 프로필은 강제 스텝이 아니라 `invite.accept`의 **전제조건**이다 — X를 누르면 수락하지
+    > 않고 초대 확인 화면으로 돌아간다. 초대자 쪽(`ContactInvitePage`)에도 같은 구조가 붙는다.
+
 11. **산출물은 ADR(본 문서) + 로드맵 + 트랙별 킥오프 프롬프트.** 로드맵:
     [docs/plans/relay-dm-invite-parallel-roadmap.md](../plans/relay-dm-invite-parallel-roadmap.md).
 

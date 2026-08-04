@@ -6,7 +6,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { useUserPermissions } from '../../../hooks';
-import { SocialLinkSection } from '../components';
+import { AccountLinkSection } from '../components';
 
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
@@ -43,7 +43,7 @@ export const AccountInfoPage = () => {
                     )}
                 </div>
 
-                <SocialLinkSection />
+                <AccountLinkSection />
 
                 {/* Temporarily hidden — TODO: re-enable withdrawal entry
                 <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">

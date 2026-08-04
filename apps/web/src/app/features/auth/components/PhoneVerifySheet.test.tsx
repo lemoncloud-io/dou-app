@@ -2,8 +2,11 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
+import type { AccountLinkMode } from '../../../hooks/useLinkAccount';
+
 const mockSend = jest.fn();
-const mockCheck = jest.fn();
+const mockVerify = jest.fn();
+const mockConfirm = jest.fn();
 const mockApplySessionToken = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -11,8 +14,19 @@ jest.mock('@chatic/app-runtime', () => ({
     applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-jest.mock('../../../hooks/useVerifyHashAlias', () => ({
-    useVerifyHashAlias: () => ({ send: mockSend, check: mockCheck, isSending: false, isChecking: false }),
+// One packet (`auth.link-account`) behind four calls; the two social ones are unused by this shell.
+jest.mock('../../../hooks/useLinkAccount', () => ({
+    useLinkAccount: () => ({
+        send: mockSend,
+        verify: mockVerify,
+        confirm: mockConfirm,
+        verifySocial: jest.fn(),
+        confirmSocial: jest.fn(),
+        isSending: false,
+        isVerifying: false,
+        isConfirming: false,
+        isLinkingSocial: false,
+    }),
 }));
 jest.mock('../utils/env', () => ({ isDevBuild: () => false }));
 
@@ -20,8 +34,9 @@ import { PhoneVerifySheet } from './PhoneVerifySheet';
 
 const PHONE = '01012345678';
 
-const renderSheet = () => {
-    const props = { onVerified: jest.fn(), onClose: jest.fn() };
+/** The sheet serves both sides: the issue/guest gate logs in, the mypage account row links. */
+const renderSheet = (mode: AccountLinkMode = 'login') => {
+    const props = { mode, onVerified: jest.fn(), onClose: jest.fn() };
     render(<PhoneVerifySheet {...props} />);
     return props;
 };
@@ -31,6 +46,12 @@ const requestCode = async () => {
     fireEvent.change(screen.getByPlaceholderText('phoneVerify.phonePlaceholder'), { target: { value: PHONE } });
     await act(async () => {
         fireEvent.click(screen.getByText('phoneVerify.sendCode'));
+    });
+};
+
+const pasteOtp = async (code = '123456') => {
+    await act(async () => {
+        fireEvent.change(screen.getByPlaceholderText('phoneVerify.codePlaceholder'), { target: { value: code } });
     });
 };
 
@@ -60,19 +81,61 @@ describe('PhoneVerifySheet', () => {
 
     it('세션 전환이 실패하면 완료 대신 다시 시도를 노출한다 (소비된 OTP를 재검증하지 않는다)', async () => {
         const $token = { Token: { identityToken: 'main' }, $auth: { id: 'auth-1' } };
-        mockCheck.mockResolvedValueOnce({ attached: true, $token });
+        mockConfirm.mockResolvedValueOnce({ linked: true, $token });
         mockApplySessionToken.mockRejectedValueOnce(new Error('relay re-auth not confirmed'));
 
         const { onVerified } = renderSheet();
         await requestCode();
-        await act(async () => {
-            fireEvent.change(screen.getByPlaceholderText('phoneVerify.codePlaceholder'), {
-                target: { value: '123456' },
-            });
-        });
+        await pasteOtp();
 
         expect(screen.getByText('phoneVerify.retry')).toBeInTheDocument();
         expect(onVerified).not.toHaveBeenCalled();
-        expect(mockCheck).toHaveBeenCalledTimes(1);
+        expect(mockConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('login 모드는 발송에 mode와 초대 코드를 싣고, 6자리에서 곧장 confirm한다', async () => {
+        mockConfirm.mockResolvedValueOnce({ linked: true });
+        mockApplySessionToken.mockResolvedValueOnce(undefined);
+
+        const { onVerified } = renderSheet('login');
+        await requestCode();
+        await pasteOtp();
+
+        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: undefined });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'login' });
+        expect(mockVerify).not.toHaveBeenCalled();
+        expect(onVerified).toHaveBeenCalled();
+    });
+
+    it('link 모드는 verify로 물어본 뒤 CTA에서 confirm한다 — 세션은 그대로다', async () => {
+        mockVerify.mockResolvedValueOnce({ linkable: true });
+        mockConfirm.mockResolvedValueOnce({ linked: true });
+
+        const { onVerified } = renderSheet('link');
+        await requestCode();
+        await pasteOtp();
+
+        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'link', code: undefined });
+        expect(mockVerify).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockConfirm).not.toHaveBeenCalled();
+
+        await act(async () => {
+            fireEvent.click(screen.getByText('phoneVerify.complete'));
+        });
+
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockApplySessionToken).not.toHaveBeenCalled();
+        expect(onVerified).toHaveBeenCalled();
+    });
+
+    it('link 모드에서 linkable:false면 confirm하지 않고 사유별 문구를 보여 준다', async () => {
+        mockVerify.mockResolvedValueOnce({ linkable: false, reason: 'type-linked' });
+
+        renderSheet('link');
+        await requestCode();
+        await pasteOtp();
+
+        expect(screen.getByText('phoneVerify.linkTypeAlreadyLinked')).toBeInTheDocument();
+        expect(mockConfirm).not.toHaveBeenCalled();
     });
 });
