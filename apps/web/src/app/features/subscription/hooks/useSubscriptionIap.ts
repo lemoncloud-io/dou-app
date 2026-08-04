@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -11,6 +12,7 @@ import {
 
 import type { IapProductSubscription } from '@chatic/app-messages';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
+import { useLinkedAccounts } from '../../../hooks';
 import { APP_ID, IS_DEV } from '../consts';
 import type { NativePurchase, PurchaseError, PurchaseProduct } from '../types';
 
@@ -20,10 +22,25 @@ const iapLogger = {
 
 export const useSubscriptionIap = () => {
     const isIOS = typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
+    const { t } = useTranslation();
     const validateGoogle = useValidateGoogle();
     const validateApple = useValidateApple();
     const validateMembership = useValidateMembership();
     const queryClient = useQueryClient();
+    const linked = useLinkedAccounts();
+
+    /**
+     * A subscription attaches to a cloud, and owning a cloud is social-account based — so a user with
+     * no social credential has nothing for the membership to land on. Refuse BEFORE the store charge
+     * rather than after: `validateMembership` runs post-purchase, so failing there would take the money
+     * and leave the subscription unattached.
+     *
+     * Only a definite `'absent'` blocks. `'unknown'` means the profile has not landed or the server
+     * never built the `link$` slot (the one-time backfill for pre-existing accounts) — reading that as
+     * "no social" would stop paying customers from renewing, which is far worse than letting the server
+     * be the one to refuse (ADR-0042 §5).
+     */
+    const isMissingSocialForCloud = linked.social === 'absent';
 
     // Purchase result arrives as push events, not a request-response pair.
     // A ref-based resolver bridges the push events back into a Promise for callers.
@@ -85,6 +102,11 @@ export const useSubscriptionIap = () => {
     /** Purchase → validate → finish transaction as a single atomic flow. */
     const purchaseAndValidate = useCallback(
         async (product: PurchaseProduct, email?: string) => {
+            // Cheapest refusal first — before the store is even opened. Both entry points surface a
+            // thrown message straight to the user, so this reads as guidance rather than a failure.
+            if (isMissingSocialForCloud) {
+                throw new Error(t('mypage.subscription.socialLinkRequired'));
+            }
             // Purchase result arrives via OnPurchaseSuccess / OnPurchaseError push events,
             // not as a request-response. Wrap in a Promise resolved by the useOn* handlers above.
             const result = await new Promise<NativePurchase>((resolve, reject) => {
@@ -123,7 +145,7 @@ export const useSubscriptionIap = () => {
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
             await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
         },
-        [isIOS, validate, queryClient]
+        [isIOS, validate, queryClient, isMissingSocialForCloud, t]
     );
 
     /** Restore purchases: validate + finish each existing purchase. */
@@ -154,6 +176,11 @@ export const useSubscriptionIap = () => {
     return {
         fetchNativeProducts,
         purchaseAndValidate,
+        // Deliberately NOT gated: restoring is recovery, and a purchase that already exists belongs to
+        // someone. Each one is validated server-side and skipped on failure, so the worst case is a
+        // count of 0 — whereas refusing to even try would strand a paying user.
         restorePurchases,
+        /** Lets a screen guide toward linking BEFORE offering to charge. See `isMissingSocialForCloud`. */
+        isMissingSocialForCloud,
     };
 };

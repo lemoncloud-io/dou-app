@@ -250,7 +250,8 @@
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
-            "inUse": "Subscribed"
+            "inUse": "Subscribed",
+            "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account."
         },
         "accountManage": {
             "title": "Account Management",

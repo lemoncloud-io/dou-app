@@ -10,6 +10,7 @@ import { isNative, logger } from '@chatic/bridges';
 import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
+import { isDevBuild } from '../../auth/utils/env';
 import { AppleIcon, GoogleIcon } from '../components';
 
 export const LoginPage = () => {
@@ -21,6 +22,12 @@ export const LoginPage = () => {
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
+    /**
+     * Phone sign-in is a development-build affordance for now: production keeps social as the only way
+     * in. Held back rather than removed because the flow itself is wired and tested — flipping this is
+     * how it ships once the account-split guidance and the subscription/email coupling are settled.
+     */
+    const showPhoneLogin = isDevBuild();
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
 
     /**
@@ -115,45 +122,54 @@ export const LoginPage = () => {
                         )}
                     </div>
                 ) : (
-                    // Social sign-in needs the native bridge for a provider's raw token, so the browser
-                    // is told so — but this is no longer the whole story: phone login below works here.
+                    // Which copy is true depends on whether anything else is offered below: with phone
+                    // login hidden the app really is the only way in, but where it shows, only SOCIAL is.
                     <p className="text-center text-[14px] text-muted-foreground">
-                        {t('mypageLogin.socialMobileOnly', {
-                            defaultValue: 'Social sign-in is available in the mobile app.',
-                        })}
+                        {showPhoneLogin
+                            ? t('mypageLogin.socialMobileOnly', {
+                                  defaultValue: 'Social sign-in is available in the mobile app.',
+                              })
+                            : t('mypageLogin.mobileOnly', { defaultValue: 'Please use the mobile app to sign in.' })}
                     </p>
                 )}
 
                 {/*
-                 * Phone login sits BELOW social on purpose. This screen is where `PhoneVerifyBanner`
-                 * sends a user who might already have a social account, and the account-split hazard is
-                 * one-way: proving a number on a fresh device mints a SEPARATE user that can never be
-                 * merged. Seeing social first, with the warning directly above the number, is the whole
-                 * defense — the server cannot prevent this (ADR-0042 §9).
+                 * Phone login is held to development builds.
                  *
-                 * No `isNative()` gate: this is a socket call, so it is the first login path that works
-                 * in a browser at all.
+                 * Where it IS shown it sits BELOW social on purpose. This screen is where
+                 * `PhoneVerifyBanner` sends a user who might already have a social account, and the
+                 * account-split hazard is one-way: proving a number on a fresh device mints a SEPARATE
+                 * user that can never be merged. Seeing social first, with the warning directly above
+                 * the number, is the whole defense — the server cannot prevent this (ADR-0042 §9).
+                 *
+                 * It also needs no `isNative()` gate — a socket call works in a browser — but production
+                 * keeps it hidden anyway, so social remains the only production sign-in and the
+                 * mobile-only copy above stays the whole truth there.
                  */}
-                <div className="mt-8 flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                        <span className="h-px flex-1 bg-border" />
-                        <span className="text-[13px] text-muted-foreground">{t('mypageLogin.or')}</span>
-                        <span className="h-px flex-1 bg-border" />
+                {showPhoneLogin && (
+                    <div className="mt-8 flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="h-px flex-1 bg-border" />
+                            <span className="text-[13px] text-muted-foreground">{t('mypageLogin.or')}</span>
+                            <span className="h-px flex-1 bg-border" />
+                        </div>
+
+                        <p className="text-center text-[13px] leading-[1.5] text-description">
+                            {isOnMobileApp
+                                ? t('mypageLogin.socialFirstNotice')
+                                : t('mypageLogin.socialFirstNoticeBrowser')}
+                        </p>
+
+                        <button
+                            onClick={() => setIsPhoneOpen(true)}
+                            disabled={isLoading}
+                            data-testid="login-phone"
+                            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
+                        >
+                            {t('mypageLogin.continueWithPhone')}
+                        </button>
                     </div>
-
-                    <p className="text-center text-[13px] leading-[1.5] text-description">
-                        {isOnMobileApp ? t('mypageLogin.socialFirstNotice') : t('mypageLogin.socialFirstNoticeBrowser')}
-                    </p>
-
-                    <button
-                        onClick={() => setIsPhoneOpen(true)}
-                        disabled={isLoading}
-                        data-testid="login-phone"
-                        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
-                    >
-                        {t('mypageLogin.continueWithPhone')}
-                    </button>
-                </div>
+                )}
 
                 <p className="mt-6 text-center text-[12px] leading-[1.5] text-description">
                     {t('mypageLogin.termsAgreement', {
