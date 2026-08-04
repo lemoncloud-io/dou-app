@@ -49,7 +49,13 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
 
     // Owned clouds come from the relay catalog; invited clouds live in the local cloud cache
     // (cloudType === 'invited') and are NOT in the catalog, so they are observed separately.
-    const { clouds: catalogClouds, isCloudsError, isFetchingClouds, refetchClouds } = useCloudSessionCatalog();
+    const {
+        clouds: catalogClouds,
+        isCloudsError,
+        isFetchingClouds,
+        isPendingClouds,
+        refetchClouds,
+    } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
     // Locally cached names (written first by cloud.update/get) override the relay catalog name so a
     // just-edited subscription-cloud name shows immediately in the switcher.
@@ -111,7 +117,12 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
     };
 
     const isDefaultSelected = !selectedId || selectedId === 'default';
-    const isLoading = isFetchingClouds && clouds.length === 0;
+    // Skeleton on the FIRST load only. Keying it off `isFetching` made every background refetch
+    // (the sheet refetches on open, and `useClouds` is `refetchOnMount: 'always'`) replace the list —
+    // and for a zero-cloud account it replaced the promo banner, which never stopped shimmering.
+    // `isPending` is true only while there is no data yet; the extra `isFetching` guard keeps a
+    // disabled query (unauthenticated) from pinning the skeleton on.
+    const isLoading = isPendingClouds && isFetchingClouds;
 
     // Overlay the cached name first so the switcher shows the freshest subscription-cloud name.
     const cloudsWithCachedNames = clouds.map(cloud => {
@@ -146,7 +157,8 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
     ) : clouds.length === 0 ? (
         // No cloud yet: pitch one. The banner hides itself once dismissed, leaving just the footer
         // button — see useCloudPromo.
-        <CloudPromoBanner className="pb-1" />
+        // This branch IS the zero-owned-cloud case, so the banner's own gate is satisfied.
+        <CloudPromoBanner hasOwnedCloud={false} className="pb-1" />
     ) : (
         <div className="flex flex-col gap-1 px-2">
             {sortedClouds.map(cloud => (

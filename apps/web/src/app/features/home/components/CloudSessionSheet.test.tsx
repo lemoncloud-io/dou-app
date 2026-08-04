@@ -15,10 +15,16 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 const switchCloud = jest.fn().mockResolvedValue(undefined);
 const logoutCloudSession = jest.fn().mockResolvedValue(undefined);
 
-let catalog: { clouds: unknown[]; isCloudsError: boolean; isFetchingClouds: boolean } = {
+let catalog: {
+    clouds: unknown[];
+    isCloudsError: boolean;
+    isFetchingClouds: boolean;
+    isPendingClouds: boolean;
+} = {
     clouds: [],
     isCloudsError: false,
     isFetchingClouds: false,
+    isPendingClouds: false,
 };
 let selectedCloudId: string | null = 'default';
 let invited: unknown[] = [];
@@ -56,7 +62,7 @@ const renderSheet = () => render(<CloudSessionSheet open onOpenChange={jest.fn()
 
 beforeEach(() => {
     jest.clearAllMocks();
-    catalog = { clouds: [], isCloudsError: false, isFetchingClouds: false };
+    catalog = { clouds: [], isCloudsError: false, isFetchingClouds: false, isPendingClouds: false };
     selectedCloudId = 'default';
     invited = [];
     promoVisible = true;
@@ -148,6 +154,30 @@ describe('CloudSessionSheet — owned section body', () => {
         expect(screen.getByText('cloudSessionSheet.myCloudsDescription')).toBeInTheDocument();
         expect(screen.getByText('c1@example.com')).toBeInTheDocument();
         expect(screen.queryByText(/cloudPromo\.title/)).not.toBeInTheDocument();
+    });
+
+    it('shows the skeleton on the first load, before any data has arrived', () => {
+        catalog.isPendingClouds = true;
+        catalog.isFetchingClouds = true;
+
+        const { baseElement } = renderSheet();
+
+        expect(baseElement.querySelector('.animate-pulse')).not.toBeNull();
+    });
+
+    it('keeps the promo visible through a BACKGROUND refetch instead of flashing the skeleton', () => {
+        // The regression: `isLoading` used to be `isFetching && clouds.length === 0`, so every
+        // refetch (the sheet refetches on open, and useClouds is refetchOnMount: 'always') replaced
+        // the banner with a skeleton. Because the banner subscribed to that same query, mounting it
+        // kicked off the next refetch — an endless shimmer for a zero-cloud account.
+        catalog.clouds = [];
+        catalog.isPendingClouds = false;
+        catalog.isFetchingClouds = true;
+
+        const { baseElement } = renderSheet();
+
+        expect(baseElement.querySelector('.animate-pulse')).toBeNull();
+        expect(screen.getByText(/cloudPromo\.title/)).toBeInTheDocument();
     });
 
     it('surfaces a retry affordance when the catalog fetch failed', () => {

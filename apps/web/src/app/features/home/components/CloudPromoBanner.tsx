@@ -7,6 +7,12 @@ import { useCloudPromo } from '../hooks/useCloudPromo';
 
 interface CloudPromoBannerProps {
     /**
+     * Whether the account owns a cloud. Passed in — not fetched here — so this conditionally
+     * rendered component never subscribes to the `refetchOnMount: 'always'` cloud query; see
+     * useCloudPromo for the shimmer loop that causes. Invited clouds do not count.
+     */
+    hasOwnedCloud: boolean;
+    /**
      * Supplies the inline "클라우드 추가" link. Omit it in the cloud-switcher sheet, which already
      * has an add button in its section footer.
      */
@@ -25,9 +31,9 @@ interface CloudPromoBannerProps {
  * Wrapping is safe here precisely because this component returns null when hidden — there is no
  * empty box left behind.
  */
-export const CloudPromoBanner = ({ onAddCloud, className }: CloudPromoBannerProps) => {
+export const CloudPromoBanner = ({ hasOwnedCloud, onAddCloud, className }: CloudPromoBannerProps) => {
     const { t } = useTranslation();
-    const { isVisible, dismiss } = useCloudPromo();
+    const { isVisible, dismiss } = useCloudPromo({ hasOwnedCloud });
 
     if (!isVisible) return null;
 

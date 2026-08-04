@@ -125,6 +125,14 @@ export const HomePage = () => {
     const { requestAddCloud, addCloudDialog } = useAddCloudFlow();
     const openCloudGuide = () => navigate(ROUTES.subscription.guide);
 
+    // Promo gate: only clouds the account OWNS count. Being a guest in someone else's cloud does not
+    // satisfy "make a cloud of your own", so invited ids are subtracted from the relay catalog — the
+    // same set the switcher's "내 클라우드" section lists. The flag is computed here, in an
+    // always-mounted host, because the banner must not subscribe to the cloud query itself
+    // (see useCloudPromo).
+    const invitedCloudIds = new Set(invitedClouds.map(cloud => cloud.id ?? ''));
+    const hasOwnedCloud = clouds.some(cloud => !invitedCloudIds.has(cloud.id ?? ''));
+
     // NOTE: entering a place no longer force-opens a per-place profile setup dialog. The profile is
     // optional at entry; users set it up on their own terms from the place settings hub ('내 프로필').
     // The header still nudges them via resolveHeaderProfile's `setup` state below.
@@ -309,7 +317,7 @@ export const HomePage = () => {
                     carries no information. Its slot goes to the cloud upsell instead. The banner
                     owns its own gutter and renders nothing when hidden, so no ghost box remains. */}
                 {isDefaultCloud ? (
-                    <CloudPromoBanner onAddCloud={openCloudGuide} className="pb-2" />
+                    <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="pb-2" />
                 ) : (
                     <PlaceList
                         places={places}

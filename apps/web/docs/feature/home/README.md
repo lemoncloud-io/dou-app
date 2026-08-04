@@ -224,9 +224,14 @@ flowchart TD
 중계 홈 상단과 전환 시트 `내 클라우드` 섹션에 같은 문구로 뜨는 구독 유도 배너다. 겉면은 kit 신규
 `PromoBanner`(아래 kit 변경 참고), 노출 판정·dismiss 기록은 홈이 쥔다.
 
-- **노출 판정** — 단일 훅 `useCloudPromo()`(`features/home/hooks`)가 `{ isVisible, dismiss }`를 낸다.
-  `isVisible = clouds.length === 0 && !isDismissedWithin24h`. 소유 클라우드는 `useCloudSessionCatalog().clouds`
-  (시트와 동일 소스)를 쓰므로 두 위치의 판정이 어긋나지 않는다.
+- **노출 판정** — `useCloudPromo({ hasOwnedCloud })`가 `{ isVisible, dismiss }`를 낸다.
+  `isVisible = !hasOwnedCloud && !isDismissedWithin24h`. **초대 클라우드는 세지 않는다** — 남의 클라우드에
+  게스트로 있는 것은 "나만의 클라우드를 만든다"를 충족하지 않으므로, 릴레이 카탈로그에서 초대 id를 뺀
+  집합(시트의 `내 클라우드` 섹션과 같은 집합)만 본다.
+- **`hasOwnedCloud`는 반드시 호출부에서 계산해 넘긴다.** 배너가 직접 클라우드 쿼리를 구독하면 무한 루프가
+  생긴다: `useClouds`가 `refetchOnMount: 'always'`이므로 마운트가 refetch를 발동시키고, refetch가 호스트의
+  로딩 분기를 뒤집어 배너를 언마운트하고, fetch가 끝나면 다시 마운트되며 refetch — shimmer가 멈추지 않는다.
+  쿼리 구독은 항상 마운트되어 있는 호스트(HomePage / 시트)에 둔다.
 - **dismiss 저장** — `usePreferenceStore`에 `cloudPromoDismissedAt`(epoch ms 문자열)을 추가한다. 전례는
   `dismissedUpdateVersion`([preferenceKeys.ts:125](../../../src/app/stores/preferenceKeys.ts)) — `strategy: 'local'`,
   `defaultValue: ''`. 네이티브 브릿지가 읽을 키가 아니므로 `native+local`이 아니다. 파싱 실패/미래 시각 등
@@ -317,6 +322,10 @@ flowchart TD
       본문에 렌더한다(Figma `3477-23611`).
     - 본문 = `sortCloudsForSwitcher`로 정렬된 `CloudItem` 목록(선택 항목 상단 고정 → `createdAt` 내림차순).
       로딩 스켈레톤·`errorLoading` + 재시도 분기는 이 본문 안에 유지한다.
+    - **스켈레톤은 최초 로드에만** 뜬다(`isPendingClouds && isFetchingClouds`). `isFetching` 기준으로 잡으면
+      배경 refetch마다 목록·배너가 스켈레톤으로 바뀌는데, 시트는 열릴 때 refetch하고 `useClouds`는
+      `refetchOnMount: 'always'`라 그 빈도가 낮지 않다. `isFetching`을 함께 보는 이유는 비활성 쿼리
+      (비로그인)가 `isPending`에 머물러 스켈레톤을 고정시키지 않게 하기 위함이다.
     - `footer` = `AddAccountButton`. **섹션 body 밖**이므로 접혀도 보인다(Figma `3486-25889`). 기존
       `BottomSheet`의 `footer` prop 사용은 폐기한다.
 - **`초대된 클라우드` 섹션** — `count={invitedClouds.length}`, 본문은 `InviteCloudItem` 목록. 0개면 기존
