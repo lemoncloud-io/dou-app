@@ -168,6 +168,10 @@ export const MessageRow = memo(
         // Which message in this block is awaiting delete confirmation. Same shape as
         // `editingKey`: one message at a time, so one dialog is ever mounted.
         const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
+        // Which message's reaction picker is open. Controlled so a pick can close it:
+        // left open, the grid covers the conversation and the click reads as if it did
+        // not register — there is no visible chip while the request is in flight.
+        const [pickerKey, setPickerKey] = useState<string | null>(null);
         const { editMessage, deleteMessage, failure } = useMessageActions();
         const { toggleReaction, failedId: reactionFailedId } = useReactions();
         const savedItems = useSavedItemsStore(s => s.items);
@@ -423,7 +427,10 @@ export const MessageRow = memo(
                                             )}
                                         >
                                             {isSettled && (
-                                                <Popover>
+                                                <Popover
+                                                    open={pickerKey === key}
+                                                    onOpenChange={next => setPickerKey(next ? key : null)}
+                                                >
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <PopoverTrigger asChild>
@@ -451,14 +458,16 @@ export const MessageRow = memo(
                                                             `hasMyReaction` normalises first, so a picker
                                                             that emits `❤️` still matches a stored `❤`. */}
                                                         <EmojiPicker
-                                                            onPick={emoji =>
-                                                                message.id &&
-                                                                toggleReaction(
-                                                                    message.id,
-                                                                    emoji,
-                                                                    hasMyReaction(tallies, emoji)
-                                                                )
-                                                            }
+                                                            onPick={emoji => {
+                                                                setPickerKey(null);
+                                                                if (message.id) {
+                                                                    toggleReaction(
+                                                                        message.id,
+                                                                        emoji,
+                                                                        hasMyReaction(tallies, emoji)
+                                                                    );
+                                                                }
+                                                            }}
                                                         />
                                                     </PopoverContent>
                                                 </Popover>
