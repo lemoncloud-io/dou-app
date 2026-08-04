@@ -13,7 +13,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit/componen
 import { getActiveServerContext } from '@chatic/web-core';
 
 import { ConfirmDialog } from '../../channels';
-import { canModifyMessage, hasMyReaction, threadRootId, type MessageGroup, type ReactionTally } from '../utils';
+import {
+    canModifyMessage,
+    hasMyReaction,
+    isEdited,
+    threadRootId,
+    type MessageGroup,
+    type ReactionTally,
+} from '../utils';
 import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { EmojiPicker } from './EmojiPicker';
@@ -262,11 +269,18 @@ export const MessageRow = memo(
                             const meta = message.chatNo != null ? threadMeta?.get(String(message.chatNo)) : undefined;
                             // Reactions on this message, if any — `foldReactions` never stores an
                             // empty array, so presence is the same question as "has reactions".
-                            const tallies = message.id ? reactions?.get(message.id) : undefined;
+                            //
+                            // A deleted message shows none. The events survive the soft delete
+                            // (they are separate chats pointing at this id), so the chips would
+                            // otherwise sit under "This message was deleted." — people reacting
+                            // to something the row says is gone, with no way to add or remove one
+                            // because the toolbar is gone too.
+                            const tallies = message.id && !message.hidden ? reactions?.get(message.id) : undefined;
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
                             const isEditing = editingKey === key;
+                            const wasEdited = isEdited(message);
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the
@@ -379,6 +393,14 @@ export const MessageRow = memo(
                                             )}
                                         >
                                             <RichText content={content} selfNames={selfNames} />
+                                            {wasEdited && (
+                                                <span
+                                                    className="ml-1 align-baseline text-micro text-muted-foreground"
+                                                    title={t('chat.editedTitle')}
+                                                >
+                                                    {t('chat.edited')}
+                                                </span>
+                                            )}
                                         </p>
                                     )}
                                     {failure?.id === message.id && (

@@ -118,6 +118,8 @@ const resources = {
             'chat.edit': 'Edit message',
             'chat.editHint': 'Enter to save · Esc to cancel',
             'chat.editSave': 'Save',
+            'chat.edited': '(edited)',
+            'chat.editedTitle': 'This message was edited after it was sent.',
             'chat.editFailed': "Couldn't save that change. Try again.",
             'chat.delete': 'Delete message',
             'chat.deleteConfirm.title': 'Delete this message?',
