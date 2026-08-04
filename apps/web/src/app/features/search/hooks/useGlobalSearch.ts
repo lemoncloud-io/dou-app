@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useGlobalCacheSearch } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '@chatic/web-core';
+import { logger } from '@chatic/bridges';
 import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/app-messages';
 
 import { useInvitedClouds } from '../../home/hooks/useInvitedClouds';
@@ -89,6 +90,19 @@ export const useGlobalSearch = (query: string) => {
                     places: result.sites.slice(0, MAX_RESULTS_PER_SECTION),
                     channels: result.channels.slice(0, MAX_RESULTS_PER_SECTION),
                     messages: result.chats.slice(0, MAX_MESSAGE_RESULTS),
+                });
+            })
+            .catch(error => {
+                if (cancelled) return;
+                // Native bridge rejects on a SQLite error or an unhandled/timed-out request (e.g. a
+                // very old app build without this handler) — log it and still show cloud-name
+                // matches (computed locally, unaffected by the failed call) rather than going blank.
+                logger.error('SEARCH', `Global cache search failed for: ${debounced}`, { error });
+                setResults({
+                    clouds: matchedClouds.slice(0, MAX_RESULTS_PER_SECTION),
+                    places: [],
+                    channels: [],
+                    messages: [],
                 });
             })
             .finally(() => {

@@ -2,12 +2,14 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useGlobalCacheSearch } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '@chatic/web-core';
+import { logger } from '@chatic/bridges';
 
 import { useInvitedClouds } from '../../home/hooks/useInvitedClouds';
 import { useGlobalSearch } from './useGlobalSearch';
 
 jest.mock('@chatic/app-runtime', () => ({ useGlobalCacheSearch: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({ useCloudSessionCatalog: jest.fn() }));
+jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('../../home/hooks/useInvitedClouds', () => ({ useInvitedClouds: jest.fn() }));
 
 const search = jest.fn();
@@ -114,5 +116,23 @@ describe('useGlobalSearch', () => {
 
         expect(result.current.hasResults).toBe(false);
         expect(result.current.results).toEqual({ clouds: [], places: [], channels: [], messages: [] });
+    });
+
+    it('falls back to cloud-name-only results and logs when the cache search source rejects (e.g. a native bridge failure)', async () => {
+        (useCloudSessionCatalog as jest.Mock).mockReturnValue({ clouds: [{ id: 'c1', cid: 'c1', name: 'Lemon Cloud' }] });
+        search.mockRejectedValue(new Error('bridge timeout'));
+
+        const { result } = renderHook(() => useGlobalSearch('lemon'));
+        act(() => jest.advanceTimersByTime(300));
+
+        await waitFor(() => expect(result.current.isSearching).toBe(false));
+
+        expect(result.current.results).toEqual({
+            clouds: [{ id: 'c1', name: 'Lemon Cloud' }],
+            places: [],
+            channels: [],
+            messages: [],
+        });
+        expect(logger.error).toHaveBeenCalled();
     });
 });
