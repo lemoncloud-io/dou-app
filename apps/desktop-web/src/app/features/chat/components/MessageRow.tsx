@@ -128,7 +128,7 @@ export const MessageRow = memo(
         const [editingKey, setEditingKey] = useState<string | null>(null);
         const [draft, setDraft] = useState('');
         const { editMessage, deleteMessage, failedId } = useMessageActions();
-        const { toggleReaction } = useReactions();
+        const { toggleReaction, failedId: reactionFailedId } = useReactions();
         const savedItems = useSavedItemsStore(s => s.items);
         const toggleSaved = useSavedItemsStore(s => s.toggle);
         const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -312,6 +312,14 @@ export const MessageRow = memo(
                                                 message.id && toggleReaction(message.id, emoji, isMine)
                                             }
                                         />
+                                    )}
+                                    {/* Outside the block above on purpose: the first reaction on a
+                                        message leaves no chips behind when it fails, so a line nested
+                                        under `tallies` would be exactly the case that stays silent. */}
+                                    {reactionFailedId === message.id && (
+                                        <span className="mt-0.5 block text-caption text-destructive">
+                                            {t('chat.reaction.failed')}
+                                        </span>
                                     )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
