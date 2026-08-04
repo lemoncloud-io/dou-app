@@ -21,7 +21,7 @@ import { MessageRow, type ThreadMetaView } from './MessageRow';
 
 interface MessageListProps {
     messages: DomainChat[];
-    /** Folded reactions keyed by the message they belong to; absent in the thread panel. */
+    /** Folded reactions keyed by the message they belong to. Both callers fold their own. */
     reactions?: ReadonlyMap<string, ReactionTally[]>;
     isLoading: boolean;
     viewer: MessageViewer;
