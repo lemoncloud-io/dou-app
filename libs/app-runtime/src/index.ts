@@ -30,6 +30,7 @@ export {
     useInvitedCloudColdRecovery,
     useInvitedCloudNameSync,
     recoverInvitedCloudIfMissing,
+    syncInvitedCloudName,
 } from './data/invitedCloudColdSync';
 
 // --- Sync registration hooks ----------------------------------------------------------------

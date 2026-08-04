@@ -19,6 +19,7 @@ export * from './useCloudSwitchFlow';
 export * from './useSelectPlace';
 export * from './usePlaceUnreadCounts';
 export * from './useClouds';
+export * from './useInvitedCloudRecovery';
 export * from './useRemoveCloud';
 export * from './useUser';
 export * from './useMyProfile';
