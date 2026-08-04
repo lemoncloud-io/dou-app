@@ -62,9 +62,11 @@ export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta
     for (const message of messages) {
         const parentId = message.parentId;
         if (!parentId) continue;
-        // A deleted reply is not shown in the panel, so counting it here would put a
-        // "3 replies" footer above a thread containing two.
-        if (message.hidden) continue;
+        // Deleted replies are counted because they are still shown — as a tombstone,
+        // the same as anywhere else. The footer's job is to say how many rows are
+        // behind it, so counting and showing have to agree; skipping them here would
+        // put a "2 replies" footer above a thread containing three.
+        if (message.subType === 'reaction') continue;
         const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
         const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, repliers: [] };

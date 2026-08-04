@@ -18,6 +18,10 @@ vi.mock('@chatic/web-core', () => ({
     useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
 }));
 
+// Initialises i18next as a side effect, so `t` resolves to real copy instead of
+// echoing the key back. Assertions can then name what the reader sees.
+import '../../../../i18n';
+
 import { MessageList } from './MessageList';
 import type { ThreadMeta } from '../utils';
 
@@ -87,6 +91,23 @@ describe('MessageList', () => {
         );
 
         expect(screen.getByText('parent')).toBeDefined();
+    });
+
+    // A deleted message keeps its row and its author line; only the content is replaced.
+    // The toolbar goes with the content — `content` survives the server's soft delete,
+    // so Copy would otherwise hand back the text the row says is gone.
+    it('renders a deleted message as a tombstone, with no actions on it', () => {
+        const deleted = { ...message(1, 'ada', 'was here'), hidden: true } as DomainChat;
+
+        render(
+            <MessageList messages={[deleted]} isLoading={false} viewer={VIEWER} names={new Map([['ada', 'Ada']])} />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('This message was deleted.')).toBeDefined();
+        expect(screen.queryByText('was here')).toBeNull();
+        expect(screen.queryByLabelText('Copy')).toBeNull();
+        expect(screen.queryByLabelText('Delete message')).toBeNull();
     });
 
     it('renders a reaction chip without throwing', () => {

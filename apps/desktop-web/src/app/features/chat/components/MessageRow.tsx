@@ -296,11 +296,12 @@ export const MessageRow = memo(
                                         </span>
                                     )}
                                     {message.hidden ? (
-                                        // Only reached for a deleted message that has replies
-                                        // (ChatPane keeps those); the thread bar below still
-                                        // renders, so the conversation under it stays reachable.
+                                        // Every deleted message reads this way, in the feed and in
+                                        // the thread panel alike. The row keeps its place in the
+                                        // conversation and its author line, so what is missing is
+                                        // the content, not the fact that somebody said something.
                                         <p className="whitespace-pre-wrap break-words text-body italic text-muted-foreground">
-                                            {t('chat.deletedRoot')}
+                                            {t('chat.deletedMessage')}
                                         </p>
                                     ) : editingKey === key ? (
                                         // The message becomes its own editor in place, so the
@@ -405,8 +406,14 @@ export const MessageRow = memo(
 
                                     Gone while the editor is open. Leaving it up offered Delete
                                     beside a draft in progress, and gave the row two competing
-                                    sets of controls with no sign which one was live. */}
-                                    {!isEditing && ((onOpenThread && isSettled) || content) && (
+                                    sets of controls with no sign which one was live.
+
+                                    Gone on a tombstone too: there is nothing left to react to,
+                                    save, or copy, and `content` often survives the soft delete —
+                                    so Copy would hand back the text the row is telling you is
+                                    gone. The thread footer below stays, which is what keeps a
+                                    deleted root's replies reachable. */}
+                                    {!isEditing && !message.hidden && ((onOpenThread && isSettled) || content) && (
                                         <div
                                             className={cn(
                                                 'absolute -top-10 right-0 z-10 flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',

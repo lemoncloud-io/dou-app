@@ -23,7 +23,7 @@ import {
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
-import { buildMemberNames, buildThreadIndex, foldReactions, isDeletedThreadRoot, isFeedVisible } from '../utils';
+import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -68,18 +68,13 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 : undefined,
         [jumpRequest, channelId]
     );
-    // Thread replies are hidden from the main feed (ADR 0008) and so are deleted rows,
-    // which the server keeps as `hidden` instead of removing — `isFeedVisible` owns both
-    // rules. The one exception is a deleted message that has replies: it stays as a
-    // tombstone, because the replies hang off its id and would otherwise be unreachable.
-    // That is why the thread index is built first; the filter depends on it.
-    // Reply counts still come from the full set so a root's "N replies" footer is
-    // correct; replies keep arriving in the cache via chat:create.
+    // Thread replies belong to the panel (ADR 0008) and reaction events are chips, not
+    // rows — `isFeedVisible` owns both rules. Deleted messages stay and render as a
+    // tombstone, so the filter no longer needs the thread index to decide.
+    // Reply counts come from the full set so a root's "N replies" footer is correct;
+    // replies keep arriving in the cache via chat:create.
     const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
-    const topLevel = useMemo(
-        () => messages.filter(m => isFeedVisible(m) || isDeletedThreadRoot(m, threadIndex)),
-        [messages, threadIndex]
-    );
+    const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
     const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);

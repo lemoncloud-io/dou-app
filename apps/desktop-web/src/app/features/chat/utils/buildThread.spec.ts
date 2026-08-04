@@ -19,21 +19,34 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(2);
     });
 
-    // The panel filters deleted replies out, so counting them would print a footer
-    // promising more than the thread contains.
-    it('leaves a deleted reply out of the count', () => {
+    // A deleted reply still occupies a row in the panel, as a tombstone. The footer
+    // counts rows, so it counts that one — the alternative is "1 reply" over a thread
+    // showing two.
+    it('counts a deleted reply, because the panel still shows it', () => {
         const index = buildThreadIndex([
             ROOT,
             chat({ id: 'C1:2', chatNo: 2, parentId: '1' }),
             chat({ id: 'C1:3', chatNo: 3, parentId: '1', hidden: true }),
         ]);
 
+        expect(index.get('1')?.count).toBe(2);
+    });
+
+    it('keeps the root listed when its only reply is deleted', () => {
+        const index = buildThreadIndex([ROOT, chat({ id: 'C1:2', chatNo: 2, parentId: '1', hidden: true })]);
+
         expect(index.get('1')?.count).toBe(1);
     });
 
-    it('drops the root entirely once its only reply is deleted', () => {
-        const index = buildThreadIndex([ROOT, chat({ id: 'C1:2', chatNo: 2, parentId: '1', hidden: true })]);
+    // Reaction events arrive as replies to the message they are on. Counting them
+    // would turn every reacted-to message into a thread.
+    it('never counts a reaction event as a reply', () => {
+        const index = buildThreadIndex([
+            ROOT,
+            chat({ id: 'C1:2', chatNo: 2, parentId: '1' }),
+            chat({ id: 'C1:3', chatNo: 3, parentId: '1', stereo: 'system', subType: 'reaction' }),
+        ]);
 
-        expect(index.has('1')).toBe(false);
+        expect(index.get('1')?.count).toBe(1);
     });
 });

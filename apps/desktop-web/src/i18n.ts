@@ -124,7 +124,7 @@ const resources = {
             'chat.deleteConfirm.noPreview': 'This message will be removed from the channel.',
             'chat.deleteConfirm.action': 'Delete',
             'chat.deleteFailed': "Couldn't delete that message. Try again.",
-            'chat.deletedRoot': 'This message was deleted.',
+            'chat.deletedMessage': 'This message was deleted.',
             'chat.deleteUnsent': 'Delete',
             'chat.empty': 'Select a channel to start chatting',
             'chat.emptyHint': 'Pick a channel from the sidebar, or create one to get the conversation going.',
