@@ -22,8 +22,8 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
     it('신규 필드 uniqueDeviceId/firebaseInstallationId를 window 글로벌로 주입한다', () => {
         const script = getDeviceInfoScript(makeParams());
 
-        expect(script).toContain("window.CHATIC_APP_UNIQUE_DEVICE_ID = 'device-1';");
-        expect(script).toContain("window.CHATIC_APP_FIREBASE_INSTALLATION_ID = 'fid-1';");
+        expect(script).toContain('window.CHATIC_APP_UNIQUE_DEVICE_ID = "device-1";');
+        expect(script).toContain('window.CHATIC_APP_FIREBASE_INSTALLATION_ID = "fid-1";');
     });
 
     it('deprecated 필드(uniqueId/installationId)도 구버전 웹 호환을 위해 계속 주입한다', () => {
@@ -31,14 +31,35 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
 
         // Older web bundles read these globals; dropping them would break
         // registration for webs deployed before the new fields existed.
-        expect(script).toContain("window.CHATIC_APP_DEVICE_ID = 'device-1:fid-1';");
-        expect(script).toContain("window.CHATIC_APP_INSTALLATION_ID = 'device-1';");
+        expect(script).toContain('window.CHATIC_APP_DEVICE_ID = "device-1:fid-1";');
+        expect(script).toContain('window.CHATIC_APP_INSTALLATION_ID = "device-1";');
     });
 
     it('firebase id가 아직 resolve되지 않았으면 빈 문자열로 주입한다', () => {
         const script = getDeviceInfoScript(makeParams({ firebaseInstallationId: '' }));
 
-        expect(script).toContain("window.CHATIC_APP_FIREBASE_INSTALLATION_ID = '';");
+        expect(script).toContain('window.CHATIC_APP_FIREBASE_INSTALLATION_ID = "";');
+    });
+
+    it('값에 홑따옴표/쌍따옴표/백슬래시가 섞여도 유효한 JS로 이스케이프되어 SyntaxError 없이 평가된다', () => {
+        // Regression test for the "Script error." root cause: a raw `'${value}'` interpolation
+        // breaks the string literal (and the whole injected script, incl. the console override that
+        // follows it) whenever a native-supplied value contains a quote/backslash.
+        const script = getDeviceInfoScript(
+            makeParams({
+                applicationName: `O'Brien's "DoU" \\ App`,
+                deviceModel: `Galaxy's\\Edge`,
+            })
+        );
+
+        const sandbox: { CHATIC_APP_APPLICATION?: string; CHATIC_APP_DEVICE_MODEL?: string } = {};
+        // Evaluating the generated script is the only way to assert it is syntactically valid —
+        // the WebView runs it the same way (`injectedJavaScript`), so this is the fixture, not a
+        // generic eval of untrusted input.
+        // eslint-disable-next-line no-new-func
+        expect(() => new Function('window', script)(sandbox)).not.toThrow();
+        expect(sandbox.CHATIC_APP_APPLICATION).toBe(`O'Brien's "DoU" \\ App`);
+        expect(sandbox.CHATIC_APP_DEVICE_MODEL).toBe(`Galaxy's\\Edge`);
     });
 });
 
