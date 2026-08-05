@@ -6,5 +6,6 @@ export * from './feedVisibility';
 export * from './foldReactions';
 export * from './isEdited';
 export * from './messagePermissions';
+export * from './previewChat';
 export * from './systemMessage';
 export * from './unreadIndicator';
