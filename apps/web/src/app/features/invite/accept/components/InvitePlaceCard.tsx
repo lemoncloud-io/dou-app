@@ -29,14 +29,26 @@ export const InvitePlaceCard = ({ name, intro, thumbnail }: InvitePlaceCardProps
             // disc with a dark motif (8.7:1).
             <IconImageSolid size={40} className="shrink-0 text-brand-ink dark:text-white/80" />
         )}
+        {/* Both strings are free text from the place, so they pair `break-keep` with
+            `overflow-wrap:anywhere` for the same reason the accept heading does: keep-all makes an
+            unbroken Korean run the element's min-content width, which is what lets it outgrow its
+            column. Unlike the heading this one did not reproduce an overflow in measurement — the
+            `w-full` below already pins the width — but the guard is inert until text would spill,
+            so it costs nothing to hold the invariant here too. */}
         <div className="flex w-full flex-col items-center gap-1 text-center">
             {name && (
-                <Text as="p" className="break-keep text-[16px] font-semibold leading-[1.4] text-foreground">
+                <Text
+                    as="p"
+                    className="break-keep [overflow-wrap:anywhere] text-[16px] font-semibold leading-[1.4] text-foreground"
+                >
                     {name}
                 </Text>
             )}
             {intro && (
-                <Text as="p" className="break-keep text-[14px] font-medium leading-[1.4] text-label">
+                <Text
+                    as="p"
+                    className="break-keep [overflow-wrap:anywhere] text-[14px] font-medium leading-[1.4] text-label"
+                >
                     {intro}
                 </Text>
             )}

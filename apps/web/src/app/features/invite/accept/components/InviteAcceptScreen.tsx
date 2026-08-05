@@ -97,10 +97,20 @@ export const InviteAcceptScreen = ({
                     <ProfileAvatar src={inviterImage} size={86} />
                     <div className="flex flex-col items-center gap-1 px-4 text-center">
                         {/* Figma `blue_bk` (#102346). Reverted on dark, where the navy loses contrast
-                            against the dark surface. */}
+                            against the dark surface.
+
+                            `overflow-wrap:anywhere` is load-bearing, not polish. The inviter's name is
+                            free text, and `break-keep` refuses to split a Korean run — which also makes
+                            that whole run the heading's MIN-content width. This block sits under
+                            `items-center`, so it is sized to its content and simply grew past the
+                            surface: a 16-char name measured 398px inside a 343px column, and the glass
+                            surface clipped the overflow off-screen. `break-words` does not help — per
+                            spec `overflow-wrap: break-word` leaves intrinsic sizing alone, and it was
+                            measured making no difference. `anywhere` shrinks min-content instead, so
+                            ordinary names still never break mid-word. */}
                         <Text
                             as="h1"
-                            className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-brand-ink dark:text-foreground"
+                            className="whitespace-pre-line break-keep [overflow-wrap:anywhere] text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-brand-ink dark:text-foreground"
                         >
                             {heading}
                         </Text>

@@ -120,6 +120,21 @@ describe('InviteAcceptScreen — shared chrome', () => {
         expect(screen.getByText('Sunny')).toBeTruthy();
     });
 
+    // jsdom has no layout, so this asserts the rule rather than the pixels it prevents. It earns its
+    // keep because the pair is load-bearing and non-obvious: the name is free text, `break-keep`
+    // makes an unbroken Korean run the heading's min-content width, and the heading sits under
+    // `items-center` where it is sized to content — so a long name grew the block past the surface
+    // (measured 398px inside a 343px column) and got clipped off-screen. `break-words` was measured
+    // and does NOT fix it: `overflow-wrap: break-word` leaves intrinsic sizing alone. Only
+    // `anywhere` shrinks min-content, and only when the text would otherwise spill.
+    it('국제/장문 이름이 넘치지 않도록 heading이 break-keep과 anywhere를 함께 건다', () => {
+        setup({ inviterName: '아주아주아주긴이름을가진사용자님' });
+
+        const heading = screen.getByRole('heading', { level: 1 });
+        expect(heading.className).toContain('break-keep');
+        expect(heading.className).toContain('[overflow-wrap:anywhere]');
+    });
+
     it('hides the validity card when there is no countdown', () => {
         setup({ countdown: null });
         expect(screen.queryByText('초대 링크 유효시간')).toBeNull();

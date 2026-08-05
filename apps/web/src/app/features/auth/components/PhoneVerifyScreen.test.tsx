@@ -18,9 +18,17 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 // Radix overlays are stubbed as pass-through markup (house convention — see AddFriendSheet.test).
+// `DialogContent` keeps `className` and `role` rather than dropping them: the real one merges the
+// variant classes with the caller's, and the layout constraints this shell depends on (see the
+// 좁은 화면·키보드 suite) live in exactly that string — a stub that swallowed it would let them be
+// deleted with every test still green.
 jest.mock('@chatic/ui-kit/components/ui/dialog', () => ({
     Dialog: ({ open, children }: any) => (open ? <div>{children}</div> : null),
-    DialogContent: ({ children }: any) => <div>{children}</div>,
+    DialogContent: ({ children, className }: any) => (
+        <div role="dialog" className={className}>
+            {children}
+        </div>
+    ),
     DialogTitle: ({ children }: any) => <div>{children}</div>,
     DialogDescription: ({ children }: any) => <div>{children}</div>,
 }));
@@ -562,6 +570,40 @@ describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
         // prove call carrying the SEND's country rather than re-deriving one at confirm time.
         await pasteOtp();
         expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
+    });
+});
+
+// jsdom has no layout engine, so these assert the three rules rather than the pixels they buy. They
+// are worth pinning because each is invisible at 375px — the width most desks test at — and only
+// bites on a narrower phone or once the soft keyboard is up. Measured against the compiled CSS:
+// without them the dialog's content floored at 364px (spilling 44px at 320 and 4px at the very
+// common 360, out BOTH edges thanks to the `-translate-x-1/2` centring) and the body never became
+// scrollable, so a focused field stayed stuck behind the keyboard.
+describe('PhoneVerifyScreen — 좁은 화면·키보드 (레이아웃 제약)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        seedCountry();
+        (isDevBuild as jest.Mock).mockReturnValue(false);
+    });
+
+    it('그리드 행을 다이얼로그 높이에 묶고, 열은 min-content 아래로 줄어들 수 있어야 한다', () => {
+        renderScreen();
+
+        // DialogContent is a `grid`; an auto row grows to its item's max-content and a grid item
+        // refuses to shrink below min-content. Both defaults have to be overridden.
+        const dialog = screen.getByRole('dialog');
+        expect(dialog.className).toContain('grid-rows-[minmax(0,1fr)]');
+
+        const column = dialog.querySelector('.flex.h-full');
+        expect(column?.className).toContain('min-w-0');
+    });
+
+    it('본문은 min-h-0이라 줄어들며 스크롤된다 — 키보드에 가린 필드로 갈 수 있는 유일한 길이다', () => {
+        renderScreen();
+
+        const scroller = screen.getByRole('dialog').querySelector('.overflow-y-auto');
+        expect(scroller).not.toBeNull();
+        expect(scroller?.className).toContain('min-h-0');
     });
 });
 
