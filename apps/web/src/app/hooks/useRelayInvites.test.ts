@@ -14,11 +14,11 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { relayInviteKeys, useRelayInviteMutations, useRelayInvites } from './useRelayInvites';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useKindVerified: jest.fn() }));
 
 const list = jest.fn();
 const create = jest.fn();
@@ -42,6 +42,7 @@ beforeEach(() => {
     get.mockResolvedValue({ id: 'invite-1', state: 'pending' });
     accept.mockResolvedValue({ id: 'invite-1', state: 'accepted' });
     (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { list, create, get, accept } });
+    (useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
 });
@@ -84,6 +85,30 @@ describe('useRelayInvites', () => {
         act(() => focusManager.setFocused(true));
 
         await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+        expect(result.current.invites).toEqual([]);
+    });
+
+    // The bug this hook used to hit: invite.list is relay-pinned, but this query had no gate at
+    // all, so it fired on mount and raced the relay handshake — surfacing as `503 SOCKET NOT
+    // CONNECTED - relay.request(invite.list)` in production.
+    it('relay가 아직 verified가 아니면 조회하지 않는다', () => {
+        (useKindVerified as jest.Mock).mockReturnValue(false);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        expect(list).not.toHaveBeenCalled();
+        expect(result.current.isLoading).toBe(false); // not stuck in a spinner while gated off
+    });
+
+    it('relay verified가 false→true로 바뀌는 순간 조회한다', async () => {
+        (useKindVerified as jest.Mock).mockReturnValue(false);
+        const { result, rerender } = renderHook(() => useRelayInvites(), { wrapper });
+        expect(list).not.toHaveBeenCalled();
+
+        (useKindVerified as jest.Mock).mockReturnValue(true);
+        rerender();
+
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
         expect(result.current.invites).toEqual([]);
     });
 });
