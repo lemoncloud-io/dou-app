@@ -12,6 +12,8 @@ const toast = jest.fn();
 const waitUntilKindVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
+/** A deeplink usually lands in a fresh device session, so guest is the default here. */
+let mockIsGuest = true;
 const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
@@ -20,6 +22,7 @@ jest.mock('@chatic/app-runtime', () => ({
     getSocketManager: () => ({ waitUntilKindVerified }),
     // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
     useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
+    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: { error: (...a: unknown[]) => loggerError(...a), warn: (...a: unknown[]) => loggerWarn(...a) },
@@ -71,6 +74,7 @@ beforeEach(() => {
     rejectInvite.mockResolvedValue(view({ state: 'rejected' }));
     // Default: a profile already exists, so the profile step stays out of the other tests' way.
     mockSid = 'site-1';
+    mockIsGuest = true;
     isPlaceProfileAbsent.mockResolvedValue(false);
     resolveChannel.mockResolvedValue('ch-new');
 });
@@ -174,6 +178,26 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
 });
 
 // ADR-0039가 ADR-0033 D10을 개정해 프로필 스텝을 없앴다: 인증만 남는다.
+// Opening a deeplink does NOT imply a device session: a social-linked main user who simply has no
+// phone yet also gets `needVerify`, and `login` from that session is a 400 ("@mode[login] is for
+// device session"). ADR-0042 §3.
+describe('useRelayInviteFlow — 인증 모드 결정', () => {
+    it('게스트는 세션을 여는 login이다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        expect(result.current.verifyMode).toBe('login');
+    });
+
+    it('이미 메인 유저(번호만 없는 소셜 계정)면 link다 — login은 서버가 400으로 막는다', async () => {
+        mockIsGuest = false;
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        expect(result.current.verifyMode).toBe('link');
+    });
+});
+
 describe('useRelayInviteFlow — 스텝 순서', () => {
     it('needVerify면 인증 → 수락 순으로 진행한다', async () => {
         getInvite.mockResolvedValue(view({ needVerify: true }));
@@ -188,6 +212,53 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         getInvite.mockResolvedValue(view({ needVerify: false }));
         act(() => result.current.onVerified());
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+    });
+
+    // The server derives `needVerify` from whether this account owns the INVITED number, so proving
+    // some other number leaves it true. Without a one-shot guard the flow bounces straight back to
+    // `verifying`, remounting the screen as a blank form with no error, forever. And a linked number
+    // cannot be swapped (no unlink endpoint; the server answers `type-linked`), so re-verifying could
+    // never clear it — the terminal notice is the only honest answer.
+    it('인증을 마쳤는데도 needVerify가 남아 있으면 무한 반복 대신 번호 불일치로 끝낸다', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+
+        // Proved a number, but not the invited one — the server still wants a proof.
+        act(() => result.current.onVerified());
+
+        await waitFor(() => expect(result.current.notice).toBe('wrongNumber'));
+        expect(result.current.phase).toBe('notice');
+        expect(acceptInvite).not.toHaveBeenCalled();
+    });
+
+    // A `link` confirm commits the number irreversibly (no unlink endpoint), and the server only
+    // cross-checks the invite on a `login` send — so `last4` is the whole of the check on this path.
+    // Without it there is nothing to check against, and proceeding could permanently attach a number
+    // that is not the invited one.
+    it('link 모드인데 초대에 last4가 없으면 대조할 수단이 없으므로 인증을 시작하지 않는다', async () => {
+        mockIsGuest = false;
+        getInvite.mockResolvedValue(view({ needVerify: true, last4: undefined }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(result.current.phase).toBe('notice');
+    });
+
+    it('login 모드는 last4가 없어도 진행한다 — 대조는 서버가 초대 코드로 한다', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true, last4: undefined }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
     });
 
     it('프로필이 없으면 수락하지 않고 프로필 설정으로 보낸다 (ADR-0041)', async () => {
@@ -475,6 +546,22 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         act(() => result.current.onVerified());
 
         await waitFor(() => expect(result.current.notice).toBe('wrongNumber'));
+    });
+
+    // The server just said it does not see a main user; that beats the role cache, which falls back
+    // to "main user" whenever the role is unknown and reads the CLOUD token while a cloud is active.
+    // Re-deriving `link` from a stale `isGuest: false` here would 403 the send with no way out.
+    it('403으로 인증에 보내질 때는 role 캐시와 무관하게 login으로 고정한다', async () => {
+        mockIsGuest = false;
+        acceptInvite.mockRejectedValue(socketError(403));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(result.current.verifyMode).toBe('link');
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+        expect(result.current.verifyMode).toBe('login');
     });
 
     it('수락 시점 400은 만료, 409는 선점으로 매핑한다', async () => {

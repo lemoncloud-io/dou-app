@@ -12,10 +12,22 @@ jest.mock('../hooks', () => ({ useRelayInviteFlow: () => mockFlow }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 // The phone-verification step reaches for the runtime; stub it out so this suite stays about the
 // phase switch. Mocked at the concrete module the component lazy-imports (it is code-split to keep
-// number metadata off the invitee's cold path — see the component).
+// number metadata off the invitee's cold path — see the component). `mode` is surfaced so the
+// guest-vs-main-user branch (ADR-0042 §3 — a `login` send 400s for an already-open session) is
+// checkable.
 jest.mock('../../../auth/components/PhoneVerifyScreen', () => ({
-    PhoneVerifyScreen: ({ inviteCode, onVerified }: { inviteCode?: string; onVerified: () => void }) => (
-        <button onClick={onVerified}>verify:{inviteCode}</button>
+    PhoneVerifyScreen: ({
+        inviteCode,
+        mode,
+        onVerified,
+    }: {
+        inviteCode?: string;
+        mode: string;
+        onVerified: () => void;
+    }) => (
+        <button onClick={onVerified}>
+            verify:{inviteCode}:{mode}
+        </button>
     ),
 }));
 // Same reason as PhoneVerifyScreen: the real dialog imports @chatic/app-runtime, whose config barrel
@@ -50,6 +62,7 @@ const flow = (over: Partial<RelayInviteFlow> = {}): RelayInviteFlow => ({
     invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' } },
     notice: null,
     countdown: null,
+    verifyMode: 'login',
     accept: jest.fn(),
     decline: jest.fn(),
     confirmDecline: jest.fn(),
@@ -115,7 +128,20 @@ describe('RelayInviteAccept', () => {
 
         // `await`, not `get`: the verify step is lazy-imported so its chunk (and the phone-number
         // metadata in it) stays off the invitee's first paint.
-        fireEvent.click(await screen.findByRole('button', { name: `verify:${CODE}` }));
+        fireEvent.click(await screen.findByRole('button', { name: `verify:${CODE}:login` }));
+
+        expect(mockFlow.onVerified).toHaveBeenCalledTimes(1);
+    });
+
+    // Regression: a main user who already has a social-linked session but no phone (e.g. opened the
+    // deeplink while signed in) still gets `needVerify: true`, but the session is NOT a fresh device
+    // session — sending `mode: 'login'` there 400s server-side ("@mode[login] is for device
+    // session"). The fix reads the session kind and sends `link` instead (ADR-0042 §3).
+    it('플로우가 link를 고르면 그대로 link 모드로 PhoneVerifyScreen을 띄운다', async () => {
+        mockFlow = flow({ phase: 'verifying', verifyMode: 'link' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: `verify:${CODE}:link` }));
 
         expect(mockFlow.onVerified).toHaveBeenCalledTimes(1);
     });

@@ -197,6 +197,15 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/mypage/login');
     });
 
+    // Deliberately mode-independent. `link` mode can still hit `occupied` (the number belongs to a
+    // separate phone-created user), and this banner is the guide's only documented defense for a
+    // split account (§제약) — hiding it there would remove the one signpost out.
+    it('link 모드에서도 배너는 그대로 뜬다 — 분리 계정 안내는 모드와 무관하다', () => {
+        renderScreen({ mode: 'link' });
+
+        expect(screen.getByText('phoneVerify.socialFirstTitle')).toBeInTheDocument();
+    });
+
     it('dev 빌드에서만 발송 스위치가 보이고, Slack 토글은 {slack:true, sms:false}로 실린다', async () => {
         (isDevBuild as jest.Mock).mockReturnValue(true);
         mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });

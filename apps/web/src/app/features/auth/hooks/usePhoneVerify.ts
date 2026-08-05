@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { applySessionToken } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 // Concrete modules, not the account feature root: the root re-exports pages that pull web-core
@@ -264,8 +265,16 @@ export const usePhoneVerify = ({
             toast({ title: t('phoneVerify.sent') });
         } catch (error) {
             const code = getSocketErrorCode(error);
-            if (code === 400 && inviteCode) {
-                // The number does not match the invite — the code was never dispatched (§B-2).
+            // Always log the raw failure. A 400 has several documented causes (§에러 코드) and the
+            // copy below can only guess at one of them — a production `@mode[login] is for device
+            // session` read to users as a phone-number problem precisely because this catch was
+            // silent, leaving the server's own message nowhere to be seen.
+            logger.error('AUTH', `[usePhoneVerify] send failed (mode=${mode}, status=${code ?? '-'})`, { error });
+            if (code === 400 && sendInviteCode) {
+                // `sendInviteCode`, NOT `inviteCode`: the server only cross-checks the number against
+                // the invite when the code actually rode along, which is the `login` send alone
+                // (§B-2). Claiming a mismatch on a `link` send would blame the number for a check the
+                // server never ran.
                 setPhoneError(t('phoneVerify.inviteMismatch'));
             } else if (code === 429) {
                 // First send tripping 429 is the daily cap (10/day per number, 20/day per device).
@@ -342,6 +351,9 @@ export const usePhoneVerify = ({
      */
     const reportProveError = (error: unknown, { vouched = false }: { vouched?: boolean } = {}) => {
         const code = getSocketErrorCode(error);
+        // Same reason as the send path: every branch below narrows a status that the server uses for
+        // more than one condition, so the raw message has to survive somewhere.
+        logger.error('AUTH', `[usePhoneVerify] prove failed (mode=${mode}, status=${code ?? '-'})`, { error });
         if (code === 403) {
             setOtpError(t(vouched ? 'phoneVerify.linkTypeAlreadyLinked' : 'phoneVerify.wrongCode'));
         } else if (code === 429) {

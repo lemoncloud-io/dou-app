@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
+import { getSocketManager, useRuntimeProfile, useRuntimeRepositories } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useSessionSelection } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
 import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
@@ -104,6 +105,12 @@ export interface RelayInviteFlow {
     invite: RelayInviteInfo | null;
     notice: RelayInviteNotice | null;
     countdown: InviteCountdown | null;
+    /**
+     * Which proof the `verifying` phase runs. Opening a deeplink does NOT imply a device session —
+     * an already-authenticated main user with no phone yet still gets `needVerify`, and sending
+     * `login` from that session is a 400 (`@mode[login] is for device session`). See the derivation.
+     */
+    verifyMode: AccountLinkMode;
     /** "수락" — runs the next step, always re-validating first. */
     accept: () => void;
     /** "거절" — opens the confirm dialog (`declining`); rejecting is final, so it never fires directly. */
@@ -162,13 +169,45 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const [invite, setInvite] = useState<RelayInviteInfo | null>(null);
     const [notice, setNotice] = useState<RelayInviteNotice | null>(null);
     const [isRejecting, setIsRejecting] = useState(false);
+    /**
+     * Set when the SERVER itself refused us as a main user (a 403 on accept). The role cache can
+     * disagree with the server — it falls back to "main user" when the role is simply unknown, and
+     * reads the cloud token while a cloud is active — so once the server has spoken, its verdict
+     * outranks `isGuest`. Same override, and the same reasoning, as ContactInvitePage's 403 net.
+     */
+    const [refusedAsMainUser, setRefusedAsMainUser] = useState(false);
+
+    const { isGuest } = useRuntimeProfile();
+    // A guest must OPEN a session (`login`); a main user who merely lacks a phone hangs one on the
+    // session they already have (`link`) — sending `login` there is a 400 (ADR-0042 §3).
+    const verifyMode: AccountLinkMode = isGuest || refusedAsMainUser ? 'login' : 'link';
 
     const countdown = useInviteCountdown(invite?.expiredAt);
 
     // Latest-value refs: the async steps read these long after the closure was created, and keeping
     // them out of the callback deps stops `advance` from churning identity on every render.
-    const latest = useRef({ mutations, resolveChannel, setPendingChannel, profileRepository, sid, navigate, toast, t });
-    latest.current = { mutations, resolveChannel, setPendingChannel, profileRepository, sid, navigate, toast, t };
+    const latest = useRef({
+        mutations,
+        resolveChannel,
+        setPendingChannel,
+        profileRepository,
+        sid,
+        navigate,
+        toast,
+        t,
+        verifyMode,
+    });
+    latest.current = {
+        mutations,
+        resolveChannel,
+        setPendingChannel,
+        profileRepository,
+        sid,
+        navigate,
+        toast,
+        t,
+        verifyMode,
+    };
 
     // Generation counter: a step that resolves after the flow moved on (or unmounted) must not write.
     const runIdRef = useRef(0);
@@ -271,7 +310,28 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         // Verify, then name yourself, then accept (ADR-0033 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
         // main user's site — while still a device user there is no site to write it to.
-        if (view.needVerify) return setPhase('verifying');
+        //
+        // `verifiedRef` makes this a ONE-shot step. The server derives `needVerify` from whether this
+        // account owns the invited number, so proving a DIFFERENT number leaves it true — and without
+        // this guard the flow would bounce straight back here, remounting the verify screen as a
+        // blank form with no error, forever. A number already linked cannot be swapped either (the
+        // backend has no unlink and answers `type-linked`), so re-verifying could never clear it:
+        // the honest answer is the terminal notice.
+        if (view.needVerify) {
+            if (verifiedRef.current) return fail('wrongNumber');
+            // Cross-check BEFORE the proof, never after — a `link` confirm COMMITS the number to this
+            // account, and the backend has no unlink (`judgeLink` answers `type-linked` forever), so a
+            // wrong number linked here is permanent and takes the invite with it.
+            //
+            // `login` gets that check from the server: the invite code rides along and
+            // `assertInviteMatched` runs before a message is ever dispatched. `link` structurally
+            // cannot — `link-account.ts` reads the code only when `mode === 'login'` — which leaves
+            // `last4` (enforced in usePhoneVerify) as the only cross-check on this path. With no
+            // `last4` there is nothing to check against at all, so refuse rather than let an
+            // unverifiable number be written irreversibly.
+            if (latest.current.verifyMode === 'link' && !view.last4) return fail('generic');
+            return setPhase('verifying');
+        }
 
         // The profile is a PRECONDITION of the accept, not a gate on the app: backing out returns to
         // the review screen without accepting, so "accepted but nameless" — which a force-quit right
@@ -305,7 +365,14 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             const status = getSocketErrorCode(error);
             // Not yet a main user: the server re-judges regardless of `needVerify`, so send them to
             // verification instead of dead-ending. Once verified, a 403 really is a number mismatch.
-            if (status === 403 && !verifiedRef.current) return setPhase('verifying');
+            //
+            // The server just told us it does NOT see a main user, which beats whatever the role
+            // cache believes — so pin the proof to `login`. Without this the flow would re-derive
+            // `link` from a stale `isGuest: false` and the send would 403 again, with no way out.
+            if (status === 403 && !verifiedRef.current) {
+                setRefusedAsMainUser(true);
+                return setPhase('verifying');
+            }
             logger.error('INVITE', `[useRelayInviteFlow] invite.accept failed (status=${status ?? '-'})`, { error });
             return fail(resolveNotice(status, 'accept'));
         }
@@ -409,6 +476,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         invite,
         notice,
         countdown,
+        verifyMode,
         accept: useCallback(() => void advance(), [advance]),
         decline,
         confirmDecline: useCallback(() => void confirmDecline(), [confirmDecline]),

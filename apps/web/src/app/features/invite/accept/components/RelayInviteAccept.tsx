@@ -87,15 +87,16 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // Always `login` here: opening an invite deeplink puts you in a device session, so proving the
-    // number opens one rather than decorating one (ADR-0042 §3). `last4` lets a mistyped number fail
-    // before a delivery is spent — the server still cross-checks the whole number at send (§8).
+    // The mode is the flow's call, not this switch's — a deeplink does not imply a device session,
+    // and the server's own 403 can overrule the role cache (see `verifyMode`). `last4` lets a
+    // mistyped number fail before a delivery is spent; note the server only cross-checks the WHOLE
+    // number on a `login` send, since `link` carries no invite code (§B-2).
     if (flow.phase === 'verifying') {
         return (
             <Suspense fallback={<InviteAcceptLoading />}>
                 <PhoneVerifyScreen
                     context="invite-accept"
-                    mode="login"
+                    mode={flow.verifyMode}
                     inviteCode={code}
                     inviteLast4={flow.invite?.last4}
                     onVerified={flow.onVerified}
