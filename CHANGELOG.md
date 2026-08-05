@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-08-05] - root@0.48.3, @chatic/web@0.41.2
+
+### Features
+
+- (web/invite) adopt real cancel/reject and support international phone numbers
+
+### Bug Fixes
+
+- (web) reconcile with develop's cloud-promo work after the rebase
+- (web/invite) hide the account-split banner once social is linked, and add the en key that leaked
+- (web) stop the invite/verify screens overflowing narrow phones and hiding behind the keyboard
+- (web/invite) a declined invite that was already accepted is not someone else's
+- (web/invite) prove the invitee's number in the mode their session allows
+
 ## [2026-08-05] - root@0.48.2, @chatic/web@0.41.1
 
 ### Features
