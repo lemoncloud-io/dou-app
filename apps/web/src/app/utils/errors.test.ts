@@ -16,6 +16,29 @@ describe('toError — 에러 정규화', () => {
         expect(toError(undefined).message).toBe('undefined');
         expect(toError(null).message).toBe('null');
     });
+
+    // The bug this covers: a raw DOM Event as an unhandledrejection reason (e.g. lemon-model's
+    // abandoned WebSocket-open promise rejecting with the connect failure event) used to collapse
+    // to the useless message "[object Event]" via String(event). Real production case.
+    it('WebSocket 타겟을 가진 Event는 url/readyState를 메시지에 담는다', () => {
+        const target = { url: 'wss://relay.test/socket', readyState: 3 };
+        const event = new Event('error');
+        Object.defineProperty(event, 'target', { value: target });
+
+        expect(toError(event).message).toBe('WebSocket error event (url=wss://relay.test/socket, readyState=3)');
+    });
+
+    it('WebSocket이 아닌 타겟의 Event는 타입과 생성자 이름을 담는다', () => {
+        class SomeOtherTarget {}
+        const event = new Event('close');
+        Object.defineProperty(event, 'target', { value: new SomeOtherTarget() });
+
+        expect(toError(event).message).toBe('close event on SomeOtherTarget');
+    });
+
+    it('target이 없는 Event도 안전하게 감싼다', () => {
+        expect(toError(new Event('offline')).message).toBe('offline event on unknown target');
+    });
 });
 
 describe('getSocketErrorCode — 소켓 에러 상태 코드', () => {
