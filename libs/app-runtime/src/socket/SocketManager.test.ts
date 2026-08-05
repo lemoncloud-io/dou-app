@@ -68,6 +68,80 @@ describe('SocketManager request facade', () => {
     });
 });
 
+describe('SocketManager error annotation', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    const bootRelay = (client: jest.Mocked<ClientSocketV2>): SocketManager => {
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        return manager;
+    };
+
+    // The whole point: the SDK's transport failure is identical for every caller, so without this the
+    // minified production stack cannot say WHICH request raced a closed socket.
+    it('names the failing request on an anonymous transport error, keeping the status leading', async () => {
+        const client = makeClient();
+        client.request.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()'));
+
+        const manager = bootRelay(client);
+
+        const error = await manager.request('chat.feed').catch((e: Error) => e);
+
+        expect(error.message).toBe('503 SOCKET NOT CONNECTED - WebSocketTransport.send() - relay.request(chat.feed)');
+        // getSocketErrorCode reads the LEADING code — appending must not displace it.
+        expect(error.message).toMatch(/^503/);
+    });
+
+    it('labels the scoped facade with the pinned kind, not the active slot', async () => {
+        const relay = makeClient();
+        const cloud = makeClient();
+        relay.request.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()'));
+        mockedCreate.mockReturnValueOnce(relay).mockReturnValueOnce(cloud);
+
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.ensure({ url: 'wss://cloud.test/socket', deviceId: 'device-1' }, 'cloud'); // active = cloud
+
+        await expect(manager.getScopedClient('relay').request('invite.list')).rejects.toThrow(
+            /- relay\.request\(invite\.list\)$/
+        );
+    });
+
+    it('annotates a send() that hits a dead socket', () => {
+        const client = makeClient({
+            send: jest.fn(() => {
+                throw new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()');
+            }),
+        });
+
+        const manager = bootRelay(client);
+
+        expect(() => manager.send('device.sync', { tick: 1 })).toThrow(/- relay\.send\(device\.sync\)$/);
+    });
+
+    it('leaves a message that already names the type alone (SDK timeouts, and re-annotation)', async () => {
+        const client = makeClient();
+        client.request.mockRejectedValueOnce(new Error('408 REQUEST TIMEOUT - chat.feed[m-abc]'));
+
+        const manager = bootRelay(client);
+
+        await expect(manager.request('chat.feed')).rejects.toThrow('408 REQUEST TIMEOUT - chat.feed[m-abc]');
+    });
+
+    it('passes a non-Error rejection through untouched (no coercion into an Error)', async () => {
+        const client = makeClient();
+        client.request.mockRejectedValueOnce(REQUEST_ERROR);
+
+        const manager = bootRelay(client);
+
+        await expect(manager.request('chat.feed')).rejects.toEqual(REQUEST_ERROR);
+        expect(REQUEST_ERROR.message).toBe('UNAUTHORIZED');
+    });
+});
+
 describe('SocketManager isVerified derivation', () => {
     beforeEach(() => {
         mockedCreate.mockReset();
@@ -233,6 +307,74 @@ describe('SocketManager waitUntilKindVerified', () => {
 
         await expect(pending).resolves.toBe(false);
         jest.useRealTimers();
+    });
+});
+
+describe('SocketManager subscribeKindVerified', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+
+    it('replays the current value immediately on subscribe', () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
+
+        const listener = jest.fn();
+        manager.subscribeKindVerified('relay', listener);
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(true);
+    });
+
+    // The reactive gap waitUntilKindVerified cannot fill: a `useQuery({ enabled })`-style consumer
+    // needs every false→true edge, not just the first one — a relay slot can drop and recover
+    // many times over a session.
+    it('fires again on every change to that slot, repeatedly — not just once', () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+
+        const listener = jest.fn();
+        manager.subscribeKindVerified('relay', listener);
+        listener.mockClear(); // drop the immediate replay call
+
+        manager.setAuthenticated('relay', true);
+        manager.setAuthenticated('relay', false);
+        manager.setAuthenticated('relay', true);
+
+        expect(listener.mock.calls.map(call => call[0])).toEqual([true, false, true]);
+    });
+
+    it('ignores changes to a different kind', () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.ensure(OTHER_CONFIG, 'cloud');
+
+        const listener = jest.fn();
+        manager.subscribeKindVerified('relay', listener);
+        listener.mockClear();
+
+        manager.setAuthenticated('cloud', true);
+
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('stops firing after unsubscribe', () => {
+        mockedCreate.mockReturnValue(makeClient());
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+
+        const listener = jest.fn();
+        const unsubscribe = manager.subscribeKindVerified('relay', listener);
+        listener.mockClear();
+        unsubscribe();
+
+        manager.setAuthenticated('relay', true);
+
+        expect(listener).not.toHaveBeenCalled();
     });
 });
 

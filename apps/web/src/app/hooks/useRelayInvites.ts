@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 
@@ -35,6 +35,11 @@ export const relayInviteKeys = {
  */
 export const useRelayInvites = (state?: InviteState) => {
     const { invite } = useRuntimeRepositories();
+    // invite.list is relay-pinned (kind-scoped routing), so gate on the RELAY slot specifically —
+    // the active-facade isVerified would track cloud instead whenever a cloud session is up, and
+    // firing before relay's own handshake completes is exactly what threw `503 SOCKET NOT
+    // CONNECTED - relay.request(invite.list)` on cold boot / window-focus refetch.
+    const isRelayVerified = useKindVerified('relay');
 
     const query = useQuery({
         queryKey: relayInviteKeys.list(state),
@@ -46,6 +51,10 @@ export const useRelayInvites = (state?: InviteState) => {
         // no notification packet for it (백엔드 요청 #4), so coming back to the screen has to re-ask.
         staleTime: 0,
         refetchOnWindowFocus: true,
+        // Re-fires on the false→true edge (relay reconnecting drops this to false, then back), same
+        // as every other isVerified-gated read in the app. `refetch()` still works while disabled
+        // (TanStack v5), so the manual retry in useInviteWaitingStatus is unaffected.
+        enabled: isRelayVerified,
     });
 
     return {

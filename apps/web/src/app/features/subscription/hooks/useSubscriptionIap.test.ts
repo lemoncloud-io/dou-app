@@ -17,6 +17,9 @@ jest.mock('@chatic/web-core', () => ({
     useValidateMembership: () => ({ mutateAsync: membershipMutate }),
 }));
 
+let mockIsGuest = false;
+jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: mockIsGuest }) }));
+
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: jest.fn() }));
 jest.mock('../../../bridge', () => ({
     appBridge: {
@@ -38,6 +41,37 @@ const product = { id: 'plan-1' };
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockIsGuest = false;
+});
+
+describe('useSubscriptionIap — 로그인 가드', () => {
+    it('게스트는 스토어를 열기 전에 로그인 안내로 거절한다', async () => {
+        mockIsGuest = true;
+        setSocial('linked');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.purchaseAndValidate(product)).rejects.toThrow('mypage.subscription.loginRequired');
+
+        expect(appBridge.purchase).not.toHaveBeenCalled();
+        expect(membershipMutate).not.toHaveBeenCalled();
+    });
+
+    it('게스트 안내가 소셜 연동 안내보다 앞선다 — 게스트는 연동 화면을 쓸 수 없다', async () => {
+        mockIsGuest = true;
+        setSocial('absent');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.purchaseAndValidate(product)).rejects.toThrow('mypage.subscription.loginRequired');
+    });
+
+    it('게스트도 복구(restore)는 막지 않는다', async () => {
+        mockIsGuest = true;
+        setSocial('linked');
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).resolves.toBe(0);
+        expect(appBridge.fetchCurrentPurchases).toHaveBeenCalled();
+    });
 });
 
 describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가드', () => {

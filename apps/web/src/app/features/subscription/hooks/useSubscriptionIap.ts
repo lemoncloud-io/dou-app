@@ -11,6 +11,7 @@ import {
 } from '@chatic/web-core';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
 import { useLinkedAccounts } from '../../../hooks';
 import { APP_ID, IS_DEV } from '../consts';
@@ -28,6 +29,7 @@ export const useSubscriptionIap = () => {
     const validateMembership = useValidateMembership();
     const queryClient = useQueryClient();
     const linked = useLinkedAccounts();
+    const { isGuest } = useRuntimeProfile();
 
     /**
      * A subscription attaches to a cloud, and owning a cloud is social-account based — so a user with
@@ -104,6 +106,14 @@ export const useSubscriptionIap = () => {
         async (product: PurchaseProduct, email?: string) => {
             // Cheapest refusal first — before the store is even opened. Both entry points surface a
             // thrown message straight to the user, so this reads as guidance rather than a failure.
+            //
+            // A guest is refused ahead of the social check: it is the same missing credential, but
+            // "log in" is the actionable instruction, whereas `socialLinkRequired` points at a MyPage
+            // linking screen a guest cannot use. This is only a backstop — both entry points send a
+            // guest to login before the email step, so reaching here means a gate was bypassed.
+            if (isGuest) {
+                throw new Error(t('mypage.subscription.loginRequired'));
+            }
             if (isMissingSocialForCloud) {
                 throw new Error(t('mypage.subscription.socialLinkRequired'));
             }
@@ -145,7 +155,7 @@ export const useSubscriptionIap = () => {
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
             await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
         },
-        [isIOS, validate, queryClient, isMissingSocialForCloud, t]
+        [isIOS, validate, queryClient, isGuest, isMissingSocialForCloud, t]
     );
 
     /** Restore purchases: validate + finish each existing purchase. */

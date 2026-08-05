@@ -3,7 +3,31 @@
 // trivial, dependency-free utilities, so we keep an app-local copy.
 
 /** Coerce an unknown thrown value into a real Error instance. */
-export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
+export const toError = (e: unknown): Error => {
+    if (e instanceof Error) return e;
+    if (typeof Event !== 'undefined' && e instanceof Event) return new Error(describeEvent(e));
+    return new Error(String(e));
+};
+
+/**
+ * `String(event)` on a raw DOM Event collapses to the useless `[object Event]` — seen in production
+ * as an `unhandledrejection` with exactly that message. Root cause: lemon-model's
+ * `OwnedWebSocketNetwork` builds an internal "connection opened" promise per WebSocket attempt and
+ * rejects it with the raw `error`/`close` event on failure, but nothing in chatic-sockets-lib ever
+ * awaits that promise — `WebSocketTransport` drives its own reconnect off `onOpen`/`onError`
+ * callbacks instead — so the rejection reaches `window` as a genuinely unhandled Event. Pull out
+ * what the event actually carries so the report is diagnosable instead of opaque.
+ */
+const describeEvent = (event: Event): string => {
+    // Duck-typed rather than `instanceof WebSocket`: works the same for the native browser
+    // WebSocket, and does not depend on the global existing (it does not in every test/SSR
+    // environment) or matching a specific WebSocket implementation.
+    const target = event.target as { url?: unknown; readyState?: unknown; constructor?: { name?: string } } | null;
+    if (typeof target?.url === 'string' && typeof target.readyState === 'number') {
+        return `WebSocket ${event.type} event (url=${target.url}, readyState=${target.readyState})`;
+    }
+    return `${event.type} event on ${target?.constructor?.name ?? 'unknown target'}`;
+};
 
 /**
  * HTTP status carried by a rejected socket request, or `undefined` when the failure is unclassified.

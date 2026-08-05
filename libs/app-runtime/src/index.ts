@@ -10,6 +10,10 @@
 export { useRuntimeBinding, useRuntimeRepositories, useRuntimeSocketState, useRuntimeProfile } from './runtime';
 export type { SessionProfile } from './runtime';
 
+// Per-kind (relay/cloud) verified state — for reactively gating a getScopedClient-pinned request,
+// independent of which slot is ACTIVE. See useKindVerified's doc comment.
+export { useKindVerified } from './runtime';
+
 // Back-compat aliases (pre-rename names) kept so desktop-web keeps compiling without churn while it is
 // mid-refactor. New code uses the useRuntime* names above; migrate desktop-web and drop these later.
 export { useRuntimeSocketState as useSocketState, useRuntimeProfile as useSessionProfile } from './runtime';

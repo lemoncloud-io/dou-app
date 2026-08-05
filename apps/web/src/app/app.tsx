@@ -11,6 +11,7 @@ import { reportError } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
 import i18n from '../i18n';
+import { toError } from './utils/errors';
 import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
 import { AppUpdatePromptHost } from './features/appUpdate';
@@ -33,8 +34,9 @@ if (typeof window !== 'undefined') {
         });
     });
     window.addEventListener('unhandledrejection', event => {
-        const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
-        reportError(error, { source: 'unhandledrejection' });
+        // event.reason is often a raw DOM Event (e.g. lemon-model's WebSocket connect races —
+        // see toError's doc comment), which String() collapses to a useless "[object Event]".
+        reportError(toError(event.reason), { source: 'unhandledrejection' });
     });
 }
 

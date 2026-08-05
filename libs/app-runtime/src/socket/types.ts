@@ -123,6 +123,13 @@ export interface ISocketManager {
      * slot is active — backs re-auth guards that target a non-active slot (relay while cloud is up).
      */
     isKindVerified(kind: SocketKind): boolean;
+    /**
+     * Continuous per-kind counterpart of waitUntilKindVerified: fires immediately with the current
+     * value, then again on every change, until unsubscribed. Backs reactive consumers (e.g.
+     * `useQuery({ enabled })`) of a getScopedClient-pinned request/send, which must re-gate on every
+     * connect/disconnect — not just the first time, like the one-shot wait does.
+     */
+    subscribeKindVerified(kind: SocketKind, listener: (verified: boolean) => void): () => void;
     /** Connects the slot for `kind` if idle/closed. */
     connect(kind: SocketKind): Promise<void>;
     /** Destroys one slot (`kind`) or, when omitted, all slots. */

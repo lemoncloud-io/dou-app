@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative, logger } from '@chatic/bridges';
+import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/web-core';
@@ -30,6 +31,7 @@ export const SubscriptionPage = () => {
     const [isRestoring, setIsRestoring] = useState(false);
 
     const { data: membership, isLoading } = useMembershipInfo();
+    const { isGuest } = useRuntimeProfile();
 
     const isActive = membership?.isValid === true;
     const isCanceled = membership?.status === 'canceled';
@@ -37,6 +39,10 @@ export const SubscriptionPage = () => {
     const hasPendingChange = !!membership?.pendingProductId;
 
     const handleViewPlans = () => {
+        if (isGuest) {
+            navigate(ROUTES.mypage.login);
+            return;
+        }
         navigate(ROUTES.subscription.plans);
     };
 
@@ -242,7 +248,9 @@ export const SubscriptionPage = () => {
                                       })
                                     : !isOnMobileApp
                                       ? t('mypage.subscription.mobileOnly')
-                                      : t('mypage.subscription.emptyDescription')}
+                                      : isGuest
+                                        ? t('mypage.subscription.loginRequired')
+                                        : t('mypage.subscription.emptyDescription')}
                             </span>
                         </div>
                         <button
@@ -256,7 +264,7 @@ export const SubscriptionPage = () => {
                                 onClick={handleViewPlans}
                                 className="w-full rounded-full bg-foreground py-3 text-[16px] font-semibold text-background"
                             >
-                                {t('mypage.subscription.viewPlans')}
+                                {isGuest ? t('mypage.subscription.loginCta') : t('mypage.subscription.viewPlans')}
                             </button>
                         )}
                     </div>

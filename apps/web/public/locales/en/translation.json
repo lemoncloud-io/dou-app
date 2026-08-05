@@ -218,6 +218,8 @@
             "empty": "No active subscriptions",
             "emptyDescription": "Check out our subscription plans",
             "viewPlans": "View Plans",
+            "loginRequired": "Sign in to start a subscription",
+            "loginCta": "Sign in to subscribe",
             "plans": "Plans",
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
