@@ -2,14 +2,16 @@
  * `pages/report-logs/ReportLogsPage.tsx`
  * - Admin view of stored error/issue reports from `/mocks/0/list`.
  *
- * Text/date filtering is client-side over the fetched page — server-side query
- * params are unverified (see the report-logs spec). The UI states this limit.
+ * The date range and the record stereo (`type=log`) are server-side queries (deployed
+ * chatic-backend-api's `MockListParam`, see reportLogApi.ts), so pagination totals and the
+ * group/time samples respect the range. Free-text/타입/App filtering stays client-side
+ * over the fetched page. Dates are KST day boundaries server-side.
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useReportLogs } from '../hooks/use-report-logs';
-import type { ReportStage } from '../api/reportLogApi';
+import { REPORT_LOG_STEREO, type ReportStage } from '../api/reportLogApi';
 import { parseReportLog, type ReportLogRow } from '../lib/parseReportLog';
 import { groupReportLogs } from '../lib/groupReportLogs';
 import { bucketReportLogs } from '../lib/bucketReportLogs';
@@ -24,18 +26,6 @@ type ViewMode = 'list' | 'group' | 'time';
 /** Auto-refresh cadence when the toggle is on. */
 const AUTO_REFRESH_MS = 15_000;
 
-/** Epoch ms for the start of a yyyy-mm-dd date input, or undefined. */
-const startOfDay = (value: string): number | undefined => {
-    if (!value) return undefined;
-    const ms = new Date(`${value}T00:00:00`).getTime();
-    return Number.isNaN(ms) ? undefined : ms;
-};
-const endOfDay = (value: string): number | undefined => {
-    if (!value) return undefined;
-    const ms = new Date(`${value}T23:59:59.999`).getTime();
-    return Number.isNaN(ms) ? undefined : ms;
-};
-
 const PAGE_SIZE = 100;
 /** How many recent records to pull for the aggregated view (sample-scoped counts). */
 const GROUP_SAMPLE_SIZE = 1000;
@@ -46,6 +36,9 @@ export const ReportLogsPage = () => {
     const [page, setPage] = useState(0);
     const [stage, setStage] = useState<ReportStage>('v1');
     const [autoRefresh, setAutoRefresh] = useState(false);
+    // Server-side createdAt range (`YYYY-MM-DD` from the date inputs, KST day boundaries).
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
     // Aggregated/time views work over a larger recent sample; list view paginates.
     const isSampleView = mode !== 'list';
     const { data, isLoading, isError, error, refetch, isFetching } = useReportLogs(
@@ -53,13 +46,16 @@ export const ReportLogsPage = () => {
             page: isSampleView ? 0 : page,
             limit: isSampleView ? GROUP_SAMPLE_SIZE : PAGE_SIZE,
             stage,
+            // Only report records: reportError/reportIssue saves carry stereo `log`, and the
+            // mocks table also holds unrelated fixtures the page should not list.
+            type: REPORT_LOG_STEREO,
+            from: from || undefined,
+            to: to || undefined,
         },
         autoRefresh ? AUTO_REFRESH_MS : false
     );
 
     const [query, setQuery] = useState('');
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
     const [typeFilter, setTypeFilter] = useState<'all' | 'error' | 'issue'>('all');
     const [appFilter, setAppFilter] = useState('all');
     const [selected, setSelected] = useState<ReportLogRow | null>(null);
@@ -83,15 +79,12 @@ export const ReportLogsPage = () => {
         [rows]
     );
 
+    // Client-side filters over the fetched page; the date range is already applied server-side.
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        const fromMs = startOfDay(from);
-        const toMs = endOfDay(to);
         return rows.filter(row => {
             if (typeFilter !== 'all' && row.type !== typeFilter) return false;
             if (appFilter !== 'all' && row.app !== appFilter) return false;
-            if (fromMs !== undefined && (row.createdAt ?? 0) < fromMs) return false;
-            if (toMs !== undefined && (row.createdAt ?? 0) > toMs) return false;
             if (q) {
                 const haystack = [row.title, row.message, row.userName, row.userId, row.app, row.env, row.type]
                     .filter(Boolean)
@@ -101,7 +94,7 @@ export const ReportLogsPage = () => {
             }
             return true;
         });
-    }, [rows, query, from, to, typeFilter, appFilter]);
+    }, [rows, query, typeFilter, appFilter]);
 
     const groups = useMemo(() => groupReportLogs(filtered), [filtered]);
     const buckets = useMemo(() => bucketReportLogs(filtered), [filtered]);
@@ -114,7 +107,7 @@ export const ReportLogsPage = () => {
                     <p className="text-sm text-muted-foreground">
                         {isSampleView
                             ? `reportError / reportIssue ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
-                            : 'reportError / reportIssue 리포트 조회 · 검색·기간은 불러온 페이지 내 필터'}
+                            : 'reportError / reportIssue 리포트 조회 · 기간은 서버 조회(KST), 검색은 페이지 내 필터'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -209,21 +202,29 @@ export const ReportLogsPage = () => {
                         ))}
                     </select>
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="KST 기준 서버 조회">
                     시작일
                     <input
                         type="date"
                         value={from}
-                        onChange={e => setFrom(e.target.value)}
+                        max={to || undefined}
+                        onChange={e => {
+                            setPage(0);
+                            setFrom(e.target.value);
+                        }}
                         className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="KST 기준 서버 조회">
                     종료일
                     <input
                         type="date"
                         value={to}
-                        onChange={e => setTo(e.target.value)}
+                        min={from || undefined}
+                        onChange={e => {
+                            setPage(0);
+                            setTo(e.target.value);
+                        }}
                         className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                     />
                 </label>
