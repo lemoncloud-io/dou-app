@@ -107,6 +107,39 @@ describe('ChannelRepositoryV2', () => {
         );
     });
 
+    it('refreshList — 요청한 site의 목록이 응답에 없으면 그 site의 캐시를 지우지 않는다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        // `channel.mine` answers for the site the socket session is on and ignores the payload's
+        // sid, so asking about another site returns a list that shares no ids with it. Treating
+        // that as "site-2 has no channels anymore" wiped the switched-to place's cache and left
+        // the sidebar empty until a reload (.claude/20260804/DEBUG-14-20-13.md).
+        channelRemoteDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
+        channelLocalDataSource.cacheReadList.mockResolvedValue({ list: [{ id: 'ch-9', sid: 'site-2' }] });
+
+        await repository.refreshList({ sid: 'site-2' } as any);
+
+        expect(channelLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it('refreshList — 응답이 요청한 site의 것이면 사라진 채널을 정리한다', async () => {
+        const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
+        channelRemoteDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
+        channelLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [
+                { id: 'ch-1', sid: 'site-1' },
+                { id: 'ch-gone', sid: 'site-1' },
+            ],
+        });
+
+        await repository.refreshList({ sid: 'site-1' } as any);
+
+        expect(channelLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['ch-gone'], {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
     it('leaveChannel — 본인 나가기(userId 없음)는 채널을 로컬 캐시에서 제거한다', async () => {
         const { repository, channelRemoteDataSource, channelLocalDataSource } = createRepository();
         channelRemoteDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });

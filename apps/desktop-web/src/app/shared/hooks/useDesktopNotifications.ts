@@ -7,7 +7,7 @@ import { useSessionIdentity } from '@chatic/web-core';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isDndActive, isMentioned, resolveMyMentionNames, stripMarkdown } from '../utils';
+import { isDndActive, isMentioned, isNotifiableChat, resolveMyMentionNames, stripMarkdown } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
 // DMs have no channel name — title with the sender instead. Named channels read as
@@ -55,6 +55,9 @@ export const useDesktopNotifications = (): void => {
         // The channel watermark gives us the latest message (chat content streams only for the
         // focused room in v2, so background notifications ride the channel record instead).
         const top = chat.chatNo ?? 0;
+        // Join/leave (and, later, reactions) arrive here as ordinary feed rows with no
+        // readable body — banner them and the reader gets an empty notification.
+        if (!isNotifiableChat(chat)) return;
         // Respect the user's notification preferences (global off / channel mode).
         const prefs = useNotificationPrefsStore.getState();
         // Global do-not-disturb (snooze / quiet hours) silences every banner.

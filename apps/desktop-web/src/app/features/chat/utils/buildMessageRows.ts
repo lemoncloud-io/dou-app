@@ -28,11 +28,12 @@ export interface MessageGroup {
 }
 
 /** A row in the message pane: a day divider, the unread marker, the thread
- * "N replies" divider, or an author block. */
+ * "N replies" divider, a system notice, or an author block. */
 export type MessageRowItem =
     | { kind: 'date'; key: string; timestamp: number }
     | { kind: 'unread'; key: string }
     | { kind: 'replies'; key: string; count: number }
+    | { kind: 'system'; key: string; chat: DomainChat; authorName: string }
     | { kind: 'group'; group: MessageGroup };
 
 /** Identity of the signed-in user, used to name their own (and optimistic) messages. */
@@ -54,12 +55,15 @@ const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
 // unresolved so it never shows, falling back to "You" / the roster / a skeleton.
 const realName = (name?: string): string | undefined => (isPlaceholderName(name) ? undefined : name?.trim());
 
-// A message is "mine" when its owner matches either my account id (optimistic
-// messages carry it) or my per-channel cloud user id (the server rewrites the
-// owner to this once the message persists) — so own messages stay identified
-// across the optimistic→persisted swap.
-export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean =>
-    (!!viewer.uid && chat.ownerId === viewer.uid) || (!!viewer.cloudUid && chat.ownerId === viewer.cloudUid);
+// An id is "mine" when it matches either my account id (optimistic messages carry it)
+// or my per-channel cloud user id (the server rewrites the owner to this once the
+// message persists) — so my own rows stay identified across the optimistic→persisted
+// swap. Every surface that asks "is this me" goes through here; the rule is subtle
+// enough that a second copy would drift.
+export const isViewerId = (userId: string | undefined, viewer: MessageViewer): boolean =>
+    (!!viewer.uid && userId === viewer.uid) || (!!viewer.cloudUid && userId === viewer.cloudUid);
+
+export const isOwnMessage = (chat: DomainChat, viewer: MessageViewer): boolean => isViewerId(chat.ownerId, viewer);
 
 // The server's ChatView only embeds owner$ for persisted messages — optimistic
 // and own messages have no owner$, so resolve those from the viewer's profile.
@@ -160,6 +164,22 @@ export const buildMessageRows = (
                 key: `date:${dayMs}:${message.id ?? message.tempId ?? message.chatNo}`,
                 timestamp: dayMs,
             });
+        }
+
+        // A server-generated event (someone joined or left) is a notice, not a message:
+        // it breaks the author block, never merges with the messages around it, and does
+        // not anchor the unread divider — landing on "new messages" only to find a join
+        // event is worse than landing on the first real message below it.
+        if (message.stereo === 'system') {
+            flush();
+            rows.push({
+                kind: 'system',
+                key: message.id ?? message.tempId ?? `system:${message.channelId}:${message.chatNo}`,
+                chat: message,
+                authorName: resolveOwnerName(message, viewer, names) ?? '',
+            });
+            lastTimestamp = timestamp;
+            continue;
         }
 
         // Mark the first unread message from someone else (relative to where the

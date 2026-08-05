@@ -9,6 +9,7 @@ describe('ChatRepositoryV2', () => {
             getChat: jest.fn(),
             updateChat: jest.fn(),
             deleteChat: jest.fn(),
+            setReaction: jest.fn(),
         };
         const chatLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -32,6 +33,42 @@ describe('ChatRepositoryV2', () => {
             chatLocalDataSource,
         };
     };
+
+    // Reactions are event-sourced: the server stores no state, so the optimistic write is
+    // an event of our own rather than an edit to the target message.
+    it('writes a provisional reaction event before the request, then swaps in the server one', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatRemoteDataSource.setReaction.mockResolvedValue({ id: 'ch-1:9', chatNo: 9 });
+
+        await repository.setReaction({ chatId: 'ch-1:4', emoji: '\u{1F44D}', action: 'on' } as any);
+
+        const [provisional] = chatLocalDataSource.cacheWrite.mock.calls[0];
+        expect(provisional).toMatchObject({
+            channelId: 'ch-1',
+            chatNo: 0,
+            stereo: 'system',
+            subType: 'reaction',
+            ownerId: 'me',
+            reaction$: { chatId: 'ch-1:4', emoji: '\u{1F44D}', action: 'on' },
+        });
+        // No chatNo yet, so the fold sorts it last and it wins over the persisted events.
+        expect(chatLocalDataSource.cacheWrite.mock.calls[1][0]).toMatchObject({ id: 'ch-1:9' });
+        expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith(provisional.id, expect.anything());
+    });
+
+    it('removes the provisional reaction event when the request rejects', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatRemoteDataSource.setReaction.mockRejectedValue(new Error('offline'));
+
+        await expect(
+            repository.setReaction({ chatId: 'ch-1:4', emoji: '\u{1F44D}', action: 'on' } as any)
+        ).rejects.toThrow('offline');
+
+        const [provisional] = chatLocalDataSource.cacheWrite.mock.calls[0];
+        // Nothing to restore — the event existed only here, so removing it is the rollback.
+        expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith(provisional.id, expect.anything());
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledTimes(1);
+    });
 
     it('marks the optimistic message as failed when sendChat rejects', async () => {
         const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
@@ -104,6 +141,24 @@ describe('ChatRepositoryV2', () => {
         );
     });
 
+    // The server soft-deletes (`PUT { hidden: true }`), so the optimistic write has to
+    // mark the row rather than drop it — otherwise the row is missing until the next
+    // sync brings it back, and a client that renders deleted messages shows nothing and
+    // then a tombstone for the same message.
+    it('marks the chat hidden rather than removing it when deleteChat is issued', async () => {
+        const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
+        chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
+        chatRemoteDataSource.deleteChat.mockResolvedValue({ id: 'm1', content: 'before', hidden: true });
+
+        await repository.deleteChat({ id: 'm1' } as any);
+
+        expect(chatLocalDataSource.cacheDelete).not.toHaveBeenCalledWith('m1', expect.anything());
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'm1', hidden: true }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+    });
+
     it('restores the deleted chat when deleteChat fails', async () => {
         const { repository, chatRemoteDataSource, chatLocalDataSource } = createRepository();
         chatLocalDataSource.cacheRead.mockResolvedValue({ id: 'm1', content: 'before' });
@@ -111,15 +166,13 @@ describe('ChatRepositoryV2', () => {
 
         await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
 
-        expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith('m1', {
+        // The record goes back exactly as it was — not merely un-hidden, which would
+        // leave a `hidden: false` the server never sent.
+        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith({ id: 'm1', content: 'before' }, {
             cid: 'cloud-a',
             sid: 'site-1',
             uid: 'me',
         });
-        expect(chatLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
-            expect.objectContaining({ id: 'm1', content: 'before' }),
-            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
-        );
     });
 
     it('delegates cache helper methods to the local datasource', async () => {

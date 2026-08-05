@@ -16,12 +16,12 @@ import {
     lastChatNoOf,
     relativeTime,
     resolveDisplay,
-    stripMarkdown,
     useAuthorNames,
     useLastChat,
     useSiteProfileMap,
 } from '../../../shared';
 import { SearchDialog } from '../../search';
+import { unreadIndicator } from '../utils';
 import { QuickSwitcher } from './QuickSwitcher';
 
 interface ChannelListProps {
@@ -45,6 +45,13 @@ const ChannelSkeleton = () => (
     </div>
 );
 
+/**
+ * Which sidebar section a channel belongs to. Also decides its unread badge
+ * shape, so section and badge are the same call rather than two claims that
+ * happen to agree.
+ */
+const isDmBucket = (channel: DomainChannel): boolean => isDmChannel(channel) || isSelfChannel(channel);
+
 interface ChannelRowProps {
     channel: DomainChannel;
     label: string;
@@ -56,18 +63,23 @@ interface ChannelRowProps {
 }
 
 /**
- * One channel/DM row. Owns its last-message preview via `useLastChat`, which resolves the
- * last MAIN-channel message (thread replies + system rows excluded) from the chat cache —
- * the channel record's `lastChat$` can't, as it carries whatever the newest chat is.
+ * One channel/DM row: name, last-activity time, and an unread marker.
+ *
+ * Still reads `useLastChat` even though the message preview is gone — the row's
+ * time comes from the last MAIN-channel message (thread replies + system rows
+ * excluded), which the channel record's `lastChat$` cannot give: that field
+ * carries whatever the newest chat is.
+ *
+ * The unread marker's *shape* is `unreadIndicator`'s single call — the row never
+ * re-derives "is there something unread" for the name emphasis, or the two would
+ * drift apart the moment one of them grew a condition.
  */
 const ChannelRow = ({ channel, label, icon, isActive, onSelect, rowRef }: ChannelRowProps) => {
+    const { t } = useTranslation();
     const id = channel.id ?? '';
     const unread = channel.unreadCount ?? 0;
-    const hasUnread = unread > 0 && !isActive;
+    const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
     const lastChat = useLastChat(id, lastChatNoOf(channel));
-    // Memo the preview so the parent's minute tick (which must recompute `time`) doesn't
-    // re-run stripMarkdown for every row — the preview only changes when lastChat does.
-    const preview = useMemo(() => stripMarkdown(lastChat?.content?.trim() ?? ''), [lastChat]);
     const time = relativeTime(lastChat?.createdAt ?? channel.lastActivityAt);
     return (
         <button
@@ -76,51 +88,45 @@ const ChannelRow = ({ channel, label, icon, isActive, onSelect, rowRef }: Channe
             title={label}
             aria-current={isActive ? 'true' : undefined}
             className={cn(
-                'focus-ring relative flex min-h-9 min-w-0 flex-col justify-center gap-0.5 rounded-md px-3 py-1.5 text-left transition-colors duration-150 ease-tactile',
+                'focus-ring flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors duration-150 ease-tactile',
                 isActive ? 'bg-primary/12' : 'hover:bg-accent/50'
             )}
         >
-            {isActive && (
-                <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
-            )}
-            <span className="flex w-full items-center gap-2">
-                <span className={cn('shrink-0', isActive ? 'text-primary-ink' : 'text-muted-foreground')}>{icon}</span>
-                <span
-                    className={cn(
-                        'min-w-0 flex-1 truncate',
-                        isActive
-                            ? 'text-callout font-bold text-foreground'
-                            : hasUnread
-                              ? 'text-callout font-semibold text-foreground'
-                              : 'text-callout text-muted-foreground'
-                    )}
-                >
-                    {label}
-                </span>
-                {time && (
-                    <span
-                        className={cn(
-                            'shrink-0 text-micro tabular-nums',
-                            isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
-                        )}
-                    >
-                        {time}
-                    </span>
+            <span className={cn('shrink-0', isActive ? 'text-primary-ink' : 'text-muted-foreground')}>{icon}</span>
+            <span
+                className={cn(
+                    'min-w-0 flex-1 truncate',
+                    isActive
+                        ? 'text-callout font-bold text-foreground'
+                        : indicator !== 'none'
+                          ? 'text-callout font-semibold text-foreground'
+                          : 'text-callout text-muted-foreground'
                 )}
-                {hasUnread && (
-                    <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
-                        {unread > 99 ? '99+' : unread}
-                    </span>
-                )}
+            >
+                {label}
             </span>
-            {preview && (
+            {time && (
                 <span
                     className={cn(
-                        'w-full min-w-0 truncate pl-5 text-micro',
-                        isActive || hasUnread ? 'text-foreground' : 'text-muted-foreground'
+                        'shrink-0 text-micro tabular-nums',
+                        isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
                     )}
                 >
-                    {preview}
+                    {time}
+                </span>
+            )}
+            {/* The mark is decorative; the sr-only text carries it. Deliberately NOT
+                role="status" — that is a live region, and one per unread row would make
+                a screen reader announce the whole sidebar every time a count moved. */}
+            {indicator === 'dot' && (
+                <span className="h-2 w-2 shrink-0 rounded-full bg-badge-unread">
+                    <span className="sr-only">{t('sidebar.unread')}</span>
+                </span>
+            )}
+            {indicator === 'count' && (
+                <span className="shrink-0 rounded-full bg-badge-unread px-1.5 text-caption font-semibold tabular-nums text-badge-unread-foreground">
+                    <span aria-hidden>{unread > 99 ? '99+' : unread}</span>
+                    <span className="sr-only">{t('sidebar.unreadCount', { count: unread })}</span>
                 </span>
             )}
         </button>
@@ -138,7 +144,7 @@ export const ChannelList = ({
     const { t } = useTranslation();
     const myUid = useSessionIdentity().userId;
     const placeProfiles = useSiteProfileMap();
-    // Tick once a minute so the relative "11m" preview times stay current.
+    // Tick once a minute so each row's relative "11m" last-activity time stays current.
     useTick(60_000);
     // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
@@ -150,7 +156,7 @@ export const ChannelList = ({
     const { regular, dms } = useMemo(() => {
         const split = { regular: [] as DomainChannel[], dms: [] as DomainChannel[] };
         for (const channel of channels) {
-            (isDmChannel(channel) || isSelfChannel(channel) ? split.dms : split.regular).push(channel);
+            (isDmBucket(channel) ? split.dms : split.regular).push(channel);
         }
         return split;
     }, [channels]);
@@ -169,8 +175,8 @@ export const ChannelList = ({
             return {
                 label: t('dm.you'),
                 icon: (
-                    <Avatar className="h-5 w-5 shrink-0 rounded">
-                        <AvatarFallback className="rounded text-[9px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
+                    <Avatar className="h-5 w-5 shrink-0">
+                        <AvatarFallback className="text-[9px] font-semibold" style={avatarStyle(myUid ?? 'me')}>
                             {t('dm.you').charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -186,10 +192,10 @@ export const ChannelList = ({
         return {
             label: display.name || (channel.name ?? channel.id ?? ''),
             icon: (
-                <Avatar className="h-5 w-5 shrink-0 rounded">
+                <Avatar className="h-5 w-5 shrink-0">
                     {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
                     <AvatarFallback
-                        className="rounded text-[9px] font-semibold"
+                        className="text-[9px] font-semibold"
                         style={avatarStyle(counterpartId || display.name)}
                     >
                         {display.name.charAt(0).toUpperCase() || '?'}
@@ -266,7 +272,7 @@ export const ChannelList = ({
             <SearchDialog channels={channels} onSelect={onSelect} />
             {visibleRegular.map(channel => row(channel, channel.name ?? channel.id ?? '', '#'))}
             {visibleDms.length > 0 && (
-                <h3 className="mb-1 mt-3 px-3 text-overline text-muted-foreground">{t('sidebar.dms')}</h3>
+                <h3 className="mb-0.5 mt-4 px-3 text-overline text-muted-foreground/80">{t('sidebar.dms')}</h3>
             )}
             {visibleDms.map(dm => row(dm.channel, dm.identity.label, dm.identity.icon))}
         </nav>

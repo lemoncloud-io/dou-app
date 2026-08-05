@@ -8,6 +8,7 @@
     "postinstall": "node -e \"const cp=require('child_process'); const run=!process.env.SKIP_MOBILE_POD&&(process.env.CI!=='true'||process.env.RUNNER_OS==='macOS'); if(run){try{cp.execSync('yarn mobile:pod',{stdio:'inherit'})}catch(e){}}\"",
     "lint": "npx nx run-many --target=lint",
     "lint:fix": "npx nx run-many --target=lint --fix",
+    "check:undefined-names": "node scripts/check-undefined-names.js",
     "prettier": "prettier --config ./.prettierrc --write \"**/*.{js,jsx,ts,json,tsx,scss,css,html}\"",
     "prettier:staged": "prettier --config ./.prettierrc --write $(git diff --name-only --cached --diff-filter=AM | egrep '^(.*).(.ts*|.js*|.html|.json|.css|.scss)$')",
     "build:all:dev": "npx nx run-many --target=build --configuration=dev --all",

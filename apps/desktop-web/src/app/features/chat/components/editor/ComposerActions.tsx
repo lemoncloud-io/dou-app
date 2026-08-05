@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SendHorizontal, Smile } from 'lucide-react';
@@ -16,9 +17,12 @@ interface ComposerActionsProps {
 /** Emoji picker + send button, right of the input. */
 export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsProps) => {
     const { t } = useTranslation();
+    // Controlled so a pick can close it. Leaving it open after a choice covers the
+    // message you were writing and makes the click read as if it did not register.
+    const [isPickerOpen, setPickerOpen] = useState(false);
     return (
         <>
-            <Popover>
+            <Popover open={isPickerOpen} onOpenChange={setPickerOpen}>
                 <PopoverTrigger asChild>
                     <button
                         type="button"
@@ -30,7 +34,12 @@ export const ComposerActions = ({ canSend, onEmoji, onSend }: ComposerActionsPro
                     </button>
                 </PopoverTrigger>
                 <PopoverContent align="end" side="top" className="w-auto p-2">
-                    <EmojiPicker onPick={onEmoji} />
+                    <EmojiPicker
+                        onPick={emoji => {
+                            onEmoji(emoji);
+                            setPickerOpen(false);
+                        }}
+                    />
                 </PopoverContent>
             </Popover>
             <button

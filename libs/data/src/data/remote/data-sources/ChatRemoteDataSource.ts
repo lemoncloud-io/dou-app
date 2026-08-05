@@ -8,6 +8,7 @@ import type { ChatDomainGateway } from '../gateways';
 export type ChatGetInput = Parameters<ChatDomainGateway['get']>[0];
 export type ChatUpdateInput = Parameters<ChatDomainGateway['update']>[0];
 export type ChatDeleteInput = Parameters<ChatDomainGateway['delete']>[0];
+export type ChatReactionInput = Parameters<ChatDomainGateway['reaction']>[0];
 
 /** Result of a chat feed: domain rows plus the server's pagination metadata. */
 export interface ChatFeedDomainResult {
@@ -28,6 +29,8 @@ export interface IChatRemoteDataSource {
     updateChat(payload: ChatUpdateInput, context: DataContext): Promise<DomainChat>;
     /** 단일 chat 엔티티를 삭제합니다. */
     deleteChat(payload: ChatDeleteInput, context: DataContext): Promise<DomainChat>;
+    /** Publishes a reaction on/off event. Resolves to the event chat, not the target. */
+    setReaction(payload: ChatReactionInput, context: DataContext): Promise<DomainChat>;
 }
 
 /**
@@ -65,6 +68,14 @@ export class ChatRemoteDataSource implements IChatRemoteDataSource {
 
     public async deleteChat(payload: ChatDeleteInput, context: DataContext): Promise<DomainChat> {
         const remote = await this.gateway.delete<ChatView>(payload);
+        return toDomainChat((remote || {}) as ChatView, context);
+    }
+
+    // The server stores no reaction state — it publishes an event chat that carries the
+    // reaction on `reaction$`, and clients fold the events to derive who reacted with
+    // what. So the row that comes back is the event, never the message reacted to.
+    public async setReaction(payload: ChatReactionInput, context: DataContext): Promise<DomainChat> {
+        const remote = await this.gateway.reaction<ChatView>(payload);
         return toDomainChat((remote || {}) as ChatView, context);
     }
 }

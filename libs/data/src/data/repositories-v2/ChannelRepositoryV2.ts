@@ -150,7 +150,13 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const staleIds = (localResult?.list || [])
             .map(item => item.id)
             .filter((id): id is string => !!id && !serverIds.has(id));
-        if (staleIds.length > 0) {
+        // The answer describes ONE site — whichever the socket session is on: `channel.mine`
+        // ignores the payload's sid. Asking for another site's list therefore returns a set that
+        // shares no ids with it, and pruning against that would delete every cached channel of the
+        // site we asked about. Prune only when the response is actually about `targetSid`;
+        // otherwise the read told us nothing and the cache must stand.
+        const answersForTarget = !targetSid || domainList.some(item => item.sid === targetSid);
+        if (staleIds.length > 0 && answersForTarget) {
             await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
         }
     }

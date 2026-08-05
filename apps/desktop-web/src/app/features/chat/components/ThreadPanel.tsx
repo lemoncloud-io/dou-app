@@ -8,7 +8,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
-import { buildMemberNames, buildThread } from '../utils';
+import { buildMemberNames, buildThread, foldReactions } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
@@ -52,12 +52,22 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
 
     const { root, threadMessages, replyCount } = useMemo(() => {
         const thread = buildThread(messages, rootId);
+        // The panel is another view of the same messages, so a deleted reply reads the
+        // same way it does in the feed: a tombstone in place, not a closed gap. Reaction
+        // events are the exception — they are chips on a message, never rows.
+        const replies = thread.replies.filter(reply => reply.subType !== 'reaction');
         return {
             root: thread.root,
-            threadMessages: thread.root ? [thread.root, ...thread.replies] : thread.replies,
-            replyCount: thread.replies.length,
+            threadMessages: thread.root ? [thread.root, ...replies] : replies,
+            replyCount: replies.length,
         };
     }, [messages, rootId]);
+
+    // Reactions are derived, not stored: each toggle is its own `subType:'reaction'` chat, and the
+    // chips are what the fold makes of them. The panel renders the same messages as the feed, so it
+    // has to fold them too — from the UNFILTERED list, since `threadMessages` is exactly the set
+    // with those events removed.
+    const reactions = useMemo(() => foldReactions(messages, viewer.uid), [messages, viewer.uid]);
 
     // Resolve author names the same way as the chat pane: cached author names
     // first, channel roster as fallback (own messages name from the viewer).
@@ -110,6 +120,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                 <MessageList
                     key={rootId}
                     messages={threadMessages}
+                    reactions={reactions}
                     isLoading={false}
                     viewer={viewer}
                     names={names}

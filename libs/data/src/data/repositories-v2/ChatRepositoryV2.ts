@@ -1,7 +1,13 @@
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
 import type { DomainChat, DomainListResult } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { ChatDeleteInput, ChatGetInput, ChatUpdateInput, IChatRemoteDataSource } from '../remote/data-sources';
+import type {
+    ChatDeleteInput,
+    ChatGetInput,
+    ChatReactionInput,
+    ChatUpdateInput,
+    IChatRemoteDataSource,
+} from '../remote/data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -21,6 +27,7 @@ export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
     sendChat(payload: ChatSendInput): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
     deleteChat(payload: ChatDeleteInput): Promise<DomainChat>;
+    setReaction(payload: ChatReactionInput): Promise<DomainChat>;
 
     cacheRead(id: string): Promise<DomainChat | null>;
     cacheReadList(query: ChatFeedInput): Promise<DomainListResult<DomainChat> | null>;
@@ -167,16 +174,86 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         }
     }
 
+    /**
+     * Publish a reaction on/off event.
+     *
+     * The reaction is not a field on the target message but a separate event chat, so
+     * the optimistic write is an event of our own: a provisional row with no `chatNo`,
+     * which the fold sorts last and therefore treats as the newest state for that
+     * (message, person, emoji). The chip flips on the click, not on the round trip.
+     *
+     * On success the provisional row is replaced by the server's event; the broadcast
+     * echo carries the same `chatNo` and lands on that same row. On failure it is
+     * removed, so the chip returns to what the remaining events say — there is no
+     * previous value to restore, because the event never existed anywhere but here.
+     */
+    public async setReaction(payload: ChatReactionInput): Promise<DomainChat> {
+        const requestContext = this.getRequestContext();
+        const normalizedContext = this.getNormalizedContext(requestContext);
+        const { chatId, emoji, action } = payload as { chatId: string; emoji: string; action: string };
+        const now = Date.now();
+        const provisionalId = `optimistic-reaction-${chatId}-${emoji}-${now}`;
+        const provisional: DomainChat = {
+            id: provisionalId,
+            tempId: provisionalId,
+            cid: normalizedContext.cid ?? 'default',
+            // The event belongs to the target's channel — the id is `<channelId>:<chatNo>`.
+            channelId: chatId.split(':')[0] ?? '',
+            chatNo: 0,
+            stereo: 'system',
+            subType: 'reaction',
+            reaction$: { chatId, emoji, action },
+            ownerId: normalizedContext.uid,
+            createdAt: now,
+            updatedAt: now,
+            createdAtMs: now,
+            updatedAtMs: now,
+            isPending: true,
+            isFailed: false,
+        } as DomainChat;
+        await this.chatLocalDataSource.cacheWrite(provisional, requestContext);
+
+        try {
+            const event = await this.chatRemoteDataSource.setReaction(payload, normalizedContext);
+            await this.chatLocalDataSource.cacheWrite(event, requestContext);
+            if (event.id && event.id !== provisionalId) {
+                await this.chatLocalDataSource.cacheDelete(provisionalId, requestContext);
+            }
+            return event;
+        } catch (error) {
+            await this.chatLocalDataSource.cacheDelete(provisionalId, requestContext);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete a message.
+     *
+     * The server's delete is a soft delete — `chat.delete` maps to `PUT { hidden: true }`
+     * and the row survives — so the optimistic write marks the cached row `hidden`
+     * rather than removing it. Dropping it locally would disagree with the server twice
+     * over: the row reappears on the next sync, and a client that renders deleted
+     * messages as "This message was deleted." would show nothing until then and a
+     * tombstone afterwards, for the same message.
+     *
+     * On failure the previous record is restored. A row that was not cached to begin
+     * with has nothing to mark and nothing to restore; the server's answer is written
+     * either way, so the cache ends up agreeing with it.
+     */
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {
         const chatId = this.assertRequiredString((payload as { id?: string }).id, 'id');
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const existing = await this.chatLocalDataSource.cacheRead(chatId, requestContext);
 
-        await this.chatLocalDataSource.cacheDelete(chatId, requestContext);
+        if (existing) {
+            await this.chatLocalDataSource.cacheWrite({ ...existing, hidden: true }, requestContext);
+        }
 
         try {
-            return await this.chatRemoteDataSource.deleteChat(payload, normalizedContext);
+            const domainChat = await this.chatRemoteDataSource.deleteChat(payload, normalizedContext);
+            await this.chatLocalDataSource.cacheWrite(domainChat, requestContext);
+            return domainChat;
         } catch (error) {
             if (existing) {
                 await this.chatLocalDataSource.cacheWrite(existing, requestContext);

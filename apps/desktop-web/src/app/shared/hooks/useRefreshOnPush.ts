@@ -19,8 +19,10 @@ import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
  *    though the sync plan ignores a background channel's chat frame, the frame still reaches
  *    `onMessage`; it's the reliable "something in this cloud got a message" signal.
  *
- * On either, re-pull `channel.mine` (every channel across the cloud's places, each tagged with its
- * sid) so the affected record advances and the badge recomputes. Debounced so a burst is one fetch.
+ * On either, re-pull `channel.mine` so the affected record advances and the badge recomputes.
+ * Debounced so a burst is one fetch. Note the reach: `channel.mine` answers for the site the socket
+ * session is on, so this refreshes the ACTIVE place only — a background place's badge still waits
+ * for the cloud-wide `channel.sync` in useBackgroundSync.
  */
 export const useRefreshOnPush = (): void => {
     const { channel } = useRuntimeRepositories();

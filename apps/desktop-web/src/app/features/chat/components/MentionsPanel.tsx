@@ -41,12 +41,9 @@ const MentionRow = ({ item, channelName, removeLabel, onOpen, onRemove }: Mentio
             <span aria-hidden className="mt-3 w-1.5 shrink-0">
                 {!item.readAt && <span className="block h-1.5 w-1.5 rounded-full bg-primary" />}
             </span>
-            <Avatar className="mt-0.5 h-9 w-9 shrink-0 rounded-md">
+            <Avatar className="mt-0.5 h-9 w-9 shrink-0">
                 {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
-                <AvatarFallback
-                    className="rounded-md text-sm font-semibold"
-                    style={avatarStyle(item.colorSeed ?? item.ownerName)}
-                >
+                <AvatarFallback className="text-sm font-semibold" style={avatarStyle(item.colorSeed ?? item.ownerName)}>
                     {item.ownerName.charAt(0).toUpperCase() || '?'}
                 </AvatarFallback>
             </Avatar>

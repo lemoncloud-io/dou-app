@@ -23,7 +23,7 @@ import {
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
-import { buildMemberNames, buildThreadIndex } from '../utils';
+import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
 import { useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -68,11 +68,16 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 : undefined,
         [jumpRequest, channelId]
     );
-    // Threads are hidden from the main feed (ADR 0008): show only top-level
-    // messages, but count replies from the full set so a root's "N replies"
-    // footer is correct. Replies still arrive in the cache via chat:create.
-    const topLevel = useMemo(() => messages.filter(m => !m.parentId), [messages]);
+    // Thread replies belong to the panel (ADR 0008) and reaction events are chips, not
+    // rows — `isFeedVisible` owns both rules. Deleted messages stay and render as a
+    // tombstone, so the filter no longer needs the thread index to decide.
+    // Reply counts come from the full set so a root's "N replies" footer is correct;
+    // replies keep arriving in the cache via chat:create.
     const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
+    const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
+    // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
+    // the events this reads, so folding `topLevel` would always come back empty.
+    const reactions = useMemo(() => foldReactions(messages, myUid), [messages, myUid]);
     const { isVerified } = useSocketState();
     const [sendTick, setSendTick] = useState(0);
 
@@ -184,6 +189,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
             <MessageList
                 key={channelId}
                 messages={topLevel}
+                reactions={reactions}
                 isLoading={isLoading}
                 viewer={viewer}
                 names={memberNames}

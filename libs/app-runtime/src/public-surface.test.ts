@@ -35,6 +35,9 @@ describe('@chatic/app-runtime public surface', () => {
             'useInvitedCloudColdRecovery',
             'useInvitedCloudNameSync',
             'recoverInvitedCloudIfMissing',
+            // desktop-web repairs the active invited cloud itself: the hook above is native-gated,
+            // but the name fetch underneath it is not platform-specific.
+            'syncInvitedCloudName',
             // sync registration hooks
             'useChatSync',
             'useChannelSync',

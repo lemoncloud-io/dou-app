@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
+import { Link2 } from 'lucide-react';
 
 import { isNative, webClient } from '@chatic/bridges';
 
+/**
+ * What the chip renders — a view model, not the wire contract. The shell sends
+ * more (see `OnFetchUrlMetadataPayload` in libs/app-messages); anything not
+ * listed here is dropped on arrival.
+ */
 export interface UrlMetadata {
     url: string;
     title: string;
-    description?: string;
-    imageUrl?: string;
     siteName?: string;
 }
 
@@ -35,13 +39,8 @@ const requestMetadata = (url: string): Promise<UrlMetadata | null> => {
         .then(response => {
             const data = response.data;
             if (!data?.success || !data.title) return null;
-            return {
-                url: data.url,
-                title: data.title,
-                description: data.description,
-                imageUrl: data.imageUrl,
-                siteName: data.siteName,
-            };
+            // `data.imageUrl` is deliberately not carried over — see the component.
+            return { url: data.url, title: data.title, siteName: data.siteName };
         })
         .catch(() => null)
         .then(meta => {
@@ -58,11 +57,22 @@ interface LinkPreviewCardProps {
 }
 
 /**
- * Slack-style unfurl card under a message link. Desktop shell only — the
- * renderer can't read cross-origin pages, so the main process fetches and
- * parses og: tags (FetchUrlMetadata). Renders nothing in a plain browser or
- * when the page yields no usable metadata. Block-level <span>s because the
- * host paragraph is a <p>.
+ * Compact unfurl chip under a message link. Desktop shell only — the renderer
+ * can't read cross-origin pages, so the main process fetches and parses og:
+ * tags (FetchUrlMetadata). Renders nothing in a plain browser or when the page
+ * yields no usable metadata. Block-level <span>s because the host paragraph
+ * is a <p>.
+ *
+ * The chip shows only the source name and the title. Dropping the `og:image`
+ * thumbnail is deliberate and load-bearing: rendering it would make every
+ * reader's browser fetch that URL directly, handing the third-party host each
+ * reader's IP, user-agent, and the moment they scrolled the message into view.
+ * `unfurl.ts` in the shell never forwards image bytes for the same reason, so
+ * the only way to keep that property on this side is to never request the image.
+ *
+ * `requestMetadata` therefore drops `imageUrl` on arrival rather than carrying
+ * it unused: a URL the component does not hold cannot be rendered by accident.
+ * `LinkPreviewCard.spec.tsx` pins the behaviour from the outside as well.
  */
 export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => metadataCache.get(url) ?? null);
@@ -85,23 +95,20 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
             href={meta.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="focus-ring my-1 flex max-w-md items-stretch gap-3 overflow-hidden rounded-md border border-hairline bg-elevated p-2.5 no-underline shadow-raised transition-colors ease-tactile hover:bg-accent/40"
+            className="focus-ring my-1 flex max-w-sm items-center gap-2.5 overflow-hidden rounded-md border border-hairline bg-elevated px-2.5 py-2 no-underline transition-colors ease-tactile hover:bg-accent/40"
         >
-            <span className="block w-1 shrink-0 rounded-full bg-primary/40" aria-hidden />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {meta.siteName && (
-                    <span className="block truncate text-caption font-medium text-muted-foreground">
-                        {meta.siteName}
-                    </span>
-                )}
-                <span className="block truncate text-callout font-semibold text-primary-ink">{meta.title}</span>
-                {meta.description && (
-                    <span className="line-clamp-2 block text-caption text-muted-foreground">{meta.description}</span>
-                )}
+            <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-accent/60 text-muted-foreground"
+                aria-hidden
+            >
+                <Link2 size={14} />
             </span>
-            {meta.imageUrl && (
-                <img src={meta.imageUrl} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-md object-cover" />
-            )}
+            <span className="flex min-w-0 flex-1 flex-col">
+                {meta.siteName && (
+                    <span className="block truncate text-micro text-muted-foreground">{meta.siteName}</span>
+                )}
+                <span className="block truncate text-caption font-medium text-foreground">{meta.title}</span>
+            </span>
         </a>
     );
 };
