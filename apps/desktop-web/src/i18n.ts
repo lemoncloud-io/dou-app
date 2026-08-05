@@ -160,6 +160,9 @@ const resources = {
             'sidebar.noMatches': 'No channels match your search',
             // Screen-reader text for the sidebar unread markers. The channel dot
             // carries no number, so without these the badge is colour-only.
+            // Sidebar tombstone. Shorter than the feed's sentence on purpose — this slot
+            // is one truncated line next to a channel name.
+            'sidebar.deletedPreview': 'Message deleted',
             'sidebar.unread': 'Unread',
             'sidebar.unreadCount_one': '{{count}} unread message',
             'sidebar.unreadCount_other': '{{count}} unread messages',
