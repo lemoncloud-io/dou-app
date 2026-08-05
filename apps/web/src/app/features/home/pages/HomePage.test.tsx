@@ -81,6 +81,13 @@ jest.mock('../lib', () => ({ resolveHeaderProfile: () => ({ kind: 'site', name: 
 jest.mock('../../invite/hooks/useInviteListRows', () => ({
     useInviteListRows: () => ({ invites: [], isLoading: false }),
 }));
+// Home is where the locally-canceled reconcile runs once per boot (ADR-0043). It reaches the invite
+// list and mutations through the hooks barrel, which this suite stubs down to the two entries the
+// page itself reads — so it is stubbed out here rather than widening that stub for a pass this
+// suite is not about.
+jest.mock('../../invite/hooks/useCanceledInviteReconcile', () => ({
+    useCanceledInviteReconcile: () => undefined,
+}));
 
 beforeEach(() => jest.clearAllMocks());
 

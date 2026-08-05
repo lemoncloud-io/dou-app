@@ -4,14 +4,16 @@ import { useRelayInviteFlow } from './useRelayInviteFlow';
 
 const getInvite = jest.fn();
 const acceptInvite = jest.fn();
+const rejectInvite = jest.fn();
 const resolveChannel = jest.fn();
 const setPendingChannel = jest.fn();
 const navigate = jest.fn();
 const toast = jest.fn();
-const recordDeclinedInvite = jest.fn();
 const waitUntilKindVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
+/** A deeplink usually lands in a fresh device session, so guest is the default here. */
+let mockIsGuest = true;
 const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
@@ -20,6 +22,7 @@ jest.mock('@chatic/app-runtime', () => ({
     getSocketManager: () => ({ waitUntilKindVerified }),
     // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
     useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
+    useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: { error: (...a: unknown[]) => loggerError(...a), warn: (...a: unknown[]) => loggerWarn(...a) },
@@ -27,7 +30,9 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedSiteId: mockSid }) }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('../../../../hooks', () => ({ useRelayInviteMutations: () => ({ getInvite, acceptInvite }) }));
+jest.mock('../../../../hooks', () => ({
+    useRelayInviteMutations: () => ({ getInvite, acceptInvite, rejectInvite }),
+}));
 // The judgement has its own suite (utils/placeProfile.test.ts). Mocked here so this one drives the
 // verdict directly instead of reconstructing get-mine responses.
 jest.mock('../../../../utils/placeProfile', () => ({
@@ -36,7 +41,6 @@ jest.mock('../../../../utils/placeProfile', () => ({
 // The 3-tier resolution has its own suite (useResolveInviteChannel.test.ts); mocking it here keeps this
 // one off real timers and lets it assert the hand-off instead.
 jest.mock('./useResolveInviteChannel', () => ({ useResolveInviteChannel: () => ({ resolveChannel }) }));
-jest.mock('../lib', () => ({ recordDeclinedInvite: (...args: unknown[]) => recordDeclinedInvite(...args) }));
 jest.mock('../../../../stores/usePendingInviteChannel', () => ({
     usePendingInviteChannel: (selector: (s: unknown) => unknown) => selector({ setPendingChannel }),
 }));
@@ -67,8 +71,10 @@ beforeEach(() => {
     waitUntilKindVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
+    rejectInvite.mockResolvedValue(view({ state: 'rejected' }));
     // Default: a profile already exists, so the profile step stays out of the other tests' way.
     mockSid = 'site-1';
+    mockIsGuest = true;
     isPlaceProfileAbsent.mockResolvedValue(false);
     resolveChannel.mockResolvedValue('ch-new');
 });
@@ -97,11 +103,25 @@ describe('useRelayInviteFlow — 진입 조회', () => {
         await waitFor(() => expect(result.current.notice).toBe('alreadyJoined'));
     });
 
-    it('404는 유효하지 않은 초대로 통합한다 (취소와 구분 불가)', async () => {
+    it('404는 유효하지 않은 초대다 — 취소는 이제 상태로 오므로 에러와 섞이지 않는다', async () => {
         getInvite.mockRejectedValue(socketError(404));
         const { result } = mount();
 
         await waitFor(() => expect(result.current.notice).toBe('notFound'));
+    });
+
+    it('canceled면 초대 취소 안내로 간다 — 초대자가 거둔 초대 (ADR-0043)', async () => {
+        getInvite.mockResolvedValue(view({ state: 'canceled' }));
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('inviteCanceled'));
+    });
+
+    it('rejected면 거절한 초대 안내로 간다 — 같은 딥링크 재진입 (ADR-0043)', async () => {
+        getInvite.mockResolvedValue(view({ state: 'rejected' }));
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('rejected'));
     });
 });
 
@@ -158,6 +178,26 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
 });
 
 // ADR-0039가 ADR-0033 D10을 개정해 프로필 스텝을 없앴다: 인증만 남는다.
+// Opening a deeplink does NOT imply a device session: a social-linked main user who simply has no
+// phone yet also gets `needVerify`, and `login` from that session is a 400 ("@mode[login] is for
+// device session"). ADR-0042 §3.
+describe('useRelayInviteFlow — 인증 모드 결정', () => {
+    it('게스트는 세션을 여는 login이다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        expect(result.current.verifyMode).toBe('login');
+    });
+
+    it('이미 메인 유저(번호만 없는 소셜 계정)면 link다 — login은 서버가 400으로 막는다', async () => {
+        mockIsGuest = false;
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        expect(result.current.verifyMode).toBe('link');
+    });
+});
+
 describe('useRelayInviteFlow — 스텝 순서', () => {
     it('needVerify면 인증 → 수락 순으로 진행한다', async () => {
         getInvite.mockResolvedValue(view({ needVerify: true }));
@@ -172,6 +212,53 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         getInvite.mockResolvedValue(view({ needVerify: false }));
         act(() => result.current.onVerified());
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+    });
+
+    // The server derives `needVerify` from whether this account owns the INVITED number, so proving
+    // some other number leaves it true. Without a one-shot guard the flow bounces straight back to
+    // `verifying`, remounting the screen as a blank form with no error, forever. And a linked number
+    // cannot be swapped (no unlink endpoint; the server answers `type-linked`), so re-verifying could
+    // never clear it — the terminal notice is the only honest answer.
+    it('인증을 마쳤는데도 needVerify가 남아 있으면 무한 반복 대신 번호 불일치로 끝낸다', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+
+        // Proved a number, but not the invited one — the server still wants a proof.
+        act(() => result.current.onVerified());
+
+        await waitFor(() => expect(result.current.notice).toBe('wrongNumber'));
+        expect(result.current.phase).toBe('notice');
+        expect(acceptInvite).not.toHaveBeenCalled();
+    });
+
+    // A `link` confirm commits the number irreversibly (no unlink endpoint), and the server only
+    // cross-checks the invite on a `login` send — so `last4` is the whole of the check on this path.
+    // Without it there is nothing to check against, and proceeding could permanently attach a number
+    // that is not the invited one.
+    it('link 모드인데 초대에 last4가 없으면 대조할 수단이 없으므로 인증을 시작하지 않는다', async () => {
+        mockIsGuest = false;
+        getInvite.mockResolvedValue(view({ needVerify: true, last4: undefined }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(result.current.phase).toBe('notice');
+    });
+
+    it('login 모드는 last4가 없어도 진행한다 — 대조는 서버가 초대 코드로 한다', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true, last4: undefined }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
     });
 
     it('프로필이 없으면 수락하지 않고 프로필 설정으로 보낸다 (ADR-0041)', async () => {
@@ -461,6 +548,22 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         await waitFor(() => expect(result.current.notice).toBe('wrongNumber'));
     });
 
+    // The server just said it does not see a main user; that beats the role cache, which falls back
+    // to "main user" whenever the role is unknown and reads the CLOUD token while a cloud is active.
+    // Re-deriving `link` from a stale `isGuest: false` here would 403 the send with no way out.
+    it('403으로 인증에 보내질 때는 role 캐시와 무관하게 login으로 고정한다', async () => {
+        mockIsGuest = false;
+        acceptInvite.mockRejectedValue(socketError(403));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(result.current.verifyMode).toBe('link');
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+        expect(result.current.verifyMode).toBe('login');
+    });
+
     it('수락 시점 400은 만료, 409는 선점으로 매핑한다', async () => {
         acceptInvite.mockRejectedValue(socketError(400));
         const expired = mount();
@@ -531,17 +634,95 @@ describe('useRelayInviteFlow — 다시 시도', () => {
     });
 });
 
-describe('useRelayInviteFlow — 거절 스텁', () => {
-    it('서버 호출 없이 초대 id만 남기고 홈으로 간다', async () => {
+describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
+    it('decline은 확인 다이얼로그(declining)만 연다 — 종국 액션은 확인 전에 나가지 않는다', async () => {
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
         act(() => result.current.decline());
 
-        expect(recordDeclinedInvite).toHaveBeenCalledWith('inv-1');
+        expect(result.current.phase).toBe('declining');
+        expect(rejectInvite).not.toHaveBeenCalled();
         expect(acceptInvite).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('다이얼로그에서 물러나면(cancelStep) 아무것도 보내지 않고 review로 돌아간다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        act(() => result.current.cancelStep());
+
+        expect(result.current.phase).toBe('review');
+        expect(rejectInvite).not.toHaveBeenCalled();
+    });
+
+    it('확인하면 invite.reject를 보내고 rejected 응답에 토스트 후 홈으로 간다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        expect(rejectInvite).toHaveBeenCalledWith(CODE);
+        expect(toast).toHaveBeenCalledWith({ title: 'relayInviteAccept.declinedToast' });
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
         expect(result.current.phase).toBe('closed');
+    });
+
+    it('요청이 나가 있는 동안 phase는 declining에 머물고 isRejecting만 켜진다 — submitting으로 넘어가면 수락 화면 스피너가 잘못 뜬다', async () => {
+        let release: (view: unknown) => void = () => undefined;
+        rejectInvite.mockReturnValue(new Promise(resolve => (release = resolve)));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.decline());
+
+        act(() => void result.current.confirmDecline());
+        await waitFor(() => expect(result.current.isRejecting).toBe(true));
+        expect(result.current.phase).toBe('declining');
+
+        await act(async () => release(view({ state: 'rejected' })));
+        expect(result.current.phase).toBe('closed');
+    });
+
+    it('응답 state가 rejected가 아니면 generic으로 떨어지고 isRejecting은 꺼진다 — 성공 플래그는 state뿐이다', async () => {
+        rejectInvite.mockResolvedValue(view({ state: 'pending' }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(result.current.isRejecting).toBe(false);
+    });
+
+    // `taken`("다른 사용자가 먼저 초대를 수락했습니다")이 아니라 `alreadyJoined`("이미 참여한
+    // 초대입니다")다. reject의 409는 `reject-invite.ts`가 이미 수락된 초대에만 던지고, 1:1 초대는
+    // 번호 해시에 묶여 있어 수락할 수 있었던 사람은 이 사용자 자신(다른 기기)뿐이다 — 남이
+    // 가로챘다는 안내는 사실이 아니고, 정작 필요한 안내("채팅방에서 이어가세요")를 가린다.
+    it('409(이미 수락)는 alreadyJoined 안내다 — 가로챈 남이 아니라 본인이 수락한 것이다', async () => {
+        rejectInvite.mockRejectedValue(socketError(409));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        await waitFor(() => expect(result.current.notice).toBe('alreadyJoined'));
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('그 외 실패는 조회 단계와 같은 매핑이다 (404 → notFound)', async () => {
+        rejectInvite.mockRejectedValue(socketError(404));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        await waitFor(() => expect(result.current.notice).toBe('notFound'));
     });
 
     it('진행 중에는 닫기를 무시한다', async () => {

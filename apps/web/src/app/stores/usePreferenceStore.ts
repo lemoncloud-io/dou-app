@@ -105,9 +105,6 @@ export const parseInviteIds = (raw: string): string[] => {
     }
 };
 
-/** Cap the decline ring so a long-lived install cannot grow the entry without bound; oldest drops. */
-const DECLINED_INVITES_MAX = 50;
-
 export const parsePinnedChannels = (raw: string): Record<string, string[]> => {
     try {
         const parsed = JSON.parse(raw);
@@ -180,10 +177,8 @@ interface PreferenceState {
     pinnedChannels: Record<string, string[]>;
     /** Live store version the update prompt was last dismissed for; '' means never dismissed. */
     dismissedUpdateVersion: string;
-    /** Sent invite ids hidden by the local cancel stub (no `invite.cancel` API — ADR-0033 #1). */
+    /** Locally hidden sent-invite ids — rejected-row dismisses and legacy pre-API cancel stamps (ADR-0043). */
     canceledInviteIds: string[];
-    /** Received invite ids the user declined (no reject API — ADR-0033 #2). Newest last, ring-capped. */
-    declinedInviteIds: string[];
     /** Epoch ms the cloud-promo banner was last dismissed; 0 means never (see parseCloudPromoDismissedAt). */
     cloudPromoDismissedAt: number;
 }
@@ -203,10 +198,10 @@ interface PreferenceActions {
     setChannelPinned: (scope: string, channelId: string, pinned: boolean) => void;
     /** Mark the update prompt as dismissed for the given live version; suppresses it until a newer version appears. */
     dismissUpdate: (version: string) => void;
-    /** Hide a sent invite on this device (local cancel stub). Idempotent. */
+    /** Hide a sent invite on this device (rejected-row dismiss; legacy pre-API cancel stamps). Idempotent. */
     markInviteCanceled: (inviteId: string) => void;
-    /** Remember that a received invite was declined on this device. Idempotent, ring-capped. */
-    markInviteDeclined: (inviteId: string) => void;
+    /** Drop one hidden-invite record — the reconcile pass calls this once the server state is settled. */
+    clearInviteCanceled: (inviteId: string) => void;
     /**
      * Record "dismissed now" for the cloud-promo banner. Expiry is NOT enforced here — readers
      * compare the timestamp against CLOUD_PROMO_DISMISS_TTL_MS (see features/home/hooks/useCloudPromo).
@@ -243,7 +238,6 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
 
     canceledInviteIds: parseInviteIds(readPreference('canceledInvites')),
 
-    declinedInviteIds: parseInviteIds(readPreference('declinedInvites')),
     cloudPromoDismissedAt: parseCloudPromoDismissedAt(readPreference('cloudPromoDismissedAt')),
 
     setBlurLastMessage: (value: boolean) => {
@@ -306,13 +300,11 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
         persistPreference('canceledInvites', JSON.stringify(next));
     },
 
-    markInviteDeclined: (inviteId: string) => {
-        if (!inviteId) return;
-        // Re-declining moves the id to the newest slot rather than duplicating it, so the ring
-        // evicts genuinely stale entries first.
-        const next = [...get().declinedInviteIds.filter(id => id !== inviteId), inviteId].slice(-DECLINED_INVITES_MAX);
-        set({ declinedInviteIds: next });
-        persistPreference('declinedInvites', JSON.stringify(next));
+    clearInviteCanceled: (inviteId: string) => {
+        if (!inviteId || !get().canceledInviteIds.includes(inviteId)) return;
+        const next = get().canceledInviteIds.filter(id => id !== inviteId);
+        set({ canceledInviteIds: next });
+        persistPreference('canceledInvites', JSON.stringify(next));
     },
 
     dismissCloudPromo: () => {

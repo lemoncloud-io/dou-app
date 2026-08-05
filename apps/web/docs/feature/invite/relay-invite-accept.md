@@ -1,10 +1,12 @@
 # 중계 1:1 초대 수락 (Relay Invite Accept) — 수신자 흐름
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [0037](../../../../../docs/adr/0037-invite-accept-popup-group-and-dm-variants.md), [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
+> 상태: Live · 최종 갱신: 2026-08-04 · 관련 ADR: [0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [0037](../../../../../docs/adr/0037-invite-accept-popup-group-and-dm-variants.md), [0035](../../../../../docs/adr/0035-relay-invite-accepted-channel-resolution.md), [0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md), [0016](../../../../../docs/adr/0016-invite-accept-popup-web-ui-kit.md), [0020](../../../../../docs/adr/0020-place-profile-edit-dialog.md)
 >
-> 최근 개정(2026-08-03): ADR-0041 결정 3 — `invite.accept` 앞에 `profiling` 스텝 복원. 채널 해소
-> 3단(ADR-0035)·상태 매핑·거절 스텁은 변경 없음. 병렬 세션과의 시그니처 계약:
-> [place-profile-create-shared-contract.md](../../../../../docs/plans/place-profile-create-shared-contract.md).
+> 최근 개정(2026-08-04): ADR-0043 — 백엔드 요청 1번(`invite.cancel` + `canceled`)·2번(`invite.reject`
+>
+> - `rejected`)이 도착(sockets-lib `0.4.13`). 거절 버튼이 스텁(닫기+로컬 기록)에서 **확인 다이얼로그
+>   (Figma 3446-17487) → 실 `invite.reject`**로 바뀌었고, 진입 케이스에 `canceled`(Figma 3079-12304
+>   부활)·`rejected`가 분리됐다. 스텝 오케스트레이션·프로필 전제조건·채널 해소 3단은 변경 없음.
 >
 > 로드맵 Track C: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) · 백엔드 계약: `chatic-sockets-api/docs/specs/relay-server-invite/05-client-guide.md` §시나리오 B·C
 >
@@ -56,9 +58,11 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
   수 있다(05-client-guide §B-2). 모든 전환이 `advance()` 하나를 지나고, 그 첫 동작이
   `getInvite(code)`다 — 호출부가 잊을 수 없는 구조로 만든다.
 - **초대 코드는 자격증명이다.** 로그·쿼리키·localStorage·라우트 파라미터 어디에도 남기지 않는다.
-  로컬 기록이 필요한 곳(거절 스텁)은 `invite.id`로 남긴다.
-- **백엔드가 없는 액션은 인터페이스만 선반영한다**(ADR-0033 D1). 디자인의 버튼은 그대로 만들되
-  동작은 로컬로 끝내고, 노출은 [flags.ts](../../../src/app/features/home/flags.ts) 한 줄로 끈다.
+  거절도 딥링크가 준 코드를 패킷 body로만 보낸다 — 로컬에 기록할 것이 없다(서버 `state`가 기억한다).
+- **종국 판정은 서버 응답의 `state`다.** 거절·취소는 멱등이라 재시도해도 시각이 밀리지 않고,
+  `409`(이미 수락)는 상태가 갈렸다는 뜻이므로 재조회로 화면을 맞춘다(01-spec L64·L89). 거절은
+  **되돌릴 수 없으므로** 실행 전 확인 다이얼로그 한 단계를 둔다(05-client-guide §B-4 권고,
+  Figma 3446-17487).
 - **뷰는 재사용, 오케스트레이션만 새로 쓴다.** 수락 화면·상태 다이얼로그·채널 입장
   핸드오프는 전부 기존 자산이다. 새 라우트를 만들지 않아 `paths.ts`·`HomePage.tsx`를 건드리지
   않는다.
@@ -71,19 +75,21 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
 
 - `InviteDialog` 라우터화 + relay 분기(`isRelayInvite`).
 - relay 수락 팝업: `inviter$` 기반 헤딩·아바타, `expiredAt` 카운트다운, 거절/수락.
-- 상태 다이얼로그 매핑: 만료 / 이미 참여 / 유효하지 않음(=취소 통합) / 번호 불일치 / 선점 / generic.
+- 상태 다이얼로그 매핑: 만료 / 이미 참여 / **초대 취소됨** / **거절한 초대** / 유효하지 않음 /
+  번호 불일치 / 선점 / generic.
 - 스텝 오케스트레이션 상태 머신(ADR-0033 D10, ADR-0041 결정 3): get → verify → **profile** →
   accept → channel-wait → enter. `profiling` 스텝은 `absent`일 때만 끼어든다.
 - 채널 sync 대기 유틸(`useAwaitInviteChannel`) — **Track B와 공유**(로드맵 Track B-4).
-- 거절 버튼 스텁(닫기 + 로컬 기록) + `flags.ts` 게이팅.
+- 거절 — 확인 다이얼로그(Figma 3446-17487) → `invite.reject` → 홈. 인증 없이(디바이스 유저
+  상태에서) 가능하다.
 - Track A 계약 목(`trackAMock.tsx`) 1파일.
 
 **제외**
 
 - `PhoneVerifyScreen`·`applySessionToken` 실구현 — **Track A**. 여기서는 목만.
-- 초대 발급·대기 화면·재초대·리스트 통합 — **Track B**. 소셜 연동 — **Track D**.
-- `paths.ts` / `HomePage.tsx` / `SocketManager.ts` 변경 — 타 트랙 소유. 손대지 않았다.
-- 초대 취소/거절 백엔드 연동(요청 1·2번) — 스텁.
+- 초대 발급·대기 화면·재초대·리스트 통합 — **발신자 흐름**([relay-invite-sender.md](relay-invite-sender.md)).
+  소셜 연동 — **Track D**.
+- 거절 시 초대자에게 가는 알림(백엔드 요청 4번 미구현) — 초대자는 목록 재조회로 안다.
 - `channelDeleted` 다이얼로그 배선 — relay 백엔드에 대응 시그널이 없다(UI만 유지, ADR-0016과 동일).
 
 ## 시나리오
@@ -96,8 +102,8 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
    "**Sunny**님이 DoU에 당신을 초대했어요", 초대자 아바타, "You / 1:1 대화" 카드, 초대 링크
    유효기간 카운트다운(`expiredAt`).
 3. `수락` → **재검증** → 여전히 `pending` + `needVerify` → `PhoneVerifyScreen`
-   (`context='invite-accept'`, `inviteCode=code`)이 같은 풀스크린 서피스에 뜬다. 인증이 끝나면
-   (`onVerified`) 세션은 이미 메인유저로 전환된 상태다(Track A 책임).
+   (`context='invite-accept'`, `inviteCode=code`, `mode=verifyMode`)이 같은 풀스크린 서피스에 뜬다.
+   인증이 끝나면 (`onVerified`) 세션은 메인유저다(Track A 책임).
 4. **재검증** → `pending` → **프로필 판정**(`await getMyProfile()`). 이 계정은 방금 만들어진
    신규 유저라 `nick`이 없고 `active === false`이므로 `absent` → `profiling`. 생성 다이얼로그가 같은
    풀스크린 서피스에 뜬다 — `<두유 홈>에 사용할 내 프로필을 만들어 주세요`(Figma 3080-12440).
@@ -143,13 +149,20 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
 
 - 진입 시 `state==='accepted'` → "이미 참여한 초대입니다."(Figma 3078-12015). 같은 코드 재수락은
   서버가 멱등 처리하므로 이 화면은 **내가 이미 수락한 링크를 다시 연 경우**다.
-- 수락 시 `409` → "이미 사용된 초대입니다." — 다른 사람이 먼저 수락했다.
+- 수락 시 `409` → "이미 사용된 초대입니다."(`taken`) — 조회와 수락 사이에 선점됐다는 뜻이다.
+- **거절 시 `409`는 `alreadyJoined`다.** 거절이 부딪히는 경우는 "이미 수락됨" 하나뿐이고, 번호에
+  묶인 1:1 초대를 수락할 수 있었던 사람은 본인뿐이라 `taken` 카피가 성립하지 않는다.
 
-### 6. 취소된 / 유효하지 않은 초대
+### 6. 취소된 / 거절한 / 유효하지 않은 초대
 
-`404`, 또는 조회 단계의 `400`(코드 형식)·`403`(코드 불일치) → "유효하지 않은 초대입니다."
-**취소 API가 없어 취소와 구분할 수 없으므로 문구를 통합한다**(Figma 3079-12304의 취소 화면이 이
-문구로 대체된다). 백엔드 요청 1번이 들어오면 `canceled` 분기를 여기에 꽂는다.
+- `state === 'canceled'` → **"초대가 취소되었습니다."**(Figma 3079-12304,
+  `inviteAccept.dialog.inviteCanceled.*` — 카피는 ADR-0016 시절부터 준비돼 있었다). 초대자가
+  거둔 초대다. 에러가 아니라 **상태로 온다**(진입 조회·재검증 모두).
+- `state === 'rejected'` → **"거절한 초대입니다."**(스펙 B-1 표). 이 기기(또는 같은 번호의 다른
+  기기)에서 이미 거절한 딥링크를 다시 연 경우다. 서버 상태가 기억하므로 로컬 기록이 필요 없다 —
+  구 스텁의 `declinedInviteIds`가 통째로 사라지는 이유다.
+- `404`, 또는 조회 단계의 `400`(코드 형식)·`403`(코드 불일치) → "유효하지 않은 초대입니다."
+  이제 취소와 구분되므로 notFound 카피에서 "취소되었거나"를 걷어낸다.
 
 ### 7. 초대받은 번호가 아님
 
@@ -157,11 +170,43 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
 흐름에서 인증에 성공한 뒤라면 다른 번호를 인증한 것이므로 "초대받은 번호가 아닙니다."로 끝낸다.
 발송 단계에서 걸리는 케이스(`400`)는 `PhoneVerifyScreen`(Track A)이 처리한다.
 
-### 8. 거절 (스텁)
+**인증을 마쳤는데도 `needVerify`가 그대로면 같은 결론이다.** 서버는 이 계정이 _초대받은_ 번호를
+가졌는지로 `needVerify`를 정하므로, 다른 번호를 증명하면 참으로 남는다. 가드가 없으면 인증 화면이
+빈 폼으로 무한 재마운트되므로 `verifiedRef`로 한 번만 허용하고 그다음은 종국 안내로 끝낸다.
 
-`거절` → 서버 호출 없이 닫고 홈으로. 거절 사실은 `invite.id`로 localStorage에 남는다.
-**백엔드 거절 API가 없다(요청 2번)** — 초대자 쪽에는 아무 신호도 가지 않는다. 버튼 노출은
-`RELAY_INVITE_DECLINE_ENABLED` 한 줄로 끈다.
+### 7-1. 인증 모드 — 딥링크를 연다고 디바이스 세션인 것은 아니다
+
+`verifyMode`는 `isGuest`로 정한다. 게스트는 세션을 여는 `login`, **이미 메인 유저인데 번호만 없는
+사람**(소셜 로그인 등)은 `link`다. 후자에게 `login`을 보내면 서버가
+`400 INVALID - @mode[login] is for device session`으로 막는다 — 실제로 프로덕션에서 났던 버그이며,
+그때 클라이언트는 그 400을 "초대받은 번호가 아닙니다"로 잘못 표시했다.
+
+두 가지가 이 판단을 보정한다.
+
+- **서버의 403이 role 캐시를 이긴다.** 수락이 403으로 인증에 보내질 때는 `login`으로 고정한다.
+  `isGuest`는 role 미상일 때 "메인 유저"로 기울고 클라우드 활성 시 클라우드 토큰을 읽으므로,
+  서버가 "메인 유저 아님"이라 답한 순간 그쪽이 진실이다.
+- **`link`는 `last4` 없이 시작하지 않는다.** `link` 확정은 번호를 계정에 **되돌릴 수 없게** 붙이고
+  (백엔드에 해제 엔드포인트가 없고 이후 `type-linked`로 막힌다), 서버의 초대 대조는 `login`에만 있다
+  (`link-account.ts`가 `mode === 'login'`일 때만 `code`를 읽는다). 그래서 `link` 경로에서는 `last4`가
+  유일한 대조 수단이고, 그것마저 없으면 인증을 아예 시작하지 않는다. `link`에서도 초대를 대조해
+  달라는 요청은 [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) 후속에 있다.
+
+### 8. 거절 (실 API — ADR-0043)
+
+1. 수락 화면의 `거절` → **확인 다이얼로그**(Figma 3446-17487) — 거절은 종국이라 되돌릴 수 없으므로
+   한 단계를 둔다(05-client-guide §B-4 권고).
+2. 확인 시 `rejectInvite(code)`. **번호 인증이 필요 없다** — 딥링크를 연 직후 디바이스 유저
+   상태에서 바로 가능하다(B-2를 거치지 않는다).
+3. 응답 `state === 'rejected'`면 거절 토스트 후 홈으로. 초대자에게 가는 알림은 없다(요청 4번) —
+   초대자는 목록 재조회로 `rejected` 뱃지를 본다(발신자 문서 S8).
+4. `409`(이미 수락)면 `alreadyJoined` 공지로 떨어진다. reject의 409는 `reject-invite.ts`가 이미
+   수락된 초대에만 던지고, 1:1 초대는 번호 해시에 묶여 있어 수락할 수 있었던 사람은 이 사용자
+   자신(다른 기기)뿐이다 — `taken`("다른 사용자가 먼저 수락")은 사실이 아닐뿐더러, 정작 필요한
+   안내("채팅방에서 이어가세요")를 가린다.
+   그 외 에러는 조회 단계와 같은 매핑(`resolveNotice`)이다.
+5. 같은 딥링크를 다시 열면 §6의 `rejected` 분기("거절한 초대입니다")로 끝난다. 마음이 바뀌면
+   초대자가 재발급해야 한다.
 
 ### 9. 수락 후 방 해소 — 3단 (ADR-0035)
 
@@ -221,16 +266,21 @@ stateDiagram-v2
     [*] --> loading
 
     loading --> review: state=pending
-    loading --> notice: expired / accepted / 4xx
+    loading --> notice: expired / accepted / canceled / rejected / 4xx
 
     review --> submitting: "수락"
+    review --> declining: "거절" → 확인 다이얼로그
+    declining --> review: 취소(다이얼로그 닫기)
+    declining --> closed: 확인 → invite.reject 성공(rejected)
+    declining --> notice: reject 409(alreadyJoined) · 그 외 에러
     review --> notice: 카운트다운 만료
-    review --> closed: "거절"(스텁) · 닫기
+    review --> closed: 닫기
 
     state validated <<choice>>
     submitting --> validated: getInvite 재검증
-    validated --> notice: expired / accepted / 404 / 400 / 403
-    validated --> verifying: pending && needVerify
+    validated --> notice: expired / accepted / canceled / rejected / 404 / 400 / 403
+    validated --> verifying: pending && needVerify<br/>(아직 인증 전 · link면 last4 필요)
+    validated --> notice: needVerify인데 이미 인증함<br/>→ 번호 불일치
 
     state profiled <<choice>>
     validated --> profiled: pending && !needVerify<br/>→ await getMyProfile
@@ -242,7 +292,7 @@ stateDiagram-v2
     profiled --> accepted: present · 조회 실패 · 애매<br/>→ acceptInvite (fail open)
     accepted --> closed: 1단 · 응답에 channelId<br/>→ pendingChannel (대기 없음)
     accepted --> awaitingChannel: state==='accepted' && channelId 없음
-    accepted --> verifying: 403 && 아직 인증 전
+    accepted --> verifying: 403 && 아직 인증 전<br/>(모드를 login으로 고정)
     accepted --> notice: 400→만료 · 403(인증 후)→번호 불일치<br/>404 · 409 · 그 외
 
     verifying --> submitting: onVerified
@@ -263,18 +313,24 @@ flowchart LR
     subgraph 서버응답
         A1["state=expired · accept 400<br/>· 카운트다운 0"]
         A2["state=accepted"]
-        A3["404 · get 400 · get 403"]
-        A5["accept 403 (인증 후)"]
-        A6["409"]
-        A7["그 외 (401 포함)"]
+        A3["state=canceled"]
+        A4["state=rejected"]
+        A5["404 · get 400 · get 403"]
+        A6["accept 403 (인증 후)"]
+        A7["accept 409"]
+        A9["reject 409"]
+        A8["그 외 (401 포함)"]
     end
     A1 --> D1[expired<br/>3077-11719]
     A2 --> D2[alreadyJoined<br/>3078-12015]
-    A3 --> D3["notFound<br/>3079-12304 문구 통합"]
-    A5 --> D4[wrongNumber]
-    A6 --> D5[taken]
-    A7 --> D6[generic]
-    D7["channelDeleted<br/>3079-12154"] -.->|relay 트리거 없음<br/>UI만 유지| X[미배선]
+    A3 --> D3[inviteCanceled<br/>3079-12304 부활]
+    A4 --> D4["rejected<br/>거절한 초대입니다 (신규 카피)"]
+    A5 --> D5["notFound<br/>(취소 언급 제거)"]
+    A6 --> D6[wrongNumber]
+    A7 --> D7[taken]
+    A9 --> D2
+    A8 --> D8[generic]
+    D9["channelDeleted<br/>3079-12154"] -.->|relay 트리거 없음<br/>UI만 유지| X[미배선]
 ```
 
 ### 채널 해소 3단 (ADR-0035)
@@ -332,12 +388,14 @@ sequenceDiagram
 
 ```ts
 useRelayInviteFlow(code: string): {
-    phase: 'loading' | 'review' | 'submitting' | 'verifying' | 'profiling'
+    phase: 'loading' | 'review' | 'declining' | 'submitting' | 'verifying' | 'profiling'
          | 'awaitingChannel' | 'notice' | 'closed';
     invite: RelayInviteInfo | null;      // MyInviteView & { needVerify?, expiredAt?, inviter$.image? }
-    notice: 'expired' | 'alreadyJoined' | 'notFound' | 'wrongNumber' | 'taken' | 'generic' | null;
+    notice: 'expired' | 'alreadyJoined' | 'inviteCanceled' | 'rejected'
+          | 'notFound' | 'wrongNumber' | 'taken' | 'generic' | null;
     countdown: InviteCountdown | null;
-    accept(); decline(); close();
+    isRejecting: boolean;               // confirmDecline 요청이 나가 있는 동안 true
+    accept(); decline(); confirmDecline(); close();
     onVerified(); onProfileSaved(); cancelStep(); dismissNotice();
 }
 ```
@@ -346,6 +404,26 @@ useRelayInviteFlow(code: string): {
 `onProfileSaved`가 전부 이걸 부르므로 재검증이 구조적으로 보장된다. 조건 분기는 둘이다:
 `needVerify`(서버 값)와 프로필 판정(ADR-0041). 프로필 스텝을 지나 돌아와도 재검증을 다시 거치므로,
 이름을 입력하는 동안 초대가 만료되면 수락하지 않고 만료 다이얼로그로 떨어진다.
+
+**진입 조회와 `advance`의 상태 분기에 종국 둘이 추가된다** — `state === 'canceled'` →
+`fail('inviteCanceled')`, `state === 'rejected'` → `fail('rejected')` (기존 `expired`/`accepted`
+분기와 나란히). `notice` 값이 i18n 키(`inviteAccept.dialog.${notice}`)와 1:1이므로 이름은 기존
+카피 키를 따른다 — 취소는 ADR-0016부터 준비된 `inviteCanceled` 키를 그대로 살린다.
+
+**거절은 `declining` 페이즈다** — "판단은 전부 훅에" 원칙대로 확인 다이얼로그의 열림도 훅이
+소유한다. `decline()`은 `review → declining` 전이만 하고, `confirmDecline()`이 실제
+`rejectInvite(code)`를 부른다. 성공(`state === 'rejected'`)이면 거절 토스트 + `goHome`,
+`409`면 `fail('alreadyJoined')`(본인이 이미 수락한 것이다), 그 외는 조회 단계와 같은 `resolveNotice` 매핑이다.
+
+**요청이 나가 있는 동안 `phase`는 `declining`에 머문다 — `submitting`으로 넘어가지 않는다.**
+대신 `isRejecting`이 켜진다. 처음엔 `confirmDecline`이 다른 스텝처럼 `setPhase('submitting')`을
+불렀는데, `RelayInviteAccept`엔 `submitting` 전용 분기가 없어(수락 결과를 기다리는 스텝들과
+공유하는 페이즈이기 때문) 확인 다이얼로그가 사라지고 "수락" 스피너가 도는 수락 화면으로
+떨어지는 회귀가 났다 — 방금 거절을 눌렀는데 화면은 수락 진행 중처럼 보이는 것이다. 리뷰에서
+잡혀 고쳤다: `isRejecting`을 훅이 들고, `RelayInviteAccept`는 그걸 `ConfirmDialog`의 `isPending`
+prop으로 그대로 넘긴다 — `InviteWaitingPage`의 취소 확인 다이얼로그(`isCanceling`)와 같은
+관용구다. 다이얼로그의
+취소/닫기는 `cancelStep`(기존 `review` 복귀 핸들러)을 그대로 쓴다.
 
 **프로필 판정 위치는 `acceptInvite` 직전, `needVerify` 분기 다음이다.** 순서가 뒤집히면 안 된다 —
 인증 전에는 아직 디바이스 유저이고, 프로필은 인증으로 승격된 메인유저의 사이트에 써야 한다.
@@ -372,11 +450,13 @@ const accepted = await mutations.acceptInvite(code);
 - **`await` 뒤의 `isStale(run)`** — 판정이 새 await 지점이라, 그사이 흐름이 앞서 나갔거나
   언마운트됐으면 아무것도 쓰지 않는다. 이 파일의 다른 await들과 같은 규칙이다.
 
-- Track 0 훅 사용: `useRelayInviteMutations().getInvite / acceptInvite`
-  ([useRelayInvites.ts](../../../src/app/hooks/useRelayInvites.ts)).
+- Track 0 훅 사용: `useRelayInviteMutations().getInvite / acceptInvite / rejectInvite`
+  ([useRelayInvites.ts](../../../src/app/hooks/useRelayInvites.ts) — `rejectInvite`는 ADR-0043
+  배선, 발신자 문서 체크리스트 4).
 - 에러 분기는 전부 `getSocketErrorCode(error)`
   ([utils/errors.ts](../../../src/app/utils/errors.ts)) → `resolveNotice(status, stage)`. 같은
-  status가 조회/수락에서 다른 뜻이라 `stage`를 함께 본다.
+  status가 조회/수락에서 다른 뜻이라 `stage`를 함께 본다. `resolveNotice`의 "404는 취소·없음
+  통합" 주석은 사실이 아니게 됐다 — 취소는 이제 `state`로 오고, 404는 순수하게 "없는 초대"다.
 - 수락 `403`은 `verifiedRef`로 갈린다 — 인증 전이면 "아직 디바이스 유저"라서 인증 스텝으로, 인증
   후면 번호 불일치라서 종료. 서버는 `needVerify`와 무관하게 다시 판정하므로 이 경로가 필요하다.
 - `expiredAt`은 발행된 `MyInviteView`에 선언돼 있지 않다(런타임에는 온다) — 기존
@@ -444,12 +524,15 @@ useAwaitInviteChannel(): {
 `InviteAcceptScreen`을 공유하고, optional prop 넷을 넓혔다 — **기본값이 현행이라 클라우드 쪽은
 동작이 같다**:
 
-| prop          | relay가 넘기는 값 | 기본값(=클라우드) |
-| ------------- | ----------------- | ----------------- |
-| `targetKind`  | `'oneToOne'`      | `'group'`         |
-| `onDecline`   | `flow.decline`    | `onClose`         |
-| `showDecline` | 플래그            | `true`            |
-| `overlay`     | 채널 대기 스피너  | 없음              |
+| prop         | relay가 넘기는 값 | 기본값(=클라우드) |
+| ------------ | ----------------- | ----------------- |
+| `targetKind` | `'oneToOne'`      | `'group'`         |
+| `onDecline`  | `flow.decline`    | `onClose`         |
+| `overlay`    | 채널 대기 스피너  | 없음              |
+
+`showDecline` prop은 삭제됐다 — 거절 스텁을 게이팅하던 용도였고(ADR-0043으로 게이트 소멸) 거절
+버튼은 항상 노출이다. `RelayInviteAccept`는 `phase === 'declining'`일 때 수락 화면 대신 거절 확인
+`ConfirmDialog`(Figma 3446-17487)를 렌더한다.
 
 - 플레이스 카드는 **메타가 있으면 렌더된다**(ADR-0037 결정 1 철회, 2026-07-31). `RelayInviteAccept`가
   `site$`의 이름/소개/썸네일을 넘기고, relay `invite.get`이 채워주지 않는 동안에는 조용히 접힌다
@@ -502,13 +585,18 @@ useAwaitInviteChannel(): {
 `channel.name`/공통 라벨로 내려앉지 않고 상대 `profile.nick`을 얻는다. 체인 자체는 그대로
 [[dm-chat]]이 소유한다.
 
-### 스텁 — 거절 버튼
+### 거절 — 스텁 잔재 철거 (ADR-0043)
 
-- [`features/home/flags.ts`](../../../src/app/features/home/flags.ts) — 로드맵 "공통 규칙"의 첫
-  구현체. `RELAY_INVITE_DECLINE_ENABLED` 한 줄로 노출을 전환한다. 디자인에 있는 버튼이므로 기본 노출.
-- [`lib/relayInviteDecline.ts`](../../../src/app/features/home/lib/relayInviteDecline.ts) —
-  `recordDeclinedInvite(inviteId)` / `isInviteDeclined(inviteId)`. localStorage, 최근 50건 링.
-  **`invite.id`만 저장하고 `code`는 저장하지 않는다.**
+거절이 실 API가 되면서 스텁 시절의 세 가지가 사라진다:
+
+- `features/invite/flags.ts`의 `RELAY_INVITE_DECLINE_ENABLED` — 플래그 파일째 삭제(발신자 문서
+  체크리스트 12).
+- [`accept/lib/relayInviteDecline.ts`](../../../src/app/features/invite/accept/lib/relayInviteDecline.ts)
+  — `recordDeclinedInvite`/`isInviteDeclined` 모듈 삭제. `isInviteDeclined`는 원래 읽는 곳이 없던
+  반쪽이었고, 이제 `invite.get`의 `state === 'rejected'`가 그 역할이다(§6).
+- `usePreferenceStore`의 `declinedInviteIds` 슬라이스 + `markInviteDeclined` 액션 +
+  `preferenceKeys.ts`의 `declinedInvites` 항목(로컬 키 `chatic-web-relay-invite-declined`) —
+  전부 삭제. 남는 localStorage 고아 항목은 무해하다(등록이 사라지면 읽는 코드가 없다).
 
 ### Track A 목 — 교체 지점
 
@@ -530,24 +618,44 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 
 ### 파일 목록
 
-| 파일                                                     | 상태 | 역할                                            |
-| -------------------------------------------------------- | ---- | ----------------------------------------------- |
-| `features/home/components/InviteDialog.tsx`              | 수정 | 훅 없는 진입 라우터                             |
-| `features/home/components/invite/CloudInviteDialog.tsx`  | 신규 | 기존 본문 이동(로직 무변경)                     |
-| `features/home/components/invite/RelayInviteDialog.tsx`  | 신규 | relay 오케스트레이터(뷰)                        |
-| `features/home/components/invite/trackAMock.tsx`         | 신규 | Track A 계약 목 (교체 지점)                     |
-| `features/home/components/invite/InviteAcceptScreen.tsx` | 수정 | optional prop 4종                               |
-| `features/home/components/invite/InviteTargetCard.tsx`   | 수정 | optional `kind`                                 |
-| `features/home/hooks/useRelayInviteFlow.ts`              | 수정 | 상태 머신 · 3단 해소 위임                       |
-| `invite/accept/components/RelayInviteAccept.tsx`         | 수정 | `profiling` 분기 (ADR-0041)                     |
-| `utils/placeProfile.ts`                                  | 신규 | `isPlaceProfileAbsent` — 발신자 흐름과 **공유** |
-| `features/home/hooks/useResolveInviteChannel.ts`         | 신규 | 채널 해소 1·2단 (ADR-0035)                      |
-| `features/home/flags.ts`                                 | 신규 | 스텁 게이팅                                     |
-| `features/home/lib/relayInviteDecline.ts`                | 신규 | 거절 로컬 기록(스텁)                            |
-| `hooks/useAwaitInviteChannel.ts`                         | 신규 | 채널 sync 대기(Track B 공유)                    |
-| `public/locales/{ko,en}/translation.json`                | 수정 | 신규 문구(추가만)                               |
+| 파일                                                        | 상태 | 역할                                                             |
+| ----------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
+| `features/home/components/InviteDialog.tsx`                 | 수정 | 훅 없는 진입 라우터                                              |
+| `features/home/components/invite/CloudInviteDialog.tsx`     | 신규 | 기존 본문 이동(로직 무변경)                                      |
+| `features/home/components/invite/RelayInviteDialog.tsx`     | 신규 | relay 오케스트레이터(뷰)                                         |
+| `features/home/components/invite/trackAMock.tsx`            | 신규 | Track A 계약 목 (교체 지점)                                      |
+| `features/home/components/invite/InviteAcceptScreen.tsx`    | 수정 | optional prop 4종                                                |
+| `features/home/components/invite/InviteTargetCard.tsx`      | 수정 | optional `kind`                                                  |
+| `features/home/hooks/useRelayInviteFlow.ts`                 | 수정 | 상태 머신 · 3단 해소 위임 · **`declining`/종국 분기(ADR-0043)**  |
+| `invite/accept/components/RelayInviteAccept.tsx`            | 수정 | `profiling` 분기 (ADR-0041) · **거절 확인 다이얼로그(ADR-0043)** |
+| `utils/placeProfile.ts`                                     | 신규 | `isPlaceProfileAbsent` — 발신자 흐름과 **공유**                  |
+| `features/home/hooks/useResolveInviteChannel.ts`            | 신규 | 채널 해소 1·2단 (ADR-0035)                                       |
+| `features/invite/flags.ts`                                  | 삭제 | 스텁 게이팅 — 갭 소멸(ADR-0043)                                  |
+| `features/invite/accept/lib/relayInviteDecline.ts`          | 삭제 | 거절 로컬 기록(스텁) — `state`가 대체                            |
+| `stores/usePreferenceStore.ts` · `stores/preferenceKeys.ts` | 수정 | `declinedInvites` 슬라이스·키 삭제                               |
+| `hooks/useAwaitInviteChannel.ts`                            | 신규 | 채널 sync 대기(Track B 공유)                                     |
+| `public/locales/{ko,en}/translation.json`                   | 수정 | 거절 확인·거절 재진입 키 추가, notFound 카피 수정                |
 
 ## 검증 방법
+
+**취소·거절 전환 (ADR-0043)**
+
+- [`useRelayInviteFlow.test.ts`](../../../src/app/features/invite/accept/hooks/useRelayInviteFlow.test.ts)
+  — 신규 케이스: 진입 조회의 `canceled`/`rejected` → 각 공지 · `decline()`이 `declining`으로만
+  가고 아무 호출도 없음 · `confirmDecline()` 성공 → 토스트+홈 · `409` → `alreadyJoined` · 그 외 에러
+  매핑 · 다이얼로그 취소(`cancelStep`) → `review` 복귀 + 미거절 · 거절 스텁 케이스 2건은 **대체**
+  (로컬 기록 없음, `rejectInvite` 호출로). **회귀 테스트**(코드 리뷰에서 잡힘): 요청이 나가 있는
+  동안 `phase`가 `declining`에 머물고 `isRejecting`만 켜지는지(가짜 타이머로 응답 보류) ·
+  실패 시 `isRejecting`이 꺼지는지.
+- [`RelayInviteAccept.test.tsx`](../../../src/app/features/invite/accept/components/RelayInviteAccept.test.tsx)
+  — `declining`에서 확인 다이얼로그 렌더 · 확인/취소가 각각 `confirmDecline`/`cancelStep`으로 ·
+  `showDecline` prop 제거 반영 · `inviteCanceled`/`rejected` 공지 다이얼로그 카피. **회귀
+  테스트**: `isRejecting`이 켜지면 다이얼로그의 모든 버튼이 비활성화되고 수락 화면이 뜨지
+  않는지(위 §스텝 오케스트레이션 참고).
+- `relayInviteDecline.test.ts` — 모듈과 함께 **삭제**. `usePreferenceStore` 스위트에서
+  `declinedInviteIds` 케이스 삭제.
+- 수동(dev 스테이지): 딥링크 → 거절 확인 → 초대자 목록에 `rejected` 뱃지 · 같은 딥링크 재진입 →
+  "거절한 초대입니다" · 취소된 초대 딥링크 → "초대가 취소되었습니다".
 
 **프로필 스텝 (ADR-0041 결정 3)** — `apps/web` 전체 140 스위트 / 1033 테스트 통과, `tsc` 0 에러,
 변경 파일 eslint 0 경고.
@@ -615,8 +723,10 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 - **수락 알림(소켓 이벤트)이 생기면** 2단 프로브를 이벤트 구독으로 대체한다. 관련 훅 포인트
   `getSocketManager().onType()`이 이미 있으나 현재 아무도 쓰지 않고, 백엔드 emit 여부가
   미검증이다(ADR-0035 대안 절).
-- **요청 1번(취소 API + `canceled`)** → `notFound`에서 취소를 분리하고 Figma 3079-12304 문구를 되살린다.
-- **요청 2번(거절 API + `rejected`)** → `flags.ts`의 스텁 주석과 `lib/relayInviteDecline.ts`를 걷어낸다.
+- ~~요청 1번(취소 API + `canceled`) → `notFound`에서 취소를 분리하고 Figma 3079-12304 문구를 되살린다~~
+  — **완료**(ADR-0043) — §6 참고.
+- ~~요청 2번(거절 API + `rejected`) → 스텁과 `lib/relayInviteDecline.ts`를 걷어낸다~~ — **완료**(동일)
+  — §8, "거절 — 스텁 잔재 철거" 참고.
 - ~~`syncChannels`가 붙이는 sid가 relay `selectedSiteId`와 어긋나는 것이 확인되면 검출 필터를 넓힌다~~
   — **조사 완료, 기각**(2026-07-30, ADR-0035 "조사 중 기각한 가설"). relay는 플레이스가 하나뿐이고
   생성 경로가 이중으로 차단돼 있다(`canAddPlace`는 `isCloudActive`를 요구하고 relay는
@@ -624,3 +734,10 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
   [useUserPermissions.ts:27-31](../../../src/app/hooks/useUserPermissions.ts)). 게다가
   `syncChannels`가 `$.sid` 없는 행을 버리는데도 relay 홈에 DM 방이 정상 표시되므로 relay 채널은
   기본 플레이스 sid를 갖는다. **필터는 그대로 둔다** — 다시 열지 말 것.
+- **거절 중 이탈은 별도 가드가 필요 없었다** — `confirmDecline`이 `phase`를 `submitting`으로
+  올리고, `close()`는 이미 `submitting`/`awaitingChannel`에서 닫기를 무시한다(수락과 같은 가드를
+  그대로 공유). 종국 액션 도중 닫혀서 결과를 놓치는 경로가 생기지 않는다.
+- **거절 확인 다이얼로그(Figma 3446-17487)·거절 재진입(`inviteAccept.dialog.rejected`) 카피는
+  잠정이다** — 구현 시점에 시안 접근 경로(데스크톱 Dev Mode MCP·Chrome 확장·웹 로그인)가 전부
+  막혀 있었다. `relayInviteAccept.declineDialog.*`·`inviteAccept.dialog.rejected.*`는 스펙
+  카피로 배포했다 — 실제 시안 확인 시 해당 i18n 키만 조정하면 된다.

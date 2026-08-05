@@ -29,6 +29,12 @@ export interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInput
     /** Completed/valid state — greens the border and shows a trailing check. */
     success?: boolean;
     /**
+     * Content rendered inside the field, before the input — the mirror of `trailing` (e.g. a phone
+     * field's country picker). Sits inside the border, so a focusable control here lights the whole
+     * field's focus ring: the slot and the input read as one input group, which is the point.
+     */
+    leading?: React.ReactNode;
+    /**
      * Action rendered inside the field, after the counter — the design guide's in-field text link
      * (e.g. 인증 요청 / 재전송). Sits inside the border, so it stays put while the value scrolls.
      */
@@ -58,6 +64,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
             description,
             error,
             success = false,
+            leading,
             trailing,
             helperTrailing,
             className,
@@ -100,6 +107,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
                             stateBorder
                         )}
                     >
+                        {leading && <span className="shrink-0 px-1">{leading}</span>}
                         <input
                             {...props}
                             ref={ref}

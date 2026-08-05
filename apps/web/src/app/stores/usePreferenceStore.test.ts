@@ -486,7 +486,7 @@ describe('placeScopeKey — cid:sid 스코프', () => {
     });
 
     // Moved here with the ids themselves: the invite feature used to hand-roll this in its own
-    // localStorage helpers (useLocallyCanceledInvites / relayInviteDecline).
+    // localStorage helper (useLocallyCanceledInvites).
     describe('invite id lists', () => {
         it('손상된 값은 "기록 없음"으로 degrade한다 — 던지지 않는다', () => {
             expect(parseInviteIds('not json')).toEqual([]);
@@ -494,7 +494,7 @@ describe('placeScopeKey — cid:sid 스코프', () => {
             expect(parseInviteIds('[1, null, "", "ok"]')).toEqual(['ok']);
         });
 
-        it('취소는 중복 없이 쌓이고 localStorage에 반영된다', () => {
+        it('취소(dismiss)는 중복 없이 쌓이고 localStorage에 반영된다', () => {
             usePreferenceStore.setState({ canceledInviteIds: [] });
 
             usePreferenceStore.getState().markInviteCanceled('invite-1');
@@ -505,25 +505,21 @@ describe('placeScopeKey — cid:sid 스코프', () => {
             expect(localStorage.getItem('dou.relayInvite.locallyCanceled.v1')).toBe('["invite-1","invite-2"]');
         });
 
-        it('거절은 50개 링으로 오래된 것부터 밀려난다', () => {
-            usePreferenceStore.setState({ declinedInviteIds: [] });
+        it('clearInviteCanceled는 정산이 끝난 기록 하나만 지운다 — reconcile이 쓰는 경로', () => {
+            usePreferenceStore.setState({ canceledInviteIds: ['invite-1', 'invite-2'] });
 
-            for (let i = 0; i < 55; i += 1) usePreferenceStore.getState().markInviteDeclined(`invite-${i}`);
+            usePreferenceStore.getState().clearInviteCanceled('invite-1');
 
-            const ids = usePreferenceStore.getState().declinedInviteIds;
-            expect(ids).toHaveLength(50);
-            expect(ids).not.toContain('invite-0');
-            expect(ids).toContain('invite-54');
+            expect(usePreferenceStore.getState().canceledInviteIds).toEqual(['invite-2']);
+            expect(localStorage.getItem('dou.relayInvite.locallyCanceled.v1')).toBe('["invite-2"]');
         });
 
-        it('같은 초대를 다시 거절하면 중복되지 않고 가장 최근 자리로 옮겨진다', () => {
-            usePreferenceStore.setState({ declinedInviteIds: [] });
+        it('없는 id를 clearInviteCanceled해도 조용히 무시한다', () => {
+            usePreferenceStore.setState({ canceledInviteIds: ['invite-1'] });
 
-            usePreferenceStore.getState().markInviteDeclined('invite-1');
-            usePreferenceStore.getState().markInviteDeclined('invite-2');
-            usePreferenceStore.getState().markInviteDeclined('invite-1');
+            usePreferenceStore.getState().clearInviteCanceled('invite-nope');
 
-            expect(usePreferenceStore.getState().declinedInviteIds).toEqual(['invite-2', 'invite-1']);
+            expect(usePreferenceStore.getState().canceledInviteIds).toEqual(['invite-1']);
         });
     });
 });

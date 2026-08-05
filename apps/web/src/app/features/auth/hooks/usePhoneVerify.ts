@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { applySessionToken } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 // Concrete modules, not the account feature root: the root re-exports pages that pull web-core
@@ -11,7 +12,14 @@ import { VERIFICATION_CODE_LENGTH } from '../../account/constants';
 import { useLinkAccount, type AccountLinkMode } from '../../../hooks/useLinkAccount';
 import { getSocketErrorCode } from '../../../utils/errors';
 import { isDevBuild } from '../utils/env';
-import { isValidKoreanPhone, PHONE_DIGITS_MAX } from '../utils/phone';
+import {
+    isValidMobileNumber,
+    readInternationalInput,
+    rememberCountry,
+    resolveDefaultCountry,
+    toE164,
+    type PhoneCountry,
+} from '../../../utils/phoneNumber';
 import { useOtpExpiryCountdown, type OtpExpiryCountdown } from './useOtpExpiryCountdown';
 
 /**
@@ -65,6 +73,9 @@ export interface PhoneVerifyFieldsState {
     phoneInput: string;
     phoneError: string;
     onPhoneChange: (value: string) => void;
+    /** Which country the number is read as. `null` until one is picked — a valid, quiet state. */
+    country: PhoneCountry | null;
+    onCountryChange: (country: PhoneCountry) => void;
     /** Whether 인증 요청 may fire: a valid number, no live code, nothing in flight. */
     canRequestCode: boolean;
     onRequestCode: () => void;
@@ -131,6 +142,17 @@ export const usePhoneVerify = ({
 
     const [phoneInput, setPhoneInput] = useState('');
     const [phoneError, setPhoneError] = useState('');
+    // Last explicit pick, else the device locale's region, else nothing (ADR-0044 §4). Read once, at
+    // mount: the field opens on it and the user owns it from there.
+    const [country, setCountry] = useState<PhoneCountry | null>(resolveDefaultCountry);
+    /**
+     * The `{phone, country}` the outstanding code was actually sent with, pinned at send time.
+     *
+     * The prove steps read THIS, not the live field. The contract requires the same country on send
+     * and on proof — "발송과 증명에 같은 값" (05-client-guide.md §계약) — and reading live state made
+     * that depend on the invalidation below never missing a case. Pinning makes it structural.
+     */
+    const [sentWith, setSentWith] = useState<{ phone: string; country: PhoneCountry } | null>(null);
     const [otp, setOtp] = useState('');
     const [otpError, setOtpError] = useState('');
     const [expiredAt, setExpiredAt] = useState<number | undefined>(undefined);
@@ -147,7 +169,14 @@ export const usePhoneVerify = ({
     const [devDryRun, setDevDryRun] = useState(false);
     const [devSlack, setDevSlack] = useState(false);
 
-    const phoneDigits = phoneInput.replace(/\D/g, '').slice(0, PHONE_DIGITS_MAX);
+    /**
+     * E.164, not the local form — `chatic-backend-api`'s phone hasher (`asE164Phone`) only reads
+     * `countryCode` on a local (`0…`) number and silently ignores it once the string already starts
+     * with `+`, so E.164 is the one form that is correct with or without a trustworthy `countryCode`
+     * (ADR-0044 §5 correction). `countryCode` is still sent alongside — harmless, and what the
+     * documented contract names.
+     */
+    const wirePhone = toE164(phoneInput, country);
     const countdown = useOtpExpiryCountdown(expiredAt);
     const isExpired = countdown?.isExpired ?? false;
     const isCodeComplete = otp.length === VERIFICATION_CODE_LENGTH;
@@ -167,40 +196,85 @@ export const usePhoneVerify = ({
     // dead weight in a packet that carries a credential, so it is dropped at the boundary.
     const sendInviteCode = mode === 'login' ? inviteCode : undefined;
 
-    const handlePhoneChange = (value: string) => {
-        setPhoneInput(value.slice(0, PHONE_INPUT_MAX));
-        if (phoneError) setPhoneError('');
-        // A different number invalidates the outstanding code rather than silently checking it
-        // against the new one — including the verify verdict, which was about the OLD number.
+    /**
+     * A different number invalidates the outstanding code rather than silently checking it against
+     * the new one — including the verify verdict, which was about the OLD number, and the send pin,
+     * which is what the prove steps would otherwise carry forward.
+     *
+     * The country runs through the same block: a code sent to `+82 010…` is not the code for
+     * `+81 010…`, so changing the country is the same event as retyping the number (ADR-0044 §5).
+     */
+    const invalidateOutstandingCode = () => {
         setExpiredAt(undefined);
+        setSentWith(null);
         setOtp('');
         setOtpError('');
         setLinkVerified(false);
     };
 
+    const handlePhoneChange = (value: string) => {
+        const next = value.slice(0, PHONE_INPUT_MAX);
+        // A pasted `+81…` declares its own country more precisely than the picker does, so the
+        // picker follows the paste and the field is rewritten to the local form — one gesture
+        // enters both. This is also how `+82…` finally works here; it used to fail validation.
+        const international = readInternationalInput(next);
+        if (international) {
+            setCountry(international.country);
+            rememberCountry(international.country);
+            setPhoneInput(international.national);
+        } else {
+            setPhoneInput(next);
+        }
+        if (phoneError) setPhoneError('');
+        invalidateOutstandingCode();
+    };
+
+    const handleCountryChange = (next: PhoneCountry) => {
+        setCountry(next);
+        rememberCountry(next);
+        if (phoneError) setPhoneError('');
+        invalidateOutstandingCode();
+    };
+
     const handleSend = async () => {
-        if (!isValidKoreanPhone(phoneDigits)) {
+        if (!country || !isValidMobileNumber(phoneInput, country)) {
             setPhoneError(t('phoneVerify.phoneInvalidFormat'));
             return;
         }
         // Cheapest rejection first: four digits we already hold beat a round trip that would burn one
         // of the day's deliveries. Not a verdict — the server re-checks the whole number at send.
-        if (inviteLast4 && !phoneDigits.endsWith(inviteLast4)) {
+        // Country-blind on purpose: last-4 across countries only ever over-reports, and the invite
+        // carries no country of its own to compare against (ADR-0044 §6).
+        if (inviteLast4 && !wirePhone.endsWith(inviteLast4)) {
             setPhoneError(t('phoneVerify.inviteMismatch'));
             return;
         }
         setLoadingState('sending');
         setPhoneError('');
         try {
-            const result = await send(phoneDigits, { mode, code: sendInviteCode, ...devSwitches() });
+            const result = await send(wirePhone, {
+                mode,
+                code: sendInviteCode,
+                countryCode: country,
+                ...devSwitches(),
+            });
             setExpiredAt(result.expiredAt);
+            setSentWith({ phone: wirePhone, country });
             setOtp('');
             setOtpError('');
             toast({ title: t('phoneVerify.sent') });
         } catch (error) {
             const code = getSocketErrorCode(error);
-            if (code === 400 && inviteCode) {
-                // The number does not match the invite — the code was never dispatched (§B-2).
+            // Always log the raw failure. A 400 has several documented causes (§에러 코드) and the
+            // copy below can only guess at one of them — a production `@mode[login] is for device
+            // session` read to users as a phone-number problem precisely because this catch was
+            // silent, leaving the server's own message nowhere to be seen.
+            logger.error('AUTH', `[usePhoneVerify] send failed (mode=${mode}, status=${code ?? '-'})`, { error });
+            if (code === 400 && sendInviteCode) {
+                // `sendInviteCode`, NOT `inviteCode`: the server only cross-checks the number against
+                // the invite when the code actually rode along, which is the `login` send alone
+                // (§B-2). Claiming a mismatch on a `link` send would blame the number for a check the
+                // server never ran.
                 setPhoneError(t('phoneVerify.inviteMismatch'));
             } else if (code === 429) {
                 // First send tripping 429 is the daily cap (10/day per number, 20/day per device).
@@ -222,11 +296,15 @@ export const usePhoneVerify = ({
             setLimit(origin);
             return;
         }
+        // Resend re-sends to what was pinned, never to whatever the field holds now: a resend is a
+        // new code for the SAME number, and the pin is the only record of what that was.
+        if (!sentWith) return;
         setLoadingState('resending');
         try {
-            const result = await send(phoneDigits, {
+            const result = await send(sentWith.phone, {
                 mode,
                 code: sendInviteCode,
+                countryCode: sentWith.country,
                 resend: true,
                 ...devSwitches(),
             });
@@ -273,6 +351,9 @@ export const usePhoneVerify = ({
      */
     const reportProveError = (error: unknown, { vouched = false }: { vouched?: boolean } = {}) => {
         const code = getSocketErrorCode(error);
+        // Same reason as the send path: every branch below narrows a status that the server uses for
+        // more than one condition, so the raw message has to survive somewhere.
+        logger.error('AUTH', `[usePhoneVerify] prove failed (mode=${mode}, status=${code ?? '-'})`, { error });
         if (code === 403) {
             setOtpError(t(vouched ? 'phoneVerify.linkTypeAlreadyLinked' : 'phoneVerify.wrongCode'));
         } else if (code === 429) {
@@ -295,10 +376,12 @@ export const usePhoneVerify = ({
      * only place the server will TELL us confirming is blocked instead of throwing.
      */
     const handleVerifyStep = async () => {
+        // No pin means no outstanding code — nothing to prove against.
+        if (!sentWith) return;
         setLoadingState('verifying');
         setOtpError('');
         try {
-            const result = await verify(phoneDigits, otp, { mode });
+            const result = await verify(sentWith.phone, otp, { mode, countryCode: sentWith.country });
             // `linkable` is absent on the login-mode view; this step only runs for `link`.
             if ('linkable' in result && !result.linkable) {
                 setLinkVerified(false);
@@ -319,10 +402,11 @@ export const usePhoneVerify = ({
     };
 
     const handleConfirm = async () => {
+        if (!sentWith) return;
         setLoadingState('verifying');
         setOtpError('');
         try {
-            const result = await confirm(phoneDigits, otp, { mode });
+            const result = await confirm(sentWith.phone, otp, { mode, countryCode: sentWith.country });
             // A token only ever rides on the login-mode confirm; `link` leaves the session alone.
             if ('$token' in result && result.$token) {
                 await applyToken(result.$token);
@@ -384,7 +468,11 @@ export const usePhoneVerify = ({
             phoneInput,
             phoneError,
             onPhoneChange: handlePhoneChange,
-            canRequestCode: isValidKoreanPhone(phoneDigits) && !codeSent && !isBusy,
+            country,
+            onCountryChange: handleCountryChange,
+            // No country means nothing to validate against, so the CTA is simply unavailable — the
+            // user has not made a mistake yet, and a red line would say they had (ADR-0044 §4).
+            canRequestCode: isValidMobileNumber(phoneInput, country) && !codeSent && !isBusy,
             onRequestCode: () => void handleSend(),
             otp,
             onOtpChange: handleOtpChange,

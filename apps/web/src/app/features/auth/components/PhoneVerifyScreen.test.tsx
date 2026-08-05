@@ -8,17 +8,29 @@ const mockConfirm = jest.fn();
 const mockApplySessionToken = jest.fn();
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
+/** Whether this user already proved a social account. `'unknown'` is the pre-profile default. */
+let mockLinkedSocial: 'linked' | 'absent' | 'unknown' = 'unknown';
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
+}));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
 jest.mock('@chatic/app-runtime', () => ({
     applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 // Radix overlays are stubbed as pass-through markup (house convention — see AddFriendSheet.test).
+// `DialogContent` keeps `className` and `role` rather than dropping them: the real one merges the
+// variant classes with the caller's, and the layout constraints this shell depends on (see the
+// 좁은 화면·키보드 suite) live in exactly that string — a stub that swallowed it would let them be
+// deleted with every test still green.
 jest.mock('@chatic/ui-kit/components/ui/dialog', () => ({
     Dialog: ({ open, children }: any) => (open ? <div>{children}</div> : null),
-    DialogContent: ({ children }: any) => <div>{children}</div>,
+    DialogContent: ({ children, className }: any) => (
+        <div role="dialog" className={className}>
+            {children}
+        </div>
+    ),
     DialogTitle: ({ children }: any) => <div>{children}</div>,
     DialogDescription: ({ children }: any) => <div>{children}</div>,
 }));
@@ -37,12 +49,41 @@ jest.mock('../../../hooks/useLinkAccount', () => ({
     }),
 }));
 jest.mock('../utils/env', () => ({ isDevBuild: jest.fn(() => false) }));
+// The banner reads this to decide whether the account-split warning still applies. Mocked at the
+// concrete module because the real one reaches useMyUser -> web-core, whose transport reads
+// `import.meta` and cannot load under jsdom.
+jest.mock('../../../hooks/useLinkedAccounts', () => ({
+    useLinkedAccounts: () => ({ phone: 'unknown', social: mockLinkedSocial }),
+}));
 
 import { isDevBuild } from '../utils/env';
 import { PhoneVerifyScreen } from './PhoneVerifyScreen';
 
 const PHONE = '01012345678';
+// What the field displays and what the packet actually carries now differ (ADR-0044 §5 correction —
+// the wire wants E.164, not the local form the field shows).
+const PHONE_E164 = '+821012345678';
 const FUTURE_EXPIRY = () => Date.now() + 180_000;
+
+/**
+ * jsdom reports `navigator.language` as `en-US`, which would open these screens on US and reject
+ * every Korean number here. Seeding the remembered pick uses the production "last explicit pick
+ * wins" path rather than stubbing around it (ADR-0044 §4).
+ */
+const seedCountry = (code = 'KR') => {
+    localStorage.clear();
+    localStorage.setItem('dou.phoneInput.country.v1', code);
+};
+
+const setLanguage = (value: string) => {
+    Object.defineProperty(window.navigator, 'language', { value, configurable: true });
+};
+
+/** Opens the country sheet and taps a row by its localized name. */
+const pickCountry = (name: string) => {
+    fireEvent.click(screen.getByLabelText('phoneInput.countrySheetTitle'));
+    fireEvent.click(screen.getByText(name));
+};
 
 const renderScreen = (overrides: Partial<React.ComponentProps<typeof PhoneVerifyScreen>> = {}) => {
     const props = {
@@ -94,6 +135,8 @@ const submitCta = async () => {
 describe('PhoneVerifyScreen — 인증 요청', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -112,7 +155,11 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
     it('발송 성공 시 mode와 초대 코드를 동봉하고 인증번호 입력이 열린다', async () => {
         await requestCode();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code' });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+        });
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeEnabled();
         expect(mockToast).toHaveBeenCalledWith({ title: 'phoneVerify.sent' });
     });
@@ -132,7 +179,11 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone('01012349999');
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith('01012349999', { mode: 'login', code: 'invt:i1:code' });
+        expect(mockSend).toHaveBeenCalledWith('+821012349999', {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+        });
     });
 
     it('초대 맥락의 발송 400은 "초대받은 번호가 아니에요"로 안내한다 (§B-2 발송단 차단)', async () => {
@@ -163,6 +214,35 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/mypage/login');
     });
 
+    // The banner tells a user with an existing social account to log in with it FIRST, or they will
+    // mint a second, unmergeable user. Someone who already linked social cannot land in that state,
+    // so the notice is not just noise — it points them back through a login they have done.
+    it('소셜이 이미 연결돼 있으면 배너를 띄우지 않는다', () => {
+        mockLinkedSocial = 'linked';
+        renderScreen();
+
+        expect(screen.queryByText('phoneVerify.socialFirstTitle')).not.toBeInTheDocument();
+    });
+
+    // Only a definite `linked` hides it. `unknown` means the profile has not landed or the server
+    // never built the `link$` slot — and this is the one defense against an unmergeable account, so
+    // the safe failure is showing it to someone who did not need it (ADR-0042 §5).
+    it.each(['absent', 'unknown'] as const)('social이 %s면 배너는 그대로 뜬다', social => {
+        mockLinkedSocial = social;
+        renderScreen();
+
+        expect(screen.getByText('phoneVerify.socialFirstTitle')).toBeInTheDocument();
+    });
+
+    // Deliberately mode-independent. `link` mode can still hit `occupied` (the number belongs to a
+    // separate phone-created user), and this banner is the guide's only documented defense for a
+    // split account (§제약) — hiding it there would remove the one signpost out.
+    it('link 모드에서도 배너는 그대로 뜬다 — 분리 계정 안내는 모드와 무관하다', () => {
+        renderScreen({ mode: 'link' });
+
+        expect(screen.getByText('phoneVerify.socialFirstTitle')).toBeInTheDocument();
+    });
+
     it('dev 빌드에서만 발송 스위치가 보이고, Slack 토글은 {slack:true, sms:false}로 실린다', async () => {
         (isDevBuild as jest.Mock).mockReturnValue(true);
         mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
@@ -172,9 +252,10 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone();
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, {
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, {
             mode: 'login',
             code: 'invt:i1:code',
+            countryCode: 'KR',
             slack: true,
             sms: false,
         });
@@ -187,13 +268,15 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone();
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: undefined });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'login', code: undefined, countryCode: 'KR' });
     });
 });
 
 describe('PhoneVerifyScreen — 인증번호 확인', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -202,7 +285,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         const { onVerified } = await requestCode();
         await pasteOtp();
 
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'login' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
         // `verify` would only repeat what confirm already proves, so login never asks.
         expect(mockVerify).not.toHaveBeenCalled();
         // Linked-only result: no session change, so no switch — straight to onVerified.
@@ -281,7 +364,12 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
             fireEvent.click(screen.getByText('phoneVerify.extend'));
         });
 
-        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code', resend: true });
+        expect(mockSend).toHaveBeenLastCalledWith(PHONE_E164, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+            resend: true,
+        });
         expect(mockToast).toHaveBeenCalledWith({
             title: 'phoneVerify.resent',
             description: 'phoneVerify.resendKeepsCounter',
@@ -292,7 +380,12 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         await act(async () => {
             fireEvent.click(screen.getByText('phoneVerify.resend'));
         });
-        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code', resend: true });
+        expect(mockSend).toHaveBeenLastCalledWith(PHONE_E164, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+            resend: true,
+        });
     });
 
     it('재전송 중 429는 쿨다운 안내로 구분한다 (60초 제한)', async () => {
@@ -336,13 +429,15 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
 describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
     it('link 모드 발송에는 초대 코드를 싣지 않는다 (서버가 login에서만 읽는다)', async () => {
         await requestCode({ mode: 'link' });
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'link', code: undefined });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'link', code: undefined, countryCode: 'KR' });
     });
 
     it('6자리를 채우면 verify까지만 가고, 커밋은 CTA가 한다 (ADR-0042 §4)', async () => {
@@ -350,7 +445,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
         const { onVerified } = await requestCode({ mode: 'link' });
         await pasteOtp();
 
-        expect(mockVerify).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockVerify).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
         expect(mockConfirm).not.toHaveBeenCalled();
         expect(onVerified).not.toHaveBeenCalled();
 
@@ -358,7 +453,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
         mockConfirm.mockResolvedValueOnce({ linked: true });
         await submitCta();
 
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
         expect(mockApplySessionToken).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });
@@ -408,6 +503,8 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
 describe('PhoneVerifyScreen — 타이머 만료', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2026-07-29T12:00:00Z'));
@@ -435,9 +532,120 @@ describe('PhoneVerifyScreen — 타이머 만료', () => {
     });
 });
 
+describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
+        (isDevBuild as jest.Mock).mockReturnValue(false);
+    });
+
+    afterEach(() => setLanguage('en-US'));
+
+    it('국가를 정할 수 없으면 인증 요청이 비활성이고, 에러 문구는 띄우지 않는다 (S4)', () => {
+        localStorage.clear();
+        setLanguage('en'); // no region subtag — nothing to derive a country from
+        renderScreen();
+
+        typePhone();
+        expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeDisabled();
+        // Nothing has gone wrong yet; the empty picker is the instruction, not a red line.
+        expect(screen.queryByText('phoneVerify.phoneInvalidFormat')).not.toBeInTheDocument();
+        expect(screen.getByText('phoneInput.countryPlaceholder')).toBeInTheDocument();
+
+        pickCountry('일본');
+        typePhone('09012345678');
+        expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeEnabled();
+    });
+
+    it('국제 표기를 붙여넣으면 선택기가 따라가고 필드가 로컬 형태로 다시 쓰인다 (S3)', async () => {
+        mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
+        renderScreen();
+
+        typePhone('+819012345678');
+
+        expect(screen.getByPlaceholderText('phoneVerify.phonePlaceholder')).toHaveValue('09012345678');
+        expect(screen.getByText('+81')).toBeInTheDocument();
+
+        await submitSend();
+        expect(mockSend).toHaveBeenCalledWith('+819012345678', {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'JP',
+        });
+    });
+
+    it('+82 붙여넣기도 살아난다 — KR 전용 검증에서는 실패하던 입력이다 (S3)', () => {
+        renderScreen();
+        typePhone('+821012345678');
+
+        expect(screen.getByPlaceholderText('phoneVerify.phonePlaceholder')).toHaveValue(PHONE);
+        expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeEnabled();
+    });
+
+    it('코드를 받은 뒤 국가를 바꾸면 발송된 코드가 무효화된다 (S5)', async () => {
+        await requestCode();
+        expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeEnabled();
+
+        pickCountry('일본');
+
+        // Same handling as retyping the number: the code that went to +82 is not the code for +81.
+        expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
+        await pasteOtp();
+        expect(mockConfirm).not.toHaveBeenCalled();
+    });
+
+    it('증명은 발송에 쓴 값을 그대로 쓴다 — 라이브 필드가 아니다 (계약: 발송=증명)', async () => {
+        mockConfirm.mockResolvedValueOnce({ linked: true });
+        await requestCode();
+
+        // The picker cannot diverge after a send (S5 clears the code), so the pin is proved by the
+        // prove call carrying the SEND's country rather than re-deriving one at confirm time.
+        await pasteOtp();
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
+    });
+});
+
+// jsdom has no layout engine, so these assert the three rules rather than the pixels they buy. They
+// are worth pinning because each is invisible at 375px — the width most desks test at — and only
+// bites on a narrower phone or once the soft keyboard is up. Measured against the compiled CSS:
+// without them the dialog's content floored at 364px (spilling 44px at 320 and 4px at the very
+// common 360, out BOTH edges thanks to the `-translate-x-1/2` centring) and the body never became
+// scrollable, so a focused field stayed stuck behind the keyboard.
+describe('PhoneVerifyScreen — 좁은 화면·키보드 (레이아웃 제약)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
+        (isDevBuild as jest.Mock).mockReturnValue(false);
+    });
+
+    it('그리드 행을 다이얼로그 높이에 묶고, 열은 min-content 아래로 줄어들 수 있어야 한다', () => {
+        renderScreen();
+
+        // DialogContent is a `grid`; an auto row grows to its item's max-content and a grid item
+        // refuses to shrink below min-content. Both defaults have to be overridden.
+        const dialog = screen.getByRole('dialog');
+        expect(dialog.className).toContain('grid-rows-[minmax(0,1fr)]');
+
+        const column = dialog.querySelector('.flex.h-full');
+        expect(column?.className).toContain('min-w-0');
+    });
+
+    it('본문은 min-h-0이라 줄어들며 스크롤된다 — 키보드에 가린 필드로 갈 수 있는 유일한 길이다', () => {
+        renderScreen();
+
+        const scroller = screen.getByRole('dialog').querySelector('.overflow-y-auto');
+        expect(scroller).not.toBeNull();
+        expect(scroller?.className).toContain('min-h-0');
+    });
+});
+
 describe('PhoneVerifyScreen — 닫기/컨텍스트', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 

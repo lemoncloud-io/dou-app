@@ -87,14 +87,18 @@ Track 0이 만들고 전 트랙이 소비한다. 위치는 기존 패턴을 따�
 
 ```ts
 // ── Track 0 산출 ──────────────────────────────────────────────
+// 2026-08-04 개정(ADR-0043): 백엔드 요청 1·2번(취소·거절) 도착으로 state 유니온이 5종으로
+// 넓어지고 cancelInvite/rejectInvite가 추가됐다. 계약을 바꾸는 규칙대로 이 문서를 먼저 고쳤다.
 /** invite.list 폴링 (react-query). 초대는 repositories-v2로 승격하지 않는다(ADR-0033). */
-useRelayInvites(state?: 'pending' | 'accepted' | 'expired'): {
+useRelayInvites(state?: 'pending' | 'accepted' | 'canceled' | 'rejected' | 'expired'): {
     invites: MyInviteView[]; isLoading: boolean; refetch(): Promise<unknown>;
 }
 useRelayInviteMutations(): {
     createInvite(input: { phone: string; name: string }): Promise<MyInviteView>;
     getInvite(code: string): Promise<MyInviteView & { needVerify?: boolean }>;   // invite.get
     acceptInvite(code: string): Promise<MyInviteView>;                            // state==='accepted'가 성공
+    cancelInvite(code: string): Promise<MyInviteView>;                            // state==='canceled'가 성공, 409=이미 수락
+    rejectInvite(code: string): Promise<MyInviteView>;                            // state==='rejected'가 성공, 409=이미 수락
 }
 /** auth.verify-hash-alias 래퍼. step 셋을 감춘다. */
 useVerifyHashAlias(): {
@@ -414,26 +418,27 @@ Figma 대조와 QA가 끝나면 통합 브랜치 → `develop` PR 1건. 본문�
    실린 channelId를 감시, 8s). 지금은 입력이 달라 별개가 맞지만, 백엔드 요청 5번이
    해결되면 하나로 합칠 후보다.
 4. **디자인 카피 수정 요청** — 유효시간 24시간 → 3일.
-5. **초대 취소의 반쪽 동작** — 취소해도 취소한 기기에서 숨겨질 뿐이고 수신자는
-   여전히 수락할 수 있다(백엔드 요청 1번 전까지).
+5. ~~초대 취소의 반쪽 동작 — 취소해도 취소한 기기에서 숨겨질 뿐이고 수신자는 여전히
+   수락할 수 있다(백엔드 요청 1번 전까지)~~ — **해소 (ADR-0043, 2026-08-04)**. 취소는
+   실 `invite.cancel`이고, 스텁 시절 로컬 기록은 `useCanceledInviteReconcile`이 서버에
+   반영한다.
 
 ## 백엔드 요청 목록 (chatic-backend-api / sockets-api 팀 전달용)
 
-| #   | 요청                                                                                                                                                                                            | 근거 화면                                      | 클라 현 대응                                                          |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
-| 1   | 초대 취소 API (`invite.cancel`) + 수신자 조회 시 `canceled` 구분                                                                                                                                | 대기 화면·관리 화면·수신자 취소 팝업           | 취소 버튼 스텁, 404를 "취소·유효하지 않음"으로 통합                   |
-| 2   | 초대 거절 API + `rejected` 상태                                                                                                                                                                 | 수락 팝업 거절 버튼, 초대자측 "초대 거절" 뱃지 | 거절 버튼 스텁(닫기), 뱃지는 만료 취급 (아래 †)                       |
-| 3   | 재발급 시 같은 번호의 이전 pending 초대 자동 revoke                                                                                                                                             | "이전 링크는 자동으로 만료됩니다" 카피         | 카피 보류/조정                                                        |
-| 4   | 수락 알림 (소켓 이벤트 or push)                                                                                                                                                                 | 대기 화면 실시간 갱신                          | `invite.list` 폴링 (30초)                                             |
-| 5   | **이미 있는 `InviteModel.channelId`("수락으로 생긴 dm 방")를 수락 시점에 채워 달라** — 신규 필드·계약 확장이 아니다. 수락 응답에 실리는 것이 최선이고, 최소한 직후 `invite.get`에서 읽히면 된다 | 수락 직후 입장                                 | 3단 해소: 응답 직독 → `invite.get` 재조회 → 채널 목록 감시 (ADR-0035) |
-| 6   | 소셜 연동 목록 조회 API                                                                                                                                                                         | 소셜 관리 화면                                 | 로컬 캐시 + 스텁                                                      |
-| 7   | 소셜 연동 해제 API                                                                                                                                                                              | 소셜 관리 화면                                 | 해제 버튼 스텁                                                        |
-| 8   | (선택) 발급 응답에 기존 dm 존재 시그널                                                                                                                                                          | "이미 1:1 대화가 있어요" 다이얼로그            | v1 미구현 (ADR-0033 D2)                                               |
+| #   | 요청                                                                                                                                                                                            | 근거 화면                                      | 클라 현 대응                                                                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | ~~초대 취소 API (`invite.cancel`) + 수신자 조회 시 `canceled` 구분~~                                                                                                                            | 대기 화면·관리 화면·수신자 취소 팝업           | **도착 (sockets-lib 0.4.13, ADR-0043)** — 실 `invite.cancel`, 수신자 진입은 `state==='canceled'`로 분리 |
+| 2   | ~~초대 거절 API + `rejected` 상태~~                                                                                                                                                             | 수락 팝업 거절 버튼, 초대자측 "초대 거절" 뱃지 | **도착 (동일)** — 확인 다이얼로그 → 실 `invite.reject`, 뱃지·재초대 declined 변형이 실 상태로 산다      |
+| 3   | 재발급 시 같은 번호의 이전 pending 초대 자동 revoke                                                                                                                                             | "이전 링크는 자동으로 만료됩니다" 카피         | **미도착 — 클라 조합으로 대체(ADR-0043)**: 재발급이 `invite.cancel → invite.create` 순서로 직접 처리    |
+| 4   | 수락 알림 (소켓 이벤트 or push)                                                                                                                                                                 | 대기 화면 실시간 갱신                          | `invite.list` 폴링 (30초) — 취소·거절도 같은 폴링에 얹힌다                                              |
+| 5   | **이미 있는 `InviteModel.channelId`("수락으로 생긴 dm 방")를 수락 시점에 채워 달라** — 신규 필드·계약 확장이 아니다. 수락 응답에 실리는 것이 최선이고, 최소한 직후 `invite.get`에서 읽히면 된다 | 수락 직후 입장                                 | 3단 해소: 응답 직독 → `invite.get` 재조회 → 채널 목록 감시 (ADR-0035)                                   |
+| 6   | 소셜 연동 목록 조회 API                                                                                                                                                                         | 소셜 관리 화면                                 | 로컬 캐시 + 스텁                                                                                        |
+| 7   | 소셜 연동 해제 API                                                                                                                                                                              | 소셜 관리 화면                                 | 해제 버튼 스텁                                                                                          |
+| 8   | (선택) 발급 응답에 기존 dm 존재 시그널                                                                                                                                                          | "이미 1:1 대화가 있어요" 다이얼로그            | v1 미구현 (ADR-0033 D2)                                                                                 |
 
-† 요청 2 — 거절 **뱃지와 재초대 카피는 이미 배선돼 있다**
-(`INVITE_REJECTED_STATE_SUPPORTED` 뒤). `resolveInviteRowBadge`/`resolveReinviteVariant`가
-`rejected`를 인식하고 `contactInvite.badge.declined`·`rowStatus.declined` 카피도 있으니,
-백엔드가 상태를 주면 플래그 반전이 변경의 전부다. 거절 **버튼**은 여전히 스텁이다.
+**요청 1·2 해소 후(2026-08-04, ADR-0043)**: 게이팅용 `features/invite/flags.ts` 네 플래그
+전부 삭제됐다(갭이 사라진 플래그는 반전할 것이 아니라 지울 것). 남은 스텁은 요청 6·7
+(소셜 목록/해제)뿐이다.
 
 **디자인 요청**: 유효시간 카피 24시간 → **3일**로 수정 (`3266-32434` 등 초대 폼,
 및 재초대 다이얼로그의 "자동 만료" 문구 — 요청 3 확정 전까지 보류).

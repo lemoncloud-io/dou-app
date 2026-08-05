@@ -41,10 +41,9 @@ describe('ReinviteDialog', () => {
         );
 
         expect(screen.getByText('contactInvite.reinvite.expired.title')).toBeInTheDocument();
-        // Today the backend does not revoke the prior code on reissue (요청 3번) — the honest
-        // (non-auto-revoke) description key must render, not the aspirational one.
+        // Reissuing cancels the prior code server-side first (ADR-0043 결정 5), so there is only
+        // one truthful description now — no auto-revoke variant to pick between.
         expect(screen.getByText('contactInvite.reinvite.expired.description')).toBeInTheDocument();
-        expect(screen.queryByText('contactInvite.reinvite.expired.descriptionAutoRevoke')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'contactInvite.reinvite.reissueConfirm' }));
 
@@ -52,12 +51,24 @@ describe('ReinviteDialog', () => {
         expect(onViewWaiting).not.toHaveBeenCalled();
     });
 
-    it('declined 변형도 재발급 확인 동작을 갖는다(오늘은 도달 불가 — 스텁)', () => {
+    it('declined 변형은 거절 카피와 재발급 확인 동작을 갖는다 (ADR-0043 — 이제 도달 가능)', () => {
+        const onReissue = jest.fn();
         render(
-            <ReinviteDialog open onOpenChange={jest.fn()} variant="declined" onViewWaiting={jest.fn()} onReissue={jest.fn()} />
+            <ReinviteDialog
+                open
+                onOpenChange={jest.fn()}
+                variant="declined"
+                onViewWaiting={jest.fn()}
+                onReissue={onReissue}
+            />
         );
 
         expect(screen.getByText('contactInvite.reinvite.declined.title')).toBeInTheDocument();
+        expect(screen.getByText('contactInvite.reinvite.declined.description')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'contactInvite.reinvite.reissueConfirm' }));
+
+        expect(onReissue).toHaveBeenCalledTimes(1);
     });
 
     it('닫혀 있으면 아무것도 렌더링하지 않는다', () => {

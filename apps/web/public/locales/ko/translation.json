@@ -1084,7 +1084,7 @@
             },
             "notFound": {
                 "title": "유효하지 않은 초대입니다.",
-                "description": "초대가 취소되었거나 더 이상 유효하지 않아 참여할 수 없습니다. 초대한 사람에게 새로운 초대를 받아 주세요."
+                "description": "초대가 유효하지 않습니다. 초대한 사람에게 새로운 초대를 받아 주세요."
             },
             "wrongNumber": {
                 "title": "초대받은 번호가 아닙니다.",
@@ -1093,6 +1093,10 @@
             "taken": {
                 "title": "이미 사용된 초대입니다.",
                 "description": "다른 사용자가 먼저 초대를 수락했습니다."
+            },
+            "rejected": {
+                "title": "거절한 초대입니다.",
+                "description": "이 초대를 거절했습니다. 다시 참여하려면 새로운 초대를 받아 주세요."
             }
         },
         "failed": "초대 수락에 실패했습니다",
@@ -1107,7 +1111,13 @@
     "relayInviteAccept": {
         "verifyTitle": "휴대폰 번호 인증",
         "preparingRoom": "채팅방을 만들고 있어요",
-        "channelPending": "채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다."
+        "channelPending": "채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다.",
+        "declineDialog": {
+            "title": "초대를 거절할까요?",
+            "description": "거절하면 되돌릴 수 없어요. 다시 참여하려면 새로운 초대를 받아야 해요.",
+            "confirm": "거절하기"
+        },
+        "declinedToast": "초대를 거절했어요"
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
@@ -1139,9 +1149,9 @@
         "privacyNote": "입력한 휴대폰 번호는 초대 확인을 위한\n본인 인증에만 사용됩니다.",
         "phoneLabel": "휴대폰 번호",
         "phonePlaceholder": "휴대폰 번호를 입력해 주세요",
-        "phoneInvalidFormat": "올바른 휴대폰 번호를 입력해 주세요",
+        "phoneInvalidFormat": "선택한 국가의 휴대폰 번호를 입력해 주세요",
         "digitsOnly": "[-]제외, 숫자로만 입력해 주세요.",
-        "inviteMismatch": "초대받은 번호가 아니에요",
+        "inviteMismatch": "초대받은 번호가 아니에요. 국가와 번호를 확인해 주세요",
         "tooManyRequests": "인증 요청이 너무 많아요. 잠시 후 다시 시도해 주세요",
         "sendCode": "인증 요청",
         "sendFailed": "인증번호 발송에 실패했어요",
@@ -1179,6 +1189,12 @@
         "sheetDescription": "본인 확인을 위해 휴대폰 번호를 입력하고\n인증번호를 입력해 주세요",
         "linkOccupied": "이미 다른 계정에 연결된 번호예요",
         "linkTypeAlreadyLinked": "이미 다른 번호를 연결해 두셨어요"
+    },
+    "phoneInput": {
+        "countrySheetTitle": "국가 선택",
+        "countrySearchPlaceholder": "국가명 또는 국가번호 검색",
+        "countryPlaceholder": "국가",
+        "noResults": "검색 결과가 없어요"
     },
     "addAccount": {
         "title": "계정 추가",
@@ -1259,7 +1275,7 @@
         "validityHint": "초대 링크는 발급 후 3일 동안 유효합니다.",
         "submit": "완료",
         "unnamedRecipient": "상대방",
-        "maskedPhone": "010-****-{{last4}}",
+        "maskedPhone": "****-{{last4}}",
         "badge": {
             "pending": "초대 대기 중",
             "expired": "초대 만료",
@@ -1285,8 +1301,7 @@
             },
             "expired": {
                 "title": "이전 초대가 만료되었어요",
-                "description": "기존 링크는 더 이상 사용할 수 없습니다.\n새로운 초대 링크를 보내 주세요.",
-                "descriptionAutoRevoke": "안전한 초대를 위해 기존 링크는\n더 이상 사용할 수 없습니다.\n새로운 초대 링크를 보내 주세요."
+                "description": "기존 링크는 더 이상 사용할 수 없습니다.\n새로운 초대 링크를 보내 주세요."
             },
             "declined": {
                 "title": "상대방이 이전 초대를 거절했습니다.",
@@ -1331,10 +1346,14 @@
         "cancelDialog": {
             "title": "초대를 취소할까요?",
             "description": "취소하면 상대방이 이 초대로 더 이상 대화에 참여할 수 없어요.",
-            "descriptionStub": "취소하면 내 목록에서만 사라져요. 상대방에게는 아직 유효할 수 있어요.",
             "confirm": "취소하기"
         },
-        "canceledToast": "초대를 취소했어요"
+        "canceledToast": "초대를 취소했어요",
+        "rejected": {
+            "title": "상대방이 초대를 거절했어요",
+            "description": "새로운 초대 링크를 보내 다시 초대할 수 있어요."
+        },
+        "cancelFailed": "초대를 취소하지 못했어요. 잠시 후 다시 시도해 주세요"
     },
     "cloudPromo": {
         "title": "나만의 클라우드에서 플레이스를\n만들고 함께 대화하세요!",

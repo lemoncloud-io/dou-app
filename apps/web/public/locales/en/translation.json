@@ -1084,7 +1084,7 @@
             },
             "notFound": {
                 "title": "This invite is not valid.",
-                "description": "The invite was cancelled or is no longer valid. Ask the sender for a new one."
+                "description": "This invite is no longer valid. Ask the sender for a new one."
             },
             "wrongNumber": {
                 "title": "This is not the invited number.",
@@ -1093,6 +1093,10 @@
             "taken": {
                 "title": "This invite has already been used.",
                 "description": "Someone else accepted it first."
+            },
+            "rejected": {
+                "title": "You've declined this invite.",
+                "description": "You declined this invite. Ask the sender for a new one to join."
             }
         },
         "failed": "Failed to accept invitation",
@@ -1107,7 +1111,13 @@
     "relayInviteAccept": {
         "verifyTitle": "Phone verification",
         "preparingRoom": "Creating your chat room",
-        "channelPending": "Your chat room is on its way — it will show up in the list shortly."
+        "channelPending": "Your chat room is on its way — it will show up in the list shortly.",
+        "declineDialog": {
+            "title": "Decline this invite?",
+            "description": "This can't be undone. You'll need a new invite to join later.",
+            "confirm": "Decline"
+        },
+        "declinedToast": "Invite declined"
     },
     "subscriptionRequired": {
         "title": "A subscription is required to use this service",
@@ -1139,9 +1149,9 @@
         "privacyNote": "Your phone number is used only to verify\nyour identity for this invite.",
         "phoneLabel": "Phone number",
         "phonePlaceholder": "Enter your phone number",
-        "phoneInvalidFormat": "Enter a valid phone number",
+        "phoneInvalidFormat": "Enter a valid mobile number for the selected country",
         "digitsOnly": "Digits only, no hyphens.",
-        "inviteMismatch": "This is not the invited number",
+        "inviteMismatch": "This is not the invited number — check the country and the digits",
         "tooManyRequests": "Too many verification requests. Try again later",
         "sendCode": "Send code",
         "sendFailed": "Failed to send the code",
@@ -1179,6 +1189,12 @@
         "sheetDescription": "Enter your phone number and the code\nwe send you to confirm it is you",
         "linkOccupied": "This number is already linked to another account.",
         "linkTypeAlreadyLinked": "You have already linked a different number."
+    },
+    "phoneInput": {
+        "countrySheetTitle": "Select country",
+        "countrySearchPlaceholder": "Search by country or code",
+        "countryPlaceholder": "Country",
+        "noResults": "No matching countries"
     },
     "addAccount": {
         "title": "Add Account",
@@ -1259,7 +1275,7 @@
         "validityHint": "The invite link stays valid for 3 days.",
         "submit": "Done",
         "unnamedRecipient": "Recipient",
-        "maskedPhone": "010-****-{{last4}}",
+        "maskedPhone": "****-{{last4}}",
         "badge": {
             "pending": "Invite pending",
             "expired": "Invite expired",
@@ -1280,12 +1296,12 @@
         "reinvite": {
             "pending": {
                 "title": "You already sent an invite",
-                "description": "Still waiting on their response — check the waiting screen for the latest."
+                "description": "Still waiting on their response — check the waiting screen for the latest.",
+                "confirm": "View waiting screen"
             },
             "expired": {
                 "title": "The previous invite expired",
-                "description": "The old link can no longer be used.\nPlease send a new invite link.",
-                "descriptionAutoRevoke": "For a secure invite the old link\ncan no longer be used.\nPlease send a new invite link."
+                "description": "The old link can no longer be used.\nPlease send a new invite link."
             },
             "declined": {
                 "title": "They declined the previous invite",
@@ -1330,10 +1346,14 @@
         "cancelDialog": {
             "title": "Cancel this invite?",
             "description": "Canceling means they can no longer join with this invite.",
-            "descriptionStub": "Canceling only removes it from your list — it may still be valid for them.",
             "confirm": "Cancel invite"
         },
-        "canceledToast": "Invite canceled"
+        "canceledToast": "Invite canceled",
+        "rejected": {
+            "title": "They declined your invite",
+            "description": "Send a new invite link to try again."
+        },
+        "cancelFailed": "Couldn't cancel the invite. Please try again shortly"
     },
     "cloudPromo": {
         "title": "Create places in your own cloud\nand chat together!",

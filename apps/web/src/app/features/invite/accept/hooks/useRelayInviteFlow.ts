@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getSocketManager, useRuntimeRepositories } from '@chatic/app-runtime';
+import { getSocketManager, useRuntimeProfile, useRuntimeRepositories } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useSessionSelection } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
 import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
-import { recordDeclinedInvite } from '../lib';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
 import { getSocketErrorCode } from '../../../../utils/errors';
@@ -30,6 +30,8 @@ export type RelayInvitePhase =
     | 'loading'
     /** the accept screen */
     | 'review'
+    /** the decline-confirm dialog is up (rejecting is final — 05-client-guide §B-4) */
+    | 'declining'
     /** re-validating and/or accepting — the CTA spins */
     | 'submitting'
     /** phone verification (Track A's PhoneVerifyScreen) */
@@ -43,21 +45,40 @@ export type RelayInvitePhase =
     /** terminal: we navigated away */
     | 'closed';
 
-/** Terminal notices, mapped from the server's `state` / `errorCode` — never from message text. */
-export type RelayInviteNotice = 'expired' | 'alreadyJoined' | 'notFound' | 'wrongNumber' | 'taken' | 'generic';
+/**
+ * Terminal notices, mapped from the server's `state` / `errorCode` — never from message text.
+ * Each value keys the copy at `inviteAccept.dialog.${notice}`; `inviteCanceled` is the key ADR-0016
+ * prepared (Figma 3079-12304), live again now that `canceled` arrives as a state (ADR-0043).
+ */
+export type RelayInviteNotice =
+    | 'expired'
+    | 'alreadyJoined'
+    | 'inviteCanceled'
+    | 'rejected'
+    | 'notFound'
+    | 'wrongNumber'
+    | 'taken'
+    | 'generic';
 
 /**
  * Which notice a failed packet becomes. `stage` matters because the same status means different
  * things on either side of the flow (05-client-guide §에러 코드).
  *
- * `404` covers both a cancelled and a never-existed invite: there is no cancel API and therefore no
- * `canceled` state to tell them apart (backend request 1), so the copy is deliberately merged.
+ * `404` is purely "no such invite" — a canceled one arrives as `state === 'canceled'` (ADR-0043),
+ * not as an error, so the old merged copy is gone.
  */
-const resolveNotice = (status: number | undefined, stage: 'get' | 'accept'): RelayInviteNotice => {
+const resolveNotice = (status: number | undefined, stage: 'get' | 'accept' | 'reject'): RelayInviteNotice => {
     if (status === 404) return 'notFound';
-    if (status === 409) return 'taken';
+    // Rejecting has exactly one 409 — `reject-invite.ts` throws it only for an already-accepted
+    // invite — and a relay 1:1 code is bound to one phone hash, so the only party who could have
+    // accepted it is this same person on another device. "Someone else got there first" (`taken`)
+    // would be plainly false; they are already in the room.
+    if (status === 409) return stage === 'reject' ? 'alreadyJoined' : 'taken';
     // Reading: a malformed code. Accepting: the invite expired between the check and the accept.
     if (status === 400) return stage === 'accept' ? 'expired' : 'notFound';
+    // Reading answers 403 for a code that does not match the invite it names (`find-model-by-code`),
+    // which is the same thing as an invalid link. Accepting answers it for a guest — caught by the
+    // caller's own branch before this — or a number that is not the invited one.
     if (status === 403) return stage === 'accept' ? 'wrongNumber' : 'notFound';
     return 'generic';
 };
@@ -91,17 +112,32 @@ export interface RelayInviteFlow {
     invite: RelayInviteInfo | null;
     notice: RelayInviteNotice | null;
     countdown: InviteCountdown | null;
+    /**
+     * Which proof the `verifying` phase runs. Opening a deeplink does NOT imply a device session —
+     * an already-authenticated main user with no phone yet still gets `needVerify`, and sending
+     * `login` from that session is a 400 (`@mode[login] is for device session`). See the derivation.
+     */
+    verifyMode: AccountLinkMode;
     /** "수락" — runs the next step, always re-validating first. */
     accept: () => void;
-    /** "거절" — a stub: closes and remembers locally (backend request 2). */
+    /** "거절" — opens the confirm dialog (`declining`); rejecting is final, so it never fires directly. */
     decline: () => void;
+    /** Confirm on the decline dialog — the actual `invite.reject` (ADR-0043). */
+    confirmDecline: () => void;
+    /**
+     * True while `confirmDecline`'s request is in flight. Stays in the `declining` phase rather than
+     * moving to `submitting` — the accept screen (and its "수락" spinner) is not what is happening —
+     * so the confirm dialog itself carries the pending state, same idiom as `InviteWaitingPage`'s
+     * cancel-confirm dialog (`isPending`/`isCanceling`).
+     */
+    isRejecting: boolean;
     /** Dismiss (X / esc / overlay) — blocked while a step is in flight. */
     close: () => void;
     /** Phone verification finished; the session is already the main user. */
     onVerified: () => void;
     /** The place profile was saved. */
     onProfileSaved: () => void;
-    /** The user backed out of verification / profile setup. */
+    /** The user backed out of verification / profile setup / the decline-confirm dialog. */
     cancelStep: () => void;
     /** Confirm on the notice dialog. */
     dismissNotice: () => void;
@@ -139,13 +175,46 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const [phase, setPhase] = useState<RelayInvitePhase>('loading');
     const [invite, setInvite] = useState<RelayInviteInfo | null>(null);
     const [notice, setNotice] = useState<RelayInviteNotice | null>(null);
+    const [isRejecting, setIsRejecting] = useState(false);
+    /**
+     * Set when the SERVER itself refused us as a main user (a 403 on accept). The role cache can
+     * disagree with the server — it falls back to "main user" when the role is simply unknown, and
+     * reads the cloud token while a cloud is active — so once the server has spoken, its verdict
+     * outranks `isGuest`. Same override, and the same reasoning, as ContactInvitePage's 403 net.
+     */
+    const [refusedAsMainUser, setRefusedAsMainUser] = useState(false);
+
+    const { isGuest } = useRuntimeProfile();
+    // A guest must OPEN a session (`login`); a main user who merely lacks a phone hangs one on the
+    // session they already have (`link`) — sending `login` there is a 400 (ADR-0042 §3).
+    const verifyMode: AccountLinkMode = isGuest || refusedAsMainUser ? 'login' : 'link';
 
     const countdown = useInviteCountdown(invite?.expiredAt);
 
     // Latest-value refs: the async steps read these long after the closure was created, and keeping
     // them out of the callback deps stops `advance` from churning identity on every render.
-    const latest = useRef({ mutations, resolveChannel, setPendingChannel, profileRepository, sid, navigate, toast, t });
-    latest.current = { mutations, resolveChannel, setPendingChannel, profileRepository, sid, navigate, toast, t };
+    const latest = useRef({
+        mutations,
+        resolveChannel,
+        setPendingChannel,
+        profileRepository,
+        sid,
+        navigate,
+        toast,
+        t,
+        verifyMode,
+    });
+    latest.current = {
+        mutations,
+        resolveChannel,
+        setPendingChannel,
+        profileRepository,
+        sid,
+        navigate,
+        toast,
+        t,
+        verifyMode,
+    };
 
     // Generation counter: a step that resolves after the flow moved on (or unmounted) must not write.
     const runIdRef = useRef(0);
@@ -240,11 +309,36 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
         if (view.state === 'expired') return fail('expired');
         if (view.state === 'accepted') return fail('alreadyJoined');
+        // Same final-state branches as the entry read — verification takes minutes, and the
+        // inviter can retire the code in that window.
+        if (view.state === 'canceled') return fail('inviteCanceled');
+        if (view.state === 'rejected') return fail('rejected');
 
         // Verify, then name yourself, then accept (ADR-0033 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
         // main user's site — while still a device user there is no site to write it to.
-        if (view.needVerify) return setPhase('verifying');
+        //
+        // `verifiedRef` makes this a ONE-shot step. The server derives `needVerify` from whether this
+        // account owns the invited number, so proving a DIFFERENT number leaves it true — and without
+        // this guard the flow would bounce straight back here, remounting the verify screen as a
+        // blank form with no error, forever. A number already linked cannot be swapped either (the
+        // backend has no unlink and answers `type-linked`), so re-verifying could never clear it:
+        // the honest answer is the terminal notice.
+        if (view.needVerify) {
+            if (verifiedRef.current) return fail('wrongNumber');
+            // Cross-check BEFORE the proof, never after — a `link` confirm COMMITS the number to this
+            // account, and the backend has no unlink (`judgeLink` answers `type-linked` forever), so a
+            // wrong number linked here is permanent and takes the invite with it.
+            //
+            // `login` gets that check from the server: the invite code rides along and
+            // `assertInviteMatched` runs before a message is ever dispatched. `link` structurally
+            // cannot — `link-account.ts` reads the code only when `mode === 'login'` — which leaves
+            // `last4` (enforced in usePhoneVerify) as the only cross-check on this path. With no
+            // `last4` there is nothing to check against at all, so refuse rather than let an
+            // unverifiable number be written irreversibly.
+            if (latest.current.verifyMode === 'link' && !view.last4) return fail('generic');
+            return setPhase('verifying');
+        }
 
         // The profile is a PRECONDITION of the accept, not a gate on the app: backing out returns to
         // the review screen without accepting, so "accepted but nameless" — which a force-quit right
@@ -278,7 +372,14 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             const status = getSocketErrorCode(error);
             // Not yet a main user: the server re-judges regardless of `needVerify`, so send them to
             // verification instead of dead-ending. Once verified, a 403 really is a number mismatch.
-            if (status === 403 && !verifiedRef.current) return setPhase('verifying');
+            //
+            // The server just told us it does NOT see a main user, which beats whatever the role
+            // cache believes — so pin the proof to `login`. Without this the flow would re-derive
+            // `link` from a stale `isGuest: false` and the send would 403 again, with no way out.
+            if (status === 403 && !verifiedRef.current) {
+                setRefusedAsMainUser(true);
+                return setPhase('verifying');
+            }
             logger.error('INVITE', `[useRelayInviteFlow] invite.accept failed (status=${status ?? '-'})`, { error });
             return fail(resolveNotice(status, 'accept'));
         }
@@ -301,6 +402,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
                 setInvite(view);
                 if (view.state === 'expired') return fail('expired');
                 if (view.state === 'accepted') return fail('alreadyJoined');
+                // Final states arrive as `state`, not as errors (ADR-0043): canceled by the
+                // inviter, or rejected by this number on an earlier open.
+                if (view.state === 'canceled') return fail('inviteCanceled');
+                if (view.state === 'rejected') return fail('rejected');
                 setPhase('review');
             } catch (error) {
                 if (isStale(run)) return;
@@ -321,9 +426,12 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
     const onVerified = useCallback(() => {
         verifiedRef.current = true;
-        // Promotion swapped the identity, so a profile saved as the device user says nothing about the
-        // main user's site — re-judge. Without this, the `403 → verifying` fallback below could accept
-        // as a promoted user who has no profile, which is the state this step exists to prevent.
+        // Re-judge the profile. After a `login` proof the identity was swapped, so a profile saved as
+        // the device user says nothing about the promoted user's site — without this the
+        // `403 → verifying` fallback could accept as a user who has no profile, the very state this
+        // step exists to prevent. A `link` proof leaves the identity alone and so needs no reset, but
+        // paying for one re-read there is cheaper than making the reset conditional on a mode the
+        // server can still overrule.
         profileSavedRef.current = false;
         void advance();
     }, [advance]);
@@ -333,12 +441,40 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         void advance();
     }, [advance]);
 
+    // Rejecting is final and needs no verification (05-client-guide §B-4) — but exactly because it
+    // is final, the button only raises the confirm dialog; the actual packet waits for the confirm.
     const decline = useCallback(() => {
-        // TODO(backend): 2번 — ADR-0033 인터페이스 선반영. No reject API and no `rejected` state, so
-        // this only closes and remembers locally; the inviter is never told.
-        recordDeclinedInvite(invite?.id);
-        goHome();
-    }, [invite?.id, goHome]);
+        setPhase('declining');
+    }, []);
+
+    const confirmDecline = useCallback(async () => {
+        runIdRef.current += 1;
+        const run = runIdRef.current;
+        // Stays in `declining` — the confirm dialog owns this pending state (`isRejecting`), same
+        // idiom as InviteWaitingPage's cancel-confirm dialog. Moving to `submitting` would unmount
+        // the dialog behind the accept screen's own spinner, which is not what is happening here.
+        setIsRejecting(true);
+        try {
+            const view = await latest.current.mutations.rejectInvite(code);
+            if (isStale(run)) return;
+            // `state` is the only success signal, same as accept. Idempotent server-side.
+            if (view.state !== 'rejected') {
+                setIsRejecting(false);
+                return fail('generic');
+            }
+            latest.current.toast({ title: latest.current.t('relayInviteAccept.declinedToast') });
+            goHome();
+        } catch (error) {
+            if (isStale(run)) return;
+            setIsRejecting(false);
+            const status = getSocketErrorCode(error);
+            logger.error('INVITE', `[useRelayInviteFlow] invite.reject failed (status=${status ?? '-'})`, { error });
+            // 409 → alreadyJoined: the only way a reject conflicts is that the invite was already
+            // accepted, and only this number's owner could have done that. The rest reads like the
+            // entry lookup — a reject carries no verification stage of its own.
+            return fail(resolveNotice(status, 'reject'));
+        }
+    }, [code, fail, goHome]);
 
     const close = useCallback(() => {
         // Never mid-step: dismissing there would strip the URL and swallow the outcome.
@@ -351,8 +487,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         invite,
         notice,
         countdown,
+        verifyMode,
         accept: useCallback(() => void advance(), [advance]),
         decline,
+        confirmDecline: useCallback(() => void confirmDecline(), [confirmDecline]),
+        isRejecting,
         close,
         onVerified,
         onProfileSaved,

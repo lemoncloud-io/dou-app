@@ -15,6 +15,13 @@ jest.mock('../../../stores/usePreferenceStore', () => {
             if (current.includes(inviteId)) return;
             (set as unknown as (partial: object) => void)({ canceledInviteIds: [...current, inviteId] });
         },
+        clearInviteCanceled: (inviteId: string) => {
+            const current = (get as unknown as () => { canceledInviteIds: string[] })().canceledInviteIds;
+            if (!current.includes(inviteId)) return;
+            (set as unknown as (partial: object) => void)({
+                canceledInviteIds: current.filter(id => id !== inviteId),
+            });
+        },
     }));
     return { usePreferenceStore: store };
 });
@@ -56,5 +63,17 @@ describe('useLocallyCanceledInvites', () => {
 
         expect(result.current.isCanceled('invite-1')).toBe(true);
         expect(result.current.isCanceled('invite-2')).toBe(true);
+    });
+
+    it('clearCanceled는 그 id만 지운다 — reconcile이 정산한 기록을 걷는 경로', () => {
+        const { result } = renderHook(() => useLocallyCanceledInvites());
+
+        act(() => result.current.markCanceled('invite-1'));
+        act(() => result.current.markCanceled('invite-2'));
+        act(() => result.current.clearCanceled('invite-1'));
+
+        expect(result.current.isCanceled('invite-1')).toBe(false);
+        expect(result.current.isCanceled('invite-2')).toBe(true);
+        expect(result.current.canceledIds).toEqual(['invite-2']);
     });
 });

@@ -8,15 +8,23 @@ interface SentInviteEntry {
     name: string;
 }
 
-/** Keyed by the normalized recipient phone digits the caller issued the invite with. */
+/** Keyed by the recipient's number in E.164 (`+821012345678`). */
 type SentInviteLogMap = Record<string, SentInviteEntry>;
 
-const STORAGE_KEY = 'dou.relayInvite.sentLog.v1';
+const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
+/**
+ * `.v1` was keyed by local Korean digits, which collide across countries once invites can go
+ * anywhere. There is no `persist` middleware here and no `migrate` hook, so bumping the key IS the
+ * migration: entries are a local convenience cache (ADR-0044 §6) and simply lapse. The old key is
+ * cleared on the first read so the dead data does not sit in storage forever.
+ */
+const LEGACY_STORAGE_KEY = 'dou.relayInvite.sentLog.v1';
 
 /** A corrupt/tampered value degrades to an empty log rather than throwing. */
 const readStoredLog = (): SentInviteLogMap => {
     if (typeof window === 'undefined') return {};
     try {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
@@ -58,7 +66,7 @@ export const useSentInviteLogStore = create<SentInviteLogState>((set, get) => ({
 }));
 
 /**
- * Local memory of relay invites this device has issued, keyed by recipient phone digits.
+ * Local memory of relay invites this device has issued, keyed by the recipient's E.164 number.
  *
  * Exists because the server view never carries the phone number in full — `MyInviteView` only
  * exposes a masked `last4` (ADR-0033) — so detecting "you already invited this number" and
@@ -66,8 +74,10 @@ export const useSentInviteLogStore = create<SentInviteLogState>((set, get) => ({
  * Persisted to localStorage rather than repositories-v2: this is a small phone->invite lookup
  * with no offline/sync requirement, not a synced domain collection.
  *
- * Callers must key `record`/`findByPhone` with the same phone representation (this app
- * normalizes to local Korean digits before calling either — see `normalizeKoreanPhone`).
+ * Callers must key `record`/`findByPhone` with the same phone representation: E.164, via
+ * `toE164`. Local forms would collide once invites can go to any country — `09012345678` is a
+ * Japanese number and a Korean-shaped string at once — and the key is also what `findByInviteId`
+ * hands back, so it has to carry the country too (ADR-0044 §6).
  */
 export const useSentInviteLog = () => {
     const log = useSentInviteLogStore(state => state.log);

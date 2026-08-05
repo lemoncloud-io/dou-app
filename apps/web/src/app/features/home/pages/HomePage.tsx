@@ -48,6 +48,7 @@ import {
     useSwitchPlace,
 } from '../hooks';
 import { resolveHeaderProfile } from '../lib';
+import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 
 export const HomePage = () => {
@@ -144,6 +145,9 @@ export const HomePage = () => {
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
     const { invites: sentInvites } = useInviteListRows();
+    // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
+    // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
+    useCanceledInviteReconcile();
     // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
     // sites, not just the selected one. Unread derives from each channel head (`chatNo`/`metaNo`)
     // and MY read cursor from the subscribed join list (useMyJoins), not the channel-embedded

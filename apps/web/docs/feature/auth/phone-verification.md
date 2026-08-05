@@ -67,6 +67,9 @@
 
 **제외**
 
+- 국가 선택·국가별 번호 검증·`countryCode` 전송 —
+  [international-phone-input.md](./international-phone-input.md) 소유. 이 문서의 번호 필드는
+  그 모듈을 소비만 한다
 - 수단·모드·단계 계약과 `linkAccount` 배선 — [account-linking.md](./account-linking.md) 소유
 - `link$` 읽기 자체 (`useLinkedAccounts`) — 같은 문서 소유. 이 문서는 게이트에서 쓰기만 한다
 - 초대 발급/수락 화면의 본문 자체 (Track B·C 소유)

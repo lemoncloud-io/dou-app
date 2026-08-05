@@ -5,16 +5,19 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 const navigate = jest.fn();
 const toast = jest.fn();
 const createInvite = jest.fn();
+const cancelInvite = jest.fn();
+const retire = jest.fn();
 const record = jest.fn();
 const findByInviteId = jest.fn();
 const markCanceled = jest.fn();
 const sendInviteMessage = jest.fn();
+const refetch = jest.fn();
 
 let mockInvite: any;
 let mockIsLoading = false;
 let mockSyncStatus: 'unknown' | 'waiting' | 'ready' | 'timeout' = 'unknown';
 let mockIsCanceled = false;
-/** Live store behind `markCanceled`, so a cancel the page makes is visible to `isCanceled`. */
+/** Live store behind `markCanceled`, so a dismiss the page makes is visible to `isCanceled`. */
 const canceledIds = new Set<string>();
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ inviteId: 'invite-1' }) }));
@@ -46,15 +49,11 @@ jest.mock('../../channels/components', () => ({
 }));
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: '보낸이' } }),
-    useRelayInviteMutations: () => ({ createInvite }),
+    useRelayInviteMutations: () => ({ createInvite, cancelInvite }),
     useSentInviteLog: () => ({ record, findByInviteId }),
 }));
-jest.mock('../../home/hooks', () => ({
-    useInviteCountdown: (expiredAt?: number) =>
-        expiredAt ? { days: 0, hours: 1, minutes: 30, seconds: 0, isExpired: false, isImminent: false } : null,
-}));
 jest.mock('../hooks/useInviteWaitingStatus', () => ({
-    useInviteWaitingStatus: () => ({ invite: mockInvite, isLoading: mockIsLoading, refetch: jest.fn() }),
+    useInviteWaitingStatus: () => ({ invite: mockInvite, isLoading: mockIsLoading, refetch }),
 }));
 jest.mock('../hooks/useAcceptedChannelSync', () => ({
     useAcceptedChannelSync: () => ({ status: mockSyncStatus }),
@@ -64,6 +63,11 @@ jest.mock('../hooks/useLocallyCanceledInvites', () => ({
         isCanceled: (id: string) => mockIsCanceled || canceledIds.has(id),
         markCanceled,
     }),
+}));
+// The retire policy itself is covered by useRetireInvite.test.ts — here it is a controllable seam
+// so each reissue branch (canceled/conflict/failed/dismissed) can be staged directly.
+jest.mock('../hooks/useRetireInvite', () => ({
+    useRetireInvite: () => ({ retire }),
 }));
 jest.mock('../utils/sendInviteMessage', () => ({
     sendInviteMessage: (...args: unknown[]) => sendInviteMessage(...args),
@@ -81,6 +85,8 @@ describe('InviteWaitingPage', () => {
         canceledIds.clear();
         markCanceled.mockImplementation((id: string) => canceledIds.add(id));
         sendInviteMessage.mockResolvedValue('sms');
+        retire.mockResolvedValue('canceled');
+        cancelInvite.mockResolvedValue({ id: 'invite-1', state: 'canceled', canceledAt: 1 });
     });
 
     it('로딩 중이고 아직 invite가 없으면 스피너를 보여준다', () => {
@@ -108,70 +114,186 @@ describe('InviteWaitingPage', () => {
         expect(screen.getByText('inviteWaiting.cancelInvite')).toBeInTheDocument();
     });
 
-    it('만료 상태에서 초대 다시 하기를 누르면 로그의 phone/name으로 재발급한다', async () => {
-        mockIsLoading = false;
-        mockInvite = { id: 'invite-1', state: 'expired', name: '홍길동' };
-        findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '01012345678', name: '홍길동' });
-        createInvite.mockResolvedValue({ id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' });
+    describe('취소 — 실 invite.cancel (ADR-0043)', () => {
+        beforeEach(() => {
+            mockIsLoading = false;
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'pending', name: '홍길동' };
+        });
 
-        render(<InviteWaitingPage />);
-        fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+        const confirmCancel = () => {
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.cancelInvite'));
+            // The stub-era "local only" copy is gone — the dialog states the real consequence.
+            expect(screen.getByText('inviteWaiting.cancelDialog.description')).toBeInTheDocument();
+            fireEvent.click(screen.getByText('inviteWaiting.cancelDialog.confirm'));
+        };
 
-        await waitFor(() => expect(createInvite).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동' }));
-        expect(record).toHaveBeenCalledWith(
-            { id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' },
-            { phone: '01012345678', name: '홍길동' }
-        );
-        await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true }));
+        it('확인 시 합성 코드로 invite.cancel을 보내고 성공하면 토스트 후 홈으로 간다', async () => {
+            confirmCancel();
+
+            await waitFor(() => expect(cancelInvite).toHaveBeenCalledWith('invt:invite-1:c0de'));
+            await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.canceledToast' }));
+            expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+            expect(markCanceled).not.toHaveBeenCalled(); // 서버가 기억한다 — 로컬 스탬프는 더 이상 없다
+        });
+
+        it('409(이미 수락)면 홈으로 가지 않고 목록을 재조회해 화면이 사실을 따르게 한다', async () => {
+            cancelInvite.mockRejectedValue(Object.assign(new Error('conflict'), { errorCode: 409 }));
+
+            confirmCancel();
+
+            await waitFor(() => expect(refetch).toHaveBeenCalled());
+            expect(toast).not.toHaveBeenCalledWith({ title: 'inviteWaiting.canceledToast' });
+            expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
+        });
+
+        it('그 외 실패는 실패 토스트를 띄우고 화면에 남는다 — 멱등이라 재시도해도 안전하다', async () => {
+            cancelInvite.mockRejectedValue(new Error('503 SOCKET NOT CONNECTED'));
+
+            confirmCancel();
+
+            await waitFor(() =>
+                expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.cancelFailed', variant: 'destructive' })
+            );
+            expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
+        });
     });
 
-    it('재발급이 끝나면 직전 초대를 취소 처리하되 홈으로 튕기지 않는다', async () => {
-        mockIsLoading = false;
-        mockInvite = { id: 'invite-1', state: 'pending', name: '홍길동' };
-        findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '01012345678', name: '홍길동' });
-        createInvite.mockResolvedValue({ id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' });
+    describe('재발급 — 이전 초대 retire 선행 (ADR-0043 결정 5) · 국가 복원 (ADR-0044)', () => {
+        beforeEach(() => {
+            mockIsLoading = false;
+            // The log key IS the E.164 value the packet wants now; parsing it back only recovers the
+            // country, for the `countryCode` field (ADR-0044 §5 correction).
+            findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '+821012345678', name: '홍길동' });
+            createInvite.mockResolvedValue({ id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' });
+        });
 
-        render(<InviteWaitingPage />);
-        fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+        it('retire가 canceled로 끝나야 새로 발급하고 새 대기 화면으로 교체 이동한다', async () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'pending', name: '홍길동' };
 
-        await waitFor(() => expect(markCanceled).toHaveBeenCalledWith('invite-1'));
-        expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true });
-        // The cancel is this screen's own, so the "canceled invite" redirect must stay out of it —
-        // otherwise the reissue lands on home instead of the new invite's waiting screen.
-        expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            await waitFor(() => expect(retire).toHaveBeenCalledWith(mockInvite));
+            await waitFor(() =>
+                expect(createInvite).toHaveBeenCalledWith({
+                    phone: '+821012345678',
+                    name: '홍길동',
+                    countryCode: 'KR',
+                })
+            );
+            expect(record).toHaveBeenCalledWith(
+                { id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' },
+                { phone: '+821012345678', name: '홍길동' }
+            );
+            await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true }));
+        });
+
+        it('pending인데 retire가 실패하면 발급하지 않는다 — 유효한 코드가 둘 생기면 안 된다', async () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'pending', name: '홍길동' };
+            retire.mockResolvedValue('failed');
+
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            await waitFor(() =>
+                expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.reissueFailed', variant: 'destructive' })
+            );
+            expect(createInvite).not.toHaveBeenCalled();
+        });
+
+        it('pending인데 retire가 conflict(이미 수락)면 발급 대신 목록을 재조회한다', async () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'pending', name: '홍길동' };
+            retire.mockResolvedValue('conflict');
+
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            await waitFor(() => expect(refetch).toHaveBeenCalled());
+            expect(createInvite).not.toHaveBeenCalled();
+        });
+
+        it('expired는 retire가 실패해도 발급을 진행한다 — 죽은 링크 정리는 베스트 에포트다', async () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'expired', name: '홍길동' };
+            retire.mockResolvedValue('failed');
+
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            await waitFor(() => expect(createInvite).toHaveBeenCalled());
+            await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true }));
+        });
+
+        it('rejected에서 재발급하면 retire(dismiss)가 로컬 기록을 남겨도 홈으로 튕기지 않는다', async () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'rejected', name: '홍길동' };
+            retire.mockImplementation(async () => {
+                markCanceled('invite-1'); // dismiss가 남긴 기록이 isGone을 뒤집는 상황을 재현
+                return 'dismissed';
+            });
+
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true }));
+            // The dismiss is this screen's own, so the "gone invite" redirect must stay out of it —
+            // otherwise the reissue lands on home instead of the new invite's waiting screen.
+            expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
+        });
+
+        it('로그에 없는(스토리지 소실 등) invite는 재발급하지 않고 안내 토스트만 띄운다', () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'expired', name: '홍길동' };
+            findByInviteId.mockReturnValue(undefined);
+
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            expect(createInvite).not.toHaveBeenCalled();
+            expect(retire).not.toHaveBeenCalled();
+            expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.reissueMissingLog', variant: 'destructive' });
+        });
+
+        it('로그의 키가 국가를 잃었으면 재발급하지 않는다 — 어느 나라로 보낼지 알 수 없다', () => {
+            mockInvite = { id: 'invite-1', code: 'c0de', state: 'expired', name: '홍길동' };
+            // A v1-era local-digits key that somehow survived: no `+`, so no country to send with.
+            findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '01012345678', name: '홍길동' });
+
+            render(<InviteWaitingPage />);
+            fireEvent.click(screen.getByText('inviteWaiting.reissue'));
+
+            expect(createInvite).not.toHaveBeenCalled();
+            expect(retire).not.toHaveBeenCalled();
+            expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.reissueMissingLog', variant: 'destructive' });
+        });
     });
 
-    it('로그에 없는(스토리지 소실 등) invite는 재발급하지 않고 안내 토스트만 띄운다', () => {
+    it('rejected면 거절 상태 블록을 보여주고 취소 버튼과 유효시간 카드는 접는다 (Figma 3263-30117)', () => {
         mockIsLoading = false;
-        mockInvite = { id: 'invite-1', state: 'expired', name: '홍길동' };
-        findByInviteId.mockReturnValue(undefined);
+        mockInvite = {
+            id: 'invite-1',
+            code: 'c0de',
+            state: 'rejected',
+            name: '홍길동',
+            expiredAt: Date.now() + 90 * 60_000,
+        };
 
         render(<InviteWaitingPage />);
-        fireEvent.click(screen.getByText('inviteWaiting.reissue'));
 
-        expect(createInvite).not.toHaveBeenCalled();
-        expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.reissueMissingLog', variant: 'destructive' });
+        expect(screen.getByText('inviteWaiting.rejected.title')).toBeInTheDocument();
+        expect(screen.getByText('inviteWaiting.reissue')).toBeInTheDocument();
+        expect(screen.queryByText('inviteWaiting.cancelInvite')).not.toBeInTheDocument();
+        expect(screen.queryByText('inviteAccept.expiry.remaining')).not.toBeInTheDocument();
     });
 
-    it('취소 확인 시 로컬로만 취소 처리하고(서버 호출 없음) 홈으로 이동한다', () => {
+    it('서버 상태가 canceled면(다른 기기에서 취소 등) 즉시 홈으로 리다이렉트한다', () => {
         mockIsLoading = false;
-        mockInvite = { id: 'invite-1', state: 'pending', name: '홍길동' };
+        mockInvite = { id: 'invite-1', state: 'canceled', name: '홍길동' };
 
         render(<InviteWaitingPage />);
-        fireEvent.click(screen.getByText('inviteWaiting.cancelInvite'));
 
-        // INVITE_CANCEL_API_SUPPORTED defaults to false — the dialog must show the honest
-        // "local-only" stub copy, not the one that claims the invite itself is invalidated.
-        expect(screen.getByText('inviteWaiting.cancelDialog.descriptionStub')).toBeInTheDocument();
-
-        fireEvent.click(screen.getByText('inviteWaiting.cancelDialog.confirm'));
-
-        expect(markCanceled).toHaveBeenCalledWith('invite-1');
-        expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.canceledToast' });
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
     });
 
-    it('로컬에서 이미 취소 처리된 invite는 즉시 홈으로 리다이렉트한다', () => {
+    it('로컬에서 dismiss된 invite는 즉시 홈으로 리다이렉트한다', () => {
         mockIsCanceled = true;
         mockIsLoading = false;
         mockInvite = { id: 'invite-1', state: 'pending', name: '홍길동' };

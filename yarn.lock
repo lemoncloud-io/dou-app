@@ -3464,10 +3464,10 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-backend-api@^0.26.706":
-  version "0.26.706"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.706.tgz#ac18f4a009f56fd8f89128fe0880b0b5ea61bf0e"
-  integrity sha512-MprjBVVZfE1LykU8yFmeU+8rejfH4HkjF7MeNY2+qVZNCyC7d4IJ/X4MPYgNkEBvSU4lib4WxqlZHe2HyupmRw==
+"@lemoncloud/chatic-backend-api@^0.26.709":
+  version "0.26.709"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.709.tgz#b43ef09cbb429dee3fd880e5eb2e7b02ccc61d63"
+  integrity sha512-rq0CyLXgYuZAdZmjMu3SmM5RsII6+xb7ctjEu8whViOUY/q8lYwjU7CBsBWsePvCqyRS3xZQsgDYq6NPTvduiQ==
   dependencies:
     lemon-model "^1.1.1"
 
@@ -3506,17 +3506,17 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-sockets-api@0.26.709":
-  version "0.26.709"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.709.tgz#1c6a2b001410a5f3d0d75b8aaa2a6b9a43e6e75f"
-  integrity sha512-Q683/ef8I7a5t3gJX8Ynl+3CFiS0OkvP2mChjiu9SqGh/0X1hcYpadyeRu9ZStxrlli8XJNgMhDqDBSShgHEtA==
+"@lemoncloud/chatic-sockets-api@0.26.710":
+  version "0.26.710"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-api/-/chatic-sockets-api-0.26.710.tgz#7179742abf3a2d214bc32b5ceef5940ce5ada5fd"
+  integrity sha512-OA9qcxe7F3dqi9GwWFbp6s0We7xsdJ8hWhX9QmGk14f/h3o9CIh5qKAAuM5Lf2Zk9yjX/YkLtTGss11J55G2Zw==
   dependencies:
     lemon-model "^1.2.2"
 
-"@lemoncloud/chatic-sockets-lib@0.4.12":
-  version "0.4.12"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.12.tgz#4c3db799a818b90be5c962bcfa4f61aade1e652e"
-  integrity sha512-srH4xhha7A1/475S/37BdoejJV3PmFzEwzap1Gqg1JrR5T1U/GDFujE1TW2+pa4RQDeKo7DOnTpvI4c1XCicRg==
+"@lemoncloud/chatic-sockets-lib@0.4.13":
+  version "0.4.13"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.4.13.tgz#085e3ed312ca34f4eeb76778d5a1edcdcafb58c4"
+  integrity sha512-dUbEHBZIvFBbYOL4QxqrADv4EEQE3jDb9KONNaMWupUmzl5h3EAgxFxBgEDp2NKLRdp1VMN1gRkUbHurtgXwyg==
 
 "@lemoncloud/lemon-boards-api@^2.25.109":
   version "2.25.608"
@@ -15138,6 +15138,11 @@ lexical@0.45.0, lexical@^0.45.0:
   integrity sha512-z2M9C2ILPW7SopQE1aKbOFdZJbe3HvsrgWnJKveMDrSEvVjU9Hce4UpKVsAdkwY7TgY9RDuCV3+sfrGu0WkL+w==
   dependencies:
     "@lexical/internal" "0.45.0"
+
+libphonenumber-js@1.13.10:
+  version "1.13.10"
+  resolved "https://registry.yarnpkg.com/libphonenumber-js/-/libphonenumber-js-1.13.10.tgz#bb53bb92e8375b0af6e42a679a86ff3f4585a74b"
+  integrity sha512-xJxrdqvbl2rtn2MaUJrUejz8J7/uZNC0V77oks2LxYrO/+ZtVpRmz+fEQMuu6VusnEB1fmpByiLS1WXecOnAnw==
 
 lighthouse-logger@^1.0.0:
   version "1.4.2"

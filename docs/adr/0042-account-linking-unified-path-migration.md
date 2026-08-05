@@ -297,3 +297,25 @@ Phase A 스펙의 입력이다.
 
 서버에 확인할 것 셋(백필 · `user.profile`의 `link$` · `invite.get`의 `last4`)은 착수를
 막지 않지만, 답이 오면 §5~§8의 정밀도가 올라가므로 병행해서 물어 둔다.
+
+### 후속 요청 — `link` 모드에도 초대 대조를 넣어 달라 (2026-08-05 추가)
+
+프로덕션에서 발견된 `400 @mode[login] is for device session`을 고치면서 드러난 구멍이다.
+초대 수락 화면은 이제 세션 종류에 따라 `login`/`link`를 고르는데(§3), **`link` 경로에는
+초대 번호 대조가 서버에 아예 없다** — `chatic-backend-api` `src/lib/auth/link-account.ts:286`이
+`const code = mode === 'login' ? … : ''` 뒤에 `if (code)`로 `assertInviteMatched`를 감싸고 있어
+`link`에서는 진입 자체가 불가능하다.
+
+문제는 **되돌릴 수 없다는 것**이다. `commitLink`가 번호를 계정에 붙이고 나면 `judgeLink`가
+`type-linked`로 재연결을 영구히 막으며(같은 파일 `:136`, "수단 교체는 범위 밖"), 백엔드 전체에
+해제 엔드포인트가 없다(`grep -riE "unlink|detach" src` → 0건). 즉 초대와 다른 번호를 이 경로로
+인증하면 그 번호가 계정에 영구히 박히고, 초대받은 번호는 영원히 연결할 수 없어 그 초대도,
+그 번호로 오는 이후의 모든 초대도 수락 불가가 된다.
+
+클라이언트가 할 수 있는 방어는 `invite.get`의 `last4` 대조뿐이라 지금 그것을 강제한다 —
+발송 전 하드 차단(`usePhoneVerify`), 그리고 `last4`가 없으면 `link` 경로의 인증을 아예 시작하지
+않는다(`useRelayInviteFlow`). 하지만 뒤 4자리는 국가에 무관하고 클라이언트 전용이라, 되돌릴 수
+없는 쓰기의 방어로는 충분하지 않다.
+
+**요청:** `link` 모드에서도 `code`를 읽어 `commitLink` 전에 `assertInviteMatched`를 돌려 달라.
+대조가 먼저고 링킹은 그 다음이어야 한다. 그때 위 클라이언트 방어는 이중 안전장치로 남긴다.

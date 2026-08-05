@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import { lazy, Suspense, type JSX } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -6,11 +6,26 @@ import { AlertDialog, Text } from '@chatic/web-ui-kit';
 
 import { InviteAcceptLoading } from './InviteAcceptLoading';
 import { InviteAcceptScreen } from './InviteAcceptScreen';
-import { PhoneVerifyScreen } from '../../../auth/components';
+// Direct file path, not the `channels/components` barrel: that barrel also exports
+// AddFriendSheet, which pulls channels/hooks -> @chatic/app-runtime -> chatic-sockets-lib ->
+// lemon-model (needs a TextEncoder global this test env doesn't polyfill). Same fix
+// InviteWaitingPage.test.tsx documents for the same reason.
+import { ConfirmDialog } from '../../../channels/components/ConfirmDialog';
 import { PlaceProfileCreateDialog } from '../../../home/components/PlaceProfileCreateDialog';
-import { RELAY_INVITE_DECLINE_ENABLED } from '../../flags';
 import { useActivePlaceName } from '../../../../hooks';
 import { useRelayInviteFlow } from '../hooks';
+
+/**
+ * Split out because this screen is the ONE eager consumer of `libphonenumber-js` — every other one
+ * sits under a `React.lazy` route. `CommonRoutes` deliberately keeps the invite-accept page eager
+ * (it is the invitee's first screen), so importing the verify step statically put ~35 kB gzip of
+ * number metadata into the initial chunk — measured. `verifying` is never the first phase: the user
+ * passes through `loading` and the accept screen first, so the fetch happens off the cold path and
+ * ADR-0044's "code-split it so first entry does not pay" holds.
+ */
+const PhoneVerifyScreen = lazy(() =>
+    import('../../../auth/components/PhoneVerifyScreen').then(m => ({ default: m.PhoneVerifyScreen }))
+);
 
 interface RelayInviteAcceptProps {
     /** Invite code from the deeplink. A credential — it stays in packet bodies, never in a log. */
@@ -36,7 +51,23 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
     // Already navigated home — the URL still carries the code for one more render.
     if (flow.phase === 'closed') return null;
 
-    // Expired / already joined / invalid / wrong number / taken. Red title per Figma.
+    // Rejecting is final (05-client-guide §B-4), so the button only raises this confirm step —
+    // the actual invite.reject waits for `confirmDecline` (ADR-0043, Figma 3446-17487).
+    if (flow.phase === 'declining') {
+        return (
+            <ConfirmDialog
+                open
+                onOpenChange={next => !next && flow.cancelStep()}
+                title={t('relayInviteAccept.declineDialog.title')}
+                description={t('relayInviteAccept.declineDialog.description')}
+                confirmLabel={t('relayInviteAccept.declineDialog.confirm')}
+                onConfirm={flow.confirmDecline}
+                isPending={flow.isRejecting}
+            />
+        );
+    }
+
+    // Expired / already joined / canceled / rejected / invalid / wrong number / taken. Red title per Figma.
     if (flow.phase === 'notice' && flow.notice) {
         // `generic` is the only recoverable one — it means the failure could not be classified (a
         // half-open socket, a 5xx), not that the invite is spent. Everything else is a verdict about
@@ -56,19 +87,22 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // Always `login` here: opening an invite deeplink puts you in a device session, so proving the
-    // number opens one rather than decorating one (ADR-0042 §3). `last4` lets a mistyped number fail
-    // before a delivery is spent — the server still cross-checks the whole number at send (§8).
+    // The mode is the flow's call, not this switch's — a deeplink does not imply a device session,
+    // and the server's own 403 can overrule the role cache (see `verifyMode`). `last4` lets a
+    // mistyped number fail before a delivery is spent; note the server only cross-checks the WHOLE
+    // number on a `login` send, since `link` carries no invite code (§B-2).
     if (flow.phase === 'verifying') {
         return (
-            <PhoneVerifyScreen
-                context="invite-accept"
-                mode="login"
-                inviteCode={code}
-                inviteLast4={flow.invite?.last4}
-                onVerified={flow.onVerified}
-                onClose={flow.cancelStep}
-            />
+            <Suspense fallback={<InviteAcceptLoading />}>
+                <PhoneVerifyScreen
+                    context="invite-accept"
+                    mode={flow.verifyMode}
+                    inviteCode={code}
+                    inviteLast4={flow.invite?.last4}
+                    onVerified={flow.onVerified}
+                    onClose={flow.cancelStep}
+                />
+            </Suspense>
         );
     }
 
@@ -109,7 +143,6 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
             onAccept={flow.accept}
             onClose={flow.close}
             onDecline={flow.decline}
-            showDecline={RELAY_INVITE_DECLINE_ENABLED}
             overlay={
                 // The accept succeeded but the room is built asynchronously and can take a few
                 // seconds; hold the surface rather than dropping the user on home.
