@@ -1,5 +1,56 @@
 # Changelog
 
+## [2026-08-05] - root@0.48.1, @chatic/desktop-web@0.4.2
+
+### Features
+
+- (desktop-web/chat) fix the quick reactions to 👍 and 🆗
+- (desktop-web/chat) react in one click, and let go of the toolbar afterwards
+- (desktop-web/chat) mark an edited message, and clear a deleted one
+- (desktop-web/chat) leave a tombstone wherever a message is deleted
+- (desktop-web/chat) make editing and deleting a message legible
+- (chat) react to messages with emoji
+- (desktop-web/chat) edit and delete your own messages
+- (desktop-web/settings) let this device turn off push notifications
+- (desktop-web/chat) render join and leave events as notices
+- (desktop-web/chat) round and shrink the person avatars
+- (desktop-web/chat) quiet the channel sidebar
+- (desktop-web/chat) compact the link preview into a chip
+
+### Bug Fixes
+
+- (desktop-web/chat) stop an unhandled rejection in invited-cloud recovery
+- (desktop-web/chat) show reactions in the thread panel
+- (desktop-web) rebuild the invited cloud's local record, name included
+- (desktop-web) keep invited clouds on the rail across profiles
+- (desktop-web) move the socket session when the place changes
+- (desktop-web/chat) keep the message toolbar up while it has something open
+- (desktop-web/chat) close the emoji picker once you have picked
+- (data) mark a deleted chat hidden in the cache instead of dropping it
+- (desktop-web/chat) say so when a reaction is rejected
+- (desktop-web/chat) import the viewer-id helper MessageList calls
+- (chat) make the reaction toggle optimistic, and roll it back on failure
+
+### Documentation
+
+- (web) correct the refresh-timing section against the code
+
+### Refactor
+
+- (desktop-web/chat) keep reactionKey internal
+- (desktop-web) tidy the cloud rail merge and its recovery effect
+- (desktop-web/chat) de-duplicate the reaction and identity rules
+- (desktop-web/chat) drop the unfurl fields the chip never renders
+- (desktop-web/chat) stop restating the avatar default
+
+### Other
+
+- test: (app-runtime) admit syncInvitedCloudName to the public surface
+- test: (desktop-web/chat) render the two derivations that live in MessageList
+- build: add a gate for identifiers that are used but never bound
+- test: (desktop-web/chat) pin the reaction join, and toggle from the picker
+- test: (desktop-web/chat) make the empty-unfurl case actually assert
+
 ## [2026-08-04] - root@0.48.0, @chatic/web@0.41.0
 
 ### Features
