@@ -102,8 +102,8 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
    "**Sunny**님이 DoU에 당신을 초대했어요", 초대자 아바타, "You / 1:1 대화" 카드, 초대 링크
    유효기간 카운트다운(`expiredAt`).
 3. `수락` → **재검증** → 여전히 `pending` + `needVerify` → `PhoneVerifyScreen`
-   (`context='invite-accept'`, `inviteCode=code`)이 같은 풀스크린 서피스에 뜬다. 인증이 끝나면
-   (`onVerified`) 세션은 이미 메인유저로 전환된 상태다(Track A 책임).
+   (`context='invite-accept'`, `inviteCode=code`, `mode=verifyMode`)이 같은 풀스크린 서피스에 뜬다.
+   인증이 끝나면 (`onVerified`) 세션은 메인유저다(Track A 책임).
 4. **재검증** → `pending` → **프로필 판정**(`await getMyProfile()`). 이 계정은 방금 만들어진
    신규 유저라 `nick`이 없고 `active === false`이므로 `absent` → `profiling`. 생성 다이얼로그가 같은
    풀스크린 서피스에 뜬다 — `<두유 홈>에 사용할 내 프로필을 만들어 주세요`(Figma 3080-12440).
@@ -149,7 +149,9 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
 
 - 진입 시 `state==='accepted'` → "이미 참여한 초대입니다."(Figma 3078-12015). 같은 코드 재수락은
   서버가 멱등 처리하므로 이 화면은 **내가 이미 수락한 링크를 다시 연 경우**다.
-- 수락 시 `409` → "이미 사용된 초대입니다." — 다른 사람이 먼저 수락했다.
+- 수락 시 `409` → "이미 사용된 초대입니다."(`taken`) — 조회와 수락 사이에 선점됐다는 뜻이다.
+- **거절 시 `409`는 `alreadyJoined`다.** 거절이 부딪히는 경우는 "이미 수락됨" 하나뿐이고, 번호에
+  묶인 1:1 초대를 수락할 수 있었던 사람은 본인뿐이라 `taken` 카피가 성립하지 않는다.
 
 ### 6. 취소된 / 거절한 / 유효하지 않은 초대
 
@@ -168,6 +170,28 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
 흐름에서 인증에 성공한 뒤라면 다른 번호를 인증한 것이므로 "초대받은 번호가 아닙니다."로 끝낸다.
 발송 단계에서 걸리는 케이스(`400`)는 `PhoneVerifyScreen`(Track A)이 처리한다.
 
+**인증을 마쳤는데도 `needVerify`가 그대로면 같은 결론이다.** 서버는 이 계정이 _초대받은_ 번호를
+가졌는지로 `needVerify`를 정하므로, 다른 번호를 증명하면 참으로 남는다. 가드가 없으면 인증 화면이
+빈 폼으로 무한 재마운트되므로 `verifiedRef`로 한 번만 허용하고 그다음은 종국 안내로 끝낸다.
+
+### 7-1. 인증 모드 — 딥링크를 연다고 디바이스 세션인 것은 아니다
+
+`verifyMode`는 `isGuest`로 정한다. 게스트는 세션을 여는 `login`, **이미 메인 유저인데 번호만 없는
+사람**(소셜 로그인 등)은 `link`다. 후자에게 `login`을 보내면 서버가
+`400 INVALID - @mode[login] is for device session`으로 막는다 — 실제로 프로덕션에서 났던 버그이며,
+그때 클라이언트는 그 400을 "초대받은 번호가 아닙니다"로 잘못 표시했다.
+
+두 가지가 이 판단을 보정한다.
+
+- **서버의 403이 role 캐시를 이긴다.** 수락이 403으로 인증에 보내질 때는 `login`으로 고정한다.
+  `isGuest`는 role 미상일 때 "메인 유저"로 기울고 클라우드 활성 시 클라우드 토큰을 읽으므로,
+  서버가 "메인 유저 아님"이라 답한 순간 그쪽이 진실이다.
+- **`link`는 `last4` 없이 시작하지 않는다.** `link` 확정은 번호를 계정에 **되돌릴 수 없게** 붙이고
+  (백엔드에 해제 엔드포인트가 없고 이후 `type-linked`로 막힌다), 서버의 초대 대조는 `login`에만 있다
+  (`link-account.ts`가 `mode === 'login'`일 때만 `code`를 읽는다). 그래서 `link` 경로에서는 `last4`가
+  유일한 대조 수단이고, 그것마저 없으면 인증을 아예 시작하지 않는다. `link`에서도 초대를 대조해
+  달라는 요청은 [ADR-0042](../../../../docs/adr/0042-account-linking-unified-path-migration.md) 후속에 있다.
+
 ### 8. 거절 (실 API — ADR-0043)
 
 1. 수락 화면의 `거절` → **확인 다이얼로그**(Figma 3446-17487) — 거절은 종국이라 되돌릴 수 없으므로
@@ -176,7 +200,10 @@ ADR-0033 D10이 세우고, ADR-0039 결정 5가 "수락 앞에 세울 값이 아
    상태에서 바로 가능하다(B-2를 거치지 않는다).
 3. 응답 `state === 'rejected'`면 거절 토스트 후 홈으로. 초대자에게 가는 알림은 없다(요청 4번) —
    초대자는 목록 재조회로 `rejected` 뱃지를 본다(발신자 문서 S8).
-4. `409`(이미 수락)면 `taken` 공지로 떨어진다 — 그 사이 같은 번호의 주인이 수락했다는 뜻이다.
+4. `409`(이미 수락)면 `alreadyJoined` 공지로 떨어진다. reject의 409는 `reject-invite.ts`가 이미
+   수락된 초대에만 던지고, 1:1 초대는 번호 해시에 묶여 있어 수락할 수 있었던 사람은 이 사용자
+   자신(다른 기기)뿐이다 — `taken`("다른 사용자가 먼저 수락")은 사실이 아닐뿐더러, 정작 필요한
+   안내("채팅방에서 이어가세요")를 가린다.
    그 외 에러는 조회 단계와 같은 매핑(`resolveNotice`)이다.
 5. 같은 딥링크를 다시 열면 §6의 `rejected` 분기("거절한 초대입니다")로 끝난다. 마음이 바뀌면
    초대자가 재발급해야 한다.
@@ -245,14 +272,15 @@ stateDiagram-v2
     review --> declining: "거절" → 확인 다이얼로그
     declining --> review: 취소(다이얼로그 닫기)
     declining --> closed: 확인 → invite.reject 성공(rejected)
-    declining --> notice: reject 409(taken) · 그 외 에러
+    declining --> notice: reject 409(alreadyJoined) · 그 외 에러
     review --> notice: 카운트다운 만료
     review --> closed: 닫기
 
     state validated <<choice>>
     submitting --> validated: getInvite 재검증
     validated --> notice: expired / accepted / canceled / rejected / 404 / 400 / 403
-    validated --> verifying: pending && needVerify
+    validated --> verifying: pending && needVerify<br/>(아직 인증 전 · link면 last4 필요)
+    validated --> notice: needVerify인데 이미 인증함<br/>→ 번호 불일치
 
     state profiled <<choice>>
     validated --> profiled: pending && !needVerify<br/>→ await getMyProfile
@@ -264,7 +292,7 @@ stateDiagram-v2
     profiled --> accepted: present · 조회 실패 · 애매<br/>→ acceptInvite (fail open)
     accepted --> closed: 1단 · 응답에 channelId<br/>→ pendingChannel (대기 없음)
     accepted --> awaitingChannel: state==='accepted' && channelId 없음
-    accepted --> verifying: 403 && 아직 인증 전
+    accepted --> verifying: 403 && 아직 인증 전<br/>(모드를 login으로 고정)
     accepted --> notice: 400→만료 · 403(인증 후)→번호 불일치<br/>404 · 409 · 그 외
 
     verifying --> submitting: onVerified
@@ -289,7 +317,8 @@ flowchart LR
         A4["state=rejected"]
         A5["404 · get 400 · get 403"]
         A6["accept 403 (인증 후)"]
-        A7["409 (accept · reject)"]
+        A7["accept 409"]
+        A9["reject 409"]
         A8["그 외 (401 포함)"]
     end
     A1 --> D1[expired<br/>3077-11719]
@@ -299,6 +328,7 @@ flowchart LR
     A5 --> D5["notFound<br/>(취소 언급 제거)"]
     A6 --> D6[wrongNumber]
     A7 --> D7[taken]
+    A9 --> D2
     A8 --> D8[generic]
     D9["channelDeleted<br/>3079-12154"] -.->|relay 트리거 없음<br/>UI만 유지| X[미배선]
 ```
@@ -383,7 +413,7 @@ useRelayInviteFlow(code: string): {
 **거절은 `declining` 페이즈다** — "판단은 전부 훅에" 원칙대로 확인 다이얼로그의 열림도 훅이
 소유한다. `decline()`은 `review → declining` 전이만 하고, `confirmDecline()`이 실제
 `rejectInvite(code)`를 부른다. 성공(`state === 'rejected'`)이면 거절 토스트 + `goHome`,
-`409`면 `fail('taken')`, 그 외는 조회 단계와 같은 `resolveNotice` 매핑이다.
+`409`면 `fail('alreadyJoined')`(본인이 이미 수락한 것이다), 그 외는 조회 단계와 같은 `resolveNotice` 매핑이다.
 
 **요청이 나가 있는 동안 `phase`는 `declining`에 머문다 — `submitting`으로 넘어가지 않는다.**
 대신 `isRejecting`이 켜진다. 처음엔 `confirmDecline`이 다른 스텝처럼 `setPhase('submitting')`을
@@ -612,7 +642,7 @@ Track A 모듈로 돌리고 (3) 두 스위트를 다시 돌린다. 소비처가 
 
 - [`useRelayInviteFlow.test.ts`](../../../src/app/features/invite/accept/hooks/useRelayInviteFlow.test.ts)
   — 신규 케이스: 진입 조회의 `canceled`/`rejected` → 각 공지 · `decline()`이 `declining`으로만
-  가고 아무 호출도 없음 · `confirmDecline()` 성공 → 토스트+홈 · `409` → `taken` · 그 외 에러
+  가고 아무 호출도 없음 · `confirmDecline()` 성공 → 토스트+홈 · `409` → `alreadyJoined` · 그 외 에러
   매핑 · 다이얼로그 취소(`cancelStep`) → `review` 복귀 + 미거절 · 거절 스텁 케이스 2건은 **대체**
   (로컬 기록 없음, `rejectInvite` 호출로). **회귀 테스트**(코드 리뷰에서 잡힘): 요청이 나가 있는
   동안 `phase`가 `declining`에 머물고 `isRejecting`만 켜지는지(가짜 타이머로 응답 보류) ·

@@ -67,11 +67,18 @@ export type RelayInviteNotice =
  * `404` is purely "no such invite" — a canceled one arrives as `state === 'canceled'` (ADR-0043),
  * not as an error, so the old merged copy is gone.
  */
-const resolveNotice = (status: number | undefined, stage: 'get' | 'accept'): RelayInviteNotice => {
+const resolveNotice = (status: number | undefined, stage: 'get' | 'accept' | 'reject'): RelayInviteNotice => {
     if (status === 404) return 'notFound';
-    if (status === 409) return 'taken';
+    // Rejecting has exactly one 409 — `reject-invite.ts` throws it only for an already-accepted
+    // invite — and a relay 1:1 code is bound to one phone hash, so the only party who could have
+    // accepted it is this same person on another device. "Someone else got there first" (`taken`)
+    // would be plainly false; they are already in the room.
+    if (status === 409) return stage === 'reject' ? 'alreadyJoined' : 'taken';
     // Reading: a malformed code. Accepting: the invite expired between the check and the accept.
     if (status === 400) return stage === 'accept' ? 'expired' : 'notFound';
+    // Reading answers 403 for a code that does not match the invite it names (`find-model-by-code`),
+    // which is the same thing as an invalid link. Accepting answers it for a guest — caught by the
+    // caller's own branch before this — or a number that is not the invited one.
     if (status === 403) return stage === 'accept' ? 'wrongNumber' : 'notFound';
     return 'generic';
 };
@@ -419,9 +426,12 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
     const onVerified = useCallback(() => {
         verifiedRef.current = true;
-        // Promotion swapped the identity, so a profile saved as the device user says nothing about the
-        // main user's site — re-judge. Without this, the `403 → verifying` fallback below could accept
-        // as a promoted user who has no profile, which is the state this step exists to prevent.
+        // Re-judge the profile. After a `login` proof the identity was swapped, so a profile saved as
+        // the device user says nothing about the promoted user's site — without this the
+        // `403 → verifying` fallback could accept as a user who has no profile, the very state this
+        // step exists to prevent. A `link` proof leaves the identity alone and so needs no reset, but
+        // paying for one re-read there is cheaper than making the reset conditional on a mode the
+        // server can still overrule.
         profileSavedRef.current = false;
         void advance();
     }, [advance]);
@@ -459,9 +469,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             setIsRejecting(false);
             const status = getSocketErrorCode(error);
             logger.error('INVITE', `[useRelayInviteFlow] invite.reject failed (status=${status ?? '-'})`, { error });
-            // 409 → taken (someone with the number accepted meanwhile); the rest reads like the
+            // 409 → alreadyJoined: the only way a reject conflicts is that the invite was already
+            // accepted, and only this number's owner could have done that. The rest reads like the
             // entry lookup — a reject carries no verification stage of its own.
-            return fail(resolveNotice(status, 'get'));
+            return fail(resolveNotice(status, 'reject'));
         }
     }, [code, fail, goHome]);
 

@@ -698,7 +698,11 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         expect(result.current.isRejecting).toBe(false);
     });
 
-    it('409(이미 수락)는 taken 안내다 — 그 사이 번호 주인이 수락했다', async () => {
+    // `taken`("다른 사용자가 먼저 초대를 수락했습니다")이 아니라 `alreadyJoined`("이미 참여한
+    // 초대입니다")다. reject의 409는 `reject-invite.ts`가 이미 수락된 초대에만 던지고, 1:1 초대는
+    // 번호 해시에 묶여 있어 수락할 수 있었던 사람은 이 사용자 자신(다른 기기)뿐이다 — 남이
+    // 가로챘다는 안내는 사실이 아니고, 정작 필요한 안내("채팅방에서 이어가세요")를 가린다.
+    it('409(이미 수락)는 alreadyJoined 안내다 — 가로챈 남이 아니라 본인이 수락한 것이다', async () => {
         rejectInvite.mockRejectedValue(socketError(409));
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
@@ -706,7 +710,7 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         act(() => result.current.decline());
         await act(async () => result.current.confirmDecline());
 
-        await waitFor(() => expect(result.current.notice).toBe('taken'));
+        await waitFor(() => expect(result.current.notice).toBe('alreadyJoined'));
         expect(navigate).not.toHaveBeenCalled();
     });
 
