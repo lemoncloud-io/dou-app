@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-08-05] - No version updates
+
+### Features
+
+- (desktop-web/chat) bring back the sidebar message preview
+
+### Bug Fixes
+
+- (desktop-web/chat) keep a failed send out of the sidebar preview
+
 ## [2026-08-05] - root@0.48.1, @chatic/desktop-web@0.4.2
 
 ### Features
