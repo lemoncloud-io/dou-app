@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 
+import { logger } from '@chatic/bridges';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { useRelayInviteMutations } from '../../../hooks';
@@ -35,7 +36,15 @@ export const useRetireInvite = () => {
                 case 'pending':
                 case 'expired': {
                     const code = composeInviteCode(invite);
-                    if (!code) return 'failed';
+                    if (!code) {
+                        // A row the server answered without `id`/`code`. The caller can only report a
+                        // generic failure from here, so say which invite it was while we still know.
+                        logger.error('INVITE', '[useRetireInvite] invite row carries no code to cancel', {
+                            id: invite.id,
+                            state: invite.state,
+                        });
+                        return 'failed';
+                    }
                     try {
                         // The resolved view may come back `rejected` rather than `canceled` when the
                         // recipient declined in the meantime — the call is idempotent on final marks
@@ -43,7 +52,16 @@ export const useRetireInvite = () => {
                         await cancelInvite(code);
                         return 'canceled';
                     } catch (error) {
-                        return getSocketErrorCode(error) === 409 ? 'conflict' : 'failed';
+                        const status = getSocketErrorCode(error);
+                        // Outcomes are a closed set, so the server's own message dies here unless it is
+                        // logged — and `failed` is exactly the case someone will need to diagnose. The
+                        // code itself is a credential and never goes in the log.
+                        logger.error('INVITE', `[useRetireInvite] invite.cancel failed (status=${status ?? '-'})`, {
+                            error,
+                            id: invite.id,
+                            state: invite.state,
+                        });
+                        return status === 409 ? 'conflict' : 'failed';
                     }
                 }
                 case 'rejected': {

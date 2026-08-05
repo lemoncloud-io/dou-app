@@ -1296,7 +1296,8 @@
         "reinvite": {
             "pending": {
                 "title": "You already sent an invite",
-                "description": "Still waiting on their response — check the waiting screen for the latest."
+                "description": "Still waiting on their response — check the waiting screen for the latest.",
+                "confirm": "View waiting screen"
             },
             "expired": {
                 "title": "The previous invite expired",

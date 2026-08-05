@@ -80,9 +80,10 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                             </p>
                         </div>
 
-                        <div className="px-4">
-                            <PhoneVerifyBanner onClose={onClose} />
-                        </div>
+                        {/* No wrapper: the banner hides itself once a social account is linked, and
+                            owns its own `px-4` so this `gap-8` stack does not keep a blank slot for
+                            it. */}
+                        <PhoneVerifyBanner onClose={onClose} />
 
                         <PhoneVerifyFields state={fields} autoFocusPhone />
                     </div>

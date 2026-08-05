@@ -8,6 +8,8 @@ const mockConfirm = jest.fn();
 const mockApplySessionToken = jest.fn();
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
+/** Whether this user already proved a social account. `'unknown'` is the pre-profile default. */
+let mockLinkedSocial: 'linked' | 'absent' | 'unknown' = 'unknown';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
@@ -47,6 +49,12 @@ jest.mock('../../../hooks/useLinkAccount', () => ({
     }),
 }));
 jest.mock('../utils/env', () => ({ isDevBuild: jest.fn(() => false) }));
+// The banner reads this to decide whether the account-split warning still applies. Mocked at the
+// concrete module because the real one reaches useMyUser -> web-core, whose transport reads
+// `import.meta` and cannot load under jsdom.
+jest.mock('../../../hooks/useLinkedAccounts', () => ({
+    useLinkedAccounts: () => ({ phone: 'unknown', social: mockLinkedSocial }),
+}));
 
 import { isDevBuild } from '../utils/env';
 import { PhoneVerifyScreen } from './PhoneVerifyScreen';
@@ -128,6 +136,7 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -205,6 +214,26 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/mypage/login');
     });
 
+    // The banner tells a user with an existing social account to log in with it FIRST, or they will
+    // mint a second, unmergeable user. Someone who already linked social cannot land in that state,
+    // so the notice is not just noise — it points them back through a login they have done.
+    it('소셜이 이미 연결돼 있으면 배너를 띄우지 않는다', () => {
+        mockLinkedSocial = 'linked';
+        renderScreen();
+
+        expect(screen.queryByText('phoneVerify.socialFirstTitle')).not.toBeInTheDocument();
+    });
+
+    // Only a definite `linked` hides it. `unknown` means the profile has not landed or the server
+    // never built the `link$` slot — and this is the one defense against an unmergeable account, so
+    // the safe failure is showing it to someone who did not need it (ADR-0042 §5).
+    it.each(['absent', 'unknown'] as const)('social이 %s면 배너는 그대로 뜬다', social => {
+        mockLinkedSocial = social;
+        renderScreen();
+
+        expect(screen.getByText('phoneVerify.socialFirstTitle')).toBeInTheDocument();
+    });
+
     // Deliberately mode-independent. `link` mode can still hit `occupied` (the number belongs to a
     // separate phone-created user), and this banner is the guide's only documented defense for a
     // split account (§제약) — hiding it there would remove the one signpost out.
@@ -247,6 +276,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -400,6 +430,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -473,6 +504,7 @@ describe('PhoneVerifyScreen — 타이머 만료', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2026-07-29T12:00:00Z'));
@@ -504,6 +536,7 @@ describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -583,6 +616,7 @@ describe('PhoneVerifyScreen — 좁은 화면·키보드 (레이아웃 제약)',
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -611,6 +645,7 @@ describe('PhoneVerifyScreen — 닫기/컨텍스트', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seedCountry();
+        mockLinkedSocial = 'unknown';
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
