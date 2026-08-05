@@ -20,6 +20,8 @@ describe('@chatic/app-runtime public surface', () => {
             'useRuntimeRepositories',
             'useRuntimeSocketState',
             'useRuntimeProfile',
+            // per-kind (relay/cloud) verified state, for gating a getScopedClient-pinned request
+            'useKindVerified',
             // back-compat aliases (desktop-web) — useRuntimeSocketState / useRuntimeProfile
             'useSocketState',
             'useSessionProfile',

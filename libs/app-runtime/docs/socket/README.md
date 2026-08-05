@@ -48,11 +48,13 @@ flowchart TD
 - client 교체 시 listener 재바인딩(`subscribeClient`)
 - 슬롯별 client 라이프사이클 방송(`subscribeSlotClients`) — 바인드/재빌드 시 `(kind, client)`, teardown 직전 `(kind, null)`. 같은 변경에서 active 알림(`subscribeClient`)보다 **먼저** 발화해, 슬롯별 부착물(SyncManager의 slot runtime)이 replay 전에 존재하도록 보장
 - `waitUntilVerified(timeoutMs=10_000)` — verified까지 대기(성공/실패 bool, reject 안 함)
+- **실패한 호출의 이름 붙이기** — facade를 빠져나가는 에러 메시지 뒤에 `<kind>.<action>(<type>)`을 덧붙인다. SDK의 transport 실패(`503 SOCKET NOT CONNECTED - WebSocketTransport.send()`)는 호출자가 누구든 동일해서, minify된 프로덕션 스택만으로는 **어느 요청이 닫힌 소켓과 레이스했는지** 알 수 없다. 모든 요청이 이 facade를 지나므로 kind와 type을 둘 다 아는 유일한 지점이다. 지켜야 할 세 가지: 상태코드는 **맨 앞에 유지**(`getSocketErrorCode`가 prefix를 읽는다), 원본 객체를 **wrap하지 않고 rethrow**(stack·`errorCode` 보존, Error가 아닌 rejection은 그대로 통과), 메시지가 이미 type을 담고 있으면 **건너뛴다**(SDK의 `408 REQUEST TIMEOUT - <type>[mid]`; 동시에 idempotent)
 
 비책임:
 
 - token 획득/갱신 정책, 만료 refresh, 재연결 재인증, `auth.update` orchestration — **SDK `AuthController`** 소유
 - **401 감지/재시도** — `request`는 더 이상 401을 가로채거나 재연결·retry를 하지 않는다(제거됨)
+- **연결 대기/재시도** — `request`는 소켓이 open일 때까지 기다려주지 않는다. 연결 전에 부르면 SDK가 즉시 `503 SOCKET NOT CONNECTED`로 reject하며, 게이팅은 여전히 호출처 책임(`isVerified` / `waitUntilVerified`)이다
 - sync runtime 생성 — `SyncManager` 소유
 
 ### `bootstrapSocketConnection(...)` (함수)

@@ -66,6 +66,27 @@ const initialState = (): SocketState => ({
 const DEFAULT_VERIFY_TIMEOUT_MS = 10_000;
 
 /**
+ * Names the failing call on an error leaving the request/send facade — `<kind>.<action>(<type>)`.
+ *
+ * The SDK's own transport failures carry no caller identity: `503 SOCKET NOT CONNECTED -
+ * WebSocketTransport.send()` is byte-identical whichever request raced a closed socket, so a
+ * minified production stack cannot say which one it was (nor which slot). Every request funnels
+ * through this facade, so it is the one place that still knows both.
+ *
+ * Three invariants this must not break:
+ *  - The status stays LEADING — getSocketErrorCode reads the message prefix, so this only appends.
+ *  - The original object is rethrown, not wrapped, so its stack and carried fields (`errorCode`)
+ *    survive; only `message` gains a suffix. Non-Error rejections pass through untouched.
+ *  - Skipped when the message already names the type (the SDK's `408 REQUEST TIMEOUT - <type>[mid]`
+ *    already does), which also makes it idempotent under any future re-annotating retry wrapper.
+ */
+const annotateSocketError = (error: unknown, kind: SocketKind, action: string, type: string): unknown => {
+    if (!(error instanceof Error) || error.message.includes(type)) return error;
+    error.message = `${error.message} - ${kind}.${action}(${type})`;
+    return error;
+};
+
+/**
  * SocketManager owns up to two ClientSocketV2 slots — `relay` (always-on) and `cloud` (active-only)
  * — keyed by kind, and exposes an ACTIVE-FACADE: the observable state, request/send/onType, and
  * subscribeClient all track the ACTIVE slot (cloud when present, else relay). Slot lifecycle
@@ -163,15 +184,26 @@ export class SocketManager implements ISocketManager {
             return client;
         };
         return {
-            request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> =>
-                requireSlot(`request(${type})`).request(type as any, data as any, options) as Promise<T>,
+            // requireSlot stays OUTSIDE the promise chain: an unbound slot must keep throwing
+            // synchronously (no silent fallback — see SocketManager.test.ts), so this is deliberately
+            // not an async arrow.
+            request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> => {
+                const client = requireSlot(`request(${type})`);
+                return (client.request(type as any, data as any, options) as Promise<T>).catch(error => {
+                    throw annotateSocketError(error, kind, 'request', type);
+                });
+            },
             send: <T = unknown>(type: string | SocketMessage<T>, data?: T): void => {
                 const client = requireSlot('send()');
-                if (typeof type === 'string') {
-                    client.send(type as any, data as any);
-                    return;
+                try {
+                    if (typeof type === 'string') {
+                        client.send(type as any, data as any);
+                        return;
+                    }
+                    client.send(type);
+                } catch (error) {
+                    throw annotateSocketError(error, kind, 'send', typeof type === 'string' ? type : type.type);
                 }
-                client.send(type);
             },
         };
     }
@@ -270,6 +302,26 @@ export class SocketManager implements ISocketManager {
     }
 
     /**
+     * Continuous per-kind counterpart of waitUntilKindVerified: fires immediately with THAT slot's
+     * current verified value, then again on every change to it, until unsubscribed.
+     *
+     * waitUntilKindVerified only resolves once — fine for a one-shot gate before a single request,
+     * but useless for a reactive consumer (e.g. `useQuery({ enabled })`) that must re-fire on the
+     * false→true edge every time the slot drops and reconnects, not just the first time. Backs any
+     * such consumer of a getScopedClient-pinned request/send.
+     */
+    public subscribeKindVerified(kind: SocketKind, listener: (verified: boolean) => void): () => void {
+        listener(this.isKindVerified(kind));
+        const onChange = (changed: SocketKind) => {
+            if (changed === kind) listener(this.isKindVerified(kind));
+        };
+        this.kindVerifiedListeners.add(onChange);
+        return () => {
+            this.kindVerifiedListeners.delete(onChange);
+        };
+    }
+
+    /**
      * Subscribes to ACTIVE-client replacement (bind, active-slot switch, teardown). Fires immediately
      * with the current active client. Used by the sync adapter to re-bind its runtime to the active
      * socket (relay auth-only slot never becomes the sync target unless it is active).
@@ -322,20 +374,30 @@ export class SocketManager implements ISocketManager {
 
     /**
      * Stable request facade (ACTIVE slot). The SDK AuthController owns re-authentication and the
-     * transport owns reconnect, so this no longer intercepts 401s or drives manual reconnect/retry.
+     * transport owns reconnect, so this no longer intercepts 401s or drives manual reconnect/retry —
+     * it only names the caller on the way out (annotateSocketError), because the SDK's failures do
+     * not carry the request type.
      */
     public async request<T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> {
         const client = this.requireActiveClient(`request(${type})`);
-        return (await client.request(type as any, data as any, options)) as T;
+        try {
+            return (await client.request(type as any, data as any, options)) as T;
+        } catch (error) {
+            throw annotateSocketError(error, this.getActiveKind(), 'request', type);
+        }
     }
 
     public send<T = unknown>(type: string | SocketMessage<T>, data?: T): void {
         const client = this.requireActiveClient('send()');
-        if (typeof type === 'string') {
-            client.send(type as any, data as any);
-            return;
+        try {
+            if (typeof type === 'string') {
+                client.send(type as any, data as any);
+                return;
+            }
+            client.send(type);
+        } catch (error) {
+            throw annotateSocketError(error, this.getActiveKind(), 'send', typeof type === 'string' ? type : type.type);
         }
-        client.send(type);
     }
 
     /**
