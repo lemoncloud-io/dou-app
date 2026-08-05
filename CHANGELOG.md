@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-08-05] - root@0.48.2, @chatic/web@0.41.1
+
+### Features
+
+- (web/subscription) add login gate for subscription flows
+
+### Bug Fixes
+
+- (web) decode raw DOM Events in unhandledrejection reports instead of [object Event]
+- (web/invite) gate useRelayInvites on relay verified, not the active slot
+- (app-runtime/socket) name failing calls in socket errors, add reactive kind-verified state
+
 ## [2026-08-05] - No version updates
 
 ### Features
