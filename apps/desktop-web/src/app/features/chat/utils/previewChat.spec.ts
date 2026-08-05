@@ -16,6 +16,12 @@ describe('isPreviewableChat', () => {
         expect(isPreviewableChat(chat({ hidden: true }))).toBe(true);
     });
 
+    // It never reached the channel, and it keeps chatNo 0 indefinitely — ranked as
+    // newest it would hold the preview and freeze the row's time.
+    it('skips a failed send', () => {
+        expect(isPreviewableChat(chat({ chatNo: 0, isFailed: true }))).toBe(false);
+    });
+
     it('skips a thread reply', () => {
         expect(isPreviewableChat(chat({ parentId: 'C1:1' }))).toBe(false);
     });
@@ -49,6 +55,14 @@ describe('pickPreviewChat', () => {
             chat({ id: 'optimistic-1', chatNo: 0, isPending: true, content: 'just sent' }),
         ]);
         expect(picked?.content).toBe('just sent');
+    });
+
+    it('falls back to the last delivered message when a send failed', () => {
+        const picked = pickPreviewChat([
+            chat({ id: 'C1:9', chatNo: 9, content: 'delivered' }),
+            chat({ id: 'optimistic-2', chatNo: 0, isFailed: true, content: 'never sent' }),
+        ]);
+        expect(picked?.content).toBe('delivered');
     });
 
     it('falls through to the last real message when newer rows are replies and reactions', () => {

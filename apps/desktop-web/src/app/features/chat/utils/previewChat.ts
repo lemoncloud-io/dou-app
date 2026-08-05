@@ -18,8 +18,15 @@ import { isFeedVisible } from './feedVisibility';
  *
  * A soft-deleted row still previews: it is genuinely the channel's latest message, and
  * the feed keeps it in place as a tombstone. The sidebar says the same thing in one line.
+ *
+ * A failed send does not. It never reached the channel — nobody else can see it — and it
+ * keeps the sentinel `chatNo: 0` indefinitely (the row is not evicted, and the outbox
+ * makes one attempt per reconnect with no attempt counter), so ranked as newest it would
+ * hold the preview and freeze the row's time until the sender retried or discarded it.
+ * The sidebar has no way to say "this one didn't send"; the feed does.
  */
-export const isPreviewableChat = (chat: DomainChat): boolean => isFeedVisible(chat) && isNotifiableChat(chat);
+export const isPreviewableChat = (chat: DomainChat): boolean =>
+    isFeedVisible(chat) && isNotifiableChat(chat) && !chat.isFailed;
 
 /**
  * The newest previewable chat in an observed window, or undefined when it holds none
