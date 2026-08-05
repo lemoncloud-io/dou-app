@@ -53,7 +53,7 @@ export type UserDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
  * bulk-invite action (ADR-0016). Issued and redeemed on the relay server, so the composition root
  * pins this bundle entry to the relay slot rather than the active one. See ADR-0033.
  */
-export type InviteDomainGateway = Pick<InviteGateway, 'create' | 'get' | 'list' | 'accept'>;
+export type InviteDomainGateway = Pick<InviteGateway, 'create' | 'get' | 'list' | 'accept' | 'cancel' | 'reject'>;
 
 export interface RemoteGatewayBundle {
     auth: AuthDomainGateway;

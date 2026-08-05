@@ -9,7 +9,9 @@ const mockVerify = jest.fn();
 const mockConfirm = jest.fn();
 const mockApplySessionToken = jest.fn();
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
+}));
 jest.mock('@chatic/app-runtime', () => ({
     applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
 }));
@@ -33,6 +35,14 @@ jest.mock('../utils/env', () => ({ isDevBuild: () => false }));
 import { PhoneVerifySheet } from './PhoneVerifySheet';
 
 const PHONE = '01012345678';
+// The field shows the local form; the packet carries E.164 now (ADR-0044 §5 correction).
+const PHONE_E164 = '+821012345678';
+
+/** jsdom's locale is `en-US`; seed the remembered pick so these Korean numbers validate (ADR-0044 §4). */
+const seedCountry = () => {
+    localStorage.clear();
+    localStorage.setItem('dou.phoneInput.country.v1', 'KR');
+};
 
 /** The sheet serves both sides: the issue/guest gate logs in, the mypage account row links. */
 const renderSheet = (mode: AccountLinkMode = 'login') => {
@@ -56,7 +66,10 @@ const pasteOtp = async (code = '123456') => {
 };
 
 describe('PhoneVerifySheet', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => {
+        jest.clearAllMocks();
+        seedCountry();
+    });
 
     it('발급 흐름이라 계정 갈라짐 방어 배너를 렌더하지 않는다 (ADR-0034 결정 4)', () => {
         renderSheet();
@@ -101,8 +114,8 @@ describe('PhoneVerifySheet', () => {
         await requestCode();
         await pasteOtp();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: undefined });
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'login' });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'login', code: undefined, countryCode: 'KR' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
         expect(mockVerify).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });
@@ -115,15 +128,15 @@ describe('PhoneVerifySheet', () => {
         await requestCode();
         await pasteOtp();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'link', code: undefined });
-        expect(mockVerify).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'link', code: undefined, countryCode: 'KR' });
+        expect(mockVerify).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
         expect(mockConfirm).not.toHaveBeenCalled();
 
         await act(async () => {
             fireEvent.click(screen.getByText('phoneVerify.complete'));
         });
 
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
         expect(mockApplySessionToken).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });

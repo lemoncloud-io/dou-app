@@ -82,4 +82,29 @@ describe('InviteRemoteDataSource', () => {
 
         await expect(dataSource.getInvite('invt:1:secret')).resolves.toMatchObject({ state: 'expired' });
     });
+
+    it('cancelInvite는 코드를 body에만 담아 위임한다', async () => {
+        mockGateways.invite.cancel.mockResolvedValue({ id: 'invt-1', state: 'canceled', canceledAt: 1 } as any);
+
+        const result = await dataSource.cancelInvite('invt:1:secret');
+
+        expect(mockGateways.invite.cancel).toHaveBeenCalledWith({ code: 'invt:1:secret' });
+        expect(result).toMatchObject({ state: 'canceled' });
+    });
+
+    it('rejectInvite는 코드를 body에만 담아 위임한다', async () => {
+        mockGateways.invite.reject.mockResolvedValue({ id: 'invt-1', state: 'rejected', rejectedAt: 1 } as any);
+
+        const result = await dataSource.rejectInvite('invt:1:secret');
+
+        expect(mockGateways.invite.reject).toHaveBeenCalledWith({ code: 'invt:1:secret' });
+        expect(result).toMatchObject({ state: 'rejected' });
+    });
+
+    it('이미 수락된 초대의 취소·거절(409)은 게이트웨이 에러를 그대로 전파한다', async () => {
+        const conflict = new Error('409 CONFLICT - invite is already accepted');
+        mockGateways.invite.cancel.mockRejectedValue(conflict);
+
+        await expect(dataSource.cancelInvite('invt:1:secret')).rejects.toBe(conflict);
+    });
 });

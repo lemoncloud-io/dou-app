@@ -139,10 +139,4 @@ describe('InviteAcceptScreen — shared chrome', () => {
         expect(onDecline).toHaveBeenCalled();
         expect(onClose).not.toHaveBeenCalled();
     });
-
-    it('hides the decline button when gated off', () => {
-        setup({ showDecline: false });
-        expect(screen.queryByText('거절')).toBeNull();
-        expect(screen.getByText('수락')).toBeTruthy();
-    });
 });

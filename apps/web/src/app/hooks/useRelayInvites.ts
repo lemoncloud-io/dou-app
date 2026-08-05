@@ -8,6 +8,20 @@ import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 export type RelayInviteView = MyInviteView & { needVerify?: boolean };
 
 /**
+ * What issuing an invite takes. `phone` is E.164 (`+821012345678`), not the local (`0…`) form —
+ * the backend's phone hasher only reads `countryCode` on a local number and silently ignores it
+ * once the string starts with `+`, so E.164 is the one shape that hashes correctly with or without
+ * a trustworthy `countryCode` (ADR-0044 §5 correction). `countryCode` is still accepted and worth
+ * sending — omitting it lets the server apply its own default of `KR` — it was left out of this
+ * type while the app was Korea-only, which made passing one impossible (ADR-0044 §2).
+ */
+export interface RelayInviteCreateInput {
+    phone: string;
+    name: string;
+    countryCode?: string;
+}
+
+/**
  * How many invite cards to ask for in one `invite.list`.
  *
  * Explicit because the server's default page size is small enough that a sender who has issued a
@@ -82,7 +96,7 @@ export const useRelayInviteMutations = () => {
     const invalidateList = () => queryClient.invalidateQueries({ queryKey: relayInviteKeys.all });
 
     const createMutation = useMutation({
-        mutationFn: (input: { phone: string; name: string }) => invite.create(input),
+        mutationFn: (input: RelayInviteCreateInput) => invite.create(input),
         onSuccess: invalidateList,
     });
 
@@ -98,10 +112,30 @@ export const useRelayInviteMutations = () => {
         onSuccess: invalidateList,
     });
 
+    // Cancel/reject are final and idempotent (ADR-0043): the response's `state` is the whole
+    // verdict, and re-firing after a dropped connection cannot move the recorded timestamp.
+    // A 409 rejects — it means the invite got accepted meanwhile, and callers re-ask the list.
+    const cancelMutation = useMutation({
+        mutationFn: (code: string) => invite.cancel(code),
+        onSuccess: invalidateList,
+    });
+
+    const rejectMutation = useMutation({
+        mutationFn: (code: string) => invite.reject(code),
+        onSuccess: invalidateList,
+    });
+
     return {
-        createInvite: (input: { phone: string; name: string }) => createMutation.mutateAsync(input),
+        createInvite: (input: RelayInviteCreateInput) => createMutation.mutateAsync(input),
         getInvite: (code: string) => getMutation.mutateAsync(code),
         acceptInvite: (code: string) => acceptMutation.mutateAsync(code),
-        isPending: createMutation.isPending || getMutation.isPending || acceptMutation.isPending,
+        cancelInvite: (code: string) => cancelMutation.mutateAsync(code),
+        rejectInvite: (code: string) => rejectMutation.mutateAsync(code),
+        isPending:
+            createMutation.isPending ||
+            getMutation.isPending ||
+            acceptMutation.isPending ||
+            cancelMutation.isPending ||
+            rejectMutation.isPending,
     };
 };

@@ -33,8 +33,6 @@ export interface InviteAcceptScreenProps {
      * server-side decline, so there the two really are the same thing.
      */
     onDecline?: () => void;
-    /** Hide the decline button. Used to gate the relay decline stub (see features/invite/flags.ts). */
-    showDecline?: boolean;
     /** Overlay rendered above the screen, e.g. the "creating your room" spinner after an accept. */
     overlay?: ReactNode;
 }
@@ -57,7 +55,6 @@ export const InviteAcceptScreen = ({
     onAccept,
     onClose,
     onDecline,
-    showDecline = true,
     overlay,
 }: InviteAcceptScreenProps) => {
     const { t } = useTranslation();
@@ -134,17 +131,9 @@ export const InviteAcceptScreen = ({
                 header's safe-top padding so the buttons clear the home indicator. */}
             <div className="relative z-10 shrink-0 rounded-t-[16px] bg-white/55 px-4 pb-[calc(var(--safe-bottom,0px)+1rem)] pt-5 shadow-[0px_-10px_40px_0px_rgba(0,0,0,0.12)] backdrop-blur-[16px] dark:bg-white/5">
                 <div className="flex gap-1.5">
-                    {showDecline && (
-                        <Button
-                            variant="outline"
-                            fullWidth
-                            size="lg"
-                            onClick={onDecline ?? onClose}
-                            disabled={isAccepting}
-                        >
-                            {t('inviteAccept.decline')}
-                        </Button>
-                    )}
+                    <Button variant="outline" fullWidth size="lg" onClick={onDecline ?? onClose} disabled={isAccepting}>
+                        {t('inviteAccept.decline')}
+                    </Button>
                     <Button fullWidth size="lg" loading={isAccepting} onClick={onAccept}>
                         {t('inviteAccept.accept')}
                     </Button>

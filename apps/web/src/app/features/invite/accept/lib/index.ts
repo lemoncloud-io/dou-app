@@ -1,1 +1,1 @@
-export * from './relayInviteDecline';
+export * from './inviteEntryRedirect';

@@ -4,11 +4,11 @@ import { useRelayInviteFlow } from './useRelayInviteFlow';
 
 const getInvite = jest.fn();
 const acceptInvite = jest.fn();
+const rejectInvite = jest.fn();
 const resolveChannel = jest.fn();
 const setPendingChannel = jest.fn();
 const navigate = jest.fn();
 const toast = jest.fn();
-const recordDeclinedInvite = jest.fn();
 const waitUntilKindVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
@@ -27,7 +27,9 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedSiteId: mockSid }) }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('../../../../hooks', () => ({ useRelayInviteMutations: () => ({ getInvite, acceptInvite }) }));
+jest.mock('../../../../hooks', () => ({
+    useRelayInviteMutations: () => ({ getInvite, acceptInvite, rejectInvite }),
+}));
 // The judgement has its own suite (utils/placeProfile.test.ts). Mocked here so this one drives the
 // verdict directly instead of reconstructing get-mine responses.
 jest.mock('../../../../utils/placeProfile', () => ({
@@ -36,7 +38,6 @@ jest.mock('../../../../utils/placeProfile', () => ({
 // The 3-tier resolution has its own suite (useResolveInviteChannel.test.ts); mocking it here keeps this
 // one off real timers and lets it assert the hand-off instead.
 jest.mock('./useResolveInviteChannel', () => ({ useResolveInviteChannel: () => ({ resolveChannel }) }));
-jest.mock('../lib', () => ({ recordDeclinedInvite: (...args: unknown[]) => recordDeclinedInvite(...args) }));
 jest.mock('../../../../stores/usePendingInviteChannel', () => ({
     usePendingInviteChannel: (selector: (s: unknown) => unknown) => selector({ setPendingChannel }),
 }));
@@ -67,6 +68,7 @@ beforeEach(() => {
     waitUntilKindVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
+    rejectInvite.mockResolvedValue(view({ state: 'rejected' }));
     // Default: a profile already exists, so the profile step stays out of the other tests' way.
     mockSid = 'site-1';
     isPlaceProfileAbsent.mockResolvedValue(false);
@@ -97,11 +99,25 @@ describe('useRelayInviteFlow — 진입 조회', () => {
         await waitFor(() => expect(result.current.notice).toBe('alreadyJoined'));
     });
 
-    it('404는 유효하지 않은 초대로 통합한다 (취소와 구분 불가)', async () => {
+    it('404는 유효하지 않은 초대다 — 취소는 이제 상태로 오므로 에러와 섞이지 않는다', async () => {
         getInvite.mockRejectedValue(socketError(404));
         const { result } = mount();
 
         await waitFor(() => expect(result.current.notice).toBe('notFound'));
+    });
+
+    it('canceled면 초대 취소 안내로 간다 — 초대자가 거둔 초대 (ADR-0043)', async () => {
+        getInvite.mockResolvedValue(view({ state: 'canceled' }));
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('inviteCanceled'));
+    });
+
+    it('rejected면 거절한 초대 안내로 간다 — 같은 딥링크 재진입 (ADR-0043)', async () => {
+        getInvite.mockResolvedValue(view({ state: 'rejected' }));
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('rejected'));
     });
 });
 
@@ -531,17 +547,91 @@ describe('useRelayInviteFlow — 다시 시도', () => {
     });
 });
 
-describe('useRelayInviteFlow — 거절 스텁', () => {
-    it('서버 호출 없이 초대 id만 남기고 홈으로 간다', async () => {
+describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
+    it('decline은 확인 다이얼로그(declining)만 연다 — 종국 액션은 확인 전에 나가지 않는다', async () => {
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
         act(() => result.current.decline());
 
-        expect(recordDeclinedInvite).toHaveBeenCalledWith('inv-1');
+        expect(result.current.phase).toBe('declining');
+        expect(rejectInvite).not.toHaveBeenCalled();
         expect(acceptInvite).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('다이얼로그에서 물러나면(cancelStep) 아무것도 보내지 않고 review로 돌아간다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        act(() => result.current.cancelStep());
+
+        expect(result.current.phase).toBe('review');
+        expect(rejectInvite).not.toHaveBeenCalled();
+    });
+
+    it('확인하면 invite.reject를 보내고 rejected 응답에 토스트 후 홈으로 간다', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        expect(rejectInvite).toHaveBeenCalledWith(CODE);
+        expect(toast).toHaveBeenCalledWith({ title: 'relayInviteAccept.declinedToast' });
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
         expect(result.current.phase).toBe('closed');
+    });
+
+    it('요청이 나가 있는 동안 phase는 declining에 머물고 isRejecting만 켜진다 — submitting으로 넘어가면 수락 화면 스피너가 잘못 뜬다', async () => {
+        let release: (view: unknown) => void = () => undefined;
+        rejectInvite.mockReturnValue(new Promise(resolve => (release = resolve)));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.decline());
+
+        act(() => void result.current.confirmDecline());
+        await waitFor(() => expect(result.current.isRejecting).toBe(true));
+        expect(result.current.phase).toBe('declining');
+
+        await act(async () => release(view({ state: 'rejected' })));
+        expect(result.current.phase).toBe('closed');
+    });
+
+    it('응답 state가 rejected가 아니면 generic으로 떨어지고 isRejecting은 꺼진다 — 성공 플래그는 state뿐이다', async () => {
+        rejectInvite.mockResolvedValue(view({ state: 'pending' }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(result.current.isRejecting).toBe(false);
+    });
+
+    it('409(이미 수락)는 taken 안내다 — 그 사이 번호 주인이 수락했다', async () => {
+        rejectInvite.mockRejectedValue(socketError(409));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        await waitFor(() => expect(result.current.notice).toBe('taken'));
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('그 외 실패는 조회 단계와 같은 매핑이다 (404 → notFound)', async () => {
+        rejectInvite.mockRejectedValue(socketError(404));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.decline());
+        await act(async () => result.current.confirmDecline());
+
+        await waitFor(() => expect(result.current.notice).toBe('notFound'));
     });
 
     it('진행 중에는 닫기를 무시한다', async () => {

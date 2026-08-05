@@ -1,22 +1,26 @@
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
 /**
- * Local-only "canceled" stamp for sent invites (ADR-0033 — the backend has no `invite.cancel` API
- * yet, 백엔드 요청 목록 #1). Confirming cancel on the waiting screen does not call any server
- * mutation; it stamps the invite id so this device stops showing it as pending/expired (list rows,
- * the waiting screen). The invite itself is untouched server-side — the recipient can, in principle,
- * still accept it. See `INVITE_CANCEL_API_SUPPORTED` in `../flags` and the sender doc's
- * "리스크와 미지수" for the known gap.
+ * Locally hidden sent-invite rows, stored as invite ids (`canceledInvites` in the preference
+ * registry). Since ADR-0043 the record serves two narrow purposes:
  *
- * The ids live in `usePreferenceStore` under `canceledInvites` rather than in a store of their own
- * with hand-rolled localStorage: every persisted client setting goes through that one registry, so
- * the storage strategy is declared in one place instead of re-implemented per feature.
+ * - **Rejected-row dismiss.** The server keeps a `rejected` invite forever (it never decays to
+ *   `expired`, and `invite.cancel` does not overwrite a final mark), so once the sender re-invites
+ *   the same person the old rejected row can only be cleared locally.
+ * - **Legacy pre-API cancel stamps.** Cancels made while `invite.cancel` did not exist were
+ *   recorded here without a server mutation; `useCanceledInviteReconcile` drains them by firing
+ *   the real cancel and clearing each record once the server state is settled.
+ *
+ * The ids live in `usePreferenceStore` rather than in a store of their own with hand-rolled
+ * localStorage: every persisted client setting goes through that one registry, so the storage
+ * strategy is declared in one place instead of re-implemented per feature.
  */
 export const useLocallyCanceledInvites = () => {
     const ids = usePreferenceStore(state => state.canceledInviteIds);
     const markCanceled = usePreferenceStore(state => state.markInviteCanceled);
+    const clearCanceled = usePreferenceStore(state => state.clearInviteCanceled);
 
     const isCanceled = (inviteId: string): boolean => ids.includes(inviteId);
 
-    return { isCanceled, markCanceled };
+    return { canceledIds: ids, isCanceled, markCanceled, clearCanceled };
 };

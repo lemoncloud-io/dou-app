@@ -47,6 +47,8 @@ describe('createRemoteDataSources — relay-pinned gateways', () => {
         ['createInvite', 'invite.create', { phone: '01012345678', name: 'kim' }],
         ['getInvite', 'invite.get', 'invt:1:abc'],
         ['acceptInvite', 'invite.accept', 'invt:1:abc'],
+        ['cancelInvite', 'invite.cancel', 'invt:1:abc'],
+        ['rejectInvite', 'invite.reject', 'invt:1:abc'],
     ])('sends %s over the relay slot', async (method, type, input) => {
         const { remoteDataSources } = createRemoteDataSources();
 

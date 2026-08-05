@@ -8,6 +8,8 @@ describe('InviteRepositoryV2', () => {
             createInvite: jest.fn().mockResolvedValue({}),
             getInvite: jest.fn().mockResolvedValue({}),
             acceptInvite: jest.fn().mockResolvedValue({}),
+            cancelInvite: jest.fn().mockResolvedValue({}),
+            rejectInvite: jest.fn().mockResolvedValue({}),
         };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
@@ -73,6 +75,26 @@ describe('InviteRepositoryV2', () => {
 
         expect(inviteRemoteDataSource.acceptInvite).toHaveBeenCalledWith('invt:1:secret');
         expect(result).toEqual({ id: 'invt-1', state: 'accepted' });
+    });
+
+    it('cancel은 코드를 위임하고 종국 뷰를 반환한다', async () => {
+        const { repository, inviteRemoteDataSource } = createRepository();
+        inviteRemoteDataSource.cancelInvite.mockResolvedValue({ id: 'invt-1', state: 'canceled', canceledAt: 1 });
+
+        const result = await repository.cancel('invt:1:secret');
+
+        expect(inviteRemoteDataSource.cancelInvite).toHaveBeenCalledWith('invt:1:secret');
+        expect(result).toMatchObject({ state: 'canceled' });
+    });
+
+    it('reject는 코드를 위임하고 종국 뷰를 반환한다', async () => {
+        const { repository, inviteRemoteDataSource } = createRepository();
+        inviteRemoteDataSource.rejectInvite.mockResolvedValue({ id: 'invt-1', state: 'rejected', rejectedAt: 1 });
+
+        const result = await repository.reject('invt:1:secret');
+
+        expect(inviteRemoteDataSource.rejectInvite).toHaveBeenCalledWith('invt:1:secret');
+        expect(result).toMatchObject({ state: 'rejected' });
     });
 
     it('원격 실패는 삼키지 않고 그대로 reject한다 (호출부가 에러 코드로 분기한다)', async () => {

@@ -5,7 +5,6 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { DefaultAvatar, ListRow, StatusBadge } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/lib/utils';
 
-import { INVITE_REJECTED_STATE_SUPPORTED } from '../flags';
 import { resolveInviteRowBadge } from '../utils/inviteStatus';
 
 interface InviteChannelRowProps {
@@ -26,7 +25,7 @@ interface InviteChannelRowProps {
 export const InviteChannelRow = ({ invite, onClick }: InviteChannelRowProps) => {
     const { t } = useTranslation();
 
-    const badge = resolveInviteRowBadge(invite.state, INVITE_REJECTED_STATE_SUPPORTED);
+    const badge = resolveInviteRowBadge(invite.state);
     const name = invite.name || t('contactInvite.unnamedRecipient');
     const isSpent = badge?.variant === 'expired';
     // A spent invite explains itself on the second line (Figma 3408-28373); a live one has no status

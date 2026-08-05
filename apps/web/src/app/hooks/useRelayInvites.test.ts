@@ -24,6 +24,8 @@ const list = jest.fn();
 const create = jest.fn();
 const get = jest.fn();
 const accept = jest.fn();
+const cancel = jest.fn();
+const reject = jest.fn();
 
 /** Mirrors the app's QueryClient defaults (app.tsx) — `staleTime: Infinity` is load-bearing below. */
 const createAppQueryClient = () =>
@@ -41,7 +43,9 @@ beforeEach(() => {
     create.mockResolvedValue({ id: 'invite-1' });
     get.mockResolvedValue({ id: 'invite-1', state: 'pending' });
     accept.mockResolvedValue({ id: 'invite-1', state: 'accepted' });
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { list, create, get, accept } });
+    cancel.mockResolvedValue({ id: 'invite-1', state: 'canceled', canceledAt: 1 });
+    reject.mockResolvedValue({ id: 'invite-1', state: 'rejected', rejectedAt: 1 });
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { list, create, get, accept, cancel, reject } });
     (useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
@@ -195,6 +199,41 @@ describe('useRelayInviteMutations', () => {
         });
 
         await waitFor(() => expect(list).toHaveBeenCalledTimes(4));
+    });
+
+    it('cancelInvite는 코드를 body에만 담아 보내고 종국 뷰를 돌려주며 목록을 무효화한다', async () => {
+        const { result } = renderBoth();
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+
+        let view: unknown;
+        await act(async () => {
+            view = await result.current.mutations.cancelInvite('invt:1:secret');
+        });
+
+        expect(cancel).toHaveBeenCalledWith('invt:1:secret');
+        expect(view).toMatchObject({ state: 'canceled' });
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    });
+
+    it('rejectInvite는 코드를 body에만 담아 보내고 종국 뷰를 돌려주며 목록을 무효화한다', async () => {
+        const { result } = renderBoth();
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+
+        let view: unknown;
+        await act(async () => {
+            view = await result.current.mutations.rejectInvite('invt:1:secret');
+        });
+
+        expect(reject).toHaveBeenCalledWith('invt:1:secret');
+        expect(view).toMatchObject({ state: 'rejected' });
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    });
+
+    it('취소·거절의 409(이미 수락)는 그대로 reject된다 — 호출부가 목록 재조회로 수렴시킨다', async () => {
+        cancel.mockRejectedValue(new Error('409 CONFLICT - invite is already accepted'));
+        const { result } = renderHook(() => useRelayInviteMutations(), { wrapper });
+
+        await expect(result.current.cancelInvite('invt:1:secret')).rejects.toThrow('409 CONFLICT');
     });
 
     it('getInvite는 읽기라 목록을 무효화하지 않는다 — 스텝마다 불려도 폴링을 흔들지 않는다', async () => {

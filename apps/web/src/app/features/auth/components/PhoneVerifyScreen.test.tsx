@@ -9,7 +9,9 @@ const mockApplySessionToken = jest.fn();
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
+}));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
 jest.mock('@chatic/app-runtime', () => ({
     applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
@@ -42,7 +44,30 @@ import { isDevBuild } from '../utils/env';
 import { PhoneVerifyScreen } from './PhoneVerifyScreen';
 
 const PHONE = '01012345678';
+// What the field displays and what the packet actually carries now differ (ADR-0044 §5 correction —
+// the wire wants E.164, not the local form the field shows).
+const PHONE_E164 = '+821012345678';
 const FUTURE_EXPIRY = () => Date.now() + 180_000;
+
+/**
+ * jsdom reports `navigator.language` as `en-US`, which would open these screens on US and reject
+ * every Korean number here. Seeding the remembered pick uses the production "last explicit pick
+ * wins" path rather than stubbing around it (ADR-0044 §4).
+ */
+const seedCountry = (code = 'KR') => {
+    localStorage.clear();
+    localStorage.setItem('dou.phoneInput.country.v1', code);
+};
+
+const setLanguage = (value: string) => {
+    Object.defineProperty(window.navigator, 'language', { value, configurable: true });
+};
+
+/** Opens the country sheet and taps a row by its localized name. */
+const pickCountry = (name: string) => {
+    fireEvent.click(screen.getByLabelText('phoneInput.countrySheetTitle'));
+    fireEvent.click(screen.getByText(name));
+};
 
 const renderScreen = (overrides: Partial<React.ComponentProps<typeof PhoneVerifyScreen>> = {}) => {
     const props = {
@@ -94,6 +119,7 @@ const submitCta = async () => {
 describe('PhoneVerifyScreen — 인증 요청', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -112,7 +138,11 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
     it('발송 성공 시 mode와 초대 코드를 동봉하고 인증번호 입력이 열린다', async () => {
         await requestCode();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code' });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+        });
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeEnabled();
         expect(mockToast).toHaveBeenCalledWith({ title: 'phoneVerify.sent' });
     });
@@ -132,7 +162,11 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone('01012349999');
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith('01012349999', { mode: 'login', code: 'invt:i1:code' });
+        expect(mockSend).toHaveBeenCalledWith('+821012349999', {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+        });
     });
 
     it('초대 맥락의 발송 400은 "초대받은 번호가 아니에요"로 안내한다 (§B-2 발송단 차단)', async () => {
@@ -172,9 +206,10 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone();
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, {
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, {
             mode: 'login',
             code: 'invt:i1:code',
+            countryCode: 'KR',
             slack: true,
             sms: false,
         });
@@ -187,13 +222,14 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         typePhone();
         await submitSend();
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'login', code: undefined });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'login', code: undefined, countryCode: 'KR' });
     });
 });
 
 describe('PhoneVerifyScreen — 인증번호 확인', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
@@ -202,7 +238,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         const { onVerified } = await requestCode();
         await pasteOtp();
 
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'login' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
         // `verify` would only repeat what confirm already proves, so login never asks.
         expect(mockVerify).not.toHaveBeenCalled();
         // Linked-only result: no session change, so no switch — straight to onVerified.
@@ -281,7 +317,12 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
             fireEvent.click(screen.getByText('phoneVerify.extend'));
         });
 
-        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code', resend: true });
+        expect(mockSend).toHaveBeenLastCalledWith(PHONE_E164, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+            resend: true,
+        });
         expect(mockToast).toHaveBeenCalledWith({
             title: 'phoneVerify.resent',
             description: 'phoneVerify.resendKeepsCounter',
@@ -292,7 +333,12 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         await act(async () => {
             fireEvent.click(screen.getByText('phoneVerify.resend'));
         });
-        expect(mockSend).toHaveBeenLastCalledWith(PHONE, { mode: 'login', code: 'invt:i1:code', resend: true });
+        expect(mockSend).toHaveBeenLastCalledWith(PHONE_E164, {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'KR',
+            resend: true,
+        });
     });
 
     it('재전송 중 429는 쿨다운 안내로 구분한다 (60초 제한)', async () => {
@@ -336,13 +382,14 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
 describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 
     it('link 모드 발송에는 초대 코드를 싣지 않는다 (서버가 login에서만 읽는다)', async () => {
         await requestCode({ mode: 'link' });
 
-        expect(mockSend).toHaveBeenCalledWith(PHONE, { mode: 'link', code: undefined });
+        expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'link', code: undefined, countryCode: 'KR' });
     });
 
     it('6자리를 채우면 verify까지만 가고, 커밋은 CTA가 한다 (ADR-0042 §4)', async () => {
@@ -350,7 +397,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
         const { onVerified } = await requestCode({ mode: 'link' });
         await pasteOtp();
 
-        expect(mockVerify).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockVerify).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
         expect(mockConfirm).not.toHaveBeenCalled();
         expect(onVerified).not.toHaveBeenCalled();
 
@@ -358,7 +405,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
         mockConfirm.mockResolvedValueOnce({ linked: true });
         await submitCta();
 
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE, '123456', { mode: 'link' });
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
         expect(mockApplySessionToken).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });
@@ -408,6 +455,7 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
 describe('PhoneVerifyScreen — 타이머 만료', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
         (isDevBuild as jest.Mock).mockReturnValue(false);
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2026-07-29T12:00:00Z'));
@@ -435,9 +483,83 @@ describe('PhoneVerifyScreen — 타이머 만료', () => {
     });
 });
 
+describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        seedCountry();
+        (isDevBuild as jest.Mock).mockReturnValue(false);
+    });
+
+    afterEach(() => setLanguage('en-US'));
+
+    it('국가를 정할 수 없으면 인증 요청이 비활성이고, 에러 문구는 띄우지 않는다 (S4)', () => {
+        localStorage.clear();
+        setLanguage('en'); // no region subtag — nothing to derive a country from
+        renderScreen();
+
+        typePhone();
+        expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeDisabled();
+        // Nothing has gone wrong yet; the empty picker is the instruction, not a red line.
+        expect(screen.queryByText('phoneVerify.phoneInvalidFormat')).not.toBeInTheDocument();
+        expect(screen.getByText('phoneInput.countryPlaceholder')).toBeInTheDocument();
+
+        pickCountry('일본');
+        typePhone('09012345678');
+        expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeEnabled();
+    });
+
+    it('국제 표기를 붙여넣으면 선택기가 따라가고 필드가 로컬 형태로 다시 쓰인다 (S3)', async () => {
+        mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
+        renderScreen();
+
+        typePhone('+819012345678');
+
+        expect(screen.getByPlaceholderText('phoneVerify.phonePlaceholder')).toHaveValue('09012345678');
+        expect(screen.getByText('+81')).toBeInTheDocument();
+
+        await submitSend();
+        expect(mockSend).toHaveBeenCalledWith('+819012345678', {
+            mode: 'login',
+            code: 'invt:i1:code',
+            countryCode: 'JP',
+        });
+    });
+
+    it('+82 붙여넣기도 살아난다 — KR 전용 검증에서는 실패하던 입력이다 (S3)', () => {
+        renderScreen();
+        typePhone('+821012345678');
+
+        expect(screen.getByPlaceholderText('phoneVerify.phonePlaceholder')).toHaveValue(PHONE);
+        expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeEnabled();
+    });
+
+    it('코드를 받은 뒤 국가를 바꾸면 발송된 코드가 무효화된다 (S5)', async () => {
+        await requestCode();
+        expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeEnabled();
+
+        pickCountry('일본');
+
+        // Same handling as retyping the number: the code that went to +82 is not the code for +81.
+        expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
+        await pasteOtp();
+        expect(mockConfirm).not.toHaveBeenCalled();
+    });
+
+    it('증명은 발송에 쓴 값을 그대로 쓴다 — 라이브 필드가 아니다 (계약: 발송=증명)', async () => {
+        mockConfirm.mockResolvedValueOnce({ linked: true });
+        await requestCode();
+
+        // The picker cannot diverge after a send (S5 clears the code), so the pin is proved by the
+        // prove call carrying the SEND's country rather than re-deriving one at confirm time.
+        await pasteOtp();
+        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
+    });
+});
+
 describe('PhoneVerifyScreen — 닫기/컨텍스트', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        seedCountry();
         (isDevBuild as jest.Mock).mockReturnValue(false);
     });
 

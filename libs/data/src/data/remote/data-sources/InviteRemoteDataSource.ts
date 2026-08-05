@@ -30,6 +30,17 @@ export interface IInviteRemoteDataSource {
     getInvite(code: string): Promise<RelayInviteView>;
     /** `invite.accept` — redeem a code. Idempotent server-side; success is `state === 'accepted'`. */
     acceptInvite(code: string): Promise<MyInviteView>;
+    /**
+     * `invite.cancel` — the inviter retires their own invite. Authorization is session ownership,
+     * not the code (someone else's invite is a 403). Idempotent on already-final invites; an
+     * accepted one is a 409. Success is `state === 'canceled'`.
+     */
+    cancelInvite(code: string): Promise<MyInviteView>;
+    /**
+     * `invite.reject` — the recipient declines. Possession of the code is enough (no phone
+     * verification). Idempotent; an accepted one is a 409. Success is `state === 'rejected'`.
+     */
+    rejectInvite(code: string): Promise<MyInviteView>;
 }
 
 /**
@@ -60,5 +71,13 @@ export class InviteRemoteDataSource implements IInviteRemoteDataSource {
 
     public async acceptInvite(code: string): Promise<MyInviteView> {
         return this.gateway.accept<MyInviteView>({ code });
+    }
+
+    public async cancelInvite(code: string): Promise<MyInviteView> {
+        return this.gateway.cancel<MyInviteView>({ code });
+    }
+
+    public async rejectInvite(code: string): Promise<MyInviteView> {
+        return this.gateway.reject<MyInviteView>({ code });
     }
 }

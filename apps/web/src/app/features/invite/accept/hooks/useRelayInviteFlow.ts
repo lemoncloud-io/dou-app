@@ -10,7 +10,6 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
 import { useResolveInviteChannel } from './useResolveInviteChannel';
 import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
-import { recordDeclinedInvite } from '../lib';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
 import { getSocketErrorCode } from '../../../../utils/errors';
@@ -30,6 +29,8 @@ export type RelayInvitePhase =
     | 'loading'
     /** the accept screen */
     | 'review'
+    /** the decline-confirm dialog is up (rejecting is final — 05-client-guide §B-4) */
+    | 'declining'
     /** re-validating and/or accepting — the CTA spins */
     | 'submitting'
     /** phone verification (Track A's PhoneVerifyScreen) */
@@ -43,15 +44,27 @@ export type RelayInvitePhase =
     /** terminal: we navigated away */
     | 'closed';
 
-/** Terminal notices, mapped from the server's `state` / `errorCode` — never from message text. */
-export type RelayInviteNotice = 'expired' | 'alreadyJoined' | 'notFound' | 'wrongNumber' | 'taken' | 'generic';
+/**
+ * Terminal notices, mapped from the server's `state` / `errorCode` — never from message text.
+ * Each value keys the copy at `inviteAccept.dialog.${notice}`; `inviteCanceled` is the key ADR-0016
+ * prepared (Figma 3079-12304), live again now that `canceled` arrives as a state (ADR-0043).
+ */
+export type RelayInviteNotice =
+    | 'expired'
+    | 'alreadyJoined'
+    | 'inviteCanceled'
+    | 'rejected'
+    | 'notFound'
+    | 'wrongNumber'
+    | 'taken'
+    | 'generic';
 
 /**
  * Which notice a failed packet becomes. `stage` matters because the same status means different
  * things on either side of the flow (05-client-guide §에러 코드).
  *
- * `404` covers both a cancelled and a never-existed invite: there is no cancel API and therefore no
- * `canceled` state to tell them apart (backend request 1), so the copy is deliberately merged.
+ * `404` is purely "no such invite" — a canceled one arrives as `state === 'canceled'` (ADR-0043),
+ * not as an error, so the old merged copy is gone.
  */
 const resolveNotice = (status: number | undefined, stage: 'get' | 'accept'): RelayInviteNotice => {
     if (status === 404) return 'notFound';
@@ -93,15 +106,24 @@ export interface RelayInviteFlow {
     countdown: InviteCountdown | null;
     /** "수락" — runs the next step, always re-validating first. */
     accept: () => void;
-    /** "거절" — a stub: closes and remembers locally (backend request 2). */
+    /** "거절" — opens the confirm dialog (`declining`); rejecting is final, so it never fires directly. */
     decline: () => void;
+    /** Confirm on the decline dialog — the actual `invite.reject` (ADR-0043). */
+    confirmDecline: () => void;
+    /**
+     * True while `confirmDecline`'s request is in flight. Stays in the `declining` phase rather than
+     * moving to `submitting` — the accept screen (and its "수락" spinner) is not what is happening —
+     * so the confirm dialog itself carries the pending state, same idiom as `InviteWaitingPage`'s
+     * cancel-confirm dialog (`isPending`/`isCanceling`).
+     */
+    isRejecting: boolean;
     /** Dismiss (X / esc / overlay) — blocked while a step is in flight. */
     close: () => void;
     /** Phone verification finished; the session is already the main user. */
     onVerified: () => void;
     /** The place profile was saved. */
     onProfileSaved: () => void;
-    /** The user backed out of verification / profile setup. */
+    /** The user backed out of verification / profile setup / the decline-confirm dialog. */
     cancelStep: () => void;
     /** Confirm on the notice dialog. */
     dismissNotice: () => void;
@@ -139,6 +161,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     const [phase, setPhase] = useState<RelayInvitePhase>('loading');
     const [invite, setInvite] = useState<RelayInviteInfo | null>(null);
     const [notice, setNotice] = useState<RelayInviteNotice | null>(null);
+    const [isRejecting, setIsRejecting] = useState(false);
 
     const countdown = useInviteCountdown(invite?.expiredAt);
 
@@ -240,6 +263,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
         if (view.state === 'expired') return fail('expired');
         if (view.state === 'accepted') return fail('alreadyJoined');
+        // Same final-state branches as the entry read — verification takes minutes, and the
+        // inviter can retire the code in that window.
+        if (view.state === 'canceled') return fail('inviteCanceled');
+        if (view.state === 'rejected') return fail('rejected');
 
         // Verify, then name yourself, then accept (ADR-0033 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
@@ -301,6 +328,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
                 setInvite(view);
                 if (view.state === 'expired') return fail('expired');
                 if (view.state === 'accepted') return fail('alreadyJoined');
+                // Final states arrive as `state`, not as errors (ADR-0043): canceled by the
+                // inviter, or rejected by this number on an earlier open.
+                if (view.state === 'canceled') return fail('inviteCanceled');
+                if (view.state === 'rejected') return fail('rejected');
                 setPhase('review');
             } catch (error) {
                 if (isStale(run)) return;
@@ -333,12 +364,39 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         void advance();
     }, [advance]);
 
+    // Rejecting is final and needs no verification (05-client-guide §B-4) — but exactly because it
+    // is final, the button only raises the confirm dialog; the actual packet waits for the confirm.
     const decline = useCallback(() => {
-        // TODO(backend): 2번 — ADR-0033 인터페이스 선반영. No reject API and no `rejected` state, so
-        // this only closes and remembers locally; the inviter is never told.
-        recordDeclinedInvite(invite?.id);
-        goHome();
-    }, [invite?.id, goHome]);
+        setPhase('declining');
+    }, []);
+
+    const confirmDecline = useCallback(async () => {
+        runIdRef.current += 1;
+        const run = runIdRef.current;
+        // Stays in `declining` — the confirm dialog owns this pending state (`isRejecting`), same
+        // idiom as InviteWaitingPage's cancel-confirm dialog. Moving to `submitting` would unmount
+        // the dialog behind the accept screen's own spinner, which is not what is happening here.
+        setIsRejecting(true);
+        try {
+            const view = await latest.current.mutations.rejectInvite(code);
+            if (isStale(run)) return;
+            // `state` is the only success signal, same as accept. Idempotent server-side.
+            if (view.state !== 'rejected') {
+                setIsRejecting(false);
+                return fail('generic');
+            }
+            latest.current.toast({ title: latest.current.t('relayInviteAccept.declinedToast') });
+            goHome();
+        } catch (error) {
+            if (isStale(run)) return;
+            setIsRejecting(false);
+            const status = getSocketErrorCode(error);
+            logger.error('INVITE', `[useRelayInviteFlow] invite.reject failed (status=${status ?? '-'})`, { error });
+            // 409 → taken (someone with the number accepted meanwhile); the rest reads like the
+            // entry lookup — a reject carries no verification stage of its own.
+            return fail(resolveNotice(status, 'get'));
+        }
+    }, [code, fail, goHome]);
 
     const close = useCallback(() => {
         // Never mid-step: dismissing there would strip the URL and swallow the outcome.
@@ -353,6 +411,8 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         countdown,
         accept: useCallback(() => void advance(), [advance]),
         decline,
+        confirmDecline: useCallback(() => void confirmDecline(), [confirmDecline]),
+        isRejecting,
         close,
         onVerified,
         onProfileSaved,

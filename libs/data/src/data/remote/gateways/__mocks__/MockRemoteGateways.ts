@@ -64,6 +64,8 @@ export const createMockRemoteGateways = (): MockRemoteGatewayBundle =>
             get: jest.fn(),
             list: jest.fn(),
             accept: jest.fn(),
+            cancel: jest.fn(),
+            reject: jest.fn(),
         },
         device: {
             // Routed gateway: one gateway instance per SocketRoute (active/relay/cloud).

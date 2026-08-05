@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { AlertDialog, TextField } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/lib/utils';
 
-// Concrete module, not the account feature root: the root re-exports pages that pull web-core
-// (whose transport reads import.meta), unloadable under the jsdom test setup.
+// Concrete modules, not the feature roots: the account root re-exports pages that pull web-core
+// (whose transport reads import.meta) and the ui/components barrel pulls @chatic/assets — both
+// unloadable under the jsdom test setup.
 import { formatTime } from '../../account/utils';
+import { CountrySelect } from '../../../ui/components/CountrySelect';
 import type { PhoneVerifyFieldsState } from '../hooks/usePhoneVerify';
 
 /** Below this the countdown turns red (Figma 3428-60171 / 3432-61204 / 3430-60970). */
@@ -72,6 +74,9 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                     autoFocus={autoFocusPhone}
                     error={state.phoneError || undefined}
                     description={t('phoneVerify.digitsOnly')}
+                    // The country lives INSIDE the field's border, so the pair reads as one input
+                    // group and the focus ring covers both (Figma "General Input" stays one row).
+                    leading={<CountrySelect value={state.country} onChange={state.onCountryChange} />}
                     trailing={
                         <InlineAction
                             label={t('phoneVerify.sendCode')}

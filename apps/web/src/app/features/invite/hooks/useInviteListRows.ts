@@ -9,10 +9,15 @@ import { useLocallyCanceledInvites } from './useLocallyCanceledInvites';
  * Sent-invite rows for the list-integration surfaces (home `ChannelList`,
  * `PlaceChannelManagePage`) — both render the same filtered set the same way.
  *
- * `accepted` invites are excluded: once accepted, the real channel is expected to take over as
- * the visible row (see `useAcceptedChannelSync`), so showing both would duplicate the entry.
- * Locally-canceled invites (the cancel stub — 백엔드 요청 #1) are excluded too, since canceling is
- * only ever a local hide, not a server mutation.
+ * Which states pass (ADR-0043):
+ * - `pending` / `expired` — live cards the sender can still act on (wait, reissue, cancel).
+ * - `rejected` — shown with a "초대 거절" badge so the sender learns about it (there is no
+ *   notification packet — 백엔드 요청 #4); reissuing dismisses it locally.
+ * - `accepted` is excluded: the real channel takes over as the visible row
+ *   (see `useAcceptedChannelSync`), so showing both would duplicate the entry.
+ * - `canceled` is excluded: the sender retired it.
+ * - Locally dismissed rows (`useLocallyCanceledInvites`) are excluded — rejected rows the user
+ *   already re-invited over, plus legacy pre-API cancel stamps awaiting reconcile.
  */
 export const useInviteListRows = (): { invites: MyInviteView[]; isLoading: boolean } => {
     const { invites, isLoading } = useRelayInvites();
@@ -22,7 +27,9 @@ export const useInviteListRows = (): { invites: MyInviteView[]; isLoading: boole
         () =>
             invites.filter(
                 invite =>
-                    !!invite.id && (invite.state === 'pending' || invite.state === 'expired') && !isCanceled(invite.id)
+                    !!invite.id &&
+                    (invite.state === 'pending' || invite.state === 'expired' || invite.state === 'rejected') &&
+                    !isCanceled(invite.id)
             ),
         [invites, isCanceled]
     );

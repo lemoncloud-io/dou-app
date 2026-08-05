@@ -23,6 +23,18 @@ export interface IInviteRepositoryV2 extends DisposableRepositoryV2 {
 
     /** invite.accept — redeem a code. Idempotent server-side; success is `state === 'accepted'`. */
     accept(code: string): Promise<MyInviteView>;
+
+    /**
+     * invite.cancel — retire my own invite. Session-ownership authorization (403 otherwise),
+     * 409 once accepted, idempotent on already-final invites. Success is `state === 'canceled'`.
+     */
+    cancel(code: string): Promise<MyInviteView>;
+
+    /**
+     * invite.reject — decline a received invite. Code possession is enough (no verification),
+     * 409 once accepted, idempotent. Success is `state === 'rejected'`.
+     */
+    reject(code: string): Promise<MyInviteView>;
 }
 
 /**
@@ -57,5 +69,13 @@ export class InviteRepositoryV2 extends BaseRepositoryV2 implements IInviteRepos
 
     public async accept(code: string): Promise<MyInviteView> {
         return this.inviteRemoteDataSource.acceptInvite(code);
+    }
+
+    public async cancel(code: string): Promise<MyInviteView> {
+        return this.inviteRemoteDataSource.cancelInvite(code);
+    }
+
+    public async reject(code: string): Promise<MyInviteView> {
+        return this.inviteRemoteDataSource.rejectInvite(code);
     }
 }

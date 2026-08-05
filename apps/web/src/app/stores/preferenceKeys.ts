@@ -130,23 +130,15 @@ export const PREFERENCES = {
         localKey: 'chatic-dismissed-update-version',
         defaultValue: '',
     },
-    // Sent invites the user "canceled". A JSON array of invite ids. There is no `invite.cancel` API
-    // (ADR-0033 백엔드 요청 #1), so canceling is only ever a local hide — the invite is untouched
-    // server-side and the recipient could still accept it. Per-device by definition, hence 'local'.
-    // The key is the one the feature hand-rolled before this moved into the store, so existing hides
-    // survive the migration.
+    // Locally hidden sent-invite rows. A JSON array of invite ids. Since ADR-0043 (`invite.cancel`/
+    // `invite.reject` are real) this serves two narrower purposes than its name suggests: dismissing
+    // a `rejected` row after the sender re-invites (the server never overwrites a final rejected
+    // mark, so a local hide is the only way to clear it) and draining legacy pre-API cancel stamps
+    // via `useCanceledInviteReconcile`. Per-device by definition, hence 'local'. The key is the one
+    // the feature hand-rolled before this moved into the store, so existing hides survive.
     canceledInvites: {
         strategy: 'local',
         localKey: 'dou.relayInvite.locallyCanceled.v1',
-        defaultValue: '[]',
-    },
-    // Received invites the user declined. A JSON array of invite ids, capped as a ring so a
-    // long-lived install cannot grow the entry without bound. Same reasoning as canceledInvites:
-    // no reject API and no `rejected` state (백엔드 요청 #2), so it is a local memory only. Stores
-    // the invite ID and never the code — the code is a credential.
-    declinedInvites: {
-        strategy: 'local',
-        localKey: 'chatic-web-relay-invite-declined',
         defaultValue: '[]',
     },
     // Epoch ms of the last time the cloud-promo banner was dismissed; '' means never. The banner

@@ -14,18 +14,19 @@ import { useMyProfile, useRelayInviteMutations, useSentInviteLog } from '../../.
 import { useInviteCountdown } from '../hooks/useInviteCountdown';
 import { ConfirmDialog } from '../../channels/components';
 import { ROUTES } from '../../../routes/paths';
-import { toError } from '../../../utils/errors';
-import { INVITE_CANCEL_API_SUPPORTED } from '../flags';
+import { toError, getSocketErrorCode } from '../../../utils/errors';
+import { readInternationalInput } from '../../../utils/phoneNumber';
 import { useAcceptedChannelSync } from '../hooks/useAcceptedChannelSync';
 import { useInviteWaitingStatus } from '../hooks/useInviteWaitingStatus';
 import { useLocallyCanceledInvites } from '../hooks/useLocallyCanceledInvites';
+import { useRetireInvite } from '../hooks/useRetireInvite';
+import { composeInviteCode } from '../utils/inviteCode';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
-import { resolveCancelDialogDescriptionKey } from '../utils/inviteStatus';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
 /**
- * 초대 대기 화면 (ADR-0033 Track B) — Figma 3263-30072 (대기) / 3398-25887 (수락되어 입장) /
- * 3263-30117 (거절 — 오늘은 서버 상태 부재로 도달 불가) / 3263-30162 (만료) /
+ * 초대 대기 화면 (ADR-0033 Track B, 취소·거절 실 API는 ADR-0043, 국제번호는 ADR-0044) — Figma
+ * 3263-30072 (대기) / 3398-25887 (수락되어 입장) / 3263-30117 (거절) / 3263-30162 (만료) /
  * 3263-30207 (취소 확인) / 3413-18662 (취소 토스트).
  *
  * A pseudo-channel-room screen: same header language as a chat room (`ChatRoomHeader`), but shows
@@ -38,34 +39,39 @@ export const InviteWaitingPage = () => {
     const navigate = useNavigateWithTransition();
     const { inviteId } = useParams<{ inviteId: string }>();
 
-    const { invite, isLoading } = useInviteWaitingStatus(inviteId);
+    const { invite, isLoading, refetch } = useInviteWaitingStatus(inviteId);
     const countdown = useInviteCountdown(invite?.expiredAt ?? undefined);
-    const { isCanceled, markCanceled } = useLocallyCanceledInvites();
-    const { createInvite } = useRelayInviteMutations();
+    const { isCanceled } = useLocallyCanceledInvites();
+    const { createInvite, cancelInvite } = useRelayInviteMutations();
+    const { retire } = useRetireInvite();
     const { record, findByInviteId } = useSentInviteLog();
     const { profile: myProfile } = useMyProfile();
 
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    const [isCanceling, setIsCanceling] = useState(false);
     const [isReissuing, setIsReissuing] = useState(false);
 
-    const canceledLocally = !!inviteId && isCanceled(inviteId);
+    const dismissedLocally = !!inviteId && isCanceled(inviteId);
     const isAccepted = invite?.state === 'accepted';
+    const isRejected = invite?.state === 'rejected';
     const { status: syncStatus } = useAcceptedChannelSync(isAccepted ? invite?.channelId : undefined);
 
     const goHome = () => navigate(ROUTES.home, { replace: true });
 
-    /** Set while this screen retires an invite itself, so the redirect below leaves that cancel alone. */
-    const reissueCancelRef = useRef(false);
+    /** Set while this screen retires an invite itself, so the redirect below leaves that retire alone. */
+    const reissueRetireRef = useRef(false);
     useEffect(() => {
-        reissueCancelRef.current = false;
+        reissueRetireRef.current = false;
     }, [inviteId]);
 
-    // A cancel confirmed on a prior visit — this device should never show it as live again. A cancel
-    // this screen just made as part of a reissue is exempt: it is already replacing the route with
-    // the new invite's waiting screen, and bouncing home would swallow that.
+    // Locally dismissed (a rejected row already re-invited over, or a legacy pre-API cancel stamp)
+    // or canceled server-side (e.g. from another device) — this screen has nothing live to show.
+    // A retire this screen just made as part of a reissue is exempt: it is already replacing the
+    // route with the new invite's waiting screen, and bouncing home would swallow that.
+    const isGone = dismissedLocally || invite?.state === 'canceled';
     useEffect(() => {
-        if (canceledLocally && !reissueCancelRef.current) goHome();
-    }, [canceledLocally]);
+        if (isGone && !reissueRetireRef.current) goHome();
+    }, [isGone]);
 
     // The channel synced locally — hand off to the real room.
     useEffect(() => {
@@ -75,7 +81,7 @@ export const InviteWaitingPage = () => {
     }, [isAccepted, syncStatus, invite?.channelId]);
 
     const handleReissue = async () => {
-        if (!inviteId || isReissuing) return;
+        if (!inviteId || isReissuing || !invite) return;
         const logEntry = findByInviteId(inviteId);
         if (!logEntry) {
             // This device has no memory of the phone (e.g. storage was cleared) — nothing to reissue with.
@@ -83,40 +89,87 @@ export const InviteWaitingPage = () => {
             return;
         }
 
+        // The log key IS the E.164 value the packet wants; parsing it back only recovers `country`,
+        // for the `countryCode` field the packet still accepts (ADR-0044 §5 correction).
+        const recipient = readInternationalInput(logEntry.phone);
+        if (!recipient) {
+            toast({ title: t('inviteWaiting.reissueMissingLog'), variant: 'destructive' });
+            return;
+        }
+
         setIsReissuing(true);
+        let replaced = false;
         try {
-            const newInvite = await createInvite({ phone: logEntry.phone, name: logEntry.name });
+            // Retire the prior invite FIRST (ADR-0043 결정 5). A pending prior must actually cancel —
+            // issuing before that leaves two live codes for the same phone, and issuing after a failed
+            // cancel is how the pre-API reissue used to misbehave. Expired priors are best-effort
+            // tidying and never block; rejected priors are dismissed locally (see useRetireInvite).
+            reissueRetireRef.current = true;
+            const outcome = await retire(invite);
+            if (invite.state === 'pending' && outcome !== 'canceled') {
+                if (outcome === 'conflict') {
+                    // Accepted in the meantime — re-ask and let the screen flip to the accepted state.
+                    void refetch();
+                } else {
+                    toast({ title: t('inviteWaiting.reissueFailed'), variant: 'destructive' });
+                }
+                return;
+            }
+
+            const newInvite = await createInvite({
+                phone: logEntry.phone,
+                name: logEntry.name,
+                countryCode: recipient.country,
+            });
             if (!newInvite.id) throw new Error('invite.create response is missing an id');
             record(newInvite, { phone: logEntry.phone, name: logEntry.name });
 
             const body = composeInviteSmsBody(t, myProfile?.nick, newInvite.deeplink ?? '');
             await sendInviteMessage(logEntry.phone, body);
 
-            // 재초대는 새 코드를 발행하는 것이므로 직전 초대는 여기서 무효가 된다. 서버 취소
-            // (요청 1, INVITE_CANCEL_API_SUPPORTED)가 아직 없어 옛 코드는 만료까지 살아 있고,
-            // 로컬 스탬프로 목록과 대기 화면에서만 걷어낸다. 플래그가 켜지면 create 앞에서 서버
-            // 취소를 먼저 보내고 실패 시 발행을 중단하도록 바꾸면 된다 — 지금 순서를 뒤집으면
-            // 발행이 실패했을 때 되살릴 수 없는 초대만 잃는다.
-            reissueCancelRef.current = true;
-            markCanceled(inviteId);
-
             toast({ title: t('inviteWaiting.reissueDone') });
+            replaced = true;
             navigate(ROUTES.invite.waiting(newInvite.id), { replace: true });
         } catch (error) {
             reportError(toError(error));
             toast({ title: t('inviteWaiting.reissueFailed'), variant: 'destructive' });
         } finally {
+            // If we stayed on this screen, re-arm the redirect guard (a dismiss may have landed).
+            if (!replaced) reissueRetireRef.current = false;
             setIsReissuing(false);
         }
     };
 
-    const handleCancelConfirm = () => {
-        if (!inviteId) return;
-        // 백엔드 요청 1번(invite.cancel) 미지원 — 로컬로만 숨기고 서버 상태는 그대로 둔다.
-        markCanceled(inviteId);
-        setIsCancelDialogOpen(false);
-        toast({ title: t('inviteWaiting.canceledToast') });
-        goHome();
+    const handleCancelConfirm = async () => {
+        if (!invite || isCanceling) return;
+        const code = composeInviteCode(invite);
+        if (!code) {
+            // Only reachable on malformed list data — a row the server answered without its code.
+            setIsCancelDialogOpen(false);
+            toast({ title: t('inviteWaiting.cancelFailed'), variant: 'destructive' });
+            return;
+        }
+
+        setIsCanceling(true);
+        try {
+            // Idempotent and final: any resolution means the invite is retired (the view can come
+            // back `rejected` when the recipient declined first — the card is equally gone).
+            await cancelInvite(code);
+            setIsCancelDialogOpen(false);
+            toast({ title: t('inviteWaiting.canceledToast') });
+            goHome();
+        } catch (error) {
+            setIsCancelDialogOpen(false);
+            if (getSocketErrorCode(error) === 409) {
+                // Accepted in the meantime (01-spec L89) — re-ask and let the screen tell the truth.
+                void refetch();
+            } else {
+                reportError(toError(error));
+                toast({ title: t('inviteWaiting.cancelFailed'), variant: 'destructive' });
+            }
+        } finally {
+            setIsCanceling(false);
+        }
     };
 
     const recipientName = invite?.name || t('contactInvite.unnamedRecipient');
@@ -174,8 +227,12 @@ export const InviteWaitingPage = () => {
         );
     };
 
-    /** 초대 다시 하기 / 초대 취소 — the two actions the design puts under the validity card. */
-    const actionRow = () => (
+    /**
+     * 초대 다시 하기 / 초대 취소 — the two actions the design puts under the validity card.
+     * A rejected invite keeps only the reissue: it is already final, so there is nothing to cancel
+     * (the server would not overwrite the mark either — ADR-0043).
+     */
+    const actionRow = (showCancel = true) => (
         <div className="flex items-center gap-2 px-4">
             <button
                 type="button"
@@ -186,14 +243,16 @@ export const InviteWaitingPage = () => {
                 {t('inviteWaiting.reissue')}
                 <ChevronRight size={16} strokeWidth={2} />
             </button>
-            <button
-                type="button"
-                onClick={() => setIsCancelDialogOpen(true)}
-                className="flex items-center gap-1 px-2 py-2.5 text-[14px] font-medium text-placeholder"
-            >
-                {t('inviteWaiting.cancelInvite')}
-                <ChevronRight size={16} strokeWidth={2} />
-            </button>
+            {showCancel && (
+                <button
+                    type="button"
+                    onClick={() => setIsCancelDialogOpen(true)}
+                    className="flex items-center gap-1 px-2 py-2.5 text-[14px] font-medium text-placeholder"
+                >
+                    {t('inviteWaiting.cancelInvite')}
+                    <ChevronRight size={16} strokeWidth={2} />
+                </button>
+            )}
         </div>
     );
 
@@ -237,6 +296,18 @@ export const InviteWaitingPage = () => {
             );
         }
 
+        // The recipient declined (Figma 3263-30117): the room frame stays, the validity card goes
+        // (the link is spent, not ticking), and reissuing is the only action left.
+        if (isRejected) {
+            return (
+                <div className="flex flex-col gap-5 pt-2">
+                    <DateDivider label={t('chat.room.today')} />
+                    {statusBlock(t('inviteWaiting.rejected.title'), t('inviteWaiting.rejected.description'), true)}
+                    {actionRow(false)}
+                </div>
+            );
+        }
+
         // Everything below is a live invite the recipient has not taken up yet: the design keeps the
         // room frame and swaps only the status block, so the card + actions are shared.
         const isDead = invite.state === 'expired';
@@ -273,9 +344,10 @@ export const InviteWaitingPage = () => {
                 open={isCancelDialogOpen}
                 onOpenChange={setIsCancelDialogOpen}
                 title={t('inviteWaiting.cancelDialog.title')}
-                description={t(resolveCancelDialogDescriptionKey(INVITE_CANCEL_API_SUPPORTED))}
+                description={t('inviteWaiting.cancelDialog.description')}
                 confirmLabel={t('inviteWaiting.cancelDialog.confirm')}
                 onConfirm={handleCancelConfirm}
+                isPending={isCanceling}
             />
         </div>
     );

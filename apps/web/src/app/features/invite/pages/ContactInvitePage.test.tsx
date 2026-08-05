@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 const navigate = jest.fn();
 const toast = jest.fn();
 const createInvite = jest.fn();
+const retire = jest.fn();
 const record = jest.fn();
 const findByPhone = jest.fn();
 const sendInviteMessage = jest.fn();
@@ -22,7 +23,9 @@ const markPresent = jest.fn(() => {
     mockProfileAbsent = false;
 });
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
+}));
 // Only the role gate is read here; the sheet itself is stubbed below.
 jest.mock('@chatic/app-runtime', () => ({ useRuntimeProfile: () => ({ isGuest: mockIsGuest }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
@@ -52,6 +55,9 @@ jest.mock('../../home/components/PlaceProfileCreateDialog', () => ({
         </div>
     ),
 }));
+// The retire policy is covered by useRetireInvite.test.ts — here it is a seam, so each reissue
+// path can assert "retired first, then issued" without staging the mutations underneath.
+jest.mock('../hooks/useRetireInvite', () => ({ useRetireInvite: () => ({ retire }) }));
 jest.mock('../utils/sendInviteMessage', () => ({
     sendInviteMessage: (...args: unknown[]) => sendInviteMessage(...args),
 }));
@@ -81,6 +87,16 @@ jest.mock('../components/ReinviteDialog', () => ({
 
 import { ContactInvitePage } from './ContactInvitePage';
 
+/**
+ * jsdom reports `navigator.language` as `en-US`, which would open the picker on US and reject every
+ * Korean number below. Seeding the remembered pick uses the production "last explicit pick wins"
+ * path rather than stubbing around it (ADR-0044 §4).
+ */
+const seedCountry = (code = 'KR') => {
+    localStorage.clear();
+    localStorage.setItem('dou.phoneInput.country.v1', code);
+};
+
 const fillForm = (name: string, phone: string) => {
     fireEvent.change(screen.getByPlaceholderText('contactInvite.namePlaceholder'), { target: { value: name } });
     fireEvent.change(screen.getByPlaceholderText('contactInvite.phonePlaceholder'), { target: { value: phone } });
@@ -95,6 +111,8 @@ describe('ContactInvitePage', () => {
         mockProfileAbsent = false;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
+        retire.mockResolvedValue('canceled');
+        seedCountry();
     });
 
     it('게스트는 폼 대신 인증 유도 화면을 본다 — 채우고 나서 403으로 막히지 않는다', () => {
@@ -154,12 +172,16 @@ describe('ContactInvitePage', () => {
         fillForm('홍길동', '01012345678');
         fireEvent.click(screen.getByText('contactInvite.submit'));
 
-        await waitFor(() => expect(createInvite).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동' }));
+        await waitFor(() =>
+            expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: '홍길동', countryCode: 'KR' })
+        );
+        // E.164 on both: the log key must not collide across countries, and the SMS composer needs
+        // a number the sender's own carrier can route (ADR-0044 §6).
         expect(record).toHaveBeenCalledWith(
             { id: 'invite-1', deeplink: 'https://dou.chatic.io/s?code=abc' },
-            { phone: '01012345678', name: '홍길동' }
+            { phone: '+821012345678', name: '홍길동' }
         );
-        await waitFor(() => expect(sendInviteMessage).toHaveBeenCalledWith('01012345678', expect.any(String)));
+        await waitFor(() => expect(sendInviteMessage).toHaveBeenCalledWith('+821012345678', expect.any(String)));
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-1/waiting', { replace: true }));
         expect(toast).toHaveBeenCalledWith({ title: 'contactInvite.sentToast.sms' });
     });
@@ -180,7 +202,7 @@ describe('ContactInvitePage', () => {
         expect(createInvite).not.toHaveBeenCalled();
     });
 
-    it('이미 보낸 번호가 만료됐으면 재초대 다이얼로그(expired)에서 재발급을 진행한다', async () => {
+    it('이미 보낸 번호가 만료됐으면 재초대 다이얼로그(expired)에서 이전 초대를 retire한 뒤 재발급한다', async () => {
         findByPhone.mockReturnValue({ inviteId: 'invite-old', name: '홍길동' });
         mockInvites = [{ id: 'invite-old', state: 'expired' }];
         createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=def' });
@@ -193,8 +215,50 @@ describe('ContactInvitePage', () => {
 
         fireEvent.click(screen.getByText('reissue'));
 
-        await waitFor(() => expect(createInvite).toHaveBeenCalledWith({ phone: '01012345678', name: '홍길동' }));
+        await waitFor(() => expect(retire).toHaveBeenCalledWith(mockInvites[0]));
+        await waitFor(() =>
+            expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: '홍길동', countryCode: 'KR' })
+        );
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-new/waiting', { replace: true }));
+        // Best-effort ordering: the retire settled before the new code was issued.
+        expect(retire.mock.invocationCallOrder[0]).toBeLessThan(createInvite.mock.invocationCallOrder[0]);
+    });
+
+    it('이미 보낸 번호가 거절됐으면 재초대 다이얼로그(declined)에서 retire(dismiss) 후 재발급한다 (ADR-0043)', async () => {
+        findByPhone.mockReturnValue({ inviteId: 'invite-old', name: '홍길동' });
+        mockInvites = [{ id: 'invite-old', state: 'rejected' }];
+        createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=def' });
+
+        render(<ContactInvitePage />);
+        fillForm('홍길동', '01012345678');
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        expect(screen.getByText('reinvite-dialog:declined')).toBeInTheDocument();
+        expect(createInvite).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByText('reissue'));
+
+        await waitFor(() => expect(retire).toHaveBeenCalledWith(mockInvites[0]));
+        await waitFor(() =>
+            expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: '홍길동', countryCode: 'KR' })
+        );
+    });
+
+    it('이전 초대가 목록 창 밖이면 retire 없이 곧장 재발급한다', async () => {
+        findByPhone.mockReturnValue({ inviteId: 'invite-gone', name: '홍길동' });
+        mockInvites = [];
+        createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=def' });
+
+        render(<ContactInvitePage />);
+        fillForm('홍길동', '01012345678');
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        expect(screen.getByText('reinvite-dialog:expired')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('reissue'));
+
+        await waitFor(() => expect(createInvite).toHaveBeenCalled());
+        expect(retire).not.toHaveBeenCalled();
     });
 
     it('클라 게이트를 지나쳐 발급이 403이면 같은 시트를 폴백으로 연다 (역할 판정은 서버가 원본)', async () => {
@@ -277,6 +341,70 @@ describe('ContactInvitePage', () => {
     });
 });
 
+describe('ContactInvitePage — 국가 (ADR-0044)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockInvites = [];
+        mockIsGuest = false;
+        mockLinkedPhone = 'linked';
+        mockProfileAbsent = false;
+        findByPhone.mockReturnValue(undefined);
+        sendInviteMessage.mockResolvedValue('sms');
+        seedCountry();
+    });
+
+    afterEach(() => {
+        Object.defineProperty(window.navigator, 'language', { value: 'en-US', configurable: true });
+    });
+
+    it('고른 국가가 invite.create에 실리고, 이력은 E.164로 남는다 (S6)', async () => {
+        createInvite.mockResolvedValue({ id: 'invite-jp', deeplink: 'https://dou.chatic.io/s?code=jp' });
+
+        render(<ContactInvitePage />);
+        fireEvent.click(screen.getByLabelText('phoneInput.countrySheetTitle'));
+        fireEvent.click(screen.getByText('일본'));
+        fillForm('타로', '09012345678');
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        await waitFor(() =>
+            expect(createInvite).toHaveBeenCalledWith({ phone: '+819012345678', name: '타로', countryCode: 'JP' })
+        );
+        expect(findByPhone).toHaveBeenCalledWith('+819012345678');
+        expect(record).toHaveBeenCalledWith(expect.anything(), { phone: '+819012345678', name: '타로' });
+    });
+
+    it('국제 표기를 붙여넣으면 선택기가 따라간다 (S3)', () => {
+        render(<ContactInvitePage />);
+        fillForm('타로', '+819012345678');
+
+        expect(screen.getByPlaceholderText('contactInvite.phonePlaceholder')).toHaveValue('09012345678');
+        expect(screen.getByText('+81')).toBeInTheDocument();
+    });
+
+    it('국가를 정할 수 없으면 제출이 비활성이고, 에러 문구는 띄우지 않는다 (S4)', () => {
+        localStorage.clear();
+        Object.defineProperty(window.navigator, 'language', { value: 'en', configurable: true });
+
+        render(<ContactInvitePage />);
+        fillForm('홍길동', '01012345678');
+
+        expect(screen.getByText('contactInvite.submit').closest('button')).toBeDisabled();
+        expect(screen.queryByText('contactInvite.phoneInvalidFormat')).not.toBeInTheDocument();
+        expect(screen.getByText('phoneInput.countryPlaceholder')).toBeInTheDocument();
+    });
+
+    it('고른 국가에 맞지 않는 번호는 예전처럼 인라인 에러다', () => {
+        render(<ContactInvitePage />);
+        fireEvent.click(screen.getByLabelText('phoneInput.countrySheetTitle'));
+        fireEvent.click(screen.getByText('일본'));
+        fillForm('타로', '01012345678');
+        fireEvent.click(screen.getByText('contactInvite.submit'));
+
+        expect(screen.getByText('contactInvite.phoneInvalidFormat')).toBeInTheDocument();
+        expect(createInvite).not.toHaveBeenCalled();
+    });
+});
+
 describe('ContactInvitePage — 번호 연결 전제조건 게이트 (ADR-0042)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -286,6 +414,7 @@ describe('ContactInvitePage — 번호 연결 전제조건 게이트 (ADR-0042)'
         mockProfileAbsent = false;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
+        seedCountry();
     });
 
     it('번호가 없는 메인 유저도 폼 대신 유도 화면을 본다', () => {
@@ -345,6 +474,7 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
         mockProfileAbsent = false;
         findByPhone.mockReturnValue(undefined);
         sendInviteMessage.mockResolvedValue('sms');
+        seedCountry();
     });
 
     it('프로필이 없으면 폼도 CTA도 없이 생성 다이얼로그만 띄운다', () => {

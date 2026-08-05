@@ -18,16 +18,24 @@ import {
     type AccountLinkMode,
 } from '../../../hooks';
 import { useFormKeyboardFlow } from '../../../ui/hooks';
+import { CountrySelect } from '../../../ui/components/CountrySelect';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
+import {
+    isValidMobileNumber,
+    readInternationalInput,
+    rememberCountry,
+    resolveDefaultCountry,
+    toE164,
+    type PhoneCountry,
+} from '../../../utils/phoneNumber';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import { PlaceProfileCreateDialog } from '../../home/components/PlaceProfileCreateDialog';
-import { isValidKoreanPhone, normalizeKoreanPhone } from '../../channels/utils/koreanPhone';
 import { InviterVerifyPrompt } from '../components/InviterVerifyPrompt';
 import { ReinviteDialog } from '../components/ReinviteDialog';
-import { INVITE_REJECTED_STATE_SUPPORTED } from '../flags';
+import { useRetireInvite } from '../hooks/useRetireInvite';
 import { resolveReinviteVariant, type ReinviteVariant } from '../utils/inviteStatus';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
@@ -36,11 +44,24 @@ const NAME_MAX = 20;
 /** Raw entry is kept as typed so a bad format stays visible (Figma 3268-35795); digits drive logic. */
 const PHONE_INPUT_MAX = 20;
 
+/**
+ * One validated recipient. The packet and the local issuance log both want E.164 — `invite.create`
+ * because the backend's phone hasher only reads `countryCode` on a local (`0…`) number and silently
+ * ignores it once the string already starts with `+` (chatic-backend-api `asE164Phone`), so E.164 is
+ * the one form that is correct with or without a trustworthy `countryCode`; the log because it is
+ * keyed by E.164 so numbers from different countries cannot collide (ADR-0044 §6). `country` is kept
+ * only for the `countryCode` field, which the packet still accepts and costs nothing to send.
+ */
+interface IssueTarget {
+    country: PhoneCountry;
+    e164: string;
+}
+
 interface PendingReinvite {
     variant: ReinviteVariant;
     inviteId: string;
-    /** The normalized phone the form currently holds — reissuing resubmits with this. */
-    phone: string;
+    /** The recipient the form currently holds — reissuing resubmits with this. */
+    target: IssueTarget;
 }
 
 /**
@@ -63,6 +84,8 @@ export const ContactInvitePage = () => {
 
     const [name, setName] = useState('');
     const [phoneInput, setPhoneInput] = useState('');
+    // Last explicit pick, else the device locale's region, else nothing (ADR-0044 §4).
+    const [country, setCountry] = useState<PhoneCountry | null>(resolveDefaultCountry);
     const [phoneError, setPhoneError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingReinvite, setPendingReinvite] = useState<PendingReinvite | null>(null);
@@ -85,6 +108,7 @@ export const ContactInvitePage = () => {
     const gateVerifyMode: AccountLinkMode = isGuest ? 'login' : 'link';
     const { invites } = useRelayInvites();
     const { createInvite } = useRelayInviteMutations();
+    const { retire } = useRetireInvite();
     const { record, findByPhone } = useSentInviteLog();
     const { profile: myProfile } = useMyProfile();
     // Second gate, after the guest one (ADR-0041 decision 4). `undefined` while the read is in
@@ -98,34 +122,53 @@ export const ContactInvitePage = () => {
      */
     const showForm = !isGuest && !needsPhoneLink && isProfileAbsent === false;
 
-    const phoneDigits = phoneInput.replace(/\D/g, '');
-
     const handlePhoneChange = (value: string) => {
-        setPhoneInput(value.slice(0, PHONE_INPUT_MAX));
+        const next = value.slice(0, PHONE_INPUT_MAX);
+        // A pasted `+81…` declares its own country, so the picker follows it and the field is
+        // rewritten to the local form — the two never point at different countries.
+        const international = readInternationalInput(next);
+        if (international) {
+            setCountry(international.country);
+            rememberCountry(international.country);
+            setPhoneInput(international.national);
+        } else {
+            setPhoneInput(next);
+        }
         if (phoneError) setPhoneError('');
     };
 
-    /** Returns the normalized phone on success, or `null` after setting the inline error. */
-    const validatePhone = (): string | null => {
-        const normalized = normalizeKoreanPhone(phoneDigits);
-        if (!isValidKoreanPhone(normalized)) {
+    const handleCountryChange = (next: PhoneCountry) => {
+        setCountry(next);
+        rememberCountry(next);
+        if (phoneError) setPhoneError('');
+    };
+
+    /** Returns the validated recipient on success, or `null` after setting the inline error. */
+    const validatePhone = (): IssueTarget | null => {
+        if (!country || !isValidMobileNumber(phoneInput, country)) {
             setPhoneError(t('contactInvite.phoneInvalidFormat'));
             return null;
         }
-        return normalized;
+        return { country, e164: toE164(phoneInput, country) };
     };
 
     /** Issues (or re-issues) the invite, hands the deeplink to SMS/clipboard, then moves to the waiting screen. */
-    const finishIssue = async (phone: string, recipientName: string) => {
+    const finishIssue = async (target: IssueTarget, recipientName: string) => {
         setIsSubmitting(true);
         try {
-            const invite = await createInvite({ phone, name: recipientName });
+            const invite = await createInvite({
+                phone: target.e164,
+                name: recipientName,
+                countryCode: target.country,
+            });
             if (!invite.id) throw new Error('invite.create response is missing an id');
 
-            record(invite, { phone, name: recipientName });
+            record(invite, { phone: target.e164, name: recipientName });
 
             const body = composeInviteSmsBody(t, myProfile?.nick, invite.deeplink ?? '');
-            const channel = await sendInviteMessage(phone, body);
+            // E.164 for the composer: a bare local form only reaches the recipient when the sender's
+            // own carrier is in the same country, which is exactly what this feature stops assuming.
+            const channel = await sendInviteMessage(target.e164, body);
             toast({
                 title:
                     channel === 'sms'
@@ -165,28 +208,34 @@ export const ContactInvitePage = () => {
         if (isSubmitting) return;
         const trimmedName = name.trim();
         if (!trimmedName) return;
-        const normalizedPhone = validatePhone();
-        if (!normalizedPhone) return;
+        const target = validatePhone();
+        if (!target) return;
 
-        const priorEntry = findByPhone(normalizedPhone);
+        const priorEntry = findByPhone(target.e164);
         if (priorEntry) {
             const matched = invites.find(item => item.id === priorEntry.inviteId);
             setPendingReinvite({
-                variant: resolveReinviteVariant(matched?.state, INVITE_REJECTED_STATE_SUPPORTED),
+                variant: resolveReinviteVariant(matched?.state),
                 inviteId: priorEntry.inviteId,
-                phone: normalizedPhone,
+                target,
             });
             return;
         }
 
-        void finishIssue(normalizedPhone, trimmedName);
+        void finishIssue(target, trimmedName);
     };
 
-    const handleReissue = () => {
+    const handleReissue = async () => {
         if (!pendingReinvite) return;
-        const { phone } = pendingReinvite;
+        const { target, inviteId } = pendingReinvite;
         setPendingReinvite(null);
-        void finishIssue(phone, name.trim());
+        // Retire the prior invite before issuing a fresh code (ADR-0043 결정 5). Only the
+        // expired/declined variants reach this handler (pending only navigates to the waiting
+        // screen), so retiring never blocks the reissue: an expired link is already dead
+        // (best-effort server cancel tidies the list) and a rejected one is dismissed locally.
+        const prior = invites.find(item => item.id === inviteId);
+        if (prior) await retire(prior);
+        void finishIssue(target, name.trim());
     };
 
     const handleViewWaiting = () => {
@@ -196,7 +245,10 @@ export const ContactInvitePage = () => {
 
     // The counter is allowed to read "21/20" (Figma 3268-35795) rather than silently truncating.
     const nameError = name.length > NAME_MAX ? t('contactInvite.nameTooLong') : '';
-    const isSubmitDisabled = !name.trim() || !phoneDigits || isSubmitting || !!phoneError || !!nameError;
+    // `!country` joins the disabled conditions rather than the error ones: with no country there is
+    // nothing to validate the number against, and the user has not made a mistake (ADR-0044 §4).
+    const isSubmitDisabled =
+        !name.trim() || !phoneInput.trim() || !country || isSubmitting || !!phoneError || !!nameError;
 
     // ONE return with the sheet in a fixed child slot. Two returns would put it at a different index
     // per branch, and React reconciles by position — so the promotion (which flips `isGuest` as soon
@@ -258,6 +310,10 @@ export const ContactInvitePage = () => {
                             inputMode="numeric"
                             error={phoneError || undefined}
                             description={t('contactInvite.phoneHint')}
+                            // A prop, not a sibling: the single-return/fixed-child-slot rule below
+                            // is what keeps the verify sheet mounted, and the picker must not
+                            // become one more node whose index moves between branches.
+                            leading={<CountrySelect value={country} onChange={handleCountryChange} />}
                         />
                     </div>
                 </>
