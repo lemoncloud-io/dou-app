@@ -20,7 +20,11 @@ import {
 import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { CountrySelect } from '../../../ui/components/CountrySelect';
 import { PageHeader } from '../../../ui/components';
-import { KeyboardAwareLayout } from '../../../ui/layouts';
+// Concrete file, not the `ui/layouts` barrel: the barrel reaches UnifiedLayout -> home/hooks ->
+// useAddCloudFlow -> ... -> @chatic/assets, which jest cannot resolve (it lives at the repo root,
+// while the `@chatic/*` mapper points into `libs/`). Same reason ReportIssueDialog and
+// CreateChannelDialog already take the direct path.
+import { KeyboardAwareLayout } from '../../../ui/layouts/KeyboardAwareLayout';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
 import {
