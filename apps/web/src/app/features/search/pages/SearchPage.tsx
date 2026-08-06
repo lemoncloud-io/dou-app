@@ -37,16 +37,20 @@ export const SearchPage = () => {
         void goTo(ROUTES.home, { cid: cloud.id });
     };
 
+    // A place result switches to that place and lands on home — home renders the session's active
+    // place, so the switch IS the destination (ADR-0033).
     const openPlace = (place: (typeof results.places)[number]) => {
         submit(trimmed);
-        void goTo(ROUTES.place.detail(place.id), { cid: place.cid });
+        void goTo(ROUTES.home, { cid: place.cid, sid: place.id });
     };
 
     const openChannel = (channel: (typeof results.channels)[number]) => {
         submit(trimmed);
-        void goTo(ROUTES.channels.room(channel.id), { cid: channel.cid });
+        void goTo(ROUTES.channels.room(channel.id), { cid: channel.cid, sid: channel.sid });
     };
 
+    // A chat row carries no `sid` (CacheChatView has cid/channelId only) — the owning channel's
+    // place is supplied by the resolved search context, wired in the row-display step.
     const openMessage = (chat: (typeof results.messages)[number]) => {
         submit(trimmed);
         void goTo(`${ROUTES.channels.room(chat.channelId)}?chatNo=${chat.chatNo}`, { cid: chat.cid });
