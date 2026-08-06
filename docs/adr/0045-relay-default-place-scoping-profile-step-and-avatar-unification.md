@@ -88,7 +88,17 @@ nudge(ADR-0040), 초대 경로(ADR-0041) — 는 지금처럼 스킵 가능하�
 (부분 Supersede가 아니라 예외 추가 — 생성자는 자기 플레이스의 첫 멤버이므로 초대 수락자와
 같은 수준의 전제조건을 갖는 게 ADR-0041과 오히려 정합적이다).
 
-### 5. `useMyUser`를 relay 스코프로 고정한다
+### 5. `useMyUser`를 relay 스코프로 고정한다 — ❌ 되돌림 (2026-08-06)
+
+> 이 결정만 구현 후 철회했다. 의도한 규칙은 "계정 프로필은 항상 relay"가 아니라 **활성 세션을 따른다**
+> — 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면 릴레이 user 프로필. `user.update`도 양쪽
+> 서버에서 동작하며 활성 소켓이 닿는 쪽 레코드를 고치므로, 표시와 쓰기가 같이 활성 소켓을 따르면
+> 불일치 자체가 없다. `useMyUser`는 활성 컨텍스트 관찰로 복귀했고, 이를 위해 들어갔던 relay 값 보관·
+> `getRelaySessionUser`·`ProfileEditPage` 저장 게이트·`user.update` relay 핀은 모두 제거했다.
+> 경위: [relay-default-place-scoping.md](../../apps/web/docs/feature/place/relay-default-place-scoping.md) §6.
+> 나머지 결정(1~4·6)은 유효하다.
+
+아래는 철회된 원문이다.
 
 훅 자체를 relay(cid=`default`) 스코프 고정으로 바꾼다 — 캐시 읽기는 relay 스코프로 pin하고
 (기존 `withContext` / 컨텍스트 오버라이드 메커니즘 활용), 원격 fetch는 relay 연결일 때만

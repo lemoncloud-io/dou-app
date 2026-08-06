@@ -38,7 +38,7 @@
 - 플레이스 생성 플로우 마지막 스텝으로서의 프로필 생성(스킵 불가) — `useCreatePlaceFlow`
   오케스트레이션, `CreatePlaceDialog` 성공 신호, `PlaceProfileCreateDialog`의 `dismissible`
   패스스루.
-- `useMyUser`의 relay 고정(계정 프로필 표시).
+- ~~`useMyUser`의 relay 고정(계정 프로필 표시).~~ → **되돌림**, 아래 §6.
 
 **제외**
 
@@ -67,9 +67,9 @@
 4. **플레이스 이름/사진 수정이 다시 동작한다.** `PlaceInfoPage` 저장이 `id`(=`sid`)를 실어
    보내 백엔드 400(`@id is required`)이 해소되고, `updatePlace`의 낙관적 캐시 쓰기/롤백도
    같이 살아난다.
-5. **클라우드에 전환해도 MyPage 상단은 relay 프로필이다.** `useMyUser`가 relay 활성 중 관찰한
-   계정 프로필 값을 유지하고, 클라우드 활성 중에는 그 값(없으면 세션의 relay 시드)을 보여준다.
-   원격 fetch는 relay 활성일 때만 수행한다. `link$`(연동 계정)도 relay 값 기준으로 안정된다.
+5. ~~**클라우드에 전환해도 MyPage 상단은 relay 프로필이다.**~~ → **되돌림(2026-08-06).** 계정
+   프로필 표시는 **활성 세션을 따른다** — 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면
+   릴레이 user 프로필. 자세한 이유는 §6.
 
 ## 다이어그램
 
@@ -122,20 +122,14 @@ sequenceDiagram
     end
 ```
 
-### useMyUser relay 고정
+### 계정 프로필 표시 스코프 (되돌린 뒤)
 
 ```mermaid
 flowchart LR
-    subgraph relay["relay 활성 (cid='default')"]
-        OBS["user.observeItem(uid) 관찰"] --> HOLD[relay 프로필 홀더에 보관]
-        FETCH["getMyProfile() fetch"] --> OBS
-    end
-    subgraph cloud["클라우드 활성"]
-        HOLD --> SHOW[홀더 값 표시]
-        SEED["세션 relay 시드 (콜드 스타트 폴백)"] -.홀더 비었을 때.-> SHOW
-        NOFETCH[관찰·fetch 안 함]
-    end
-    SHOW --> MY["MyPage · ProfileEditPage · WithdrawalPage · useLinkedAccounts"]
+    ACT["활성 컨텍스트 (cid)"] --> OBS["user.observeItem(uid) 관찰 + getMyProfile() fetch"]
+    OBS --> MY["MyPage · ProfileEditPage · WithdrawalPage · useLinkedAccounts"]
+    R["릴레이 세션 → 릴레이 user 프로필"] -.-> ACT
+    C["클라우드 세션 → 그 클라우드의 user 프로필"] -.-> ACT
 ```
 
 ## 상세 구현
@@ -249,7 +243,28 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
   [ContactInvitePage.tsx:352-359](../../../src/app/features/invite/pages/ContactInvitePage.tsx)) —
   는 `dismissible`을 넘기지 않으므로 기본값 `true`로 현행 유지된다.
 
-### 6) `useMyUser` relay 고정 (ADR 결정 5) — ⚠️ ADR 메커니즘 편차
+### 6) `useMyUser` relay 고정 (ADR 결정 5) — ❌ 되돌림 (2026-08-06)
+
+**구현 후 되돌렸다.** 의도한 표시 규칙은 "계정 프로필은 항상 relay"가 아니라 **활성 세션을 따른다**였다
+— 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면 릴레이 user 프로필. `user.update`도 양쪽 서버에서
+동작하며 활성 소켓이 닿는 쪽 레코드를 고치므로, 표시와 쓰기가 함께 활성 소켓을 따르면 애초에 불일치가 없다.
+
+[useMyUser](../../../src/app/hooks/useMyUser.ts)는 다시 활성 컨텍스트의 user 캐시를 `observeItem(uid)`로
+관찰하고 `getMyProfile()`을 호출하는 원래 형태다. 함께 사라진 것:
+
+- 모듈 스코프 relay 값 보관(`heldRelayUser`)과 구독자 통지, `patchMyRelayUser`.
+- web-core의 `getRelaySessionUser`(relay 토큰 시드) — 이 용도 전용이라 죽은 코드가 됐다.
+- `ProfileEditPage`의 저장 비활성화 + 안내 문구(`profileEdit.relayOnlyNotice`).
+- 합성 루트의 `user.update` relay 핀과, 그에 딸린
+  [UserRepositoryV2](../../../../../libs/data/src/data/repositories-v2/UserRepositoryV2.ts)의 relay 스코프
+  캐시 가드.
+
+ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스텝, 아바타 통합)은 그대로 유효하다. 아래 조사
+기록은 남겨둔다 — "컨텍스트 오버라이드로는 물리 캐시 파티션을 바꿀 수 없다"는 사실은 여전히 참이고, 다음에
+비슷한 시도를 할 때 같은 곳을 다시 파지 않게 해준다.
+
+<details>
+<summary>당시 조사 기록 (되돌리기 전)</summary>
 
 **ADR이 지목한 "기존 withContext / 컨텍스트 오버라이드 메커니즘"은 이 용도에 쓸 수 없다.**
 조사 결과: 물리 캐시 파티션 키는 `${type}:${cid}:${uid}:${id}`로 어댑터가 **공유 컨텍스트
@@ -277,14 +292,19 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 - 원격 fetch를 relay 활성으로 게이트하므로 "클라우드 연결 중 relay 원격 fetch 불가" 제약
   (ADR 맥락 §제약)을 자연히 지킨다. 사용처 4곳(MyPage.tsx:29 · ProfileEditPage.tsx:21 ·
   WithdrawalPage.tsx:16 · useLinkedAccounts.ts:39)은 훅 시그니처가 그대로라 무변경.
-- **편집 정책 (2026-08-06 개정)**: 원래는 표시만 relay 고정이고 `updateProfile` 저장은 활성 소켓으로
-  나가서, 클라우드 활성 중 저장하면 클라우드 프로필이 바뀌고 화면에는 반영되지 않았다. 그래서 저장을
-  막고 안내 문구를 띄웠다. 이제 **저장도 relay 고정**이다 — 합성 루트가 `user.update`를 relay 슬롯에
-  바인딩하므로(invite·linkAccount와 동일 정책, [remoteFactory](../../../../../libs/app-runtime/src/data/factories/remoteFactory.ts))
-  클라우드 활성 중에도 계정 프로필이 편집된다. 비활성화·안내 문구(`profileEdit.relayOnlyNotice`)는 제거했다.
+- **편집 정책 (2026-08-06 개정)**: `user.update`는 **relay·cloud 양쪽 모두에서 동작**하고, 각각 그 서버의
+  user 레코드를 고친다. 원래는 표시만 relay 고정이고 저장은 활성 소켓으로 나갔으므로, 클라우드 활성 중
+  저장하면 **그 클라우드의 user 레코드**가 바뀌고 화면에는 아무 변화가 없었다. 그래서 저장을 막고 안내
+  문구를 띄웠다. 이제 **저장도 relay 고정**이다 — 서버 소유권 때문이 아니라(invite·linkAccount와 그 점이
+  다르다) 이 앱이 보여주고 편집하는 프로필이 relay user 프로필 하나뿐이기 때문이며, 합성 루트가
+  `user.update`를 relay 슬롯에 바인딩한다([remoteFactory](../../../../../libs/app-runtime/src/data/factories/remoteFactory.ts)).
+  비활성화·안내 문구(`profileEdit.relayOnlyNotice`)는 제거했다. 클라우드 쪽 user 레코드를 정말로 편집해야
+  하는 기능이 생기면 이 바인딩을 재사용하지 말고 그 메서드에 `route`를 노출한다(kind-scoped-routing.md S4).
   캐시 파티션은 여전히 활성 컨텍스트를 따르므로, 클라우드 활성 중 저장은
   [UserRepositoryV2](../../../../../libs/data/src/data/repositories-v2/UserRepositoryV2.ts)가 캐시를 건드리지
   않고(그 파티션의 클라우드 프로필을 덮어쓰지 않도록) 앱이 보관값(`patchMyRelayUser`)에 반영한다.
+
+</details>
 
 ## 검증 방법
 
@@ -306,9 +326,8 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
       전환만 실패 후 재시도 시 플레이스 재생성 없음.
     - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx)
       — `dismissible=false`면 닫기(X) 부재.
-    - [useMyUser.test.ts](../../../src/app/hooks/useMyUser.test.ts) — relay 활성 동작 현행 유지,
-      클라우드 활성 시 관찰·fetch 미호출 + 보관값 유지, 콜드 스타트 시 relay 시드 폴백, 계정이
-      바뀌면 이전 보관값 미사용.
+    - [useMyUser.test.ts](../../../src/app/hooks/useMyUser.test.ts) — 되돌린 뒤에는 활성 컨텍스트
+      관찰/fetch만 검증한다(relay 고정 케이스는 §6과 함께 제거).
     - `place.update`의 `id`는 `UpdatePlacePayload`의 필수 필드라 호출부 누락이 컴파일로
       강제되고, 리포지토리 정규화가 이중 방어한다.
 - **정적 검사**: 변경 파일 eslint 클린. `nx typecheck data`는 develop 선재 부채(chat reaction
@@ -316,7 +335,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 - **수동 확인(배포 QA)**: 클라우드 전환 상태에서 홈 목록에 기본플레이스 부재(첫 싱크 틱 후),
   플레이스 생성 → 프로필 오버레이 X 부재 → 저장 후 종료, 플레이스 이름/사진 수정 성공(400
   해소), MyPage 상단이 클라우드 전환과 무관하게 relay 프로필 유지, 클라우드 활성 중
-  ProfileEditPage 저장 가능(2026-08-06 개정 — relay 고정 write). (생성/오너 UI는 owner 클라우드 세션이 필요해 로컬
+  계정 프로필은 활성 세션을 따라 표시·편집(2026-08-06 되돌림). (생성/오너 UI는 owner 클라우드 세션이 필요해 로컬
   프리뷰 재현이 제한적 — place-channel-create.md와 동일 제약.)
 
 관련 문서 갱신(dev-4_doc-sync 대상): [place-channel-create.md](../home/place-channel-create.md)

@@ -99,7 +99,7 @@ mypage는 세 가지 프로필 편집 진입점을 가진다 — 구분 주의:
 | `ProfileEditPage`      | 계정(relay) 프로필 | `useUpdateProfile` |
 | `CloudProfileEditPage` | 클라우드 이름      | `useUpdateCloud`   |
 
-`ProfileEditPage`는 클라우드 활성 여부와 무관하게 항상 편집 가능하다 — 표시(`useMyUser`)도 쓰기(`user.update`)도 relay에 고정돼 있다([place/relay-default-place-scoping.md](../place/relay-default-place-scoping.md) §6).
+표시되는 계정 프로필은 **활성 세션을 따른다** — 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면 릴레이 user 프로필(`useMyUser`가 활성 컨텍스트의 user 캐시를 관찰한다). `user.update`도 양쪽 서버에서 동작하며 활성 소켓이 닿는 쪽 레코드를 고치므로 표시와 쓰기가 같은 스코프이고, `ProfileEditPage`는 세션 종류와 무관하게 항상 편집 가능하다. (한때 relay 고정으로 바꿨다가 되돌렸다 — [place/relay-default-place-scoping.md](../place/relay-default-place-scoping.md) §6.)
 
 `CloudProfileEditPage` 진입점(AccountInfoPage)은 **활성 클라우드를 소유했을 때만** 보인다 — `useUserPermissions().useCloudProfile`(비게스트 + 클라우드 세션 활성) 위에 [`useActiveCloudOwnership`](../../../src/app/hooks/useActiveCloudOwnership.ts)(relay 카탈로그 `view: 'mine'` 멤버십)을 얹는다. 화면 자체도 같은 훅으로 비소유자를 되돌려보내므로 행과 화면이 어긋날 수 없다.
 

@@ -19,9 +19,6 @@ export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useMyUser();
-    // No relay gate: the display is pinned to the RELAY (account) profile (ADR-0045) and so is the
-    // write — `user.update` is bound to the relay slot in the composition root — so an edit made
-    // while a cloud session is active still lands on, and shows up as, the account profile.
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 

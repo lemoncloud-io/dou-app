@@ -1,5 +1,5 @@
 import { cloudCore } from './core';
-import { getActiveSessionUser, getRelaySessionUser, rebuildSessionIdentity } from './contextStore';
+import { getActiveSessionUser, rebuildSessionIdentity } from './contextStore';
 import type {
     ActiveServerContext,
     CloudContext,
@@ -29,8 +29,6 @@ export const getActiveServerIdentityToken = (): string | null =>
 
 // The active session token's user fields — the synchronous seed for useProfileFacts.
 export { getActiveSessionUser };
-// The relay token's user fields regardless of the active server — the relay-pinned display seed.
-export { getRelaySessionUser };
 
 export const clearCloudSession = (): void => {
     cloudCore.clearSession();

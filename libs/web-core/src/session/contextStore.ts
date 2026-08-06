@@ -59,20 +59,6 @@ export const getActiveSessionUser = (): Record<string, unknown> | null => {
     return ((view as { $user?: Record<string, unknown> }).$user ?? view) as Record<string, unknown>;
 };
 
-/**
- * The RELAY token's user fields, regardless of which server is active — unlike
- * `getActiveSessionUser`, which prefers the cloud token while a cloud session is active. The seed
- * for relay-pinned account displays (useMyUser, ADR-0045) on a cold start with a cloud selected,
- * where the relay user cache was never observed this session. Same shape and Token-stripping rules
- * as `getActiveSessionUser`.
- */
-export const getRelaySessionUser = (): Record<string, unknown> | null => {
-    const token = relayCore.getRelayToken() ?? null;
-    if (!token) return null;
-    const { Token: _token, ...view } = token as unknown as Record<string, unknown> & { Token?: unknown };
-    return ((view as { $user?: Record<string, unknown> }).$user ?? view) as Record<string, unknown>;
-};
-
 const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
     // Pure state store: the uid (for cache observing) + session flags. Profile facts
     // (userRole/isGuest/userType/permissions/name) are tracked from the cached profile via

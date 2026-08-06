@@ -197,12 +197,8 @@ describe('UserRepositoryV2', () => {
         });
     });
 
-    // updateProfile writes the ACCOUNT profile, which the composition root pins to the relay slot;
-    // the cache partition still follows the active context, so only the relay scope may be touched.
-    const relayContext = { cid: 'default', sid: 'site-1', uid: 'me' };
-
     it('rolls back an optimistic profile patch when updateProfile fails', async () => {
-        const { repository, userRemoteDataSource, userLocalDataSource } = createRepository(undefined, relayContext);
+        const { repository, userRemoteDataSource, userLocalDataSource } = createRepository();
         userLocalDataSource.cacheRead.mockResolvedValue({ id: 'u1', name: 'Before' });
         userRemoteDataSource.updateProfile.mockRejectedValue(new Error('boom'));
 
@@ -211,24 +207,8 @@ describe('UserRepositoryV2', () => {
         // The rollback should restore the original cached user after the failed mutation.
         expect(userLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
             expect.objectContaining({ id: 'u1', name: 'Before' }),
-            relayContext
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-    });
-
-    it('leaves the cache untouched when the account profile is edited from a cloud scope', async () => {
-        // The active partition holds the CLOUD row for the same uid — writing relay data into it
-        // would overwrite that user's cloud profile. The caller reflects the result in app state.
-        const { repository, userRemoteDataSource, userLocalDataSource } = createRepository();
-        userRemoteDataSource.updateProfile.mockResolvedValue({ id: 'u1', name: 'After' });
-
-        await expect(repository.updateProfile({ userId: 'u1', name: 'After' } as any)).resolves.toEqual({
-            id: 'u1',
-            name: 'After',
-        });
-
-        expect(userRemoteDataSource.updateProfile).toHaveBeenCalled();
-        expect(userLocalDataSource.cacheWrite).not.toHaveBeenCalled();
-        expect(userLocalDataSource.cacheRead).not.toHaveBeenCalled();
     });
 
     it('passes invite helper calls straight to the remote datasource', async () => {
