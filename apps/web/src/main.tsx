@@ -5,6 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import '@lemoncloud/page-transition-core/styles.css';
 
 import { setupBridgeLogger } from '@chatic/bridges';
+import { configureDataRuntime } from '@chatic/app-runtime';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -15,6 +16,13 @@ import { initWebVitals } from './app/utils';
 // Wire log sinks before anything else logs: native WebView forwards to the
 // app (mirrored to the console in dev builds), plain web logs to the console.
 setupBridgeLogger({ consoleInNative: import.meta.env.DEV });
+
+// Repository policies must land before the data runtime is lazily created (first render):
+// the embedded `$site` of user.profile is persisted into the place cache only on the relay
+// scope, so a cloud partition never receives the default place row (ADR-0045).
+configureDataRuntime({
+    user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' },
+});
 
 // Boot/perf collectors first so buffered long tasks and the boot timeline
 // include everything from here on (surfaced in the debug overlay).

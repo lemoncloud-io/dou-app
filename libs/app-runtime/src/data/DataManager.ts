@@ -1,4 +1,4 @@
-import type { DataContext, DataContextProvider, DataRepositoriesV2 } from '@chatic/data';
+import type { DataContext, DataContextProvider, DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 import { DataContextHolder } from '@chatic/data';
 
 import { createLocalDataSources } from './factories/localFactory';
@@ -12,7 +12,7 @@ export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
     private readonly repositories: DataRepositoriesV2;
 
-    constructor(initialContext: DataContext = DEFAULT_CONTEXT) {
+    constructor(initialContext: DataContext = DEFAULT_CONTEXT, repositoryOptions?: DataRepositoriesV2Options) {
         this.contextHolder = new DataContextHolder(initialContext);
 
         const { remoteDataSources } = createRemoteDataSources();
@@ -35,6 +35,7 @@ export class DataManager implements IDataManager {
             remoteDataSources,
             localDataSources,
             contextProvider: socketAwareProvider,
+            options: repositoryOptions,
         });
     }
 

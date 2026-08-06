@@ -1,7 +1,11 @@
-import { UserRepositoryV2 } from './UserRepositoryV2';
+import { UserRepositoryV2, type UserRepositoryV2Options } from './UserRepositoryV2';
+import type { DataContext } from './types';
 
 describe('UserRepositoryV2', () => {
-    const createRepository = () => {
+    const createRepository = (
+        options?: UserRepositoryV2Options,
+        context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+    ) => {
         // User repository mixes cache writes and helper passthroughs, so keep each collaborator fully isolated.
         const userRemoteDataSource = {
             fetchUsers: jest.fn(),
@@ -42,7 +46,7 @@ describe('UserRepositoryV2', () => {
             cacheClear: jest.fn(),
         };
         const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+            getContext: () => context,
             setContext: () => undefined,
         };
 
@@ -52,7 +56,8 @@ describe('UserRepositoryV2', () => {
                 userLocalDataSource as any,
                 joinLocalDataSource as any,
                 placeLocalDataSource as any,
-                contextProvider
+                contextProvider,
+                options
             ),
             userRemoteDataSource,
             userLocalDataSource,
@@ -148,6 +153,48 @@ describe('UserRepositoryV2', () => {
         await repository.getMyProfile();
 
         expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
+    it('skips the embedded $site write when the injected predicate vetoes the context', async () => {
+        const relayOnly: UserRepositoryV2Options = {
+            persistEmbeddedSite: context => (context.cid ?? 'default') === 'default',
+        };
+        const { repository, userRemoteDataSource, userLocalDataSource, placeLocalDataSource } =
+            createRepository(relayOnly);
+        userRemoteDataSource.getMyProfile.mockResolvedValue({
+            user: { id: 'me', cid: 'cloud-a' },
+            site: { id: 'site-default', cid: 'cloud-a' },
+        });
+
+        await repository.getMyProfile();
+
+        // The cloud context is vetoed, so the default place never lands in the cloud partition —
+        // while the user write itself stays untouched (ADR-0045).
+        expect(userLocalDataSource.cacheWrite).toHaveBeenCalled();
+        expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
+    it('persists the embedded $site when the injected predicate approves the context', async () => {
+        const relayOnly: UserRepositoryV2Options = {
+            persistEmbeddedSite: context => (context.cid ?? 'default') === 'default',
+        };
+        const { repository, userRemoteDataSource, placeLocalDataSource } = createRepository(relayOnly, {
+            cid: 'default',
+            sid: 'site-1',
+            uid: 'me',
+        });
+        userRemoteDataSource.getMyProfile.mockResolvedValue({
+            user: { id: 'me', cid: 'default' },
+            site: { id: 'site-default', cid: 'default' },
+        });
+
+        await repository.getMyProfile();
+
+        expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'site-default' }), {
+            cid: 'default',
+            sid: 'site-1',
+            uid: 'me',
+        });
     });
 
     it('rolls back an optimistic profile patch when updateProfile fails', async () => {

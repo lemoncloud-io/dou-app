@@ -9,8 +9,18 @@ import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
 import { toDomainJoinFromUser } from '../domain';
 import type { IJoinLocalDataSourceV2, IPlaceLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IUserRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from './types';
+import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+
+export interface UserRepositoryV2Options {
+    /**
+     * Decides whether getMyProfile's embedded `$site` is persisted into the place cache for the
+     * given (request-time) context. Defaults to always persisting — the pre-ADR-0045 behavior —
+     * so apps that inject nothing (desktop-web) are unaffected. apps/web injects a relay-only
+     * predicate so a cloud partition never receives the default place row.
+     */
+    persistEmbeddedSite?: (context: DataContext) => boolean;
+}
 
 export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
@@ -37,7 +47,8 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
         private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
-        contextProvider: DataContextProvider
+        contextProvider: DataContextProvider,
+        private readonly options?: UserRepositoryV2Options
     ) {
         super(contextProvider);
     }
@@ -111,7 +122,9 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         await this.userLocalDataSource.cacheWrite(user, requestContext);
         // The profile embeds the current site ($site); persist it into the place cache so the active
         // site is present even before a full place list refresh. (Mirrors the embedded $join write.)
-        if (site) {
+        // The injected predicate can veto the write per context — apps/web restricts it to the relay
+        // scope so the default place never lands in a cloud partition (ADR-0045).
+        if (site && (this.options?.persistEmbeddedSite?.(requestContext) ?? true)) {
             await this.placeLocalDataSource.cacheWrite(site, requestContext);
         }
         return user;
