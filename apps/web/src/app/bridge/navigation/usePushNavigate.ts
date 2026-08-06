@@ -13,6 +13,7 @@ import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@c
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { resolvePushNavigation } from './resolvePushNavigation';
+import { resolveThreadTarget } from './resolveThreadTarget';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
@@ -73,6 +74,10 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
  * the first is still awaiting a cloud/site switch, which would interleave switches and
  * double-navigate. An in-flight guard processes one push entry at a time.
  *
+ * A push naming a specific chat (`chatId`) navigates in two legs — channel room, then the chat's
+ * thread if it turns out to be a reply. See `hopToThread`; a top-level message simply stops at the
+ * room, which is the common case.
+ *
  * Must be used within the router tree (relies on `useNavigate`).
  */
 export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
@@ -84,8 +89,9 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const { switchCloud } = useSwitchCloudSession();
     const { logoutCloudSession } = useLogoutCloudSession();
     const { switchSite } = useSiteSwitch();
-    // Cloud repository for invited-cloud recovery (see the switch block below).
-    const { cloud } = useRuntimeRepositories();
+    // Cloud repository for invited-cloud recovery (see the switch block below); chat for
+    // resolving whether a notified message is a thread reply (see `hopToThread`).
+    const { cloud, chat: chatRepository } = useRuntimeRepositories();
     // One push navigation is processed at a time; overlapping events are dropped (see below).
     const inFlightRef = useRef(false);
 
@@ -127,6 +133,46 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
         [navigate]
     );
 
+    /**
+     * Second leg of a push into a thread reply: having landed on the channel room, ask whether
+     * the notified chat is a reply and, if so, open its thread on top.
+     *
+     * Ordered after the room rather than instead of it, for three reasons. Back stays meaningful
+     * (thread → room → wherever the reader came from). The room's own load is what warms the chat
+     * cache this lookup reads. And an unresolvable chat degrades to a screen that is still right,
+     * instead of a thread page with no root.
+     *
+     * PUSHED deliberately, not routed through `navigateNormalized`: that helper REPLACES the
+     * current entry when it is a channel room, which is correct for the room-to-room hops it was
+     * written for and wrong here — it would drop the room we just placed underneath and send back
+     * to whatever preceded it.
+     *
+     * Silent on every failure. The reader is already on a screen that makes sense, so a missing
+     * chat, a cold cache with no socket, or a rejected fetch all mean "no hop" rather than an
+     * error to report. The location is re-checked first because the awaits above give the reader
+     * time to navigate away, and hijacking a screen they chose would be worse than no hop at all.
+     */
+    const hopToThread = useCallback(
+        async (chatId: string) => {
+            try {
+                if (!isChannelRoomPath(window.location.pathname)) return;
+                // Cache first: after a push the row is usually already synced, and this avoids a
+                // round trip. `getChat` is the cold-start path (cache miss / evicted history).
+                const cached = await chatRepository.cacheRead(chatId);
+                const target = resolveThreadTarget(cached ?? (await chatRepository.getChat({ id: chatId })), chatId);
+                if (!target || !isChannelRoomPath(window.location.pathname)) return;
+                logger.info('ROUTER', `Push points at a thread reply; opening thread: ${target}`);
+                navigate(target);
+            } catch (error) {
+                logger.info('ROUTER', 'Could not resolve a thread for the pushed chat; staying in the room', {
+                    data: { chatId },
+                    error,
+                });
+            }
+        },
+        [chatRepository, navigate]
+    );
+
     return useCallback(
         async (rawPath: string) => {
             // Drop overlapping push navigations: a duplicate/rapid second event arriving while the
@@ -138,8 +184,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             }
             inFlightRef.current = true;
 
-            const { target, cid, sid } = resolvePushNavigation(rawPath);
-            logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid });
+            const { target, cid, sid, chatId } = resolvePushNavigation(rawPath);
+            logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid, chatId });
 
             // Relay-origin push (`cid === '#'`): return to relay when a cloud is active; when relay
             // is already active there is nothing to switch — the sentinel must never hit switchCloud.
@@ -148,6 +194,17 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             const needsCloudSwitch = !!cid && !isRelayPush && cid !== selectedCloudId;
             const needsSiteSwitch = !!sid && sid !== selectedSiteId;
             const needsSwitch = needsRelayReturn || needsCloudSwitch || needsSiteSwitch;
+
+            /**
+             * Land on the resolved target, then take the thread leg when the push named a chat.
+             * Every exit below routes through this so a reply push opens its thread whichever way
+             * the switch went — including the best-effort paths, where the room still loads and the
+             * hop can still succeed off the cache.
+             */
+            const land = async () => {
+                navigateNormalized(target);
+                if (chatId) await hopToThread(chatId);
+            };
 
             try {
                 if (needsSwitch) {
@@ -159,7 +216,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                             cid,
                             sid,
                         });
-                        navigateNormalized(target);
+                        await land();
                         return;
                     }
                     // Native cold-DB eviction can drop an INVITED source cloud from the cache, so a
@@ -173,17 +230,18 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     if (cid && needsCloudSwitch) await switchCloud(cid);
                     if (sid && needsSiteSwitch) await switchSite(sid);
                 }
-                navigateNormalized(target);
+                await land();
             } catch (error) {
                 logger.error('ROUTER', `Failed to navigate to: ${target}`, { error });
                 // Best-effort: attempt the route anyway so a switch failure doesn't strand the user.
-                navigateNormalized(target);
+                await land();
             } finally {
                 inFlightRef.current = false;
             }
         },
         [
             navigateNormalized,
+            hopToThread,
             selectedCloudId,
             selectedSiteId,
             activeServer.kind,

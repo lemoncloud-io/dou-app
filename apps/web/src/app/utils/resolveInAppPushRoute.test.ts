@@ -64,6 +64,23 @@ describe('resolveInAppPushRoute', () => {
         expect(route).toBe('/channels/abc/room');
     });
 
+    // The spec nests chatId in `payload` alongside cid/sid. It rides the query so the shared
+    // downstream (resolvePushNavigation → usePushNavigate) can hop to a thread if it's a reply.
+    it('payload의 chatId를 쿼리로 실어 스레드 판정 재료를 넘긴다', () => {
+        const route = resolveInAppPushRoute({
+            link: '/channels/abc/room',
+            payload: JSON.stringify({ cid: 'cloud1', chatId: 'abc:42' }),
+        });
+
+        expect(route).toBe('/channels/abc/room?cid=cloud1&chatId=abc%3A42');
+    });
+
+    it('channelId 폴백에서도 chatId를 함께 싣는다', () => {
+        const route = resolveInAppPushRoute({ channelId: 'abc', chatId: 'abc:42' });
+
+        expect(route).toBe('/channels/abc/room?chatId=abc%3A42');
+    });
+
     it('라우팅 가능한 정보가 전혀 없으면 null을 반환한다', () => {
         expect(resolveInAppPushRoute({})).toBeNull();
         expect(resolveInAppPushRoute(undefined)).toBeNull();

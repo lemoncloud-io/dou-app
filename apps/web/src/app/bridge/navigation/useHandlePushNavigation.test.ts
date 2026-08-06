@@ -14,11 +14,16 @@ import { useHandlePushNavigation } from './useHandlePushNavigation';
 // isNativeApp must be present and falsy: an undefined stub throws inside the switch block, which
 // the best-effort catch swallows into a plain navigate — silently losing the cloud/site switch this
 // suite asserts on. The recovery itself is native-only, so it never runs here.
+const cacheRead = jest.fn();
+const getChat = jest.fn();
+
 jest.mock('@chatic/app-runtime', () => ({
     getSocketManager: jest.fn(),
     isNativeApp: jest.fn(() => false),
     recoverInvitedCloudIfMissing: jest.fn(),
-    useRuntimeRepositories: jest.fn(() => ({ cloud: {} })),
+    // `chat` backs the thread-hop leg (usePushNavigate.hopToThread); the mock functions are
+    // hoisted above this factory so the suite can drive them.
+    useRuntimeRepositories: jest.fn(() => ({ cloud: {}, chat: { cacheRead, getChat } })),
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('@chatic/web-core', () => ({
@@ -42,8 +47,8 @@ const unregister = jest.fn();
 type NavigationMessage = { data: { path: string; replace?: boolean } };
 let captured: ((message: NavigationMessage) => Promise<void>) | undefined;
 
-const setResolved = (value: { target: string; cid: string | null; sid: string | null }) =>
-    (resolvePushNavigation as jest.Mock).mockReturnValue(value);
+const setResolved = (value: { target: string; cid: string | null; sid: string | null; chatId?: string | null }) =>
+    (resolvePushNavigation as jest.Mock).mockReturnValue({ chatId: null, ...value });
 const setSelection = (selectedCloudId: string | null, selectedSiteId: string | null) =>
     (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
 // The relay-return branch reads the committed context kind, not the selection (see usePushNavigate).
@@ -411,6 +416,119 @@ describe('useHandlePushNavigation', () => {
             setResolved({ target: '/settings', cid: null, sid: null });
             await captured!({ data: { path: '/settings', replace: false } });
             expect(navigate).toHaveBeenCalledWith('/settings'); // not dropped → guard reset
+        });
+    });
+
+    // A reply raises a push of its own but is hidden from the main feed (ADR-0045), so a
+    // channel-level tap would show everything except the message that was notified. The fix is
+    // staged: land on the room, then hop to the thread only if the notified chat is a reply.
+    describe('스레드 답글 푸시 — 채널방 → 스레드 2단 이동', () => {
+        const REPLY = { id: 'C1:42', channelId: 'C1', chatNo: 42, parentId: '7' };
+        const ROOT = { id: 'C1:42', channelId: 'C1', chatNo: 42 };
+        const ROOM = '/channels/C1/room';
+
+        // The real router's navigate() writes to the History API synchronously, so
+        // window.location is already the room by the time the thread leg reads it. The shared
+        // navigate mock does not, so mirror that here — hopToThread guards on the live location.
+        beforeEach(() => {
+            navigate.mockImplementation((target: unknown) => {
+                if (typeof target === 'string') window.history.replaceState({}, '', target);
+            });
+        });
+
+        afterEach(() => {
+            navigate.mockReset();
+            cacheRead.mockReset();
+            getChat.mockReset();
+        });
+
+        it('답글 푸시는 채널방을 먼저 열고 그 위에 스레드를 push한다', async () => {
+            cacheRead.mockResolvedValue(REPLY);
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            // The thread leg must PUSH, not replace: routing it through navigateNormalized would
+            // replace the room (its room-to-room rule) and send "back" past the channel to home.
+            expect(navigate.mock.calls).toEqual([[ROOM], ['/channels/C1/thread/7']]);
+        });
+
+        // The room leg behaves differently depending on where the reader was, but the back stack
+        // must come out the same in every case: back from the thread lands on the channel.
+        it('다른 방에 있었으면 그 방을 대체하고 스레드를 올린다 (뒤로가기 → 대상 채널방)', async () => {
+            setCurrentPath('/channels/OTHER/room');
+            cacheRead.mockResolvedValue(REPLY);
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            // Room leg replaces the disposable peer room; the thread leg still pushes on top of it.
+            expect(navigate.mock.calls).toEqual([[ROOM, { replace: true }], ['/channels/C1/thread/7']]);
+        });
+
+        it('이미 그 방에 있었으면 방 이동을 건너뛰고 스레드만 올린다 (뒤로가기 → 그 방)', async () => {
+            setCurrentPath(ROOM);
+            cacheRead.mockResolvedValue(REPLY);
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            // Re-navigating to the screen already shown would remount it; the room is already the
+            // current history entry, so pushing the thread on top still leaves back pointing at it.
+            expect(navigate.mock.calls).toEqual([['/channels/C1/thread/7']]);
+        });
+
+        it('최상위 메시지 푸시는 채널방에서 멈춘다', async () => {
+            cacheRead.mockResolvedValue(ROOT);
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            expect(navigate.mock.calls).toEqual([[ROOM]]);
+        });
+
+        it('캐시에 없으면 getChat으로 조회해 스레드를 판정한다', async () => {
+            cacheRead.mockResolvedValue(null);
+            getChat.mockResolvedValue(REPLY);
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            expect(getChat).toHaveBeenCalledWith({ id: 'C1:42' });
+            expect(navigate).toHaveBeenLastCalledWith('/channels/C1/thread/7');
+        });
+
+        // Offline / cold cache: the reader is already on a screen that makes sense.
+        it('조회가 실패하면 채널방에 그대로 머문다', async () => {
+            cacheRead.mockRejectedValue(new Error('offline'));
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            expect(navigate.mock.calls).toEqual([[ROOM]]);
+        });
+
+        it('chatId가 없는 푸시는 조회 자체를 하지 않는다', async () => {
+            setResolved({ target: ROOM, cid: null, sid: null });
+
+            await invoke();
+
+            expect(cacheRead).not.toHaveBeenCalled();
+            expect(navigate.mock.calls).toEqual([[ROOM]]);
+        });
+
+        // The lookup is awaited, which gives the reader time to move on. Hijacking a screen they
+        // chose would be worse than skipping the hop.
+        it('조회 중 사용자가 방을 떠났으면 스레드로 끌고 가지 않는다', async () => {
+            cacheRead.mockImplementation(async () => {
+                window.history.replaceState({}, '', '/mypage');
+                return REPLY;
+            });
+            setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
+
+            await invoke();
+
+            expect(navigate.mock.calls).toEqual([[ROOM]]);
         });
     });
 });
