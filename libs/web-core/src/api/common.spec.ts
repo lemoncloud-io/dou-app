@@ -21,13 +21,13 @@ jest.mock('@chatic/bridges', () => ({
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { webTransport } from '../transport';
 import { isNative, logBuffer } from '@chatic/bridges';
-import { reportError } from './common';
+import { reportError, reportIssue } from './common';
 
 const execute = jest.fn().mockResolvedValue(undefined);
 const setBody = jest.fn(() => ({ execute }));
 
 /** Grab the SlackReportBody handed to the transport, with the payload JSON parsed. */
-const lastReport = (): { title: string; silent: boolean; save: boolean; payload: any } => {
+const lastReport = (): { title: string; silent: boolean; save: boolean; stereo: string; payload: any } => {
     const body = setBody.mock.calls.at(-1)?.[0];
     return { ...body, payload: JSON.parse(body.message) };
 };
@@ -98,5 +98,21 @@ describe('reportError — 리포트 조립', () => {
         await reportError(err);
         await reportError(err);
         expect(execute).toHaveBeenCalledTimes(1);
+    });
+
+    // 에러/이슈가 같은 엔드포인트를 쓰므로 stereo가 서버측 구분의 유일한 단서다.
+    // 이 값이 admin 조회의 `?type=` 필터 기준이라 회귀하면 종류별 조회가 깨진다.
+    it('에러 리포트는 stereo를 log로 보낸다', async () => {
+        await reportError(new Error('q1 stereo error'));
+        expect(lastReport().stereo).toBe('log');
+    });
+});
+
+describe('reportIssue — 사용자 이슈 리포트', () => {
+    it('이슈 리포트는 stereo를 issue로 보내 에러와 갈라 저장한다', async () => {
+        await reportIssue('제목', '본문');
+        const report = lastReport();
+        expect(report.stereo).toBe('issue');
+        expect(report.title).toBe('[web] issue: 제목');
     });
 });

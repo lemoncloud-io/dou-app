@@ -1,6 +1,7 @@
 import { LogOut, Moon, Sun } from 'lucide-react';
 
-import { useSessionIdentity, useSessionLogout } from '@chatic/web-core';
+import { useSessionProfile } from '@chatic/app-runtime';
+import { useSessionLogout } from '@chatic/web-core';
 
 import type { Theme } from '../../hooks/use-theme';
 import { ACCENT, hexToRgba } from '../../lib/stats';
@@ -12,7 +13,9 @@ export interface SidebarProps {
 }
 
 export default function Sidebar({ endpoint, theme, onToggleTheme }: SidebarProps) {
-    const identity = useSessionIdentity();
+    // Reactive display name, incl. profile-cache updates (a name edit fans out); the session
+    // identity layer (`useSessionIdentity`) carries only ids/flags, not display fields.
+    const { userName } = useSessionProfile();
     const logout = useSessionLogout();
 
     return (
@@ -95,7 +98,7 @@ export default function Sidebar({ endpoint, theme, onToggleTheme }: SidebarProps
                             textOverflow: 'ellipsis',
                         }}
                     >
-                        {identity.userName || 'Admin'}
+                        {userName === 'Unknown' ? 'Admin' : userName}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                         <button
