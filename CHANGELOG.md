@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-08-06] - root@0.49.0, @chatic/web@0.42.0
+
+### Features
+
+- (web/search) give place results their photo and the place placeholder
+- (web/search) name the sender of a chat result, with their photo and date
+- (web/search) say which cloud is being searched
+- (web/search) show place, channel and chat results with their real context
+- (data) read a search result's surrounding rows across clouds
+- (web/search) switch the place, not just the cloud, when opening a result
+- (web/channels) jump to a message by chatNo from search
+- (web) add local global search page
+- (app-runtime) wire global cache search into the cache storage strategies
+- (data) add cross-cloud global cache search source
+
+### Bug Fixes
+
+- (web/search) load a chat author's profile instead of only reading cache
+- (web/search) a chat sender is their place profile, not their account nick
+- (web/search) name a chat result's sender the way the room does
+- (web/channels) reach a jump target through the cache instead of paging for it
+- (web/search) scope the scan to the active cloud, keep results on the way back
+- (data) resolve MY read cursor, not a co-member's, for search unread counts
+- (web/channels) stop the bottom pin from overwriting a message jump
+- (web/search) stop the search effect re-running itself into a flicker loop
+- (web/bridge) return to relay on relay-origin push taps instead of switching to '#'
+- (web) handle a rejected global cache search instead of going silent
+
+### Documentation
+
+- (adr) add push relay/cloud crossover routing ADR and spec
+- (adr) add local global search ADR and specs
+
+### Refactor
+
+- (search) drop the account-cache fallback for a chat sender
+
+### Chores
+
+- (web/search) log why a chat sender's profile went unresolved
+
 ## [2026-08-05] - root@0.48.3, @chatic/web@0.41.2
 
 ### Features
