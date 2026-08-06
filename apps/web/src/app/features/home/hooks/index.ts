@@ -4,6 +4,7 @@ export * from './useCachedCloudNames';
 export * from './useChannelUnreads';
 export * from './useCloudPromo';
 export * from './useCreatePlace';
+export * from './useCreatePlaceFlow';
 export * from './useHomeChannels';
 export * from './useHomePlaces';
 export * from './useInvitedClouds';

@@ -80,6 +80,32 @@ describe('CreatePlaceDialog', () => {
         await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     });
 
+    it('생성과 전환이 모두 성공하면 onCreated에 생성된 플레이스를 전달한다', async () => {
+        createPlaceMock.mockResolvedValue({ id: 'site-1', name: '책모임' });
+        switchSiteMock.mockResolvedValue(undefined);
+        const onCreated = jest.fn();
+        render(<CreatePlaceDialog open onOpenChange={jest.fn()} onCreated={onCreated} />);
+
+        type('책모임');
+        fireEvent.click(done());
+
+        await waitFor(() => expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'site-1' })));
+    });
+
+    it('전환이 실패하면 onCreated를 호출하지 않는다 (프로필이 이전 스코프에 쓰이는 사고 방지)', async () => {
+        createPlaceMock.mockResolvedValue({ id: 'site-1' });
+        switchSiteMock.mockRejectedValue(new Error('switch failed'));
+        const onOpenChange = jest.fn();
+        const onCreated = jest.fn();
+        render(<CreatePlaceDialog open onOpenChange={onOpenChange} onCreated={onCreated} />);
+
+        type('책모임');
+        fireEvent.click(done());
+
+        await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+        expect(onCreated).not.toHaveBeenCalled();
+    });
+
     it('입력이 없으면 닫기 시 바로 닫는다', () => {
         const onOpenChange = jest.fn();
         render(<CreatePlaceDialog open onOpenChange={onOpenChange} />);

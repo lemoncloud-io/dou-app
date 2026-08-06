@@ -67,6 +67,7 @@ const useSwitchPlace = jest.fn(() => ({ selectedPlaceId: 'site-1', switchPlace: 
 jest.mock('../hooks', () => ({
     useActiveCloudChannels: () => [],
     useAddCloudFlow: () => ({ requestAddCloud: jest.fn(), addCloudDialog: null }),
+    useCreatePlaceFlow: () => ({ openCreatePlace: jest.fn(), createPlaceFlow: null }),
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
     useHomeChannels: () => ({ channels: [], isLoading: false }),

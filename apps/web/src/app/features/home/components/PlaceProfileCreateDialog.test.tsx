@@ -98,4 +98,10 @@ describe('PlaceProfileCreateDialog', () => {
         expect(screen.queryByRole('button', { name: 'placeProfileCreate.exitLeave' })).not.toBeInTheDocument();
         expect(onExit).toHaveBeenCalledTimes(1);
     });
+
+    it('dismissible=false면 닫기(X) 버튼이 없다 — 생성 플로우의 필수 스텝 (ADR-0045)', () => {
+        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={noop} dismissible={false} />);
+
+        expect(screen.queryByRole('button', { name: 'placeProfileCreate.close' })).not.toBeInTheDocument();
+    });
 });

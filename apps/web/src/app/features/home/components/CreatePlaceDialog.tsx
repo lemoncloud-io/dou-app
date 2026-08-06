@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { resizeImageToBase64 } from '@chatic/shared';
+import type { DomainPlace } from '@chatic/data';
 
 import {
     AlertDialog,
@@ -33,6 +34,13 @@ interface Notice {
 interface CreatePlaceDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    /**
+     * Fired only when BOTH the create and the site switch succeeded, i.e. the active context is
+     * the new place — so a follow-up step (the mandatory profile create, ADR-0045) can safely
+     * write to it. Not fired on a switch failure: a profile saved then would land in the
+     * pre-switch scope.
+     */
+    onCreated?: (place: DomainPlace) => void;
 }
 
 /**
@@ -41,7 +49,7 @@ interface CreatePlaceDialogProps {
  * re-renders on the new place. Built on @chatic/web-ui-kit; shares its layout with
  * CreateChannelDialog. Owner/limit gating lives in the caller (HomePage). See place-channel-create.md.
  */
-export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps) => {
+export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlaceDialogProps) => {
     const { t } = useTranslation();
     const { createPlace } = useCreatePlace();
     const { switchSite } = useSiteSwitch();
@@ -103,12 +111,15 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
             const created = await createPlace({ name: trimmed, thumbnail: thumbnail || undefined });
             // Navigate into the new place. The place already exists on the server, so a switch
             // failure is non-fatal — log it and still close; the user can pick it from the list.
+            let switched = true;
             try {
                 await switchSite(created.id);
             } catch (error) {
+                switched = false;
                 logger.error('PLACE', 'Failed to switch to created place', { error });
             }
             onOpenChange(false);
+            if (switched) onCreated?.(created);
         } catch (error) {
             logger.error('PLACE', 'Failed to create place', { error });
             setNotice({ variant: 'error', message: t('createPlace.saveError') });
