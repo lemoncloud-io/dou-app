@@ -29,6 +29,8 @@ Repository 계층에 `LocalDataSource`를 주입하여, 원격 서버 응답 및
 
 - **Context 속성**: `cid`(cloudId), `sid`(placeId), `uid`(userId). (`sid`는 Web 환경의 `cloudCore`에서 주입)
 - **유니크 키 (Unique Key)**: 모든 캐싱 데이터는 단일 ID가 아닌 **`(cid, uid, 고유ID)`**의 조합으로 식별 및 격리되어야 합니다.
+- **읽기는 활성 컨텍스트에 갇힙니다**: Repository/LocalDataSource의 조회는 호출 시점의 활성 `cid` 파티션만 봅니다. 다른 클라우드의 행을 읽어야 하는 경우(전역 검색과 그 결과 행의 컨텍스트)는 이 계층이 아니라 **읽기 전용 별도 경로**를 씁니다 → [[global-cache-search]](./global-cache-search.md). `cacheRead`/`cacheReadList`의 컨텍스트 오버라이드는 cid 오버라이드가 아니므로 이 용도로 쓸 수 없습니다.
+- **행의 `uid`는 캐시 소유자입니다**: 행 주인이 아닙니다. 예를 들어 채널의 다른 멤버 join 행도 내 `uid` 파티션에 저장되므로(읽음 확인용), 내 것만 골라야 할 때는 `join.userId`로 한 번 더 걸러야 합니다.
 
 ### 3.2 캐싱 운용 옵션 (`RepositoryOptions`)
 

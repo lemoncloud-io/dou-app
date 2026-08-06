@@ -52,8 +52,9 @@ export interface IIndexedDB {
 
     /**
      * 인덱스를 활용하여 매칭되는 모든 아이템들을 로드합니다.
+     * `key`로 IDBKeyRange를 넘기면 범위 스캔(예: type만 고정하고 cid 전체를 훑는 전역 검색)이 가능합니다.
      */
-    loadAll<TType extends CacheType>(indexName: string, key: IDBValidKey): Promise<IndexedDbRow<TType>[]>;
+    loadAll<TType extends CacheType>(indexName: string, key: IDBValidKey | IDBKeyRange): Promise<IndexedDbRow<TType>[]>;
 
     /**
      * 커서를 활용하여 최적화된 페이징 쿼리를 수행합니다.

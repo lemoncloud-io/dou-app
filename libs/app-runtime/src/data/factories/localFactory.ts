@@ -1,5 +1,5 @@
 import type { CacheType } from '@chatic/app-messages';
-import type { DataContextProvider } from '@chatic/data';
+import type { DataContextProvider, IGlobalCacheSearchSource } from '@chatic/data';
 import {
     type CacheErrorReporter,
     type CacheStorage,
@@ -89,6 +89,8 @@ export const getCacheStorage = <TType extends CacheType>(
     HOT_ONLY_CACHE_TYPES.has(type)
         ? getHotStrategy().create(type, contextProvider)
         : selectStrategy().create(type, contextProvider);
+
+export const getGlobalCacheSearchSource = (): IGlobalCacheSearchSource => selectStrategy().createGlobalSearchSource();
 
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.

@@ -47,6 +47,9 @@ export const DEFAULT_CHANNEL_SORT: ChannelSortMethod = 'recent';
 /** How long a dismissed cloud-promo banner stays hidden before it is shown again (24h, ADR-0034). */
 export const CLOUD_PROMO_DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Max recent search keywords retained, most-recent first (see setRecentSearches). */
+export const MAX_RECENT_SEARCHES = 10;
+
 /**
  * Scope key for the per-place client preferences (channel sort, pinned channels).
  *
@@ -149,6 +152,15 @@ export const PREFERENCES = {
         strategy: 'local',
         localKey: 'chatic-cloud-promo-dismissed-at',
         defaultValue: '',
+    },
+    // Recent search keywords, JSON array (most-recent first, capped at MAX_RECENT_SEARCHES).
+    // Client-only like channelSort/pinnedChannels (no server sync) — 'local'. A WebView cache
+    // wipe only resets the recent-search list, which doesn't warrant adding this key to the
+    // mobile app's SavePreference bridge allowlist (usePreferenceCacheHandler.ts).
+    recentSearches: {
+        strategy: 'local',
+        localKey: 'chatic-recent-searches',
+        defaultValue: '[]',
     },
     // -----------------------------------------------------------------------
     // Owned by i18next / useBackHandler — registered here for reference

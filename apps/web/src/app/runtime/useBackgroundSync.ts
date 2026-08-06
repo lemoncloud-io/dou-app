@@ -69,7 +69,7 @@ export const useBackgroundSync = (): void => {
             }),
 
             // Channel delta sync — channel.sync spans the whole cloud, so the cursor is keyed by cid.
-            // Each channel is stored tagged with its own sid, so this is correct across site switches.
+            // Each channel is stored tagged with its own sid, sgeo this is correct across site switches.
             (async () => {
                 try {
                     const channelSyncKind = `channel-sync:${cid}`;

@@ -125,7 +125,10 @@ export class IndexedDBDatabase implements IIndexedDB {
         return this.readOperation<IndexedDbRow<TType> | undefined>(store => store.get(key));
     }
 
-    async loadAll<TType extends CacheType>(indexName: string, key: IDBValidKey): Promise<IndexedDbRow<TType>[]> {
+    async loadAll<TType extends CacheType>(
+        indexName: string,
+        key: IDBValidKey | IDBKeyRange
+    ): Promise<IndexedDbRow<TType>[]> {
         return this.readOperation<IndexedDbRow<TType>[]>(store => {
             const index = store.index(indexName);
             return index.getAll(key);

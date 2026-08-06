@@ -168,3 +168,66 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 3, limit: 50 });
     });
 });
+
+describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
+    const lastObserveLimit = () => chatObserveList.mock.calls[chatObserveList.mock.calls.length - 1][0].limit;
+
+    it('캐시된 과거 메시지를 창 안으로 들이고, 서버를 부르지 않는다', async () => {
+        // 창(100)보다 훨씬 뒤에 있는 chatNo 로 점프. 서버 페이징은 한 번에 50행씩이라
+        // 예산(8페이지) 안에 닿지 못했던 거리다.
+        seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        let grew = false;
+        act(() => {
+            grew = result.current.loadUntil(500);
+        });
+
+        expect(grew).toBe(true);
+        await waitFor(() => expect(lastObserveLimit()).toBe(1000 - 500 + 20));
+        expect(chatRefreshList).not.toHaveBeenCalled();
+    });
+
+    it('창이 이미 그만큼 넓으면 확장하지 않는다 — 호출자는 서버 페이징으로 넘어간다', () => {
+        seedChats([chat({ id: 'newest', chatNo: 120, ownerId: 'u1', createdAtMs: 1000 })]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        const before = lastObserveLimit();
+
+        let grew = true;
+        act(() => {
+            grew = result.current.loadUntil(110);
+        });
+
+        expect(grew).toBe(false);
+        expect(lastObserveLimit()).toBe(before);
+    });
+
+    it('이미 보이는 메시지나 잘못된 번호에는 반응하지 않는다', () => {
+        seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        act(() => {
+            expect(result.current.loadUntil(1000)).toBe(false);
+            expect(result.current.loadUntil(0)).toBe(false);
+        });
+    });
+
+    it('확장된 창이 "대화 시작 도달" 판정을 흔들지 않는다', async () => {
+        // 캐시에 1행뿐이라 창을 크게 넓히면 chats.length < pageLimit 가 참이 되어버린다 —
+        // 점프용 확장은 pageLimit 이 아닌 별도 축이어야 한다.
+        seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 1 }));
+        const before = result.current.isThreadStartLoaded;
+
+        act(() => {
+            result.current.loadUntil(500);
+        });
+
+        await waitFor(() => expect(lastObserveLimit()).toBeGreaterThan(1));
+        expect(result.current.isThreadStartLoaded).toBe(before);
+    });
+});

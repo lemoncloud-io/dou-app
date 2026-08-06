@@ -12,9 +12,12 @@ import {
     DefaultPolicyResolver,
     DynamicCacheStorage,
     type EvictionStrategy,
+    type IGlobalCacheSearchSource,
     IndexedDBAdapter,
     IndexedDBDatabase,
+    IndexedDbGlobalSearchSource,
     NativeDBAdapter,
+    NativeGlobalSearchSource,
     type PolicyResolver,
 } from '@chatic/data';
 
@@ -23,6 +26,12 @@ import {
  */
 export interface CacheStorageStrategy {
     create<TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType>;
+
+    /**
+     * 클라우드(cid) 불문 전역 캐시 검색 소스를 생성합니다. 환경별로 구현체는 다르지만
+     * (IndexedDB 범위 스캔 vs 네이티브 브리지) 기대 동작은 동일해야 합니다(ADR-0033).
+     */
+    createGlobalSearchSource(): IGlobalCacheSearchSource;
 }
 
 // ─── 공유 IndexedDB 인스턴스 ─────────────────────────────────────────
@@ -131,6 +140,10 @@ export class IndexedDbOnlyCacheStorageStrategy implements CacheStorageStrategy {
     create<TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType> {
         return createIndexedDBAdapter(type, contextProvider, this.maxChatsPerChannel);
     }
+
+    createGlobalSearchSource(): IGlobalCacheSearchSource {
+        return new IndexedDbGlobalSearchSource(getSharedDatabase());
+    }
 }
 
 /**
@@ -141,6 +154,10 @@ export class NativeDbOnlyCacheStorageStrategy implements CacheStorageStrategy {
 
     create<TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType> {
         return new NativeDBAdapter(this.bridge, type, contextProvider);
+    }
+
+    createGlobalSearchSource(): IGlobalCacheSearchSource {
+        return new NativeGlobalSearchSource(this.bridge);
     }
 }
 
@@ -192,5 +209,11 @@ export class HotColdCacheStorageStrategy implements CacheStorageStrategy {
         });
 
         return dcs;
+    }
+
+    createGlobalSearchSource(): IGlobalCacheSearchSource {
+        // Cold(SQLite)가 source of truth이므로 검색도 Cold를 대상으로 한다 —
+        // Hot(IndexedDB)은 파생 캐시라 검색 대상에서 제외.
+        return new NativeGlobalSearchSource(this.bridge);
     }
 }

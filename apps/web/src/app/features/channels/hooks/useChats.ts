@@ -13,6 +13,10 @@ import { useForegroundChatRefresh } from './useForegroundChatRefresh';
 // older history the window must grow to re-include the freshly cached page.
 const LOAD_MORE_SIZE = 50;
 
+// Extra rows kept around a jump target so it lands with context above it rather than flush at the
+// very edge of the window.
+const JUMP_WINDOW_PADDING = 20;
+
 interface UseChatsParams {
     channelId: string;
     limit: number;
@@ -50,11 +54,18 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     const [isError, setIsError] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const [pageLimit, setPageLimit] = useState(limit);
+    // A jump widens the window on its own axis. Kept separate from `pageLimit` so it cannot disturb
+    // `isThreadStartLoaded`, which reads "the cache could not fill the page" as "nothing older".
+    const [jumpLimit, setJumpLimit] = useState(0);
+    const observeLimit = Math.max(pageLimit, jumpLimit);
 
     // Latest chats snapshot for loadMore — keeps the callback identity stable (a `chats`/`messages`
     // dependency would rebuild loadMore on every live message append, re-attaching scroll listeners).
     const chatsRef = useRef<DomainChat[]>(chats);
     chatsRef.current = chats;
+    // Read inside loadUntil without making it depend on (and churn with) the window size.
+    const observeLimitRef = useRef(observeLimit);
+    observeLimitRef.current = observeLimit;
 
     // Reset paging/scroll guards on channel change or window-size change — treat it as a fresh entry.
     useEffect(() => {
@@ -62,16 +73,17 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
         setIsLoading(true);
         setHasMore(true);
         setPageLimit(limit);
+        setJumpLimit(0);
     }, [channelId, limit]);
 
     // Widening pageLimit re-subscribes and re-reads cached older pages into view.
     useEffect(() => {
         if (!channelId) return;
-        return chatRepository.observeList({ channelId, limit: pageLimit }, result => {
+        return chatRepository.observeList({ channelId, limit: observeLimit }, result => {
             setChats(result?.list ?? []);
             setIsLoading(false);
         });
-    }, [chatRepository, channelId, pageLimit]);
+    }, [chatRepository, channelId, observeLimit]);
 
     // Member identity for owner-name fallback (best-effort; cache stream persists).
     useEffect(() => {
@@ -143,6 +155,34 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
         }
     }, [chatRepository, channelId, isLoadingMore, hasMore]);
 
+    /**
+     * Widens the observe window so a cached message at `targetNo` comes into view — the jump path
+     * (useMessageJump). This reads the CACHE only: `loadMore` fetches one 50-row page from the
+     * server per call, so reaching a message a few hundred rows back took more round trips than the
+     * jump budget allows, and the jump gave up on a message that was sitting in the cache all along.
+     *
+     * Returns true when the window actually grew, i.e. it is worth waiting for the re-render.
+     * False means the window already covers that far back, so the row genuinely isn't cached and
+     * the caller should fall back to paging.
+     */
+    const loadUntil = useCallback((targetNo: number): boolean => {
+        if (!Number.isFinite(targetNo) || targetNo <= 0) return false;
+
+        let newestNo = 0;
+        for (const chat of chatsRef.current) {
+            if (chat.chatNo != null && chat.chatNo > newestNo) newestNo = chat.chatNo;
+        }
+        if (newestNo <= targetNo) return false;
+
+        // chatNo is one sequence over user + system messages, so its distance is an upper bound on
+        // the rows in between — an over-estimate only shows more cached rows, never fewer.
+        const needed = newestNo - targetNo + JUMP_WINDOW_PADDING;
+        if (needed <= observeLimitRef.current) return false;
+
+        setJumpLimit(needed);
+        return true;
+    }, []);
+
     return {
         messages,
         isLoading,
@@ -162,5 +202,6 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
          */
         isThreadStartLoaded: !hasMore || chats.length < pageLimit,
         loadMore,
+        loadUntil,
     };
 };
