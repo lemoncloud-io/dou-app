@@ -435,7 +435,9 @@
         "selfChannel": "나와의 채팅",
         "createChat": "채팅 만들기",
         "createDirect": "1:1 대화",
-        "createGroup": "그룹 방 만들기"
+        "createGroup": "그룹 방 만들기",
+        "pinned": "고정된 채팅방",
+        "muted": "알림 꺼짐"
     },
     "channelManage": {
         "title": "채팅방 관리",
@@ -919,7 +921,9 @@
         "searchPlaceholder": "친구 검색",
         "invite": "초대하기",
         "deselectAll": "전체 선택 해제",
+        "done": "완료",
         "sendLink": "초대 링크 보내기",
+        "openContactSettings": "연락처 권한 설정",
         "limitToast": "{{max}}명 까지 초대 가능해요",
         "noSearchResults": "검색 결과가 없습니다.",
         "linkCopied": "링크 복사가 완료되었습니다.",
@@ -927,15 +931,20 @@
         "shareTitle": "채팅에 초대합니다",
         "shareMessage": "이 링크를 통해 채팅에 참여하세요!",
         "batchSuccess": "{{count}}명에게 초대를 보냈습니다",
-        "inviteSelected": "초대하기 ({{count}}명)",
         "batchFailed": "초대 전송에 실패했습니다",
+        "smsMessage": "{{senderName}}님이 DoU 대화방에 초대했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
+        "defaultSenderName": "친구",
+        "sentSms": "문자 작성 화면으로 이동했어요",
+        "sentClipboard": "초대 링크를 클립보드에 복사했어요",
+        "sentFailed": "초대는 만들어졌지만 링크를 전달하지 못했어요",
         "webGuide": {
             "title": "초대 링크로 친구를 초대해 보세요",
             "description": "이름과 전화번호를 입력하면 초대 링크가 만들어져요. 링크를 공유해 친구를 대화에 초대할 수 있어요."
         },
         "permissionDenied": {
             "title": "연락처 접근 허용이 꺼져 있어요",
-            "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다."
+            "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다.",
+            "action": "설정에서 연락처 허용하기"
         }
     },
     "inviteLink": {

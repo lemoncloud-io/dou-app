@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { getBootSnapshot, type BootSnapshot } from '../../metrics/bootMarks';
-import { getVitals, type VitalSample } from '../../metrics/webVitalsStore';
+import { getVitals, type VitalSample } from '../../../../utils/webVitalsStore';
 
 const ms = (value: number | undefined | null) => (value != null ? `${value} ms` : null);
 

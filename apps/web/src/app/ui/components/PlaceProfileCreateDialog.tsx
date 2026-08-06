@@ -1,7 +1,5 @@
 import { useTranslation } from 'react-i18next';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-
 import type { PlaceProfileExitCopy } from './PlaceProfileForm';
 import { PlaceProfileFormDialog } from './PlaceProfileFormDialog';
 
@@ -19,6 +17,14 @@ interface PlaceProfileCreateDialogProps {
      * so a user who backs out there is simply not inviting/accepting.
      */
     exit?: PlaceProfileExitCopy;
+    /**
+     * When false, the X button and esc/overlay dismissal are removed — the mandatory final step of
+     * the place-create flow (ADR-0045). Defaults to true; the nudge (ADR-0040) and invite
+     * (ADR-0041) entry points stay skippable by omitting it.
+     */
+    dismissible?: boolean;
+    /** Persists the profile. Supplied by the caller (see `useSetMyPlaceProfile`). */
+    onSubmit: (value: { nick: string; thumbnail?: string }) => Promise<void>;
 }
 
 /**
@@ -28,12 +34,20 @@ interface PlaceProfileCreateDialogProps {
  * ProfileRepositoryV2.setMyProfile.
  *
  * Opened where a missing profile actually blocks something useful: the room-settings nudge on my own
- * member row (ADR-0040) and the invite paths (ADR-0041). It is never mandatory — the app works
- * without a place profile (ADR-0039 dropped the last forced step).
+ * member row (ADR-0040), the invite paths (ADR-0041), and — as the one mandatory entry
+ * (`dismissible={false}`) — the final step of the place-create flow, where the creator is the
+ * place's first member (ADR-0045's deliberate exception to ADR-0039's "no forced profile step").
  */
-export const PlaceProfileCreateDialog = ({ open, placeName, onDone, onExit, exit }: PlaceProfileCreateDialogProps) => {
+export const PlaceProfileCreateDialog = ({
+    open,
+    placeName,
+    onDone,
+    onExit,
+    exit,
+    dismissible,
+    onSubmit,
+}: PlaceProfileCreateDialogProps) => {
     const { t } = useTranslation();
-    const { profile: profileRepository } = useRuntimeRepositories();
 
     return (
         <PlaceProfileFormDialog
@@ -51,12 +65,8 @@ export const PlaceProfileCreateDialog = ({ open, placeName, onDone, onExit, exit
             photoOptional={t('placeProfileCreate.photoOptional')}
             closeLabel={t('placeProfileCreate.close')}
             exit={exit}
-            // Block body, not a concise arrow: setMyProfile resolves to the saved profile, and
-            // onSubmit is typed Promise<void>. Awaiting here discards the value instead of widening
-            // the form's contract.
-            onSubmit={async ({ nick, thumbnail }) => {
-                await profileRepository.setMyProfile({ nick, thumbnail });
-            }}
+            dismissible={dismissible}
+            onSubmit={onSubmit}
             onDone={onDone}
             onExit={onExit}
         />

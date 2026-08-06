@@ -10,7 +10,7 @@ import {
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification } from '../bridge';
-import { extractPushContext } from '../features/notifications';
+import { extractPushContext } from '../utils/resolveInAppPushRoute';
 
 /**
  * Keeps invited clouds durable against cold-DB loss. Mounted once under AppRuntime.

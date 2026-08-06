@@ -7,8 +7,8 @@ import { FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField } from '@ch
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-// Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
-// which jest cannot resolve, breaking every test that renders this dialog.
+// Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
+// `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useChannel, useChannelMutations, useJoinMutations } from '../hooks';
 

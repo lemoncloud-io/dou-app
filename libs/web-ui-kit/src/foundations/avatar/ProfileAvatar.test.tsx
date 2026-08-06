@@ -33,31 +33,48 @@ describe('ProfileAvatar', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('renders the single-person glyph by default', () => {
-        const { container } = render(<ProfileAvatar />);
+    // The empty state is Figma's "1명 Profile" (3177-13120): the hand-authored solid silhouette on a
+    // brand-ink circle, rendered at the avatar's full size so its 42×42 viewBox lands
+    // circle-relative. It is NOT the grey lucide outline this component used to draw.
+    it('renders the solid single-person silhouette on a brand-ink circle by default', () => {
+        const { container } = render(<ProfileAvatar size={86} />);
 
-        expect(container.querySelector('.lucide-user')).toBeInTheDocument();
-        expect(container.querySelector('.lucide-users')).not.toBeInTheDocument();
+        const glyph = container.querySelector('svg');
+        expect(glyph).toHaveAttribute('viewBox', '0 0 42 42');
+        expect(glyph).toHaveAttribute('width', '86');
+        expect(container.querySelector('.bg-brand-ink')).toBeInTheDocument();
+        expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
     });
 
-    // The group placeholder is the hand-authored IconGroup (not lucide), on a solid brand-ink
-    // circle — so it is identified by that treatment rather than by a lucide class.
-    it('renders the group glyph on a brand-ink circle when glyph="group"', () => {
-        const { container } = render(<ProfileAvatar glyph="group" />);
+    // The group placeholder is the hand-authored IconGroup, inset rather than full-bleed.
+    it('renders the group glyph inset on the same brand-ink circle when glyph="group"', () => {
+        const { container } = render(<ProfileAvatar size={86} glyph="group" />);
 
         expect(container.querySelector('.bg-brand-ink')).toBeInTheDocument();
-        expect(container.querySelector('svg')).toBeInTheDocument();
+        expect(container.querySelector('svg')).toHaveAttribute('width', '48');
         expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
     });
 
-    it('shows defaultImage instead of the user glyph, and never for the group glyph', () => {
+    // A place is a space, not a person, so its placeholder is the illustration rather than a glyph
+    // (Figma 3408-27419). It paints its own circle, hence an <img> and no inline svg.
+    it('renders the place illustration when glyph="place"', () => {
         // Queried by selector, not by role: the default empty alt makes the image presentational.
-        const { container, rerender } = render(<ProfileAvatar defaultImage="http://example.com/place.svg" />);
-        expect(container.querySelector('img')).toHaveAttribute('src', 'http://example.com/place.svg');
-        expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
+        const { container } = render(<ProfileAvatar glyph="place" />);
 
-        // glyph="group" wins over defaultImage.
-        rerender(<ProfileAvatar glyph="group" defaultImage="http://example.com/place.svg" />);
-        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(container.querySelector('img')).toBeInTheDocument();
+        expect(container.querySelector('svg')).not.toBeInTheDocument();
+    });
+
+    it('a real photo wins over every placeholder', () => {
+        const { container } = render(<ProfileAvatar glyph="place" src="http://example.com/turtle.png" />);
+
+        expect(container.querySelector('img')).toHaveAttribute('src', 'http://example.com/turtle.png');
+    });
+
+    // Every placeholder this component can show is dark, so the badge is light-on-dark.
+    it('renders the select badge light against the dark avatar', () => {
+        const { container } = render(<ProfileAvatar onSelect={jest.fn()} />);
+
+        expect(container.querySelector('.bg-muted')).toBeInTheDocument();
     });
 });

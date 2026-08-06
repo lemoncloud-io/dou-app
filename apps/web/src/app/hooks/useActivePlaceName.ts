@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionSelection } from '@chatic/web-core';
 
-import { type PlaceNameSource, resolvePlaceDisplayName } from '../features/home/lib';
+import { type PlaceNameSource, resolvePlaceDisplayName } from '../utils/resolvePlaceDisplayName';
 
 /**
  * Display name of the ACTIVE place (site), observed from PlaceRepositoryV2 by the

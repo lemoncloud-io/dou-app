@@ -5,13 +5,15 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { ChatAvatar, DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
+import { DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { useActivePlaceName } from '../../../hooks';
-import { PlaceProfileCreateDialog, PlaceProfileEditDialog } from '../../home/components';
+import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
+import { PlaceProfileEditDialog } from '../components/PlaceProfileEditDialog';
+import { useSetMyPlaceProfile } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -28,6 +30,7 @@ import {
     useJoinMutations,
     useMyJoin,
 } from '../hooks';
+import { resolveChannelAvatar } from '../lib';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'profileCreate' | 'joinNick' | null;
@@ -41,6 +44,7 @@ interface SelectedMember {
 export const ChannelSettingsPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
@@ -185,20 +189,20 @@ export const ChannelSettingsPage = () => {
     // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
 
-    // DM always shows the peer avatar (matching the room header) — channel.thumbnail is ignored for
-    // DM. Otherwise: channel thumbnail → self glyph → group placeholder.
-    const roomAvatar = isDmChat ? (
-        dmPeer?.thumbnail ? (
-            <ImageAvatar src={dmPeer.thumbnail} alt={roomTitle} size={40} />
-        ) : (
-            <DefaultAvatar size={40} variant="user" />
-        )
-    ) : channel?.thumbnail ? (
-        <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
-    ) : isSelfChat ? (
-        <DefaultAvatar size={40} />
+    // One shared rule with the room header and the home list (resolveChannelAvatar): self → MY
+    // place-profile photo, DM → the peer's, else the channel photo. Both self and DM ignore
+    // channel.thumbnail. The same rule picks the placeholder glyph — a group room without a photo is
+    // the navy circle with the two-person glyph (Figma 3164-12515), NOT the chat-bubble placeholder
+    // this screen used to draw.
+    const { src: roomAvatarSrc, glyph } = resolveChannelAvatar({
+        channel: channel ?? {},
+        myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
+        peerThumbnail: dmPeer?.thumbnail,
+    });
+    const roomAvatar = roomAvatarSrc ? (
+        <ImageAvatar src={roomAvatarSrc} alt={roomTitle} size={40} />
     ) : (
-        <ChatAvatar size="sm" />
+        <DefaultAvatar size={40} variant={glyph} />
     );
 
     // Member rows — shared by the group section and the self-chat "방 친구" section
@@ -385,6 +389,7 @@ export const ChannelSettingsPage = () => {
                 half-typed name still gets the unsaved-changes guard — unlike the invite paths, backing
                 out here costs nothing, so there is no reason to leave silently (ADR-0040 / ADR-0041). */}
             <PlaceProfileCreateDialog
+                onSubmit={setMyPlaceProfile}
                 open={activeDialog === 'profileCreate'}
                 placeName={activePlaceName}
                 onDone={closeDialog}

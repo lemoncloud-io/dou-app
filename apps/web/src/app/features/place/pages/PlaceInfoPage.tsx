@@ -104,6 +104,7 @@ export const PlaceInfoPage = () => {
         if (!canSubmit || !placeId) return;
         try {
             await updatePlace({
+                id: placeId,
                 sid: placeId,
                 name,
                 ...(isImageDirty && { thumbnail: imageUrl }),
@@ -145,7 +146,7 @@ export const PlaceInfoPage = () => {
                 <div className="flex flex-col items-center gap-4 px-[18px]">
                     <ProfileAvatar
                         src={imageUrl || undefined}
-                        glyph="group"
+                        glyph="place"
                         onSelect={handleImageClick}
                         selectLabel={t('placeInfo.changeImage')}
                     />

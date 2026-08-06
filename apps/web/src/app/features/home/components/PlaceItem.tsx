@@ -5,7 +5,7 @@ import type { DomainPlace } from '@chatic/data';
 
 import { ImageAvatar, ListRow, PlaceAvatar, VerifiedBadge } from '@chatic/web-ui-kit';
 
-import { resolvePlaceDisplayName } from '../lib';
+import { resolvePlaceDisplayName } from '../../../utils';
 
 interface PlaceItemProps {
     place: DomainPlace;

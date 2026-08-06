@@ -435,7 +435,9 @@
         "selfChannel": "Self Chat",
         "createChat": "Create Chat",
         "createDirect": "1:1 Chat",
-        "createGroup": "Create Group"
+        "createGroup": "Create Group",
+        "pinned": "Pinned chat",
+        "muted": "Notifications off"
     },
     "channelManage": {
         "title": "Manage chats",
@@ -919,7 +921,9 @@
         "searchPlaceholder": "Search friends",
         "invite": "Invite",
         "deselectAll": "Deselect all",
+        "done": "Done",
         "sendLink": "Send invite link",
+        "openContactSettings": "Contacts permission settings",
         "limitToast": "You can invite up to {{max}} people",
         "noSearchResults": "No results found.",
         "linkCopied": "Link copied to clipboard.",
@@ -927,15 +931,20 @@
         "shareTitle": "Join my chat",
         "shareMessage": "Click this link to join the chat!",
         "batchSuccess": "Invitation sent to {{count}} people",
-        "inviteSelected": "Invite ({{count}})",
         "batchFailed": "Failed to send invitations",
+        "smsMessage": "{{senderName}} invited you to a DoU chat! Tap the link below to join.\n{{deeplink}}",
+        "defaultSenderName": "A friend",
+        "sentSms": "Opened your messaging app",
+        "sentClipboard": "Invite link copied to the clipboard",
+        "sentFailed": "The invite was created, but the link could not be handed off",
         "webGuide": {
             "title": "Invite friends with an invite link",
             "description": "Enter a name and phone number to generate an invite link. Share the link to invite friends to the conversation."
         },
         "permissionDenied": {
             "title": "Contacts access is turned off",
-            "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure."
+            "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure.",
+            "action": "Allow contacts in Settings"
         }
     },
     "inviteLink": {

@@ -2,7 +2,7 @@ import { useRef } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { VERIFICATION_CODE_LENGTH } from '../constants';
+import { VERIFICATION_CODE_LENGTH } from '../../utils';
 
 interface VerificationCodeInputProps {
     value: string;

@@ -42,14 +42,17 @@ jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.tit
 jest.mock('../../../hooks', () => ({
     useActivePlaceName: () => 'MyPlace',
     useMyProfile: () => myProfileValue,
+    useSetMyPlaceProfile: () => jest.fn(),
 }));
 let placeSettingsProps: any;
 let placeCreateProps: any;
-jest.mock('../../home/components', () => ({
+jest.mock('../components/PlaceProfileEditDialog', () => ({
     PlaceProfileEditDialog: (p: any) => {
         placeSettingsProps = p;
         return <div data-testid="profile-settings" data-open={String(p.open)} />;
     },
+}));
+jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: (p: any) => {
         placeCreateProps = p;
         return <div data-testid="profile-create" data-open={String(p.open)} />;
@@ -83,7 +86,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     Divider: () => <hr />,
     ChatAvatar: () => <div data-testid="chat-avatar" />,
-    DefaultAvatar: () => <div data-testid="default-avatar" />,
+    DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
 }));
 

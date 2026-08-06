@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
-import { PlaceProfileForm } from '../../home/components';
+import { PlaceProfileForm } from '../../../ui/components/PlaceProfileForm';
 import { useMyProfile, usePlaceProfileAbsent } from '../../../hooks';
 import { PageHeader } from '../../../ui';
 

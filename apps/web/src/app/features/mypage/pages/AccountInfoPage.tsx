@@ -5,13 +5,18 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
-import { useUserPermissions } from '../../../hooks';
+import { useActiveCloudOwnership, useUserPermissions } from '../../../hooks';
 import { AccountLinkSection } from '../components';
 
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const permissions = useUserPermissions();
+    // The cloud-entity editor is owner-only and bounces everyone else, so the row is hidden unless
+    // the active cloud is a live session the user owns — `useCloudProfile` alone only says a cloud
+    // session is up, which is also true on an INVITED cloud. Ownership resolves from the relay
+    // catalog, so the row simply stays hidden while that fetch is in flight.
+    const { isOwner: isCloudOwner } = useActiveCloudOwnership();
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
@@ -30,7 +35,7 @@ export const AccountInfoPage = () => {
                         </span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    {permissions.useCloudProfile && (
+                    {permissions.useCloudProfile && isCloudOwner && (
                         <button
                             onClick={() => navigate(ROUTES.mypage.account.cloudProfile)}
                             className="flex w-full items-center justify-between py-3 pl-4 pr-3"

@@ -82,12 +82,49 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     }
 
     public async refreshList(query?: UserMySiteInput): Promise<void> {
+        await this.syncListSnapshot(query);
+    }
+
+    /**
+     * Pulls the server place snapshot and reconciles the local cache against it: server order is
+     * stamped as `order`, and rows the server no longer returns are pruned (mirrors the
+     * ChannelRepositoryV2.refreshList idiom). `protectedId` shields a just-created place whose row
+     * may not have propagated into the list response yet.
+     */
+    private async syncListSnapshot(query?: UserMySiteInput, protectedId?: string): Promise<void> {
         const requestContext = this.getRequestContext();
+        // The socket that answers `user.mysite` may still serve the OUTGOING cloud during a
+        // switch (cache cid already flipped). Writing or pruning under the new cid would poison
+        // the target partition, so skip when the socket's bound cloud differs from the active cid.
+        const rawContext = this.getRepositoryContext();
+        if (rawContext.socketCid != null && (requestContext.cid || 'default') !== rawContext.socketCid) {
+            return;
+        }
         const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeRemoteDataSource.fetchPlace(query, normalizedContext);
         // Preserve the server-provided ordering by stamping the list index as `order`.
-        const domainList = (remote.list || []).map((item, index) => ({ ...item, order: index }));
+        const domainList = (remote.list || [])
+            .filter(item => !!item.id)
+            .map((item, index) => ({ ...item, order: index }));
+        // Nothing usable came back — leave the cache entirely alone. Right after a switch the
+        // session may not be ready and answer empty; writing or pruning against that would wipe
+        // the real rows. A genuinely empty account settles on a later response.
+        if (domainList.length === 0) return;
         await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
+
+        // The server snapshot is authoritative for this scope: prune cached rows it no longer
+        // lists (e.g. the embedded-$site default place written into a cloud partition, ADR-0045).
+        // Only a full snapshot (no query) may prune — a filtered response proves nothing about
+        // the rows it omits.
+        if (query != null) return;
+        const serverIds = new Set(domainList.map(item => item.id));
+        const localResult = await this.placeLocalDataSource.cacheReadList(undefined, requestContext);
+        const staleIds = (localResult?.list || [])
+            .map(item => item.id)
+            .filter((id): id is string => !!id && !serverIds.has(id) && id !== protectedId);
+        if (staleIds.length > 0) {
+            await this.placeLocalDataSource.cacheDeleteMany(staleIds, requestContext);
+        }
     }
 
     public async createPlace(payload: PlaceCreateInput): Promise<DomainPlace> {
@@ -95,6 +132,15 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
         const normalizedContext = this.getNormalizedContext(requestContext);
         const domain = await this.placeRemoteDataSource.createPlace(payload, normalizedContext);
         await this.placeLocalDataSource.cacheWrite(domain, requestContext);
+        // Follow up with the server snapshot so the list lands ordered (`order` stamps only come
+        // from the list response) — inside the repository so every caller benefits. The place
+        // already exists on the server, so a failed snapshot must not fail the create; the next
+        // background-sync tick converges the list instead.
+        try {
+            await this.syncListSnapshot(undefined, domain.id);
+        } catch {
+            // best-effort
+        }
         return domain;
     }
 
@@ -107,15 +153,19 @@ export class PlaceRepositoryV2 extends BaseRepositoryV2 implements IPlaceReposit
     }
 
     public async updatePlace(payload: PlaceUpdateInput): Promise<DomainPlace> {
-        const id = (payload as { id?: string }).id;
+        // place.update requires `@id`, and a place's id IS its sid — normalize sid-only payloads
+        // so the remote call succeeds and the optimistic write/rollback below stays engaged.
+        const { id: rawId, sid } = payload as { id?: string; sid?: string };
+        const id = rawId || sid;
+        const normalized = (!rawId && sid ? { ...(payload as object), id: sid } : payload) as PlaceUpdateInput;
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const existing = id ? await this.placeLocalDataSource.cacheRead(id, requestContext) : null;
         if (id) {
-            await this.placeLocalDataSource.cacheWrite({ id, ...(payload as Partial<DomainPlace>) }, requestContext);
+            await this.placeLocalDataSource.cacheWrite({ id, ...(normalized as Partial<DomainPlace>) }, requestContext);
         }
         try {
-            const domain = await this.placeRemoteDataSource.updatePlace(payload, normalizedContext);
+            const domain = await this.placeRemoteDataSource.updatePlace(normalized, normalizedContext);
             await this.placeLocalDataSource.cacheWrite(domain, requestContext);
             return domain;
         } catch (error) {

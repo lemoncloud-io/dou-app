@@ -1,6 +1,6 @@
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../../home/hooks';
+import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../../../hooks';
 import { readCloudUnreadSnapshot, sumSnapshot } from '../../../home/lib';
 
 // Unread inspector: observes the active cloud's full channel list and shows the same aggregates the

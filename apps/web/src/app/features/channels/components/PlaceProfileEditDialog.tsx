@@ -1,10 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useMyProfile, useSetMyPlaceProfile } from '../../../hooks';
 
-import { useMyProfile } from '../../../hooks';
-
-import { PlaceProfileFormDialog } from './PlaceProfileFormDialog';
+import { PlaceProfileFormDialog } from '../../../ui/components/PlaceProfileFormDialog';
 
 interface PlaceProfileEditDialogProps {
     /** Controls visibility (owned by the caller). */
@@ -23,8 +21,8 @@ interface PlaceProfileEditDialogProps {
  */
 export const PlaceProfileEditDialog = ({ open, placeName, onClose }: PlaceProfileEditDialogProps) => {
     const { t } = useTranslation();
-    const { profile: profileRepository } = useRuntimeRepositories();
     const { profile: myProfile } = useMyProfile();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
 
     return (
         <PlaceProfileFormDialog
@@ -48,12 +46,7 @@ export const PlaceProfileEditDialog = ({ open, placeName, onClose }: PlaceProfil
                 leaveLabel: t('placeProfileEdit.exitLeave'),
                 continueLabel: t('placeProfileEdit.exitContinue'),
             }}
-            // Block body, not a concise arrow: setMyProfile resolves to the saved profile, and
-            // onSubmit is typed Promise<void>. Awaiting here discards the value instead of widening
-            // the form's contract.
-            onSubmit={async ({ nick, thumbnail }) => {
-                await profileRepository.setMyProfile({ nick, thumbnail });
-            }}
+            onSubmit={setMyPlaceProfile}
             onDone={onClose}
             onExit={onClose}
         />

@@ -1,7 +1,7 @@
 import type { DomainPlace } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
-interface CreatePlaceInput {
+export interface CreatePlaceInput {
     name: string;
     /** Optional profile image (base64). place.create accepts `thumbnail` on its body. */
     thumbnail?: string;

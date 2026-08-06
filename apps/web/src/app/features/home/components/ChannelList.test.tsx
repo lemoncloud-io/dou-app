@@ -10,11 +10,14 @@ jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
-jest.mock('../hooks/useLastChat', () => ({ useLastChat: () => null }));
+jest.mock('../../../hooks/useLastChat', () => ({ useLastChat: () => null }));
 
-// My profile nick is the self-chat title fallback (resolved once by ChannelList).
-// resolveSelfChatTitle is the real pure fn (unit-tested separately).
-jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: 'MY_NICK' } }) }));
+// My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
+// (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real
+// pure fns (unit-tested separately).
+jest.mock('../../../hooks', () => ({
+    useMyProfile: () => ({ profile: { nick: 'MY_NICK', thumbnail: 'my-photo.png' } }),
+}));
 
 // The list-level DM peer lookup (one profile subscription for every DM row) is covered by
 // useDmPeers.test.ts; here we inject its result so rows can be driven without the runtime.
@@ -31,15 +34,16 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
 jest.mock('@chatic/web-ui-kit', () => ({
     Badge: ({ children }: any) => <span>{children}</span>,
     CollapsibleSection: ({ children }: any) => <section>{children}</section>,
-    DefaultAvatar: () => <div data-testid="default-avatar" />,
+    DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     IconBolt: () => <i />,
     IconPlus: () => <i />,
     ImageAvatar: ({ src }: any) => <img alt="" src={src} data-testid="image-avatar" />,
-    ListRow: ({ leading, title, subtitle, onClick }: any) => (
+    ListRow: ({ leading, title, subtitle, trailing, onClick }: any) => (
         <div onClick={onClick}>
             <div data-testid="row-leading">{leading}</div>
             <div data-testid="row-title">{title}</div>
             <div>{subtitle}</div>
+            <div data-testid="row-trailing">{trailing}</div>
         </div>
     ),
     PlanBadge: () => <span>PRO</span>,
@@ -338,5 +342,131 @@ describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
         render(<ChannelList channels={[]} unreadByChannel={{}} isLoading={false} />);
 
         expect(screen.getByText('channelList.empty')).toBeInTheDocument();
+    });
+});
+
+describe('ChannelList 아바타', () => {
+    it('self 행은 내 플레이스 프로필 사진을 쓴다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'my-photo.png');
+    });
+
+    it('self 행은 channel.thumbnail이 있어도 내 프로필 사진을 쓴다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', thumbnail: 'room.png' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'my-photo.png');
+    });
+
+    it('그룹 행은 내 프로필 사진이 아니라 channel.thumbnail을 쓴다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '스터디방', thumbnail: 'room.png' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'room.png');
+    });
+
+    it('사진 없는 그룹 행은 2인 글리프를 쓴다 (1인 기본값이 아니라 — Figma 3164-12515)', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '스터디방' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('default-avatar')).toHaveAttribute('data-variant', 'group');
+    });
+
+    it('사진 없는 dm 행은 1인 글리프를 쓴다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'd1', stereo: 'dm', memberNo: 2, name: '' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('default-avatar')).toHaveAttribute('data-variant', 'user');
+    });
+});
+
+describe('ChannelList 고정 · 알림꺼짐 표기', () => {
+    const renderRow = (props: Partial<Parameters<typeof ChannelList>[0]> = {}) =>
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'c1', stereo: 'group', name: '스터디방', ownerId: 'me' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+                {...(props as any)}
+            />
+        );
+
+    it('고정된 채널은 핀 아이콘을 노출한다', () => {
+        renderRow({ pinnedChannelIds: new Set(['c1']) });
+
+        expect(screen.getByLabelText('channelList.pinned')).toBeInTheDocument();
+    });
+
+    it('고정되지 않은 채널에는 핀 아이콘이 없다', () => {
+        renderRow({ pinnedChannelIds: new Set(['other']) });
+
+        expect(screen.queryByLabelText('channelList.pinned')).not.toBeInTheDocument();
+    });
+
+    it("내 join의 notify가 'none'이면 알림꺼짐 아이콘을 노출한다", () => {
+        renderRow({ joinByChannel: new Map([['c1', { notify: 'none' } as any]]) });
+
+        expect(screen.getByLabelText('channelList.muted')).toBeInTheDocument();
+    });
+
+    it("notify가 'all'이면 알림꺼짐 아이콘이 없다", () => {
+        renderRow({ joinByChannel: new Map([['c1', { notify: 'all' } as any]]) });
+
+        expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
+    });
+
+    it('join 정보가 없으면 알림꺼짐으로 보지 않는다 (기본값은 알림 켜짐)', () => {
+        renderRow();
+
+        expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
+    });
+
+    it('고정 + 알림꺼짐이 동시에 켜져 있으면 두 아이콘 모두 노출한다', () => {
+        renderRow({
+            pinnedChannelIds: new Set(['c1']),
+            joinByChannel: new Map([['c1', { notify: 'none' } as any]]),
+        });
+
+        expect(screen.getByLabelText('channelList.pinned')).toBeInTheDocument();
+        expect(screen.getByLabelText('channelList.muted')).toBeInTheDocument();
+    });
+
+    it('두 상태 아이콘은 제목 옆에 나란히 온다 (시각 옆이 아니라)', () => {
+        renderRow({
+            pinnedChannelIds: new Set(['c1']),
+            joinByChannel: new Map([['c1', { notify: 'none' } as any]]),
+        });
+
+        const title = screen.getByTestId('row-title');
+        expect(title).toContainElement(screen.getByLabelText('channelList.pinned'));
+        expect(title).toContainElement(screen.getByLabelText('channelList.muted'));
+        expect(screen.getByTestId('row-trailing')).not.toContainElement(screen.getByLabelText('channelList.pinned'));
     });
 });

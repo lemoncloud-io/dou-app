@@ -10,7 +10,7 @@ import { JoinRepositoryV2, type IJoinRepositoryV2 } from './JoinRepositoryV2';
 import { ProfileRepositoryV2, type IProfileRepositoryV2 } from './ProfileRepositoryV2';
 import { PlaceRepositoryV2, type IPlaceRepositoryV2 } from './PlaceRepositoryV2';
 import { SyncMetaRepositoryV2, type ISyncMetaRepositoryV2 } from './SyncMetaRepositoryV2';
-import { UserRepositoryV2, type IUserRepositoryV2 } from './UserRepositoryV2';
+import { UserRepositoryV2, type IUserRepositoryV2, type UserRepositoryV2Options } from './UserRepositoryV2';
 import type { DataContext, DataContextProvider } from './types';
 import { createSnapshotDataContextProvider } from './types';
 
@@ -26,6 +26,11 @@ export * from './ProfileRepositoryV2';
 export * from './PlaceRepositoryV2';
 export * from './SyncMetaRepositoryV2';
 export * from './UserRepositoryV2';
+
+/** App-injected repository policies. Every field is optional — omitted means current behavior. */
+export interface DataRepositoriesV2Options {
+    user?: UserRepositoryV2Options;
+}
 
 export interface DataRepositoriesV2 {
     auth: IAuthRepositoryV2;
@@ -46,7 +51,8 @@ export interface DataRepositoriesV2 {
 const buildRepositories = (
     remoteDataSources: RemoteDataSources,
     localDataSources: LocalDataSourcesV2,
-    context: DataContextProvider
+    context: DataContextProvider,
+    options?: DataRepositoriesV2Options
 ): Omit<DataRepositoriesV2, 'withContext' | 'dispose'> => {
     return {
         // auth/device/invite take no local data source: they are remote-only access surfaces
@@ -65,7 +71,8 @@ const buildRepositories = (
             localDataSources.user,
             localDataSources.join,
             localDataSources.place,
-            context
+            context,
+            options?.user
         ),
         syncMeta: new SyncMetaRepositoryV2(localDataSources.syncMeta, context),
     };
@@ -75,12 +82,14 @@ export const createRepositoriesV2 = ({
     remoteDataSources,
     localDataSources,
     context,
+    options,
 }: {
     remoteDataSources: RemoteDataSources;
     localDataSources: LocalDataSourcesV2;
     context: DataContextProvider;
+    options?: DataRepositoriesV2Options;
 }): DataRepositoriesV2 => {
-    const repositories = buildRepositories(remoteDataSources, localDataSources, context);
+    const repositories = buildRepositories(remoteDataSources, localDataSources, context, options);
 
     return {
         ...repositories,
@@ -89,6 +98,7 @@ export const createRepositoriesV2 = ({
                 remoteDataSources,
                 localDataSources,
                 context: createSnapshotDataContextProvider(contextSnapshot),
+                options,
             });
         },
         dispose() {

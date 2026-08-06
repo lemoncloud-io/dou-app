@@ -23,6 +23,7 @@ import {
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { RoomIntro } from '../components/RoomIntro';
+import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
     useChannel,
@@ -434,9 +435,19 @@ export const ChannelRoomPage = () => {
         );
     }
 
-    // Header avatar — for DM the peer's thumbnail, otherwise the channel thumbnail; when neither
-    // is set, the ChatRoomHeader fallback glyph (person for self/direct, group for the rest).
-    const headerAvatarSrc = isDmChat ? dmPeer?.thumbnail : channel?.thumbnail;
+    // Header avatar — self shows MY place-profile photo, DM the peer's, otherwise the channel
+    // thumbnail (one shared rule with the home list / settings, see resolveChannelAvatar). With none
+    // set, the ChatRoomHeader fallback glyph (person for self/direct, group for the rest).
+    // The self-chat photo comes from the same profileMap the DM peer does — a self chat's only
+    // member is me, so my profile is already synced into it.
+    // Only the photo is read here: the header's own `kind` already selects its fallback glyph.
+    const headerAvatarSrc = channel
+        ? resolveChannelAvatar({
+              channel,
+              myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
+              peerThumbnail: dmPeer?.thumbnail,
+          }).src
+        : undefined;
     const headerAvatar = headerAvatarSrc ? (
         <img
             src={headerAvatarSrc}

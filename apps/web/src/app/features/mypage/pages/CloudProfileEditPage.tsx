@@ -10,12 +10,12 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cloudsKeys, useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
-import { useRuntimeProfile } from '@chatic/app-runtime';
+import { cloudsKeys, useSessionSelection } from '@chatic/web-core';
 
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 
 import { useUpdateCloudProfile } from '../hooks';
+import { useActiveCloudOwnership } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
@@ -37,28 +37,24 @@ export const CloudProfileEditPage = () => {
     const queryClient = useQueryClient();
 
     const { selectedCloudId } = useSessionSelection();
-    const { isCloudActive } = useRuntimeProfile();
-    const { clouds, isPendingClouds } = useCloudSessionCatalog();
+    // Same ownership test the AccountInfoPage entry uses, so the row and this screen cannot disagree.
+    const { activeCloud, isCloudSessionReady, isOwner, isPending: isPendingClouds } = useActiveCloudOwnership();
     const { mutateAsync: updateCloudName, isPending } = useUpdateCloudProfile();
 
-    const isDefaultCloud = !selectedCloudId || selectedCloudId === 'default';
-    // The relay catalog lists owned clouds only, so membership here is the ownership signal.
-    const activeCloud = clouds.find(cloud => cloud.id === selectedCloudId);
-    const isOwner = !!activeCloud;
-    const canEdit = !isDefaultCloud && isCloudActive && isOwner;
+    const canEdit = isOwner;
 
     // Defensive guard: this screen is owner-only. Redirect out once we can tell the user is not an
     // owner (or the cloud is inactive/default). Wait for the catalog to resolve before judging
     // ownership so an in-flight fetch does not bounce a legitimate owner.
     useEffect(() => {
-        if (isDefaultCloud || !isCloudActive) {
+        if (!isCloudSessionReady) {
             navigate(ROUTES.mypage.root, { replace: true });
             return;
         }
         if (!isPendingClouds && !isOwner) {
             navigate(ROUTES.mypage.root, { replace: true });
         }
-    }, [isDefaultCloud, isCloudActive, isPendingClouds, isOwner, navigate]);
+    }, [isCloudSessionReady, isPendingClouds, isOwner, navigate]);
 
     const cloudName = activeCloud?.name ?? '';
     // Capture the initial name once the owned cloud first resolves so change detection is stable.

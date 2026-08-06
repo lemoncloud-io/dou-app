@@ -4,8 +4,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
 
-// Concrete file, not the `ui/components` barrel: it re-exports components that pull @chatic/assets,
-// which does not load under jsdom.
+// Concrete file, not the `ui/components` barrel: the barrel reaches libs/shared and web-core, whose
+// `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { CountrySelectSheet } from './CountrySelectSheet';
 
 const renderSheet = (value: string | null = 'KR') => {

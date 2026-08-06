@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '@chatic/web-core';
 
-import { useInvitedClouds } from './useInvitedClouds';
+import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 
 /**
  * Reconciles the invited-cloud cache against the owned relay catalog.

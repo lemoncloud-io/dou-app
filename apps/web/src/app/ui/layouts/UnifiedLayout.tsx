@@ -4,9 +4,14 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 
 import { useHandlePushNavigation } from '../../bridge';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../features/home/hooks';
-import { useInAppPushMessage } from '../../features/notifications';
-import { useBackHandler, useDeviceSync } from '../../hooks';
+import {
+    useActiveCloudChannels,
+    useBackHandler,
+    useChannelUnreads,
+    useDeviceSync,
+    useInAppPushMessage,
+    useMyJoins,
+} from '../../hooks';
 import { ROUTES } from '../../routes/paths';
 import { BottomNavigation } from '../components';
 

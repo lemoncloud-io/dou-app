@@ -10,6 +10,7 @@ components/
   PlaceList.tsx + PlaceItem.tsx   # 플레이스 섹션 — 클라우드 모드 전용 (CollapsibleSection + ListRow; PlaceItem은 usePlaceSync 등록)
   CloudPromoBanner.tsx            # 클라우드 유도 배너 (중계 홈 + 시트 공용; useCloudPromo가 노출/24h dismiss 판정)
   ChannelList.tsx                 # 채널 섹션 (CollapsibleSection + ListRow; ChannelItem은 useChannelSync + useLastChat 등록, ＋ 생성 팝오버 내장)
+                                  #   행 상태 표기: 고정(pinnedChannelIds → 시각 우측 Pin), 알림꺼짐(내 join.notify==='none' → 제목 옆 BellOff)
   CreateChannelDialog.tsx
   CreatePlaceDialog.tsx
   SubscriptionRequiredDialog.tsx

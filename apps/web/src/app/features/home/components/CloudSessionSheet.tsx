@@ -12,7 +12,7 @@ import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
-import { useCachedCloudNames, useInvitedClouds } from '../hooks';
+import { useCachedCloudNames, useInvitedClouds } from '../../../hooks';
 import { readCloudUnreadSnapshot } from '../lib';
 import { CloudPromoBanner } from './CloudPromoBanner';
 

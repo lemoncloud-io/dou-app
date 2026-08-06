@@ -69,9 +69,11 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 2. **입력** — 타이틀 "플레이스를 만들어서 대화를 시작해 보세요" + 부제. 이름 1~20자일 때만 `완료` 활성. 20자
    초과 시 빨간 테두리 + "21/20" + 힌트, `완료` 비활성.
 3. **사진(선택)** — 아바타 `+` → 파일 선택. 10MB 이하 webp/png/jpeg, 통과 시 150px 정사각 base64 미리보기.
-4. **완료** — `완료` 로딩 → `createPlace({ name, thumbnail })` → 반환된 새 site id로 `switchSite` 실행 →
-   오버레이 닫힘. 홈이 새 플레이스로 전환되고, 프로필 미설정이면 이어서 프로필 생성 오버레이가 뜬다(기존 흐름).
-5. **이탈** — X/esc/overlay 시 입력값이 있으면 "중단하시겠어요?" 확인 모달, 없으면 즉시 닫힘. 제출 중엔 닫기 무시.
+4. **완료** — 오버레이가 즉시 닫히고 프로필 생성 오버레이(플로우의 마지막 스텝)가 바로 뜬다. `createPlace`
+    - `switchSite`는 그 아래에서 진행되고, 프로필 저장이 그 완료를 기다린다 —
+      [useCreatePlaceFlow](../../../src/app/features/home/hooks/useCreatePlaceFlow.tsx) 참조. 실패하면 프로필
+      스텝에 "플레이스를 만들지 못했어요" 에러가 뜨고 스텝을 빠져나갈 수 있게 된다(재제출 시 이어서 재시도).
+5. **이탈** — X/esc/overlay 시 입력값이 있으면 "중단하시겠어요?" 확인 모달, 없으면 즉시 닫힘.
 
 ### 그룹방 생성
 
@@ -95,13 +97,17 @@ flowchart TD
     PL --> PD[CreatePlaceDialog]
     CL --> CD[CreateChannelDialog]
 
-    PD -->|createPlace| HPP[useCreatePlace]
-    HPP --> PR[place.createPlace<br/>PlaceRepositoryV2]
-    PD -->|성공 후| SW[useSiteSwitch.switchSite]
+    HPP[useCreatePlace] --> PR[place.createPlace<br/>PlaceRepositoryV2]
+    SW[useSiteSwitch.switchSite]
 
     CD -->|createChannel| HCC[useCreateChannel]
     HCC --> CR[channel.createChannel<br/>ChannelRepositoryV2]
     CD -->|성공 후| NAV["navigate(ROUTES.channels.room(id))"]
+
+    PD -->|onSubmit| CPF[useCreatePlaceFlow]
+    CPF --> HPP
+    CPF -->|생성 후| SW
+    CPF --> PPD[PlaceProfileCreateDialog<br/>프로필 스텝]
 
     PD --> UIK["@chatic/web-ui-kit:<br/>ModalTopBar · ProfileAvatar · TextField ·<br/>FloatingButton · AlertDialog · Toast · Text"]
     CD --> UIK
@@ -114,15 +120,19 @@ flowchart TD
 sequenceDiagram
     participant U as 사용자
     participant D as CreatePlaceDialog
+    participant F as useCreatePlaceFlow
     participant H as useCreatePlace
     participant S as useSiteSwitch
+    participant P as 프로필 스텝
     U->>D: 완료 클릭
-    D->>H: createPlace({name, thumbnail})
-    H-->>D: DomainPlace(new id)
-    D->>S: switchSite(newId)  (await)
-    S-->>D: 전환 완료
-    D->>D: onDone() → 오버레이 닫힘
-    Note over H,S: 실패 시 토스트, 오버레이 유지 (닫지 않음)
+    D->>F: onSubmit({name, thumbnail}) → 오버레이 닫힘
+    F->>P: 즉시 오픈
+    F->>H: createPlace({name, thumbnail})
+    H-->>F: DomainPlace(new id)
+    F->>S: switchSite(newId)
+    U->>P: 닉 저장
+    P->>F: await job → 생성된 id에 고정해 프로필 저장
+    Note over F,P: 실패 시 프로필 스텝에 에러 노출 · 이탈 허용 · 재제출로 이어서 재시도
 ```
 
 ## 상세 구현
@@ -160,8 +170,9 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
   a11y용 `sr-only` 타이틀/설명, 인라인 `Toast`(성공/에러), `AlertDialog`(이탈 확인). 이미지 처리는
   `resizeImageToBase64(file, 150)`(`@chatic/shared`) + 10MB·webp/png/jpeg 규칙 동일.
 - 이름: `TextField` `required maxLength={20} enforceMaxLength={false}`, `name.length>20`이면 `error`.
-- 완료: `await createPlace({ name, thumbnail })` → `await switchSite(created.id)` → `onDone`. 실패 시 에러
-  토스트 + 오버레이 유지.
+- 완료(2026-08-06 개정): 다이얼로그는 서버 작업을 하지 않는다. 닫으면서 `onSubmit({ name, thumbnail })`으로
+  입력만 넘기고, `createPlace` → `switchSite`는 [useCreatePlaceFlow](../../../src/app/features/home/hooks/useCreatePlaceFlow.tsx)가
+  프로필 스텝 아래에서 돌린다. 실패 처리도 거기(프로필 스텝의 에러 노출)로 옮겨졌다.
 - [useCreatePlace.ts](../../../src/app/features/home/hooks/useCreatePlace.ts): 시그니처를
   `createPlace({ name, thumbnail }: { name: string; thumbnail?: string })`로 넓혀 payload에 thumbnail 통과.
   `PlaceCreateInput`(`PlaceBodyData`)이 이미 `thumbnail?`을 가지므로 리포/원격은 무변경(payload passthrough,
@@ -203,10 +214,9 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 ## 검증 방법
 
 - **유닛/컴포넌트 테스트** (전부 통과):
-    - [CreatePlaceDialog.test.tsx](../../../src/app/features/home/components/CreatePlaceDialog.test.tsx) (7):
-      완료 활성/비활성 전이, 20자 초과 카운터, trim된 이름 + `thumbnail`으로 `createPlace` 호출, 성공 시
-      `switchSite(newId)` 후 닫기, 실패 시 에러 토스트·미닫힘·완료 재활성, **전환 실패해도 닫힘**(플레이스는 생성됨),
-      입력 유무별 즉시 닫힘/이탈 확인 모달.
+    - [CreatePlaceDialog.test.tsx](../../../src/app/features/home/components/CreatePlaceDialog.test.tsx) (5):
+      완료 활성/비활성 전이, 20자 초과 카운터, 완료 시 닫고 trim된 입력을 `onSubmit`으로 전달,
+      입력 유무별 즉시 닫힘/이탈 확인 모달. 생성·전환은 플로우 훅 테스트가 덮는다.
     - [CreateChannelDialog.test.tsx](../../../src/app/features/home/components/CreateChannelDialog.test.tsx) (5):
       위와 동일 + 성공 시 `{ stereo:'private', name, thumbnail }` 생성 후 `navigate(room(id))`, 실패 시 이동/닫기
       안 함.

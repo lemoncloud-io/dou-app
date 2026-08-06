@@ -35,6 +35,12 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: 'me' } }),
     useUserPermissions: () => ({ canCreatePlace: true }),
+    useActiveCloudChannels: () => [],
+    useCachedCloudNames: () => ({}),
+    useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
+    useHomeChannels: () => ({ channels: [], isLoading: false }),
+    useInvitedClouds: () => ({ invitedClouds: [] }),
+    useMyJoins: () => new Map(),
 }));
 jest.mock('../../../stores/usePreferenceStore', () => ({
     usePreferenceStore: (sel?: (s: unknown) => unknown) => {
@@ -65,14 +71,9 @@ const useHomePlaces = jest.fn(() => ({ places: [{ id: 'site-1', stereo: 'group' 
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId: 'site-1', switchPlace: jest.fn(), isSwitching: false }));
 
 jest.mock('../hooks', () => ({
-    useActiveCloudChannels: () => [],
     useAddCloudFlow: () => ({ requestAddCloud: jest.fn(), addCloudDialog: null }),
-    useCachedCloudNames: () => ({}),
-    useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
-    useHomeChannels: () => ({ channels: [], isLoading: false }),
+    useCreatePlaceFlow: () => ({ openCreatePlace: jest.fn(), createPlaceFlow: null }),
     useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
-    useInvitedClouds: () => ({ invitedClouds: [] }),
-    useMyJoins: () => new Map(),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
 }));

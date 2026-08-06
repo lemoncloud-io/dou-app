@@ -4,7 +4,7 @@ import { useChatSync, useRuntimeRepositories, useRuntimeSocketState } from '@cha
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat } from '@chatic/data';
 
-import { isOwnSystemChat } from '../../../utils';
+import { isOwnSystemChat } from '../utils';
 
 // Observe a few rows (not just 1) so the preview can fall through to the previous message when
 // the newest rows are the current user's own system messages (e.g. the join written right after

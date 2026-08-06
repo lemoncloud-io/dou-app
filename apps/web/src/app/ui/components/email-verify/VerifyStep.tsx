@@ -5,8 +5,9 @@ import { ChevronLeft, HelpCircle, Loader2, X } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Logo } from '@chatic/assets';
 
-import { formatTime, VerificationCodeInput } from '../../../account';
-import { keyboardSafeBottom } from '../../../../ui/layouts/KeyboardSafeAreaSpacer';
+import { formatCountdown } from '../../../utils';
+import { keyboardSafeBottom } from '../../layouts/KeyboardSafeAreaSpacer';
+import { VerificationCodeInput } from '../VerificationCodeInput';
 
 type LoadingState = 'idle' | 'verifying' | 'resending';
 
@@ -73,7 +74,7 @@ export const VerifyStep = ({
                             <div className="flex items-center gap-[2px] text-[13px] font-medium text-label">
                                 <span>{t('addAccount.timeRemaining')}</span>
                                 <span className={cn('w-[40px]', timeLeft === 0 && 'text-[#FF4C35]')}>
-                                    {formatTime(timeLeft)}
+                                    {formatCountdown(timeLeft)}
                                 </span>
                             </div>
                             <button type="button" onClick={onToggleTooltip} className="text-description">

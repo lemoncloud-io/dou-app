@@ -4,13 +4,23 @@ import type {
     UserInviteInput,
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
 import { toDomainJoinFromUser } from '../domain';
 import type { IJoinLocalDataSourceV2, IPlaceLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IUserRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from './types';
+import type { IUserRemoteDataSource, UserInviteBatchPayload } from '../remote/data-sources';
+import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
+
+export interface UserRepositoryV2Options {
+    /**
+     * Decides whether getMyProfile's embedded `$site` is persisted into the place cache for the
+     * given (request-time) context. Defaults to always persisting — the pre-ADR-0045 behavior —
+     * so apps that inject nothing (desktop-web) are unaffected. apps/web injects a relay-only
+     * predicate so a cloud partition never receives the default place row.
+     */
+    persistEmbeddedSite?: (context: DataContext) => boolean;
+}
 
 export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatUsersInput, callback: (result: DomainListResult<DomainUser> | null) => void): () => void;
@@ -19,7 +29,7 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     getMyProfile(): Promise<DomainUser>;
     updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser>;
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
-    requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]>;
+    requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]>;
     syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
@@ -37,7 +47,8 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         private readonly userLocalDataSource: IUserLocalDataSourceV2,
         private readonly joinLocalDataSource: IJoinLocalDataSourceV2,
         private readonly placeLocalDataSource: IPlaceLocalDataSourceV2,
-        contextProvider: DataContextProvider
+        contextProvider: DataContextProvider,
+        private readonly options?: UserRepositoryV2Options
     ) {
         super(contextProvider);
     }
@@ -111,7 +122,9 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         await this.userLocalDataSource.cacheWrite(user, requestContext);
         // The profile embeds the current site ($site); persist it into the place cache so the active
         // site is present even before a full place list refresh. (Mirrors the embedded $join write.)
-        if (site) {
+        // The injected predicate can veto the write per context — apps/web restricts it to the relay
+        // scope so the default place never lands in a cloud partition (ADR-0045).
+        if (site && (this.options?.persistEmbeddedSite?.(requestContext) ?? true)) {
             await this.placeLocalDataSource.cacheWrite(site, requestContext);
         }
         return user;
@@ -141,9 +154,15 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         return this.userRemoteDataSource.requestInvite(payload);
     }
 
-    public async requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]> {
-        const to = payload.alias ? [payload.alias] : payload.userId ? [payload.userId] : [];
-        const result = await this.userRemoteDataSource.inviteBatch({ to });
+    /**
+     * Bulk invite — the payload is passed through untouched. It used to be built here from a
+     * single-invite body (`{ alias }` folded into `to: [alias]`), which forced callers to encode a
+     * recipient LIST as one comma-joined string; the server then read that string as one phone and
+     * rejected it (`@phone[a,b] is invalid format`). `to` is a string[] on the wire, so the list
+     * stays a list and `channelId` reaches the server instead of being dropped.
+     */
+    public async requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]> {
+        const result = await this.userRemoteDataSource.inviteBatch(payload);
         return result.list || [];
     }
 

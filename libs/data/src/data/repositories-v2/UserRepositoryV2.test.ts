@@ -1,7 +1,11 @@
-import { UserRepositoryV2 } from './UserRepositoryV2';
+import { UserRepositoryV2, type UserRepositoryV2Options } from './UserRepositoryV2';
+import type { DataContext } from './types';
 
 describe('UserRepositoryV2', () => {
-    const createRepository = () => {
+    const createRepository = (
+        options?: UserRepositoryV2Options,
+        context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+    ) => {
         // User repository mixes cache writes and helper passthroughs, so keep each collaborator fully isolated.
         const userRemoteDataSource = {
             fetchUsers: jest.fn(),
@@ -42,7 +46,7 @@ describe('UserRepositoryV2', () => {
             cacheClear: jest.fn(),
         };
         const contextProvider = {
-            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
+            getContext: () => context,
             setContext: () => undefined,
         };
 
@@ -52,7 +56,8 @@ describe('UserRepositoryV2', () => {
                 userLocalDataSource as any,
                 joinLocalDataSource as any,
                 placeLocalDataSource as any,
-                contextProvider
+                contextProvider,
+                options
             ),
             userRemoteDataSource,
             userLocalDataSource,
@@ -150,6 +155,48 @@ describe('UserRepositoryV2', () => {
         expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 
+    it('skips the embedded $site write when the injected predicate vetoes the context', async () => {
+        const relayOnly: UserRepositoryV2Options = {
+            persistEmbeddedSite: context => (context.cid ?? 'default') === 'default',
+        };
+        const { repository, userRemoteDataSource, userLocalDataSource, placeLocalDataSource } =
+            createRepository(relayOnly);
+        userRemoteDataSource.getMyProfile.mockResolvedValue({
+            user: { id: 'me', cid: 'cloud-a' },
+            site: { id: 'site-default', cid: 'cloud-a' },
+        });
+
+        await repository.getMyProfile();
+
+        // The cloud context is vetoed, so the default place never lands in the cloud partition —
+        // while the user write itself stays untouched (ADR-0045).
+        expect(userLocalDataSource.cacheWrite).toHaveBeenCalled();
+        expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+    });
+
+    it('persists the embedded $site when the injected predicate approves the context', async () => {
+        const relayOnly: UserRepositoryV2Options = {
+            persistEmbeddedSite: context => (context.cid ?? 'default') === 'default',
+        };
+        const { repository, userRemoteDataSource, placeLocalDataSource } = createRepository(relayOnly, {
+            cid: 'default',
+            sid: 'site-1',
+            uid: 'me',
+        });
+        userRemoteDataSource.getMyProfile.mockResolvedValue({
+            user: { id: 'me', cid: 'default' },
+            site: { id: 'site-default', cid: 'default' },
+        });
+
+        await repository.getMyProfile();
+
+        expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'site-default' }), {
+            cid: 'default',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
     it('rolls back an optimistic profile patch when updateProfile fails', async () => {
         const { repository, userRemoteDataSource, userLocalDataSource } = createRepository();
         userLocalDataSource.cacheRead.mockResolvedValue({ id: 'u1', name: 'Before' });
@@ -171,6 +218,25 @@ describe('UserRepositoryV2', () => {
 
         // Invite helpers should remain passthroughs so callers see the backend contract directly.
         await expect(repository.requestInvite({ alias: 'a' } as any)).resolves.toEqual({ code: 'invite-1' });
-        await expect(repository.requestInviteBatch({ alias: 'a' } as any)).resolves.toEqual([{ code: 'invite-2' }]);
+        await expect(
+            repository.requestInviteBatch({ to: ['+821011112222'], channelId: 'ch-1' } as any)
+        ).resolves.toEqual([{ code: 'invite-2' }]);
+    });
+
+    it('forwards the batch payload untouched — the recipient list stays a list, channelId survives', async () => {
+        const { repository, userRemoteDataSource } = createRepository();
+        userRemoteDataSource.inviteBatch.mockResolvedValue({ list: [] });
+
+        await repository.requestInviteBatch({
+            to: ['+821011112222', '+821033334444'],
+            channelId: 'ch-1',
+        } as any);
+
+        // Folding the list into one comma-joined string is what made the server read it as a single
+        // phone and reject it (`@phone[a,b] is invalid format`); dropping channelId lost the target.
+        expect(userRemoteDataSource.inviteBatch).toHaveBeenCalledWith({
+            to: ['+821011112222', '+821033334444'],
+            channelId: 'ch-1',
+        });
     });
 });

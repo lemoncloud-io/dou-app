@@ -7,7 +7,7 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useRuntimeMetrics } from '../../metrics/useRuntimeMetrics';
 import { getLongTaskStats, isLongTaskSupported, type LongTaskStats } from '../../metrics/longTasks';
-import { getVitals, type VitalSample } from '../../metrics/webVitalsStore';
+import { getVitals, type VitalSample } from '../../../../utils/webVitalsStore';
 
 // performance.memory is Chrome/Android-WebView only (absent in WKWebView).
 const readUsedHeapMb = (): number | null => {

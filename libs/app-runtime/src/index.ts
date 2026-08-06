@@ -37,6 +37,9 @@ export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
 export { isNativeApp, setChatCacheLimit } from './data/factories/localFactory';
+// App-level repository policies for the lazily created data runtime; must run before first access
+// (see apps/web main.tsx: relay-only embedded-$site persistence, ADR-0045).
+export { configureDataRuntime } from './data/runtime';
 export {
     useInvitedCloudColdRecovery,
     useInvitedCloudNameSync,

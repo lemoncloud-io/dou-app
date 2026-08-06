@@ -7,8 +7,8 @@ import { resizeImageToBase64, useNavigateWithTransition } from '@chatic/shared';
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-// Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
-// which jest cannot resolve, breaking every test that renders this dialog.
+// Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
+// `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { ROUTES } from '../../../routes/paths';
 import { useCreateChannel } from '../../channels/hooks';
@@ -112,15 +112,25 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                 className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
-                // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
-                // CTA already reserves max(safe-bottom - CTA padding, keyboard-height). Keeping both
-                // applies the home-indicator inset twice, and with the keyboard up it floats the CTA a
-                // full inset above the keyboard instead of the intended 16px. Dropping it here leaves the
-                // spacer as the single bottom inset — the same arrangement as PlaceProfileForm's page
-                // container, which has no dialog padding to begin with. Inline rather than a `pb-0`
-                // class: `pb-safe-bottom` is a custom spacing key tailwind-merge doesn't recognise, so
-                // the two classes would both survive and the utility order would decide the winner.
-                style={{ paddingBottom: 0 }}
+                // The slide-up variant bakes in `pt-safe-top` / `pb-safe-bottom`, and both insets are
+                // owned by children here instead.
+                //
+                // Top: the dialog's own `pt-safe-top` renders the status-bar band as opaque
+                // `bg-background` *above* the glass bar, so only the 44px bar looked blurred. The bar
+                // carries the inset itself (`safeArea`), which puts the whole band inside the
+                // translucent, backdrop-blurred header and lets content scroll under all of it.
+                //
+                // Bottom: KeyboardSafeAreaSpacer below the CTA already reserves
+                // max(safe-bottom - CTA padding, keyboard-height). Keeping both applies the
+                // home-indicator inset twice, and with the keyboard up it floats the CTA a full inset
+                // above the keyboard instead of the intended 16px. Dropping it here leaves the spacer as
+                // the single bottom inset — the same arrangement as PlaceProfileForm's page container,
+                // which has no dialog padding to begin with.
+                //
+                // Inline rather than `pt-0` / `pb-0` classes: the safe-area keys are custom spacing
+                // tailwind-merge doesn't recognise, so both classes would survive and utility order
+                // would decide the winner.
+                style={{ paddingTop: 0, paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{t('createChannel.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('createChannel.subtitle')}</DialogDescription>
@@ -131,15 +141,13 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                             occupying a band of its own, so the content passes under the translucent bar
                             while the close button stays on top and tappable (Figma 3421-59848, the
                             overlay chrome idiom from e5a0a19d). Sticky rather than KeyboardAwareLayout's
-                            absolute + measured padding: dialogs can't nest that layout (slide-up already
-                            applies the safe-area insets), and with safeArea={false} this bar carries no
-                            variable inset to measure — its flow position is exactly the space to reserve.
-                            safeArea={false}: the native WebView is already inset below the status bar,
-                            so adding the safe-top inset here would double the top gap. */}
+                            absolute + measured padding: dialogs can't nest that layout, and a sticky bar
+                            in flow reserves exactly its own height at the top of the scroller.
+                            safeArea: the bar owns the status-bar inset (the dialog's `pt-safe-top` is
+                            zeroed above) so the blur covers the notch band too, not just the 44px bar. */}
                         <ModalTopBar
                             onClose={requestClose}
                             closeLabel={t('createChannel.close')}
-                            safeArea={false}
                             className="sticky top-0 z-20 shrink-0"
                         />
 

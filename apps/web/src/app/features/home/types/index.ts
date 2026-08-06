@@ -2,13 +2,3 @@
 import type { DomainChannel, DomainPlace } from '@chatic/data';
 
 export type { DomainChannel, DomainPlace };
-
-/** Per-channel unread message counts keyed by channel id, plus per-site and aggregate totals. */
-export interface ChannelUnreads {
-    /** unread count per channel id (clamped to >= 0). */
-    byChannel: Record<string, number>;
-    /** unread summed per owning site id (sid); a place shows a dot when its value > 0. */
-    byPlace: Record<string, number>;
-    /** sum of all per-channel unread counts across the active cloud. */
-    total: number;
-}

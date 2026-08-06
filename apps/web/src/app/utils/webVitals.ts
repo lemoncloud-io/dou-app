@@ -3,7 +3,7 @@ import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
 import { logger } from '@chatic/bridges';
 import type { Metric } from 'web-vitals';
 
-import { reportVital } from '../features/debug/metrics/webVitalsStore';
+import { reportVital } from './webVitalsStore';
 
 const reportMetric = (metric: Metric) => {
     // Always feed the debug overlay store; the log line stays dev-only.
