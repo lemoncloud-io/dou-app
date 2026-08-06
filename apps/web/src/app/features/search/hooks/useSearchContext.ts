@@ -20,7 +20,6 @@ export interface PlaceResultRow {
     placeId: string;
     name: string;
     thumbnail?: string;
-    cloudName?: string;
 }
 
 export interface ChannelResultRow {
@@ -34,7 +33,6 @@ export interface ChannelResultRow {
     unread: number;
     lastMessage?: string;
     lastMessageAt?: number;
-    cloudName?: string;
     placeName?: string;
 }
 
@@ -47,7 +45,6 @@ export interface ChatResultRow {
     content: string;
     createdAt?: number;
     channelName?: string;
-    cloudName?: string;
     placeName?: string;
 }
 
@@ -62,18 +59,16 @@ export interface SearchResultRows {
  * Turns raw search matches into flat display rows, filling in what the matched row itself cannot
  * carry: the owning place/channel names, my unread count and the newest cached message.
  *
- * Those all live in OTHER clouds' cache partitions, which repositories cannot read, so they come
- * from `resolveContext` — and that is why the row components take a model instead of calling hooks
- * (see docs/specs/search/web-search-page.md, "검색 결과 행은 데이터를 당겨오지 않는다").
+ * These come from `resolveContext`, a batch read, rather than from per-row hooks: the home row's
+ * `useChannelSync`/`useChatSync`/`useLastChat` would register a sync target per rendered row and
+ * re-register on every keystroke (see docs/specs/search/web-search-page.md, "검색 결과 행은 데이터를
+ * 당겨오지 않는다"). Rows therefore take a plain model and call nothing.
  *
  * Context arrives after the matches do, so rows render immediately with what the match carries
  * (name, thumbnail, member count) and the context-dependent fields fill in a beat later. A failed
  * resolve leaves those fields empty instead of discarding results the user is already reading.
  */
-export const useSearchContext = (
-    results: GlobalSearchResults,
-    cloudNamesByCid: ReadonlyMap<string, string | undefined>
-): SearchResultRows => {
+export const useSearchContext = (results: GlobalSearchResults): SearchResultRows => {
     const { resolveContext } = useGlobalCacheSearch();
     const [context, setContext] = useState<GlobalCacheContext>(EMPTY_CONTEXT);
 
@@ -128,7 +123,6 @@ export const useSearchContext = (
     }, [requestKey, resolveContext]);
 
     return useMemo(() => {
-        const cloudName = (cid: string) => cloudNamesByCid.get(cid);
         const placeName = (cid: string, sid?: string) =>
             sid ? context.sitesByRef[globalCacheRefKey(cid, sid)]?.name : undefined;
 
@@ -139,7 +133,6 @@ export const useSearchContext = (
                 placeId: place.id,
                 name: place.name ?? '',
                 thumbnail: place.thumbnail,
-                cloudName: cloudName(place.cid),
             })),
             channels: results.channels.map(channel => {
                 const ref = globalCacheRefKey(channel.cid, channel.id);
@@ -158,7 +151,6 @@ export const useSearchContext = (
                     }),
                     lastMessage: lastChat?.content,
                     lastMessageAt: lastChat?.createdAtMs,
-                    cloudName: cloudName(channel.cid),
                     placeName: placeName(channel.cid, channel.sid),
                 };
             }),
@@ -174,10 +166,9 @@ export const useSearchContext = (
                     content: chat.content ?? '',
                     createdAt: chat.createdAtMs,
                     channelName: owner?.name,
-                    cloudName: cloudName(chat.cid),
                     placeName: placeName(chat.cid, owner?.sid),
                 };
             }),
         };
-    }, [results, context, cloudNamesByCid]);
+    }, [results, context]);
 };

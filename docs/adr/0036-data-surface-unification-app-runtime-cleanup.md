@@ -21,6 +21,10 @@ import하는 사례는 0건. libs/data의 캡슐화 자체는 지켜지고 있�
 3. `apps/desktop-web/src/app/shared/utils/readCacheRecords.ts` — repository가
    활성 클라우드 파티션만 읽게 돼 있어, 푸시 라우팅의 크로스-클라우드 조회를
    위해 raw IndexedDB를 직접 연다.
+   → **2026-08-06 갱신**: 이 목적의 승인된 경로가 생겼다. app-runtime이
+   `useGlobalCacheSearch().resolveContext`로 명시적 cid 기반 크로스 클라우드
+   읽기를 노출한다([[global-cache-search]](../specs/cache/global-cache-search.md)).
+   desktop-web을 이 경로로 옮기면 이 우회는 사라진다(별도 작업).
 4. `apps/admin` — repository 아키텍처 밖의 별도 WebSocket 스택(`libs/socket`)을
    쓰는 독립 앱 (대부분 테스트 기능).
 5. 디버그 화면·socket-lab·일회성 콜드 마이그레이션(`invitedCloudColdSync`의

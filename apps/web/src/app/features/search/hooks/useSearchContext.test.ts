@@ -19,11 +19,6 @@ const EMPTY_CONTEXT = { channelsByRef: {}, sitesByRef: {}, joinsByRef: {}, lastC
 const results = (overrides: Partial<GlobalSearchResults> = {}): GlobalSearchResults =>
     ({ clouds: [], places: [], channels: [], messages: [], ...overrides }) as GlobalSearchResults;
 
-const clouds = new Map<string, string | undefined>([
-    ['cloud-a', 'Lemon Cloud'],
-    ['cloud-b', 'Other Cloud'],
-]);
-
 beforeEach(() => {
     jest.clearAllMocks();
     resolveContext.mockResolvedValue(EMPTY_CONTEXT);
@@ -41,7 +36,7 @@ describe('useSearchContext', () => {
             ] as any,
         });
 
-        renderHook(() => useSearchContext(input, clouds));
+        renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(1));
         expect(resolveContext).toHaveBeenCalledWith({
@@ -55,7 +50,7 @@ describe('useSearchContext', () => {
     });
 
     it('does not call the source at all for empty results', async () => {
-        renderHook(() => useSearchContext(results(), clouds));
+        renderHook(() => useSearchContext(results()));
         await waitFor(() => expect(resolveContext).not.toHaveBeenCalled());
     });
 
@@ -82,7 +77,7 @@ describe('useSearchContext', () => {
             ] as any,
         });
 
-        const { result } = renderHook(() => useSearchContext(input, clouds));
+        const { result } = renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(result.current.channels[0].placeName).toBe('Lemon HQ'));
         const row = result.current.channels[0];
@@ -91,7 +86,6 @@ describe('useSearchContext', () => {
             name: 'Lounge',
             memberNo: 4,
             thumbnail: 'data:image/png;base64,AAA',
-            cloudName: 'Lemon Cloud',
             placeName: 'Lemon HQ',
             lastMessage: 'see you',
             lastMessageAt: 1700,
@@ -105,7 +99,7 @@ describe('useSearchContext', () => {
             channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge', chatNo: 40, metaNo: 0 }] as any,
         });
 
-        const { result } = renderHook(() => useSearchContext(input, clouds));
+        const { result } = renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         expect(result.current.channels[0].unread).toBe(0);
@@ -122,14 +116,10 @@ describe('useSearchContext', () => {
             messages: [{ id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo' }] as any,
         });
 
-        const { result } = renderHook(() => useSearchContext(input, clouds));
+        const { result } = renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(result.current.chats[0].channelName).toBe('Bistro'));
-        expect(result.current.chats[0]).toMatchObject({
-            sid: 'site-9',
-            placeName: 'Beta Base',
-            cloudName: 'Other Cloud',
-        });
+        expect(result.current.chats[0]).toMatchObject({ sid: 'site-9', placeName: 'Beta Base' });
     });
 
     it('omits fields the cache could not resolve instead of inventing them', async () => {
@@ -137,7 +127,7 @@ describe('useSearchContext', () => {
             messages: [{ id: 'chat-2', cid: 'cloud-b', channelId: 'ch-missing', chatNo: 6, content: 'yo' }] as any,
         });
 
-        const { result } = renderHook(() => useSearchContext(input, clouds));
+        const { result } = renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         const row = result.current.chats[0];
@@ -154,7 +144,7 @@ describe('useSearchContext', () => {
             channels: [{ id: 'ch-1', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
         });
 
-        const { result } = renderHook(() => useSearchContext(input, clouds));
+        const { result } = renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(logger.error).toHaveBeenCalled());
         expect(result.current.channels[0].name).toBe('Lounge');

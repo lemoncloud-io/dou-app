@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Cloud, MessageSquare } from 'lucide-react';
 
@@ -8,7 +9,7 @@ import { DefaultAvatar, ImageAvatar, SearchInput, UnreadBadge } from '@chatic/we
 import { ROUTES } from '../../../routes/paths';
 import { HighlightText } from '../components/HighlightText';
 import { RecentSearchList } from '../components/RecentSearchList';
-import { ResultRow } from '../components/ResultRow';
+import { ResultRow, ResultRowSkeleton } from '../components/ResultRow';
 import { formatResultContext } from '../lib/formatResultContext';
 import { useGlobalSearch } from '../hooks/useGlobalSearch';
 import {
@@ -30,9 +31,29 @@ const RowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
 export const SearchPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const [query, setQuery] = useState('');
-    const { results, isSearching, hasResults, isQueryTooShort, cloudNamesByCid } = useGlobalSearch(query);
-    const rows = useSearchContext(results, cloudNamesByCid);
+    // The keyword lives in the URL (`/search?q=`) so coming BACK from a result restores the search
+    // that led there. Page-local state alone was lost on unmount, dropping the user onto an empty
+    // search box. Keystrokes mirror with `replace` so typing doesn't fill the history stack — the
+    // single /search entry just carries the latest keyword.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [query, setQueryState] = useState(() => searchParams.get('q') ?? '');
+
+    const setQuery = useCallback(
+        (value: string) => {
+            setQueryState(value);
+            setSearchParams(
+                params => {
+                    if (value) params.set('q', value);
+                    else params.delete('q');
+                    return params;
+                },
+                { replace: true }
+            );
+        },
+        [setSearchParams]
+    );
+    const { results, isSearching, hasResults, isQueryTooShort } = useGlobalSearch(query);
+    const rows = useSearchContext(results);
     const { recentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } = useRecentSearches();
     const { goTo } = useSearchNavigate();
 
@@ -108,7 +129,16 @@ export const SearchPage = () => {
                         onRemove={removeRecentSearch}
                         onClearAll={clearRecentSearches}
                     />
-                ) : isQueryTooShort ? null : !isSearching && !hasResults ? (
+                ) : isQueryTooShort ? null : isSearching && !hasResults ? (
+                    // Scanning with nothing to show yet. Without this the page rendered an empty
+                    // container, which reads as "no results" and then flips to results.
+                    <div className="flex flex-col" role="status" aria-busy="true">
+                        <span className="sr-only">{t('search.searching', '검색 중이에요')}</span>
+                        <ResultRowSkeleton />
+                        <ResultRowSkeleton />
+                        <ResultRowSkeleton />
+                    </div>
+                ) : !hasResults ? (
                     <p className="px-4 py-10 text-center text-sm text-description">
                         {t('search.noResults', '검색 결과가 없습니다.')}
                     </p>
@@ -144,7 +174,6 @@ export const SearchPage = () => {
                                         key={`${place.cid}:${place.placeId}`}
                                         leading={<RowAvatar thumbnail={place.thumbnail} />}
                                         title={<HighlightText text={place.name} query={trimmed} />}
-                                        context={formatResultContext(place.cloudName)}
                                         onClick={() => openPlace(place)}
                                     />
                                 ))}
@@ -169,7 +198,7 @@ export const SearchPage = () => {
                                             ) : undefined
                                         }
                                         subtitle={channel.lastMessage}
-                                        context={formatResultContext(channel.cloudName, channel.placeName)}
+                                        context={formatResultContext(channel.placeName)}
                                         trailing={
                                             <>
                                                 <span className="text-[12px] leading-4 text-description">
@@ -198,7 +227,7 @@ export const SearchPage = () => {
                                             </span>
                                         }
                                         title={<HighlightText text={chat.content} query={trimmed} />}
-                                        context={formatResultContext(chat.cloudName, chat.placeName, chat.channelName)}
+                                        context={formatResultContext(chat.placeName, chat.channelName)}
                                         trailing={
                                             <span className="text-[12px] leading-4 text-description">
                                                 {formatTime(chat.createdAt)}

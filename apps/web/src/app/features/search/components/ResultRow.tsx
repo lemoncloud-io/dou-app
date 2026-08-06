@@ -38,3 +38,18 @@ export const ResultRow = ({ leading, title, subtitle, context, badge, trailing, 
         {trailing && <span className="flex shrink-0 flex-col items-end gap-1">{trailing}</span>}
     </button>
 );
+
+/**
+ * Placeholder row shown while the first results of a keyword are still being scanned. Mirrors the
+ * home list's skeleton (ChannelList.tsx) so the two lists settle into the same shape, and keeps the
+ * page from rendering an empty container — which is what it did before, reading as "no results".
+ */
+export const ResultRowSkeleton = () => (
+    <div className="flex items-center gap-3 px-4 py-3" aria-hidden>
+        <div className="size-[42px] animate-pulse rounded-full bg-muted" />
+        <div className="flex flex-1 flex-col gap-1.5">
+            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+        </div>
+    </div>
+);

@@ -1,14 +1,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useGlobalCacheSearch } from '@chatic/app-runtime';
-import { useCloudSessionCatalog } from '@chatic/web-core';
+import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
 import { useInvitedClouds } from '../../home/hooks/useInvitedClouds';
 import { useGlobalSearch } from './useGlobalSearch';
 
-jest.mock('@chatic/app-runtime', () => ({ useGlobalCacheSearch: jest.fn() }));
-jest.mock('@chatic/web-core', () => ({ useCloudSessionCatalog: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useGlobalCacheSearch: jest.fn(),
+    // useCachedCloudNames observes the cloud cache through the repositories.
+    useRuntimeRepositories: () => ({ cloud: { observeList: () => () => undefined } }),
+}));
+jest.mock('@chatic/web-core', () => ({
+    useCloudSessionCatalog: jest.fn(),
+    useSessionSelection: jest.fn(() => ({ selectedCloudId: 'cloud-a' })),
+}));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('../../home/hooks/useInvitedClouds', () => ({ useInvitedClouds: jest.fn() }));
 
@@ -20,6 +27,7 @@ beforeEach(() => {
     search.mockResolvedValue({ channels: [], sites: [], chats: [] });
     (useGlobalCacheSearch as jest.Mock).mockReturnValue({ search });
     (useCloudSessionCatalog as jest.Mock).mockReturnValue({ clouds: [] });
+    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
     (useInvitedClouds as jest.Mock).mockReturnValue({ invitedClouds: [], hasInvitedClouds: false });
 });
 
@@ -61,7 +69,18 @@ describe('useGlobalSearch', () => {
 
         act(() => jest.advanceTimersByTime(300));
         await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
-        expect(search).toHaveBeenCalledWith('lemon');
+        // Scoped to the active cloud: rows of other clouds are written under those clouds' uid and
+        // are unreachable from this session anyway (see the hook's doc comment).
+        expect(search).toHaveBeenCalledWith('lemon', { cid: 'cloud-a' });
+    });
+
+    it('scopes the scan to the relay partition when no cloud is selected', async () => {
+        (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: null });
+
+        renderHook(() => useGlobalSearch('lemon'));
+        act(() => jest.advanceTimersByTime(300));
+
+        await waitFor(() => expect(search).toHaveBeenCalledWith('lemon', { cid: 'default' }));
     });
 
     it('assembles results from the cache search source, capped per section', async () => {
