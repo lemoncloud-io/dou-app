@@ -6,6 +6,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
+import { useGlobalSession } from '@chatic/web-core';
 
 import { useUpdateProfile } from '../hooks';
 import { useMyUser } from '../../../hooks';
@@ -19,6 +20,11 @@ export const ProfileEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const profile = useMyUser();
+    const session = useGlobalSession();
+    // The display above is pinned to the RELAY (account) profile (ADR-0045), but updateProfile
+    // rides the ACTIVE socket — saving while a cloud is active would silently edit the cloud
+    // profile and never show up on this screen. Block the save until back on the relay.
+    const isRelayActive = !session.cloud?.cloudId || session.cloud.cloudId === 'default';
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
 
@@ -42,7 +48,7 @@ export const ProfileEditPage = () => {
     const isValid = name.trim().length > 0 && name.length <= MAX_NAME_LENGTH;
 
     const handleSave = async () => {
-        if (!isValid || !hasChanges) return;
+        if (!isValid || !hasChanges || !isRelayActive) return;
 
         try {
             await updateProfile({
@@ -89,7 +95,7 @@ export const ProfileEditPage = () => {
             footer={
                 <FloatingButton
                     label={t('profileEdit.save')}
-                    disabled={!isValid || !hasChanges || isPending}
+                    disabled={!isValid || !hasChanges || isPending || !isRelayActive}
                     loading={isPending}
                     onClick={handleSave}
                 />
@@ -115,6 +121,11 @@ export const ProfileEditPage = () => {
                     {imageSizeError && (
                         <Text variant="caption" className="text-destructive">
                             {t('profileEdit.imageSizeError')}
+                        </Text>
+                    )}
+                    {!isRelayActive && (
+                        <Text variant="caption" className="text-center text-placeholder">
+                            {t('profileEdit.relayOnlyNotice')}
                         </Text>
                     )}
                 </div>
