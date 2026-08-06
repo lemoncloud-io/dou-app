@@ -1,6 +1,6 @@
 # notifications
 
-> 대상: `apps/web/src/app/bridge/navigation` · 관련: [device-token](./device-token.md), [debug/push-verification](../debug/push-verification.md), [architecture/bridge.md](../../architecture/bridge.md), [architecture/routing.md](../../architecture/routing.md)
+> 대상: `apps/web/src/app/bridge/navigation` · 관련: [push-crossover-routing](./push-crossover-routing.md), [device-token](./device-token.md), [debug/push-verification](../debug/push-verification.md), [architecture/bridge.md](../../architecture/bridge.md), [architecture/routing.md](../../architecture/routing.md)
 
 ## 책임
 
@@ -12,12 +12,13 @@
 
 네이티브가 보내는 `OnNavigate` 페이로드는 `{ path, replace? }`이며, `path`는 웹 라우트와 정합한다. cid/sid는 링크 쿼리로 전달된다.
 
-| 형태            | 예시                                            | 처리                                                |
-| --------------- | ----------------------------------------------- | --------------------------------------------------- |
-| 정규 라우트     | `/channels/1000001/room`                        | 그대로 이동                                         |
-| 크로스-클라우드 | `/channels/1000001/room?cid=cloud_1&sid=site_9` | `cid`/`sid`로 전환 후 이동 (쿼리는 target에서 제거) |
-| 스펙 폴백       | `channel?channelId=1000001`                     | `/channels/1000001/room`으로 정규화                 |
-| 기타 경로       | `/auth/login?code=xyz`                          | 그대로 통과 (`cid`/`sid`만 있으면 추출·제거)        |
+| 형태            | 예시                                            | 처리                                                                                                                   |
+| --------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 정규 라우트     | `/channels/1000001/room`                        | 그대로 이동                                                                                                            |
+| 크로스-클라우드 | `/channels/1000001/room?cid=cloud_1&sid=site_9` | `cid`/`sid`로 전환 후 이동 (쿼리는 target에서 제거)                                                                    |
+| 중계서버발      | `/channels/1000001/room?cid=%23` (`cid='#'`)    | 클라우드 활성 시 `logoutCloudSession()`으로 relay 복귀 후 이동 → [push-crossover-routing](./push-crossover-routing.md) |
+| 스펙 폴백       | `channel?channelId=1000001`                     | `/channels/1000001/room`으로 정규화                                                                                    |
+| 기타 경로       | `/auth/login?code=xyz`                          | 그대로 통과 (`cid`/`sid`만 있으면 추출·제거)                                                                           |
 
 > `cid`/`sid`는 라우트 파라미터가 아니라 세션 컨텍스트이므로 이동 target에서 제거한다.
 
@@ -44,7 +45,8 @@ features/notifications/
   → OnNavigate { path } (bridge)
   → useHandlePushNavigation
      → resolvePushNavigation(path) → { target, cid, sid }
-     → cid && cid !== 현재 cloud  ? await switchCloud(cid)   (사이트 clear됨)
+     → cid === '#' && 클라우드 활성 ? await logoutCloudSession()  (relay 복귀, ADR-0045)
+     → cid ≠ '#' && cid !== 현재 cloud ? await switchCloud(cid)   (사이트 clear됨)
      → sid && sid !== 현재 site   ? await switchSite(sid)
      → navigateNormalized(target)   # 방을 떠날 때만 replace, 그 외에는 push
 ```
@@ -59,11 +61,12 @@ features/notifications/
 
 ## 관련 훅 (web-core)
 
-| 훅                                         | 용도                                           |
-| ------------------------------------------ | ---------------------------------------------- |
-| `useSessionSelection`                      | 현재 `selectedCloudId` / `selectedSiteId` 읽기 |
-| `useSwitchCloudSession().switchCloud(cid)` | 클라우드 전환 (위임 토큰 교환, 사이트 clear)   |
-| `useSiteSwitch().switchSite(sid)`          | 사이트 전환 (`uid@sid` 토큰 갱신)              |
+| 훅                                         | 용도                                                |
+| ------------------------------------------ | --------------------------------------------------- |
+| `useSessionSelection`                      | 현재 `selectedCloudId` / `selectedSiteId` 읽기      |
+| `useSwitchCloudSession().switchCloud(cid)` | 클라우드 전환 (위임 토큰 교환, 사이트 clear)        |
+| `useSiteSwitch().switchSite(sid)`          | 사이트 전환 (`uid@sid` 토큰 갱신)                   |
+| `useLogoutCloudSession()` (app-runtime)    | 클라우드만 이탈해 relay 복귀 (relay 푸시 `cid='#'`) |
 
 ## 모바일 탭 라우팅
 
