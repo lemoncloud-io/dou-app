@@ -5,9 +5,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 const navigate = jest.fn();
 const toast = jest.fn();
 const getContacts = jest.fn();
+const openSettings = jest.fn();
 const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
 let isNativeValue = true;
+let isDevBuildValue = false;
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
 jest.mock('react-i18next', () => ({
@@ -18,7 +20,9 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/web-core', () => ({ reportError: jest.fn() }));
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
-jest.mock('../../../bridge', () => ({ appBridge: { getContacts } }));
+jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
+// `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
+jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => isDevBuildValue }));
 jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite }),
 }));
@@ -43,8 +47,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     SelectedAvatarRow: ({ items }: any) => <div data-testid="selected-row">{items.length}</div>,
     Button: ({ children, onClick, loading }: any) => (
-        <button data-testid="cta" disabled={loading} onClick={onClick}>
+        <button data-testid="link-cta" disabled={loading} onClick={onClick}>
             {children}
+        </button>
+    ),
+    FloatingButton: ({ label, onClick, loading, disabled }: any) => (
+        <button data-testid="cta" disabled={disabled || loading} onClick={onClick}>
+            {label}
         </button>
     ),
 }));
@@ -62,6 +71,7 @@ const contact = (id: string, phone = '010-1234-5678') => ({
 beforeEach(() => {
     jest.clearAllMocks();
     isNativeValue = true;
+    isDevBuildValue = false;
     getContacts.mockResolvedValue({ data: { contacts: [contact('1'), contact('2')] } });
 });
 
@@ -94,10 +104,27 @@ describe('InvitePage (native)', () => {
         await waitFor(() => expect(createSingleInvite).toHaveBeenCalledTimes(1));
     });
 
+    it('docks the CTA disabled until something is selected', async () => {
+        render(<InvitePage />);
+        await screen.findByTestId('user-N1');
+
+        expect(screen.getByTestId('cta')).toBeDisabled();
+        fireEvent.click(screen.getByTestId('user-N1'));
+        expect(screen.getByTestId('cta')).toBeEnabled();
+    });
+
     it('shows the permission banner when contacts are denied', async () => {
         getContacts.mockRejectedValueOnce(new Error('denied'));
         render(<InvitePage />);
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
+    });
+
+    it('opens the OS settings from the populated list (partial contacts access)', async () => {
+        render(<InvitePage />);
+        await screen.findByTestId('user-N1');
+
+        fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.openContactSettings' }));
+        expect(openSettings).toHaveBeenCalledTimes(1);
     });
 
     it('caps the selection at 100 and toasts', async () => {
@@ -111,6 +138,42 @@ describe('InvitePage (native)', () => {
         fireEvent.click(screen.getByTestId('user-N100'));
 
         expect(toast).toHaveBeenCalledWith({ title: 'inviteFriends.limitToast' });
+    });
+});
+
+describe('share-link availability', () => {
+    it('hides every share-link entry on a production app build', async () => {
+        render(<InvitePage />);
+        await screen.findByTestId('user-N1');
+
+        expect(screen.queryByRole('button', { name: 'inviteFriends.sendLink' })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('add-friend-sheet')).not.toBeInTheDocument();
+    });
+
+    it('keeps the share-link entry on a DEV/LOCAL app build', async () => {
+        isDevBuildValue = true;
+        render(<InvitePage />);
+        await screen.findByTestId('user-N1');
+
+        expect(screen.getByRole('button', { name: 'inviteFriends.sendLink' })).toBeInTheDocument();
+        expect(screen.getByTestId('add-friend-sheet')).toBeInTheDocument();
+    });
+
+    it('keeps the share-link entry when the permission banner is shown on DEV', async () => {
+        isDevBuildValue = true;
+        getContacts.mockRejectedValueOnce(new Error('denied'));
+        render(<InvitePage />);
+        await screen.findByTestId('permission-banner');
+
+        expect(screen.getByTestId('link-cta')).toBeInTheDocument();
+    });
+
+    it('leaves the denied state with the settings button alone on a production app build', async () => {
+        getContacts.mockRejectedValueOnce(new Error('denied'));
+        render(<InvitePage />);
+        await screen.findByTestId('permission-banner');
+
+        expect(screen.queryByTestId('link-cta')).not.toBeInTheDocument();
     });
 });
 
