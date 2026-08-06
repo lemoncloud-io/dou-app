@@ -48,8 +48,12 @@ export interface ChatResultRow {
     createdAt?: number;
     channelName?: string;
     placeName?: string;
-    /** Sender label: place profile → member identity → the name embedded on the message. */
+    /**
+     * Sender's place-profile nick — the identity other members actually see. Falls back to the
+     * account NAME (never the account nick) and then to the owner embedded on the message.
+     */
     senderName?: string;
+    /** Place-profile photo only: an account-level image is not this person's identity here. */
     senderThumbnail?: string;
 }
 
@@ -172,7 +176,10 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         ? context.profilesByRef[globalCacheProfileKey(chat.cid, owner.sid, senderId)]
                         : undefined;
                 const user = senderId ? context.usersByRef[globalCacheRefKey(chat.cid, senderId)] : undefined;
-                const senderName = profile?.nick || user?.nick || user?.name || chat.owner$?.name;
+                // `user.nick` is deliberately NOT in this chain: the place profile's nick is the
+                // identity a place shows, and the account nick is a different (private) label.
+                // The room resolves it the same way (useChats' nameOf reads `name`, not `nick`).
+                const senderName = profile?.nick || user?.name || chat.owner$?.name;
                 return {
                     cid: chat.cid,
                     sid: owner?.sid,
@@ -184,7 +191,9 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     channelName: owner?.name,
                     placeName: placeName(chat.cid, owner?.sid),
                     senderName,
-                    senderThumbnail: profile?.thumbnail || user?.thumbnail,
+                    // Profile photo only — same as the room, which shows `ownerProfile?.thumbnail`
+                    // and otherwise the default avatar.
+                    senderThumbnail: profile?.thumbnail,
                 };
             }),
         };

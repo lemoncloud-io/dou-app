@@ -151,12 +151,20 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,BBB');
     });
 
-    it('falls back to the member identity when the place profile is not cached', async () => {
+    it('falls back to the account NAME — never the account nick — when no place profile is cached', async () => {
         // Profiles are only cached for rooms already opened, so this is the common case for search.
+        // The account nick is a different label from the place identity and must not surface here.
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
             channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
-            usersByRef: { 'cloud-b:user-2': { id: 'user-2', name: 'Bora Kim', thumbnail: 'data:image/png;base64,UU' } },
+            usersByRef: {
+                'cloud-b:user-2': {
+                    id: 'user-2',
+                    name: 'Bora Kim',
+                    nick: 'never-this',
+                    thumbnail: 'data:image/png;base64,UU',
+                },
+            },
         });
 
         const input = results({
@@ -168,7 +176,8 @@ describe('useSearchContext', () => {
         const { result } = renderHook(() => useSearchContext(input));
 
         await waitFor(() => expect(result.current.chats[0].senderName).toBe('Bora Kim'));
-        expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,UU');
+        // The photo is the place profile's; an account-level image is not this person's identity here.
+        expect(result.current.chats[0].senderThumbnail).toBeUndefined();
     });
 
     it('falls back to the owner embedded on the message when nothing else is cached', async () => {
