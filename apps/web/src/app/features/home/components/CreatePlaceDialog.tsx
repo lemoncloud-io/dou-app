@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { logger } from '@chatic/bridges';
 import { resizeImageToBase64 } from '@chatic/shared';
-import type { DomainPlace } from '@chatic/data';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
@@ -11,8 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 // Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
-import { useCreatePlace } from '../hooks';
+import type { CreatePlaceInput } from '../hooks';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
@@ -26,29 +23,25 @@ interface CreatePlaceDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /**
-     * Fired only when BOTH the create and the site switch succeeded, i.e. the active context is
-     * the new place — so a follow-up step (the mandatory profile create, ADR-0045) can safely
-     * write to it. Not fired on a switch failure: a profile saved then would land in the
-     * pre-switch scope.
+     * Fired with the collected input when the user confirms — right after this overlay closes. The
+     * CALLER owns `place.create` and the site switch (useCreatePlaceFlow), which run underneath the
+     * next step rather than behind a spinner here.
      */
-    onCreated?: (place: DomainPlace) => void;
+    onSubmit: (input: CreatePlaceInput) => void;
 }
 
 /**
- * Full-screen overlay to CREATE a place (=Site): name + optional photo. On success it creates the
- * place on the cloud server and switches the active site into it, then closes — the home screen
- * re-renders on the new place. Built on @chatic/web-ui-kit; shares its layout with
+ * Full-screen overlay to COLLECT a new place (=Site): name + optional photo. It performs no server
+ * work of its own — confirming hands the input to the caller and closes, so the create can overlap
+ * the flow's next step (see useCreatePlaceFlow). Built on @chatic/web-ui-kit; shares its layout with
  * CreateChannelDialog. Owner/limit gating lives in the caller (HomePage). See place-channel-create.md.
  */
-export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlaceDialogProps) => {
+export const CreatePlaceDialog = ({ open, onOpenChange, onSubmit }: CreatePlaceDialogProps) => {
     const { t } = useTranslation();
-    const { createPlace } = useCreatePlace();
-    const { switchSite } = useSiteSwitch();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [name, setName] = useState('');
     const [thumbnail, setThumbnail] = useState('');
-    const [submitting, setSubmitting] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -57,7 +50,6 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlace
         if (open) {
             setName('');
             setThumbnail('');
-            setSubmitting(false);
             setAlertOpen(false);
             setNotice(null);
         }
@@ -65,8 +57,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlace
 
     const trimmed = name.trim();
     const isOverLimit = name.length > NAME_MAX;
-    const isValidName = trimmed.length >= 1 && !isOverLimit;
-    const canSubmit = isValidName && !submitting;
+    const canSubmit = trimmed.length >= 1 && !isOverLimit;
 
     const handleImageClick = () => fileInputRef.current?.click();
 
@@ -89,33 +80,14 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlace
 
     // X / esc / overlay: confirm before leaving when there is unsaved input, else exit directly.
     const requestClose = () => {
-        if (submitting) return;
         if (trimmed.length > 0 || thumbnail) setAlertOpen(true);
         else onOpenChange(false);
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = () => {
         if (!canSubmit) return;
-        setSubmitting(true);
-        setNotice(null);
-        try {
-            const created = await createPlace({ name: trimmed, thumbnail: thumbnail || undefined });
-            // Navigate into the new place. The place already exists on the server, so a switch
-            // failure is non-fatal — log it and still close; the user can pick it from the list.
-            let switched = true;
-            try {
-                await switchSite(created.id);
-            } catch (error) {
-                switched = false;
-                logger.error('PLACE', 'Failed to switch to created place', { error });
-            }
-            onOpenChange(false);
-            if (switched) onCreated?.(created);
-        } catch (error) {
-            logger.error('PLACE', 'Failed to create place', { error });
-            setNotice({ variant: 'error', message: t('createPlace.saveError') });
-            setSubmitting(false);
-        }
+        onOpenChange(false);
+        onSubmit({ name: trimmed, thumbnail: thumbnail || undefined });
     };
 
     return (
@@ -217,7 +189,6 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlace
 
                     <FloatingButton
                         label={t('createPlace.done')}
-                        loading={submitting}
                         disabled={!canSubmit}
                         onClick={handleSubmit}
                         wrapperClassName="shrink-0"

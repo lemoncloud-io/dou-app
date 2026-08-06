@@ -793,7 +793,6 @@
         "photoOptional": "[선택]",
         "save": "완료",
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
-        "relayOnlyNotice": "계정 프로필은 두유 홈에서만 수정할 수 있어요",
         "tabBasic": "기본 프로필",
         "tabCloud": "Cloud 프로필",
         "cloudDescription1": "Cloud에서 사용할",

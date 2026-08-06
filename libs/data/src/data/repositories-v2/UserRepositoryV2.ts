@@ -134,13 +134,21 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         const uid = (payload as { id?: string; userId?: string }).id || (payload as { userId?: string }).userId || '';
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing = uid ? await this.userLocalDataSource.cacheRead(uid, requestContext) : null;
-        if (uid) {
+        // The write itself is relay-owned (the composition root pins `user.update` to the relay
+        // slot), while the local cache partition follows the ACTIVE context. Writing the account
+        // profile from a cloud would therefore overwrite that cloud's own row for the same uid with
+        // relay data — so cache touches are limited to the relay scope. A caller editing from a
+        // cloud reflects the result in app state instead (apps/web: the retained relay user).
+        const isRelayScope = normalizedContext.cid === 'default';
+        const existing = isRelayScope && uid ? await this.userLocalDataSource.cacheRead(uid, requestContext) : null;
+        if (isRelayScope && uid) {
             await this.userLocalDataSource.cacheWrite({ id: uid, ...(payload as Partial<DomainUser>) }, requestContext);
         }
         try {
             const domain = await this.userRemoteDataSource.updateProfile(payload, normalizedContext);
-            await this.userLocalDataSource.cacheWrite(domain, requestContext);
+            if (isRelayScope) {
+                await this.userLocalDataSource.cacheWrite(domain, requestContext);
+            }
             return domain;
         } catch (error) {
             if (existing) {

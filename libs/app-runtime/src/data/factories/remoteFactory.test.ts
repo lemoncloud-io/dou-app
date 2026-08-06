@@ -84,6 +84,23 @@ describe('createRemoteDataSources — relay-pinned gateways', () => {
         expectRelayOnly('auth.link-account');
     });
 
+    it('sends the account-profile write (user.update) over the relay slot', async () => {
+        const { remoteDataSources } = createRemoteDataSources();
+
+        await remoteDataSources.user.updateProfile({ name: 'Neo' } as never, { cid: 'cloud-a' });
+
+        expectRelayOnly('user.update');
+    });
+
+    it('leaves the account-profile read (user.profile) on the active slot', async () => {
+        const { remoteDataSources } = createRemoteDataSources();
+
+        await remoteDataSources.user.getMyProfile({ cid: 'cloud-a' });
+
+        expect(activeRequest).toHaveBeenCalled();
+        expect(relayRequest).not.toHaveBeenCalled();
+    });
+
     it('leaves auth.update on the active slot — it authenticates whichever socket is live', async () => {
         const { remoteDataSources } = createRemoteDataSources();
 

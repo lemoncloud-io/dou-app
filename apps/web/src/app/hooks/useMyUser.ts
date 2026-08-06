@@ -28,15 +28,46 @@ export type MyUser = DomainUser & { photo?: string; email?: string; link$?: Link
  */
 let heldRelayUser: { uid: string; user: MyUser } | null = null;
 
+/**
+ * Readers currently showing the RETAINED value (i.e. mounted while a cloud is active). They have no
+ * cache subscription to fan a change in through, so a save has to be pushed to them directly.
+ */
+const retainedUserListeners = new Set<(user: MyUser) => void>();
+
 /** Test hook: clears the module-scope relay profile between cases. */
 export const resetHeldRelayUserForTest = (): void => {
     heldRelayUser = null;
+};
+
+const retainRelayUser = (uid: string, user: MyUser): void => {
+    heldRelayUser = { uid, user };
+    retainedUserListeners.forEach(notify => notify(user));
 };
 
 /** Relay-token profile seed for a cold start with a cloud selected (never-observed relay cache). */
 const seedFromRelaySession = (uid: string): MyUser | null => {
     const seed = getRelaySessionUser();
     return seed ? ({ id: uid, ...seed } as MyUser) : null;
+};
+
+/**
+ * Merges a just-saved ACCOUNT profile into the retained relay value and republishes it.
+ *
+ * Only matters while a cloud is active: `user.update` is pinned to the relay slot, but the local
+ * cache partition follows the ACTIVE context, and a local read resolves against that partition's
+ * storage — no context override reaches the relay row (the storage instance IS the partition). So
+ * the retained value is the only place the new profile can land until the next relay connection
+ * refreshes it. On the relay the observeItem fan-out already carries the change; calling this too
+ * is a harmless no-op restatement of the same value.
+ *
+ * Undefined fields are dropped so an untouched field (e.g. a save that changed only the name) can
+ * never blank out what is already retained.
+ */
+export const patchMyRelayUser = (uid: string, patch: Partial<MyUser>): void => {
+    if (!uid) return;
+    const base = heldRelayUser?.uid === uid ? heldRelayUser.user : seedFromRelaySession(uid);
+    const defined = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+    retainRelayUser(uid, { ...(base ?? {}), ...defined, id: uid } as MyUser);
 };
 
 /**
@@ -75,13 +106,19 @@ export const useMyUser = (): MyUser | null => {
         if (!isRelayActive) {
             const retained = heldRelayUser?.uid === userId ? heldRelayUser.user : null;
             setMe(retained ?? seedFromRelaySession(userId));
-            return;
+            // An account-profile save made from here writes to the relay, which this partition
+            // cannot observe — subscribe to the retained value so the edit still shows up.
+            const notify = (next: MyUser) => setMe(next);
+            retainedUserListeners.add(notify);
+            return () => {
+                retainedUserListeners.delete(notify);
+            };
         }
         // Subscribe first so the fetch's cache write (and background-sync refreshes) fan in. Keep the
         // last non-null value on a transient cache miss so the header never flashes empty.
         const unsubscribe = user.observeItem(userId, next => {
             if (next) {
-                heldRelayUser = { uid: userId, user: next as MyUser };
+                retainRelayUser(userId, next as MyUser);
                 setMe(next as MyUser);
             }
         });

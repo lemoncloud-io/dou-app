@@ -94,12 +94,16 @@ features/mypage/
 
 mypage는 세 가지 프로필 편집 진입점을 가진다 — 구분 주의:
 
-| 진입점                 | 대상                        | API                |
-| ---------------------- | --------------------------- | ------------------ |
-| `ProfileEditPage`      | 기본 클라우드(relay) 프로필 | `useUpdateProfile` |
-| `CloudProfileEditPage` | 클라우드 이름               | `useUpdateCloud`   |
+| 진입점                 | 대상               | API                |
+| ---------------------- | ------------------ | ------------------ |
+| `ProfileEditPage`      | 계정(relay) 프로필 | `useUpdateProfile` |
+| `CloudProfileEditPage` | 클라우드 이름      | `useUpdateCloud`   |
 
-허브 상단 프로필(아바타·이름·이메일)은 **계정 프로필**(`useMyUser`)이며, 탭 시 기본 클라우드면 `account.edit`, 아니면 `account.cloudProfile`로 이동한다. 플레이스(사이트) 내 내 프로필(닉·썸네일)은 홈 헤더 드롭다운에서 `PlaceProfileEditDialog` 오버레이로 편집하며 상세는 [home/place-profile.md](../home/place-profile.md).
+`ProfileEditPage`는 클라우드 활성 여부와 무관하게 항상 편집 가능하다 — 표시(`useMyUser`)도 쓰기(`user.update`)도 relay에 고정돼 있다([place/relay-default-place-scoping.md](../place/relay-default-place-scoping.md) §6).
+
+`CloudProfileEditPage` 진입점(AccountInfoPage)은 **활성 클라우드를 소유했을 때만** 보인다 — `useUserPermissions().useCloudProfile`(비게스트 + 클라우드 세션 활성) 위에 [`useActiveCloudOwnership`](../../../src/app/hooks/useActiveCloudOwnership.ts)(relay 카탈로그 `view: 'mine'` 멤버십)을 얹는다. 화면 자체도 같은 훅으로 비소유자를 되돌려보내므로 행과 화면이 어긋날 수 없다.
+
+허브 상단 프로필(아바타·이름·이메일)은 **계정 프로필**(`useMyUser`)이며, 탭 시 `account.edit`로 이동한다. 플레이스(사이트) 내 내 프로필(닉·썸네일)은 홈 헤더 드롭다운에서 `PlaceProfileEditDialog` 오버레이로 편집하며 상세는 [home/place-profile.md](../home/place-profile.md).
 
 ## 디버그 언락
 

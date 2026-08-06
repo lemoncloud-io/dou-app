@@ -103,20 +103,22 @@ sequenceDiagram
     participant S as switchSite
     participant PD as PlaceProfileCreateDialog
     U->>D: 완료 클릭
-    D->>R: createPlace({name, thumbnail})
-    R->>R: cacheWrite(단건) → refreshList(order 스탬프·재조정)
-    R-->>D: DomainPlace
-    D->>S: switchSite(place.id) (await)
-    alt 전환 성공
-        S-->>D: 완료
-        D->>F: onCreated(place) + 닫힘
-        F->>PD: 자동 오픈 (dismissible=false, X 없음)
-        U->>PD: 닉/사진 저장
-        PD->>PD: profile.setMyProfile (새 플레이스 스코프)
+    D->>F: onSubmit({name, thumbnail}) + 즉시 닫힘
+    F->>PD: 즉시 오픈 (dismissible=false, placeName = 방금 입력한 이름)
+    par 사용자가 닉을 입력하는 동안
+        F->>R: createPlace({name, thumbnail})
+        R->>R: cacheWrite(단건) → refreshList(order 스탬프·재조정)
+        R-->>F: DomainPlace (job.place에 래치)
+        F->>S: switchSite(place.id)
+    end
+    U->>PD: 닉/사진 저장
+    PD->>F: onSubmit(nick, thumbnail)
+    alt 생성·전환 성공
+        F->>F: await job → profile.setProfile({siteId: place.id}) — sid 고정
         PD->>F: onDone → 플로우 종료
-    else 전환 실패
-        S--xD: 실패 (로그만)
-        D->>F: 닫힘 (onCreated 미발화 → 프로필 스텝 없음)
+    else 생성·전환 실패
+        F--xPD: userMessage를 실은 reject → 에러 노출·스텝 유지 + dismissible=true
+        Note over F,PD: 재제출은 job을 이어서 재시도 — 생성이 끝났으면 전환만 다시 한다
     end
 ```
 
@@ -219,12 +221,14 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 [useAddCloudFlow.tsx:14-23](../../../src/app/features/home/hooks/useAddCloudFlow.tsx)(플로우 훅이
 상태 + ReactNode를 소유)이다. 같은 패턴으로 `useCreatePlaceFlow`를 신설한다:
 
-- **`CreatePlaceDialog`에 성공 신호 추가.** 현재 props가 `open`/`onOpenChange`뿐이라
-  ([CreatePlaceDialog.tsx:33-36](../../../src/app/features/home/components/CreatePlaceDialog.tsx))
-  취소·성공·전환 실패가 구분되지 않는다. `onCreated?: (place: DomainPlace) => void`를 추가하고
-  **생성 + 전환이 모두 성공했을 때만** 발화한다(:98-117 흐름 중 `switchSite` 성공 분기).
-  전환 실패 시에는 지금처럼 닫히기만 한다 — 시나리오 3의 근거(프로필이 전환 전 스코프에
-  쓰이는 사고 방지). `setMyProfile`은 활성 컨텍스트(sid)에 쓴다.
+- **`CreatePlaceDialog`는 입력 수집만 한다** (2026-08-06 개정). 서버 작업을 다이얼로그가 await하고
+  성공했을 때만 다음 스텝을 여는 원래 배선은, 프로필 쓰기가 "아직 준비되지 않은 플레이스"를
+  향할 여지를 남겼다(전환은 sid를 낙관적으로 pre-apply할 뿐 토큰 커밋은 비동기다).
+  이제 다이얼로그는 `onSubmit(input)`으로 입력만 넘기고 닫히며, `place.create` + `switchSite`는
+  플로우 훅이 **프로필 스텝 아래에서** 돌린다. 사용자가 닉을 치는 시간이 곧 서버가 필요로 하는
+  시간이라 대기가 보이지 않는다. 프로필 쓰기는 그 job을 await한 뒤,
+  주변 컨텍스트가 아니라 **생성된 place.id에 고정**해서 나간다(`useSetMyPlaceProfile(value, siteId)`
+  → `profile.setProfile`).
 - **`PlaceProfileCreateDialog`에 `dismissible` 패스스루.**
   [PlaceProfileForm.tsx:69-74](../../../src/app/features/home/components/PlaceProfileForm.tsx)가
   이미 `dismissible?: boolean`(기본 `true`)을 갖고 X 숨김(:335)·esc/overlay 차단(:311)까지
@@ -273,10 +277,14 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 - 원격 fetch를 relay 활성으로 게이트하므로 "클라우드 연결 중 relay 원격 fetch 불가" 제약
   (ADR 맥락 §제약)을 자연히 지킨다. 사용처 4곳(MyPage.tsx:29 · ProfileEditPage.tsx:21 ·
   WithdrawalPage.tsx:16 · useLinkedAccounts.ts:39)은 훅 시그니처가 그대로라 무변경.
-- **편집 정책 (승인 시 확정)**: 표시는 relay 고정인데 `updateProfile` 저장은 활성 소켓으로
-  나가므로, 클라우드 활성 중 저장하면 클라우드 프로필이 바뀌고 화면에는 반영되지 않는
-  불일치가 생긴다. **클라우드 활성 중에는 `ProfileEditPage` 저장을 비활성화하고 안내 문구를
-  노출한다** — 표시/저장 불일치를 원천 차단한다(relay로 돌아오면 저장 가능).
+- **편집 정책 (2026-08-06 개정)**: 원래는 표시만 relay 고정이고 `updateProfile` 저장은 활성 소켓으로
+  나가서, 클라우드 활성 중 저장하면 클라우드 프로필이 바뀌고 화면에는 반영되지 않았다. 그래서 저장을
+  막고 안내 문구를 띄웠다. 이제 **저장도 relay 고정**이다 — 합성 루트가 `user.update`를 relay 슬롯에
+  바인딩하므로(invite·linkAccount와 동일 정책, [remoteFactory](../../../../../libs/app-runtime/src/data/factories/remoteFactory.ts))
+  클라우드 활성 중에도 계정 프로필이 편집된다. 비활성화·안내 문구(`profileEdit.relayOnlyNotice`)는 제거했다.
+  캐시 파티션은 여전히 활성 컨텍스트를 따르므로, 클라우드 활성 중 저장은
+  [UserRepositoryV2](../../../../../libs/data/src/data/repositories-v2/UserRepositoryV2.ts)가 캐시를 건드리지
+  않고(그 파티션의 클라우드 프로필을 덮어쓰지 않도록) 앱이 보관값(`patchMyRelayUser`)에 반영한다.
 
 ## 검증 방법
 
@@ -291,11 +299,11 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
         - 낙관적 캐시 양쪽).
 - **apps/web 테스트** (`nx test web`, 전체 153 스위트 / 1260 테스트 그린):
     - [CreatePlaceDialog.test.tsx](../../../src/app/features/home/components/CreatePlaceDialog.test.tsx)
-      — 성공 시 `onCreated(place)` 발화, 전환 실패 시 미발화 + 기존 "전환 실패해도 닫힘" 회귀
-      유지.
+      — 완료 시 닫고 trim된 입력을 `onSubmit`으로 전달(서버 작업 없음), 입력 유무별 즉시 닫힘/이탈 확인.
     - [useCreatePlaceFlow.test.tsx](../../../src/app/features/home/hooks/useCreatePlaceFlow.test.tsx)
-      — 생성 성공 → 프로필 스텝 오픈(dismissible=false), `onDone` → 종료, 전환 실패 → 프로필
-      스텝 없음.
+      — 생성 확인 즉시 프로필 스텝 오픈(dismissible=false, 방금 입력한 이름), 프로필 저장은
+      create·switch 이후에 생성된 id로 고정 전송, 생성 실패 시 프로필 미기록 + 스텝 이탈 허용,
+      전환만 실패 후 재시도 시 플레이스 재생성 없음.
     - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx)
       — `dismissible=false`면 닫기(X) 부재.
     - [useMyUser.test.ts](../../../src/app/hooks/useMyUser.test.ts) — relay 활성 동작 현행 유지,
@@ -308,7 +316,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 - **수동 확인(배포 QA)**: 클라우드 전환 상태에서 홈 목록에 기본플레이스 부재(첫 싱크 틱 후),
   플레이스 생성 → 프로필 오버레이 X 부재 → 저장 후 종료, 플레이스 이름/사진 수정 성공(400
   해소), MyPage 상단이 클라우드 전환과 무관하게 relay 프로필 유지, 클라우드 활성 중
-  ProfileEditPage 저장 비활성 + 안내 노출. (생성/오너 UI는 owner 클라우드 세션이 필요해 로컬
+  ProfileEditPage 저장 가능(2026-08-06 개정 — relay 고정 write). (생성/오너 UI는 owner 클라우드 세션이 필요해 로컬
   프리뷰 재현이 제한적 — place-channel-create.md와 동일 제약.)
 
 관련 문서 갱신(dev-4_doc-sync 대상): [place-channel-create.md](../home/place-channel-create.md)

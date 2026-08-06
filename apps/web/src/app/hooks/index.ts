@@ -1,4 +1,5 @@
 export * from './useActiveCloudChannels';
+export * from './useActiveCloudOwnership';
 export * from './useActivePlaceName';
 export * from './useAwaitInviteChannel';
 export * from './useBackHandler';

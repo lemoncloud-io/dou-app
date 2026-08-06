@@ -793,7 +793,6 @@
         "photoOptional": "[Optional]",
         "save": "Done",
         "imageSizeError": "Image must be less than 10MB",
-        "relayOnlyNotice": "Your account profile can only be edited from DoU Home",
         "tabBasic": "Basic Profile",
         "tabCloud": "Cloud Profile",
         "cloudDescription1": "Set the name",

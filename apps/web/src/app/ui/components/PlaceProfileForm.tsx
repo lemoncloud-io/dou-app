@@ -34,6 +34,15 @@ export interface PlaceProfileExitCopy {
 /** Where the shared form renders: a slide-up dialog (home dropdown) or a full route page (settings hub). */
 export type PlaceProfileFormContainer = 'dialog' | 'page';
 
+/**
+ * An `onSubmit` rejection that names its own user-facing message. Used where the submit commits
+ * more than the profile (the place-create flow saves the PLACE first), so "프로필 저장 실패" would be
+ * the wrong thing to tell the user.
+ */
+export interface ProfileSaveFailure extends Error {
+    userMessage?: string;
+}
+
 export interface PlaceProfileFormProps {
     /** Chrome to wrap the shared body in. Defaults to 'dialog'. */
     container?: PlaceProfileFormContainer;
@@ -78,7 +87,11 @@ export interface PlaceProfileFormProps {
      * means the invite was never sent or accepted. Supply it to keep the guard (the edit flows do).
      */
     exit?: PlaceProfileExitCopy;
-    /** Persists the profile; rejecting surfaces `saveError`. */
+    /**
+     * Persists the profile; rejecting surfaces `saveError`. A caller whose submit does more than
+     * save the profile can override the message per failure by rejecting with an error carrying
+     * `userMessage` — see {@link ProfileSaveFailure}.
+     */
     onSubmit: (value: { nick: string; thumbnail?: string }) => Promise<void>;
     /** Called after a successful save (once the success toast has shown). */
     onDone: () => void;
@@ -194,7 +207,11 @@ export const PlaceProfileForm = ({
             closeTimer.current = setTimeout(onDone, SUCCESS_CLOSE_DELAY);
         } catch (error) {
             logger.error('PROFILE', 'Failed to save place profile', { error });
-            setNotice({ variant: 'error', message: saveError });
+            // Carried on the rejection rather than read from a prop: the caller learns which step
+            // failed only inside its own onSubmit, and a state update it makes there has not
+            // re-rendered this form by the time the throw lands here.
+            const overridden = (error as ProfileSaveFailure | null)?.userMessage;
+            setNotice({ variant: 'error', message: overridden || saveError });
             setSubmitting(false);
         }
     };

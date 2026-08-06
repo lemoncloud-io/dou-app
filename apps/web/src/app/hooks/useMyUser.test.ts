@@ -1,9 +1,9 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { getRelaySessionUser, useGlobalSession, useSessionIdentity } from '@chatic/web-core';
 
-import { resetHeldRelayUserForTest, useMyUser } from './useMyUser';
+import { patchMyRelayUser, resetHeldRelayUserForTest, useMyUser } from './useMyUser';
 
 jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
 jest.mock('@chatic/web-core', () => ({
@@ -94,6 +94,19 @@ describe('useMyUser', () => {
         expect(observeItemMock).not.toHaveBeenCalled();
         expect(getMyProfileMock).not.toHaveBeenCalled();
         expect(result.current).toMatchObject({ id: 'me', name: 'SeedName', photo: 'seed.png' });
+    });
+
+    it('클라우드 활성 중 계정 프로필을 저장하면 유지값 구독으로 즉시 반영된다', () => {
+        // Retain a relay value first, then move onto a cloud — the relay partition is now unreadable.
+        emit({ id: 'me', name: 'RelayName', photo: 'relay.png', email: 'me@x.io' });
+        const { result, rerender } = renderHook(() => useMyUser());
+        setActiveCloud('cloud-a');
+        rerender();
+
+        act(() => patchMyRelayUser('me', { name: 'Saved', photo: undefined }));
+
+        // Merged onto the retained value: the untouched photo/email survive an undefined field.
+        expect(result.current).toMatchObject({ id: 'me', name: 'Saved', photo: 'relay.png', email: 'me@x.io' });
     });
 
     it('다른 계정으로 바뀌면 이전 계정의 유지값을 재사용하지 않는다', () => {

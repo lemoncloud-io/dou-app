@@ -42,6 +42,7 @@ export const createRemoteDataSources = () => {
     const relayClient = socketClient.getScopedClient('relay');
     const relayAuthGateway = createAuthGateway(relayClient as any);
     const inviteGateway = createInviteGateway(relayClient as any);
+    const relayUserGateway = createUserGateway(relayClient as any);
 
     const authGateway = createAuthGateway(socketClient as any);
     const channelGateway = createChannelGateway(socketClient as any);
@@ -79,7 +80,14 @@ export const createRemoteDataSources = () => {
             mySite: userGateway.mySite,
         },
         user: {
-            update: userGateway.update,
+            // The ACCOUNT profile (nick/name/photo) is owned by the central backend behind the
+            // RELAY, so the write is pinned to the relay slot — same policy as linkAccount/invite.
+            // Following the active slot into a cloud used to make the edit land on the CLOUD
+            // profile, which the account screens never show (they are relay-pinned, ADR-0045), so
+            // the app had to refuse the save while a cloud was active. Pinned here it works from
+            // either slot. Reads (`profile`) stay on `active`: getMyProfile hydrates whichever
+            // partition is live, and its embedded `$site` is scoped per context.
+            update: relayUserGateway.update,
             profile: userGateway.profile,
             listUser: channelGateway.listUser,
             invite: userGateway.invite,
