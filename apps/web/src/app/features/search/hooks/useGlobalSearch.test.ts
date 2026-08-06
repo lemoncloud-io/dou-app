@@ -98,6 +98,33 @@ describe('useGlobalSearch', () => {
         expect(result.current.results.clouds.map(c => c.id)).toEqual(['c1']);
     });
 
+    it('searches once even when the cloud sources hand back a new array identity on every render', async () => {
+        // Both real hooks rebuild their array each render (useInvitedClouds filters, and
+        // useCloudSessionCatalog falls back to a fresh `[]`), which previously re-ran the search
+        // effect on every render — an endless search/setState loop that flickered the results.
+        (useCloudSessionCatalog as jest.Mock).mockImplementation(() => ({
+            clouds: [{ id: 'c1', cid: 'c1', name: 'Lemon Cloud' }],
+        }));
+        (useInvitedClouds as jest.Mock).mockImplementation(() => ({
+            invitedClouds: [{ id: 'c2', cid: 'c2', name: 'Other' }],
+            hasInvitedClouds: true,
+        }));
+        search.mockResolvedValue({ channels: [{ id: 'ch-1', name: 'Lemon' }], sites: [], chats: [] });
+
+        const { result } = renderHook(() => useGlobalSearch('lemon'));
+        act(() => jest.advanceTimersByTime(300));
+        await waitFor(() => expect(result.current.isSearching).toBe(false));
+
+        // Let any queued re-render settle: a looping effect would keep firing new searches here.
+        await act(async () => {
+            jest.advanceTimersByTime(1000);
+        });
+
+        expect(search).toHaveBeenCalledTimes(1);
+        expect(result.current.results.clouds.map(c => c.id)).toEqual(['c1']);
+        expect(result.current.results.channels).toHaveLength(1);
+    });
+
     it('clears results once the query drops back below the minimum length', async () => {
         search.mockResolvedValue({
             channels: [{ id: 'ch-1', name: 'Lemon' }],
@@ -119,7 +146,9 @@ describe('useGlobalSearch', () => {
     });
 
     it('falls back to cloud-name-only results and logs when the cache search source rejects (e.g. a native bridge failure)', async () => {
-        (useCloudSessionCatalog as jest.Mock).mockReturnValue({ clouds: [{ id: 'c1', cid: 'c1', name: 'Lemon Cloud' }] });
+        (useCloudSessionCatalog as jest.Mock).mockReturnValue({
+            clouds: [{ id: 'c1', cid: 'c1', name: 'Lemon Cloud' }],
+        });
         search.mockRejectedValue(new Error('bridge timeout'));
 
         const { result } = renderHook(() => useGlobalSearch('lemon'));

@@ -46,6 +46,11 @@ export interface GlobalSearchResults {
 
 const EMPTY_RESULTS: GlobalSearchResults = { clouds: [], places: [], channels: [], messages: [] };
 
+/** The cache-sourced half of the results — the cloud half is derived during render, see below. */
+type CacheResults = Pick<GlobalSearchResults, 'places' | 'channels' | 'messages'>;
+
+const EMPTY_CACHE_RESULTS: CacheResults = { places: [], channels: [], messages: [] };
+
 /**
  * Debounced cross-cloud search: cloud names come from the local catalog/invited-cloud caches
  * (never scanned via the cache search source — see ADR-0033), places/channels/messages come
@@ -57,21 +62,19 @@ export const useGlobalSearch = (query: string) => {
     const { search } = useGlobalCacheSearch();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
-    const [results, setResults] = useState<GlobalSearchResults>(EMPTY_RESULTS);
+    const [cacheResults, setCacheResults] = useState<CacheResults>(EMPTY_CACHE_RESULTS);
     const [isSearching, setIsSearching] = useState(false);
 
-    const allClouds = useMemo<CloudSearchResult[]>(
-        () =>
-            [...ownedClouds, ...invitedClouds]
-                .filter((cloud): cloud is typeof cloud & { id: string } => !!cloud.id)
-                .map(cloud => ({ id: cloud.id, name: cloud.name })),
-        [ownedClouds, invitedClouds]
-    );
     const isQueryTooShort = debounced.length > 0 && debounced.length < MIN_QUERY_LENGTH;
 
+    // The cache search effect deliberately depends only on `debounced` and the (stable, useCallback'd)
+    // `search`. Cloud-name matching runs during render instead: both cloud sources hand back a freshly
+    // built array on every render (useInvitedClouds filters, useCloudSessionCatalog falls back to `[]`),
+    // so feeding them into the effect's dependency list re-ran it on every render — each run set state,
+    // which re-rendered, which re-ran it: an endless loop that made results flicker and re-search.
     useEffect(() => {
         if (debounced.length < MIN_QUERY_LENGTH) {
-            setResults(EMPTY_RESULTS);
+            setCacheResults(EMPTY_CACHE_RESULTS);
             setIsSearching(false);
             return;
         }
@@ -79,14 +82,10 @@ export const useGlobalSearch = (query: string) => {
         let cancelled = false;
         setIsSearching(true);
 
-        const keyword = debounced.toLowerCase();
-        const matchedClouds = allClouds.filter(cloud => (cloud.name ?? '').toLowerCase().includes(keyword));
-
         search(debounced)
             .then(result => {
                 if (cancelled) return;
-                setResults({
-                    clouds: matchedClouds.slice(0, MAX_RESULTS_PER_SECTION),
+                setCacheResults({
                     places: result.sites.slice(0, MAX_RESULTS_PER_SECTION),
                     channels: result.channels.slice(0, MAX_RESULTS_PER_SECTION),
                     messages: result.chats.slice(0, MAX_MESSAGE_RESULTS),
@@ -96,14 +95,9 @@ export const useGlobalSearch = (query: string) => {
                 if (cancelled) return;
                 // Native bridge rejects on a SQLite error or an unhandled/timed-out request (e.g. a
                 // very old app build without this handler) — log it and still show cloud-name
-                // matches (computed locally, unaffected by the failed call) rather than going blank.
+                // matches (derived during render, unaffected by the failed call) rather than going blank.
                 logger.error('SEARCH', `Global cache search failed for: ${debounced}`, { error });
-                setResults({
-                    clouds: matchedClouds.slice(0, MAX_RESULTS_PER_SECTION),
-                    places: [],
-                    channels: [],
-                    messages: [],
-                });
+                setCacheResults(EMPTY_CACHE_RESULTS);
             })
             .finally(() => {
                 if (!cancelled) setIsSearching(false);
@@ -112,7 +106,23 @@ export const useGlobalSearch = (query: string) => {
         return () => {
             cancelled = true;
         };
-    }, [debounced, allClouds, search]);
+    }, [debounced, search]);
+
+    const matchedClouds = useMemo<CloudSearchResult[]>(() => {
+        if (debounced.length < MIN_QUERY_LENGTH) return EMPTY_RESULTS.clouds;
+
+        const keyword = debounced.toLowerCase();
+        return [...ownedClouds, ...invitedClouds]
+            .filter((cloud): cloud is typeof cloud & { id: string } => !!cloud.id)
+            .filter(cloud => (cloud.name ?? '').toLowerCase().includes(keyword))
+            .slice(0, MAX_RESULTS_PER_SECTION)
+            .map(cloud => ({ id: cloud.id, name: cloud.name }));
+    }, [debounced, ownedClouds, invitedClouds]);
+
+    const results = useMemo<GlobalSearchResults>(
+        () => ({ clouds: matchedClouds, ...cacheResults }),
+        [matchedClouds, cacheResults]
+    );
 
     const hasResults =
         results.clouds.length > 0 ||
