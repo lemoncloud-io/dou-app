@@ -75,13 +75,27 @@ describe('useLastChat — 홈 행의 마지막 메시지', () => {
         expect(result.current?.chatNo).toBe(3);
     });
 
-    it('타인의 시스템 메시지는 프리뷰로 유지한다', () => {
+    // ADR-0045: system rows carry no body, so previewing one shows a blank line. Others'
+    // join/leave used to hold the preview; now every system row falls through.
+    it('타인의 시스템 메시지도 건너뛰고 이전 실제 메시지를 반환한다', () => {
         seedChats([
             chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }),
             chat(4, 'u1 joined', { ownerId: 'u1', stereo: 'system' }),
         ]);
         const { result } = renderHook(() => useLastChat('ch-1'));
-        expect(result.current?.chatNo).toBe(4);
+        expect(result.current?.chatNo).toBe(3);
+    });
+
+    // The empty-pill bug ADR-0045 fixes: a reaction published from another client is an
+    // ordinary chat and used to take over the home row as the "last message".
+    it('리액션 이벤트·스레드 답글은 프리뷰를 점거하지 못한다', () => {
+        seedChats([
+            chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }),
+            chat(4, '', { ownerId: 'u1', stereo: 'system', subType: 'reaction' }),
+            chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' }),
+        ]);
+        const { result } = renderHook(() => useLastChat('ch-1'));
+        expect(result.current?.chatNo).toBe(3);
     });
 
     it('창 안의 메시지가 전부 내 시스템 메시지면 undefined를 반환한다 (desc 폴백)', () => {

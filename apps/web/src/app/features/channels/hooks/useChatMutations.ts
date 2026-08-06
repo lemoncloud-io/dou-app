@@ -6,6 +6,11 @@ import type { DomainChat, DomainJoin } from '@chatic/data';
 interface SendMessageInput {
     channelId: string;
     content: string;
+    /**
+     * Thread-reply target: the root's FULL id `<channelId>:<chatNo>` — the server
+     * resolves it and 404s on a bare chatNo (ADR-0008/0045). Omit for a top-level send.
+     */
+    parentId?: string;
 }
 
 interface ReadMessageInput {

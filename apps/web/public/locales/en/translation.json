@@ -551,7 +551,12 @@
             "delete": "Delete",
             "failed": "Failed",
             "syncing": "Syncing...",
-            "syncingProgress": "Syncing... ({{fetched}}/{{total}})"
+            "syncingProgress": "Syncing... ({{fetched}}/{{total}})",
+            "reactWith": "React with {{emoji}}",
+            "reactionWho": "{{emoji}} — {{names}}",
+            "reactionFailed": "Failed to send reaction",
+            "moreEmoji": "More emoji",
+            "pickEmoji": "Pick an emoji"
         },
         "settings": {
             "title": "Room Settings",
@@ -634,6 +639,17 @@
                 "message": "A room can have up to 100 members. 😭",
                 "confirm": "OK"
             }
+        },
+        "thread": {
+            "title": "Thread",
+            "replyAction": "Reply in thread",
+            "replyCount_one": "{{count}} reply",
+            "replyCount_other": "{{count}} replies",
+            "openThread_one": "Open thread · {{count}} reply",
+            "openThread_other": "Open thread · {{count}} replies",
+            "inputPlaceholder": "Reply…",
+            "unavailable": "This message isn't loaded yet — load older messages in the channel to see it.",
+            "loadOlder": "Load older messages"
         }
     },
     "search": {
@@ -1376,5 +1392,16 @@
         "title": "Create places in your own cloud\nand chat together!",
         "action": "Add Cloud",
         "dismiss": "Dismiss"
+    },
+    "emoji": {
+        "recent": "Recently used",
+        "cat": {
+            "smileys": "Smileys",
+            "gestures": "Gestures",
+            "nature": "Nature",
+            "food": "Food & drink",
+            "objects": "Objects",
+            "symbols": "Symbols"
+        }
     }
 }

@@ -1,24 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useChatSync, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat } from '@chatic/data';
 
-import { isOwnSystemChat } from '../utils';
+import { pickPreviewChat } from '../utils';
 
 // Observe a few rows (not just 1) so the preview can fall through to the previous message when
-// the newest rows are the current user's own system messages (e.g. the join written right after
-// creating a channel). If every row in the window is hidden, the preview falls back to the
-// channel description as before.
+// the newest rows are not previewable — system rows (e.g. the join written right after creating
+// a channel), reaction events, thread replies, failed sends. If every row in the window is
+// hidden, the preview falls back to the channel description as before.
 const PREVIEW_LOOKBACK = 10;
 
 /**
  * Latest cached chat for a home row's last-message preview — the home analog of `useChats`. The
  * server no longer embeds `lastChat$` on the channel, so this composes the app-runtime primitives:
  * `useChatSync` registers + primes the chat target (ChatSyncPlan keeps it live and unregisters on
- * unmount), and `chat.observeList` streams the cache. observeList is chat_no-descending, but we pick
- * the max chatNo defensively so a different ordering can't surface an older message. Own system
- * rows are skipped, mirroring the room view (useChats) which hides them too.
+ * unmount), and `chat.observeList` streams the cache. observeList is chat_no-descending, but
+ * `pickPreviewChat` ranks defensively (compareByChatNo) so a different ordering can't surface an
+ * older message. Non-previewable rows — system events (own or not), reaction events, thread
+ * replies, failed sends — are skipped, mirroring the room view's feed filter (ADR-0045).
  *
  * Live freshness: the ChatSyncPlan is push-driven (`chat.sync`), but that push is scoped to the
  * actively-viewed room (device.sync viewing target), so a home row's chat target receives no delta
@@ -30,8 +30,6 @@ const PREVIEW_LOOKBACK = 10;
 export const useLastChat = (channelId: string): DomainChat | undefined => {
     const { chat: chatRepository, channel: channelRepository } = useRuntimeRepositories();
     const { isVerified } = useRuntimeSocketState();
-    const { userId } = useSessionIdentity();
-    const myUid = userId ?? '';
     const [lastChat, setLastChat] = useState<DomainChat | undefined>(undefined);
 
     // Highest chatNo currently in the chat cache for this channel (any type, incl. system) — the
@@ -47,14 +45,14 @@ export const useLastChat = (channelId: string): DomainChat | undefined => {
         return chatRepository.observeList({ channelId, limit: PREVIEW_LOOKBACK }, result => {
             const list = result?.list ?? [];
             cachedMaxRef.current = list.reduce((max, chat) => Math.max(max, chat.chatNo ?? 0), 0);
-            const latest = list.reduce<DomainChat | undefined>(
-                (max, chat) =>
-                    !isOwnSystemChat(chat, myUid) && (chat.chatNo ?? 0) >= (max?.chatNo ?? -1) ? chat : max,
-                undefined
-            );
-            setLastChat(latest);
+            // pickPreviewChat drops reaction events, thread replies, system rows (own or not)
+            // and failed sends — without it another user's reaction would take over the row as
+            // the "last message" (ADR-0045) — and ranks by compareByChatNo so a just-sent
+            // pending row (sentinel chatNo 0) still previews instead of losing every numeric
+            // comparison.
+            setLastChat(pickPreviewChat(list));
         });
-    }, [chatRepository, channelId, myUid]);
+    }, [chatRepository, channelId]);
 
     // Pull the newest page when the (poll-fresh) channel head advances past the cached tail. Gated on
     // isVerified so it (re)runs after auth/reconnect; requestedNoRef dedupes so one head bump fires at

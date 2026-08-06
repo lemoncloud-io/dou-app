@@ -22,6 +22,8 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
+import { MessageActionSheet } from '../components/MessageActionSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
@@ -37,13 +39,17 @@ import {
     useJoinPositions,
     useMessageJump,
     useMyJoin,
+    useReactions,
     useReadMarker,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { buildThreadIndex } from '../utils/buildThread';
+import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
+import { useRecentEmojiStore } from '../../../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
@@ -59,7 +65,9 @@ export const ChannelRoomPage = () => {
     // UI 상태 관리
     const [content, setContent] = useState('');
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
-    const [openActionMessageKey, setOpenActionMessageKey] = useState<string | null>(null);
+    // The long-pressed message the action sheet targets (null = sheet closed).
+    const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
     // 스크롤 중 상단에 걸친 날짜 그룹을 표시하는 플로팅 pill 상태
@@ -96,6 +104,19 @@ export const ChannelRoomPage = () => {
     });
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
+
+    const memberById = useMemo(() => {
+        const map = new Map<string, (typeof members)[number]>();
+        for (const member of members) if (member.id) map.set(member.id, member);
+        return map;
+    }, [members]);
+
+    // Reactor display name for the chip a11y label — same precedence as message rows:
+    // site-profile nick, then the member user cache.
+    const nameOfUser = useCallback(
+        (id: string) => profileMap.get(id)?.nick ?? memberById.get(id)?.nick ?? memberById.get(id)?.name ?? id,
+        [profileMap, memberById]
+    );
 
     // Full channel roster (source of truth: channel.memberIds), always including me. This drives
     // the per-member join sync registration so every participant's read cursor stays live — the
@@ -143,6 +164,7 @@ export const ChannelRoomPage = () => {
 
     const {
         messages,
+        rawChats,
         isLoading: isChatLoading,
         isEmpty: isChatEmpty,
         isLoadingMore,
@@ -154,6 +176,28 @@ export const ChannelRoomPage = () => {
     } = useChats(memoizedChatParams);
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
+    const { toggleReaction, failedId: reactionFailedId } = useReactions();
+    const rememberEmoji = useRecentEmojiStore(s => s.remember);
+
+    // Derived from the UNFILTERED window: reaction events and replies are hidden feed
+    // rows, so folding the visible `messages` would silently yield nothing (ADR-0045).
+    const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
+    const threadIndex = useMemo(() => buildThreadIndex(rawChats), [rawChats]);
+
+    /**
+     * My read cursor snapshotted at entry — the unseen-reply dot baseline. The LIVE
+     * cursor is useless for this: useReadMarker advances it to the channel head within
+     * a beat of entering (stage 1), which would clear every dot instantly. Leaving and
+     * re-entering the room takes a fresh snapshot, so a thread visited in between
+     * loses its dot — exactly the read semantics the cursor already has.
+     */
+    const [baselineReadNo, setBaselineReadNo] = useState<number | null>(null);
+    useEffect(() => setBaselineReadNo(null), [stableChannelId]);
+    const myReadNo = myJoin?.readNo;
+    useEffect(() => {
+        // First join-cache emission wins; later ones already carry the entry marker's echo.
+        if (baselineReadNo === null && myReadNo !== undefined) setBaselineReadNo(myReadNo);
+    }, [baselineReadNo, myReadNo]);
 
     /**
      * Leave for home when the channel is GONE — the row was there and disappeared (left the channel,
@@ -306,9 +350,9 @@ export const ChannelRoomPage = () => {
             });
     };
 
-    const handleOpenMessageActions = (message: ClientChatView, messageKey: string) => {
+    const handleOpenMessageActions = (message: ClientChatView) => {
         if (!message.content) return;
-        setOpenActionMessageKey(messageKey);
+        setActionMessage(message);
     };
 
     const handleCopyMessage = async (messageContent: string) => {
@@ -318,13 +362,36 @@ export const ChannelRoomPage = () => {
         try {
             await copyMessageToClipboard(messageContent);
             toast({ title: t('chat.room.messageCopied') });
-            setOpenActionMessageKey(null);
+            setActionMessage(null);
         } catch (error) {
             logger.error('CHAT', 'Failed to copy message', { error });
             toast({ title: t('chat.room.copyFailed'), variant: 'destructive' });
         } finally {
             setIsCopyingMessage(false);
         }
+    };
+
+    const openThread = useCallback(
+        (rootNo: number) => void navigate(ROUTES.channels.thread(stableChannelId, rootNo)),
+        [navigate, stableChannelId]
+    );
+
+    // One tap on the action sheet's quick row (or a pick from the full sheet): toggle
+    // against the folded state — hasMyReaction matches on the normalised fold key, so
+    // an emoji differing only by variation selector still turns mine off.
+    const handlePickEmoji = (emoji: string) => {
+        const target = actionMessage;
+        setActionMessage(null);
+        setEmojiPickerOpen(false);
+        if (!target?.id) return;
+        rememberEmoji(emoji);
+        toggleReaction(target.id, emoji, hasMyReaction(reactions.get(target.id), emoji));
+    };
+
+    const handleReplyAction = () => {
+        const target = actionMessage;
+        setActionMessage(null);
+        if (target?.chatNo) openThread(target.chatNo);
     };
 
     // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
@@ -612,9 +679,6 @@ export const ChannelRoomPage = () => {
                                                 const showProfileAndName = !isSameAsPrev;
                                                 const showTimeAndStatus =
                                                     !isSameAsNext || message.isPending || message.isFailed;
-                                                const messageActionKey =
-                                                    message.id ||
-                                                    `${message.chatNo ?? 'pending'}-${message.timestamp.getTime()}-${index}`;
 
                                                 // Site profile (nick/avatar) takes precedence over the
                                                 // user-cache name fallback computed in useChats.
@@ -629,7 +693,20 @@ export const ChannelRoomPage = () => {
                                                         ? getReadCount(message.chatNo)
                                                         : { readCount: 0, unreadCount: 0 };
 
+                                                // Thread footer: loaded-reply aggregate keyed by the
+                                                // root's chatNo string (buildThreadIndex).
+                                                const threadMeta = message.chatNo
+                                                    ? threadIndex.get(String(message.chatNo))
+                                                    : undefined;
+                                                const hasUnseenReplies =
+                                                    !!threadMeta &&
+                                                    baselineReadNo !== null &&
+                                                    threadMeta.lastReplyNo > baselineReadNo &&
+                                                    threadMeta.lastReplyOwnerId !== userId;
+
                                                 return (
+                                                    // The wrapper carries `data-chat-no` for the
+                                                    // search jump (useMessageJump scrolls to it).
                                                     <div key={message.id} data-chat-no={message.chatNo}>
                                                         <ChannelMessageRow
                                                             message={message}
@@ -645,20 +722,7 @@ export const ChannelRoomPage = () => {
                                                                 unreadCount,
                                                                 mode: isDmChat ? 'dm' : 'count',
                                                             }}
-                                                            isActionOpen={openActionMessageKey === messageActionKey}
-                                                            isCopying={isCopyingMessage}
-                                                            onActionOpenChange={open => {
-                                                                if (
-                                                                    !open &&
-                                                                    openActionMessageKey === messageActionKey
-                                                                ) {
-                                                                    setOpenActionMessageKey(null);
-                                                                }
-                                                            }}
-                                                            onLongPress={() =>
-                                                                handleOpenMessageActions(message, messageActionKey)
-                                                            }
-                                                            onCopy={() => void handleCopyMessage(message.content ?? '')}
+                                                            onLongPress={() => handleOpenMessageActions(message)}
                                                             onExpand={() =>
                                                                 setExpandedMessage({
                                                                     content: message.content ?? '',
@@ -667,6 +731,24 @@ export const ChannelRoomPage = () => {
                                                             }
                                                             onRetry={() => handleRetryMessage(message)}
                                                             onDelete={() => handleDeleteMessage(message.id)}
+                                                            reactions={
+                                                                message.id ? reactions.get(message.id) : undefined
+                                                            }
+                                                            onToggleReaction={(emoji, isMine) =>
+                                                                message.id &&
+                                                                toggleReaction(message.id, emoji, isMine)
+                                                            }
+                                                            reactionFailed={
+                                                                !!message.id && reactionFailedId === message.id
+                                                            }
+                                                            nameOf={nameOfUser}
+                                                            threadMeta={threadMeta}
+                                                            hasUnseenReplies={hasUnseenReplies}
+                                                            onOpenThread={
+                                                                message.chatNo
+                                                                    ? () => openThread(message.chatNo)
+                                                                    : undefined
+                                                            }
                                                         />
                                                     </div>
                                                 );
@@ -745,6 +827,29 @@ export const ChannelRoomPage = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <MessageActionSheet
+                open={!!actionMessage && !emojiPickerOpen}
+                onOpenChange={open => !open && setActionMessage(null)}
+                tallies={actionMessage?.id ? reactions.get(actionMessage.id) : undefined}
+                // Persisted rows only (chatNo > 0): a reaction / reply targeting an
+                // optimistic temp id would 404 and orphan once the persisted swap lands.
+                canReact={!!actionMessage?.chatNo}
+                canReply={!!actionMessage?.chatNo}
+                isCopying={isCopyingMessage}
+                onPickEmoji={handlePickEmoji}
+                onMoreEmoji={() => setEmojiPickerOpen(true)}
+                onCopy={() => void handleCopyMessage(actionMessage?.content ?? '')}
+                onReply={handleReplyAction}
+            />
+            <EmojiPickerSheet
+                open={emojiPickerOpen}
+                onOpenChange={open => {
+                    setEmojiPickerOpen(open);
+                    if (!open) setActionMessage(null);
+                }}
+                onPick={handlePickEmoji}
+            />
         </div>
     );
 };

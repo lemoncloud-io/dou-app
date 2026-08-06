@@ -78,6 +78,22 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         expect(result.current.messages.map(m => m.id)).toEqual(['a', 'c']);
     });
 
+    // ADR-0045: reaction events used to render as empty SystemNotice pills and replies
+    // leaked into the main feed. Both fold out of `messages` but stay on `rawChats`,
+    // which reaction folding / thread derivation read.
+    it('리액션 이벤트와 스레드 답글은 messages에서 숨기고 rawChats에는 남긴다', () => {
+        seedChats([
+            chat({ id: 'a', chatNo: 1, ownerId: 'u1', stereo: 'user', createdAtMs: 100 }),
+            chat({ id: 'b', chatNo: 2, ownerId: 'u1', stereo: 'system', subType: 'reaction', createdAtMs: 200 }),
+            chat({ id: 'c', chatNo: 3, ownerId: 'u1', stereo: 'user', parentId: '1', createdAtMs: 300 }),
+        ]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.messages.map(m => m.id)).toEqual(['a']);
+        expect(result.current.rawChats.map(c => c.id)).toEqual(['a', 'b', 'c']);
+    });
+
     it('pending(서버 chatNo 없음) 메시지는 상단이 아니라 맨 아래(최신)로 정렬한다', () => {
         seedChats([
             chat({ id: 'p', chatNo: 0, ownerId: 'me', stereo: 'user', isPending: true, createdAtMs: 300 }),
