@@ -5,16 +5,7 @@ import { logger } from '@chatic/bridges';
 import { resizeImageToBase64 } from '@chatic/shared';
 import type { DomainPlace } from '@chatic/data';
 
-import {
-    AlertDialog,
-    defaultPlaceAvatar,
-    FloatingButton,
-    ModalTopBar,
-    ProfileAvatar,
-    Text,
-    TextField,
-    Toast,
-} from '@chatic/web-ui-kit';
+import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 // Direct path, not the `ui/layouts` barrel: the barrel pulls in PrivateLayout -> @chatic/assets,
@@ -182,7 +173,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onCreated }: CreatePlace
                             <div className="flex flex-col items-center gap-4 px-[18px]">
                                 <ProfileAvatar
                                     src={thumbnail || undefined}
-                                    defaultImage={defaultPlaceAvatar}
+                                    glyph="place"
                                     onSelect={handleImageClick}
                                     selectLabel={t('createPlace.photoLabel')}
                                 />

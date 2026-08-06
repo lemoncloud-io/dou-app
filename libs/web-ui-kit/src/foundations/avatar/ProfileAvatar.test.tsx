@@ -55,15 +55,20 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
     });
 
-    it('shows defaultImage instead of the user glyph, and never for the group glyph', () => {
+    // A place is a space, not a person, so its placeholder is the illustration rather than a glyph
+    // (Figma 3408-27419). It paints its own circle, hence an <img> and no inline svg.
+    it('renders the place illustration when glyph="place"', () => {
         // Queried by selector, not by role: the default empty alt makes the image presentational.
-        const { container, rerender } = render(<ProfileAvatar defaultImage="http://example.com/place.svg" />);
-        expect(container.querySelector('img')).toHaveAttribute('src', 'http://example.com/place.svg');
-        expect(container.querySelector('svg')).not.toBeInTheDocument();
+        const { container } = render(<ProfileAvatar glyph="place" />);
 
-        // glyph="group" wins over defaultImage.
-        rerender(<ProfileAvatar glyph="group" defaultImage="http://example.com/place.svg" />);
-        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(container.querySelector('img')).toBeInTheDocument();
+        expect(container.querySelector('svg')).not.toBeInTheDocument();
+    });
+
+    it('a real photo wins over every placeholder', () => {
+        const { container } = render(<ProfileAvatar glyph="place" src="http://example.com/turtle.png" />);
+
+        expect(container.querySelector('img')).toHaveAttribute('src', 'http://example.com/turtle.png');
     });
 
     // Every placeholder this component can show is dark, so the badge is light-on-dark.
