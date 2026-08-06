@@ -1,9 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
-import { getSocketManager } from '@chatic/app-runtime';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { getSocketManager, isNativeApp, recoverInvitedCloudIfMissing } from '@chatic/app-runtime';
+import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 
+import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { pendingNavigationStore } from './pendingNavigationStore';
 import { resolvePushNavigation } from './resolvePushNavigation';
@@ -21,9 +22,11 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('@chatic/web-core', () => ({
+    useGlobalSession: jest.fn(),
     useSessionSelection: jest.fn(),
     useSwitchCloudSession: jest.fn(),
 }));
+jest.mock('../../runtime/useLogoutCloudSession', () => ({ useLogoutCloudSession: jest.fn() }));
 jest.mock('../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
 jest.mock('./pendingNavigationStore', () => ({ pendingNavigationStore: { register: jest.fn() } }));
@@ -32,6 +35,7 @@ jest.mock('./resolvePushNavigation', () => ({ resolvePushNavigation: jest.fn() }
 const navigate = jest.fn();
 const switchCloud = jest.fn();
 const switchSite = jest.fn();
+const logoutCloudSession = jest.fn();
 const waitUntilVerified = jest.fn();
 const unregister = jest.fn();
 
@@ -42,6 +46,9 @@ const setResolved = (value: { target: string; cid: string | null; sid: string | 
     (resolvePushNavigation as jest.Mock).mockReturnValue(value);
 const setSelection = (selectedCloudId: string | null, selectedSiteId: string | null) =>
     (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
+// The relay-return branch reads the committed context kind, not the selection (see usePushNavigate).
+const setActiveServerKind = (kind: 'relay' | 'cloud') =>
+    (useGlobalSession as jest.Mock).mockReturnValue({ activeServer: { kind } });
 
 const invoke = async (path = '/x', replace = false) => {
     renderHook(() => useHandlePushNavigation());
@@ -59,6 +66,8 @@ beforeEach(() => {
     switchCloud.mockResolvedValue(undefined);
     switchSite.mockResolvedValue(undefined);
     (useSwitchCloudSession as jest.Mock).mockReturnValue({ switchCloud });
+    logoutCloudSession.mockResolvedValue(undefined);
+    (useLogoutCloudSession as jest.Mock).mockReturnValue({ logoutCloudSession });
     (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
     waitUntilVerified.mockResolvedValue(true);
     (getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
@@ -67,6 +76,7 @@ beforeEach(() => {
         return unregister;
     });
     setSelection('default', 's1');
+    setActiveServerKind('relay');
 });
 
 describe('useHandlePushNavigation', () => {
@@ -157,6 +167,97 @@ describe('useHandlePushNavigation', () => {
         await invoke();
 
         expect(navigate).toHaveBeenCalledWith('/room');
+    });
+
+    describe("중계서버 푸시 (cid='#') — ADR-0045 크로스오버", () => {
+        const setCloudActive = (siteId: string | null = 's1') => {
+            setSelection('c1', siteId);
+            setActiveServerKind('cloud');
+        };
+
+        it('클라우드 활성 중이면 switchCloud 대신 logoutCloudSession으로 relay에 복귀한 뒤 이동한다', async () => {
+            setCloudActive();
+            setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's1' });
+
+            const order: string[] = [];
+            waitUntilVerified.mockImplementation(async () => {
+                order.push('wait');
+                return true;
+            });
+            logoutCloudSession.mockImplementation(async () => {
+                order.push('logout');
+            });
+            navigate.mockImplementation(() => {
+                order.push('navigate');
+            });
+
+            await invoke();
+
+            expect(order).toEqual(['wait', 'logout', 'navigate']);
+            expect(switchCloud).not.toHaveBeenCalled();
+            expect(navigate).toHaveBeenCalledWith('/channels/dm1/room');
+        });
+
+        it('이미 relay 컨텍스트면 아무 전환 없이 바로 이동한다 (switchCloud("#") 회귀 방지)', async () => {
+            setSelection('default', 's1');
+            setActiveServerKind('relay');
+            setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's1' });
+
+            await invoke();
+
+            expect(waitUntilVerified).not.toHaveBeenCalled();
+            expect(logoutCloudSession).not.toHaveBeenCalled();
+            expect(switchCloud).not.toHaveBeenCalled();
+            expect(navigate).toHaveBeenCalledWith('/channels/dm1/room');
+        });
+
+        it("'#'는 native여도 invited-cloud 복구 대상이 아니다", async () => {
+            // clearAllMocks는 mockReturnValue를 지우지 않으므로 테스트 안에서 원복한다.
+            (isNativeApp as jest.Mock).mockReturnValue(true);
+            try {
+                setCloudActive();
+                setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's1' });
+
+                await invoke();
+
+                expect(recoverInvitedCloudIfMissing).not.toHaveBeenCalled();
+                expect(logoutCloudSession).toHaveBeenCalledTimes(1);
+            } finally {
+                (isNativeApp as jest.Mock).mockReturnValue(false);
+            }
+        });
+
+        it('relay 복귀가 실패해도 best-effort로 이동한다', async () => {
+            setCloudActive();
+            setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's1' });
+            logoutCloudSession.mockRejectedValue(new Error('boom'));
+
+            await invoke();
+
+            expect(navigate).toHaveBeenCalledWith('/channels/dm1/room');
+        });
+
+        it('sid가 다르면 relay 복귀 후 기존 switchSite 분기가 이어진다', async () => {
+            setCloudActive('s1');
+            setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's2' });
+
+            const order: string[] = [];
+            logoutCloudSession.mockImplementation(async () => {
+                order.push('logout');
+            });
+            switchSite.mockImplementation(async () => {
+                order.push('site');
+            });
+            navigate.mockImplementation(() => {
+                order.push('navigate');
+            });
+
+            await invoke();
+
+            expect(order).toEqual(['logout', 'site', 'navigate']);
+            expect(switchSite).toHaveBeenCalledWith('s2');
+            expect(switchCloud).not.toHaveBeenCalled();
+        });
     });
 
     describe('히스토리 정규화', () => {

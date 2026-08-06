@@ -8,13 +8,21 @@ import {
     useRuntimeRepositories,
 } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 
+import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { resolvePushNavigation } from './resolvePushNavigation';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
+
+/**
+ * The backend push payload marks relay-origin messages with this literal `cid`. It exists only in
+ * the push payload spec — it is NOT the session layer's internal `'default'` sentinel
+ * (`getSelectedCloudId()`), so it must be interpreted here and never forwarded to session APIs.
+ */
+const RELAY_ORIGIN_CID = '#';
 
 /**
  * Strips only the hash so push targets can be compared against the current location.
@@ -45,6 +53,12 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
  * cannot find the channel and bounces back home. The cloud switch clears the selected site,
  * so the site switch is ordered after it, and both are awaited before the route change.
  *
+ * Relay-origin pushes carry the literal `cid` `'#'` (see RELAY_ORIGIN_CID) rather than a real
+ * cloud id, so they must never reach `switchCloud`. When a cloud session is active they instead
+ * leave the cloud via `logoutCloudSession()` — relay auth underpins the cloud session
+ * (delegation-token exchange), so dropping the cloud is enough to land back in relay without a
+ * re-login. When relay is already active, no transition is needed at all. (ADR-0045)
+ *
  * A cloud/site switch re-issues tokens against the active server, so attempting it before the
  * base socket handshake completes (e.g. on cold start) races the connection and fails, which
  * rolls the selection back. We therefore wait for the handshake (`isVerified`) before switching;
@@ -64,7 +78,11 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
 export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const navigate = useNavigate();
     const { selectedCloudId, selectedSiteId } = useSessionSelection();
+    // Committed session truth for the relay-return decision: `kind` is 'cloud' only while the
+    // cloud session is fully active (tokens present), unlike the selection-derived cloud id.
+    const { activeServer } = useGlobalSession();
     const { switchCloud } = useSwitchCloudSession();
+    const { logoutCloudSession } = useLogoutCloudSession();
     const { switchSite } = useSiteSwitch();
     // Cloud repository for invited-cloud recovery (see the switch block below).
     const { cloud } = useRuntimeRepositories();
@@ -123,7 +141,13 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             const { target, cid, sid } = resolvePushNavigation(rawPath);
             logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid });
 
-            const needsSwitch = (!!cid && cid !== selectedCloudId) || (!!sid && sid !== selectedSiteId);
+            // Relay-origin push (`cid === '#'`): return to relay when a cloud is active; when relay
+            // is already active there is nothing to switch — the sentinel must never hit switchCloud.
+            const isRelayPush = cid === RELAY_ORIGIN_CID;
+            const needsRelayReturn = isRelayPush && activeServer.kind === 'cloud';
+            const needsCloudSwitch = !!cid && !isRelayPush && cid !== selectedCloudId;
+            const needsSiteSwitch = !!sid && sid !== selectedSiteId;
+            const needsSwitch = needsRelayReturn || needsCloudSwitch || needsSiteSwitch;
 
             try {
                 if (needsSwitch) {
@@ -143,10 +167,11 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
                     // foreground-push recovery in InvitedCloudColdSyncRunner so both push entry
                     // points behave identically. Relay-backed, so it runs after the handshake gate.
-                    if (cid && isNativeApp()) await recoverInvitedCloudIfMissing(cloud, cid);
-                    // Cloud first (it clears the selected site), then site, then route.
-                    if (cid && cid !== selectedCloudId) await switchCloud(cid);
-                    if (sid && sid !== selectedSiteId) await switchSite(sid);
+                    if (cid && !isRelayPush && isNativeApp()) await recoverInvitedCloudIfMissing(cloud, cid);
+                    // Cloud transition first (it clears the selected site), then site, then route.
+                    if (needsRelayReturn) await logoutCloudSession();
+                    if (cid && needsCloudSwitch) await switchCloud(cid);
+                    if (sid && needsSiteSwitch) await switchSite(sid);
                 }
                 navigateNormalized(target);
             } catch (error) {
@@ -157,6 +182,15 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 inFlightRef.current = false;
             }
         },
-        [navigateNormalized, selectedCloudId, selectedSiteId, switchCloud, switchSite, cloud]
+        [
+            navigateNormalized,
+            selectedCloudId,
+            selectedSiteId,
+            activeServer.kind,
+            switchCloud,
+            logoutCloudSession,
+            switchSite,
+            cloud,
+        ]
     );
 };
