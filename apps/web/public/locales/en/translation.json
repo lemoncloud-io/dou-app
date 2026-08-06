@@ -435,7 +435,9 @@
         "selfChannel": "Self Chat",
         "createChat": "Create Chat",
         "createDirect": "1:1 Chat",
-        "createGroup": "Create Group"
+        "createGroup": "Create Group",
+        "pinned": "Pinned chat",
+        "muted": "Notifications off"
     },
     "channelManage": {
         "title": "Manage chats",
@@ -791,6 +793,7 @@
         "photoOptional": "[Optional]",
         "save": "Done",
         "imageSizeError": "Image must be less than 10MB",
+        "relayOnlyNotice": "Your account profile can only be edited from DoU Home",
         "tabBasic": "Basic Profile",
         "tabCloud": "Cloud Profile",
         "cloudDescription1": "Set the name",

@@ -28,6 +28,7 @@ import {
     useJoinMutations,
     useMyJoin,
 } from '../hooks';
+import { resolveChannelAvatar } from '../lib';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'profileCreate' | 'joinNick' | null;
@@ -185,18 +186,20 @@ export const ChannelSettingsPage = () => {
     // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
 
-    // DM always shows the peer avatar (matching the room header) — channel.thumbnail is ignored for
-    // DM. Otherwise: channel thumbnail → self glyph → group placeholder.
-    const roomAvatar = isDmChat ? (
-        dmPeer?.thumbnail ? (
-            <ImageAvatar src={dmPeer.thumbnail} alt={roomTitle} size={40} />
-        ) : (
-            <DefaultAvatar size={40} variant="user" />
-        )
-    ) : channel?.thumbnail ? (
-        <ImageAvatar src={channel.thumbnail} alt={channel?.name ?? ''} size={40} />
-    ) : isSelfChat ? (
-        <DefaultAvatar size={40} />
+    // One shared rule with the room header and the home list (resolveChannelAvatar): self → MY
+    // place-profile photo, DM → the peer's, else the channel photo. Both self and DM ignore
+    // channel.thumbnail. With no photo: the person glyph for self/DM, the chat placeholder for a group.
+    const roomAvatarSrc = channel
+        ? resolveChannelAvatar({
+              channel,
+              myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
+              peerThumbnail: dmPeer?.thumbnail,
+          })
+        : undefined;
+    const roomAvatar = roomAvatarSrc ? (
+        <ImageAvatar src={roomAvatarSrc} alt={roomTitle} size={40} />
+    ) : isDmChat || isSelfChat ? (
+        <DefaultAvatar size={40} variant="user" />
     ) : (
         <ChatAvatar size="sm" />
     );

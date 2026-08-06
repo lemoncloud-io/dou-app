@@ -435,7 +435,9 @@
         "selfChannel": "나와의 채팅",
         "createChat": "채팅 만들기",
         "createDirect": "1:1 대화",
-        "createGroup": "그룹 방 만들기"
+        "createGroup": "그룹 방 만들기",
+        "pinned": "고정된 채팅방",
+        "muted": "알림 꺼짐"
     },
     "channelManage": {
         "title": "채팅방 관리",
@@ -791,6 +793,7 @@
         "photoOptional": "[선택]",
         "save": "완료",
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
+        "relayOnlyNotice": "계정 프로필은 두유 홈에서만 수정할 수 있어요",
         "tabBasic": "기본 프로필",
         "tabCloud": "Cloud 프로필",
         "cloudDescription1": "Cloud에서 사용할",

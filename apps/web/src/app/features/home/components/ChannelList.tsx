@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { BellOff, Pin } from 'lucide-react';
+
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
@@ -32,7 +34,7 @@ import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
-import { resolveChannelTitle } from '../../channels/lib';
+import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../lib/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
@@ -50,17 +52,26 @@ const ChannelItem = ({
     channel,
     unread,
     myNick,
+    myThumbnail,
     joinNick,
     uid,
     dmPeer,
+    pinned,
+    muted,
 }: {
     channel: DomainChannel;
     unread: number;
     myNick?: string;
+    /** My place-profile photo — the self-chat row's avatar (see resolveChannelAvatar). */
+    myThumbnail?: string;
     joinNick?: string;
     uid?: string;
     /** The 1:1 peer for this row (from the list-level useDmPeers). Undefined for non-DM rows. */
     dmPeer?: DmPeer;
+    /** Pinned in this place (client preference) — shown as a pin glyph next to the time. */
+    pinned?: boolean;
+    /** Room notifications off (my join's notify === 'none', ADR-0025) — shown as a bell-off glyph. */
+    muted?: boolean;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -102,9 +113,10 @@ const ChannelItem = ({
     const preview = lastChat?.content ?? '';
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
-    // A DM shows the peer's avatar, matching the room header — a DM channel has no photo of its own.
-    // Otherwise the channel photo, and with no photo the default person avatar (Figma "1명 Profile").
-    const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
+    // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with
+    // the room header / settings / manage list. With no photo, the default person avatar
+    // (Figma "1명 Profile").
+    const avatarSrc = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
     const leading = avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />;
 
     return (
@@ -125,6 +137,13 @@ const ChannelItem = ({
                             {channel.memberNo}
                         </span>
                     )}
+                    {muted && (
+                        <BellOff
+                            role="img"
+                            aria-label={t('channelList.muted')}
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                        />
+                    )}
                 </>
             }
             subtitle={
@@ -138,7 +157,16 @@ const ChannelItem = ({
             }
             trailing={
                 <div className="flex flex-col items-end gap-1">
-                    <span className="text-[12px] leading-4 text-description">{time}</span>
+                    <div className="flex items-center gap-1">
+                        {pinned && (
+                            <Pin
+                                role="img"
+                                aria-label={t('channelList.pinned')}
+                                className="size-3.5 text-muted-foreground"
+                            />
+                        )}
+                        <span className="text-[12px] leading-4 text-description">{time}</span>
+                    </div>
                     <UnreadBadge count={unread} variant="pill" />
                 </div>
             }
@@ -199,10 +227,11 @@ export const ChannelList = ({
     onSelectInvite,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    // My active-site profile nick — the self-chat title fallback. Resolved once here
-    // (not per row) since useMyProfile triggers a fetch.
+    // My active-site profile — the self-chat title fallback AND the self-chat row's avatar. Resolved
+    // once here (not per row) since useMyProfile triggers a fetch.
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
+    const myThumbnail = myProfile?.thumbnail;
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
     const { userId: uid } = useSessionIdentity();
     // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
@@ -271,9 +300,14 @@ export const ChannelList = ({
                         channel={channel}
                         unread={unreadByChannel[channel.id] ?? 0}
                         myNick={myNick}
+                        myThumbnail={myThumbnail}
                         joinNick={joinByChannel?.get(channel.id)?.nick}
                         uid={uid ?? undefined}
                         dmPeer={dmPeers.get(channel.id)}
+                        pinned={pinnedChannelIds?.has(channel.id) ?? false}
+                        // The mute state lives on my join row, same source the settings toggle
+                        // writes through (join.update) — not the channel's embedded $join.
+                        muted={joinByChannel?.get(channel.id)?.notify === 'none'}
                     />
                 ))
             )}

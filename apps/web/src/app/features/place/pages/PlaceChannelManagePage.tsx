@@ -19,7 +19,7 @@ import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceK
 import { ConfirmDialog } from '../../channels/components';
 import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
 import { useChannelUnreads, useHomeChannels, useLastChat, useMyJoins } from '../../home/hooks';
-import { resolveChannelTitle } from '../../channels/lib';
+import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../home/lib';
 import { useMyProfile } from '../../../hooks';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -275,6 +275,7 @@ export const PlaceChannelManagePage = () => {
                                 channel={channel}
                                 uid={uid ?? undefined}
                                 myNick={myProfile?.nick}
+                                myThumbnail={myProfile?.thumbnail}
                                 joinNick={myJoins.get(channel.id)?.nick}
                                 dmPeer={dmPeers.get(channel.id)}
                                 unread={unreadByChannel[channel.id] ?? 0}
@@ -339,6 +340,8 @@ interface ManageChannelRowProps {
     channel: DomainChannel;
     uid?: string;
     myNick?: string;
+    /** My place-profile photo — the self-chat row's avatar (see resolveChannelAvatar). */
+    myThumbnail?: string;
     joinNick?: string;
     /** The 1:1 peer for this row (from the page-level useDmPeers). Undefined for non-DM rows. */
     dmPeer?: DmPeer;
@@ -358,6 +361,7 @@ const ManageChannelRow = ({
     channel,
     uid,
     myNick,
+    myThumbnail,
     joinNick,
     dmPeer,
     unread,
@@ -369,8 +373,6 @@ const ManageChannelRow = ({
 }: ManageChannelRowProps) => {
     const { t, i18n } = useTranslation();
     const isSelf = channel.stereo === 'self';
-    // 1:1 DM: the row shows the peer, so the avatar comes from them, not from the channel.
-    const isDm = channel.stereo === 'dm';
     const lastChat = useLastChat(channel.id);
 
     const name = resolveChannelTitle({
@@ -384,7 +386,8 @@ const ManageChannelRow = ({
         dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
 
-    const avatarSrc = isDm ? dmPeer?.thumbnail : channel.thumbnail;
+    // Self → my place-profile photo, DM → the peer's, else the channel photo (resolveChannelAvatar).
+    const avatarSrc = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
 
     const time = lastChat?.createdAt
         ? new Date(lastChat.createdAt).toLocaleTimeString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', {
