@@ -1,4 +1,10 @@
-import type { CacheChannelView, CacheChatView, CacheJoinView, CacheSiteView } from '@chatic/app-messages';
+import type {
+    CacheChannelView,
+    CacheChatView,
+    CacheJoinView,
+    CacheProfileView,
+    CacheSiteView,
+} from '@chatic/app-messages';
 
 /**
  * Global cache search query. `uid` always scopes the search to the current user;
@@ -50,13 +56,26 @@ export interface GlobalCacheContextQuery {
 export interface GlobalCacheContext {
     channelsByRef: Record<string, CacheChannelView>;
     sitesByRef: Record<string, CacheSiteView>;
-    /** My join rows only (row-level uid is already the current user). Supplies `readNo`. */
+    /** My join rows only (`join.userId === uid`). Supplies `readNo`. */
     joinsByRef: Record<string, CacheJoinView>;
     lastChatsByRef: Record<string, CacheChatView>;
+    /**
+     * Display profiles (nick/thumbnail) for every member cached in the requested clouds, keyed by
+     * {@link globalCacheProfileKey}. A message's sender is named from here: a profile is
+     * place-scoped, so the same person can appear under a different nick per place.
+     *
+     * Every profile of the cloud is returned rather than a requested subset, because a chat row's
+     * place is only known after its owning channel resolves — asking for specific members would
+     * force a second round trip.
+     */
+    profilesByRef: Record<string, CacheProfileView>;
 }
 
-/** Composes the `${cid}:${id}` key used by every {@link GlobalCacheContext} map. */
+/** Composes the `${cid}:${id}` key used by most {@link GlobalCacheContext} maps. */
 export const globalCacheRefKey = (cid: string, id: string): string => `${cid}:${id}`;
+
+/** Key for `profilesByRef` — a display profile is per place, so the sid is part of the identity. */
+export const globalCacheProfileKey = (cid: string, sid: string, userId: string): string => `${cid}:${sid}:${userId}`;
 
 /**
  * Cross-cloud reads over the local cache. Implementations must share the same semantics —

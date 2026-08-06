@@ -9,12 +9,19 @@ import type { GlobalSearchResults } from './useGlobalSearch';
 jest.mock('@chatic/app-runtime', () => ({
     useGlobalCacheSearch: jest.fn(),
     globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
+    globalCacheProfileKey: (cid: string, sid: string, userId: string) => `${cid}:${sid}:${userId}`,
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 const resolveContext = jest.fn();
 
-const EMPTY_CONTEXT = { channelsByRef: {}, sitesByRef: {}, joinsByRef: {}, lastChatsByRef: {} };
+const EMPTY_CONTEXT = {
+    channelsByRef: {},
+    sitesByRef: {},
+    joinsByRef: {},
+    lastChatsByRef: {},
+    profilesByRef: {},
+};
 
 const results = (overrides: Partial<GlobalSearchResults> = {}): GlobalSearchResults =>
     ({ clouds: [], places: [], channels: [], messages: [], ...overrides }) as GlobalSearchResults;
@@ -120,6 +127,46 @@ describe('useSearchContext', () => {
 
         await waitFor(() => expect(result.current.chats[0].channelName).toBe('Bistro'));
         expect(result.current.chats[0]).toMatchObject({ sid: 'site-9', placeName: 'Beta Base' });
+    });
+
+    it('names a message sender from the place-scoped profile', async () => {
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
+            profilesByRef: {
+                'cloud-b:site-9:user-2': { nick: 'Bora', thumbnail: 'data:image/png;base64,BBB' },
+            },
+        });
+
+        const input = results({
+            messages: [
+                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
+            ] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.chats[0].senderName).toBe('Bora'));
+        expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,BBB');
+    });
+
+    it('leaves the sender unnamed when their profile is not cached', async () => {
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
+        });
+
+        const input = results({
+            messages: [
+                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
+            ] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.chats[0].channelName).toBe('Bistro'));
+        expect(result.current.chats[0].senderName).toBeUndefined();
+        expect(result.current.chats[0].senderThumbnail).toBeUndefined();
     });
 
     it('omits fields the cache could not resolve instead of inventing them', async () => {

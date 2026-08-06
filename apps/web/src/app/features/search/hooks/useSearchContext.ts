@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { globalCacheRefKey, useGlobalCacheSearch } from '@chatic/app-runtime';
+import { globalCacheProfileKey, globalCacheRefKey, useGlobalCacheSearch } from '@chatic/app-runtime';
 import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
@@ -12,6 +12,7 @@ const EMPTY_CONTEXT: GlobalCacheContext = {
     sitesByRef: {},
     joinsByRef: {},
     lastChatsByRef: {},
+    profilesByRef: {},
 };
 
 /** One place result row — the cache row already carries everything it shows. */
@@ -46,6 +47,9 @@ export interface ChatResultRow {
     createdAt?: number;
     channelName?: string;
     placeName?: string;
+    /** Sender, named by the place-scoped display profile — absent when it isn't cached. */
+    senderName?: string;
+    senderThumbnail?: string;
 }
 
 export interface SearchResultRows {
@@ -155,8 +159,14 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 };
             }),
             chats: results.messages.map(chat => {
-                // A chat row has no sid of its own — its place comes via the owning channel.
+                // A chat row has no sid of its own — its place comes via the owning channel, and the
+                // sender's display profile is scoped to that place.
                 const owner = context.channelsByRef[globalCacheRefKey(chat.cid, chat.channelId)];
+                const senderId = chat.ownerId;
+                const sender =
+                    owner?.sid && senderId
+                        ? context.profilesByRef[globalCacheProfileKey(chat.cid, owner.sid, senderId)]
+                        : undefined;
                 return {
                     cid: chat.cid,
                     sid: owner?.sid,
@@ -167,6 +177,8 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     createdAt: chat.createdAtMs,
                     channelName: owner?.name,
                     placeName: placeName(chat.cid, owner?.sid),
+                    senderName: sender?.nick,
+                    senderThumbnail: sender?.thumbnail,
                 };
             }),
         };

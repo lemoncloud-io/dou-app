@@ -649,7 +649,8 @@
         "messageJumpFailed": "Couldn't find that message.",
         "searching": "Searching",
         "scopeNotice": "Only this cloud is searched",
-        "scopeNoticeNamed": "Only '{{cloud}}' is searched"
+        "scopeNoticeNamed": "Only '{{cloud}}' is searched",
+        "unknownSender": "Unknown user"
     },
     "placeSettings": {
         "title": "Place Settings",

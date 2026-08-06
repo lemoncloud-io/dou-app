@@ -60,11 +60,28 @@ export const SearchPage = () => {
     const trimmed = query.trim();
     const isIdle = trimmed.length === 0;
 
-    // Same short HH:MM form the home list uses for a channel's last message.
-    const formatTime = (value?: number) => {
-        if (!value) return '';
-        const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
-        return new Date(value).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    // Search reaches back through history, so the date matters as much as the clock — the home
+    // list's HH:MM alone can't tell this year's message from last year's.
+    const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
+    const formatStamp = (value?: number) => {
+        if (!value) return undefined;
+        const at = new Date(value);
+        return {
+            date: at.toLocaleDateString(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }),
+            time: at.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+        };
+    };
+
+    /** Date over time, right-aligned — the row's trailing column is narrow. */
+    const Stamp = ({ value }: { value?: number }) => {
+        const stamp = formatStamp(value);
+        if (!stamp) return null;
+        return (
+            <span className="flex flex-col items-end text-[11px] leading-4 text-description">
+                <span>{stamp.date}</span>
+                <span>{stamp.time}</span>
+            </span>
+        );
     };
 
     const submit = (keyword: string) => {
@@ -212,9 +229,7 @@ export const SearchPage = () => {
                                         context={formatResultContext(channel.placeName)}
                                         trailing={
                                             <>
-                                                <span className="text-[12px] leading-4 text-description">
-                                                    {formatTime(channel.lastMessageAt)}
-                                                </span>
+                                                <Stamp value={channel.lastMessageAt} />
                                                 <UnreadBadge count={channel.unread} variant="pill" />
                                             </>
                                         }
@@ -232,18 +247,21 @@ export const SearchPage = () => {
                                 {rows.chats.map(chat => (
                                     <ResultRow
                                         key={`${chat.cid}:${chat.chatId}`}
+                                        // The sender's own avatar; the generic message icon stands in
+                                        // when their place profile isn't cached.
                                         leading={
-                                            <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-foreground">
-                                                <MessageSquare size={18} />
-                                            </span>
+                                            chat.senderThumbnail || chat.senderName ? (
+                                                <RowAvatar thumbnail={chat.senderThumbnail} />
+                                            ) : (
+                                                <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-foreground">
+                                                    <MessageSquare size={18} />
+                                                </span>
+                                            )
                                         }
-                                        title={<HighlightText text={chat.content} query={trimmed} />}
+                                        title={chat.senderName ?? t('search.unknownSender', '알 수 없는 사용자')}
+                                        subtitle={<HighlightText text={chat.content} query={trimmed} />}
                                         context={formatResultContext(chat.placeName, chat.channelName)}
-                                        trailing={
-                                            <span className="text-[12px] leading-4 text-description">
-                                                {formatTime(chat.createdAt)}
-                                            </span>
-                                        }
+                                        trailing={<Stamp value={chat.createdAt} />}
                                         onClick={() => openMessage(chat)}
                                     />
                                 ))}

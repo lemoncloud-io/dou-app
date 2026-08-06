@@ -60,6 +60,17 @@ describe('IndexedDbGlobalSearchSource', () => {
             readNo: 99,
         } as any);
 
+        const profileCloudA = new IndexedDBAdapter(db, 'profile', contextFor('cloud-a', 'user-1'));
+        await profileCloudA.save('site-1@user-2', {
+            id: 'site-1@user-2',
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'user-1',
+            userId: 'user-2',
+            nick: 'Bora',
+            thumbnail: 'data:image/png;base64,BBB',
+        } as any);
+
         await chatCloudA.save('chat-1', {
             id: 'chat-1',
             cid: 'cloud-a',
@@ -118,7 +129,13 @@ describe('IndexedDbGlobalSearchSource', () => {
     describe('resolveContext', () => {
         it('returns empty maps without touching the db for an empty request', async () => {
             const context = await source.resolveContext({ uid: 'user-1', cids: [], channelRefs: [] });
-            expect(context).toEqual({ channelsByRef: {}, sitesByRef: {}, joinsByRef: {}, lastChatsByRef: {} });
+            expect(context).toEqual({
+                channelsByRef: {},
+                sitesByRef: {},
+                joinsByRef: {},
+                lastChatsByRef: {},
+                profilesByRef: {},
+            });
         });
 
         it('resolves channels, places, my join and the newest chat across clouds', async () => {
@@ -155,6 +172,19 @@ describe('IndexedDbGlobalSearchSource', () => {
 
             expect(context.joinsByRef['cloud-a:ch-1'].readNo).toBe(7);
             expect(Object.keys(context.joinsByRef)).toEqual(['cloud-a:ch-1']);
+        });
+
+        it("resolves a member's display profile per place, for naming a message sender", async () => {
+            const context = await source.resolveContext({
+                uid: 'user-1',
+                cids: ['cloud-a'],
+                channelRefs: [],
+            });
+
+            expect(context.profilesByRef['cloud-a:site-1:user-2']).toMatchObject({
+                nick: 'Bora',
+                thumbnail: 'data:image/png;base64,BBB',
+            });
         });
 
         it('leaves a reference absent from the maps when the cache has no row for it', async () => {
