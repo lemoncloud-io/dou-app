@@ -32,12 +32,12 @@ export const SelectedAvatarRow = ({ items, onRemove, removeLabel = 'Remove', cla
     return (
         <div
             className={cn(
-                'flex gap-3 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+                'flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
                 className
             )}
         >
             {items.map(item => (
-                <div key={item.id} className="flex w-14 shrink-0 flex-col items-center gap-1">
+                <div key={item.id} className="flex w-[60px] shrink-0 flex-col items-center gap-1">
                     <div className="relative">
                         <ProfileAvatar src={item.avatarSrc} size={48} />
                         <button
@@ -49,7 +49,7 @@ export const SelectedAvatarRow = ({ items, onRemove, removeLabel = 'Remove', cla
                             <IconClose className="size-3" strokeWidth={2.5} />
                         </button>
                     </div>
-                    <span className="w-full truncate text-center text-[12px] font-medium tracking-[-0.24px] text-foreground">
+                    <span className="w-full truncate text-center text-[13px] font-medium leading-[18px] tracking-[-0.15px] text-foreground">
                         {item.name}
                     </span>
                 </div>
