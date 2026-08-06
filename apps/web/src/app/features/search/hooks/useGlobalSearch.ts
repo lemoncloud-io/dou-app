@@ -5,8 +5,8 @@ import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/app-messages';
 
-import { useCachedCloudNames } from '../../home/hooks/useCachedCloudNames';
-import { useInvitedClouds } from '../../home/hooks/useInvitedClouds';
+import { useCachedCloudNames } from '../../../hooks/useCachedCloudNames';
+import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 
 // Inlined rather than importing `@chatic/shared`'s useDebounce: that package's root barrel
 // re-exports ErrorFallback, which pulls in `@chatic/assets` — a mapping Jest's moduleNameMapper

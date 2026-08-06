@@ -20,7 +20,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-// Direct paths, not the `utils` barrel: `buildEnv` reads `import.meta`, which ts-jest cannot parse.
+// Direct paths for `buildEnv` / `phoneNumber`: both are deliberately kept out of the `utils` barrel
+// (`import.meta` and libphonenumber's metadata respectively — see that barrel's comments).
 import { isDevBuild } from '../../../utils/buildEnv';
 import { toError } from '../../../utils/errors';
 import { toE164 } from '../../../utils/phoneNumber';

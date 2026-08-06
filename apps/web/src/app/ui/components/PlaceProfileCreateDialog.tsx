@@ -1,7 +1,5 @@
 import { useTranslation } from 'react-i18next';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-
 import type { PlaceProfileExitCopy } from './PlaceProfileForm';
 import { PlaceProfileFormDialog } from './PlaceProfileFormDialog';
 
@@ -25,6 +23,8 @@ interface PlaceProfileCreateDialogProps {
      * (ADR-0041) entry points stay skippable by omitting it.
      */
     dismissible?: boolean;
+    /** Persists the profile. Supplied by the caller (see `useSetMyPlaceProfile`). */
+    onSubmit: (value: { nick: string; thumbnail?: string }) => Promise<void>;
 }
 
 /**
@@ -45,9 +45,9 @@ export const PlaceProfileCreateDialog = ({
     onExit,
     exit,
     dismissible,
+    onSubmit,
 }: PlaceProfileCreateDialogProps) => {
     const { t } = useTranslation();
-    const { profile: profileRepository } = useRuntimeRepositories();
 
     return (
         <PlaceProfileFormDialog
@@ -66,12 +66,7 @@ export const PlaceProfileCreateDialog = ({
             closeLabel={t('placeProfileCreate.close')}
             exit={exit}
             dismissible={dismissible}
-            // Block body, not a concise arrow: setMyProfile resolves to the saved profile, and
-            // onSubmit is typed Promise<void>. Awaiting here discards the value instead of widening
-            // the form's contract.
-            onSubmit={async ({ nick, thumbnail }) => {
-                await profileRepository.setMyProfile({ nick, thumbnail });
-            }}
+            onSubmit={onSubmit}
             onDone={onDone}
             onExit={onExit}
         />

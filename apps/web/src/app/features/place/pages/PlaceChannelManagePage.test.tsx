@@ -65,7 +65,6 @@ jest.mock('../../../ui', () => ({
         </div>
     ),
 }));
-jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '내프로필' } }) }));
 
 jest.mock('../../channels/hooks', () => ({
     useChannelMutations: () => ({ deleteChannel, leaveChannel }),
@@ -84,7 +83,8 @@ jest.mock('../../channels/components', () => ({
         ) : null,
 }));
 
-jest.mock('../../home/hooks', () => ({
+jest.mock('../../../hooks', () => ({
+    useMyProfile: () => ({ profile: { nick: '내프로필' } }),
     useHomeChannels: () => ({ channels: channelsValue, isLoading: false }),
     useMyJoins: () => new Map(),
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),

@@ -1,5 +1,6 @@
 export * from './chat';
 export * from './consts';
+export * from './countUnread';
 export * from './debounce';
 export * from './errors';
 // `./phoneNumber` is deliberately absent: it carries libphonenumber's metadata, and this barrel is
@@ -8,4 +9,9 @@ export * from './errors';
 // `./buildEnv` is deliberately absent: it reads `import.meta.env`, which ts-jest's CommonJS
 // transform cannot parse, so re-exporting it here would break every test that touches this barrel.
 export * from './placeProfile';
+export * from './resolveInAppPushRoute';
+export * from './resolvePlaceDisplayName';
+export * from './sortChannels';
+export * from './verification';
 export * from './webVitals';
+export * from './webVitalsStore';

@@ -11,7 +11,8 @@ import { InviteAcceptScreen } from './InviteAcceptScreen';
 // lemon-model (needs a TextEncoder global this test env doesn't polyfill). Same fix
 // InviteWaitingPage.test.tsx documents for the same reason.
 import { ConfirmDialog } from '../../../channels/components/ConfirmDialog';
-import { PlaceProfileCreateDialog } from '../../../home/components/PlaceProfileCreateDialog';
+import { PlaceProfileCreateDialog } from '../../../../ui/components/PlaceProfileCreateDialog';
+import { useSetMyPlaceProfile } from '../../../../hooks';
 import { useActivePlaceName } from '../../../../hooks';
 import { useRelayInviteFlow } from '../hooks';
 
@@ -43,6 +44,7 @@ interface RelayInviteAcceptProps {
  */
 export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element | null => {
     const { t } = useTranslation();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
     const flow = useRelayInviteFlow(code);
     // Branded, so the relay's personal place reads "두유 홈" in the profile title rather than the raw
     // backend name "default" (ADR-0040 decision 7).
@@ -112,6 +114,7 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
     if (flow.phase === 'profiling') {
         return (
             <PlaceProfileCreateDialog
+                onSubmit={setMyPlaceProfile}
                 open
                 placeName={placeName}
                 onDone={flow.onProfileSaved}

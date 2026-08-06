@@ -4,7 +4,7 @@ import { globalCacheRefKey, useGlobalCacheSearch } from '@chatic/app-runtime';
 import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
-import { countUnread, readCursorOf } from '../../home/lib';
+import { countUnread, readCursorOf } from '../../../utils/countUnread';
 import type { CloudSearchResult, GlobalSearchResults } from './useGlobalSearch';
 import { useSenderProfiles, type SenderProfileRef } from './useSenderProfiles';
 

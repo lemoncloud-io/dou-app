@@ -5,11 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { KeyboardAwareLayout } from '../../../ui/layouts';
-import { VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../constants';
-import { formatTime } from '../utils';
+import { VerificationCodeInput } from '../../../ui/components/VerificationCodeInput';
+import { formatCountdown, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../../utils';
 import { DouLogo } from './DouLogo';
 import { FloatingButton } from './FloatingButton';
-import { VerificationCodeInput } from './VerificationCodeInput';
 
 interface VerifyCodePageProps {
     translationPrefix: string;
@@ -114,7 +113,7 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
                             <div className="flex items-center gap-px">
                                 <div className="flex items-center gap-[2px] text-[14px] font-medium tracking-[-0.28px] text-label">
                                     <span>{t(`${translationPrefix}.timeRemaining`)}</span>
-                                    <span className="w-[40px]">{formatTime(timeLeft)}</span>
+                                    <span className="w-[40px]">{formatCountdown(timeLeft)}</span>
                                 </div>
                                 <button
                                     type="button"

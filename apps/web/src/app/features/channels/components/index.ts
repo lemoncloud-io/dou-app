@@ -7,3 +7,4 @@ export { PermissionDeniedBanner } from './PermissionDeniedBanner';
 export { RoomNotificationDialog } from './RoomNotificationDialog';
 export { JoinNickDialog } from './JoinNickDialog';
 export { UpdateChannelDialog } from './UpdateChannelDialog';
+export * from './PlaceProfileEditDialog';

@@ -12,7 +12,10 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
-jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: mockProfile }) }));
+jest.mock('../../../hooks', () => ({
+    useMyProfile: () => ({ profile: mockProfile }),
+    useSetMyPlaceProfile: () => setMyProfileMock,
+}));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: { place?: string }) => (o?.place ? `${k}|${o.place}` : k) }),
 }));

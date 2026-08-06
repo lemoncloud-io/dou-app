@@ -2,7 +2,8 @@ import { useCallback, useState, type ReactNode } from 'react';
 
 import { useActivePlaceName } from '../../../hooks/useActivePlaceName';
 import { CreatePlaceDialog } from '../components/CreatePlaceDialog';
-import { PlaceProfileCreateDialog } from '../components/PlaceProfileCreateDialog';
+import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
+import { useSetMyPlaceProfile } from '../../../hooks';
 
 export interface CreatePlaceFlowResult {
     /** Opens the create-place overlay. Owner/limit gating stays with the caller (HomePage). */
@@ -28,6 +29,7 @@ export const useCreatePlaceFlow = (): CreatePlaceFlowResult => {
     // Resolves the just-created place's name once the switch committed (falls back to the branded
     // label / sid while the row is still being cached).
     const placeName = useActivePlaceName();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
 
     const openCreatePlace = useCallback(() => setIsCreateOpen(true), []);
 
@@ -42,6 +44,7 @@ export const useCreatePlaceFlow = (): CreatePlaceFlowResult => {
                 open={isProfileStepOpen}
                 placeName={placeName}
                 dismissible={false}
+                onSubmit={setMyPlaceProfile}
                 onDone={() => setIsProfileStepOpen(false)}
                 // Unreachable while dismissible is false; wired so a future policy change fails safe.
                 onExit={() => setIsProfileStepOpen(false)}

@@ -34,19 +34,15 @@ import {
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
+import { useAddCloudFlow, useCreatePlaceFlow, useHomePlaces, useScrollRestoration, useSwitchPlace } from '../hooks';
 import {
     useActiveCloudChannels,
-    useAddCloudFlow,
-    useCreatePlaceFlow,
     useCachedCloudNames,
     useChannelUnreads,
     useHomeChannels,
-    useHomePlaces,
     useInvitedClouds,
     useMyJoins,
-    useScrollRestoration,
-    useSwitchPlace,
-} from '../hooks';
+} from '../../../hooks';
 import { resolveHeaderProfile } from '../lib';
 import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';

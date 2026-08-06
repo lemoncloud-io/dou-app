@@ -33,7 +33,7 @@ jest.mock('../../../auth/components/PhoneVerifyScreen', () => ({
 // Same reason as PhoneVerifyScreen: the real dialog imports @chatic/app-runtime, whose config barrel
 // jest cannot parse. The stub also exposes whether `exit` was passed — omitting it is what makes X
 // leave without a confirmation modal (ADR-0041 decision 2).
-jest.mock('../../../home/components/PlaceProfileCreateDialog', () => ({
+jest.mock('../../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({
         placeName,
         onDone,
@@ -53,7 +53,10 @@ jest.mock('../../../home/components/PlaceProfileCreateDialog', () => ({
         </div>
     ),
 }));
-jest.mock('../../../../hooks', () => ({ useActivePlaceName: () => '두유 홈' }));
+jest.mock('../../../../hooks', () => ({
+    useActivePlaceName: () => '두유 홈',
+    useSetMyPlaceProfile: () => jest.fn(),
+}));
 
 const CODE = 'invt:1:secret';
 

@@ -19,7 +19,7 @@ jest.mock('../../../hooks', () => ({
 // The real barrels pull `@chatic/assets` / `@chatic/app-runtime`, which jest cannot resolve or parse.
 // The form stub surfaces the seeded values — the whole point of the gate is WHAT gets latched.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
-jest.mock('../../home/components', () => ({
+jest.mock('../../../ui/components/PlaceProfileForm', () => ({
     PlaceProfileForm: ({ initialNick, initialThumbnail }: { initialNick: string; initialThumbnail: string }) => (
         <div>
             <span>form</span>

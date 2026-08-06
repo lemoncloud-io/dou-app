@@ -5,12 +5,8 @@ import { applySessionToken } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-// Concrete modules, not the account feature root: the root re-exports pages that pull web-core
-// (whose transport reads import.meta) and a components barrel that pulls @chatic/assets — both
-// unloadable under the jsdom test setup.
-import { VERIFICATION_CODE_LENGTH } from '../../account/constants';
 import { useLinkAccount, type AccountLinkMode } from '../../../hooks/useLinkAccount';
-import { getSocketErrorCode } from '../../../utils/errors';
+import { getSocketErrorCode, VERIFICATION_CODE_LENGTH } from '../../../utils';
 import { isDevBuild } from '../utils/env';
 import {
     isValidMobileNumber,

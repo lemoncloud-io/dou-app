@@ -1,4 +1,4 @@
-import { ROUTES } from '../../../routes/paths';
+import { ROUTES } from '../routes/paths';
 
 /**
  * Push payload `data` as forwarded by the native shell in `OnReceiveNotification`.

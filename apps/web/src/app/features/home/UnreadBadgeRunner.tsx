@@ -4,7 +4,7 @@ import { useSessionSelection } from '@chatic/web-core';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from './hooks';
+import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../hooks';
 import { sumSnapshot, writeCloudUnread } from './lib';
 
 /**

@@ -20,10 +20,8 @@ import {
 import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { CountrySelect } from '../../../ui/components/CountrySelect';
 import { PageHeader } from '../../../ui/components';
-// Concrete file, not the `ui/layouts` barrel: the barrel reaches UnifiedLayout -> home/hooks ->
-// useAddCloudFlow -> ... -> @chatic/assets, which jest cannot resolve (it lives at the repo root,
-// while the `@chatic/*` mapper points into `libs/`). Same reason ReportIssueDialog and
-// CreateChannelDialog already take the direct path.
+// Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
+// `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardAwareLayout } from '../../../ui/layouts/KeyboardAwareLayout';
 import { ROUTES } from '../../../routes/paths';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
@@ -36,7 +34,8 @@ import {
     type PhoneCountry,
 } from '../../../utils/phoneNumber';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
-import { PlaceProfileCreateDialog } from '../../home/components/PlaceProfileCreateDialog';
+import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
+import { useSetMyPlaceProfile } from '../../../hooks';
 import { InviterVerifyPrompt } from '../components/InviterVerifyPrompt';
 import { ReinviteDialog } from '../components/ReinviteDialog';
 import { useRetireInvite } from '../hooks/useRetireInvite';
@@ -78,6 +77,7 @@ interface PendingReinvite {
  */
 export const ContactInvitePage = () => {
     const { t } = useTranslation();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
     const fieldsRef = useRef<HTMLDivElement>(null);
@@ -351,6 +351,7 @@ export const ContactInvitePage = () => {
                 verify prompt. Number first, then name. */}
             {!isGuest && !needsPhoneLink && isProfileAbsent === true && (
                 <PlaceProfileCreateDialog
+                    onSubmit={setMyPlaceProfile}
                     open
                     placeName={placeName}
                     onDone={markPresent}

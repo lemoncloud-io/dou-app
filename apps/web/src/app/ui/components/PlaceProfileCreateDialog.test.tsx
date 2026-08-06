@@ -4,11 +4,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { PlaceProfileCreateDialog } from './PlaceProfileCreateDialog';
 
-const setMyProfileMock = jest.fn();
+// The dialog no longer knows the repository: saving arrives as the `onSubmit` prop.
+const onSubmitMock = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
-    useRuntimeRepositories: () => ({ profile: { setMyProfile: setMyProfileMock } }),
-}));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
 jest.mock('react-i18next', () => ({
@@ -32,7 +30,9 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('PlaceProfileCreateDialog', () => {
     it('완료 버튼은 유효한 이름 전에는 비활성, 입력하면 활성화된다', () => {
-        render(<PlaceProfileCreateDialog open placeName="북클럽" onDone={noop} onExit={noop} />);
+        render(
+            <PlaceProfileCreateDialog open onSubmit={onSubmitMock} placeName="북클럽" onDone={noop} onExit={noop} />
+        );
 
         expect(done()).toBeDisabled();
         fireEvent.change(screen.getByRole('textbox'), { target: { value: 'sunny' } });
@@ -40,7 +40,7 @@ describe('PlaceProfileCreateDialog', () => {
     });
 
     it('20자를 넘으면 초과 카운터를 노출하고 완료가 비활성된다', () => {
-        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={noop} />);
+        render(<PlaceProfileCreateDialog open onSubmit={onSubmitMock} placeName="p" onDone={noop} onExit={noop} />);
 
         fireEvent.change(screen.getByRole('textbox'), { target: { value: 'a'.repeat(21) } });
 
@@ -48,18 +48,20 @@ describe('PlaceProfileCreateDialog', () => {
         expect(done()).toBeDisabled();
     });
 
-    it('완료 시 setMyProfile을 trim된 nick과 함께 호출한다', async () => {
-        setMyProfileMock.mockResolvedValue({});
-        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={noop} />);
+    it('완료 시 onSubmit을 trim된 nick과 함께 호출한다', async () => {
+        onSubmitMock.mockResolvedValue({});
+        render(<PlaceProfileCreateDialog open onSubmit={onSubmitMock} placeName="p" onDone={noop} onExit={noop} />);
 
         fireEvent.change(screen.getByRole('textbox'), { target: { value: '  sunny  ' } });
         fireEvent.click(done());
 
-        await waitFor(() => expect(setMyProfileMock).toHaveBeenCalledWith({ nick: 'sunny', thumbnail: undefined }));
+        await waitFor(() => expect(onSubmitMock).toHaveBeenCalledWith({ nick: 'sunny', thumbnail: undefined }));
     });
 
     it('제목에 전달받은 플레이스 이름을 끼운다 (호출자가 해석한 값)', () => {
-        render(<PlaceProfileCreateDialog open placeName="두유 홈" onDone={noop} onExit={noop} />);
+        render(
+            <PlaceProfileCreateDialog open onSubmit={onSubmitMock} placeName="두유 홈" onDone={noop} onExit={noop} />
+        );
 
         // Rendered twice: the in-body heading and the sr-only DialogTitle.
         expect(screen.getAllByText('placeProfileCreate.title|두유 홈').length).toBeGreaterThan(0);
@@ -67,7 +69,16 @@ describe('PlaceProfileCreateDialog', () => {
 
     it('입력이 없으면 닫기 시 바로 onExit을 호출한다', () => {
         const onExit = jest.fn();
-        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={onExit} exit={exitCopy} />);
+        render(
+            <PlaceProfileCreateDialog
+                open
+                onSubmit={onSubmitMock}
+                placeName="p"
+                onDone={noop}
+                onExit={onExit}
+                exit={exitCopy}
+            />
+        );
 
         fireEvent.click(close());
 
@@ -76,7 +87,16 @@ describe('PlaceProfileCreateDialog', () => {
 
     it('exit 카피를 넘기면 입력이 있을 때 이탈 확인 모달을 띄우고, 나가기를 누르면 onExit', async () => {
         const onExit = jest.fn();
-        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={onExit} exit={exitCopy} />);
+        render(
+            <PlaceProfileCreateDialog
+                open
+                onSubmit={onSubmitMock}
+                placeName="p"
+                onDone={noop}
+                onExit={onExit}
+                exit={exitCopy}
+            />
+        );
 
         fireEvent.change(screen.getByRole('textbox'), { target: { value: 'x' } });
         fireEvent.click(close());
@@ -90,7 +110,7 @@ describe('PlaceProfileCreateDialog', () => {
 
     it('exit 카피를 생략하면 입력이 있어도 가드 없이 바로 이탈한다', () => {
         const onExit = jest.fn();
-        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={onExit} />);
+        render(<PlaceProfileCreateDialog open onSubmit={onSubmitMock} placeName="p" onDone={noop} onExit={onExit} />);
 
         fireEvent.change(screen.getByRole('textbox'), { target: { value: 'x' } });
         fireEvent.click(close());
@@ -100,7 +120,16 @@ describe('PlaceProfileCreateDialog', () => {
     });
 
     it('dismissible=false면 닫기(X) 버튼이 없다 — 생성 플로우의 필수 스텝 (ADR-0045)', () => {
-        render(<PlaceProfileCreateDialog open placeName="p" onDone={noop} onExit={noop} dismissible={false} />);
+        render(
+            <PlaceProfileCreateDialog
+                open
+                onSubmit={onSubmitMock}
+                placeName="p"
+                onDone={noop}
+                onExit={noop}
+                dismissible={false}
+            />
+        );
 
         expect(screen.queryByRole('button', { name: 'placeProfileCreate.close' })).not.toBeInTheDocument();
     });

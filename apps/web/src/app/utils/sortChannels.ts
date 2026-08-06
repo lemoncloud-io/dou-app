@@ -1,6 +1,6 @@
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
-import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
+import type { ChannelSortMethod } from '../stores/preferenceKeys';
 
 // Coerce a possibly-string/number timestamp to epoch ms for comparison (0 when absent/invalid).
 export const toTime = (value: unknown): number => {

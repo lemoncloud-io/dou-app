@@ -3,12 +3,12 @@ import { toast } from 'sonner';
 
 import { useSessionIdentity } from '@chatic/web-core';
 
-import { useOnReceiveNotification, usePushNavigate } from '../../../bridge';
+import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { useInAppPushMessage } from './useInAppPushMessage';
 
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
-jest.mock('../../../bridge', () => ({
+jest.mock('../bridge', () => ({
     useOnReceiveNotification: jest.fn(),
     usePushNavigate: jest.fn(),
 }));

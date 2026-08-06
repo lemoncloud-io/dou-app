@@ -12,7 +12,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useClouds } from '@chatic/web-core';
 
 import { useAllowedProduct, useSubscriptionIap } from '../hooks';
-import { EmailVerifyDialog } from '../../home/components/EmailVerifyDialog';
+import { useVerifyEmailCode } from '../../../hooks';
+import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
@@ -38,6 +39,7 @@ export const SubscriptionPlansPage = () => {
     const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
     const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
     const [pageState, setPageState] = useState<PageState>(PageState.Idle);
+    const verifyEmailCode = useVerifyEmailCode();
     const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
 
     const isBlocked = pageState !== PageState.Idle;
@@ -263,6 +265,7 @@ export const SubscriptionPlansPage = () => {
                 open={isEmailVerifyOpen}
                 onOpenChange={setIsEmailVerifyOpen}
                 onVerified={handleVerified}
+                verifyEmail={verifyEmailCode}
             />
         </>
     );

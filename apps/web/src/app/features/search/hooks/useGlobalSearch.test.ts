@@ -4,7 +4,7 @@ import { useGlobalCacheSearch } from '@chatic/app-runtime';
 import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
 import { logger } from '@chatic/bridges';
 
-import { useInvitedClouds } from '../../home/hooks/useInvitedClouds';
+import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 import { useGlobalSearch } from './useGlobalSearch';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -17,7 +17,7 @@ jest.mock('@chatic/web-core', () => ({
     useSessionSelection: jest.fn(() => ({ selectedCloudId: 'cloud-a' })),
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('../../home/hooks/useInvitedClouds', () => ({ useInvitedClouds: jest.fn() }));
+jest.mock('../../../hooks/useInvitedClouds', () => ({ useInvitedClouds: jest.fn() }));
 
 const search = jest.fn();
 

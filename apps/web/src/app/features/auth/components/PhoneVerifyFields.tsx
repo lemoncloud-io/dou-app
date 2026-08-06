@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { AlertDialog, TextField } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/lib/utils';
 
-// Concrete modules, not the feature roots: the account root re-exports pages that pull web-core
-// (whose transport reads import.meta) and the ui/components barrel pulls @chatic/assets — both
-// unloadable under the jsdom test setup.
-import { formatTime } from '../../account/utils';
+import { formatCountdown } from '../../../utils';
+// Concrete module, not the ui/components barrel: CountrySelect is deliberately kept out of it so
+// libphonenumber's metadata stays off the eager path.
 import { CountrySelect } from '../../../ui/components/CountrySelect';
 import type { PhoneVerifyFieldsState } from '../hooks/usePhoneVerify';
 
@@ -112,7 +111,7 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                                         secondsLeft <= IMMINENT_SECONDS ? 'text-destructive' : 'text-point-blue'
                                     )}
                                 >
-                                    {formatTime(secondsLeft)}
+                                    {formatCountdown(secondsLeft)}
                                 </span>
                                 <InlineAction
                                     label={t('phoneVerify.extend')}

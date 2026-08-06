@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { AppMessageData } from '@chatic/app-messages';
 
-import { useOnReceiveNotification, usePushNavigate } from '../../../bridge';
-import { ROUTES } from '../../../routes/paths';
-import { InAppNotificationCard } from '../components/InAppNotificationCard';
+import { useOnReceiveNotification, usePushNavigate } from '../bridge';
+import { ROUTES } from '../routes/paths';
+import { InAppNotificationCard } from '../ui/components/InAppNotificationCard';
 import { resolveInAppPushRoute, type InAppPushData } from '../utils/resolveInAppPushRoute';
 
 /** Fixed toast id so consecutive pushes replace the banner instead of stacking. */

@@ -5,7 +5,7 @@ import { Loader2, X, XCircle } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Logo } from '@chatic/assets';
 
-import { keyboardSafeBottom } from '../../../../ui/layouts/KeyboardSafeAreaSpacer';
+import { keyboardSafeBottom } from '../../layouts/KeyboardSafeAreaSpacer';
 
 interface EmailStepProps {
     email: string;

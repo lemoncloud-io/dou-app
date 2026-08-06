@@ -10,7 +10,7 @@ jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
-jest.mock('../hooks/useLastChat', () => ({ useLastChat: () => null }));
+jest.mock('../../../hooks/useLastChat', () => ({ useLastChat: () => null }));
 
 // My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
 // (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real

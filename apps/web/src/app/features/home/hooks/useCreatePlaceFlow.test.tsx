@@ -31,7 +31,7 @@ jest.mock('../components/CreatePlaceDialog', () => ({
             </div>
         ) : null,
 }));
-jest.mock('../components/PlaceProfileCreateDialog', () => ({
+jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({
         open,
         placeName,
@@ -50,6 +50,7 @@ jest.mock('../components/PlaceProfileCreateDialog', () => ({
         ) : null,
 }));
 jest.mock('../../../hooks/useActivePlaceName', () => ({ useActivePlaceName: () => '새 플레이스' }));
+jest.mock('../../../hooks', () => ({ useSetMyPlaceProfile: () => jest.fn() }));
 
 const Host = () => {
     const { openCreatePlace, createPlaceFlow } = useCreatePlaceFlow();

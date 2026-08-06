@@ -6,11 +6,11 @@ import { resizeImageToBase64 } from '@chatic/shared';
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-// Imported by direct file path, not the `../../../ui` / `../../../ui/layouts` barrels: those barrels
-// re-export PrivateLayout → CloudLogo → '@chatic/assets', which the jest moduleNameMapper can't
-// resolve, so importing them here would break this component's unit test. Keep the direct paths.
-import { PageHeader } from '../../../ui/components/PageHeader';
-import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
+// Direct file paths, not the `.` / `../layouts` barrels: those re-export components reaching
+// libs/shared and web-core, whose `import.meta` the CommonJS test transform cannot parse
+// (directory-structure.md §6). Keep the direct paths.
+import { PageHeader } from './PageHeader';
+import { KeyboardSafeAreaSpacer } from '../layouts/KeyboardSafeAreaSpacer';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;

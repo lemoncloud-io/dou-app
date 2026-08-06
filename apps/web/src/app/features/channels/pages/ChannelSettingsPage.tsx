@@ -11,7 +11,9 @@ import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 
 import { useActivePlaceName } from '../../../hooks';
-import { PlaceProfileCreateDialog, PlaceProfileEditDialog } from '../../home/components';
+import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
+import { PlaceProfileEditDialog } from '../components/PlaceProfileEditDialog';
+import { useSetMyPlaceProfile } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberListItem } from '../components/MemberListItem';
@@ -42,6 +44,7 @@ interface SelectedMember {
 export const ChannelSettingsPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
+    const setMyPlaceProfile = useSetMyPlaceProfile();
     const { channelId } = useParams<{ channelId: string }>();
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
@@ -386,6 +389,7 @@ export const ChannelSettingsPage = () => {
                 half-typed name still gets the unsaved-changes guard — unlike the invite paths, backing
                 out here costs nothing, so there is no reason to leave silently (ADR-0040 / ADR-0041). */}
             <PlaceProfileCreateDialog
+                onSubmit={setMyPlaceProfile}
                 open={activeDialog === 'profileCreate'}
                 placeName={activePlaceName}
                 onDone={closeDialog}

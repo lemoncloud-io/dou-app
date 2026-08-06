@@ -32,10 +32,10 @@ import { useDmPeers, type DmPeer } from '../../channels/hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
-import { useLastChat } from '../hooks/useLastChat';
+import { useLastChat } from '../../../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
-import { sortChannels } from '../lib/sortChannels';
+import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
 const ChannelSkeleton = () => (

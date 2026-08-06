@@ -42,10 +42,11 @@ jest.mock('../../../hooks', () => ({
     useActivePlaceName: () => '두유 홈',
     useLinkedAccounts: () => ({ phone: mockLinkedPhone, social: 'unknown' }),
     usePlaceProfileAbsent: () => ({ absent: mockProfileAbsent, markPresent }),
+    useSetMyPlaceProfile: () => jest.fn(),
 }));
 // Stubbed like PhoneVerifySheet — the real dialog imports @chatic/app-runtime. `exit` is surfaced
 // because omitting it is what makes X leave at once (ADR-0041 decision 2).
-jest.mock('../../home/components/PlaceProfileCreateDialog', () => ({
+jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({ placeName, onDone, onExit, exit }: any) => (
         <div>
             <span>profile-dialog:{placeName}</span>

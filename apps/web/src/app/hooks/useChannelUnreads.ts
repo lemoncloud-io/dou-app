@@ -2,8 +2,17 @@ import { useMemo } from 'react';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
-import type { ChannelUnreads } from '../types';
-import { countUnread, readCursorOf } from '../lib/countUnread';
+import { countUnread, readCursorOf } from '../utils/countUnread';
+
+/** Per-channel unread message counts keyed by channel id, plus per-site and aggregate totals. */
+export interface ChannelUnreads {
+    /** unread count per channel id (clamped to >= 0). */
+    byChannel: Record<string, number>;
+    /** unread summed per owning site id (sid); a place shows a dot when its value > 0. */
+    byPlace: Record<string, number>;
+    /** sum of all per-channel unread counts across the active cloud. */
+    total: number;
+}
 
 /**
  * Derives per-channel unread counts for the current user from the channel head plus MY read

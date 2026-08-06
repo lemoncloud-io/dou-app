@@ -13,7 +13,8 @@ import { reportError, useProductPlans } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
 import { ROUTES } from '../../../routes/paths';
 
-import { EmailVerifyDialog } from './EmailVerifyDialog';
+import { useVerifyEmailCode } from '../../../hooks';
+import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
 import { useSubscriptionIap } from '../../subscription/hooks/useSubscriptionIap';
 import {
     ALLOWED_PRODUCT_ID_ANDROID,
@@ -57,6 +58,7 @@ export const SubscriptionSelectDialog = ({
 
     const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
     const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
+    const verifyEmailCode = useVerifyEmailCode();
     const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
     const [pageState, setPageState] = useState<PageState>(PageState.Idle);
 
@@ -186,6 +188,7 @@ export const SubscriptionSelectDialog = ({
                 open={isEmailVerifyOpen}
                 onOpenChange={setIsEmailVerifyOpen}
                 onVerified={handleVerified}
+                verifyEmail={verifyEmailCode}
             />
         </>
     );
