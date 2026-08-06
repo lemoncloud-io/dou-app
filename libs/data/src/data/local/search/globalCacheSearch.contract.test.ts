@@ -49,7 +49,11 @@ const FIXTURES: Fixture[] = [
     // Same sid string in both clouds — context maps must key by cloud, not by id alone.
     { domain: 'site', id: 'site-1', cid: 'cloud-b', uid: 'user-1', name: 'Beta Annex' },
     { domain: 'join', id: 'join-1', cid: 'cloud-a', uid: 'user-1', channelId: 'ch-1', userId: 'user-1', readNo: 7 },
-    { domain: 'join', id: 'join-2', cid: 'cloud-a', uid: 'user-2', channelId: 'ch-1', userId: 'user-2', readNo: 99 },
+    // Another member of the SAME channel, cached under MY partition (uid) — read receipts cache
+    // every member's cursor, so `uid` alone does not mean "my row". Written after mine on purpose:
+    // a map keyed by channelId without a userId check would end up holding this one.
+    { domain: 'join', id: 'join-2', cid: 'cloud-a', uid: 'user-1', channelId: 'ch-1', userId: 'user-2', readNo: 99 },
+    { domain: 'join', id: 'join-3', cid: 'cloud-a', uid: 'user-2', channelId: 'ch-1', userId: 'user-2', readNo: 55 },
     {
         domain: 'chat',
         id: 'chat-1',
@@ -179,9 +183,14 @@ const CONTEXT_EXPECTATIONS: ContextExpectation[] = [
         expected: { sites: { 'cloud-a:site-1': 'Lemon HQ', 'cloud-b:site-1': 'Beta Annex' } },
     },
     {
-        description: "omits another user's channel and join rows",
+        description: "omits another user's channel rows",
         query: { uid: 'user-1', cids: ['cloud-a'], channelRefs: [] },
-        expected: { channels: { 'cloud-a:ch-3': null }, joins: { 'cloud-a:ch-1': 7 } },
+        expected: { channels: { 'cloud-a:ch-3': null } },
+    },
+    {
+        description: "resolves MY read cursor, not a co-member's cached in the same partition",
+        query: { uid: 'user-1', cids: ['cloud-a'], channelRefs: [] },
+        expected: { joins: { 'cloud-a:ch-1': 7 } },
     },
     {
         description: 'resolves the newest sent chat per channel, skipping unsent rows',
@@ -222,7 +231,7 @@ const CONTEXT_EXPECTATIONS: ContextExpectation[] = [
         query: { uid: 'user-2', cids: ['cloud-a'], channelRefs: [{ cid: 'cloud-a', channelId: 'ch-1' }] },
         expected: {
             channels: { 'cloud-a:ch-3': 'Lemon Secret', 'cloud-a:ch-1': null },
-            joins: { 'cloud-a:ch-1': 99 },
+            joins: { 'cloud-a:ch-1': 55 },
             lastChats: { 'cloud-a:ch-1': null },
         },
     },

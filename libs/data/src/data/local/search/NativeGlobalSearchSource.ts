@@ -97,7 +97,11 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
                 const [channels, sites, joins] = await Promise.all([
                     this.fetchAll<CacheChannelView>('channel', cid, query.uid),
                     this.fetchAll<CacheSiteView>('site', cid, query.uid),
-                    this.fetchAll<CacheJoinView>('join', cid, query.uid),
+                    // `userId` narrows to MY join row in SQL (JoinDataSource.ts:49-52). The row's
+                    // `uid` is only the cache owner — other members' joins live in my partition
+                    // too (read receipts cache them), so filtering by uid alone would pick up a
+                    // stranger's read cursor.
+                    this.fetchAll<CacheJoinView>('join', cid, query.uid, { userId: query.uid }),
                 ]);
 
                 channels.forEach(channel => {
@@ -107,7 +111,10 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
                     if (site.id) context.sitesByRef[globalCacheRefKey(cid, site.id)] = site;
                 });
                 joins.forEach(join => {
-                    if (join.channelId) context.joinsByRef[globalCacheRefKey(cid, join.channelId)] = join;
+                    // Belt-and-braces alongside the SQL filter, so both implementations enforce the
+                    // same "my row only" rule rather than trusting one query parameter.
+                    if (!join.channelId || join.userId !== query.uid) return;
+                    context.joinsByRef[globalCacheRefKey(cid, join.channelId)] = join;
                 });
             }),
             ...refs.map(async ref => {

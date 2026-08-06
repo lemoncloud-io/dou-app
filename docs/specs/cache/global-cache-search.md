@@ -185,7 +185,7 @@ export interface GlobalCacheContextQuery {
 export interface GlobalCacheContext {
     channelsByRef: Record<string, CacheChannelView>;
     sitesByRef: Record<string, CacheSiteView>;
-    /** 내 join(uid 일치)만. 안읽음 수 계산용 읽음 커서. */
+    /** 내 join만(`join.userId === uid`). 안읽음 수 계산용 읽음 커서. */
     joinsByRef: Record<string, CacheJoinView>;
     lastChatsByRef: Record<string, CacheChatView>;
 }
@@ -220,8 +220,12 @@ export interface GlobalCacheContext {
 
 - 채널·플레이스·join: cid별로 `TYPE_CID_UID_INDEX` **완전 일치** 키
   (`[type, cid, uid]`)로 `loadAll` — 범위 스캔이 아니라 인덱스 히트다.
-  join은 행 레벨 uid가 이미 내 것이므로 추가 필터 없이 `channelId`로 맵을
-  만든다(`CacheJoinView.channelId`, `readNo`).
+- **join은 `join.userId === uid`로 한 번 더 걸러야 한다.** 행의 `uid`는 캐시
+  소유자(나)일 뿐이고 행의 주인은 `userId`다 — 채널의 다른 멤버 join도 내
+  파티션에 캐시된다(읽음 확인용으로 `useJoinPositions`가 멤버별로 등록).
+  이 필터가 없으면 맵에 마지막으로 쓰인 멤버의 커서가 남아 안읽음 수가 남의
+  읽음 위치로 계산된다. `useMyJoins`가 같은 이유로 `join.userId === uid`를
+  거른다(`useMyJoins.ts:71`).
 - 채널별 최신 chat: `CHAT_PAGINATION_INDEX`
   (`['type','cid','uid','channel_id','chat_no']`,
   `IndexedDBDatabase.ts:55`)를 `direction: 'prev'`, `limit: 1`로
@@ -300,8 +304,9 @@ query: { channelId, sort: 'desc', limit: 1 } }` — SQL이 `channel_id`,
   동일 맵이 나오는지 검증한다.
     - 케이스: 두 클라우드 혼합 참조, 같은 sid가 다른 cid에 존재할 때 키가
       섞이지 않음(`${cid}:${id}` 키), 캐시에 없는 참조는 키 부재,
-      채널별 최신 chat이 `chatNo` 최대값 1건, `chatNo: 0` 미전송 행 제외,
-      타 uid join 미포함, 빈 요청은 빈 맵(요청 0회).
+      채널별 최신 chat이 `chatNo` 최대값 1건, **내 파티션에 있는 다른 멤버의
+      join을 내 커서로 오인하지 않음**, 캐시된 유일한 행이 미전송(`chatNo: 0`)
+      이면 최신 메시지 부재, 타 uid 파티션 미포함, 빈 요청은 빈 맵(요청 0회).
 - 수동 확인: 웹에서 클라우드 A 방문 → 클라우드 B 전환 → 검색 시 A의
   채널이 결과에 나오는지(각 결과의 cid 확인), A 채널 행에 A의 플레이스
   이름·마지막 메시지·안읽음이 붙는지.

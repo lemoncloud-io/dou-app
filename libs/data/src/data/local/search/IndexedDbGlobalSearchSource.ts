@@ -94,7 +94,12 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
                 });
                 joins.forEach(row => {
                     const join = row.data as CacheJoinView;
-                    if (!join.channelId) return;
+                    // `uid` on the ROW is the cache owner, not the join's subject: a channel's other
+                    // members are cached under my partition too (useJoinPositions registers every
+                    // member for read receipts). Without the userId check the map would end up
+                    // holding whichever member was written last, and the unread count would be
+                    // computed against a stranger's read cursor.
+                    if (!join.channelId || join.userId !== query.uid) return;
                     context.joinsByRef[globalCacheRefKey(cid, join.channelId)] = join;
                 });
             })

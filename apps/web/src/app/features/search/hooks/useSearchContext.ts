@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useGlobalCacheSearch } from '@chatic/app-runtime';
-import { globalCacheRefKey, type GlobalCacheContext, type GlobalCacheRef } from '@chatic/data';
+import { globalCacheRefKey, useGlobalCacheSearch } from '@chatic/app-runtime';
+import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 
 import { countUnread, readCursorOf } from '../../home/lib';

@@ -13,6 +13,7 @@ export {
     useRuntimeSocketState,
     useRuntimeProfile,
     useGlobalCacheSearch,
+    globalCacheRefKey,
 } from './runtime';
 export type { SessionProfile } from './runtime';
 

@@ -75,10 +75,11 @@ export const SearchPage = () => {
     // that channel isn't cached, in which case the room still opens without a place switch.
     const openMessage = (chat: ChatResultRow) => {
         submit(trimmed);
-        void goTo(`${ROUTES.channels.room(chat.channelId)}?chatNo=${chat.chatNo}`, {
-            cid: chat.cid,
-            sid: chat.sid,
-        });
+        // An unsent message (chatNo 0) is still a match worth showing, but there is nothing to jump
+        // to — open the room without the query rather than leaving a no-op `?chatNo=0` in the URL.
+        const room = ROUTES.channels.room(chat.channelId);
+        const target = chat.chatNo > 0 ? `${room}?chatNo=${chat.chatNo}` : room;
+        void goTo(target, { cid: chat.cid, sid: chat.sid });
     };
 
     return (

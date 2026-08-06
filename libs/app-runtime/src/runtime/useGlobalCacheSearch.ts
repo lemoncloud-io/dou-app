@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { globalCacheRefKey } from '@chatic/data';
 import type { GlobalCacheContext, GlobalCacheRef, GlobalCacheSearchResult } from '@chatic/data';
 import { getGlobalCacheSearchSource } from '../data/factories/localFactory';
 import { getDataManager } from '../data/runtime';
@@ -40,3 +41,10 @@ export const useGlobalCacheSearch = () => {
 
     return { search, resolveContext };
 };
+
+/**
+ * Key for every {@link GlobalCacheContext} map, re-exported so consumers read the maps without
+ * importing `@chatic/data` directly (apps consume this barrel — see ADR-0036's bypass inventory)
+ * and without re-deriving the key format.
+ */
+export { globalCacheRefKey };

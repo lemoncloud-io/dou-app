@@ -6,9 +6,11 @@ import { logger } from '@chatic/bridges';
 import { useSearchContext } from './useSearchContext';
 import type { GlobalSearchResults } from './useGlobalSearch';
 
-jest.mock('@chatic/app-runtime', () => ({ useGlobalCacheSearch: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useGlobalCacheSearch: jest.fn(),
+    globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
+}));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('@chatic/data', () => ({ globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}` }));
 
 const resolveContext = jest.fn();
 

@@ -43,7 +43,8 @@ describe('IndexedDbGlobalSearchSource', () => {
         await siteCloudB.save('site-2', { id: 'site-2', cid: 'cloud-b', name: 'Other Place' } as any);
 
         const joinCloudA = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-1'));
-        const joinOtherUser = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-2'));
+        // A co-member's join row lands in MY partition (read receipts cache every member).
+        const joinCoMember = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-1'));
         await joinCloudA.save('join-1', {
             id: 'join-1',
             cid: 'cloud-a',
@@ -51,7 +52,7 @@ describe('IndexedDbGlobalSearchSource', () => {
             userId: 'user-1',
             readNo: 7,
         } as any);
-        await joinOtherUser.save('join-2', {
+        await joinCoMember.save('join-2', {
             id: 'join-2',
             cid: 'cloud-a',
             channelId: 'ch-1',
@@ -145,7 +146,7 @@ describe('IndexedDbGlobalSearchSource', () => {
             expect(context.sitesByRef['cloud-b:site-1'].name).toBe('Other HQ');
         });
 
-        it("omits another user's join row", async () => {
+        it("resolves my join row, not a co-member's in the same partition", async () => {
             const context = await source.resolveContext({
                 uid: 'user-1',
                 cids: ['cloud-a'],
