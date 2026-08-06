@@ -1,11 +1,4 @@
-import type {
-    CacheChannelView,
-    CacheChatView,
-    CacheJoinView,
-    CacheProfileView,
-    CacheSiteView,
-    CacheType,
-} from '@chatic/app-messages';
+import type { CacheChannelView, CacheChatView, CacheJoinView, CacheSiteView, CacheType } from '@chatic/app-messages';
 import type { IIndexedDB, IndexedDbRow } from '../databases';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../databases';
 import type {
@@ -16,7 +9,7 @@ import type {
     GlobalCacheSearchResult,
     IGlobalCacheSearchSource,
 } from './types';
-import { globalCacheProfileKey, globalCacheRefKey } from './types';
+import { globalCacheRefKey } from './types';
 
 type SearchableType = 'channel' | 'site' | 'chat';
 
@@ -78,7 +71,6 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
             sitesByRef: {},
             joinsByRef: {},
             lastChatsByRef: {},
-            profilesByRef: {},
         };
 
         const cids = [...new Set(query.cids)];
@@ -88,11 +80,10 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
         // Per-cloud maps. `row.id` is the channelId / sid for these types.
         await Promise.all(
             cids.map(async cid => {
-                const [channels, sites, joins, profiles] = await Promise.all([
+                const [channels, sites, joins] = await Promise.all([
                     this.loadPartition<'channel'>('channel', cid, query.uid),
                     this.loadPartition<'site'>('site', cid, query.uid),
                     this.loadPartition<'join'>('join', cid, query.uid),
-                    this.loadPartition<'profile'>('profile', cid, query.uid),
                 ]);
 
                 channels.forEach(row => {
@@ -100,15 +91,6 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
                 });
                 sites.forEach(row => {
                     context.sitesByRef[globalCacheRefKey(cid, row.id)] = row.data as CacheSiteView;
-                });
-                profiles.forEach(row => {
-                    const profile = row.data as CacheProfileView;
-                    // Rows carry both `userId` (the member) and `uid` (the cache owner); older rows
-                    // only set `uid`, which the profile data source treats as the member too
-                    // (ProfileLocalDataSourceV2.ts:44,63).
-                    const memberId = profile.userId || profile.uid;
-                    if (!profile.sid || !memberId) return;
-                    context.profilesByRef[globalCacheProfileKey(cid, profile.sid, memberId)] = profile;
                 });
                 joins.forEach(row => {
                     const join = row.data as CacheJoinView;

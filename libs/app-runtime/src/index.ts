@@ -14,7 +14,6 @@ export {
     useRuntimeProfile,
     useGlobalCacheSearch,
     globalCacheRefKey,
-    globalCacheProfileKey,
 } from './runtime';
 export type { SessionProfile } from './runtime';
 

@@ -1,7 +1,6 @@
 import 'fake-indexeddb/auto';
 import { IndexedDBDatabase } from '../databases';
 import { IndexedDBAdapter } from '../storages';
-import { ProfileLocalDataSourceV2 } from '../data-sources-v2';
 import { IndexedDbGlobalSearchSource } from './IndexedDbGlobalSearchSource';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -59,17 +58,6 @@ describe('IndexedDbGlobalSearchSource', () => {
             channelId: 'ch-1',
             userId: 'user-2',
             readNo: 99,
-        } as any);
-
-        const profileCloudA = new IndexedDBAdapter(db, 'profile', contextFor('cloud-a', 'user-1'));
-        await profileCloudA.save('site-1@user-2', {
-            id: 'site-1@user-2',
-            cid: 'cloud-a',
-            sid: 'site-1',
-            uid: 'user-1',
-            userId: 'user-2',
-            nick: 'Bora',
-            thumbnail: 'data:image/png;base64,BBB',
         } as any);
 
         await chatCloudA.save('chat-1', {
@@ -135,7 +123,6 @@ describe('IndexedDbGlobalSearchSource', () => {
                 sitesByRef: {},
                 joinsByRef: {},
                 lastChatsByRef: {},
-                profilesByRef: {},
             });
         });
 
@@ -173,37 +160,6 @@ describe('IndexedDbGlobalSearchSource', () => {
 
             expect(context.joinsByRef['cloud-a:ch-1'].readNo).toBe(7);
             expect(Object.keys(context.joinsByRef)).toEqual(['cloud-a:ch-1']);
-        });
-
-        it("resolves a member's display profile per place, for naming a message sender", async () => {
-            const context = await source.resolveContext({
-                uid: 'user-1',
-                cids: ['cloud-a'],
-                channelRefs: [],
-            });
-
-            expect(context.profilesByRef['cloud-a:site-1:user-2']).toMatchObject({
-                nick: 'Bora',
-                thumbnail: 'data:image/png;base64,BBB',
-            });
-        });
-
-        it('finds a profile written the way the app writes it (real write path, not a hand-made row)', async () => {
-            // Guards the seam that decides whether a search result can name its sender: the write
-            // path derives the row's `uid` from `userId` and stores it under the CACHE OWNER's
-            // partition, and the read path keys by (cid, sid, member). A hand-seeded fixture can
-            // agree with the reader while the real writer disagrees, so go through the data source.
-            const storage = new IndexedDBAdapter(db, 'profile', contextFor('cloud-a', 'user-1'));
-            const dataSource = new ProfileLocalDataSourceV2(contextFor('cloud-a', 'user-1') as any, storage as any);
-            await dataSource.cacheWrite({ siteId: 'site-1', userId: 'member-9', nick: 'Written' } as any);
-
-            const context = await source.resolveContext({
-                uid: 'user-1',
-                cids: ['cloud-a'],
-                channelRefs: [],
-            });
-
-            expect(context.profilesByRef['cloud-a:site-1:member-9']?.nick).toBe('Written');
         });
 
         it('leaves a reference absent from the maps when the cache has no row for it', async () => {

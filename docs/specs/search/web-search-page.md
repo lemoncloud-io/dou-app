@@ -67,12 +67,16 @@ apps/web에 검색 진입점을 제공한다. 키워드 하나로 **활성 클�
     - 채팅: **발신자 프로필 사진 + 발신자 이름**, 매치된 메시지 본문,
       소속 "플레이스 › 채널", 작성 **연월일 + 시각**.
     - **발신자 신원은 플레이스 표시 프로필이다** — 이름은 `profile.nick`, 사진은
-      `profile.thumbnail`. 조회 키는 `(cid, 소속 채널의 sid, chat.ownerId)`이며 **sid는
-      항상 채널을 따라간다**(쿼리 컨텍스트의 sid가 아니다).
+      `profile.thumbnail`. 프로필 id는 `${sid}@${uid}`이며 **uid는 그 채팅의 주인
+      (`chat.ownerId`), sid는 그 채팅이 속한 채널의 sid**다(쿼리 컨텍스트의 sid가 아니다).
+    - **프로필은 `ProfileRepositoryV2`에서 불러온다** — 검색 소스(캐시 전용)가 아니다.
+      프로필 sync는 방 안에서만 멤버별로 등록되므로(`useChannelProfiles`) 한 번도 열지
+      않은 방의 발신자는 캐시에 없다. 리포지토리는 캐시에 있는 것은 `observeList({ sid })`로
+      관측하고 없는 것은 `refreshItem('${sid}@${uid}')`로 **실제로 당겨와** 캐시에 쓴다.
+      캐시만 읽던 이전 구현은 그래서 발신자가 계속 비어 있었다.
     - **계정 캐시로 폴백하지 않는다.** 계정 `nick`/`name`은 플레이스가 보여주는 이름과
-      다른 별개의(사적인) 라벨이므로, 프로필이 없으면 이름·사진 모두 비운다
-      (UI는 `search.unknownSender` + 기본 아바타). 프로필이 캐시에 없는 경우는 그 방을
-      한 번도 열지 않은 경우다 — 프로필 sync는 방 안에서만 등록된다.
+      다른 별개의(사적인) 라벨이므로, 끝까지 못 불러오면 이름·사진 모두 비운다
+      (UI는 `search.unknownSender` + 기본 아바타).
     - 시각 표기는 연월일을 함께 보여준다 — 검색은 과거까지 닿으므로 HH:MM만으로는
       올해 메시지와 작년 메시지를 구분할 수 없다. 채널 행의 마지막 메시지 시각도
       동일하게 표시한다.
@@ -163,6 +167,7 @@ search/
 ├── pages/SearchPage.tsx          # 입력 + 최근검색어 + 섹션별 결과 렌더
 ├── hooks/useGlobalSearch.ts      # 디바운스 + 병렬 질의 + 섹션 데이터 조립
 ├── hooks/useSearchContext.ts     # resolveContext 호출 + 행 표시 모델 조립
+├── hooks/useSenderProfiles.ts    # 채팅 발신자 프로필 로드 (ProfileRepositoryV2)
 ├── hooks/useRecentSearches.ts    # usePreferenceStore 래핑 (LRU/삭제)
 ├── hooks/useSearchNavigate.ts    # 결과 클릭 → (cid/sid 전환) → 라우팅
 ├── components/ResultRow.tsx      # 순수 표시 행 (leading/title/subtitle/context/badge/trailing)
@@ -201,10 +206,12 @@ interface ChannelResultRow {
 - 마지막 메시지는 `lastChatsByRef`의 `content`. 홈의 `useLastChat`이 하는
   "내 시스템 메시지 스킵"은 하지 않는다 — 검색 행은 캐시된 최신 1건을
   그대로 보여주고, 그 이상 정확도는 캐시 기준 전제를 넘는다.
-- 플레이스 이름은 `sitesByRef['cid:sid'].name`, 채팅 행의 채널 이름은
-  `channelsByRef`, 발신자는 `profilesByRef['cid:sid:userId']`(채팅의 `ownerId`와
-  소속 채널의 `sid`로 조회). 해결되지 않은 조각은 `formatResultContext`가
-  생략한다(id를 노출하지 않는다).
+- 플레이스 이름은 `sitesByRef['cid:sid'].name`, 채팅 행의 채널 이름은 `channelsByRef`.
+  발신자 프로필만 별도 훅(`useSenderProfiles`)에서 오는데, 조회 키가 되는 sid는 소속
+  채널이 해석된 뒤에야 알 수 있어 컨텍스트 해석 결과에서 참조를 뽑아 넘긴다.
+  플레이스당 구독 하나(행마다 하나가 아니다 — 홈의 `useChannelProfiles`/`useDmPeers`와
+  같은 형태)이고, 방과 달리 sync 타깃은 등록하지 않는다(검색은 스냅샷이다).
+  해결되지 않은 조각은 `formatResultContext`가 생략한다(id를 노출하지 않는다).
 - 썸네일은 `CacheSiteView.thumbnail` / `CacheChannelView.thumbnail`
   (타입 주석상 base64라 인증 이슈 없음). 42px 원형으로 표시하며 폴백이 종류마다 다르다 —
   채널·발신자는 `DefaultAvatar`(사람), 플레이스는 `IconImageSolid`(그림 플레이스홀더).

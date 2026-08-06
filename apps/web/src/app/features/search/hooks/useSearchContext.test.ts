@@ -3,14 +3,16 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useGlobalCacheSearch } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
+import { useSenderProfiles } from './useSenderProfiles';
 import { useSearchContext } from './useSearchContext';
 import type { GlobalSearchResults } from './useGlobalSearch';
 
 jest.mock('@chatic/app-runtime', () => ({
     useGlobalCacheSearch: jest.fn(),
     globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,
-    globalCacheProfileKey: (cid: string, sid: string, userId: string) => `${cid}:${sid}:${userId}`,
 }));
+// Sender profiles come from ProfileRepositoryV2 via this hook; it has its own test file.
+jest.mock('./useSenderProfiles', () => ({ useSenderProfiles: jest.fn(() => new Map()) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 const resolveContext = jest.fn();
@@ -20,7 +22,6 @@ const EMPTY_CONTEXT = {
     sitesByRef: {},
     joinsByRef: {},
     lastChatsByRef: {},
-    profilesByRef: {},
 };
 
 const results = (overrides: Partial<GlobalSearchResults> = {}): GlobalSearchResults =>
@@ -30,6 +31,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     resolveContext.mockResolvedValue(EMPTY_CONTEXT);
     (useGlobalCacheSearch as jest.Mock).mockReturnValue({ search: jest.fn(), resolveContext });
+    (useSenderProfiles as jest.Mock).mockReturnValue(new Map());
 });
 
 describe('useSearchContext', () => {
@@ -129,14 +131,14 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0]).toMatchObject({ sid: 'site-9', placeName: 'Beta Base' });
     });
 
-    it('names a message sender from the place-scoped profile', async () => {
+    it('names a message sender from the profile loaded for its place', async () => {
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
             channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
-            profilesByRef: {
-                'cloud-b:site-9:user-2': { nick: 'Bora', thumbnail: 'data:image/png;base64,BBB' },
-            },
         });
+        (useSenderProfiles as jest.Mock).mockReturnValue(
+            new Map([['site-9@user-2', { nick: 'Bora', thumbnail: 'data:image/png;base64,BBB' }]])
+        );
 
         const input = results({
             messages: [
@@ -150,10 +152,39 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,BBB');
     });
 
-    it('leaves the sender unnamed when no place profile is cached for them — no account fallback', async () => {
-        // Profiles are only cached for rooms already opened, so this is a real case for search
-        // results. There is deliberately no fallback to the account cache or the message's embedded
-        // owner$: the account nick/name is a different, private label from what a place shows.
+    it('asks for the author profile by (owning channel sid, message ownerId)', async () => {
+        // sid always follows the channel — it is not the query context's sid, and the chat row
+        // itself has none.
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
+        });
+
+        const input = results({
+            messages: [
+                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
+            ] as any,
+        });
+
+        renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(useSenderProfiles).toHaveBeenCalledWith([{ sid: 'site-9', userId: 'user-2' }]));
+    });
+
+    it('asks for nothing while the owning channel is still unresolved', async () => {
+        // Without the channel there is no sid, so there is no profile to ask for yet.
+        const input = results({
+            messages: [
+                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
+            ] as any,
+        });
+
+        renderHook(() => useSearchContext(input));
+
+        expect(useSenderProfiles).toHaveBeenCalledWith([]);
+    });
+
+    it('leaves the sender unnamed when no profile could be loaded for them', async () => {
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
             channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
@@ -168,6 +199,7 @@ describe('useSearchContext', () => {
                     chatNo: 6,
                     content: 'yo',
                     ownerId: 'user-2',
+                    // Not consulted: the account-level owner on the message is a different label.
                     owner$: { id: 'user-2', name: 'Bora' },
                 },
             ] as any,

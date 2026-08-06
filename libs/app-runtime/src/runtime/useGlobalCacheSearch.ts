@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { globalCacheProfileKey, globalCacheRefKey } from '@chatic/data';
+import { globalCacheRefKey } from '@chatic/data';
 import type { GlobalCacheContext, GlobalCacheRef, GlobalCacheSearchResult } from '@chatic/data';
 import { getGlobalCacheSearchSource } from '../data/factories/localFactory';
 import { getDataManager } from '../data/runtime';
@@ -10,7 +10,6 @@ const EMPTY_CONTEXT: GlobalCacheContext = {
     sitesByRef: {},
     joinsByRef: {},
     lastChatsByRef: {},
-    profilesByRef: {},
 };
 
 /**
@@ -48,4 +47,4 @@ export const useGlobalCacheSearch = () => {
  * importing `@chatic/data` directly (apps consume this barrel — see ADR-0036's bypass inventory)
  * and without re-deriving the key format.
  */
-export { globalCacheRefKey, globalCacheProfileKey };
+export { globalCacheRefKey };
