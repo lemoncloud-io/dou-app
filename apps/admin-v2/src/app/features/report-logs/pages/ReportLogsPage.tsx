@@ -2,16 +2,16 @@
  * `pages/report-logs/ReportLogsPage.tsx`
  * - Admin view of stored error/issue reports from `/mocks/0/list`.
  *
- * The date range and the record stereo (`type=log`) are server-side queries (deployed
- * chatic-backend-api's `MockListParam`, see reportLogApi.ts), so pagination totals and the
- * group/time samples respect the range. Free-text/타입/App filtering stays client-side
- * over the fetched page. Dates are KST day boundaries server-side.
+ * The date range is a server-side query (deployed chatic-backend-api's `MockListParam`,
+ * see reportLogApi.ts), so pagination totals and the group/time samples respect the range.
+ * Dates are KST day boundaries server-side. Free-text/타입/App filtering stays client-side
+ * over the fetched page. The stereo (`type`) filter is deliberately not sent — see below.
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useReportLogs } from '../hooks/use-report-logs';
-import { REPORT_LOG_STEREO, type ReportStage } from '../api/reportLogApi';
+import type { ReportStage } from '../api/reportLogApi';
 import { parseReportLog, type ReportLogRow } from '../lib/parseReportLog';
 import { groupReportLogs } from '../lib/groupReportLogs';
 import { bucketReportLogs } from '../lib/bucketReportLogs';
@@ -46,9 +46,15 @@ export const ReportLogsPage = () => {
             page: isSampleView ? 0 : page,
             limit: isSampleView ? GROUP_SAMPLE_SIZE : PAGE_SIZE,
             stage,
-            // Only report records: reportError/reportIssue saves carry stereo `log`, and the
-            // mocks table also holds unrelated fixtures the page should not list.
-            type: REPORT_LOG_STEREO,
+            // NOTE: no `type` (stereo) filter, deliberately. `doPostSlack` does stamp
+            // `stereo: 'log'` on new records (its `get()` default reaches `prepare()`, which
+            // persists via storage.save/readOrCreate), so `type=log` would match anything
+            // written through `POST /hello/report`. What it would NOT match is whatever was
+            // stored before slack reporting moved to `/mocks`, and an unmatched stereo drops
+            // rows silently. Since `parseReportLog` already separates error/issue from the
+            // title, filtering here buys nothing and risks hiding history. To confirm the
+            // real spread, call the list without `type` and read the `aggr` buckets (the
+            // backend aggregates by `stereo`).
             from: from || undefined,
             to: to || undefined,
         },

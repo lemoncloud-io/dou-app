@@ -55,14 +55,15 @@ export type ReportStage = 'v1' | 'd1';
  */
 const DOU_BASE = (import.meta.env.VITE_DOU_ENDPOINT ?? '').replace(/\/dou-[^/]*\/?$/, '');
 
-/** Stereo value the slack-report save path stamps on every stored report. */
-export const REPORT_LOG_STEREO = 'log';
-
 export interface FetchReportLogsParams {
     page?: number;
     limit?: number;
     stage?: ReportStage;
-    /** (optional) server-side `stereo` filter; reports are stored with stereo `log`. */
+    /**
+     * (optional) server-side `stereo` filter (matched against `stereo.keyword`).
+     * The slack-report save path stamps `log` on new records, so `log` is the value for
+     * anything written through `POST /hello/report`. Left unset by default — see ReportLogsPage.
+     */
     type?: string;
     /** (optional) createdAt range start, `YYYY-MM-DD` (KST day start, server-side). */
     from?: string;
