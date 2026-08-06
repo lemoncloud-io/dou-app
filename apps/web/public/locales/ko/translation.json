@@ -932,6 +932,11 @@
         "batchSuccess": "{{count}}명에게 초대를 보냈습니다",
         "inviteSelected": "초대하기 ({{count}}명)",
         "batchFailed": "초대 전송에 실패했습니다",
+        "smsMessage": "{{senderName}}님이 DoU 대화방에 초대했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
+        "defaultSenderName": "친구",
+        "sentSms": "문자 작성 화면으로 이동했어요",
+        "sentClipboard": "초대 링크를 클립보드에 복사했어요",
+        "sentFailed": "초대는 만들어졌지만 링크를 전달하지 못했어요",
         "webGuide": {
             "title": "초대 링크로 친구를 초대해 보세요",
             "description": "이름과 전화번호를 입력하면 초대 링크가 만들어져요. 링크를 공유해 친구를 대화에 초대할 수 있어요."

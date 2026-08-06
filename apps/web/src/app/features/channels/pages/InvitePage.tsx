@@ -154,11 +154,28 @@ export const InvitePage = () => {
         setIsBatchInviting(true);
         try {
             if (recipients.length === 1) {
-                await createSingleInvite({ channelId, name: recipients[0].name, phone: recipients[0].phone });
+                // One recipient goes out as a text to that number, so the toast has to say what
+                // actually happened — on web the link only reached the clipboard.
+                const { channel } = await createSingleInvite({
+                    channelId,
+                    name: recipients[0].name,
+                    phone: recipients[0].phone,
+                });
+                toast({
+                    title: t(
+                        channel === 'sms'
+                            ? 'inviteFriends.sentSms'
+                            : channel === 'clipboard'
+                              ? 'inviteFriends.sentClipboard'
+                              : 'inviteFriends.sentFailed'
+                    ),
+                    ...(channel === false && { variant: 'destructive' as const }),
+                });
             } else {
                 await createBatchInvite({ channelId, phones: recipients.map(r => r.phone) });
+                // The server fans the batch out over SMS itself, so there is nothing to hand off here.
+                toast({ title: t('inviteFriends.batchSuccess', { count: recipients.length }) });
             }
-            toast({ title: t('inviteFriends.batchSuccess', { count: recipients.length }) });
             navigate(-1);
         } catch (error) {
             reportError(toError(error));
