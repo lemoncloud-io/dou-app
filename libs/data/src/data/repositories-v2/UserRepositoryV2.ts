@@ -4,11 +4,11 @@ import type {
     UserInviteInput,
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
-import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { DomainJoin, DomainListResult, DomainUser } from '../domain';
 import { toDomainJoinFromUser } from '../domain';
 import type { IJoinLocalDataSourceV2, IPlaceLocalDataSourceV2, IUserLocalDataSourceV2 } from '../local/data-sources-v2';
-import type { IUserRemoteDataSource } from '../remote/data-sources';
+import type { IUserRemoteDataSource, UserInviteBatchPayload } from '../remote/data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 
@@ -29,7 +29,7 @@ export interface IUserRepositoryV2 extends DisposableRepositoryV2 {
     getMyProfile(): Promise<DomainUser>;
     updateProfile(payload: UserUpdateProfileInput): Promise<DomainUser>;
     requestInvite(payload: UserInviteInput): Promise<MyInviteView>;
-    requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]>;
+    requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]>;
     syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
@@ -154,9 +154,15 @@ export class UserRepositoryV2 extends BaseRepositoryV2 implements IUserRepositor
         return this.userRemoteDataSource.requestInvite(payload);
     }
 
-    public async requestInviteBatch(payload: MyUserInviteBody): Promise<MyInviteView[]> {
-        const to = payload.alias ? [payload.alias] : payload.userId ? [payload.userId] : [];
-        const result = await this.userRemoteDataSource.inviteBatch({ to });
+    /**
+     * Bulk invite — the payload is passed through untouched. It used to be built here from a
+     * single-invite body (`{ alias }` folded into `to: [alias]`), which forced callers to encode a
+     * recipient LIST as one comma-joined string; the server then read that string as one phone and
+     * rejected it (`@phone[a,b] is invalid format`). `to` is a string[] on the wire, so the list
+     * stays a list and `channelId` reaches the server instead of being dropped.
+     */
+    public async requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]> {
+        const result = await this.userRemoteDataSource.inviteBatch(payload);
         return result.list || [];
     }
 

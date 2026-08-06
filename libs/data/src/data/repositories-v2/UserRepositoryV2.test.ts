@@ -218,6 +218,25 @@ describe('UserRepositoryV2', () => {
 
         // Invite helpers should remain passthroughs so callers see the backend contract directly.
         await expect(repository.requestInvite({ alias: 'a' } as any)).resolves.toEqual({ code: 'invite-1' });
-        await expect(repository.requestInviteBatch({ alias: 'a' } as any)).resolves.toEqual([{ code: 'invite-2' }]);
+        await expect(
+            repository.requestInviteBatch({ to: ['+821011112222'], channelId: 'ch-1' } as any)
+        ).resolves.toEqual([{ code: 'invite-2' }]);
+    });
+
+    it('forwards the batch payload untouched — the recipient list stays a list, channelId survives', async () => {
+        const { repository, userRemoteDataSource } = createRepository();
+        userRemoteDataSource.inviteBatch.mockResolvedValue({ list: [] });
+
+        await repository.requestInviteBatch({
+            to: ['+821011112222', '+821033334444'],
+            channelId: 'ch-1',
+        } as any);
+
+        // Folding the list into one comma-joined string is what made the server read it as a single
+        // phone and reject it (`@phone[a,b] is invalid format`); dropping channelId lost the target.
+        expect(userRemoteDataSource.inviteBatch).toHaveBeenCalledWith({
+            to: ['+821011112222', '+821033334444'],
+            channelId: 'ch-1',
+        });
     });
 });

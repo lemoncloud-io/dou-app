@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
-import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { UserInviteBatchPayload } from '@chatic/data';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { UserInviteInput } from '@lemoncloud/chatic-sockets-api';
 
 type PendingKey = 'invite' | 'invite-batch';
@@ -29,7 +30,7 @@ export const useUserMutations = () => {
     );
 
     const requestInviteBatch = useCallback(
-        (payload: MyUserInviteBody): Promise<MyInviteView[]> =>
+        (payload: UserInviteBatchPayload): Promise<MyInviteView[]> =>
             run('invite-batch', () => userRepository.requestInviteBatch(payload)),
         [userRepository, run]
     );

@@ -76,8 +76,12 @@ describe('InvitePage (native)', () => {
         fireEvent.click(screen.getByTestId('cta'));
 
         await waitFor(() => expect(createBatchInvite).toHaveBeenCalledTimes(1));
+        // E.164, not the local form: `user.invite-batch` has nowhere to carry a country
+        // (to/channelId/cloudId/cloudName), so the number has to declare its own (ADR-0044 §5).
+        // Both fixtures share a number; de-duplication belongs to the hook that owns the wire
+        // payload, so the page still passes what it collected.
         expect(createBatchInvite).toHaveBeenCalledWith(
-            expect.objectContaining({ channelId: 'ch1', phones: ['01012345678', '01012345678'] })
+            expect.objectContaining({ channelId: 'ch1', phones: ['+821012345678', '+821012345678'] })
         );
         await waitFor(() => expect(navigate).toHaveBeenCalledWith(-1));
     });

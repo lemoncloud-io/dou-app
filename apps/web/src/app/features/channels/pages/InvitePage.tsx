@@ -13,6 +13,7 @@ import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { toError } from '../../../utils/errors';
+import { toE164 } from '../../../utils/phoneNumber';
 import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
 import { PermissionDeniedBanner } from '../components/PermissionDeniedBanner';
@@ -21,12 +22,19 @@ import { isValidKoreanPhone, normalizeKoreanPhone } from '../utils/koreanPhone';
 /** A single invite batch selects at most this many friends. */
 const MAX_INVITE_SELECTION = 100;
 
-/** 연락처에서 유효한 한국 휴대폰 번호를 추출합니다. 유효하지 않으면 null을 반환합니다. */
+/**
+ * 연락처에서 유효한 휴대폰 번호를 **E.164**(`+8210…`)로 추출합니다. 유효하지 않으면 null.
+ *
+ * wire 값은 로컬형(`010…`)이 아니라 E.164다: 백엔드 해셔(`asE164Phone`)는 로컬형일 때만
+ * `countryCode`를 읽는데, `user.invite-batch` 페이로드에는 국가를 실을 자리가 아예 없다
+ * (`to`/`channelId`/`cloudId`/`cloudName`). 즉 국가가 번호 안에 들어 있어야 한다 (ADR-0044 §5).
+ * 이 화면은 연락처가 국가를 알려주지 않으므로 한국 번호 검증을 그대로 유지하고 KR로 변환한다.
+ */
 const extractValidPhone = (contact: ContactInfo): string | null => {
     const phoneNumber = contact.phoneNumbers?.[0]?.number;
     if (!phoneNumber) return null;
     const normalized = normalizeKoreanPhone(phoneNumber.replace(/\D/g, ''));
-    return isValidKoreanPhone(normalized) ? normalized : null;
+    return isValidKoreanPhone(normalized) ? toE164(normalized, 'KR') : null;
 };
 
 const contactName = (contact: ContactInfo): string => contact.displayName || contact.givenName || '';
@@ -148,11 +156,7 @@ export const InvitePage = () => {
             if (recipients.length === 1) {
                 await createSingleInvite({ channelId, name: recipients[0].name, phone: recipients[0].phone });
             } else {
-                await createBatchInvite({
-                    channelId,
-                    phones: recipients.map(r => r.phone),
-                    names: recipients.map(r => r.name),
-                });
+                await createBatchInvite({ channelId, phones: recipients.map(r => r.phone) });
             }
             toast({ title: t('inviteFriends.batchSuccess', { count: recipients.length }) });
             navigate(-1);

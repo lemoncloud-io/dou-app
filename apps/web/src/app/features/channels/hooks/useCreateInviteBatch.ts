@@ -1,6 +1,7 @@
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
-import type { MyInviteView, MyUserInviteBody } from '@lemoncloud/chatic-backend-api';
+import type { UserInviteBatchPayload } from '@chatic/data';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useUserMutations } from './useUserMutations';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
@@ -59,21 +60,19 @@ export const useCreateInviteBatch = () => {
         return { inviteView, shared: true };
     };
 
-    const createBatchInvite = async (params: {
-        channelId: string;
-        phones: string[];
-        names?: string[];
-    }): Promise<MyInviteView[]> => {
-        // MyUserInviteBody targets a single alias; join the phone list so the
-        // server fans out the SMS dispatch for all recipients.
-        const payload: MyUserInviteBody = {
-            alias: params.phones.join(','),
-            type: 'phone',
-            name: params.names?.[0] ?? '',
-            channelId: params.channelId,
-        };
+    /**
+     * 일괄 초대 — `to`는 wire에서 배열이므로 번호 목록을 배열로 그대로 넘긴다. 예전에는 이 목록을
+     * 콤마로 이어 단일 `alias`로 보냈는데, 서버가 그 문자열을 번호 하나로 파싱하려다 거부했다
+     * (`@phone[a,b] is invalid format`).
+     *
+     * 같은 번호가 두 번 실리면 서버가 같은 대상에 SMS를 두 번 보내므로 중복은 여기서 제거한다
+     * (연락처 두 건이 같은 번호를 가질 수 있다). 순서는 유지한다.
+     */
+    const createBatchInvite = async (params: { channelId: string; phones: string[] }): Promise<MyInviteView[]> => {
+        const to = [...new Set(params.phones.map(phone => phone.trim()).filter(Boolean))];
+        if (to.length === 0) return [];
 
-        return requestInviteBatch(payload);
+        return requestInviteBatch({ to, channelId: params.channelId } as UserInviteBatchPayload);
     };
 
     return {
