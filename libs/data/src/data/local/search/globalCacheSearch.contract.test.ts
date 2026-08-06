@@ -4,7 +4,7 @@ import { IndexedDBDatabase } from '../databases';
 import { IndexedDBAdapter } from '../storages';
 import { IndexedDbGlobalSearchSource } from './IndexedDbGlobalSearchSource';
 import { NativeGlobalSearchSource } from './NativeGlobalSearchSource';
-import type { GlobalCacheSearchQuery, IGlobalCacheSearchSource } from './types';
+import type { GlobalCacheContextQuery, GlobalCacheSearchQuery, IGlobalCacheSearchSource } from './types';
 
 /**
  * Shared contract test (ADR-0033 "어댑터 동작 동일성"): the same fixtures and the same
@@ -19,6 +19,15 @@ if (typeof globalThis.structuredClone !== 'function') {
 
 type ChannelFixture = { domain: 'channel'; id: string; cid: string; uid: string; sid: string; name: string };
 type SiteFixture = { domain: 'site'; id: string; cid: string; uid: string; name: string };
+type JoinFixture = {
+    domain: 'join';
+    id: string;
+    cid: string;
+    uid: string;
+    channelId: string;
+    userId: string;
+    readNo: number;
+};
 type ChatFixture = {
     domain: 'chat';
     id: string;
@@ -28,7 +37,7 @@ type ChatFixture = {
     chatNo: number;
     content: string;
 };
-type Fixture = ChannelFixture | SiteFixture | ChatFixture;
+type Fixture = ChannelFixture | SiteFixture | JoinFixture | ChatFixture;
 
 const FIXTURES: Fixture[] = [
     { domain: 'channel', id: 'ch-1', cid: 'cloud-a', uid: 'user-1', sid: 'site-1', name: 'Lemon Lounge' },
@@ -37,6 +46,10 @@ const FIXTURES: Fixture[] = [
     { domain: 'channel', id: 'ch-4', cid: 'cloud-b', uid: 'user-1', sid: 'site-4', name: 'Lemon Bistro' },
     { domain: 'site', id: 'site-1', cid: 'cloud-a', uid: 'user-1', name: 'Lemon HQ' },
     { domain: 'site', id: 'site-2', cid: 'cloud-b', uid: 'user-1', name: 'Beta Base' },
+    // Same sid string in both clouds — context maps must key by cloud, not by id alone.
+    { domain: 'site', id: 'site-1', cid: 'cloud-b', uid: 'user-1', name: 'Beta Annex' },
+    { domain: 'join', id: 'join-1', cid: 'cloud-a', uid: 'user-1', channelId: 'ch-1', userId: 'user-1', readNo: 7 },
+    { domain: 'join', id: 'join-2', cid: 'cloud-a', uid: 'user-2', channelId: 'ch-1', userId: 'user-2', readNo: 99 },
     {
         domain: 'chat',
         id: 'chat-1',
@@ -63,6 +76,27 @@ const FIXTURES: Fixture[] = [
         channelId: 'ch-2',
         chatNo: 1,
         content: 'another lemon chat',
+    },
+    // Unsent (chatNo 0): newest by insertion order, never eligible as a preview.
+    {
+        domain: 'chat',
+        id: 'chat-pending',
+        cid: 'cloud-a',
+        uid: 'user-1',
+        channelId: 'ch-1',
+        chatNo: 0,
+        content: 'still sending',
+    },
+    // ch-4's only cached row is unsent — the case where the guard actually decides the outcome
+    // (elsewhere chatNo 0 sorts lowest and loses on ordering alone).
+    {
+        domain: 'chat',
+        id: 'chat-only-pending',
+        cid: 'cloud-b',
+        uid: 'user-1',
+        channelId: 'ch-4',
+        chatNo: 0,
+        content: 'queued draft',
     },
 ];
 
@@ -112,6 +146,88 @@ const EXPECTATIONS: Expectation[] = [
     },
 ];
 
+interface ContextExpectation {
+    description: string;
+    query: GlobalCacheContextQuery;
+    /** Only the keys asserted here are checked; `null` means "must be absent from the map". */
+    expected: {
+        channels?: Record<string, string | null>;
+        sites?: Record<string, string | null>;
+        joins?: Record<string, number | null>;
+        lastChats?: Record<string, string | null>;
+    };
+}
+
+const CONTEXT_EXPECTATIONS: ContextExpectation[] = [
+    {
+        description: 'empty request resolves to empty maps',
+        query: { uid: 'user-1', cids: [], channelRefs: [] },
+        expected: { channels: {}, sites: {}, joins: {}, lastChats: {} },
+    },
+    {
+        description: 'resolves channel/place names and my read cursor per cloud',
+        query: { uid: 'user-1', cids: ['cloud-a', 'cloud-b'], channelRefs: [] },
+        expected: {
+            channels: { 'cloud-a:ch-1': 'Lemon Lounge', 'cloud-b:ch-2': 'Other Room' },
+            sites: { 'cloud-a:site-1': 'Lemon HQ', 'cloud-b:site-2': 'Beta Base' },
+            joins: { 'cloud-a:ch-1': 7 },
+        },
+    },
+    {
+        description: 'keys places by cloud so the same sid in two clouds does not collide',
+        query: { uid: 'user-1', cids: ['cloud-a', 'cloud-b'], channelRefs: [] },
+        expected: { sites: { 'cloud-a:site-1': 'Lemon HQ', 'cloud-b:site-1': 'Beta Annex' } },
+    },
+    {
+        description: "omits another user's channel and join rows",
+        query: { uid: 'user-1', cids: ['cloud-a'], channelRefs: [] },
+        expected: { channels: { 'cloud-a:ch-3': null }, joins: { 'cloud-a:ch-1': 7 } },
+    },
+    {
+        description: 'resolves the newest sent chat per channel, skipping unsent rows',
+        query: {
+            uid: 'user-1',
+            cids: [],
+            channelRefs: [
+                { cid: 'cloud-a', channelId: 'ch-1' },
+                { cid: 'cloud-b', channelId: 'ch-2' },
+            ],
+        },
+        expected: { lastChats: { 'cloud-a:ch-1': 'chat-2', 'cloud-b:ch-2': 'chat-3' } },
+    },
+    {
+        description: 'resolves no last chat for a channel whose only cached row is unsent',
+        query: { uid: 'user-1', cids: [], channelRefs: [{ cid: 'cloud-b', channelId: 'ch-4' }] },
+        expected: { lastChats: { 'cloud-b:ch-4': null } },
+    },
+    {
+        description: 'deduplicates repeated channel references',
+        query: {
+            uid: 'user-1',
+            cids: [],
+            channelRefs: [
+                { cid: 'cloud-a', channelId: 'ch-1' },
+                { cid: 'cloud-a', channelId: 'ch-1' },
+            ],
+        },
+        expected: { lastChats: { 'cloud-a:ch-1': 'chat-2' } },
+    },
+    {
+        description: 'leaves references with no cached row absent from the maps',
+        query: { uid: 'user-1', cids: ['cloud-a'], channelRefs: [{ cid: 'cloud-a', channelId: 'ch-missing' }] },
+        expected: { channels: { 'cloud-a:ch-missing': null }, lastChats: { 'cloud-a:ch-missing': null } },
+    },
+    {
+        description: 'scopes strictly to the requesting uid',
+        query: { uid: 'user-2', cids: ['cloud-a'], channelRefs: [{ cid: 'cloud-a', channelId: 'ch-1' }] },
+        expected: {
+            channels: { 'cloud-a:ch-3': 'Lemon Secret', 'cloud-a:ch-1': null },
+            joins: { 'cloud-a:ch-1': 99 },
+            lastChats: { 'cloud-a:ch-1': null },
+        },
+    },
+];
+
 const sorted = (ids: string[]) => [...ids].sort();
 
 const runContractSuite = (label: string, buildSource: () => Promise<IGlobalCacheSearchSource>) => {
@@ -128,6 +244,32 @@ const runContractSuite = (label: string, buildSource: () => Promise<IGlobalCache
             expect(sorted(result.channels.map(c => c.id))).toEqual(sorted(expected.channels));
             expect(sorted(result.sites.map(s => s.id))).toEqual(sorted(expected.sites));
             expect(sorted(result.chats.map(c => c.id))).toEqual(sorted(expected.chats));
+        });
+
+        it.each(CONTEXT_EXPECTATIONS)('resolveContext: $description', async ({ query, expected }) => {
+            const context = await source.resolveContext(query);
+
+            Object.entries(expected.channels ?? {}).forEach(([key, name]) => {
+                expect(context.channelsByRef[key]?.name ?? null).toBe(name);
+            });
+            Object.entries(expected.sites ?? {}).forEach(([key, name]) => {
+                expect(context.sitesByRef[key]?.name ?? null).toBe(name);
+            });
+            Object.entries(expected.joins ?? {}).forEach(([key, readNo]) => {
+                expect(context.joinsByRef[key]?.readNo ?? null).toBe(readNo);
+            });
+            Object.entries(expected.lastChats ?? {}).forEach(([key, chatId]) => {
+                expect(context.lastChatsByRef[key]?.id ?? null).toBe(chatId);
+            });
+
+            if (query.cids.length === 0 && query.channelRefs.length === 0) {
+                expect(context).toEqual({
+                    channelsByRef: {},
+                    sitesByRef: {},
+                    joinsByRef: {},
+                    lastChatsByRef: {},
+                });
+            }
         });
     });
 };
@@ -164,6 +306,19 @@ runContractSuite('IndexedDB (web)', async () => {
         await siteAdapter.save(f.id, { id: f.id, cid: f.cid, name: f.name } as any);
     }
 
+    const joinCtx = buildScopedContext();
+    const joinAdapter = new IndexedDBAdapter(db, 'join', joinCtx.provider);
+    for (const f of FIXTURES.filter((f): f is JoinFixture => f.domain === 'join')) {
+        joinCtx.set(f.cid, f.uid);
+        await joinAdapter.save(f.id, {
+            id: f.id,
+            cid: f.cid,
+            channelId: f.channelId,
+            userId: f.userId,
+            readNo: f.readNo,
+        } as any);
+    }
+
     const chatCtx = buildScopedContext();
     const chatAdapter = new IndexedDBAdapter(db, 'chat', chatCtx.provider);
     for (const f of FIXTURES.filter((f): f is ChatFixture => f.domain === 'chat')) {
@@ -180,21 +335,49 @@ runContractSuite('IndexedDB (web)', async () => {
     return new IndexedDbGlobalSearchSource(db);
 });
 
-runContractSuite('native (bridge)', async () => {
-    const bridge = {
-        request: jest.fn(async (message: { data: { keyword: string; cid?: string; uid?: string } }) => {
-            const { keyword, cid, uid } = message.data;
-            const kw = keyword.toLowerCase();
-            const items = FIXTURES.filter(f => {
-                if (uid && f.uid !== uid) return false;
-                if (cid && f.cid !== cid) return false;
-                const field = f.domain === 'chat' ? f.content : f.name;
-                return field.toLowerCase().includes(kw);
-            }).map(f => ({ ...f, _domain: f.domain }));
+/**
+ * Stands in for the native side: `SearchGlobalCacheData` mirrors SQLite `LIKE` semantics, and
+ * `FetchAllCacheData` mirrors the per-domain SQL — cid/uid WHERE clauses plus the chat query's
+ * `channel_id` + `ORDER BY chat_no DESC` + `LIMIT` (apps/mobile ChatDataSource.ts:46-72).
+ */
+const mockNativeBridge = () =>
+    ({
+        request: jest.fn(async (message: { type: string; data: Record<string, any> }) => {
+            if (message.type === 'SearchGlobalCacheData') {
+                const { keyword, cid, uid } = message.data;
+                const kw = String(keyword).toLowerCase();
+                const items = FIXTURES.filter(f => {
+                    if (uid && f.uid !== uid) return false;
+                    if (cid && f.cid !== cid) return false;
+                    if (f.domain === 'join') return false; // join rows have no searchable field
+                    const field = f.domain === 'chat' ? f.content : f.name;
+                    return field.toLowerCase().includes(kw);
+                }).map(f => ({ ...f, _domain: f.domain }));
 
-            return { type: 'OnSearchGlobalCacheData', success: true, data: { items } };
+                return { type: 'OnSearchGlobalCacheData', success: true, data: { items } };
+            }
+
+            if (message.type === 'FetchAllCacheData') {
+                const { type, cid, uid, query } = message.data;
+                let items: Fixture[] = FIXTURES.filter(f => f.domain === type);
+                if (cid) items = items.filter(f => f.cid === cid);
+                if (uid) items = items.filter(f => f.uid === uid);
+                if (query?.channelId) {
+                    items = items.filter(f => 'channelId' in f && f.channelId === query.channelId);
+                }
+                if (type === 'chat') {
+                    items = [...items].sort(
+                        (a, b) => ((b as ChatFixture).chatNo ?? 0) - ((a as ChatFixture).chatNo ?? 0)
+                    );
+                    if (query?.sort === 'asc') items.reverse();
+                }
+                if (typeof query?.limit === 'number') items = items.slice(0, query.limit);
+
+                return { type: 'OnFetchAllCacheData', success: true, data: { type, cid, uid, items } };
+            }
+
+            throw new Error(`unexpected bridge message: ${message.type}`);
         }),
-    } as unknown as IWebBridgeClient;
+    }) as unknown as IWebBridgeClient;
 
-    return new NativeGlobalSearchSource(bridge);
-});
+runContractSuite('native (bridge)', async () => new NativeGlobalSearchSource(mockNativeBridge()));

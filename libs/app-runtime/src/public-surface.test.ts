@@ -20,6 +20,9 @@ describe('@chatic/app-runtime public surface', () => {
             'useRuntimeRepositories',
             'useRuntimeSocketState',
             'useRuntimeProfile',
+            // cross-cloud cache reads (search + result-row context) — the only path that reads
+            // outside the active cloud, since repositories are scoped to it
+            'useGlobalCacheSearch',
             // per-kind (relay/cloud) verified state, for gating a getScopedClient-pinned request
             'useKindVerified',
             // back-compat aliases (desktop-web) — useRuntimeSocketState / useRuntimeProfile

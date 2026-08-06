@@ -1,11 +1,21 @@
 import type {
     CacheChannelView,
     CacheChatView,
+    CacheJoinView,
     CacheSiteView,
+    OnFetchAllCacheDataPayload,
     OnSearchGlobalCacheDataPayload,
 } from '@chatic/app-messages';
 import type { IWebBridgeClient } from '@chatic/bridges';
-import type { GlobalCacheSearchQuery, GlobalCacheSearchResult, IGlobalCacheSearchSource } from './types';
+import type {
+    GlobalCacheContext,
+    GlobalCacheContextQuery,
+    GlobalCacheRef,
+    GlobalCacheSearchQuery,
+    GlobalCacheSearchResult,
+    IGlobalCacheSearchSource,
+} from './types';
+import { globalCacheRefKey } from './types';
 
 /**
  * `_domain` is stamped onto every item by the native CacheSearchService
@@ -18,10 +28,21 @@ type TaggedSearchItem =
     | (CacheChatView & { _domain: 'chat' })
     | (CacheSiteView & { _domain: 'site' });
 
+/** One request per channel, so a channel referenced by many chat rows is fetched once. */
+const dedupeRefs = (refs: GlobalCacheRef[]): GlobalCacheRef[] => {
+    const seen = new Map<string, GlobalCacheRef>();
+    refs.forEach(ref => {
+        if (!ref.cid || !ref.channelId) return;
+        seen.set(globalCacheRefKey(ref.cid, ref.channelId), ref);
+    });
+    return [...seen.values()];
+};
+
 /**
- * Cross-cloud search delegated to the native app via the existing `SearchGlobalCacheData`
- * bridge message. The native side (CacheSearchService + SQLite LIKE, cid omitted = every
- * cloud) is already deployed — this class is purely a client for it, no native changes.
+ * Cross-cloud reads delegated to the native app over the existing cache bridge messages. The
+ * native side (CacheSearchService + SQLite LIKE for `search`, the CRUD cache service for
+ * `resolveContext`) is already deployed — this class is purely a client for it, no native changes,
+ * so it works on app builds already in the field.
  */
 export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
     constructor(private readonly bridge: IWebBridgeClient) {}
@@ -47,5 +68,85 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
         }
 
         return result;
+    }
+
+    /**
+     * Reads a non-active cloud's rows by passing `cid` explicitly: the bridge handler forwards the
+     * payload's cid straight to the cache service (useCrudCacheHandler.ts:13-32), which is what
+     * makes a read outside the active cloud possible at all.
+     *
+     * Cost is `3 × clouds + channelRefs` round trips, issued in parallel — per cloud the whole
+     * channel/site/join table (one request beats one-per-id), and per channel a single
+     * newest-message row, which the SQLite side supports via `channel_id` + `ORDER BY chat_no DESC`
+     * + `LIMIT` (apps/mobile ChatDataSource.ts:46-72).
+     */
+    async resolveContext(query: GlobalCacheContextQuery): Promise<GlobalCacheContext> {
+        const context: GlobalCacheContext = {
+            channelsByRef: {},
+            sitesByRef: {},
+            joinsByRef: {},
+            lastChatsByRef: {},
+        };
+
+        const cids = [...new Set(query.cids)];
+        const refs = dedupeRefs(query.channelRefs);
+        if (cids.length === 0 && refs.length === 0) return context;
+
+        await Promise.all([
+            ...cids.map(async cid => {
+                const [channels, sites, joins] = await Promise.all([
+                    this.fetchAll<CacheChannelView>('channel', cid, query.uid),
+                    this.fetchAll<CacheSiteView>('site', cid, query.uid),
+                    this.fetchAll<CacheJoinView>('join', cid, query.uid),
+                ]);
+
+                channels.forEach(channel => {
+                    if (channel.id) context.channelsByRef[globalCacheRefKey(cid, channel.id)] = channel;
+                });
+                sites.forEach(site => {
+                    if (site.id) context.sitesByRef[globalCacheRefKey(cid, site.id)] = site;
+                });
+                joins.forEach(join => {
+                    if (join.channelId) context.joinsByRef[globalCacheRefKey(cid, join.channelId)] = join;
+                });
+            }),
+            ...refs.map(async ref => {
+                const chats = await this.fetchAll<CacheChatView>('chat', ref.cid, query.uid, {
+                    channelId: ref.channelId,
+                    sort: 'desc',
+                    limit: 1,
+                });
+                // Unsent rows (`chatNo: 0`) are excluded here as on web: a preview must never show
+                // a message the server hasn't accepted.
+                const newest = chats.find(chat => (chat.chatNo ?? 0) > 0);
+                if (newest) context.lastChatsByRef[globalCacheRefKey(ref.cid, ref.channelId)] = newest;
+            }),
+        ]);
+
+        return context;
+    }
+
+    /**
+     * A failed request contributes nothing instead of rejecting the whole resolve — a missing name
+     * must degrade one row, not blank out the results the user is already looking at.
+     */
+    private async fetchAll<TView>(
+        type: 'channel' | 'site' | 'join' | 'chat',
+        cid: string,
+        uid: string,
+        query?: Record<string, unknown>
+    ): Promise<TView[]> {
+        try {
+            const response = await this.bridge.request({
+                type: 'FetchAllCacheData',
+                // Double cast: the per-type discriminated payload union cannot be narrowed from a
+                // runtime `type` value (the same reason NativeDBAdapter casts its payloads).
+                data: { type, cid, uid, query } as never,
+            });
+            const { items } = response.data as OnFetchAllCacheDataPayload;
+            return (items ?? []) as TView[];
+        } catch {
+            return [];
+        }
     }
 }

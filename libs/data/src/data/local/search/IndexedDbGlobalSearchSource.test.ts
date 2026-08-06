@@ -37,6 +37,28 @@ describe('IndexedDbGlobalSearchSource', () => {
             name: 'Lemon Secret',
         } as any);
         await siteCloudA.save('site-1', { id: 'site-1', cid: 'cloud-a', name: 'Lemon HQ' } as any);
+        // Same sid string in another cloud — the context maps must not let these collide.
+        const siteCloudB = new IndexedDBAdapter(db, 'site', contextFor('cloud-b', 'user-1'));
+        await siteCloudB.save('site-1', { id: 'site-1', cid: 'cloud-b', name: 'Other HQ' } as any);
+        await siteCloudB.save('site-2', { id: 'site-2', cid: 'cloud-b', name: 'Other Place' } as any);
+
+        const joinCloudA = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-1'));
+        const joinOtherUser = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-2'));
+        await joinCloudA.save('join-1', {
+            id: 'join-1',
+            cid: 'cloud-a',
+            channelId: 'ch-1',
+            userId: 'user-1',
+            readNo: 7,
+        } as any);
+        await joinOtherUser.save('join-2', {
+            id: 'join-2',
+            cid: 'cloud-a',
+            channelId: 'ch-1',
+            userId: 'user-2',
+            readNo: 99,
+        } as any);
+
         await chatCloudA.save('chat-1', {
             id: 'chat-1',
             cid: 'cloud-a',
@@ -50,6 +72,14 @@ describe('IndexedDbGlobalSearchSource', () => {
             channelId: 'ch-1',
             chatNo: 2,
             content: 'unrelated message',
+        } as any);
+        // Unsent row: highest by insertion, lowest by chat_no — must never win the preview.
+        await chatCloudA.save('chat-pending', {
+            id: 'chat-pending',
+            cid: 'cloud-a',
+            channelId: 'ch-1',
+            chatNo: 0,
+            content: 'still sending',
         } as any);
     });
 
@@ -82,5 +112,59 @@ describe('IndexedDbGlobalSearchSource', () => {
 
         const scoped = await source.search('lemon', { uid: 'user-1', cid: 'cloud-b' });
         expect(scoped.channels).toEqual([]);
+    });
+
+    describe('resolveContext', () => {
+        it('returns empty maps without touching the db for an empty request', async () => {
+            const context = await source.resolveContext({ uid: 'user-1', cids: [], channelRefs: [] });
+            expect(context).toEqual({ channelsByRef: {}, sitesByRef: {}, joinsByRef: {}, lastChatsByRef: {} });
+        });
+
+        it('resolves channels, places, my join and the newest chat across clouds', async () => {
+            const context = await source.resolveContext({
+                uid: 'user-1',
+                cids: ['cloud-a', 'cloud-b'],
+                channelRefs: [{ cid: 'cloud-a', channelId: 'ch-1' }],
+            });
+
+            expect(context.channelsByRef['cloud-a:ch-1'].name).toBe('Lemon Lounge');
+            expect(context.channelsByRef['cloud-b:ch-2'].name).toBe('Other Room');
+            expect(context.sitesByRef['cloud-a:site-1'].name).toBe('Lemon HQ');
+            expect(context.joinsByRef['cloud-a:ch-1'].readNo).toBe(7);
+            expect(context.lastChatsByRef['cloud-a:ch-1'].id).toBe('chat-2');
+        });
+
+        it('keys places by cloud so the same sid in two clouds does not collide', async () => {
+            const context = await source.resolveContext({
+                uid: 'user-1',
+                cids: ['cloud-a', 'cloud-b'],
+                channelRefs: [],
+            });
+
+            expect(context.sitesByRef['cloud-a:site-1'].name).toBe('Lemon HQ');
+            expect(context.sitesByRef['cloud-b:site-1'].name).toBe('Other HQ');
+        });
+
+        it("omits another user's join row", async () => {
+            const context = await source.resolveContext({
+                uid: 'user-1',
+                cids: ['cloud-a'],
+                channelRefs: [],
+            });
+
+            expect(context.joinsByRef['cloud-a:ch-1'].readNo).toBe(7);
+            expect(Object.keys(context.joinsByRef)).toEqual(['cloud-a:ch-1']);
+        });
+
+        it('leaves a reference absent from the maps when the cache has no row for it', async () => {
+            const context = await source.resolveContext({
+                uid: 'user-1',
+                cids: ['cloud-a'],
+                channelRefs: [{ cid: 'cloud-a', channelId: 'ch-missing' }],
+            });
+
+            expect(context.channelsByRef['cloud-a:ch-missing']).toBeUndefined();
+            expect(context.lastChatsByRef['cloud-a:ch-missing']).toBeUndefined();
+        });
     });
 });
