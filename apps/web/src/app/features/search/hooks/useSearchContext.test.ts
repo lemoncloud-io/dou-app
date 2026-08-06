@@ -21,7 +21,6 @@ const EMPTY_CONTEXT = {
     joinsByRef: {},
     lastChatsByRef: {},
     profilesByRef: {},
-    usersByRef: {},
 };
 
 const results = (overrides: Partial<GlobalSearchResults> = {}): GlobalSearchResults =>
@@ -151,36 +150,15 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,BBB');
     });
 
-    it('falls back to the account NAME — never the account nick — when no place profile is cached', async () => {
-        // Profiles are only cached for rooms already opened, so this is the common case for search.
-        // The account nick is a different label from the place identity and must not surface here.
+    it('leaves the sender unnamed when no place profile is cached for them — no account fallback', async () => {
+        // Profiles are only cached for rooms already opened, so this is a real case for search
+        // results. There is deliberately no fallback to the account cache or the message's embedded
+        // owner$: the account nick/name is a different, private label from what a place shows.
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
             channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
-            usersByRef: {
-                'cloud-b:user-2': {
-                    id: 'user-2',
-                    name: 'Bora Kim',
-                    nick: 'never-this',
-                    thumbnail: 'data:image/png;base64,UU',
-                },
-            },
         });
 
-        const input = results({
-            messages: [
-                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
-            ] as any,
-        });
-
-        const { result } = renderHook(() => useSearchContext(input));
-
-        await waitFor(() => expect(result.current.chats[0].senderName).toBe('Bora Kim'));
-        // The photo is the place profile's; an account-level image is not this person's identity here.
-        expect(result.current.chats[0].senderThumbnail).toBeUndefined();
-    });
-
-    it('falls back to the owner embedded on the message when nothing else is cached', async () => {
         const input = results({
             messages: [
                 {
@@ -192,23 +170,6 @@ describe('useSearchContext', () => {
                     ownerId: 'user-2',
                     owner$: { id: 'user-2', name: 'Bora' },
                 },
-            ] as any,
-        });
-
-        const { result } = renderHook(() => useSearchContext(input));
-
-        await waitFor(() => expect(result.current.chats[0].senderName).toBe('Bora'));
-    });
-
-    it('leaves the sender unnamed when nothing at all identifies them', async () => {
-        resolveContext.mockResolvedValue({
-            ...EMPTY_CONTEXT,
-            channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
-        });
-
-        const input = results({
-            messages: [
-                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
             ] as any,
         });
 

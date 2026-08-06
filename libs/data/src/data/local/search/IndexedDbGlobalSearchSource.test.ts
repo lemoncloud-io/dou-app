@@ -135,7 +135,6 @@ describe('IndexedDbGlobalSearchSource', () => {
                 joinsByRef: {},
                 lastChatsByRef: {},
                 profilesByRef: {},
-                usersByRef: {},
             });
         });
 

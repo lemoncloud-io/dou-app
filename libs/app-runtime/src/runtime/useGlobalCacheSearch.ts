@@ -11,7 +11,6 @@ const EMPTY_CONTEXT: GlobalCacheContext = {
     joinsByRef: {},
     lastChatsByRef: {},
     profilesByRef: {},
-    usersByRef: {},
 };
 
 /**

@@ -13,7 +13,6 @@ const EMPTY_CONTEXT: GlobalCacheContext = {
     joinsByRef: {},
     lastChatsByRef: {},
     profilesByRef: {},
-    usersByRef: {},
 };
 
 /** One place result row — the cache row already carries everything it shows. */
@@ -49,11 +48,12 @@ export interface ChatResultRow {
     channelName?: string;
     placeName?: string;
     /**
-     * Sender's place-profile nick — the identity other members actually see. Falls back to the
-     * account NAME (never the account nick) and then to the owner embedded on the message.
+     * Sender's place-profile nick — the identity a place actually shows for that person. No
+     * fallback to the account cache: the account nick/name is a different, private label.
+     * Undefined (unnamed) when the sender's profile for this place isn't cached.
      */
     senderName?: string;
-    /** Place-profile photo only: an account-level image is not this person's identity here. */
+    /** Place-profile photo only, for the same reason. */
     senderThumbnail?: string;
 }
 
@@ -167,19 +167,13 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 // A chat row has no sid of its own — its place comes via the owning channel, and the
                 // sender's display profile is scoped to that place.
                 const owner = context.channelsByRef[globalCacheRefKey(chat.cid, chat.channelId)];
-                // Same chain the room uses (ChannelRoomPage.tsx:613, useChats' nameOf): the place
-                // profile is the best label but it is only cached for rooms already opened, so fall
-                // back to the member identity and then to the owner embedded on the message itself.
+                // The sender's identity for THIS place, keyed by the owning channel's sid — sid
+                // always follows the channel, never the query context.
                 const senderId = chat.ownerId;
                 const profile =
                     owner?.sid && senderId
                         ? context.profilesByRef[globalCacheProfileKey(chat.cid, owner.sid, senderId)]
                         : undefined;
-                const user = senderId ? context.usersByRef[globalCacheRefKey(chat.cid, senderId)] : undefined;
-                // `user.nick` is deliberately NOT in this chain: the place profile's nick is the
-                // identity a place shows, and the account nick is a different (private) label.
-                // The room resolves it the same way (useChats' nameOf reads `name`, not `nick`).
-                const senderName = profile?.nick || user?.name || chat.owner$?.name;
                 return {
                     cid: chat.cid,
                     sid: owner?.sid,
@@ -190,9 +184,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     createdAt: chat.createdAtMs,
                     channelName: owner?.name,
                     placeName: placeName(chat.cid, owner?.sid),
-                    senderName,
-                    // Profile photo only — same as the room, which shows `ownerProfile?.thumbnail`
-                    // and otherwise the default avatar.
+                    senderName: profile?.nick,
                     senderThumbnail: profile?.thumbnail,
                 };
             }),
