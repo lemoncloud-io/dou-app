@@ -161,5 +161,12 @@ export const useGlobalSearch = (query: string) => {
         results.channels.length > 0 ||
         results.messages.length > 0;
 
-    return { results, isSearching, hasResults, isQueryTooShort };
+    return {
+        results,
+        isSearching,
+        hasResults,
+        isQueryTooShort,
+        /** Names the scope in the UI copy; undefined on relay or before the name is known. */
+        activeCloudName: cloudNamesByCid.get(activeCid),
+    };
 };

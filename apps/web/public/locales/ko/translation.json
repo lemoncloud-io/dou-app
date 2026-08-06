@@ -646,7 +646,10 @@
         "noResults": "검색 결과가 없습니다.",
         "noHistory": "검색 내역이 없습니다.",
         "navigateFailed": "이동할 수 없어요. 잠시 후 다시 시도해주세요.",
-        "messageJumpFailed": "메시지를 찾을 수 없어요."
+        "messageJumpFailed": "메시지를 찾을 수 없어요.",
+        "searching": "검색 중이에요",
+        "scopeNotice": "현재 클라우드에서만 검색됩니다",
+        "scopeNoticeNamed": "'{{cloud}}'에서만 검색됩니다"
     },
     "placeSettings": {
         "title": "플레이스 설정",

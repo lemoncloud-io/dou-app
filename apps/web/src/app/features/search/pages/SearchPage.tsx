@@ -52,7 +52,7 @@ export const SearchPage = () => {
         },
         [setSearchParams]
     );
-    const { results, isSearching, hasResults, isQueryTooShort } = useGlobalSearch(query);
+    const { results, isSearching, hasResults, isQueryTooShort, activeCloudName } = useGlobalSearch(query);
     const rows = useSearchContext(results);
     const { recentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } = useRecentSearches();
     const { goTo } = useSearchNavigate();
@@ -120,6 +120,17 @@ export const SearchPage = () => {
                     }}
                 />
             </div>
+
+            {/* The scan covers one cloud (ADR-0033 결정 2항), so say so up front rather than letting
+                a missing result look like missing data. */}
+            <p className="px-4 pb-2 text-[11px] leading-4 text-description">
+                {activeCloudName
+                    ? t('search.scopeNoticeNamed', {
+                          cloud: activeCloudName,
+                          defaultValue: "'{{cloud}}'에서만 검색됩니다",
+                      })
+                    : t('search.scopeNotice', '현재 클라우드에서만 검색됩니다')}
+            </p>
 
             <div className="flex-1 overflow-y-auto">
                 {isIdle ? (

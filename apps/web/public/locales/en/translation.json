@@ -646,7 +646,10 @@
         "noResults": "No results found.",
         "noHistory": "No search history.",
         "navigateFailed": "Couldn't navigate there. Please try again shortly.",
-        "messageJumpFailed": "Couldn't find that message."
+        "messageJumpFailed": "Couldn't find that message.",
+        "searching": "Searching",
+        "scopeNotice": "Only this cloud is searched",
+        "scopeNoticeNamed": "Only '{{cloud}}' is searched"
     },
     "placeSettings": {
         "title": "Place Settings",

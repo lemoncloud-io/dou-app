@@ -13,7 +13,19 @@ jest.mock('../hooks/useRecentSearches', () => ({ useRecentSearches: jest.fn() })
 jest.mock('../hooks/useSearchNavigate', () => ({ useSearchNavigate: jest.fn() }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
 jest.mock('react-i18next', () => ({
-    useTranslation: () => ({ t: (_key: string, fallback: string) => fallback, i18n: { language: 'ko' } }),
+    useTranslation: () => ({
+        // Mirrors i18next: a string second arg is the fallback, an object carries defaultValue +
+        // interpolation values.
+        t: (_key: string, second?: string | Record<string, unknown>) => {
+            if (typeof second === 'string') return second;
+            const { defaultValue = '', ...values } = second ?? {};
+            return Object.entries(values).reduce<string>(
+                (text, [name, value]) => text.replace(`{{${name}}}`, String(value)),
+                String(defaultValue)
+            );
+        },
+        i18n: { language: 'ko' },
+    }),
 }));
 
 const EMPTY_ROWS = { clouds: [], places: [], channels: [], chats: [] };
@@ -62,6 +74,22 @@ describe('SearchPage', () => {
         expect(screen.getByRole('button', { name: 'Lemon HQ' })).toBeTruthy();
         // The search hook must see the restored keyword, not an empty box.
         expect(useGlobalSearch).toHaveBeenCalledWith('lemon');
+    });
+
+    it('names the searched cloud so a missing result does not read as missing data', () => {
+        setSearchState({ activeCloudName: 'Lemon Cloud' });
+
+        renderAt('/search?q=lemon');
+
+        expect(screen.getByText("'Lemon Cloud'에서만 검색됩니다")).toBeTruthy();
+    });
+
+    it('falls back to a generic scope notice before the cloud name is known', () => {
+        setSearchState({ activeCloudName: undefined });
+
+        renderAt('/search?q=lemon');
+
+        expect(screen.getByText('현재 클라우드에서만 검색됩니다')).toBeTruthy();
     });
 
     it('shows recent searches when the URL carries no keyword', () => {
