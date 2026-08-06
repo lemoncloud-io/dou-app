@@ -2,16 +2,17 @@
  * `pages/report-logs/ReportLogsPage.tsx`
  * - Admin view of stored error/issue reports from `/mocks/0/list`.
  *
- * The date range is a server-side query (deployed chatic-backend-api's `MockListParam`,
- * see reportLogApi.ts), so pagination totals and the group/time samples respect the range.
- * Dates are KST day boundaries server-side. Free-text/타입/App filtering stays client-side
- * over the fetched page. The stereo (`type`) filter is deliberately not sent — see below.
+ * The kind (`type`) and the date range are server-side queries (deployed chatic-backend-api's
+ * `MockListParam`, see reportLogApi.ts), so the total / page count / group+time samples all
+ * recompute when either changes — and every one of those inputs resets the page to 0, since
+ * page N of the old result set means nothing in the new one. Dates are KST day boundaries
+ * server-side. Free-text and App filtering stay client-side over the fetched page.
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useReportLogs } from '../hooks/use-report-logs';
-import type { ReportStage } from '../api/reportLogApi';
+import { STEREO_BY_KIND, type ReportKind, type ReportStage } from '../api/reportLogApi';
 import { parseReportLog, type ReportLogRow } from '../lib/parseReportLog';
 import { groupReportLogs } from '../lib/groupReportLogs';
 import { bucketReportLogs } from '../lib/bucketReportLogs';
@@ -39,6 +40,7 @@ export const ReportLogsPage = () => {
     // Server-side createdAt range (`YYYY-MM-DD` from the date inputs, KST day boundaries).
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
+    const [typeFilter, setTypeFilter] = useState<ReportKind>('all');
     // Aggregated/time views work over a larger recent sample; list view paginates.
     const isSampleView = mode !== 'list';
     const { data, isLoading, isError, error, refetch, isFetching } = useReportLogs(
@@ -46,15 +48,11 @@ export const ReportLogsPage = () => {
             page: isSampleView ? 0 : page,
             limit: isSampleView ? GROUP_SAMPLE_SIZE : PAGE_SIZE,
             stage,
-            // NOTE: no `type` (stereo) filter, deliberately. `doPostSlack` does stamp
-            // `stereo: 'log'` on new records (its `get()` default reaches `prepare()`, which
-            // persists via storage.save/readOrCreate), so `type=log` would match anything
-            // written through `POST /hello/report`. What it would NOT match is whatever was
-            // stored before slack reporting moved to `/mocks`, and an unmatched stereo drops
-            // rows silently. Since `parseReportLog` already separates error/issue from the
-            // title, filtering here buys nothing and risks hiding history. To confirm the
-            // real spread, call the list without `type` and read the `aggr` buckets (the
-            // backend aggregates by `stereo`).
+            // Narrowing the kind server-side is what makes `total` (and so the page count)
+            // follow the filter. Records written before reports carried a stereo are all `log`,
+            // so a legacy issue lands in the `error` bucket — the client-side pass below hides
+            // those rows, leaving only the total slightly high.
+            type: STEREO_BY_KIND[typeFilter],
             from: from || undefined,
             to: to || undefined,
         },
@@ -62,7 +60,6 @@ export const ReportLogsPage = () => {
     );
 
     const [query, setQuery] = useState('');
-    const [typeFilter, setTypeFilter] = useState<'all' | 'error' | 'issue'>('all');
     const [appFilter, setAppFilter] = useState('all');
     const [selected, setSelected] = useState<ReportLogRow | null>(null);
 
@@ -85,7 +82,9 @@ export const ReportLogsPage = () => {
         [rows]
     );
 
-    // Client-side filters over the fetched page; the date range is already applied server-side.
+    // Client-side filters over the fetched page; kind and date range are already applied
+    // server-side. The kind is re-checked here only to drop legacy rows the stereo filter
+    // cannot separate (pre-stereo records are all `log`, so old issues ride along with errors).
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
         return rows.filter(row => {
@@ -113,7 +112,7 @@ export const ReportLogsPage = () => {
                     <p className="text-sm text-muted-foreground">
                         {isSampleView
                             ? `reportError / reportIssue ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
-                            : 'reportError / reportIssue 리포트 조회 · 기간은 서버 조회(KST), 검색은 페이지 내 필터'}
+                            : 'reportError / reportIssue 리포트 조회 · 타입·기간은 서버 조회(KST), 검색·App은 페이지 내 필터'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -181,11 +180,14 @@ export const ReportLogsPage = () => {
                         className="min-w-[12rem] rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="서버 조회 (stereo)">
                     타입
                     <select
                         value={typeFilter}
-                        onChange={e => setTypeFilter(e.target.value as 'all' | 'error' | 'issue')}
+                        onChange={e => {
+                            setPage(0);
+                            setTypeFilter(e.target.value as ReportKind);
+                        }}
                         className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                     >
                         <option value="all">전체</option>

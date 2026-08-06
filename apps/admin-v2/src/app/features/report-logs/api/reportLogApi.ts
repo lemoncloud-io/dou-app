@@ -55,14 +55,29 @@ export type ReportStage = 'v1' | 'd1';
  */
 const DOU_BASE = (import.meta.env.VITE_DOU_ENDPOINT ?? '').replace(/\/dou-[^/]*\/?$/, '');
 
+/** Report kind as offered in the UI; `all` means "no server-side kind filter". */
+export type ReportKind = 'all' | 'error' | 'issue';
+
+/**
+ * UI kind → stored `stereo`. Errors save as `log` and user issues as `issue`
+ * (see `reportError`/`reportIssue` in web-core) — the names deliberately differ, so keep
+ * this mapping rather than passing the UI value straight through.
+ */
+export const STEREO_BY_KIND: Record<ReportKind, string | undefined> = {
+    all: undefined,
+    error: 'log',
+    issue: 'issue',
+};
+
 export interface FetchReportLogsParams {
     page?: number;
     limit?: number;
     stage?: ReportStage;
     /**
-     * (optional) server-side `stereo` filter (matched against `stereo.keyword`).
-     * The slack-report save path stamps `log` on new records, so `log` is the value for
-     * anything written through `POST /hello/report`. Left unset by default — see ReportLogsPage.
+     * (optional) server-side kind filter, matched against the record's `stereo.keyword`.
+     * Errors save as `log` and user issues as `issue` (see `reportError`/`reportIssue`);
+     * omit for no filter. Narrowing here also narrows `total`, so the caller's page count
+     * follows the filter instead of the full dataset.
      */
     type?: string;
     /** (optional) createdAt range start, `YYYY-MM-DD` (KST day start, server-side). */
