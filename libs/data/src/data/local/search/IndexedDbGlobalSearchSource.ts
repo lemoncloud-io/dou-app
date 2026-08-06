@@ -5,6 +5,7 @@ import type {
     CacheProfileView,
     CacheSiteView,
     CacheType,
+    CacheUserView,
 } from '@chatic/app-messages';
 import type { IIndexedDB, IndexedDbRow } from '../databases';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../databases';
@@ -79,6 +80,7 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
             joinsByRef: {},
             lastChatsByRef: {},
             profilesByRef: {},
+            usersByRef: {},
         };
 
         const cids = [...new Set(query.cids)];
@@ -88,11 +90,12 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
         // Per-cloud maps. `row.id` is the channelId / sid for these types.
         await Promise.all(
             cids.map(async cid => {
-                const [channels, sites, joins, profiles] = await Promise.all([
+                const [channels, sites, joins, profiles, users] = await Promise.all([
                     this.loadPartition<'channel'>('channel', cid, query.uid),
                     this.loadPartition<'site'>('site', cid, query.uid),
                     this.loadPartition<'join'>('join', cid, query.uid),
                     this.loadPartition<'profile'>('profile', cid, query.uid),
+                    this.loadPartition<'user'>('user', cid, query.uid),
                 ]);
 
                 channels.forEach(row => {
@@ -100,6 +103,11 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
                 });
                 sites.forEach(row => {
                     context.sitesByRef[globalCacheRefKey(cid, row.id)] = row.data as CacheSiteView;
+                });
+                users.forEach(row => {
+                    const user = row.data as CacheUserView;
+                    if (!user.id) return;
+                    context.usersByRef[globalCacheRefKey(cid, user.id)] = user;
                 });
                 profiles.forEach(row => {
                     const profile = row.data as CacheProfileView;

@@ -21,6 +21,7 @@ const EMPTY_CONTEXT = {
     joinsByRef: {},
     lastChatsByRef: {},
     profilesByRef: {},
+    usersByRef: {},
 };
 
 const results = (overrides: Partial<GlobalSearchResults> = {}): GlobalSearchResults =>
@@ -150,7 +151,47 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,BBB');
     });
 
-    it('leaves the sender unnamed when their profile is not cached', async () => {
+    it('falls back to the member identity when the place profile is not cached', async () => {
+        // Profiles are only cached for rooms already opened, so this is the common case for search.
+        resolveContext.mockResolvedValue({
+            ...EMPTY_CONTEXT,
+            channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
+            usersByRef: { 'cloud-b:user-2': { id: 'user-2', name: 'Bora Kim', thumbnail: 'data:image/png;base64,UU' } },
+        });
+
+        const input = results({
+            messages: [
+                { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
+            ] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.chats[0].senderName).toBe('Bora Kim'));
+        expect(result.current.chats[0].senderThumbnail).toBe('data:image/png;base64,UU');
+    });
+
+    it('falls back to the owner embedded on the message when nothing else is cached', async () => {
+        const input = results({
+            messages: [
+                {
+                    id: 'chat-2',
+                    cid: 'cloud-b',
+                    channelId: 'ch-2',
+                    chatNo: 6,
+                    content: 'yo',
+                    ownerId: 'user-2',
+                    owner$: { id: 'user-2', name: 'Bora' },
+                },
+            ] as any,
+        });
+
+        const { result } = renderHook(() => useSearchContext(input));
+
+        await waitFor(() => expect(result.current.chats[0].senderName).toBe('Bora'));
+    });
+
+    it('leaves the sender unnamed when nothing at all identifies them', async () => {
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
             channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },

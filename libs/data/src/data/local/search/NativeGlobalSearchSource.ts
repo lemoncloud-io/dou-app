@@ -4,6 +4,7 @@ import type {
     CacheJoinView,
     CacheProfileView,
     CacheSiteView,
+    CacheUserView,
     OnFetchAllCacheDataPayload,
     OnSearchGlobalCacheDataPayload,
 } from '@chatic/app-messages';
@@ -88,6 +89,7 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
             joinsByRef: {},
             lastChatsByRef: {},
             profilesByRef: {},
+            usersByRef: {},
         };
 
         const cids = [...new Set(query.cids)];
@@ -96,7 +98,7 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
 
         await Promise.all([
             ...cids.map(async cid => {
-                const [channels, sites, joins, profiles] = await Promise.all([
+                const [channels, sites, joins, profiles, users] = await Promise.all([
                     this.fetchAll<CacheChannelView>('channel', cid, query.uid),
                     this.fetchAll<CacheSiteView>('site', cid, query.uid),
                     // `userId` narrows to MY join row in SQL (JoinDataSource.ts:49-52). The row's
@@ -107,6 +109,8 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
                     // Every member's display profile in this cloud — a chat row's place is only known
                     // after its channel resolves, so asking per member would cost a second pass.
                     this.fetchAll<CacheProfileView>('profile', cid, query.uid),
+                    // Member identities — the fallback when a place profile isn't cached.
+                    this.fetchAll<CacheUserView>('user', cid, query.uid),
                 ]);
 
                 channels.forEach(channel => {
@@ -114,6 +118,9 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
                 });
                 sites.forEach(site => {
                     if (site.id) context.sitesByRef[globalCacheRefKey(cid, site.id)] = site;
+                });
+                users.forEach(user => {
+                    if (user.id) context.usersByRef[globalCacheRefKey(cid, user.id)] = user;
                 });
                 profiles.forEach(profile => {
                     // `userId` is the member; `uid` is the cache owner, which older rows reuse as the
@@ -150,7 +157,7 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
      * must degrade one row, not blank out the results the user is already looking at.
      */
     private async fetchAll<TView>(
-        type: 'channel' | 'site' | 'join' | 'chat' | 'profile',
+        type: 'channel' | 'site' | 'join' | 'chat' | 'profile' | 'user',
         cid: string,
         uid: string,
         query?: Record<string, unknown>

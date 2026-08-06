@@ -4,6 +4,7 @@ import type {
     CacheJoinView,
     CacheProfileView,
     CacheSiteView,
+    CacheUserView,
 } from '@chatic/app-messages';
 
 /**
@@ -69,6 +70,14 @@ export interface GlobalCacheContext {
      * force a second round trip.
      */
     profilesByRef: Record<string, CacheProfileView>;
+    /**
+     * Member identities (name/thumbnail) keyed by {@link globalCacheRefKey} with the userId.
+     *
+     * The place profile above is the preferred label but it is only cached for rooms the user has
+     * actually opened (a profile sync is registered per member while in the room), so a search
+     * result's sender would otherwise be nameless. This is the same fallback the room itself uses.
+     */
+    usersByRef: Record<string, CacheUserView>;
 }
 
 /** Composes the `${cid}:${id}` key used by most {@link GlobalCacheContext} maps. */

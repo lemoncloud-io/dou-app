@@ -28,6 +28,7 @@ type JoinFixture = {
     userId: string;
     readNo: number;
 };
+type UserFixture = { domain: 'user'; id: string; cid: string; uid: string; name: string };
 type ProfileFixture = {
     domain: 'profile';
     id: string;
@@ -46,7 +47,7 @@ type ChatFixture = {
     chatNo: number;
     content: string;
 };
-type Fixture = ChannelFixture | SiteFixture | JoinFixture | ProfileFixture | ChatFixture;
+type Fixture = ChannelFixture | SiteFixture | JoinFixture | ProfileFixture | UserFixture | ChatFixture;
 
 const FIXTURES: Fixture[] = [
     { domain: 'channel', id: 'ch-1', cid: 'cloud-a', uid: 'user-1', sid: 'site-1', name: 'Lemon Lounge' },
@@ -66,6 +67,8 @@ const FIXTURES: Fixture[] = [
     // Display profiles are per place: the same person can carry a different nick in another place.
     { domain: 'profile', id: 'p1', cid: 'cloud-a', uid: 'user-1', sid: 'site-1', userId: 'user-2', nick: 'Bora' },
     { domain: 'profile', id: 'p2', cid: 'cloud-b', uid: 'user-1', sid: 'site-2', userId: 'user-2', nick: 'B in Beta' },
+    // Member identity — the fallback label for a place whose profiles were never cached.
+    { domain: 'user', id: 'user-2', cid: 'cloud-a', uid: 'user-1', name: 'Bora Kim' },
     {
         domain: 'chat',
         id: 'chat-1',
@@ -173,6 +176,8 @@ interface ContextExpectation {
         lastChats?: Record<string, string | null>;
         /** key → expected nick, or null when the profile must be absent. */
         profiles?: Record<string, string | null>;
+        /** key → expected user name, or null when absent. */
+        users?: Record<string, string | null>;
     };
 }
 
@@ -180,7 +185,7 @@ const CONTEXT_EXPECTATIONS: ContextExpectation[] = [
     {
         description: 'empty request resolves to empty maps',
         query: { uid: 'user-1', cids: [], channelRefs: [] },
-        expected: { channels: {}, sites: {}, joins: {}, lastChats: {}, profiles: {} },
+        expected: { channels: {}, sites: {}, joins: {}, lastChats: {}, profiles: {}, users: {} },
     },
     {
         description: 'resolves channel/place names and my read cursor per cloud',
@@ -247,6 +252,11 @@ const CONTEXT_EXPECTATIONS: ContextExpectation[] = [
         },
     },
     {
+        description: 'resolves member identities, the fallback when a place profile is uncached',
+        query: { uid: 'user-1', cids: ['cloud-a', 'cloud-b'], channelRefs: [] },
+        expected: { users: { 'cloud-a:user-2': 'Bora Kim', 'cloud-b:user-2': null } },
+    },
+    {
         description: 'leaves references with no cached row absent from the maps',
         query: { uid: 'user-1', cids: ['cloud-a'], channelRefs: [{ cid: 'cloud-a', channelId: 'ch-missing' }] },
         expected: { channels: { 'cloud-a:ch-missing': null }, lastChats: { 'cloud-a:ch-missing': null } },
@@ -298,6 +308,9 @@ const runContractSuite = (label: string, buildSource: () => Promise<IGlobalCache
             Object.entries(expected.profiles ?? {}).forEach(([key, nick]) => {
                 expect(context.profilesByRef[key]?.nick ?? null).toBe(nick);
             });
+            Object.entries(expected.users ?? {}).forEach(([key, name]) => {
+                expect(context.usersByRef[key]?.name ?? null).toBe(name);
+            });
 
             if (query.cids.length === 0 && query.channelRefs.length === 0) {
                 expect(context).toEqual({
@@ -306,6 +319,7 @@ const runContractSuite = (label: string, buildSource: () => Promise<IGlobalCache
                     joinsByRef: {},
                     lastChatsByRef: {},
                     profilesByRef: {},
+                    usersByRef: {},
                 });
             }
         });
@@ -357,6 +371,13 @@ runContractSuite('IndexedDB (web)', async () => {
         } as any);
     }
 
+    const userCtx = buildScopedContext();
+    const userAdapter = new IndexedDBAdapter(db, 'user', userCtx.provider);
+    for (const f of FIXTURES.filter((f): f is UserFixture => f.domain === 'user')) {
+        userCtx.set(f.cid, f.uid);
+        await userAdapter.save(f.id, { id: f.id, cid: f.cid, name: f.name } as any);
+    }
+
     const profileCtx = buildScopedContext();
     const profileAdapter = new IndexedDBAdapter(db, 'profile', profileCtx.provider);
     for (const f of FIXTURES.filter((f): f is ProfileFixture => f.domain === 'profile')) {
@@ -402,7 +423,7 @@ const mockNativeBridge = () =>
                     if (uid && f.uid !== uid) return false;
                     if (cid && f.cid !== cid) return false;
                     // join/profile rows have no searchable field
-                    if (f.domain === 'join' || f.domain === 'profile') return false;
+                    if (f.domain === 'join' || f.domain === 'profile' || f.domain === 'user') return false;
                     const field = f.domain === 'chat' ? f.content : f.name;
                     return field.toLowerCase().includes(kw);
                 }).map(f => ({ ...f, _domain: f.domain }));
