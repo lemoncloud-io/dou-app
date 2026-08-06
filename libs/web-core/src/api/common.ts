@@ -9,6 +9,20 @@ import type { AppType, ErrorReportContext, ErrorReportPayload, IssueReportExtras
 
 const ERROR_REPORT_ENDPOINT = `${DOU_ENDPOINT}/hello/report`;
 
+/**
+ * `stereo` 는 저장되는 리포트 레코드의 종류이고, admin 조회의 서버측 필터 기준(`MockListParam.type`)이다.
+ * reportError/reportIssue 가 같은 엔드포인트를 쓰므로 (`/hello/report`), 서버가 둘을 구분할 유일한
+ * 단서가 이 값이다. 이게 없으면 admin 은 저장된 제목(`[app] issue: ...`)을 파싱해 클라이언트에서만
+ * 가를 수 있어, 종류별 페이지네이션·집계가 불가능하다.
+ *
+ * 배포된 백엔드는 `SlackReportBody.stereo` 를 받지만 설치된 SDK 타입에는 아직 없어서 로컬에서
+ * 교차 타입으로 확장한다. SDK 가 갱신되면 `ReportBody` 를 지우고 SDK 타입을 그대로 쓴다.
+ */
+const REPORT_STEREO_ERROR = 'log';
+const REPORT_STEREO_ISSUE = 'issue';
+
+type ReportBody = SlackReportBody & { stereo?: string };
+
 // Throttling: 동일 (카테고리+메시지)는 60초 내 1회만 리포트.
 // message 단독 키였을 때는 "Network Error" 같은 동일 메시지가 서로 다른
 // 카테고리(예: network vs unknown)여도 한 버킷으로 붕괴했다. category를 키에
@@ -123,12 +137,13 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
             path: window.location.pathname,
         };
 
-        const body: SlackReportBody = {
+        const body: ReportBody = {
             // 카테고리를 타이틀에 실어 Slack·admin 목록에서 성격을 즉시 구분한다.
             title: `[${app}] ${category}`,
             message: JSON.stringify(payload, null, 2),
             silent: ENV !== 'prod',
             save: true,
+            stereo: REPORT_STEREO_ERROR,
         };
 
         await webTransport
@@ -191,11 +206,12 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
             ...(extras ?? {}),
         };
 
-        const body: SlackReportBody = {
+        const body: ReportBody = {
             title: `[${app}] issue: ${title}`,
             message: JSON.stringify(payload, null, 2),
             silent: false,
             save: true,
+            stereo: REPORT_STEREO_ISSUE,
         };
 
         await webTransport
