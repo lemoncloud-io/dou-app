@@ -116,7 +116,20 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
 
         resolveContext({ cids, channelRefs: refs })
             .then(resolved => {
-                if (!cancelled) setContext(resolved);
+                if (cancelled) return;
+                // A sender with no cached profile renders unnamed, which looks identical to a bug in
+                // the lookup. Log what the cache actually holds so the two can be told apart: the
+                // keys we searched under vs. a sample of the keys that exist.
+                logger.info('SEARCH', 'Resolved search result context', {
+                    cids,
+                    channels: Object.keys(resolved.channelsByRef).length,
+                    sites: Object.keys(resolved.sitesByRef).length,
+                    joins: Object.keys(resolved.joinsByRef).length,
+                    lastChats: Object.keys(resolved.lastChatsByRef).length,
+                    profiles: Object.keys(resolved.profilesByRef).length,
+                    profileKeySample: Object.keys(resolved.profilesByRef).slice(0, 5),
+                });
+                setContext(resolved);
             })
             .catch(error => {
                 if (cancelled) return;
@@ -170,10 +183,21 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                 // The sender's identity for THIS place, keyed by the owning channel's sid — sid
                 // always follows the channel, never the query context.
                 const senderId = chat.ownerId;
-                const profile =
-                    owner?.sid && senderId
-                        ? context.profilesByRef[globalCacheProfileKey(chat.cid, owner.sid, senderId)]
-                        : undefined;
+                const profileKey =
+                    owner?.sid && senderId ? globalCacheProfileKey(chat.cid, owner.sid, senderId) : undefined;
+                const profile = profileKey ? context.profilesByRef[profileKey] : undefined;
+                if (!profile) {
+                    // Names the exact reason a sender is unnamed: no owner id on the message, the
+                    // owning channel (hence its sid) unresolved, or a key the cache doesn't hold.
+                    logger.info('SEARCH', 'Chat sender profile unresolved', {
+                        chatId: chat.id,
+                        ownerId: senderId,
+                        channelId: chat.channelId,
+                        channelResolved: !!owner,
+                        sid: owner?.sid,
+                        profileKey,
+                    });
+                }
                 return {
                     cid: chat.cid,
                     sid: owner?.sid,
