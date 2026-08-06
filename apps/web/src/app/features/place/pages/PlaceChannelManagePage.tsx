@@ -386,8 +386,9 @@ const ManageChannelRow = ({
         dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
 
-    // Self → my place-profile photo, DM → the peer's, else the channel photo (resolveChannelAvatar).
-    const avatarSrc = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
+    // Self → my place-profile photo, DM → the peer's, else the channel photo; the same rule also
+    // picks the placeholder glyph (group rooms get the two-person one). See resolveChannelAvatar.
+    const { src: avatarSrc, glyph } = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
 
     const time = lastChat?.createdAt
         ? new Date(lastChat.createdAt).toLocaleTimeString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', {
@@ -398,7 +399,13 @@ const ManageChannelRow = ({
 
     return (
         <ManageChannelItem
-            leading={avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />}
+            leading={
+                avatarSrc ? (
+                    <ImageAvatar src={avatarSrc} alt="" size={42} />
+                ) : (
+                    <DefaultAvatar size={42} variant={glyph} />
+                )
+            }
             title={
                 <>
                     {isSelf && (

@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { ChatAvatar, DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
+import { DefaultAvatar, Divider, GroupLabel, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { reportError, useSessionIdentity } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
@@ -188,20 +188,18 @@ export const ChannelSettingsPage = () => {
 
     // One shared rule with the room header and the home list (resolveChannelAvatar): self → MY
     // place-profile photo, DM → the peer's, else the channel photo. Both self and DM ignore
-    // channel.thumbnail. With no photo: the person glyph for self/DM, the chat placeholder for a group.
-    const roomAvatarSrc = channel
-        ? resolveChannelAvatar({
-              channel,
-              myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
-              peerThumbnail: dmPeer?.thumbnail,
-          })
-        : undefined;
+    // channel.thumbnail. The same rule picks the placeholder glyph — a group room without a photo is
+    // the navy circle with the two-person glyph (Figma 3164-12515), NOT the chat-bubble placeholder
+    // this screen used to draw.
+    const { src: roomAvatarSrc, glyph } = resolveChannelAvatar({
+        channel: channel ?? {},
+        myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
+        peerThumbnail: dmPeer?.thumbnail,
+    });
     const roomAvatar = roomAvatarSrc ? (
         <ImageAvatar src={roomAvatarSrc} alt={roomTitle} size={40} />
-    ) : isDmChat || isSelfChat ? (
-        <DefaultAvatar size={40} variant="user" />
     ) : (
-        <ChatAvatar size="sm" />
+        <DefaultAvatar size={40} variant={glyph} />
     );
 
     // Member rows — shared by the group section and the self-chat "방 친구" section

@@ -83,7 +83,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     Divider: () => <hr />,
     ChatAvatar: () => <div data-testid="chat-avatar" />,
-    DefaultAvatar: () => <div data-testid="default-avatar" />,
+    DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
 }));
 

@@ -34,7 +34,7 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
 jest.mock('@chatic/web-ui-kit', () => ({
     Badge: ({ children }: any) => <span>{children}</span>,
     CollapsibleSection: ({ children }: any) => <section>{children}</section>,
-    DefaultAvatar: () => <div data-testid="default-avatar" />,
+    DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     IconBolt: () => <i />,
     IconPlus: () => <i />,
     ImageAvatar: ({ src }: any) => <img alt="" src={src} data-testid="image-avatar" />,
@@ -381,6 +381,30 @@ describe('ChannelList 아바타', () => {
 
         expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'room.png');
     });
+
+    it('사진 없는 그룹 행은 2인 글리프를 쓴다 (1인 기본값이 아니라 — Figma 3164-12515)', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '스터디방' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('default-avatar')).toHaveAttribute('data-variant', 'group');
+    });
+
+    it('사진 없는 dm 행은 1인 글리프를 쓴다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'd1', stereo: 'dm', memberNo: 2, name: '' })]}
+                unreadByChannel={{}}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('default-avatar')).toHaveAttribute('data-variant', 'user');
+    });
 });
 
 describe('ChannelList 고정 · 알림꺼짐 표기', () => {
@@ -432,5 +456,17 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
 
         expect(screen.getByLabelText('channelList.pinned')).toBeInTheDocument();
         expect(screen.getByLabelText('channelList.muted')).toBeInTheDocument();
+    });
+
+    it('두 상태 아이콘은 제목 옆에 나란히 온다 (시각 옆이 아니라)', () => {
+        renderRow({
+            pinnedChannelIds: new Set(['c1']),
+            joinByChannel: new Map([['c1', { notify: 'none' } as any]]),
+        });
+
+        const title = screen.getByTestId('row-title');
+        expect(title).toContainElement(screen.getByLabelText('channelList.pinned'));
+        expect(title).toContainElement(screen.getByLabelText('channelList.muted'));
+        expect(screen.getByTestId('row-trailing')).not.toContainElement(screen.getByLabelText('channelList.pinned'));
     });
 });

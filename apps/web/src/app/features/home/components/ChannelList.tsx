@@ -114,10 +114,14 @@ const ChannelItem = ({
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with
-    // the room header / settings / manage list. With no photo, the default person avatar
-    // (Figma "1명 Profile").
-    const avatarSrc = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
-    const leading = avatarSrc ? <ImageAvatar src={avatarSrc} alt="" size={42} /> : <DefaultAvatar size={42} />;
+    // the room header / settings / manage list, which also decides the placeholder glyph (a group
+    // room gets the two-person glyph, not the one-person default).
+    const { src: avatarSrc, glyph } = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
+    const leading = avatarSrc ? (
+        <ImageAvatar src={avatarSrc} alt="" size={42} />
+    ) : (
+        <DefaultAvatar size={42} variant={glyph} />
+    );
 
     return (
         <ListRow
@@ -136,6 +140,15 @@ const ChannelItem = ({
                         <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
                             {channel.memberNo}
                         </span>
+                    )}
+                    {/* Row-state glyphs sit together after the name: pinned first (it decides the
+                        row's position), then muted. */}
+                    {pinned && (
+                        <Pin
+                            role="img"
+                            aria-label={t('channelList.pinned')}
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                        />
                     )}
                     {muted && (
                         <BellOff
@@ -157,16 +170,7 @@ const ChannelItem = ({
             }
             trailing={
                 <div className="flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-1">
-                        {pinned && (
-                            <Pin
-                                role="img"
-                                aria-label={t('channelList.pinned')}
-                                className="size-3.5 text-muted-foreground"
-                            />
-                        )}
-                        <span className="text-[12px] leading-4 text-description">{time}</span>
-                    </div>
+                    <span className="text-[12px] leading-4 text-description">{time}</span>
                     <UnreadBadge count={unread} variant="pill" />
                 </div>
             }

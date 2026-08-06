@@ -440,12 +440,13 @@ export const ChannelRoomPage = () => {
     // set, the ChatRoomHeader fallback glyph (person for self/direct, group for the rest).
     // The self-chat photo comes from the same profileMap the DM peer does — a self chat's only
     // member is me, so my profile is already synced into it.
+    // Only the photo is read here: the header's own `kind` already selects its fallback glyph.
     const headerAvatarSrc = channel
         ? resolveChannelAvatar({
               channel,
               myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
               peerThumbnail: dmPeer?.thumbnail,
-          })
+          }).src
         : undefined;
     const headerAvatar = headerAvatarSrc ? (
         <img

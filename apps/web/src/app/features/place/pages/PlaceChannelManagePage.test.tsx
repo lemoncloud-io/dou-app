@@ -103,7 +103,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {children}
         </button>
     ),
-    DefaultAvatar: () => <div data-testid="default-avatar" />,
+    DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
     ManageChannelItem: ({ title, selectable, checked, onToggle, pinned, onTogglePin, selectLabel }: any) => (
         <div>
