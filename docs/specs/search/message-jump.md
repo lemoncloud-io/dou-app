@@ -9,20 +9,25 @@
 링크 미리보기·푸시 딥링크 등 "특정 메시지로 가기"가 필요한 모든 흐름이
 같은 메커니즘을 쓴다.
 
-서버 `chat.feed`는 `cursorNo` 기준 과거 방향 페이징만 지원하므로
-(anchored 양방향 페치 없음), 점프는 "타깃이 로드될 때까지 과거 페이지를
-반복 로드"하는 방식이다. desktop-web에 동일 방식의 완성 구현이 있어
-(`useMessageJumpStore` + `MessageList`의 점프 로직) 이를 apps/web으로
-이식한다.
+타깃은 대개 이미 로컬 캐시에 있다(검색 자체가 캐시 스캔이다) — 보이지 않는 이유는
+관측 창이 최신 N행으로 좁기 때문이므로, 점프는 **창을 넓혀 캐시에서 꺼내는 것**이
+정상 경로다. 캐시에도 없을 때만 서버를 당기는데, `chat.feed`가 `cursorNo` 기준 과거
+방향 페이징만 지원하므로(anchored 양방향 페치 없음) "타깃이 나올 때까지 과거 페이지를
+반복 로드"하는 방식이 된다. desktop-web에 그 페이징 구현이 있어
+(`useMessageJumpStore` + `MessageList`) 구조를 apps/web으로 이식했다.
 
 ## 설계 원칙
 
 - **desktop-web 시맨틱 이식**: 점프 타깃 스토어(nonce 재발화), DOM
   `data-chat-no` 탐색, 페이지 예산 루프 — 검증된 구조를 그대로 따른다.
-- **기존 피드 모델 유지**: `useChats`의 "최신 앵커 성장 윈도우"
-  (`loadMore`)를 바꾸지 않는다. 점프는 그 위에서 `loadMore`를 반복
-  호출하는 소비자일 뿐이다. 피드가 항상 최신을 포함하므로 "타깃보다
-  아래(최신) 방향" 로드는 필요 없다.
+- **기존 피드 모델 유지**: `useChats`의 "최신 앵커 성장 윈도우"를 바꾸지 않는다.
+  점프는 그 위에서 창을 넓히는 소비자일 뿐이다. 피드가 항상 최신을 포함하므로
+  "타깃보다 아래(최신) 방향" 로드는 필요 없다.
+- **캐시 우선, 네트워크는 폴백**: 타깃은 보통 캐시 검색에서 나오므로 이미 로컬에
+  있고 관측 창만 좁았을 뿐이다. `loadUntil`로 창을 한 번 넓혀 즉시 도달하고,
+  서버 페이징(`loadMore`, 한 번에 50행)은 캐시에 없는 타깃에만 쓴다. 페이징만
+  쓰던 이전 구현은 몇백 행 뒤의 메시지에서 예산을 소진하고 "메시지를 찾을 수
+  없어요"를 띄웠다 — 캐시에 있는 메시지인데도.
 - **예산 초과는 명시적 폴백**: 무한 로드하지 않는다. 예산 소진 시 채널
   최신 위치에 머물고 토스트로 안내한다.
 - **타깃 전달은 URL 쿼리**: apps/web은 라우트-당-채널 구조이므로
@@ -39,8 +44,8 @@
 - 점프 스토어(`useMessageJumpStore`) apps/web 이식.
 - `/channels/:id/room?chatNo=<n>` 쿼리 계약 + 파싱.
 - 메시지 행 DOM에 `data-chat-no` 노출.
-- 점프 실행 훅: DOM 탐색 → 스크롤+하이라이트, 미발견 시 예산 내
-  `loadMore` 반복, 폴백 토스트.
+- 점프 실행 훅: DOM 탐색 → 스크롤+하이라이트, 미발견 시 캐시 창 확장
+  (`useChats.loadUntil`) → 그래도 없으면 예산 내 `loadMore` 반복 → 폴백 토스트.
 
 **제외**
 
@@ -51,17 +56,20 @@
 
 ## 시나리오
 
-1. **캐시에 이미 있는 메시지(대부분)**: 검색 결과 클릭 →
-   `room?chatNo=1234` 진입 → room 페이지가 쿼리를 파싱해 점프 스토어에
-   `request(channelId, 1234)` → 점프 훅이 `[data-chat-no="1234"]` DOM
-   발견 → `scrollIntoView({ block: 'center' })` + 하이라이트 →
-   스토어 clear + 쿼리 제거.
-2. **윈도우 밖 메시지**: DOM 미발견 → `hasMore`인 동안 `loadMore()` 호출
-   → `messages` 변화로 effect 재실행 → 발견 시 1번과 동일. 페이지 예산
+1. **현재 창 안의 메시지**: 검색 결과 클릭 → `room?chatNo=1234` 진입 → room
+   페이지가 쿼리를 파싱해 점프 스토어에 `request(channelId, 1234)` → 점프 훅이
+   `[data-chat-no="1234"]` DOM 발견 → `scrollIntoView({ block: 'center' })` +
+   하이라이트 → 스토어 clear + 쿼리 제거.
+2. **창 밖이지만 캐시에 있는 메시지(대부분)**: DOM 미발견 →
+   `loadUntil(chatNo)`가 관측 창을 그 지점까지 넓힌다(**서버 왕복 없음**) →
+   캐시가 재방출 → `messages` 변화로 effect 재실행 → 1번과 동일.
+   검색 결과는 캐시 스캔에서 나온 것이므로 이 경로가 정상 경로다.
+3. **캐시에도 없는 메시지**: `loadUntil`이 false(창이 이미 그만큼 넓다) →
+   `hasMore`인 동안 `loadMore()`로 서버 페이지를 당긴다. 페이지 예산
    (`MAX_JUMP_PAGES`) 내 반복.
-3. **도달 실패(예산 소진 또는 히스토리 끝)**: 반복 중단 → 채널 최신
+4. **도달 실패(예산 소진 또는 히스토리 끝)**: 반복 중단 → 채널 최신
    위치 유지 → "메시지를 찾을 수 없어요" 토스트 → 스토어 clear.
-4. **같은 메시지 재점프**: 같은 chatNo로 다시 클릭해도 스토어 `nonce`
+5. **같은 메시지 재점프**: 같은 chatNo로 다시 클릭해도 스토어 `nonce`
    증가로 effect가 재발화되어 다시 스크롤/하이라이트된다.
 
 ## 다이어그램
@@ -70,9 +78,11 @@
 stateDiagram-v2
     [*] --> Pending: room?chatNo=n 진입\n(store.request)
     Pending --> Found: DOM에 data-chat-no=n 존재
-    Pending --> Loading: 미발견 & hasMore & 예산 남음
+    Pending --> Widening: 미발견 & 캐시 창을 넓힐 수 있음
+    Widening --> Pending: 캐시 재방출\n(messages 갱신)
+    Pending --> Loading: 창은 이미 넓음 & hasMore & 예산 남음
     Loading --> Pending: loadMore 완료\n(messages 갱신)
-    Pending --> Failed: 미발견 & (예산 소진 | !hasMore)
+    Pending --> Failed: 캐시에 없음 & (예산 소진 | !hasMore)
     Found --> [*]: scrollIntoView + 하이라이트\nstore.clear + 쿼리 제거
     Failed --> [*]: 최신 위치 유지 + 토스트\nstore.clear + 쿼리 제거
 ```
@@ -105,17 +115,28 @@ target을 null로 되돌린 뒤 같은 메시지로 다시 점프할 때 nonce�
   `data-chat-no={message.chatNo}` 추가(`chatNo`가 있는 확정 메시지만 —
   pending/failed 행은 제외).
 
+### 캐시 창 확장 (`useChats.loadUntil`)
+
+- `useChats`는 관측 창을 `pageLimit`(스크롤 페이징)과 `jumpLimit`(점프) 두 축의
+  최댓값으로 유지한다. 점프가 창을 크게 넓혀도 `isThreadStartLoaded`("캐시가 페이지를
+  못 채웠다 = 더 과거가 없다")가 흔들리지 않게 축을 분리했다.
+- `loadUntil(targetNo)`는 캐시된 최신 `chatNo`와의 거리 + 여유분만큼 `jumpLimit`을
+  올린다. `chatNo`는 사용자+시스템 메시지를 아우르는 단일 시퀀스라 그 거리는 사이
+  행 수의 상한이며, 과대 추정은 캐시된 행을 더 보여줄 뿐 손실이 없다.
+- 창이 이미 그만큼 넓으면 `false`를 반환한다 — 그 지점까지 봤는데 없다는 뜻이므로
+  호출자가 서버 페이징으로 넘어간다.
+
 ### 점프 실행 훅 (신규: `features/channels/hooks/useMessageJump.ts`)
 
-- 입력: `{ channelId, containerRef, messages, hasMore, isLoadingMore, loadMore }`
+- 입력: `{ channelId, containerRef, messages, hasMore, isLoadingMore, loadMore, loadUntil }`
   — `useChats` 반환과 `useChatScroll`의 `containerRef`를 그대로 받는다.
 - effect 의존: `[target?.nonce, messages]` — 타깃이 현재 채널과 일치할
   때만 동작.
 - 발견 시: `scrollIntoView({ block: 'center' })` + 하이라이트 클래스
   일정 시간 부여 → `clear()`.
-- 미발견 시: `!isLoadingMore && hasMore && pagesLoaded < MAX_JUMP_PAGES`
-  이면 `loadMore()` 호출하고 카운터 증가. 조건 불충족이면 폴백(토스트 +
-  `clear()`).
+- 미발견 시: 먼저 `loadUntil(chatNo)` — true면 창이 넓어졌으니 재렌더를 기다린다.
+  false면 `!isLoadingMore && hasMore && pagesLoaded < MAX_JUMP_PAGES`일 때
+  `loadMore()` 호출하고 카운터 증가. 조건 불충족이면 폴백(토스트 + `clear()`).
 - 로드 반복 중에는 스크롤을 건드리지 않는다 — 점프 스크롤은 발견 시
   1회만 실행되어 `useChatScroll`의 loadMore 앵커 보존과 충돌하지 않는다.
 
@@ -155,9 +176,12 @@ target을 null로 되돌린 뒤 같은 메시지로 다시 점프할 때 nonce�
 
 ## 검증 방법
 
-- 유닛 테스트: `useMessageJump` — (a) DOM 존재 시 스크롤+clear, (b)
-  미존재→loadMore 반복→발견, (c) 예산 소진 폴백, (d) nonce 재발화, (e)
-  타 채널 타깃 무시. jsdom에서 `data-chat-no` 요소 주입으로 검증.
+- 유닛 테스트: `useMessageJump` — (a) DOM 존재 시 스크롤+clear, (b) 미존재 시
+  `loadUntil` 우선 호출 후 대기(서버 페이징 안 함), (c) 창이 이미 넓으면
+  loadMore 반복→발견, (d) 예산 소진 폴백, (e) nonce 재발화, (f) 타 채널 타깃 무시.
+  jsdom에서 `data-chat-no` 요소 주입으로 검증.
+- 유닛 테스트: `useChats.loadUntil` — 캐시 창 확장(서버 미호출), 이미 넓으면 false,
+  이미 보이는/잘못된 번호는 무반응, 확장이 `isThreadStartLoaded`를 흔들지 않음.
 - 유닛 테스트: `useMessageJumpStore` — request/nonce/clear.
 - 유닛 테스트: `useChatScroll` — (a) 새 최신 메시지 도착 시 하단 스크롤,
   (b) `suppressAutoScroll` 중에는 스크롤하지 않음, (c) 억제가 풀린 뒤에도

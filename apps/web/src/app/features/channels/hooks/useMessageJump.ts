@@ -19,15 +19,20 @@ interface UseMessageJumpParams {
     hasMore: boolean;
     isLoadingMore: boolean;
     loadMore: () => void;
+    /** Widens the cache window to reach a target without a server round trip (see useChats). */
+    loadUntil: (targetNo: number) => boolean;
 }
 
 /**
  * Drives a pending `useMessageJumpStore` request for this channel: finds the target
- * message's `[data-chat-no]` DOM node and centers + flashes it. If it isn't loaded yet
- * (older than the current page), pages older — bounded by `MAX_JUMP_PAGES` — and the
- * `messages` dependency re-runs this as each page lands. Ported from desktop-web's
- * MessageList jump effect; here as a standalone hook since apps/web has no separate
- * ChatPane/MessageList split.
+ * message's `[data-chat-no]` DOM node and centers + flashes it.
+ *
+ * When it isn't rendered yet the cache comes first (`loadUntil`) — the target normally arrived from
+ * a cache search, so it is already stored locally and only the observe window was too narrow.
+ * Server paging (`loadMore`, bounded by `MAX_JUMP_PAGES`) is the fallback for a target the cache
+ * doesn't hold; the `messages` dependency re-runs this as each step lands. Ported from desktop-web's
+ * MessageList jump effect; here as a standalone hook since apps/web has no ChatPane/MessageList
+ * split.
  */
 export const useMessageJump = ({
     channelId,
@@ -36,6 +41,7 @@ export const useMessageJump = ({
     hasMore,
     isLoadingMore,
     loadMore,
+    loadUntil,
 }: UseMessageJumpParams) => {
     const target = useMessageJumpStore(s => s.target);
     const clear = useMessageJumpStore(s => s.clear);
@@ -67,7 +73,12 @@ export const useMessageJump = ({
             return;
         }
 
-        // Not loaded yet → page older until found or the budget/history runs out.
+        // Not rendered yet. First try the cache: the target usually came from a cache search, so
+        // widening the observe window reveals it with no network at all. Paging is the fallback for
+        // a target that genuinely isn't cached.
+        if (loadUntil(target.chatNo)) return;
+
+        // Still missing → page older until found or the budget/history runs out.
         if (hasMore && !isLoadingMore && progressRef.current.pages < MAX_JUMP_PAGES) {
             progressRef.current.pages += 1;
             loadMore();
@@ -81,7 +92,7 @@ export const useMessageJump = ({
             toast({ title: t('search.messageJumpFailed', '메시지를 찾을 수 없어요.') });
             clear();
         }
-    }, [target, channelId, messages, hasMore, isLoadingMore, loadMore, containerRef, clear, t]);
+    }, [target, channelId, messages, hasMore, isLoadingMore, loadMore, loadUntil, containerRef, clear, t]);
 
     useEffect(
         () => () => {

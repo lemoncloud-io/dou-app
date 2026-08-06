@@ -24,9 +24,12 @@ const setup = (chatNo?: number): { current: HTMLDivElement } => {
 };
 
 const loadMore = jest.fn();
+// Default: the window already reaches that far, so the jump falls through to paging.
+const loadUntil = jest.fn(() => false);
 
 beforeEach(() => {
     jest.clearAllMocks();
+    loadUntil.mockReturnValue(false);
     jest.useFakeTimers();
     document.body.innerHTML = '';
     useMessageJumpStore.setState({ target: null });
@@ -40,7 +43,15 @@ describe('useMessageJump', () => {
     it('does nothing when there is no pending target', () => {
         const containerRef = setup();
         renderHook(() =>
-            useMessageJump({ channelId: 'ch-1', containerRef, messages, hasMore: true, isLoadingMore: false, loadMore })
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
         );
         expect(loadMore).not.toHaveBeenCalled();
     });
@@ -50,7 +61,15 @@ describe('useMessageJump', () => {
         useMessageJumpStore.getState().request('ch-OTHER', 5);
 
         renderHook(() =>
-            useMessageJump({ channelId: 'ch-1', containerRef, messages, hasMore: true, isLoadingMore: false, loadMore })
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
         );
 
         expect(loadMore).not.toHaveBeenCalled();
@@ -64,7 +83,15 @@ describe('useMessageJump', () => {
         useMessageJumpStore.getState().request('ch-1', 5);
 
         renderHook(() =>
-            useMessageJump({ channelId: 'ch-1', containerRef, messages, hasMore: true, isLoadingMore: false, loadMore })
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
         );
 
         expect(node.scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
@@ -82,7 +109,15 @@ describe('useMessageJump', () => {
 
         const { rerender } = renderHook(
             ({ hasMore, isLoadingMore }) =>
-                useMessageJump({ channelId: 'ch-1', containerRef, messages, hasMore, isLoadingMore, loadMore }),
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore,
+                    isLoadingMore,
+                    loadMore,
+                    loadUntil,
+                }),
             { initialProps: { hasMore: true, isLoadingMore: false } }
         );
 
@@ -101,6 +136,31 @@ describe('useMessageJump', () => {
         expect(useMessageJumpStore.getState().target).toBeNull();
     });
 
+    it('widens the cache window before paging, and waits for it', () => {
+        // The target normally came from a cache search, so it is already stored locally — only the
+        // observe window was too narrow. Paging the server for it wasted the jump budget.
+        const containerRef = setup();
+        loadUntil.mockReturnValue(true);
+        useMessageJumpStore.getState().request('ch-1', 999);
+
+        renderHook(() =>
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
+        );
+
+        expect(loadUntil).toHaveBeenCalledWith(999);
+        expect(loadMore).not.toHaveBeenCalled();
+        expect(toast).not.toHaveBeenCalled();
+        expect(useMessageJumpStore.getState().target).not.toBeNull();
+    });
+
     it('stops immediately and shows a toast when history runs out before the budget', () => {
         const containerRef = setup();
         useMessageJumpStore.getState().request('ch-1', 999);
@@ -113,6 +173,7 @@ describe('useMessageJump', () => {
                 hasMore: false,
                 isLoadingMore: false,
                 loadMore,
+                loadUntil,
             })
         );
 
@@ -126,7 +187,15 @@ describe('useMessageJump', () => {
         useMessageJumpStore.getState().request('ch-1', 999);
 
         renderHook(() =>
-            useMessageJump({ channelId: 'ch-1', containerRef, messages, hasMore: true, isLoadingMore: true, loadMore })
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: true,
+                loadMore,
+                loadUntil,
+            })
         );
 
         expect(loadMore).not.toHaveBeenCalled();
@@ -147,6 +216,8 @@ describe('useMessageJump', () => {
                     hasMore: true,
                     isLoadingMore: false,
                     loadMore,
+                    loadUntil,
+                    loadUntil,
                 }),
             { initialProps: {} }
         );

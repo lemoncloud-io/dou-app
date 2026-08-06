@@ -149,6 +149,7 @@ export const ChannelRoomPage = () => {
         hasMore,
         isThreadStartLoaded,
         loadMore,
+        loadUntil,
     } = useChats(memoizedChatParams);
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
@@ -226,6 +227,7 @@ export const ChannelRoomPage = () => {
         hasMore,
         isLoadingMore,
         loadMore,
+        loadUntil,
     });
 
     // 플로팅 날짜 pill: 스크롤 중 컨테이너 상단 경계에 걸친 날짜 그룹의 라벨을 찾아 표시하고,
