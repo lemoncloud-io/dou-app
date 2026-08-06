@@ -76,6 +76,24 @@ describe('SearchPage', () => {
         expect(useGlobalSearch).toHaveBeenCalledWith('lemon');
     });
 
+    it("shows a place's own photo, and the picture placeholder when it has none", () => {
+        setSearchState({ hasResults: true });
+        (useSearchContext as jest.Mock).mockReturnValue({
+            ...EMPTY_ROWS,
+            places: [
+                { cid: 'c1', placeId: 'p1', name: 'Lemon HQ', thumbnail: 'data:image/png;base64,AAA' },
+                { cid: 'c1', placeId: 'p2', name: 'No Photo' },
+            ],
+        });
+
+        const { container } = renderAt('/search?q=lemon');
+
+        // The photo renders as an <img>; the placeholder is an inline svg disc (not the person glyph).
+        expect(container.querySelectorAll('img')).toHaveLength(1);
+        const rows = screen.getAllByRole('button').filter(node => node.textContent?.includes('No Photo'));
+        expect(rows[0].querySelector('svg')).toBeTruthy();
+    });
+
     it('names the searched cloud so a missing result does not read as missing data', () => {
         setSearchState({ activeCloudName: 'Lemon Cloud' });
 

@@ -59,7 +59,9 @@ apps/web에 검색 진입점을 제공한다. 키워드 하나로 **활성 클�
 - HomePage 헤더 검색 버튼의 "준비 중" 플레이스홀더 교체.
 - **행 표시 정보** (모든 결과가 활성 클라우드이므로 클라우드 조각은 표시하지
   않는다 — 항상 같은 값이라 정보가 없다):
-    - 플레이스: 원형 썸네일, 이름.
+    - 플레이스: 플레이스 사진(원형), 이름. 사진이 없으면 **그림 플레이스홀더 디스크**
+      (`IconImageSolid`, Figma place-thumbnail placeholder — 초대 플레이스 카드와 같은
+      아바타)를 쓴다. 사람 글리프(`DefaultAvatar`)는 플레이스에 맞지 않는다.
     - 채널: 원형 썸네일, 이름, 인원수 pill, 안읽음 배지, 마지막 메시지, 시각,
       소속 플레이스.
     - 채팅: **발신자 프로필 사진 + 발신자 이름**, 매치된 메시지 본문,
@@ -202,8 +204,8 @@ interface ChannelResultRow {
   소속 채널의 `sid`로 조회). 해결되지 않은 조각은 `formatResultContext`가
   생략한다(id를 노출하지 않는다).
 - 썸네일은 `CacheSiteView.thumbnail` / `CacheChannelView.thumbnail`
-  (타입 주석상 base64라 타 클라우드 인증 이슈 없음). 원형 표시는 홈과 같은
-  `ImageAvatar`/`DefaultAvatar`(`@chatic/web-ui-kit`)를 42px로 재사용.
+  (타입 주석상 base64라 인증 이슈 없음). 42px 원형으로 표시하며 폴백이 종류마다 다르다 —
+  채널·발신자는 `DefaultAvatar`(사람), 플레이스는 `IconImageSolid`(그림 플레이스홀더).
 - `ResultRow`는 `leading`/`title`/`subtitle`/`context`/`badge`/`trailing` 슬롯을
   받는 순수 표시 컴포넌트다. `context`는 소속 경로 한 줄(말줄임), `trailing`은
   시각 + `UnreadBadge`. ui-kit `ListRow`는 subtitle이 단일 truncate 줄이라 3줄

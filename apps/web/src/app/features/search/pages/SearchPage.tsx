@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Cloud, MessageSquare } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { DefaultAvatar, ImageAvatar, SearchInput, UnreadBadge } from '@chatic/web-ui-kit';
+import { DefaultAvatar, IconImageSolid, ImageAvatar, SearchInput, UnreadBadge } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
 import { HighlightText } from '../components/HighlightText';
@@ -23,9 +23,20 @@ import { useSearchNavigate } from '../hooks/useSearchNavigate';
 
 const AVATAR_SIZE = 42;
 
-/** Circular avatar shared by place and channel rows, matching the home list. */
+/** Circular avatar for channel rows and message senders, matching the home list. */
 const RowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
     thumbnail ? <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} /> : <DefaultAvatar size={AVATAR_SIZE} />;
+
+/**
+ * A place shows its photo, and without one the picture-placeholder disc — NOT the person glyph
+ * `DefaultAvatar` uses. Same avatar the invite place card shows (Figma place-thumbnail placeholder).
+ */
+const PlaceRowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
+    thumbnail ? (
+        <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} />
+    ) : (
+        <IconImageSolid size={AVATAR_SIZE} className="text-brand-ink dark:text-white/80" />
+    );
 
 /** apps/web full-page search (see docs/specs/search/web-search-page.md, ADR-0033). */
 export const SearchPage = () => {
@@ -200,7 +211,7 @@ export const SearchPage = () => {
                                 {rows.places.map(place => (
                                     <ResultRow
                                         key={`${place.cid}:${place.placeId}`}
-                                        leading={<RowAvatar thumbnail={place.thumbnail} />}
+                                        leading={<PlaceRowAvatar thumbnail={place.thumbnail} />}
                                         title={<HighlightText text={place.name} query={trimmed} />}
                                         onClick={() => openPlace(place)}
                                     />
