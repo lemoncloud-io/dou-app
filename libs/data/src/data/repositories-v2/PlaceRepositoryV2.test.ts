@@ -19,6 +19,7 @@ describe('PlaceRepositoryV2', () => {
             cacheWrite: jest.fn(),
             cacheWriteMany: jest.fn(),
             cacheDelete: jest.fn(),
+            cacheDeleteMany: jest.fn(),
             cacheClear: jest.fn(),
         };
         const contextProvider = {
@@ -51,6 +52,25 @@ describe('PlaceRepositoryV2', () => {
         );
     });
 
+    it('normalizes a sid-only update payload to carry id (= sid) for remote and optimistic cache', async () => {
+        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        placeLocalDataSource.cacheRead.mockResolvedValue({ id: 'site-7', name: 'Before' });
+        placeRemoteDataSource.updatePlace.mockResolvedValue({ id: 'site-7', name: 'After' });
+
+        await repository.updatePlace({ sid: 'site-7', name: 'After' } as any);
+
+        // The backend rejects place.update without @id, so the outgoing payload must carry it.
+        expect(placeRemoteDataSource.updatePlace).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'site-7', sid: 'site-7', name: 'After' }),
+            expect.anything()
+        );
+        // The optimistic pre-write engages off the normalized id instead of being skipped.
+        expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'site-7', name: 'After' }),
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+    });
+
     it('writes ordered remote places into local cache during refreshList', async () => {
         const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
         placeRemoteDataSource.fetchPlace.mockResolvedValue({
@@ -76,6 +96,7 @@ describe('PlaceRepositoryV2', () => {
     it('persists the created place into local cache after a successful remote create', async () => {
         const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
         placeRemoteDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
+        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-3', name: 'Created' }] });
 
         const result = await repository.createPlace({ name: 'Created' } as any);
 
@@ -86,6 +107,98 @@ describe('PlaceRepositoryV2', () => {
             uid: 'me',
         });
         expect(result).toEqual(expect.objectContaining({ id: 'place-3' }));
+    });
+
+    it('follows a successful create with an ordered snapshot that shields the new place from pruning', async () => {
+        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        placeRemoteDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
+        // The list response has not caught up with the just-created place yet.
+        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
+        placeLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [{ id: 'place-1' }, { id: 'place-3' }, { id: 'stale-row' }],
+        });
+
+        await repository.createPlace({ name: 'Created' } as any);
+
+        // The follow-up snapshot lands with order stamps for every caller of createPlace.
+        expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: 'place-1', order: 0 })],
+            { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
+        );
+        // Stale rows are pruned, but the just-created id is protected from the lagging list.
+        expect(placeLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['stale-row'], {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
+    it('still resolves createPlace when the follow-up snapshot fails', async () => {
+        const { repository, placeRemoteDataSource } = createRepository();
+        placeRemoteDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
+        placeRemoteDataSource.fetchPlace.mockRejectedValue(new Error('snapshot down'));
+
+        // The place exists on the server; a failed snapshot must not fail the create.
+        await expect(repository.createPlace({ name: 'Created' } as any)).resolves.toEqual(
+            expect.objectContaining({ id: 'place-3' })
+        );
+    });
+
+    it('prunes cached rows missing from a full refreshList snapshot', async () => {
+        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
+        placeLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [{ id: 'place-1' }, { id: 'stale-default-place' }],
+        });
+
+        await repository.refreshList();
+
+        // The server snapshot is authoritative: rows it no longer lists (e.g. an embedded-$site
+        // default place written into a cloud partition) are removed.
+        expect(placeLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['stale-default-place'], {
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+        });
+    });
+
+    it('does not prune when refreshList was called with a filtering query', async () => {
+        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
+        placeLocalDataSource.cacheReadList.mockResolvedValue({
+            list: [{ id: 'place-1' }, { id: 'other-row' }],
+        });
+
+        await repository.refreshList({});
+
+        // A filtered response proves nothing about the rows it omits.
+        expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it('leaves the cache entirely alone when the snapshot answers empty', async () => {
+        const { repository, placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        placeRemoteDataSource.fetchPlace.mockResolvedValue({ list: [] });
+
+        await repository.refreshList();
+
+        // Right after a switch the session may answer empty; writing or pruning would wipe real rows.
+        expect(placeLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it('skips the snapshot entirely while the socket still serves another cloud', async () => {
+        const { placeRemoteDataSource, placeLocalDataSource } = createRepository();
+        const repository = new PlaceRepositoryV2(placeRemoteDataSource as any, placeLocalDataSource as any, {
+            // cid already flipped optimistically, but the socket is still bound to the outgoing cloud.
+            getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me', socketCid: 'cloud-b' }),
+            setContext: () => undefined,
+        });
+
+        await repository.refreshList();
+
+        expect(placeRemoteDataSource.fetchPlace).not.toHaveBeenCalled();
+        expect(placeLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
     });
 
     it('writes to the request-time snapshot even if the global context changes before remote resolve', async () => {
@@ -133,7 +246,7 @@ describe('PlaceRepositoryV2', () => {
 
     it('supports a debug context-bound repository facade via withContext', async () => {
         const placeRemoteDataSource = {
-            fetchPlace: jest.fn().mockResolvedValue({ list: [] }),
+            fetchPlace: jest.fn().mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] }),
             createPlace: jest.fn(),
             getPlace: jest.fn(),
             updatePlace: jest.fn(),
@@ -169,10 +282,13 @@ describe('PlaceRepositoryV2', () => {
         const contextual = repositories.withContext({ cid: 'cloud-debug', sid: 'site-debug', uid: 'debugger' });
         await contextual.place.refreshList({});
 
-        expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith([], {
-            cid: 'cloud-debug',
-            sid: 'site-debug',
-            uid: 'debugger',
-        });
+        expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: 'place-1', order: 0 })],
+            {
+                cid: 'cloud-debug',
+                sid: 'site-debug',
+                uid: 'debugger',
+            }
+        );
     });
 });

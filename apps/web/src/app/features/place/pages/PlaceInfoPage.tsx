@@ -104,6 +104,7 @@ export const PlaceInfoPage = () => {
         if (!canSubmit || !placeId) return;
         try {
             await updatePlace({
+                id: placeId,
                 sid: placeId,
                 name,
                 ...(isImageDirty && { thumbnail: imageUrl }),
