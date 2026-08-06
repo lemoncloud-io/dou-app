@@ -1,6 +1,6 @@
 # 전역 캐시 검색 계약 (Global Cache Search)
 
-> 상태: Approved · 최종 갱신: 2026-08-06 · 관련 ADR: [[ADR-0033]](../../adr/0033-local-global-search.md)
+> 상태: Live · 최종 갱신: 2026-08-06 · 관련 ADR: [[ADR-0033]](../../adr/0033-local-global-search.md)
 
 ## 목적
 
@@ -56,6 +56,9 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
 - **컨텍스트 조회 `resolveContext`**: 명시적 cid로 채널·플레이스 행,
   내 join 행, 채널별 최신 chat을 읽는다. 양쪽 구현 모두 기존 배선만
   사용하므로 **네이티브 앱 릴리스 불필요**(근거는 "상세 구현" 참조).
+  네이티브 왕복 수(`3 × 클라우드 + 채널 참조`)는 실기기에서 아직 측정하지
+  않았다 — 느리면 최신 chat 조회를 화면에 보이는 행으로 제한하거나 배치
+  브리지 메시지를 신설한다(그때는 앱 릴리스 필요). 계약은 그대로 둔다.
 - 캐시 스토리지 전략(`CacheStorageStrategy`)에 검색 소스 팩토리 추가,
   app-runtime을 통한 노출.
 - 공유 계약 테스트.
@@ -302,29 +305,3 @@ query: { channelId, sort: 'desc', limit: 1 } }` — SQL이 `channel_id`,
 - 수동 확인: 웹에서 클라우드 A 방문 → 클라우드 B 전환 → 검색 시 A의
   채널이 결과에 나오는지(각 결과의 cid 확인), A 채널 행에 A의 플레이스
   이름·마지막 메시지·안읽음이 붙는지.
-
----
-
-## 구현 체크리스트
-
-1. **계약 확장** — `types.ts`에 `GlobalCacheContextQuery`/`GlobalCacheContext`
-   추가, `IGlobalCacheSearchSource.resolveContext` 선언.
-2. **웹 구현** — `IndexedDbGlobalSearchSource.resolveContext`: cid별
-   인덱스 완전일치 3회 + 채널별 역방향 커서. 기존 `search`는 손대지 않는다.
-3. **네이티브 구현** — `NativeGlobalSearchSource.resolveContext`: 클라우드당
-   3회 + 채널당 1회 `FetchAllCacheData`, 병렬 요청.
-4. **공유 계약 테스트** — 기존 `*.test.ts` 픽스처를 재사용해 `resolveContext`
-   테이블 추가(양쪽 동일 기대값).
-5. **app-runtime 노출** — `useGlobalCacheSearch`가 `resolveContext`도
-   반환하도록 확장(공개 심볼 추가 없음 → `public-surface.test.ts` 무변경).
-
-## 리스크와 미지수
-
-- **네이티브 요청 수**: 최악 ~50회 브리지 왕복. 실기기 측정 전이다.
-  느리면 (a) 채널당 최신 chat 조회를 화면에 보이는 행으로 제한, (b) 새 배치
-  브리지 메시지 신설(앱 릴리스 필요) 순으로 대응한다. 계약은 그대로 둔다.
-- **점진적 채움**: 컨텍스트는 `search`보다 늦게 도착한다. 행이 두 번 그려지며
-  레이아웃이 흔들릴 수 있어, 컨텍스트 의존 필드는 자리를 미리 확보하고
-  값만 채우는 방식으로 그린다.
-- **join 테이블 크기**: 클라우드 전체 join을 필터 없이 받는다. 채널 수가
-  수천인 클라우드에서 비용이 확인되면 `channelId` 필터 버전으로 좁힌다.

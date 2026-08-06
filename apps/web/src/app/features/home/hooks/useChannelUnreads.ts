@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import type { ChannelUnreads } from '../types';
+import { countUnread, readCursorOf } from '../lib/countUnread';
 
 /**
  * Derives per-channel unread counts for the current user from the channel head plus MY read
@@ -32,16 +33,13 @@ export const useChannelUnreads = (
         const byPlace: Record<string, number> = {};
         let total = 0;
         for (const ch of channels) {
-            // Channel head in the unified user+system sequence.
-            const headChatNo = ch.chatNo ?? 0;
-            const headMeta = ch.metaNo ?? 0;
-            // User-message count at the head (system events netted out).
-            const userHead = Math.max(0, headChatNo - headMeta);
-
             // Read cursor from the subscribed join list. No row yet → no read boundary → no badge.
-            const myJoin = joinByChannel?.get(ch.id);
-            const readNo = myJoin ? Math.max(myJoin.readNo ?? 0, myJoin.chatNo ?? 0) : undefined;
-            const unread = readNo === undefined ? 0 : Math.max(0, userHead - readNo);
+            // The formula itself lives in countUnread, shared with the search results.
+            const unread = countUnread({
+                headChatNo: ch.chatNo,
+                headMetaNo: ch.metaNo,
+                readNo: readCursorOf(joinByChannel?.get(ch.id)),
+            });
 
             byChannel[ch.id] = unread;
             total += unread;

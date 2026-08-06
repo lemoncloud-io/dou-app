@@ -1,29 +1,50 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, Cloud, Hash, MapPin, MessageSquare } from 'lucide-react';
+import { ChevronLeft, Cloud, MessageSquare } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { SearchInput } from '@chatic/web-ui-kit';
+import { DefaultAvatar, ImageAvatar, SearchInput, UnreadBadge } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
 import { HighlightText } from '../components/HighlightText';
 import { RecentSearchList } from '../components/RecentSearchList';
 import { ResultRow } from '../components/ResultRow';
+import { formatResultContext } from '../lib/formatResultContext';
 import { useGlobalSearch } from '../hooks/useGlobalSearch';
+import {
+    useSearchContext,
+    type ChannelResultRow,
+    type ChatResultRow,
+    type PlaceResultRow,
+} from '../hooks/useSearchContext';
 import { useRecentSearches } from '../hooks/useRecentSearches';
 import { useSearchNavigate } from '../hooks/useSearchNavigate';
 
+const AVATAR_SIZE = 42;
+
+/** Circular avatar shared by place and channel rows, matching the home list. */
+const RowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
+    thumbnail ? <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} /> : <DefaultAvatar size={AVATAR_SIZE} />;
+
 /** apps/web full-page search (see docs/specs/search/web-search-page.md, ADR-0033). */
 export const SearchPage = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const [query, setQuery] = useState('');
-    const { results, isSearching, hasResults, isQueryTooShort } = useGlobalSearch(query);
+    const { results, isSearching, hasResults, isQueryTooShort, cloudNamesByCid } = useGlobalSearch(query);
+    const rows = useSearchContext(results, cloudNamesByCid);
     const { recentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } = useRecentSearches();
     const { goTo } = useSearchNavigate();
 
     const trimmed = query.trim();
     const isIdle = trimmed.length === 0;
+
+    // Same short HH:MM form the home list uses for a channel's last message.
+    const formatTime = (value?: number) => {
+        if (!value) return '';
+        const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
+        return new Date(value).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    };
 
     const submit = (keyword: string) => {
         const value = keyword.trim();
@@ -32,28 +53,32 @@ export const SearchPage = () => {
         setQuery(value);
     };
 
-    const openCloud = (cloud: (typeof results.clouds)[number]) => {
+    const openCloud = (cloud: (typeof rows.clouds)[number]) => {
         submit(trimmed);
         void goTo(ROUTES.home, { cid: cloud.id });
     };
 
     // A place result switches to that place and lands on home — home renders the session's active
     // place, so the switch IS the destination (ADR-0033).
-    const openPlace = (place: (typeof results.places)[number]) => {
+    const openPlace = (place: PlaceResultRow) => {
         submit(trimmed);
-        void goTo(ROUTES.home, { cid: place.cid, sid: place.id });
+        void goTo(ROUTES.home, { cid: place.cid, sid: place.placeId });
     };
 
-    const openChannel = (channel: (typeof results.channels)[number]) => {
+    const openChannel = (channel: ChannelResultRow) => {
         submit(trimmed);
-        void goTo(ROUTES.channels.room(channel.id), { cid: channel.cid, sid: channel.sid });
+        void goTo(ROUTES.channels.room(channel.channelId), { cid: channel.cid, sid: channel.sid });
     };
 
-    // A chat row carries no `sid` (CacheChatView has cid/channelId only) — the owning channel's
-    // place is supplied by the resolved search context, wired in the row-display step.
-    const openMessage = (chat: (typeof results.messages)[number]) => {
+    // A chat row carries no `sid` of its own (CacheChatView has cid/channelId only) — `sid` here
+    // comes from the owning channel resolved via the search context, and is simply absent when
+    // that channel isn't cached, in which case the room still opens without a place switch.
+    const openMessage = (chat: ChatResultRow) => {
         submit(trimmed);
-        void goTo(`${ROUTES.channels.room(chat.channelId)}?chatNo=${chat.chatNo}`, { cid: chat.cid });
+        void goTo(`${ROUTES.channels.room(chat.channelId)}?chatNo=${chat.chatNo}`, {
+            cid: chat.cid,
+            sid: chat.sid,
+        });
     };
 
     return (
@@ -88,15 +113,19 @@ export const SearchPage = () => {
                     </p>
                 ) : (
                     <div className="flex flex-col">
-                        {results.clouds.length > 0 && (
+                        {rows.clouds.length > 0 && (
                             <section>
                                 <h2 className="px-4 py-2 text-xs font-medium text-description">
                                     {t('search.clouds', '클라우드')}
                                 </h2>
-                                {results.clouds.map(cloud => (
+                                {rows.clouds.map(cloud => (
                                     <ResultRow
                                         key={cloud.id}
-                                        icon={<Cloud size={18} />}
+                                        leading={
+                                            <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-foreground">
+                                                <Cloud size={18} />
+                                            </span>
+                                        }
                                         title={<HighlightText text={cloud.name ?? ''} query={trimmed} />}
                                         onClick={() => openCloud(cloud)}
                                     />
@@ -104,48 +133,76 @@ export const SearchPage = () => {
                             </section>
                         )}
 
-                        {results.places.length > 0 && (
+                        {rows.places.length > 0 && (
                             <section>
                                 <h2 className="px-4 py-2 text-xs font-medium text-description">
                                     {t('search.places', '플레이스')}
                                 </h2>
-                                {results.places.map(place => (
+                                {rows.places.map(place => (
                                     <ResultRow
-                                        key={place.id}
-                                        icon={<MapPin size={18} />}
-                                        title={<HighlightText text={place.name ?? ''} query={trimmed} />}
+                                        key={`${place.cid}:${place.placeId}`}
+                                        leading={<RowAvatar thumbnail={place.thumbnail} />}
+                                        title={<HighlightText text={place.name} query={trimmed} />}
+                                        context={formatResultContext(place.cloudName)}
                                         onClick={() => openPlace(place)}
                                     />
                                 ))}
                             </section>
                         )}
 
-                        {results.channels.length > 0 && (
+                        {rows.channels.length > 0 && (
                             <section>
                                 <h2 className="px-4 py-2 text-xs font-medium text-description">
                                     {t('search.channels', '채널')}
                                 </h2>
-                                {results.channels.map(channel => (
+                                {rows.channels.map(channel => (
                                     <ResultRow
-                                        key={channel.id}
-                                        icon={<Hash size={18} />}
-                                        title={<HighlightText text={channel.name ?? ''} query={trimmed} />}
+                                        key={`${channel.cid}:${channel.channelId}`}
+                                        leading={<RowAvatar thumbnail={channel.thumbnail} />}
+                                        title={<HighlightText text={channel.name} query={trimmed} />}
+                                        badge={
+                                            (channel.memberNo ?? 0) > 1 ? (
+                                                <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
+                                                    {channel.memberNo}
+                                                </span>
+                                            ) : undefined
+                                        }
+                                        subtitle={channel.lastMessage}
+                                        context={formatResultContext(channel.cloudName, channel.placeName)}
+                                        trailing={
+                                            <>
+                                                <span className="text-[12px] leading-4 text-description">
+                                                    {formatTime(channel.lastMessageAt)}
+                                                </span>
+                                                <UnreadBadge count={channel.unread} variant="pill" />
+                                            </>
+                                        }
                                         onClick={() => openChannel(channel)}
                                     />
                                 ))}
                             </section>
                         )}
 
-                        {results.messages.length > 0 && (
+                        {rows.chats.length > 0 && (
                             <section>
                                 <h2 className="px-4 py-2 text-xs font-medium text-description">
                                     {t('search.chat', 'Chat')}
                                 </h2>
-                                {results.messages.map(chat => (
+                                {rows.chats.map(chat => (
                                     <ResultRow
-                                        key={chat.id}
-                                        icon={<MessageSquare size={18} />}
-                                        title={<HighlightText text={chat.content ?? ''} query={trimmed} />}
+                                        key={`${chat.cid}:${chat.chatId}`}
+                                        leading={
+                                            <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-foreground">
+                                                <MessageSquare size={18} />
+                                            </span>
+                                        }
+                                        title={<HighlightText text={chat.content} query={trimmed} />}
+                                        context={formatResultContext(chat.cloudName, chat.placeName, chat.channelName)}
+                                        trailing={
+                                            <span className="text-[12px] leading-4 text-description">
+                                                {formatTime(chat.createdAt)}
+                                            </span>
+                                        }
                                         onClick={() => openMessage(chat)}
                                     />
                                 ))}

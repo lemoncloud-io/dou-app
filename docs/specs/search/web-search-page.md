@@ -1,6 +1,6 @@
 # 웹 검색 페이지 (/search)
 
-> 상태: Approved · 최종 갱신: 2026-08-06 · 관련 ADR: [[ADR-0033]](../../adr/0033-local-global-search.md)
+> 상태: Live · 최종 갱신: 2026-08-06 · 관련 ADR: [[ADR-0033]](../../adr/0033-local-global-search.md)
 
 ## 목적
 
@@ -23,8 +23,7 @@ apps/web에 전역 검색 진입점을 제공한다. 키워드 하나로 클라�
 - **크로스 클라우드 이동은 전환 선행**: 채널/플레이스 데이터는 활성
   클라우드 repo에서 로드되므로, 타 클라우드 결과 진입 시 반드시
   `switchCloud`를 마친 뒤 라우팅한다(`usePushNavigate.ts:106-125` 패턴).
-- **플레이스(sid) 전환도 함께 한다** — 이전 판의 "site 전환은 하지 않는다"
-  원칙을 뒤집는다. 근거: 검색 결과에서 플레이스를 고르면 **홈으로** 가야
+- **플레이스(sid) 전환도 함께 한다.** 근거: 검색 결과에서 플레이스를 고르면 **홈으로** 가야
   하고(`HomePage`는 URL이 아니라 세션의 `selectedSiteId`로 그린다,
   `HomePage.tsx:65,184`), 채널로 진입한 뒤 뒤로 나오면 그 채널이 속한
   플레이스의 홈에 있어야 한다. 전환 수단은 app-runtime이 공개하는
@@ -49,13 +48,13 @@ apps/web에 전역 검색 진입점을 제공한다. 키워드 하나로 클라�
 - 최근검색어: 제출 시 저장, LRU 최대 10개, 개별·전체 삭제.
 - 결과 클릭 내비게이션(동일/타 클라우드), 진입 실패 토스트.
 - HomePage 헤더 검색 버튼의 "준비 중" 플레이스홀더 교체.
-- **행 표시 정보**(이번 개정):
+- **행 표시 정보**:
     - 플레이스: 원형 썸네일 + 이름.
     - 채널: 원형 썸네일 + 이름 + 인원수 pill + 안읽음 배지 + 마지막 메시지
         - 소속 "클라우드 › 플레이스".
     - 채팅: 소속 "클라우드 › 플레이스 › 채널" + 매치된 메시지 본문 + 시각.
-- **플레이스 전환**(이번 개정): 플레이스 결과 → 전환 후 홈, 채널/채팅
-  결과 → 전환 후 해당 방.
+- **플레이스 전환**: 플레이스 결과 → 전환 후 홈, 채널/채팅 결과 → 전환 후
+  해당 방.
 
 **제외**
 
@@ -68,10 +67,8 @@ apps/web에 전역 검색 진입점을 제공한다. 키워드 하나로 클라�
 1. **진입**: 홈 헤더 검색 버튼 클릭(`HomePage.tsx` `onSearch`) →
    `navigate(ROUTES.search.root)` → 검색 페이지. 입력이 비어 있으면
    최근검색어 목록 표시(각 항목 클릭=재검색, X=개별 삭제, 전체 삭제 버튼).
-2. **검색**: 2글자 이상 입력 → 300ms 디바운스 → 두 소스를 병렬 질의:
-    - 클라우드 이름: relay 카탈로그(`useCloudSessionCatalog`) + 초대
-      클라우드(`useInvitedClouds`)를 인메모리 필터.
-    - 플레이스/채널/메시지: `useGlobalCacheSearch().search(keyword, { cid?
+2. **검색**: 2글자 이상 입력 → 300ms 디바운스 → 두 소스를 병렬 질의: - 클라우드 이름: relay 카탈로그(`useCloudSessionCatalog`) + 초대
+   클라우드(`useInvitedClouds`)를 인메모리 필터. - 플레이스/채널/메시지: `useGlobalCacheSearch().search(keyword, { cid?
 })` — 전체 cid 파티션(uid는 훅 내부에서 컨텍스트로부터 주입).
 3. **컨텍스트 채움**: `search` 결과가 오면 참조를 모아
    `resolveContext({ uid, cids, channelRefs })`를 호출한다. 도착 전에도 행은
@@ -84,7 +81,7 @@ apps/web에 전역 검색 진입점을 제공한다. 키워드 하나로 클라�
     - 클라우드 → 전환 후 홈(`ROUTES.home`). sid는 지정하지 않는다(전환된
       클라우드의 기본 플레이스를 그대로 따른다).
     - 플레이스 → (cid 다르면 클라우드 전환) → `switchSite(place.id)` →
-      홈. **플레이스 상세가 아니라 홈으로 간다**(이번 개정).
+      홈(플레이스 상세가 아니다).
     - 채널 → (전환) → `switchSite(channel.sid)` →
       `ROUTES.channels.room(channelId)`.
     - 메시지 → (전환) → `switchSite(소속 채널의 sid)` →
@@ -129,12 +126,15 @@ flowchart LR
 
 ```
 search/
-├── pages/SearchPage.tsx          # 입력 + 최근검색어 + 결과 리스트
+├── pages/SearchPage.tsx          # 입력 + 최근검색어 + 섹션별 결과 렌더
 ├── hooks/useGlobalSearch.ts      # 디바운스 + 병렬 질의 + 섹션 데이터 조립
 ├── hooks/useSearchContext.ts     # resolveContext 호출 + 행 표시 모델 조립
 ├── hooks/useRecentSearches.ts    # usePreferenceStore 래핑 (LRU/삭제)
 ├── hooks/useSearchNavigate.ts    # 결과 클릭 → (cid/sid 전환) → 라우팅
-├── components/…                  # 섹션/행/하이라이트
+├── components/ResultRow.tsx      # 순수 표시 행 (leading/title/subtitle/context/badge/trailing)
+├── components/HighlightText.tsx  # 매치 강조
+├── components/RecentSearchList.tsx
+├── lib/formatResultContext.ts    # "클라우드 › 플레이스 › 채널" 조립(미해결 조각 생략)
 └── index.ts
 ```
 
@@ -160,23 +160,28 @@ interface ChannelResultRow {
 }
 ```
 
-- **안읽음 계산은 홈과 같은 공식을 공유한다.** `useChannelUnreads.ts:44`의
-  `max(0, (chatNo - metaNo) - readNo)`를 순수 함수로 추출해
-  (`features/home/lib/`) 홈과 검색이 같이 쓴다 — 공식이 두 곳에서 갈리는 것을
-  막는다. join이 없으면 홈과 동일하게 0(배지 없음).
+- **안읽음 계산은 홈과 같은 공식을 공유한다.** `features/home/lib/countUnread.ts`의
+  `countUnread`/`readCursorOf`를 홈(`useChannelUnreads`)과 검색이 같이 쓴다 —
+  공식이 두 곳에서 갈리는 것을 막는다. join이 없으면 홈과 동일하게 0(배지 없음),
+  캐시된 head가 커서보다 낡아도 음수로 가지 않는다.
 - 마지막 메시지는 `lastChatsByRef`의 `content`. 홈의 `useLastChat`이 하는
   "내 시스템 메시지 스킵"은 하지 않는다 — 검색 행은 캐시된 최신 1건을
   그대로 보여주고, 그 이상 정확도는 캐시 기준 전제를 넘는다.
-- 클라우드 이름은 카탈로그/초대 캐시 맵(이미 `useGlobalSearch`가 보유),
-  플레이스 이름은 `sitesByRef[`cid:sid`].name`. 둘 다 없으면 그 조각을
-  생략한다(id를 노출하지 않는다).
+- 클라우드 이름은 `useGlobalSearch`가 반환하는 `cloudNamesByCid`에서 온다 —
+  **매치된 클라우드 결과(`results.clouds`)가 아니라 전체 카탈로그+초대 캐시**다.
+  행이 표시하는 클라우드의 이름에 키워드가 들어 있을 이유가 없다.
+  플레이스 이름은 `sitesByRef['cid:sid'].name`. 해결되지 않은 조각은
+  `formatResultContext`가 생략한다(id를 노출하지 않는다).
 - 썸네일은 `CacheSiteView.thumbnail` / `CacheChannelView.thumbnail`
   (타입 주석상 base64라 타 클라우드 인증 이슈 없음). 원형 표시는 홈과 같은
   `ImageAvatar`/`DefaultAvatar`(`@chatic/web-ui-kit`)를 42px로 재사용.
-- 기존 `ResultRow.tsx`를 확장한다: `context`(클라우드 › 플레이스 › 채널
-  한 줄, 말줄임), `trailing`(시각 + `UnreadBadge`) 슬롯 추가. ui-kit
-  `ListRow`는 subtitle이 단일 truncate 줄이라 3줄 행에 맞지 않아 쓰지 않는다
+- `ResultRow`는 `leading`/`title`/`subtitle`/`context`/`badge`/`trailing` 슬롯을
+  받는 순수 표시 컴포넌트다. `context`는 소속 경로 한 줄(말줄임), `trailing`은
+  시각 + `UnreadBadge`. ui-kit `ListRow`는 subtitle이 단일 truncate 줄이라 3줄
+  행에 맞지 않아 쓰지 않는다
   (`libs/web-ui-kit/src/composites/list/ListRow.tsx:62`).
+- 소속 경로 구분자는 `›` 리터럴이므로 신규 i18n 키가 없다. 섹션 헤더는 기존
+  `search.*` 키를 그대로 쓴다.
 
 - 입력은 ui-kit `SearchInput`(`@chatic/web-ui-kit`, controlled `value`/
   `onChange(value)`) 사용.
@@ -280,28 +285,3 @@ navigate(target)
   전환 후 진입, **플레이스 결과 클릭 시 그 플레이스의 홈이 열리는지**,
   채널 결과에 플레이스명·안읽음·마지막 메시지가 붙는지, 메시지 결과 →
   점프, 최근검색어 저장/삭제, 새로고침 후 유지.
-
----
-
-## 구현 체크리스트
-
-1. **`useSearchNavigate` cid+sid 전환** — 전환 후 재검증 대기 추가,
-   `useSiteSwitch` 배선, 플레이스 결과의 목적지를 홈으로 변경.
-   ([[global-cache-search]] 작업과 독립 — 먼저 넣을 수 있다.)
-2. **`useSearchContext`** — `resolveContext` 호출, 표시 모델 조립,
-   안읽음 공식 순수 함수 추출(홈과 공유).
-3. **행 컴포넌트** — `ResultRow` 확장(context/trailing 슬롯), 플레이스·채널·
-   채팅 섹션을 표시 모델로 렌더, 원형 아바타 적용.
-4. **i18n** — 소속 경로 구분자·안읽음 레이블 등 신규 키 ko/en 추가.
-5. 유닛 테스트를 각 단계와 같은 커밋에.
-
-## 리스크와 미지수
-
-- **ADR-0033의 "site 전환 안 함" 결정이 뒤집힌다.** 이 문서만 고치면 ADR과
-  스펙이 어긋난 채로 남는다 — ADR 처리 방식은 승인 시 확정한다.
-- **전환 왕복이 2회로 늘어난다.** 클라우드 + 플레이스 전환이 모두 필요한
-  결과를 클릭하면 사용자 대기가 길어진다. 진행 표시(스피너/비활성화)를
-  넣을지는 실제 체감 후 판단한다.
-- **stale 결과**: 삭제된 채널·나간 플레이스가 캐시에 남아 결과로 나올 수
-  있다. 전환·진입은 성공하고 빈 방이 보일 수 있다 — 캐시 기준 전제상 수용,
-  진입 실패만 토스트로 처리한다.

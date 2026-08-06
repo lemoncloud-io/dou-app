@@ -124,11 +124,21 @@ export const useGlobalSearch = (query: string) => {
         [matchedClouds, cacheResults]
     );
 
+    // Every known cloud name, keyed by cid — NOT just the matched ones. Place/channel/chat rows all
+    // label which cloud they live in, and that cloud's name rarely contains the keyword.
+    const cloudNamesByCid = useMemo(() => {
+        const names = new Map<string, string | undefined>();
+        [...ownedClouds, ...invitedClouds].forEach(cloud => {
+            if (cloud.id) names.set(cloud.id, cloud.name);
+        });
+        return names;
+    }, [ownedClouds, invitedClouds]);
+
     const hasResults =
         results.clouds.length > 0 ||
         results.places.length > 0 ||
         results.channels.length > 0 ||
         results.messages.length > 0;
 
-    return { results, isSearching, hasResults, isQueryTooShort };
+    return { results, isSearching, hasResults, isQueryTooShort, cloudNamesByCid };
 };
