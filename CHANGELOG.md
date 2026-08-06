@@ -1,5 +1,39 @@
 # Changelog
 
+## [2026-08-06] - root@0.49.1, @chatic/web@0.42.1
+
+### Features
+
+- (web-ui-kit) give the place avatar its own placeholder
+- (web/invite) keep the release app on SMS invites, and rebuild the friend picker
+- (web-ui-kit) size the selected-friend strip to Figma's friend picker
+- (web/invite) text a single invite to the number instead of opening the share sheet
+- (web-ui-kit) make the profile avatar's empty state Figma's 1명 Profile
+- (web/chat) flag pinned and muted rooms, and give the self room my photo
+- (web/place) make the profile the last, mandatory step of creating a place
+- (data/user) make the embedded $site write injectable, and pin apps/web to relay
+
+### Bug Fixes
+
+- (web/dialogs) correct safe-area insets in CreateChannelDialog
+- (web/mypage) edit the account profile from a cloud, and settle the place before its profile
+- (web/chat) give a group room its two-person placeholder on every surface
+- (invite) send each batch recipient as its own E.164 entry
+- (web/mypage) pin the account profile to relay, and block editing it from a cloud
+- (data/place) carry id on place.update, and reconcile the list against the server
+
+### Documentation
+
+- (web/place) record the relay place scoping decisions and the avatar plan
+
+### Refactor
+
+- (web) move shared components out of home and stop barrels re-exporting heavy modules
+
+### Other
+
+- revert: (web/mypage) show the account profile of whichever session is active
+
 ## [2026-08-06] - root@0.49.0, @chatic/web@0.42.0
 
 ### Features
