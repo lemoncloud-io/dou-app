@@ -1,18 +1,24 @@
 # 전역 캐시 검색 계약 (Global Cache Search)
 
-> 상태: Live · 최종 갱신: 2026-07-29 · 관련 ADR: [[ADR-0033]](../../adr/0033-local-global-search.md)
+> 상태: Approved · 최종 갱신: 2026-08-06 · 관련 ADR: [[ADR-0033]](../../adr/0033-local-global-search.md)
 
 ## 목적
 
 로컬 캐시(웹 IndexedDB / 네이티브 SQLite)에 저장된 채널·플레이스(site)·채팅
-메시지를 **클라우드(cid) 불문 키워드로 검색**하는 스토리지 계층 계약을
-정의한다. 서버 검색 API 없이 오프라인에서도 즉답하는 검색의 데이터 기반이며,
-apps/web 검색 페이지([[web-search-page]](../search/web-search-page.md))가
-소비한다.
+메시지를 **클라우드(cid) 불문 키워드로 검색**하고, 그 결과를 화면에 그리는 데
+필요한 **주변 컨텍스트(소속 채널·플레이스, 내 읽음 커서, 최신 메시지)를 같은
+경로로 읽어오는** 스토리지 계층 계약을 정의한다. 서버 검색 API 없이
+오프라인에서도 즉답하는 검색의 데이터 기반이며, apps/web 검색
+페이지([[web-search-page]](../search/web-search-page.md))가 소비한다.
 
 기존 CRUD 경로(`observeList`/`cacheReadList`)는 전역 `DataContextHolder`의
 활성 cid 파티션만 읽으므로 크로스 클라우드 검색에 쓸 수 없다 — 이 계약은
-그 옆에 신설하는 **읽기 전용 별도 경로**다.
+그 옆에 신설하는 **읽기 전용 별도 경로**다. 리포지토리의
+`LocalDataSourceV2ContextOverride`는 이 용도로 쓸 수 없다: `cacheRead`는
+오버라이드를 무시하고(`ChannelLocalDataSourceV2.ts:39`), `cacheReadList`는
+오버라이드를 sid 필터링에만 쓰며 `loadAll()` 자체는 여전히 활성 cid
+파티션을 읽는다(`ChannelLocalDataSourceV2.ts:53`). 즉 기존 오버라이드는
+cid 오버라이드가 아니라 **sid 오버라이드**다.
 
 ## 설계 원칙
 
@@ -28,7 +34,16 @@ apps/web 검색 페이지([[web-search-page]](../search/web-search-page.md))가
   (네이티브 브리지 페이로드에 limit이 없으므로, 어댑터 레벨에 상한을 두면
   양쪽 동작이 어긋난다.)
 - **신선도 미보장 수용**: 비활성 클라우드 파티션은 stale일 수 있다.
-  이 계약은 "로컬에 있는 것"을 반환할 뿐 최신성을 약속하지 않는다.
+  이 계약은 "로컬에 있는 것"을 반환할 뿐 최신성을 약속하지 않는다. 파생
+  값(안읽음 수 등)도 같은 성격이다 — "마지막 동기화 시점 기준"이 사양이다.
+- **컨텍스트 조회도 이 경로로만**: 검색 결과 행을 그리는 데 필요한 주변
+  데이터(소속 채널/플레이스, 내 join, 최신 chat)는 리포지토리로 가져올 수
+  없다(위 "목적" 참조). 그래서 이 계약에 `resolveContext`를 함께 두고,
+  **앱 계층은 검색 결과 렌더링에 리포지토리·sync 훅을 절대 쓰지 않는다.**
+- **명시적 cid 인자, 공유 컨텍스트 변경 금지**: cid는 항상 호출 인자로
+  받는다. 공유 `DataContextHolder`를 임시로 바꿔치기하는 접근은 금지 —
+  과거 `runWithGlobalContext`가 그 방식으로 cross-cloud 데이터 오염을
+  일으킨 전례가 있다(`libs/data/src/data/local/storages/utils.ts:64-70`).
 
 ## 범위
 
@@ -38,6 +53,9 @@ apps/web 검색 페이지([[web-search-page]](../search/web-search-page.md))가
 - 웹 구현: IndexedDB 크로스 파티션 스캔 (`IndexedDbGlobalSearchSource`).
 - 네이티브 구현: 기존 `SearchGlobalCacheData` 브리지 메시지 클라이언트
   (`NativeGlobalSearchSource`) — 네이티브(RN) 측 신규 작업 없음.
+- **컨텍스트 조회 `resolveContext`**: 명시적 cid로 채널·플레이스 행,
+  내 join 행, 채널별 최신 chat을 읽는다. 양쪽 구현 모두 기존 배선만
+  사용하므로 **네이티브 앱 릴리스 불필요**(근거는 "상세 구현" 참조).
 - 캐시 스토리지 전략(`CacheStorageStrategy`)에 검색 소스 팩토리 추가,
   app-runtime을 통한 노출.
 - 공유 계약 테스트.
@@ -69,6 +87,12 @@ apps/web 검색 페이지([[web-search-page]](../search/web-search-page.md))가
     - 대소문자 무시(ASCII) — SQLite `LIKE` 기본 동작을 웹에서
       `toLowerCase().includes()`로 미러링.
     - 빈/공백 키워드는 빈 결과.
+4. **컨텍스트 조회**: 앱 계층이 `search` 결과에서 참조를 모아
+   `resolveContext({ uid, cids, channelRefs })`를 호출한다 — `cids`는 결과에
+   등장한 클라우드 전부, `channelRefs`는 `{ cid, channelId }` 조합.
+   반환은 `${cid}:${id}` 키 맵 네 개(채널·플레이스·내 join·채널별 최신 chat)로,
+   앱 계층은 이 맵을 조회해 행을 그린다. 캐시에 없는 참조는 키가 없고,
+   그때 해당 필드는 표시하지 않는다(빈 문자열/0으로 위조하지 않는다).
 
 ## 다이어그램
 
@@ -106,6 +130,24 @@ sequenceDiagram
     SRC-->>UI: { channels[], sites[], chats[] } (각 항목에 cid 포함)
 ```
 
+컨텍스트 조회는 같은 소스의 두 번째 메서드로, 플랫폼별 비용 구조가 다르다
+(결과는 동일):
+
+```mermaid
+sequenceDiagram
+    participant UI as 검색 서비스(앱 계층)
+    participant SRC as IGlobalCacheSearchSource
+    UI->>SRC: resolveContext({ uid, cids, channelRefs })
+    alt 웹 (IndexedDB)
+        SRC->>SRC: cid별 channel/site/join 인덱스 스캔 (3 × cid)
+        SRC->>SRC: channelRef별 CHAT_PAGINATION_INDEX 역방향 커서 limit 1
+    else 네이티브 (브리지)
+        SRC->>SRC: cid별 FetchAllCacheData ×3 (channel/site/join, 필터 없음)
+        SRC->>SRC: channelRef별 FetchAllCacheData (chat, channelId+sort desc+limit 1)
+    end
+    SRC-->>UI: { channelsByRef, sitesByRef, joinsByRef, lastChatsByRef }
+```
+
 ## 상세 구현
 
 ### 계약 (신규: `libs/data/src/data/local/search/types.ts`)
@@ -124,6 +166,25 @@ export interface GlobalCacheSearchResult {
 
 export interface IGlobalCacheSearchSource {
     search(keyword: string, query: GlobalCacheSearchQuery): Promise<GlobalCacheSearchResult>;
+    resolveContext(query: GlobalCacheContextQuery): Promise<GlobalCacheContext>;
+}
+
+/** 검색 결과 행을 그리는 데 필요한 주변 데이터 요청. cid는 항상 명시된다. */
+export interface GlobalCacheContextQuery {
+    uid: string;
+    /** 결과에 등장한 클라우드 — 채널/플레이스/join 맵을 이 단위로 읽는다. */
+    cids: string[];
+    /** 최신 chat이 필요한 채널 — 채널 결과 행 + 채팅 결과의 소속 채널. */
+    channelRefs: { cid: string; channelId: string }[];
+}
+
+/** 모든 맵의 키는 `${cid}:${id}` (id = channelId 또는 sid). */
+export interface GlobalCacheContext {
+    channelsByRef: Record<string, CacheChannelView>;
+    sitesByRef: Record<string, CacheSiteView>;
+    /** 내 join(uid 일치)만. 안읽음 수 계산용 읽음 커서. */
+    joinsByRef: Record<string, CacheJoinView>;
+    lastChatsByRef: Record<string, CacheChatView>;
 }
 ```
 
@@ -152,6 +213,21 @@ export interface IGlobalCacheSearchSource {
   성능 문제가 확인되면 커서 순회(`loadWithCursor`,
   `IndexedDBDatabase.ts:123`)로 교체 — 계약은 불변.
 
+#### `resolveContext` (웹)
+
+- 채널·플레이스·join: cid별로 `TYPE_CID_UID_INDEX` **완전 일치** 키
+  (`[type, cid, uid]`)로 `loadAll` — 범위 스캔이 아니라 인덱스 히트다.
+  join은 행 레벨 uid가 이미 내 것이므로 추가 필터 없이 `channelId`로 맵을
+  만든다(`CacheJoinView.channelId`, `readNo`).
+- 채널별 최신 chat: `CHAT_PAGINATION_INDEX`
+  (`['type','cid','uid','channel_id','chat_no']`,
+  `IndexedDBDatabase.ts:55`)를 `direction: 'prev'`, `limit: 1`로
+  `loadWithCursor` — 채널당 1행만 읽는다. `chatNo: 0`(미전송)은 인덱스
+  최하위라 역방향 커서에서 마지막에 오므로 자연히 제외되지만, 방어적으로
+  `filter`에서 `chat_no > 0`을 요구한다.
+- 이 경로는 `search`와 같은 공유 `IIndexedDB` 인스턴스를 쓰고 아무것도
+  쓰지 않는다(읽기 전용 원칙).
+
 ### 네이티브 구현 (신규: `NativeGlobalSearchSource.ts`)
 
 - 기존 브리지 메시지 재사용: `SearchGlobalCacheDataPayload { keyword,
@@ -169,6 +245,25 @@ cid?, uid? }` → `OnSearchGlobalCacheDataPayload { items }`
   변환한다. `_domain`은 공유 타입(`OnSearchGlobalCacheDataPayload`)에는
   선언돼 있지 않은, 실제 배선된 안정적인 wire 필드이므로 로컬 유니언
   타입으로 모델링해 사용한다.
+
+#### `resolveContext` (네이티브)
+
+기존 CRUD 브리지 메시지만 쓴다 — **네이티브 신규 작업 없음**. 근거:
+
+- 브리지 핸들러가 페이로드의 `cid`를 그대로 서비스에 전달한다
+  (`apps/mobile/src/app/webview/hooks/useCrudCacheHandler.ts:13-32`) →
+  활성 클라우드가 아닌 cid도 그대로 조회된다.
+- 클라우드당 3회: `FetchAllCacheData { type: 'channel' | 'site' | 'join',
+cid, uid }` — 필터 없이 그 클라우드 전체를 받아 클라이언트에서 맵으로
+  만든다. join의 `user_id` 조건은 쓰지 않는다(행 uid가 이미 나다).
+- 채널당 1회: `FetchAllCacheData { type: 'chat', cid, uid,
+query: { channelId, sort: 'desc', limit: 1 } }` — SQL이 `channel_id`,
+  `ORDER BY chat_no DESC`, `LIMIT`을 모두 지원한다
+  (`apps/mobile/src/app/data/cache/ChatDataSource.ts:46-72`).
+- 요청 수는 `3 × 클라우드 수 + 채널 참조 수`다. 채널 섹션 상한이 20,
+  채팅 섹션 상한이 30이므로 최악 ~50회 + α. 병렬로 보내되, 응답이 늦어도
+  행은 이미 이름·이미지·인원수로 그려져 있고 컨텍스트만 나중에 채워진다
+  (아래 "리스크와 미지수" 참조).
 
 ### 배선 (수정: `libs/app-runtime/src/data/cacheStorageStrategies.ts`, `localFactory.ts`)
 
@@ -198,5 +293,38 @@ cid?, uid? }` → `OnSearchGlobalCacheDataPayload { items }`
       bridge로 분류·전달 로직 검증.
     - 케이스: 대소문자 무시, 부분일치, cid 생략=전체/지정=단일, uid 필터,
       빈 키워드=빈 결과, 도메인별 필드(name vs content) 매칭.
+- **`resolveContext` 공유 계약 테스트**: 같은 픽스처를 두 소스에 적용해
+  동일 맵이 나오는지 검증한다.
+    - 케이스: 두 클라우드 혼합 참조, 같은 sid가 다른 cid에 존재할 때 키가
+      섞이지 않음(`${cid}:${id}` 키), 캐시에 없는 참조는 키 부재,
+      채널별 최신 chat이 `chatNo` 최대값 1건, `chatNo: 0` 미전송 행 제외,
+      타 uid join 미포함, 빈 요청은 빈 맵(요청 0회).
 - 수동 확인: 웹에서 클라우드 A 방문 → 클라우드 B 전환 → 검색 시 A의
-  채널이 결과에 나오는지(각 결과의 cid 확인).
+  채널이 결과에 나오는지(각 결과의 cid 확인), A 채널 행에 A의 플레이스
+  이름·마지막 메시지·안읽음이 붙는지.
+
+---
+
+## 구현 체크리스트
+
+1. **계약 확장** — `types.ts`에 `GlobalCacheContextQuery`/`GlobalCacheContext`
+   추가, `IGlobalCacheSearchSource.resolveContext` 선언.
+2. **웹 구현** — `IndexedDbGlobalSearchSource.resolveContext`: cid별
+   인덱스 완전일치 3회 + 채널별 역방향 커서. 기존 `search`는 손대지 않는다.
+3. **네이티브 구현** — `NativeGlobalSearchSource.resolveContext`: 클라우드당
+   3회 + 채널당 1회 `FetchAllCacheData`, 병렬 요청.
+4. **공유 계약 테스트** — 기존 `*.test.ts` 픽스처를 재사용해 `resolveContext`
+   테이블 추가(양쪽 동일 기대값).
+5. **app-runtime 노출** — `useGlobalCacheSearch`가 `resolveContext`도
+   반환하도록 확장(공개 심볼 추가 없음 → `public-surface.test.ts` 무변경).
+
+## 리스크와 미지수
+
+- **네이티브 요청 수**: 최악 ~50회 브리지 왕복. 실기기 측정 전이다.
+  느리면 (a) 채널당 최신 chat 조회를 화면에 보이는 행으로 제한, (b) 새 배치
+  브리지 메시지 신설(앱 릴리스 필요) 순으로 대응한다. 계약은 그대로 둔다.
+- **점진적 채움**: 컨텍스트는 `search`보다 늦게 도착한다. 행이 두 번 그려지며
+  레이아웃이 흔들릴 수 있어, 컨텍스트 의존 필드는 자리를 미리 확보하고
+  값만 채우는 방식으로 그린다.
+- **join 테이블 크기**: 클라우드 전체 join을 필터 없이 받는다. 채널 수가
+  수천인 클라우드에서 비용이 확인되면 `channelId` 필터 버전으로 좁힌다.

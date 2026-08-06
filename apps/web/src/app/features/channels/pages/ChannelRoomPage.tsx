@@ -183,6 +183,10 @@ export const ChannelRoomPage = () => {
         readMessage,
     });
 
+    // 이 채널로의 점프가 대기 중인 동안에는 하단 자동 스크롤을 멈춘다 — 둘이 동시에 살아 있으면
+    // 하단 고정이 점프를 덮어쓴다 (docs/specs/search/message-jump.md '하단 고정과의 충돌').
+    const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
+
     // 스크롤(하단 자동 이동, loadMore 위치 보존, 리사이즈/포커스 보정, 무한 로딩)은 useChatScroll이 소유한다.
     const { containerRef: messagesEndRef, debouncedHandleScroll } = useChatScroll({
         messages,
@@ -190,6 +194,7 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         loadMore,
         inputRef,
+        suppressAutoScroll: isJumpPending,
         // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
         // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,

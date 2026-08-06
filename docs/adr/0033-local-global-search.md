@@ -1,6 +1,6 @@
 # ADR-0033: 로컬 캐시 기반 전역 검색 (플레이스·채널·클라우드·메시지 + 메시지 점프)
 
-> 상태: Accepted · 결정일: 2026-07-29
+> 상태: Accepted · 결정일: 2026-07-29 · 갱신: 2026-08-06(플레이스 전환 확정, 컨텍스트 조회 추가)
 
 ## 맥락 (Context)
 
@@ -72,6 +72,18 @@ apps/web에 검색 기능이 없다. 헤더의 검색 버튼은 배선만 되어
     - **동일성 보장**: 두 구현이 같은 입력에 같은 결과 형태를 내도록 공유
       계약 테스트(동일 픽스처를 양 어댑터에 적용)를 작성해 회귀를 막는다.
     - 결과 row의 `cid`를 결과 모델에 실어 클라우드 전환 재료로 쓴다.
+    - **컨텍스트 조회도 이 소스가 담당한다** (2026-08-06 추가). 검색 결과
+      행에 소속 플레이스·채널 이름, 안읽음 수, 마지막 메시지를 표시하려면
+      결과 행 밖의 캐시 행이 필요한데, 리포지토리로는 읽을 수 없다 —
+      `cacheRead`는 컨텍스트 오버라이드를 무시하고 `cacheReadList`의
+      오버라이드는 sid 필터용이어서, 기존 오버라이드는 cid 오버라이드가
+      아니다(`ChannelLocalDataSourceV2.ts:39,53`). 그래서 검색 소스에
+      `resolveContext`를 함께 두고, cid는 항상 명시 인자로 받는다. 공유
+      `DataContextHolder`를 임시 변경하는 방식은 과거 cross-cloud 오염
+      사고(`storages/utils.ts:64-70`)를 근거로 금지한다. 결과적으로
+      **검색 결과 렌더링은 리포지토리·sync 훅을 일절 쓰지 않는다** — 홈의
+      행 컴포넌트를 재사용하면 활성 클라우드 파티션을 조회해 빈 값이 나오고
+      엉뚱한 클라우드 소켓에 sync 타깃을 등록한다.
 4. **실시간 방출** — 키워드 입력 디바운스(300ms, 최소 2글자) 시 재스캔.
    활성 클라우드의 플레이스/채널은 `observeList` 구독으로 라이브 갱신을
    병합한다. RxJS 등 새 스트림 장치는 도입하지 않는다(리포 정석 패턴 유지).
@@ -79,9 +91,18 @@ apps/web에 검색 기능이 없다. 헤더의 검색 버튼은 배선만 되어
    네이티브 브리지 `savePreference` 동기화, `preferenceKeys`에 키 추가).
    검색 제출 시 저장, 중복 제거 LRU 최대 10개, 개별 삭제·전체 삭제 지원.
 6. **결과 클릭 내비게이션**:
-    - 활성 클라우드 결과 → `navigate(ROUTES...)` 직행.
-    - 타 클라우드 결과 → `usePushNavigate` 패턴 재사용:
-      `waitUntilVerified` → `switchCloud(cid)` → (`switchSite(sid)`) → 이동.
+    - 활성 클라우드·활성 플레이스 결과 → `navigate(ROUTES...)` 직행.
+    - 그 외 → `usePushNavigate` 패턴 재사용:
+      `waitUntilVerified` → `switchCloud(cid)` → **새 클라우드 소켓 재검증
+      대기** → `switchSite(sid)` → 이동.
+    - **플레이스(sid) 전환은 선택이 아니라 필수다** (2026-08-06 확정).
+      초기 구현은 "대상 페이지가 URL id로 로드되므로 cid 전환만으로 충분"
+      하다고 좁혔지만, 플레이스 결과의 목적지가 홈이고 홈은 URL이 아니라
+      세션의 `selectedSiteId`로 그려진다(`HomePage.tsx:65,184`). 채널
+      진입 후 뒤로 나왔을 때 소속 플레이스의 홈에 있어야 한다는 요구도
+      같은 결론이다. 전환 수단은 app-runtime이 공개하는
+      `useSiteSwitch`(소켓 `auth.switch`)이며, web-core의 토큰 리프레시
+      경로(`switchSiteSession`)는 쓰지 않는다.
 7. **메시지 검색 + 점프** (이번 범위에 전부 포함):
     - desktop-web `useMessageJumpStore` + `MessageList` 점프 로직을
       apps/web으로 이식.

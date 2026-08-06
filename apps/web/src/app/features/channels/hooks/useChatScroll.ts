@@ -16,6 +16,14 @@ interface UseChatScrollParams {
      * the software keyboard opens, so it doubles as the re-pin trigger. Defaults to 0.
      */
     composerHeight?: number;
+    /**
+     * Suppresses the auto-scroll-to-bottom while another owner is positioning the view — today
+     * that is a pending message jump (see docs/specs/search/message-jump.md). Without this the
+     * two fight and the bottom pin always wins: `scrollToBottom` defers the actual scroll to a
+     * `requestAnimationFrame`, which runs AFTER every effect in the flush, so it overwrites the
+     * jump's synchronous `scrollIntoView`.
+     */
+    suppressAutoScroll?: boolean;
 }
 
 // In the reversed list scrollTop 0 is the bottom; anything within this slack still counts as
@@ -40,10 +48,16 @@ export const useChatScroll = ({
     loadMore,
     inputRef,
     composerHeight = 0,
+    suppressAutoScroll = false,
 }: UseChatScrollParams) => {
     const containerRef = useRef<HTMLDivElement>(null);
     // scrollTop captured just before an older page renders, restored once messages grows.
     const scrollPreserveRef = useRef<number | null>(null);
+    // Read through a ref so flipping suppression does NOT re-run the auto-scroll effect: a re-run
+    // right after a jump finishes would scroll to the bottom for messages that arrived while it
+    // was suppressed, undoing the jump the moment it succeeded.
+    const suppressAutoScrollRef = useRef(suppressAutoScroll);
+    suppressAutoScrollRef.current = suppressAutoScroll;
 
     const scrollToBottom = useCallback((smooth = false) => {
         requestAnimationFrame(() => {
@@ -70,11 +84,15 @@ export const useChatScroll = ({
     const prevLastMessageIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
         const lastMessage = messages[messages.length - 1];
-        if (messages.length > prevMessageCountRef.current && lastMessage?.id !== prevLastMessageIdRef.current) {
-            scrollToBottom(false);
-        }
+        const hasNewLatest =
+            messages.length > prevMessageCountRef.current && lastMessage?.id !== prevLastMessageIdRef.current;
+        // Bookkeeping runs even while suppressed, so lifting suppression can never scroll for
+        // messages that already landed during the jump.
         prevLastMessageIdRef.current = lastMessage?.id;
         prevMessageCountRef.current = messages.length;
+        if (hasNewLatest && !suppressAutoScrollRef.current) {
+            scrollToBottom(false);
+        }
     }, [messages.length, scrollToBottom]);
 
     // Keep the view pinned to the bottom across viewport changes (keyboard, resize, input focus).
@@ -101,6 +119,9 @@ export const useChatScroll = ({
         const previous = prevComposerHeightRef.current;
         prevComposerHeightRef.current = composerHeight;
         if (composerHeight <= previous) return;
+        // The composer's first measurement (0 → measured) reads as growth, so this fires on mount
+        // too — it must respect a pending jump like the auto-scroll above.
+        if (suppressAutoScrollRef.current) return;
 
         const el = containerRef.current;
         if (!el || Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX) return;
