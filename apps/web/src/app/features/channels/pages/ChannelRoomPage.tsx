@@ -391,9 +391,16 @@ export const ChannelRoomPage = () => {
     // and the reversed list would otherwise re-mount at the bottom and drop anyone who was
     // reading history back at the newest message.
     const openThread = useCallback(
-        (rootNo: number) => {
+        (message: ClientChatView) => {
+            if (!message.chatNo) return;
             stashRoomScroll(stableChannelId, messagesEndRef.current?.scrollTop ?? 0);
-            void navigate(ROUTES.channels.thread(stableChannelId, rootNo));
+            // Hand the root across with the navigation. The thread derives everything from the
+            // chat cache, whose first emission is asynchronous even when it is warm, so without
+            // this the thread opens on a bare spinner for a beat — long enough to see, and long
+            // enough that the translucent header has nothing behind it to blur.
+            void navigate(ROUTES.channels.thread(stableChannelId, message.chatNo), {
+                state: { rootChat: message },
+            });
         },
         [navigate, stableChannelId, messagesEndRef]
     );
@@ -423,7 +430,7 @@ export const ChannelRoomPage = () => {
     const handleReplyAction = () => {
         const target = actionMessage;
         setActionMessage(null);
-        if (target?.chatNo) openThread(target.chatNo);
+        if (target?.chatNo) openThread(target);
     };
 
     // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
@@ -785,9 +792,7 @@ export const ChannelRoomPage = () => {
                                                             threadMeta={threadMeta}
                                                             hasUnseenReplies={hasUnseenReplies}
                                                             onOpenThread={
-                                                                message.chatNo
-                                                                    ? () => openThread(message.chatNo)
-                                                                    : undefined
+                                                                message.chatNo ? () => openThread(message) : undefined
                                                             }
                                                         />
                                                     </div>

@@ -115,12 +115,16 @@ describe('InvitePage (native)', () => {
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
     });
 
-    it('opens the OS settings from the populated list (partial contacts access)', async () => {
+    // 목록이 채워진 상태에서는 OS 설정 경로를 두지 않는다. 부분 연락처 접근으로 목록이
+    // 잘렸을 때의 탈출구는 링크 초대다(아래 share-link availability 참고).
+    it('opens the invite sheet from the populated list instead of the OS settings', async () => {
         render(<InvitePage />);
         await screen.findByTestId('user-N1');
 
-        fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.openContactSettings' }));
-        expect(openSettings).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.sendLink' }));
+
+        expect(screen.getByTestId('add-friend-sheet')).toHaveAttribute('data-open', 'true');
+        expect(openSettings).not.toHaveBeenCalled();
     });
 
     it('caps the selection at 100 and toasts', async () => {
@@ -148,14 +152,15 @@ describe('share-link availability', () => {
         expect(screen.getByTestId('add-friend-sheet')).toBeInTheDocument();
     });
 
-    // 링크 버튼이 설정 버튼을 밀어내지 않는다: 부분 연락처 접근은 잘린 목록을 돌려주고
-    // 페이로드에 그 사실이 없어서, 목록이 채워진 상태에서도 설정 경로가 유일한 탈출구다.
-    it('keeps the contact-settings route beside it, not instead of it', async () => {
+    // 검색줄에는 링크 버튼 하나만 둔다. 부분 연락처 접근이 잘린 목록을 돌려줘도, 이름+번호를
+    // 직접 넣는 링크 초대가 목록에 없는 사람에게 닿는 경로가 된다 — 이 경로가 운영 앱에서
+    // 열려 있다는 것이 위 테스트가 지키는 전제다.
+    it('leaves the link button alone in the search row', async () => {
         render(<InvitePage />);
         await screen.findByTestId('user-N1');
 
-        expect(screen.getByRole('button', { name: 'inviteFriends.openContactSettings' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'inviteFriends.sendLink' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'inviteFriends.openContactSettings' })).not.toBeInTheDocument();
     });
 
     it('offers the link CTA from the permission-denied state too', async () => {

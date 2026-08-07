@@ -1,7 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -48,6 +48,13 @@ export const ThreadPage = () => {
     const { t } = useTranslation();
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId, rootNo } = useParams<{ channelId: string; rootNo: string }>();
+    /**
+     * The root message handed over by the room (see its `openThread`). The cache's first emission
+     * is asynchronous even when it is warm, so without this the thread opens on a spinner and the
+     * glass header sits over nothing. Absent on a deep link or a reload — then the spinner is
+     * honest, because there really is nothing yet.
+     */
+    const seededRoot = (useLocation().state as { rootChat?: DomainChat } | null)?.rootChat;
     const stableChannelId = channelId || 'default';
 
     const [content, setContent] = useState('');
@@ -138,7 +145,10 @@ export const ThreadPage = () => {
         [userId, displayNameOf]
     );
 
-    const root = thread.root ? toClientView(thread.root) : undefined;
+    // The cache wins once it has the row: it carries later edits and the tombstone flag, which a
+    // snapshot taken at navigation time cannot.
+    const rootSource = thread.root ?? seededRoot;
+    const root = rootSource ? toClientView(rootSource) : undefined;
     const replies = useMemo(() => thread.replies.map(toClientView), [thread.replies, toClientView]);
 
     // Keep the newest reply in view — a thread is a linear column, newest at the bottom.
@@ -274,8 +284,8 @@ export const ThreadPage = () => {
                 className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
                 style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + 16 }}
             >
-                {isLoading ? (
-                    <div className="flex min-h-full items-center justify-center">
+                {isLoading && !root ? (
+                    <div data-testid="thread-loading" className="flex min-h-full items-center justify-center">
                         <Loader2 size={24} className="animate-spin text-muted-foreground" />
                     </div>
                 ) : (

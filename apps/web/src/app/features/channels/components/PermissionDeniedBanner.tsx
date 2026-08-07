@@ -9,8 +9,8 @@ import { appBridge } from '../../../bridge';
 /**
  * Contacts-permission guidance for the friend picker — shown when the device returned no contacts
  * at all. The call to action is an explicit button rather than a tappable banner: the whole-banner
- * hit area gave no visible affordance, and this is the only route out of the empty state on a
- * production app build (where the invite-link flow is not offered).
+ * hit area gave no visible affordance. It sits beside the invite-link CTA the page renders under
+ * it, so a blank list has two ways forward: grant contacts, or invite by name and number.
  */
 export const PermissionDeniedBanner = () => {
     const { t } = useTranslation();

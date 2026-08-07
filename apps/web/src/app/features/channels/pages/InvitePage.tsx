@@ -1,4 +1,3 @@
-import { BookUser } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -96,10 +95,6 @@ export const InvitePage = () => {
         return () => {
             cancelled = true;
         };
-    }, [isOnMobileApp]);
-
-    const openContactSettings = useCallback(() => {
-        if (isOnMobileApp) appBridge.openSettings();
     }, [isOnMobileApp]);
 
     // 선택된 연락처는 필터 무관하게 상단, 나머지는 검색 필터 적용.
@@ -218,20 +213,11 @@ export const InvitePage = () => {
                         label={t('inviteFriends.searchPlaceholder')}
                         trailing={
                             <div className="flex shrink-0 items-center gap-2">
-                                {/* Partial contacts access hands back a truncated list and nothing in the
-                                    payload says so, so the settings route has to stay reachable from the
-                                    populated list — not only from the empty/denied state. */}
-                                <button
-                                    type="button"
-                                    aria-label={t('inviteFriends.openContactSettings')}
-                                    onClick={openContactSettings}
-                                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground"
-                                >
-                                    <BookUser className="size-5" strokeWidth={2} />
-                                </button>
-                                {/* Invite by link, alongside — not instead of — the settings route:
-                                    the two solve different problems (reach someone not in your
-                                    contacts vs. escape a truncated contact list). */}
+                                {/* Invite by link. This is also the way out of a truncated list:
+                                    partial contacts access returns a short list with nothing in the
+                                    payload saying so, and a name + number typed here reaches someone
+                                    the picker never showed. (The OS settings route stays on the
+                                    empty/denied banner, which is where a blank list lands.) */}
                                 <button
                                     type="button"
                                     aria-label={t('inviteFriends.sendLink')}
