@@ -20,9 +20,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-// Direct paths for `buildEnv` / `phoneNumber`: both are deliberately kept out of the `utils` barrel
-// (`import.meta` and libphonenumber's metadata respectively — see that barrel's comments).
-import { isDevBuild } from '../../../utils/buildEnv';
+// Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
+// metadata — see that barrel's comment).
 import { toError } from '../../../utils/errors';
 import { toE164 } from '../../../utils/phoneNumber';
 import { useCreateInviteBatch } from '../hooks';
@@ -61,11 +60,6 @@ export const InvitePage = () => {
     const { channelId } = useParams<{ channelId: string }>();
 
     const isOnMobileApp = isNative();
-    /**
-     * 공유 링크(초대 링크) 경로를 노출할지. **운영 앱은 문자 전송만** 제공한다 — 링크 흐름은
-     * 연락처 API가 없는 웹의 대체 수단이고, DEV/LOCAL 빌드에서는 기기에서도 검증할 수 있게 남긴다.
-     */
-    const canShareLink = !isOnMobileApp || isDevBuild();
     const [search, setSearch] = useState('');
     const [addFriendOpen, setAddFriendOpen] = useState(false);
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
@@ -235,16 +229,17 @@ export const InvitePage = () => {
                                 >
                                     <BookUser className="size-5" strokeWidth={2} />
                                 </button>
-                                {canShareLink && (
-                                    <button
-                                        type="button"
-                                        aria-label={t('inviteFriends.sendLink')}
-                                        onClick={() => setAddFriendOpen(true)}
-                                        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground"
-                                    >
-                                        <IconLink className="size-5" strokeWidth={2} />
-                                    </button>
-                                )}
+                                {/* Invite by link, alongside — not instead of — the settings route:
+                                    the two solve different problems (reach someone not in your
+                                    contacts vs. escape a truncated contact list). */}
+                                <button
+                                    type="button"
+                                    aria-label={t('inviteFriends.sendLink')}
+                                    onClick={() => setAddFriendOpen(true)}
+                                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground"
+                                >
+                                    <IconLink className="size-5" strokeWidth={2} />
+                                </button>
                             </div>
                         }
                     />
@@ -320,14 +315,12 @@ export const InvitePage = () => {
                             </p>
                         </div>
                     )}
-                    {canShareLink && (
-                        <div className="px-5 pt-4">
-                            <Button variant="outline" tone="black" size="md" onClick={() => setAddFriendOpen(true)}>
-                                {t('inviteFriends.sendLink')}
-                                <IconLink className="size-[18px]" strokeWidth={2} />
-                            </Button>
-                        </div>
-                    )}
+                    <div className="px-5 pt-4">
+                        <Button variant="outline" tone="black" size="md" onClick={() => setAddFriendOpen(true)}>
+                            {t('inviteFriends.sendLink')}
+                            <IconLink className="size-[18px]" strokeWidth={2} />
+                        </Button>
+                    </div>
                 </div>
             )}
 
@@ -348,9 +341,7 @@ export const InvitePage = () => {
                 </>
             )}
 
-            {canShareLink && (
-                <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} channelId={channelId} />
-            )}
+            <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} channelId={channelId} />
         </div>
     );
 };

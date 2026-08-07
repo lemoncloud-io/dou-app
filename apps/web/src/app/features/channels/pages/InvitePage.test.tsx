@@ -9,7 +9,6 @@ const openSettings = jest.fn();
 const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
 let isNativeValue = true;
-let isDevBuildValue = false;
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
 jest.mock('react-i18next', () => ({
@@ -21,8 +20,6 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('@chatic/web-core', () => ({ reportError: jest.fn() }));
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
-// `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
-jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => isDevBuildValue }));
 jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite }),
 }));
@@ -71,7 +68,6 @@ const contact = (id: string, phone = '010-1234-5678') => ({
 beforeEach(() => {
     jest.clearAllMocks();
     isNativeValue = true;
-    isDevBuildValue = false;
     getContacts.mockResolvedValue({ data: { contacts: [contact('1'), contact('2')] } });
 });
 
@@ -142,16 +138,9 @@ describe('InvitePage (native)', () => {
 });
 
 describe('share-link availability', () => {
-    it('hides every share-link entry on a production app build', async () => {
-        render(<InvitePage />);
-        await screen.findByTestId('user-N1');
-
-        expect(screen.queryByRole('button', { name: 'inviteFriends.sendLink' })).not.toBeInTheDocument();
-        expect(screen.queryByTestId('add-friend-sheet')).not.toBeInTheDocument();
-    });
-
-    it('keeps the share-link entry on a DEV/LOCAL app build', async () => {
-        isDevBuildValue = true;
+    // 링크 초대는 한때 DEV/LOCAL 빌드에서만 열려 있었다(임시 기획). 그 제한이 풀렸으므로
+    // 운영 앱에서도 세 진입점이 모두 살아 있어야 한다.
+    it('exposes every share-link entry on a release app build', async () => {
         render(<InvitePage />);
         await screen.findByTestId('user-N1');
 
@@ -159,21 +148,22 @@ describe('share-link availability', () => {
         expect(screen.getByTestId('add-friend-sheet')).toBeInTheDocument();
     });
 
-    it('keeps the share-link entry when the permission banner is shown on DEV', async () => {
-        isDevBuildValue = true;
+    // 링크 버튼이 설정 버튼을 밀어내지 않는다: 부분 연락처 접근은 잘린 목록을 돌려주고
+    // 페이로드에 그 사실이 없어서, 목록이 채워진 상태에서도 설정 경로가 유일한 탈출구다.
+    it('keeps the contact-settings route beside it, not instead of it', async () => {
+        render(<InvitePage />);
+        await screen.findByTestId('user-N1');
+
+        expect(screen.getByRole('button', { name: 'inviteFriends.openContactSettings' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'inviteFriends.sendLink' })).toBeInTheDocument();
+    });
+
+    it('offers the link CTA from the permission-denied state too', async () => {
         getContacts.mockRejectedValueOnce(new Error('denied'));
         render(<InvitePage />);
         await screen.findByTestId('permission-banner');
 
         expect(screen.getByTestId('link-cta')).toBeInTheDocument();
-    });
-
-    it('leaves the denied state with the settings button alone on a production app build', async () => {
-        getContacts.mockRejectedValueOnce(new Error('denied'));
-        render(<InvitePage />);
-        await screen.findByTestId('permission-banner');
-
-        expect(screen.queryByTestId('link-cta')).not.toBeInTheDocument();
     });
 });
 
