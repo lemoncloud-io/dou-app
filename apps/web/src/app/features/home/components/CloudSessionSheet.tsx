@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Inbox } from 'lucide-react';
@@ -12,8 +12,7 @@ import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
-import { useCachedCloudNames, useInvitedClouds } from '../../../hooks';
-import { readCloudUnreadSnapshot } from '../lib';
+import { useCachedCloudNames, useInvitedClouds, useOtherCloudUnread } from '../../../hooks';
 import { CloudPromoBanner } from './CloudPromoBanner';
 
 import {
@@ -67,12 +66,13 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
     // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
 
-    // Presence dots read the per-cloud unread snapshot (write-through by HomePage, active cloud
-    // included). Refreshed when the sheet opens — enough for a "has unread" indicator.
-    const [cloudUnread, setCloudUnread] = useState<Record<string, number>>(() => readCloudUnreadSnapshot());
+    // Presence dots come from the same cross-cloud cache read the app badge uses, so a dot and the
+    // badge can never disagree. Re-read when the sheet opens — enough for a "has unread" hint, and
+    // the row for the cloud you are already in needs no dot.
+    const { byCloud: cloudUnread, refresh: refreshCloudUnread } = useOtherCloudUnread(selectedCloudId);
     useEffect(() => {
-        if (open) setCloudUnread(readCloudUnreadSnapshot());
-    }, [open]);
+        if (open) refreshCloudUnread();
+    }, [open, refreshCloudUnread]);
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());

@@ -20,6 +20,7 @@ import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { JoinNickDialog } from '../components/JoinNickDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
+import { isPendingInvite } from '../utils/membership';
 import {
     useChannel,
     useChannelMembers,
@@ -243,7 +244,7 @@ export const ChannelSettingsPage = () => {
                     member={memberView}
                     isMe={memberId === userId}
                     isOwner={memberId === channel?.ownerId}
-                    isPendingInvite={member.$join?.joined === 0}
+                    isPendingInvite={isPendingInvite(member.$join)}
                     needsProfileSetup={needsProfileSetup}
                     // With no profile, skip the member-profile sheet and go straight to creating one —
                     // that sheet's only self action is "프로필 설정" anyway, so it would be a dead tap.

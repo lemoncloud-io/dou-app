@@ -4,18 +4,26 @@ import { useSessionSelection } from '@chatic/web-core';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins } from '../../hooks';
-import { sumSnapshot, writeCloudUnread } from './lib';
+import { useActiveCloudChannels, useChannelUnreads, useMyJoins, useOtherCloudUnread } from '../../hooks';
 
 /**
  * App-global unread badge. Mounted once under AppRuntime (not the home page) so the native
  * app-icon badge stays correct on every route.
  *
- * Observes the active cloud's full channel list, write-throughs its total into the per-cloud
- * snapshot, and pushes the cross-cloud sum to the native badge. Inactive clouds keep their
- * last-visited total in the snapshot, so the badge reflects unread across every visited cloud
- * (best-effort). Read cursors come from the subscribed join list (useMyJoins registers a join sync
- * per channel); channel metadata freshness rides useBackgroundSync's cloud-wide syncChannels delta.
+ * The number is two halves. The active cloud is observed live — its channel list and my join
+ * cursors stream from the cache, so a read drops the badge immediately. Every other cloud is read
+ * from the local cache by `useOtherCloudUnread`, recomputed from each channel's head and my read
+ * cursor rather than remembered as a total.
+ *
+ * That second half used to be a localStorage snapshot of each cloud's last-visited count, and
+ * nothing ever cleared an inactive cloud's entry — a count frozen when you switched away sat on
+ * the app icon indefinitely, which is the phantom badge people saw after reading everything.
+ * Recomputing has no frozen entry to strand: it follows the cache, and an inactive cloud that
+ * leaves the cache leaves the count.
+ *
+ * The cache is still only as fresh as that cloud's last visit — messages that arrived since, or
+ * reads made on another device, are invisible until it is opened again. Closing that gap needs a
+ * server-side summary and cannot be done from the client.
  */
 export const UnreadBadgeRunner = (): null => {
     const cloudChannels = useActiveCloudChannels();
@@ -25,25 +33,33 @@ export const UnreadBadgeRunner = (): null => {
     // reconciles on the next home visit.
     const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
     const { selectedCloudId } = useSessionSelection();
+    const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread(selectedCloudId);
 
-    // Write-through the active cloud's total into the snapshot, then push the cross-cloud sum to
-    // the native badge.
     const pushBadge = useCallback(() => {
-        const snapshot = writeCloudUnread(selectedCloudId, total);
-        appBridge.setBadgeCount(sumSnapshot(snapshot));
-    }, [selectedCloudId, total]);
+        appBridge.setBadgeCount(total + otherTotal);
+    }, [total, otherTotal]);
 
     useEffect(() => {
         pushBadge();
     }, [pushBadge]);
 
-    // Foreground reconcile: re-assert the authoritative count even when `total` has not changed.
-    // While backgrounded the native badge drifts away from the truth — iOS zeroes it on becomeActive
-    // and both platforms increment it per push — so the effect above (which only fires on a `total`
-    // change) is not enough to correct it. Re-pushing here overwrites the drift and resets the
+    // The active cloud's count moving is the app's best hint that the cache changed at all — a
+    // send, a read, an arriving message. Re-read the other clouds on the same beat so a cloud
+    // synced in the background (push recovery, cold sync) does not wait for a switch to show up.
+    useEffect(() => {
+        refreshOtherClouds();
+    }, [total, refreshOtherClouds]);
+
+    // Foreground reconcile: re-assert the authoritative count even when the totals have not
+    // changed. While backgrounded the native badge drifts away from the truth — iOS zeroes it on
+    // becomeActive and both platforms increment it per push — so the effect above (which only fires
+    // on a change) is not enough to correct it. Re-pushing here overwrites the drift and resets the
     // native increment base for the next background session.
     useOnBackgroundStatusChanged(message => {
-        if (message.data.isForeground) pushBadge();
+        if (message.data.isForeground) {
+            refreshOtherClouds();
+            pushBadge();
+        }
     });
 
     return null;

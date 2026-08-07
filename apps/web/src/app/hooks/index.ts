@@ -15,6 +15,7 @@ export * from './useLinkedAccounts';
 export * from './useMyJoins';
 export * from './useMyProfile';
 export * from './useMyUser';
+export * from './useOtherCloudUnread';
 export * from './usePlaceProfileAbsent';
 export * from './useRelayInvites';
 export * from './useSentInviteLog';
