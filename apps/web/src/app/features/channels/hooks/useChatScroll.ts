@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 
 import { debounce } from '../../../utils';
 import type { ClientChatView } from '../types';
+import { takeRoomScroll } from '../utils/roomScrollMemory';
 
 interface UseChatScrollParams {
     messages: ClientChatView[];
@@ -24,6 +25,11 @@ interface UseChatScrollParams {
      * jump's synchronous `scrollIntoView`.
      */
     suppressAutoScroll?: boolean;
+    /**
+     * Channel whose stashed scroll offset should be restored on mount, if one was left by a
+     * thread hop (see roomScrollMemory). Omit to always land at the bottom.
+     */
+    channelId?: string;
 }
 
 // In the reversed list scrollTop 0 is the bottom; anything within this slack still counts as
@@ -49,6 +55,7 @@ export const useChatScroll = ({
     inputRef,
     composerHeight = 0,
     suppressAutoScroll = false,
+    channelId,
 }: UseChatScrollParams) => {
     const containerRef = useRef<HTMLDivElement>(null);
     // scrollTop captured just before an older page renders, restored once messages grows.
@@ -58,6 +65,22 @@ export const useChatScroll = ({
     // was suppressed, undoing the jump the moment it succeeded.
     const suppressAutoScrollRef = useRef(suppressAutoScroll);
     suppressAutoScrollRef.current = suppressAutoScroll;
+
+    // An offset left behind by a thread hop, waiting for the list to have rows to scroll through.
+    // Carries its channel so a stale value can never be applied to a different room, and so the
+    // StrictMode double-invoke of the claiming effect below (whose second pass reads null) leaves
+    // the already-claimed value alone.
+    const pendingRestoreRef = useRef<{ key: string; top: number } | null>(null);
+    // Explicit null check, not `?.key === channelId`: with no pending restore AND no channelId
+    // that comparison is `undefined === undefined`, which would claim a restore was pending and
+    // silently disable the bottom pin for every caller that doesn't pass a channel.
+    const hasPendingRestore = () => pendingRestoreRef.current !== null && pendingRestoreRef.current.key === channelId;
+
+    useLayoutEffect(() => {
+        if (!channelId) return;
+        const saved = takeRoomScroll(channelId);
+        if (saved !== null) pendingRestoreRef.current = { key: channelId, top: saved };
+    }, [channelId]);
 
     const scrollToBottom = useCallback((smooth = false) => {
         requestAnimationFrame(() => {
@@ -78,6 +101,18 @@ export const useChatScroll = ({
         scrollPreserveRef.current = null;
     }, [messages]);
 
+    // Put the reader back where they were before they opened a thread, once the rows they were
+    // reading exist again. The claim is NOT cleared here — layout effects run before passive
+    // ones, so clearing now would re-open the bottom pin below in this very commit and undo the
+    // scroll a frame later. The auto-scroll effect consumes it instead.
+    useLayoutEffect(() => {
+        const pending = pendingRestoreRef.current;
+        if (!pending || pending.key !== channelId) return;
+        const el = containerRef.current;
+        if (!el || messages.length === 0) return;
+        if (el.scrollHeight > el.clientHeight) el.scrollTop = pending.top;
+    }, [messages, channelId]);
+
     // Auto-scroll to the bottom only when the latest message is new (not on older-page loads,
     // which grow the list at the top without changing the last message id).
     const prevMessageCountRef = useRef(messages.length);
@@ -90,6 +125,13 @@ export const useChatScroll = ({
         // messages that already landed during the jump.
         prevLastMessageIdRef.current = lastMessage?.id;
         prevMessageCountRef.current = messages.length;
+        // A pending restore outranks the bottom pin — the first page of messages arriving IS a
+        // "new latest message", so the pin would otherwise undo it. Consumed here, once the rows
+        // exist, so the NEXT message to arrive follows the bottom again like any other.
+        if (hasPendingRestore()) {
+            if (messages.length > 0) pendingRestoreRef.current = null;
+            return;
+        }
         if (hasNewLatest && !suppressAutoScrollRef.current) {
             scrollToBottom(false);
         }
@@ -121,7 +163,7 @@ export const useChatScroll = ({
         if (composerHeight <= previous) return;
         // The composer's first measurement (0 → measured) reads as growth, so this fires on mount
         // too — it must respect a pending jump like the auto-scroll above.
-        if (suppressAutoScrollRef.current) return;
+        if (suppressAutoScrollRef.current || hasPendingRestore()) return;
 
         const el = containerRef.current;
         if (!el || Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX) return;

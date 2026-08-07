@@ -5,11 +5,17 @@ import type { DomainChat } from '@chatic/data';
 
 import { pickPreviewChat } from '../utils';
 
-// Observe a few rows (not just 1) so the preview can fall through to the previous message when
+// Observe several rows (not just 1) so the preview can fall through to the previous message when
 // the newest rows are not previewable — system rows (e.g. the join written right after creating
 // a channel), reaction events, thread replies, failed sends. If every row in the window is
 // hidden, the preview falls back to the channel description as before.
-const PREVIEW_LOOKBACK = 10;
+//
+// 30, not 10: reactions arrive as their own rows, so a burst of them on one message can fill a
+// 10-row window end to end and leave `lastChat` undefined — a channel with a live conversation
+// then reads as an empty one, with no preview and no time (ADR-0047 decision 3). The cost is
+// multiplied by the number of home rows, so this is the first thing to walk back if home entry
+// starts to feel slow.
+const PREVIEW_LOOKBACK = 30;
 
 /**
  * Latest cached chat for a home row's last-message preview — the home analog of `useChats`. The

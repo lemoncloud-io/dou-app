@@ -7,7 +7,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 import { MessageActionSheet } from './MessageActionSheet';
-import { useRecentEmojiStore, QUICK_REACTIONS } from '../../../stores/useRecentEmojiStore';
+import { useRecentEmojiStore, QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
 
 const baseProps = {
     open: true,

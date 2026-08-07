@@ -2,6 +2,7 @@ import { createRef } from 'react';
 import { act, renderHook } from '@testing-library/react';
 
 import { useChatScroll } from './useChatScroll';
+import { stashRoomScroll } from '../utils/roomScrollMemory';
 import type { ClientChatView } from '../types';
 
 /**
@@ -133,5 +134,76 @@ describe('useChatScroll', () => {
         });
 
         expect(container.scrollTop).toBe(-1400);
+    });
+});
+
+// 스레드에 들어갔다 돌아오면 이 페이지는 재마운트되고, 역방향 목록은 scrollTop 0(=바닥)에서
+// 시작한다. 히스토리를 읽던 사람이 답글을 열었다는 이유로 최신 메시지에 떨궈지지 않아야 한다.
+describe('useChatScroll — 스레드 왕복 스크롤 복원', () => {
+    // 컨테이너를 마운트 시점부터 붙여야 복원 레이아웃 이펙트가 관측할 수 있다(위 setup은
+    // renderHook 뒤에 붙이므로 여기서는 자체 설치를 쓴다).
+    const mount = (channelId?: string) => {
+        const inputRef = createRef<HTMLTextAreaElement>();
+        const container = document.createElement('div');
+        container.scrollTo = jest.fn();
+        Object.defineProperty(container, 'scrollHeight', { value: 2000, configurable: true });
+        Object.defineProperty(container, 'clientHeight', { value: 500, configurable: true });
+
+        const props = {
+            messages: [] as ClientChatView[],
+            hasMore: true,
+            isLoadingMore: false,
+            loadMore: jest.fn(),
+            inputRef,
+            channelId,
+        };
+        const view = renderHook(p => useChatScroll(p), { initialProps: props });
+        (view.result.current.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = container;
+
+        const land = (messages: ClientChatView[]) => {
+            view.rerender({ ...props, messages });
+            flushFrames();
+        };
+        return { view, container, land };
+    };
+
+    it('스레드가 맡긴 위치로 되돌리고, 바닥 고정이 그것을 덮어쓰지 않는다', () => {
+        stashRoomScroll('ch-1', -640);
+        const { container, land } = mount('ch-1');
+
+        land([message('m1')]);
+
+        expect(container.scrollTop).toBe(-640);
+        expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('맡긴 위치가 없으면 평소대로 바닥으로 내린다', () => {
+        const { container, land } = mount('ch-1');
+
+        land([message('m1')]);
+
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+
+    // 한 번만 복원한다 — 복원 뒤 도착하는 새 메시지는 다시 바닥으로 따라가야 한다.
+    it('복원은 한 번뿐이고 이후 새 메시지는 다시 바닥으로 따라간다', () => {
+        stashRoomScroll('ch-1', -640);
+        const { container, land } = mount('ch-1');
+
+        land([message('m1')]);
+        expect(container.scrollTop).toBe(-640);
+
+        land([message('m1'), message('m2')]);
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+
+    it('다른 채널이 맡긴 위치는 쓰지 않는다', () => {
+        stashRoomScroll('other', -640);
+        const { container, land } = mount('ch-1');
+
+        land([message('m1')]);
+
+        expect(container.scrollTop).toBe(0);
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 });

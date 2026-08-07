@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/ui-kit';
 import { BottomSheet } from '@chatic/web-ui-kit';
 
-import { useRecentEmojiStore } from '../../../stores/useRecentEmojiStore';
+import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { EMOJI_CATEGORIES } from '../utils/emoji';
 
 interface EmojiPickerSheetProps {

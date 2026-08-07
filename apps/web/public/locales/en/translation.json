@@ -555,6 +555,10 @@
             "reactWith": "React with {{emoji}}",
             "reactionWho": "{{emoji}} — {{names}}",
             "reactionFailed": "Failed to send reaction",
+            "addReaction": "Add reaction",
+            "reactions": "Reactions",
+            "reactionsDescription": "See who reacted, by emoji",
+            "deletedMessage": "This message was deleted.",
             "moreEmoji": "More emoji",
             "pickEmoji": "Pick an emoji"
         },
@@ -641,7 +645,6 @@
             }
         },
         "thread": {
-            "title": "Thread",
             "replyAction": "Reply in thread",
             "replyCount_one": "{{count}} reply",
             "replyCount_other": "{{count}} replies",

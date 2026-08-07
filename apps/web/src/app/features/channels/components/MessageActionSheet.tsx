@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/ui-kit';
 import { BottomSheet } from '@chatic/web-ui-kit';
 
-import { useRecentEmojiStore, QUICK_REACTIONS } from '../../../stores/useRecentEmojiStore';
+import { useRecentEmojiStore, QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
 import { hasMyReaction, type ReactionTally } from '../utils/foldReactions';
 
 // Fills the quick row when the person has few recents. Together with QUICK_REACTIONS
@@ -36,6 +36,10 @@ interface MessageActionSheetProps {
  *
  * The quick row's pressed state mirrors the chips: tapping an emoji you already
  * reacted with sends `off`, so the sheet is a toggle surface, not add-only.
+ *
+ * WHO reacted is deliberately not here — it lives in `ReactionDetailSheet`, reached by
+ * long-pressing the chip itself. This sheet answers "what can I do to this message";
+ * that one answers "who is in this reaction", and faces need room this list has not.
  */
 export const MessageActionSheet = ({
     open,

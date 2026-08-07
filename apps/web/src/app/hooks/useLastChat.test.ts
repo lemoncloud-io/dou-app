@@ -51,7 +51,21 @@ describe('useLastChat — 홈 행의 마지막 메시지', () => {
     it('lookback window로 chat 캐시를 관측한다', () => {
         seedChats([]);
         renderHook(() => useLastChat('ch-1'));
-        expect(chatObserveList).toHaveBeenCalledWith({ channelId: 'ch-1', limit: 10 }, expect.any(Function));
+        expect(chatObserveList).toHaveBeenCalledWith({ channelId: 'ch-1', limit: 30 }, expect.any(Function));
+    });
+
+    // ADR-0047 결정 3 — 창이 10이던 시절, 한 메시지에 리액션이 몰리면 최근 10행이 전부
+    // 리액션 이벤트가 되어 lastChat이 undefined가 됐다. 대화가 있는 채널이 preview·time
+    // 없이 빈 채널처럼 보이던 결함이다.
+    it('리액션이 20행 넘게 쌓여도 그 아래의 마지막 실제 메시지까지 닿는다', () => {
+        const burst = Array.from({ length: 25 }, (_, i) =>
+            chat(10 + i, '', { ownerId: 'u1', stereo: 'system', subType: 'reaction' })
+        );
+        seedChats([chat(9, '마지막 대화', { ownerId: 'u1', stereo: 'user' }), ...burst]);
+
+        const { result } = renderHook(() => useLastChat('ch-1'));
+
+        expect(result.current?.content).toBe('마지막 대화');
     });
 
     it('캐시가 비면 undefined를 반환한다', () => {

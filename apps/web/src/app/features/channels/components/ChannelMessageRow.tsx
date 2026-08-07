@@ -58,6 +58,12 @@ export interface ChannelMessageRowProps {
     reactionFailed?: boolean;
     /** Resolves a reactor's display name for the chip a11y label. */
     nameOf?: (userId: string) => string;
+    /** Opens the emoji picker straight from the chip row's add button (ADR-0047 decision 1). */
+    onAddReaction?: () => void;
+    /** Long-press on a chip — opens the reactor detail sheet on that emoji's tab. */
+    onShowReactors?: (key: string) => void;
+    /** Resolves a replier's avatar for the thread footer — profile first, embed as fallback. */
+    avatarOf?: (userId: string) => string | undefined;
     /** Loaded-reply aggregate for this root; the footer renders only when present. */
     threadMeta?: ThreadMeta;
     /** Replies newer than my read cursor exist (ADR-0045 decision 5). */
@@ -88,6 +94,9 @@ export const ChannelMessageRow = ({
     onToggleReaction,
     reactionFailed,
     nameOf,
+    onAddReaction,
+    onShowReactors,
+    avatarOf,
     threadMeta,
     hasUnseenReplies,
     onOpenThread,
@@ -95,19 +104,22 @@ export const ChannelMessageRow = ({
     const { t } = useTranslation();
     const mine = message.isOwner;
     const content = message.content ?? '';
-    const isLong = !message.isPending && !message.isFailed && content.length > MAX_MESSAGE_LENGTH;
+    // A message another client soft-deleted. The row keeps its place — vanishing mid-read
+    // leaves no account of what happened — but nothing of the original survives on screen:
+    // not the body, not the unfurl, not the chips, and not the action sheet, which would
+    // otherwise hand the deleted text back through Copy (ADR-0047 decision 6).
+    const isDeleted = !!message.hidden;
+    const isLong = !isDeleted && !message.isPending && !message.isFailed && content.length > MAX_MESSAGE_LENGTH;
     // Found in the full content, not the truncated bubble text: a long message still deserves a
     // card for the link it had to cut — and the card is then the only way to reach it.
     // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
     // not keep unfurling, which would also keep fetching the page on every render pass.
     const previewUrl =
-        message.isPending || message.isFailed || message.isSystem || message.hidden
-            ? undefined
-            : extractFirstUrl(content);
+        message.isPending || message.isFailed || message.isSystem || isDeleted ? undefined : extractFirstUrl(content);
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.
-    const tallies = !message.hidden ? reactions : undefined;
+    const tallies = !isDeleted ? reactions : undefined;
 
     // Long-press (or right-click) opens the action sheet — the timer lives here since
     // the web-ui-kit bubble is purely presentational.
@@ -123,7 +135,7 @@ export const ChannelMessageRow = ({
     };
     const handlePointerDown = (event: ReactPointerEvent<HTMLSpanElement>) => {
         event.preventDefault();
-        if (!content) return;
+        if (!content || isDeleted) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
         clearTimer();
         longPressFiredRef.current = false;
@@ -134,7 +146,7 @@ export const ChannelMessageRow = ({
         }, LONG_PRESS_DELAY_MS);
     };
     const handleContextMenu = (event: ReactMouseEvent<HTMLSpanElement>) => {
-        if (!content) return;
+        if (!content || isDeleted) return;
         event.preventDefault();
         clearTimer();
         longPressFiredRef.current = true;
@@ -244,15 +256,23 @@ export const ChannelMessageRow = ({
                         onExpand={isLong ? onExpand : undefined}
                         expandLabel={t('chat.room.viewAll')}
                     >
-                        {/* The ellipsis stays outside LinkedText so it can't be swallowed
-                            into a URL at the cut. `truncated` also stops a URL that runs
-                            to the cut from being linked at all — it may be a fragment. */}
-                        <LinkedText
-                            text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
-                            truncated={isLong}
-                            onUrlClick={handleUrlClick}
-                        />
-                        {isLong && '...'}
+                        {isDeleted ? (
+                            // Italic muted, the same treatment desktop gives it: the row is
+                            // still a message-shaped hole in the conversation, not a message.
+                            <span className="italic text-muted-foreground">{t('chat.room.deletedMessage')}</span>
+                        ) : (
+                            <>
+                                {/* The ellipsis stays outside LinkedText so it can't be swallowed
+                                    into a URL at the cut. `truncated` also stops a URL that runs
+                                    to the cut from being linked at all — it may be a fragment. */}
+                                <LinkedText
+                                    text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
+                                    truncated={isLong}
+                                    onUrlClick={handleUrlClick}
+                                />
+                                {isLong && '...'}
+                            </>
+                        )}
                     </MessageBubble>
                 </span>
             </div>
@@ -262,11 +282,22 @@ export const ChannelMessageRow = ({
                 becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (
-                <ReactionChips tallies={tallies} nameOf={nameOf ?? (id => id)} onToggle={onToggleReaction} />
+                <ReactionChips
+                    tallies={tallies}
+                    nameOf={nameOf ?? (id => id)}
+                    onToggle={onToggleReaction}
+                    onAdd={onAddReaction}
+                    onShowReactors={onShowReactors}
+                />
             )}
             {reactionFailed && <span className="text-[11px] text-destructive">{t('chat.room.reactionFailed')}</span>}
             {threadMeta && onOpenThread && (
-                <ThreadFooter meta={threadMeta} hasUnseen={!!hasUnseenReplies} onOpen={onOpenThread} />
+                <ThreadFooter
+                    meta={threadMeta}
+                    hasUnseen={!!hasUnseenReplies}
+                    onOpen={onOpenThread}
+                    avatarOf={avatarOf}
+                />
             )}
         </MessageRow>
     );

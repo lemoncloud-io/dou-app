@@ -25,6 +25,7 @@ import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
 import { LinkedText } from '../components/LinkedText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
+import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
@@ -48,9 +49,10 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
+import { stashRoomScroll } from '../utils/roomScrollMemory';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
-import { useRecentEmojiStore } from '../../../stores/useRecentEmojiStore';
+import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
@@ -69,6 +71,9 @@ export const ChannelRoomPage = () => {
     // The long-pressed message the action sheet targets (null = sheet closed).
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    // The chip whose reactors are being inspected: the message it belongs to plus the fold key
+    // of the chip that was long-pressed (which tab the sheet opens on).
+    const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
     // 스크롤 중 상단에 걸친 날짜 그룹을 표시하는 플로팅 pill 상태
@@ -116,6 +121,14 @@ export const ChannelRoomPage = () => {
     // site-profile nick, then the member user cache.
     const nameOfUser = useCallback(
         (id: string) => profileMap.get(id)?.nick ?? memberById.get(id)?.nick ?? memberById.get(id)?.name ?? id,
+        [profileMap, memberById]
+    );
+
+    // Same precedence for faces as for names, so the thread footer's avatars match the
+    // bubbles right above them (ADR-0047 decision 5). Returning undefined lets the footer
+    // fall through to the reply row's embedded `owner$` thumbnail.
+    const avatarOfUser = useCallback(
+        (id: string) => profileMap.get(id)?.thumbnail ?? memberById.get(id)?.thumbnail,
         [profileMap, memberById]
     );
 
@@ -242,6 +255,8 @@ export const ChannelRoomPage = () => {
         loadMore,
         inputRef,
         suppressAutoScroll: isJumpPending,
+        // Restores the offset stashed by openThread when coming back from a thread.
+        channelId: stableChannelId,
         // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
         // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,
@@ -372,9 +387,15 @@ export const ChannelRoomPage = () => {
         }
     };
 
+    // Remember where the reader was before leaving: this page unmounts on the way to the thread,
+    // and the reversed list would otherwise re-mount at the bottom and drop anyone who was
+    // reading history back at the newest message.
     const openThread = useCallback(
-        (rootNo: number) => void navigate(ROUTES.channels.thread(stableChannelId, rootNo)),
-        [navigate, stableChannelId]
+        (rootNo: number) => {
+            stashRoomScroll(stableChannelId, messagesEndRef.current?.scrollTop ?? 0);
+            void navigate(ROUTES.channels.thread(stableChannelId, rootNo));
+        },
+        [navigate, stableChannelId, messagesEndRef]
     );
 
     // One tap on the action sheet's quick row (or a pick from the full sheet): toggle
@@ -388,6 +409,16 @@ export const ChannelRoomPage = () => {
         rememberEmoji(emoji);
         toggleReaction(target.id, emoji, hasMyReaction(reactions.get(target.id), emoji));
     };
+
+    // The chip row's add button. Setting the target and opening the picker in one step is
+    // what lets `handlePickEmoji` serve both entry points unchanged — the action sheet stays
+    // suppressed while the picker is open, so it never flashes on the way through.
+    const handleAddReaction = (message: ClientChatView) => {
+        setActionMessage(message);
+        setEmojiPickerOpen(true);
+    };
+
+    const handleShowReactors = (messageId: string, key: string) => setReactorTarget({ messageId, key });
 
     const handleReplyAction = () => {
         const target = actionMessage;
@@ -742,6 +773,15 @@ export const ChannelRoomPage = () => {
                                                                 !!message.id && reactionFailedId === message.id
                                                             }
                                                             nameOf={nameOfUser}
+                                                            onAddReaction={
+                                                                message.chatNo
+                                                                    ? () => handleAddReaction(message)
+                                                                    : undefined
+                                                            }
+                                                            onShowReactors={key =>
+                                                                message.id && handleShowReactors(message.id, key)
+                                                            }
+                                                            avatarOf={avatarOfUser}
                                                             threadMeta={threadMeta}
                                                             hasUnseenReplies={hasUnseenReplies}
                                                             onOpenThread={
@@ -843,6 +883,16 @@ export const ChannelRoomPage = () => {
                 onMoreEmoji={() => setEmojiPickerOpen(true)}
                 onCopy={() => void handleCopyMessage(actionMessage?.content ?? '')}
                 onReply={handleReplyAction}
+            />
+            <ReactionDetailSheet
+                // Read from the live fold, not snapshotted: a reaction toggled away while the
+                // sheet is open should drop out of it too.
+                open={!!reactorTarget}
+                onOpenChange={open => !open && setReactorTarget(null)}
+                tallies={(reactorTarget && reactions.get(reactorTarget.messageId)) || []}
+                initialKey={reactorTarget?.key}
+                nameOf={nameOfUser}
+                avatarOf={avatarOfUser}
             />
             <EmojiPickerSheet
                 open={emojiPickerOpen}

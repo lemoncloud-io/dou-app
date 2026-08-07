@@ -11,13 +11,25 @@ import { ChatRoomHeader, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { MessageActionSheet } from '../components/MessageActionSheet';
+import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
-import { useChannel, useChannelMembers, useChannelProfiles, useChatMutations, useChats, useReactions } from '../hooks';
+import { resolveChannelAvatar } from '../lib';
+import {
+    useChannel,
+    useChannelMembers,
+    useChannelProfiles,
+    useChannelTitle,
+    useChatMutations,
+    useChats,
+    useDmPeer,
+    useMyJoin,
+    useReactions,
+} from '../hooks';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
-import { useRecentEmojiStore } from '../../../stores/useRecentEmojiStore';
+import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 
 const MAX_INPUT_LENGTH = 5000;
@@ -41,6 +53,8 @@ export const ThreadPage = () => {
     const [content, setContent] = useState('');
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
+    // The chip whose reactors are being inspected (message id + long-pressed fold key).
+    const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopying, setIsCopying] = useState(false);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,6 +69,23 @@ export const ThreadPage = () => {
         memberIds: channel?.memberIds,
     });
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
+
+    // Header identity, resolved exactly as the room resolves it — a thread and its channel are
+    // two views of one room, so the header has no reason to diverge (ADR-0047 decision 4). The
+    // join nick has to come from the join CACHE, not `channel.$join`, or a rename lags here
+    // while the room header already shows it.
+    const myJoin = useMyJoin(channelId || null);
+    const dmPeer = useDmPeer(channel, members, profileMap, userId);
+    const channelTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
+    const isSelfChat = channel?.isSelfChat ?? false;
+    const isDmChat = channel?.stereo === 'dm';
+    const headerAvatarSrc = channel
+        ? resolveChannelAvatar({
+              channel,
+              myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
+              peerThumbnail: dmPeer?.thumbnail,
+          }).src
+        : undefined;
 
     const chatParams = useMemo(() => ({ channelId: stableChannelId, limit: 100 }), [stableChannelId]);
     const { rawChats, isLoading, hasMore, isLoadingMore, loadMore } = useChats(chatParams);
@@ -85,6 +116,13 @@ export const ThreadPage = () => {
     );
     const nameOfUser = useMemo(
         () => (id: string) => profileMap.get(id)?.nick ?? memberById.get(id)?.nick ?? memberById.get(id)?.name ?? id,
+        [profileMap, memberById]
+    );
+
+    // Same precedence for faces as for names — the reactor sheet's avatars must match the
+    // bubbles they were opened from.
+    const avatarOfUser = useMemo(
+        () => (id: string) => profileMap.get(id)?.thumbnail ?? memberById.get(id)?.thumbnail,
         [profileMap, memberById]
     );
 
@@ -176,6 +214,12 @@ export const ThreadPage = () => {
     // reaction targeting it would 404 and orphan once the persisted swap lands.
     const canReact = !!actionMessage?.chatNo;
 
+    // Chip-row add button — same one-step open as the room: set the target, show the picker.
+    const handleAddReaction = (message: ClientChatView) => {
+        setActionMessage(message);
+        setPickerOpen(true);
+    };
+
     const renderRow = (message: ClientChatView) => (
         <ChannelMessageRow
             key={message.id}
@@ -198,15 +242,28 @@ export const ThreadPage = () => {
             onToggleReaction={(emoji, isMine) => message.id && toggleReaction(message.id, emoji, isMine)}
             reactionFailed={!!message.id && failedId === message.id}
             nameOf={nameOfUser}
+            onAddReaction={message.chatNo ? () => handleAddReaction(message) : undefined}
+            onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
         />
     );
 
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
             <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
+                {/* No "Thread" label: the content says it better than a title could — root,
+                    divider, replies. Back returns to the channel (ADR-0045's two-hop). */}
                 <ChatRoomHeader
-                    kind="group"
-                    title={t('chat.thread.title')}
+                    kind={isSelfChat ? 'self' : isDmChat ? 'direct' : 'group'}
+                    title={channelTitle}
+                    avatar={
+                        headerAvatarSrc ? (
+                            <img
+                                src={headerAvatarSrc}
+                                alt=""
+                                className="size-[42px] shrink-0 rounded-full border border-border object-cover"
+                            />
+                        ) : undefined
+                    }
                     onBack={() => navigate(-1)}
                     className="border-b border-border"
                 />
@@ -285,6 +342,14 @@ export const ThreadPage = () => {
                 onMoreEmoji={() => setPickerOpen(true)}
                 onCopy={() => void handleCopy()}
                 onReply={() => undefined}
+            />
+            <ReactionDetailSheet
+                open={!!reactorTarget}
+                onOpenChange={open => !open && setReactorTarget(null)}
+                tallies={(reactorTarget && reactions.get(reactorTarget.messageId)) || []}
+                initialKey={reactorTarget?.key}
+                nameOf={nameOfUser}
+                avatarOf={avatarOfUser}
             />
             <EmojiPickerSheet
                 open={pickerOpen}
