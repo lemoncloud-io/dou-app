@@ -20,7 +20,6 @@ import { MemberListItem } from '../components/MemberListItem';
 import { MemberProfileDialog } from '../components/MemberProfileDialog';
 import { JoinNickDialog } from '../components/JoinNickDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
-import { isPendingInvite } from '../utils/membership';
 import {
     useChannel,
     useChannelMembers,
@@ -239,12 +238,16 @@ export const ChannelSettingsPage = () => {
             };
 
             return (
+                // No `isPendingInvite`: nothing in the payload can prove one. The join counter is
+                // `0` for "invited, hasn't come in" AND for "left" alike (see utils/membership), so
+                // badging on it labelled departed members as pending invites. Rather than guess, the
+                // badge is not drawn — a missing badge on a real invitee costs far less than a wrong
+                // one on someone who left. Restore it the moment the server can tell the two apart.
                 <MemberListItem
                     key={memberId}
                     member={memberView}
                     isMe={memberId === userId}
                     isOwner={memberId === channel?.ownerId}
-                    isPendingInvite={isPendingInvite(member.$join)}
                     needsProfileSetup={needsProfileSetup}
                     // With no profile, skip the member-profile sheet and go straight to creating one —
                     // that sheet's only self action is "프로필 설정" anyway, so it would be a dead tap.
