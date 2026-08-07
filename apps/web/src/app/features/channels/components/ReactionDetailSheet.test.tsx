@@ -8,8 +8,16 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
 
+// Commit counter. The sheet re-invokes BottomSheet on every render, so this distinguishes
+// "opened on the right tab" from "opened on the first tab and corrected itself" — two states
+// that look identical once RTL has flushed effects.
+const mockCommits = { count: 0 };
+
 jest.mock('@chatic/web-ui-kit', () => ({
-    BottomSheet: ({ open, children }: any) => (open ? <div data-testid="sheet">{children}</div> : null),
+    BottomSheet: ({ open, children }: any) => {
+        mockCommits.count += 1;
+        return open ? <div data-testid="sheet">{children}</div> : null;
+    },
     ImageAvatar: ({ src }: any) => <img data-testid="image-avatar" src={src} alt="" />,
     DefaultAvatar: () => <div data-testid="default-avatar" />,
 }));
@@ -33,7 +41,10 @@ const baseProps = {
     avatarOf: (id: string) => avatars[id],
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.clearAllMocks();
+    mockCommits.count = 0;
+});
 
 describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
     it('이모지마다 탭을 만들고 각 인원 수를 보여준다', () => {
@@ -55,6 +66,16 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
         expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByText('초')).toBeInTheDocument();
         expect(screen.queryByText('에이다')).not.toBeInTheDocument();
+    });
+
+    // 심문에서 드러난 구멍: 초기 state를 없애고 effect에만 맡겨도 위 테스트는 통과한다 —
+    // RTL이 effect를 flush한 뒤를 보기 때문이다. 그러면 실제로는 첫 탭이 한 프레임 보였다가
+    // 바뀌는 깜빡임이 생긴다. 커밋 수로 그 차이를 잡는다.
+    it('첫 커밋에 이미 맞는 탭이다 — 첫 탭을 보여줬다가 고치지 않는다', () => {
+        render(<ReactionDetailSheet {...baseProps} initialKey="🎉" />);
+
+        expect(screen.getAllByRole('tab')[1]).toHaveAttribute('aria-selected', 'true');
+        expect(mockCommits.count).toBe(1);
     });
 
     it('initialKey가 없으면 첫 탭을 연다', () => {
