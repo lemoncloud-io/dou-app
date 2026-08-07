@@ -26,6 +26,14 @@ import { useOtpExpiryCountdown, type OtpExpiryCountdown } from './useOtpExpiryCo
  */
 const RESEND_LIMIT = 5;
 
+/**
+ * The code development deployments accept in place of a real one. Not a client-side skip — it goes
+ * through the same `verify`/`confirm` calls and the server decides, so a release backend simply
+ * rejects it as a wrong code. There is no bypass to leak: the client cannot forge the `$token` a
+ * successful confirm returns.
+ */
+const DEV_BYPASS_CODE = '#';
+
 /** The raw phone field accepts what the user typed so a bad format is visible; digits drive logic. */
 const PHONE_INPUT_MAX = 20;
 
@@ -88,6 +96,9 @@ export interface PhoneVerifyFieldsState {
     limit: PhoneVerifyLimit | null;
     onDismissLimit: () => void;
     showDevSwitches: boolean;
+    /** Dev-only: prove with the bypass code the development backend accepts. */
+    canDevBypass: boolean;
+    onDevBypass: () => void;
     devDryRun: boolean;
     onDevDryRunChange: (next: boolean) => void;
     devSlack: boolean;
@@ -371,13 +382,13 @@ export const usePhoneVerify = ({
      * `link` mode's first step. Changes nothing, so it is safe on every code completion — and it is the
      * only place the server will TELL us confirming is blocked instead of throwing.
      */
-    const handleVerifyStep = async () => {
+    const handleVerifyStep = async (code: string = otp) => {
         // No pin means no outstanding code — nothing to prove against.
         if (!sentWith) return;
         setLoadingState('verifying');
         setOtpError('');
         try {
-            const result = await verify(sentWith.phone, otp, { mode, countryCode: sentWith.country });
+            const result = await verify(sentWith.phone, code, { mode, countryCode: sentWith.country });
             // `linkable` is absent on the login-mode view; this step only runs for `link`.
             if ('linkable' in result && !result.linkable) {
                 setLinkVerified(false);
@@ -397,12 +408,12 @@ export const usePhoneVerify = ({
         }
     };
 
-    const handleConfirm = async () => {
+    const handleConfirm = async (code: string = otp) => {
         if (!sentWith) return;
         setLoadingState('verifying');
         setOtpError('');
         try {
-            const result = await confirm(sentWith.phone, otp, { mode, countryCode: sentWith.country });
+            const result = await confirm(sentWith.phone, code, { mode, countryCode: sentWith.country });
             // A token only ever rides on the login-mode confirm; `link` leaves the session alone.
             if ('$token' in result && result.$token) {
                 await applyToken(result.$token);
@@ -453,6 +464,25 @@ export const usePhoneVerify = ({
      * so a user who taps before the auto-submit lands still gets the `linkable` answer rather than a
      * bare 409/403.
      */
+    /**
+     * Development-only: prove with {@link DEV_BYPASS_CODE} instead of a delivered code. Paired with
+     * the dryRun switch it removes the SMS from the loop entirely — dryRun stops the send, this
+     * stands in for reading it.
+     *
+     * A code still has to have been requested: the server is proving against an outstanding
+     * verification, not against nothing. It follows the same two-step shape as a real code so
+     * `link` mode gets its `linkable` answer rather than a bare 403 from a premature confirm.
+     */
+    const handleDevBypass = async () => {
+        if (!isDevBuild() || !sentWith || isBusy) return;
+        // Mirrored into the field so the screen shows what was submitted; `handleOtpChange` would
+        // strip it, which is why this writes the state directly.
+        setOtp(DEV_BYPASS_CODE);
+        submittedOtpRef.current = DEV_BYPASS_CODE;
+        if (mode === 'link' && !linkVerified) await handleVerifyStep(DEV_BYPASS_CODE);
+        await handleConfirm(DEV_BYPASS_CODE);
+    };
+
     const handleSubmit = () => {
         if (pendingToken) return void handleRetrySessionSwitch();
         if (mode === 'link' && !linkVerified) return void handleVerifyStep();
@@ -487,6 +517,9 @@ export const usePhoneVerify = ({
             onDevDryRunChange: setDevDryRun,
             devSlack,
             onDevSlackChange: setDevSlack,
+            // Enabled only once a code is outstanding — see handleDevBypass.
+            canDevBypass: codeSent && !isBusy && !pendingToken,
+            onDevBypass: () => void handleDevBypass(),
         },
         submit: {
             isRetry: !!pendingToken,

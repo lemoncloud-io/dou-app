@@ -1221,6 +1221,7 @@
         "devDelivery": "개발용 발송 스위치",
         "devDryRun": "발송 생략 (dryRun)",
         "devSlack": "Slack으로 받기",
+        "devBypass": "인증번호 없이 통과 (#)",
         "sheetTitle": "휴대폰 번호 인증",
         "sheetDescription": "본인 확인을 위해 휴대폰 번호를 입력하고\n인증번호를 입력해 주세요",
         "linkOccupied": "이미 다른 계정에 연결된 번호예요",

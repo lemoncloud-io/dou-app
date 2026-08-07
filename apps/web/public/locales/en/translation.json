@@ -1221,6 +1221,7 @@
         "devDelivery": "Dev delivery switches",
         "devDryRun": "Skip delivery (dryRun)",
         "devSlack": "Receive via Slack",
+        "devBypass": "Skip the code (#)",
         "sheetTitle": "Verify phone number",
         "sheetDescription": "Enter your phone number and the code\nwe send you to confirm it is you",
         "linkOccupied": "This number is already linked to another account.",
