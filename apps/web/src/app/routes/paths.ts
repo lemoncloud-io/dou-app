@@ -65,7 +65,8 @@ export const ROUTES = {
         detail: (placeId: string) => `/place/${placeId}`,
         // Settings hub reached from the home profile dropdown, and its sub-pages.
         settings: (placeId: string) => `/place/${placeId}/settings`,
-        settingsInfo: (placeId: string) => `/place/${placeId}/settings/info`,
+        settingsDetail: (placeId: string) => `/place/${placeId}/settings/detail`,
+        settingsEdit: (placeId: string) => `/place/${placeId}/settings/edit`,
         settingsProfile: (placeId: string) => `/place/${placeId}/settings/profile`,
         settingsChannels: (placeId: string) => `/place/${placeId}/settings/channels`,
     },

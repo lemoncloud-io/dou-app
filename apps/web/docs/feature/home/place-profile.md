@@ -34,7 +34,7 @@
 
 **제외**
 
-- `PlaceInfoPage`(플레이스 엔티티 정보) 개선 — 이번 Figma와 무관.
+- `PlaceEditPage`(플레이스 이름·이미지 편집) 개선 — 이번 Figma와 무관. 플레이스 엔티티 정보 조회는 이후 `PlaceDetailPage`로 분리됐다(ADR-0047).
 - `CloudProfileEditPage`·`ProfileEditPage` 자체 변경 — 다만 홈 드롭다운은 더 이상 `account.edit`로 가지 않는다(항상 수정 다이얼로그). `account.edit` 라우트/페이지는 다른 진입점을 위해 유지.
 - 생성 감지 로직(`usePlaceProfilePrompt`)·건너뜀 store 변경.
 

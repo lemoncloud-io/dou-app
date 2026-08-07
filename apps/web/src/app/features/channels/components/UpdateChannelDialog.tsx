@@ -172,7 +172,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                 </Text>
                             )}
                             {imageSizeError && (
-                                <Text className="text-[12px] text-destructive">{t('placeInfo.imageSizeError')}</Text>
+                                <Text className="text-[12px] text-destructive">{t('placeEdit.imageSizeError')}</Text>
                             )}
                         </div>
 

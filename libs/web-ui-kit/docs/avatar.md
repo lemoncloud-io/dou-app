@@ -67,7 +67,7 @@ CloudAvatar 2 · PlaceAvatar 1 · ChatAvatar 1 · AvatarGroup 1.
 | ui-kit `AppHeader`                                                                                                    | `CloudAvatar(lg)`, `DefaultAvatar(36)`                   | `variant="cloud"`, `variant="user"`      |
 | ui-kit `ChatRoomHeader`                                                                                               | `DefaultAvatar(42, user 또는 group)`                     | `variant="user"` / `"group"`             |
 | ui-kit `SelectedAvatarRow`(48)·`InviteLinkCard`(44)·`SelectableUserItem`(42)                                          | `ProfileAvatar` 표시용                                   | `variant="user"` / `"group"` + `src`     |
-| 편집용 6곳 (CreatePlaceDialog·CreateChannelDialog·PlaceProfileForm·UpdateChannelDialog·PlaceInfoPage·ProfileEditPage) | `ProfileAvatar` + `onSelect`                             | `ProfileAvatar` 유지 (내부만 Avatar)     |
+| 편집용 6곳 (CreatePlaceDialog·CreateChannelDialog·PlaceProfileForm·UpdateChannelDialog·PlaceEditPage·ProfileEditPage) | `ProfileAvatar` + `onSelect`                             | `ProfileAvatar` 유지 (내부만 Avatar)     |
 
 dm/self 구분(Figma 3451-21343)은 노드 확인 후 `variant` 추가 여부를 확정한다(self가 user와
 글리프만 다르면 variant, 구조가 다르면 별도 검토).
@@ -124,7 +124,11 @@ interface AvatarProps {
 ### 해소해야 할 기존 불일치 (Figma가 정본)
 
 - **링 토큰**: `AvatarShell`·`ProfileAvatar`는 `border-avatar-ring`, `DefaultAvatar`만
-  `border-border`.
+  `border-border`. 예외는 `ProfileAvatar glyph="home"`으로, Figma 3769:34384가 테두리 없이
+  `bg-avatar-ring` 원반을 쓴다(placeholder 중 유일하게 밝은 것 — 통합 시 이 축을 지워선 안 된다).
+- **`glyph="home"` (DoU홈 기본플레이스)**: 자기 원을 그리지 않는 래스터라 지름의 58/86으로
+  inset한다. 통합 후에도 "원을 갖는 일러스트(`place`)"와 "원이 없어 inset해야 하는 일러스트
+  (`home`)"를 구분해야 한다 — 둘을 같은 full-bleed 경로에 넣으면 `home`이 원을 넘친다.
 - **사이즈 스케일**: `ChatAvatar`(sm/md/lg = 36/46/56)가 `PlaceAvatar`·`CloudAvatar`(36/40/46)와
   충돌 — 단일 숫자 `size`로 통일하고 토큰 별칭은 Figma 크기 체계 확인 후 결정.
 - **`defaultPlaceAvatar` asset**: `<img>` URL로 물려 CSS 변수가 상속되지 않는 폴백 색 문제.

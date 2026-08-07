@@ -675,11 +675,12 @@
     },
     "placeSettings": {
         "title": "Place Settings",
-        "sectionProfile": "Profile",
+        "sectionSettings": "Settings",
         "sectionNotifications": "Notifications",
         "sectionChats": "Chats",
         "myProfile": "My Profile",
         "placeProfile": "Place Profile",
+        "placeDetail": "Place Information",
         "placeNotifications": "Place Notifications",
         "placeNotificationsDescription": "Receive push notifications from this place.",
         "channelSort": "Sort Chats",
@@ -692,7 +693,15 @@
         "recent": "Latest message",
         "unread": "Unread first"
     },
-    "placeInfo": {
+    "placeDetail": {
+        "title": "Place Information",
+        "notFound": "Place not found",
+        "nameLabel": "Place Name",
+        "invitedNameLabel": "Invited Place Name",
+        "createdAtLabel": "Date Created",
+        "ownerLabel": "Owner"
+    },
+    "placeEdit": {
         "title": "Place Profile",
         "confirm": "Done",
         "notFound": "Place not found",

@@ -65,6 +65,32 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('svg')).not.toBeInTheDocument();
     });
 
+    // The DoU character is the only light placeholder: it carries no circle of its own, so the shell
+    // switches to the light avatar-ring disc and the illustration is inset (58 of 86 in Figma).
+    it('renders the DoU character inset on a light disc when glyph="home"', () => {
+        const { container } = render(<ProfileAvatar size={86} glyph="home" />);
+
+        const illustration = container.querySelector('img');
+        expect(illustration).toBeInTheDocument();
+        expect(illustration).toHaveStyle({ width: '58px', height: '58px' });
+        expect(container.querySelector('.bg-avatar-ring')).toBeInTheDocument();
+        expect(container.querySelector('.bg-brand-ink')).not.toBeInTheDocument();
+    });
+
+    it('scales the DoU character with the avatar size', () => {
+        const { container } = render(<ProfileAvatar size={36} glyph="home" />);
+
+        expect(container.querySelector('img')).toHaveStyle({ width: '24px', height: '24px' });
+    });
+
+    // A photo replaces the illustration, so the light-disc treatment must go with it.
+    it('falls back to the dark shell when glyph="home" but a photo is set', () => {
+        const { container } = render(<ProfileAvatar glyph="home" src="http://example.com/turtle.png" />);
+
+        expect(container.querySelector('.bg-avatar-ring')).not.toBeInTheDocument();
+        expect(container.querySelector('.bg-brand-ink')).toBeInTheDocument();
+    });
+
     it('a real photo wins over every placeholder', () => {
         const { container } = render(<ProfileAvatar glyph="place" src="http://example.com/turtle.png" />);
 
@@ -76,5 +102,14 @@ describe('ProfileAvatar', () => {
         const { container } = render(<ProfileAvatar onSelect={jest.fn()} />);
 
         expect(container.querySelector('.bg-muted')).toBeInTheDocument();
+    });
+
+    // `bg-muted` (95% L) on `bg-avatar-ring` (96% L) is one lightness step — the badge would be
+    // invisible. The light disc is the only case where the badge has to invert.
+    it('flips the select badge dark on the light home disc', () => {
+        const { container } = render(<ProfileAvatar glyph="home" onSelect={jest.fn()} />);
+
+        expect(container.querySelector('.bg-brand-ink')).toBeInTheDocument();
+        expect(container.querySelector('.bg-muted')).not.toBeInTheDocument();
     });
 });

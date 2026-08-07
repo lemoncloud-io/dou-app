@@ -69,7 +69,7 @@ ADR-0045 결정 1~5의 아키텍처 문서다. (~~새 플레이스의 owner가 �
    다이얼로그는 지금처럼 닫히고 끝난다(플레이스는 서버에 존재). 이때 프로필 오버레이를 열면
    `setMyProfile`이 엉뚱한(전환 전) 사이트 스코프에 쓰므로 열지 않는다 — 이 구멍은 방 설정
    nudge(ADR-0040)가 보완한다.
-4. **플레이스 이름/사진 수정이 다시 동작한다.** `PlaceInfoPage` 저장이 `id`(=`sid`)를 실어
+4. **플레이스 이름/사진 수정이 다시 동작한다.** `PlaceEditPage`(당시 `PlaceInfoPage`) 저장이 `id`(=`sid`)를 실어
    보내 백엔드 400(`@id is required`)이 해소되고, `updatePlace`의 낙관적 캐시 쓰기/롤백도
    같이 살아난다.
 5. ~~**클라우드에 전환해도 MyPage 상단은 relay 프로필이다.**~~ → **되돌림(2026-08-06).** 계정
@@ -208,7 +208,7 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
 
 ### 4) `place.update`의 `id` 정규화 (ADR 결정 3)
 
-- 호출부: [PlaceInfoPage.tsx:106-110](../../../src/app/features/place/pages/PlaceInfoPage.tsx)의
+- 호출부: [PlaceEditPage.tsx](../../../src/app/features/place/pages/PlaceEditPage.tsx)의
   페이로드에 `id: placeId` 추가.
   [useUpdatePlace.ts:5-9](../../../src/app/features/home/hooks/useUpdatePlace.ts)의
   `UpdatePlacePayload`에 `id` 필드를 추가한다.
