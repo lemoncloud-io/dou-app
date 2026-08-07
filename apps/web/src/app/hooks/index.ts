@@ -1,3 +1,4 @@
+export * from './useAccessiblePlaceIds';
 export * from './useActiveCloudChannels';
 export * from './useActiveCloudOwnership';
 export * from './useActivePlaceName';

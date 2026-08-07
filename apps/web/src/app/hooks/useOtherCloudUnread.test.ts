@@ -15,9 +15,10 @@ jest.mock('./useInvitedClouds', () => ({ useInvitedClouds: () => ({ invitedCloud
 
 /** A cross-cloud context: channels keyed `${cid}:${channelId}`, my join rows under the same keys. */
 const context = (
-    channels: Record<string, { id: string; chatNo?: number; metaNo?: number }>,
-    joins: Record<string, { chatNo?: number }> = {}
-) => ({ channelsByRef: channels, joinsByRef: joins, sitesByRef: {}, lastChatsByRef: {} });
+    channels: Record<string, { id: string; chatNo?: number; metaNo?: number; sid?: string }>,
+    joins: Record<string, { chatNo?: number }> = {},
+    sites: Record<string, { id: string }> = {}
+) => ({ channelsByRef: channels, joinsByRef: joins, sitesByRef: sites, lastChatsByRef: {} });
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -83,6 +84,39 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         expect(result.current.total).toBe(0);
+    });
+
+    // 활성 클라우드와 같은 규칙: 닿을 수 없는 place의 채널은 읽을 방법이 없으니 세지 않는다.
+    it('그 클라우드에 없는 place의 채널은 세지 않는다', async () => {
+        resolveContext.mockResolvedValue(
+            context(
+                {
+                    'cloud_2:ch1': { id: 'ch1', sid: 'site-1', chatNo: 5, metaNo: 0 },
+                    'cloud_2:ch2': { id: 'ch2', sid: 'site-gone', chatNo: 9, metaNo: 0 },
+                },
+                { 'cloud_2:ch1': { chatNo: 3 }, 'cloud_2:ch2': { chatNo: 0 } },
+                { 'cloud_2:site-1': { id: 'site-1' } }
+            )
+        );
+
+        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+
+        await waitFor(() => expect(result.current.total).toBe(2)); // ch1만: 5-3
+    });
+
+    // place가 하나도 캐시에 없는 클라우드는 "place 없는 클라우드"가 아니라 아직 안 받아온
+    // 클라우드다 — 거기서 거르면 통째로 0이 된다.
+    it('place가 하나도 없는 클라우드는 거르지 않는다', async () => {
+        resolveContext.mockResolvedValue(
+            context(
+                { 'cloud_2:ch1': { id: 'ch1', sid: 'site-1', chatNo: 5, metaNo: 0 } },
+                { 'cloud_2:ch1': { chatNo: 3 } }
+            )
+        );
+
+        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+
+        await waitFor(() => expect(result.current.total).toBe(2));
     });
 
     it('refresh를 부르면 캐시를 다시 읽는다', async () => {

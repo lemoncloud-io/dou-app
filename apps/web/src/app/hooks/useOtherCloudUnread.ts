@@ -70,11 +70,26 @@ export const useOtherCloudUnread = (activeCloudId: string): OtherCloudUnread => 
         void resolveContext({ cids, channelRefs: [] })
             .then(context => {
                 if (cancelled) return;
+                // Which places each cloud still has cached. Same rule the active cloud applies: a
+                // channel whose place is gone cannot be opened, so its unread can never be read
+                // away and must not sit on the badge. A cloud with no cached places at all is not
+                // filtered — that is an unsynced cloud, not a cloud without places.
+                const placesByCloud = new Map<string, Set<string>>();
+                for (const ref of Object.keys(context.sitesByRef)) {
+                    const [cid, sid] = [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)];
+                    if (!cid || !sid) continue;
+                    const known = placesByCloud.get(cid) ?? new Set<string>();
+                    known.add(sid);
+                    placesByCloud.set(cid, known);
+                }
+
                 const totals: Record<string, number> = {};
                 for (const [ref, channel] of Object.entries(context.channelsByRef)) {
                     // The map key carries the cloud; the channel row itself does not.
                     const cid = ref.slice(0, ref.indexOf(':'));
                     if (!cid || !channel.id) continue;
+                    const places = placesByCloud.get(cid);
+                    if (places && channel.sid && !places.has(channel.sid)) continue;
                     const unread = countUnread({
                         headChatNo: channel.chatNo,
                         headMetaNo: channel.metaNo,

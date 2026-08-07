@@ -98,3 +98,61 @@ describe('useActiveCloudChannels — 클라우드 전체 채널 구독', () => {
         expect(disposeNewUid).not.toHaveBeenCalled();
     });
 });
+
+// 접근 못 하게 된 사이트(레일에서 사라진 place)의 채널은 캐시에 남는다. 그 채널은 홈 목록에도
+// place 점에도 안 나타나는데 total에만 잡혀서, 읽을 수 없는 미읽음이 앱 뱃지에 영구히 남았다.
+describe('useActiveCloudChannels — 닿을 수 없는 place 제외', () => {
+    const placeObserveList = jest.fn();
+
+    const emitPlaces = (ids: (string | undefined)[]) =>
+        placeObserveList.mockImplementation((_query, cb) => {
+            cb({ list: ids.map(id => ({ id })) });
+            return jest.fn();
+        });
+
+    beforeEach(() => {
+        (useRuntimeRepositories as jest.Mock).mockReturnValue({
+            channel: { observeList: observeListMock },
+            place: { observeList: placeObserveList },
+        });
+    });
+
+    it('레일에 없는 place의 채널을 뺀다', () => {
+        emitPlaces(['site-1']);
+        emit([channel('c1', 'site-1'), channel('c2', 'site-gone')]);
+
+        const { result } = renderHook(() => useActiveCloudChannels());
+
+        expect(result.current.map(c => c.id)).toEqual(['c1']);
+    });
+
+    it('레일에 있는 place의 채널은 모두 남긴다 — 활성 사이트가 아니어도', () => {
+        emitPlaces(['site-1', 'site-2']);
+        emit([channel('c1', 'site-1'), channel('c2', 'site-2')]);
+
+        const { result } = renderHook(() => useActiveCloudChannels());
+
+        expect(result.current.map(c => c.id)).toEqual(['c1', 'c2']);
+    });
+
+    // place 목록이 아직 안 온 상태를 "place 없음"으로 읽으면 클라우드 전환마다 뱃지가 0으로
+    // 깜빡인다. 모르는 동안에는 거르지 않는다.
+    it('place 목록이 아직 없으면 거르지 않는다', () => {
+        placeObserveList.mockImplementation(() => jest.fn());
+        emit([channel('c1', 'site-1'), channel('c2', 'site-gone')]);
+
+        const { result } = renderHook(() => useActiveCloudChannels());
+
+        expect(result.current.map(c => c.id)).toEqual(['c1', 'c2']);
+    });
+
+    // sid가 아직 안 붙은 행은 고아가 아니라 동기화 중인 행이다.
+    it('sid가 없는 채널은 남긴다', () => {
+        emitPlaces(['site-1']);
+        emit([channel('c1', 'site-1'), { id: 'c2' } as DomainChannel]);
+
+        const { result } = renderHook(() => useActiveCloudChannels());
+
+        expect(result.current.map(c => c.id)).toEqual(['c1', 'c2']);
+    });
+});

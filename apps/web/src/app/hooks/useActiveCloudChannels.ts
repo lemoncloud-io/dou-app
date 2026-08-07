@@ -1,11 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
+import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
+
 /**
- * Observes the active cloud's FULL channel list — every site, not just the selected one.
+ * Observes the active cloud's channel list across every site, not just the selected one, and drops
+ * the ones the user can no longer reach.
+ *
+ * That last part is the whole reason unread counts could get stuck. A channel whose place has left
+ * the rail — access revoked, place deleted — keeps its cached row and its unread, and it shows up in
+ * exactly one of the three outputs derived from this list: not in the channel list (home renders the
+ * active site only) and not as a place dot (a place absent from the rail has nowhere to draw one),
+ * but yes in `total`, which is the app-icon badge. Nothing on screen said anything was unread and
+ * the badge would not go down, because there was no way to open the room and read it.
+ *
+ * Filtering waits for the place list to resolve: an unresolved list is "don't know yet", never "no
+ * places", or the badge would blink to zero on every cloud switch. A channel with no `sid` at all is
+ * kept — that is a row mid-sync, not an orphan.
  *
  * An empty `sid` takes the unfiltered branch of the channel cache read, so this returns all
  * channels for the active cloud (each still tagged with its own sid). It's the single source the
@@ -27,6 +41,7 @@ import type { DomainChannel } from '@chatic/data';
  */
 export const useActiveCloudChannels = (): DomainChannel[] => {
     const { channel } = useRuntimeRepositories();
+    const accessiblePlaceIds = useAccessiblePlaceIds();
     const { selectedCloudId } = useSessionSelection();
     const uid = useGlobalSession().identity.userId ?? undefined;
     const cid = selectedCloudId ?? 'default';
@@ -53,5 +68,8 @@ export const useActiveCloudChannels = (): DomainChannel[] => {
         );
     }, [channel, cid, uid]);
 
-    return channels;
+    return useMemo(() => {
+        if (!accessiblePlaceIds) return channels;
+        return channels.filter(row => !row.sid || accessiblePlaceIds.has(row.sid));
+    }, [channels, accessiblePlaceIds]);
 };
