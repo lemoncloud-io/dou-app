@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-08-10] - root@0.50.0, @chatic/web@0.43.0
+
+### Features
+
+- (web/home) uncap place and channel creation on dev-class builds
+- (web/chat) skeleton the room while it loads, and fade the glass header in instead of popping it
+- (web/chat) remember the room's scroll offset across every exit, not just a thread hop
+- (web/invite) return to the room, not a stacked settings/invite trail, once the link is shared
+- (web/auth) add a dev-only bypass to the phone-verification switches
+- (web) let a development build type a non-numeric bypass code
+- (web/invite) let a release app invite by link, not only by text
+- (web/chat) finish the reaction and thread surfaces, and show deleted messages
+- (web/channels) link URLs in chat messages and unfurl the first one
+- (web-ui-kit) add the chat link preview card
+- (mobile) add unfurlService and wire the og-metadata bridge handler
+- (web/chat) route a reply push through the channel into its thread
+- (web/chat) add emoji reactions and threads, and stop reaction events breaking the feed
+
+### Bug Fixes
+
+- (web/chat,data) reflect a kick in the local join and member caches
+- (web) stop counting unread for places the user cannot reach
+- (web/chat) stop badging members as pending invites
+- (web) tell a departed member from a pending invite, and stop the phantom badge
+- (web/chat) open a thread on its root message instead of a spinner
+- (web) measure the floating chrome before the first paint
+- (web/notifications) silence the in-app banner inside a thread, and give it a face
+
+### Documentation
+
+- (web/chat) record the reaction and thread refinements
+- (chat-link-preview) add the ADR and the live architecture doc
+
+### Refactor
+
+- (web/home) fold the create-place flow back into the dialog, drop the mandatory profile step
+
+### Chores
+
+- (deps) bump chatic-socials-api for reaction types, drop the DomainChat casts
+
 ## [2026-08-06] - root@0.49.1, @chatic/web@0.42.1
 
 ### Features
