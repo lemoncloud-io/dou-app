@@ -41,7 +41,26 @@ describe('computeChannelUnread', () => {
     it('clears once this device has read up to the head', () => {
         const ch = channel({ chatNo: 12, metaNo: 0, $join: { chatNo: 3, metaNo: 0 } as never });
         expect(computeChannelUnread(ch, MY_UID, undefined, 12)).toBe(0);
-        expect(computeChannelUnread(ch, MY_UID, undefined, 11)).toBe(9);
+    });
+
+    // The local cursor is why reading a channel clears the badge before the receipt round-trips.
+    // A message arriving right after that read must count as one, not as the whole backlog the
+    // lagging server cursor still implies.
+    it('caps the count at what this device has not read, while the server cursor lags', () => {
+        const ch = channel({ chatNo: 51, metaNo: 0, $join: { chatNo: 30, metaNo: 0 } as never });
+        expect(computeChannelUnread(ch, MY_UID, undefined, 50)).toBe(1);
+    });
+
+    it('caps the stale server count the same way', () => {
+        const ch = channel({ chatNo: 51, metaNo: 0, unreadCount: 21 });
+        expect(computeChannelUnread(ch, MY_UID, undefined, 50)).toBe(1);
+    });
+
+    // The join cache row and the channel's inline `$join` are separate records: the same cursor
+    // can arrive with the metaNo snapshot on one and without it on the other.
+    it('keeps the metaNo snapshot when two boundaries sit at the same chatNo', () => {
+        const ch = channel({ chatNo: 12, metaNo: 4, $join: { chatNo: 10, metaNo: 2 } as never });
+        expect(computeChannelUnread(ch, MY_UID, { chatNo: 10 })).toBe(0);
     });
 
     it('clears when my own message is the latest', () => {

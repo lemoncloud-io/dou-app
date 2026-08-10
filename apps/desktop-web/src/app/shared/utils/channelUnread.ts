@@ -27,26 +27,33 @@ const joinCursorOf = (channel: DomainChannel): ReadCursor | undefined => {
     return { chatNo: Math.max(join.chatNo ?? 0, join.joinedNo ?? 0), metaNo: join.metaNo };
 };
 
-/** Of two boundaries, the one that has read further. */
+/**
+ * Of two boundaries, the one that has read further — and on a tie, the one that carries the
+ * `metaNo` snapshot. The join cache row and the channel's inline `$join` are separate records
+ * with independent freshness, so the same cursor can arrive with the snapshot on one and without
+ * it on the other; picking the bare one silently drops back to the un-netted count.
+ */
 const furthest = (a: ReadCursor | undefined, b: ReadCursor | undefined): ReadCursor | undefined => {
     if (!a) return b;
     if (!b) return a;
-    return a.chatNo >= b.chatNo ? a : b;
+    if (a.chatNo !== b.chatNo) return a.chatNo > b.chatNo ? a : b;
+    return a.metaNo !== undefined ? a : b;
 };
 
 /**
  * Unread count for a channel, computed client-side. Preference order, most-trusted first:
  *
  * 1. my own message is the latest → 0 (implicitly read up to it);
- * 2. this device has read up to the channel head → 0, without waiting for the read receipt to
- *    round-trip (`localReadNo`, from `useReadCursorStore`);
- * 3. a known read boundary → the count of *user* messages past it (see below), taking whichever
+ * 2. a known read boundary → the count of *user* messages past it (see below), taking whichever
  *    of the observed join row (`cursor`, from the join cache via `useChannelReadCursors`) and the
  *    cursor embedded on the channel record (`$join`, delivered by channel.get/sync) has read
  *    further;
- * 4. no boundary tracked yet (join cache cold, never opened this session) → fall back to the
+ * 3. no boundary tracked yet (join cache cold, never opened this session) → fall back to the
  *    server's `unreadCount`. It lags and won't clear on its own, but a later read advances the
  *    local cursor, which supersedes it with the derived value above.
+ *
+ * Whatever that yields is then capped by what this device has read (`localReadNo`, from
+ * `useReadCursorStore`) — see the cap below.
  *
  * Falling back to `unreadCount` (rather than 0) is the fix for badges never showing when the join
  * read-cursor never seeds — the engine's eventually-consistent count is a worse boundary, but a
@@ -78,12 +85,16 @@ export const computeChannelUnread = (
 
     const head = channel.chatNo ?? 0;
     const headMeta = channel.metaNo ?? 0;
-    if (localReadNo !== undefined && localReadNo >= head) return 0;
 
     const boundary = furthest(cursor, joinCursorOf(channel));
-    if (!boundary) return typeof channel.unreadCount === 'number' ? Math.max(0, channel.unreadCount) : 0;
+    const derived = boundary
+        ? Math.max(0, head - headMeta) - Math.max(0, boundary.chatNo - (boundary.metaNo ?? headMeta))
+        : (channel.unreadCount ?? 0);
 
-    const userHead = Math.max(0, head - headMeta);
-    const userRead = Math.max(0, boundary.chatNo - (boundary.metaNo ?? headMeta));
-    return Math.max(0, userHead - userRead);
+    // This device read up to `localReadNo`, so no more than the slots above it can be unread —
+    // an upper bound however far behind the server cursor is, and 0 once it reaches the head.
+    // Without it, reading a channel and then receiving one message would re-show the whole
+    // backlog until the read receipt round-trips, which is what the local cursor exists to avoid.
+    const cap = localReadNo === undefined ? head : Math.max(0, head - localReadNo);
+    return Math.max(0, Math.min(derived, cap));
 };
