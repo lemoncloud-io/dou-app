@@ -10,7 +10,10 @@ const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
 let isNativeValue = true;
 
-jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
+jest.mock('react-router-dom', () => ({
+    useParams: () => ({ channelId: 'ch1' }),
+    useLocation: () => ({ state: null }),
+}));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
 }));

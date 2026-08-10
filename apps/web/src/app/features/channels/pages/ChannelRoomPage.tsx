@@ -594,7 +594,13 @@ export const ChannelRoomPage = () => {
             variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
             peerNick={dmPeer?.profileNick}
             isGroupOwner={isGroupChat && channel?.ownerId === userId}
-            onInvite={!isGuest && isCloudActive ? () => navigate(ROUTES.channels.invite(stableChannelId)) : undefined}
+            onInvite={
+                !isGuest && isCloudActive
+                    ? // roomDistance carries how many hops the invite flow is from this room screen, so
+                      // its final "done" step can pop straight back here instead of stacking on top of it.
+                      () => navigate(ROUTES.channels.invite(stableChannelId), { state: { roomDistance: 1 } })
+                    : undefined
+            }
         />
     );
 
@@ -609,7 +615,9 @@ export const ChannelRoomPage = () => {
                     onBack={() => navigate(-1)}
                     moreMenu={
                         <DropdownMenuItem
-                            onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
+                            onClick={() =>
+                                navigate(ROUTES.channels.settings(stableChannelId), { state: { roomDistance: 1 } })
+                            }
                             className="cursor-pointer gap-2"
                         >
                             <Settings size={16} />

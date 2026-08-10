@@ -24,7 +24,10 @@ let profilesValue: any;
 // them would hide a real drift.
 let myProfileValue: any;
 
-jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
+jest.mock('react-router-dom', () => ({
+    useParams: () => ({ channelId: 'ch1' }),
+    useLocation: () => ({ state: null }),
+}));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
@@ -326,7 +329,7 @@ describe('ChannelSettingsPage', () => {
         render(<ChannelSettingsPage />);
 
         fireEvent.click(screen.getByText('chat.settings.addFriend'));
-        expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite');
+        expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite', { state: { roomDistance: 2 } });
     });
 
     it('알림 토글 초기값: 내 join의 notify가 없으면 on, "none"이면 off로 파생된다', () => {

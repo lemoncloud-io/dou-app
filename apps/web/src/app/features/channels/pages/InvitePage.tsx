@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import type { ContactInfo } from '@chatic/app-messages';
 import { isNative } from '@chatic/bridges';
@@ -27,6 +27,7 @@ import { useCreateInviteBatch } from '../hooks';
 import { AddFriendSheet } from '../components/AddFriendSheet';
 import { PermissionDeniedBanner } from '../components/PermissionDeniedBanner';
 import { isValidKoreanPhone, normalizeKoreanPhone } from '../utils/koreanPhone';
+import { getRoomDistance } from '../utils/roomDistance';
 
 /** A single invite batch selects at most this many friends. */
 const MAX_INVITE_SELECTION = 100;
@@ -57,6 +58,8 @@ export const InvitePage = () => {
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
     const { channelId } = useParams<{ channelId: string }>();
+    // Reached from the room directly (1 hop) or via settings (2); default to the direct case.
+    const roomDistance = getRoomDistance(useLocation().state, 1);
 
     const isOnMobileApp = isNative();
     const [search, setSearch] = useState('');
@@ -327,7 +330,12 @@ export const InvitePage = () => {
                 </>
             )}
 
-            <AddFriendSheet open={addFriendOpen} onOpenChange={setAddFriendOpen} channelId={channelId} />
+            <AddFriendSheet
+                open={addFriendOpen}
+                onOpenChange={setAddFriendOpen}
+                channelId={channelId}
+                roomDistance={roomDistance}
+            />
         </div>
     );
 };

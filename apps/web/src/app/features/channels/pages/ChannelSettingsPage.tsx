@@ -1,7 +1,7 @@
 import { ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -31,6 +31,7 @@ import {
     useMyJoin,
 } from '../hooks';
 import { resolveChannelAvatar } from '../lib';
+import { getRoomDistance } from '../utils/roomDistance';
 import { ROUTES } from '../../../routes/paths';
 
 type DialogType = 'update' | 'delete' | 'leave' | 'profile' | 'profileSettings' | 'profileCreate' | 'joinNick' | null;
@@ -46,6 +47,8 @@ export const ChannelSettingsPage = () => {
     const { t } = useTranslation();
     const setMyPlaceProfile = useSetMyPlaceProfile();
     const { channelId } = useParams<{ channelId: string }>();
+    // Settings is only ever reached from the room, so it's always 1 hop away.
+    const roomDistance = getRoomDistance(useLocation().state, 1);
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
 
@@ -312,7 +315,12 @@ export const ChannelSettingsPage = () => {
                                     </span>
                                 }
                                 title={<span className="text-primary">{t('chat.settings.addFriend')}</span>}
-                                onClick={() => channelId && navigate(ROUTES.channels.invite(channelId))}
+                                onClick={() =>
+                                    channelId &&
+                                    navigate(ROUTES.channels.invite(channelId), {
+                                        state: { roomDistance: roomDistance + 1 },
+                                    })
+                                }
                             />
                         )}
                         {memberList}
