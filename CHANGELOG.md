@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-08-10] - root@0.50.1, @chatic/web@0.43.1
+
+### Features
+
+- (web/runtime) clear the place cache once on app boot
+- (web/place) add the read-only place information screen
+
+### Bug Fixes
+
+- (data/place) filter out the mistagged relay home place ('0000')
+- (web/place) pin the relay place-info screen to the owner variant
+
+### Refactor
+
+- (web) extract useScrollRestoration as a shared hook
+
 ## [2026-08-10] - root@0.50.0, @chatic/web@0.43.0
 
 ### Features
