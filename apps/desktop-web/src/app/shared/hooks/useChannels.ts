@@ -4,7 +4,7 @@ import type { DomainChannel } from '@chatic/data';
 import { useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 
-import { computeChannelUnread, resolveReadNo } from '../utils';
+import { computeChannelUnread } from '../utils';
 import { useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 
@@ -86,18 +86,14 @@ export const useChannels = (placeId: string | undefined) => {
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
-    const serverReadNo = useChannelReadCursors(rawChannels);
+    const serverCursors = useChannelReadCursors(rawChannels);
     const channels = useMemo(
         () =>
             rawChannels.map(c => ({
                 ...c,
-                unreadCount: computeChannelUnread(
-                    c,
-                    myUid ?? null,
-                    resolveReadNo(c.id ?? '', serverReadNo, readCursors)
-                ),
+                unreadCount: computeChannelUnread(c, myUid ?? null, serverCursors[c.id ?? ''], readCursors[c.id ?? '']),
             })),
-        [rawChannels, myUid, readCursors, serverReadNo]
+        [rawChannels, myUid, readCursors, serverCursors]
     );
 
     // The channel cache emits an empty list immediately on a cold boot / post-switch

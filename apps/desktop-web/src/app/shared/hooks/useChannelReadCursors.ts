@@ -4,8 +4,11 @@ import type { DomainChannel } from '@chatic/data';
 import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/app-runtime';
 import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
+import type { ReadCursor } from '../utils';
+
 /**
- * My read boundary (`join.chatNo`) per channel, kept live.
+ * My read boundary (`join.chatNo`, with the `join.metaNo` snapshot that nets system messages
+ * out of the count) per channel, kept live.
  *
  * v2 does not keep a usable per-user `$join` on the channel record, so the unread badge needs the
  * read cursor from the join cache directly (mirrors apps/web `useChannelUnreads` + `useMyJoinsSync`):
@@ -13,17 +16,17 @@ import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
  * observe the join cache for my row's `chatNo`. Without this the cursor never advances, so badges
  * stay frozen at whatever the eventually-consistent server `unreadCount` last said.
  *
- * Returns `readNo` keyed by channelId; a channel with no join row yet is absent (→ no badge).
+ * Returns the cursor keyed by channelId; a channel with no join row yet is absent (→ no badge).
  * `registerJoin` refcounts by key, so the same channel observed by both the sidebar and the place
  * aggregate dedups to one sync target.
  */
-export const useChannelReadCursors = (channels: DomainChannel[]): Record<string, number> => {
+export const useChannelReadCursors = (channels: DomainChannel[]): Record<string, ReadCursor> => {
     const { join: joinRepository } = useRuntimeRepositories();
     const { userId } = useSessionIdentity();
     const { selectedSiteId } = useSessionSelection();
     const { isVerified } = useSocketState();
 
-    const [readNoByChannel, setReadNoByChannel] = useState<Record<string, number>>({});
+    const [cursorByChannel, setCursorByChannel] = useState<Record<string, ReadCursor>>({});
 
     // Stable key so the effect re-subscribes only when the channel id set changes.
     const channelKey = channels.map(c => c.id).join(',');
@@ -39,8 +42,15 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
             const unsubObserve = joinRepository.observeList({ channelId }, result => {
                 const mine = (result?.list ?? []).find(j => j.userId === userId && j.channelId === channelId);
                 if (!mine) return;
-                const readNo = mine.chatNo ?? 0;
-                setReadNoByChannel(prev => (prev[channelId] === readNo ? prev : { ...prev, [channelId]: readNo }));
+                // `metaNo` rides on the join row but the published JoinModel type has yet to
+                // declare it; read it defensively rather than dropping the netting.
+                const chatNo = mine.chatNo ?? 0;
+                const metaNo = (mine as { metaNo?: number }).metaNo;
+                setCursorByChannel(prev => {
+                    const curr = prev[channelId];
+                    if (curr?.chatNo === chatNo && curr?.metaNo === metaNo) return prev;
+                    return { ...prev, [channelId]: { chatNo, metaNo } };
+                });
             });
             return [unregJoin, unsubObserve];
         });
@@ -50,5 +60,5 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
         // now spans all places (stable across switches), so channelKey alone won't re-run.
     }, [joinRepository, userId, isVerified, channelKey, selectedSiteId]);
 
-    return readNoByChannel;
+    return cursorByChannel;
 };
