@@ -45,8 +45,15 @@ export class PlaceRemoteDataSource implements IPlaceRemoteDataSource {
     }
 
     public async createPlace(payload: PlaceCreateInput, context: DataContext): Promise<DomainPlace> {
-        const remote = await this.gateway.create<MySiteView>(payload);
-        return toDomainPlace((remote || {}) as MySiteView, context);
+        // Unlike get/update/delete, `place.create` answers with the new OWNER PROFILE, not the site
+        // itself — its top-level `id` is the profile's (uid-scoped), while the actual created site
+        // rides along embedded as `site$`. Spreading `site$` over the profile fields corrects `id`
+        // (and any other site-owned field) without losing profile-only extras (e.g. `thumbnail`).
+        // Using the profile's `id` here would cache a place row under the wrong key, so every later
+        // lookup (place.get, switchSite, ...) 404s against a site that was never created.
+        const remote = await this.gateway.create<MySiteView & { site$?: MySiteView }>(payload);
+        const { site$, ...profile } = remote || {};
+        return toDomainPlace({ ...profile, ...site$ } as MySiteView, context);
     }
 
     public async getPlace(payload: PlaceGetInput, context: DataContext): Promise<DomainPlace> {

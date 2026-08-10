@@ -30,11 +30,12 @@ import {
     CloudPromoBanner,
     CloudSessionSheet,
     CreateChannelDialog,
+    CreatePlaceDialog,
     PlaceList,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
-import { useAddCloudFlow, useCreatePlaceFlow, useHomePlaces, useScrollRestoration, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, useHomePlaces, useScrollRestoration, useSwitchPlace } from '../hooks';
 import {
     useActiveCloudChannels,
     useCachedCloudNames,
@@ -180,9 +181,7 @@ export const HomePage = () => {
     const hasActivePlace = !!selectedSiteId;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    // Place creation is a flow (create → switch → mandatory profile), not a lone dialog — the
-    // sequencing lives in useCreatePlaceFlow (ADR-0045).
-    const { openCreatePlace, createPlaceFlow } = useCreatePlaceFlow();
+    const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
@@ -230,7 +229,7 @@ export const HomePage = () => {
             toast({ title: t('homePage.placeLimitReached') });
             return;
         }
-        openCreatePlace();
+        setIsPlaceDialogOpen(true);
     };
 
     // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
@@ -364,7 +363,7 @@ export const HomePage = () => {
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
-            {createPlaceFlow}
+            <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <CloudSessionSheet
                 open={isCloudSessionOpen}
                 onOpenChange={setIsCloudSessionOpen}

@@ -31,6 +31,8 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
+// `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
+jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: 'me' } }),
@@ -72,7 +74,6 @@ const useSwitchPlace = jest.fn(() => ({ selectedPlaceId: 'site-1', switchPlace: 
 
 jest.mock('../hooks', () => ({
     useAddCloudFlow: () => ({ requestAddCloud: jest.fn(), addCloudDialog: null }),
-    useCreatePlaceFlow: () => ({ openCreatePlace: jest.fn(), createPlaceFlow: null }),
     useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),

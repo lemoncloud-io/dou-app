@@ -69,10 +69,13 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 2. **입력** — 타이틀 "플레이스를 만들어서 대화를 시작해 보세요" + 부제. 이름 1~20자일 때만 `완료` 활성. 20자
    초과 시 빨간 테두리 + "21/20" + 힌트, `완료` 비활성.
 3. **사진(선택)** — 아바타 `+` → 파일 선택. 10MB 이하 webp/png/jpeg, 통과 시 150px 정사각 base64 미리보기.
-4. **완료** — 오버레이가 즉시 닫히고 프로필 생성 오버레이(플로우의 마지막 스텝)가 바로 뜬다. `createPlace`
-    - `switchSite`는 그 아래에서 진행되고, 프로필 저장이 그 완료를 기다린다 —
-      [useCreatePlaceFlow](../../../src/app/features/home/hooks/useCreatePlaceFlow.tsx) 참조. 실패하면 프로필
-      스텝에 "플레이스를 만들지 못했어요" 에러가 뜨고 스텝을 빠져나갈 수 있게 된다(재제출 시 이어서 재시도).
+4. **완료** — `createPlace({ name, thumbnail })` → 반환된 site id로 `switchSite` → 성공 시 오버레이가
+   닫힌다(그룹방 생성과 동일 골격). 실패하면 오버레이는 열린 채로 "플레이스를 만들지 못했어요" 에러 토스트만
+   뜨고 재시도할 수 있다. 프로필 생성은 강제하지 않는다 — ADR-0045 결정 4가 한 번 넣었다가 되돌렸다: 새
+   사이트의 owner 프로필 row는 `place.create`가 만들어주지 않고, `profile.set`(`updateSiteProfile`)은
+   UPDATE 전용이라 그 자리에서 쓰려고 하면 항상 404가 난다(재시도로도 해소 불가 — 백엔드 한계). owner도
+   다른 진입자와 동일하게 방 설정 nudge([place-profile-create.md](./place-profile-create.md), ADR-0040)로
+   프로필을 나중에 채운다.
 5. **이탈** — X/esc/overlay 시 입력값이 있으면 "중단하시겠어요?" 확인 모달, 없으면 즉시 닫힘.
 
 ### 그룹방 생성
@@ -97,17 +100,14 @@ flowchart TD
     PL --> PD[CreatePlaceDialog]
     CL --> CD[CreateChannelDialog]
 
-    HPP[useCreatePlace] --> PR[place.createPlace<br/>PlaceRepositoryV2]
-    SW[useSiteSwitch.switchSite]
+    PD -->|createPlace| HPP[useCreatePlace]
+    HPP --> PR[place.createPlace<br/>PlaceRepositoryV2]
+    PD -->|생성 후| SW[useSiteSwitch.switchSite]
+    PD -->|성공 후| CLOSE[오버레이 닫힘]
 
     CD -->|createChannel| HCC[useCreateChannel]
     HCC --> CR[channel.createChannel<br/>ChannelRepositoryV2]
     CD -->|성공 후| NAV["navigate(ROUTES.channels.room(id))"]
-
-    PD -->|onSubmit| CPF[useCreatePlaceFlow]
-    CPF --> HPP
-    CPF -->|생성 후| SW
-    CPF --> PPD[PlaceProfileCreateDialog<br/>프로필 스텝]
 
     PD --> UIK["@chatic/web-ui-kit:<br/>ModalTopBar · ProfileAvatar · TextField ·<br/>FloatingButton · AlertDialog · Toast · Text"]
     CD --> UIK
@@ -120,19 +120,15 @@ flowchart TD
 sequenceDiagram
     participant U as 사용자
     participant D as CreatePlaceDialog
-    participant F as useCreatePlaceFlow
     participant H as useCreatePlace
     participant S as useSiteSwitch
-    participant P as 프로필 스텝
     U->>D: 완료 클릭
-    D->>F: onSubmit({name, thumbnail}) → 오버레이 닫힘
-    F->>P: 즉시 오픈
-    F->>H: createPlace({name, thumbnail})
-    H-->>F: DomainPlace(new id)
-    F->>S: switchSite(newId)
-    U->>P: 닉 저장
-    P->>F: await job → 생성된 id에 고정해 프로필 저장
-    Note over F,P: 실패 시 프로필 스텝에 에러 노출 · 이탈 허용 · 재제출로 이어서 재시도
+    D->>H: createPlace({name, thumbnail})
+    H-->>D: DomainPlace(new id)
+    D->>S: switchSite(newId)
+    S-->>D: 전환 완료
+    D->>D: 오버레이 닫힘
+    Note over D: 실패 시(생성 또는 전환) 오버레이는 열린 채 에러 토스트, 재시도 가능
 ```
 
 ## 상세 구현
@@ -153,7 +149,8 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 - 한도 체크는 개수를 아는 HomePage 핸들러에서 한다. `handleCreatePlace`는 `ownedPlaceCount >= MAX_PLACES`
   (relay 구독행 `stereo === 'place'` 제외 카운트)면 `homePage.placeLimitReached` 토스트 후 return.
   `handleCreateGroup`은 `channels.length >= MAX_CHANNELS_PER_PLACE`면 `homePage.channelLimitReached` 토스트
-  후 return(그다음 PRO 게이트).
+  후 return(그다음 PRO 게이트). 단, dev-class 빌드(`VITE_ENV` DEV/LOCAL, `isDevBuild()`)에서는 두 한도
+  체크를 건너뛴다 — 테스터가 자유롭게 시드할 수 있도록. PRO 게이트는 그대로 남는다.
 
 ### 2) 한도 상수 단일화
 
@@ -165,14 +162,16 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 
 ### 3) CreatePlaceDialog 재구축
 
-- [PlaceProfileCreateDialog.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.tsx)를 골격
-  레퍼런스로 삼는다. `Dialog`(slide-up 풀스크린) + `ModalTopBar`(onClose) + 스크롤 본문 + `FloatingButton`,
-  a11y용 `sr-only` 타이틀/설명, 인라인 `Toast`(성공/에러), `AlertDialog`(이탈 확인). 이미지 처리는
+- [CreateChannelDialog.tsx](../../../src/app/features/home/components/CreateChannelDialog.tsx)와 같은 골격.
+  `Dialog`(slide-up 풀스크린) + `ModalTopBar`(onClose) + 스크롤 본문 + `FloatingButton`, a11y용 `sr-only`
+  타이틀/설명, 인라인 `Toast`(성공/에러), `AlertDialog`(이탈 확인). 이미지 처리는
   `resizeImageToBase64(file, 150)`(`@chatic/shared`) + 10MB·webp/png/jpeg 규칙 동일.
 - 이름: `TextField` `required maxLength={20} enforceMaxLength={false}`, `name.length>20`이면 `error`.
-- 완료(2026-08-06 개정): 다이얼로그는 서버 작업을 하지 않는다. 닫으면서 `onSubmit({ name, thumbnail })`으로
-  입력만 넘기고, `createPlace` → `switchSite`는 [useCreatePlaceFlow](../../../src/app/features/home/hooks/useCreatePlaceFlow.tsx)가
-  프로필 스텝 아래에서 돌린다. 실패 처리도 거기(프로필 스텝의 에러 노출)로 옮겨졌다.
+- 완료: 다이얼로그가 직접 서버 작업을 든다 — `createPlace({ name, thumbnail })` → `switchSite(id)` →
+  성공 시 `onOpenChange(false)`. 실패하면 오버레이는 열린 채 에러 토스트만 뜨고 재시도 가능
+  (`CreateChannelDialog`와 동일한 `submitting` 상태 패턴). 프로필 생성 스텝을 뒤에 강제로 붙였던
+  적이 있으나(ADR-0045 결정 4) 되돌렸다 — 백엔드가 신규 사이트의 첫 프로필 write를 지원하지 않아
+  (`place.create`가 owner 프로필 row를 만들지 않고 `profile.set`은 UPDATE 전용) 항상 404가 났다.
 - [useCreatePlace.ts](../../../src/app/features/home/hooks/useCreatePlace.ts): 시그니처를
   `createPlace({ name, thumbnail }: { name: string; thumbnail?: string })`로 넓혀 payload에 thumbnail 통과.
   `PlaceCreateInput`(`PlaceBodyData`)이 이미 `thumbnail?`을 가지므로 리포/원격은 무변경(payload passthrough,
@@ -214,9 +213,9 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 ## 검증 방법
 
 - **유닛/컴포넌트 테스트** (전부 통과):
-    - [CreatePlaceDialog.test.tsx](../../../src/app/features/home/components/CreatePlaceDialog.test.tsx) (5):
-      완료 활성/비활성 전이, 20자 초과 카운터, 완료 시 닫고 trim된 입력을 `onSubmit`으로 전달,
-      입력 유무별 즉시 닫힘/이탈 확인 모달. 생성·전환은 플로우 훅 테스트가 덮는다.
+    - [CreatePlaceDialog.test.tsx](../../../src/app/features/home/components/CreatePlaceDialog.test.tsx) (6):
+      완료 활성/비활성 전이, 20자 초과 카운터, 완료 시 생성 후 전환하고 닫음, 생성 실패 시 에러 노출 후
+      전환/닫기 안 함, 입력 유무별 즉시 닫힘/이탈 확인 모달.
     - [CreateChannelDialog.test.tsx](../../../src/app/features/home/components/CreateChannelDialog.test.tsx) (5):
       위와 동일 + 성공 시 `{ stereo:'private', name, thumbnail }` 생성 후 `navigate(room(id))`, 실패 시 이동/닫기
       안 함.
