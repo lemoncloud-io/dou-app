@@ -28,7 +28,9 @@ export const VersionUpdateBanner = ({
         return null;
     }
 
-    const displayLatestVersion = latestVersion ?? t('version.unknown');
+    // The `v` prefix lives here rather than in the label so the null fallback reads as plain words
+    // ("unknown") instead of "vunknown".
+    const displayLatestVersion = latestVersion ? `v${latestVersion}` : t('version.unknown');
 
     return (
         <div
@@ -47,13 +49,10 @@ export const VersionUpdateBanner = ({
                     {/* Content */}
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-foreground">
-                            {t('version.updateAvailable')} <span className="text-primary">v{displayLatestVersion}</span>
+                            {t('version.updateAvailable')} <span className="text-primary">{displayLatestVersion}</span>
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            {t('version.currentVersion', {
-                                version: currentVersion,
-                                defaultValue: `Current: v${currentVersion}`,
-                            })}
+                            {t('version.currentVersion', { version: currentVersion })}
                         </p>
                     </div>
                 </div>

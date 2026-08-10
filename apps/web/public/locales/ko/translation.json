@@ -1405,5 +1405,12 @@
             "objects": "사물",
             "symbols": "기호"
         }
+    },
+    "version": {
+        "updateAvailable": "새 버전이 있어요",
+        "currentVersion": "현재 버전 v{{version}}",
+        "unknown": "알 수 없음",
+        "refresh": "새로고침",
+        "later": "나중에"
     }
 }

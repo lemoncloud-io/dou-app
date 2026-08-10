@@ -1405,5 +1405,12 @@
             "objects": "Objects",
             "symbols": "Symbols"
         }
+    },
+    "version": {
+        "updateAvailable": "New version available",
+        "currentVersion": "Current: v{{version}}",
+        "unknown": "unknown",
+        "refresh": "Refresh",
+        "later": "Later"
     }
 }
