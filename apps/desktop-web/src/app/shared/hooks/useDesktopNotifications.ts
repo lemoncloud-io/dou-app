@@ -7,7 +7,14 @@ import { useSessionIdentity } from '@chatic/web-core';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isDndActive, isMentioned, isNotifiableChat, resolveMyMentionNames, stripMarkdown } from '../utils';
+import {
+    buildOpenDeeplink,
+    isDndActive,
+    isMentioned,
+    isNotifiableChat,
+    resolveMyMentionNames,
+    stripMarkdown,
+} from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
 // DMs have no channel name — title with the sender instead. Named channels read as
@@ -88,8 +95,10 @@ export const useDesktopNotifications = (): void => {
                     title: notificationTitle(channel, chat),
                     body: channel.name && sender ? `${sender}: ${message}` : message,
                     channelId: channel.id,
-                    // Clicking the notification routes here (place + channel).
-                    deeplink: `chatic-open:${encodeURIComponent(placeId)}|${encodeURIComponent(channel.id)}`,
+                    // Clicking the notification routes here (place + channel, + thread root).
+                    // `parentId` on a persisted record is already the root's chatNo string —
+                    // the key the open-thread store and ThreadPanel take (see `threadRootId`).
+                    deeplink: buildOpenDeeplink({ placeId, channelId: channel.id, rootId: chat.parentId }),
                 },
             })
             // Degrade gracefully on older shells (NATIVE_NOT_SUPPORTED) or transient bridge

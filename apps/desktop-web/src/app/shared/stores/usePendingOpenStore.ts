@@ -1,18 +1,22 @@
 import { create } from 'zustand';
 
-export interface PendingOpenTarget {
-    /** Source cloud (relay cloudId) for a cross-cloud target; absent → active cloud. */
-    cloudId?: string;
-    placeId: string;
-    channelId: string;
-    /** Bumped on each request so a repeated target to the same channel still fires. */
+// Direct file import, not the `../utils` barrel: that barrel reaches back into this stores
+// barrel (myNames), so a value import would close a cycle. `import type` is erased, so this
+// one costs nothing at runtime.
+import type { PushDeeplinkTarget } from '../utils/parsePushDeeplink';
+
+/**
+ * A notification's open target — the same address the deeplink parser produces (cloud → place
+ * → channel → thread root), plus a nonce so a repeat of the identical target still fires.
+ */
+export type PendingOpenTarget = PushDeeplinkTarget & {
     nonce: number;
-}
+};
 
 interface PendingOpenState {
     target: PendingOpenTarget | null;
-    /** Request opening a (cloud →) place → channel (from an OS notification click, any route). */
-    request: (placeId: string, channelId: string, cloudId?: string) => void;
+    /** Request opening a (cloud →) place → channel (→ thread) from a notification click, any route. */
+    request: (target: PushDeeplinkTarget) => void;
     /** Clear after HomePage has applied the target. */
     clear: () => void;
 }
@@ -20,13 +24,13 @@ interface PendingOpenState {
 let seq = 0;
 
 /**
- * A pending "open this cloud + place + channel" target. The always-mounted
+ * A pending "open this cloud + place + channel (+ thread)" target. The always-mounted
  * notification listener writes it (and routes to '/'); HomePage consumes it once
  * the target's channels load, switching cloud/place first when needed. Decouples
  * notification handling from the home route being mounted.
  */
 export const usePendingOpenStore = create<PendingOpenState>(set => ({
     target: null,
-    request: (placeId, channelId, cloudId) => set({ target: { cloudId, placeId, channelId, nonce: ++seq } }),
+    request: target => set({ target: { ...target, nonce: ++seq } }),
     clear: () => set({ target: null }),
 }));

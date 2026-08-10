@@ -108,6 +108,13 @@ export type CacheJoinView = JoinView &
         userId: string;
         joined: number;
         readNo: number;
+        /**
+         * 읽음 커서(`chatNo`) 시점의 `channel.metaNo` 스냅샷. 서버가 join 페이로드로 내려주지만
+         * 발행된 `JoinView`가 아직 선언하지 않아 여기서 넓힌다. unread를 사용자 메시지 기준으로
+         * 계산할 때 쓴다 — `(channel.chatNo - channel.metaNo) - (join.chatNo - join.metaNo)`.
+         * 서버가 스냅샷을 남기기 전에 쓰인 행에는 없다.
+         */
+        metaNo?: number;
     };
 
 export type CacheUserView = UserView &

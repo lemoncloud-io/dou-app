@@ -4,19 +4,21 @@ import { webClient } from '@chatic/bridges';
 import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isDndActive, isMentioned, resolveMyMentionNames, resolvePushCloudId } from '../utils';
+import { buildOpenDeeplink, isDndActive, isMentioned, resolveMyMentionNames, resolvePushCloudId } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useSelectedChannelStore } from '../stores';
 
 /**
- * Deeplink for the OS banner click. When the source cloud resolves, encode
- * `chatic-open:<cloudId>|<sid>|<channelId>` so the click switches cloud → place →
- * channel (parsePushDeeplink + HomePage). Otherwise fall back to the server's own
- * `channel?channelId=` link — best-effort, opens in the current cloud only.
+ * Deeplink for the OS banner click. When the source cloud resolves, encode the open target so
+ * the click switches cloud → place → channel (buildOpenDeeplink + parsePushDeeplink + HomePage).
+ * Otherwise fall back to the server's own `channel?channelId=` link — best-effort, opens in the
+ * current cloud only.
+ *
+ * No thread root: the server's push payload carries no `parentId` (chatic-socials-api
+ * build-chat-push.ts), so a cross-cloud push for a reply can only open the channel until it does.
  */
 const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, string>): string | undefined => {
     if (cloudId && data.channelId) {
-        const enc = encodeURIComponent;
-        return `chatic-open:${enc(cloudId)}|${enc(data.sid ?? '')}|${enc(data.channelId)}`;
+        return buildOpenDeeplink({ cloudId, placeId: data.sid ?? '', channelId: data.channelId });
     }
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
@@ -103,7 +105,11 @@ const presentPush = async (
         className: channelId ? 'cursor-pointer' : undefined,
         onClick: channelId
             ? () =>
-                  usePendingOpenStore.getState().request(data.sid ?? '', String(channelId), sourceCloudId ?? undefined)
+                  usePendingOpenStore.getState().request({
+                      cloudId: sourceCloudId ?? undefined,
+                      placeId: data.sid ?? '',
+                      channelId: String(channelId),
+                  })
             : undefined,
     });
 };

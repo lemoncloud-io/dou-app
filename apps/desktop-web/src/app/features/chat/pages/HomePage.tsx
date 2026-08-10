@@ -151,6 +151,20 @@ export const HomePage = () => {
     // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
     const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
+    // Open a thread on a channel that is being selected right now — the one rule every entry
+    // point (saved item, mention, notification click) needs. Already the selected channel →
+    // open inline, because nothing switches the panel shut and the deferred effect below would
+    // not re-fire. A different channel → selecting it runs closeThread() on the way in, so
+    // leave it on the ref and let that effect win afterwards.
+    const openThreadNowOrDefer = (channelId: string, rootId: string) => {
+        if (channelId !== selectedChannelId) {
+            pendingThreadRef.current = { channelId, rootId };
+            return;
+        }
+        pendingThreadRef.current = null;
+        openThread(rootId);
+    };
+
     // Open a saved item: when it lives in another place, switch place first and
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
@@ -166,10 +180,7 @@ export const HomePage = () => {
         }
         selectChannel(channelId);
         if (threadRootId) {
-            // Same channel → open now (nothing switches it shut). Switching channels
-            // runs closeThread() on the way in, so defer past that via the ref.
-            if (channelId === selectedChannelId) openThread(threadRootId);
-            else pendingThreadRef.current = { channelId, rootId: threadRootId };
+            openThreadNowOrDefer(channelId, threadRootId);
             return;
         }
         if (chatNo != null) requestMessageJump(channelId, chatNo);
@@ -183,10 +194,12 @@ export const HomePage = () => {
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { cloudId, placeId, channelId } = pendingOpen;
+        const { cloudId, placeId, channelId, rootId } = pendingOpen;
         const activeCloud = activeCloudId ?? 'default';
-        // A notification click opens the pinged (latest) message → land at the bottom.
-        pendingOpenAtBottomRef.current = channelId;
+        // A reply opens the thread panel, a top-level message lands at the bottom of the feed.
+        // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
+        pendingThreadRef.current = rootId ? { channelId, rootId } : null;
+        pendingOpenAtBottomRef.current = rootId ? null : channelId;
         if (cloudId && cloudId !== activeCloud) {
             // Cross-cloud: switch cloud first. The target place lands via the
             // auto-select effect (pendingPlaceRef), then the channel via the
@@ -200,8 +213,11 @@ export const HomePage = () => {
             void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
-            requestOpenAtBottom(channelId);
-            pendingOpenAtBottomRef.current = null;
+            if (rootId) openThreadNowOrDefer(channelId, rootId);
+            else {
+                requestOpenAtBottom(channelId);
+                pendingOpenAtBottomRef.current = null;
+            }
         }
         clearPendingOpen();
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
