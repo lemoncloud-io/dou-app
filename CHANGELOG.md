@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-08-10] - root@0.50.2, @chatic/desktop-web@0.4.3
+
+### Bug Fixes
+
+- (desktop-web) open the thread when a reply's push is clicked
+- (desktop-web,docs) stop the local-cursor cap from swallowing the fallback badge
+- (desktop-web) keep the local read cursor authoritative under the netted count
+- (desktop-web) stop emoji reactions from raising an unread badge
+
+### Documentation
+
+- (adr) record how unread is derived, and where the three clients disagree
+
+### Refactor
+
+- (desktop-web) give the notification deeplink one encoder and one thread-open rule
+- (desktop-web,app-messages) tidy the unread derivation after the reaction fix
+
 ## [2026-08-10] - root@0.50.1, @chatic/web@0.43.1
 
 ### Features
