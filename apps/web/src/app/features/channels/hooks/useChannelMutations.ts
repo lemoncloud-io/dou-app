@@ -21,7 +21,7 @@ const INITIAL_PENDING: PendingState = { start: false, update: false, delete: fal
  * delete/leave/invite) reflect only their own in-flight state.
  */
 export const useChannelMutations = () => {
-    const { channel: channelRepository } = useRuntimeRepositories();
+    const { channel: channelRepository, join: joinRepository } = useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
     // Toggle one action's pending flag around its promise.
@@ -50,8 +50,24 @@ export const useChannelMutations = () => {
 
     const leaveChannel = useCallback(
         (payload: ChatLeaveInput): Promise<DomainChannel> =>
-            run('leave', () => channelRepository.leaveChannel(payload)),
-        [channelRepository, run]
+            run('leave', async () => {
+                const domain = await channelRepository.leaveChannel(payload);
+                // A kick (userId set) removes someone ELSE — nothing server-side ever pushes a
+                // join-cache update for the target, so their row would otherwise sit at its old
+                // `joined` value forever and useChannelMembers keeps rendering them. Mark it left
+                // here, in the same local join cache the member list observes.
+                if (payload.userId && payload.channelId) {
+                    await joinRepository.cacheWrite({
+                        id: `${payload.channelId}@${payload.userId}`,
+                        channelId: payload.channelId,
+                        userId: payload.userId,
+                        joined: 0,
+                        reason: 'kicked',
+                    });
+                }
+                return domain;
+            }),
+        [channelRepository, joinRepository, run]
     );
 
     const inviteChannel = useCallback(
