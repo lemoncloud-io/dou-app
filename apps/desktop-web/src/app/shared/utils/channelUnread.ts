@@ -95,6 +95,10 @@ export const computeChannelUnread = (
     // an upper bound however far behind the server cursor is, and 0 once it reaches the head.
     // Without it, reading a channel and then receiving one message would re-show the whole
     // backlog until the read receipt round-trips, which is what the local cursor exists to avoid.
-    const cap = localReadNo === undefined ? head : Math.max(0, head - localReadNo);
-    return Math.max(0, Math.min(derived, cap));
+    //
+    // A cached channel row with no `chatNo` (a partial write) makes the cap say "nothing above
+    // the cursor" about a head it does not know, which would silently swallow the `unreadCount`
+    // fallback — the one thing this derivation is not allowed to do. Skip the cap there.
+    if (localReadNo === undefined || head <= 0) return Math.max(0, derived);
+    return Math.max(0, Math.min(derived, head - localReadNo));
 };

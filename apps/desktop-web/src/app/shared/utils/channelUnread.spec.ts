@@ -85,9 +85,21 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID, undefined)).toBe(8);
     });
 
+    it('counts from the join point on a channel joined but never read', () => {
+        const ch = channel({ chatNo: 120, metaNo: 0, $join: { chatNo: 0, joinedNo: 100, metaNo: 0 } as never });
+        expect(computeChannelUnread(ch, MY_UID, undefined)).toBe(20);
+    });
+
     it('falls back to the server count while no boundary is known', () => {
         const ch = channel({ chatNo: 12, metaNo: 0, unreadCount: 4 });
         expect(computeChannelUnread(ch, MY_UID, undefined)).toBe(4);
+    });
+
+    // A cached row can arrive without `chatNo`; capping against a head we don't know would
+    // swallow the fallback badge, and a stale badge beats a missing one.
+    it('keeps the server count when the cached row carries no head', () => {
+        const ch = channel({ unreadCount: 4 });
+        expect(computeChannelUnread(ch, MY_UID, undefined, 50)).toBe(4);
     });
 
     it('shows no badge when neither a boundary nor a server count exists', () => {
