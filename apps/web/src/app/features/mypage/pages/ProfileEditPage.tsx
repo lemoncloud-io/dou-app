@@ -95,7 +95,7 @@ export const ProfileEditPage = () => {
                 />
             }
         >
-            {/* Same centered-photo-above-name rhythm as PlaceInfoPage so the profile screens match. */}
+            {/* Same centered-photo-above-name rhythm as PlaceEditPage so the profile screens match. */}
             <div className="flex flex-col gap-8 py-10">
                 <div className="flex flex-col items-center gap-4 px-[18px]">
                     <ProfileAvatar

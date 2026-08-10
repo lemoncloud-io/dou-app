@@ -43,6 +43,7 @@ jest.mock('../../../hooks', () => ({
     useHomeChannels: () => ({ channels: [], isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds: [] }),
     useMyJoins: () => new Map(),
+    useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
 }));
 jest.mock('../../../stores/usePreferenceStore', () => ({
     usePreferenceStore: (sel?: (s: unknown) => unknown) => {
@@ -75,7 +76,6 @@ const useSwitchPlace = jest.fn(() => ({ selectedPlaceId: 'site-1', switchPlace: 
 jest.mock('../hooks', () => ({
     useAddCloudFlow: () => ({ requestAddCloud: jest.fn(), addCloudDialog: null }),
     useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
-    useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
 }));
 jest.mock('../lib', () => ({ resolveHeaderProfile: () => ({ kind: 'site', name: 'me' }) }));

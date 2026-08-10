@@ -109,7 +109,7 @@ export const CloudProfileEditPage = () => {
                 />
             }
         >
-            {/* Same spacing rhythm as PlaceInfoPage, minus the photo block — the cloud model has no image field. */}
+            {/* Same spacing rhythm as PlaceEditPage, minus the photo block — the cloud model has no image field. */}
             <div className="flex flex-col gap-8 py-10">
                 <TextField
                     label={t('profileEdit.nameLabel')}

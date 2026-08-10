@@ -20,5 +20,6 @@ type Story = StoryObj<typeof ProfileAvatar>;
 export const Placeholder: Story = {};
 export const GroupPlaceholder: Story = { args: { glyph: 'group' } };
 export const PlacePlaceholder: Story = { args: { glyph: 'place' } };
+export const HomePlaceholder: Story = { args: { glyph: 'home', onSelect: undefined } };
 export const WithImage: Story = { args: { src: AVATAR } };
 export const ReadOnly: Story = { args: { src: AVATAR, onSelect: undefined } };

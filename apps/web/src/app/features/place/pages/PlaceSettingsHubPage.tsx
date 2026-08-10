@@ -15,10 +15,11 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * Place settings hub — the landing screen reached from the home profile dropdown. Three titled
- * cards: "프로필" (my profile / place profile), "알림" (place push toggle) and "채팅방" (chat sort /
- * chat management). The place-profile row is owner-only, so it is disabled for non-owners (server
- * `isOwner` is the authority — ADR-0031). The notification toggle is still a placeholder (no
- * backend support).
+ * cards: "설정" (my profile / place profile / place information), "알림" (place push toggle) and
+ * "채팅방" (chat sort / chat management). The place-profile row writes, so it is owner-only and
+ * disabled for non-owners (server `isOwner` is the authority — ADR-0031); the place-information row
+ * only reads, so it stays open to everyone (ADR-0047). The notification toggle is still a
+ * placeholder (no backend support).
  */
 export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
@@ -46,7 +47,7 @@ export const PlaceSettingsHubPage = () => {
         <div className="flex h-full flex-col bg-background pt-safe-top">
             <PageHeader title={t('placeSettings.title')} />
             <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 py-2.5">
-                <MenuCard title={t('placeSettings.sectionProfile')}>
+                <MenuCard title={t('placeSettings.sectionSettings')}>
                     <ListRow
                         title={t('placeSettings.myProfile')}
                         trailing={chevron}
@@ -57,7 +58,13 @@ export const PlaceSettingsHubPage = () => {
                         subtitle={isOwner ? undefined : t('placeSettings.ownerOnly')}
                         trailing={chevron}
                         disabled={!isOwner}
-                        onClick={placeId ? go(ROUTES.place.settingsInfo(placeId)) : undefined}
+                        onClick={placeId ? go(ROUTES.place.settingsEdit(placeId)) : undefined}
+                    />
+                    {/* Read-only, so no owner gate — a member is entitled to see whose place this is. */}
+                    <ListRow
+                        title={t('placeSettings.placeDetail')}
+                        trailing={chevron}
+                        onClick={placeId ? go(ROUTES.place.settingsDetail(placeId)) : undefined}
                     />
                 </MenuCard>
 

@@ -36,6 +36,9 @@ describe('@chatic/app-runtime public surface', () => {
             'useLogoutCloudSession',
             // session actions (non-hook) — verify-hash-alias $token → relay session/socket switch
             'applySessionToken',
+            // apps/web boot-time DataRepositoriesV2 option injection (e.g. persistEmbeddedSite gating,
+            // ADR-0045) — pre-existing export this list had drifted out of sync with.
+            'configureDataRuntime',
             // cache tier helpers (cold-db activation + invited-cloud durability)
             'isNativeApp',
             'setChatCacheLimit',

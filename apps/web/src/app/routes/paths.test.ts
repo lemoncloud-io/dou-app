@@ -65,7 +65,8 @@ describe('ROUTES — 파라미터 빌더', () => {
 
     it('place 설정 하위 경로를 생성한다', () => {
         expect(ROUTES.place.settings('p42')).toBe('/place/p42/settings');
-        expect(ROUTES.place.settingsInfo('p42')).toBe('/place/p42/settings/info');
+        expect(ROUTES.place.settingsDetail('p42')).toBe('/place/p42/settings/detail');
+        expect(ROUTES.place.settingsEdit('p42')).toBe('/place/p42/settings/edit');
         expect(ROUTES.place.settingsProfile('p42')).toBe('/place/p42/settings/profile');
         expect(ROUTES.place.settingsChannels('p42')).toBe('/place/p42/settings/channels');
     });

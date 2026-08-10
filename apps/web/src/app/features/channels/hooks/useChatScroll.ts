@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
+// Direct path, not the `../../../hooks` barrel: that barrel re-exports hooks which pull in
+// `@chatic/app-runtime` -> `@chatic/web-core`'s config module, which reads `import.meta.env` —
+// syntax the CommonJS jest transform cannot parse. Same reasoning as `PlaceProfileForm`'s direct
+// import of `PageHeader` (ADR-0046).
+import { stashScroll, useScrollRestoration } from '../../../hooks/useScrollRestoration';
 import { debounce } from '../../../utils';
 import type { ClientChatView } from '../types';
-import { stashRoomScroll, takeRoomScroll } from '../utils/roomScrollMemory';
 
 interface UseChatScrollParams {
     messages: ClientChatView[];
@@ -26,8 +30,9 @@ interface UseChatScrollParams {
      */
     suppressAutoScroll?: boolean;
     /**
-     * Channel whose scroll offset is remembered across visits (see roomScrollMemory): restored on
-     * mount when one was left behind, stashed again on unmount. Omit to always land at the bottom.
+     * Channel whose scroll offset is remembered across visits (see `useScrollRestoration`):
+     * restored on mount when one was left behind, stashed again on unmount. Omit to always land
+     * at the bottom.
      */
     channelId?: string;
 }
@@ -60,58 +65,40 @@ export const useChatScroll = ({
     suppressAutoScroll = false,
     channelId,
 }: UseChatScrollParams) => {
-    const containerRef = useRef<HTMLDivElement>(null);
+    // The channel-scoped slice of the shared scroll-restoration hook (see `useScrollRestoration`):
+    // it owns the container ref, the take-on-mount/stash-on-unmount memory, and the pending-claim
+    // bookkeeping. `manualConsume` because the bottom pin below is a competing scroll behaviour —
+    // it has to defer to `hasPendingRestore` for one commit and consume the claim itself, rather
+    // than having it cleared out from under it.
+    const {
+        containerRef,
+        onScroll: restorationOnScroll,
+        hasPendingRestore,
+        consumePendingRestore,
+    } = useScrollRestoration(channelId, messages.length > 0, { manualConsume: true });
     // scrollTop captured just before an older page renders, restored once messages grows.
     const scrollPreserveRef = useRef<number | null>(null);
-    // Where the list currently sits, mirrored out of the scroll event. The unmount stash below
-    // reads THIS and not the container: React detaches host refs before it runs a parent's layout
-    // effect cleanups, so by teardown `containerRef.current` is already null and the offset would
-    // be gone. Programmatic scrolls fire the event too, so this tracks them as well.
-    const lastScrollTopRef = useRef(0);
     // Read through a ref so flipping suppression does NOT re-run the auto-scroll effect: a re-run
     // right after a jump finishes would scroll to the bottom for messages that arrived while it
     // was suppressed, undoing the jump the moment it succeeded.
     const suppressAutoScrollRef = useRef(suppressAutoScroll);
     suppressAutoScrollRef.current = suppressAutoScroll;
 
-    // An offset left behind by the last visit, waiting for the list to have rows to scroll through.
-    // Carries its channel so a stale value can never be applied to a different room.
-    const pendingRestoreRef = useRef<{ key: string; top: number } | null>(null);
-    // Explicit null check, not `?.key === channelId`: with no pending restore AND no channelId
-    // that comparison is `undefined === undefined`, which would claim a restore was pending and
-    // silently disable the bottom pin for every caller that doesn't pass a channel.
-    const hasPendingRestore = () => pendingRestoreRef.current !== null && pendingRestoreRef.current.key === channelId;
-
-    useLayoutEffect(() => {
-        if (!channelId) return;
-        const saved = takeRoomScroll(channelId);
-        if (saved !== null) pendingRestoreRef.current = { key: channelId, top: saved };
-
-        // Hand the offset back on the way out, so the next entry into this room lands where the
-        // reader left it instead of snapping to the newest message. Every exit unmounts the page,
-        // so this one cleanup covers the thread hop, the back button and a push-driven jump alike.
-        //
-        // A claim that was never spent goes back untouched. The list only has rows to scroll a beat
-        // after mount, so leaving before then — or StrictMode's mount/unmount/mount, which tears the
-        // first pass down at exactly that point — would otherwise write the bottom (0) over the
-        // offset this mount had just taken, and the reader's place would be gone.
-        return () => {
-            const unspent = pendingRestoreRef.current;
-            const offset = unspent?.key === channelId ? unspent.top : lastScrollTopRef.current;
-            stashRoomScroll(channelId, offset);
-        };
-    }, [channelId]);
-
-    // Every programmatic move updates the mirror as well as the element: the scroll event that
-    // would sync it is dispatched later, and an unmount in between must not stash a stale offset.
-    const scrollToBottom = useCallback((smooth = false) => {
-        requestAnimationFrame(() => {
-            if (containerRef.current) {
-                lastScrollTopRef.current = 0;
-                containerRef.current.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
-            }
-        });
-    }, []);
+    // Every programmatic move mirrors into the shared restoration memory directly, not by reading
+    // the element back: `scrollTo` is a no-op stub in tests, and even in a real browser the native
+    // 'scroll' event it triggers is asynchronous — an unmount before it fires would otherwise stash
+    // a stale pre-scroll offset.
+    const scrollToBottom = useCallback(
+        (smooth = false) => {
+            requestAnimationFrame(() => {
+                if (containerRef.current) {
+                    if (channelId) stashScroll(channelId, 0);
+                    containerRef.current.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+                }
+            });
+        },
+        [channelId, containerRef]
+    );
 
     // Restore the pre-loadMore anchor after the older page renders, before the browser paints.
     // Adding content at the top keeps the same view when scrollTop is restored against the
@@ -121,24 +108,9 @@ export const useChatScroll = ({
         const el = containerRef.current;
         if (!el) return;
         el.scrollTop = scrollPreserveRef.current;
-        lastScrollTopRef.current = scrollPreserveRef.current;
+        if (channelId) stashScroll(channelId, scrollPreserveRef.current);
         scrollPreserveRef.current = null;
-    }, [messages]);
-
-    // Put the reader back where they were when they left the room, once the rows they were
-    // reading exist again. The claim is NOT cleared here — layout effects run before passive
-    // ones, so clearing now would re-open the bottom pin below in this very commit and undo the
-    // scroll a frame later. The auto-scroll effect consumes it instead.
-    useLayoutEffect(() => {
-        const pending = pendingRestoreRef.current;
-        if (!pending || pending.key !== channelId) return;
-        const el = containerRef.current;
-        if (!el || messages.length === 0) return;
-        if (el.scrollHeight > el.clientHeight) {
-            el.scrollTop = pending.top;
-            lastScrollTopRef.current = pending.top;
-        }
-    }, [messages, channelId]);
+    }, [messages, channelId, containerRef]);
 
     // Auto-scroll to the bottom only when the latest message is new (not on older-page loads,
     // which grow the list at the top without changing the last message id).
@@ -156,7 +128,7 @@ export const useChatScroll = ({
         // "new latest message", so the pin would otherwise undo it. Consumed here, once the rows
         // exist, so the NEXT message to arrive follows the bottom again like any other.
         if (hasPendingRestore()) {
-            if (messages.length > 0) pendingRestoreRef.current = null;
+            if (messages.length > 0) consumePendingRestore();
             return;
         }
         if (hasNewLatest && !suppressAutoScrollRef.current) {
@@ -222,10 +194,9 @@ export const useChatScroll = ({
     // room inside the debounce window would otherwise stash an offset up to 100ms out of date —
     // and leaving mid-scroll is exactly when the reader cares where they were.
     const handleScrollEvent = useCallback(() => {
-        const el = containerRef.current;
-        if (el) lastScrollTopRef.current = el.scrollTop;
+        restorationOnScroll();
         debouncedLoadCheck();
-    }, [debouncedLoadCheck]);
+    }, [restorationOnScroll, debouncedLoadCheck]);
 
     return { containerRef, handleScroll: handleScrollEvent };
 };

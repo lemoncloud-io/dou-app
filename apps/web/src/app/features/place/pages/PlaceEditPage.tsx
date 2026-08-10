@@ -22,7 +22,7 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
  * hub, whose row is already disabled for non-owners; the redirect here is a defensive backstop.
  * Save goes through the shared {@link useUpdatePlace} (optimistic cache write). See ADR-0031.
  */
-export const PlaceInfoPage = () => {
+export const PlaceEditPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
@@ -115,13 +115,13 @@ export const PlaceInfoPage = () => {
         }
     };
 
-    const title = t('placeInfo.title');
+    const title = t('placeEdit.title');
 
     if (!place) {
         return (
             <KeyboardAwareLayout className="fixed inset-0 overflow-hidden" header={<PageHeader title={title} />}>
                 <div className="flex min-h-full items-center justify-center">
-                    <Text className="text-muted-foreground">{t('placeInfo.notFound')}</Text>
+                    <Text className="text-muted-foreground">{t('placeEdit.notFound')}</Text>
                 </div>
             </KeyboardAwareLayout>
         );
@@ -133,7 +133,7 @@ export const PlaceInfoPage = () => {
             header={<PageHeader title={title} onBack={requestClose} />}
             footer={
                 <FloatingButton
-                    label={t('placeInfo.confirm')}
+                    label={t('placeEdit.confirm')}
                     disabled={!canSubmit}
                     loading={isPending}
                     onClick={handleSubmit}
@@ -148,31 +148,31 @@ export const PlaceInfoPage = () => {
                         src={imageUrl || undefined}
                         glyph="place"
                         onSelect={handleImageClick}
-                        selectLabel={t('placeInfo.changeImage')}
+                        selectLabel={t('placeEdit.changeImage')}
                     />
                     <div className="flex flex-col items-center gap-0.5">
                         <Text variant="label" className="text-label">
-                            {t('placeInfo.photoLabel')}
+                            {t('placeEdit.photoLabel')}
                         </Text>
                         <Text variant="caption" className="text-placeholder">
-                            {t('placeInfo.photoOptional')}
+                            {t('placeEdit.photoOptional')}
                         </Text>
                     </div>
                     {imageSizeError && (
                         <Text variant="caption" className="text-destructive">
-                            {t('placeInfo.imageSizeError')}
+                            {t('placeEdit.imageSizeError')}
                         </Text>
                     )}
                 </div>
 
                 <TextField
-                    label={t('placeInfo.nameLabel')}
+                    label={t('placeEdit.nameLabel')}
                     required
                     value={name}
                     onChange={setName}
                     maxLength={MAX_NAME_LENGTH}
-                    placeholder={t('placeInfo.namePlaceholder')}
-                    description={t('placeInfo.nameDescription')}
+                    placeholder={t('placeEdit.namePlaceholder')}
+                    description={t('placeEdit.nameDescription')}
                     enterKeyHint="done"
                     onKeyDown={e => {
                         // "Done" key dismisses the keyboard; ignore Enter while an IME is composing.
@@ -195,11 +195,11 @@ export const PlaceInfoPage = () => {
             <AlertDialog
                 open={isExitGuardOpen}
                 onOpenChange={setIsExitGuardOpen}
-                title={t('placeInfo.exitTitle')}
-                description={t('placeInfo.exitDescription')}
-                cancelLabel={t('placeInfo.exitLeave')}
+                title={t('placeEdit.exitTitle')}
+                description={t('placeEdit.exitDescription')}
+                cancelLabel={t('placeEdit.exitLeave')}
                 onCancel={() => navigate(-1)}
-                confirmLabel={t('placeInfo.exitContinue')}
+                confirmLabel={t('placeEdit.exitContinue')}
                 onConfirm={() => undefined}
             />
         </KeyboardAwareLayout>

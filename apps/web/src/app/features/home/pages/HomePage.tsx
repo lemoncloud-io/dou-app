@@ -17,7 +17,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile, useUserPermissions } from '../../../hooks';
+import { useMyProfile, useScrollRestoration, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
@@ -36,7 +36,7 @@ import {
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
-import { useAddCloudFlow, useHomePlaces, useScrollRestoration, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
 import {
     useActiveCloudChannels,
     useCachedCloudNames,
