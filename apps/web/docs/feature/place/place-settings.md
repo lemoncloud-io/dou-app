@@ -24,7 +24,7 @@
 - 설정 허브 페이지(계층형 목록) — `설정` / `알림` / `채팅방` 세 카드.
 - 플레이스 이름/이미지 편집 페이지(`PlaceEditPage`) — 오너 전용, 비오너 disabled.
 - 플레이스 유저 프로필 설정 페이지 — 폼 본문 공유(다이얼로그 진입도 유지).
-- **플레이스 정보 페이지(`PlaceDetailPage`) — 읽기 전용**: 아바타, 플레이스 이름, 만든 날짜, 소유자 정보. relay 기본플레이스(DoU홈)와 클라우드 플레이스 분기.
+- **플레이스 정보 페이지(`PlaceDetailPage`) — 읽기 전용**: 아바타, 플레이스 이름, 만든 날짜, 소유자 정보. relay 기본플레이스(DoU홈)와 클라우드 플레이스 분기 — DoU홈은 만든 날짜·소유자 정보 없이 이름만(기획 결정, §시나리오 8).
 - 채팅방 정렬(허브에서 바텀시트) · 채팅방 관리 페이지.
 - 필요한 i18n 키, 아이콘·이미지 리소스.
 
@@ -44,7 +44,7 @@
 5. **유저 프로필 — 설정 경로** — 허브 `설정` 카드의 "내 프로필" 행 → 라우트 페이지. 본문/저장은 다이얼로그와 동일(`PlaceProfileFormDialog` + `setMyProfile`).
 6. **플레이스 정보 — 클라우드 플레이스(오너)** — 허브 `설정` 카드의 "플레이스 정보" 행 → `PlaceDetailPage`. 썸네일이 있으면 그 사진, 없으면 네이비 풍경 기본 아바타. 라벨 "플레이스 이름" + 플레이스 이름, "플레이스 만든 날짜" + `createdAt` 날짜, "소유자 정보" + 오너 행(아바타 · 방장 뱃지 · 플레이스 프로필 닉).
 7. **플레이스 정보 — 클라우드 플레이스(비오너)** — 같은 화면. 이름 라벨만 "초대된 플레이스 이름"으로 바뀐다. 소유자 정보는 동일하게 `ownerId`의 플레이스 프로필을 보여준다.
-8. **플레이스 정보 — DoU홈(relay 기본플레이스)** — 아바타는 DoU 캐릭터(고스트) 일러스트, 이름은 `resolvePlaceDisplayName`이 브랜딩한 "두유 홈"(백엔드 원본 `default`를 노출하지 않는다), 라벨은 `isOwner` 부재라 "초대된 플레이스 이름". **소유자 정보 섹션은 렌더하지 않는다** — relay 기본플레이스는 `stereo: 'domain'`인 시스템 사이트로 `ownerId`·`owner$`·`isOwner`가 전부 없다(§실측).
+8. **플레이스 정보 — DoU홈(relay 기본플레이스)** — 아바타는 DoU 캐릭터(고스트) 일러스트, 이름은 `resolvePlaceDisplayName`이 브랜딩한 "두유 홈"(백엔드 원본 `default`를 노출하지 않는다). 라벨은 `isOwner`가 없어도 **"플레이스 이름"**(Figma 3769-34207, 오너 변형) — relay는 기본플레이스 하나뿐이라 "초대돼 들어온 곳"이 아니라는 기획 결정이다(ADR-0047). **만든 날짜·소유자 정보 행은 렌더하지 않는다** — `createdAt`은 실측상 relay에도 오지만 이 화면엔 보이지 않기로 정했고(데이터 유무와 무관), 소유자 정보는 relay가 `ownerId`·`owner$`·`isOwner`를 애초에 안 실어 오므로(§실측) 자연히 없다.
 9. **소유자 프로필이 캐시에 없을 때** — 이름 · 날짜가 먼저 그려지고, `profile.refreshItem`이 돌아오면 소유자 행이 채워진다. 조회가 실패하면 그 행만 비고 나머지는 남는다.
 10. **채팅방 정렬** — 허브 `채팅방` 카드의 "채팅방 정렬" 행 → 바텀시트(`ChannelSortSheet`)에서 **최근 활동순**(기본) / **안읽은 메시지 우선** 선택 → 즉시 저장(플레이스별). 홈 채팅방 목록이 그 기준으로 정렬된다.
 11. **채팅방 관리** — 허브 `채팅방` 카드의 "채팅방 관리" 행 → `PlaceChannelManagePage`.
@@ -73,16 +73,16 @@ flowchart TD
 ```mermaid
 flowchart TD
     P["place.observeItem(placeId)"] --> H{"id === HOME_PLACE_ID<br/>('0000')"}
-    H -->|"예 · DoU홈"| HA["아바타: 고스트 일러스트<br/>이름: resolvePlaceDisplayName → '두유 홈'<br/>소유자 섹션: 렌더 안 함"]
+    H -->|"예 · DoU홈"| HA["아바타: 고스트 일러스트<br/>이름: resolvePlaceDisplayName → '두유 홈'<br/>라벨: '플레이스 이름' (isOwner 무관, 명시적 예외)<br/>만든 날짜 행: 렌더 안 함 (기획 결정, 데이터 유무 무관)<br/>소유자 섹션: 렌더 안 함"]
     H -->|"아니오 · 클라우드"| CA["아바타: thumbnail ?? 네이비 풍경<br/>이름: place.name"]
     CA --> O{"ownerId 있나?"}
     O -->|예| OP["profile.observeItem('placeId@ownerId')<br/>+ 캐시 미스면 refreshItem"]
     OP --> OR["소유자 행: 아바타 · 방장 뱃지 · 닉"]
     O -->|아니오| OS[소유자 섹션 렌더 안 함]
-    P --> L{"isOwner?"}
+    CA --> L{"isOwner?"}
     L -->|truthy| LN["라벨: '플레이스 이름'"]
     L -->|"falsy · 부재 포함"| LI["라벨: '초대된 플레이스 이름'"]
-    P --> D{"createdAt 있나?"}
+    CA --> D{"createdAt 있나?"}
     D -->|예| DR["'플레이스 만든 날짜' 행"]
     D -->|아니오| DS[날짜 행 렌더 안 함]
 ```
@@ -114,10 +114,11 @@ ADR-0047이 미결로 남긴 항목의 실측 결과다(`user.mySite` → Indexe
 | `ownerId`   | ❌                             | ✅                             |
 | `owner$`    | ❌                             | ⚠️ `{id, name: "LMN:1000051"}` |
 
-두 가지가 설계를 결정했다:
+세 가지가 설계를 결정했다:
 
 1. **`owner$.name`은 사람 이름이 아니다** — `"LMN:1000051"`은 내부 식별자다. 그래서 소유자 표시는 `owner$`가 아니라 `ownerId` + 플레이스 프로필 조회로 간다(ADR-0047 결정 3, 실측으로 확정).
 2. **relay 기본플레이스는 소유자 개념이 없는 시스템 사이트다** — `stereo: 'domain'`, `ownerId`·`owner$`·`isOwner` 전부 부재. 그래서 DoU홈에서는 소유자 섹션을 렌더하지 않는다(설계 원칙: 서버가 주지 않는 값을 만들지 않는다).
+3. **relay는 기본플레이스 하나뿐이라는 사실이 화면을 다시 정한다** — relay는 절대로 "다른 사람 플레이스에 초대돼 들어온" 상태가 될 수 없으므로, `isOwner`가 없어도 오너 변형(Figma 3769-34207: "플레이스 이름" 라벨)으로 고정하고, 그 변형에서 **만든 날짜 행도 제거한다**(기획 결정, 2026-08-07 — `createdAt`은 실제로 오지만 화면엔 안 보인다). 데이터 유무로 결정되는 소유자 섹션과 달리, 날짜·라벨은 순수 정책 분기다.
 
 ### 라우트
 
@@ -138,6 +139,7 @@ ADR-0047이 미결로 남긴 항목의 실측 결과다(`user.mySite` → Indexe
 
 - **데이터** — `place.observeItem(placeId)`(허브·편집 화면과 동일한 관용구, [PlaceSettingsHubPage.tsx:32](../../../src/app/features/place/pages/PlaceSettingsHubPage.tsx)) + 소유자 프로필은 `profile.observeItem(`${placeId}@${ownerId}`)` + 캐시 미스 시 `profile.refreshItem`. 프로필 id 형식과 "관찰 + 결측만 fetch" 패턴은 [useSenderProfiles.ts:16](../../../src/app/features/search/hooks/useSenderProfiles.ts)의 확립된 관용구를 단건으로 축약한 것이다. 훅으로 분리한다 — `features/place/hooks/usePlaceOwnerProfile.ts`.
 - **DoU홈 판정** — `place.id === HOME_PLACE_ID`([resolvePlaceDisplayName.ts:9](../../../src/app/utils/resolvePlaceDisplayName.ts)). 새 분기 개념을 만들지 않고 기존 레버를 그대로 쓴다. 표시 이름도 같은 모듈의 `resolvePlaceDisplayName`을 쓰는데, **`isDefaultCloud`에 세션의 `selectedCloudId === 'default'`를 넘기지 않는다.** 이 화면의 주체는 URL의 플레이스이고 활성 세션이 아니다. 헬퍼가 `isDefaultCloud || id === HOME_PLACE_ID`로 OR하므로 세션 값을 넘기면 relay 활성 중 직접 URL로 열린 **클라우드 플레이스까지 "두유 홈"으로 브랜딩**된다. 아바타가 쓰는 `isHomePlace`를 그대로 넘겨 이름과 일러스트가 어긋날 수 없게 한다.
+- **`isHomePlace`가 이름 라벨과 날짜 행도 오버라이드한다** — `nameLabel = isHomePlace || place.isOwner ? nameLabel : invitedNameLabel`(relay는 `isOwner` 부재에도 오너 라벨), `createdAt = !isHomePlace && place.createdAt ? … : null`(relay는 `createdAt`이 와도 렌더 안 함). 둘 다 필드 부재의 자연스러운 결과가 아니라 명시적 예외이므로, 데이터가 있어도 무시한다는 사실을 코드 주석에 남긴다(2026-08-07 기획 결정).
 - **아바타** — `ProfileAvatar src={place.thumbnail || undefined} glyph={isHomePlace ? 'home' : 'place'}`. `onSelect`를 넘기지 않으므로 "+" 배지가 붙지 않는다(읽기 전용).
 - **레이아웃** — `PageHeader` + 아바타 블록 + `InfoField` 3개. Figma(3769:34116) 실측 간격: 헤더 아래 40 → 아바타 86 → 32 → 필드 블록, 필드 간 24, 라벨↔값 12, 좌우 패딩 16.
 - **소유자 행** — `ListRow`의 `leading`에 36px 아바타(`ImageAvatar` 또는 `DefaultAvatar`), `title`에 `StatusBadge variant="owner"` + 닉. [MemberListItem.tsx:48](../../../src/app/features/channels/components/MemberListItem.tsx)과 같은 조합이지만, 피처 간 직접 참조를 만들지 않기 위해(ADR-0046) 그 컴포넌트를 import하지 않고 같은 kit 프리미티브로 구성한다.
@@ -172,8 +174,8 @@ ADR-0047이 미결로 남긴 항목의 실측 결과다(`user.mySite` → Indexe
 
 ## 검증 방법
 
-- **유닛 테스트** — `npx nx test web` 171 스위트 / 1423 테스트 그린, `npx nx test web-ui-kit` 62 스위트 / 261 테스트 그린. 이번 라운드 신규:
-    - `features/place/pages/PlaceDetailPage.test.tsx` (15) — 클라우드: 오너면 "플레이스 이름"·비오너면 "초대된 플레이스 이름"·`isOwner` 부재도 비오너, `ownerId` 있으면 방장 뱃지+닉, 소유자 프로필이 늦게 와도 섹션 유지, 썸네일 우선, 날짜 zero-padding 형식, `createdAt` 부재 시 날짜 행 부재. DoU홈: 소유자 섹션 부재, 원본 `default` 미노출·브랜딩, 밝은 원반 아바타, 날짜는 그대로. 행 없으면 안내 문구만.
+- **유닛 테스트** — `npx nx test web` 187 스위트 / 1642 테스트 그린(develop 리베이스로 스위트 수 증가), `npx nx test web-ui-kit` 62 스위트 / 261 테스트 그린. 이번 라운드 신규:
+    - `features/place/pages/PlaceDetailPage.test.tsx` (17) — 클라우드: 오너면 "플레이스 이름"·비오너면 "초대된 플레이스 이름"·`isOwner` 부재도 비오너, `ownerId` 있으면 방장 뱃지+닉, 소유자 프로필이 늦게 와도 섹션 유지, 썸네일 우선, 날짜 zero-padding 형식, `createdAt` 부재 시 날짜 행 부재. DoU홈: `isOwner` 부재에도 "플레이스 이름" 라벨, 소유자 섹션 부재(`ownerId`가 있어도 부재), 원본 `default` 미노출·브랜딩, 밝은 원반 아바타, **`createdAt`이 있어도 날짜 행 렌더 안 함**(2026-08-07 기획 결정 반영). 행 없으면 안내 문구만.
     - `features/place/hooks/usePlaceOwnerProfile.test.ts` (7) — `ownerId`/`placeId` 부재 시 구독·조회 안 함, `${placeId}@${ownerId}` 구독, 캐시 히트면 `refreshItem` 미호출, 캐시 미스면 호출, 조회 실패를 삼키고 `null` 유지, 언마운트 시 해제.
     - `features/place/pages/PlaceSettingsHubPage.test.tsx` (4) — 첫 카드 제목이 "설정", "플레이스 정보"→`settingsDetail`, "플레이스 프로필"→`settingsEdit`, 비오너에게 정보 행은 활성·프로필 행만 disabled.
     - `libs/web-ui-kit`: `InfoField.test.tsx` (3 — 라벨/문자열 값, 색 토큰, 노드 값은 감싸지 않음), `ProfileAvatar.test.tsx`에 `glyph="home"` 4건(밝은 원반 + 58/86 inset, 사이즈 비례 축소, 사진 있으면 어두운 shell 복귀, 밝은 원반에서 배지 반전).
@@ -184,7 +186,7 @@ ADR-0047이 미결로 남긴 항목의 실측 결과다(`user.mySite` → Indexe
 - **Storybook** — `InfoField`(단독·노드 값·스택), `ProfileAvatar` `HomePlaceholder` 스토리.
 - **브라우저 확인 (완료)** — 워크트리 vite(`preview_start name=web`, node_modules 심링크 + `apps/web/.env` 복사), relay 세션 375×812:
     - 허브 첫 카드가 "Settings"로 바뀌고 세 번째 행 "Place Information" 노출. 비오너라 "Place Profile"은 disabled인데 "Place Information"은 활성 — 오너 게이트 분리 확인.
-    - `/place/0000/settings/detail`: 고스트 아바타(밝은 원반), "Invited Place Name"/"DoU Home"(원본 `default` 미노출), "Date Created"/`02/05/2026`, **소유자 섹션 부재** — relay 분기가 실제 데이터로 확인됐다.
+    - `/place/0000/settings/detail`: 고스트 아바타(밝은 원반), **"Place Name"/"DoU Home"**(원본 `default` 미노출), **날짜·소유자 행 부재** — 2026-08-07 기획 결정(relay는 오너 변형 고정 + 날짜 제거) 반영 확인.
     - 라이트/다크 양쪽 렌더 확인.
     - `/place/10014/settings/detail`(클라우드 플레이스)는 relay 활성 중이라 그 파티션에 행이 없어 "Place not found" — 결측 경로도 함께 확인됐다.
 - **미확인** — 클라우드 오너 세션에서의 사진 아바타·"플레이스 이름" 라벨·방장 행 실렌더. owner 클라우드 세션이 필요해 로컬 프리뷰로 재현되지 않는다(`relay-default-place-scoping.md`와 동일 제약). 유닛 테스트가 네 조합 전부를 덮는다.

@@ -59,6 +59,11 @@ Figma 4장은 두 축의 곱이고, 각 축이 서로 다른 것을 결정한다
 - **relay/cloud 축** → 썸네일 부재 시의 기본 아바타. DoU홈(`HOME_PLACE_ID` / `isDefaultCloud`)은
   고스트 일러스트, 일반 플레이스는 기존 `defaultPlaceAvatar`. 표시 이름은 기존
   `resolvePlaceDisplayName`을 그대로 재사용한다("두유 홈" 브랜딩).
+- **~~relay 화면의 소유자 정보 표시~~ → 기획 결정(2026-08-07):** relay는 기본플레이스 하나뿐이라
+  "초대돼 들어온 곳"이 성립하지 않는다. relay 화면은 오너 변형(Figma 3769-34207)으로 고정하고,
+  그 변형에서 **만든 날짜·소유자 정보 행을 아예 제거**한다. 이름 라벨은 `isOwner` 부재에도
+  "플레이스 이름"을 쓴다(필드 부재의 결과가 아니라 명시적 예외). 날짜는 실측상 relay에도 오지만
+  기획상 이 화면엔 안 보인다 — 데이터 유무와 무관한 결정이다.
 
 ### 3) 소유자 정보는 `ownerId` + 플레이스 프로필 조회
 
@@ -86,8 +91,10 @@ Figma에 없어 넣지 않는다.
 양쪽에 온다. `ownerId`·`owner$`·`isOwner`는 **cloud에만** 있고 relay 기본플레이스에는 전부 없다
 (`stereo: 'domain'` 시스템 사이트). `owner$.name`은 사람 이름이 아닌 내부 식별자(`"LMN:…"`)여서
 결정 3이 실측으로 정당화됐다. 결측 정책은 **행 숨김**으로 확정하고, 그 결과 relay에서는 소유자
-정보 섹션을 렌더하지 않는다 — Figma relay 화면과의 이 차이는 기획 확인 대상으로 남는다. 필드
-표와 상세는 [place-settings.md](../../apps/web/docs/feature/place/place-settings.md) §실측.
+정보 섹션을 렌더하지 않는다. Figma relay 화면(소유자 정보 섹션을 그리는 3769-34116/34207)과의
+이 차이는 위 결정 2의 기획 확인으로 해소됐다 — 데이터가 없어서 감춘 것이 아니라 감추기로
+결정한 것이다. 필드 표와 상세는
+[place-settings.md](../../apps/web/docs/feature/place/place-settings.md) §실측.
 
 ## 대안 (Alternatives)
 

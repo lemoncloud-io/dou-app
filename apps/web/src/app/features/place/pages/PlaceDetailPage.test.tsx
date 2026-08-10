@@ -139,8 +139,19 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
 
 describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
     // 실측: relay 기본플레이스는 stereo:'domain' 시스템 사이트로 ownerId·owner$·isOwner·thumbnail이
-    // 전부 없고 name은 브랜딩 대상인 "default"다.
+    // 전부 없고 name은 브랜딩 대상인 "default"다. createdAt은 실제로 오지만, 기획 결정(Figma
+    // 3769-34207 변형)에 따라 이 화면은 만든 날짜·소유자 정보를 아예 렌더하지 않는다.
     const RELAY_PLACE: Partial<MySiteView> = { id: '0000', name: 'default', createdAt: CREATED_AT };
+
+    // 중계서버는 이 기본플레이스 하나뿐이라 "초대돼 들어온 곳"이 아니다 — isOwner가 항상 없어도
+    // 오너 라벨("플레이스 이름")을 쓴다. 이는 필드 부재의 결과가 아니라 명시적 예외다.
+    it('isOwner가 없어도 "플레이스 이름" 라벨을 쓴다', () => {
+        mockPlace = RELAY_PLACE;
+        render(<PlaceDetailPage />);
+
+        expect(screen.getByText('placeDetail.nameLabel')).toBeInTheDocument();
+        expect(screen.queryByText('placeDetail.invitedNameLabel')).not.toBeInTheDocument();
+    });
 
     it('소유자 섹션을 그리지 않는다', () => {
         mockPlace = RELAY_PLACE;
@@ -148,6 +159,15 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
 
         expect(screen.queryByText('placeDetail.ownerLabel')).not.toBeInTheDocument();
         expect(screen.queryByText('chat.settings.badge.owner')).not.toBeInTheDocument();
+    });
+
+    // ownerId가 실려 와도(가정) 소유자 섹션은 뜨지 않는다 — 필드 부재의 결과가 아니라 명시적 예외다.
+    it('ownerId가 있어도 소유자 섹션을 그리지 않는다', () => {
+        mockPlace = { ...RELAY_PLACE, ownerId: 'u1' };
+        mockOwner = { nick: '두유' };
+        render(<PlaceDetailPage />);
+
+        expect(screen.queryByText('placeDetail.ownerLabel')).not.toBeInTheDocument();
     });
 
     it('백엔드 원본 이름 "default"를 노출하지 않고 브랜딩한다', () => {
@@ -166,11 +186,13 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
         expect(container.querySelector('.bg-brand-ink')).not.toBeInTheDocument();
     });
 
-    it('만든 날짜는 relay에서도 보여준다', () => {
+    // 회귀 방지: createdAt이 실제로 존재해도(RELAY_PLACE에 세팅됨) 렌더하지 않는다 — 데이터 부재가
+    // 아니라 기획 결정이다.
+    it('만든 날짜가 서버에 있어도 렌더하지 않는다', () => {
         mockPlace = RELAY_PLACE;
         render(<PlaceDetailPage />);
 
-        expect(screen.getByText('placeDetail.createdAtLabel')).toBeInTheDocument();
+        expect(screen.queryByText('placeDetail.createdAtLabel')).not.toBeInTheDocument();
     });
 });
 

@@ -15,19 +15,17 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 const OWNER_AVATAR_SIZE = 36;
 
 /**
- * Place information — read-only. Shows the place avatar, its name, when it was created and who owns
- * it (Figma 3769-34116 / 3692-10303). Reached from the settings hub by everyone, owner or not; the
+ * Place information — read-only. Shows the place avatar and its name; a cloud place also shows when
+ * it was created and who owns it. Reached from the settings hub by everyone, owner or not; the
  * writable twin is {@link PlaceEditPage}.
  *
- * Two axes shape it, and they decide different things (ADR-0047):
- * - `isOwner` picks the name label — a non-owner was invited into the place, so it reads "초대된
- *   플레이스 이름". A missing field counts as non-owner, matching the hub.
- * - relay vs cloud picks the placeholder avatar. The relay default place (DoU Home) stands for the
- *   service, so it shows the DoU character.
- *
- * Every fact row is conditional because the server does not send every field everywhere: the relay
- * default place is a `stereo: 'domain'` system site with no owner at all. A row with nothing behind
- * it is left out rather than filled with a placeholder — see the doc's 실측 table.
+ * The relay only ever has the one place — its default place, DoU Home — so it is not "someone else's
+ * place I was invited into" the way a cloud place can be, and product decided its screen is the owner
+ * variant (Figma 3769-34207) with the created-date and owner rows removed entirely: relay's `isOwner`
+ * is always absent and there is no owner to name (see the doc's 실측 table), so those rows would be
+ * either wrong or empty. A cloud place keeps the general rule: `isOwner` picks the name label (a
+ * missing field counts as non-owner, matching the hub), and every fact row is conditional on the
+ * server having actually sent it.
  */
 export const PlaceDetailPage = () => {
     const { t, i18n } = useTranslation();
@@ -66,13 +64,18 @@ export const PlaceDetailPage = () => {
     // place reached by direct URL. Feeding it the same `isHomePlace` the avatar uses keeps the name
     // and the illustration from ever disagreeing.
     const displayName = resolvePlaceDisplayName(place, { isDefaultCloud: isHomePlace }, t);
+    // The relay's one place reads as owned, not invited-into — `isOwner` never arrives from relay, so
+    // this is an explicit override rather than a consequence of the field being absent.
+    const nameLabel = isHomePlace || place.isOwner ? 'placeDetail.nameLabel' : 'placeDetail.invitedNameLabel';
     // Zero-padded and locale-aware: ko renders Figma's "2026. 08. 07.", en renders "08/07/2026".
     // `libs/shared`'s formatDate is a date+time `toLocaleString()`, which this screen does not want.
-    const createdAt = place.createdAt
-        ? new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-              place.createdAt
-          )
-        : null;
+    // Product removed this row for the relay's place regardless of whether `createdAt` is present.
+    const createdAt =
+        !isHomePlace && place.createdAt
+            ? new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+                  place.createdAt
+              )
+            : null;
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
@@ -83,14 +86,13 @@ export const PlaceDetailPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-6">
-                    <InfoField label={t(place.isOwner ? 'placeDetail.nameLabel' : 'placeDetail.invitedNameLabel')}>
-                        {displayName}
-                    </InfoField>
+                    <InfoField label={t(nameLabel)}>{displayName}</InfoField>
 
                     {createdAt && <InfoField label={t('placeDetail.createdAtLabel')}>{createdAt}</InfoField>}
 
-                    {/* No `ownerId` means no owner to name — the relay default place has none. */}
-                    {place.ownerId && (
+                    {/* Removed for the relay's place by product decision, not just because `ownerId` is
+                        absent there — see the component doc comment. */}
+                    {!isHomePlace && place.ownerId && (
                         <InfoField label={t('placeDetail.ownerLabel')}>
                             <div className="flex items-center gap-2.5 px-1 py-1.5">
                                 {owner?.thumbnail ? (
