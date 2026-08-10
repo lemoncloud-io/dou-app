@@ -19,6 +19,7 @@ export * from './useMyUser';
 export * from './useOtherCloudUnread';
 export * from './usePlaceProfileAbsent';
 export * from './useRelayInvites';
+export * from './useScrollRestoration';
 export * from './useSentInviteLog';
 export * from './useSetMyPlaceProfile';
 export * from './useTheme';

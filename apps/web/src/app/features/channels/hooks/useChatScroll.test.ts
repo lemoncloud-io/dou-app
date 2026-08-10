@@ -2,7 +2,7 @@ import { createRef } from 'react';
 import { act, renderHook } from '@testing-library/react';
 
 import { useChatScroll } from './useChatScroll';
-import { stashRoomScroll } from '../utils/roomScrollMemory';
+import { stashScroll } from '../../../hooks/useScrollRestoration';
 import type { ClientChatView } from '../types';
 
 /**
@@ -170,7 +170,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
     // 채널 id를 테스트마다 다르게 쓴다: 맡아둔 위치는 모듈 수준 맵이고 언마운트가 그것을 다시
     // 채우므로(RTL의 자동 cleanup 포함), 같은 id를 재사용하면 앞 테스트가 뒤 테스트에 샌다.
     it('맡긴 위치로 되돌리고, 바닥 고정이 그것을 덮어쓰지 않는다', () => {
-        stashRoomScroll('ch-restore', -640);
+        stashScroll('ch-restore', -640);
         const { container, land } = mount('ch-restore');
 
         land([message('m1')]);
@@ -189,7 +189,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
 
     // 한 번만 복원한다 — 복원 뒤 도착하는 새 메시지는 다시 바닥으로 따라가야 한다.
     it('복원은 한 번뿐이고 이후 새 메시지는 다시 바닥으로 따라간다', () => {
-        stashRoomScroll('ch-once', -640);
+        stashScroll('ch-once', -640);
         const { container, land } = mount('ch-once');
 
         land([message('m1')]);
@@ -200,7 +200,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
     });
 
     it('다른 채널이 맡긴 위치는 쓰지 않는다', () => {
-        stashRoomScroll('ch-other', -640);
+        stashScroll('ch-other', -640);
         const { container, land } = mount('ch-mine');
 
         land([message('m1')]);
@@ -231,7 +231,7 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
     // 목록은 마운트 직후엔 아직 비어 있다. 그 사이에 언마운트되면(StrictMode의 마운트/언마운트/
     // 마운트가 정확히 여기서 끊는다) 아직 쓰지 못한 맡긴 위치를 바닥(0)으로 덮어써서는 안 된다.
     it('복원 전에 언마운트돼도 맡긴 위치를 잃지 않는다', () => {
-        stashRoomScroll('ch-strict', -300);
+        stashScroll('ch-strict', -300);
 
         const first = mount('ch-strict');
         first.view.unmount();
