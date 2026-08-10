@@ -27,6 +27,7 @@ import { LinkedText } from '../components/LinkedText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
+import { RoomSkeleton } from '../components/RoomSkeleton';
 import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
@@ -183,10 +184,24 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         isError: isChatError,
         hasMore,
-        isThreadStartLoaded,
         loadMore,
         loadUntil,
     } = useChats(memoizedChatParams);
+
+    /**
+     * The room's very first message is loaded, so the intro block belongs at the top of the thread.
+     *
+     * `chatNo` is a per-channel sequence that starts at 1, so holding row 1 is proof we are at the
+     * start rather than an inference from "nothing older came back" — which flipped around during
+     * hydration and made the intro appear, move and disappear as pages landed. Once row 1 is in the
+     * window it stays, so this only ever turns on. Read from the UNFILTERED window: row 1 is
+     * typically the channel's own creation notice, which `messages` hides.
+     */
+    const hasThreadStart = useMemo(() => rawChats.some(chat => chat.chatNo === 1), [rawChats]);
+
+    // Hold the room behind a skeleton until it can show its own name and its first messages. Either
+    // half arriving alone is what produced the "unnamed channel" flash and the empty list under it.
+    const isRoomLoading = isChannelLoading || isChatLoading;
 
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
@@ -609,6 +624,10 @@ export const ChannelRoomPage = () => {
                     title={roomTitle}
                     avatar={headerAvatar}
                     meta={headerMeta}
+                    // Placeholders until the channel resolves — `roomTitle` has to fall back to the
+                    // "unnamed channel" label while there is no channel to read a name off, and
+                    // showing that for a beat reads as having opened the wrong room.
+                    loading={isChannelLoading}
                     onBack={() => navigate(-1)}
                     moreMenu={
                         <DropdownMenuItem
@@ -639,10 +658,13 @@ export const ChannelRoomPage = () => {
                         paddingBottom: composerHeight + 16,
                     }}
                 >
-                    {isChatLoading ? (
-                        <div className="flex min-h-full items-center justify-center">
-                            <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                        </div>
+                    {isRoomLoading ? (
+                        <>
+                            {/* Same spacer trick as the live list below, so the placeholder rows
+                                start at the top and the real messages replace them in place. */}
+                            <div aria-hidden className="flex-1" />
+                            <RoomSkeleton />
+                        </>
                     ) : isChatEmpty ? (
                         <div className="flex min-h-full flex-1 flex-col">
                             <DateDivider label={formatDateSeparator(new Date())} />
@@ -650,23 +672,18 @@ export const ChannelRoomPage = () => {
                         </div>
                     ) : (
                         <>
-                            {/* Self-chat is top-aligned (Figma 3186-13530): this flex-grow spacer is the
-                                first DOM child, so in the flex-col-reverse container it sits at the visual
-                                bottom and absorbs free space to push short threads to the top. It collapses
-                                to 0 once messages overflow, so tall threads scroll normally (newest at the
-                                bottom) — unlike `justify-end`, which clips overflowing content. */}
-                            {isSelfChat && <div aria-hidden className="flex-1" />}
+                            {/* A thread that does not fill the screen reads from the top, like any
+                                other list — only once it overflows does the newest message belong at
+                                the bottom. This flex-grow spacer is the first DOM child, so in the
+                                flex-col-reverse container it sits at the visual bottom and absorbs the
+                                free space that would otherwise push short threads down. It collapses
+                                to 0 as soon as the messages overflow, so tall threads scroll normally
+                                — unlike `justify-end`, which clips overflowing content. */}
+                            <div aria-hidden className="flex-1" />
                             {Object.entries(groupedMessages)
                                 .sort(([a], [b]) => b.localeCompare(a))
-                                .map(([dateKey, dateMessages], groupIndex, groupArr) => {
+                                .map(([dateKey, dateMessages]) => {
                                     const reversedMessages = [...dateMessages].reverse();
-                                    // Oldest LOADED day group (last after the descending sort). The intro
-                                    // renders just below this group's date divider so it reads
-                                    // [date][intro][messages] — matching the empty state and Figma.
-                                    // `isThreadStartLoaded` keeps it off mid-history: "oldest loaded" is
-                                    // only the real thread start once nothing older is left, otherwise the
-                                    // block would re-parent on every loadMore.
-                                    const isThreadStart = groupIndex === groupArr.length - 1 && isThreadStartLoaded;
 
                                     return (
                                         <div
@@ -803,11 +820,14 @@ export const ChannelRoomPage = () => {
                                                     </div>
                                                 );
                                             })}
-                                            {isThreadStart && roomIntro}
                                             <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
                                         </div>
                                     );
                                 })}
+                            {/* Last DOM child before the loader, so the reversed container puts it
+                                above every date group — the room's own opening entry, at the top of
+                                the thread rather than tucked inside the oldest day. */}
+                            {hasThreadStart && roomIntro}
                             {isLoadingMore && (
                                 <div className="flex justify-center py-3">
                                     <Loader2 size={20} className="animate-spin text-muted-foreground" />

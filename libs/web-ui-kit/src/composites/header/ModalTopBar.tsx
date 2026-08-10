@@ -3,6 +3,7 @@ import * as React from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { IconClose } from '../../resources/icons';
+import { HeaderGlass } from './HeaderGlass';
 
 export interface ModalTopBarProps {
     /** Centered title. */
@@ -46,22 +47,27 @@ export const ModalTopBar = ({
             className={cn(
                 // Glass overlay header (Figma 3421-59848): translucent white so the scrolled
                 // content shows through when the header floats above it (z-index overlay layout).
-                'flex w-full items-center justify-between bg-white/[0.32] px-1.5 pb-2 backdrop-blur-xl dark:bg-black/[0.32]',
+                // Same split as ChatRoomHeader: the fill is here and immediate, the frost fades in.
+                'relative flex w-full items-center justify-between bg-white/[0.32] px-1.5 pb-2 dark:bg-black/[0.32]',
                 // Keep at least the base 8px top padding, plus the safe-area inset.
                 safeArea ? 'pt-[calc(var(--safe-top,0px)+0.5rem)]' : 'pt-2',
                 divider && 'border-b border-avatar-ring',
                 className
             )}
         >
-            <div className={SLOT}>{leftSlot}</div>
+            <HeaderGlass />
 
-            <div className="flex min-w-0 flex-1 items-center justify-center px-2">
+            {/* Each slot is `relative` so it paints above the frosted pane. The bar lays its slots
+                out directly (no single content row), so the marker goes on each of them. */}
+            <div className={cn('relative', SLOT)}>{leftSlot}</div>
+
+            <div className="relative flex min-w-0 flex-1 items-center justify-center px-2">
                 <p className="truncate text-center text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
                     {title}
                 </p>
             </div>
 
-            <div className={SLOT}>
+            <div className={cn('relative', SLOT)}>
                 {rightSlot ??
                     (onClose && (
                         <button

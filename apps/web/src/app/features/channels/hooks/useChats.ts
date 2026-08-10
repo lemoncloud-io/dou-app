@@ -200,7 +200,12 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
         hasMore,
         /**
          * The oldest loaded row really is the thread's first, so anything anchored to the start of
-         * the conversation (the room intro) can render.
+         * the conversation can render.
+         *
+         * No longer read by the room: the intro keys off holding `chatNo === 1`, which is proof
+         * rather than inference and never flips back as pages land. Kept as the paging fact it
+         * describes — and because it is the only thing that pins the jumpLimit / pageLimit split
+         * below to an observable outcome.
          *
          * `!hasMore` alone is not enough: it only turns false once a `loadMore` comes back empty,
          * and a thread shorter than the viewport never overflows — so the scroll listener never
