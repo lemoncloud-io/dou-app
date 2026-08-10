@@ -1,6 +1,7 @@
 # 전 유저 대상 이슈 리포트 플로팅 위젯을 신규 독립 기능으로 만들고, 스크린샷은 Phase 2로 분리한다
 
-> 상태: Accepted · 결정일: 2026-07-16
+> 상태: Superseded · 결정일: 2026-07-16
+> 대체: [ADR-0047](./0047-feedback-page-replaces-issue-report-floating-widget.md) — 플로팅 위젯을 걷어내고 마이페이지 진입 "피드백 보내기" 페이지로 전환(2026-08-07). 로그·디바이스 자동 첨부(`buildReportContext`)는 그대로 승계된다.
 
 ## 맥락 (Context)
 
