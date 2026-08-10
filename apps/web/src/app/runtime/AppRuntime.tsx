@@ -17,7 +17,6 @@ import { IssueReportHost } from '../features/issue-report';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudColdSyncRunner } from './InvitedCloudColdSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
-import { PlaceCacheBootRunner } from './PlaceCacheBootRunner';
 import { PreferenceLoader } from './PreferenceLoader';
 
 /**
@@ -41,7 +40,6 @@ export const AppRuntime = () => {
     return (
         <RuntimeConnectionHost binding={binding}>
             <PreferenceLoader />
-            <PlaceCacheBootRunner />
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />
             <MyUserSeedRunner />

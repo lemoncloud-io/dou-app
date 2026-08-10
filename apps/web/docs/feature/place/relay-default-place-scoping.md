@@ -1,6 +1,6 @@
 # 기본플레이스 relay 스코핑과 플레이스 생성·수정 경로
 
-> 상태: Live · 최종 갱신: 2026-08-06 · 관련 ADR: [0045](../../../../../docs/adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 1~5; 결정 6은 [web-ui-kit avatar](../../../../../libs/web-ui-kit/docs/avatar.md))
+> 상태: Live · 최종 갱신: 2026-08-10 · 관련 ADR: [0045](../../../../../docs/adr/0045-relay-default-place-scoping-profile-step-and-avatar-unification.md) (결정 1~5; 결정 6은 [web-ui-kit avatar](../../../../../libs/web-ui-kit/docs/avatar.md))
 
 ## 목적
 
@@ -172,10 +172,18 @@ desktop-web은 호출하지 않으므로 기본값(항상 저장)으로 현행 �
 ### 2) `refreshList` 재조정 — 잔재 정리 메커니즘 (ADR 결정 1·2)
 
 ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조정(reconciliation)으로 확정한다.**
-목록 필터는 불가능하다 — 행의 `cid` 필드는 쓰일 때 파티션 컨텍스트로 스탬프되므로
+일반적인 목록 필터는 불가능하다 — 행의 `cid` 필드는 쓰일 때 파티션 컨텍스트로 스탬프되므로
 ([PlaceLocalDataSourceV2.ts:95](../../../../../libs/data/src/data/local/data-sources-v2/PlaceLocalDataSourceV2.ts))
-오염 행을 행 데이터만으로 식별할 수 없다. 일회성 마이그레이션은 재오염(구버전 클라이언트,
-미래의 다른 쓰기 경로)에 무력하다. 서버 스냅샷 기준 재조정은 원인과 무관하게 수렴한다.
+정상 행과 오염 행이 같은 `cid` 값을 갖는다 — cid만으로는 어떤 place든 오염 여부를 가릴 수 없다.
+일회성 마이그레이션은 재오염(구버전 클라이언트, 미래의 다른 쓰기 경로)에 무력하다. 서버 스냅샷
+기준 재조정은 원인과 무관하게 수렴한다.
+
+**단, `id: '0000'`(relay의 유일한 개인 place) 하나는 예외다(2026-08-10 추가).** 이 id는
+구조적으로 `cid: 'default'` 파티션에만 존재할 수 있다 — 어떤 클라우드도 자기 place에 이 id를
+발급하지 않는다. 그래서 이 한 id에 한해서는 **cid만 보고도** 오염을 판별할 수 있다: `id==='0000'
+&& cid!=='default'`면 무조건 오염 행이다. `PlaceLocalDataSourceV2.cacheRead`/`cacheReadList`가
+이 조건의 행을 읽기 시점에 걸러낸다(재조정과 별개, 재조정을 기다릴 필요 없이 즉시 가려진다) —
+위 "목록 필터는 불가능하다"는 여전히 **일반적인 경우**엔 참이고, 이 예약 id 하나만 특수하다.
 
 [PlaceRepositoryV2](../../../../../libs/data/src/data/repositories-v2/PlaceRepositoryV2.ts)의
 내부 `syncListSnapshot(query?, protectedId?)`(공개 `refreshList`가 위임)이
@@ -329,6 +337,9 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
     - [UserRepositoryV2.test.ts](../../../../../libs/data/src/data/repositories-v2/UserRepositoryV2.test.ts)
       — predicate 미주입 시 `$site` 저장(현행 유지), veto 시 미저장(유저 쓰기는 유지), 승인
       컨텍스트에서 저장.
+    - [PlaceLocalDataSourceV2.test.ts](../../../../../libs/data/src/data/local/data-sources-v2/PlaceLocalDataSourceV2.test.ts)
+      — 오염된 `id:'0000'`(비-default cid) 행: `cacheReadList`가 걸러냄, `cacheRead`가 null;
+      `cid:'default'`의 정상 `'0000'` 행은 그대로 노출.
     - [PlaceRepositoryV2.test.ts](../../../../../libs/data/src/data/repositories-v2/PlaceRepositoryV2.test.ts)
       — refreshList: socketCid 불일치 시 무동작, 빈 응답 시 쓰기·prune 모두 skip, 서버에 없는
       행 prune, 부분 질의 시 prune 안 함; createPlace: 후속 스냅샷 + 생성 id prune 보호,

@@ -16,6 +16,25 @@ import {
 export interface IPlaceLocalDataSourceV2
     extends ILocalDataSourceV2<DomainPlace, UserMySiteInput | undefined, DomainListResult<DomainPlace>> {}
 
+/**
+ * The relay's single personal place (mirrors apps/web's `HOME_PLACE_ID` in
+ * `utils/resolvePlaceDisplayName.ts` — duplicated rather than imported, since apps/web depends on
+ * this package and not the other way around). It can only legitimately live under the
+ * relay/default partition.
+ *
+ * A row with this id tagged with any other `cid` is embedded-`$site` pollution: `UserRepositoryV2`
+ * used to cache the relay's `$site` from `getMyProfile()` under whatever partition happened to be
+ * active, so a fetch that landed while a cloud was active wrote this row into that cloud's own
+ * partition (relay-default-place-scoping.md). A write-time gate (`persistEmbeddedSite`) now guards
+ * against NEW rows, but does nothing for one already sitting in the store from before the guard
+ * existed — filtering read-time is what actually keeps it from resurfacing, regardless of how or
+ * when it got written.
+ */
+const RELAY_HOME_PLACE_ID = '0000';
+
+const isMistaggedHomePlace = (item: Pick<DomainPlace, 'id' | 'cid'>): boolean =>
+    item.id === RELAY_HOME_PLACE_ID && item.cid !== 'default';
+
 /** Stores place records in local cache and keeps list observers aligned with sorted place output. */
 export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPlaceLocalDataSourceV2 {
     constructor(
@@ -45,14 +64,15 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainPlace | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        return this.cacheStorage.load(requiredId);
+        const item = await this.cacheStorage.load(requiredId);
+        return item && isMistaggedHomePlace(item) ? null : item;
     }
 
     public async cacheReadList(
         _query: UserMySiteInput | undefined,
         _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainListResult<DomainPlace> | null> {
-        const items = await this.cacheStorage.loadAll();
+        const items = (await this.cacheStorage.loadAll()).filter(item => !isMistaggedHomePlace(item));
         // Default ordering is by id (ascending, numeric-aware) so the place rail stays stable
         // and predictable regardless of server-provided order/name.
         const list = [...items].sort((left, right) =>

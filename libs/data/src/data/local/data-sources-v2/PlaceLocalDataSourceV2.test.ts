@@ -131,6 +131,54 @@ describe('PlaceLocalDataSourceV2', () => {
         });
     });
 
+    // Embedded-$site pollution (relay-default-place-scoping.md): a fetch that lands while a cloud
+    // is active can tag the relay's single personal place (id '0000') with that cloud's cid. The
+    // write-time guard stops NEW rows; this is what keeps an already-poisoned row (including one
+    // written before the guard existed) from resurfacing.
+    describe("mistagged relay home place ('0000' under a non-default cid)", () => {
+        it('cacheReadList filters it out', async () => {
+            const storage = createMemoryStorage();
+            const dataSource = new PlaceLocalDataSourceV2(contextProvider as any, storage);
+
+            // contextProvider is fixed on cid 'cloud-a' — the write stamps that cid onto id '0000'.
+            await dataSource.cacheWriteMany([
+                { id: '0000', name: 'default' } as any,
+                { id: 'p1', name: 'Real place' } as any,
+            ]);
+
+            const result = await dataSource.cacheReadList(undefined);
+
+            expect(result?.list.map(item => item.id)).toEqual(['p1']);
+        });
+
+        it('cacheRead returns null for it', async () => {
+            const storage = createMemoryStorage();
+            const dataSource = new PlaceLocalDataSourceV2(contextProvider as any, storage);
+            await dataSource.cacheWrite({ id: '0000', name: 'default' } as any);
+
+            await expect(dataSource.cacheRead('0000')).resolves.toBeNull();
+        });
+
+        it('a legitimate id-0000 row under cid "default" is unaffected', async () => {
+            const storage = createMemoryStorage();
+            const provider = {
+                current: { cid: 'default', sid: '', uid: 'me' },
+                getContext() {
+                    return this.current;
+                },
+                setContext(c: any) {
+                    this.current = c;
+                },
+            };
+            const dataSource = new PlaceLocalDataSourceV2(provider as any, storage);
+            await dataSource.cacheWrite({ id: '0000', name: 'default' } as any);
+
+            await expect(dataSource.cacheRead('0000')).resolves.toMatchObject({ id: '0000' });
+            const result = await dataSource.cacheReadList(undefined);
+            expect(result?.list.map(item => item.id)).toEqual(['0000']);
+        });
+    });
+
     it('clears all cached places for the scope when a logout-style reset happens', async () => {
         const storage = createMemoryStorage();
         const dataSource = new PlaceLocalDataSourceV2(contextProvider as any, storage);
