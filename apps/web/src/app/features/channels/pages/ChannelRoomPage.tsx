@@ -49,7 +49,6 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
-import { stashRoomScroll } from '../utils/roomScrollMemory';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
@@ -248,7 +247,7 @@ export const ChannelRoomPage = () => {
     const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
 
     // 스크롤(하단 자동 이동, loadMore 위치 보존, 리사이즈/포커스 보정, 무한 로딩)은 useChatScroll이 소유한다.
-    const { containerRef: messagesEndRef, debouncedHandleScroll } = useChatScroll({
+    const { containerRef: messagesEndRef, handleScroll: handleChatScroll } = useChatScroll({
         messages,
         hasMore,
         isLoadingMore,
@@ -315,9 +314,9 @@ export const ChannelRoomPage = () => {
     }, [messagesEndRef]);
 
     const handleMessagesScroll = useCallback(() => {
-        debouncedHandleScroll();
+        handleChatScroll();
         handleFloatingDateScroll();
-    }, [debouncedHandleScroll, handleFloatingDateScroll]);
+    }, [handleChatScroll, handleFloatingDateScroll]);
 
     // Clear the pending hide timer on unmount.
     useEffect(() => {
@@ -387,13 +386,11 @@ export const ChannelRoomPage = () => {
         }
     };
 
-    // Remember where the reader was before leaving: this page unmounts on the way to the thread,
-    // and the reversed list would otherwise re-mount at the bottom and drop anyone who was
-    // reading history back at the newest message.
+    // The reader's place in the list is remembered by useChatScroll's unmount stash — every exit
+    // from the room goes through it, so this hop does not have to save anything itself.
     const openThread = useCallback(
         (message: ClientChatView) => {
             if (!message.chatNo) return;
-            stashRoomScroll(stableChannelId, messagesEndRef.current?.scrollTop ?? 0);
             // Hand the root across with the navigation. The thread derives everything from the
             // chat cache, whose first emission is asynchronous even when it is warm, so without
             // this the thread opens on a bare spinner for a beat — long enough to see, and long
@@ -402,7 +399,7 @@ export const ChannelRoomPage = () => {
                 state: { rootChat: message },
             });
         },
-        [navigate, stableChannelId, messagesEndRef]
+        [navigate, stableChannelId]
     );
 
     // One tap on the action sheet's quick row (or a pick from the full sheet): toggle
