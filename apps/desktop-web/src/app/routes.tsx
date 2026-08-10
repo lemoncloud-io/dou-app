@@ -34,7 +34,7 @@ const NotificationOpenListener = () => {
                 ?.deeplink;
             const target = parsePushDeeplink(deeplink);
             if (!target) return;
-            request(target.placeId, target.channelId, target.cloudId, target.rootId);
+            request(target);
         });
     }, [request]);
     return null;

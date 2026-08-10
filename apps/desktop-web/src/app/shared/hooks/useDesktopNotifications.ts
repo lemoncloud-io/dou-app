@@ -96,7 +96,9 @@ export const useDesktopNotifications = (): void => {
                     body: channel.name && sender ? `${sender}: ${message}` : message,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).
-                    deeplink: buildOpenDeeplink(placeId, channel.id, chat.parentId),
+                    // `parentId` on a persisted record is already the root's chatNo string —
+                    // the key the open-thread store and ThreadPanel take (see `threadRootId`).
+                    deeplink: buildOpenDeeplink({ placeId, channelId: channel.id, rootId: chat.parentId }),
                 },
             })
             // Degrade gracefully on older shells (NATIVE_NOT_SUPPORTED) or transient bridge

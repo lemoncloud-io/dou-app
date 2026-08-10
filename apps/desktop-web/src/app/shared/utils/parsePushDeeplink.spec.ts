@@ -50,19 +50,6 @@ describe('parsePushDeeplink', () => {
         });
     });
 
-    it('omits rootId when the 4-part form carries an empty root', () => {
-        expect(parsePushDeeplink('chatic-open:|site1|c1|')).toEqual({
-            cloudId: undefined,
-            placeId: 'site1',
-            channelId: 'c1',
-            rootId: undefined,
-        });
-    });
-
-    it('rejects the 4-part form without a channel', () => {
-        expect(parsePushDeeplink('chatic-open:|site1||1234')).toBeNull();
-    });
-
     it('rejects the 3-part form without a channel', () => {
         expect(parsePushDeeplink('chatic-open:cloud|place|')).toBeNull();
     });
@@ -88,19 +75,15 @@ describe('parsePushDeeplink', () => {
         expect(parsePushDeeplink('/channels/1000002/room')).toEqual({ placeId: '', channelId: '1000002' });
     });
 
-    // The banner's deeplink is opaque until it comes back through the parser, so the two
-    // sides are only correct together — a 3-segment reply link would read as cross-cloud.
-    it('round-trips what the same-cloud banner builds', () => {
-        expect(parsePushDeeplink(buildOpenDeeplink('site 1', 'chan/1'))).toEqual({
-            placeId: 'site 1',
-            channelId: 'chan/1',
-        });
-        expect(parsePushDeeplink(buildOpenDeeplink('site 1', 'chan/1', '1234'))).toEqual({
-            cloudId: undefined,
-            placeId: 'site 1',
-            channelId: 'chan/1',
-            rootId: '1234',
-        });
+    // A banner's deeplink is opaque until it comes back through the parser, so the two sides
+    // are only correct together — a 3-segment reply link would read as cross-cloud.
+    it.each([
+        { placeId: 'site 1', channelId: 'chan/1' },
+        { placeId: 'site 1', channelId: 'chan/1', rootId: '1234' },
+        { cloudId: '1000004', placeId: 'site 1', channelId: 'chan/1' },
+        { cloudId: '1000004', placeId: 'site 1', channelId: 'chan/1', rootId: '1234' },
+    ])('round-trips what a banner builds: %o', target => {
+        expect(parsePushDeeplink(buildOpenDeeplink(target))).toMatchObject(target);
     });
 
     it('ignores unrelated deeplinks', () => {

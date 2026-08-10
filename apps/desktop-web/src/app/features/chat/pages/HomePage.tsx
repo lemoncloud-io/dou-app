@@ -151,6 +151,20 @@ export const HomePage = () => {
     // in — a same-tick open would be clobbered. Set for saved/mention thread replies.
     const pendingThreadRef = useRef<{ channelId: string; rootId: string } | null>(null);
 
+    // Open a thread on a channel that is being selected right now — the one rule every entry
+    // point (saved item, mention, notification click) needs. Already the selected channel →
+    // open inline, because nothing switches the panel shut and the deferred effect below would
+    // not re-fire. A different channel → selecting it runs closeThread() on the way in, so
+    // leave it on the ref and let that effect win afterwards.
+    const openThreadNowOrDefer = (channelId: string, rootId: string) => {
+        if (channelId !== selectedChannelId) {
+            pendingThreadRef.current = { channelId, rootId };
+            return;
+        }
+        pendingThreadRef.current = null;
+        openThread(rootId);
+    };
+
     // Open a saved item: when it lives in another place, switch place first and
     // defer the channel select + scroll until its channels load (apply effect
     // below); otherwise jump in place. The scroll is skipped without a chatNo.
@@ -166,10 +180,7 @@ export const HomePage = () => {
         }
         selectChannel(channelId);
         if (threadRootId) {
-            // Same channel → open now (nothing switches it shut). Switching channels
-            // runs closeThread() on the way in, so defer past that via the ref.
-            if (channelId === selectedChannelId) openThread(threadRootId);
-            else pendingThreadRef.current = { channelId, rootId: threadRootId };
+            openThreadNowOrDefer(channelId, threadRootId);
             return;
         }
         if (chatNo != null) requestMessageJump(channelId, chatNo);
@@ -185,10 +196,8 @@ export const HomePage = () => {
         if (!pendingOpen?.channelId) return;
         const { cloudId, placeId, channelId, rootId } = pendingOpen;
         const activeCloud = activeCloudId ?? 'default';
-        // A notification click opens the pinged message. For a thread reply that means the
-        // thread panel — the reply is hidden from the main feed, so landing at the bottom
-        // would show a screen it isn't on; for a top-level message it means the bottom of
-        // the feed. Never both, the same exclusion jumpToSaved makes.
+        // A reply opens the thread panel, a top-level message lands at the bottom of the feed.
+        // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
         pendingThreadRef.current = rootId ? { channelId, rootId } : null;
         pendingOpenAtBottomRef.current = rootId ? null : channelId;
         if (cloudId && cloudId !== activeCloud) {
@@ -204,16 +213,8 @@ export const HomePage = () => {
             void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
-            if (rootId) {
-                // Already the selected channel → nothing switches the panel shut, so the
-                // deferred open effect below never re-fires (its deps don't change). Open
-                // now. A different channel runs closeThread() on its way in, so that case
-                // stays on the ref and the deferred effect wins after it.
-                if (channelId === selectedChannelId) {
-                    pendingThreadRef.current = null;
-                    openThread(rootId);
-                }
-            } else {
+            if (rootId) openThreadNowOrDefer(channelId, rootId);
+            else {
                 requestOpenAtBottom(channelId);
                 pendingOpenAtBottomRef.current = null;
             }
