@@ -97,8 +97,7 @@ export const usePlaceUnreadCounts = (): Record<string, number> => {
             if (!ch.sid) continue;
             // Read boundary: the channel's own `$join` (chatNo + the metaNo snapshot that nets
             // system messages out), with the local cursor clearing the badge on read.
-            grouped[ch.sid] =
-                (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, undefined, readCursors[ch.id ?? '']);
+            grouped[ch.sid] = (grouped[ch.sid] ?? 0) + computeChannelUnread(ch, myUid, readCursors[ch.id ?? '']);
         }
         for (const sid of Object.keys(grouped)) {
             if (!grouped[sid]) delete grouped[sid];

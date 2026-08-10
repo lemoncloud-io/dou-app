@@ -91,7 +91,7 @@ export const useChannels = (placeId: string | undefined) => {
         () =>
             rawChannels.map(c => ({
                 ...c,
-                unreadCount: computeChannelUnread(c, myUid ?? null, serverCursors[c.id ?? ''], readCursors[c.id ?? '']),
+                unreadCount: computeChannelUnread(c, myUid ?? null, readCursors[c.id ?? ''], serverCursors[c.id ?? '']),
             })),
         [rawChannels, myUid, readCursors, serverCursors]
     );

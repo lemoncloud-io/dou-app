@@ -42,10 +42,8 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
             const unsubObserve = joinRepository.observeList({ channelId }, result => {
                 const mine = (result?.list ?? []).find(j => j.userId === userId && j.channelId === channelId);
                 if (!mine) return;
-                // `metaNo` rides on the join row but the published JoinModel type has yet to
-                // declare it; read it defensively rather than dropping the netting.
                 const chatNo = mine.chatNo ?? 0;
-                const metaNo = (mine as { metaNo?: number }).metaNo;
+                const metaNo = mine.metaNo;
                 setCursorByChannel(prev => {
                     const curr = prev[channelId];
                     if (curr?.chatNo === chatNo && curr?.metaNo === metaNo) return prev;

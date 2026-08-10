@@ -20,7 +20,14 @@ export interface ReadCursor {
     metaNo?: number;
 }
 
-/** The cursor carried inline on the channel record, or undefined when no join row is synced. */
+/**
+ * The cursor carried inline on the channel record, or undefined when no join row is synced.
+ *
+ * `joinedNo` counts as read: messages from before I joined are not mine to catch up on, which is
+ * how the server's own `calcUnreadCount` reads it too. `$join` is typed as the published
+ * `JoinView`, which does not declare `metaNo` yet — the cache's own join rows are widened for it
+ * (`CacheJoinView`), but this one comes off `ChannelView`, so it needs the cast.
+ */
 const joinCursorOf = (channel: DomainChannel): ReadCursor | undefined => {
     const join = channel.$join as { chatNo?: number; joinedNo?: number; metaNo?: number } | undefined;
     if (!join) return undefined;
@@ -74,21 +81,29 @@ const furthest = (a: ReadCursor | undefined, b: ReadCursor | undefined): ReadCur
 export const computeChannelUnread = (
     channel: DomainChannel,
     myUid: string | null,
-    cursor: ReadCursor | undefined,
-    localReadNo?: number
+    localReadNo?: number,
+    cursor?: ReadCursor
 ): number => {
     // Only a message someone wrote implies "read up to here" — a reaction I left on an unread
     // channel is the head too, and clearing on it would hide messages I never opened. Same
     // predicate the OS banner and the sidebar preview use, not a fourth copy of the rule.
+    //
+    // This shortcut and the `metaNo` netting below answer the same question — "does this chat
+    // count?" — through two mechanisms, a client predicate on `stereo` and a server counter.
+    // They agree only while the server's non-countable set is exactly `stereo === 'system'`
+    // (`isCountable` in chatic-socials-api). If that ever widens, they disagree silently.
     const last = channel.lastChat$;
     if (!!myUid && !!last && isNotifiableChat(last) && last.ownerId === myUid) return 0;
 
+    // The head must come from the same record as `metaNo`, so this cannot use `lastChatNoOf` —
+    // `lastChat$.chatNo` is a different snapshot, and netting it against this record's `metaNo`
+    // would subtract a system count taken at another point in the sequence.
     const head = channel.chatNo ?? 0;
     const headMeta = channel.metaNo ?? 0;
 
     const boundary = furthest(cursor, joinCursorOf(channel));
     const derived = boundary
-        ? Math.max(0, head - headMeta) - Math.max(0, boundary.chatNo - (boundary.metaNo ?? headMeta))
+        ? head - headMeta - Math.max(0, boundary.chatNo - (boundary.metaNo ?? headMeta))
         : (channel.unreadCount ?? 0);
 
     // This device read up to `localReadNo`, so no more than the slots above it can be unread —
