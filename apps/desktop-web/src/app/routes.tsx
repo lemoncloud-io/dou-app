@@ -11,7 +11,8 @@ import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shar
  * navigate) and route-independent, so opening works from /profile or /settings —
  * not just home. Two entry points feed the same pending-open store:
  *   - the OS-banner click, delivered as an `OnReceiveNotification` deeplink
- *     (both the same-cloud `chatic-open:` and cross-cloud 3-segment forms), and
+ *     (same-cloud, cross-cloud, and the thread-reply form that also carries the
+ *     root — see parsePushDeeplink), and
  *   - the in-app toast click (foreground), which sets the store directly.
  * Whenever a target is set it routes home; HomePage applies the cloud/place/
  * channel target once each loads.
@@ -33,7 +34,7 @@ const NotificationOpenListener = () => {
                 ?.deeplink;
             const target = parsePushDeeplink(deeplink);
             if (!target) return;
-            request(target.placeId, target.channelId, target.cloudId);
+            request(target.placeId, target.channelId, target.cloudId, target.rootId);
         });
     }, [request]);
     return null;

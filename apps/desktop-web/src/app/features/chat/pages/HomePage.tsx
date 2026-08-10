@@ -183,10 +183,14 @@ export const HomePage = () => {
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { cloudId, placeId, channelId } = pendingOpen;
+        const { cloudId, placeId, channelId, rootId } = pendingOpen;
         const activeCloud = activeCloudId ?? 'default';
-        // A notification click opens the pinged (latest) message → land at the bottom.
-        pendingOpenAtBottomRef.current = channelId;
+        // A notification click opens the pinged message. For a thread reply that means the
+        // thread panel — the reply is hidden from the main feed, so landing at the bottom
+        // would show a screen it isn't on; for a top-level message it means the bottom of
+        // the feed. Never both, the same exclusion jumpToSaved makes.
+        pendingThreadRef.current = rootId ? { channelId, rootId } : null;
+        pendingOpenAtBottomRef.current = rootId ? null : channelId;
         if (cloudId && cloudId !== activeCloud) {
             // Cross-cloud: switch cloud first. The target place lands via the
             // auto-select effect (pendingPlaceRef), then the channel via the
@@ -200,8 +204,19 @@ export const HomePage = () => {
             void switchAfterHandshake(() => switchPlace(placeId));
         } else {
             selectChannel(channelId);
-            requestOpenAtBottom(channelId);
-            pendingOpenAtBottomRef.current = null;
+            if (rootId) {
+                // Already the selected channel → nothing switches the panel shut, so the
+                // deferred open effect below never re-fires (its deps don't change). Open
+                // now. A different channel runs closeThread() on its way in, so that case
+                // stays on the ref and the deferred effect wins after it.
+                if (channelId === selectedChannelId) {
+                    pendingThreadRef.current = null;
+                    openThread(rootId);
+                }
+            } else {
+                requestOpenAtBottom(channelId);
+                pendingOpenAtBottomRef.current = null;
+            }
         }
         clearPendingOpen();
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.

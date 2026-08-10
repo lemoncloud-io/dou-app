@@ -5,14 +5,19 @@ export interface PendingOpenTarget {
     cloudId?: string;
     placeId: string;
     channelId: string;
+    /**
+     * Thread root when the notification was for a reply — the channel alone is not enough,
+     * because a reply lives in the thread panel and is hidden from the main feed.
+     */
+    rootId?: string;
     /** Bumped on each request so a repeated target to the same channel still fires. */
     nonce: number;
 }
 
 interface PendingOpenState {
     target: PendingOpenTarget | null;
-    /** Request opening a (cloud →) place → channel (from an OS notification click, any route). */
-    request: (placeId: string, channelId: string, cloudId?: string) => void;
+    /** Request opening a (cloud →) place → channel (→ thread) from a notification click, any route. */
+    request: (placeId: string, channelId: string, cloudId?: string, rootId?: string) => void;
     /** Clear after HomePage has applied the target. */
     clear: () => void;
 }
@@ -27,6 +32,7 @@ let seq = 0;
  */
 export const usePendingOpenStore = create<PendingOpenState>(set => ({
     target: null,
-    request: (placeId, channelId, cloudId) => set({ target: { cloudId, placeId, channelId, nonce: ++seq } }),
+    request: (placeId, channelId, cloudId, rootId) =>
+        set({ target: { cloudId, placeId, channelId, rootId, nonce: ++seq } }),
     clear: () => set({ target: null }),
 }));

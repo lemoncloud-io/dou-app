@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePushDeeplink } from './parsePushDeeplink';
+import { buildOpenDeeplink, parsePushDeeplink } from './parsePushDeeplink';
 
 describe('parsePushDeeplink', () => {
     it('parses the same-cloud chatic-open format with place and channel', () => {
@@ -30,6 +30,39 @@ describe('parsePushDeeplink', () => {
         });
     });
 
+    // A push for a thread reply must carry the root: the reply is hidden from the main feed
+    // (isFeedVisible), so a channel-only target lands on a screen the pushed message is not on.
+    it('parses the 4-part form carrying the thread root', () => {
+        expect(parsePushDeeplink('chatic-open:|site1|c1|1234')).toEqual({
+            cloudId: undefined,
+            placeId: 'site1',
+            channelId: 'c1',
+            rootId: '1234',
+        });
+    });
+
+    it('keeps the source cloud alongside the thread root', () => {
+        expect(parsePushDeeplink('chatic-open:1000004|site1|c1|1234')).toEqual({
+            cloudId: '1000004',
+            placeId: 'site1',
+            channelId: 'c1',
+            rootId: '1234',
+        });
+    });
+
+    it('omits rootId when the 4-part form carries an empty root', () => {
+        expect(parsePushDeeplink('chatic-open:|site1|c1|')).toEqual({
+            cloudId: undefined,
+            placeId: 'site1',
+            channelId: 'c1',
+            rootId: undefined,
+        });
+    });
+
+    it('rejects the 4-part form without a channel', () => {
+        expect(parsePushDeeplink('chatic-open:|site1||1234')).toBeNull();
+    });
+
     it('rejects the 3-part form without a channel', () => {
         expect(parsePushDeeplink('chatic-open:cloud|place|')).toBeNull();
     });
@@ -53,6 +86,21 @@ describe('parsePushDeeplink', () => {
 
     it('parses the server path form /channels/<id>/room', () => {
         expect(parsePushDeeplink('/channels/1000002/room')).toEqual({ placeId: '', channelId: '1000002' });
+    });
+
+    // The banner's deeplink is opaque until it comes back through the parser, so the two
+    // sides are only correct together — a 3-segment reply link would read as cross-cloud.
+    it('round-trips what the same-cloud banner builds', () => {
+        expect(parsePushDeeplink(buildOpenDeeplink('site 1', 'chan/1'))).toEqual({
+            placeId: 'site 1',
+            channelId: 'chan/1',
+        });
+        expect(parsePushDeeplink(buildOpenDeeplink('site 1', 'chan/1', '1234'))).toEqual({
+            cloudId: undefined,
+            placeId: 'site 1',
+            channelId: 'chan/1',
+            rootId: '1234',
+        });
     });
 
     it('ignores unrelated deeplinks', () => {
