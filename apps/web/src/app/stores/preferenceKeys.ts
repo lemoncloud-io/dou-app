@@ -90,14 +90,6 @@ export const PREFERENCES = {
         // 'system' follows the OS scheme: mobile OS inside the WebView, prefers-color-scheme on web.
         defaultValue: 'system',
     },
-    // Whether the user hid the floating issue-report button. Web-only widget, so
-    // 'local' (localStorage only) — no native bridge / app-messages PreferenceKey needed.
-    // Restored via the MyPage settings toggle.
-    issueReportHidden: {
-        strategy: 'local',
-        localKey: 'chatic-issue-report-hidden',
-        defaultValue: 'false',
-    },
     // Device-global push mute (server-owned by chatic-pushes-api via device.update-remote). There is
     // no server read path, so this local cache is the optimistic display source; 'false' = unmuted
     // (notifications ON) is the assumed default. 'local' (web) — the write is what actually persists.

@@ -125,4 +125,10 @@ export interface IssueReportExtras {
     viewport?: { width: number; height: number };
     /** Current route path at report time. */
     path?: string;
+    /**
+     * Recently visited route paths, oldest first. The report screen is reached from a menu, so
+     * `path` alone says nothing about where the user hit the problem — the entry before the last
+     * one does.
+     */
+    routeTrail?: string[];
 }

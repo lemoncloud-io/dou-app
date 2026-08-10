@@ -13,7 +13,6 @@ import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 import { Router } from '../routes';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { UnreadBadgeRunner } from '../features/home';
-import { IssueReportHost } from '../features/issue-report';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudColdSyncRunner } from './InvitedCloudColdSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
@@ -51,7 +50,6 @@ export const AppRuntime = () => {
                 onDismiss={dismissUpdate}
             />
             <Router />
-            <IssueReportHost />
             <GlobalLoader />
             <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
             <Toaster />

@@ -12,6 +12,7 @@ jest.mock('@chatic/bridges', () => ({
 
 import { logBuffer } from '@chatic/bridges';
 
+import { recordRoute, resetRouteTrail } from '../../../utils/routeTrail';
 import { RECENT_LOG_COUNT, buildReportContext } from './buildReportContext';
 
 const mockPeek = logBuffer.peek as jest.Mock;
@@ -42,6 +43,7 @@ describe('buildReportContext — 컨텍스트 조합', () => {
     beforeEach(() => {
         mockPeek.mockReset();
         mockPeek.mockReturnValue([]);
+        resetRouteTrail();
     });
 
     it('진단용 device 필드만 담고 online/viewport/path/version을 포함한다', () => {
@@ -91,5 +93,21 @@ describe('buildReportContext — 컨텍스트 조합', () => {
     it('peek는 전체(count 없이) 호출해 tail을 취한다', () => {
         buildReportContext({ deviceInfo: null, versionInfo: null });
         expect(mockPeek).toHaveBeenCalledWith();
+    });
+
+    it('최근 방문 경로 트레일을 담는다 — path만으로는 제보 시점 화면을 알 수 없다', () => {
+        recordRoute('/');
+        recordRoute('/channels/abc');
+        recordRoute('/mypage');
+        recordRoute('/mypage/feedback');
+
+        const ctx = buildReportContext({ deviceInfo: null, versionInfo: null });
+
+        expect(ctx.routeTrail).toEqual(['/', '/channels/abc', '/mypage', '/mypage/feedback']);
+    });
+
+    it('트레일이 비어 있으면 필드를 아예 싣지 않는다', () => {
+        const ctx = buildReportContext({ deviceInfo: null, versionInfo: null });
+        expect(ctx.routeTrail).toBeUndefined();
     });
 });

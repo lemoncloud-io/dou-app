@@ -1,16 +1,16 @@
 {
-    "issueReport": {
-        "open": "이슈 신고",
-        "title": "이슈 신고",
-        "close": "닫기",
+    "feedback": {
+        "title": "의견 보내기",
+        "heading": "DoU 서비스 이용 중\n불편했던 점이나, 개선이 필요한\n부분을 편하게 남겨주세요",
+        "noticePurpose": "남겨주신 의견은 서비스 개선 목적으로만 사용됩니다.",
+        "noticeNoReply": "남겨주신 의견에는 별도의 답변을 드리지 않습니다.",
         "titleLabel": "제목",
-        "titlePlaceholder": "이슈 제목을 입력하세요",
-        "bodyLabel": "내용",
-        "bodyPlaceholder": "무엇이 문제인지 설명해 주세요",
-        "submit": "전송",
-        "success": "이슈가 전송되었습니다",
-        "failed": "전송에 실패했습니다. 다시 시도해 주세요",
-        "hide": "버튼 숨기기"
+        "titlePlaceholder": "제목을 입력해주세요.",
+        "bodyLabel": "소중한 의견을 남겨주세요",
+        "bodyPlaceholder": "답변을 적어주세요.",
+        "submit": "제출하기",
+        "success": "소중한 의견 감사합니다.",
+        "failed": "전송에 실패했습니다. 다시 시도해 주세요."
     },
     "common": {
         "signout": "로그아웃",
@@ -169,7 +169,6 @@
         },
         "darkMode": "다크 모드",
         "messagePreview": "메시지 미리보기",
-        "issueReportButton": "이슈 신고 버튼",
         "languageSettings": "언어 설정",
         "appIconSettings": "앱 아이콘 설정",
         "appIcon": {
@@ -178,6 +177,7 @@
             "WhiteIcon": "화이트"
         },
         "viewOnboarding": "온보딩 다시보기",
+        "feedback": "피드백 보내기",
         "logout": "로그아웃",
         "appVersion": "버전",
         "updateAvailable": "업데이트 필요",
@@ -1288,17 +1288,6 @@
             "required": "이름을 입력해주세요",
             "tooShort": "이름은 2자 이상이어야 합니다"
         }
-    },
-    "reportIssue": {
-        "title": "이슈 보고",
-        "description": "문제가 발생했나요? 내용을 적어주시면 확인 후 개선하겠습니다.",
-        "titleLabel": "제목",
-        "titlePlaceholder": "이슈 제목을 입력해주세요",
-        "messageLabel": "상세 내용",
-        "messagePlaceholder": "어떤 문제가 발생했는지 자세히 적어주세요",
-        "submit": "보내기",
-        "success": "이슈가 보고되었습니다. 감사합니다!",
-        "failed": "이슈 보고에 실패했습니다. 다시 시도해주세요."
     },
     "appUpdate": {
         "title": "새로운 업데이트가 있어요",
