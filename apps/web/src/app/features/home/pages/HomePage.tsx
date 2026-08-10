@@ -24,6 +24,7 @@ import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel
 import { BottomNavSpacer } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
+import { isDevBuild } from '../../../utils/buildEnv';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
@@ -225,7 +226,8 @@ export const HomePage = () => {
             return;
         }
         // Places are capped per owned cloud; the "+" stays visible and the attempt is toasted.
-        if (ownedPlaceCount >= MAX_PLACES) {
+        // Dev-class builds (VITE_ENV DEV/LOCAL) are uncapped so testers can seed freely.
+        if (!isDevBuild() && ownedPlaceCount >= MAX_PLACES) {
             toast({ title: t('homePage.placeLimitReached') });
             return;
         }
@@ -235,7 +237,7 @@ export const HomePage = () => {
     // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
     // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners).
     const handleCreateGroup = () => {
-        if (channels.length >= MAX_CHANNELS_PER_PLACE) {
+        if (!isDevBuild() && channels.length >= MAX_CHANNELS_PER_PLACE) {
             toast({ title: t('homePage.channelLimitReached') });
             return;
         }
