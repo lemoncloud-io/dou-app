@@ -10,7 +10,10 @@ jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
-jest.mock('../../../hooks/useLastChat', () => ({ useLastChat: () => null }));
+// The row's preview source. Null by default (rows under test have no messages); the preview
+// cases below seed it. pickPreviewChat itself is covered in useLastChat.test.ts.
+let mockLastChat: any = null;
+jest.mock('../../../hooks/useLastChat', () => ({ useLastChat: () => mockLastChat }));
 
 // My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
 // (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real
@@ -468,5 +471,46 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
         expect(title).toContainElement(screen.getByLabelText('channelList.pinned'));
         expect(title).toContainElement(screen.getByLabelText('channelList.muted'));
         expect(screen.getByTestId('row-trailing')).not.toContainElement(screen.getByLabelText('channelList.pinned'));
+    });
+});
+
+// ADR-0047 결정 6 — 다른 클라이언트(데스크톱)가 지운 메시지는 hidden 행으로 들어온다.
+// 방과 홈이 같은 문구를 쓰지 않으면 한쪽만 원문을 계속 보여주게 된다.
+describe('ChannelList — 마지막 메시지 미리보기', () => {
+    const renderRow = () =>
+        render(
+            <ChannelList
+                channels={[makeChannel({ name: '개발방', ownerId: 'me' })]}
+                unreadByChannel={{}}
+                sid="s1"
+                isLoading={false}
+            />
+        );
+
+    afterEach(() => {
+        mockLastChat = null;
+    });
+
+    it('평범한 마지막 메시지는 본문을 그대로 미리보기로 쓴다', () => {
+        mockLastChat = { content: '안녕하세요', createdAt: 1 };
+        renderRow();
+        expect(screen.getByText('안녕하세요')).toBeInTheDocument();
+    });
+
+    it('마지막 메시지가 tombstone이면 삭제 문구를 쓰고 원문을 노출하지 않는다', () => {
+        mockLastChat = { content: '지워진 원문', createdAt: 1, hidden: true };
+        renderRow();
+
+        expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
+        expect(screen.queryByText('지워진 원문')).not.toBeInTheDocument();
+    });
+
+    // preview와 time이 둘 다 같은 lastChat에서 나오므로 "옛 본문 + 새 시각"이 생길 수 없다.
+    it('tombstone이어도 그 행의 시각은 그대로 살아 있다', () => {
+        mockLastChat = { content: '지워진 원문', createdAt: 1750000000000, hidden: true };
+        renderRow();
+
+        // 시각은 로케일 포맷이라 문자열을 고정하지 않고 숫자가 찍혔는지로 본다.
+        expect(screen.getByTestId('row-trailing').textContent).toMatch(/\d/);
     });
 });

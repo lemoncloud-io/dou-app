@@ -38,11 +38,13 @@ jest.mock('@chatic/web-core', () => ({
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),
 }));
+const mockCloudUnread: Record<string, number> = {};
 jest.mock('../../../hooks', () => ({
     useCachedCloudNames: () => ({}),
     useInvitedClouds: () => ({ invitedClouds: invited }),
+    // Presence dots now come from the same cross-cloud cache read the app badge uses.
+    useOtherCloudUnread: () => ({ byCloud: mockCloudUnread, total: 0, refresh: jest.fn() }),
 }));
-jest.mock('../lib', () => ({ readCloudUnreadSnapshot: () => ({}) }));
 // The real CloudPromoBanner is kept (so the 0-cloud branch is exercised); only its decision hook,
 // which reaches into the preference store and thus the app bridge, is stubbed.
 jest.mock('../hooks/useCloudPromo', () => ({

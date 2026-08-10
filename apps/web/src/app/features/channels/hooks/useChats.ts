@@ -4,7 +4,7 @@ import { useChatSync, useRuntimeRepositories } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
-import { isOwnSystemChat } from '../../../utils';
+import { isFeedVisible, isOwnSystemChat } from '../../../utils';
 import type { ClientChatView } from '../types';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';
 
@@ -105,11 +105,13 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
     // Own system rows (my join/leave) are hidden — they carry no information for their subject.
     // Read-marking is unaffected: stage 1 of useReadMarker sends channel.chatNo, which already
     // covers a hidden newest row.
+    // isFeedVisible additionally drops reaction events (they fold into chips — as rows they were
+    // the empty-pill bug ADR-0045 fixes) and thread replies (they live on the thread page).
     const messages = useMemo<ClientChatView[]>(() => {
         const sortKey = (chat: DomainChat): number =>
             chat.chatNo && chat.chatNo > 0 ? chat.chatNo : Number.POSITIVE_INFINITY;
         return chats
-            .filter(chat => !isOwnSystemChat(chat, myUid))
+            .filter(chat => !isOwnSystemChat(chat, myUid) && isFeedVisible(chat))
             .sort((a, b) => {
                 const aNo = sortKey(a);
                 const bNo = sortKey(b);
@@ -185,6 +187,12 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
 
     return {
         messages,
+        /**
+         * The unfiltered cache window. Reaction folding and thread derivation MUST read
+         * this list — `messages` has the reaction events and replies filtered out, so
+         * deriving from it would silently yield nothing (ADR-0045).
+         */
+        rawChats: chats,
         isLoading,
         isEmpty: !isLoading && messages.length === 0,
         isLoadingMore,
@@ -192,7 +200,12 @@ export const useChats = ({ channelId, limit }: UseChatsParams) => {
         hasMore,
         /**
          * The oldest loaded row really is the thread's first, so anything anchored to the start of
-         * the conversation (the room intro) can render.
+         * the conversation can render.
+         *
+         * No longer read by the room: the intro keys off holding `chatNo === 1`, which is proof
+         * rather than inference and never flips back as pages land. Kept as the paging fact it
+         * describes — and because it is the only thing that pins the jumpLimit / pageLimit split
+         * below to an observable outcome.
          *
          * `!hasMore` alone is not enough: it only turns false once a `loadMore` comes back empty,
          * and a thread shorter than the viewport never overflows — so the scroll listener never

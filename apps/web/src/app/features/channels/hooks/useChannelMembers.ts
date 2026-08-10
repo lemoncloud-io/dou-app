@@ -4,6 +4,7 @@ import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runti
 import type { DomainJoin, DomainUser } from '@chatic/data';
 
 import type { ChannelMember } from '../types';
+import { hasLeftChannel } from '../utils/membership';
 
 interface UseChannelMembersParams {
     channelId: string;
@@ -118,7 +119,12 @@ export const useChannelMembers = ({ channelId, detail = true, memberIds }: UseCh
         for (const id of ordered) {
             if (!id || seen.has(id)) continue;
             seen.add(id);
-            rows.push({ ...userById.get(id), id, $join: joinByUserId.get(id) });
+            const join = joinByUserId.get(id);
+            // Someone who left keeps their join row in the cache, so without this they stay in the
+            // list forever — and, since a departed row is `joined: 0` just like an invitee's, they
+            // were being badged as still-pending invites (see membership.ts).
+            if (hasLeftChannel(join)) continue;
+            rows.push({ ...userById.get(id), id, $join: join });
         }
         return rows;
     }, [users, joins, memberIds]);

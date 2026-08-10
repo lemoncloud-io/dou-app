@@ -59,5 +59,22 @@ describe('PlaceRemoteDataSource', () => {
 
             expect(domain).toMatchObject({ id: 'place-9', cid: 'cloud-a' });
         });
+
+        it('createPlace 응답이 owner profile을 감싼 경우 site$.id를 place id로 사용한다', async () => {
+            // place.create의 실제 응답은 새로 만들어진 owner profile이고, 생성된 site 자체는
+            // `site$`에 임베드되어 온다. 최상위 `id`(profile id)를 그대로 쓰면 이후 place.get 등이
+            // 존재하지 않는 id를 조회해 404가 난다.
+            (mockGateways.place.create as jest.Mock).mockResolvedValue({
+                id: '1000002',
+                name: '뭐지',
+                thumbnail: 'data:image/jpeg;base64,...',
+                siteId: '10026',
+                site$: { id: '10026', name: 'ㅇㅇ', ownerId: '1000002' },
+            });
+
+            const domain = await dataSource.createPlace({} as never, context);
+
+            expect(domain).toMatchObject({ id: '10026', cid: 'cloud-a', ownerId: '1000002' });
+        });
     });
 });

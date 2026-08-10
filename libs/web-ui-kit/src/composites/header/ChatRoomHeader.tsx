@@ -6,6 +6,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { DefaultAvatar } from '../../foundations/avatar/DefaultAvatar';
 import { IconBack, IconMore } from '../../resources/icons';
+import { HeaderGlass } from './HeaderGlass';
 
 export interface ChatRoomHeaderProps {
     /**
@@ -46,6 +47,13 @@ export interface ChatRoomHeaderProps {
     moreLabel?: string;
     /** Adds top padding for the status-bar / notch safe-area inset. */
     safeArea?: boolean;
+    /**
+     * Identity not resolved yet: the avatar and title render as placeholders and `meta` is held
+     * back. Without it a room opens on whatever the host had to invent for a channel it has not
+     * loaded — an "unnamed channel" label and a fallback glyph — which then snaps to the real name
+     * a beat later, and reads as the wrong room having opened.
+     */
+    loading?: boolean;
     className?: string;
 }
 
@@ -69,6 +77,7 @@ export const ChatRoomHeader = ({
     backLabel = 'Back',
     moreLabel = 'More',
     safeArea = true,
+    loading = false,
     className,
 }: ChatRoomHeaderProps) => {
     // The avatar has two images, so `direct` and `self` share the single-person one — only a group
@@ -86,13 +95,18 @@ export const ChatRoomHeader = ({
             className={cn(
                 // Glass overlay header (Figma 3421-59848): translucent white so the scrolled
                 // content shows through when the header floats above it (z-index overlay layout).
-                'flex w-full flex-col bg-white/[0.32] px-1.5 pb-2 backdrop-blur-xl dark:bg-black/[0.32]',
+                // The fill lives here and is opaque from the first frame; only the blur behind it
+                // fades in (HeaderGlass), so the title never sits over raw message text.
+                'relative flex w-full flex-col bg-white/[0.32] px-1.5 pb-2 dark:bg-black/[0.32]',
                 // Keep at least the base 8px top padding, plus the safe-area inset.
                 safeArea ? 'pt-[calc(var(--safe-top,0px)+0.5rem)]' : 'pt-2',
                 className
             )}
         >
-            <div className="flex w-full items-center justify-between">
+            <HeaderGlass />
+
+            {/* `relative` so the row paints above the frosted pane, which is positioned too. */}
+            <div className="relative flex w-full items-center justify-between">
                 <div className={SLOT}>
                     {onBack && (
                         <button type="button" onClick={onBack} aria-label={backLabel} className={SLOT}>
@@ -102,12 +116,24 @@ export const ChatRoomHeader = ({
                 </div>
 
                 <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
-                    {avatar ?? <DefaultAvatar size={42} variant={fallbackVariant} />}
+                    {loading ? (
+                        <div className="size-[42px] shrink-0 animate-pulse rounded-full bg-muted" />
+                    ) : (
+                        (avatar ?? <DefaultAvatar size={42} variant={fallbackVariant} />)
+                    )}
                     <div className="flex min-w-0 flex-1 flex-col">
-                        <p className="min-w-0 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
-                            {title}
-                        </p>
-                        {meta && <div className="min-w-0">{meta}</div>}
+                        {loading ? (
+                            // Sized to the title's own line box so settling on the real name does
+                            // not change the header's height — and with it the list's top inset.
+                            <div className="flex h-[26px] items-center">
+                                <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                            </div>
+                        ) : (
+                            <p className="min-w-0 truncate text-[16px] font-semibold leading-[26px] tracking-[-0.08px] text-foreground">
+                                {title}
+                            </p>
+                        )}
+                        {!loading && meta && <div className="min-w-0">{meta}</div>}
                     </div>
                 </div>
 

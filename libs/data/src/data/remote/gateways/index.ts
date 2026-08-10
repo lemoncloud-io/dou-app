@@ -23,7 +23,7 @@ import type {
  * what keeps a caller from reaching them — the backend deletes them once the app has no call sites.
  */
 export type AuthDomainGateway = Pick<AuthGateway, 'update' | 'linkAccount'>;
-export type ChatDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete'>;
+export type ChatDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete' | 'reaction'>;
 export type ChannelDomainGateway = Pick<
     ChannelGateway,
     'mine' | 'sync' | 'update' | 'delete' | 'create' | 'invite' | 'leave' | 'getSelf' | 'unreads'

@@ -268,15 +268,21 @@ export class ChannelRepositoryV2 extends BaseRepositoryV2 implements IChannelRep
         const isSelfLeave = !payload.userId;
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const existing =
-            isSelfLeave && channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
+        const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
         if (isSelfLeave && channelId) {
             this.leftChannelIds.add(channelId);
             await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
         }
 
         try {
-            return await this.channelRemoteDataSource.leaveChannel(payload, normalizedContext);
+            const domain = await this.channelRemoteDataSource.leaveChannel(payload, normalizedContext);
+            if (!isSelfLeave && channelId) {
+                // The kicked member must drop out of memberIds even if the server response
+                // omits a fresh list — don't rely on that undocumented contract.
+                const memberIds = (domain.memberIds ?? existing?.memberIds ?? []).filter(id => id !== payload.userId);
+                await this.channelLocalDataSource.cacheWrite({ ...domain, memberIds }, requestContext);
+            }
+            return domain;
         } catch (error) {
             if (isSelfLeave && channelId) {
                 this.leftChannelIds.delete(channelId);

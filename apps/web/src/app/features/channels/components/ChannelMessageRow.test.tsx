@@ -1,16 +1,33 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { ChannelMessageRow, type MessageReadInfo } from './ChannelMessageRow';
 import type { ClientChatView } from '../types';
+import { openExternalUrl } from '../utils/openExternalUrl';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+
+// Mocked rather than spied on: the real module reaches the bridge barrel, which pulls the whole
+// app-runtime in at import time.
+jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
+
+// Stubbed so these cases assert what the row decides — whether a preview is mounted and for which
+// URL — rather than how the card resolves its metadata.
+jest.mock('./MessageLinkPreview', () => ({
+    MessageLinkPreview: ({ url }: any) => <div data-testid="link-preview" data-url={url} />,
+}));
 
 // Lightweight web-ui-kit stand-ins so assertions target ChannelMessageRow's own
 // wiring (which avatar/size, which read-receipt counts) rather than library internals.
 jest.mock('@chatic/web-ui-kit', () => ({
-    MessageBubble: ({ children }: any) => <div data-testid="bubble">{children}</div>,
+    // `data-expandable` surfaces the row's decision to offer "view all" — the real bubble
+    // renders that affordance only when it gets an onExpand.
+    MessageBubble: ({ children, onExpand }: any) => (
+        <div data-testid="bubble" data-expandable={onExpand ? 'true' : 'false'}>
+            {children}
+        </div>
+    ),
     MessageRow: ({ avatar, status, children }: any) => (
         <div>
             <div data-testid="avatar-slot">{avatar}</div>
@@ -68,6 +85,10 @@ const baseProps = {
 };
 
 describe('ChannelMessageRow', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
     it('passes both read and unread counts to the read receipt', () => {
         render(<ChannelMessageRow {...baseProps} />);
 
@@ -94,5 +115,204 @@ describe('ChannelMessageRow', () => {
         render(<ChannelMessageRow {...baseProps} read={{ ...read, show: false }} />);
 
         expect(screen.queryByTestId('read-receipt')).not.toBeInTheDocument();
+    });
+
+    describe('links in the bubble', () => {
+        const withContent = (content: string) => ({
+            ...baseProps,
+            message: { ...message, content } as unknown as ClientChatView,
+        });
+
+        // The span wrapping the bubble carries the long-press handlers.
+        const bubbleTrigger = () => screen.getByTestId('bubble').parentElement as HTMLElement;
+
+        it('renders a URL in the message as a tappable link', () => {
+            render(<ChannelMessageRow {...withContent('보세요 https://example.com/a')} />);
+
+            expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.com/a');
+        });
+
+        it('opens a tapped link outside the webview', () => {
+            render(<ChannelMessageRow {...withContent('https://example.com/a')} />);
+
+            fireEvent.click(screen.getByRole('link'));
+
+            expect(openExternalUrl).toHaveBeenCalledWith('https://example.com/a');
+        });
+
+        it('swallows the click that ends a long press, so the copy menu wins', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('https://example.com/a');
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.pointerDown(bubbleTrigger(), { pointerType: 'touch' });
+                act(() => {
+                    jest.advanceTimersByTime(500);
+                });
+                fireEvent.click(screen.getByRole('link'));
+
+                expect(props.onLongPress).toHaveBeenCalled();
+                expect(openExternalUrl).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('opens the link on a short tap that never became a long press', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('https://example.com/a');
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.pointerDown(bubbleTrigger(), { pointerType: 'touch' });
+                act(() => {
+                    jest.advanceTimersByTime(100);
+                });
+                fireEvent.pointerUp(bubbleTrigger(), { pointerType: 'touch' });
+                fireEvent.click(screen.getByRole('link'));
+
+                expect(props.onLongPress).not.toHaveBeenCalled();
+                expect(openExternalUrl).toHaveBeenCalledWith('https://example.com/a');
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('does not link a URL that the 200-char truncation cut in half', () => {
+            const content = `${'가'.repeat(180)} https://example.com/a/very/long/path`;
+            render(<ChannelMessageRow {...withContent(content)} />);
+
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(screen.getByTestId('bubble')).toHaveTextContent('...');
+        });
+
+        it('still links a URL that fits entirely inside the truncated text', () => {
+            const content = `https://example.com/a ${'가'.repeat(250)}`;
+            render(<ChannelMessageRow {...withContent(content)} />);
+
+            expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.com/a');
+        });
+    });
+
+    describe('the preview card', () => {
+        const withMessage = (fields: Partial<ClientChatView>) => ({
+            ...baseProps,
+            message: { ...message, ...fields } as unknown as ClientChatView,
+        });
+
+        it('unfurls the first URL only', () => {
+            render(<ChannelMessageRow {...withMessage({ content: 'a https://one.com b https://two.com' })} />);
+
+            const previews = screen.getAllByTestId('link-preview');
+            expect(previews).toHaveLength(1);
+            expect(previews[0]).toHaveAttribute('data-url', 'https://one.com');
+        });
+
+        it('mounts nothing for a message without a link', () => {
+            render(<ChannelMessageRow {...baseProps} />);
+
+            expect(screen.queryByTestId('link-preview')).not.toBeInTheDocument();
+        });
+
+        it.each([
+            ['pending', { isPending: true }],
+            ['failed', { isFailed: true }],
+            ['system', { isSystem: true }],
+        ])('mounts nothing while the message is %s', (_label, fields) => {
+            render(<ChannelMessageRow {...withMessage({ content: 'https://example.com/a', ...fields })} />);
+
+            expect(screen.queryByTestId('link-preview')).not.toBeInTheDocument();
+        });
+
+        it('still unfurls a link the bubble had to cut — the card is the only way to reach it', () => {
+            const content = `${'가'.repeat(180)} https://example.com/a/very/long/path`;
+            render(<ChannelMessageRow {...withMessage({ content })} />);
+
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(screen.getByTestId('link-preview')).toHaveAttribute(
+                'data-url',
+                'https://example.com/a/very/long/path'
+            );
+        });
+
+        it('sits outside the long-press target so taps on it are not eaten', () => {
+            render(<ChannelMessageRow {...withMessage({ content: 'https://example.com/a' })} />);
+
+            const longPressTarget = screen.getByTestId('bubble').parentElement as HTMLElement;
+            expect(longPressTarget.contains(screen.getByTestId('link-preview'))).toBe(false);
+        });
+    });
+
+    // A message another client soft-deleted (ADR-0047 decision 6). `apps/web` can only ever
+    // read these — its own delete is a cache eviction for failed/pending rows — so the whole
+    // contract here is "show that something was said, reveal none of it".
+    describe('deleted message (tombstone)', () => {
+        const deleted = (fields: Partial<ClientChatView> = {}) => ({
+            ...baseProps,
+            message: { ...message, hidden: true, ...fields } as unknown as ClientChatView,
+        });
+
+        it('renders the shared deleted phrase instead of the body', () => {
+            render(<ChannelMessageRow {...deleted()} />);
+
+            expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
+            expect(screen.queryByText('안녕하세요')).not.toBeInTheDocument();
+        });
+
+        it('keeps the row in place rather than closing the gap', () => {
+            render(<ChannelMessageRow {...deleted()} />);
+
+            // Bubble and author line survive: what is missing is the content, not the fact
+            // that somebody spoke here.
+            expect(screen.getByTestId('bubble')).toBeInTheDocument();
+            expect(screen.getByText('친구')).toBeInTheDocument();
+        });
+
+        it('does not unfurl a link the deleted body still carries', () => {
+            render(<ChannelMessageRow {...deleted({ content: 'https://example.com/a' })} />);
+
+            expect(screen.queryByTestId('link-preview')).not.toBeInTheDocument();
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        });
+
+        it('hides the reaction chips, so no live social surface survives the delete', () => {
+            render(
+                <ChannelMessageRow
+                    {...deleted()}
+                    reactions={[{ emoji: '👍', key: '👍', userIds: ['u2'], mine: false }]}
+                    onToggleReaction={jest.fn()}
+                />
+            );
+
+            expect(screen.queryByText('👍')).not.toBeInTheDocument();
+        });
+
+        it('drops the "view all" affordance even on a long deleted body', () => {
+            render(<ChannelMessageRow {...deleted({ content: '가'.repeat(300) })} />);
+
+            expect(screen.getByTestId('bubble')).toHaveAttribute('data-expandable', 'false');
+        });
+
+        // The action sheet's Copy reads the original `content`, so leaving the gesture live
+        // would hand the deleted text straight back to the clipboard.
+        it('does not open the action sheet on long press', () => {
+            jest.useFakeTimers();
+            try {
+                const props = deleted();
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.pointerDown(screen.getByTestId('bubble').parentElement as HTMLElement, {
+                    pointerType: 'touch',
+                });
+                act(() => {
+                    jest.advanceTimersByTime(600);
+                });
+
+                expect(props.onLongPress).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
     });
 });

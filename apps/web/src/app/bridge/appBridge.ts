@@ -144,6 +144,21 @@ export const appBridge = {
     },
 
     // ---------------------------------------------------------------
+    // Link preview
+    // ---------------------------------------------------------------
+
+    /**
+     * Ask native to fetch and parse a page's og: metadata for a chat link preview — the webview
+     * can't read cross-origin pages itself.
+     *
+     * Rejects on an older shell that has no handler (NOT_FOUND); callers treat that as "no
+     * preview". This is also the single seam to swap if unfurling ever moves to the backend.
+     */
+    fetchUrlMetadata(url: string): Promise<WebMessageResponse<'FetchUrlMetadata'>> {
+        return webClient.request({ type: 'FetchUrlMetadata', data: { url } });
+    },
+
+    // ---------------------------------------------------------------
     // In-app purchase
     // ---------------------------------------------------------------
 

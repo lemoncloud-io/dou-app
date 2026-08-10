@@ -261,6 +261,74 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         });
     });
 
+    // 서버가 개발 환경에서 '#'을 인정한다. 클라이언트가 건너뛰는 게 아니라 평소와 같은
+    // confirm 호출을 '#'으로 하는 것 — 운영 백엔드는 그냥 틀린 코드로 거절한다.
+    describe('dev bypass — 인증번호 없이 통과', () => {
+        it('운영 빌드에는 버튼이 없다', async () => {
+            (isDevBuild as jest.Mock).mockReturnValue(false);
+            renderScreen();
+
+            expect(screen.queryByText('phoneVerify.devBypass')).not.toBeInTheDocument();
+        });
+
+        it('코드를 요청하기 전에는 누를 수 없다 — 서버가 대조할 인증이 없다', () => {
+            (isDevBuild as jest.Mock).mockReturnValue(true);
+            renderScreen();
+
+            expect(screen.getByText('phoneVerify.devBypass')).toBeDisabled();
+        });
+
+        it('login 모드는 우회 코드로 곧장 confirm하고 토큰을 적용한다', async () => {
+            (isDevBuild as jest.Mock).mockReturnValue(true);
+            mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
+            mockConfirm.mockResolvedValueOnce({ $token: 'tok' });
+            renderScreen();
+            typePhone();
+            await submitSend();
+
+            fireEvent.click(screen.getByText('phoneVerify.devBypass'));
+
+            await waitFor(() =>
+                expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '#', { mode: 'login', countryCode: 'KR' })
+            );
+            expect(mockVerify).not.toHaveBeenCalled();
+        });
+
+        // link 모드는 confirm 전에 verify로 linkable을 물어야 한다 — 실코드와 같은 2단계.
+        it('link 모드는 verify를 거친 뒤 confirm한다', async () => {
+            (isDevBuild as jest.Mock).mockReturnValue(true);
+            mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
+            mockVerify.mockResolvedValueOnce({ linkable: true });
+            mockConfirm.mockResolvedValueOnce({});
+            renderScreen({ mode: 'link' });
+            typePhone();
+            await submitSend();
+
+            fireEvent.click(screen.getByText('phoneVerify.devBypass'));
+
+            await waitFor(() =>
+                expect(mockVerify).toHaveBeenCalledWith(PHONE_E164, '#', { mode: 'link', countryCode: 'KR' })
+            );
+            await waitFor(() =>
+                expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '#', { mode: 'link', countryCode: 'KR' })
+            );
+        });
+
+        // 서버가 거절하면 평소 실패 경로를 그대로 탄다 — 우회는 클라이언트 판단이 아니다.
+        it('서버가 거절하면 일반 코드와 같은 오류를 보여준다', async () => {
+            (isDevBuild as jest.Mock).mockReturnValue(true);
+            mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
+            mockConfirm.mockRejectedValueOnce(new Error('403 FORBIDDEN - otp mismatch'));
+            renderScreen();
+            typePhone();
+            await submitSend();
+
+            fireEvent.click(screen.getByText('phoneVerify.devBypass'));
+
+            expect(await screen.findByText('phoneVerify.wrongCode')).toBeInTheDocument();
+        });
+    });
+
     it('dev 스위치를 켜지 않으면 발송 옵션에 스위치가 아예 실리지 않는다 (서버 기본값 보존)', async () => {
         (isDevBuild as jest.Mock).mockReturnValue(true);
         mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });

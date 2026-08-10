@@ -110,7 +110,11 @@ const ChannelItem = ({
 
     // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
     // preview or timestamp shows (the message line is hidden).
-    const preview = lastChat?.content ?? '';
+    //
+    // A tombstone still previews — it IS the channel's last message, and the room now renders it
+    // the same way, so the two screens agree (ADR-0047 decision 6). What it must not do is show
+    // the deleted body, hence the shared phrase rather than `content`.
+    const preview = lastChat?.hidden ? t('chat.room.deletedMessage') : (lastChat?.content ?? '');
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with

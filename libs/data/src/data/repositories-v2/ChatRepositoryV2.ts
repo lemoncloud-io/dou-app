@@ -190,7 +190,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
     public async setReaction(payload: ChatReactionInput): Promise<DomainChat> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const { chatId, emoji, action } = payload as { chatId: string; emoji: string; action: string };
+        const { chatId, emoji, action } = payload;
         const now = Date.now();
         const provisionalId = `optimistic-reaction-${chatId}-${emoji}-${now}`;
         const provisional: DomainChat = {
@@ -210,7 +210,7 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
             updatedAtMs: now,
             isPending: true,
             isFailed: false,
-        } as DomainChat;
+        };
         await this.chatLocalDataSource.cacheWrite(provisional, requestContext);
 
         try {
@@ -268,21 +268,19 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
         return {
             id,
             tempId: id,
-            userId: normalizedContext.uid,
             cid: normalizedContext.cid ?? 'default',
             channelId: payload.channelId || '',
             chatNo: 0,
             content: payload.content,
             contentType: payload.contentType ?? 'text',
-            parentId: (payload as { parentId?: string }).parentId,
+            parentId: payload.parentId,
             ownerId: normalizedContext.uid,
             createdAt: now,
             updatedAt: now,
             createdAtMs: now,
             updatedAtMs: now,
-            isOwner: true,
             isPending: true,
             isFailed: false,
-        } as DomainChat;
+        };
     }
 }

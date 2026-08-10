@@ -23,6 +23,36 @@ describe('ChatRoomHeader', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
+    // 채널을 아직 못 읽었을 때 호스트가 지어낸 이름("이름 없는 채널")이 잠깐 뜨면 다른 방이
+    // 열린 것처럼 읽힌다 — 자리만 잡아두고 이름은 확정된 뒤에 보여준다.
+    describe('loading', () => {
+        it('holds back the invented title and the meta row', () => {
+            render(<ChatRoomHeader loading title="이름 없는 채널" meta={<span>MEMBERS</span>} onBack={jest.fn()} />);
+
+            expect(screen.queryByText('이름 없는 채널')).not.toBeInTheDocument();
+            expect(screen.queryByText('MEMBERS')).not.toBeInTheDocument();
+        });
+
+        // 나가는 길은 로딩 중에도 열려 있어야 한다.
+        it('keeps the back button reachable', () => {
+            const onBack = jest.fn();
+            render(<ChatRoomHeader loading onBack={onBack} />);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+            expect(onBack).toHaveBeenCalledTimes(1);
+        });
+
+        it('shows the real title once loading clears', () => {
+            const { rerender } = render(<ChatRoomHeader loading title="개발 모임방" />);
+            expect(screen.queryByText('개발 모임방')).not.toBeInTheDocument();
+
+            rerender(<ChatRoomHeader title="개발 모임방" />);
+
+            expect(screen.getByText('개발 모임방')).toBeInTheDocument();
+        });
+    });
+
     describe('group kind (default)', () => {
         it('renders the room name with a group-glyph fallback avatar', () => {
             const { container } = render(<ChatRoomHeader kind="group" title="개발 모임방" />);

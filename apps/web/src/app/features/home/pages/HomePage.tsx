@@ -24,17 +24,19 @@ import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel
 import { BottomNavSpacer } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_CHANNELS_PER_PLACE, MAX_PLACES } from '../../../utils';
+import { isDevBuild } from '../../../utils/buildEnv';
 import { OnboardingModal } from '../../onboarding';
 import {
     ChannelList,
     CloudPromoBanner,
     CloudSessionSheet,
     CreateChannelDialog,
+    CreatePlaceDialog,
     PlaceList,
     SubscriptionRequiredDialog,
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
-import { useAddCloudFlow, useCreatePlaceFlow, useHomePlaces, useScrollRestoration, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, useHomePlaces, useScrollRestoration, useSwitchPlace } from '../hooks';
 import {
     useActiveCloudChannels,
     useCachedCloudNames,
@@ -180,9 +182,7 @@ export const HomePage = () => {
     const hasActivePlace = !!selectedSiteId;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    // Place creation is a flow (create → switch → mandatory profile), not a lone dialog — the
-    // sequencing lives in useCreatePlaceFlow (ADR-0045).
-    const { openCreatePlace, createPlaceFlow } = useCreatePlaceFlow();
+    const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
 
@@ -226,17 +226,18 @@ export const HomePage = () => {
             return;
         }
         // Places are capped per owned cloud; the "+" stays visible and the attempt is toasted.
-        if (ownedPlaceCount >= MAX_PLACES) {
+        // Dev-class builds (VITE_ENV DEV/LOCAL) are uncapped so testers can seed freely.
+        if (!isDevBuild() && ownedPlaceCount >= MAX_PLACES) {
             toast({ title: t('homePage.placeLimitReached') });
             return;
         }
-        openCreatePlace();
+        setIsPlaceDialogOpen(true);
     };
 
     // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
     // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners).
     const handleCreateGroup = () => {
-        if (channels.length >= MAX_CHANNELS_PER_PLACE) {
+        if (!isDevBuild() && channels.length >= MAX_CHANNELS_PER_PLACE) {
             toast({ title: t('homePage.channelLimitReached') });
             return;
         }
@@ -364,7 +365,7 @@ export const HomePage = () => {
             </div>
 
             <CreateChannelDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
-            {createPlaceFlow}
+            <CreatePlaceDialog open={isPlaceDialogOpen} onOpenChange={setIsPlaceDialogOpen} />
             <CloudSessionSheet
                 open={isCloudSessionOpen}
                 onOpenChange={setIsCloudSessionOpen}

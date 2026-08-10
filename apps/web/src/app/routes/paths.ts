@@ -42,6 +42,8 @@ export const ROUTES = {
     channels: {
         root: '/channels',
         room: (channelId: string) => `/channels/${channelId}/room`,
+        // Full-screen thread for one root message; rootNo is the root's chatNo (ADR-0045).
+        thread: (channelId: string, rootNo: string | number) => `/channels/${channelId}/thread/${rootNo}`,
         settings: (channelId: string) => `/channels/${channelId}/settings`,
         invite: (channelId: string) => `/channels/${channelId}/invite`,
         inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,

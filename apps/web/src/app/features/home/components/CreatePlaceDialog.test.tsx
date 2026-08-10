@@ -1,10 +1,16 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { CreatePlaceDialog } from './CreatePlaceDialog';
 
+const createPlaceMock = jest.fn();
+const switchSiteMock = jest.fn();
+
+jest.mock('../hooks', () => ({ useCreatePlace: () => ({ createPlace: createPlaceMock }) }));
+jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: () => ({ switchSite: switchSiteMock }) }));
 jest.mock('@chatic/shared', () => ({ resizeImageToBase64: jest.fn() }));
+jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('react-i18next', () => ({
     // Echo the key so assertions can target keys directly.
     useTranslation: () => ({ t: (k: string) => k }),
@@ -18,7 +24,7 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('CreatePlaceDialog', () => {
     it('완료 버튼은 유효한 이름 전에는 비활성, 입력하면 활성화된다', () => {
-        render(<CreatePlaceDialog open onOpenChange={jest.fn()} onSubmit={jest.fn()} />);
+        render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
 
         expect(done()).toBeDisabled();
         type('책모임');
@@ -26,7 +32,7 @@ describe('CreatePlaceDialog', () => {
     });
 
     it('20자를 넘으면 초과 카운터를 노출하고 완료가 비활성된다', () => {
-        render(<CreatePlaceDialog open onOpenChange={jest.fn()} onSubmit={jest.fn()} />);
+        render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
 
         type('a'.repeat(21));
 
@@ -34,34 +40,46 @@ describe('CreatePlaceDialog', () => {
         expect(done()).toBeDisabled();
     });
 
-    // The dialog performs no server work: it closes and hands the input over, so the caller can run
-    // place.create underneath the next step instead of behind a spinner here.
-    it('완료 시 오버레이를 닫고 trim된 입력을 onSubmit으로 넘긴다', () => {
+    it('완료 시 플레이스를 만들고 그 플레이스로 전환한 뒤 닫는다', async () => {
+        createPlaceMock.mockResolvedValue({ id: 'site-1' });
+        switchSiteMock.mockResolvedValue(undefined);
         const onOpenChange = jest.fn();
-        const onSubmit = jest.fn();
-        render(<CreatePlaceDialog open onOpenChange={onOpenChange} onSubmit={onSubmit} />);
+        render(<CreatePlaceDialog open onOpenChange={onOpenChange} />);
 
         type('  책모임  ');
         fireEvent.click(done());
 
-        expect(onOpenChange).toHaveBeenCalledWith(false);
-        expect(onSubmit).toHaveBeenCalledWith({ name: '책모임', thumbnail: undefined });
+        await waitFor(() => expect(createPlaceMock).toHaveBeenCalledWith({ name: '책모임', thumbnail: undefined }));
+        await waitFor(() => expect(switchSiteMock).toHaveBeenCalledWith('site-1'));
+        await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     });
 
-    it('입력이 없으면 닫기 시 바로 닫고 onSubmit을 부르지 않는다', () => {
+    it('createPlace가 실패하면 에러를 노출하고 전환/닫기를 하지 않는다', async () => {
+        createPlaceMock.mockRejectedValue(new Error('nope'));
         const onOpenChange = jest.fn();
-        const onSubmit = jest.fn();
-        render(<CreatePlaceDialog open onOpenChange={onOpenChange} onSubmit={onSubmit} />);
+        render(<CreatePlaceDialog open onOpenChange={onOpenChange} />);
+
+        type('책모임');
+        fireEvent.click(done());
+
+        await waitFor(() => expect(screen.getByText('createPlace.saveError')).toBeInTheDocument());
+        expect(switchSiteMock).not.toHaveBeenCalled();
+        expect(onOpenChange).not.toHaveBeenCalled();
+        expect(done()).toBeEnabled();
+    });
+
+    it('입력이 없으면 닫기 시 바로 닫는다', () => {
+        const onOpenChange = jest.fn();
+        render(<CreatePlaceDialog open onOpenChange={onOpenChange} />);
 
         fireEvent.click(close());
 
         expect(onOpenChange).toHaveBeenCalledWith(false);
-        expect(onSubmit).not.toHaveBeenCalled();
     });
 
     it('입력이 있으면 닫기 시 이탈 확인 모달을 띄우고, 나가기를 누르면 닫는다', async () => {
         const onOpenChange = jest.fn();
-        render(<CreatePlaceDialog open onOpenChange={onOpenChange} onSubmit={jest.fn()} />);
+        render(<CreatePlaceDialog open onOpenChange={onOpenChange} />);
 
         type('x');
         fireEvent.click(close());

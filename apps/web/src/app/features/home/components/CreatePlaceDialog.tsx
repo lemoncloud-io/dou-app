@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { resizeImageToBase64 } from '@chatic/shared';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
@@ -9,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 // Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-import type { CreatePlaceInput } from '../hooks';
+import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
+import { useCreatePlace } from '../hooks';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
@@ -22,26 +24,28 @@ interface Notice {
 interface CreatePlaceDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /**
-     * Fired with the collected input when the user confirms — right after this overlay closes. The
-     * CALLER owns `place.create` and the site switch (useCreatePlaceFlow), which run underneath the
-     * next step rather than behind a spinner here.
-     */
-    onSubmit: (input: CreatePlaceInput) => void;
 }
 
 /**
- * Full-screen overlay to COLLECT a new place (=Site): name + optional photo. It performs no server
- * work of its own — confirming hands the input to the caller and closes, so the create can overlap
- * the flow's next step (see useCreatePlaceFlow). Built on @chatic/web-ui-kit; shares its layout with
- * CreateChannelDialog. Owner/limit gating lives in the caller (HomePage). See place-channel-create.md.
+ * Full-screen overlay to CREATE a new place (=Site): name + optional photo. On success it creates
+ * the site on the cloud server and switches into it, then closes. Built on @chatic/web-ui-kit;
+ * mirrors CreateChannelDialog. Owner/limit gating lives in the caller (HomePage).
+ *
+ * No mandatory profile step follows (ADR-0045 decision 4 tried this and was reverted): the
+ * server-side profile row for a brand-new site is not created by `place.create`, and `profile.set`
+ * (`updateSiteProfile`) is update-only — so the owner's very first profile write always 404s no
+ * matter how long the client waits. The owner picks up their profile later via the existing
+ * room-settings nudge (ADR-0040), same as everyone else. See place-channel-create.md.
  */
-export const CreatePlaceDialog = ({ open, onOpenChange, onSubmit }: CreatePlaceDialogProps) => {
+export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps) => {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { createPlace } = useCreatePlace();
+    const { switchSite } = useSiteSwitch();
 
     const [name, setName] = useState('');
     const [thumbnail, setThumbnail] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -50,6 +54,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onSubmit }: CreatePlaceD
         if (open) {
             setName('');
             setThumbnail('');
+            setSubmitting(false);
             setAlertOpen(false);
             setNotice(null);
         }
@@ -57,7 +62,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onSubmit }: CreatePlaceD
 
     const trimmed = name.trim();
     const isOverLimit = name.length > NAME_MAX;
-    const canSubmit = trimmed.length >= 1 && !isOverLimit;
+    const canSubmit = trimmed.length >= 1 && !isOverLimit && !submitting;
 
     const handleImageClick = () => fileInputRef.current?.click();
 
@@ -80,14 +85,24 @@ export const CreatePlaceDialog = ({ open, onOpenChange, onSubmit }: CreatePlaceD
 
     // X / esc / overlay: confirm before leaving when there is unsaved input, else exit directly.
     const requestClose = () => {
+        if (submitting) return;
         if (trimmed.length > 0 || thumbnail) setAlertOpen(true);
         else onOpenChange(false);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!canSubmit) return;
-        onOpenChange(false);
-        onSubmit({ name: trimmed, thumbnail: thumbnail || undefined });
+        setSubmitting(true);
+        setNotice(null);
+        try {
+            const created = await createPlace({ name: trimmed, thumbnail: thumbnail || undefined });
+            await switchSite(created.id);
+            onOpenChange(false);
+        } catch (error) {
+            logger.error('PLACE', 'Failed to create place', { error });
+            setNotice({ variant: 'error', message: t('createPlace.saveError') });
+            setSubmitting(false);
+        }
     };
 
     return (

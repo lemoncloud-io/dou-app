@@ -9,9 +9,11 @@ const openSettings = jest.fn();
 const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
 let isNativeValue = true;
-let isDevBuildValue = false;
 
-jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
+jest.mock('react-router-dom', () => ({
+    useParams: () => ({ channelId: 'ch1' }),
+    useLocation: () => ({ state: null }),
+}));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
 }));
@@ -21,8 +23,6 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('@chatic/web-core', () => ({ reportError: jest.fn() }));
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
-// `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
-jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => isDevBuildValue }));
 jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite }),
 }));
@@ -71,7 +71,6 @@ const contact = (id: string, phone = '010-1234-5678') => ({
 beforeEach(() => {
     jest.clearAllMocks();
     isNativeValue = true;
-    isDevBuildValue = false;
     getContacts.mockResolvedValue({ data: { contacts: [contact('1'), contact('2')] } });
 });
 
@@ -119,12 +118,16 @@ describe('InvitePage (native)', () => {
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
     });
 
-    it('opens the OS settings from the populated list (partial contacts access)', async () => {
+    // 목록이 채워진 상태에서는 OS 설정 경로를 두지 않는다. 부분 연락처 접근으로 목록이
+    // 잘렸을 때의 탈출구는 링크 초대다(아래 share-link availability 참고).
+    it('opens the invite sheet from the populated list instead of the OS settings', async () => {
         render(<InvitePage />);
         await screen.findByTestId('user-N1');
 
-        fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.openContactSettings' }));
-        expect(openSettings).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.sendLink' }));
+
+        expect(screen.getByTestId('add-friend-sheet')).toHaveAttribute('data-open', 'true');
+        expect(openSettings).not.toHaveBeenCalled();
     });
 
     it('caps the selection at 100 and toasts', async () => {
@@ -142,16 +145,9 @@ describe('InvitePage (native)', () => {
 });
 
 describe('share-link availability', () => {
-    it('hides every share-link entry on a production app build', async () => {
-        render(<InvitePage />);
-        await screen.findByTestId('user-N1');
-
-        expect(screen.queryByRole('button', { name: 'inviteFriends.sendLink' })).not.toBeInTheDocument();
-        expect(screen.queryByTestId('add-friend-sheet')).not.toBeInTheDocument();
-    });
-
-    it('keeps the share-link entry on a DEV/LOCAL app build', async () => {
-        isDevBuildValue = true;
+    // 링크 초대는 한때 DEV/LOCAL 빌드에서만 열려 있었다(임시 기획). 그 제한이 풀렸으므로
+    // 운영 앱에서도 세 진입점이 모두 살아 있어야 한다.
+    it('exposes every share-link entry on a release app build', async () => {
         render(<InvitePage />);
         await screen.findByTestId('user-N1');
 
@@ -159,21 +155,23 @@ describe('share-link availability', () => {
         expect(screen.getByTestId('add-friend-sheet')).toBeInTheDocument();
     });
 
-    it('keeps the share-link entry when the permission banner is shown on DEV', async () => {
-        isDevBuildValue = true;
+    // 검색줄에는 링크 버튼 하나만 둔다. 부분 연락처 접근이 잘린 목록을 돌려줘도, 이름+번호를
+    // 직접 넣는 링크 초대가 목록에 없는 사람에게 닿는 경로가 된다 — 이 경로가 운영 앱에서
+    // 열려 있다는 것이 위 테스트가 지키는 전제다.
+    it('leaves the link button alone in the search row', async () => {
+        render(<InvitePage />);
+        await screen.findByTestId('user-N1');
+
+        expect(screen.getByRole('button', { name: 'inviteFriends.sendLink' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'inviteFriends.openContactSettings' })).not.toBeInTheDocument();
+    });
+
+    it('offers the link CTA from the permission-denied state too', async () => {
         getContacts.mockRejectedValueOnce(new Error('denied'));
         render(<InvitePage />);
         await screen.findByTestId('permission-banner');
 
         expect(screen.getByTestId('link-cta')).toBeInTheDocument();
-    });
-
-    it('leaves the denied state with the settings button alone on a production app build', async () => {
-        getContacts.mockRejectedValueOnce(new Error('denied'));
-        render(<InvitePage />);
-        await screen.findByTestId('permission-banner');
-
-        expect(screen.queryByTestId('link-cta')).not.toBeInTheDocument();
     });
 });
 

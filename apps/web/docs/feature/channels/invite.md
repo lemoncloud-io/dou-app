@@ -1,6 +1,6 @@
 # 채널 초대 화면 (Channel Invite Page)
 
-> 상태: Live · 최종 갱신: 2026-07-20 · 관련 ADR: [ADR-0022](../../../../../docs/adr/0022-channel-invite-page-web-ui-kit.md)
+> 상태: Live · 최종 갱신: 2026-08-07 · 관련 ADR: [ADR-0022](../../../../../docs/adr/0022-channel-invite-page-web-ui-kit.md)
 
 ## 목적
 
@@ -51,7 +51,10 @@ Figma 개편 디자인(친구 선택 / 초대 링크 / 연락처 권한 꺼짐)�
 
 1. 채널 룸 빈 상태 또는 설정에서 `초대`/`친구 추가` 탭 → `navigate(/channels/:id/invite)`.
 2. `InvitePage`가 `appBridge.getContacts()`로 연락처를 불러와 `SelectableUserItem` 목록 렌더.
-   유효 한국 번호가 없는 연락처는 `disabled`.
+   유효 한국 번호가 없는 연락처는 `disabled`. 검색바 오른쪽에는 버튼 **둘**이 나란히 선다 —
+   연락처 설정(`openSettings`)과 초대 링크. 설정 버튼이 목록이 채워진 상태에서도 남는 이유는
+   **부분 연락처 접근**이 잘린 목록을 돌려주면서 페이로드에 그 사실을 싣지 않기 때문이다.
+   사용자는 목록이 전부인지 알 수 없고, 이 버튼이 유일한 탈출구다.
 3. 사용자가 친구를 탭해 선택 → 상단에 `SelectedAvatarRow`(제거 가능 칩) 표시, 헤더 카운트 `n/100`.
 4. 100명 도달 후 추가 선택 시도 → "100명 까지 초대 가능해요" 토스트, 선택 무시.
 5. `완료` 탭 → 선택 1명=단건, 2명+=배치 초대 요청. 성공 토스트 후 이전 화면으로 복귀.
@@ -59,7 +62,8 @@ Figma 개편 디자인(친구 선택 / 초대 링크 / 연락처 권한 꺼짐)�
 ### S2. 초대 링크 (네이티브·웹 공통 마무리)
 
 1. 친구 선택 페이지 검색바의 링크 아이콘(네이티브) 또는 웹 진입 상태의 `초대 링크 보내기` 탭
-   → `AddFriendSheet`(이름+연락처) 등장.
+   → `AddFriendSheet`(이름+연락처) 등장. **네이티브·웹·운영/개발 빌드를 가리지 않는다** — 한때
+   운영 앱을 문자 전송만으로 제한한 적이 있으나(임시 기획) 해제됐다.
 2. 이름·번호 작성 후 공유 버튼 → `requestInvite` 네트워크 콜(자동 공유하지 않음) → 응답 `Location` 링크 획득.
 3. 시트를 닫고 `navigate(/channels/:id/invite/link, { state: { inviteLink, channelName, avatar } })`.
 4. `InviteLinkPage`가 초대 링크 카드에 그룹 이름·URL 전체를 노출.

@@ -3,6 +3,9 @@ import { useRef } from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { VERIFICATION_CODE_LENGTH } from '../../utils';
+// Direct path: `buildEnv` is deliberately kept out of the `utils` barrel (`import.meta` — see that
+// barrel's comment).
+import { isDevBuild } from '../../utils/buildEnv';
 
 interface VerificationCodeInputProps {
     value: string;
@@ -12,11 +15,18 @@ interface VerificationCodeInputProps {
 
 export const VerificationCodeInput = ({ value, onChange, hasError = false }: VerificationCodeInputProps) => {
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    // Development deployments recognise a non-numeric bypass code, which the digits-only filter
+    // made impossible to type. Release builds keep the filter — this is the only thing standing
+    // between a production code field and arbitrary input.
+    const acceptsAnyCharacter = isDevBuild();
+    // A numeric keypad has no '#', so relaxing the filter without this leaves the character
+    // untypeable on a phone, which is where the bypass is actually used.
+    const inputMode = acceptsAnyCharacter ? 'text' : 'numeric';
 
     const digits = value.split('').concat(Array(VERIFICATION_CODE_LENGTH - value.length).fill(''));
 
     const handleChange = (index: number, inputValue: string) => {
-        const digit = inputValue.replace(/\D/g, '').slice(-1);
+        const digit = (acceptsAnyCharacter ? inputValue.replace(/\s/g, '') : inputValue.replace(/\D/g, '')).slice(-1);
         const newValue = digits.map((d, i) => (i === index ? digit : d)).join('');
         onChange(newValue.replace(/\s/g, ''));
 
@@ -33,7 +43,11 @@ export const VerificationCodeInput = ({ value, onChange, hasError = false }: Ver
 
     const handlePaste = (e: React.ClipboardEvent) => {
         e.preventDefault();
-        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, VERIFICATION_CODE_LENGTH);
+        const raw = e.clipboardData.getData('text');
+        const pasted = (acceptsAnyCharacter ? raw.replace(/\s/g, '') : raw.replace(/\D/g, '')).slice(
+            0,
+            VERIFICATION_CODE_LENGTH
+        );
         onChange(pasted);
         const focusIndex = Math.min(pasted.length, VERIFICATION_CODE_LENGTH - 1);
         inputRefs.current[focusIndex]?.focus();
@@ -51,7 +65,7 @@ export const VerificationCodeInput = ({ value, onChange, hasError = false }: Ver
                             inputRefs.current[index] = el;
                         }}
                         type="text"
-                        inputMode="numeric"
+                        inputMode={inputMode}
                         maxLength={1}
                         value={digit}
                         onChange={e => handleChange(index, e.target.value)}

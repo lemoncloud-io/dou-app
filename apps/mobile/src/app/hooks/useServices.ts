@@ -14,6 +14,7 @@ import {
     permissionService,
     preferenceService,
     subscriptionIapService,
+    unfurlService,
     versionService,
 } from '../services';
 
@@ -38,4 +39,5 @@ export const useServices = () => ({
     keyValueStorage: keyValueStorage,
     bootMetricsService: bootMetricsService,
     versionService: versionService,
+    unfurlService: unfurlService,
 });

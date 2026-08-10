@@ -22,7 +22,12 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
+import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
+import { LinkedText } from '../components/LinkedText';
+import { MessageActionSheet } from '../components/MessageActionSheet';
+import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
+import { RoomSkeleton } from '../components/RoomSkeleton';
 import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
@@ -37,13 +42,17 @@ import {
     useJoinPositions,
     useMessageJump,
     useMyJoin,
+    useReactions,
     useReadMarker,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { buildThreadIndex } from '../utils/buildThread';
+import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
+import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 
 // 입력 가능한 최대 글자 수
@@ -59,7 +68,12 @@ export const ChannelRoomPage = () => {
     // UI 상태 관리
     const [content, setContent] = useState('');
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
-    const [openActionMessageKey, setOpenActionMessageKey] = useState<string | null>(null);
+    // The long-pressed message the action sheet targets (null = sheet closed).
+    const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    // The chip whose reactors are being inspected: the message it belongs to plus the fold key
+    // of the chip that was long-pressed (which tab the sheet opens on).
+    const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
 
     // 스크롤 중 상단에 걸친 날짜 그룹을 표시하는 플로팅 pill 상태
@@ -96,6 +110,27 @@ export const ChannelRoomPage = () => {
     });
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
+
+    const memberById = useMemo(() => {
+        const map = new Map<string, (typeof members)[number]>();
+        for (const member of members) if (member.id) map.set(member.id, member);
+        return map;
+    }, [members]);
+
+    // Reactor display name for the chip a11y label — same precedence as message rows:
+    // site-profile nick, then the member user cache.
+    const nameOfUser = useCallback(
+        (id: string) => profileMap.get(id)?.nick ?? memberById.get(id)?.nick ?? memberById.get(id)?.name ?? id,
+        [profileMap, memberById]
+    );
+
+    // Same precedence for faces as for names, so the thread footer's avatars match the
+    // bubbles right above them (ADR-0047 decision 5). Returning undefined lets the footer
+    // fall through to the reply row's embedded `owner$` thumbnail.
+    const avatarOfUser = useCallback(
+        (id: string) => profileMap.get(id)?.thumbnail ?? memberById.get(id)?.thumbnail,
+        [profileMap, memberById]
+    );
 
     // Full channel roster (source of truth: channel.memberIds), always including me. This drives
     // the per-member join sync registration so every participant's read cursor stays live — the
@@ -143,17 +178,54 @@ export const ChannelRoomPage = () => {
 
     const {
         messages,
+        rawChats,
         isLoading: isChatLoading,
         isEmpty: isChatEmpty,
         isLoadingMore,
         isError: isChatError,
         hasMore,
-        isThreadStartLoaded,
         loadMore,
         loadUntil,
     } = useChats(memoizedChatParams);
 
+    /**
+     * The room's very first message is loaded, so the intro block belongs at the top of the thread.
+     *
+     * `chatNo` is a per-channel sequence that starts at 1, so holding row 1 is proof we are at the
+     * start rather than an inference from "nothing older came back" — which flipped around during
+     * hydration and made the intro appear, move and disappear as pages landed. Once row 1 is in the
+     * window it stays, so this only ever turns on. Read from the UNFILTERED window: row 1 is
+     * typically the channel's own creation notice, which `messages` hides.
+     */
+    const hasThreadStart = useMemo(() => rawChats.some(chat => chat.chatNo === 1), [rawChats]);
+
+    // Hold the room behind a skeleton until it can show its own name and its first messages. Either
+    // half arriving alone is what produced the "unnamed channel" flash and the empty list under it.
+    const isRoomLoading = isChannelLoading || isChatLoading;
+
     const { sendMessage, readMessage, deleteMessage } = useChatMutations();
+    const { toggleReaction, failedId: reactionFailedId } = useReactions();
+    const rememberEmoji = useRecentEmojiStore(s => s.remember);
+
+    // Derived from the UNFILTERED window: reaction events and replies are hidden feed
+    // rows, so folding the visible `messages` would silently yield nothing (ADR-0045).
+    const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
+    const threadIndex = useMemo(() => buildThreadIndex(rawChats), [rawChats]);
+
+    /**
+     * My read cursor snapshotted at entry — the unseen-reply dot baseline. The LIVE
+     * cursor is useless for this: useReadMarker advances it to the channel head within
+     * a beat of entering (stage 1), which would clear every dot instantly. Leaving and
+     * re-entering the room takes a fresh snapshot, so a thread visited in between
+     * loses its dot — exactly the read semantics the cursor already has.
+     */
+    const [baselineReadNo, setBaselineReadNo] = useState<number | null>(null);
+    useEffect(() => setBaselineReadNo(null), [stableChannelId]);
+    const myReadNo = myJoin?.readNo;
+    useEffect(() => {
+        // First join-cache emission wins; later ones already carry the entry marker's echo.
+        if (baselineReadNo === null && myReadNo !== undefined) setBaselineReadNo(myReadNo);
+    }, [baselineReadNo, myReadNo]);
 
     /**
      * Leave for home when the channel is GONE — the row was there and disappeared (left the channel,
@@ -190,13 +262,15 @@ export const ChannelRoomPage = () => {
     const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
 
     // 스크롤(하단 자동 이동, loadMore 위치 보존, 리사이즈/포커스 보정, 무한 로딩)은 useChatScroll이 소유한다.
-    const { containerRef: messagesEndRef, debouncedHandleScroll } = useChatScroll({
+    const { containerRef: messagesEndRef, handleScroll: handleChatScroll } = useChatScroll({
         messages,
         hasMore,
         isLoadingMore,
         loadMore,
         inputRef,
         suppressAutoScroll: isJumpPending,
+        // Restores the offset stashed by openThread when coming back from a thread.
+        channelId: stableChannelId,
         // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
         // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,
@@ -255,9 +329,9 @@ export const ChannelRoomPage = () => {
     }, [messagesEndRef]);
 
     const handleMessagesScroll = useCallback(() => {
-        debouncedHandleScroll();
+        handleChatScroll();
         handleFloatingDateScroll();
-    }, [debouncedHandleScroll, handleFloatingDateScroll]);
+    }, [handleChatScroll, handleFloatingDateScroll]);
 
     // Clear the pending hide timer on unmount.
     useEffect(() => {
@@ -306,9 +380,9 @@ export const ChannelRoomPage = () => {
             });
     };
 
-    const handleOpenMessageActions = (message: ClientChatView, messageKey: string) => {
+    const handleOpenMessageActions = (message: ClientChatView) => {
         if (!message.content) return;
-        setOpenActionMessageKey(messageKey);
+        setActionMessage(message);
     };
 
     const handleCopyMessage = async (messageContent: string) => {
@@ -318,13 +392,57 @@ export const ChannelRoomPage = () => {
         try {
             await copyMessageToClipboard(messageContent);
             toast({ title: t('chat.room.messageCopied') });
-            setOpenActionMessageKey(null);
+            setActionMessage(null);
         } catch (error) {
             logger.error('CHAT', 'Failed to copy message', { error });
             toast({ title: t('chat.room.copyFailed'), variant: 'destructive' });
         } finally {
             setIsCopyingMessage(false);
         }
+    };
+
+    // The reader's place in the list is remembered by useChatScroll's unmount stash — every exit
+    // from the room goes through it, so this hop does not have to save anything itself.
+    const openThread = useCallback(
+        (message: ClientChatView) => {
+            if (!message.chatNo) return;
+            // Hand the root across with the navigation. The thread derives everything from the
+            // chat cache, whose first emission is asynchronous even when it is warm, so without
+            // this the thread opens on a bare spinner for a beat — long enough to see, and long
+            // enough that the translucent header has nothing behind it to blur.
+            void navigate(ROUTES.channels.thread(stableChannelId, message.chatNo), {
+                state: { rootChat: message },
+            });
+        },
+        [navigate, stableChannelId]
+    );
+
+    // One tap on the action sheet's quick row (or a pick from the full sheet): toggle
+    // against the folded state — hasMyReaction matches on the normalised fold key, so
+    // an emoji differing only by variation selector still turns mine off.
+    const handlePickEmoji = (emoji: string) => {
+        const target = actionMessage;
+        setActionMessage(null);
+        setEmojiPickerOpen(false);
+        if (!target?.id) return;
+        rememberEmoji(emoji);
+        toggleReaction(target.id, emoji, hasMyReaction(reactions.get(target.id), emoji));
+    };
+
+    // The chip row's add button. Setting the target and opening the picker in one step is
+    // what lets `handlePickEmoji` serve both entry points unchanged — the action sheet stays
+    // suppressed while the picker is open, so it never flashes on the way through.
+    const handleAddReaction = (message: ClientChatView) => {
+        setActionMessage(message);
+        setEmojiPickerOpen(true);
+    };
+
+    const handleShowReactors = (messageId: string, key: string) => setReactorTarget({ messageId, key });
+
+    const handleReplyAction = () => {
+        const target = actionMessage;
+        setActionMessage(null);
+        if (target?.chatNo) openThread(target);
     };
 
     // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
@@ -488,7 +606,13 @@ export const ChannelRoomPage = () => {
             variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
             peerNick={dmPeer?.profileNick}
             isGroupOwner={isGroupChat && channel?.ownerId === userId}
-            onInvite={!isGuest && isCloudActive ? () => navigate(ROUTES.channels.invite(stableChannelId)) : undefined}
+            onInvite={
+                !isGuest && isCloudActive
+                    ? // roomDistance carries how many hops the invite flow is from this room screen, so
+                      // its final "done" step can pop straight back here instead of stacking on top of it.
+                      () => navigate(ROUTES.channels.invite(stableChannelId), { state: { roomDistance: 1 } })
+                    : undefined
+            }
         />
     );
 
@@ -500,10 +624,16 @@ export const ChannelRoomPage = () => {
                     title={roomTitle}
                     avatar={headerAvatar}
                     meta={headerMeta}
+                    // Placeholders until the channel resolves — `roomTitle` has to fall back to the
+                    // "unnamed channel" label while there is no channel to read a name off, and
+                    // showing that for a beat reads as having opened the wrong room.
+                    loading={isChannelLoading}
                     onBack={() => navigate(-1)}
                     moreMenu={
                         <DropdownMenuItem
-                            onClick={() => navigate(ROUTES.channels.settings(stableChannelId))}
+                            onClick={() =>
+                                navigate(ROUTES.channels.settings(stableChannelId), { state: { roomDistance: 1 } })
+                            }
                             className="cursor-pointer gap-2"
                         >
                             <Settings size={16} />
@@ -528,10 +658,13 @@ export const ChannelRoomPage = () => {
                         paddingBottom: composerHeight + 16,
                     }}
                 >
-                    {isChatLoading ? (
-                        <div className="flex min-h-full items-center justify-center">
-                            <Loader2 size={24} className="animate-spin text-muted-foreground" />
-                        </div>
+                    {isRoomLoading ? (
+                        <>
+                            {/* Same spacer trick as the live list below, so the placeholder rows
+                                start at the top and the real messages replace them in place. */}
+                            <div aria-hidden className="flex-1" />
+                            <RoomSkeleton />
+                        </>
                     ) : isChatEmpty ? (
                         <div className="flex min-h-full flex-1 flex-col">
                             <DateDivider label={formatDateSeparator(new Date())} />
@@ -539,23 +672,18 @@ export const ChannelRoomPage = () => {
                         </div>
                     ) : (
                         <>
-                            {/* Self-chat is top-aligned (Figma 3186-13530): this flex-grow spacer is the
-                                first DOM child, so in the flex-col-reverse container it sits at the visual
-                                bottom and absorbs free space to push short threads to the top. It collapses
-                                to 0 once messages overflow, so tall threads scroll normally (newest at the
-                                bottom) — unlike `justify-end`, which clips overflowing content. */}
-                            {isSelfChat && <div aria-hidden className="flex-1" />}
+                            {/* A thread that does not fill the screen reads from the top, like any
+                                other list — only once it overflows does the newest message belong at
+                                the bottom. This flex-grow spacer is the first DOM child, so in the
+                                flex-col-reverse container it sits at the visual bottom and absorbs the
+                                free space that would otherwise push short threads down. It collapses
+                                to 0 as soon as the messages overflow, so tall threads scroll normally
+                                — unlike `justify-end`, which clips overflowing content. */}
+                            <div aria-hidden className="flex-1" />
                             {Object.entries(groupedMessages)
                                 .sort(([a], [b]) => b.localeCompare(a))
-                                .map(([dateKey, dateMessages], groupIndex, groupArr) => {
+                                .map(([dateKey, dateMessages]) => {
                                     const reversedMessages = [...dateMessages].reverse();
-                                    // Oldest LOADED day group (last after the descending sort). The intro
-                                    // renders just below this group's date divider so it reads
-                                    // [date][intro][messages] — matching the empty state and Figma.
-                                    // `isThreadStartLoaded` keeps it off mid-history: "oldest loaded" is
-                                    // only the real thread start once nothing older is left, otherwise the
-                                    // block would re-parent on every loadMore.
-                                    const isThreadStart = groupIndex === groupArr.length - 1 && isThreadStartLoaded;
 
                                     return (
                                         <div
@@ -612,9 +740,6 @@ export const ChannelRoomPage = () => {
                                                 const showProfileAndName = !isSameAsPrev;
                                                 const showTimeAndStatus =
                                                     !isSameAsNext || message.isPending || message.isFailed;
-                                                const messageActionKey =
-                                                    message.id ||
-                                                    `${message.chatNo ?? 'pending'}-${message.timestamp.getTime()}-${index}`;
 
                                                 // Site profile (nick/avatar) takes precedence over the
                                                 // user-cache name fallback computed in useChats.
@@ -629,7 +754,20 @@ export const ChannelRoomPage = () => {
                                                         ? getReadCount(message.chatNo)
                                                         : { readCount: 0, unreadCount: 0 };
 
+                                                // Thread footer: loaded-reply aggregate keyed by the
+                                                // root's chatNo string (buildThreadIndex).
+                                                const threadMeta = message.chatNo
+                                                    ? threadIndex.get(String(message.chatNo))
+                                                    : undefined;
+                                                const hasUnseenReplies =
+                                                    !!threadMeta &&
+                                                    baselineReadNo !== null &&
+                                                    threadMeta.lastReplyNo > baselineReadNo &&
+                                                    threadMeta.lastReplyOwnerId !== userId;
+
                                                 return (
+                                                    // The wrapper carries `data-chat-no` for the
+                                                    // search jump (useMessageJump scrolls to it).
                                                     <div key={message.id} data-chat-no={message.chatNo}>
                                                         <ChannelMessageRow
                                                             message={message}
@@ -645,20 +783,7 @@ export const ChannelRoomPage = () => {
                                                                 unreadCount,
                                                                 mode: isDmChat ? 'dm' : 'count',
                                                             }}
-                                                            isActionOpen={openActionMessageKey === messageActionKey}
-                                                            isCopying={isCopyingMessage}
-                                                            onActionOpenChange={open => {
-                                                                if (
-                                                                    !open &&
-                                                                    openActionMessageKey === messageActionKey
-                                                                ) {
-                                                                    setOpenActionMessageKey(null);
-                                                                }
-                                                            }}
-                                                            onLongPress={() =>
-                                                                handleOpenMessageActions(message, messageActionKey)
-                                                            }
-                                                            onCopy={() => void handleCopyMessage(message.content ?? '')}
+                                                            onLongPress={() => handleOpenMessageActions(message)}
                                                             onExpand={() =>
                                                                 setExpandedMessage({
                                                                     content: message.content ?? '',
@@ -667,15 +792,42 @@ export const ChannelRoomPage = () => {
                                                             }
                                                             onRetry={() => handleRetryMessage(message)}
                                                             onDelete={() => handleDeleteMessage(message.id)}
+                                                            reactions={
+                                                                message.id ? reactions.get(message.id) : undefined
+                                                            }
+                                                            onToggleReaction={(emoji, isMine) =>
+                                                                message.id && toggleReaction(message.id, emoji, isMine)
+                                                            }
+                                                            reactionFailed={
+                                                                !!message.id && reactionFailedId === message.id
+                                                            }
+                                                            nameOf={nameOfUser}
+                                                            onAddReaction={
+                                                                message.chatNo
+                                                                    ? () => handleAddReaction(message)
+                                                                    : undefined
+                                                            }
+                                                            onShowReactors={key =>
+                                                                message.id && handleShowReactors(message.id, key)
+                                                            }
+                                                            avatarOf={avatarOfUser}
+                                                            threadMeta={threadMeta}
+                                                            hasUnseenReplies={hasUnseenReplies}
+                                                            onOpenThread={
+                                                                message.chatNo ? () => openThread(message) : undefined
+                                                            }
                                                         />
                                                     </div>
                                                 );
                                             })}
-                                            {isThreadStart && roomIntro}
                                             <DateDivider label={formatDateSeparator(dateMessages[0].timestamp)} />
                                         </div>
                                     );
                                 })}
+                            {/* Last DOM child before the loader, so the reversed container puts it
+                                above every date group — the room's own opening entry, at the top of
+                                the thread rather than tucked inside the oldest day. */}
+                            {hasThreadStart && roomIntro}
                             {isLoadingMore && (
                                 <div className="flex justify-center py-3">
                                     <Loader2 size={20} className="animate-spin text-muted-foreground" />
@@ -740,11 +892,46 @@ export const ChannelRoomPage = () => {
                     </header>
                     <div className="flex-1 overflow-y-auto px-4 py-3">
                         <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
-                            {expandedMessage?.content}
+                            {/* Full content, so no `truncated` — a URL the bubble had to cut is a
+                                complete, tappable link here. */}
+                            {expandedMessage && <LinkedText text={expandedMessage.content} />}
                         </p>
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <MessageActionSheet
+                open={!!actionMessage && !emojiPickerOpen}
+                onOpenChange={open => !open && setActionMessage(null)}
+                tallies={actionMessage?.id ? reactions.get(actionMessage.id) : undefined}
+                // Persisted rows only (chatNo > 0): a reaction / reply targeting an
+                // optimistic temp id would 404 and orphan once the persisted swap lands.
+                canReact={!!actionMessage?.chatNo}
+                canReply={!!actionMessage?.chatNo}
+                isCopying={isCopyingMessage}
+                onPickEmoji={handlePickEmoji}
+                onMoreEmoji={() => setEmojiPickerOpen(true)}
+                onCopy={() => void handleCopyMessage(actionMessage?.content ?? '')}
+                onReply={handleReplyAction}
+            />
+            <ReactionDetailSheet
+                // Read from the live fold, not snapshotted: a reaction toggled away while the
+                // sheet is open should drop out of it too.
+                open={!!reactorTarget}
+                onOpenChange={open => !open && setReactorTarget(null)}
+                tallies={(reactorTarget && reactions.get(reactorTarget.messageId)) || []}
+                initialKey={reactorTarget?.key}
+                nameOf={nameOfUser}
+                avatarOf={avatarOfUser}
+            />
+            <EmojiPickerSheet
+                open={emojiPickerOpen}
+                onOpenChange={open => {
+                    setEmojiPickerOpen(open);
+                    if (!open) setActionMessage(null);
+                }}
+                onPick={handlePickEmoji}
+            />
         </div>
     );
 };

@@ -43,7 +43,7 @@ describe('AddFriendSheet', () => {
         );
         await waitFor(() =>
             expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite/link', {
-                state: { inviteLink: 'https://dou.chatic.io/s?code=abc' },
+                state: { inviteLink: 'https://dou.chatic.io/s?code=abc', roomDistance: 2 },
             })
         );
     });

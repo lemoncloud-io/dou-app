@@ -24,7 +24,10 @@ let profilesValue: any;
 // them would hide a real drift.
 let myProfileValue: any;
 
-jest.mock('react-router-dom', () => ({ useParams: () => ({ channelId: 'ch1' }) }));
+jest.mock('react-router-dom', () => ({
+    useParams: () => ({ channelId: 'ch1' }),
+    useLocation: () => ({ state: null }),
+}));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
@@ -119,6 +122,7 @@ jest.mock('../components/MemberListItem', () => ({
         <button
             data-testid={`member-${p.member.id}`}
             data-needs-profile={String(!!p.needsProfileSetup)}
+            data-pending-invite={String(!!p.isPendingInvite)}
             onClick={p.onClick}
         >
             {p.member.name}
@@ -300,12 +304,32 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
     });
 
+    // 목표 그 자체: 어떤 멤버에게도 초대 대기 배지가 뜨지 않는다. join 카운터가 "미참여"와
+    // "탈퇴"를 같은 0으로 표현해서 둘을 가릴 수 없으므로, 추측해서 다는 대신 아예 달지 않는다.
+    it('어떤 멤버에게도 초대 대기 배지를 달지 않는다', () => {
+        channelValue = OWNER_CHANNEL;
+        membersValue = {
+            members: [
+                { id: 'owner1', name: '오너', $join: { joined: 1 } },
+                { id: 'gone', name: '나간사람', $join: { joined: 0, joinedNo: 7 } },
+                { id: 'invited', name: '초대대기', $join: { joined: 0 } },
+            ],
+            isLoading: false,
+        };
+
+        render(<ChannelSettingsPage />);
+
+        for (const id of ['owner1', 'gone', 'invited']) {
+            expect(screen.getByTestId(`member-${id}`)).toHaveAttribute('data-pending-invite', 'false');
+        }
+    });
+
     it('친구 추가 행을 누르면 초대 페이지로 이동한다', () => {
         channelValue = OWNER_CHANNEL;
         render(<ChannelSettingsPage />);
 
         fireEvent.click(screen.getByText('chat.settings.addFriend'));
-        expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite');
+        expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite', { state: { roomDistance: 2 } });
     });
 
     it('알림 토글 초기값: 내 join의 notify가 없으면 on, "none"이면 off로 파생된다', () => {

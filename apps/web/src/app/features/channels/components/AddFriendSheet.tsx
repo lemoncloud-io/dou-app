@@ -18,6 +18,8 @@ interface AddFriendSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     channelId?: string;
+    /** Hops from the channel room to the screen this sheet is opened on; see roomDistance.ts. */
+    roomDistance?: number;
 }
 
 interface InputFieldProps {
@@ -52,7 +54,7 @@ const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'te
 const NAME_MAX = 20;
 const PHONE_DIGITS_MAX = 11;
 
-export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheetProps) => {
+export const AddFriendSheet = ({ open, onOpenChange, channelId, roomDistance = 1 }: AddFriendSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
@@ -99,7 +101,7 @@ export const AddFriendSheet = ({ open, onOpenChange, channelId }: AddFriendSheet
             });
 
             resetAndClose();
-            navigate(ROUTES.channels.inviteLink(channelId), { state: { inviteLink } });
+            navigate(ROUTES.channels.inviteLink(channelId), { state: { inviteLink, roomDistance: roomDistance + 1 } });
         } catch (error) {
             logger.error('INVITE', 'Failed to create invite', { error, data: { channelId } });
             reportError(toError(error));

@@ -13,6 +13,13 @@ import { resolveInAppPushRoute, type InAppPushData } from '../utils/resolveInApp
 /** Fixed toast id so consecutive pushes replace the banner instead of stacking. */
 const IN_APP_PUSH_TOAST_ID = 'in-app-push-message';
 
+/**
+ * Routes that count as "already reading this channel". The thread is one of them: it is the
+ * same room seen from a different angle, so a banner for the channel you are replying in is
+ * the same interruption the room suppresses — and it fires on your own send round-trip.
+ */
+const VIEWING_CHANNEL_ROUTES = [ROUTES.channels.room(':channelId'), ROUTES.channels.thread(':channelId', ':rootNo')];
+
 /** Messenger-conventional banner lifetime — long enough to read, short enough to not obstruct. */
 const IN_APP_PUSH_DURATION_MS = 5_000;
 
@@ -53,8 +60,10 @@ export const useInAppPushMessage = (): void => {
             // The current channel is read from the live pathname (not `useLocation`) so the
             // check sees where the user is at event time, without re-rendering per route.
             if (data.channelId) {
-                const match = matchPath(ROUTES.channels.room(':channelId'), window.location.pathname);
-                if (match?.params.channelId === String(data.channelId)) return;
+                const isViewingChannel = VIEWING_CHANNEL_ROUTES.some(
+                    pattern => matchPath(pattern, window.location.pathname)?.params.channelId === String(data.channelId)
+                );
+                if (isViewingChannel) return;
             }
 
             const route = resolveInAppPushRoute(data);
@@ -63,6 +72,15 @@ export const useInAppPushMessage = (): void => {
                     <InAppNotificationCard
                         title={headline(data.channelName as string | undefined, title)}
                         body={body}
+                        // Whatever photo the sender baked in, if any — the payload has no
+                        // guaranteed field for it, so the card falls back to a glyph.
+                        avatarUrl={
+                            typeof data.thumbnail === 'string'
+                                ? data.thumbnail
+                                : typeof data.imageUrl === 'string'
+                                  ? data.imageUrl
+                                  : undefined
+                        }
                         onClick={
                             route
                                 ? () => {

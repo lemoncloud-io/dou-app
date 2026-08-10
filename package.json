@@ -116,7 +116,7 @@
     "@lemoncloud/chatic-backend-api": "^0.26.709",
     "@lemoncloud/chatic-iap-api": "^1.26.121",
     "@lemoncloud/chatic-pushes-api": "^0.26.124",
-    "@lemoncloud/chatic-socials-api": "^0.26.412",
+    "@lemoncloud/chatic-socials-api": "^0.26.721",
     "@lemoncloud/chatic-sockets-api": "0.26.710",
     "@lemoncloud/chatic-sockets-lib": "0.4.13",
     "@lemoncloud/lemon-web-core": "^1.5.0",

@@ -145,6 +145,18 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                             />
                             {t('phoneVerify.devSlack')}
                         </label>
+                        {/* Not a client-side skip: this proves with the code development backends
+                            accept, through the same calls a typed code takes. Needs a code to have
+                            been requested first — with dryRun on, that request sends no SMS, so the
+                            two together take the phone out of the loop completely. */}
+                        <button
+                            type="button"
+                            onClick={state.onDevBypass}
+                            disabled={!state.canDevBypass}
+                            className="mt-1 h-9 rounded-[8px] border border-input-border text-[13px] font-semibold text-label disabled:opacity-40"
+                        >
+                            {t('phoneVerify.devBypass')}
+                        </button>
                     </div>
                 )}
             </div>

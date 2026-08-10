@@ -14,6 +14,7 @@ import { ROUTES } from '../../../routes/paths';
 import { toError } from '../../../utils/errors';
 import { useChannel } from '../hooks';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
+import { getRoomDistance } from '../utils/roomDistance';
 
 interface InviteLinkState {
     inviteLink?: string;
@@ -30,6 +31,9 @@ export const InviteLinkPage = () => {
     const { channelId } = useParams<{ channelId: string }>();
     const { state } = useLocation();
     const inviteLink = (state as InviteLinkState | null)?.inviteLink;
+    // room -> [settings ->] invite -> here is at least 2 hops; used to pop the whole flow at once
+    // (see roomDistance.ts) instead of leaving settings/invite entries stacked under this page.
+    const roomDistance = getRoomDistance(state, 2);
 
     const { channel } = useChannel(channelId ?? null);
     const [shared, setShared] = useState(false);
@@ -54,6 +58,12 @@ export const InviteLinkPage = () => {
     };
 
     const handleShare = async () => {
+        // Once shared, the CTA turns into "공유 완료" (Figma node 3153-25568) — a second tap
+        // means done, not re-share, so it pops the whole invite flow back to the room.
+        if (shared) {
+            navigate(-roomDistance);
+            return;
+        }
         try {
             if (isNative()) {
                 appBridge.openShareSheet(inviteLink);
@@ -77,7 +87,7 @@ export const InviteLinkPage = () => {
                     <button
                         type="button"
                         aria-label={t('inviteLink.close')}
-                        onClick={() => channelId && navigate(ROUTES.channels.room(channelId), { replace: true })}
+                        onClick={() => navigate(-roomDistance)}
                         className="p-2"
                     >
                         <IconClose className="size-6 text-foreground" strokeWidth={2} />

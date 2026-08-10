@@ -5,9 +5,10 @@
 ## 목적
 
 기본플레이스(relay 프로필에 임베디드된 `$site`)가 클라우드 홈 목록에 섞여 보이는 데이터 오염을
-끊고, 플레이스 생성·수정 경로의 결함(생성 직후 목록 미반영, `place.update` 400)을 고치고, 새
-플레이스의 owner가 반드시 플레이스 프로필을 갖게 하며, 계정 레벨 화면(MyPage 계열)이 클라우드
-전환과 무관하게 relay(계정) 프로필을 보이게 한다. ADR-0045 결정 1~5의 아키텍처 문서다.
+끊고, 플레이스 생성·수정 경로의 결함(생성 직후 목록 미반영, `place.update` 400)을 고치고,
+계정 레벨 화면(MyPage 계열)이 클라우드 전환과 무관하게 relay(계정) 프로필을 보이게 한다.
+ADR-0045 결정 1~5의 아키텍처 문서다. (~~새 플레이스의 owner가 반드시 플레이스 프로필을 갖게
+한다~~ — 결정 4는 이후 되돌려졌다, §4·아래 범위 참조.)
 
 ## 설계 원칙
 
@@ -35,9 +36,13 @@
   잔재 정리 메커니즘.
 - `PlaceRepositoryV2.createPlace`의 후속 `refreshList` 자동 호출.
 - `place.update` 호출부 `id` 탑재 + 리포지토리 `id === sid` 정규화.
-- 플레이스 생성 플로우 마지막 스텝으로서의 프로필 생성(스킵 불가) — `useCreatePlaceFlow`
+- ~~플레이스 생성 플로우 마지막 스텝으로서의 프로필 생성(스킵 불가) — `useCreatePlaceFlow`
   오케스트레이션, `CreatePlaceDialog` 성공 신호, `PlaceProfileCreateDialog`의 `dismissible`
-  패스스루.
+  패스스루.~~ → **되돌림 (2026-08-10)**. `place.create`가 owner 프로필 row를 만들지 않고
+  `profile.set`(`updateSiteProfile`)이 UPDATE 전용이라 그 자리의 첫 프로필 write가 항상
+  404가 났다 — 재시도로도 해소 안 되는 백엔드 한계. `CreatePlaceDialog`는 `CreateChannelDialog`와
+  같은 골격(다이얼로그가 직접 create+switch)으로 되돌아갔고 `useCreatePlaceFlow`는 삭제했다.
+  자세한 내용은 [place-channel-create.md](../home/place-channel-create.md)·ADR-0045 결정 4 참조.
 - ~~`useMyUser`의 relay 고정(계정 프로필 표시).~~ → **되돌림**, 아래 §6.
 
 **제외**
@@ -92,7 +97,10 @@ flowchart TD
     W --> PR["서버에 없는 캐시 행 prune → 오염 잔재 제거"]
 ```
 
-### 플레이스 생성 플로우 (프로필 스텝 포함)
+### 플레이스 생성 플로우 (프로필 스텝 포함) — ❌ 되돌림 (2026-08-10), 아래는 철회된 원문
+
+> 프로필 스텝을 뺀 현재 흐름은 [place-channel-create.md](../home/place-channel-create.md)
+> "생성 → 이동 시퀀스 (플레이스)" 참조.
 
 ```mermaid
 sequenceDiagram
@@ -209,7 +217,16 @@ ADR이 열어둔 "마이그레이션성 삭제냐 목록 필터냐"는 **재조�
   낙관적 캐시 쓰기(현재 `payload.id` 부재 시 통째로 스킵되는 경로) 양쪽에 쓴다. place에서
   `id === sid`다(ADR 맥락 3).
 
-### 5) 생성 플로우 프로필 스텝 (ADR 결정 4)
+### 5) 생성 플로우 프로필 스텝 (ADR 결정 4) — ❌ 되돌림 (2026-08-10), 아래는 철회된 원문
+
+> `place.create`는 새 사이트의 owner 프로필 row를 만들지 않고, `profile.set`이 라우팅되는
+> 백엔드 액션(`updateSiteProfile`)은 UPDATE 전용이라 기존 row가 없으면 항상 404가 난다.
+> `createPlace`→`switchSite`가 이미 성공한 뒤에도 재현되고 재시도(4.5초에 걸친 backoff)로도
+> 해소되지 않아 — 동기화 지연이 아니라 구조적 한계로 판명됐다. `CreatePlaceDialog`는
+> `CreateChannelDialog`와 같은 골격(다이얼로그가 직접 create+switch를 들고 성공 시 닫힘)으로
+> 되돌렸고 `useCreatePlaceFlow`는 삭제했다. owner도 다른 진입자와 동일하게 방 설정
+> nudge(ADR-0040)로 프로필을 나중에 채운다. 현재 구현은
+> [place-channel-create.md](../home/place-channel-create.md) 참조.
 
 다이얼로그 A 성공 → B 오픈의 기존 관용구는
 [useAddCloudFlow.tsx:14-23](../../../src/app/features/home/hooks/useAddCloudFlow.tsx)(플로우 훅이
@@ -319,13 +336,11 @@ ADR 결정 1~4·6(기본 플레이스 스코핑, 생성 플로우 프로필 스�
         - 낙관적 캐시 양쪽).
 - **apps/web 테스트** (`nx test web`, 전체 153 스위트 / 1260 테스트 그린):
     - [CreatePlaceDialog.test.tsx](../../../src/app/features/home/components/CreatePlaceDialog.test.tsx)
-      — 완료 시 닫고 trim된 입력을 `onSubmit`으로 전달(서버 작업 없음), 입력 유무별 즉시 닫힘/이탈 확인.
-    - [useCreatePlaceFlow.test.tsx](../../../src/app/features/home/hooks/useCreatePlaceFlow.test.tsx)
-      — 생성 확인 즉시 프로필 스텝 오픈(dismissible=false, 방금 입력한 이름), 프로필 저장은
-      create·switch 이후에 생성된 id로 고정 전송, 생성 실패 시 프로필 미기록 + 스텝 이탈 허용,
-      전환만 실패 후 재시도 시 플레이스 재생성 없음.
+      — 완료 시 생성 후 전환하고 닫음, 생성 실패 시 에러 노출 후 전환/닫기 안 함, 입력 유무별 즉시
+      닫힘/이탈 확인 (프로필 스텝 되돌림 이후 최신 계약 — `useCreatePlaceFlow.test.tsx`는 스텝 자체와
+      함께 삭제됐다).
     - [PlaceProfileCreateDialog.test.tsx](../../../src/app/features/home/components/PlaceProfileCreateDialog.test.tsx)
-      — `dismissible=false`면 닫기(X) 부재.
+      — `dismissible=false`면 닫기(X) 부재(방 설정 nudge 등 다른 진입점에서 계속 쓰인다).
     - [useMyUser.test.ts](../../../src/app/hooks/useMyUser.test.ts) — 되돌린 뒤에는 활성 컨텍스트
       관찰/fetch만 검증한다(relay 고정 케이스는 §6과 함께 제거).
     - `place.update`의 `id`는 `UpdatePlacePayload`의 필수 필드라 호출부 누락이 컴파일로

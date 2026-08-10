@@ -85,6 +85,24 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).toHaveBeenCalledTimes(1);
     });
 
+    // 스레드는 그 방의 다른 화면일 뿐이다 — 방에서 억제되는 배너가 스레드에서 뜨면,
+    // 답글을 쓰는 동안 내 전송 왕복이 그대로 배너로 돌아온다.
+    it('같은 채널의 스레드를 보고 있어도 배너를 띄우지 않는다', () => {
+        setCurrentPath('/channels/abc/thread/42');
+
+        invoke({ title: 'T', body: 'B', data: { channelId: 'abc' } });
+
+        expect(toastCustom).not.toHaveBeenCalled();
+    });
+
+    it('다른 채널의 스레드를 보고 있으면 배너를 띄운다', () => {
+        setCurrentPath('/channels/other/thread/42');
+
+        invoke({ title: 'T', body: 'B', data: { channelId: 'abc' } });
+
+        expect(toastCustom).toHaveBeenCalledTimes(1);
+    });
+
     it('배너 클릭 시 토스트를 닫고 푸시 네비게이션 경로로 이동한다', () => {
         invoke({ title: 'T', body: 'B', data: { link: '/channels/abc/room', cid: 'c1' } });
 

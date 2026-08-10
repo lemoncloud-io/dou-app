@@ -18,8 +18,12 @@ const asString = (value: unknown): string | undefined =>
  * Resolves cloud/site context from the push data. cid/sid live inside `payload` per spec, but we
  * also honor top-level `cid`/`sid` as a fallback for senders that flatten them onto `data`.
  * (Web port of the mobile `extractPushContext` in `deeplinkUtils.ts` — keep the two in sync.)
+ *
+ * `chatId` rides along from the same merged source. It is the notified message's full id, which
+ * downstream turns into a thread hop when that message is a reply (see `resolveThreadTarget`);
+ * the mobile port has no use for it because the tap path resolves its own link natively.
  */
-export const extractPushContext = (data: InAppPushData): { cid?: string; sid?: string } => {
+export const extractPushContext = (data: InAppPushData): { cid?: string; sid?: string; chatId?: string } => {
     let source: Record<string, unknown> = data;
 
     const { payload } = data;
@@ -33,7 +37,7 @@ export const extractPushContext = (data: InAppPushData): { cid?: string; sid?: s
         source = { ...data, ...(payload as Record<string, unknown>) };
     }
 
-    return { cid: asString(source.cid), sid: asString(source.sid) };
+    return { cid: asString(source.cid), sid: asString(source.sid), chatId: asString(source.chatId) };
 };
 
 /** Drop a leading custom scheme (chatic://, chatic-dev://) so only path/query is parsed. */
@@ -58,7 +62,7 @@ export const resolveInAppPushRoute = (data: InAppPushData | undefined | null): s
         return null;
     }
 
-    const { cid, sid } = extractPushContext(data);
+    const { cid, sid, chatId } = extractPushContext(data);
     const link = asString(data.link) ?? asString(data.clickAction);
 
     if (!link) {
@@ -68,7 +72,11 @@ export const resolveInAppPushRoute = (data: InAppPushData | undefined | null): s
         if (!channelId) {
             return null;
         }
-        const query = [cid ? `cid=${encodeURIComponent(cid)}` : null, sid ? `sid=${encodeURIComponent(sid)}` : null]
+        const query = [
+            cid ? `cid=${encodeURIComponent(cid)}` : null,
+            sid ? `sid=${encodeURIComponent(sid)}` : null,
+            chatId ? `chatId=${encodeURIComponent(chatId)}` : null,
+        ]
             .filter(Boolean)
             .join('&');
         return `${ROUTES.channels.room(channelId)}${query ? `?${query}` : ''}`;
@@ -87,6 +95,9 @@ export const resolveInAppPushRoute = (data: InAppPushData | undefined | null): s
     }
     if (sid && !url.searchParams.has('sid')) {
         url.searchParams.set('sid', sid);
+    }
+    if (chatId && !url.searchParams.has('chatId')) {
+        url.searchParams.set('chatId', chatId);
     }
 
     return `${url.pathname}${url.search}${url.hash}`;
