@@ -63,4 +63,32 @@ describe('FloatingTabBar', () => {
         );
         expect(screen.getByRole('button', { name: '5개 안 읽음' })).toBeInTheDocument();
     });
+
+    // Figma 3293-40098 fades inactive tabs, but the unread badge stays at full strength — it is the
+    // one thing that has to stay salient on the tab you are NOT on. Putting the opacity on the
+    // button (rather than the icon and label) would composite the badge along with it.
+    it('fades an inactive tab without fading its unread badge', () => {
+        const { container } = render(
+            <FloatingTabBar
+                items={[
+                    { key: 'chat', label: '채팅', icon: <span>c</span>, badge: 1200 },
+                    { key: 'my', label: 'MY', icon: <span>m</span>, active: true },
+                ]}
+                onSelect={jest.fn()}
+            />
+        );
+
+        const inactiveTab = screen.getByRole('button', { name: '채팅, +999' });
+        expect(inactiveTab.className).not.toMatch(/opacity-/);
+        expect(container.querySelector('[aria-hidden="true"]')?.className).not.toMatch(/opacity-/);
+        // The fade lives on the icon and label instead.
+        expect(inactiveTab.querySelectorAll('.opacity-\\[0\\.54\\]')).toHaveLength(2);
+    });
+
+    it('does not fade the active tab', () => {
+        render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
+
+        const activeTab = screen.getByRole('button', { name: '채팅' });
+        expect(activeTab.querySelectorAll('.opacity-\\[0\\.54\\]')).toHaveLength(0);
+    });
 });

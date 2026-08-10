@@ -76,21 +76,27 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
                                 'relative flex size-12 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors',
-                                isActive ? 'bg-[#222325] dark:bg-white/15' : 'bg-transparent'
+                                // Figma 3293-40098: the active pill is a translucent navy (the glass
+                                // bar tints it). Dark mode keeps its own fill — Figma ships light only.
+                                isActive ? 'bg-[rgba(3,13,35,0.7)] dark:bg-white/15' : 'bg-transparent'
                             )}
                         >
+                            {/* The inactive fade (Figma `opacity-54`) is applied to the icon and label
+                                individually, NOT to the button: on the button it would also fade the
+                                unread badge, which the design keeps at full strength precisely because
+                                it must stay salient on the tab you are *not* on. */}
                             <span
                                 className={cn(
                                     'flex size-6 items-center justify-center',
-                                    isActive ? 'text-white' : 'text-label'
+                                    isActive ? 'text-white' : 'text-label opacity-[0.54]'
                                 )}
                             >
                                 {isActive ? (item.activeIcon ?? item.icon) : item.icon}
                             </span>
                             <span
                                 className={cn(
-                                    'text-[11px] leading-[1.09] tracking-[-0.01em]',
-                                    isActive ? 'font-semibold text-white' : 'font-medium text-label'
+                                    'text-[11px] leading-[12px] tracking-[-0.1px]',
+                                    isActive ? 'font-semibold text-white' : 'font-medium text-label opacity-[0.54]'
                                 )}
                             >
                                 {item.label}
