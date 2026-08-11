@@ -5,11 +5,13 @@ import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { scaleImageToDataUrl, useNavigateWithTransition } from '@chatic/shared';
 import { reportIssue } from '@chatic/web-core';
-import { FloatingButton, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';
+import { FloatingButton, IconBack, ModalTopBar, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { PageHeader } from '../../../ui/components';
-import { KeyboardAwareLayout } from '../../../ui/layouts';
+// Direct path, not the `ui/layouts` barrel: the barrel reaches PrivateLayout → ui/components →
+// Sidebar, whose `import.meta` the CommonJS test transform cannot parse
+// (architecture/directory-structure.md §6).
+import { KeyboardAwareLayout } from '../../../ui/layouts/KeyboardAwareLayout';
 import { buildReportContext } from '../lib';
 
 /**
@@ -35,8 +37,8 @@ const PHOTO_QUALITY = 0.6;
  * MyPage menu. Submits through `reportIssue`, which auto-attaches recent logs, a
  * device/version snapshot and the route trail (see `buildReportContext`).
  *
- * Photos are downscaled to base64 JPEG in the browser and ride in the report's
- * `meta`, not its payload — see `reportIssue` for why that separation matters.
+ * Photos are downscaled to base64 JPEG in the browser and ride in the report
+ * payload; a report carrying them is sent silently — see `reportIssue` for why.
  */
 export const FeedbackPage = () => {
     const { t } = useTranslation();
@@ -95,7 +97,24 @@ export const FeedbackPage = () => {
     return (
         <KeyboardAwareLayout
             className="fixed inset-0 overflow-hidden"
-            header={<PageHeader title={t('feedback.title')} />}
+            // ModalTopBar frosts its own notch strip, so the scaffold must not pad above it —
+            // that would push the glass down and leave the inset bare.
+            headerSafeArea={false}
+            header={
+                <ModalTopBar
+                    title={t('feedback.title')}
+                    leftSlot={
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            aria-label={t('common.back')}
+                            className="flex h-11 w-11 items-center justify-center"
+                        >
+                            <IconBack className="size-[26px] text-foreground" />
+                        </button>
+                    }
+                />
+            }
             footer={
                 <FloatingButton
                     label={t('feedback.submit')}

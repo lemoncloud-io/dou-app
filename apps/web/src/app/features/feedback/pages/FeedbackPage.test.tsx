@@ -26,10 +26,6 @@ jest.mock('@chatic/web-core', () => ({
     reportIssue: (...args: unknown[]) => mockReportIssue(...args),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-// The page only needs the header's title; the real one reaches the router.
-jest.mock('../../../ui/components', () => ({
-    PageHeader: ({ title }: { title: string }) => <header>{title}</header>,
-}));
 // `buildReportContext` has its own suite; here it only has to be callable.
 jest.mock('../lib', () => ({ buildReportContext: () => ({ path: '/mypage/feedback', routeTrail: ['/mypage'] }) }));
 
@@ -63,6 +59,14 @@ describe('FeedbackPage — 의견 보내기', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockReportIssue.mockResolvedValue(undefined);
+    });
+
+    it('상단바 제목과 뒤로가기를 노출한다', () => {
+        render(<FeedbackPage />);
+
+        expect(screen.getByText('feedback.title')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'common.back' }));
+        expect(mockNavigate).toHaveBeenCalledWith(-1);
     });
 
     it('처음에는 제출 버튼이 비활성이다', () => {
