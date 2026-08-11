@@ -1,5 +1,28 @@
 # Changelog
 
+## [2026-08-11] - root@0.51.0, @chatic/web@0.44.0
+
+### Features
+
+- (admin-v2) show report attachments in the detail drawer
+- (web) let feedback reports carry screenshots
+- (web-ui-kit) add a photo attach field
+- (web) replace the floating issue-report widget with a 의견 보내기 page
+- (web-ui-kit) restyle the floating tab bar to the current bottom nav design
+- (web-ui-kit) add a Textarea foundation for long-form input
+
+### Bug Fixes
+
+- (web/feedback) frost the notch strip above the feedback header
+- (web) give the update banner its missing version strings
+
+### Documentation
+
+- (web/feedback) document photo attachment in the feature doc
+- (adr) record how feedback photos are attached and sent
+- (web/feedback) rewrite the issue-report feature doc for the feedback page
+- (adr) replace the floating issue-report widget with a feedback page
+
 ## [2026-08-10] - root@0.50.2, @chatic/desktop-web@0.4.3
 
 ### Bug Fixes
