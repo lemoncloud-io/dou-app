@@ -4,7 +4,7 @@ import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { classifyReport } from './reportCategory';
 import { isNative, logBuffer, logger, serializeLogs } from '@chatic/bridges';
 
-import type { SlackReportBody } from '@lemoncloud/chatic-backend-api';
+import type { SlackReportBody, SlackReportResult } from '@lemoncloud/chatic-backend-api';
 import type { AppType, ErrorReportContext, ErrorReportPayload, IssueReportExtras } from './types';
 
 const ERROR_REPORT_ENDPOINT = `${DOU_ENDPOINT}/hello/report`;
@@ -162,12 +162,21 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
  * 사용자가 직접 이슈를 보고하는 함수
  * reportError와 달리 스로틀링 없음 (사용자 의도적 액션)
  *
- * `extras`는 사용자 대면 이슈 리포트 위젯이 붙이는 선택 컨텍스트(최근 로그,
+ * `extras`는 사용자 대면 이슈 리포트 화면이 붙이는 선택 컨텍스트(최근 로그,
  * 디바이스/버전 스냅샷 등)다. 없으면 기존 2-인자 호출과 동일하게 동작한다.
+ *
+ * **첨부(`extras.images`)가 있으면 `silent: true`로 보낸다.** payload는 `body.message`에
+ * JSON 문자열로 실려 그대로 Slack 메시지 텍스트가 되는데, base64 이미지 한 장이면 Slack
+ * 텍스트 상한(약 40k자)을 훌쩍 넘는다. `SlackReportBody.meta`로 분리해 보내봤으나 백엔드가
+ * 클라이언트 `meta`를 저장하지 않는 것이 실측으로 확인돼(2026-08-11), 저장되는 자리는
+ * `message` 하나뿐이다. 그래서 첨부가 있는 제보만 Slack 전송을 끄고 저장만 한다 —
+ * 알림을 잃는 대신 사진이 남는다. @see ADR-0049
  */
 export const reportIssue = async (title: string, message: string, extras?: IssueReportExtras): Promise<void> => {
     try {
         const app: AppType = isNative() ? 'mobile' : 'web';
+        const extrasWithImages = extras ?? {};
+        const hasImages = !!extrasWithImages.images?.length;
 
         const state = getGlobalSessionContext();
         // Error telemetry is synchronous (not a hook), so it can't observe the profile cache.
@@ -200,19 +209,34 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
                 name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
                 placeId: cloudState.siteId ?? undefined,
             },
-            // User-facing widget context (recent logs, device/version snapshot, ...).
+            // User-facing screen context (recent logs, device/version snapshot, attachments, ...).
             // Spread only when provided so the base payload shape is unchanged for
             // legacy 2-arg callers.
-            ...(extras ?? {}),
+            ...extrasWithImages,
         };
+
+        const serialized = JSON.stringify(payload, null, 2);
 
         const body: ReportBody = {
             title: `[${app}] issue: ${title}`,
-            message: JSON.stringify(payload, null, 2),
-            silent: false,
+            message: serialized,
+            // Attachments make the payload far larger than Slack will take as message text, and
+            // `message` is the only field the backend persists, so a report carrying photos is
+            // saved without notifying. Reports without photos keep their Slack ping.
+            silent: hasImages,
             save: true,
             stereo: REPORT_STEREO_ISSUE,
         };
+
+        if (hasImages) {
+            // The remaining unknown is the store's per-item size ceiling (ADR-0049). Log what we
+            // actually sent so a failure has a number next to it instead of a guess.
+            logger.info('ISSUE_REPORT', '[reportIssue] sending attachments', {
+                images: extrasWithImages.images?.length,
+                payloadKb: Math.round(serialized.length / 1024),
+                silent: true,
+            });
+        }
 
         await webTransport
             .buildSignedRequest({
@@ -220,7 +244,7 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
                 baseURL: ERROR_REPORT_ENDPOINT,
             })
             .setBody(body)
-            .execute();
+            .execute<SlackReportResult>();
     } catch (reportingError) {
         logger.error('ERROR_REPORT', 'Failed to report issue', { error: reportingError });
         throw reportingError;

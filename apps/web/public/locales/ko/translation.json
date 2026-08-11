@@ -8,6 +8,12 @@
         "titlePlaceholder": "제목을 입력해주세요.",
         "bodyLabel": "소중한 의견을 남겨주세요",
         "bodyPlaceholder": "답변을 적어주세요.",
+        "photoLabel": "사진 첨부",
+        "photoHint": "문제를 확인할 수 있는 화면 캡처 또는\n이미지를 첨부해주세요.",
+        "photoDescription": "최대 {{max}}장 • jpg, png",
+        "photoLimit": "사진 첨부는 {{max}}장까지 가능해요.",
+        "photoFailed": "사진을 불러오지 못했어요. 다시 시도해 주세요.",
+        "photoRemove": "{{index}}번째 사진 삭제",
         "submit": "제출하기",
         "success": "소중한 의견 감사합니다.",
         "failed": "전송에 실패했습니다. 다시 시도해 주세요."

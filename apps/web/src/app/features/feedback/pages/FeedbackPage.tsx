@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useDeviceInfo } from '@chatic/device-utils';
-import { useNavigateWithTransition } from '@chatic/shared';
+import { scaleImageToDataUrl, useNavigateWithTransition } from '@chatic/shared';
 import { reportIssue } from '@chatic/web-core';
-import { FloatingButton, TextField, Textarea } from '@chatic/web-ui-kit';
+import { FloatingButton, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { PageHeader } from '../../../ui/components';
@@ -20,13 +20,23 @@ import { buildReportContext } from '../lib';
  */
 const MAX_INPUT_LENGTH = 5000;
 
+/** Attachment budget from the design ("최대 5장"). */
+const MAX_PHOTOS = 5;
+/**
+ * Encoding budget. Images travel inline as base64, which costs ~4 bytes per 3, so
+ * these two numbers are what bound the request: 1024px at q0.6 lands around
+ * 60–100 KB each, i.e. well under a megabyte for a full set of five.
+ */
+const PHOTO_MAX_EDGE = 1024;
+const PHOTO_QUALITY = 0.6;
+
 /**
  * "의견 보내기" — the single entry point for user feedback, reached from the
  * MyPage menu. Submits through `reportIssue`, which auto-attaches recent logs, a
  * device/version snapshot and the route trail (see `buildReportContext`).
  *
- * Photo attachment is intentionally absent: there is no image upload API yet, so
- * the section is not rendered at all rather than shown inert (ADR-0047).
+ * Photos are downscaled to base64 JPEG in the browser and ride in the report's
+ * `meta`, not its payload — see `reportIssue` for why that separation matters.
  */
 export const FeedbackPage = () => {
     const { t } = useTranslation();
@@ -36,16 +46,40 @@ export const FeedbackPage = () => {
 
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
+    const [photos, setPhotos] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const isValid = title.trim().length > 0 && body.trim().length > 0;
+
+    const handleSelectPhotos = async (files: File[]) => {
+        const room = MAX_PHOTOS - photos.length;
+        // Tell the user the pick was trimmed rather than silently dropping the extras.
+        if (files.length > room) toast({ title: t('feedback.photoLimit', { max: MAX_PHOTOS }) });
+        const accepted = files.slice(0, room);
+        if (!accepted.length) return;
+
+        try {
+            const encoded = await Promise.all(
+                accepted.map(file => scaleImageToDataUrl(file, { maxEdge: PHOTO_MAX_EDGE, quality: PHOTO_QUALITY }))
+            );
+            setPhotos(prev => [...prev, ...encoded].slice(0, MAX_PHOTOS));
+        } catch (error) {
+            // A file the browser cannot decode (wrong extension, corrupt) rejects the whole
+            // batch; keep what was already attached and let the user retry.
+            logger.error('FEEDBACK', 'Failed to encode attached photo', { error });
+            toast({ title: t('feedback.photoFailed'), variant: 'destructive' });
+        }
+    };
 
     const handleSubmit = async () => {
         if (!isValid || isSubmitting) return;
         setIsSubmitting(true);
         try {
             const extras = buildReportContext({ deviceInfo, versionInfo });
-            await reportIssue(title.trim(), body.trim(), extras);
+            await reportIssue(title.trim(), body.trim(), {
+                ...extras,
+                ...(photos.length ? { images: photos } : {}),
+            });
             toast({ title: t('feedback.success') });
             navigate(-1);
         } catch (error) {
@@ -101,6 +135,18 @@ export const FeedbackPage = () => {
                         value={body}
                         onChange={value => setBody(value.slice(0, MAX_INPUT_LENGTH))}
                         placeholder={t('feedback.bodyPlaceholder')}
+                        disabled={isSubmitting}
+                    />
+
+                    <PhotoAttachField
+                        label={t('feedback.photoLabel')}
+                        value={photos}
+                        onSelect={handleSelectPhotos}
+                        onRemove={index => setPhotos(prev => prev.filter((_, i) => i !== index))}
+                        hint={t('feedback.photoHint')}
+                        description={t('feedback.photoDescription', { max: MAX_PHOTOS })}
+                        max={MAX_PHOTOS}
+                        removeLabel={index => t('feedback.photoRemove', { index })}
                         disabled={isSubmitting}
                     />
                 </div>

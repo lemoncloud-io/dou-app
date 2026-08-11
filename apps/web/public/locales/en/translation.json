@@ -8,6 +8,12 @@
         "titlePlaceholder": "Enter a title.",
         "bodyLabel": "Share your thoughts",
         "bodyPlaceholder": "Write your feedback here.",
+        "photoLabel": "Attach photos",
+        "photoHint": "Attach a screenshot or image that\nshows the problem.",
+        "photoDescription": "Up to {{max}} • jpg, png",
+        "photoLimit": "You can attach up to {{max}} photos.",
+        "photoFailed": "Could not load the photo. Please try again.",
+        "photoRemove": "Remove photo {{index}}",
         "submit": "Submit",
         "success": "Thank you for your feedback.",
         "failed": "Failed to send. Please try again."
