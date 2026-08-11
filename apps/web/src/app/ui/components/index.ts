@@ -6,7 +6,5 @@ export * from './CloudLogo';
 // into the initial chunk — measured. Their two consumers import the concrete files instead.
 export * from './LimitExceededDialog';
 export * from './PageHeader';
-export * from './RequiredLabel';
-export * from './ReportIssueDialog';
 export * from './SettingsControl';
 export * from './Sidebar';

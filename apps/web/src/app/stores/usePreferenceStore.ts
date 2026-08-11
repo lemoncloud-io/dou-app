@@ -182,8 +182,6 @@ interface PreferenceState {
     isFirstRun: boolean;
     /** Theme preference; 'system' resolves against the OS scheme (see app/theme). */
     theme: Theme;
-    /** true when the user hid the floating issue-report button (restored from MyPage). */
-    issueReportHidden: boolean;
     /** Device-global push mute (optimistic local mirror of device.update-remote; no server read). */
     pushMuted: boolean;
     /** Channel sort method per `<cid>:<sid>` scope (placeScopeKey). Missing → DEFAULT_CHANNEL_SORT. */
@@ -205,8 +203,6 @@ interface PreferenceActions {
     completeOnboarding: () => void;
     resetOnboarding: () => void;
     setTheme: (theme: Theme) => void;
-    /** Show/hide the floating issue-report button. */
-    setIssueReportHidden: (value: boolean) => void;
     /** Optimistically mirror the device push-mute write (source of truth is device.update-remote). */
     setPushMuted: (value: boolean) => void;
     /** Set the sort method for one place scope (placeScopeKey); other scopes are preserved. */
@@ -249,8 +245,6 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     // A corrupt cached value falls back to 'system' rather than leaking into the DOM class.
     theme: parseTheme(readPreference('theme')) ?? 'system',
 
-    issueReportHidden: readPreference('issueReportHidden') === 'true',
-
     pushMuted: readPreference('pushMuted') === 'true',
 
     channelSort: parseChannelSort(readPreference('channelSort')),
@@ -283,11 +277,6 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     setTheme: (theme: Theme) => {
         set({ theme });
         persistPreference('theme', theme);
-    },
-
-    setIssueReportHidden: (value: boolean) => {
-        set({ issueReportHidden: value });
-        persistPreference('issueReportHidden', value ? 'true' : 'false');
     },
 
     setPushMuted: (value: boolean) => {

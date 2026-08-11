@@ -20,7 +20,7 @@ jest.mock('@chatic/bridges', () => ({
 
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { webTransport } from '../transport';
-import { isNative, logBuffer } from '@chatic/bridges';
+import { isNative, logBuffer, logger } from '@chatic/bridges';
 import { reportError, reportIssue } from './common';
 
 const execute = jest.fn().mockResolvedValue(undefined);
@@ -109,10 +109,70 @@ describe('reportError — 리포트 조립', () => {
 });
 
 describe('reportIssue — 사용자 이슈 리포트', () => {
+    const IMAGE = 'data:image/jpeg;base64,AAAA';
+
     it('이슈 리포트는 stereo를 issue로 보내 에러와 갈라 저장한다', async () => {
         await reportIssue('제목', '본문');
         const report = lastReport();
         expect(report.stereo).toBe('issue');
         expect(report.title).toBe('[web] issue: 제목');
+    });
+
+    it('extras는 payload에 펼쳐 담는다', async () => {
+        await reportIssue('제목', '본문', { path: '/mypage/feedback', routeTrail: ['/', '/mypage'] });
+        const report = lastReport();
+        expect(report.payload.path).toBe('/mypage/feedback');
+        expect(report.payload.routeTrail).toEqual(['/', '/mypage']);
+    });
+
+    // 백엔드가 클라이언트 body.meta를 저장하지 않는 것이 실측으로 확인돼(2026-08-11),
+    // 저장되는 자리는 message(=payload) 하나뿐이다. 그래서 첨부도 payload에 싣는다.
+    it('images를 payload에 담아 보낸다 — 저장되는 자리가 여기뿐이다', async () => {
+        await reportIssue('제목', '본문', { path: '/mypage/feedback', images: [IMAGE] });
+        const report = lastReport();
+
+        expect(report.payload.images).toEqual([IMAGE]);
+        expect(report.payload.path).toBe('/mypage/feedback');
+    });
+
+    // payload는 그대로 Slack 메시지 텍스트가 되는데 base64 한 장이면 Slack 상한(~40k자)을
+    // 넘는다. 첨부가 있는 제보만 전송을 끄고 저장만 한다 — 알림을 잃는 대신 사진이 남는다.
+    it('첨부가 있으면 silent로 보내 Slack 전송을 끈다', async () => {
+        await reportIssue('제목', '본문', { images: [IMAGE] });
+        expect(lastReport().silent).toBe(true);
+    });
+
+    it('첨부가 없으면 종전대로 Slack 알림을 보낸다', async () => {
+        await reportIssue('제목', '본문', { path: '/mypage/feedback' });
+        expect(lastReport().silent).toBe(false);
+
+        await reportIssue('제목', '본문', { images: [] });
+        expect(lastReport().silent).toBe(false);
+    });
+
+    it('저장은 첨부 유무와 무관하게 항상 켜둔다', async () => {
+        await reportIssue('제목', '본문', { images: [IMAGE] });
+        expect(lastReport().save).toBe(true);
+    });
+
+    // 남은 미지수는 저장소의 항목 크기 상한이라, 실패했을 때 추측 대신 숫자가 남게 한다.
+    it('첨부가 있으면 장수와 payload 크기를 로그로 남긴다', async () => {
+        await reportIssue('제목', '본문', { images: [IMAGE, IMAGE] });
+
+        expect(logger.info).toHaveBeenCalledWith(
+            'ISSUE_REPORT',
+            '[reportIssue] sending attachments',
+            expect.objectContaining({ images: 2, silent: true })
+        );
+    });
+
+    it('첨부가 없으면 그 로그를 남기지 않는다', async () => {
+        await reportIssue('제목', '본문');
+        expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it('meta 필드는 더 이상 쓰지 않는다 — 백엔드가 버린다', async () => {
+        await reportIssue('제목', '본문', { images: [IMAGE] });
+        expect(setBody.mock.calls.at(-1)?.[0]).not.toHaveProperty('meta');
     });
 });

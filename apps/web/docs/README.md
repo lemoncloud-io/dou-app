@@ -53,6 +53,7 @@
 | [auth](./feature/auth/README.md)                 | 로그인 · 세션 위임 · 초대 수락           |
 | [channels](./feature/channels/README.md)         | 채널 목록 · 채팅방 · 설정                |
 | [debug](./feature/debug/README.md)               | 개발자 도구(런타임 언락)                 |
+| [feedback](./feature/feedback/README.md)         | 의견 보내기(로그 · 디바이스 자동 첨부)   |
 | [home](./feature/home/README.md)                 | 메인 탭 · 목록 · 클라우드 전환 시트      |
 | [mypage](./feature/mypage/README.md)             | 계정 · 정책 허브                         |
 | [onboarding](./feature/onboarding/README.md)     | 최초 실행 온보딩 게이트                  |

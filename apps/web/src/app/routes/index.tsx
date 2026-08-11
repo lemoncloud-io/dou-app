@@ -7,6 +7,7 @@ import { reportError, useSessionAuth } from '@chatic/web-core';
 
 import { markBoot } from '../features/debug/metrics/bootMarks';
 import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';
+import { recordRoute } from '../utils/routeTrail';
 import { commonRoutes } from './CommonRoutes';
 import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
@@ -41,6 +42,16 @@ export const Router = () => {
 
         return createBrowserRouter(routesWithErrorElement);
     }, [isAuthenticated, handleRouterError]);
+
+    // Route trail for issue diagnostics: the feedback screen is reached from MyPage, so its own
+    // pathname says nothing about where the user hit the problem. Subscribing to the data router
+    // (rather than a `useLocation` runner) is the only option here — AppRuntime sits ABOVE
+    // RouterProvider, so there is no router context to hook into outside this component. `subscribe`
+    // does not replay the current state, hence the explicit first record.
+    useEffect(() => {
+        recordRoute(router.state.location.pathname);
+        return router.subscribe(state => recordRoute(state.location.pathname));
+    }, [router]);
 
     if (!isInitialized) {
         logger.warn('ROUTER', 'Router blocked: isInitialized is false, rendering null');

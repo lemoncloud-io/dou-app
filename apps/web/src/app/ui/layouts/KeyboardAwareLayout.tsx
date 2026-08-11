@@ -9,6 +9,15 @@ interface KeyboardAwareLayoutProps {
     header?: ReactNode;
     footer?: ReactNode;
     children: ReactNode;
+    /**
+     * Whether the scaffold pads the header wrapper by the notch inset. Defaults to
+     * `true`, which suits a plain header that draws no background of its own.
+     *
+     * Set `false` when the header paints something — a glass bar — and takes the
+     * inset itself. Applied out here the inset sits *above* that fill, leaving an
+     * unpainted strip across the notch with content scrolling through it.
+     */
+    headerSafeArea?: boolean;
     className?: string;
 }
 
@@ -25,13 +34,23 @@ interface KeyboardAwareLayoutProps {
  * `useAutoScrollOnFocus` can subtract them from the visible band — a focused field sitting behind
  * the docked CTA is inside the viewport but not actually readable.
  */
-export const KeyboardAwareLayout = ({ header, footer, children, className }: KeyboardAwareLayoutProps) => {
+export const KeyboardAwareLayout = ({
+    header,
+    footer,
+    children,
+    headerSafeArea = true,
+    className,
+}: KeyboardAwareLayoutProps) => {
     const { headerRef, footerRef, headerHeight, footerHeight } = useChromeInsets();
 
     return (
         <div data-chrome-root className={cn('relative flex h-full flex-col overflow-hidden bg-background', className)}>
             {header && (
-                <div ref={headerRef} data-chrome-overlay="top" className="absolute inset-x-0 top-0 z-20 pt-safe-top">
+                <div
+                    ref={headerRef}
+                    data-chrome-overlay="top"
+                    className={cn('absolute inset-x-0 top-0 z-20', headerSafeArea && 'pt-safe-top')}
+                >
                     {header}
                 </div>
             )}

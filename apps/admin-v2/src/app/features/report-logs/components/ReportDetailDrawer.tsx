@@ -33,6 +33,15 @@ const stringify = (value: unknown): string => {
     }
 };
 
+/**
+ * Replace base64 image payloads with a short marker before rendering raw JSON.
+ * An attached screenshot is ~100 KB of data URL; a handful of them turn the raw
+ * block into megabytes of text that no one reads and the browser has to lay out.
+ * The images themselves are shown properly by `ImagesSection`.
+ */
+const redactDataUrls = (text: string): string =>
+    text.replace(/data:image\/[a-z+]+;base64,[A-Za-z0-9+/=\\]+/g, match => `data:image…(${match.length} chars, 생략)`);
+
 /** Render an object as a key/value grid; skips nullish values. Returns null when empty. */
 const KeyValueSection = ({ title, data }: { title: string; data?: Record<string, unknown> | null }) => {
     if (!data || typeof data !== 'object') return null;
@@ -115,6 +124,38 @@ const LogsSection = ({ logs }: { logs: unknown[] }) => {
     );
 };
 
+/**
+ * Screenshots the reporter attached, as a thumbnail grid. Each opens full size in a
+ * new tab — base64 data URLs can be megabytes, so rendering them inline at full
+ * resolution would stall the drawer.
+ */
+const ImagesSection = ({ images }: { images: string[] }) => (
+    <section className="flex flex-col gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Attachments ({images.length})
+        </h3>
+        <ul className="flex flex-wrap gap-2">
+            {images.map((src, i) => (
+                <li key={i}>
+                    <a
+                        href={src}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`첨부 ${i + 1} — 새 탭에서 원본 열기`}
+                        className="block"
+                    >
+                        <img
+                            src={src}
+                            alt={`첨부 ${i + 1}`}
+                            className="size-24 rounded-md border border-border object-cover transition-opacity hover:opacity-80"
+                        />
+                    </a>
+                </li>
+            ))}
+        </ul>
+    </section>
+);
+
 /** Render a multiline text block (message/stack); returns null when empty. */
 const TextSection = ({ title, text }: { title: string; text?: string }) => {
     if (!text) return null;
@@ -193,6 +234,10 @@ export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDraw
                         </p>
                     )}
 
+                    {/* Outside the `p &&` block: attachments live in the record's meta, not the
+                        payload, so they are still viewable when payload parsing failed. */}
+                    {row.images && row.images.length > 0 && <ImagesSection images={row.images} />}
+
                     {p && (
                         <>
                             <KeyValueSection
@@ -215,7 +260,7 @@ export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDraw
                         </>
                     )}
 
-                    <TextSection title="Raw" text={stringify(row.raw)} />
+                    <TextSection title="Raw" text={redactDataUrls(stringify(row.raw))} />
                 </div>
             </aside>
         </>

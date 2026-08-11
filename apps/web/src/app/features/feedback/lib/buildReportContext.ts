@@ -2,7 +2,11 @@ import { logBuffer, serializeLogs } from '@chatic/bridges';
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
 import type { IssueReportExtras } from '@chatic/web-core';
 
-import { getViewportSize } from '../hooks';
+// Direct paths, not the `app/utils` barrel: the barrel pulls in web-vitals / place-profile helpers
+// that reach web-core, whose `import.meta` the CommonJS test transform cannot parse
+// (architecture/directory-structure.md §6).
+import { getRouteTrail } from '../../../utils/routeTrail';
+import { getViewportSize } from '../../../utils/viewport';
 
 /** How many of the most recent log entries to attach. */
 export const RECENT_LOG_COUNT = 50;
@@ -35,6 +39,10 @@ const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
  *
  * `reportIssue` already attaches user/cloud/env/url, so this deliberately does
  * not duplicate those.
+ *
+ * `path` is always the feedback screen itself (it is reached from a MyPage menu),
+ * so `routeTrail` carries the diagnostic weight: its second-to-last entry is the
+ * screen the user was actually on.
  */
 export const buildReportContext = ({ deviceInfo, versionInfo }: BuildReportContextArgs): IssueReportExtras => {
     // logBuffer.peek() is oldest-first (FIFO); take the tail for the *most
@@ -42,6 +50,7 @@ export const buildReportContext = ({ deviceInfo, versionInfo }: BuildReportConte
     const recent = logBuffer.peek().slice(-RECENT_LOG_COUNT);
 
     const viewport = getViewportSize();
+    const routeTrail = getRouteTrail();
 
     return {
         logs: serializeLogs(recent),
@@ -50,5 +59,7 @@ export const buildReportContext = ({ deviceInfo, versionInfo }: BuildReportConte
         online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
         viewport: viewport.width && viewport.height ? viewport : undefined,
         path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+        // Omit rather than send `[]`, matching the other optional fields above.
+        routeTrail: routeTrail.length ? routeTrail : undefined,
     };
 };

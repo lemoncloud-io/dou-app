@@ -31,8 +31,7 @@ export const MyPage = () => {
     const { setTheme, isDarkTheme } = useTheme();
     const { pushEnabled, setPushEnabled, isSupported: pushSupported } = useDevicePushMute();
     const { deviceInfo, versionInfo } = useDeviceInfo();
-    const { resetOnboarding, blurLastMessage, setBlurLastMessage, issueReportHidden, setIssueReportHidden } =
-        usePreferenceStore();
+    const { resetOnboarding, blurLastMessage, setBlurLastMessage } = usePreferenceStore();
     const { isEnabled: isDebugMode, registerTap } = useDebugMode();
     const { updateAvailable } = useAppUpdateStatus();
     const {
@@ -194,12 +193,6 @@ export const MyPage = () => {
                         trailing={<Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />}
                     />
                     <ListRow
-                        title={t('mypage.issueReportButton')}
-                        trailing={
-                            <Switch checked={!issueReportHidden} onCheckedChange={v => setIssueReportHidden(!v)} />
-                        }
-                    />
-                    <ListRow
                         title={t('mypage.languageSettings')}
                         trailing={
                             <span className="flex items-center gap-1">
@@ -231,8 +224,15 @@ export const MyPage = () => {
                     />
                 </MenuCard>
 
-                {/* Policy + version */}
+                {/* Feedback + policy + version */}
                 <MenuCard>
+                    {/* Sole entry point for feedback — reachable by guests too, since `reportIssue`
+                        accepts an unauthenticated session (ADR-0047). */}
+                    <ListRow
+                        title={t('mypage.feedback')}
+                        trailing={<Chevron />}
+                        onClick={() => navigate(ROUTES.mypage.feedback)}
+                    />
                     <ListRow
                         title={t('mypage.policy.title')}
                         trailing={<Chevron />}

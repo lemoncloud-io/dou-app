@@ -101,6 +101,8 @@ export const ROUTES = {
             licenses: '/mypage/policy/licenses',
             privacy: '/mypage/policy/privacy',
         },
+        // Sole entry point for user feedback — the floating report widget it replaced is gone (ADR-0047).
+        feedback: '/mypage/feedback',
     },
 } as const;
 

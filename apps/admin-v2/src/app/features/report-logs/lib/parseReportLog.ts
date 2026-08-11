@@ -51,6 +51,8 @@ export interface ReportLogRow {
     userName?: string;
     userId?: string;
     createdAt?: number;
+    /** User-attached screenshots (base64 data URLs), when the report carried any. */
+    images?: string[];
     /** Parsed inner report payload, or null when parsing failed. */
     payload: ReportPayload | null;
     /** Original meta/record kept for the raw-JSON fallback view. */
@@ -137,6 +139,34 @@ const inferTypeFromPayload = (payload?: Record<string, unknown>): ReportType => 
 
 const firstLine = (value?: string): string | undefined => value?.split('\n')[0]?.trim() || undefined;
 
+/** Keep only entries an `<img src>` can actually render, so a stray field cannot inject a URL. */
+const asImageList = (value: unknown): string[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    const images = value.filter(
+        (v): v is string => typeof v === 'string' && (v.startsWith('data:image/') || /^https?:\/\//.test(v))
+    );
+    return images.length ? images : undefined;
+};
+
+/**
+ * Find the user-attached screenshots. The client puts them in the report payload —
+ * `SlackReportBody.meta` was tried first but the backend discards a client-supplied
+ * `meta` (verified 2026-08-11, ADR-0049), leaving `message` as the only field that
+ * survives. The `meta` spots are still probed so reports sent by the short-lived
+ * meta build, and any future backend that does keep it, still render.
+ */
+const pickImages = (
+    mock: RawMockView,
+    metaObj?: Record<string, unknown>,
+    payload?: Record<string, unknown>
+): string[] | undefined =>
+    // Current transport: inside the payload carried by `message`.
+    asImageList(payload?.images) ??
+    // SlackReportBody wrapper kept intact → a stored `meta` would be its sibling field.
+    asImageList(asObject(metaObj?.meta)?.images) ??
+    asImageList(metaObj?.images) ??
+    asImageList((mock as Record<string, unknown>).images);
+
 /**
  * Convert a raw report record into a `ReportLogRow`. Never throws — on any
  * failure it returns a row with `parseError: true` and the raw record retained.
@@ -181,6 +211,7 @@ export const parseReportLog = (mock: RawMockView): ReportLogRow => {
         userName: typeof user?.name === 'string' ? user.name : undefined,
         userId: typeof user?.uid === 'string' ? user.uid : undefined,
         createdAt,
+        images: pickImages(mock, metaObj, payload),
         payload: (payload as ReportPayload | undefined) ?? null,
         raw: mock.meta ?? mock,
         parseError: metaObj === undefined && mock.meta !== undefined,

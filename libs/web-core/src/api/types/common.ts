@@ -125,4 +125,19 @@ export interface IssueReportExtras {
     viewport?: { width: number; height: number };
     /** Current route path at report time. */
     path?: string;
+    /**
+     * Recently visited route paths, oldest first. The report screen is reached from a menu, so
+     * `path` alone says nothing about where the user hit the problem — the entry before the last
+     * one does.
+     */
+    routeTrail?: string[];
+    /**
+     * User-attached screenshots as base64 JPEG data URLs.
+     *
+     * Rides in the payload like the rest, but their size changes how the report is
+     * sent: the payload is also the Slack message text, and one image blows past its
+     * ~40k character limit, so `reportIssue` sends a report carrying images with
+     * `silent: true` — stored, not announced. @see ADR-0049
+     */
+    images?: string[];
 }

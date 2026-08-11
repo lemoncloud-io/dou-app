@@ -1,16 +1,22 @@
 {
-    "issueReport": {
-        "open": "Report an issue",
-        "title": "Report an issue",
-        "close": "Close",
+    "feedback": {
+        "title": "Send feedback",
+        "heading": "Tell us about anything\nthat felt inconvenient or\ncould be improved in DoU",
+        "noticePurpose": "Your feedback is used only to improve the service.",
+        "noticeNoReply": "We do not send individual replies to feedback.",
         "titleLabel": "Title",
-        "titlePlaceholder": "Enter an issue title",
-        "bodyLabel": "Details",
-        "bodyPlaceholder": "Describe what went wrong",
-        "submit": "Send",
-        "success": "Your issue has been sent",
-        "failed": "Failed to send. Please try again",
-        "hide": "Hide button"
+        "titlePlaceholder": "Enter a title.",
+        "bodyLabel": "Share your thoughts",
+        "bodyPlaceholder": "Write your feedback here.",
+        "photoLabel": "Attach photos",
+        "photoHint": "Attach a screenshot or image that\nshows the problem.",
+        "photoDescription": "Up to {{max}} • jpg, png",
+        "photoLimit": "You can attach up to {{max}} photos.",
+        "photoFailed": "Could not load the photo. Please try again.",
+        "photoRemove": "Remove photo {{index}}",
+        "submit": "Submit",
+        "success": "Thank you for your feedback.",
+        "failed": "Failed to send. Please try again."
     },
     "common": {
         "signout": "Sign Out",
@@ -169,7 +175,6 @@
         },
         "darkMode": "Dark Mode",
         "messagePreview": "Message Preview",
-        "issueReportButton": "Issue report button",
         "languageSettings": "Language",
         "appIconSettings": "App Icon Settings",
         "appIcon": {
@@ -178,6 +183,7 @@
             "WhiteIcon": "White"
         },
         "viewOnboarding": "View Onboarding Again",
+        "feedback": "Send feedback",
         "logout": "Logout",
         "appVersion": "Version",
         "updateAvailable": "Update Required",
@@ -1289,17 +1295,6 @@
             "tooShort": "Name must be at least 2 characters"
         }
     },
-    "reportIssue": {
-        "title": "Report Issue",
-        "description": "Having a problem? Describe it and we'll look into it.",
-        "titleLabel": "Title",
-        "titlePlaceholder": "Enter the issue title",
-        "messageLabel": "Details",
-        "messagePlaceholder": "Describe what happened in detail",
-        "submit": "Submit",
-        "success": "Issue reported. Thank you!",
-        "failed": "Failed to report issue. Please try again."
-    },
     "appUpdate": {
         "title": "A new update is available",
         "description": "Update to the latest version to get the newest features.",
@@ -1416,5 +1411,12 @@
             "objects": "Objects",
             "symbols": "Symbols"
         }
+    },
+    "version": {
+        "updateAvailable": "New version available",
+        "currentVersion": "Current: v{{version}}",
+        "unknown": "unknown",
+        "refresh": "Refresh",
+        "later": "Later"
     }
 }

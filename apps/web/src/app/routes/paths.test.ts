@@ -50,6 +50,7 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.mypage.policy.terms).toBe('/mypage/policy/terms');
         expect(ROUTES.mypage.policy.licenses).toBe('/mypage/policy/licenses');
         expect(ROUTES.mypage.policy.privacy).toBe('/mypage/policy/privacy');
+        expect(ROUTES.mypage.feedback).toBe('/mypage/feedback');
     });
 });
 
