@@ -67,4 +67,5 @@ export { IconPin, type IconPinProps } from './IconPin';
 export { IconClockSolid, type IconClockSolidProps } from './IconClockSolid';
 export { IconUsersGroup, type IconUsersGroupProps } from './IconUsersGroup';
 export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';
+export { IconGalleryAdd, type IconGalleryAddProps } from './IconGalleryAdd';
 export { IconCheckCircleSolid, type IconCheckCircleSolidProps } from './IconCheckCircleSolid';
