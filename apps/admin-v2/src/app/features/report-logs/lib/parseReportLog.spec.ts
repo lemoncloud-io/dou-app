@@ -124,3 +124,109 @@ describe('parseReportLog', () => {
         expect(row.category).toBe('network');
     });
 });
+
+// The client sends screenshots as `SlackReportBody.meta.images`, kept out of the
+// Slack-bound `message`. Where the backend puts that meta on the stored record is
+// unverified, so the parser probes several shapes — cover each.
+describe('parseReportLog — attached images', () => {
+    const IMAGE = 'data:image/jpeg;base64,AAAA';
+    const issuePayload = { title: '느려요', message: '본문', app: 'web', logs: [] };
+
+    it('reads images from the SlackReportBody wrapper meta', () => {
+        const row = parseReportLog({
+            id: 'i1',
+            meta: {
+                title: '[web] issue: 느려요',
+                message: JSON.stringify(issuePayload),
+                meta: { images: [IMAGE] },
+            },
+        });
+        expect(row.images).toEqual([IMAGE]);
+        expect(row.type).toBe('issue');
+    });
+
+    it('reads images when the record meta IS the meta object', () => {
+        const row = parseReportLog({ id: 'i2', meta: { images: [IMAGE] } });
+        expect(row.images).toEqual([IMAGE]);
+    });
+
+    it('reads images that ended up inside the payload', () => {
+        const row = parseReportLog({
+            id: 'i3',
+            meta: { title: '[web] issue: 느려요', message: JSON.stringify({ ...issuePayload, images: [IMAGE] }) },
+        });
+        expect(row.images).toEqual([IMAGE]);
+    });
+
+    it('is undefined when the report carried no attachment', () => {
+        const row = parseReportLog({
+            id: 'i4',
+            meta: { title: '[web] issue: 느려요', message: JSON.stringify(issuePayload) },
+        });
+        expect(row.images).toBeUndefined();
+    });
+
+    it('drops entries that are not renderable image sources', () => {
+        const row = parseReportLog({
+            id: 'i5',
+            meta: { images: [IMAGE, 'javascript:alert(1)', 'not-a-url', 42, null] },
+        });
+        expect(row.images).toEqual([IMAGE]);
+    });
+
+    it('accepts hosted URLs too, for when uploads replace inline base64', () => {
+        const row = parseReportLog({ id: 'i6', meta: { images: ['https://cdn.test/a.png'] } });
+        expect(row.images).toEqual(['https://cdn.test/a.png']);
+    });
+});
+
+// Shape taken from a real dev record (2026-08-11): the backend keeps the SlackReportBody
+// under the record's `meta` and adds `id`.
+//
+// NOTE: that nested `meta` came back `{}` even though the client DID send images in it —
+// the backend discards a client-supplied `meta`. These cases therefore pin the parser's
+// handling of the envelope, not a working transport; the empty-meta case is what production
+// actually looks like today. See ADR-0049.
+describe('parseReportLog — real stored envelope', () => {
+    const IMAGE = 'data:image/jpeg;base64,AAAA';
+
+    const storedRecord = (meta: Record<string, unknown>) => ({
+        id: '1009178',
+        meta: {
+            title: '[web] issue: 레인',
+            message: JSON.stringify({
+                title: '레인',
+                message: '1',
+                app: 'web',
+                env: 'dev',
+                url: 'https://dou-dev.chatic.io/mypage/feedback',
+                user: { uid: '1001525', role: 'guest', isAuthenticated: true },
+                logs: [],
+                path: '/mypage/feedback',
+                routeTrail: ['/mypage', '/mypage/feedback'],
+            }),
+            meta,
+            silent: false,
+            save: true,
+            id: '1009178',
+        },
+    });
+
+    it('parses the envelope and finds no attachment when meta is the empty default', () => {
+        const row = parseReportLog(storedRecord({}));
+
+        expect(row.type).toBe('issue');
+        expect(row.title).toBe('레인');
+        expect(row.payload?.routeTrail).toEqual(['/mypage', '/mypage/feedback']);
+        expect(row.images).toBeUndefined();
+    });
+
+    it('finds attachments once the client fills that same meta', () => {
+        const row = parseReportLog(storedRecord({ images: [IMAGE, IMAGE] }));
+
+        expect(row.images).toEqual([IMAGE, IMAGE]);
+        // The rest of the report still parses exactly as before.
+        expect(row.type).toBe('issue');
+        expect(row.title).toBe('레인');
+    });
+});
