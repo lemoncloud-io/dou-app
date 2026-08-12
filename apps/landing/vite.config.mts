@@ -119,7 +119,11 @@ export default defineConfig({
     ],
 
     build: {
-        sourcemap: process.env.VITE_ENV !== 'PROD',
+        // PROD emits maps too, as 'hidden': no sourceMappingURL comment is left in the
+        // bundle, so nothing points at a file that is not served. Deploy excludes *.map
+        // and CI archives them, which is what makes this safe — see
+        // libs/web-core/docs/error-reporting.md.
+        sourcemap: process.env.VITE_ENV === 'PROD' ? 'hidden' : true,
         minify: 'terser',
         outDir: '../../dist/apps/landing',
         emptyOutDir: true,

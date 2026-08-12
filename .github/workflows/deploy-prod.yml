@@ -293,6 +293,25 @@ jobs:
                   chmod +x scripts/deploy-${{ matrix.project }}.sh
                   yarn ${{ matrix.project }}:deploy:prod
 
+            # PROD builds emit maps as 'hidden' — written, but with no
+            # sourceMappingURL comment in the bundle — and the deploy scripts
+            # exclude *.map from the S3 sync, so this run is the only place they
+            # survive. Without it PROD emits maps and CI throws them away, which
+            # is where an unreadable stack costs the most.
+            #
+            # `yarn trace` finds the right one by bundle hash: a stack frame
+            # names `index-<hash>.js` and the artifact holding
+            # `index-<hash>.js.map` is the matching build. See
+            # libs/web-core/docs/error-reporting.md.
+            - name: Archive source maps
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sourcemaps-${{ matrix.project }}-${{ github.sha }}
+                  path: dist/apps/${{ matrix.project }}/**/*.map
+                  # desktop-web still emits none; never fail a deploy over this.
+                  if-no-files-found: warn
+                  retention-days: 30
+
     notify-slack:
         needs: [changes, get-version, build-and-deploy]
         if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true') }}

@@ -198,6 +198,19 @@ jobs:
                   chmod +x scripts/deploy-${{ matrix.project }}.sh
                   yarn ${{ matrix.project }}:deploy:dev
 
+            # Same rationale as deploy-dev.yml: maps are excluded from the S3 sync,
+            # so this artifact is the only place a stack from this build resolves
+            # from later (`yarn trace`). A manual dispatch is exactly the deploy
+            # path that would otherwise leave no trace of it anywhere.
+            - name: Archive source maps
+              if: ${{ matrix.should_run == 'true' }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sourcemaps-${{ matrix.project }}-${{ github.sha }}
+                  path: dist/apps/${{ matrix.project }}/**/*.map
+                  if-no-files-found: warn
+                  retention-days: 30
+
     deploy-prod:
         needs: [get-versions]
         if: ${{ github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true' || github.event.inputs.deploy_landing_prod == 'true' }}
@@ -309,6 +322,15 @@ jobs:
                   set -e
                   chmod +x scripts/deploy-${{ matrix.project }}.sh
                   yarn ${{ matrix.project }}:deploy:prod
+
+            - name: Archive source maps
+              if: ${{ matrix.should_run == 'true' }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sourcemaps-${{ matrix.project }}-${{ github.sha }}
+                  path: dist/apps/${{ matrix.project }}/**/*.map
+                  if-no-files-found: warn
+                  retention-days: 30
 
     notify-slack:
         needs: [get-versions, deploy-dev, deploy-prod]

@@ -117,6 +117,33 @@ get_distribution_id() {
     fi
 }
 
+archive_source_maps() {
+    # A manual run of this script (a laptop, or force-deploy.yml) never lands in
+    # CI's "Archive source maps" step, and the sync below excludes *.map from S3
+    # on purpose (serving one would publish the sources via sourcesContent). This
+    # build's maps exist nowhere else once dist/ is cleaned, so the only chance to
+    # keep them is right here, before that happens — into the same cache
+    # `yarn trace` reads from (see docs/guides/trace-report.md).
+    local cache_dir="${PROJECT_ROOT}/.sourcemaps"
+    local maps=()
+
+    while IFS= read -r -d '' map; do
+        maps+=("$map")
+    done < <(find "${DIST_DIR}" -name '*.map' -print0 2>/dev/null)
+
+    if [ ${#maps[@]} -eq 0 ]; then
+        log_info "No source maps in this build, skipping local archive"
+        return 0
+    fi
+
+    mkdir -p "${cache_dir}"
+    for map in "${maps[@]}"; do
+        cp "$map" "${cache_dir}/$(basename "$map")"
+    done
+
+    log_success "Archived ${#maps[@]} source map(s) to ${cache_dir}"
+}
+
 get_domain_name() {
     local deploy_env="$1"
 
@@ -190,7 +217,8 @@ sync_static_assets() {
         --exclude "version.json" \
         --exclude "*.css" \
         --exclude "*.js" \
-        --exclude ".well-known/*"; then
+        --exclude ".well-known/*" \
+        --exclude "*.map"; then
         log_error "Failed to sync static assets"
         return 1
     fi
@@ -226,7 +254,8 @@ sync_asset_files() {
     if ! aws s3 ${AWS_PROFILE} sync "${DIST_DIR}" "${s3_target}" \
         --metadata-directive REPLACE \
         --exclude "*" \
-        --include "assets/*"; then
+        --include "assets/*" \
+        --exclude "*.map"; then
         log_error "Failed to sync asset files"
         return 1
     fi
@@ -419,6 +448,7 @@ main() {
     # Execute deployment steps
     log_info "Starting deployment..."
 
+    archive_source_maps
     generate_version_json
     sync_static_assets "$bucket_name"
     sync_css_js_files "$bucket_name"

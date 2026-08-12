@@ -160,7 +160,8 @@ sync_static_assets() {
         --exclude "version.json" \
         --exclude "*.css" \
         --exclude "*.js" \
-        --exclude "locales/*"; then
+        --exclude "locales/*" \
+        --exclude "*.map"; then
         log_error "Failed to sync static assets"
         return 1
     fi
@@ -210,7 +211,8 @@ sync_asset_files() {
         --metadata-directive REPLACE \
         --acl public-read \
         --exclude "*" \
-        --include "assets/*"; then
+        --include "assets/*" \
+        --exclude "*.map"; then
         log_error "Failed to sync asset files"
         return 1
     fi
