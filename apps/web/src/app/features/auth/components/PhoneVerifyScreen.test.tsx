@@ -48,7 +48,7 @@ jest.mock('../../../hooks/useLinkAccount', () => ({
         isLinkingSocial: false,
     }),
 }));
-jest.mock('../utils/env', () => ({ isDevBuild: jest.fn(() => false) }));
+jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: jest.fn(() => false) }));
 // The banner reads this to decide whether the account-split warning still applies. Mocked at the
 // concrete module because the real one reaches useMyUser -> web-core, whose transport reads
 // `import.meta` and cannot load under jsdom.
@@ -56,7 +56,7 @@ jest.mock('../../../hooks/useLinkedAccounts', () => ({
     useLinkedAccounts: () => ({ phone: 'unknown', social: mockLinkedSocial }),
 }));
 
-import { isDevBuild } from '../utils/env';
+import { isDevBuild } from '../../../utils/buildEnv';
 import { PhoneVerifyScreen } from './PhoneVerifyScreen';
 
 const PHONE = '01012345678';

@@ -52,12 +52,12 @@ Chat Test Dashboard, Badge Count Test 스크린은 통합 과정에서 제거했
 
 모든 값은 웹뷰의 **페이지 로드 시작(timeOrigin) 이후** 구간만 본다. 그 앞(앱 실행 → 웹뷰 생성)의 네이티브 구간은 모바일 `BootMetricsService`가 측정하며, 웹 스냅샷은 라우터 언블록 후 `SendBootMetrics` 브릿지 메시지로 1회 전송되어(`metrics/reportBootMetrics.ts`) 네이티브 기록에 합류한다. 합쳐진 부팅 기록(MMKV, 50건)은 모바일 FAB 디버그 메뉴의 "부팅 성능" 화면에서 본다 — `apps/mobile/docs/boot-metrics.md` 참고.
 
-## 게이팅 — 런타임 언락
+## 게이팅 — 런타임 언락 + 입장 코드
 
-env/빌드 플래그가 아니라 **런타임 제스처**로 연다. 마이페이지의 앱 버전 텍스트를 3초 내 10번 탭하면 `sessionStorage`(`chatic-debug-mode`)에 해제 상태가 저장되고, 우하단에 "debug" 플로팅 버튼이 나타난다.
+env/빌드 플래그로 자동 활성화되는 경로는 없다. 마이페이지의 앱 버전 텍스트를 3초 내 10번 탭하면 입장 코드 다이얼로그가 열리고, `VITE_DEBUG_CODE`와 일치하는 6자리를 입력해야 `sessionStorage`(`chatic-debug-mode`)에 해제 상태가 저장되어 우하단에 "debug" 플로팅 버튼이 나타난다. 자세한 흐름·시나리오·구현은 [entry-gate](./entry-gate.md) 참고.
 
 - `useDebugMode`는 모듈 레벨 시그널(`useSyncExternalStore`) 기반이라 **모든 훅 인스턴스가 즉시 동기화**된다 — 마이페이지에서 언락하면 상시 마운트된 오버레이 호스트가 바로 반응한다.
-- DEV/LOCAL 빌드(`isDevEnv`)에서는 언락 없이 자동 활성.
+- `VITE_DEBUG_CODE`가 설정되지 않은 빌드는 fail-closed — 10탭해도 다이얼로그조차 열리지 않는다.
 - 확장 모드 홈 하단의 "Disable Debug Mode"로 다시 잠근다. 세션 스코프라 탭이 닫히면 초기화된다.
 - **네이티브 셸에서는 단일 언락**: 언락/잠금이 `SetDebugMode` 브릿지 메시지로 네이티브에 전파되어 모바일 FAB 디버그 메뉴도 함께 열린다(PROD 포함). 네이티브는 플래그를 persist하고 재시작 시 주입 전역 `CHATIC_APP_DEBUG_MODE`로 웹을 자동 언락하므로, 앱에서는 세션이 끊겨도 다시 탭할 필요가 없다.
 
@@ -74,9 +74,9 @@ features/debug/
     tabs/             #   관찰 탭 — StateTab, BootTab, PerfTab, UnreadTab
     screens/          #   도구 스크린들 (+ DBBrowser)
   metrics/            # 수집기 — bootMarks, longTasks, webVitalsStore, MetricsCollector
-  components/         # Row, Section (오버레이 공용 표시 조각)
-  hooks/              # useDebugMode(언락 게이트), usePushRegistration, useReceivedPushLog
-  lib/                # 순수 헬퍼 — buildDeviceInfoRows, copyText, isDevEnv, ...
+  components/         # Row, Section (오버레이 공용 표시 조각), DebugUnlockDialog
+  hooks/              # useDebugMode(언락 상태), useDebugUnlock(10탭+코드 게이트), usePushRegistration, useReceivedPushLog
+  lib/                # 순수 헬퍼 — buildDeviceInfoRows, copyText, verifyDebugCode, ...
   consts/             # DEBUG_STORAGE_KEY = 'chatic-debug-mode'
 ```
 

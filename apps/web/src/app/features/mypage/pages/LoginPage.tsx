@@ -10,7 +10,7 @@ import { isNative, logger } from '@chatic/bridges';
 import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
-import { isDevBuild } from '../../auth/utils/env';
+import { isDevBuild } from '../../../utils/buildEnv';
 import { AppleIcon, GoogleIcon } from '../components';
 
 export const LoginPage = () => {

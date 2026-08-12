@@ -4,7 +4,7 @@ export * from './summarizeRegisterResult';
 export * from './normalizeReceivedPush';
 export * from './formatRegisteredAt';
 export * from './copyText';
-export * from './isDevEnv';
+export * from './verifyDebugCode';
 export * from './webLogSource';
 export * from './formatLogEntry';
 export * from './logFilter';

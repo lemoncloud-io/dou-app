@@ -7,7 +7,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useLinkAccount, type AccountLinkMode } from '../../../hooks/useLinkAccount';
 import { getSocketErrorCode, VERIFICATION_CODE_LENGTH } from '../../../utils';
-import { isDevBuild } from '../utils/env';
+import { isDevBuild } from '../../../utils/buildEnv';
 import {
     isValidMobileNumber,
     readInternationalInput,
