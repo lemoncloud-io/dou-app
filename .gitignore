@@ -31,6 +31,10 @@ tmp
 out-tsc
 *.tsbuildinfo
 
+# Source maps `yarn trace` pulls from CI artifacts to resolve a report's stack.
+# They carry the full sources via sourcesContent, so they stay local.
+.sourcemaps
+
 # dependencies
 node_modules
 
