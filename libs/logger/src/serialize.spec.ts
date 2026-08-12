@@ -75,3 +75,55 @@ describe('serializeLogs — 평탄화 + 트렁케이션', () => {
         expect(serializeLogs([])).toEqual([]);
     });
 });
+
+// 리포트는 공유 Slack 채널로 가고, ADR-0047 이후 같은 항목이 sessionStorage/MMKV에
+// 영속된다. serializeLogs의 소비자가 전부 그 두 경로(리포트·영속화)라, 마스킹은
+// 여기서 한 번만 걸면 전 구간에 적용된다.
+describe('민감정보 마스킹', () => {
+    it('secret으로 보이는 키의 값을 가린다', () => {
+        const out = safeStringify({ accessToken: 'a.b.c', password: 'pw', authorization: 'Bearer x' });
+
+        expect(out).not.toContain('a.b.c');
+        expect(out).not.toContain('pw');
+        expect(out).not.toContain('Bearer x');
+        expect(JSON.parse(out as string)).toEqual({
+            accessToken: '[REDACTED]',
+            password: '[REDACTED]',
+            authorization: '[REDACTED]',
+        });
+    });
+
+    it('중첩 객체와 배열 원소 안쪽까지 닿는다', () => {
+        const out = safeStringify({
+            users: [{ name: 'kim', refreshToken: 'secret-1' }],
+            meta: { deep: { token: 's2' } },
+        });
+
+        expect(out).not.toContain('secret-1');
+        expect(out).not.toContain('s2');
+        // 민감하지 않은 값은 그대로 남아 디버깅 가치를 잃지 않는다.
+        expect(out).toContain('kim');
+    });
+
+    it('민감한 키에 Error가 들어 있어도 가린다 (Error 분기보다 먼저 판단)', () => {
+        const out = safeStringify({ sessionToken: new Error('leaky') });
+
+        expect(out).not.toContain('leaky');
+        expect(JSON.parse(out as string)).toEqual({ sessionToken: '[REDACTED]' });
+    });
+
+    it('맨 위 문자열은 판단할 수 없어 통과시킨다 — 키가 있어야 가린다', () => {
+        expect(safeStringify('raw-token-value')).toBe('raw-token-value');
+    });
+
+    it('serializeLogs가 data/error 양쪽에 마스킹을 적용한다', () => {
+        const [out] = serializeLogs([
+            entry({ data: { identityToken: 'id-tok' }, error: { config: { accessKeyId: 'AKIA' } } }),
+        ]);
+
+        expect(out.data).not.toContain('id-tok');
+        expect(out.error).not.toContain('AKIA');
+        expect(out.data).toContain('[REDACTED]');
+        expect(out.error).toContain('[REDACTED]');
+    });
+});

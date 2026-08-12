@@ -1,4 +1,5 @@
 import type {
+    OnAckPendingReportsPayload,
     OnBackgroundStatusChangedPayload,
     OnBackPressedPayload,
     OnChangeAppIconPayload,
@@ -21,6 +22,7 @@ import type {
     OnFetchCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
     OnFetchFcmTokenPayload,
+    OnFetchPendingReportsPayload,
     OnFetchPreferencePayload,
     OnFetchProductsPayload,
     OnFetchSafeAreaPayload,
@@ -169,6 +171,8 @@ export type AppMessageDataMap = {
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
+    OnFetchPendingReports: OnFetchPendingReportsPayload;
+    OnAckPendingReports: OnAckPendingReportsPayload;
     OnCopyToClipboard: OnCopyToClipboardPayload;
     OnSendBootMetrics: OnSendBootMetricsPayload;
     OnSetDebugMode: OnSetDebugModePayload;

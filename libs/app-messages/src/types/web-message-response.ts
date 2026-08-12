@@ -69,6 +69,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     ClearAppLogBuffer: 'OnClearAppLogBuffer',
     FetchAppLogBufferSize: 'OnFetchAppLogBufferSize',
     SendLog: 'OnSendLog',
+    FetchPendingReports: 'OnFetchPendingReports',
+    AckPendingReports: 'OnAckPendingReports',
     SendBootMetrics: 'OnSendBootMetrics',
     SetDebugMode: 'OnSetDebugMode',
     Ping: 'Pong',

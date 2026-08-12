@@ -27,7 +27,8 @@ export const REDACTED = '[REDACTED]';
 /** Upper bound (in serialized chars) for a single request/response body. */
 export const MAX_BODY_BYTES = 2048;
 
-const isSensitiveKey = (key: string): boolean => {
+/** Whether a field name looks secret-bearing (case-insensitive substring match). */
+export const isSensitiveKey = (key: string): boolean => {
     const lowered = key.toLowerCase();
     return SENSITIVE_KEYS.some(sensitive => lowered.includes(sensitive));
 };
