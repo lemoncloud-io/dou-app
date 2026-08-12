@@ -36,6 +36,8 @@ describe('@chatic/app-runtime public surface', () => {
             'useLogoutCloudSession',
             // session actions (non-hook) — verify-hash-alias $token → relay session/socket switch
             'applySessionToken',
+            // foreground/wake kick for wedged sockets (2026-08 session audit §7 Phase 1)
+            'recoverUnverifiedSockets',
             // apps/web boot-time DataRepositoriesV2 option injection (e.g. persistEmbeddedSite gating,
             // ADR-0045) — pre-existing export this list had drifted out of sync with.
             'configureDataRuntime',

@@ -33,6 +33,10 @@ export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './sessio
 // the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
 export { applySessionToken } from './socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
+// Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
+// useSocketWakeRecovery; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
+export { recoverUnverifiedSockets } from './socket/auth/recoverUnverifiedSockets';
+export type { RecoverUnverifiedSocketsDeps } from './socket/auth/recoverUnverifiedSockets';
 
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
