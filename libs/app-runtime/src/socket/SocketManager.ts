@@ -46,7 +46,10 @@ type TypeListenerEntry = {
 interface ClientEntry {
     client: ClientSocketV2;
     config: SocketBindingConfig;
-    /** Mirrors this slot's SDK AuthController authenticated flag (via setAuthenticated). */
+    /**
+     * Mirrors this slot's SDK AuthController authenticated flag (via setAuthenticated), scoped to the
+     * CURRENT connection — any transport state other than `connected` clears it (see bindEntry).
+     */
     authenticated: boolean;
     /** Latest transport state for this slot (from its onState). */
     connState: ClientSocketState;
@@ -502,6 +505,18 @@ export class SocketManager implements ISocketManager {
         entry.unsubscribes.push(
             entry.client.onState((event: ClientSocketStateEvent) => {
                 entry.connState = event.next;
+                // Leaving `connected` invalidates the auth flag, because the server authenticates a
+                // CONNECTION, not a device: the next socket starts unauthenticated until its own
+                // `auth.update` lands. The SDK AuthController emits no state change on a transport
+                // drop (it only clears timers), so without this the flag stays `authenticated` from
+                // the dead connection and `isKindVerified` goes true the instant the transport
+                // reconnects — before device.save:ok → auth.update. Anything gated on it then fires
+                // into that window and the server answers `401 UNAUTHORIZED - not authenticated`
+                // (observed on relay-pinned `invite.list`). The flag is restored by the controller's
+                // own `authenticated` emission after the handshake.
+                if (event.next !== 'connected') {
+                    entry.authenticated = false;
+                }
                 if (event.next === 'connected') {
                     entry.connectCount += 1;
                     // One line per (re)connect: a reconnect storm (server dropping failed-auth

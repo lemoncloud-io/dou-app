@@ -181,6 +181,62 @@ describe('SocketManager isVerified derivation', () => {
         stateCb?.({ next: 'closed' });
         expect(manager.getSnapshot().isVerified).toBe(false);
     });
+
+    // 서버는 디바이스가 아니라 "연결"을 인증한다: 재연결 직후의 소켓은 자기 auth.update가
+    // 도달하기 전까지 미인증이다. SDK AuthController는 전송 끊김에 상태를 방출하지 않으므로,
+    // 이 플래그를 직접 내리지 않으면 죽은 연결의 authenticated가 남아 재연결 순간
+    // isKindVerified가 true로 튀고, 거기에 물린 요청이 `401 UNAUTHORIZED - not authenticated`를 받는다.
+    it('재연결해도 새 핸드셰이크 전까지는 verified가 되지 않는다', () => {
+        let stateCb: ((event: { next: string }) => void) | undefined;
+        const client = makeClient({
+            onState: jest.fn((cb: (event: { next: string }) => void) => {
+                stateCb = cb;
+                return jest.fn();
+            }) as unknown as jest.Mocked<ClientSocketV2>['onState'],
+        });
+        mockedCreate.mockReturnValue(client);
+
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
+        expect(manager.isKindVerified('relay')).toBe(true);
+
+        // 드롭 → 재연결: 인증은 아직 새 연결에서 이뤄지지 않았다.
+        stateCb?.({ next: 'closed' });
+        stateCb?.({ next: 'connecting' });
+        stateCb?.({ next: 'connected' });
+        expect(manager.isKindVerified('relay')).toBe(false);
+        expect(manager.getSnapshot().isVerified).toBe(false);
+
+        // 새 연결의 auth.update가 성공하면(AuthController → setAuthenticated) 다시 verified.
+        manager.setAuthenticated('relay', true);
+        expect(manager.isKindVerified('relay')).toBe(true);
+    });
+
+    it('재연결 시 kind 구독자에게 미검증 상태를 통지한다', () => {
+        let stateCb: ((event: { next: string }) => void) | undefined;
+        const client = makeClient({
+            onState: jest.fn((cb: (event: { next: string }) => void) => {
+                stateCb = cb;
+                return jest.fn();
+            }) as unknown as jest.Mocked<ClientSocketV2>['onState'],
+        });
+        mockedCreate.mockReturnValue(client);
+
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+        manager.setAuthenticated('relay', true);
+
+        const listener = jest.fn();
+        manager.subscribeKindVerified('relay', listener);
+        listener.mockClear();
+
+        stateCb?.({ next: 'closed' });
+        stateCb?.({ next: 'connected' });
+
+        // useQuery({ enabled })류 소비자가 false→true 엣지를 재연결에서 잘못 얻으면 안 된다.
+        expect(listener.mock.calls.map(([verified]) => verified)).toEqual([false, false]);
+    });
 });
 
 describe('SocketManager onType rebinding', () => {
