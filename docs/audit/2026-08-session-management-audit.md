@@ -186,6 +186,23 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 > - 검증: app-runtime 209 · web-core 103 · apps/web 1665 · admin-v2 83 테스트 전부 통과, 타입체크 3종(app-runtime+의존/admin-v2/web) 통과.
 >
 > **Phase 2 잔여**: 2-1(AuthMaterial 스냅샷 주입), 2-4(터미널 이벤트 계약 + `sessionHealth` — 결함 3·5의 본체), 2-5(services.ts 분할).
+>
+> **회귀 수정 (2026-08-12): apps/web에 부팅 크레덴셜 재발급 창구 누락.**
+>
+> Phase 2-2가 부팅 시 유일한 크레덴셜 재발급 수단(lemon `init()`의 내부 refresh)을 제거했는데, 대체 호출자를 **admin-v2에만** 붙이고 apps/web에는 붙이지 않았다. 위 2-3 항목이 예고한 "최대 5분 stale 갭"이 apps/web에서는 **메워지는 창구 없이 그대로 남았다** — `auth.update` 성공은 `onTokenRefresh`를 방출하지 않으므로(SDK `handleAuthResponse`), 서버가 `expiresIn`을 안 주는 현 상태에서 첫 writeback은 `refreshIntervalMs`(5분) 뒤다.
+>
+> - 증상: 오래 비웠다 들어온 유저가 **클라우드 → 플레이스의 채널 목록을 못 불러옴**. relay 채팅은 멀쩡한데(소켓 auth는 relayCore 위의 lemon-hmac 서명이라 AWS 크레덴셜과 무관), 클라우드 진입 경로는 relay-signed HTTP(`POST /users/0/delegate-cloud`, `GET /clouds/0/list`)라 죽은 크레덴셜로 서명돼 실패한다. 비대칭이 relay/cloud 증상 차이를 만든다.
+> - 수정: apps/web `useRelayCredentialRefresh`(runtime, AppRuntime에서 마운트) — 읽기 전용 프로브(`hasStoredRelaySession`/`isStoredSessionExpired`) 후 stale일 때만 `requestSessionRefresh('relay')`. admin-v2 가드와 달리 **로그아웃은 하지 않는다**(apps/web relay 로그아웃은 수동 전용 — 소켓 delegate `onAuthExpired` 정책).
+> - **트리거는 relay 슬롯 `isKindVerified` 상승 엣지(+검증된 소켓에서의 포그라운드 복귀)로 못박았다.** 마운트 즉시 쏘면 소켓이 아직 없어 `requestSessionRefresh`가 항상 HTTP 폴백을 타고, 그건 Phase 2-2가 일부러 없앤 "부팅 HTTP 리프레시"를 되살리는 것과 같다. 상승 엣지를 기다리면 실제 갱신을 **소유자(SDK `AuthController.runRefresh`)가 수행**하고, 우리는 "5분 뒤 예약분을 지금 당겨라"만 요청하는 형태가 된다 — 리프레시 발사권 단일화(§6) 원칙 유지. 대가: 부팅~핸드셰이크 완료(~1-2s) 사이에 클라우드로 바로 진입하면 여전히 한 번 실패할 수 있다.
+> - 실측: 게스트 세션에서 `@chatic.expired_time`을 1시간 과거로 조작 후 리로드 — 훅 없이는 만료 그대로(-60분), 훅과 함께면 재발급(+55분).
+>
+> **회귀 수정 2 (2026-08-12): `isKindVerified`가 재연결 직후 한 틱 거짓말을 한다 — `401 UNAUTHORIZED - not authenticated @invite.list`.**
+>
+> 서버는 디바이스가 아니라 **연결**을 인증한다. 그런데 SDK `AuthController`는 전송이 끊겨도 상태를 방출하지 않으므로(`onState`의 close/closing 분기는 타이머만 정리), `SocketManager`의 슬롯 플래그 `authenticated`가 **죽은 연결의 값 그대로** 남는다. `isKindVerified = authenticated && connState==='connected'`이므로 재연결이 `connected`를 찍는 순간 게이트가 true로 튀는데, 그 시점은 `device.save:ok → auth.update`(부트스트랩 게이트가 의도적으로 지연시키는 순서) **이전**이다. 이 창에 발사된 relay-pinned 요청이 서버에서 미인증으로 거절된다.
+>
+> - 이전 증상(`503 SOCKET NOT CONNECTED - relay.request(invite.list)`)을 고치며 붙인 `useKindVerified('relay')` 게이트는 **콜드 부팅**만 막았다. 재연결 창은 남아 있었고, 증상이 503에서 401로 바뀌었을 뿐이다. 같은 게이트를 쓰는 모든 소비자가 동일하게 노출된다.
+> - 수정: `SocketManager.bindEntry`에서 `connected`가 아닌 모든 전송 상태 전이에 `entry.authenticated = false`. 플래그 수명이 연결 수명과 같아지고, 복구는 컨트롤러의 다음 `authenticated` 방출이 담당한다. 부작용으로 `recoverUnverifiedSockets`가 진짜 끊긴 슬롯을 미검증으로 보게 되어 웨이크 킥이 더 정확해진다.
+> - 함께 고친 두 번째 경로: `useInviteWaitingStatus`의 30초 폴링이 `setInterval` + `refetch()`였는데, TanStack v5의 `refetch()`는 **disabled 쿼리도 발사**한다 — relay 미인증 구간에서 30초마다 게이트를 뚫고 나가 같은 401을 받았다. 폴링을 쿼리 옵션(`useRelayInvites(state, { pollIntervalMs })` → `refetchInterval`)으로 위임해 게이트 안으로 넣었다(백그라운드에서는 자동 정지). 사용자가 누르는 재시도 버튼은 그대로 `refetch()` — 의도된 우회다.
 
 ### Phase 0 — 계측 (코드 변경 최소, 즉시)
 
