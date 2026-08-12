@@ -30,7 +30,22 @@ export interface ReportPayload {
     userAgent?: string;
     user?: Record<string, unknown>;
     cloud?: Record<string, unknown>;
-    http?: Record<string, unknown>;
+    /**
+     * 실패한 요청의 전모. web-core `describeHttp`가 채우며 body류는 이미
+     * redact + truncate 된 값이다 — 화면에서 다시 가릴 필요는 없다.
+     */
+    http?: {
+        url?: string;
+        method?: string;
+        params?: unknown;
+        requestBody?: unknown;
+        status?: number | string;
+        statusText?: string;
+        code?: string;
+        /** 서버가 말한 실패 사유 (응답 본문에서 추출) — message에도 붙어 있다. */
+        reason?: string;
+        responseData?: unknown;
+    };
     device?: Record<string, unknown>;
     network?: Record<string, unknown>;
     /** opaque script-error의 유일한 위치 단서 (filename/lineno/colno). */

@@ -2,6 +2,7 @@ import { DOU_ENDPOINT, ENV } from '../session/core';
 import { WEB_PROJECT, webTransport } from '../transport';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { collectCauses } from './errorCause';
+import { describeHttp } from './httpContext';
 import { classifyReport } from './reportCategory';
 import { collectBreadcrumbs, isNative, logBuffer, logger, serializeLogs } from '@chatic/bridges';
 
@@ -75,25 +76,12 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
         const backend = cloudState.backend;
         const hasCloud = !!cloudToken && !!backend;
 
-        // HTTP 에러 정보 추출. 실패한 요청의 URL·메서드(axios config)는 "어떤
-        // API가 죽었는지"를 어드민에서 즉시 식별하게 하는 핵심 단서다 (ADR-0047).
-        const err = error as any;
-        const httpStatus = err?.status || err?.response?.status || err?.statusCode;
-        const requestUrl: string | undefined = err?.config?.url ?? err?.request?.responseURL ?? undefined;
-        const requestMethod: string | undefined =
-            typeof err?.config?.method === 'string' ? err.config.method.toUpperCase() : undefined;
-        const requestInfo = requestUrl ? { url: requestUrl, method: requestMethod } : {};
-        const httpInfo = httpStatus
-            ? {
-                  status: httpStatus,
-                  statusText: err?.statusText || err?.response?.statusText,
-                  code: err?.code,
-                  responseData: err?.response?.data,
-                  ...requestInfo,
-              }
-            : err?.code || requestUrl
-              ? { code: err?.code, ...requestInfo }
-              : undefined;
+        // 실패한 요청의 전모 — 엔드포인트·보낸 것·돌아온 것. "Network Error"
+        // 한 줄로는 손댈 곳을 알 수 없다 (ADR-0047). 본문류는 `describeHttp`가
+        // redact + truncate 해서 담는다.
+        const httpInfo = describeHttp(error);
+        const requestUrl = httpInfo?.url;
+        const requestMethod = httpInfo?.method;
 
         // 디바이스 정보 (모바일 WebView 주입값)
         const w = window as any;
@@ -133,9 +121,19 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
         // 그대로 있고 admin 상세가 표시한다.
         const messageSuffix = requestUrl ? ` → ${requestMethod ?? 'REQUEST'} ${requestUrl}` : '';
 
+        // 서버가 말한 실패 사유. axios는 본문에 뭐가 있든 "Request failed with
+        // status code 500"으로 던지므로, 이걸 붙이지 않으면 원인이 제각각인 500이
+        // admin 목록에서 한 줄로 뭉친다. 사유는 원인마다 고정된 문구라 URL과 같은
+        // 이유로 붙일 수 있다 — 발생마다 달라지는 값이 아니다.
+        //
+        // 200 + `{error}` 경로는 `throwIfApiError`가 이미 그 문구를 `error.message`로
+        // 던져놨으므로 중복으로 붙이지 않는다.
+        const reason = httpInfo?.reason;
+        const reasonSuffix = reason && !error.message.includes(reason) ? `: ${reason}` : '';
+
         const payload: ErrorReportPayload = {
             category,
-            message: `${error.message}${messageSuffix}`,
+            message: `${error.message}${reasonSuffix}${messageSuffix}`,
             stack: isSyntheticStack ? undefined : error.stack,
             stackSynthetic: isSyntheticStack || undefined,
             // 합성 stack이어도 cause는 싣는다 — 합성된 건 바깥 껍데기뿐이고,

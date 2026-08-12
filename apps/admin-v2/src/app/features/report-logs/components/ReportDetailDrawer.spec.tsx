@@ -132,6 +132,37 @@ describe('ReportDetailDrawer — 스택 심볼리케이션', () => {
         expect(screen.getByText(/getMyProfile \(apps\/web/)).toBeTruthy();
     });
 
+    // "무엇을 보냈나"와 "무엇이 돌아왔나"가 섞여 있으면 클라 버그인지 서버 버그인지
+    // 가리는 데 시간이 든다.
+    it('요청과 응답을 갈라서 보여준다', () => {
+        const withHttp = {
+            ...row(),
+            payload: {
+                message: 'boom',
+                http: {
+                    url: 'https://api.test/auth/login',
+                    method: 'POST',
+                    requestBody: { id: 'me', password: '[REDACTED]' },
+                    status: 401,
+                    responseData: { error: 'bad credentials' },
+                },
+            },
+        } as unknown as ReportLogRow;
+        render(<ReportDetailDrawer row={withHttp} onClose={vi.fn()} />);
+
+        expect(screen.getByText('HTTP · Request')).toBeTruthy();
+        expect(screen.getByText('HTTP · Response')).toBeTruthy();
+        expect(screen.getByText(/\[REDACTED\]/)).toBeTruthy();
+        expect(screen.getByText(/bad credentials/)).toBeTruthy();
+    });
+
+    it('http 정보가 없으면 두 섹션 다 뜨지 않는다', () => {
+        render(<ReportDetailDrawer row={row(STACK)} onClose={vi.fn()} />);
+
+        expect(screen.queryByText('HTTP · Request')).toBeNull();
+        expect(screen.queryByText('HTTP · Response')).toBeNull();
+    });
+
     it('stack 없이 cause만 있어도 섹션이 뜬다', () => {
         const causeOnly = {
             ...row(),

@@ -6,6 +6,7 @@
 import type { LogEntry, SerializedLog } from '@chatic/bridges';
 
 import type { ReportedCause } from '../errorCause';
+import type { HttpContext } from '../httpContext';
 
 export type AppType = 'web' | 'admin' | 'mobile';
 
@@ -133,17 +134,12 @@ export interface ErrorReportPayload {
         backend?: string;
         placeId?: string;
     };
-    // HTTP 에러 정보
-    http?: {
-        status?: number;
-        statusText?: string;
-        code?: string;
-        responseData?: unknown;
-        /** 실패한 요청의 URL (ADR-0047 — 어떤 API가 죽었는지 즉시 식별). */
-        url?: string;
-        /** 실패한 요청의 메서드 (GET/POST/...). */
-        method?: string;
-    };
+    /**
+     * 실패한 요청의 전모 — 어디로 보내서(`url`/`method`), 무엇을 보냈고
+     * (`params`/`requestBody`), 무엇이 돌아왔는지(`status`/`responseData`).
+     * 본문류는 `describeHttp`가 redact + truncate 한 값이다.
+     */
+    http?: HttpContext;
     // 디바이스 (모바일 전용)
     device?: {
         platform?: string;

@@ -185,6 +185,61 @@ describe('reportError — 리포트 조립', () => {
         expect(payload.message).toBe('Network Error q1 → POST /hello/chats');
     });
 
+    // "Network Error" 한 줄로는 손댈 곳을 알 수 없다 — 어디로 무엇을 보내서
+    // 무엇이 돌아왔는지가 첫 질문이고, 비밀은 그 과정에서 가려져야 한다.
+    it('실패한 요청의 body·응답까지 담고 비밀 필드는 가린다', async () => {
+        const httpErr = Object.assign(new Error('q1 login failed'), {
+            code: 'ERR_BAD_REQUEST',
+            config: {
+                url: '/auth/login',
+                baseURL: 'https://api.test/dou-d1',
+                method: 'post',
+                data: '{"id":"me","password":"hunter2"}',
+            },
+            response: { status: 401, statusText: 'Unauthorized', data: { error: 'bad credentials' } },
+        });
+
+        await reportError(httpErr, { source: 'mutation' });
+
+        expect(lastReport().payload.http).toEqual({
+            url: 'https://api.test/dou-d1/auth/login',
+            method: 'POST',
+            requestBody: { id: 'me', password: '[REDACTED]' },
+            status: 401,
+            statusText: 'Unauthorized',
+            code: 'ERR_BAD_REQUEST',
+            reason: 'bad credentials',
+            responseData: { error: 'bad credentials' },
+        });
+    });
+
+    // axios는 본문에 뭐가 있든 "Request failed with status code 500"으로 던진다.
+    // 이걸 안 붙이면 원인이 제각각인 500이 admin 목록에서 한 줄로 뭉친다.
+    it('서버가 말한 실패 사유를 message에 붙인다', async () => {
+        const httpErr = Object.assign(new Error('Request failed with status code 500'), {
+            config: { url: '/hello/chats', method: 'post' },
+            response: { status: 500, data: { error: 'q1 channel not found' } },
+        });
+
+        await reportError(httpErr, { source: 'query' });
+
+        const { payload } = lastReport();
+        expect(payload.message).toBe('Request failed with status code 500: q1 channel not found → POST /hello/chats');
+        expect(payload.http.reason).toBe('q1 channel not found');
+    });
+
+    // 200 + `{error}` 는 throwIfApiError 가 이미 그 문구로 던져놨다.
+    it('이미 message에 들어있는 사유는 두 번 붙이지 않는다', async () => {
+        const apiErr = Object.assign(new Error('q1 already stated reason'), {
+            config: { url: '/hello/chats', method: 'post' },
+            response: { status: 500, data: { error: 'q1 already stated reason' } },
+        });
+
+        await reportError(apiErr, { source: 'query' });
+
+        expect(lastReport().payload.message).toBe('q1 already stated reason → POST /hello/chats');
+    });
+
     it('categoryOverride 리포트는 감지 시각(occurredAt)과 logsOverride를 그대로 싣는다 (ADR-0047)', async () => {
         await reportError(new Error('previous session died'), {
             source: 'page-crash-sentinel',

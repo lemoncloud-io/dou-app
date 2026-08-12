@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 
 import { X } from 'lucide-react';
 
-import type { ReportLogRow } from '../lib/parseReportLog';
+import type { ReportLogRow, ReportPayload } from '../lib/parseReportLog';
 import { mapMatchesStack, readBundleNames, resolveStack } from '../lib/resolveStack';
 import { buildTraceBlob, composeStackText } from '../lib/traceBlob';
 
@@ -65,6 +65,35 @@ const KeyValueSection = ({ title, data }: { title: string; data?: Record<string,
                 ))}
             </dl>
         </section>
+    );
+};
+
+/**
+ * A failed request, read in the order it happened: the endpoint, what we sent,
+ * then what came back. The generic key/value renderer would sort these by
+ * whatever order the payload happened to carry, which puts the response body
+ * next to the URL and buries the request — and "what did we send" is usually
+ * the question that decides whether it is a client or a server bug.
+ */
+const HttpSection = ({ http }: { http?: ReportPayload['http'] }) => {
+    if (!http) return null;
+
+    const request = { url: http.url, method: http.method, params: http.params, requestBody: http.requestBody };
+    const response = {
+        status: http.status,
+        statusText: http.statusText,
+        code: http.code,
+        // Ahead of the raw body: this is the server's stated reason, which is
+        // what the reader is looking for inside `responseData` anyway.
+        reason: http.reason,
+        responseData: http.responseData,
+    };
+
+    return (
+        <>
+            <KeyValueSection title="HTTP · Request" data={request} />
+            <KeyValueSection title="HTTP · Response" data={response} />
+        </>
     );
 };
 
@@ -357,7 +386,7 @@ export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDraw
                             <StackSection row={row} />
                             <TextSection title="Component Stack" text={p.componentStack} />
                             <KeyValueSection title="Location" data={p.location} />
-                            <KeyValueSection title="HTTP" data={p.http} />
+                            <HttpSection http={p.http} />
                             <KeyValueSection title="User" data={p.user} />
                             <KeyValueSection title="Cloud" data={p.cloud} />
                             <KeyValueSection title="Device" data={p.device} />
