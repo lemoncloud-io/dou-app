@@ -176,6 +176,16 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 > - 검증: app-runtime 201 · web-core 101 · apps/web 1665 · admin-v2 81 테스트 전부 통과, 4개 프로젝트 타입체크 통과(웹 앱 자체 구성; web-ui-kit의 워크트리 환경성 실패는 본 변경과 무관한 선재 부채).
 >
 > 잔여는 Phase 2(SSoT: AuthMaterial 스냅샷·엔진 2 봉인·`requestSessionRefresh`·터미널 이벤트 계약)와 Phase 3(경계 정리) — 아래 원문 유지.
+>
+> **처리 현황 2차 (2026-08-12): Phase 2-2·2-3 구현 완료.**
+>
+> - **엔진 2 봉인(Phase 2-2, 결함 2 해소)**: `startWebTransportInit`이 lemon `init()` 대신 sealed init(initLemonConfig + `buildCredentialsByStorage`, refresh 없음)을 수행. `initializeRelaySession`은 `webTransport.isAuthenticated()`(내부 refresh 발사) 대신 읽기 전용 프로브 `hasStoredRelaySession()`으로 auth 플래그를 세운다 — 플래그 의미가 "세션 존재"로 확정되어, 크레덴셜만 만료된 복귀 유저·오프라인 부팅이 로그인 상태로 부팅된다(구버전은 refresh 실패 → 미인증 취급 → apps/web에선 게스트 keep-alive가 기존 세션을 덮을 수 있었음). 클라우드 복구 경로(`runRefreshCloudSession` catch)의 `resetWebCoreInit/startWebCoreInit` 재부트스트랩은 명시적 `refreshRelaySession()`(일관 이중 쓰기)으로 대체. 이로써 **lemon 자동 refresh를 발사하는 프로덕션 경로가 0개**가 됐다(desktop-web 포함 — 전 앱이 sealed 부팅 공유).
+> - **`requestSessionRefresh(kind)` 신설(Phase 2-3)**: "크레덴셜이 stale하다 → 신선하게"의 유일 창구(app-runtime). 1순위 소켓 경로 — connected+authenticated 컨트롤러의 `runRefresh`(SDK impl 메서드, start/stop과 같은 인터페이스 확장 캐스트 — SDK에 `refreshNow()` 공개되면 교체)를 강제 발사하고 `onTokenRefresh` writeback으로 성공 판정(10s 타임아웃). 2순위 HTTP 폴백 — 서비스 refresh(single-flight, 이중 쓰기; 소켓이 핸드셰이크 중이어도 SocketReauthBinder의 토큰 변경 재인증으로 수렴). 부수 효과: 재연결 직후 `auth.update` 성공은 `onTokenRefresh`를 방출하지 않아 최대 5분(다음 예약 refresh까지) 크레덴셜이 stale한 갭이 있는데, 이 창구가 그 갭도 즉시 메운다.
+> - **admin-v2 가드 전환**: `isAuthenticated()` 호출 제거 → `hasStoredRelaySession`/`isStoredSessionExpired` 읽기 전용 프로브 + stale일 때만 `requestSessionRefresh('relay')` 위임(신선하면 스토리지 읽기 몇 번이 전부 — 기존 저비용 상시 감시 유지). 연속 3회 실패 임계는 유지.
+> - `refreshActiveCloudSession`은 삭제 예정에서 **`requestSessionRefresh('cloud')`의 HTTP 폴백**으로 역할 변경(아래 Phase 3 목록의 "삭제" 항목은 이 결정으로 대체) — 폴링 호출자 금지 주석 유지.
+> - 검증: app-runtime 209 · web-core 103 · apps/web 1665 · admin-v2 83 테스트 전부 통과, 타입체크 3종(app-runtime+의존/admin-v2/web) 통과.
+>
+> **Phase 2 잔여**: 2-1(AuthMaterial 스냅샷 주입), 2-4(터미널 이벤트 계약 + `sessionHealth` — 결함 3·5의 본체), 2-5(services.ts 분할).
 
 ### Phase 0 — 계측 (코드 변경 최소, 즉시)
 
@@ -204,7 +214,7 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 
 ### Phase 3 — 경계 정리 (정돈)
 
-- `useRelaySessionKeepAlive` → app-runtime 이동(결함 12), `refreshActiveCloudSession` 삭제(결함 9).
+- `useRelaySessionKeepAlive` → app-runtime 이동(결함 12). (~~`refreshActiveCloudSession` 삭제~~ — Phase 2-3에서 `requestSessionRefresh('cloud')`의 HTTP 폴백으로 역할 변경되어 존치.)
 - 동명 훅 정리: web-core 액션 3종 deprecate → desktop-web/admin 마이그레이션 후 제거(결함 8 잔여).
 - same-wss cloud 전환 지원 여부 결정: 지원 안 하면 `SocketReauthBinder`의 cloud 감시·주석 제거, 지원하면 cloudSlot에 identityToken 복원(결함 7).
 - 레거시 처분: `apps/admin`·`libs/socket` 빌드 대상 확인 후 삭제 or 격리(결함 11).
