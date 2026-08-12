@@ -27,12 +27,15 @@ const emptySnapshot = (): SlotSnapshot => ({ reboot: '', token: '' });
 
 /**
  * Re-authenticates a live socket when its server identity changes ON THE SAME connection while the
- * socket is NOT rebooting. Watches EACH slot independently (not just the active one) so both cases
- * are covered even when the changed slot is in the background:
+ * socket is NOT rebooting. Watches EACH slot independently (not just the active one), but in
+ * practice only the RELAY slot can fire today:
  *   - guest→social/email promotion: web-core swaps the relay token while url/deviceId/wssType stay —
  *     and this must fire even while a cloud slot is the active socket (§6-7).
- *   - same-wss cloud switch (§8-4): the cloud token + cid change but only `cid` moves in the config,
- *     which SocketBinder ignores (its reboot key excludes cid) — so the SDK still holds the old identity.
+ *   - cloud: the binding deliberately carries NO `identityToken` on the cloud slot (a535055a) on the
+ *     assumption that a cloud switch always changes the wss URL and therefore reboots through
+ *     SocketBinder. The cloud watch below is therefore inert — if two clouds ever share a wss, a
+ *     same-wss switch would keep the OLD cloud identity on the socket. Decision to support-or-drop
+ *     tracked as 2026-08 session audit §5-7 (Phase 3).
  *
  * For each slot we compare the reboot key (cid/token-blind) and the identity token: a genuine reboot
  * (url/deviceId/wssType change) is handled by SocketBinder via bootstrapSocketConnection, so we skip

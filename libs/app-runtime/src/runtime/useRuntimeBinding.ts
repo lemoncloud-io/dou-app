@@ -23,8 +23,10 @@ export const useRuntimeBinding = (): RuntimeBinding => {
         // carried as a sibling of `config` (NOT inside it): SocketBinder's reboot key reads only
         // `config`, so a token refresh leaves the config stable and does not reboot the socket, while
         // SocketReauthBinder watches this per-slot `identityToken` to re-authenticate in place on a
-        // same-connection identity swap (guest→social, same-wss cloud switch). Login (null→token)
-        // turns a slot on, logout off. (§6-3, §6-7)
+        // same-connection identity swap (guest→social). The CLOUD slot deliberately carries no
+        // identityToken (a535055a): a cloud switch is assumed to change the wss URL and reboot via
+        // SocketBinder — see the same-wss caveat in SocketReauthBinder / 2026-08 session audit §5-7.
+        // Login (null→token) turns a slot on, logout off. (§6-3, §6-7)
         const relaySlot: RuntimeSocketSlot | undefined =
             deviceId && relay.wss && relay.identityToken
                 ? {
