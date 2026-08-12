@@ -55,12 +55,40 @@ describe('useRelaySessionGuard — 만료된 relay 세션 정리', () => {
         expect(mockLogout).not.toHaveBeenCalled();
     });
 
-    it('refresh가 최종 실패하면(zombie 세션) 로그아웃시킨다', async () => {
+    it('한 번의 실패로는 로그아웃하지 않는다 (일시 장애 오인 방지 — 2026-08 audit §5-4)', async () => {
         mockIsAuthenticated.mockResolvedValue(false);
         renderHook(() => useRelaySessionGuard(true));
 
         await vi.advanceTimersByTimeAsync(30_000);
 
+        expect(mockIsAuthenticated).toHaveBeenCalledTimes(1);
+        expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('연속 3회 실패하면(zombie 세션 확정) 로그아웃시킨다', async () => {
+        mockIsAuthenticated.mockResolvedValue(false);
+        renderHook(() => useRelaySessionGuard(true));
+
+        await vi.advanceTimersByTimeAsync(90_000);
+
+        expect(mockIsAuthenticated).toHaveBeenCalledTimes(3);
+        expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
+
+    it('중간에 한 번이라도 성공하면 실패 카운트가 리셋된다', async () => {
+        mockIsAuthenticated
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        renderHook(() => useRelaySessionGuard(true));
+
+        // fail, fail, success(reset), fail, fail — 연속 3회에 도달하지 않아 로그아웃 없음.
+        await vi.advanceTimersByTimeAsync(150_000);
+        expect(mockLogout).not.toHaveBeenCalled();
+
+        // 여섯 번째 틱이 연속 3회째 실패 — 이제 로그아웃.
+        await vi.advanceTimersByTimeAsync(30_000);
         expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 

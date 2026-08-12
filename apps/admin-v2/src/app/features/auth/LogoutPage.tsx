@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useSessionLogout } from '@chatic/web-core';
+// app-runtime's logout (not web-core's): it also sends the best-effort socket `auth.logout` so the
+// RuntimeAuthHost relay session is revoked server-side, then runs the same local teardown.
+import { useSessionLogout } from '@chatic/app-runtime';
 
 export const LogoutPage = () => {
     const logout = useSessionLogout();
