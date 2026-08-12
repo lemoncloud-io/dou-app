@@ -40,7 +40,9 @@ const logoutCallbacks = new Set<() => void>();
 const DEVICE_ID_STORAGE_KEY = 'chatic-device-id';
 
 /**
- * Serializes refresh calls so the periodic refresh loop and site-switch refresh never race.
+ * Serializes refresh calls so concurrent refresh entry points (login-flow hydration, site-switch
+ * refresh) never race. The old periodic refresh loop is gone — the SDK AuthController owns
+ * recurring refresh — but user flows can still overlap.
  *
  * - In-flight calls with the same key coalesce onto the same promise.
  * - Different keys run serially (the later call — the site-switch target — is applied last).
@@ -201,7 +203,9 @@ const relayRefreshFlight = createSerializedSingleFlight<void>();
 /**
  * Refreshes the relay OAuth session and optionally switches the active relay site via `uid@sid`.
  *
- * Serialized with a service-level single-flight so the periodic refresh loop and site switch never race.
+ * Serialized with a service-level single-flight so concurrent callers (login hydration, relay site
+ * switch) never race. NOT a recurring engine: the SDK AuthController owns periodic socket refresh,
+ * and its writeback keeps the HTTP credentials fresh (2026-08 session audit §1).
  */
 export const refreshRelaySession = (options: RefreshRelaySessionOptions = {}): Promise<void> =>
     relayRefreshFlight(options.target ?? '', () => runRefreshRelaySession(options));
@@ -396,7 +400,8 @@ const cloudRefreshFlight = createSerializedSingleFlight<CloudSessionSnapshot>();
 /**
  * Refreshes the active cloud token (cloudToken-based), optionally switching site via `uid@sid`.
  *
- * Serialized with a service-level single-flight so the periodic refresh loop and site switch never race.
+ * Serialized with a service-level single-flight so concurrent callers (site switches, failure
+ * recovery) never race. Recurring cloud refresh is owned by the cloud socket's SDK AuthController.
  */
 export const refreshCloudSession = ({ siteId }: { siteId: string }): Promise<CloudSessionSnapshot> =>
     cloudRefreshFlight(siteId, () => runRefreshCloudSession({ siteId }));
@@ -504,7 +509,7 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
         // never re-verify (previously only a manual reload fixed it). Reproduce what the reload does,
         // without reloading: re-mint the relay web-core creds, then re-exchange a fresh cloud token
         // (relay-signed, so it succeeds even when the cloud credential itself is dead), and retry
-        // once. This is failure-only, so the periodic 60s happy path pays nothing.
+        // once. This is failure-only, so the happy path (site switches) pays nothing.
         const cloudId = cloudCore.getSelectedCloudId();
         if (!cloudId || cloudId === 'default') throw error;
         logger.warn('SESSION', '[service] cloud refresh failed — re-bootstrapping creds, retrying once', {
@@ -519,13 +524,16 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
 };
 
 /**
- * Cloud refresh for the periodic loop. Refreshes the cloudToken only when a cloud is connected
- * and a site session exists.
+ * Conditional cloud refresh (cloudToken-based) — refreshes only when a cloud is connected and a
+ * site session exists.
  *
  * - Skips when the selected cloud is `default` or there is no delegation token (cloud not connected).
  * - Skips when there is no selected site (sid null), since no site session exists (cid/sid default rule).
  *
- * Failures are absorbed by the caller (the profile-update refresh flow); they never trigger logout, to keep relay continuity.
+ * DEAD EXPORT as of the 2026-08 session audit (§5-9): the periodic loop that drove it
+ * (useTokenRefresh) was removed when the SDK AuthController took over recurring refresh, and no
+ * runtime caller remains (tests only). Slated for deletion in audit §7 Phase 3 — do not add new
+ * callers; recurring refresh belongs to the SDK.
  */
 export const refreshActiveCloudSession = async (): Promise<void> => {
     if (cloudCore.getSelectedCloudId() === 'default' || !cloudCore.getDelegationToken()) {
