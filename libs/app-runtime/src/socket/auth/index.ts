@@ -2,6 +2,7 @@ export * from './types';
 export * from './applySessionToken';
 export * from './bootstrapSocketConnection';
 export * from './reauthenticateActiveSocket';
+export * from './recoverUnverifiedSockets';
 export * from './sessionDelegate';
 export * from './switchSite';
 export * from './logoutSession';

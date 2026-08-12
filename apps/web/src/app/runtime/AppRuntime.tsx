@@ -17,6 +17,7 @@ import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudColdSyncRunner } from './InvitedCloudColdSyncRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
+import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
@@ -35,6 +36,10 @@ export const AppRuntime = () => {
 
     // Global focus-scroll for all text fields (touch only; excludes [data-no-autoscroll]).
     useAutoScrollOnFocus();
+
+    // Foreground wake kick: recycle bound-but-unverified sockets immediately on resume instead of
+    // waiting for the keep-alive loop to notice the zombie. No-op before the sockets boot.
+    useSocketWakeRecovery();
 
     return (
         <RuntimeConnectionHost binding={binding}>
