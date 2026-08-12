@@ -70,26 +70,20 @@ export const IapTestScreen = () => {
 
     // Logger 서비스 리스너 연동
     useEffect(() => {
-        const handleAppLog = (level: string, category: string, message: string, ...args: any[]) => {
+        const unsubscribe = logger.subscribe(({ level, tag, message, data, error }) => {
             let type: LogType = 'info';
             const lowerLevel = level?.toLowerCase() || 'info';
 
             if (lowerLevel === 'error') type = 'error';
             else if (lowerLevel === 'warn') type = 'event';
 
-            const extra = args.length > 0 ? ` ${JSON.stringify(args)}` : '';
-            addLog(type, `[${category}] ${message}${extra}`);
-        };
-
-        // logger 구현체에 리스너 등록 메서드가 있다고 가정 (메서드명에 맞게 수정 필요)
-        if (typeof logger.subscribe === 'function') {
-            logger.subscribe(handleAppLog);
-        }
+            const extras = [data, error].filter(value => value !== undefined);
+            const extra = extras.length > 0 ? ` ${JSON.stringify(extras)}` : '';
+            addLog(type, `[${tag}] ${message}${extra}`);
+        });
 
         return () => {
-            if (typeof logger.subscribe === 'function') {
-                logger.subscribe(handleAppLog);
-            }
+            unsubscribe();
         };
     }, [addLog]);
 

@@ -8,6 +8,7 @@ export * from './upload';
 export * from './dynamicAppIcon';
 export * from './notification';
 export * from './log';
+export * from './report';
 export * from './oauth';
 export * from './permission';
 export * from './firebase';
@@ -30,6 +31,7 @@ export * from './deeplinks/DeepLinkManager';
 // database opens only when first needed (first web cache/upload message). See boot-optimization.md 4.4.
 export const logger = provider.logService;
 export const logBufferService = provider.logBufferService;
+export const pendingReportQueueService = provider.pendingReportQueueService;
 export const deviceService = provider.deviceService;
 export const clipboardService = provider.clipboardService;
 export const smsService = provider.smsService;

@@ -95,26 +95,6 @@ export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
 `;
 
 /**
- * Generates a script that intercepts (overrides) \`console.log\` and \`console.error\` calls within the WebView
- * and forwards them to the React Native app's bridge (as a \`__console__\` type message).
- * This makes it easy to check the internal logs of the WebView even in a native debugging environment (e.g., Flipper, Metro Console).
- *
- * @returns JavaScript string to be injected into the WebView
- */
-export const getConsoleOverrideScript = (): string => `
-    const _origLog = console.log.bind(console);
-    const _origError = console.error.bind(console);
-    console.log = (...args) => {
-        _origLog(...args);
-        try { window.ReactNativeWebView?.postMessage(JSON.stringify({ type: '__console__', level: 'log', msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })); } catch(e) {}
-    };
-    console.error = (...args) => {
-        _origError(...args);
-        try { window.ReactNativeWebView?.postMessage(JSON.stringify({ type: '__console__', level: 'error', msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })); } catch(e) {}
-    };
-`;
-
-/**
  * Generates a script exposing the persisted debug-mode unlock to the web, so a
  * restarted WebView boots already unlocked (single unlock covers both layers).
  */
@@ -134,11 +114,35 @@ export interface SyncInjectionScriptParams {
 }
 
 /**
- * Combines safe area, device info, debug mode, and console override scripts into a single script.
+ * Combines safe area, device info, and debug mode scripts into a single script.
+ * The legacy console-override relay (`__console__`) is gone — the structured
+ * `SendLog` pipeline is the only web→native log channel (ADR-0047).
+ *
+ * The whole body is guarded (ADR-0047 P2): a runtime failure inside any
+ * injected snippet reports itself through the SendLog channel (tag INJECTION,
+ * landing in the merged buffer / future breadcrumbs) instead of surfacing as
+ * an opaque "Script error.". Syntax errors cannot be caught this way — those
+ * are prevented at build time by JSON.stringify interpolation (see
+ * getDeviceInfoScript).
  */
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
-    ${getSafeAreaScript(params.insets, params.keyboardHeight)}
-    ${getDeviceInfoScript(params.deviceInfo)}
-    ${getDebugModeScript(params.debugModeEnabled ?? false)}
-    ${getConsoleOverrideScript()}
+    try {
+        ${getSafeAreaScript(params.insets, params.keyboardHeight)}
+        ${getDeviceInfoScript(params.deviceInfo)}
+        ${getDebugModeScript(params.debugModeEnabled ?? false)}
+    } catch (e) {
+        try {
+            window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'SendLog',
+                data: {
+                    level: 'error',
+                    tag: 'INJECTION',
+                    message: 'Injected script failed: ' + (e && e.message ? e.message : String(e)),
+                    timestamp: Date.now(),
+                    source: 'web'
+                }
+            }));
+        } catch (ignored) {}
+    }
+    true;
 `;

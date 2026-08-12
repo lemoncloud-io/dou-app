@@ -10,6 +10,7 @@ import {
     useLogBufferHandler,
     useLogHandler,
     useOAuthHandler,
+    usePendingReportHandler,
     usePermissionHandler,
     usePreferenceCacheHandler,
     useSafeAreaHandler,
@@ -70,6 +71,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
     const { handleSendLog } = useLogHandler();
+    const { handleFetchPendingReports, handleAckPendingReports } = usePendingReportHandler();
     const { handleFetchAppLogBuffer, handlePollAppLogBuffer, handleClearAppLogBuffer, handleFetchAppLogBufferSize } =
         useLogBufferHandler();
 
@@ -143,6 +145,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleClearAppLogBuffer,
         handleFetchAppLogBufferSize,
         handleSendLog,
+        handleFetchPendingReports,
+        handleAckPendingReports,
         handleOpenSettings,
         handleOpenShareSheet,
         handleOpenDocument,
@@ -207,6 +211,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleClearAppLogBuffer,
             handleFetchAppLogBufferSize,
             handleSendLog,
+            handleFetchPendingReports,
+            handleAckPendingReports,
             handleOpenSettings,
             handleOpenShareSheet,
             handleOpenDocument,
@@ -279,6 +285,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ClearAppLogBuffer: message => handlersRef.current.handleClearAppLogBuffer(message),
             FetchAppLogBufferSize: message => handlersRef.current.handleFetchAppLogBufferSize(message),
             SendLog: message => handlersRef.current.handleSendLog(message),
+            FetchPendingReports: message => handlersRef.current.handleFetchPendingReports(message),
+            AckPendingReports: message => handlersRef.current.handleAckPendingReports(message),
             OpenSettings: message => handlersRef.current.handleOpenSettings(message),
             OpenShareSheet: message => handlersRef.current.handleOpenShareSheet(message),
             OpenDocument: message => handlersRef.current.handleOpenDocument(message),
@@ -322,7 +330,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             (Object.keys(handlerMap) as WebMessageType[]).forEach(type => {
                 bridge.unregisterHandler(type);
             });
-            bridge.unregisterHandler('__console__' as any);
         };
     }, [bridge]);
 

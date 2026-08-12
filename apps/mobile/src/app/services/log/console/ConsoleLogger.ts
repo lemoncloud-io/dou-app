@@ -15,18 +15,25 @@ export class ConsoleLogger implements IConsoleLogger {
     public init(): void {
         if (this.unsubscribeConsoleLog) return;
 
-        this.unsubscribeConsoleLog = this.logService.subscribe((level, tag, message, data, error) => {
+        this.unsubscribeConsoleLog = this.logService.subscribe(entry => {
             if (!this.isDev) return;
 
-            const time = new Date().toLocaleTimeString();
-            const prefix = `[${time}] [${tag}] ${message}`;
+            // Occurrence time, not print time — bridged web entries keep their
+            // original timestamp (ADR-0047).
+            const time = new Date(entry.timestamp).toLocaleTimeString();
+            const prefix = `[${time}] [${entry.tag}] ${entry.message}`;
 
-            if (level === 'error') {
-                console.error(prefix, serializeError(error));
+            // Error entries carry BOTH: `error` is the thrown value, `data` is the
+            // structured context around it. Printing only the error dropped exactly
+            // the diagnostic half — a failed request's status/errorCode/responseData
+            // live in `data` (see withNetworkLog), so the console showed the request
+            // but never why it failed. Mirrors the core console listener.
+            if (entry.level === 'error') {
+                console.error(prefix, serializeError(entry.error), entry.data ?? '');
                 return;
             }
 
-            console[level](prefix, data ?? '');
+            console[entry.level](prefix, entry.data ?? '');
         });
     }
 

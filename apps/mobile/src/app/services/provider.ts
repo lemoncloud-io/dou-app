@@ -1,5 +1,10 @@
 import type { IConsoleLogger, ILogService } from './log';
 import { ConsoleLogger, LogBufferService, LogService } from './log';
+import { MmkvLogPersistence } from './log/persistence';
+import { attachNativeLoggerBridge } from './log/nativeLoggerBridge';
+import type { IPendingReportQueueService } from './report';
+import { PendingReportQueueService } from './report/PendingReportQueueService';
+import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
 import type { IDeviceService } from './device';
 import { DeviceService } from './device';
 import type { IClipboardService } from './clipboard';
@@ -48,11 +53,9 @@ import {
     TestRecordDataSource,
 } from '../data/cache';
 import { TestRecordService } from './cache/TestRecordService';
-import type { AppLogInfo } from '@chatic/app-messages';
 import type { IKeyValueStorage, ISqliteDatabase } from '../database';
 import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
 import type { ILogBufferService } from './log/buffer';
-import { createRingBuffer } from './log/utils/ringBuffer';
 
 class DependencyProvider {
     private static instance: DependencyProvider;
@@ -69,6 +72,7 @@ class DependencyProvider {
     public readonly deeplinkManager: DeepLinkManager;
     public readonly deeplinkService: IDeeplinkService;
     public readonly firebaseCrashlyticsService: IFirebaseCrashlyticsService;
+    public readonly pendingReportQueueService: IPendingReportQueueService;
 
     // Lazy — created on first access via getters to keep them off the boot critical path (see
     // boot-optimization.md 4.4). Backing fields are memoized after first construction.
@@ -112,12 +116,9 @@ class DependencyProvider {
             DeviceInfo.getVersion()
         );
 
-        // Inject dependencies into LogBufferService
-        this.logBufferService = new LogBufferService(
-            this.logService,
-            this.keyValueStorage,
-            createRingBuffer<AppLogInfo>(64)
-        );
+        // The buffer itself lives in the core logger (merged native+web,
+        // fixed capacity); this service only wires MMKV persistence to it.
+        this.logBufferService = new LogBufferService(new MmkvLogPersistence());
 
         // Deep link / notification services stay eager: cold-start capture reads them during the first
         // render (getInitialUrl / getInitialNotification), so they must exist before then.
@@ -129,12 +130,28 @@ class DependencyProvider {
 
         // Initialize Logging
         this.consoleLogger.init();
-        void this.logBufferService.init();
+        this.logBufferService.init();
+        // Pure-native (Kotlin/Swift) logs join the same core buffer with
+        // source:'native'; ready() flushes the native cold-start queue (ADR-0047).
+        attachNativeLoggerBridge();
 
         // Initialize Crashlytics immediately — boot-window crash reporting takes priority over the
         // small synchronous cost, so it stays eager while other services became lazy (4.4).
         this.firebaseCrashlyticsService.init();
         void this.firebaseCrashlyticsService.setupUser();
+
+        // ADR-0047: native-side error detection. Uncaught JS exceptions and
+        // unhandled rejections queue deferred reports the web relays; the
+        // relaunch check reads the MMKV-restored buffer, so it runs AFTER
+        // logBufferService.init() above.
+        this.pendingReportQueueService = new PendingReportQueueService();
+        const detectionDeps = {
+            logService: this.logService,
+            logBufferService: this.logBufferService,
+            pendingReports: this.pendingReportQueueService,
+        };
+        installNativeErrorDetection(detectionDeps);
+        void checkCrashOnPreviousExecution(detectionDeps);
 
         // Boot timeline: eager provider initialization done. Non-essential services (SQLite/cache/
         // upload, IAP, app icon, SMS, OAuth, clipboard, permission, preference, device, firebase

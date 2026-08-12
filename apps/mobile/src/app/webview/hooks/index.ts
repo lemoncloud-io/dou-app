@@ -18,6 +18,7 @@ export * from './useAppUpdateHandler';
 export * from './useFirebaseInstallId';
 export * from './useLogHandler';
 export * from './useLogBufferHandler';
+export * from './usePendingReportHandler';
 export * from './useUploadHandler';
 export * from './useTestRecordHandler';
 export * from './useResumeOverlay';
