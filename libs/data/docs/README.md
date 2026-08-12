@@ -21,7 +21,7 @@ UI Hook
     ├─ RemoteDataSource ──┘  gateway thin wrapper (outbound)
     └─ LocalDataSourceV2 ◄── snapshot 저장 + observer 재발행
             │
-       CacheStorage (IndexedDB / Native / DynamicCache)
+       CacheStorage (IndexedDB / Native)
 ```
 
 외부 sync orchestrator는 같은 RepositoryV2의 `refresh*` / `cacheWrite*`를 호출해 서버 변경분을 밀어넣는다. repository 입장에서 그 호출이 UI에서 왔는지 orchestrator에서 왔는지는 구분하지 않는다.

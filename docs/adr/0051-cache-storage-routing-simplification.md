@@ -1,6 +1,8 @@
 # ADR-0051: 캐시 저장소 전략 계층을 선언적 라우팅 테이블로 단순화
 
 > 상태: Accepted · 결정일: 2026-08-12
+> · [ADR-0030](0030-app-runtime-cold-db-migration-and-invite-cloud-recovery.md)의 2-tier 관련 결정을 대체
+> · [ADR-0006](0006-chat-cache-quota-safety-net-and-author-names.md)의 chat 상한은 유지(주입 경로만 변경)
 
 ## 맥락 (Context)
 
@@ -8,7 +10,9 @@
 있다(갓모듈화). `remoteFactory`·`repositoryFactory`는 상태 없는 얇은 조립 함수인데,
 `localFactory` + `cacheStorageStrategies`만 유일하게 다음을 안고 있다:
 
-- **죽은 2-tier 기계.** 네이티브가 Cold(NativeDB/SQLite)-only로 전환된 뒤
+- **죽은 2-tier 기계.** 네이티브가 Cold(NativeDB/SQLite)-only로 전환된 뒤(커밋 `796aa3cf`,
+  2026-07-27 — 2-tier의 cold-first 쓰기 게이트와 cold 미스→hot 폴백 부재가 채널·채팅 로드 실패로
+  드러나 되돌린 것인데, 그 전환에는 ADR이 남지 않았다. 이 ADR이 그 공백을 함께 메운다)
   `HotColdCacheStorageStrategy`, `AppPolicyResolver`, hot-first/cold-first 정책표는 아무도
   생성하지 않는다. libs/data 쪽 짝인 `DynamicCacheStorage`·`defaultPolicies`·
   `dynamicCacheTypes`·eviction/capacity 서브시스템도 소비처가 `cacheStorageStrategies.ts`

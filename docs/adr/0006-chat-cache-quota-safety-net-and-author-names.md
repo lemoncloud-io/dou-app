@@ -2,7 +2,19 @@
 
 ## Status
 
-accepted
+accepted — the decision still stands, but the machinery it describes has moved.
+
+> **The body below is the record as of its date and is not rewritten.** What changed since:
+> [ADR-0051](0051-cache-storage-routing-simplification.md) deleted the 2-tier cache subsystem, so
+> `DynamicCacheStorage`, `DefaultEvictionStrategy`, `DefaultCapacityPolicy` and the
+> `*CacheStorageStrategy` classes named in the Context no longer exist — the eviction/quota hooks
+> this ADR observed were never reachable in practice, which is why they went. The
+> `docs/cache-architecture-spec.md` cited below was deleted in the same pass (it described that
+> subsystem as current); its surviving content now lives in
+> [cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md) and
+> `libs/data/docs/local/`. **The safety net this ADR decided on is still in force**: the per-channel
+> chat cap lives in `IndexedDBAdapter` (`maxChatsPerChannel`) and is injected as a
+> `CacheAssemblyOptions` field through `configureDataRuntime`.
 
 ## Context
 

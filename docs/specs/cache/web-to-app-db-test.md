@@ -131,7 +131,7 @@ class AsyncMutexQueue {
 
 ## 6. 웹 검증 대시보드 설계 및 테스트 시나리오
 
-웹 대시보드(`DebugCacheTestPage.tsx`)는 네이티브 브릿지 통신의 한계를 파악하고 시각적 통계를 확인하기 위해 다음과 같은 고해상도 모듈로 구성됩니다.
+웹 대시보드(`apps/web/src/app/features/debug/overlay/screens/CacheTestScreen.tsx`)는 네이티브 브릿지 통신의 한계를 파악하고 시각적 통계를 확인하기 위해 다음과 같은 고해상도 모듈로 구성됩니다.
 
 ### [시나리오 1] 대량 데이터 Fetch & Save/Update 성능 검증
 

@@ -1,6 +1,13 @@
 # Data Context Module Improvement
 
-Date: 2026-06-23
+Date: 2026-06-23 · 상태: **일부 채택** (최종 확인 2026-08-12)
+
+> 이 제안 중 **`repositories.withContext(context)`만 실제로 구현됐다**
+> (`libs/data/src/data/repositories-v2/index.ts`). 문서가 이름 붙인 `GlobalDataContextStore` /
+> `RequestContextResolver` / `ScopedRepositoriesFacade`는 만들어지지 않았고, `DataContextHolder`가
+> 그대로 남아 있다(§9 롤아웃 1번 미실행). 아래 §14 승인 게이트는 이미 지나간 질문이므로 답을
+> 기다리는 문서로 읽지 말 것 — `withContext` 설계 근거의 기록으로 남긴다. §3의 근거 링크 중
+> `repositories/types.ts`(V1)는 그 뒤 삭제됐다.
 
 ## Decision Summary
 
@@ -35,11 +42,11 @@ Date: 2026-06-23
 
 현재 코드 기준으로 확인한 사실:
 
-- 전역 context는 [libs/app-runtime/src/runtime/useRuntimeBinding.ts](/Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/runtime/useRuntimeBinding.ts)에서 `session.activeServer`와 `identity.activeProfile`로부터 계산된다.
-- 이 값은 [libs/app-runtime/src/connection/RuntimeDataBinder.tsx](/Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/connection/RuntimeDataBinder.tsx)에서 `dataManager.ensure(binding.context)`로 mutable holder에 반영된다.
-- [libs/app-runtime/src/data/DataManager.ts](/Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/data/DataManager.ts)는 `DataContextHolder.setContext()`를 직접 호출한다.
-- [libs/data/src/data/repositories/types.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/repositories/types.ts)와 [libs/data/src/data/repositories-v2/types.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/repositories-v2/types.ts)는 repository가 provider를 통해 최신 context를 읽는 구조를 사용한다.
-- [libs/data/src/data/local/data-sources-v2/types.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/types.ts)는 이미 `contextOverride`를 지원한다.
+- 전역 context는 [libs/app-runtime/src/runtime/useRuntimeBinding.ts](../../../libs/app-runtime/src/runtime/useRuntimeBinding.ts)에서 `session.activeServer`와 `identity.activeProfile`로부터 계산된다.
+- 이 값은 [libs/app-runtime/src/connection/RuntimeDataBinder.tsx](../../../libs/app-runtime/src/connection/RuntimeDataBinder.tsx)에서 `dataManager.ensure(binding.context)`로 mutable holder에 반영된다.
+- [libs/app-runtime/src/data/DataManager.ts](../../../libs/app-runtime/src/data/DataManager.ts)는 `DataContextHolder.setContext()`를 직접 호출한다.
+- `libs/data/src/data/repositories/types.ts`(V1, 이후 삭제됨)와 [libs/data/src/data/repositories-v2/types.ts](../../../libs/data/src/data/repositories-v2/types.ts)는 repository가 provider를 통해 최신 context를 읽는 구조를 사용한다.
+- [libs/data/src/data/local/data-sources-v2/types.ts](../../../libs/data/src/data/local/data-sources-v2/types.ts)는 이미 `contextOverride`를 지원한다.
 - 반면 V2 repository public API는 대체로 manual context override surface를 노출하지 않는다. 즉, 수동 주입 능력은 local layer에는 있으나 repository/runtime boundary에서는 드러나지 않는다.
 - 일부 repository는 요청 시작 시 `requestContext`를 snapshot으로 잡고, remote 완료 후 `isSameContext()`로 write 여부를 방어한다. 이는 "요청 시작 시 context를 별도로 잡아야 한다"는 근거는 되지만, 최종 정책 자체를 확정한 것은 아니다.
 
@@ -231,7 +238,7 @@ await scoped.chat.refreshList(query);
 
 ### 4) destroy 동작 오해
 
-- 현재 [libs/app-runtime/src/data/DataManager.ts](/Users/raine/Project/lemon/chatic-front/libs/app-runtime/src/data/DataManager.ts)의 `destroy()`는 context를 `DEFAULT_CONTEXT`로 되돌릴 뿐, 로컬 캐시 삭제를 수행하지 않는다.
+- 현재 [libs/app-runtime/src/data/DataManager.ts](../../../libs/app-runtime/src/data/DataManager.ts)의 `destroy()`는 context를 `DEFAULT_CONTEXT`로 되돌릴 뿐, 로컬 캐시 삭제를 수행하지 않는다.
 - 따라서 후속 구현 문서에서는 `destroy()` 의미를 다음 중 하나로 명확히 정해야 한다.
     - 이름 그대로 context reset only
     - 또는 실제 cache/resource disposal까지 수행하도록 확장

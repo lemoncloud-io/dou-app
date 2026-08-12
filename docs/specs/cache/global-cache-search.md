@@ -27,8 +27,7 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
   (`CacheSearchService` + SQLite `LIKE`)이며, 웹 구현이 이를 따른다.
   시맨틱 변경은 반드시 양쪽에 함께 적용하고 공유 계약 테스트로 강제한다.
 - **읽기 전용**: 이 경로는 캐시를 절대 변경하지 않는다. 기존 CRUD/sync
-  경로(어댑터의 `save/loadAll/...`, `DynamicCacheStorage` 정책)도 건드리지
-  않는다.
+  경로(어댑터의 `save/loadAll/...`)도 건드리지 않는다.
 - **상한과 정렬·그룹핑은 상위 계층에서**: 어댑터/소스는 "매치 전부"를
   반환하고, 표시용 상한·정렬·그룹핑은 앱 계층 검색 서비스가 담당한다.
   (네이티브 브리지 페이로드에 limit이 없으므로, 어댑터 레벨에 상한을 두면
@@ -69,8 +68,7 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
   네이티브 왕복 수(`3 × 클라우드 + 채널 참조`)는 실기기에서 아직 측정하지
   않았다 — 느리면 최신 chat 조회를 화면에 보이는 행으로 제한하거나 배치
   브리지 메시지를 신설한다(그때는 앱 릴리스 필요). 계약은 그대로 둔다.
-- 캐시 스토리지 전략(`CacheStorageStrategy`)에 검색 소스 팩토리 추가,
-  app-runtime을 통한 노출.
+- app-runtime의 `getGlobalCacheSearchSource()`로 환경별 검색 소스 노출.
 - 공유 계약 테스트.
 
 **제외**
@@ -112,10 +110,8 @@ cid 오버라이드가 아니라 **sid 오버라이드**다.
 ```mermaid
 flowchart TD
     subgraph app-runtime
-        F[localFactory.selectStrategy] -->|"isNativeApp() === false"| S1[IndexedDbOnlyCacheStorageStrategy]
-        F -->|"isNativeApp() === true"| S2[HotColdCacheStorageStrategy]
-        S1 -->|createGlobalSearchSource| W[IndexedDbGlobalSearchSource]
-        S2 -->|createGlobalSearchSource| N[NativeGlobalSearchSource]
+        F[localFactory.getGlobalCacheSearchSource] -->|"isNativeApp() === false"| W[IndexedDbGlobalSearchSource]
+        F -->|"isNativeApp() === true"| N[NativeGlobalSearchSource]
     end
     subgraph 저장소
         W -->|"TYPE_CID_UID_INDEX 범위 스캔<br/>(type 고정, cid 전체)"| IDB[(IndexedDB<br/>ChaticWebCacheDB)]
@@ -282,20 +278,15 @@ query: { channelId, sort: 'desc', limit: 1 } }` — SQL이 `channel_id`,
   행은 이미 이름·이미지·인원수로 그려져 있고 컨텍스트만 나중에 채워진다
   (아래 "리스크와 미지수" 참조).
 
-### 배선 (수정: `libs/app-runtime/src/data/cacheStorageStrategies.ts`, `localFactory.ts`)
+### 배선 (`libs/app-runtime/src/data/factories/localFactory.ts`)
 
-- `CacheStorageStrategy` 인터페이스에
-  `createGlobalSearchSource(): IGlobalCacheSearchSource` 추가.
-    - `IndexedDbOnlyCacheStorageStrategy`(`cacheStorageStrategies.ts:105`) →
-      공유 `IIndexedDB` 인스턴스로 `IndexedDbGlobalSearchSource` 생성.
-    - `HotColdCacheStorageStrategy`(`cacheStorageStrategies.ts:148`) →
-      보유한 bridge(webClient)로 `NativeGlobalSearchSource` 생성.
-      Cold(SQLite)가 source of truth이므로 네이티브 환경에서는 SQLite를
-      검색한다(Hot IndexedDB는 파생 캐시라 검색 대상이 아니다).
-    - `NativeDbOnlyCacheStorageStrategy`(fallback/test 전용)도 동일하게
-      `NativeGlobalSearchSource`.
-- app-runtime 노출: `localFactory.ts`에 `getGlobalCacheSearchSource()`
-  추가(전략 싱글턴에서 위임), `runtime/useGlobalCacheSearch.ts` 훅이
+- `getGlobalCacheSearchSource()`가 환경에 따라 검색 소스를 직접 만든다.
+    - 브라우저(`isNativeApp() === false`) → 공유 `IndexedDBDatabase` 인스턴스로
+      `IndexedDbGlobalSearchSource`.
+    - 네이티브 → `webClient` 브리지로 `NativeGlobalSearchSource`. 네이티브에서는
+      SQLite가 source of truth이므로 그쪽을 검색한다(웹 저장소는 핀·스큐 예외만
+      담는 파생 캐시라 검색 대상이 아니다 — [cache-storage-routing.md](../../../libs/app-runtime/docs/data/cache-storage-routing.md)).
+- `runtime/useGlobalCacheSearch.ts` 훅이
   `getDataManager().getContext().uid`를 호출 시점에 읽어 `search(keyword,
 { uid, cid })`로 감싼다. uid가 없으면(비로그인) 빈 결과를 반환한다.
 

@@ -11,7 +11,7 @@ import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
 // One-time flag marking that existing invited clouds were migrated from hot(IndexedDB) into
 // cold(NativeDB). Kept in localStorage — a store independent of the cache DB — so the bulk migration
 // runs only on the first boot after native switched to cold-only storage. See
-// libs/app-runtime/docs/data/cold-db-activation-and-invite-recovery.md.
+// libs/app-runtime/docs/data/invite-cloud-durability.md.
 const SEED_FLAG_KEY = 'chatic-invitecloud-cold-seeded';
 
 const hasSeeded = (): boolean => {

@@ -14,8 +14,8 @@ repository V2는 remote data source와 local data source V2를 묶어 앱에 노
 
 도메인 repository: `channel`, `chat`, `cloud`, `join`, `place`, `profile`, `user`, `syncMeta`.
 
-- 팩토리: [index.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/repositories-v2/index.ts) — `createRepositoriesV2({ remoteDataSources, localDataSources, context })`가 `DataRepositoriesV2`를 만든다.
-- 공통 기반: [types.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/repositories-v2/types.ts) — `BaseRepositoryV2`.
+- 팩토리: [index.ts](../../src/data/repositories-v2/index.ts) — `createRepositoriesV2({ remoteDataSources, localDataSources, context })`가 `DataRepositoriesV2`를 만든다.
+- 공통 기반: [types.ts](../../src/data/repositories-v2/types.ts) — `BaseRepositoryV2`.
 
 ## 3가지 계약
 

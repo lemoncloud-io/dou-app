@@ -122,6 +122,7 @@ flowchart TD
 ## 관련 문서
 
 - [cache-storage-routing.md](cache-storage-routing.md) — 캐시 저장소 라우팅 설계 (ADR-0051)
+- [invite-cloud-durability.md](invite-cloud-durability.md) — 초대클라우드 마이그레이션·푸시 복구·이름 동기화
 - [context-design.md](context-design.md) — 전역/요청 context 분리 설계
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
 - [../sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계
