@@ -37,6 +37,10 @@ export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
 // useSocketWakeRecovery; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
 export { recoverUnverifiedSockets } from './socket/auth/recoverUnverifiedSockets';
 export type { RecoverUnverifiedSocketsDeps } from './socket/auth/recoverUnverifiedSockets';
+// The single "make this session's credentials fresh" entry point — socket-owned refresh first,
+// service-level HTTP fallback second. Replaces callers' own refresh engines (audit §7 Phase 2-3).
+export { requestSessionRefresh } from './socket/auth/requestSessionRefresh';
+export type { RequestSessionRefreshDeps } from './socket/auth/requestSessionRefresh';
 
 // --- Cache tier helpers ---------------------------------------------------------------------
 // Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.

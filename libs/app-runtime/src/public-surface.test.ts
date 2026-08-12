@@ -38,6 +38,8 @@ describe('@chatic/app-runtime public surface', () => {
             'applySessionToken',
             // foreground/wake kick for wedged sockets (2026-08 session audit §7 Phase 1)
             'recoverUnverifiedSockets',
+            // single credentials-refresh entry point (socket-owned first, HTTP fallback; §7 Phase 2-3)
+            'requestSessionRefresh',
             // apps/web boot-time DataRepositoriesV2 option injection (e.g. persistEmbeddedSite gating,
             // ADR-0045) — pre-existing export this list had drifted out of sync with.
             'configureDataRuntime',
