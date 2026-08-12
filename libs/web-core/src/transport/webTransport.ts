@@ -130,10 +130,18 @@ export interface WebTransport {
     buildRequest(config: AxiosRequestConfig): TransportRequestBuilder;
     buildSignedRequest(config: AxiosRequestConfig): TransportRequestBuilder;
     buildCredentialsByToken(token: unknown): Promise<unknown>;
+    /** Rebuilds the in-memory AWS credentials from the persisted store WITHOUT any refresh call. */
+    buildCredentialsByStorage(): Promise<unknown>;
     getTokenSignature(): Promise<any>;
     getTokenStorage(): {
         getCachedOAuthToken(): Promise<{ identityToken?: string } | null>;
         saveOAuthToken(token: unknown): Promise<void> | void;
+        /** Read-only: a relay token bundle (creds + identity token + expiry) is persisted. */
+        hasCachedToken(): Promise<boolean>;
+        /** Read-only: the persisted bundle is past lemon's refresh horizon (expired_time). */
+        shouldRefreshToken(): Promise<boolean>;
+        /** Seeds the lemon config keys (x-lemon-identity flag, region) — the non-auth half of init(). */
+        initLemonConfig(): Promise<void>;
     };
 }
 
@@ -145,14 +153,60 @@ export const webTransport = WebCoreFactory.create({
     storage: usePersistentWebStorage ? localStorage : sessionStorage,
 }) as unknown as WebTransport;
 
+// ---------------------------------------------------------------------------
+// Sealed transport init + read-only session probes (2026-08 session audit §7 Phase 2-2).
+//
+// lemon-web-core's own `init()`/`isAuthenticated()` fire an HTTP token refresh whenever the stored
+// `expired_time` has passed — a second refresh engine with no cap/single-flight that writes ONLY
+// its own store, leaving relayCore and the socket SDK's signing material stale (the signature-error
+// divergence). Refresh ownership belongs to the socket AuthController (its writeback re-mints these
+// credentials), so the boot path is sealed: replicate init() minus the refresh, and expose
+// read-only probes for callers that used to lean on isAuthenticated()'s side effects.
+// ---------------------------------------------------------------------------
+
+/**
+ * Read-only: whether a relay session bundle is persisted. This is the boot "am I logged in"
+ * question — session EXISTENCE. Credential validity is deliberately not part of it: stale
+ * credentials recover through the socket refresh writeback (or requestSessionRefresh), and
+ * flipping this to false on staleness would bounce a returning user to login over a recoverable
+ * state.
+ */
+export const hasStoredRelaySession = (): Promise<boolean> => webTransport.getTokenStorage().hasCachedToken();
+
+/**
+ * Read-only: whether the persisted credentials are past lemon's refresh horizon. Unlike
+ * `webTransport.isAuthenticated()` this NEVER fires a refresh — callers that find it true ask the
+ * refresh owner instead (app-runtime `requestSessionRefresh`).
+ */
+export const isStoredSessionExpired = (): Promise<boolean> => webTransport.getTokenStorage().shouldRefreshToken();
+
+/**
+ * `webTransport.init()` minus its internal refresh: seed the lemon config keys, then rebuild the
+ * in-memory AWS credentials from whatever the store holds. Possibly-stale credentials are still
+ * built — signed requests need SOME signer, and the socket auth writeback replaces them the moment
+ * the session re-verifies.
+ */
+const initWebTransportSealed = async (): Promise<void> => {
+    const tokenStorage = webTransport.getTokenStorage();
+    await tokenStorage.initLemonConfig();
+    if (!(await tokenStorage.hasCachedToken())) {
+        return;
+    }
+    try {
+        await webTransport.buildCredentialsByStorage();
+    } catch {
+        // Partial/corrupt store (e.g. missing AccessKeyId) — boot without in-memory credentials;
+        // the next login/writeback rebuilds them.
+    }
+};
+
 let pendingInit: Promise<void> | null = null;
 let initDone = false;
 
 export const startWebTransportInit = (): Promise<void> => {
     if (initDone) return Promise.resolve();
     if (pendingInit) return pendingInit;
-    pendingInit = webTransport
-        .init()
+    pendingInit = initWebTransportSealed()
         .then(() => {
             initDone = true;
         })

@@ -12,7 +12,7 @@ import {
     registerDevice,
     verifyNativeAppToken,
 } from '../api';
-import { calcSignature, clearRelayTransportOverrides, webTransport } from '../transport';
+import { calcSignature, clearRelayTransportOverrides, hasStoredRelaySession, webTransport } from '../transport';
 import { getCloudSessionSnapshot } from './contexts';
 import { cloudCore, identityCore, LANGUAGE_KEY, relayCore, resetWebCoreInit, startWebCoreInit } from './core';
 import {
@@ -107,6 +107,15 @@ const applyRelaySession = async (tokenView: UserTokenView): Promise<UserTokenVie
 
 /**
  * Bootstraps relay transport and resolves the initial relay authentication state.
+ *
+ * The auth flag is a READ-ONLY session-existence probe (hasStoredRelaySession), not the old
+ * `webTransport.isAuthenticated()` — that call fired lemon-web-core's own HTTP refresh on a stale
+ * boot, a second refresh engine that updated only the lemon store and left relayCore/the socket
+ * SDK's signing material stale (audit §1 "토큰 사본 3벌"). Boot now never refreshes: stale
+ * credentials are rebuilt by the socket AuthController's refresh writeback once the socket
+ * re-verifies (or by an explicit requestSessionRefresh). A returning user with expired credentials
+ * therefore boots into the logged-in UI instead of being treated as logged out — including on an
+ * offline boot, where the old refresh probe always failed.
  */
 export const initializeRelaySession = async (): Promise<void> => {
     setSessionIdentityState({
@@ -116,10 +125,10 @@ export const initializeRelaySession = async (): Promise<void> => {
 
     logger.info('WEB_CORE', '[initialize] awaiting relay transport init');
     await startWebCoreInit();
-    logger.info('WEB_CORE', '[initialize] relay transport init done, setting language + auth in parallel');
+    logger.info('WEB_CORE', '[initialize] relay transport init done, setting language + probing session');
     const [, isAuthenticated] = await Promise.all([
         webTransport.setUseXLemonLanguage(true, LANGUAGE_KEY),
-        webTransport.isAuthenticated(),
+        hasStoredRelaySession(),
     ]);
 
     setSessionIdentityState({
@@ -506,18 +515,20 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
     } catch (error) {
         // The cloud refresh POST is signed with the persisted cloud credential + identity JWT.
         // After a long sleep both are expired, so it 400s and — with no recovery — the socket can
-        // never re-verify (previously only a manual reload fixed it). Reproduce what the reload does,
-        // without reloading: re-mint the relay web-core creds, then re-exchange a fresh cloud token
-        // (relay-signed, so it succeeds even when the cloud credential itself is dead), and retry
-        // once. This is failure-only, so the happy path (site switches) pays nothing.
+        // never re-verify (previously only a manual reload fixed it). Re-mint the relay session
+        // EXPLICITLY (refreshRelaySession: consistent double-write into the credential cache AND
+        // relayCore, unlike the old resetWebCoreInit/startWebCoreInit re-bootstrap whose lemon
+        // internal refresh updated only the lemon store — and which the sealed transport init no
+        // longer performs at all), then re-exchange a fresh cloud token (relay-signed, so it
+        // succeeds even when the cloud credential itself is dead), and retry once. This is
+        // failure-only, so the happy path (site switches) pays nothing.
         const cloudId = cloudCore.getSelectedCloudId();
         if (!cloudId || cloudId === 'default') throw error;
-        logger.warn('SESSION', '[service] cloud refresh failed — re-bootstrapping creds, retrying once', {
+        logger.warn('SESSION', '[service] cloud refresh failed — re-minting relay creds, retrying once', {
             error,
             data: { cloudId, siteId },
         });
-        resetWebCoreInit();
-        await startWebCoreInit();
+        await refreshRelaySession();
         await switchCloudSession({ cloudId });
         return await performCloudRefresh({ siteId });
     }
@@ -530,10 +541,10 @@ const runRefreshCloudSession = async ({ siteId }: { siteId: string }): Promise<C
  * - Skips when the selected cloud is `default` or there is no delegation token (cloud not connected).
  * - Skips when there is no selected site (sid null), since no site session exists (cid/sid default rule).
  *
- * DEAD EXPORT as of the 2026-08 session audit (§5-9): the periodic loop that drove it
- * (useTokenRefresh) was removed when the SDK AuthController took over recurring refresh, and no
- * runtime caller remains (tests only). Slated for deletion in audit §7 Phase 3 — do not add new
- * callers; recurring refresh belongs to the SDK.
+ * NOT a recurring engine (the old useTokenRefresh loop is gone; the SDK AuthController owns
+ * recurring refresh). Its one runtime caller is app-runtime's `requestSessionRefresh('cloud')` as
+ * the HTTP fallback when no live cloud socket can perform the refresh (audit §7 Phase 2-3) — do
+ * not add polling callers.
  */
 export const refreshActiveCloudSession = async (): Promise<void> => {
     if (cloudCore.getSelectedCloudId() === 'default' || !cloudCore.getDelegationToken()) {
