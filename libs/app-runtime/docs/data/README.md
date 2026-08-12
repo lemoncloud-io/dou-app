@@ -83,13 +83,15 @@ flowchart TD
 
 ## 저장소 선택과 web↔app 배포 스큐
 
-`getCacheStorage(type)`(`factories/localFactory.ts`)가 도메인별 저장소를 고른다. 판정은 셋뿐이다.
+`resolveCacheBackend(type)`(`cacheStorageRouting.ts`)가 도메인별 저장소를 고른다 — 라우팅
+결정의 단일 지점이며, `getCacheStorage`(`factories/localFactory.ts`)는 그 결과를 어댑터로
+실체화만 한다. 전체 설계는 [cache-storage-routing.md](cache-storage-routing.md) 참고. 판정은 셋뿐이다.
 
-1. `HOT_ONLY_CACHE_TYPES`에 고정된 타입(`profile`) → 항상 Hot(IndexedDB).
-2. 앱 WebView이고 네이티브가 그 타입을 저장할 수 있으면 → Cold(NativeDB/SQLite).
-3. 그 외(브라우저, 또는 **네이티브가 못 저장하는 타입**) → Hot(IndexedDB).
+1. 브라우저(네이티브 브리지 없음) → 항상 web(IndexedDB).
+2. `WEB_PINNED_CACHE_TYPES`에 고정된 타입(`profile`) → web(IndexedDB).
+3. **네이티브가 못 저장하는 타입** → web(IndexedDB). 그 외 → native(NativeDB/SQLite).
 
-3번의 "못 저장하는 타입"이 배포 스큐 대응이다. 웹은 앱보다 먼저 배포되므로 **웹이 아는 CacheType이
+3번이 배포 스큐 대응이다. 웹은 앱보다 먼저 배포되므로 **웹이 아는 CacheType이
 설치된 앱이 아는 것보다 많을 수 있다**. 그런 타입을 그냥 보내면 네이티브 `CacheCrudService`의
 `default:` 분기가 `success: true` + `null`로 답한다 — 에러가 아니라 **영원히 빈 캐시**로 보인다.
 
@@ -106,8 +108,8 @@ flowchart TD
 - **legacy 집합은 동결이다.** 이미 출시된 모든 앱이 저장할 수 있는 타입 목록은 보고와 무관하게
   네이티브를 쓴다. 보고는 타입을 **더할 수만** 있고 뺄 수 없다 — 앱이 목록을 빠뜨리는 버그가 따뜻한
   cold 캐시를 조용히 웹 저장소로 옮기지 못하게 한다.
-- **모르면 legacy로 본다.** 응답이 아직 안 왔거나 필드가 없는 구버전 앱이면, 동결 집합 밖은 Hot으로
-  간다. 보수적일 뿐 틀리지 않는 방향이다.
+- **모르면 legacy로 본다.** 응답이 아직 안 왔거나 필드가 없는 구버전 앱이면, 동결 집합 밖은 web
+  저장소로 간다. 보수적일 뿐 틀리지 않는 방향이다.
 
 ### 새 캐시 도메인/스키마를 추가할 때
 
@@ -119,6 +121,7 @@ flowchart TD
 
 ## 관련 문서
 
+- [cache-storage-routing.md](cache-storage-routing.md) — 캐시 저장소 라우팅 설계 (ADR-0051)
 - [context-design.md](context-design.md) — 전역/요청 context 분리 설계
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
 - [../sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계
