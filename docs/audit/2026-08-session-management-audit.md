@@ -157,7 +157,7 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 1. **발사권 단일화** — 자동 refresh는 SDK만. 엔진 2 봉인, 엔진 3은 사용자 플로우(로그인/전환)에서만.
 2. **재료 주입** — 서명·시드는 AuthMaterial 스냅샷에서. 스토어 라이브 조회 금지(부팅 시드 제외).
 3. **터미널 계약화** — `expired`는 이벤트로 앱에 전달, 정책(복구 시도 횟수·로그아웃·UI)은 앱이 소유. `isAuthenticated`와 별개로 `sessionHealth`(healthy/degraded/expired) 파생 상태 노출.
-4. **루프 서킷브레이커** — auth 터미널 동안 재연결 중단(또는 `maxAttempts`+`onGiveUp` 배선), `gate.start()`는 터미널이면 no-op. 회복은 명시적 재시드(`register`)로만.
+4. **루프 서킷브레이커는 인증 레이어에만 건다** — `gate.start()`가 터미널 컨트롤러를 되살리는 것을 스로틀하고, 회복은 명시적 재시드(`register`)로만. **재연결은 무한을 유지한다**: 네트워크 단절은 모바일에서 예외가 아니라 정상 상태이므로(지하철·엘리베이터·슬립) 몇 시간 뒤 복귀해도 자동으로 붙어야 하고, `maxAttempts` 캡은 SDK `giveUp()`이 `active=false`로 내려앉아 **스스로 재개하지 못하게** 만들어 복구 책임을 앱(수동 리로드/wake-kick)으로 떠넘길 뿐이다. 비용도 백오프(0.5s→30s 상한 + 지터)가 이미 통제한다. 폭주의 원인은 재연결 자체가 아니라 `재연결 무한 × 연결마다 무조건 인증 재개`의 **결합**이므로, 절단면은 인증 쪽이 맞다. transport churn이 문제로 확인되면(§8) 캡이 아니라 **auth 터미널 동안 재연결 백오프의 하한을 올리는 방향**(`minStableMs` 상향 등 — 연결 복구 능력은 보존)으로 다룬다.
 
 ---
 
@@ -166,7 +166,7 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 > **처리 현황 (2026-08-12): Phase 0·1 구현 완료.** 이 브랜치에서 반영된 것:
 >
 > - **Phase 0 계측**: 슬롯별 재연결 카운터 로그(`SocketManager` `[SocketManager] reconnected {kind, connectCount}`), 만료-재개 시도 warn 로그(`bootstrapSocketConnection`). 폭주 재발 시 이 두 로그로 §2-3의 메커니즘 1(재연결 루프)을 즉시 판별할 수 있다.
-> - **결함 1 — 설계 변경으로 처리**: 하드 no-op 대신 **지수 쿨다운(30s→최대 5분, `authenticated` 시 리셋)** 으로 만료-재개를 스로틀. 이유: `expired`는 일시 장애(웨이크 직후 좀비 소켓의 408 연쇄)로도 도달하는데, 무조건 차단하면 그 케이스의 자동 복구(다음 재연결에서 auth.update 성공)까지 죽는다. 쿨다운은 폭주를 시간당 소켓별 ~12회로 캡하면서 자동 복구를 보존한다. 재연결 자체(transport 레벨 churn)는 서버 끊김 정책 확인(§8) 전까지 유지 — 확인 후 give-up 배선 여부 결정.
+> - **결함 1 — 설계 변경으로 처리**: 하드 no-op 대신 **지수 쿨다운(30s→최대 5분, `authenticated` 시 리셋)** 으로 만료-재개를 스로틀. 이유: `expired`는 일시 장애(웨이크 직후 좀비 소켓의 408 연쇄)로도 도달하는데, 무조건 차단하면 그 케이스의 자동 복구(다음 재연결에서 auth.update 성공)까지 죽는다. 쿨다운은 폭주를 시간당 소켓별 ~12회로 캡하면서 자동 복구를 보존한다. **재연결은 의도적으로 손대지 않았다**(§6-4): 무한 재연결은 모바일에서 필수 기능이고 `maxAttempts` 캡은 복구 불능 상태를 만든다 — 폭주는 재연결이 아니라 그 위에 얹힌 무조건 인증 재개가 만들었고, 그 지점만 끊었다. transport churn이 §8에서 실제 문제로 확인되면 백오프 하한 상향으로 다룬다.
 > - **신규 발견(수정 포함)**: `reauthenticateActiveSocket`이 **연결 안 된 소켓**에 register하면 컨트롤러가 active로 남아 다음 `connected`에서 SDK가 `device.save:ok` **이전에** `auth.update`를 자동 발사 → 최초 update 실패는 재시도되지 않아 터미널 `expired`로 직행하는 선재 레이스. register 후 미연결이면 게이트를 재폐쇄하도록 수정.
 > - **결함 3 부분 처리**: apps/web에 포그라운드 wake-kick 추가 — app-runtime `recoverUnverifiedSockets()`(미검증 슬롯 강제 재연결 + 터미널 `expired`면 register 재시드로 failures 리셋, 시드는 게이트 닫은 채 수행해 device.save:ok 순서 보존) + apps/web `useSocketWakeRecovery`(5s 스로틀, `useAppForeground` 신호). 좀비 소켓 복구가 keep-alive 대기(~40-80s)에서 즉시로 단축되고, **relay 터미널 만료의 실복구 경로가 처음 생겼다**. `sessionHealth` 파생 상태·터미널 이벤트 계약은 Phase 2 잔여.
 > - **결함 4**: admin-v2 가드에 연속 실패 임계(3회, ~90s) 도입 — 일시 장애 즉시 로그아웃 제거.
@@ -197,7 +197,7 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 
 | 변경                                                                                                                 | 파일                                                                               | 효과                         |
 | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
-| `expired` 터미널이면 `gate.start()` no-op + 터미널 시 reconnect 중단(or give-up 배선)                                | `bootstrapSocketConnection.ts`, `SocketManager.ts`                                 | 결함 1 — 무한 인증 루프 차단 |
+| `expired` 터미널 컨트롤러의 재개를 스로틀(재연결은 무한 유지 — §6-4)                                                 | `bootstrapSocketConnection.ts`, `SocketManager.ts`                                 | 결함 1 — 무한 인증 루프 차단 |
 | 서명 오류 계열 재시도 금지 분류 추가                                                                                 | `transport/error.ts`                                                               | 결함 6                       |
 | admin-v2 가드: 연속 실패 임계(N회) 후에만 로그아웃, transient는 유지                                                 | `useRelaySessionGuard.ts`                                                          | 결함 4                       |
 | admin-v2 로그아웃을 app-runtime판으로 교체                                                                           | `LogoutPage.tsx`, `socket-lab/Sidebar.tsx`                                         | 결함 8                       |
@@ -234,7 +234,7 @@ relay 기준으로 토큰/서명 재료가 **세 곳**에 있다:
 
 - [ ] 폭주 시점의 요청 종류 비율: socket `auth.refresh` vs HTTP `POST /oauth/{authId}/refresh` vs `auth.update` — HTTP가 섞여 있으면 엔진 2 개입 확정.
 - [ ] 같은 deviceId의 WS 연결 수립/종료 주기 — 수 초 간격 반복이면 재연결 루프(메커니즘 1) 확정.
-- [ ] 서버가 인증 실패/미인증 소켓을 능동적으로 끊는지(끊는다면 몇 초 후인지 — 5초 이상이면 reconnect attempt 리셋으로 최악 케이스).
+- [ ] 서버가 인증 실패/미인증 소켓을 능동적으로 끊는지(끊는다면 몇 초 후인지). **5초 이상이면 최악 케이스**: `minStableMs=5000` 때문에 백오프 카운터가 매번 0으로 리셋돼 재연결이 계속 최소 간격(~0.5s)으로 돌아온다. 인증은 쿨다운에 막혀 있으므로 리프레시 폭주는 아니지만 배터리·서버 부하로 남는다 → 이 경우의 처방은 `maxAttempts` 캡이 아니라 백오프 하한 상향(§6-4).
 - [ ] refresh 시 서버가 auth 모델/서명 재료를 회전시키는지(HTTP와 socket refresh가 서로를 무효화하는지) — 과거 주석("shared device-keyed auth model → 403")의 현재 유효성 재확인.
 
 **클라이언트에서 확인할 것**:
