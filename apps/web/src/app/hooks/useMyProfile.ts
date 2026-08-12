@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
 
@@ -17,6 +17,7 @@ import { useSessionIdentity, useSessionSelection } from '@chatic/web-core';
  */
 export const useMyProfile = (): { profile: DomainProfile | null } => {
     const { profile: profileRepository } = useRuntimeRepositories();
+    const { isVerified } = useRuntimeSocketState();
     const { selectedSiteId: sid } = useSessionSelection();
     const { userId: uid } = useSessionIdentity();
 
@@ -30,9 +31,14 @@ export const useMyProfile = (): { profile: DomainProfile | null } => {
         }
         // Subscribe first so the fetch's cache write (and later optimistic saves) fan in.
         const unsubscribe = profileRepository.observeItem(profileId, setProfile);
-        void profileRepository.getMyProfile().catch(() => undefined);
+        // Only refresh once the socket can carry it. Firing on mount raced the
+        // handshake and rejected with `503 SOCKET NOT CONNECTED` on every cold
+        // start — swallowed here, but it still reached the log buffer and the
+        // reports built from it. The cached value renders meanwhile, and the
+        // effect re-runs when `isVerified` flips.
+        if (isVerified) void profileRepository.getMyProfile().catch(() => undefined);
         return unsubscribe;
-    }, [profileRepository, profileId]);
+    }, [profileRepository, profileId, isVerified]);
 
     return { profile };
 };
