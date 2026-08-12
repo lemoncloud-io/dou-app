@@ -1,15 +1,11 @@
 import type { CacheType } from '@chatic/app-messages';
 import type { DataContextProvider, IGlobalCacheSearchSource } from '@chatic/data';
 import {
-    type CacheErrorReporter,
     type CacheStorage,
     type CacheStorageFactory,
-    type CapacityPolicy,
     createCacheStorages,
     createLocalDataSourcesV2 as createDataLocalDataSources,
-    type EvictionStrategy,
     type LocalDataSourcesV2,
-    type PolicyResolver,
 } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
 import {
@@ -22,13 +18,6 @@ import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 export const isNativeApp = (): boolean => {
     return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
 };
-
-export interface CacheFactoryOptions {
-    policyResolver?: PolicyResolver;
-    evictionStrategy?: EvictionStrategy;
-    capacityPolicy?: CapacityPolicy;
-    reporter?: CacheErrorReporter;
-}
 
 // Cache types pinned to Hot(IndexedDB) regardless of environment, overriding the strategy selected
 // below. `profile` is here because the native Cold writer stamps the scope `uid` over the profile
@@ -69,7 +58,7 @@ const getHotStrategy = (): CacheStorageStrategy => {
     return hotStrategy;
 };
 
-const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy => {
+const selectStrategy = (): CacheStorageStrategy => {
     if (!sharedStrategy) {
         // Native WebView: Cold(NativeDB/SQLite) only — a single durable store that survives WebView
         // IndexedDB eviction and drops the hot/cold coordination pitfalls of the 2-tier strategy
