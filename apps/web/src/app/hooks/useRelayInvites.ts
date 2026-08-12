@@ -32,6 +32,20 @@ export interface RelayInviteCreateInput {
  */
 const INVITE_LIST_LIMIT = 100;
 
+export interface RelayInvitesOptions {
+    /**
+     * Re-ask this often while the caller is mounted (off by default).
+     *
+     * Deliberately react-query's own `refetchInterval` rather than a caller-side `setInterval` +
+     * `refetch()`: a manual `refetch()` fires even while the query is DISABLED (TanStack v5), so a
+     * poll built that way punches straight through the relay gate below and hits the socket while
+     * relay is unauthenticated — `401 UNAUTHORIZED - not authenticated @invite.list`. The interval
+     * is per-observer, so only the caller that asks for it polls, and it also pauses while the
+     * window is in the background (`refetchIntervalInBackground` defaults to false).
+     */
+    pollIntervalMs?: number;
+}
+
 /** Read/write the same cache entries, so a mutation can invalidate what the list hook renders. */
 export const relayInviteKeys = {
     all: ['relayInvites'] as const,
@@ -43,11 +57,11 @@ export const relayInviteKeys = {
  *
  * Read through `InviteRepositoryV2` like every other data access (ADR-0036) — the repository is an
  * access surface, not a cache obligation, so each call still goes straight to the relay-pinned
- * gateway behind it. Callers own the polling cadence; this hook only refetches on window focus,
- * which covers "user came back to the tab" (see the query options for why that needs an explicit
- * opt-out of the app's global `staleTime`).
+ * gateway behind it. By default it only refetches on window focus, which covers "user came back to
+ * the tab" (see the query options for why that needs an explicit opt-out of the app's global
+ * `staleTime`); a caller that needs a cadence on top asks for it with `pollIntervalMs`.
  */
-export const useRelayInvites = (state?: InviteState) => {
+export const useRelayInvites = (state?: InviteState, options: RelayInvitesOptions = {}) => {
     const { invite } = useRuntimeRepositories();
     // invite.list is relay-pinned (kind-scoped routing), so gate on the RELAY slot specifically —
     // the active-facade isVerified would track cloud instead whenever a cloud session is up, and
@@ -65,9 +79,12 @@ export const useRelayInvites = (state?: InviteState) => {
         // no notification packet for it (백엔드 요청 #4), so coming back to the screen has to re-ask.
         staleTime: 0,
         refetchOnWindowFocus: true,
+        // Off unless a caller asks (see RelayInvitesOptions) — react-query skips it while disabled.
+        refetchInterval: options.pollIntervalMs ?? false,
         // Re-fires on the false→true edge (relay reconnecting drops this to false, then back), same
         // as every other isVerified-gated read in the app. `refetch()` still works while disabled
-        // (TanStack v5), so the manual retry in useInviteWaitingStatus is unaffected.
+        // (TanStack v5), so the user-driven retry on InviteWaitingPage is unaffected — that is also
+        // why an automatic cadence must NOT be built on it (see RelayInvitesOptions.pollIntervalMs).
         enabled: isRelayVerified,
     });
 

@@ -104,6 +104,43 @@ describe('useRelayInvites', () => {
         expect(result.current.isLoading).toBe(false); // not stuck in a spinner while gated off
     });
 
+    // 대기 화면의 30초 재조회가 수동 refetch() 타이머였을 때의 버그: refetch()는 disabled 쿼리도
+    // 발사하므로 relay 미인증 구간에서 `401 UNAUTHORIZED - not authenticated @invite.list`가 났다.
+    // 폴링을 쿼리 옵션으로 넘기면 게이트가 그대로 적용된다.
+    it('pollIntervalMs 폴링은 relay 게이트를 지킨다', async () => {
+        jest.useFakeTimers();
+        (useKindVerified as jest.Mock).mockReturnValue(false);
+
+        const { rerender } = renderHook(() => useRelayInvites(undefined, { pollIntervalMs: 30_000 }), { wrapper });
+        await act(async () => {
+            jest.advanceTimersByTime(120_000);
+        });
+        expect(list).not.toHaveBeenCalled();
+
+        (useKindVerified as jest.Mock).mockReturnValue(true);
+        rerender();
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            jest.advanceTimersByTime(30_000);
+        });
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+        jest.useRealTimers();
+    });
+
+    it('폴링을 요청하지 않은 소비자는 주기 조회를 하지 않는다', async () => {
+        jest.useFakeTimers();
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            jest.advanceTimersByTime(120_000);
+        });
+        expect(list).toHaveBeenCalledTimes(1);
+        expect(result.current.invites).toEqual([]);
+        jest.useRealTimers();
+    });
+
     it('relay verified가 false→true로 바뀌는 순간 조회한다', async () => {
         (useKindVerified as jest.Mock).mockReturnValue(false);
         const { result, rerender } = renderHook(() => useRelayInvites(), { wrapper });
