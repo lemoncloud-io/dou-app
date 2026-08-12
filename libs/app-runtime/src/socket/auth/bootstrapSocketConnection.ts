@@ -21,10 +21,26 @@ export interface BootstrapSocketConnectionArgs {
  * on `bootstrapSocketConnection`). Relying on non-interface methods is fragile across SDK upgrades —
  * revisit if the SDK ever exposes a device-gated auth handshake of its own.
  */
-type AuthActivationGate = { start(): void; stop(): void };
+export type AuthActivationGate = { start(): void; stop(): void };
 
 /** Socket message the backend emits once a device row is persisted for this connection. */
 const DEVICE_SAVED_MESSAGE = 'device.save:ok';
+
+/**
+ * Cooldown between resume attempts on a TERMINALLY-EXPIRED controller (2026-08 session audit §5-1).
+ *
+ * `gate.start()` on `device.save:ok` used to be unconditional, which resurrected a controller the
+ * SDK had parked as `expired` (its failures>maxFailures safety) on EVERY reconnect. Combined with
+ * the unlimited reconnect controller, a server that drops failed-auth sockets produced an unbounded
+ * auth.update/auth.refresh stream ("countless refresh requests"). A hard no-op is wrong the other
+ * way: `expired` is also reachable through transient burns (e.g. request timeouts on a zombie
+ * socket right after wake), where the unconditional resume WAS the auto-recovery. So resume stays,
+ * but throttled — first resume immediate, then exponential cooldown, reset on `authenticated`.
+ * A user-visible recovery (wake kick) bypasses the throttle by re-registering, which moves the
+ * controller off `expired` before the gate check runs (see recoverUnverifiedSockets).
+ */
+const EXPIRED_RESUME_INITIAL_COOLDOWN_MS = 30_000;
+const EXPIRED_RESUME_MAX_COOLDOWN_MS = 5 * 60_000;
 
 /**
  * Boots a socket for `config` and wires it to the SDK AuthController. Pure function (no retained
@@ -67,10 +83,20 @@ export const bootstrapSocketConnection = async ({
 
     const gate = auth as unknown as AuthActivationGate;
 
+    // Expired-resume throttle state (see the cooldown constants above). Per bootstrap instance:
+    // a reboot is a fresh identity attempt, so it deliberately starts with a clean budget.
+    let resumeHoldUntil = 0;
+    let resumeCooldownMs = EXPIRED_RESUME_INITIAL_COOLDOWN_MS;
+
     // Mirror the SDK auth state into the manager's isVerified (per slot), run teardown on terminal expiry.
     unsubscribes.push(
         auth.onAuthState(state => {
             manager.setAuthenticated(kind, state === 'authenticated');
+            if (state === 'authenticated') {
+                // Healthy again — the next terminal expiry gets a fresh resume budget.
+                resumeHoldUntil = 0;
+                resumeCooldownMs = EXPIRED_RESUME_INITIAL_COOLDOWN_MS;
+            }
             if (state === 'expired') {
                 void delegate.onAuthExpired?.(kind);
             }
@@ -108,9 +134,25 @@ export const bootstrapSocketConnection = async ({
         // we filter it here — matching the legacy useWebSocketV2 device-registered hook.
         unsubscribes.push(
             client.onMessage(event => {
-                if (event.message?.type === DEVICE_SAVED_MESSAGE) {
-                    gate.start();
+                if (event.message?.type !== DEVICE_SAVED_MESSAGE) {
+                    return;
                 }
+                // Terminal-expired resume is throttled (constants above): each start() on an
+                // expired controller costs exactly one auth.update (failures are NOT reset, so a
+                // rejection re-expires immediately), and reconnect-churn environments deliver a
+                // device.save:ok per connection. Success resets the budget via onAuthState.
+                if (auth.state === 'expired') {
+                    const now = Date.now();
+                    if (now < resumeHoldUntil) {
+                        return;
+                    }
+                    resumeHoldUntil = now + resumeCooldownMs;
+                    resumeCooldownMs = Math.min(resumeCooldownMs * 2, EXPIRED_RESUME_MAX_COOLDOWN_MS);
+                    logger.warn('SOCKET', '[bootstrapSocketConnection] resuming terminally-expired auth', {
+                        data: { kind, nextCooldownMs: resumeCooldownMs },
+                    });
+                }
+                gate.start();
             })
         );
 
