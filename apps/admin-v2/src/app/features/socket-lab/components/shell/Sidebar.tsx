@@ -1,7 +1,8 @@
 import { LogOut, Moon, Sun } from 'lucide-react';
 
-import { useSessionProfile } from '@chatic/app-runtime';
-import { useSessionLogout } from '@chatic/web-core';
+// useSessionLogout from app-runtime (not web-core): notifies the socket (`auth.logout`) before the
+// local teardown, so the RuntimeAuthHost relay session does not linger server-side.
+import { useSessionLogout, useSessionProfile } from '@chatic/app-runtime';
 
 import type { Theme } from '../../hooks/use-theme';
 import { ACCENT, hexToRgba } from '../../lib/stats';
