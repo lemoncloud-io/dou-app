@@ -46,8 +46,11 @@ describe('withNetworkLog', () => {
         ).rejects.toBe(axiosError);
 
         expect(mockLogger.error).toHaveBeenCalledTimes(1);
-        const [tag, , options] = mockLogger.error.mock.calls[0];
+        const [tag, message, options] = mockLogger.error.mock.calls[0];
         expect(tag).toBe(NETWORK_LOG_TAG);
+        // The cause belongs in the message: a breadcrumb line is read without
+        // expanding `data`.
+        expect(message).toContain('failed (500)');
         const { error, data } = options as { error: unknown; data: Record<string, unknown> };
         expect(error).toBe(axiosError);
         expect(data).toMatchObject({
@@ -69,7 +72,10 @@ describe('withNetworkLog', () => {
             })
         ).rejects.toBe(networkError);
 
-        const [, , options] = mockLogger.error.mock.calls[0];
+        const [, message, options] = mockLogger.error.mock.calls[0];
         expect((options as { data: Record<string, unknown> }).data.errorCode).toBe('ERR_NETWORK');
+        // No response came back — the message names the transport code so the two
+        // failure classes (server rejected vs never left) are told apart at a glance.
+        expect(message).toContain('failed (ERR_NETWORK)');
     });
 });

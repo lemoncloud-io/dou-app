@@ -1,8 +1,9 @@
 import { DOU_ENDPOINT, ENV } from '../session/core';
-import { webTransport } from '../transport';
+import { WEB_PROJECT, webTransport } from '../transport';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
+import { collectCauses } from './errorCause';
 import { classifyReport } from './reportCategory';
-import { isNative, logBuffer, logger, serializeLogs } from '@chatic/bridges';
+import { collectBreadcrumbs, isNative, logBuffer, logger, serializeLogs } from '@chatic/bridges';
 
 import type { SlackReportBody, SlackReportResult } from '@lemoncloud/chatic-backend-api';
 import type { AppType, ErrorReportContext, ErrorReportPayload, IssueReportExtras } from './types';
@@ -23,38 +24,44 @@ const REPORT_STEREO_ISSUE = 'issue';
 
 type ReportBody = SlackReportBody & { stereo?: string };
 
-// Throttling: 동일 (카테고리+메시지)는 60초 내 1회만 리포트.
-// message 단독 키였을 때는 "Network Error" 같은 동일 메시지가 서로 다른
-// 카테고리(예: network vs unknown)여도 한 버킷으로 붕괴했다. category를 키에
-// 넣어 카테고리가 다르면 각각 통과시킨다. (opaque "Script error."는 message도
-// 카테고리도 같아 여전히 한 버킷이다 — 이건 근본 원인 스파이크의 몫.) @see ADR-0029
-const THROTTLE_WINDOW_MS = 60_000;
-const recentErrors = new Map<string, number>();
-
 /** breadcrumb으로 붙일 최근 로그 개수 (링버퍼 tail). */
 const RECENT_LOG_COUNT = 50;
 
+/**
+ * 리포트를 보낸 앱. 타이틀 `[app] <category>`의 그 app이고, admin 목록의 App 필터
+ * 기준이다.
+ *
+ * 별도 설정을 두지 않고 `WEB_PROJECT`(= `VITE_PROJECT`)에서 유도한다 — admin은
+ * 이미 `CHATIC_ADMIN`으로 배포되고 있어서, 호출부가 자기 정체를 따로 선언하지
+ * 않아도 갈린다. 이 구분이 없으면 admin 에러가 `[web]`으로 저장돼 프런트 리포트
+ * 사이에 섞이고, 어느 앱에서 난 건지 본문을 열어봐야 알 수 있다.
+ */
+const resolveAppType = (): AppType => {
+    if (isNative()) return 'mobile';
+    return WEB_PROJECT.includes('admin') ? 'admin' : 'web';
+};
+
+/**
+ * 호스트 앱의 번들러가 주입하는 웹 릴리스 버전. web-core는 여러 앱이 공유하고
+ * 모두가 이 define을 갖지는 않으므로 `typeof` 가드를 둔다 — libs/shared,
+ * libs/device-utils와 같은 관용구다.
+ */
+declare const __APP_VERSION__: string;
+const WEB_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined;
+
 export const reportError = async (error: Error, context?: ErrorReportContext): Promise<void> => {
     const category = classifyReport(error, context);
-    const throttleKey = `${category}|${error.message}`;
     const now = Date.now();
-    const lastReported = recentErrors.get(throttleKey);
-    if (lastReported && now - lastReported < THROTTLE_WINDOW_MS) {
-        logger.warn('ERROR_REPORT', '[ErrorReport] Throttled (duplicate within 60s)', { throttleKey });
-        return;
-    }
-    recentErrors.set(throttleKey, now);
+    // Occurrence time: deferred reports (page-crash, native relays) carry their
+    // detection time; live reports use the call time.
+    const errorAt = context?.occurredAt ?? now;
 
-    // 오래된 항목 정리 (메모리 누수 방지)
-    if (recentErrors.size > 100) {
-        for (const [key, ts] of recentErrors) {
-            if (now - ts > THROTTLE_WINDOW_MS) recentErrors.delete(key);
-        }
-    }
+    // Synchronous local-buffer snapshot at error time — the fallback baseline
+    // when the async LogSource pull fails or times out (ADR-0047).
+    const localSnapshot = logBuffer.peek();
 
     try {
-        // 앱 타입 자동 감지
-        const app: AppType = isNative() ? 'mobile' : 'web';
+        const app: AppType = resolveAppType();
 
         const state = getGlobalSessionContext();
         // Error telemetry is synchronous (not a hook), so it can't observe the profile cache.
@@ -68,41 +75,78 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
         const backend = cloudState.backend;
         const hasCloud = !!cloudToken && !!backend;
 
-        // HTTP 에러 정보 추출
+        // HTTP 에러 정보 추출. 실패한 요청의 URL·메서드(axios config)는 "어떤
+        // API가 죽었는지"를 어드민에서 즉시 식별하게 하는 핵심 단서다 (ADR-0047).
         const err = error as any;
         const httpStatus = err?.status || err?.response?.status || err?.statusCode;
+        const requestUrl: string | undefined = err?.config?.url ?? err?.request?.responseURL ?? undefined;
+        const requestMethod: string | undefined =
+            typeof err?.config?.method === 'string' ? err.config.method.toUpperCase() : undefined;
+        const requestInfo = requestUrl ? { url: requestUrl, method: requestMethod } : {};
         const httpInfo = httpStatus
             ? {
                   status: httpStatus,
                   statusText: err?.statusText || err?.response?.statusText,
                   code: err?.code,
                   responseData: err?.response?.data,
+                  ...requestInfo,
               }
-            : err?.code
-              ? { code: err.code }
+            : err?.code || requestUrl
+              ? { code: err?.code, ...requestInfo }
               : undefined;
 
         // 디바이스 정보 (모바일 WebView 주입값)
         const w = window as any;
 
-        // breadcrumb: 링버퍼의 최근 로그 tail. peek()는 oldest-first라 tail을 취해
-        // 가장 최근 항목을 얻는다 (issue-report의 buildReportContext와 동일 관용구).
-        const recentLogs = logBuffer.peek().slice(-RECENT_LOG_COUNT);
+        // breadcrumb (ADR-0047): logsOverride(직전 세션/감지 시점 스냅샷)가 있으면
+        // 그대로, 없으면 활성 LogSource(하이브리드=네이티브 통합 버퍼, 웹 단독=
+        // 로컬 버퍼)에서 pull하고 errorAt 이후 로그를 걸러낸다. 실패 시 에러
+        // 시점의 동기 스냅샷으로 폴백.
+        const recentLogs = context?.logsOverride
+            ? context.logsOverride.slice(-RECENT_LOG_COUNT)
+            : await collectBreadcrumbs(RECENT_LOG_COUNT, localSnapshot, errorAt);
 
         // location: window.onerror가 준 filename/lineno/colno. message가 opaque해도
         // 브라우저가 채워주므로 opaque script error의 유일한 위치 단서가 된다.
         const hasLocation =
             context?.filename !== undefined || context?.lineno !== undefined || context?.colno !== undefined;
 
+        // P1 리포터 정직화 (ADR-0047): errorWasNull이면 error는 전역 핸들러가
+        // 합성한 것이라 stack이 핸들러 자신을 가리키는 가짜다 — 싣지 않고
+        // stackSynthetic으로 그 사실만 남긴다.
+        const isSyntheticStack = context?.errorWasNull === true;
+
+        // 감싼 에러의 원점. `error.stack`은 감싼 자리를 가리키므로 이게 없으면
+        // "무엇이 깨졌나"가 리포트에서 통째로 빠진다.
+        const causes = collectCauses(error);
+
+        // 메시지 상단 컨텍스트 (ADR-0047): 어드민 목록에서 본문을 열지 않고도
+        // 성격을 식별하게 한다 — script-error는 위치, 요청 실패는 메서드+URL.
+        // 실패한 요청은 메서드+URL을 message에 싣는다 — admin이 message로 그룹을
+        // 묶으므로(groupReportLogs), 서로 다른 엔드포인트가 "Network Error" 한
+        // 버킷으로 붕괴하던 것이 갈린다.
+        //
+        // 반면 script-error의 위치(filename:lineno:colno)는 여기 넣지 않는다.
+        // 좌표가 발생마다·배포마다 달라 같은 버그가 매번 새 그룹으로 잡히고,
+        // admin의 메시지 기반 그룹핑(`groupReportLogs`)이 잘게 쪼개져 집계가
+        // 가장 필요한 카테고리의 추이가 끊긴다. 위치는 `payload.location`에
+        // 그대로 있고 admin 상세가 표시한다.
+        const messageSuffix = requestUrl ? ` → ${requestMethod ?? 'REQUEST'} ${requestUrl}` : '';
+
         const payload: ErrorReportPayload = {
             category,
-            message: error.message,
-            stack: error.stack,
+            message: `${error.message}${messageSuffix}`,
+            stack: isSyntheticStack ? undefined : error.stack,
+            stackSynthetic: isSyntheticStack || undefined,
+            // 합성 stack이어도 cause는 싣는다 — 합성된 건 바깥 껍데기뿐이고,
+            // 원본이 매달려 있다면 그게 유일한 실마리다.
+            causes: causes.length ? causes : undefined,
             componentStack: context?.componentStack,
             app,
             env: ENV,
+            webVersion: WEB_VERSION,
             url: window.location.href,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(errorAt).toISOString(),
             userAgent: navigator.userAgent,
             user: {
                 uid: state.identity.userId ?? undefined,
@@ -138,10 +182,13 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
         };
 
         const body: ReportBody = {
-            // 카테고리를 타이틀에 실어 Slack·admin 목록에서 성격을 즉시 구분한다.
+            // 카테고리를 타이틀에 실어 admin 목록에서 성격을 즉시 구분한다.
             title: `[${app}] ${category}`,
             message: JSON.stringify(payload, null, 2),
-            silent: ENV !== 'prod',
+            // Slack에는 올리지 않는다 — 스로틀을 뗀 뒤로는 에러 스톰이 나면 그
+            // 횟수만큼 알림이 그대로 쌓이기 때문. `save: true`라 admin-v2 리포트
+            // 목록에는 그대로 쌓이고, 잃는 것은 Slack 알림뿐이다.
+            silent: true,
             save: true,
             stereo: REPORT_STEREO_ERROR,
         };
@@ -160,7 +207,6 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
 
 /**
  * 사용자가 직접 이슈를 보고하는 함수
- * reportError와 달리 스로틀링 없음 (사용자 의도적 액션)
  *
  * `extras`는 사용자 대면 이슈 리포트 화면이 붙이는 선택 컨텍스트(최근 로그,
  * 디바이스/버전 스냅샷 등)다. 없으면 기존 2-인자 호출과 동일하게 동작한다.
@@ -174,7 +220,7 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
  */
 export const reportIssue = async (title: string, message: string, extras?: IssueReportExtras): Promise<void> => {
     try {
-        const app: AppType = isNative() ? 'mobile' : 'web';
+        const app: AppType = resolveAppType();
         const extrasWithImages = extras ?? {};
         const hasImages = !!extrasWithImages.images?.length;
 

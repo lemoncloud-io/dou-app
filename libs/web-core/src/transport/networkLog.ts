@@ -104,7 +104,18 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
             responseData: truncate(redactSensitive(readResponseData(error))),
         };
 
-        logger.error(NETWORK_LOG_TAG, `${req.method} ${req.url} failed`, { error, data: fields });
+        // Status/code ride in the message, not just in `fields`: a breadcrumb line
+        // (report tail, console) is read without expanding objects, and "failed"
+        // alone forces a drill-down to learn whether the server rejected it or the
+        // request never left. @see ADR-0047
+        // `readErrorCode` already prefers the status, so the two collapse to the
+        // same string on an HTTP failure — take the status when a response came
+        // back, and the transport code (ERR_NETWORK, …) when none did.
+        const cause = fields.status ? String(fields.status) : fields.errorCode;
+        logger.error(NETWORK_LOG_TAG, `${req.method} ${req.url} failed${cause ? ` (${cause})` : ''}`, {
+            error,
+            data: fields,
+        });
 
         throw error;
     }
