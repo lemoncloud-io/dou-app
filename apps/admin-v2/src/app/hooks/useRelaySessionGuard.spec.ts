@@ -5,15 +5,23 @@ import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@chatic/web-core', () => ({
-    webTransport: { isAuthenticated: vi.fn() },
+    hasStoredRelaySession: vi.fn(),
+    isStoredSessionExpired: vi.fn(),
     logoutRelaySession: vi.fn(),
 }));
 
-import { logoutRelaySession, webTransport } from '@chatic/web-core';
+vi.mock('@chatic/app-runtime', () => ({
+    requestSessionRefresh: vi.fn(),
+}));
+
+import { requestSessionRefresh } from '@chatic/app-runtime';
+import { hasStoredRelaySession, isStoredSessionExpired, logoutRelaySession } from '@chatic/web-core';
 
 import { useRelaySessionGuard } from './useRelaySessionGuard';
 
-const mockIsAuthenticated = webTransport.isAuthenticated as ReturnType<typeof vi.fn>;
+const mockHasSession = hasStoredRelaySession as ReturnType<typeof vi.fn>;
+const mockIsExpired = isStoredSessionExpired as ReturnType<typeof vi.fn>;
+const mockRequestRefresh = requestSessionRefresh as ReturnType<typeof vi.fn>;
 const mockLogout = logoutRelaySession as ReturnType<typeof vi.fn>;
 
 const setOnline = (online: boolean) => {
@@ -28,7 +36,9 @@ const setVisibility = (state: DocumentVisibilityState) => {
 describe('useRelaySessionGuard — 만료된 relay 세션 정리', () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        mockIsAuthenticated.mockReset().mockResolvedValue(true);
+        mockHasSession.mockReset().mockResolvedValue(true);
+        mockIsExpired.mockReset().mockResolvedValue(false);
+        mockRequestRefresh.mockReset().mockResolvedValue(true);
         mockLogout.mockReset().mockResolvedValue(undefined);
         setOnline(true);
         setVisibility('visible');
@@ -43,40 +53,55 @@ describe('useRelaySessionGuard — 만료된 relay 세션 정리', () => {
 
         await vi.advanceTimersByTimeAsync(60_000);
 
-        expect(mockIsAuthenticated).not.toHaveBeenCalled();
+        expect(mockIsExpired).not.toHaveBeenCalled();
+        expect(mockRequestRefresh).not.toHaveBeenCalled();
     });
 
-    it('30초마다 확인하고, 살아있으면 로그아웃하지 않는다', async () => {
+    it('신선하면 읽기 전용 프로브만 하고 refresh를 요청하지 않는다 (엔진 2 봉인)', async () => {
         renderHook(() => useRelaySessionGuard(true));
 
         await vi.advanceTimersByTimeAsync(30_000);
 
-        expect(mockIsAuthenticated).toHaveBeenCalledTimes(1);
+        expect(mockIsExpired).toHaveBeenCalledTimes(1);
+        expect(mockRequestRefresh).not.toHaveBeenCalled();
         expect(mockLogout).not.toHaveBeenCalled();
     });
 
-    it('한 번의 실패로는 로그아웃하지 않는다 (일시 장애 오인 방지 — 2026-08 audit §5-4)', async () => {
-        mockIsAuthenticated.mockResolvedValue(false);
+    it('만료면 refresh 소유자(requestSessionRefresh)에게 위임하고, 성공 시 로그아웃하지 않는다', async () => {
+        mockIsExpired.mockResolvedValue(true);
         renderHook(() => useRelaySessionGuard(true));
 
         await vi.advanceTimersByTimeAsync(30_000);
 
-        expect(mockIsAuthenticated).toHaveBeenCalledTimes(1);
+        expect(mockRequestRefresh).toHaveBeenCalledWith('relay');
         expect(mockLogout).not.toHaveBeenCalled();
     });
 
-    it('연속 3회 실패하면(zombie 세션 확정) 로그아웃시킨다', async () => {
-        mockIsAuthenticated.mockResolvedValue(false);
+    it('한 번의 refresh 실패로는 로그아웃하지 않는다 (일시 장애 오인 방지)', async () => {
+        mockIsExpired.mockResolvedValue(true);
+        mockRequestRefresh.mockResolvedValue(false);
+        renderHook(() => useRelaySessionGuard(true));
+
+        await vi.advanceTimersByTimeAsync(30_000);
+
+        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
+        expect(mockLogout).not.toHaveBeenCalled();
+    });
+
+    it('연속 3회 refresh 실패면(zombie 세션 확정) 로그아웃시킨다', async () => {
+        mockIsExpired.mockResolvedValue(true);
+        mockRequestRefresh.mockResolvedValue(false);
         renderHook(() => useRelaySessionGuard(true));
 
         await vi.advanceTimersByTimeAsync(90_000);
 
-        expect(mockIsAuthenticated).toHaveBeenCalledTimes(3);
+        expect(mockRequestRefresh).toHaveBeenCalledTimes(3);
         expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 
     it('중간에 한 번이라도 성공하면 실패 카운트가 리셋된다', async () => {
-        mockIsAuthenticated
+        mockIsExpired.mockResolvedValue(true);
+        mockRequestRefresh
             .mockResolvedValueOnce(false)
             .mockResolvedValueOnce(false)
             .mockResolvedValueOnce(true)
@@ -92,13 +117,23 @@ describe('useRelaySessionGuard — 만료된 relay 세션 정리', () => {
         expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 
+    it('저장된 세션이 아예 없으면 refresh 요청 없이 실패로 집계해 로그아웃까지 간다', async () => {
+        mockHasSession.mockResolvedValue(false);
+        renderHook(() => useRelaySessionGuard(true));
+
+        await vi.advanceTimersByTimeAsync(90_000);
+
+        expect(mockRequestRefresh).not.toHaveBeenCalled();
+        expect(mockLogout).toHaveBeenCalledTimes(1);
+    });
+
     it('오프라인이면 확인 자체를 건너뛴다(끊긴 네트워크로 로그아웃시키지 않음)', async () => {
         setOnline(false);
         renderHook(() => useRelaySessionGuard(true));
 
         await vi.advanceTimersByTimeAsync(30_000);
 
-        expect(mockIsAuthenticated).not.toHaveBeenCalled();
+        expect(mockIsExpired).not.toHaveBeenCalled();
         expect(mockLogout).not.toHaveBeenCalled();
     });
 
@@ -109,7 +144,7 @@ describe('useRelaySessionGuard — 만료된 relay 세션 정리', () => {
         setVisibility('visible');
         await vi.advanceTimersByTimeAsync(0);
 
-        expect(mockIsAuthenticated).toHaveBeenCalledTimes(1);
+        expect(mockIsExpired).toHaveBeenCalledTimes(1);
     });
 
     it('언마운트 후에는 더 이상 확인하지 않는다', async () => {
@@ -119,6 +154,6 @@ describe('useRelaySessionGuard — 만료된 relay 세션 정리', () => {
         await vi.advanceTimersByTimeAsync(60_000);
         setVisibility('visible');
 
-        expect(mockIsAuthenticated).not.toHaveBeenCalled();
+        expect(mockIsExpired).not.toHaveBeenCalled();
     });
 });
