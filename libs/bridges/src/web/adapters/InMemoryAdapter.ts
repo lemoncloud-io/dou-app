@@ -26,7 +26,7 @@ export class InMemoryAdapter implements BridgeAdapter {
      */
     public postMessage(message: RequestMessage): void {
         if (!this.appHost) {
-            console.warn('[InMemoryAdapter] AppBridgeHost가 연결되어 있지 않습니다.');
+            console.warn('[InMemoryAdapter] no AppBridgeHost is connected');
             return;
         }
 

@@ -1,3 +1,5 @@
+import { logger } from '@chatic/logger';
+
 import type { EventMessage, MessageProtocol, RequestMessage, ResponseMessage, IMessageQueue } from '../common';
 import { JsonProtocol, MessageQueue } from '../common';
 import {
@@ -22,14 +24,13 @@ export interface AppBridgeHostConfig {
 
 export class AppBridgeHost implements IAppBridgeHost {
     /**
-     * Message types that originate from log/console relay infrastructure rather than
-     * application code. The injected console forwarder runs before the page content
-     * loads, and the web logger relays from the earliest module-evaluation phase —
-     * both long before the web app can receive events. Treating them as the readiness
-     * signal flushes buffered events (e.g. a cold-start OnNavigate) into a page with
-     * no listeners, where they are silently lost.
+     * Message types that originate from log relay infrastructure rather than
+     * application code. The web logger relays from the earliest module-evaluation
+     * phase — long before the web app can receive events. Treating them as the
+     * readiness signal flushes buffered events (e.g. a cold-start OnNavigate) into
+     * a page with no listeners, where they are silently lost.
      */
-    private static readonly NON_READINESS_MESSAGE_TYPES = new Set(['SendLog', '__console__']);
+    private static readonly NON_READINESS_MESSAGE_TYPES = new Set(['SendLog']);
 
     private protocol: MessageProtocol;
     private sendToWeb: (message: string) => void;
@@ -80,7 +81,9 @@ export class AppBridgeHost implements IAppBridgeHost {
                 await this.processRequest(parsed);
             }
         } catch (error) {
-            console.error('[AppBridgeHost] 메시지 파싱 또는 처리 실패:', error);
+            // Inbound path (web → app), so logging here cannot re-enter the outbound
+            // `SendLog` relay the way `NativeBridgeAdapter.postMessage` would.
+            logger.error('BRIDGE', '[AppBridgeHost] failed to parse or process message', { error });
         }
     }
 
