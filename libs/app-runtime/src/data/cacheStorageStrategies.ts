@@ -1,4 +1,4 @@
-import type { IWebBridgeClient } from '@chatic/bridges';
+import { type IWebBridgeClient, logger } from '@chatic/bridges';
 import type { CacheType } from '@chatic/app-messages';
 import {
     type CacheErrorReporter,
@@ -80,8 +80,19 @@ export const createHotInviteCloudStorage = (): CacheStorage<'invitecloud'> => {
 
 // ─── 기본 Reporter ──────────────────────────────────────────────────
 
+/**
+ * Cache failures are mostly recoverable (a hot miss falls through to cold), so
+ * this reports rather than throws. It goes through `logger` and not `console`
+ * because the ring buffer is what error reports attach as breadcrumbs — on raw
+ * `console` these were invisible to every report, which is where a cache
+ * problem would actually have shown its hand. `warn`, not `error`: the tiering
+ * is designed to absorb these, so they are context and not an incident.
+ */
 const defaultReporter: CacheErrorReporter = (error, context) => {
-    console.warn(`[DynamicCacheStorage] ${context.tier} error:`, context.operation, error);
+    logger.warn('CACHE', `[DynamicCacheStorage] ${context.tier} ${context.operation} failed`, {
+        error,
+        data: { tier: context.tier, operation: context.operation, type: context.type },
+    });
 };
 
 // ─── AppPolicyResolver ──────────────────────────────────────────────
