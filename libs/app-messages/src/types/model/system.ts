@@ -432,6 +432,16 @@ export type OnWebAppReadyPayload = {
     supportedWebMessages: string[];
     /** App이 Web으로 보낼 수 있는 AppMessage 목록 */
     supportedAppMessages: string[];
+    /**
+     * App 로컬 캐시 DB의 스키마 버전(네이티브 SQLite `PRAGMA user_version` 목표치).
+     *
+     * 웹이 앱보다 먼저 배포되는 구조라, 웹이 기대하는 스키마가 앱에 아직 없을 수 있습니다. 웹은 이
+     * 값으로 그 스큐를 감지해 도메인별로 네이티브 DB 대신 자기 저장소를 씁니다. 이 필드를 보내지
+     * 않는 구버전 앱 = legacy로 취급합니다.
+     */
+    cacheSchemaVersion?: number;
+    /** App이 로컬 캐시로 저장·조회할 수 있는 CacheType 목록. 미보고 시 legacy로 취급합니다. */
+    supportedCacheTypes?: string[];
     /** 기능 플래그. 새 기능은 여기서 협상한 뒤 사용합니다. */
     capabilities?: Record<string, boolean | string | number>;
 };

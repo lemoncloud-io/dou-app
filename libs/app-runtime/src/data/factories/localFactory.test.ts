@@ -54,4 +54,25 @@ describe('getCacheStorage storage routing', () => {
         expect(adapterName(getCacheStorage('profile', contextProvider))).toBe('IndexedDBAdapter');
         expect(adapterName(getCacheStorage('channel', contextProvider))).toBe('IndexedDBAdapter');
     });
+
+    // Web/app deploy skew: the web ships ahead of the app, so a type newer than the installed app
+    // would be written into the native `default:` arm, which answers `null` with `success: true` —
+    // an invisible, permanently empty cache. Such a type goes to hot storage until the app catches up.
+    it('routes a type the installed app cannot store to hot IndexedDB', async () => {
+        const { getCacheStorage } = await loadFactory(true);
+        const futureType = 'invite' as never;
+
+        expect(adapterName(getCacheStorage(futureType, contextProvider))).toBe('IndexedDBAdapter');
+    });
+
+    it('routes it back to cold NativeDB once the app reports supporting it', async () => {
+        const factory = await loadFactory(true);
+        // Same module registry as the factory (resetModules gives it its own copy of the snapshot).
+        const { setNativeCacheSupport } = await import('../nativeCacheSupport');
+        const futureType = 'invite' as never;
+
+        setNativeCacheSupport({ cacheSchemaVersion: 99, supportedCacheTypes: [futureType] });
+
+        expect(adapterName(factory.getCacheStorage(futureType, contextProvider))).toBe('NativeDBAdapter');
+    });
 });

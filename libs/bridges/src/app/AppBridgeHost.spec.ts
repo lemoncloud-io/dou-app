@@ -52,6 +52,36 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         );
     });
 
+    // The web deploys ahead of the app, so it cannot assume what the INSTALLED app can store. The
+    // handshake is where the app says so — and a host with no local cache DB must keep sending the
+    // exact payload it sent before these fields existed.
+    it('reports local-cache capability only when the host declares it', async () => {
+        const readyRequest = JsonProtocol.encode({
+            type: 'WebAppReady',
+            refId: '1',
+            version: BRIDGE_PROTOCOL_VERSION,
+            data: {},
+        } as any);
+
+        const silent = new AppBridgeHost({ sendToWeb: mockSendToWeb, protocol: JsonProtocol });
+        await silent.handleMessage(readyRequest as string);
+        const silentData = (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
+        expect(silentData).not.toHaveProperty('cacheSchemaVersion');
+        expect(silentData).not.toHaveProperty('supportedCacheTypes');
+
+        mockSendToWeb.mockClear();
+        const declaring = new AppBridgeHost({
+            sendToWeb: mockSendToWeb,
+            protocol: JsonProtocol,
+            cacheSchemaVersion: 4,
+            supportedCacheTypes: ['chat', 'channel'],
+        });
+        await declaring.handleMessage(readyRequest as string);
+        const declaredData = (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
+        expect(declaredData.cacheSchemaVersion).toBe(4);
+        expect(declaredData.supportedCacheTypes).toEqual(['chat', 'channel']);
+    });
+
     it('should flush buffered events upon receiving ANY message from web if WebAppReady was not explicitly sent', async () => {
         const host = new AppBridgeHost({
             sendToWeb: mockSendToWeb,

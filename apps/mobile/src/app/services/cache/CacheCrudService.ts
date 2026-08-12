@@ -3,6 +3,26 @@ import type { ICacheCrudService } from './types';
 import type { ILogService } from '../log';
 import type { ICacheDataSource } from '../../data/cache';
 
+/**
+ * CacheTypes this app can actually persist — the `switch` arms below, as data.
+ *
+ * Reported to the web in the bridge handshake (`useBaseBridge`) because the web deploys ahead of
+ * the app: a web build that knows a NEW CacheType would otherwise send it here, fall into the
+ * `default` arm, and get `null` back with `success: true` — a permanently empty cache, not an error.
+ * Keep this list in sync with the arms; adding a type here without a data source makes the web
+ * trust a store that drops writes.
+ */
+export const SUPPORTED_CACHE_TYPES: readonly CacheType[] = [
+    'chat',
+    'channel',
+    'join',
+    'site',
+    'user',
+    'invitecloud',
+    'profile',
+    'meta',
+];
+
 export class CacheCrudService implements ICacheCrudService {
     private readonly logService: ILogService;
     private readonly chatDataSource: ICacheDataSource<CacheModelMap['chat'], CacheQueryMap['chat']>;

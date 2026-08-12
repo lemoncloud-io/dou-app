@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import '@lemoncloud/page-transition-core/styles.css';
 
 import { isNative, setReportLogSource, setupBridgeLogger } from '@chatic/bridges';
-import { configureDataRuntime } from '@chatic/app-runtime';
+import { configureDataRuntime, setNativeCacheSupport } from '@chatic/app-runtime';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -63,7 +63,14 @@ pendingNavigationStore.start();
 // flushes its buffered events (cold-start OnNavigate included) on WebAppReady, so
 // this ordering is what makes the flush safe. Log relays (SendLog) deliberately do
 // not count as readiness on the native side — this call is the real signal.
-appBridge.notifyWebAppReady();
+// The reply is a capability report, not an ack: this web build can be newer than the app it runs
+// inside, so what the installed shell can persist locally has to be asked, not assumed. Recording it
+// before render keeps the answer available by the time the data runtime creates its cache storages
+// (an unrecorded answer is treated as a legacy shell, which is the safe reading — see
+// nativeCacheSupport). Never rejects, so this cannot break boot in a plain browser.
+void appBridge.notifyWebAppReady().then(report => {
+    if (report) setNativeCacheSupport(report);
+});
 
 // Force the native debug menu off on every web start — the OTA-controllable kill switch for the
 // native floating debug button (FAB), which is gated on the native `debugModeEnabled` flag. Sent

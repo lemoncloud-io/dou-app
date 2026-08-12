@@ -20,6 +20,14 @@ export interface AppBridgeHostConfig {
     version?: string;
     eventBuffer?: IMessageQueue<EventMessage>;
     onAppReady?: () => void;
+    /**
+     * This host's local cache DB schema version, reported in the handshake so the web side can tell
+     * whether its expected schema has actually shipped (the web deploys ahead of the app). Omitted
+     * by hosts with no local cache DB — the web then treats this host as legacy.
+     */
+    cacheSchemaVersion?: number;
+    /** CacheTypes this host can persist. Same purpose as above, for whole domains/tables. */
+    supportedCacheTypes?: string[];
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
@@ -61,6 +69,12 @@ export class AppBridgeHost implements IAppBridgeHost {
                     protocolVersion: message.version ?? this.version,
                     supportedWebMessages: Object.keys(WEB_MESSAGE_RESPONSE_TYPE),
                     supportedAppMessages: Object.values(WEB_MESSAGE_RESPONSE_TYPE),
+                    // Reported only when the host declares them, so a host with no local cache DB
+                    // (desktop main process) sends exactly the payload it sent before these existed.
+                    ...(config.cacheSchemaVersion !== undefined
+                        ? { cacheSchemaVersion: config.cacheSchemaVersion }
+                        : {}),
+                    ...(config.supportedCacheTypes ? { supportedCacheTypes: config.supportedCacheTypes } : {}),
                 },
             };
         });

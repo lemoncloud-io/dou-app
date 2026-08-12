@@ -17,6 +17,7 @@ import {
     IndexedDbOnlyCacheStorageStrategy,
     NativeDbOnlyCacheStorageStrategy,
 } from '../cacheStorageStrategies';
+import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 
 export const isNativeApp = (): boolean => {
     return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
@@ -86,7 +87,14 @@ export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
 ): CacheStorage<TType> =>
-    HOT_ONLY_CACHE_TYPES.has(type)
+    // Hot(IndexedDB) when this type is pinned there, or when the native shell running us cannot be
+    // trusted to store it: the web deploys ahead of the app, so a type newer than the installed app
+    // would otherwise be written into a `default:` arm that answers `null` with `success: true` —
+    // a permanently empty cache that looks like a cold miss forever. Types the app does support keep
+    // going to the durable native store, so the fallback never costs an existing domain its cache.
+    // ...but only inside the app: a browser has no native store to be skewed against, and routing it
+    // here would also drop the chat cap that the environment strategy carries.
+    HOT_ONLY_CACHE_TYPES.has(type) || (isNativeApp() && !isNativeCacheTypeUsable(type))
         ? getHotStrategy().create(type, contextProvider)
         : selectStrategy().create(type, contextProvider);
 

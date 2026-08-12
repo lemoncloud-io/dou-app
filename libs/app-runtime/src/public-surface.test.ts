@@ -46,6 +46,9 @@ describe('@chatic/app-runtime public surface', () => {
             // cache tier helpers (cold-db activation + invited-cloud durability)
             'isNativeApp',
             'setChatCacheLimit',
+            // web↔app deploy skew: what the installed app says it can store locally
+            'setNativeCacheSupport',
+            'getNativeCacheSupport',
             'useInvitedCloudColdRecovery',
             'useInvitedCloudNameSync',
             'recoverInvitedCloudIfMissing',

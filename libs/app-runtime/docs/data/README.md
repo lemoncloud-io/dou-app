@@ -81,6 +81,42 @@ flowchart TD
 - data는 자기 리소스만 정리한다.
 - socket/session 상태를 직접 제어하지 않는다.
 
+## 저장소 선택과 web↔app 배포 스큐
+
+`getCacheStorage(type)`(`factories/localFactory.ts`)가 도메인별 저장소를 고른다. 판정은 셋뿐이다.
+
+1. `HOT_ONLY_CACHE_TYPES`에 고정된 타입(`profile`) → 항상 Hot(IndexedDB).
+2. 앱 WebView이고 네이티브가 그 타입을 저장할 수 있으면 → Cold(NativeDB/SQLite).
+3. 그 외(브라우저, 또는 **네이티브가 못 저장하는 타입**) → Hot(IndexedDB).
+
+3번의 "못 저장하는 타입"이 배포 스큐 대응이다. 웹은 앱보다 먼저 배포되므로 **웹이 아는 CacheType이
+설치된 앱이 아는 것보다 많을 수 있다**. 그런 타입을 그냥 보내면 네이티브 `CacheCrudService`의
+`default:` 분기가 `success: true` + `null`로 답한다 — 에러가 아니라 **영원히 빈 캐시**로 보인다.
+
+판정 근거는 브릿지 핸드셰이크(`OnWebAppReady`)가 실어 오는 두 필드다.
+
+| 필드                  | 출처(앱)                | 쓰임                                          |
+| --------------------- | ----------------------- | --------------------------------------------- |
+| `supportedCacheTypes` | `SUPPORTED_CACHE_TYPES` | 새 도메인(테이블)이 그 앱에 있는지            |
+| `cacheSchemaVersion`  | SQLite `TARGET_VERSION` | 추출 컬럼·인덱스가 필요한 쿼리를 쓸 수 있는지 |
+
+웹은 이를 `setNativeCacheSupport`(main.tsx, 렌더 전)로 기록하고, `nativeCacheSupport.ts`가 판정한다.
+규칙 두 가지가 안전을 담보한다.
+
+- **legacy 집합은 동결이다.** 이미 출시된 모든 앱이 저장할 수 있는 타입 목록은 보고와 무관하게
+  네이티브를 쓴다. 보고는 타입을 **더할 수만** 있고 뺄 수 없다 — 앱이 목록을 빠뜨리는 버그가 따뜻한
+  cold 캐시를 조용히 웹 저장소로 옮기지 못하게 한다.
+- **모르면 legacy로 본다.** 응답이 아직 안 왔거나 필드가 없는 구버전 앱이면, 동결 집합 밖은 Hot으로
+  간다. 보수적일 뿐 틀리지 않는 방향이다.
+
+### 새 캐시 도메인/스키마를 추가할 때
+
+1. 네이티브에 마이그레이션 + 데이터 소스 + `SUPPORTED_CACHE_TYPES` 등록을 **먼저** 배포한다.
+2. 모델 필드만 늘어나는 변경은 아무것도 선언할 필요가 없다 — 네이티브는 모델을 `data` JSON blob으로
+   통째 저장하므로 구버전 앱도 그대로 왕복시킨다.
+3. 추출 컬럼·인덱스에 의존하게 되는 경우에만 `MIN_SCHEMA_VERSION_BY_TYPE`에 요구 `TARGET_VERSION`을
+   선언한다.
+
 ## 관련 문서
 
 - [context-design.md](context-design.md) — 전역/요청 context 분리 설계
