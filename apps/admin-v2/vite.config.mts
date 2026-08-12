@@ -30,7 +30,11 @@ export default defineConfig({
     plugins: [react(), nxViteTsPaths()],
 
     build: {
-        sourcemap: process.env.VITE_ENV !== 'PROD',
+        // PROD emits maps too, as 'hidden': no sourceMappingURL comment is left in the
+        // bundle, so nothing points at a file that is not served. Deploy excludes *.map
+        // and CI archives them, which is what makes this safe — see
+        // libs/web-core/docs/error-reporting.md.
+        sourcemap: process.env.VITE_ENV === 'PROD' ? 'hidden' : true,
         outDir: '../../dist/apps/admin-v2',
         emptyOutDir: true,
         // Some backend/socket deps ship CommonJS with mixed ES modules; keep interop on.

@@ -77,7 +77,7 @@ export const FeedbackPage = () => {
         if (!isValid || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            const extras = buildReportContext({ deviceInfo, versionInfo });
+            const extras = await buildReportContext({ deviceInfo, versionInfo });
             await reportIssue(title.trim(), body.trim(), {
                 ...extras,
                 ...(photos.length ? { images: photos } : {}),

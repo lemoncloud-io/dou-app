@@ -30,7 +30,7 @@ jest.mock('../../../hooks/useLinkAccount', () => ({
         isLinkingSocial: false,
     }),
 }));
-jest.mock('../utils/env', () => ({ isDevBuild: () => false }));
+jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
 import { PhoneVerifySheet } from './PhoneVerifySheet';
 

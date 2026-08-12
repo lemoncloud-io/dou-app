@@ -41,9 +41,10 @@ UI가 `refresh*`를 직접 호출하면 sync 타이밍과 충돌할 수 있다. 
 
 - `getRequestContext()` — 호출 시점의 `cid`/`sid`/`uid` 스냅샷을 캡처한다. **요청 시점과 응답 시점의 context가 다를 수 있으므로, remote 응답을 적재하기 전 context를 캡처해야 한다.**
 - `getNormalizedContext()` — `cid`는 없으면 `'default'`로 정규화.
-- `runInBackground` / `runInBackgroundSerial(key, …)` — optimistic write 후 remote 호출을 background로 직렬/병렬 실행.
 - `assertRequiredString` — 필수 식별자 검증.
-- `dispose()` — 진행 중 background task 정리.
+- `dispose()` — 팩토리가 모든 repository를 여기로 정리한다. 현재 base 레벨에서 놓을 자원은 없고, 자원을 잡는 서브클래스를 위한 자리다.
+
+> `runInBackground` / `runInBackgroundSerial`은 **삭제됐다**(2026-08-11). 정의만 있고 호출처가 하나도 없는데 실패를 생 `console.error`로 삼켜서, 쓰기 시작하는 순간 에러가 로그 버퍼(→ 리포트 breadcrumb) 밖으로 새는 구조였다. background 실행이 다시 필요해지면 실패를 `logger.error`로 남기는 형태로 새로 만든다.
 
 ## context와 scope
 

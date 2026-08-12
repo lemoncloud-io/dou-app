@@ -1,3 +1,5 @@
+import { logger } from '@chatic/logger';
+
 import type { BridgeAdapter } from './adapters/types';
 import type { EventMessage, RequestMessage, ResponseMessage, EnvironmentConfig, IMessageQueue } from '../common';
 import { MessageQueue } from '../common';
@@ -300,9 +302,9 @@ export class WebBridgeClient implements IWebBridgeClient {
     public post<K extends WebMessageType>(message: WebMessageData<K>): void {
         const type = message.type;
         if (this.availabilityFailed) {
-            console.warn(
-                `[WebBridgeClient] post [${String(type)}] 호출이 무시되었습니다. 네이티브 브릿지 인터페이스를 찾을 수 없습니다.`
-            );
+            // `createNativeForwarder`는 `NativeBridgeAdapter`를 직접 쓰므로 이 클래스는
+            // 로그 전달 경로 밖이다 — logger를 써도 재귀하지 않는다.
+            logger.warn('BRIDGE', `[WebBridgeClient] post [${String(type)}] ignored — no native bridge interface`);
             return;
         }
 

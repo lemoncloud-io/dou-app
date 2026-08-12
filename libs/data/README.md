@@ -80,8 +80,7 @@ classDiagram
         <<abstract>>
         #getRequestContext() DataContext
         #getNormalizedContext(context) DataContext
-        #runInBackground(task, label) void
-        #runInBackgroundSerial(key, task, label) void
+        #assertRequiredString(value, field) string
         +dispose() void
     }
 

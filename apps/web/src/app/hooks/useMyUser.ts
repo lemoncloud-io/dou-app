@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainUser } from '@chatic/data';
 import type { LinkedAccountsView } from '@lemoncloud/chatic-backend-api';
 import { useSessionIdentity } from '@chatic/web-core';
@@ -31,6 +31,7 @@ export type MyUser = DomainUser & { photo?: string; email?: string; link$?: Link
  */
 export const useMyUser = (): MyUser | null => {
     const { user } = useRuntimeRepositories();
+    const { isVerified } = useRuntimeSocketState();
     const { userId } = useSessionIdentity();
     const [me, setMe] = useState<MyUser | null>(null);
 
@@ -44,9 +45,13 @@ export const useMyUser = (): MyUser | null => {
         const unsubscribe = user.observeItem(userId, next => {
             if (next) setMe(next as MyUser);
         });
-        void user.getMyProfile().catch(() => undefined);
+        // Gated on the socket being verified for the same reason as useMyProfile:
+        // an unconditional refresh here rejects with `503 SOCKET NOT CONNECTED`
+        // whenever it beats the handshake, and the rejection is swallowed but
+        // still logged. Re-runs when `isVerified` flips.
+        if (isVerified) void user.getMyProfile().catch(() => undefined);
         return unsubscribe;
-    }, [user, userId]);
+    }, [user, userId, isVerified]);
 
     return me;
 };

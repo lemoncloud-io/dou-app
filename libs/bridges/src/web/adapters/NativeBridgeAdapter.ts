@@ -1,3 +1,5 @@
+import { logger } from '@chatic/logger';
+
 import type { BridgeAdapter } from './types';
 import type { EventMessage, RequestMessage, ResponseMessage, MessageProtocol } from '../../common';
 import { JsonProtocol } from '../../common';
@@ -59,19 +61,29 @@ export class NativeBridgeAdapter implements BridgeAdapter {
                 this.handlers.forEach(handler => handler(parsed as ResponseMessage | EventMessage));
             }
         } catch (e) {
-            console.error('[NativeBridgeAdapter] 메시지 파싱 실패:', e);
+            // `decode` swallows its own parse failures (returns null), so what lands
+            // here is a receiving handler that threw — app code, worth a breadcrumb.
+            // Safe to log through the logger: this is the inbound path, so it never
+            // re-enters `postMessage` the way the outbound path would.
+            logger.error('BRIDGE', '[NativeBridgeAdapter] inbound handler threw', { error: e });
         }
     };
 
     /**
      * [Web -> App] 메시지를 JSON 직렬화하여 기기 환경에 매핑된 네이티브 인터페이스로 전송합니다.
+     *
+     * **이 메서드 안의 진단은 `logger`가 아니라 `console`이어야 한다.** 네이티브에서는
+     * `createNativeForwarder`가 로그 엔트리마다 이 메서드를 호출한다 — 여기서 `logger`를
+     * 부르면 로그 → forwarder → postMessage → 실패 → 로그로 무한 재귀한다. 전송이 실패한
+     * 상황에서는 그 사실을 브릿지 너머로 보낼 방법이 애초에 없으므로, 콘솔이 갈 수 있는
+     * 유일한 곳이다. (수신 경로인 `handleNativeMessage`는 이 제약이 없어 logger를 쓴다.)
      */
     public postMessage(message: RequestMessage): void {
         try {
             const encoded = this.protocol.encode(message);
 
             if (typeof encoded !== 'string') {
-                console.warn('[NativeBridgeAdapter] 현재 브릿지는 문자열 데이터 전송만 지원합니다.');
+                console.warn('[NativeBridgeAdapter] this bridge only sends string payloads');
                 return;
             }
 
@@ -90,13 +102,13 @@ export class NativeBridgeAdapter implements BridgeAdapter {
                 }
                 // 4. 네이티브 환경 감지 실패 시 경고 출력
                 else {
-                    console.warn('[NativeBridgeAdapter] 네이티브 브릿지 인터페이스를 찾을 수 없습니다.');
+                    console.warn('[NativeBridgeAdapter] no native bridge interface found');
                 }
             } else {
-                console.warn('[NativeBridgeAdapter] SSR 환경이므로 네이티브 브릿지 인터페이스가 제공되지 않습니다.');
+                console.warn('[NativeBridgeAdapter] SSR environment exposes no native bridge interface');
             }
         } catch (e) {
-            console.error('[NativeBridgeAdapter] 메시지 인코딩 실패:', e);
+            console.error('[NativeBridgeAdapter] failed to encode message:', e);
         }
     }
 

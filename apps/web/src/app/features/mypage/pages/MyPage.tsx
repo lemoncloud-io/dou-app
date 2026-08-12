@@ -15,9 +15,14 @@ import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../compon
 import { BottomNavSpacer } from '../../../ui/components';
 import { useAppIcon, useDevicePushMute } from '../hooks';
 import { useMyUser, useTheme } from '../../../hooks';
-import { debugOverlayActions, useDebugMode } from '../../debug';
+import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { ROUTES } from '../../../routes/paths';
+
+// import.meta.env read stays here rather than in useDebugUnlock/useDebugMode: those modules
+// have unit tests, and ts-jest's CommonJS transform cannot parse `import.meta` (see
+// apps/web/docs/feature/debug/entry-gate.md). MyPage has no test file, so it's the safe spot.
+const DEBUG_CODE = import.meta.env.VITE_DEBUG_CODE;
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
@@ -32,7 +37,8 @@ export const MyPage = () => {
     const { pushEnabled, setPushEnabled, isSupported: pushSupported } = useDevicePushMute();
     const { deviceInfo, versionInfo } = useDeviceInfo();
     const { resetOnboarding, blurLastMessage, setBlurLastMessage } = usePreferenceStore();
-    const { isEnabled: isDebugMode, registerTap } = useDebugMode();
+    const { isEnabled: isDebugMode } = useDebugMode();
+    const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(DEBUG_CODE);
     const { updateAvailable } = useAppUpdateStatus();
     const {
         isSupported: isIconChangeSupported,
@@ -308,6 +314,14 @@ export const MyPage = () => {
                 currentIcon={currentIcon}
                 availableIcons={availableIcons}
                 onSelectIcon={selectIcon}
+            />
+
+            {/* Debug Unlock Dialog — opens after the hidden 10-tap on the app version row */}
+            <DebugUnlockDialog
+                isOpen={isChallengeOpen}
+                hasError={hasError}
+                onSubmit={submitCode}
+                onCancel={cancelChallenge}
             />
         </div>
     );

@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.os.Build
-import android.util.Log
+import io.chatic.dou.module.NativeLogger
 import androidx.core.app.NotificationCompat
 import com.facebook.react.ReactApplication
 import com.facebook.react.bridge.Arguments
@@ -28,16 +28,16 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "Refreshed token: $token")
+        NativeLogger.log("debug", TAG, "Refreshed token: $token")
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
-        Log.d(TAG, "From: ${remoteMessage.from}")
+        NativeLogger.log("debug", TAG, "From: ${remoteMessage.from}")
 
         val data = remoteMessage.data
         if (data.isEmpty()) {
-            Log.d(TAG, "Message data payload is empty. Skipping.")
+            NativeLogger.log("debug", TAG, "Message data payload is empty. Skipping.")
             return
         }
 
@@ -65,11 +65,11 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         val finalTitle = translate(i18nJson, titleLocKey, titleLocArgs)
         val finalBody = translate(i18nJson, bodyLocKey, bodyLocArgs)
 
-        Log.d(TAG, "Translated Title: $finalTitle, Body: $finalBody")
+        NativeLogger.log("debug", TAG, "Translated Title: $finalTitle, Body: $finalBody")
 
         // 2. Check if the app is currently in the foreground
         if (isAppInForeground(this)) {
-            Log.d(TAG, "App is in foreground. Skipping native banner, emitting bridge event.")
+            NativeLogger.log("debug", TAG, "App is in foreground. Skipping native banner, emitting bridge event.")
             emitForegroundEvent(
                 messageId = messageId,
                 type = type,
@@ -82,14 +82,14 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             )
         } else {
             if (silent) {
-                Log.d(TAG, "Silent push received in background. Skipping notification banner.")
+                NativeLogger.log("debug", TAG, "Silent push received in background. Skipping notification banner.")
             } else {
                 // Background chat pushes bump the app-icon badge: the socket (and the web that owns
                 // the badge) is suspended here, so this native handler is the only place a
                 // backgrounded message can move the count. Non-chat channels (notice/marketing/cloud)
                 // are excluded to stay consistent with the web's chat-only unread total.
                 val badgeCount = if (isChatChannel(channelId)) BadgeStore.increment(this) else null
-                Log.d(TAG, "App is in background/killed. Displaying native notification banner. badge=$badgeCount")
+                NativeLogger.log("debug", TAG, "App is in background/killed. Displaying native notification banner. badge=$badgeCount")
                 displayNotification(
                     messageId = messageId,
                     channelId = channelId,
@@ -125,7 +125,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             if (sid != null && uri.getQueryParameter("sid") == null) builder.appendQueryParameter("sid", sid)
             builder.build().toString()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to merge cid/sid into click action: $clickAction", e)
+            NativeLogger.log("error", TAG, "Failed to merge cid/sid into click action: $clickAction", e)
             clickAction
         }
     }
@@ -149,7 +149,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             inputStream.close()
             jsonStr = String(buffer, Charsets.UTF_8)
         } catch (e: IOException) {
-            Log.e(TAG, "Failed to load locales/$lang.json from assets", e)
+            NativeLogger.log("error", TAG, "Failed to load locales/$lang.json from assets", e)
         }
 
         // Try fallback to en if loading failed
@@ -162,7 +162,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 inputStream.close()
                 jsonStr = String(buffer, Charsets.UTF_8)
             } catch (e: IOException) {
-                Log.e(TAG, "Failed to load locales/en.json from assets", e)
+                NativeLogger.log("error", TAG, "Failed to load locales/en.json from assets", e)
             }
         }
 
@@ -205,7 +205,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 list.add(array.getString(i))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse loc args array: $jsonArrayStr", e)
+            NativeLogger.log("error", TAG, "Failed to parse loc args array: $jsonArrayStr", e)
         }
         return list
     }
@@ -252,10 +252,10 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 reactContext
                     .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                     .emit("onForegroundPushReceived", params)
-                Log.d(TAG, "Successfully emitted foreground push event to React Native.")
+                NativeLogger.log("debug", TAG, "Successfully emitted foreground push event to React Native.")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to emit foreground push event to React Native", e)
+            NativeLogger.log("error", TAG, "Failed to emit foreground push event to React Native", e)
         }
     }
 

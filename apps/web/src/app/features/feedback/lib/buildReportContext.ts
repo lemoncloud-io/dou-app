@@ -1,4 +1,4 @@
-import { logBuffer, serializeLogs } from '@chatic/bridges';
+import { collectBreadcrumbs, logBuffer, serializeLogs } from '@chatic/bridges';
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
 import type { IssueReportExtras } from '@chatic/web-core';
 
@@ -34,8 +34,8 @@ const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
 
 /**
  * Compose the auto-attached context for an issue report: the most recent logs
- * plus a device/version/network/viewport snapshot. Pure and side-effect free
- * (only reads globals), so it is unit-testable without React.
+ * plus a device/version/network/viewport snapshot. Side-effect free (only
+ * reads globals + the active LogSource), so it is unit-testable without React.
  *
  * `reportIssue` already attaches user/cloud/env/url, so this deliberately does
  * not duplicate those.
@@ -44,10 +44,14 @@ const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
  * so `routeTrail` carries the diagnostic weight: its second-to-last entry is the
  * screen the user was actually on.
  */
-export const buildReportContext = ({ deviceInfo, versionInfo }: BuildReportContextArgs): IssueReportExtras => {
-    // logBuffer.peek() is oldest-first (FIFO); take the tail for the *most
-    // recent* entries — peek(50) would return the 50 OLDEST, not the newest.
-    const recent = logBuffer.peek().slice(-RECENT_LOG_COUNT);
+export const buildReportContext = async ({
+    deviceInfo,
+    versionInfo,
+}: BuildReportContextArgs): Promise<IssueReportExtras> => {
+    // Breadcrumbs come from the active LogSource (ADR-0047): the native merged
+    // buffer in hybrid runs, the local web buffer standalone. The click IS the
+    // reference time, so no errorAt filter; the local tail is the fallback.
+    const recent = await collectBreadcrumbs(RECENT_LOG_COUNT, logBuffer.peek());
 
     const viewport = getViewportSize();
     const routeTrail = getRouteTrail();

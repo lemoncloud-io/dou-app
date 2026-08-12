@@ -1,6 +1,8 @@
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
+import { logger } from '@chatic/bridges';
+
 import { SocketManager } from './SocketManager';
 import type { SocketBindingConfig } from './types';
 
@@ -8,6 +10,10 @@ import type { SocketBindingConfig } from './types';
 // ensure() yields a controllable fake client (types are erased at runtime).
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({
     createClientSocketV2: jest.fn(),
+}));
+
+jest.mock('@chatic/bridges', () => ({
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
 const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createClientSocketV2>;
@@ -651,5 +657,49 @@ describe('SocketManager getScopedClient (kind-scoped routing)', () => {
         const scoped = manager.getScopedClient('cloud');
 
         expect(() => scoped.request('device.update-remote', { muted: true })).toThrow(/no cloud slot/);
+    });
+});
+
+describe('SocketManager 소켓 에러 로깅', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+        jest.clearAllMocks();
+    });
+
+    /** Binds a slot and returns the listener SocketManager registered with onError. */
+    const emitErrorWith = (phase: string) => {
+        const client = makeClient();
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(CONFIG, 'relay');
+
+        const listener = client.onError.mock.calls[0][0];
+        listener({ phase, error: new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()') } as never);
+    };
+
+    // The SDK rejects the request promise AND emits here with the same object,
+    // rejection first — but the rejection resumes in a microtask, so this
+    // listener sees the message before annotateSocketError names the call.
+    // Two error entries for one failure, and the first one anonymous.
+    it('request 단계는 warn으로 남긴다 — 호출자에게 주석 달린 사본이 따로 간다', () => {
+        emitErrorWith('request');
+
+        expect(logger.warn).toHaveBeenCalledWith(
+            'SOCKET',
+            '[SocketManager] Socket error',
+            expect.objectContaining({ data: { kind: 'relay', phase: 'request' } })
+        );
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('그 외 단계는 error로 남긴다 — 두 번째 경로가 없어 여기가 유일한 기록이다', () => {
+        emitErrorWith('connect');
+
+        expect(logger.error).toHaveBeenCalledWith(
+            'SOCKET',
+            '[SocketManager] Socket error',
+            expect.objectContaining({ data: { kind: 'relay', phase: 'connect' } })
+        );
+        expect(logger.warn).not.toHaveBeenCalled();
     });
 });

@@ -1,3 +1,5 @@
+import { logger } from '@chatic/logger';
+
 import type { MessageProtocol, AnyBridgeMessage } from './types';
 
 /**
@@ -13,8 +15,10 @@ export const JsonProtocol: MessageProtocol = {
 
             return JSON.parse(text) as AnyBridgeMessage;
         } catch (error) {
-            // 웹뷰 환경에서는 외부 스크립트(확장 프로그램 등)에 의해 잘못된 포맷의 이벤트가 주입될 수 있으므로 예외 처리 필수
-            console.error('[JsonProtocol] 메시지 디코딩(파싱) 실패:', error);
+            // 웹뷰 환경에서는 외부 스크립트(확장 프로그램 등)에 의해 잘못된 포맷의 이벤트가 주입될 수 있으므로 예외 처리 필수.
+            // 그래서 `error`가 아니라 `debug`다 — 대부분 우리 잘못이 아닌 잡음이고, 링버퍼(500칸)에
+            // 남겨두면 진짜 문제가 터졌을 때 breadcrumb으로 같이 보이는 것으로 충분하다.
+            logger.debug('BRIDGE', '[JsonProtocol] failed to decode message', { error });
             return null;
         }
     },

@@ -85,6 +85,21 @@ describe('setupBridgeLogger', () => {
         expect(consoleLogSpy).toHaveBeenCalledWith('[TEST]', 'both sinks');
     });
 
+    it('원본 발생 시각(timestamp)과 source:web을 페이로드에 보존한다', () => {
+        const postMessage = jest.fn();
+        (window as any).ReactNativeWebView = { postMessage };
+        teardown = setupBridgeLogger();
+        const before = Date.now();
+
+        logger.info('SOCKET', 'forwarded');
+
+        const message = JSON.parse(postMessage.mock.calls[0][0]);
+        expect(message.data.source).toBe('web');
+        expect(message.data.tag).toBe('SOCKET');
+        expect(message.data.timestamp).toBeGreaterThanOrEqual(before);
+        expect(message.data.timestamp).toBeLessThanOrEqual(Date.now());
+    });
+
     it('legacy raw error 인자도 그대로 전송된다', () => {
         const postMessage = jest.fn();
         (window as any).ReactNativeWebView = { postMessage };

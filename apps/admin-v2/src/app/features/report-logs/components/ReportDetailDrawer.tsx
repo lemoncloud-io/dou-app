@@ -6,9 +6,13 @@
  * differs too), so structured sections render generic key/value pairs without
  * assuming fixed fields, and a raw-JSON block always backs them up.
  */
+import { useEffect, useState } from 'react';
+
 import { X } from 'lucide-react';
 
-import type { ReportLogRow } from '../lib/parseReportLog';
+import type { ReportLogRow, ReportPayload } from '../lib/parseReportLog';
+import { mapMatchesStack, readBundleNames, resolveStack } from '../lib/resolveStack';
+import { buildTraceBlob, composeStackText } from '../lib/traceBlob';
 
 interface ReportDetailDrawerProps {
     row: ReportLogRow | null;
@@ -61,6 +65,35 @@ const KeyValueSection = ({ title, data }: { title: string; data?: Record<string,
                 ))}
             </dl>
         </section>
+    );
+};
+
+/**
+ * A failed request, read in the order it happened: the endpoint, what we sent,
+ * then what came back. The generic key/value renderer would sort these by
+ * whatever order the payload happened to carry, which puts the response body
+ * next to the URL and buries the request — and "what did we send" is usually
+ * the question that decides whether it is a client or a server bug.
+ */
+const HttpSection = ({ http }: { http?: ReportPayload['http'] }) => {
+    if (!http) return null;
+
+    const request = { url: http.url, method: http.method, params: http.params, requestBody: http.requestBody };
+    const response = {
+        status: http.status,
+        statusText: http.statusText,
+        code: http.code,
+        // Ahead of the raw body: this is the server's stated reason, which is
+        // what the reader is looking for inside `responseData` anyway.
+        reason: http.reason,
+        responseData: http.responseData,
+    };
+
+    return (
+        <>
+            <KeyValueSection title="HTTP · Request" data={request} />
+            <KeyValueSection title="HTTP · Response" data={response} />
+        </>
     );
 };
 
@@ -169,6 +202,111 @@ const TextSection = ({ title, text }: { title: string; text?: string }) => {
     );
 };
 
+/**
+ * Stack view with two ways out of a minified trace.
+ *
+ * "IDE로 추적" copies the stack with the header `yarn trace` needs to fetch the
+ * build's map itself and print repo-relative frames — the whole trace lands in
+ * the editor, which is where it gets read anyway. "소스맵 선택" stays for a look
+ * without leaving the browser: maps are not deployed (serving them would
+ * publish the sources), so the operator supplies one from the build's
+ * `sourcemaps-*` CI artifact and it is read locally, never uploaded.
+ *
+ * Either way the bundle names are shown so the right artifact is identifiable,
+ * and a map that does not belong is called out rather than silently resolving
+ * to plausible wrong lines.
+ */
+const StackSection = ({ row }: { row: ReportLogRow }) => {
+    const [resolved, setResolved] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (!copied) return;
+        const timer = setTimeout(() => setCopied(false), 1500);
+        return () => clearTimeout(timer);
+    }, [copied]);
+
+    // Stack + `Caused by:` chain as one block: the cause frames are usually the
+    // ones worth reading, and composing first means one symbolication pass
+    // resolves them all.
+    const stack = composeStackText(row.payload);
+    if (!stack) return null;
+
+    const bundles = readBundleNames(stack);
+
+    const onCopyForIde = async () => {
+        try {
+            await navigator.clipboard.writeText(buildTraceBlob(row, stack));
+            setNotice(null);
+            setCopied(true);
+        } catch {
+            setNotice('클립보드에 복사하지 못했습니다 — 스택을 직접 선택해 복사하세요.');
+        }
+    };
+
+    const onPickMap = async (file?: File) => {
+        if (!file) return;
+        setNotice(null);
+        try {
+            const map = JSON.parse(await file.text());
+            // A map only speaks for its own bundle. Pin it to that one when the
+            // trace spans several, so the others stay minified instead of
+            // resolving against the wrong file.
+            const named = file.name.replace(/\.map$/, '');
+            const out = resolveStack(map, stack, bundles.length > 1 && bundles.includes(named) ? named : undefined);
+            setResolved(out);
+            if (out === stack) setNotice('이 맵으로는 어떤 프레임도 풀리지 않았습니다 — 다른 빌드의 맵일 수 있습니다.');
+            else if (!mapMatchesStack(file.name, stack)) {
+                setNotice(`주의: ${file.name}은 이 스택의 번들(${bundles.join(', ')})과 이름이 다릅니다.`);
+            }
+        } catch {
+            setNotice('소스맵을 읽지 못했습니다 (.map 파일이 맞는지 확인하세요).');
+        }
+    };
+
+    return (
+        <section className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stack</h3>
+                {bundles.length > 0 && (
+                    <span className="font-mono text-[11px] text-muted-foreground">{bundles.join(', ')}</span>
+                )}
+                <button
+                    type="button"
+                    className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted"
+                    title="복사한 뒤 리포 루트에서 `yarn trace`를 실행하면 원본 파일·줄로 풀어 출력합니다."
+                    onClick={() => void onCopyForIde()}
+                >
+                    {copied ? '복사됨 — yarn trace' : 'IDE로 추적'}
+                </button>
+                <label className="cursor-pointer rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted">
+                    소스맵 선택
+                    <input
+                        type="file"
+                        accept=".map,application/json"
+                        className="hidden"
+                        onChange={event => void onPickMap(event.target.files?.[0])}
+                    />
+                </label>
+                {resolved && (
+                    <button
+                        type="button"
+                        className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted"
+                        onClick={() => setResolved(null)}
+                    >
+                        원본 보기
+                    </button>
+                )}
+            </div>
+            {notice && <p className="text-[11px] text-destructive">{notice}</p>}
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-xs text-foreground">
+                {resolved ?? stack}
+            </pre>
+        </section>
+    );
+};
+
 export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDrawerProps) => {
     if (!row) return null;
     const p = row.payload;
@@ -245,9 +383,10 @@ export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDraw
                                 data={{ url: p.url, timestamp: p.timestamp, userAgent: p.userAgent, path: p.path }}
                             />
                             <TextSection title="Message" text={p.message} />
-                            <TextSection title="Stack" text={p.stack} />
+                            <StackSection row={row} />
                             <TextSection title="Component Stack" text={p.componentStack} />
-                            <KeyValueSection title="HTTP" data={p.http} />
+                            <KeyValueSection title="Location" data={p.location} />
+                            <HttpSection http={p.http} />
                             <KeyValueSection title="User" data={p.user} />
                             <KeyValueSection title="Cloud" data={p.cloud} />
                             <KeyValueSection title="Device" data={p.device} />

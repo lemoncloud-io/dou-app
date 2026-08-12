@@ -12,6 +12,9 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../../libs/bridges/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/web-core/tsconfig.lib.json"
         },
         {

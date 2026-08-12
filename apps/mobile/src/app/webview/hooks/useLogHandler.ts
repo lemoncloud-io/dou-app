@@ -1,27 +1,25 @@
 import { useCallback } from 'react';
-import { logger } from '../../services';
+import { ingestLogEntry } from '@chatic/logger';
 import type { WebMessageData } from '@chatic/app-messages';
 
 export const useLogHandler = () => {
     const handleSendLog = useCallback(async (message: WebMessageData<'SendLog'>) => {
-        const { level = 'info', message: logMessage, data, error, tag } = message.data;
-        const forwardedData = { tag, data };
+        const { level = 'info', tag, message: logMessage, data, error, timestamp, source } = message.data;
 
-        switch (level) {
-            case 'debug':
-                logger.debug('WEBVIEW', logMessage, forwardedData);
-                break;
-            case 'warn':
-                logger.warn('WEBVIEW', logMessage, forwardedData);
-                break;
-            case 'error':
-                logger.error('WEBVIEW', logMessage, error ?? forwardedData);
-                break;
-            case 'info':
-            default:
-                logger.info('WEBVIEW', logMessage, forwardedData);
-                break;
-        }
+        // Ingest as-is (ADR-0047): the original tag, occurrence timestamp and
+        // source survive the bridge instead of being rewritten to WEBVIEW /
+        // receive-time, and data+error ride together (no more either/or).
+        // `timestamp` is absent for pre-ADR-0047 web builds — fall back to
+        // receive time so legacy payloads keep working.
+        ingestLogEntry({
+            level,
+            tag: tag ?? 'WEBVIEW',
+            message: logMessage,
+            data,
+            error,
+            timestamp: timestamp ?? Date.now(),
+            source: source ?? 'web',
+        });
 
         return { type: 'OnSendLog' as const, success: true };
     }, []);

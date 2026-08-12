@@ -1,3 +1,5 @@
+import { logger } from '@chatic/bridges';
+
 import type { DataContext, DataContextProvider } from '../../repositories-v2/types';
 import { stableHash } from '../storages';
 
@@ -206,7 +208,10 @@ export abstract class BaseLocalDataSourceV2 {
         try {
             await task();
         } catch (error) {
-            console.error('[LocalDataSourceV2] notify failed', error);
+            // One observer throwing must not stop the others (hence `safeNotify`),
+            // but it is still an app bug — keep it in the buffer so it shows up as
+            // a breadcrumb on whatever report follows.
+            logger.error('CACHE', '[LocalDataSourceV2] observer notify failed', { error });
         }
     }
 }

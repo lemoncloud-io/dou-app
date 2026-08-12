@@ -3,7 +3,10 @@
 // @see clipbiz-backend-api@0.26.103
 // ============================================================================
 
-import type { SerializedLog } from '@chatic/bridges';
+import type { LogEntry, SerializedLog } from '@chatic/bridges';
+
+import type { ReportedCause } from '../errorCause';
+import type { HttpContext } from '../httpContext';
 
 export type AppType = 'web' | 'admin' | 'mobile';
 
@@ -20,6 +23,13 @@ export type ErrorCategory =
     | 'auth' // 403 / 토큰 문제
     | 'http-4xx' // 4xx (403 제외)
     | 'http-5xx' // 5xx
+    // ADR-0047 감지 확장 카테고리
+    | 'resource-error' // capture-phase 리소스(img/script/link) 로드 실패
+    | 'csp-violation' // securitypolicyviolation 이벤트
+    | 'page-crash' // 직전 세션이 pagehide 없이 종료 (센티널 사후 감지)
+    | 'webview-crash' // 네이티브가 감지한 WebView 프로세스 크래시 (대리 전송)
+    | 'native-error' // RN 전역 핸들러가 잡은 네이티브 JS 예외 (대리 전송)
+    | 'native-crash' // Crashlytics 재실행 감지 (대리 전송, 스택은 Crashlytics에만)
     | 'unknown';
 
 /**
@@ -33,7 +43,18 @@ export interface ErrorReportContext {
     /** React ErrorBoundary가 준 컴포넌트 스택. */
     componentStack?: string;
     /** 에러가 들어온 경로. */
-    source?: 'window.onerror' | 'unhandledrejection' | 'error-boundary' | 'query' | 'mutation' | 'manual';
+    source?:
+        | 'window.onerror'
+        | 'unhandledrejection'
+        | 'error-boundary'
+        | 'query'
+        | 'mutation'
+        | 'manual'
+        // ADR-0047 감지 확장 경로
+        | 'resource-error'
+        | 'csp-violation'
+        | 'page-crash-sentinel'
+        | 'pending-report';
     /** window.onerror에서 `event.error`가 null이었는지 (opaque script error 판별). */
     errorWasNull?: boolean;
     /** ErrorEvent.filename — message가 opaque해도 브라우저가 채워주는 위치 정보. */
@@ -42,6 +63,23 @@ export interface ErrorReportContext {
     lineno?: number;
     /** ErrorEvent.colno. */
     colno?: number;
+    /**
+     * 분류를 우회하는 명시적 카테고리 (ADR-0047). 감지 시점에 이미 종류가
+     * 확정된 리포트(page-crash, 네이티브 대리 전송 등)가 쓴다 — 에러의
+     * 성질로 재분류하면 오히려 왜곡되는 케이스.
+     */
+    categoryOverride?: ErrorCategory;
+    /**
+     * breadcrumb 대체 로그 (ADR-0047). 현재 버퍼가 아니라 다른 스냅샷
+     * (직전 세션 버퍼, 네이티브 감지 시점 스냅샷)을 첨부해야 하는 리포트가
+     * 쓴다. 직렬화는 reportError가 수행한다.
+     */
+    logsOverride?: LogEntry[];
+    /**
+     * 실제 발생(감지) 시각 — 부재 시 전송 시각. 지연 전송되는 리포트
+     * (page-crash, 네이티브 대리 전송)는 이 값을 payload timestamp로 쓴다.
+     */
+    occurredAt?: number;
 }
 
 /**
@@ -53,10 +91,29 @@ export interface ErrorReportPayload {
     // 에러 정보
     message: string;
     stack?: string;
+    /**
+     * stack이 원본이 아니라 리포터가 합성한 것임을 표시 (ADR-0047 P1).
+     * opaque script error는 합성 stack을 아예 싣지 않으므로, 이 플래그가 있으면
+     * "stack 없음 = 브라우저가 마스킹한 에러"라는 뜻이다.
+     */
+    stackSynthetic?: boolean;
+    /**
+     * `error.cause` 체인 (바깥→안). 감싼 에러의 `stack`은 감싼 자리를 가리키므로,
+     * 실제로 무엇이 깨졌는지는 여기에만 남는다 — React가 렌더 실패를 이렇게 감싸는
+     * 것이 대표 사례다. 깊이·문자수 상한은 `collectCauses`가 건다.
+     */
+    causes?: ReportedCause[];
     componentStack?: string;
     // 환경
     app: AppType;
     env: string;
+    /**
+     * 이 리포트를 만든 웹 번들의 릴리스 버전. 어느 릴리스에서 터졌는지가 트리아지의
+     * 1차 질문이고, 나중에 소스맵을 비공개 보관하게 되면 맵을 찾는 키가 된다
+     * (ADR-0047 범위 밖 P3의 선행 조건). 번들 해시 자체는 stack·location.filename의
+     * URL에 이미 들어 있다.
+     */
+    webVersion?: string;
     url: string;
     timestamp: string;
     userAgent?: string;
@@ -77,13 +134,12 @@ export interface ErrorReportPayload {
         backend?: string;
         placeId?: string;
     };
-    // HTTP 에러 정보
-    http?: {
-        status?: number;
-        statusText?: string;
-        code?: string;
-        responseData?: unknown;
-    };
+    /**
+     * 실패한 요청의 전모 — 어디로 보내서(`url`/`method`), 무엇을 보냈고
+     * (`params`/`requestBody`), 무엇이 돌아왔는지(`status`/`responseData`).
+     * 본문류는 `describeHttp`가 redact + truncate 한 값이다.
+     */
+    http?: HttpContext;
     // 디바이스 (모바일 전용)
     device?: {
         platform?: string;

@@ -270,6 +270,7 @@ jobs:
                   VITE_SOC_ENDPOINT=${{ secrets[format('{0}_DEV_SOC_ENDPOINT', matrix.prefix)] }}
                   VITE_IAP_ENDPOINT=${{ secrets[format('{0}_DEV_IAP_ENDPOINT', matrix.prefix)] }}
                   VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
+                  VITE_DEBUG_CODE=${{ secrets[format('{0}_DEV_DEBUG_CODE', matrix.prefix)] }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
                   grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
@@ -299,6 +300,24 @@ jobs:
                   set -e
                   chmod +x scripts/deploy-${{ matrix.project }}.sh
                   yarn ${{ matrix.project }}:deploy:dev
+
+            # The deploy scripts exclude *.map from the S3 sync — serving them
+            # would publish the sources — so this run is the only place a build's
+            # maps survive. They are what turns a stored stack trace back into
+            # real files (see libs/web-core/docs/error-reporting.md).
+            #
+            # Pick the artifact by matching the bundle hash: a stack frame names
+            # `index-<hash>.js`, and the right artifact is the one containing
+            # `index-<hash>.js.map`. That match is the check — a map from any
+            # other build resolves to the wrong lines without saying so.
+            - name: Archive source maps
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sourcemaps-${{ matrix.project }}-${{ github.sha }}
+                  path: dist/apps/${{ matrix.project }}/**/*.map
+                  # A project may not emit maps; never fail a deploy over this.
+                  if-no-files-found: warn
+                  retention-days: 30
 
     notify-slack:
         needs: [changes, version-update, build-and-deploy]

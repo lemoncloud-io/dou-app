@@ -45,4 +45,17 @@ describe('classifyReport — 에러 리포트 카테고리 분류', () => {
     it('컨텍스트도 없고 성격도 불명이면 unknown', () => {
         expect(classifyReport(new Error('mystery'))).toBe('unknown');
     });
+
+    it('categoryOverride는 다른 모든 분류 규칙을 우회한다 (ADR-0047)', () => {
+        // 감지 시점에 종류가 확정된 리포트: network 성격이어도 재분류하지 않는다.
+        const netErr = Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' });
+        expect(classifyReport(netErr, { categoryOverride: 'page-crash' })).toBe('page-crash');
+        expect(classifyReport(new Error('x'), { categoryOverride: 'webview-crash' })).toBe('webview-crash');
+        expect(classifyReport(new Error('x'), { categoryOverride: 'native-crash' })).toBe('native-crash');
+        expect(classifyReport(new Error('x'), { source: 'resource-error', categoryOverride: 'resource-error' })).toBe(
+            'resource-error'
+        );
+        expect(classifyReport(new Error('x'), { categoryOverride: 'csp-violation' })).toBe('csp-violation');
+        expect(classifyReport(new Error('x'), { categoryOverride: 'native-error' })).toBe('native-error');
+    });
 });

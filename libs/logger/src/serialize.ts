@@ -1,3 +1,4 @@
+import { isSensitiveKey, REDACTED } from './redact';
 import type { LogEntry } from './types';
 
 /**
@@ -11,6 +12,8 @@ export interface SerializedLog {
     tag: string;
     message: string;
     timestamp: number;
+    /** Origin runtime when the entry crossed a boundary (ADR-0047). */
+    source?: string;
     data?: string;
     error?: string;
 }
@@ -29,16 +32,23 @@ const truncate = (value: string, max: number): string =>
  * throws falls back to `String()`. Returns undefined for nullish input so the
  * field can be omitted entirely.
  *
- * Note: values are NOT redacted (per ADR-0017 the v1 report attaches logs
- * as-is). `redactSensitive` from this same package is available if that
- * decision is revisited.
+ * Secret-bearing fields are masked by name (`SENSITIVE_KEYS`), the same list
+ * the transport's network logging already applies to request bodies. ADR-0017
+ * shipped v1 without this on the grounds that a report is read by the team;
+ * ADR-0047 widened where these entries end up — a shared Slack channel, and now
+ * sessionStorage/MMKV on the device — so the exemption no longer holds. Masking
+ * happens inside the replacer so it reaches nested objects and array elements;
+ * a bare string cannot be judged and passes through.
  */
 export const safeStringify = (value: unknown): string | undefined => {
     if (value === undefined || value === null) return undefined;
     if (typeof value === 'string') return value;
     try {
         const seen = new WeakSet<object>();
-        return JSON.stringify(value, (_key, val) => {
+        return JSON.stringify(value, (key, val) => {
+            // Before the Error branch: a secret held under a sensitive key is
+            // masked whatever its type.
+            if (key && isSensitiveKey(key)) return REDACTED;
             if (val instanceof Error) {
                 return { name: val.name, message: val.message, stack: val.stack };
             }
@@ -78,6 +88,7 @@ export const serializeLogs = (entries: LogEntry[]): SerializedLog[] => {
             tag: entry.tag,
             message: truncate(entry.message ?? '', PER_FIELD_CHAR_LIMIT),
             timestamp: entry.timestamp,
+            ...(entry.source ? { source: entry.source } : {}),
             ...(dataStr !== undefined ? { data: truncate(dataStr, PER_FIELD_CHAR_LIMIT) } : {}),
             ...(errorStr !== undefined ? { error: truncate(errorStr, PER_FIELD_CHAR_LIMIT) } : {}),
         };

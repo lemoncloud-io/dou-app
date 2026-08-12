@@ -93,7 +93,7 @@ export interface DynamicCacheStorageOptions<TType extends CacheType> {
     evictionStrategy?: EvictionStrategy;
     /** type별 cap + grouping (미주입 = 무한) */
     capacityPolicy?: CapacityPolicy;
-    /** hot/cold/eviction/stampede 통합 에러 리포터 (미주입 = console.warn) */
+    /** hot/cold/eviction/stampede 통합 에러 리포터 (미주입 시 app-runtime 기본 구현 = `logger.warn`) */
     reporter?: CacheErrorReporter;
 }
 

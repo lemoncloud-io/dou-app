@@ -1,11 +1,14 @@
 import { renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
+import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
 
 import { useMyUser } from './useMyUser';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useRuntimeSocketState: jest.fn(),
+}));
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
 
 const observeItemMock = jest.fn();
@@ -25,10 +28,24 @@ beforeEach(() => {
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         user: { observeItem: observeItemMock, getMyProfile: getMyProfileMock },
     });
+    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
     (useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
 });
 
 describe('useMyUser', () => {
+    // Firing before the socket verifies rejects with `503 SOCKET NOT CONNECTED`;
+    // the rejection is swallowed but still reaches the log buffer and reports.
+    it('holds the fetch until the socket is verified, but still observes the cache', () => {
+        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        emit({ id: 'me', name: 'FromCache' });
+
+        const { result } = renderHook(() => useMyUser());
+
+        expect(observeItemMock).toHaveBeenCalled();
+        expect(getMyProfileMock).not.toHaveBeenCalled();
+        expect(result.current?.name).toBe('FromCache');
+    });
+
     it('observes the current user by id, triggers a one-shot fetch, and reflects the cached user', () => {
         emit({ id: 'me', name: 'FromCache', photo: 'cache.png', email: 'me@x.io' });
 

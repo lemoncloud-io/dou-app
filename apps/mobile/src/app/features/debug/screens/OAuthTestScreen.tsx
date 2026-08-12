@@ -63,7 +63,7 @@ export const OAuthTestScreen = () => {
     );
 
     useEffect(() => {
-        const unsubscribe = logger.subscribe((level, tag, message, data, error) => {
+        const unsubscribe = logger.subscribe(({ level, tag, message, data, error }) => {
             if (tag !== 'OAUTH') return;
 
             let type: LogType = 'info';

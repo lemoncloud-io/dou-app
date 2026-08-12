@@ -19,13 +19,21 @@ import { ThemeApplier } from './runtime/ThemeApplier';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 import { markBoot } from './features/debug/metrics/bootMarks';
 
+/** Resource-bearing elements whose load failures are worth reporting (ADR-0047). */
+const RESOURCE_TAGS = new Set(['img', 'script', 'link', 'audio', 'video', 'source']);
+
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
         // Cross-origin script exceptions arrive with a null `event.error` and an
         // opaque "Script error." message. Forward that fact plus the position the
         // browser still exposes (filename/lineno/colno) so web-core can tag it as
         // a script-error and keep a location breadcrumb. @see ADR-0029
-        reportError(event.error ?? new Error(event.message), {
+        const error = event.error ?? new Error(event.message);
+        // Log BEFORE reporting (ADR-0047): the error becomes a first-class buffer
+        // entry — visible in future breadcrumbs and recorded even when the report
+        // itself is throttled.
+        logger.error('GLOBAL', `[window.onerror] ${event.message}`, { error });
+        reportError(error, {
             source: 'window.onerror',
             errorWasNull: event.error == null,
             filename: event.filename || undefined,
@@ -36,7 +44,40 @@ if (typeof window !== 'undefined') {
     window.addEventListener('unhandledrejection', event => {
         // event.reason is often a raw DOM Event (e.g. lemon-model's WebSocket connect races —
         // see toError's doc comment), which String() collapses to a useless "[object Event]".
-        reportError(toError(event.reason), { source: 'unhandledrejection' });
+        const error = toError(event.reason);
+        logger.error('GLOBAL', `[unhandledrejection] ${error.message}`, { error });
+        reportError(error, { source: 'unhandledrejection' });
+    });
+    // Resource load failures (img/script/link/...) fire on the element and do
+    // NOT bubble — only a capture-phase window listener sees them. There is no
+    // JS Error object; synthesize one carrying the element/URL (ADR-0047).
+    window.addEventListener(
+        'error',
+        event => {
+            const target = event.target as Element | null;
+            if (!target || !('tagName' in target)) return;
+            const tagName = target.tagName?.toLowerCase();
+            if (!tagName || !RESOURCE_TAGS.has(tagName)) return;
+            const url = (target as HTMLImageElement).src || (target as HTMLLinkElement).href || '(unknown url)';
+            const message = `Resource load failed: <${tagName}> ${url}`;
+            logger.error('GLOBAL', `[resource-error] ${message}`);
+            reportError(new Error(message), { source: 'resource-error', categoryOverride: 'resource-error' });
+        },
+        true
+    );
+    // CSP violations never reach window.onerror; a blocked script inside the
+    // WebView is a prime "Script error." root-cause correlate (ADR-0047).
+    window.addEventListener('securitypolicyviolation', event => {
+        const detail = `${event.violatedDirective} blocked ${event.blockedURI || '(inline)'}`;
+        logger.error('GLOBAL', `[csp-violation] ${detail}`, {
+            data: { sourceFile: event.sourceFile, lineNumber: event.lineNumber },
+        });
+        reportError(new Error(`CSP violation: ${detail}`), {
+            source: 'csp-violation',
+            categoryOverride: 'csp-violation',
+            filename: event.sourceFile || undefined,
+            lineno: event.lineNumber || undefined,
+        });
     });
 }
 

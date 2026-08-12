@@ -60,8 +60,6 @@ export interface DisposableRepositoryV2 {
 }
 
 export abstract class BaseRepositoryV2 {
-    private readonly serialTasks = new Map<string, Promise<void>>();
-
     protected constructor(private readonly context: DataContextProvider) {}
 
     protected getRepositoryContext(): DataContext {
@@ -88,31 +86,12 @@ export abstract class BaseRepositoryV2 {
         throw new Error(`[RepositoryV2] ${fieldName} is required.`);
     }
 
-    protected runInBackground(task: () => Promise<unknown>, label: string): void {
-        void task().catch(error => {
-            console.error(`[RepositoryV2:${label}] background task failed`, error);
-        });
-    }
-
-    protected runInBackgroundSerial(key: string, task: () => Promise<unknown>, label: string): void {
-        const previous = this.serialTasks.get(key) ?? Promise.resolve();
-        const current = previous
-            .catch(() => undefined)
-            .then(async () => {
-                await task();
-            })
-            .catch(error => {
-                console.error(`[RepositoryV2:${label}] background task failed`, error);
-            })
-            .finally(() => {
-                if (this.serialTasks.get(key) === current) {
-                    this.serialTasks.delete(key);
-                }
-            });
-        this.serialTasks.set(key, current);
-    }
-
-    public dispose(): void {
-        this.serialTasks.clear();
-    }
+    /**
+     * Teardown hook. Nothing to release at this level today — it stays because
+     * `DisposableRepositoryV2` declares it and the factory tears every
+     * repository down through it (`repositories-v2/index.ts`), so a subclass
+     * that acquires something has a place to release it.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-empty-function -- intentional no-op; see above
+    public dispose(): void {}
 }

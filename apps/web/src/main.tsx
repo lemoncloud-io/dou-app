@@ -4,18 +4,39 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { setupBridgeLogger } from '@chatic/bridges';
+import { isNative, setReportLogSource, setupBridgeLogger } from '@chatic/bridges';
 import { configureDataRuntime } from '@chatic/app-runtime';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
+import { nativeMergedLogSource } from './app/bridge/nativeLogSource';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
+import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
+import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
+import { attachWebLogPersistence } from './app/runtime/webLogPersistence';
 import { initWebVitals } from './app/utils';
 
 // Wire log sinks before anything else logs: native WebView forwards to the
 // app (mirrored to the console in dev builds), plain web logs to the console.
 setupBridgeLogger({ consoleInNative: import.meta.env.DEV });
+
+// Persist the log buffer across reloads (sessionStorage, tab-scoped) and read
+// the previous session's fate — a session that died without a clean pagehide
+// is reported as page-crash with its persisted buffer attached (ADR-0047 S7).
+const webLogBoot = attachWebLogPersistence();
+schedulePageCrashReport(webLogBoot);
+
+// Hybrid runs route report breadcrumbs to the native merged buffer — the
+// outermost shell owns the merged stream (ADR-0047). Standalone web keeps the
+// local-buffer default inside web-core.
+if (isNative()) {
+    setReportLogSource(nativeMergedLogSource);
+}
+
+// Relay reports the native side detected while the web was down (WebView
+// crash, RN exceptions, native crashes) through the signed web reporter.
+schedulePendingReportFlush();
 
 // Repository policies must land before the data runtime is lazily created (first render):
 // the embedded `$site` of user.profile is persisted into the place cache only on the relay

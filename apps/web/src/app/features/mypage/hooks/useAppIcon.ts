@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { isNative, logger, webClient } from '@chatic/bridges';
 import type { AppIconOption } from '@chatic/app-messages';
 
 /**
@@ -27,7 +27,7 @@ export const useAppIcon = () => {
                 }
             })
             .catch(err => {
-                console.error('Failed to fetch app icon status:', err);
+                logger.error('APP_ICON', '[useAppIcon] failed to fetch app icon status', { error: err });
             });
 
         webClient
@@ -38,7 +38,7 @@ export const useAppIcon = () => {
                 }
             })
             .catch(err => {
-                console.error('Failed to fetch app icon list:', err);
+                logger.error('APP_ICON', '[useAppIcon] failed to fetch app icon list', { error: err });
             });
     }, []);
 
@@ -50,7 +50,7 @@ export const useAppIcon = () => {
                 return true;
             }
         } catch (err) {
-            console.error('Failed to change app icon:', err);
+            logger.error('APP_ICON', '[useAppIcon] failed to change app icon', { error: err, data: { iconId } });
         }
         return false;
     };

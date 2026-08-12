@@ -510,10 +510,26 @@ export class SocketManager implements ISocketManager {
 
         entry.unsubscribes.push(
             entry.client.onError((event: ClientSocketErrorEvent) => {
-                logger.error('SOCKET', '[SocketManager] Socket error', {
-                    error: event.error,
-                    data: { kind, phase: event.phase },
-                });
+                // A `request` failure reaches the caller as well: the SDK calls
+                // `pending.reject` and this emitter with the SAME error object,
+                // rejection first. But the rejection resumes in a microtask, so
+                // this listener runs BEFORE `annotateSocketError` appends the
+                // call — logging it at error level would leave two entries for
+                // one failure, and the one that lands first is the anonymous
+                // `503 SOCKET NOT CONNECTED - WebSocketTransport.send()` with no
+                // hint of which request it was. It also doubles the cost: error
+                // entries flush the log persistence immediately.
+                //
+                // Kept at warn rather than dropped, because a caller is free to
+                // swallow its rejection and this would be the only trace left.
+                // Other phases have no such second path and stay at error.
+                const fields = { error: event.error, data: { kind, phase: event.phase } };
+
+                if (event.phase === 'request') {
+                    logger.warn('SOCKET', '[SocketManager] Socket error', fields);
+                    return;
+                }
+                logger.error('SOCKET', '[SocketManager] Socket error', fields);
             })
         );
     }

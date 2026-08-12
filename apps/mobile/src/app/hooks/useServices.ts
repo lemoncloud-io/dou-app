@@ -10,6 +10,7 @@ import {
     logBufferService,
     logger,
     notificationService,
+    pendingReportQueueService,
     oAuthService,
     permissionService,
     preferenceService,
@@ -25,6 +26,7 @@ import {
 export const useServices = () => ({
     logService: logger,
     logBufferService: logBufferService,
+    pendingReportQueueService: pendingReportQueueService,
     deviceService: deviceService,
     clipboardService: clipboardService,
     smsService: smsService,

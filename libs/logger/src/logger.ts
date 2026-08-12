@@ -20,9 +20,12 @@ const normalizeErrorOptions = (options?: LogErrorOptions | unknown): LogErrorOpt
     return { error: options };
 };
 
-const dispatch = (level: LogLevel, tag: string, message: string, data?: unknown, error?: unknown): void => {
-    const entry: LogEntry = { level, tag, message, data, error, timestamp: Date.now() };
-
+/**
+ * Ingests an entry that was already stamped in another runtime (bridge relay,
+ * native emitter): pushed and published as-is, WITHOUT restamping
+ * `timestamp`, so merged buffers keep original occurrence times. (ADR-0047)
+ */
+export const ingestLogEntry = (entry: LogEntry): void => {
     // The buffer is fed directly (not via subscription) so it always captures
     // entries — including those emitted before any app wiring runs.
     buffer.push(entry);
@@ -34,6 +37,10 @@ const dispatch = (level: LogLevel, tag: string, message: string, data?: unknown,
     }
 
     hub.publish(entry);
+};
+
+const dispatch = (level: LogLevel, tag: string, message: string, data?: unknown, error?: unknown): void => {
+    ingestLogEntry({ level, tag, message, data, error, timestamp: Date.now() });
 };
 
 /**
@@ -52,6 +59,16 @@ export const logBuffer = {
     poll: (count?: number): LogEntry[] => buffer.shift(count),
     clear: (): void => buffer.clear(),
     size: (): number => buffer.size(),
+    /**
+     * Prepends restored entries (from a LogPersistence adapter) AHEAD of
+     * anything already captured during boot, keeping chronological order —
+     * restored entries are by definition older than the current session's.
+     */
+    load: (entries: LogEntry[]): void => {
+        if (!entries.length) return;
+        const current = buffer.shift();
+        [...entries, ...current].forEach(item => buffer.push(item));
+    },
 };
 
 /**

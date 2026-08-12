@@ -1,3 +1,5 @@
+import { logger } from '@chatic/bridges';
+
 import type { DataContext, DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 import { DataManager } from './DataManager';
 import type { IDataManager } from './types';
@@ -30,7 +32,7 @@ export const createDataRuntime = (
  */
 export const configureDataRuntime = (repositoryOptions: DataRepositoriesV2Options): void => {
     if (dataRuntimeSingleton) {
-        console.warn('[data-runtime] configureDataRuntime called after the runtime was created; ignored.');
+        logger.warn('CACHE', '[data-runtime] configureDataRuntime called after the runtime was created; ignored');
         return;
     }
     pendingRepositoryOptions = repositoryOptions;

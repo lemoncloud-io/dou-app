@@ -15,6 +15,11 @@ import type { ErrorCategory, ErrorReportContext } from './types';
  * fact that it arrived as a rejection.
  */
 export const classifyReport = (error: Error, ctx?: ErrorReportContext): ErrorCategory => {
+    // Detection-time categories bypass classification entirely (ADR-0047):
+    // page-crash / deferred native reports already know what they are, and
+    // reclassifying by the (synthetic) error's nature would distort them.
+    if (ctx?.categoryOverride) return ctx.categoryOverride;
+
     // Opaque cross-origin script exception: browser erased message/stack and
     // window.onerror handed us a null `error`. Nothing else to go on.
     if (ctx?.errorWasNull && ctx.source === 'window.onerror') return 'script-error';

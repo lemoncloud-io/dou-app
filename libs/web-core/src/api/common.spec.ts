@@ -1,10 +1,12 @@
-// reportError의 "조립부"(카테고리 → 타이틀 `[app] category`, location, breadcrumb,
-// 스로틀 키)를 검증한다. classifyReport/serializeLogs/parseReportLog는 각자
-// spec이 있으나, 이들을 엮어 최종 SlackReportBody를 만드는 부분은 여기서 본다.
+// reportError의 "조립부"(카테고리 → 타이틀 `[app] category`, location, breadcrumb)를
+// 검증한다. classifyReport/serializeLogs/parseReportLog는 각자 spec이 있으나,
+// 이들을 엮어 최종 SlackReportBody를 만드는 부분은 여기서 본다.
 // 특히 타이틀 포맷은 admin 파서가 의존하는 계약이라 회귀를 잡아야 한다. @see ADR-0029
 jest.mock('../session/core', () => ({ DOU_ENDPOINT: 'https://api.test', ENV: 'test' }));
 
-jest.mock('../transport', () => ({ webTransport: { buildSignedRequest: jest.fn() } }));
+// `WEB_PROJECT` drives the `[app]` bracket, so it is mutable here — the admin
+// case is a real branch, not a constant.
+jest.mock('../transport', () => ({ webTransport: { buildSignedRequest: jest.fn() }, WEB_PROJECT: 'chatic' }));
 
 jest.mock('../session', () => ({
     getActiveSessionUser: jest.fn(),
@@ -16,9 +18,13 @@ jest.mock('@chatic/bridges', () => ({
     logBuffer: { peek: jest.fn(() => []) },
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
     serializeLogs: jest.fn((entries: unknown[]) => entries),
+    // Mirrors the local-source behavior (tail of the error-time snapshot) so
+    // breadcrumb assertions keep exercising the assembled flow (ADR-0047).
+    collectBreadcrumbs: jest.fn(async (count: number, fallback: unknown[]) => fallback.slice(-count)),
 }));
 
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
+import * as transport from '../transport';
 import { webTransport } from '../transport';
 import { isNative, logBuffer, logger } from '@chatic/bridges';
 import { reportError, reportIssue } from './common';
@@ -32,10 +38,16 @@ const lastReport = (): { title: string; silent: boolean; save: boolean; stereo: 
     return { ...body, payload: JSON.parse(body.message) };
 };
 
+/** Mocked module property, so it is assignable — mirrors how `isNative` is reset below. */
+const setWebProject = (value: string) => {
+    (transport as unknown as { WEB_PROJECT: string }).WEB_PROJECT = value;
+};
+
 beforeEach(() => {
     jest.clearAllMocks();
     (webTransport.buildSignedRequest as jest.Mock).mockReturnValue({ setBody });
     (isNative as jest.Mock).mockReturnValue(false);
+    setWebProject('chatic');
     (logBuffer.peek as jest.Mock).mockReturnValue([]);
     (getActiveSessionUser as jest.Mock).mockReturnValue({ userRole: 'user', name: 'Tester' });
     (getGlobalSessionContext as jest.Mock).mockReturnValue({
@@ -58,6 +70,25 @@ describe('reportError — 리포트 조립', () => {
         expect(lastReport().title).toBe('[mobile] http-5xx');
     });
 
+    // admin이 web과 갈리지 않으면 어드민 자신의 에러가 프런트 리포트 사이에 섞여
+    // 본문을 열기 전엔 출처를 알 수 없다. 구분은 VITE_PROJECT에서 유도한다.
+    it('VITE_PROJECT가 admin이면 타이틀이 [admin]', async () => {
+        setWebProject('chatic_admin');
+
+        await reportError(new Error('q1 admin side failure'));
+
+        expect(lastReport().title).toBe('[admin] unknown');
+    });
+
+    it('네이티브 판정이 프로젝트보다 우선한다 (admin 빌드를 WebView로 열 일은 없지만 순서를 고정)', async () => {
+        setWebProject('chatic_admin');
+        (isNative as jest.Mock).mockReturnValue(true);
+
+        await reportError(new Error('q1 native wins'));
+
+        expect(lastReport().title).toBe('[mobile] unknown');
+    });
+
     it('window.onerror opaque 스크립트 에러는 script-error + location 캡처', async () => {
         await reportError(new Error('Script error.'), {
             source: 'window.onerror',
@@ -77,6 +108,152 @@ describe('reportError — 리포트 조립', () => {
         expect(lastReport().payload.location).toBeUndefined();
     });
 
+    it('opaque script error는 합성 stack을 싣지 않고 stackSynthetic으로 표시한다 (P1)', async () => {
+        await reportError(new Error('Script error. p1'), {
+            source: 'window.onerror',
+            errorWasNull: true,
+            filename: 'https://x/app.js',
+            lineno: 2,
+            colno: 42,
+        });
+        const { payload } = lastReport();
+        expect(payload.stack).toBeUndefined();
+        expect(payload.stackSynthetic).toBe(true);
+    });
+
+    // 위치를 message에 붙이면 좌표가 발생마다·배포마다 달라 admin의 message 기준
+    // 그룹핑(groupReportLogs)이 파편화된다 — 집계가 가장 필요한 카테고리에서.
+    // location 필드로만 싣고 message는 그룹 가능한 상태로 둔다.
+    it('script error의 위치는 message가 아니라 location에만 싣는다', async () => {
+        await reportError(new Error('Script error. q1 location-only'), {
+            source: 'window.onerror',
+            errorWasNull: true,
+            filename: 'https://x/app.js',
+            lineno: 2,
+            colno: 42,
+        });
+        const { payload } = lastReport();
+        expect(payload.message).toBe('Script error. q1 location-only');
+        expect(payload.location).toEqual({ filename: 'https://x/app.js', lineno: 2, colno: 42 });
+    });
+
+    // 감싼 에러의 stack은 감싼 자리를 가리킨다. React가 렌더 실패를 이렇게 감싸므로
+    // (`Minified React error #520` + cause), cause가 빠지면 진짜 원인이 사라진다.
+    it('cause 체인을 payload.causes에 싣는다', async () => {
+        const root = new Error('q1 JSON.parse blew up');
+        await reportError(new Error('q1 wrapper', { cause: root }));
+
+        const { payload } = lastReport();
+        expect(payload.causes).toHaveLength(1);
+        expect(payload.causes[0].message).toBe('q1 JSON.parse blew up');
+        expect(typeof payload.causes[0].stack).toBe('string');
+    });
+
+    it('cause가 없으면 causes 필드를 아예 생략한다', async () => {
+        await reportError(new Error('q1 no cause'));
+        expect(lastReport().payload.causes).toBeUndefined();
+    });
+
+    // 합성된 것은 바깥 껍데기뿐이라, 원본이 매달려 있으면 그게 유일한 실마리다.
+    it('합성 stack(opaque script error)이어도 cause는 싣는다', async () => {
+        const root = new Error('q1 real root');
+        await reportError(new Error('Script error. q1 with cause', { cause: root }), {
+            source: 'window.onerror',
+            errorWasNull: true,
+        });
+
+        const { payload } = lastReport();
+        expect(payload.stack).toBeUndefined();
+        expect(payload.causes[0].message).toBe('q1 real root');
+    });
+
+    it('원본 에러(stack 진짜)는 stack을 유지하고 stackSynthetic을 남기지 않는다', async () => {
+        await reportError(new Error('q1 real stack'));
+        const { payload } = lastReport();
+        expect(typeof payload.stack).toBe('string');
+        expect(payload.stackSynthetic).toBeUndefined();
+    });
+
+    it('요청 실패는 메서드+URL을 http와 message 상단에 노출한다 (ADR-0047)', async () => {
+        const netErr = Object.assign(new Error('Network Error q1'), {
+            code: 'ERR_NETWORK',
+            config: { url: '/hello/chats', method: 'post' },
+        });
+        await reportError(netErr, { source: 'query' });
+        const { payload } = lastReport();
+        expect(payload.http).toMatchObject({ code: 'ERR_NETWORK', url: '/hello/chats', method: 'POST' });
+        expect(payload.message).toBe('Network Error q1 → POST /hello/chats');
+    });
+
+    // "Network Error" 한 줄로는 손댈 곳을 알 수 없다 — 어디로 무엇을 보내서
+    // 무엇이 돌아왔는지가 첫 질문이고, 비밀은 그 과정에서 가려져야 한다.
+    it('실패한 요청의 body·응답까지 담고 비밀 필드는 가린다', async () => {
+        const httpErr = Object.assign(new Error('q1 login failed'), {
+            code: 'ERR_BAD_REQUEST',
+            config: {
+                url: '/auth/login',
+                baseURL: 'https://api.test/dou-d1',
+                method: 'post',
+                data: '{"id":"me","password":"hunter2"}',
+            },
+            response: { status: 401, statusText: 'Unauthorized', data: { error: 'bad credentials' } },
+        });
+
+        await reportError(httpErr, { source: 'mutation' });
+
+        expect(lastReport().payload.http).toEqual({
+            url: 'https://api.test/dou-d1/auth/login',
+            method: 'POST',
+            requestBody: { id: 'me', password: '[REDACTED]' },
+            status: 401,
+            statusText: 'Unauthorized',
+            code: 'ERR_BAD_REQUEST',
+            reason: 'bad credentials',
+            responseData: { error: 'bad credentials' },
+        });
+    });
+
+    // axios는 본문에 뭐가 있든 "Request failed with status code 500"으로 던진다.
+    // 이걸 안 붙이면 원인이 제각각인 500이 admin 목록에서 한 줄로 뭉친다.
+    it('서버가 말한 실패 사유를 message에 붙인다', async () => {
+        const httpErr = Object.assign(new Error('Request failed with status code 500'), {
+            config: { url: '/hello/chats', method: 'post' },
+            response: { status: 500, data: { error: 'q1 channel not found' } },
+        });
+
+        await reportError(httpErr, { source: 'query' });
+
+        const { payload } = lastReport();
+        expect(payload.message).toBe('Request failed with status code 500: q1 channel not found → POST /hello/chats');
+        expect(payload.http.reason).toBe('q1 channel not found');
+    });
+
+    // 200 + `{error}` 는 throwIfApiError 가 이미 그 문구로 던져놨다.
+    it('이미 message에 들어있는 사유는 두 번 붙이지 않는다', async () => {
+        const apiErr = Object.assign(new Error('q1 already stated reason'), {
+            config: { url: '/hello/chats', method: 'post' },
+            response: { status: 500, data: { error: 'q1 already stated reason' } },
+        });
+
+        await reportError(apiErr, { source: 'query' });
+
+        expect(lastReport().payload.message).toBe('q1 already stated reason → POST /hello/chats');
+    });
+
+    it('categoryOverride 리포트는 감지 시각(occurredAt)과 logsOverride를 그대로 싣는다 (ADR-0047)', async () => {
+        await reportError(new Error('previous session died'), {
+            source: 'page-crash-sentinel',
+            categoryOverride: 'page-crash',
+            occurredAt: 1_700_000_000_000,
+            logsOverride: [{ level: 'info', tag: 'T', message: 'last breath', timestamp: 9 }],
+        });
+        const { title, payload } = lastReport();
+        expect(title).toBe('[web] page-crash');
+        expect(payload.timestamp).toBe(new Date(1_700_000_000_000).toISOString());
+        expect(payload.logs).toHaveLength(1);
+        expect(payload.logs[0].message).toBe('last breath');
+    });
+
     it('링버퍼가 비어있지 않으면 breadcrumb(logs)과 path를 붙인다', async () => {
         (logBuffer.peek as jest.Mock).mockReturnValue([
             { level: 'info', tag: 'T', message: 'before crash', timestamp: 1 },
@@ -93,11 +270,23 @@ describe('reportError — 리포트 조립', () => {
         expect(lastReport().payload.logs).toBeUndefined();
     });
 
-    it('동일 (카테고리+메시지)는 60초 내 1회만 전송한다', async () => {
-        const err = new Error('q1 throttled duplicate');
+    // 스로틀 제거됨: 반복 발생 빈도 자체가 신호라 매번 그대로 admin에 쌓인다.
+    // 에러 스톰이 나도 그 부담이 Slack 알림으로 튀지 않는 건 아래 silent 계약이 막는다.
+    it('동일 (카테고리+메시지)도 매번 전송한다', async () => {
+        const err = new Error('q1 repeated error');
         await reportError(err);
         await reportError(err);
-        expect(execute).toHaveBeenCalledTimes(1);
+        expect(execute).toHaveBeenCalledTimes(2);
+    });
+
+    // 스로틀을 뗀 뒤로는 에러 스톰이 그 횟수만큼 Slack 알림으로 튄다 — 그래서
+    // 에러 리포트는 항상 silent(admin에는 저장, Slack에는 미전송)로 보낸다.
+    // 사용자가 직접 제출하는 reportIssue와 갈리는 지점.
+    it('항상 silent로 보내 Slack에는 안 올리고 admin에는 저장한다', async () => {
+        await reportError(new Error('q1 no slack'));
+        const report = lastReport();
+        expect(report.silent).toBe(true);
+        expect(report.save).toBe(true);
     });
 
     // 에러/이슈가 같은 엔드포인트를 쓰므로 stereo가 서버측 구분의 유일한 단서다.

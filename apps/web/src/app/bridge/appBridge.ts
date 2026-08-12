@@ -207,4 +207,18 @@ export const appBridge = {
     fetchAppLogBufferSize(nonce: string): Promise<WebMessageResponse<'FetchAppLogBufferSize'>> {
         return webClient.request({ type: 'FetchAppLogBufferSize', data: { nonce } });
     },
+
+    // ---------------------------------------------------------------
+    // Deferred native reports (ADR-0047)
+    // ---------------------------------------------------------------
+
+    /** Pull reports the native side detected but cannot send itself. */
+    fetchPendingReports(): Promise<WebMessageResponse<'FetchPendingReports'>> {
+        return webClient.request({ type: 'FetchPendingReports', data: {} });
+    },
+
+    /** Acknowledge relayed reports so the native queue drops them. */
+    ackPendingReports(ids: string[]): Promise<WebMessageResponse<'AckPendingReports'>> {
+        return webClient.request({ type: 'AckPendingReports', data: { ids } });
+    },
 };
