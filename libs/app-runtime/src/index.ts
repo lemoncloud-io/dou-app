@@ -55,11 +55,11 @@ export type { NativeCacheSupport } from './data/nativeCacheSupport';
 export { configureDataRuntime, setChatCacheLimit } from './data/runtime';
 export type { CacheAssemblyOptions } from './data/factories/localFactory';
 export {
-    useInvitedCloudColdRecovery,
+    useInvitedCloudMigration,
     useInvitedCloudNameSync,
     recoverInvitedCloudIfMissing,
     syncInvitedCloudName,
-} from './data/invitedCloudColdSync';
+} from './data/invitedCloudDurability';
 
 // --- Sync registration hooks ----------------------------------------------------------------
 export { useChatSync, useChannelSync, usePlaceSync } from './socket';

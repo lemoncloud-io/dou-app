@@ -14,7 +14,7 @@ import { Router } from '../routes';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
-import { InvitedCloudColdSyncRunner } from './InvitedCloudColdSyncRunner';
+import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
@@ -54,7 +54,7 @@ export const AppRuntime = () => {
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />
             <MyUserSeedRunner />
-            <InvitedCloudColdSyncRunner />
+            <InvitedCloudDurabilityRunner />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}

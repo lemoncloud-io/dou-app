@@ -170,7 +170,7 @@ libs/app-runtime/src/
     runtime.ts
     cacheStorageRouting.ts     # 캐시 타입 → web/native 저장소 결정 단일 지점
     nativeCacheSupport.ts      # 네이티브가 핸드셰이크로 보고한 캐시 capability
-    invitedCloudColdSync.ts
+    invitedCloudDurability.ts
     outbox.ts
     factories/{remoteFactory,localFactory,repositoryFactory}.ts
   push/

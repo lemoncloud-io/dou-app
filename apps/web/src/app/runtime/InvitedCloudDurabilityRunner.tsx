@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import {
     isNativeApp,
     recoverInvitedCloudIfMissing,
-    useInvitedCloudColdRecovery,
+    useInvitedCloudMigration,
     useInvitedCloudNameSync,
     useRuntimeRepositories,
 } from '@chatic/app-runtime';
@@ -13,22 +13,24 @@ import { useOnReceiveNotification } from '../bridge';
 import { extractPushContext } from '../utils/resolveInAppPushRoute';
 
 /**
- * Keeps invited clouds durable against cold-DB loss. Mounted once under AppRuntime.
+ * Keeps invited clouds durable — they are the only cache type with no server list API to refill
+ * from. Mounted once under AppRuntime.
  *
- * - Boot: seeds/recovers invited clouds into the cold tier (native only).
+ * - Boot: migrates invited clouds a prior build left in web storage into the native store
+ *   (native only).
  * - Push: when a foreground push names a source cloud (`data.cid`) that is not cached, re-derives
  *   and re-caches it so cross-cloud routing can resolve it. Empty cid (common on deployed backends)
  *   is a no-op — that case needs backend support (ADR-0030).
  */
-export const InvitedCloudColdSyncRunner = (): null => {
+export const InvitedCloudDurabilityRunner = (): null => {
     const { cloud } = useRuntimeRepositories();
 
-    useInvitedCloudColdRecovery();
+    useInvitedCloudMigration();
     useInvitedCloudNameSync();
 
     const handleReceiveNotification = useCallback(
         (message: AppMessageData<'OnReceiveNotification'>) => {
-            // Cold DB only exists in the native WebView; match the boot hook's guard.
+            // The native store only exists in the native WebView; match the boot hook's guard.
             if (!isNativeApp()) return;
             const data = message.data?.notification?.data;
             if (!data) return;

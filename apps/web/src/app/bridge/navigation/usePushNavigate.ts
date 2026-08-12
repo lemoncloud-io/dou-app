@@ -222,7 +222,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // Native cold-DB eviction can drop an INVITED source cloud from the cache, so a
                     // deep-link / push-tap into it would have nothing to switch to. Re-derive and
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
-                    // foreground-push recovery in InvitedCloudColdSyncRunner so both push entry
+                    // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
                     // points behave identically. Relay-backed, so it runs after the handshake gate.
                     if (cid && !isRelayPush && isNativeApp()) await recoverInvitedCloudIfMissing(cloud, cid);
                     // Cloud transition first (it clears the selected site), then site, then route.

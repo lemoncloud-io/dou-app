@@ -43,7 +43,8 @@
       `CacheStorageStrategy` 인터페이스 기반 전략 패턴 자체를 폐지한다.
     - libs/data: `DynamicCacheStorage`, `defaultPolicies`, `dynamicCacheTypes`,
       eviction/capacity 서브시스템과 관련 barrel export를 제거한다.
-    - `createHotInviteCloudStorage`(부팅 마이그레이션용 hot 리더)는 `IndexedDBAdapter` 직결이라
+    - `createWebInviteCloudStorage`(부팅 마이그레이션용 웹 리더, 옛 이름
+      `createHotInviteCloudStorage`)는 `IndexedDBAdapter` 직결이라
       전략 계층과 무관하므로 **존치**한다.
 2. **저장소 라우팅 결정을 선언적 테이블 하나로 모은다.** 타입별로
    환경(`isNativeApp`) × 핸드셰이크(`isNativeCacheTypeUsable`) × 타입 핀(`profile` hot 고정)을

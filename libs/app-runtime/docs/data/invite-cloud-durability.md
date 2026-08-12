@@ -76,33 +76,35 @@ flowchart TD
 
 ## 상세 구현
 
-핵심 모듈은 [invitedCloudColdSync.ts](../../src/data/invitedCloudColdSync.ts) 하나다.
+핵심 모듈은 [invitedCloudDurability.ts](../../src/data/invitedCloudDurability.ts) 하나다.
 
-- `createHotInviteCloudStorage()`([localFactory.ts:70](../../src/data/factories/localFactory.ts:70)) —
+- `createWebInviteCloudStorage()`([localFactory.ts](../../src/data/factories/localFactory.ts)) —
   활성 라우팅을 우회해 공유 IndexedDB의 `invitecloud` 슬롯을 읽는 전용 리더. `invitecloud`는 global
   스코프 고정(`resolveScopedContext`)이라 live 컨텍스트 없이 stub provider로 안전하게 만든다.
-- `reconcileInvitedCloudsIntoCold(cloud, readHotClouds)` — 첫 부팅 1회. 플래그 없으면
-  `readHotClouds()`로 invited를 필터해 `cacheWriteMany`로 옮긴다. **성공 시에만 플래그 기록** —
+- `migrateInvitedCloudsIntoNativeStore(cloud, readWebClouds)` — 첫 부팅 1회. 플래그 없으면
+  `readWebClouds()`로 invited를 필터해 `cacheWriteMany`로 옮긴다. **성공 시에만 플래그 기록** —
   실패 시 미기록으로 다음 부팅 재시도(멱등). **별도 레지스트리 없음** — 캐시 DB가 단일 원천.
+  완료 플래그의 localStorage 키(`chatic-invitecloud-cold-seeded`)는 hot/cold 시절 이름 그대로
+  **동결**한다 — 바꾸면 이미 마이그레이션을 마친 설치본이 전부 재실행한다.
 - `recoverInvitedCloudIfMissing(cloud, cid)` — 캐시에 없는 cid만 `rehydrateInvitedCloud`(relay 재발급
   → 엔드포인트 cacheWrite)로 재구성. 이름은 넣지 않는다(연결 후 채움).
 - `syncInvitedCloudName(cloud, cid)` — active cloud가 invited이고 소켓 verified일 때
   `cloud.getCloud({ id })`로 권위있는 이름을 받아 cacheWrite. 릴레이 delegation 토큰엔 이름이 없어
   이것이 유일한 이름 출처.
-- 훅: `useInvitedCloudColdRecovery`(부팅 1회 마이그레이션, hot 리더를 thunk로 지연 생성),
+- 훅: `useInvitedCloudMigration`(부팅 1회 마이그레이션, 웹 리더를 thunk로 지연 생성),
   `useInvitedCloudNameSync`(verified 시 이름 동기화). 마운트는
-  [InvitedCloudColdSyncRunner.tsx](../../../../apps/web/src/app/runtime/InvitedCloudColdSyncRunner.tsx)가
+  [InvitedCloudDurabilityRunner.tsx](../../../../apps/web/src/app/runtime/InvitedCloudDurabilityRunner.tsx)가
   AppRuntime에서. 푸시는 이 Runner가 `useOnReceiveNotification` + `extractPushContext`로 cid를 뽑아
   `recoverInvitedCloudIfMissing`을 호출한다.
 
 ## 검증 방법
 
-- **단위 테스트** ([invitedCloudColdSync.test.ts](../../src/data/invitedCloudColdSync.test.ts))
-    - 마이그레이션: hot 리더에서 invited만 필터해 1회 `cacheWriteMany` + 플래그, 빈 목록도 플래그,
+- **단위 테스트** ([invitedCloudDurability.test.ts](../../src/data/invitedCloudDurability.test.ts))
+    - 마이그레이션: 웹 리더에서 invited만 필터해 1회 `cacheWriteMany` + 플래그, 빈 목록도 플래그,
       플래그 있으면 재read/재마이그레이션 안 함, **읽기·쓰기 실패 시 플래그 미기록(다음 부팅 재시도)**.
     - 푸시 복구: 빈 cid/기존 캐시 no-op, 누락 cid는 엔드포인트 재구성, relay 실패 시 swallow.
     - 이름 동기화: non-invited/이름 동일/실패 시 no-op, 변경 시 cacheWrite.
-    - 실행: `npx jest --config libs/app-runtime/jest.config.js invitedCloudColdSync`.
+    - 실행: `npx jest --config libs/app-runtime/jest.config.js invitedCloudDurability`.
 - **라우팅 자체의 검증**은 [cache-storage-routing.md](cache-storage-routing.md)의 검증 방법 절이 소유한다
   (`localFactory.test.ts`의 전 타입 × 양 환경 매트릭스).
 - **수동 QA (네이티브 WebView)**: 구버전에서 업데이트 후 초대클라우드 유지(S1) / 푸시 복구(S2).

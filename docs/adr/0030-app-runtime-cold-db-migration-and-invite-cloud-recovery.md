@@ -14,8 +14,9 @@
 >   hot 미스→cold 폴백→hot 재백필 기계는 삭제됐다. 다만 네이티브에서 초대클라우드는 이제 cold에만
 >   저장되므로 "hot에서 사라짐"이라는 실패 모드 자체가 없어졌고, 결론(캐시 DB 단일 원천, durable cold)은
 >   유지된다.
-> - **결정 2(invitecloud hot→cold 일회 시딩)는 그대로 살아 있다.** `createHotInviteCloudStorage`와
->   `invitedCloudColdSync`가 계속 그 역할을 한다.
+> - **결정 2(invitecloud hot→cold 일회 시딩)는 그대로 살아 있다.** 지금은 web→native 어휘로
+>   이름이 바뀌어 `createWebInviteCloudStorage`와 `invitedCloudDurability`가 그 역할을 한다
+>   (완료 플래그의 localStorage 키는 재실행을 막기 위해 옛 이름 그대로 동결).
 >
 > 현재 저장소 라우팅의 실제 동작: [cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md)
 

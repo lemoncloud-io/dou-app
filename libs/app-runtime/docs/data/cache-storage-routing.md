@@ -40,9 +40,10 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
 4. **일반 브라우저(apps/web, admin-v2, desktop-web).** 네이티브 브리지 없음 → 모든 타입
    `'web'`. chat은 조립 옵션 `maxChatsPerChannel`이 주입된 경우에만 채널당 상한이
    걸린다(미주입=무제한).
-5. **부팅 마이그레이션(invitecloud).** 과거 2-tier 빌드가 hot IndexedDB에 남긴 초대 클라우드를
-   Cold로 회수하는 [invitedCloudColdSync](../../src/data/invitedCloudColdSync.ts)는 라우팅을 우회하는 전용 hot 리더
-   (`createHotInviteCloudStorage`)를 계속 사용한다.
+5. **부팅 마이그레이션(invitecloud).** 과거 2-tier 빌드가 웹 IndexedDB에 남긴 초대 클라우드를
+   네이티브 저장소로 회수하는 [invitedCloudDurability](../../src/data/invitedCloudDurability.ts)는 라우팅을 우회하는 전용
+   웹 리더(`createWebInviteCloudStorage`)를 계속 사용한다 —
+   [invite-cloud-durability.md](invite-cloud-durability.md).
 
 ## 다이어그램
 
@@ -84,7 +85,7 @@ flowchart LR
   NativeDBAdapter. chat 상한은 무조건 동반해도 안전하다: 어댑터가 chat 외 타입에서 무시하고,
   네이티브 WebView의 chat은 레거시 집합 보장으로 항상 `'native'`라 웹 경로를 타지 않는다.
 - 공유 `IndexedDBDatabase`가 **유일한 모듈 상태**(물리 공유 자원)다.
-- `createHotInviteCloudStorage()`: 부팅 마이그레이션 전용 hot 리더(시나리오 5).
+- `createWebInviteCloudStorage()`: 부팅 마이그레이션 전용 웹(IndexedDB) 리더(시나리오 5).
 - `getGlobalCacheSearchSource()`: 환경 직결 — 네이티브면 `NativeGlobalSearchSource`(SQLite가
   source of truth), 아니면 `IndexedDbGlobalSearchSource`(ADR-0033: 기대 동작 동일).
 - `createLocalDataSources({ contextProvider, cacheStorageFactory?, cache? })`: `cache`를 기본
@@ -117,5 +118,10 @@ flowchart LR
 - [runtime.test.ts](../../src/data/runtime.test.ts) — 옵션 주입 경로: `configureDataRuntime` 정식 경로와
   `setChatCacheLimit` 심이 동일하게 DataManager에 도달하는지, 늦은 등록이 무시되는지.
 - [nativeCacheSupport.test.ts](../../src/data/nativeCacheSupport.test.ts) — 게이트 판정(레거시 집합 동결, 보고 누적, 스키마 버전).
-- 실행: `libs/app-runtime`에서 `../../node_modules/.bin/jest`. libs/data 스위트와 typecheck도
-  함께 확인(`libs/data`에서 동일 명령).
+- 실행: `libs/app-runtime`에서 `../../node_modules/.bin/jest`(libs/data도 동일 명령).
+- **타입체크는 반드시 `npx tsc -b libs/app-runtime/tsconfig.lib.json`으로 한다.** 각 lib의
+  `tsconfig.json`은 `files: []` + `include: []`인 solution 파일이라 그 디렉터리에서 `tsc --noEmit`을
+  돌리면 **아무 파일도 검사하지 않고 성공한다**(0건 검사 = exit 0). 실제로 이 함정 때문에 배럴
+  이동 후의 깨진 import가 한 커밋 늦게 발견됐다.
+- `apps/web`은 TS project reference로 lib의 `dist/*.d.ts`를 보므로, 배럴을 바꾼 뒤에는 lib을 먼저
+  빌드해야 앱 타입체크에 반영된다.

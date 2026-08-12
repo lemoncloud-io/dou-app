@@ -49,7 +49,7 @@ describe('@chatic/app-runtime public surface', () => {
             // web↔app deploy skew: what the installed app says it can store locally
             'setNativeCacheSupport',
             'getNativeCacheSupport',
-            'useInvitedCloudColdRecovery',
+            'useInvitedCloudMigration',
             'useInvitedCloudNameSync',
             'recoverInvitedCloudIfMissing',
             // desktop-web repairs the active invited cloud itself: the hook above is native-gated,

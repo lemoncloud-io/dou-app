@@ -1,15 +1,15 @@
 import {
-    reconcileInvitedCloudsIntoCold,
+    migrateInvitedCloudsIntoNativeStore,
     recoverInvitedCloudIfMissing,
     syncInvitedCloudName,
-} from './invitedCloudColdSync';
+} from './invitedCloudDurability';
 
 // Isolate the pure orchestration functions from the React hooks' dependencies.
 jest.mock('../runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSocketState: jest.fn() }));
 jest.mock('./factories/localFactory', () => ({ isNativeApp: () => true }));
-// The hot(IndexedDB) reader pulls in the real cache-storage stack; stub it so these tests stay
-// pure — reconcile is exercised by injecting a readHotClouds reader directly.
-jest.mock('./factories/localFactory', () => ({ createHotInviteCloudStorage: jest.fn() }));
+// The web(IndexedDB) reader pulls in the real cache-storage stack; stub it so these tests stay
+// pure — the migration is exercised by injecting a readWebClouds reader directly.
+jest.mock('./factories/localFactory', () => ({ createWebInviteCloudStorage: jest.fn() }));
 
 const mockIssue = jest.fn();
 
@@ -28,66 +28,66 @@ const createCloud = () => ({
     getCloud: jest.fn().mockResolvedValue(null),
 });
 
-describe('invitedCloudColdSync', () => {
+describe('invitedCloudDurability', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         localStorage.clear();
     });
 
-    describe('reconcileInvitedCloudsIntoCold (one-time hot→cold migration)', () => {
-        it('reads invited clouds from hot and writes them into cold once, then flags it', async () => {
+    describe('migrateInvitedCloudsIntoNativeStore (one-time web→native migration)', () => {
+        it('reads invited clouds from web storage and writes them into the native store once, then flags it', async () => {
             const cloud = createCloud();
-            // Hot(IndexedDB) holds both invited and owned rows; only invited must migrate to cold.
-            const readHot = jest.fn().mockResolvedValue([
+            // Web(IndexedDB) holds both invited and owned rows; only invited must migrate to the native store.
+            const readWeb = jest.fn().mockResolvedValue([
                 { id: 'c1', name: 'One', cloudType: 'invited' },
                 { id: 'c2', name: 'Two', cloudType: 'owner' }, // owned → filtered out
             ]);
 
-            await reconcileInvitedCloudsIntoCold(cloud as any, readHot);
+            await migrateInvitedCloudsIntoNativeStore(cloud as any, readWeb);
 
-            expect(readHot).toHaveBeenCalledTimes(1);
+            expect(readWeb).toHaveBeenCalledTimes(1);
             expect(cloud.cacheWriteMany).toHaveBeenCalledTimes(1);
             expect(cloud.cacheWriteMany).toHaveBeenCalledWith([{ id: 'c1', name: 'One', cloudType: 'invited' }]);
             expect(localStorage.getItem(SEED_FLAG_KEY)).toBe('1');
         });
 
-        it('marks seeded even when hot has nothing to migrate', async () => {
+        it('marks seeded even when web storage has nothing to migrate', async () => {
             const cloud = createCloud();
-            const readHot = jest.fn().mockResolvedValue([]);
+            const readWeb = jest.fn().mockResolvedValue([]);
 
-            await reconcileInvitedCloudsIntoCold(cloud as any, readHot);
+            await migrateInvitedCloudsIntoNativeStore(cloud as any, readWeb);
 
             expect(cloud.cacheWriteMany).not.toHaveBeenCalled();
             expect(localStorage.getItem(SEED_FLAG_KEY)).toBe('1');
         });
 
-        it('does nothing once the flag is set (no hot read, no re-migrate)', async () => {
+        it('does nothing once the flag is set (no web read, no re-migrate)', async () => {
             localStorage.setItem(SEED_FLAG_KEY, '1');
             const cloud = createCloud();
-            const readHot = jest.fn().mockResolvedValue([{ id: 'c1', cloudType: 'invited' }]);
+            const readWeb = jest.fn().mockResolvedValue([{ id: 'c1', cloudType: 'invited' }]);
 
-            await reconcileInvitedCloudsIntoCold(cloud as any, readHot);
+            await migrateInvitedCloudsIntoNativeStore(cloud as any, readWeb);
 
-            expect(readHot).not.toHaveBeenCalled();
+            expect(readWeb).not.toHaveBeenCalled();
             expect(cloud.cacheWriteMany).not.toHaveBeenCalled();
         });
 
-        it('leaves the flag unset so the next boot retries when the hot read fails', async () => {
+        it('leaves the flag unset so the next boot retries when the web read fails', async () => {
             const cloud = createCloud();
-            const readHot = jest.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+            const readWeb = jest.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
 
-            await expect(reconcileInvitedCloudsIntoCold(cloud as any, readHot)).resolves.toBeUndefined();
+            await expect(migrateInvitedCloudsIntoNativeStore(cloud as any, readWeb)).resolves.toBeUndefined();
 
             expect(cloud.cacheWriteMany).not.toHaveBeenCalled();
             expect(localStorage.getItem(SEED_FLAG_KEY)).toBeNull();
         });
 
-        it('leaves the flag unset so the next boot retries when the cold write fails', async () => {
+        it('leaves the flag unset so the next boot retries when the native write fails', async () => {
             const cloud = createCloud();
-            cloud.cacheWriteMany.mockRejectedValue(new Error('cold write failed'));
-            const readHot = jest.fn().mockResolvedValue([{ id: 'c1', name: 'One', cloudType: 'invited' }]);
+            cloud.cacheWriteMany.mockRejectedValue(new Error('native write failed'));
+            const readWeb = jest.fn().mockResolvedValue([{ id: 'c1', name: 'One', cloudType: 'invited' }]);
 
-            await expect(reconcileInvitedCloudsIntoCold(cloud as any, readHot)).resolves.toBeUndefined();
+            await expect(migrateInvitedCloudsIntoNativeStore(cloud as any, readWeb)).resolves.toBeUndefined();
 
             expect(localStorage.getItem(SEED_FLAG_KEY)).toBeNull();
         });
