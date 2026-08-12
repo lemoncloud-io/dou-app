@@ -55,6 +55,20 @@ export const classifyError = (error: any): ErrorClassification => {
         };
     }
 
+    // 서명 검증 실패(lemon hmac 불일치, 회전된 auth 모델 등). throwIfApiError가 만든 Error는 HTTP
+    // status가 없어 예전엔 UNKNOWN→재시도로 흘렀는데, 같은 재료로 다시 서명하므로 재시도는 반드시
+    // 같은 실패다(리트라이 폭주 부스터 — 2026-08 session audit §5-6). 즉시 로그아웃은 하지 않는다:
+    // 소켓 리프레시 writeback이 재료를 갱신하면 회복 가능한 상태라, 여기서는 재시도만 끊는다.
+    // status 있는 403은 위에서 기존 정책(로그아웃)을 유지한다.
+    if (/no auth model/i.test(message) || (/signature/i.test(message) && /invalid|mismatch|not valid/i.test(message))) {
+        return {
+            type: ErrorType.AUTHENTICATION,
+            shouldRetry: false,
+            shouldLogout: false,
+            message: '인증 서명이 유효하지 않습니다',
+        };
+    }
+
     if (isNetworkError(error)) {
         return {
             type: ErrorType.NETWORK,
