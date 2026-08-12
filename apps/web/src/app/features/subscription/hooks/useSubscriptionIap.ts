@@ -12,14 +12,11 @@ import {
 
 import type { IapProductSubscription } from '@chatic/app-messages';
 import { useRuntimeProfile } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
 import { useLinkedAccounts } from '../../../hooks';
 import { APP_ID, IS_DEV } from '../consts';
 import type { NativePurchase, PurchaseError, PurchaseProduct } from '../types';
-
-const iapLogger = {
-    warn: (tag: string, msg: string, ...args: any[]) => console.warn(`[${tag}] ${msg}`, ...args),
-};
 
 export const useSubscriptionIap = () => {
     const isIOS = typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
@@ -171,7 +168,7 @@ export const useSubscriptionIap = () => {
                 await appBridge.finishPurchaseTransaction(p);
                 restored++;
             } catch (e) {
-                iapLogger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
+                logger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
             }
         }
 
