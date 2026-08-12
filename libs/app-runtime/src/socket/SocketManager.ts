@@ -52,6 +52,8 @@ interface ClientEntry {
     connState: ClientSocketState;
     /** Cloud id this slot was bound to (frozen at bind) — cache attribution. */
     boundCid: string | null;
+    /** `connected` transitions since bind — reconnect-churn telemetry (2026-08 session audit §7 Phase 0). */
+    connectCount: number;
     unsubscribes: Array<() => void>;
 }
 
@@ -138,6 +140,7 @@ export class SocketManager implements ISocketManager {
             // Freeze this slot's cloud (set only on an actual rebind), so a mid-switch cid flip that
             // doesn't change the url leaves it pinned to the socket's real cloud.
             boundCid: config.cid ?? null,
+            connectCount: 0,
             unsubscribes: [],
         };
         this.entries.set(kind, entry);
@@ -499,6 +502,16 @@ export class SocketManager implements ISocketManager {
         entry.unsubscribes.push(
             entry.client.onState((event: ClientSocketStateEvent) => {
                 entry.connState = event.next;
+                if (event.next === 'connected') {
+                    entry.connectCount += 1;
+                    // One line per (re)connect: a reconnect storm (server dropping failed-auth
+                    // sockets, wake flapping) shows up as a fast-growing count for one slot.
+                    if (entry.connectCount > 1) {
+                        logger.info('SOCKET', '[SocketManager] reconnected', {
+                            data: { kind, connectCount: entry.connectCount },
+                        });
+                    }
+                }
                 this.notifyKindVerified(kind);
                 // Only the active slot drives the observable state; background (relay-while-cloud)
                 // transport changes are tracked on the entry but not surfaced.

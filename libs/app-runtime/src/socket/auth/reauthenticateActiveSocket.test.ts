@@ -15,11 +15,14 @@ const makeAuth = (token: string, order: string[]) => ({
     register: jest.fn(() => {
         order.push('register');
     }),
+    stop: jest.fn(() => {
+        order.push('stop');
+    }),
 });
 
-const makeManager = (auth: unknown, isVerified = true): ISocketManager =>
+const makeManager = (auth: unknown, isVerified = true, clientState = 'connected'): ISocketManager =>
     ({
-        getClient: jest.fn(() => (auth ? { auth } : null)),
+        getClient: jest.fn(() => (auth ? { auth, state: clientState } : null)),
         getSnapshot: jest.fn(() => ({ isVerified })),
         // The revoke/dip guard now reads the PER-KIND verification, not the active-slot snapshot.
         isKindVerified: jest.fn(() => isVerified),
@@ -75,6 +78,29 @@ describe('reauthenticateActiveSocket', () => {
         expect(auth.register).toHaveBeenCalledWith(
             expect.objectContaining({ token: 'social-token', authId: 'social-auth' })
         );
+    });
+
+    it('re-closes the activation gate after registering on a DISCONNECTED socket (device.save:ok ordering)', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('guest-token', order);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager: makeManager(auth, false, 'closed'), delegate, kind: 'relay' });
+
+        // register re-activated the controller; without stop() the SDK would auto-send auth.update
+        // on the next `connected` BEFORE that connection's device.save:ok and fail terminally.
+        expect(order).toEqual(['register', 'stop']);
+    });
+
+    it('leaves the gate open when registering on a LIVE connection (update fires in order right here)', async () => {
+        const order: string[] = [];
+        const auth = makeAuth('guest-token', order);
+        const delegate = makeDelegate({ token: 'social-token', authId: 'social-auth' });
+
+        await reauthenticateActiveSocket({ manager: makeManager(auth, true, 'connected'), delegate, kind: 'relay' });
+
+        expect(order).toEqual(['logout', 'register']);
+        expect(auth.stop).not.toHaveBeenCalled();
     });
 
     it('does nothing when there is no active client', async () => {
