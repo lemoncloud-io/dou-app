@@ -4,7 +4,7 @@ import type { DomainCloud, ICloudRepositoryV2 } from '@chatic/data';
 import { issueCloudDelegationToken, useSessionSelection } from '@chatic/web-core';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '../runtime';
-import { createHotInviteCloudStorage } from './cacheStorageStrategies';
+import { createHotInviteCloudStorage } from './factories/localFactory';
 import { isNativeApp } from './factories/localFactory';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
 

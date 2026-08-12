@@ -2,13 +2,14 @@
 // localFactory is imported.
 import 'fake-indexeddb/auto';
 
+import type { CacheType } from '@chatic/app-messages';
 import type { DataContextProvider } from '@chatic/data';
 
 /**
- * Storage routing: every cache type follows the environment strategy (native → Cold/NativeDB,
- * browser → Hot/IndexedDB) EXCEPT the types pinned to Hot, which must stay on IndexedDB even inside
- * the native WebView. `profile` is pinned because the native Cold writer overwrites the profile
- * owner's uid with the scope uid — see HOT_ONLY_CACHE_TYPES in localFactory.
+ * Storage routing: every cache type follows the environment (native → NativeDB/SQLite, browser →
+ * IndexedDB) EXCEPT the types pinned to web storage, which must stay on IndexedDB even inside the
+ * native WebView. `profile` is pinned because the native Cold writer overwrites the profile
+ * owner's uid with the scope uid — see WEB_PINNED_CACHE_TYPES in cacheStorageRouting.
  */
 describe('getCacheStorage storage routing', () => {
     const contextProvider: DataContextProvider = {
@@ -16,11 +17,12 @@ describe('getCacheStorage storage routing', () => {
         setContext: () => undefined,
     };
 
-    // The strategies are memoized at module scope, so each environment needs a fresh module
-    // registry. Adapters are identified by constructor name rather than `instanceof`: importing the
-    // classes here would either compare against a stale constructor (resetModules gives the factory
-    // a different copy) or, if imported dynamically to dodge that, mark @chatic/data as lazy-loaded
-    // and make every static import of it across app-runtime an @nx/enforce-module-boundaries error.
+    // The native capability snapshot lives at module scope (nativeCacheSupport), so each
+    // environment needs a fresh module registry. Adapters are identified by constructor name
+    // rather than `instanceof`: importing the classes here would either compare against a stale
+    // constructor (resetModules gives the factory a different copy) or, if imported dynamically to
+    // dodge that, mark @chatic/data as lazy-loaded and make every static import of it across
+    // app-runtime an @nx/enforce-module-boundaries error.
     const loadFactory = async (isNative: boolean) => {
         jest.resetModules();
         if (isNative) (window as any).ReactNativeWebView = { postMessage: jest.fn() };
@@ -74,5 +76,60 @@ describe('getCacheStorage storage routing', () => {
         setNativeCacheSupport({ cacheSchemaVersion: 99, supportedCacheTypes: [futureType] });
 
         expect(adapterName(factory.getCacheStorage(futureType, contextProvider))).toBe('NativeDBAdapter');
+    });
+
+    // The full routing table, pinned as a matrix so a routing change can never slip through as a
+    // side effect — this is the behavior contract of ADR-0051's single-decision-point refactor.
+    it('routes every known cache type per the matrix in both environments', async () => {
+        const EXPECTED: Record<CacheType, { browser: string; native: string }> = {
+            chat: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            channel: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            invitecloud: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            join: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            site: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            user: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            meta: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            // pinned to web storage: native Cold writer uid bug (see cacheStorageRouting)
+            profile: { browser: 'IndexedDBAdapter', native: 'IndexedDBAdapter' },
+        };
+
+        const browser = await loadFactory(false);
+        for (const [type, expected] of Object.entries(EXPECTED)) {
+            expect(adapterName(browser.getCacheStorage(type as CacheType, contextProvider))).toBe(expected.browser);
+        }
+
+        const native = await loadFactory(true);
+        for (const [type, expected] of Object.entries(EXPECTED)) {
+            expect(adapterName(native.getCacheStorage(type as CacheType, contextProvider))).toBe(expected.native);
+        }
+    });
+});
+
+describe('getCacheStorage chat cap injection', () => {
+    const contextProvider: DataContextProvider = {
+        getContext: () => ({ cid: 'c1', uid: 'u1' }),
+        setContext: () => undefined,
+    };
+
+    const loadFactory = async () => {
+        jest.resetModules();
+        delete (window as any).ReactNativeWebView;
+        return import('./localFactory');
+    };
+
+    it('hands the per-channel chat cap to the web chat adapter', async () => {
+        const { getCacheStorage } = await loadFactory();
+
+        const storage = getCacheStorage('chat', contextProvider, { maxChatsPerChannel: 5 });
+
+        expect((storage as any).options.maxChatsPerChannel).toBe(5);
+    });
+
+    it('leaves the cap unbounded when no options are injected', async () => {
+        const { getCacheStorage } = await loadFactory();
+
+        const storage = getCacheStorage('chat', contextProvider);
+
+        expect((storage as any).options.maxChatsPerChannel).toBeUndefined();
     });
 });

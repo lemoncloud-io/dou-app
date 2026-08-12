@@ -9,7 +9,7 @@ jest.mock('../runtime', () => ({ useRuntimeRepositories: jest.fn(), useRuntimeSo
 jest.mock('./factories/localFactory', () => ({ isNativeApp: () => true }));
 // The hot(IndexedDB) reader pulls in the real cache-storage stack; stub it so these tests stay
 // pure — reconcile is exercised by injecting a readHotClouds reader directly.
-jest.mock('./cacheStorageStrategies', () => ({ createHotInviteCloudStorage: jest.fn() }));
+jest.mock('./factories/localFactory', () => ({ createHotInviteCloudStorage: jest.fn() }));
 
 const mockIssue = jest.fn();
 

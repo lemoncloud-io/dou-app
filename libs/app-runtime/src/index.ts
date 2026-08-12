@@ -43,15 +43,17 @@ export { requestSessionRefresh } from './socket/auth/requestSessionRefresh';
 export type { RequestSessionRefreshDeps } from './socket/auth/requestSessionRefresh';
 
 // --- Cache tier helpers ---------------------------------------------------------------------
-// Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
-export { isNativeApp, setChatCacheLimit } from './data/factories/localFactory';
+// Storage routing: which physical store each cache type lands in. See docs/data/cache-storage-routing.md.
+export { isNativeApp } from './data/cacheStorageRouting';
 // Native local-cache capability reported in the bridge handshake. The web ships ahead of the app,
 // so a domain the installed app cannot store is routed to web storage instead of a silent void.
 export { setNativeCacheSupport, getNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
-// App-level repository policies for the lazily created data runtime; must run before first access
-// (see apps/web main.tsx: relay-only embedded-$site persistence, ADR-0045).
-export { configureDataRuntime } from './data/runtime';
+// App-level repository and cache-assembly policies for the lazily created data runtime; must run
+// before first access (see apps/web main.tsx: relay-only embedded-$site persistence, ADR-0045).
+// setChatCacheLimit is the deprecated pre-configureDataRuntime spelling desktop-web still uses.
+export { configureDataRuntime, setChatCacheLimit } from './data/runtime';
+export type { CacheAssemblyOptions } from './data/factories/localFactory';
 export {
     useInvitedCloudColdRecovery,
     useInvitedCloudNameSync,
