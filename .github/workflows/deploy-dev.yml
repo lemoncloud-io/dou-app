@@ -270,6 +270,7 @@ jobs:
                   VITE_SOC_ENDPOINT=${{ secrets[format('{0}_DEV_SOC_ENDPOINT', matrix.prefix)] }}
                   VITE_IAP_ENDPOINT=${{ secrets[format('{0}_DEV_IAP_ENDPOINT', matrix.prefix)] }}
                   VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
+                  VITE_DEBUG_CODE=${{ secrets[format('{0}_DEV_DEBUG_CODE', matrix.prefix)] }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
                   grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"

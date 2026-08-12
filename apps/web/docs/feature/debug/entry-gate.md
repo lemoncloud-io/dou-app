@@ -132,8 +132,15 @@ flowchart TD
 | `features/debug/index.ts`, `hooks/index.ts`, `lib/index.ts`, `components/index.ts` | 배럴 export 추가, `isDevEnv` export 제거.                                                                                                                                                                                                  |
 | `apps/web/.env.example`                                                            | `VITE_DEBUG_CODE=000000` 항목 추가.                                                                                                                                                                                                        |
 | `apps/web/docs/feature/debug/README.md`                                            | 게이팅 섹션 갱신, stale한 "DEV/LOCAL 자동 활성" 서술 제거하고 이 문서로 링크.                                                                                                                                                              |
+| `.github/workflows/deploy-dev.yml`, `deploy-prod.yml`, `force-deploy.yml`          | `Generate env file` 4개 블록에 `VITE_DEBUG_CODE` 주입 라인 추가.                                                                                                                                                                           |
 
-`VITE_DEBUG_CODE`는 배포 파이프라인의 신규 필수 시크릿이다. CI에 주입을 빠뜨리면 fail-closed 설계상 배포 빌드에서 디버그 도구가 조용히 사라진다 — 배포 담당자에게 공유가 필요하다.
+### CI 주입
+
+`.env`를 만드는 4개 블록(dev 1, prod 1, force-deploy 2)이 `VITE_DEBUG_CODE`를 쓴다. 시크릿 이름은 다른 변수와 같은 규칙을 따른다 — `<PREFIX>_DEV_DEBUG_CODE` / `<PREFIX>_PROD_DEBUG_CODE` (web이면 `WEB_DEV_DEBUG_CODE`).
+
+**시크릿을 만들지 않으면 그 환경은 게이트가 꺼진 채로 남는다.** 워크플로가 `.env`를 쓴 뒤 `grep -v '=$'`로 값 없는 줄을 지우므로, 미등록 시크릿은 변수 자체가 없는 것과 같아지고 fail-closed 경로를 그대로 탄다. 즉 **시크릿 등록 여부가 환경별 on/off 스위치**다 — 배선은 되어 있으니 오버레이가 필요한 환경에만 값을 넣으면 된다.
+
+값은 GitHub Actions 로그에서 시크릿으로 마스킹되지만(`Generate env file`이 마지막에 `cat`을 한다), **번들에는 평문으로 인라인된다.** 위협 모델이 "일반 유저의 우발적 진입 차단"인 이유이며(ADR-0034), 리버싱하는 공격자는 대상이 아니다.
 
 ### 제거된 파일
 
