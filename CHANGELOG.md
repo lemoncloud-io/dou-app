@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-08-12] - root@0.52.0, @chatic/web@0.45.0
+
+### Features
+
+- (web-core) report what a failed request sent and what came back
+- (admin-v2) symbolicate a report's stack, and catch admin's own errors
+- (scripts) resolve a report's stack to source with one command
+- (build) emit source maps everywhere and keep them out of the public bucket
+- (web) widen error capture and persist the log buffer
+- (web/debug) gate the hidden debug overlay behind an entry code
+- (web-core) make an error report say what broke, where, and in which build
+- (bridges) route report breadcrumbs through a LogSource
+- (logger) unify the logging contract and preserve occurrence time
+
+### Bug Fixes
+
+- (app-runtime/socket) stop recording a request failure twice
+- (web) hold the profile refresh until the socket is verified
+
+### Refactor
+
+- (data) send cache failures to the logger instead of the console
+- (mobile) move logging onto the shared core and report native crashes
+
+### Other
+
+- ci: (deploy) pass the debug entry code through to the build
+
 ## [2026-08-11] - root@0.51.0, @chatic/web@0.44.0
 
 ### Features
