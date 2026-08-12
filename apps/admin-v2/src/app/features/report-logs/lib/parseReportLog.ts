@@ -17,6 +17,11 @@ export interface ReportPayload {
     title?: string;
     message?: string;
     stack?: string;
+    /**
+     * `error.cause` 체인 (바깥→안). 감싼 에러의 stack은 감싼 자리를 가리키므로,
+     * 실제 원인의 stack은 여기에만 있다 — 소스맵 해석 대상도 이쪽이다.
+     */
+    causes?: { message: string; stack?: string }[];
     componentStack?: string;
     app?: string;
     env?: string;
@@ -28,6 +33,8 @@ export interface ReportPayload {
     http?: Record<string, unknown>;
     device?: Record<string, unknown>;
     network?: Record<string, unknown>;
+    /** opaque script-error의 유일한 위치 단서 (filename/lineno/colno). */
+    location?: Record<string, unknown>;
     version?: Record<string, unknown>;
     viewport?: Record<string, unknown>;
     path?: string;
