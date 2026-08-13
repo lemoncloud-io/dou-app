@@ -41,6 +41,7 @@ import {
     useActiveCloudChannels,
     useCachedCloudNames,
     useChannelUnreads,
+    useCloudChannelSync,
     useHomeChannels,
     useInvitedClouds,
     useMyJoins,
@@ -152,6 +153,9 @@ export const HomePage = () => {
     // `$join`. The app-icon badge is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
     const cloudChannels = useActiveCloudChannels();
     const myJoins = useMyJoins(cloudChannels);
+    // Head side of the same unread sum: without this only the rendered rows (active place) keep a
+    // live `chatNo`/`metaNo`, so other places would lag the 60s cloud-wide delta.
+    useCloudChannelSync(cloudChannels);
     const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels, myJoins);
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on

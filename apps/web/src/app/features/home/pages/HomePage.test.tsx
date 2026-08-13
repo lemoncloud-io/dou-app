@@ -40,6 +40,7 @@ jest.mock('../../../hooks', () => ({
     useActiveCloudChannels: () => [],
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
+    useCloudChannelSync: () => undefined,
     useHomeChannels: () => ({ channels: [], isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds: [] }),
     useMyJoins: () => new Map(),
