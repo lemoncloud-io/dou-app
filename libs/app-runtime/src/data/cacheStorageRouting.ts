@@ -15,13 +15,16 @@ export const isNativeApp = (): boolean => {
 // Types pinned to web storage even inside the native WebView, each listed with the reason it
 // cannot live on native storage — an entry leaves this table when its reason ships a fix.
 //
-// - `profile`: the native Cold writer stamps the scope `uid` over the profile OWNER's `uid`,
-//   collapsing every member of a place onto one canonical `sid@myUid` key so only a single profile
-//   survives a list read (missing nicks/photos). Web storage keeps the item verbatim, which fixes
-//   that without waiting on a native app release. Trade-off: WebView IndexedDB can be evicted by
-//   the OS — acceptable here because profiles are server-derived display data and refetch on
-//   demand, so an eviction costs a refetch rather than data loss.
-const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>(['profile']);
+// Empty today. `profile` sat here while the native writer stamped the scope `uid` over the profile
+// OWNER's `uid`, which collapsed every member of a place onto one `sid@myUid` key so a list read
+// returned a single profile and everyone else lost their nick/photo. `ProfileDataSource.serialize`
+// now stores the item verbatim (3682ca78) and that app release is out, so profile goes to native
+// storage with every other type — which is also the durable one, immune to WebView IndexedDB
+// eviction.
+//
+// Adding an entry here is a stopgap, not a home: it trades native durability for web storage the OS
+// can clear, so it only holds for data the server can re-derive.
+const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
 
 /**
  * THE routing decision: answers "where is this cache type stored" in one place, so the factory

@@ -7,9 +7,8 @@ import type { DataContextProvider } from '@chatic/data';
 
 /**
  * Storage routing: every cache type follows the environment (native → NativeDB/SQLite, browser →
- * IndexedDB) EXCEPT the types pinned to web storage, which must stay on IndexedDB even inside the
- * native WebView. `profile` is pinned because the native Cold writer overwrites the profile
- * owner's uid with the scope uid — see WEB_PINNED_CACHE_TYPES in cacheStorageRouting.
+ * IndexedDB), minus any type pinned to web storage — that table is empty now that the native
+ * profile writer stores items verbatim. See WEB_PINNED_CACHE_TYPES in cacheStorageRouting.
  */
 describe('getCacheStorage storage routing', () => {
     const contextProvider: DataContextProvider = {
@@ -36,10 +35,10 @@ describe('getCacheStorage storage routing', () => {
         delete (window as any).ReactNativeWebView;
     });
 
-    it('keeps profile on hot IndexedDB inside the native WebView', async () => {
+    it('routes profile to cold NativeDB inside the native WebView', async () => {
         const { getCacheStorage } = await loadFactory(true);
 
-        expect(adapterName(getCacheStorage('profile', contextProvider))).toBe('IndexedDBAdapter');
+        expect(adapterName(getCacheStorage('profile', contextProvider))).toBe('NativeDBAdapter');
     });
 
     it('still routes other types to cold NativeDB inside the native WebView', async () => {
@@ -89,8 +88,7 @@ describe('getCacheStorage storage routing', () => {
             site: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             user: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             meta: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
-            // pinned to web storage: native Cold writer uid bug (see cacheStorageRouting)
-            profile: { browser: 'IndexedDBAdapter', native: 'IndexedDBAdapter' },
+            profile: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
         };
 
         const browser = await loadFactory(false);

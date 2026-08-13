@@ -88,7 +88,7 @@ flowchart TD
 실체화만 한다. 전체 설계는 [cache-storage-routing.md](cache-storage-routing.md) 참고. 판정은 셋뿐이다.
 
 1. 브라우저(네이티브 브리지 없음) → 항상 web(IndexedDB).
-2. `WEB_PINNED_CACHE_TYPES`에 고정된 타입(`profile`) → web(IndexedDB).
+2. `WEB_PINNED_CACHE_TYPES`에 고정된 타입 → web(IndexedDB). 현재 비어 있다.
 3. **네이티브가 못 저장하는 타입** → web(IndexedDB). 그 외 → native(NativeDB/SQLite).
 
 3번이 배포 스큐 대응이다. 웹은 앱보다 먼저 배포되므로 **웹이 아는 CacheType이

@@ -15,8 +15,9 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
 
 - **라우팅 결정은 단일 지점.** 새 캐시 타입을 추가하거나 저장 위치를 바꿀 때 수정하는 곳은
   라우팅 모듈 하나여야 한다. 팩토리·어댑터·앱 코드에 라우팅 분기를 추가하지 않는다.
-- **핀과 게이트는 사유와 함께 선언한다.** 특정 타입을 예외 처리(예: profile 웹 고정)할 때는
-  테이블 항목에 이유(버그 우회, 스큐 방어)를 주석으로 남긴다. 사유가 사라지면 항목도 지운다.
+- **핀과 게이트는 사유와 함께 선언한다.** 특정 타입을 웹에 고정할 때는 테이블 항목에 이유(버그
+  우회, 스큐 방어)를 주석으로 남긴다. **사유가 사라지면 항목도 지운다** — `profile`이 그렇게
+  들어왔다 나갔다(네이티브 writer 수정 배포 후 제거).
 - **팩토리는 상태가 없다.** 데이터 레이어 팩토리 3형제(local/remote/repository)는 모두
   "받아서 조립해 반환"만 한다. 모듈 레벨 뮤터블 상태는 물리 공유 자원(공유 IndexedDB 연결)과
   런타임 싱글톤(runtime.ts)에만 허용한다.
@@ -30,9 +31,10 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
 1. **네이티브 WebView, 일반 타입(chat 등).** `resolveCacheBackend('chat')` → 환경=native,
    핀 없음, chat은 프로즌 레거시 지원 집합에 포함 → `'native'`. NativeDBAdapter(SQLite)가
    저장을 담당한다. WebView IndexedDB가 OS에 의해 비워져도 데이터가 살아남는다.
-2. **네이티브 WebView, profile.** `WEB_PINNED_CACHE_TYPES`에 profile이 웹 고정으로 선언되어
-   있음 → `'web'`. 네이티브 Cold writer가 profile 소유자 uid를 스코프 uid로 덮어쓰는 버그를
-   우회한다. IndexedDB가 비워지면 서버 재페치로 복구된다(표시용 파생 데이터라 유실이 아님).
+2. **웹 핀 테이블은 현재 비어 있다.** `profile`이 여기 있었으나(네이티브 writer가 프로필 소유자
+   uid를 스코프 uid로 덮어써 장소 멤버 전원이 한 키로 뭉개지던 버그) `ProfileDataSource.serialize`
+   수정이 배포되면서 제거됐다. 핀은 임시 방편이지 거처가 아니다 — 네이티브의 durability를 OS가
+   비울 수 있는 웹 저장소와 맞바꾸는 것이라, 서버가 다시 만들어줄 수 있는 데이터에만 쓴다.
 3. **네이티브 WebView, 앱보다 새로운 타입.** 웹이 앱보다 먼저 배포되므로 웹만 아는 타입이
    생긴다. 레거시 집합에 없고 핸드셰이크 보고에도 없음 → `'web'`. 구형 앱의 `default:` 암이
    `null`+`success:true`로 답해 "영원히 빈 캐시"가 되는 함정을 피한다. 이후 앱 업데이트가
@@ -51,7 +53,7 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
 flowchart TD
     Q["getCacheStorage(type)"] --> R{resolveCacheBackend}
     R -->|"브라우저 환경\n(ReactNativeWebView 없음)"| W[web]
-    R -->|"웹 핀 테이블 WEB_PINNED_CACHE_TYPES\n(profile: cold uid 버그 우회)"| W
+    R -->|"웹 핀 테이블 WEB_PINNED_CACHE_TYPES\n(현재 비어 있음)"| W
     R -->|"네이티브 미지원 타입\n(레거시 집합 ∉ ∧ 핸드셰이크 보고 ∉)\n또는 스키마 버전 미달"| W
     R -->|그 외| N[native]
     W --> IDB["IndexedDBAdapter\n(공유 IndexedDBDatabase,\nchat이면 maxChatsPerChannel 적용)"]
@@ -74,7 +76,7 @@ flowchart LR
 **[cacheStorageRouting.ts](../../src/data/cacheStorageRouting.ts)** — 라우팅 결정의 단일 지점.
 
 - `resolveCacheBackend(type) → 'web' | 'native'`: ① 브라우저 환경이면 `'web'`
-  ② `WEB_PINNED_CACHE_TYPES`(profile — 사유 주석 포함)면 `'web'`
+  ② `WEB_PINNED_CACHE_TYPES`(현재 비어 있음 — 항목마다 사유 주석 필수)면 `'web'`
   ③ `isNativeCacheTypeUsable(type)` 부정이면 `'web'` ④ 그 외 `'native'`.
 - `isNativeApp()`(환경 축)도 여기 산다. 순수 판정 모듈 — I/O·어댑터 생성 없음.
 
