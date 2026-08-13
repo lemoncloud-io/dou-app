@@ -6,6 +6,7 @@ import { metricsCollector } from '../metrics/MetricsCollector';
 import { useDebugMode } from '../hooks';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
 import { ExpandedSheet } from './ExpandedSheet';
+import { FloatingScreen } from './FloatingScreen';
 import { MiniPanel } from './MiniPanel';
 
 // Always-on socket quality reporter — keeps connect/disconnect counts accurate
@@ -42,7 +43,9 @@ export const DebugOverlayHost = () => {
                     debug
                 </button>
             )}
-            {isOpen && (mode === 'mini' ? <MiniPanel /> : <ExpandedSheet />)}
+            {isOpen && mode === 'mini' && <MiniPanel />}
+            {isOpen && mode === 'float' && <FloatingScreen />}
+            {isOpen && mode === 'expanded' && <ExpandedSheet />}
         </>
     );
 };

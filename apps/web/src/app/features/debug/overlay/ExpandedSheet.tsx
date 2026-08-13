@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 
-import { ChevronLeft, ChevronRight, Minimize2, X, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minimize2, PictureInPicture2, X, XCircle } from 'lucide-react';
 
 import { DEBUG_MENU_SECTIONS, DEBUG_SCREEN_TITLES } from './debugMenu';
 import { DEBUG_SCREEN_COMPONENTS } from './screenRegistry';
@@ -40,6 +40,16 @@ export const ExpandedSheet = () => {
                 </div>
                 <span className="flex-1 truncate text-center text-[15px] font-semibold">{title}</span>
                 <div className="flex w-[88px] items-center justify-end gap-1 pr-2">
+                    {/* Float keeps THIS screen usable over the app; minimize swaps to the observation tabs. */}
+                    {screen && (
+                        <button
+                            onClick={() => debugOverlayActions.float()}
+                            className="rounded-full p-[9px] text-muted-foreground"
+                            aria-label="float"
+                        >
+                            <PictureInPicture2 size={18} />
+                        </button>
+                    )}
                     <button
                         onClick={() => debugOverlayActions.minimize()}
                         className="rounded-full p-[9px] text-muted-foreground"

@@ -2,7 +2,12 @@ import { useSyncExternalStore } from 'react';
 
 import type { DebugScreenKey } from './debugMenu';
 
-export type DebugOverlayMode = 'mini' | 'expanded';
+/**
+ * `mini` — fixed read-only observation tabs, floating.
+ * `float` — a selected tool screen, floating (app underneath stays usable).
+ * `expanded` — full-screen sheet with the home menu and screen stack.
+ */
+export type DebugOverlayMode = 'mini' | 'float' | 'expanded';
 
 export interface DebugOverlayState {
     isOpen: boolean;
@@ -47,6 +52,13 @@ export const debugOverlayActions = {
     /** Keep the selected screen so re-expanding returns to where the user was. */
     minimize() {
         setState({ mode: 'mini' });
+    },
+    /**
+     * Float the selected tool screen. Without one there is nothing to float, so this falls back to
+     * the observation panel rather than opening an empty frame.
+     */
+    float() {
+        setState({ isOpen: true, mode: state.screen ? 'float' : 'mini' });
     },
     selectScreen(screen: DebugScreenKey) {
         setState({ isOpen: true, mode: 'expanded', screen });

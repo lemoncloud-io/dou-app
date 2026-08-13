@@ -10,6 +10,7 @@ export const DEBUG_SCREEN_COMPONENTS: Record<DebugScreenKey, LazyExoticComponent
     EmailLogin: lazy(() => import('./screens/EmailLoginScreen').then(m => ({ default: m.EmailLoginScreen }))),
     LogBuffer: lazy(() => import('./screens/LogBufferScreen').then(m => ({ default: m.LogBufferScreen }))),
     CacheTest: lazy(() => import('./screens/CacheTestScreen').then(m => ({ default: m.CacheTestScreen }))),
+    CacheMetrics: lazy(() => import('./screens/CacheMetricsScreen').then(m => ({ default: m.CacheMetricsScreen }))),
     UploadTest: lazy(() => import('./screens/UploadTestScreen').then(m => ({ default: m.UploadTestScreen }))),
     Push: lazy(() => import('./screens/PushScreen').then(m => ({ default: m.PushScreen }))),
     InviteRedirect: lazy(() =>
