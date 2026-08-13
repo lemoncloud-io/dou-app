@@ -459,24 +459,14 @@ describe('placeScopeKey — cid:sid 스코프', () => {
         });
     });
 
-    // Moved here with the ids themselves: the invite feature used to hand-roll this in its own
-    // localStorage helper (useLocallyCanceledInvites).
-    describe('invite id lists', () => {
+    // Legacy pre-API cancel stamps (ADR-0043), read-only since ADR-0052 moved the live dismiss
+    // flag onto the invite cache. Only the migration/reconcile drain path remains here — nothing
+    // writes a NEW id into this list anymore.
+    describe('invite id lists (legacy, read-only drain)', () => {
         it('손상된 값은 "기록 없음"으로 degrade한다 — 던지지 않는다', () => {
             expect(parseInviteIds('not json')).toEqual([]);
             expect(parseInviteIds('{"a":1}')).toEqual([]);
             expect(parseInviteIds('[1, null, "", "ok"]')).toEqual(['ok']);
-        });
-
-        it('취소(dismiss)는 중복 없이 쌓이고 localStorage에 반영된다', () => {
-            usePreferenceStore.setState({ canceledInviteIds: [] });
-
-            usePreferenceStore.getState().markInviteCanceled('invite-1');
-            usePreferenceStore.getState().markInviteCanceled('invite-1');
-            usePreferenceStore.getState().markInviteCanceled('invite-2');
-
-            expect(usePreferenceStore.getState().canceledInviteIds).toEqual(['invite-1', 'invite-2']);
-            expect(localStorage.getItem('dou.relayInvite.locallyCanceled.v1')).toBe('["invite-1","invite-2"]');
         });
 
         it('clearInviteCanceled는 정산이 끝난 기록 하나만 지운다 — reconcile이 쓰는 경로', () => {

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
@@ -6,6 +7,12 @@ import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 
 /** Invite view as `invite.get` returns it: the server also reports whether the reader must verify. */
 export type RelayInviteView = MyInviteView & { needVerify?: boolean };
+
+/**
+ * A sent-invite row as `useRelayInvites` renders it. `dismissedAt` is a local-only stamp
+ * (ADR-0052) — the server never returns it, so it only ever arrives via the cache merge below.
+ */
+export type RelayInviteRow = MyInviteView & { dismissedAt?: number };
 
 /**
  * What issuing an invite takes. `phone` is E.164 (`+821012345678`), not the local (`0…`) form —
@@ -53,6 +60,36 @@ export const relayInviteKeys = {
 };
 
 /**
+ * Merges the local cache with the latest server response: the response wins per id for every
+ * SERVER-owned field (it carries `code`, the cache never does) and keeps the server's own order,
+ * while any cache-only row — fallen out of the `limit: 100` window, or simply not confirmed yet
+ * because the response hasn't landed — is appended after, in the cache's own newest-first order
+ * (ADR-0052 결정 4).
+ *
+ * `dismissedAt` rides along separately: it is a LOCAL-only field the server response never
+ * carries, so a naive "remote wins outright" would silently erase a dismiss the moment the row's
+ * server state refreshes — exactly the "dismiss survives" guarantee (ADR-0052 결정 5, S4) this
+ * merge exists to keep. A matched cache row's `dismissedAt` is carried onto the remote-sourced
+ * row instead of being dropped.
+ *
+ * When `remote` is empty (cold boot before `invite.list` resolves, or offline) the result is pure
+ * cache order. When `remote` fully covers what the cache has and nothing is dismissed, the result
+ * is exactly `remote`, unreordered — the pass-through behavior every existing consumer relies on.
+ */
+const mergeCachedAndRemoteInvites = (cached: RelayInviteRow[], remote: MyInviteView[]): RelayInviteRow[] => {
+    const cachedById = new Map(cached.filter(item => item.id).map(item => [item.id as string, item]));
+
+    const merged = remote.map(item => {
+        const dismissedAt = item.id ? cachedById.get(item.id)?.dismissedAt : undefined;
+        return dismissedAt ? { ...item, dismissedAt } : item;
+    });
+
+    const remoteIds = new Set(remote.map(item => item.id).filter(Boolean));
+    const cacheOnly = cached.filter(item => item.id && !remoteIds.has(item.id));
+    return [...merged, ...cacheOnly];
+};
+
+/**
  * The inviter's own invite cards (`invite.list`), newest first.
  *
  * Read through `InviteRepositoryV2` like every other data access (ADR-0036) — the repository is an
@@ -60,6 +97,11 @@ export const relayInviteKeys = {
  * gateway behind it. By default it only refetches on window focus, which covers "user came back to
  * the tab" (see the query options for why that needs an explicit opt-out of the app's global
  * `staleTime`); a caller that needs a cadence on top asks for it with `pollIntervalMs`.
+ *
+ * Local-first since ADR-0052: a local cache observer renders instantly on cold boot (before the
+ * relay handshake even completes) or offline, while the server read below still fires on every
+ * call and stays the only source of truth for cards someone ELSE'S device changed — the cache is
+ * never trusted for state, only for what to paint before the real answer arrives.
  */
 export const useRelayInvites = (state?: InviteState, options: RelayInvitesOptions = {}) => {
     const { invite } = useRuntimeRepositories();
@@ -68,6 +110,13 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
     // firing before relay's own handshake completes is exactly what threw `503 SOCKET NOT
     // CONNECTED - relay.request(invite.list)` on cold boot / window-focus refetch.
     const isRelayVerified = useKindVerified('relay');
+
+    const [cachedInvites, setCachedInvites] = useState<RelayInviteRow[]>([]);
+    useEffect(() => {
+        return invite.observeList(result => {
+            setCachedInvites((result?.list ?? []) as RelayInviteRow[]);
+        });
+    }, [invite]);
 
     const query = useQuery({
         queryKey: relayInviteKeys.list(state),
@@ -88,9 +137,14 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
         enabled: isRelayVerified,
     });
 
+    const invites = mergeCachedAndRemoteInvites(cachedInvites, query.data ?? []);
+
     return {
-        invites: query.data ?? [],
-        isLoading: query.isLoading,
+        invites,
+        // A cache hit already has something to paint, so the loading spinner is reserved for the
+        // genuinely empty case (nothing cached, response not back yet) — the cold-boot win ADR-0052
+        // exists for.
+        isLoading: query.isLoading && invites.length === 0,
         refetch: query.refetch,
     };
 };

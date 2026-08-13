@@ -48,6 +48,7 @@ import {
 } from '../../../hooks';
 import { resolveHeaderProfile } from '../lib';
 import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
+import { useInviteDismissMigration } from '../../invite/hooks/useInviteDismissMigration';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 
 export const HomePage = () => {
@@ -144,6 +145,9 @@ export const HomePage = () => {
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
     const { invites: sentInvites } = useInviteListRows();
+    // One-time: folds the stub era's `canceledInviteIds` (localStorage) into cache dismiss stamps
+    // (ADR-0052 결정 5) — a no-op once every install has run it.
+    useInviteDismissMigration();
     // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
     // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
     useCanceledInviteReconcile();

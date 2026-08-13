@@ -21,6 +21,7 @@ export const SUPPORTED_CACHE_TYPES: readonly CacheType[] = [
     'invitecloud',
     'profile',
     'meta',
+    'invite',
 ];
 
 export class CacheCrudService implements ICacheCrudService {
@@ -36,6 +37,7 @@ export class CacheCrudService implements ICacheCrudService {
     >;
     private readonly profileDataSource: ICacheDataSource<CacheModelMap['profile'], CacheQueryMap['profile']>;
     private readonly metaDataSource: ICacheDataSource<CacheModelMap['meta'], CacheQueryMap['meta']>;
+    private readonly inviteDataSource: ICacheDataSource<CacheModelMap['invite'], CacheQueryMap['invite']>;
 
     constructor(
         logService: ILogService,
@@ -47,7 +49,8 @@ export class CacheCrudService implements ICacheCrudService {
         inviteCloudDataSource: ICacheDataSource<CacheModelMap['invitecloud'], CacheQueryMap['invitecloud']>,
         // Appended last so existing positional call sites stay valid.
         profileDataSource: ICacheDataSource<CacheModelMap['profile'], CacheQueryMap['profile']>,
-        metaDataSource: ICacheDataSource<CacheModelMap['meta'], CacheQueryMap['meta']>
+        metaDataSource: ICacheDataSource<CacheModelMap['meta'], CacheQueryMap['meta']>,
+        inviteDataSource: ICacheDataSource<CacheModelMap['invite'], CacheQueryMap['invite']>
     ) {
         this.logService = logService;
         this.chatDataSource = chatDataSource;
@@ -58,6 +61,7 @@ export class CacheCrudService implements ICacheCrudService {
         this.inviteCloudDataSource = inviteCloudDataSource;
         this.profileDataSource = profileDataSource;
         this.metaDataSource = metaDataSource;
+        this.inviteDataSource = inviteDataSource;
     }
 
     public async fetch<K extends CacheType>(payload: {
@@ -86,6 +90,8 @@ export class CacheCrudService implements ICacheCrudService {
                     return (await this.profileDataSource.fetch(id, cid, uid)) as CacheModelMap[K] | null;
                 case 'meta':
                     return (await this.metaDataSource.fetch(id, cid, uid)) as CacheModelMap[K] | null;
+                case 'invite':
+                    return (await this.inviteDataSource.fetch(id, cid, uid)) as CacheModelMap[K] | null;
                 default:
                     return null;
             }
@@ -153,6 +159,12 @@ export class CacheCrudService implements ICacheCrudService {
                         query as CacheQueryMap['meta'],
                         uid
                     )) as CacheModelMap[K][];
+                case 'invite':
+                    return (await this.inviteDataSource.fetchAll(
+                        cid,
+                        query as CacheQueryMap['invite'],
+                        uid
+                    )) as CacheModelMap[K][];
                 default:
                     return [];
             }
@@ -196,6 +208,9 @@ export class CacheCrudService implements ICacheCrudService {
                     break;
                 case 'meta':
                     await this.metaDataSource.save(id, item as CacheModelMap['meta'], cid, uid);
+                    break;
+                case 'invite':
+                    await this.inviteDataSource.save(id, item as CacheModelMap['invite'], cid, uid);
                     break;
             }
         } catch (error) {
@@ -246,6 +261,9 @@ export class CacheCrudService implements ICacheCrudService {
                 case 'meta':
                     await this.metaDataSource.saveAll(formatItems(items as CacheModelMap['meta'][]), cid, uid);
                     break;
+                case 'invite':
+                    await this.inviteDataSource.saveAll(formatItems(items as CacheModelMap['invite'][]), cid, uid);
+                    break;
             }
 
             const ids = items.map((i: any) => i.id);
@@ -290,6 +308,9 @@ export class CacheCrudService implements ICacheCrudService {
                 case 'meta':
                     await this.metaDataSource.remove(id, cid, uid);
                     break;
+                case 'invite':
+                    await this.inviteDataSource.remove(id, cid, uid);
+                    break;
             }
         } catch (error) {
             this.logService.error('CACHE', `Delete error for type: ${type}, id: ${id}`, error as Error);
@@ -331,6 +352,9 @@ export class CacheCrudService implements ICacheCrudService {
                 case 'meta':
                     await this.metaDataSource.removeAll(ids, cid, uid);
                     break;
+                case 'invite':
+                    await this.inviteDataSource.removeAll(ids, cid, uid);
+                    break;
             }
         } catch (error) {
             this.logService.error('CACHE', `DeleteAll error for type: ${type}`, error as Error);
@@ -365,6 +389,9 @@ export class CacheCrudService implements ICacheCrudService {
                     break;
                 case 'meta':
                     await this.metaDataSource.clear(cid, uid);
+                    break;
+                case 'invite':
+                    await this.inviteDataSource.clear(cid, uid);
                     break;
             }
         } catch (error) {

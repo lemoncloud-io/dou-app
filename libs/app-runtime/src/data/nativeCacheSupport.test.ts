@@ -15,8 +15,10 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-// 유니온에 아직 없는 미래 타입을 흉내 낸다 — 이 훅이 존재하는 이유 그 자체다.
-const FUTURE_TYPE = 'invite' as never;
+// 'invite'(ADR-0052)는 이 리포에 최초로 추가된 CacheType이라, 정의상 LEGACY_NATIVE_CACHE_TYPES
+// 동결 집합 밖이고 핸드셰이크 보고로만 네이티브를 인정받는다 — 이 훅이 존재하는 이유 그 자체를
+// 실제 타입으로 보여준다.
+const FUTURE_TYPE = 'invite';
 
 beforeEach(() => {
     resetNativeCacheSupport();

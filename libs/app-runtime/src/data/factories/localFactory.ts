@@ -114,6 +114,7 @@ export const createLocalDataSources = ({
         channel: storages.channel,
         chat: storages.chat,
         inviteCloud: storages.inviteCloud,
+        invite: storages.invite,
         join: storages.join,
         profile: storages.profile,
         site: storages.site,

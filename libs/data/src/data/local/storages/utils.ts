@@ -10,6 +10,9 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     channel: 30 * MINUTE_MS,
     chat: 100 * 12 * 30 * DAY_MS, // no expiration
     invitecloud: 100 * 12 * 30 * DAY_MS, // 100 years; permanent cache
+    // Invite expiry is judged from the server's `state`/`expiredAt`, never from cache TTL — a TTL
+    // eviction here would undo the whole point of this cache (instant render on cold boot).
+    invite: 100 * 12 * 30 * DAY_MS, // 100 years; permanent cache
     join: 30 * MINUTE_MS,
     profile: 30 * MINUTE_MS,
     site: 30 * MINUTE_MS,

@@ -4,7 +4,7 @@ import type { DataRepositoriesV2 } from '@chatic/data';
 
 import { copyText } from '../../lib/copyText';
 
-type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile';
+type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'invite';
 
 type DomainRow = { id: string; [key: string]: unknown };
 
@@ -17,6 +17,7 @@ const REPO_KEY: Record<CacheType, keyof DataRepositoriesV2> = {
     site: 'place',
     invitecloud: 'cloud',
     profile: 'profile',
+    invite: 'invite',
 };
 
 const FILTER_FIELDS: Record<CacheType, { key: string; label: string; required?: boolean }[]> = {
@@ -31,9 +32,11 @@ const FILTER_FIELDS: Record<CacheType, { key: string; label: string; required?: 
     site: [],
     invitecloud: [],
     profile: [{ key: 'sid', label: 'sid' }],
+    // No query filters beyond cid/uid scope (ADR-0052) — same as invitecloud's empty list.
+    invite: [],
 };
 
-const ALL_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile'];
+const ALL_TYPES: CacheType[] = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile', 'invite'];
 
 // Monotonic suffix so one-click templates never collide within a session.
 let templateSeq = 0;
@@ -49,6 +52,7 @@ export const TEMPLATES: Record<CacheType, () => Record<string, unknown>> = {
     site: () => ({ id: makeId('site'), name: 'Debug Place' }),
     invitecloud: () => ({ id: makeId('invitecloud'), name: 'Debug Cloud' }),
     profile: () => ({ id: makeId('profile'), sid: '', nick: 'Debug Nick' }),
+    invite: () => ({ id: makeId('invite'), name: 'Debug Invite', state: 'pending' }),
 };
 
 function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataRepositoriesV2; onClick: () => void }) {
@@ -164,9 +168,11 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
         };
 
         try {
-            if (type === 'invitecloud') {
-                const inviteRepo = repo as any;
-                unsubscribe = inviteRepo.observeList(callback);
+            if (type === 'invitecloud' || type === 'invite') {
+                // Both take just a callback — invitecloud is globally scoped, invite has no query
+                // filters beyond cid/uid (ADR-0052).
+                const noQueryRepo = repo as any;
+                unsubscribe = noQueryRepo.observeList(callback);
             } else {
                 unsubscribe = repo.observeList(buildParams(), callback);
             }

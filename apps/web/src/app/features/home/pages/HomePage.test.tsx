@@ -91,6 +91,11 @@ jest.mock('../../invite/hooks/useInviteListRows', () => ({
 jest.mock('../../invite/hooks/useCanceledInviteReconcile', () => ({
     useCanceledInviteReconcile: () => undefined,
 }));
+// Same reasoning — the one-time dismiss-migration hook (ADR-0052) reaches the preference store
+// and repositories this suite doesn't stub for; it is not what this suite is testing.
+jest.mock('../../invite/hooks/useInviteDismissMigration', () => ({
+    useInviteDismissMigration: () => undefined,
+}));
 
 beforeEach(() => jest.clearAllMocks());
 

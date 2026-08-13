@@ -55,14 +55,16 @@ const buildRepositories = (
     options?: DataRepositoriesV2Options
 ): Omit<DataRepositoriesV2, 'withContext' | 'dispose'> => {
     return {
-        // auth/device/invite take no local data source: they are remote-only access surfaces
-        // (session-identity commands, viewing signals, relay invites) with nothing to cache.
+        // auth/device take no local data source: they are remote-only access surfaces
+        // (session-identity commands, viewing signals) with nothing to cache. `invite` (ADR-0052)
+        // is local-first for reads of its own list but still has no cache slot for the other
+        // command-shaped calls (create/accept/cancel/reject/get).
         auth: new AuthRepositoryV2(remoteDataSources.auth, context),
         channel: new ChannelRepositoryV2(remoteDataSources.channel, localDataSources.channel, context),
         chat: new ChatRepositoryV2(remoteDataSources.chat, localDataSources.chat, context),
         cloud: new CloudRepositoryV2(remoteDataSources.cloud, localDataSources.cloud, context),
         device: new DeviceRepositoryV2(remoteDataSources.device, context),
-        invite: new InviteRepositoryV2(remoteDataSources.invite, context),
+        invite: new InviteRepositoryV2(remoteDataSources.invite, localDataSources.invite, context),
         join: new JoinRepositoryV2(remoteDataSources.join, localDataSources.join, context),
         profile: new ProfileRepositoryV2(remoteDataSources.profile, localDataSources.profile, context),
         place: new PlaceRepositoryV2(remoteDataSources.place, localDataSources.place, context),

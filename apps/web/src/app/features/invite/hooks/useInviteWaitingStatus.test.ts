@@ -37,6 +37,14 @@ describe('useInviteWaitingStatus', () => {
         expect(result.current.invite).toBeUndefined();
     });
 
+    // resolveInviteCode(invites, refetch, id)가 필요로 하는 원본 목록 — 단일 invite만으로는
+    // 캐시 전용 행(코드 없음)일 때 재조회 후 재시도할 근거가 없다.
+    it('전체 목록과 refetch를 그대로 전달한다 (resolveInviteCode가 쓴다)', () => {
+        const { result } = renderHook(() => useInviteWaitingStatus('invite-1'));
+        expect(result.current.invites).toBe(mockInvites);
+        expect(result.current.refetch).toBe(refetchMock);
+    });
+
     // 30초 재조회는 쿼리 옵션으로 위임한다. 직접 setInterval + refetch()를 돌리면 relay가
     // 미인증인 동안에도 enabled 게이트를 뚫고 나가 `401 UNAUTHORIZED - not authenticated`를 받는다
     // (refetch()는 disabled 쿼리에서도 발사된다). 마운트 범위 한정은 훅 옵션이 그대로 보장한다.

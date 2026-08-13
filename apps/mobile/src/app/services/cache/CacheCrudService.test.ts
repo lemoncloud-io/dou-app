@@ -34,9 +34,21 @@ const setup = () => {
     const inviteCloud = makeDataSourceMock();
     const profile = makeDataSourceMock();
     const meta = makeDataSourceMock();
-    // Constructor order must match provider.ts wiring; profile then meta are the last args.
-    const service = new CacheCrudService(makeLoggerMock(), chat, channel, join, site, user, inviteCloud, profile, meta);
-    return { service, profile, meta, user };
+    const invite = makeDataSourceMock();
+    // Constructor order must match provider.ts wiring; profile, meta, invite are the last args.
+    const service = new CacheCrudService(
+        makeLoggerMock(),
+        chat,
+        channel,
+        join,
+        site,
+        user,
+        inviteCloud,
+        profile,
+        meta,
+        invite
+    );
+    return { service, profile, meta, user, invite };
 };
 
 describe('CacheCrudService — profile/meta 라우팅', () => {
@@ -116,8 +128,21 @@ describe('CacheCrudService — profile/meta 라우팅', () => {
         expect(meta.save).toHaveBeenCalledWith('channel-sync', item, 'c1', 'u1');
     });
 
+    it('fetch/save(invite)는 inviteDataSource로 위임해야 한다', async () => {
+        const { service, invite } = setup();
+        const item = { id: 'i1', cid: 'default', uid: 'u1', state: 'pending' } as CacheModelMap['invite'];
+        invite.fetch.mockResolvedValueOnce(item);
+
+        const fetched = await service.fetch({ type: 'invite', id: 'i1', cid: 'default', uid: 'u1' });
+        await service.save({ type: 'invite', id: 'i1', item, cid: 'default', uid: 'u1' });
+
+        expect(fetched).toBe(item);
+        expect(invite.fetch).toHaveBeenCalledWith('i1', 'default', 'u1');
+        expect(invite.save).toHaveBeenCalledWith('i1', item, 'default', 'u1');
+    });
+
     it('알 수 없는 타입은 default로 떨어져 null을 반환하고 어떤 소스도 건드리지 않아야 한다', async () => {
-        const { service, profile, meta, user } = setup();
+        const { service, profile, meta, user, invite } = setup();
 
         // Cast an unregistered type to exercise the defensive default branch.
         const result = await service.fetch({ type: 'bogus' as any, id: 'x', cid: 'c1', uid: 'u1' });
@@ -126,5 +151,6 @@ describe('CacheCrudService — profile/meta 라우팅', () => {
         expect(profile.fetch).not.toHaveBeenCalled();
         expect(meta.fetch).not.toHaveBeenCalled();
         expect(user.fetch).not.toHaveBeenCalled();
+        expect(invite.fetch).not.toHaveBeenCalled();
     });
 });

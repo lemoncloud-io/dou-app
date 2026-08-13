@@ -125,12 +125,12 @@ export const PREFERENCES = {
         localKey: 'chatic-dismissed-update-version',
         defaultValue: '',
     },
-    // Locally hidden sent-invite rows. A JSON array of invite ids. Since ADR-0043 (`invite.cancel`/
-    // `invite.reject` are real) this serves two narrower purposes than its name suggests: dismissing
-    // a `rejected` row after the sender re-invites (the server never overwrites a final rejected
-    // mark, so a local hide is the only way to clear it) and draining legacy pre-API cancel stamps
-    // via `useCanceledInviteReconcile`. Per-device by definition, hence 'local'. The key is the one
-    // the feature hand-rolled before this moved into the store, so existing hides survive.
+    // Legacy pre-API cancel stamps (ADR-0043), read-only from here on. ADR-0052 moved the live
+    // dismiss flag onto the invite cache's `dismissedAt` field; `useInviteDismissMigration` folds
+    // each id here into a cache stub once, then `useCanceledInviteReconcile` drains it via
+    // `clearInviteCanceled`. Nothing writes a NEW id into this key anymore — it only ever shrinks
+    // toward empty. Kept 'local' (not removed outright) so an install mid-migration still has
+    // something to read; the key itself retires once every install has drained it.
     canceledInvites: {
         strategy: 'local',
         localKey: 'dou.relayInvite.locallyCanceled.v1',

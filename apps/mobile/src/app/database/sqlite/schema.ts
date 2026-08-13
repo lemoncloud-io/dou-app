@@ -275,5 +275,19 @@ export const MIGRATIONS: Record<number, string[]> = {
         PRIMARY KEY (cid, uid, id)
     );`,
     ],
+    10: [
+        /**
+         * Invite — sender's own relay 1:1 invite cards (ADR-0052). Standard (cid, uid, id, data)
+         * blob schema like every other domain; the web strips the credential fields (code,
+         * deeplink) before this ever receives a row, so no column here needs to know about that.
+         */
+        `CREATE TABLE IF NOT EXISTS ${TABLES.INVITES} (
+        cid TEXT NOT NULL,
+        uid TEXT NOT NULL,
+        id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (cid, uid, id)
+    );`,
+    ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;

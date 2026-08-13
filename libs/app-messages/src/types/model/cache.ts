@@ -6,10 +6,10 @@ import type {
     ProfileView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
-import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
-export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta';
+export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta' | 'invite';
 
 /** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
 export type PagingMeta = {
@@ -51,6 +51,7 @@ export type CacheModelMap = {
     user: CacheUserView;
     profile: CacheProfileView;
     meta: CacheMetaView;
+    invite: CacheInviteView;
 };
 
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
@@ -134,6 +135,22 @@ export type CacheMetaView = CacheViewBase & {
     syncedAt?: number;
 };
 
+/**
+ * 발신자가 보낸 relay 1:1 초대 카드의 캐시 뷰.
+ *
+ * `code`와 `deeplink`는 의도적으로 뺐다 — `code`는 식별자가 아니라 자격증명이고, `deeplink`는
+ * `?code=<code>` 형태로 그것을 통째로 품는다. 이 타입에서 빠졌다는 사실은 컴파일 시점 계약일
+ * 뿐이라, 실제 방어는 저장 직전 허용 목록 매퍼(`toCacheInviteView`)가 한다.
+ */
+export type CacheInviteView = Omit<MyInviteView, 'code' | 'deeplink'> &
+    CacheViewBase & {
+        id: string;
+        cid: string;
+        uid: string;
+        /** 로컬에서 이 행을 숨긴 시각(epoch ms). 서버 상태가 아니라 이 기기의 표시 결정이다. */
+        dismissedAt?: number;
+    };
+
 /** 플레이스(사이트)별 표시 프로필 뷰 */
 export type CacheProfileView = ProfileView &
     Partial<ProfileDisplay> &
@@ -201,6 +218,9 @@ export type ProfileQueryOptions = BaseQueryOptions & {
 /** 메타 쿼리 (cid/uid 스코프, 추가 필터 없음) */
 export type MetaQueryOptions = BaseQueryOptions;
 
+/** 초대 쿼리 (cid/uid 스코프, 추가 필터 없음) */
+export type InviteQueryOptions = BaseQueryOptions;
+
 /** 도메인별 쿼리 옵션 매핑 */
 export type CacheQueryMap = {
     channel: ChannelQueryOptions;
@@ -211,6 +231,7 @@ export type CacheQueryMap = {
     invitecloud: InviteCloudQueryOptions;
     profile: ProfileQueryOptions;
     meta: MetaQueryOptions;
+    invite: InviteQueryOptions;
 };
 
 /** [요청] ID 기반 단일 데이터 조회 */

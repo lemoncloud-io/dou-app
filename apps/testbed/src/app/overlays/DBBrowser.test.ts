@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { TEMPLATES } from './DBBrowser';
 
-const ALL_TYPES = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile'] as const;
+const ALL_TYPES = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile', 'invite'] as const;
 
 describe('DBBrowser TEMPLATES', () => {
     it('produces a row with a non-empty id for every cache type', () => {

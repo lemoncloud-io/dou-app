@@ -22,6 +22,7 @@ export interface LocalCacheStorages {
     site: CacheStorage<'site'>;
     user: CacheStorage<'user'>;
     meta: CacheStorage<'meta'>;
+    invite: CacheStorage<'invite'>;
 }
 
 export const createCacheStorages = (
@@ -36,4 +37,5 @@ export const createCacheStorages = (
     site: storageFactory('site', contextProvider),
     user: storageFactory('user', contextProvider),
     meta: storageFactory('meta', contextProvider),
+    invite: storageFactory('invite', contextProvider),
 });

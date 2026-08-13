@@ -25,17 +25,18 @@ flowchart TD
 
 ## Data Source
 
-| 파일                       | 도메인                  |
-| -------------------------- | ----------------------- |
-| `ChatDataSource.ts`        | chat records            |
-| `ChannelDataSource.ts`     | channel records         |
-| `JoinDataSource.ts`        | channel-user membership |
-| `SiteDataSource.ts`        | site/place records      |
-| `UserDataSource.ts`        | user profile records    |
-| `ProfileDataSource.ts`     | site display profiles   |
-| `MetaDataSource.ts`        | sync cursors (meta)     |
-| `InviteCloudDataSource.ts` | invite cloud records    |
-| `TestRecordDataSource.ts`  | debug/test records      |
+| 파일                       | 도메인                                 |
+| -------------------------- | -------------------------------------- |
+| `ChatDataSource.ts`        | chat records                           |
+| `ChannelDataSource.ts`     | channel records                        |
+| `JoinDataSource.ts`        | channel-user membership                |
+| `SiteDataSource.ts`        | site/place records                     |
+| `UserDataSource.ts`        | user profile records                   |
+| `ProfileDataSource.ts`     | site display profiles                  |
+| `MetaDataSource.ts`        | sync cursors (meta)                    |
+| `InviteCloudDataSource.ts` | invite cloud records                   |
+| `InviteDataSource.ts`      | sent relay 1:1 invite cards (ADR-0052) |
+| `TestRecordDataSource.ts`  | debug/test records                     |
 
 ## Cache CRUD 시나리오
 

@@ -53,7 +53,12 @@ jest.mock('../../../hooks', () => ({
     useSentInviteLog: () => ({ record, findByInviteId }),
 }));
 jest.mock('../hooks/useInviteWaitingStatus', () => ({
-    useInviteWaitingStatus: () => ({ invite: mockInvite, isLoading: mockIsLoading, refetch }),
+    useInviteWaitingStatus: () => ({
+        invite: mockInvite,
+        invites: mockInvite ? [mockInvite] : [],
+        isLoading: mockIsLoading,
+        refetch,
+    }),
 }));
 jest.mock('../hooks/useAcceptedChannelSync', () => ({
     useAcceptedChannelSync: () => ({ status: mockSyncStatus }),

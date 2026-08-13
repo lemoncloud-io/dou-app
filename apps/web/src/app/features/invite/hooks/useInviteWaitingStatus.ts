@@ -29,5 +29,8 @@ export const useInviteWaitingStatus = (inviteId: string | undefined) => {
         [invites, inviteId]
     );
 
-    return { invite, isLoading, refetch };
+    // `invites`/`refetch` are exposed alongside the resolved single `invite` so callers can run
+    // `resolveInviteCode` — a cache-first row (ADR-0052) carries no code, and that helper needs the
+    // full list plus a way to re-ask the server, not just the one row this hook already resolved.
+    return { invite, invites, isLoading, refetch };
 };

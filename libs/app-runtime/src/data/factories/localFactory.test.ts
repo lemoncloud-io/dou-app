@@ -59,9 +59,11 @@ describe('getCacheStorage storage routing', () => {
     // Web/app deploy skew: the web ships ahead of the app, so a type newer than the installed app
     // would be written into the native `default:` arm, which answers `null` with `success: true` —
     // an invisible, permanently empty cache. Such a type goes to hot storage until the app catches up.
+    // 'invite' (ADR-0052) is the first real type this applies to — deliberately never added to
+    // LEGACY_NATIVE_CACHE_TYPES, so it exercises this exact path in production, not just in a test.
     it('routes a type the installed app cannot store to hot IndexedDB', async () => {
         const { getCacheStorage } = await loadFactory(true);
-        const futureType = 'invite' as never;
+        const futureType = 'invite';
 
         expect(adapterName(getCacheStorage(futureType, contextProvider))).toBe('IndexedDBAdapter');
     });
@@ -70,7 +72,7 @@ describe('getCacheStorage storage routing', () => {
         const factory = await loadFactory(true);
         // Same module registry as the factory (resetModules gives it its own copy of the snapshot).
         const { setNativeCacheSupport } = await import('../nativeCacheSupport');
-        const futureType = 'invite' as never;
+        const futureType = 'invite';
 
         setNativeCacheSupport({ cacheSchemaVersion: 99, supportedCacheTypes: [futureType] });
 
@@ -89,6 +91,10 @@ describe('getCacheStorage storage routing', () => {
             user: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             meta: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             profile: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            // Not legacy and this test never reports support, so it stays on web in EITHER
+            // environment — the one asymmetric row in this matrix, and exactly the skew-gate
+            // contract ADR-0052 relies on.
+            invite: { browser: 'IndexedDBAdapter', native: 'IndexedDBAdapter' },
         };
 
         const browser = await loadFactory(false);

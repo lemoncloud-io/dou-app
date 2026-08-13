@@ -45,6 +45,7 @@ import {
     ChannelDataSource,
     ChatDataSource,
     InviteCloudDataSource,
+    InviteDataSource,
     JoinDataSource,
     SiteDataSource,
     UserDataSource,
@@ -102,6 +103,7 @@ class DependencyProvider {
         inviteCloud: InviteCloudDataSource;
         profile: ProfileDataSource;
         meta: MetaDataSource;
+        invite: InviteDataSource;
         testRecord: TestRecordDataSource;
     };
 
@@ -185,6 +187,7 @@ class DependencyProvider {
                 inviteCloud: new InviteCloudDataSource(db, TABLES.INVITE_CLOUDS),
                 profile: new ProfileDataSource(db, TABLES.PROFILES),
                 meta: new MetaDataSource(db, TABLES.METAS),
+                invite: new InviteDataSource(db, TABLES.INVITES),
                 testRecord: new TestRecordDataSource(db, TABLES.TEST_RECORDS),
             };
         }
@@ -203,7 +206,8 @@ class DependencyProvider {
                 ds.user,
                 ds.inviteCloud,
                 ds.profile,
-                ds.meta
+                ds.meta,
+                ds.invite
             );
         }
         return this._cacheCrudService;

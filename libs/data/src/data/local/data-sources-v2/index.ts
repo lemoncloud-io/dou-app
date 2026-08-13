@@ -3,6 +3,7 @@ import type { CacheStorage } from '../storages';
 import { ChannelLocalDataSourceV2, type IChannelLocalDataSourceV2 } from './ChannelLocalDataSourceV2';
 import { ChatLocalDataSourceV2, type IChatLocalDataSourceV2 } from './ChatLocalDataSourceV2';
 import { CloudLocalDataSourceV2, type ICloudLocalDataSourceV2 } from './CloudLocalDataSourceV2';
+import { InviteLocalDataSourceV2, type IInviteLocalDataSourceV2 } from './InviteLocalDataSourceV2';
 import { JoinLocalDataSourceV2, type IJoinLocalDataSourceV2 } from './JoinLocalDataSourceV2';
 import { ProfileLocalDataSourceV2, type IProfileLocalDataSourceV2 } from './ProfileLocalDataSourceV2';
 import { PlaceLocalDataSourceV2, type IPlaceLocalDataSourceV2 } from './PlaceLocalDataSourceV2';
@@ -13,6 +14,7 @@ export * from './types';
 export * from './ChannelLocalDataSourceV2';
 export * from './ChatLocalDataSourceV2';
 export * from './CloudLocalDataSourceV2';
+export * from './InviteLocalDataSourceV2';
 export * from './JoinLocalDataSourceV2';
 export * from './ProfileLocalDataSourceV2';
 export * from './PlaceLocalDataSourceV2';
@@ -23,6 +25,7 @@ export interface LocalDataSourcesV2 {
     channel: IChannelLocalDataSourceV2;
     chat: IChatLocalDataSourceV2;
     cloud: ICloudLocalDataSourceV2;
+    invite: IInviteLocalDataSourceV2;
     join: IJoinLocalDataSourceV2;
     profile: IProfileLocalDataSourceV2;
     place: IPlaceLocalDataSourceV2;
@@ -36,6 +39,7 @@ export const createLocalDataSourcesV2 = (
         channel: CacheStorage<'channel'>;
         chat: CacheStorage<'chat'>;
         inviteCloud: CacheStorage<'invitecloud'>;
+        invite: CacheStorage<'invite'>;
         join: CacheStorage<'join'>;
         profile: CacheStorage<'profile'>;
         site: CacheStorage<'site'>;
@@ -46,6 +50,7 @@ export const createLocalDataSourcesV2 = (
     channel: new ChannelLocalDataSourceV2(contextProvider, storages.channel),
     chat: new ChatLocalDataSourceV2(contextProvider, storages.chat),
     cloud: new CloudLocalDataSourceV2(contextProvider, storages.inviteCloud),
+    invite: new InviteLocalDataSourceV2(contextProvider, storages.invite),
     join: new JoinLocalDataSourceV2(contextProvider, storages.join),
     profile: new ProfileLocalDataSourceV2(contextProvider, storages.profile),
     place: new PlaceLocalDataSourceV2(contextProvider, storages.site),

@@ -26,6 +26,9 @@ const get = jest.fn();
 const accept = jest.fn();
 const cancel = jest.fn();
 const reject = jest.fn();
+// Cache observer: never emits by default (empty local cache) — a test that wants a cache-first
+// render sets a different mock implementation for the individual case.
+const observeList = jest.fn(() => () => undefined);
 
 /** Mirrors the app's QueryClient defaults (app.tsx) — `staleTime: Infinity` is load-bearing below. */
 const createAppQueryClient = () =>
@@ -45,7 +48,10 @@ beforeEach(() => {
     accept.mockResolvedValue({ id: 'invite-1', state: 'accepted' });
     cancel.mockResolvedValue({ id: 'invite-1', state: 'canceled', canceledAt: 1 });
     reject.mockResolvedValue({ id: 'invite-1', state: 'rejected', rejectedAt: 1 });
-    (useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { list, create, get, accept, cancel, reject } });
+    observeList.mockImplementation(() => () => undefined);
+    (useRuntimeRepositories as jest.Mock).mockReturnValue({
+        invite: { list, create, get, accept, cancel, reject, observeList },
+    });
     (useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
@@ -151,6 +157,90 @@ describe('useRelayInvites', () => {
 
         await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
         expect(result.current.invites).toEqual([]);
+    });
+});
+
+describe('useRelayInvites — 캐시 우선 렌더 (ADR-0052)', () => {
+    it('원격 응답이 오기 전에는 캐시 행을 그대로 보여주고 로딩 스피너를 띄우지 않는다', () => {
+        observeList.mockImplementation(cb => {
+            cb({ list: [{ id: 'cached-1', state: 'pending' }], meta: { total: 1, source: 'local' } });
+            return () => undefined;
+        });
+        list.mockReturnValue(new Promise(() => undefined)); // never resolves — simulates cold boot
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        expect(result.current.invites).toEqual([{ id: 'cached-1', state: 'pending' }]);
+        expect(result.current.isLoading).toBe(false);
+    });
+
+    it('원격 응답이 오면 겹치는 id는 원격 값(코드 포함)으로 완전히 갈아엎는다', async () => {
+        observeList.mockImplementation(cb => {
+            cb({ list: [{ id: 'invite-1', state: 'pending' }], meta: { total: 1, source: 'local' } });
+            return () => undefined;
+        });
+        list.mockResolvedValue([{ id: 'invite-1', state: 'accepted', code: 'secret' }]);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        // isLoading alone is no longer a reliable "remote responded" signal — a cache hit already
+        // clears it before the server answers. Wait for the actual merged value instead.
+        await waitFor(() =>
+            expect(result.current.invites).toEqual([{ id: 'invite-1', state: 'accepted', code: 'secret' }])
+        );
+    });
+
+    it('창 밖으로 밀린 캐시 전용 행은 원격 응답 뒤에 이어 붙는다 — 삭제되지 않는다', async () => {
+        observeList.mockImplementation(cb => {
+            cb({
+                list: [
+                    { id: 'in-window', state: 'pending' },
+                    { id: 'fell-out-of-window', state: 'pending' },
+                ],
+                meta: { total: 2, source: 'local' },
+            });
+            return () => undefined;
+        });
+        list.mockResolvedValue([{ id: 'in-window', state: 'pending', code: 'secret' }]);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        await waitFor(() =>
+            expect(result.current.invites).toEqual([
+                { id: 'in-window', state: 'pending', code: 'secret' },
+                { id: 'fell-out-of-window', state: 'pending' },
+            ])
+        );
+    });
+
+    it('캐시가 비어 있고 원격 응답만 있으면 원격 순서를 그대로 통과시킨다', async () => {
+        list.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.invites).toEqual([{ id: 'a' }, { id: 'b' }]);
+    });
+
+    // 회귀 지점: dismissedAt은 서버가 절대 보내지 않는 로컬 전용 필드라, "원격이 이긴다"를 그대로
+    // 적용하면 거절 행을 재초대로 숨긴 직후 목록이 재조회될 때마다 dismiss가 사라져 버린다
+    // (ADR-0052 결정 5, S4 "dismiss는 끈끈하다"). 원격 값으로 갈아엎되 dismissedAt만은 옮겨 붙어야 한다.
+    it('원격 응답이 겹치는 id를 갈아엎어도 캐시의 dismissedAt은 살아남는다', async () => {
+        observeList.mockImplementation(cb => {
+            cb({
+                list: [{ id: 'invite-1', state: 'rejected', dismissedAt: 12345 }],
+                meta: { total: 1, source: 'local' },
+            });
+            return () => undefined;
+        });
+        // 서버는 여전히 이 초대를 rejected 상태로 목록에 실어 보낸다 — dismissedAt은 모른다.
+        list.mockResolvedValue([{ id: 'invite-1', state: 'rejected' }]);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        await waitFor(() =>
+            expect(result.current.invites).toEqual([{ id: 'invite-1', state: 'rejected', dismissedAt: 12345 }])
+        );
     });
 });
 
