@@ -37,10 +37,8 @@ jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: 'me' } }),
     useUserPermissions: () => ({ canCreatePlace: true }),
-    useActiveCloudChannels: () => [],
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
-    useCloudChannelSync: () => undefined,
     useHomeChannels: () => ({ channels: [], isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds: [] }),
     useMyJoins: () => new Map(),

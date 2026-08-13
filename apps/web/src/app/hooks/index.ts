@@ -6,7 +6,6 @@ export * from './useAwaitInviteChannel';
 export * from './useBackHandler';
 export * from './useCachedCloudNames';
 export * from './useChannelUnreads';
-export * from './useCloudChannelSync';
 export * from './useDeviceSync';
 export * from './useHomeChannels';
 export * from './useInAppPushMessage';

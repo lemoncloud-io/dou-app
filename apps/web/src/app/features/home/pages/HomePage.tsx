@@ -37,15 +37,7 @@ import {
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
-import {
-    useActiveCloudChannels,
-    useCachedCloudNames,
-    useChannelUnreads,
-    useCloudChannelSync,
-    useHomeChannels,
-    useInvitedClouds,
-    useMyJoins,
-} from '../../../hooks';
+import { useCachedCloudNames, useChannelUnreads, useHomeChannels, useInvitedClouds, useMyJoins } from '../../../hooks';
 import { resolveHeaderProfile } from '../lib';
 import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
 import { useInviteDismissMigration } from '../../invite/hooks/useInviteDismissMigration';
@@ -151,16 +143,15 @@ export const HomePage = () => {
     // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
     // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
     useCanceledInviteReconcile();
-    // Aggregate over the active cloud's FULL channel list (every site) so place dots cover all
-    // sites, not just the selected one. Unread derives from each channel head (`chatNo`/`metaNo`)
-    // and MY read cursor from the subscribed join list (useMyJoins), not the channel-embedded
-    // `$join`. The app-icon badge is owned globally by UnreadBadgeRunner (AppRuntime), not this page.
-    const cloudChannels = useActiveCloudChannels();
-    const myJoins = useMyJoins(cloudChannels);
-    // Head side of the same unread sum: without this only the rendered rows (active place) keep a
-    // live `chatNo`/`metaNo`, so other places would lag the 60s cloud-wide delta.
-    useCloudChannelSync(cloudChannels);
-    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(cloudChannels, myJoins);
+    // Badge counting is being reworked (a later step fills in cross-place totals a different way);
+    // for now home only fetches join/channel data for the currently-viewed site's own channels —
+    // no cloud-wide aggregation. Unread derives from each channel head (`chatNo`/`metaNo`) and MY
+    // read cursor from the subscribed join list (useMyJoins), not the channel-embedded `$join`.
+    // `unreadByPlace` is therefore only populated for the active place until that later step lands;
+    // other places show no dot in the meantime. The app-icon badge is unaffected — UnreadBadgeRunner
+    // (AppRuntime) computes that independently, still cloud-wide.
+    const myJoins = useMyJoins(channels);
+    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(channels, myJoins);
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on
     // navigation). Restore only once the list content has rendered so the offset isn't clamped
