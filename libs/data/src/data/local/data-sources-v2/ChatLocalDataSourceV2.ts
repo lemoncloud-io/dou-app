@@ -215,6 +215,13 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
-        return [`${scopeKey}|chats`, ...uniqueChannels.map(channelId => `${scopeKey}|chats|channel:${channelId}`)];
+        // Written channels only. A bare `${scopeKey}|chats` prefix matches EVERY chat observer under
+        // `key.startsWith(prefix)`, so one write re-read storage for every open channel's list
+        // instead of the one that changed. No catch-all entry: `cacheReadList` requires channelId,
+        // so a channel-less observer cannot exist. The per-channel prefix still spans that channel's
+        // cursor/limit variants.
+        // The trailing `|` pins the match to a whole key segment; without it `channel:ch-1` also
+        // matches `channel:ch-10`.
+        return uniqueChannels.map(channelId => `${scopeKey}|chats|channel:${channelId}|`);
     }
 }

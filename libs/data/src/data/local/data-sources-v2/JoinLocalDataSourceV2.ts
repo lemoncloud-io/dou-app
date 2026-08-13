@@ -190,6 +190,16 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
-        return [`${scopeKey}|joins`, ...uniqueChannels.map(channelId => `${scopeKey}|joins|channel:${channelId}`)];
+        // Re-emit ONLY the written channels. A bare `${scopeKey}|joins` prefix used to sit in front
+        // of these and looked harmless, but `flush` matches with `key.startsWith(prefix)` and every
+        // join observer key begins with it — so one write woke every channel's observer, and each
+        // wake re-reads storage. With one observer per channel (useMyJoins) that made a single write
+        // cost N round trips; measured on device it was 16.5 reads per write.
+        //
+        // No catch-all entry: `cacheReadList` requires channelId, so a channel-less observer cannot
+        // exist. The per-channel prefix still spans that channel's query variants (activeOnly).
+        // The trailing `|` pins the match to a whole key segment; without it `channel:ch-1` also
+        // matches `channel:ch-10`.
+        return uniqueChannels.map(channelId => `${scopeKey}|joins|channel:${channelId}|`);
     }
 }

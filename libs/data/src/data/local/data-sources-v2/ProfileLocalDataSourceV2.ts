@@ -241,6 +241,14 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
-        return [`${scopeKey}|profiles`, ...uniqueSids.map(sid => `${scopeKey}|profiles|sid:${sid}`)];
+        // Written sids, plus the all-sites observers (`sid:__all__`, what getListKey falls back to)
+        // which must hear about every sid.
+        //
+        // Two traps, both from `flush` matching with `key.startsWith(prefix)`:
+        //  - A bare `${scopeKey}|profiles` prefix matches EVERY profile observer, so one write woke
+        //    them all and each wake re-reads storage.
+        //  - Without the trailing `|`, `sid:site-1` also matches `sid:site-10`. The delimiter pins
+        //    the match to a whole key segment.
+        return [`${scopeKey}|profiles|sid:__all__|`, ...uniqueSids.map(sid => `${scopeKey}|profiles|sid:${sid}|`)];
     }
 }

@@ -224,6 +224,14 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
-        return [`${scopeKey}|channels`, ...uniqueSids.map(sid => `${scopeKey}|channels|sid:${sid}`)];
+        // Written sids, plus cloud-wide observers (`sid: ''`) which must hear about every sid — see
+        // the sid-independent routing test.
+        //
+        // Two traps, both from `flush` matching with `key.startsWith(prefix)`:
+        //  - A bare `${scopeKey}|channels` prefix matches EVERY channel observer, so one write woke
+        //    them all and each wake re-reads storage.
+        //  - Without the trailing `|`, `sid:site-1` also matches `sid:site-10`, and `sid:` matches
+        //    everything. The delimiter pins the match to a whole key segment.
+        return [`${scopeKey}|channels|sid:|`, ...uniqueSids.map(sid => `${scopeKey}|channels|sid:${sid}|`)];
     }
 }
