@@ -61,8 +61,8 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph 앱 부팅
-        A["apps/web main.tsx\nconfigureDataRuntime(repoOpts, cache?)"] --> P["runtime.ts\npending 등록 (생성 전 1회)"]
-        B["apps/desktop-web main.tsx\nsetChatCacheLimit(1000)\n(deprecated 심 → 같은 pending)"] --> P
+        A["apps/web main.tsx\nconfigureDataRuntime({ repositories })"] --> P["runtime.ts\npending 등록 (생성 전, 병합)"]
+        B["apps/desktop-web main.tsx\nconfigureDataRuntime({ cache: { maxChatsPerChannel: 1000 } })"] --> P
     end
     P --> DM["DataManager(ctx, repoOpts, cacheOpts)"]
     DM --> LF["createLocalDataSources\n({ contextProvider, cache })"]
@@ -93,11 +93,9 @@ flowchart LR
 
 **[runtime.ts](../../src/data/runtime.ts)** — 앱 정책의 pre-boot 등록.
 
-- `configureDataRuntime(repositoryOptions, cacheOptions?)`: 런타임 싱글톤 생성 전 1회 등록.
+- `configureDataRuntime({ repositories?, cache? })`: 런타임 싱글톤 생성 전 등록. 두 정책 종류를
+  각각 따로 등록할 수 있도록 호출은 **병합**된다(apps/web은 `repositories`, desktop-web은 `cache`).
   늦은 호출은 경고 후 무시(레포지토리·스토리지는 DataManager 생성자에서 1회 조립되므로).
-- `setChatCacheLimit(n)`: **deprecated 심** — 같은 pending 등록에 위임. 유일한 호출처가
-  수정 금지인 `apps/desktop-web/src/main.tsx:16`이라 유지하며, desktop-web이
-  `configureDataRuntime`으로 이전하면 제거한다.
 - `getDataRuntime()`이 pending 등록을 `DataManager(ctx, repoOpts, cacheOpts)`로 전달한다.
 
 **[nativeCacheSupport.ts](../../src/data/nativeCacheSupport.ts)** — 핸드셰이크 게이트(별도 트랙에서 랜딩).
@@ -115,8 +113,8 @@ flowchart LR
 
 - [localFactory.test.ts](../../src/data/factories/localFactory.test.ts) — 라우팅 계약: 개별 케이스 5종 + **전 타입 × 양 환경
   매트릭스 테스트**(라우팅 변화가 부수효과로 스며들 수 없게 고정) + chat 상한 주입 2종.
-- [runtime.test.ts](../../src/data/runtime.test.ts) — 옵션 주입 경로: `configureDataRuntime` 정식 경로와
-  `setChatCacheLimit` 심이 동일하게 DataManager에 도달하는지, 늦은 등록이 무시되는지.
+- [runtime.test.ts](../../src/data/runtime.test.ts) — 옵션 주입 경로: `repositories`·`cache`가 각각
+  DataManager에 도달하는지, 여러 호출이 병합되는지, 늦은 등록이 무시되는지.
 - [nativeCacheSupport.test.ts](../../src/data/nativeCacheSupport.test.ts) — 게이트 판정(레거시 집합 동결, 보고 누적, 스키마 버전).
 - 실행: `libs/app-runtime`에서 `../../node_modules/.bin/jest`(libs/data도 동일 명령).
 - **타입체크는 반드시 `npx tsc -b libs/app-runtime/tsconfig.lib.json`으로 한다.** 각 lib의

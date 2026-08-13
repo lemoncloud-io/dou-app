@@ -50,9 +50,10 @@ export { isNativeApp } from './data/cacheStorageRouting';
 export { setNativeCacheSupport, getNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
 // App-level repository and cache-assembly policies for the lazily created data runtime; must run
-// before first access (see apps/web main.tsx: relay-only embedded-$site persistence, ADR-0045).
-// setChatCacheLimit is the deprecated pre-configureDataRuntime spelling desktop-web still uses.
-export { configureDataRuntime, setChatCacheLimit } from './data/runtime';
+// before first access (apps/web: relay-only embedded-$site persistence, ADR-0045; desktop-web: the
+// per-channel chat cap).
+export { configureDataRuntime } from './data/runtime';
+export type { DataRuntimeConfig } from './data/runtime';
 export type { CacheAssemblyOptions } from './data/factories/localFactory';
 export {
     useInvitedCloudMigration,

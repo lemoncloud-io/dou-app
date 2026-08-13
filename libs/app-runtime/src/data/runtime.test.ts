@@ -1,15 +1,14 @@
 /**
- * Pre-boot cache option registration: both spellings — configureDataRuntime's cache options and
- * the deprecated setChatCacheLimit shim desktop-web still calls — must land in the DataManager
- * constructor, and only before the singleton is created (a late call is ignored, not applied to
- * already-built storages).
+ * Pre-boot policy registration: `configureDataRuntime` is the only way an app injects repository
+ * and cache-assembly options, and it only lands before the singleton exists — a late call is
+ * ignored, not applied to already-built repositories and storages.
  */
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
 jest.mock('./DataManager', () => ({
     DataManager: jest.fn().mockImplementation(() => ({ getRepositories: () => ({}) })),
 }));
 
-describe('data runtime cache options', () => {
+describe('data runtime configuration', () => {
     const loadRuntime = async () => {
         jest.resetModules();
         const runtime = await import('./runtime');
@@ -17,30 +16,43 @@ describe('data runtime cache options', () => {
         return { ...runtime, DataManagerMock: DataManager as unknown as jest.Mock };
     };
 
-    it('passes setChatCacheLimit through to the DataManager (deprecated shim path)', async () => {
-        const { setChatCacheLimit, getDataRuntime, DataManagerMock } = await loadRuntime();
+    it('passes cache options through to the DataManager', async () => {
+        const { configureDataRuntime, getDataRuntime, DataManagerMock } = await loadRuntime();
 
-        setChatCacheLimit(1000);
+        configureDataRuntime({ cache: { maxChatsPerChannel: 1000 } });
         getDataRuntime();
 
         expect(DataManagerMock).toHaveBeenCalledWith(undefined, undefined, { maxChatsPerChannel: 1000 });
     });
 
-    it('passes configureDataRuntime cache options through identically (canonical path)', async () => {
+    it('passes repository options through to the DataManager', async () => {
         const { configureDataRuntime, getDataRuntime, DataManagerMock } = await loadRuntime();
-        const repositoryOptions = { some: 'policy' } as never;
+        const repositories = { some: 'policy' } as never;
 
-        configureDataRuntime(repositoryOptions, { maxChatsPerChannel: 1000 });
+        configureDataRuntime({ repositories });
         getDataRuntime();
 
-        expect(DataManagerMock).toHaveBeenCalledWith(undefined, repositoryOptions, { maxChatsPerChannel: 1000 });
+        expect(DataManagerMock).toHaveBeenCalledWith(undefined, repositories, undefined);
+    });
+
+    // Apps register the two policy kinds from different places, so a second call must not wipe the
+    // first — the runtime is built once from whatever accumulated.
+    it('merges across calls instead of replacing', async () => {
+        const { configureDataRuntime, getDataRuntime, DataManagerMock } = await loadRuntime();
+        const repositories = { some: 'policy' } as never;
+
+        configureDataRuntime({ repositories });
+        configureDataRuntime({ cache: { maxChatsPerChannel: 1000 } });
+        getDataRuntime();
+
+        expect(DataManagerMock).toHaveBeenCalledWith(undefined, repositories, { maxChatsPerChannel: 1000 });
     });
 
     it('ignores a late registration instead of rebuilding shared state', async () => {
-        const { setChatCacheLimit, getDataRuntime, DataManagerMock } = await loadRuntime();
+        const { configureDataRuntime, getDataRuntime, DataManagerMock } = await loadRuntime();
 
         getDataRuntime();
-        setChatCacheLimit(1000);
+        configureDataRuntime({ cache: { maxChatsPerChannel: 1000 } });
         getDataRuntime();
 
         expect(DataManagerMock).toHaveBeenCalledTimes(1);

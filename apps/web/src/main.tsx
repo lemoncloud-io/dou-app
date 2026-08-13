@@ -42,7 +42,7 @@ schedulePendingReportFlush();
 // the embedded `$site` of user.profile is persisted into the place cache only on the relay
 // scope, so a cloud partition never receives the default place row (ADR-0045).
 configureDataRuntime({
-    user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' },
+    repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
 });
 
 // Boot/perf collectors first so buffered long tasks and the boot timeline

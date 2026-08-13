@@ -27,40 +27,32 @@ export const createDataRuntime = (
     };
 };
 
+export interface DataRuntimeConfig {
+    /** Repository policies, e.g. apps/web's relay-only embedded-$site persistence (ADR-0045). */
+    repositories?: DataRepositoriesV2Options;
+    /** Cache assembly policies, e.g. desktop-web's per-channel chat cap. */
+    cache?: CacheAssemblyOptions;
+}
+
 /**
- * Registers app-level repository policies (e.g. apps/web's relay-only embedded-$site persistence,
- * ADR-0045) and cache assembly policies (e.g. desktop-web's chat cap) for the lazily created
- * singleton. Must run before the first getDataRuntime() access — repositories and cache storages
- * are built once in the DataManager constructor, so a late call cannot apply and is ignored with a
- * warning instead of silently rebuilding shared state.
+ * Registers app-level policies for the lazily created runtime singleton. Must run before the first
+ * getDataRuntime() access — repositories and cache storages are built once in the DataManager
+ * constructor, so a late call cannot apply and is ignored with a warning instead of silently
+ * rebuilding shared state.
+ *
+ * Calls merge, so an app may register the two policy kinds separately.
  */
-export const configureDataRuntime = (
-    repositoryOptions: DataRepositoriesV2Options,
-    cacheOptions?: CacheAssemblyOptions
-): void => {
+export const configureDataRuntime = ({ repositories, cache }: DataRuntimeConfig): void => {
     if (dataRuntimeSingleton) {
         logger.warn('CACHE', '[data-runtime] configureDataRuntime called after the runtime was created; ignored');
         return;
     }
-    pendingRepositoryOptions = repositoryOptions;
-    if (cacheOptions) {
-        pendingCacheOptions = { ...pendingCacheOptions, ...cacheOptions };
+    if (repositories) {
+        pendingRepositoryOptions = { ...pendingRepositoryOptions, ...repositories };
     }
-};
-
-/**
- * Caps how many chat rows the web cache keeps per channel (see CacheAssemblyOptions).
- *
- * @deprecated Pass `{ maxChatsPerChannel }` as the cache options of `configureDataRuntime`
- * instead — this is the same pre-boot registration, kept only because `apps/desktop-web` still
- * calls it. Remove once desktop-web moves to configureDataRuntime.
- */
-export const setChatCacheLimit = (maxChatsPerChannel: number): void => {
-    if (dataRuntimeSingleton) {
-        logger.warn('CACHE', '[data-runtime] setChatCacheLimit called after the runtime was created; ignored');
-        return;
+    if (cache) {
+        pendingCacheOptions = { ...pendingCacheOptions, ...cache };
     }
-    pendingCacheOptions = { ...pendingCacheOptions, maxChatsPerChannel };
 };
 
 export const getDataRuntime = (): DataRuntime => {

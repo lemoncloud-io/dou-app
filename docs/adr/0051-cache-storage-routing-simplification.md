@@ -4,6 +4,14 @@
 > · [ADR-0030](0030-app-runtime-cold-db-migration-and-invite-cloud-recovery.md)의 2-tier 관련 결정을 대체
 > · [ADR-0006](0006-chat-cache-quota-safety-net-and-author-names.md)의 chat 상한은 유지(주입 경로만 변경)
 
+> **후속 (2026-08-13): 결정 4가 실행되어 없어졌다.** 아래 결정 4와 그 근거인 "desktop-web 수정
+> 금지" 제약은 2026-08-13 사용자가 이번 건에 한해 제약을 풀면서 해소됐다. `setChatCacheLimit`
+> 심은 **제거**됐고, desktop-web은 `configureDataRuntime`을 직접 호출한다. 같은 작업에서
+> 시그니처를 객체형 `configureDataRuntime({ repositories?, cache? })`으로 바꿔 두 호출처가 각각
+> 필요한 정책만 넘기도록 했다(호출은 병합됨). 즉 "대안"에서 기각했던 *`setChatCacheLimit` 즉시
+> 제거 및 호출처 이전*이 하루 뒤 채택된 셈이다 — 기각 사유가 기술적 판단이 아니라 외부 제약이었기
+> 때문이다.
+
 ## 맥락 (Context)
 
 `libs/app-runtime`의 캐시 저장소 조립부가 데이터 레이어의 다른 팩토리들과 구조적으로 동떨어져
