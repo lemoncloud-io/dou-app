@@ -199,11 +199,18 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
 
     private getListKey(query: ChatFeedInput, contextOverride?: LocalDataSourceV2ContextOverride): string {
         return this.createListObserverKey(
+            // Every field that reaches storage must be in the key: observers on one key share a
+            // single query execution, so a field left out would let two different reads collapse
+            // into one wrong answer. `cacheReadList` spreads the whole query into `loadAll`, and
+            // the executor branches on includeUnsent (sort/keyword go on to the native path).
             [
                 'chats',
                 `channel:${query.channelId || '__none__'}`,
                 `cursor:${query.cursorNo ?? 'latest'}`,
                 `limit:${query.limit ?? 50}`,
+                `unsent:${(query as { includeUnsent?: boolean }).includeUnsent ? 1 : 0}`,
+                `sort:${(query as { sort?: string }).sort ?? 'default'}`,
+                `keyword:${(query as { keyword?: string }).keyword ?? ''}`,
             ],
             contextOverride
         );

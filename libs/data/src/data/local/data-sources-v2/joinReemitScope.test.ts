@@ -18,6 +18,8 @@ const flushPromises = async () => {
     await Promise.resolve();
 };
 
+let loadAllCalls = 0;
+
 const createMemoryStorage = (): CacheStorage<'join'> => {
     const map = new Map<string, any>();
     return {
@@ -35,6 +37,7 @@ const createMemoryStorage = (): CacheStorage<'join'> => {
             return map.has(id) ? { ...map.get(id) } : null;
         },
         async loadAll(options?: any) {
+            loadAllCalls += 1;
             const list = Array.from(map.values()).map(item => ({ ...item }));
             if (!options?.channelId) return list;
             return list.filter(item => item.channelId === options.channelId);
@@ -115,6 +118,30 @@ describe('JoinLocalDataSourceV2 재발행 범위', () => {
     });
 
     // 좁히다가 반대로 놓치면 안 된다: 같은 채널의 질의 변형(activeOnly)은 키가 다르지만 전부 깨어나야 한다.
+    // 같은 키를 보는 소비자가 셋(UnifiedLayout · UnreadBadgeRunner · HomePage의 useMyJoins)이라
+    // 예전에는 쓰기 1회가 동일한 읽기 3회를 만들었다. 직렬 브릿지에서는 마지막 옵저버가 3배를 기다린다.
+    it('같은 키의 옵저버가 여럿이어도 저장소는 한 번만 읽는다', async () => {
+        const source = createSource();
+        const a = jest.fn();
+        const b = jest.fn();
+        const c = jest.fn();
+
+        source.observeList({ channelId: 'ch-a' }, a);
+        source.observeList({ channelId: 'ch-a' }, b);
+        source.observeList({ channelId: 'ch-a' }, c);
+        await settle();
+
+        loadAllCalls = 0;
+        await source.cacheWrite({ id: 'ch-a@me', channelId: 'ch-a', userId: 'me', readNo: 7 } as any);
+        await settle();
+
+        // 셋 다 값을 받되, 저장소 조회는 한 번(쓰기 경로의 기존 조회는 loadAllCalls 리셋 이후로만 센다).
+        expect(a).toHaveBeenCalled();
+        expect(b).toHaveBeenCalled();
+        expect(c).toHaveBeenCalled();
+        expect(loadAllCalls).toBe(1);
+    });
+
     it('같은 채널의 질의 변형은 모두 깨운다', async () => {
         const source = createSource();
         const plain = jest.fn();

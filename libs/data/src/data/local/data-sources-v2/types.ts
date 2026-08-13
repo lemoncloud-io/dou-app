@@ -29,12 +29,27 @@ export interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
     cacheClear(contextOverride?: LocalDataSourceV2ContextOverride): Promise<void>;
 }
 
-type ObserverNotify = () => Promise<void>;
+/**
+ * Observers that resolved to the same key, plus the one query they all need.
+ *
+ * The key is built from the query's own parameters, so same key means same query means same
+ * result — the group runs it ONCE per re-emit and hands the value to every callback. Before this,
+ * each observer ran its own copy: three mounted `useMyJoins` consumers observing one channel meant
+ * three identical reads, and on native each read is a bridge round trip that queues behind the
+ * others (measured 4 reads per write).
+ *
+ * This only holds while a key fully determines its query. A data source that lets a field reach
+ * storage without putting it in the key would collapse two different reads into one wrong answer.
+ */
+interface ObserverGroup {
+    query: () => Promise<unknown>;
+    callbacks: Map<number, (value: never) => void>;
+}
 
 export abstract class BaseLocalDataSourceV2 {
     private nextObserverId = 0;
-    private readonly itemObservers = new Map<string, Map<number, ObserverNotify>>();
-    private readonly listObservers = new Map<string, Map<number, ObserverNotify>>();
+    private readonly itemObservers = new Map<string, ObserverGroup>();
+    private readonly listObservers = new Map<string, ObserverGroup>();
     private readonly pendingItemIds = new Set<string>();
     private readonly pendingListPrefixes = new Set<string>();
     private emitAllItems = false;
@@ -92,24 +107,7 @@ export abstract class BaseLocalDataSourceV2 {
         query: () => Promise<T>,
         callback: LocalDataSourceV2Callback<T>
     ): LocalDataSourceV2Unsubscribe {
-        const observerId = ++this.nextObserverId;
-        const notify = async (): Promise<void> => {
-            callback(await query());
-        };
-
-        const group = this.itemObservers.get(id) ?? new Map<number, ObserverNotify>();
-        group.set(observerId, notify);
-        this.itemObservers.set(id, group);
-        void this.safeNotify(notify);
-
-        return () => {
-            const current = this.itemObservers.get(id);
-            if (!current) return;
-            current.delete(observerId);
-            if (current.size === 0) {
-                this.itemObservers.delete(id);
-            }
-        };
+        return this.registerObserver(this.itemObservers, id, query, callback);
     }
 
     protected observeListQuery<T>(
@@ -117,22 +115,30 @@ export abstract class BaseLocalDataSourceV2 {
         query: () => Promise<T>,
         callback: LocalDataSourceV2Callback<T>
     ): LocalDataSourceV2Unsubscribe {
-        const observerId = ++this.nextObserverId;
-        const notify = async (): Promise<void> => {
-            callback(await query());
-        };
+        return this.registerObserver(this.listObservers, key, query, callback);
+    }
 
-        const group = this.listObservers.get(key) ?? new Map<number, ObserverNotify>();
-        group.set(observerId, notify);
-        this.listObservers.set(key, group);
-        void this.safeNotify(notify);
+    private registerObserver<T>(
+        registry: Map<string, ObserverGroup>,
+        key: string,
+        query: () => Promise<T>,
+        callback: LocalDataSourceV2Callback<T>
+    ): LocalDataSourceV2Unsubscribe {
+        const observerId = ++this.nextObserverId;
+        const group = registry.get(key) ?? { query: query as () => Promise<unknown>, callbacks: new Map() };
+        group.callbacks.set(observerId, callback as (value: never) => void);
+        registry.set(key, group);
+
+        // The first emit goes to the newcomer alone — the others already have this value, and
+        // re-delivering it would re-render every consumer on the key whenever one more mounts.
+        void this.safeNotify(async () => callback(await query()));
 
         return () => {
-            const current = this.listObservers.get(key);
+            const current = registry.get(key);
             if (!current) return;
-            current.delete(observerId);
-            if (current.size === 0) {
-                this.listObservers.delete(key);
+            current.callbacks.delete(observerId);
+            if (current.callbacks.size === 0) {
+                registry.delete(key);
             }
         };
     }
@@ -170,28 +176,24 @@ export abstract class BaseLocalDataSourceV2 {
     }
 
     private async flush(): Promise<void> {
-        const itemTasks: ObserverNotify[] = [];
-        const listTasks: ObserverNotify[] = [];
+        // Collect GROUPS, not individual observers: one query per key, however many are listening.
+        const groups: ObserverGroup[] = [];
 
         if (this.emitAllItems) {
-            for (const group of this.itemObservers.values()) {
-                itemTasks.push(...group.values());
-            }
+            groups.push(...this.itemObservers.values());
         } else {
             for (const id of this.pendingItemIds) {
                 const group = this.itemObservers.get(id);
-                if (group) itemTasks.push(...group.values());
+                if (group) groups.push(group);
             }
         }
 
         if (this.emitAllLists) {
-            for (const group of this.listObservers.values()) {
-                listTasks.push(...group.values());
-            }
+            groups.push(...this.listObservers.values());
         } else {
             for (const [key, group] of this.listObservers.entries()) {
                 const shouldEmit = Array.from(this.pendingListPrefixes).some(prefix => key.startsWith(prefix));
-                if (shouldEmit) listTasks.push(...group.values());
+                if (shouldEmit) groups.push(group);
             }
         }
 
@@ -200,17 +202,33 @@ export abstract class BaseLocalDataSourceV2 {
         this.emitAllItems = false;
         this.emitAllLists = false;
 
-        const uniqueTasks = Array.from(new Set([...itemTasks, ...listTasks]));
-        await Promise.all(uniqueTasks.map(task => this.safeNotify(task)));
+        await Promise.all(Array.from(new Set(groups)).map(group => this.notifyGroup(group)));
     }
 
-    private async safeNotify(task: ObserverNotify): Promise<void> {
+    /** Runs a group's query once and delivers the value to everyone listening on that key. */
+    private async notifyGroup(group: ObserverGroup): Promise<void> {
+        let value: unknown;
+        try {
+            value = await group.query();
+        } catch (error) {
+            logger.error('CACHE', '[LocalDataSourceV2] observer query failed', { error });
+            return;
+        }
+        for (const callback of group.callbacks.values()) {
+            try {
+                (callback as (value: unknown) => void)(value);
+            } catch (error) {
+                // One observer throwing must not stop the others, but it is still an app bug —
+                // keep it in the buffer so it shows up as a breadcrumb on whatever report follows.
+                logger.error('CACHE', '[LocalDataSourceV2] observer notify failed', { error });
+            }
+        }
+    }
+
+    private async safeNotify(task: () => Promise<void>): Promise<void> {
         try {
             await task();
         } catch (error) {
-            // One observer throwing must not stop the others (hence `safeNotify`),
-            // but it is still an app bug — keep it in the buffer so it shows up as
-            // a breadcrumb on whatever report follows.
             logger.error('CACHE', '[LocalDataSourceV2] observer notify failed', { error });
         }
     }
