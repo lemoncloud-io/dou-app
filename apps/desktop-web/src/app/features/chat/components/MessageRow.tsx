@@ -21,9 +21,17 @@ import {
     type MessageGroup,
     type ReactionTally,
 } from '../utils';
-import { Skeleton, UserProfilePopover, avatarStyle, useSavedItemsStore } from '../../../shared';
+import {
+    Skeleton,
+    UserProfilePopover,
+    avatarStyle,
+    blocksToPlainText,
+    parseBlocks,
+    useSavedItemsStore,
+} from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
+import { BlockKitMessage } from '../blocks';
 import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
@@ -264,7 +272,14 @@ export const MessageRow = memo(
                             const isFailed = message.isFailed || isStuck;
                             const key = String(message.id ?? message.tempId ?? message.chatNo);
                             const content = message.content ?? '';
-                            const firstUrl = content.match(/https?:\/\/[^\s]+/)?.[0];
+                            // A structured message the server sent as Block Kit; null for
+                            // everything else, which is still the overwhelming majority.
+                            const blocks = parseBlocks(content, message.contentType);
+                            // What this row *says*, as opposed to what it is made of. Copy,
+                            // Save, and the link unfurl all mean the former — reading `content`
+                            // there would hand the reader the payload's JSON.
+                            const plain = blocks ? blocksToPlainText(blocks) : content;
+                            const firstUrl = plain.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
                             // A loaded thread hangs off this message → show a reply footer.
@@ -386,6 +401,14 @@ export const MessageRow = memo(
                                                     {t('chat.editHint')}
                                                 </span>
                                             </div>
+                                        </div>
+                                    ) : blocks ? (
+                                        // Block Kit owns its own layout, so it replaces the <p>
+                                        // rather than sitting inside one: a header or a divider
+                                        // nested in a paragraph is invalid markup and the browser
+                                        // would close the <p> out from under the rest of the row.
+                                        <div className={cn(isPending && 'opacity-50')}>
+                                            <BlockKitMessage blocks={blocks} raw={content} selfNames={selfNames} />
                                         </div>
                                     ) : (
                                         <p
@@ -580,7 +603,7 @@ export const MessageRow = memo(
                                                             id: key,
                                                             channelId: message.channelId ?? '',
                                                             chatNo: message.chatNo,
-                                                            content,
+                                                            content: plain,
                                                             ownerName: group.ownerName,
                                                             avatar: group.avatar,
                                                             colorSeed: group.colorSeed,
@@ -603,7 +626,7 @@ export const MessageRow = memo(
                                             {content && (
                                                 <ToolbarButton
                                                     label={isCopied ? t('chat.copied') : t('chat.copy')}
-                                                    onClick={() => copy(key, content)}
+                                                    onClick={() => copy(key, plain)}
                                                     className="hover:bg-accent hover:text-foreground"
                                                 >
                                                     {isCopied ? (
@@ -615,24 +638,33 @@ export const MessageRow = memo(
                                             )}
                                             {canModifyMessage(message, group.isMine) && (
                                                 <>
-                                                    <ToolbarButton
-                                                        label={t('chat.edit')}
-                                                        onClick={() => {
-                                                            setDraft(content);
-                                                            setEditingKey(key);
-                                                        }}
-                                                        className="hover:bg-accent hover:text-foreground"
-                                                    >
-                                                        <Pencil size={16} />
-                                                    </ToolbarButton>
-                                                    {/* Delete last, behind a rule. It was one of six
-                                                        identical icons, a mouse-width from Edit, and
-                                                        the only one you cannot undo — the strip gave
-                                                        the reader nothing to aim by. */}
-                                                    <span
-                                                        aria-hidden
-                                                        className="mx-0.5 h-5 w-px shrink-0 bg-hairline"
-                                                    />
+                                                    {/* No Edit on a Block Kit message: the editor is
+                                                        a plain textarea, so it would hand back the
+                                                        payload's JSON to edit by hand. Delete still
+                                                        applies — the message can still be wrong. */}
+                                                    {!blocks && (
+                                                        <>
+                                                            <ToolbarButton
+                                                                label={t('chat.edit')}
+                                                                onClick={() => {
+                                                                    setDraft(content);
+                                                                    setEditingKey(key);
+                                                                }}
+                                                                className="hover:bg-accent hover:text-foreground"
+                                                            >
+                                                                <Pencil size={16} />
+                                                            </ToolbarButton>
+                                                            {/* Delete last, behind a rule. It was one
+                                                                of six identical icons, a mouse-width
+                                                                from Edit, and the only one you cannot
+                                                                undo — the strip gave the reader
+                                                                nothing to aim by. */}
+                                                            <span
+                                                                aria-hidden
+                                                                className="mx-0.5 h-5 w-px shrink-0 bg-hairline"
+                                                            />
+                                                        </>
+                                                    )}
                                                     <ToolbarButton
                                                         label={t('chat.delete')}
                                                         onClick={() => setConfirmingKey(key)}

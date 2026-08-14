@@ -110,6 +110,43 @@ describe('MessageList', () => {
         expect(screen.queryByLabelText('Delete message')).toBeNull();
     });
 
+    // The feed and the thread panel share one renderer, so a block message has to be
+    // drawn by whatever `MessageRow` decides — not by a second code path per surface.
+    // `ThreadPanel.spec` asserts the same thing through the panel.
+    it('draws a Block Kit message instead of its payload', () => {
+        const payload = JSON.stringify({
+            blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied by policy' } }],
+        });
+
+        render(
+            <MessageList
+                messages={[message(1, 'ada', payload)]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('403').tagName).toBe('STRONG');
+        expect(screen.queryByText(payload)).toBeNull();
+    });
+
+    // A payload we cannot read must not take the pane down or blank the row.
+    it('falls back to the raw text when the payload is broken', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'ada', '{"blocks": [')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('{"blocks": [')).toBeDefined();
+    });
+
     it('renders a reaction chip without throwing', () => {
         const reactions = new Map([['C1:1', [{ emoji: '👍', key: '👍', userIds: ['me', 'ada'], mine: true }]]]);
 

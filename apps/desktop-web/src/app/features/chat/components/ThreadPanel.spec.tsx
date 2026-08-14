@@ -84,6 +84,24 @@ describe('ThreadPanel', () => {
         expect(screen.getByLabelText(/^👍 —/)).toBeTruthy();
     });
 
+    // Same renderer as the feed. A reply that arrives as Block Kit is drawn here for
+    // free — this pins that, so a future surface cannot quietly grow its own path.
+    it('draws a Block Kit reply', () => {
+        messages = [
+            chat(1, { content: 'root' }),
+            chat(2, {
+                parentId: 'C1:1',
+                content: JSON.stringify({
+                    blocks: [{ type: 'header', text: { type: 'plain_text', text: 'Error report' } }],
+                }),
+            }),
+        ];
+
+        render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
+
+        expect(screen.getByRole('heading', { name: 'Error report' })).toBeTruthy();
+    });
+
     it('counts only real replies, not the reaction events', () => {
         messages = THREAD_WITH_REACTION;
 
