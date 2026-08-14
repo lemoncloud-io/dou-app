@@ -1,16 +1,20 @@
 # ADR-0055: 모바일 웹 — 코드블럭 렌더링, 홈 정렬 기준 정정, 로그인 후 원위치 복귀
 
-> 상태: Accepted · 결정일: 2026-08-14 · 구현 완료: 2026-08-14
+> 상태: 결정 1·4 Accepted(구현 완료) · **결정 2·3 Reverted (2026-08-14)** · 결정일: 2026-08-14
 >
-> 구현된 모습은 세 문서에 있다 — 결정 1은
-> [chat-link-preview.md](../chat-link-preview.md), 결정 2·3은
-> [apps/web/docs/feature/home/last-chat.md](../../apps/web/docs/feature/home/last-chat.md),
+> 구현된 모습은 두 문서에 있다 — 결정 1은
+> [chat-link-preview.md](../chat-link-preview.md),
 > 결정 4는 [apps/web/docs/feature/auth/login-return.md](../../apps/web/docs/feature/auth/login-return.md).
 >
+> **결정 2·3(홈 정렬 기준 변경, `lastChat$` 파생 제거)은 런타임 오류로 롤백되어 현재 코드에
+> 없다.** 홈 정렬은 다시 `join.updatedAt` 1차 키로, `useLastChat`은 다시 행 단위 훅으로,
+> `mappers.ts`의 `lastActivityAt` 파생은 원래대로 돌아갔다. 자세한 노트는 각 결정 밑에 있다.
+> [last-chat.md](../../apps/web/docs/feature/home/last-chat.md)도 롤백 후 상태를 기술한다.
+>
 > 이 문서는 히스토리이므로 원 결정문을 고치지 않는다. **본문이 인용하는 `linkTokens.ts`·
-> `LinkedText.tsx`·`useLastChat.ts` 경로는 구현 과정에서 각각 `messageTokens.ts`·`MessageText.tsx`·
-> `useLastChats.ts`로 대체되어 지금은 존재하지 않는다** — 결정 당시의 코드를 가리키는 링크로 읽는다.
-> 결정과 갈라진 항목에는 아래 각 결정 밑에 노트를 달았다.
+> `LinkedText.tsx` 경로는 구현 과정에서 각각 `messageTokens.ts`·`MessageText.tsx`로 대체되어
+> 지금은 존재하지 않는다** — 결정 당시의 코드를 가리키는 링크로 읽는다. 결정과 갈라진 항목에는
+> 아래 각 결정 밑에 노트를 달았다.
 
 ## 맥락 (Context)
 
@@ -182,12 +186,25 @@ route set(`privateRoutes`)은 그대로 유지된다
 > 같이 전환했고, 그 결과 단수 훅은 호출자가 없어져 삭제했다. 위 표의 "행이 각자 호출" 서술은 홈뿐
 > 아니라 관리 화면에도 해당했다.
 
+> **롤백 노트 (2026-08-14).** 이 결정은 **되돌렸다.** 리스트 레벨 관측(`useLastChats`)이 홈에서
+> 런타임 오류를 냈고, 정렬 정확도보다 홈 진입 안정성이 우선이라 판단해 기능을 패치하지 않고
+> 폐기했다. 되돌린 범위: `useLastChats`와 그 fan-out 상한용 `limitConcurrency` 삭제, 행 단위
+> `useLastChat` 복구, `sortChannels`·`ChannelList`·`PlaceChannelManagePage`의 읽음 커서 정렬 복구,
+> `useSyncTarget`과 `libs/app-runtime` public surface 복구. 따라서 위 결정문이 닫았다고 한
+> **"표시 시각과 정렬 순서가 갈라진 선재 결함"은 다시 열려 있고**, ADR-0047 §3이 남긴 후속도
+> 여전히 미해결이다. 재시도하려면 별도 ADR로 다룬다.
+
 ### 결정 3 — `lastChat$` 파생을 매퍼에서 제거한다
 
 - [`mappers.ts`](../../libs/data/src/data/domain/mappers.ts)의 `toDomainChannel`에서 `lastChat$`
   기반 `lastActivityAt` 파생을 제거하고, 해당 단위 테스트도 새 계약으로 고친다.
 - **범위는 `libs/data` 매퍼까지로 한정한다.** `apps/testbed`의 `computeUnreads`는 ADR-0048이 이미
   위반으로 표시해둔 별도 항목이고, `desktop-web`은 이번 변경 대상이 아니다.
+
+> **롤백 노트 (2026-08-14).** 결정 2와 함께 **되돌렸다.** `toDomainChannel`의 `lastChat$` 기반
+> `lastActivityAt` 파생과 해당 단위 테스트가 원래 계약으로 복구되어 있다. 위 맥락(§2)이 지적한
+> "`lastChatAtMs`는 항상 `0`이라 파생이 아무 일도 하지 않는다"는 관찰 자체는 **여전히 유효한
+> 선재 부채**이며, 정렬과 무관하게 별도로 정리할 여지가 남아 있다.
 
 ### 결정 4 — 로그인 복귀는 `returnTo` + `replace` 소프트 내비게이션
 
