@@ -33,6 +33,9 @@
   재동기화"지만, 서버에 목록 API가 없는 도메인에서는 **소실**이다. 그 도메인은 게이트 대상에서 뺀다.
 - **앱은 의도가 아니라 실측을 보고한다.** 컴파일타임 상수를 그대로 내보내지 않는다. 마이그레이션이
   실패했는데 성공한 척 보고하면 게이트가 신뢰할 근거를 잃는다.
+- **저장소를 옮기는 레버는 그 데이터의 sync 커서도 함께 무효화한다.** 커서는 다른 도메인의 저장소를
+  가리키므로, 데이터만 옮기고 커서를 남기면 빈 저장소 위에서 "동기화됨"이라고 거짓말한다. 규율이
+  아니라 라우팅 지문으로 강제한다(S5).
 - **논리 계약은 물리 DB 버전과 분리한다.** 게이트를 걸기 위해 no-op 마이그레이션을 넣지 않는다.
   `PRAGMA user_version`은 계속 보고하되 라우팅 판정에서는 읽지 않는다.
 
@@ -105,7 +108,7 @@ stale-while-revalidate로 못박아 `invite.list`가 항상 재검증하므로 �
 2. **웹** — 새 앱이 충분히 퍼진 뒤 `REQUIRED_DOMAIN_VERSION.profile = 2`를 배포한다.
 3. 1판 앱은 `profile`만 웹 저장소로 내려가고 서버 재동기화로 채워진다. 나머지 도메인은 영향 없다.
 4. 순서가 뒤집히면(웹 먼저) 전 사용자의 `profile`이 잠시 웹 저장소로 간다 — 내구성만 낮아지고
-   데이터는 유지되므로 사고가 아니라 지연이다. 단 `invitecloud`에는 이 여유가 없다(아래 S5).
+   데이터는 유지되므로 사고가 아니라 지연이다. 단 `invitecloud`에는 이 여유가 없다(아래 S6).
 
 ### S4. 마이그레이션이 실패한 앱
 
@@ -116,7 +119,25 @@ stale-while-revalidate로 못박아 `invite.list`가 항상 재검증하므로 �
 4. legacy 8종은 floor 덕에 계속 네이티브로 간다. **의도된 비대칭이다**: 이미 출시된 모든 앱이 가진
    테이블이라 없을 리 없고, floor를 포기하면 우발적 미보고 한 번이 `invitecloud`를 날린다.
 
-### S5. 긴급 킬스위치
+### S5. 레버를 쓰면 sync 커서가 함께 은퇴한다
+
+게이트는 도메인 단위지만 `meta`는 **다른 도메인에 대한** 커서다. 그래서 도메인을 옮기면 커서만 남아
+"이미 T까지 동기화됨"이라고 말하는데 새 저장소는 비어 있고, 앱은 T 이후 델타만 받는다 — 결손이
+조용히 생긴다.
+
+이 어긋남은 규율이 아니라 코드로 막는다. 커서를 저장할 때 **그때의 라우팅 지문**을 함께 남기고,
+읽을 때 지문이 다르면 `0`(전체 재동기화)으로 떨어뜨린다
+([SyncMetaLocalDataSourceV2](../../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.ts)).
+지문은 조립 시점에 **실제로 만들어진 스토리지의 결정**을 모아 만든다
+([localFactory.ts](../../src/data/factories/localFactory.ts)) — 나중에 캐시 타입이 추가돼도 아무도
+목록을 갱신할 필요가 없다.
+
+커서 `kind`는 호출부에서 문자열로 조립되므로(`channel-sync:${cid}`) kind→도메인 매핑 테이블을 두면
+나중에 추가된 커서를 조용히 놓친다. 그래서 지문은 **전 도메인**을 덮는다. 대가는 과잉 무효화 —
+무관한 도메인의 라우팅 변화도 커서를 은퇴시킨다 — 이고, 그 값은 전체 재동기화 1회로 TTL 만료가
+이미 일상적으로 물리는 것과 같은 가격이다.
+
+### S6. 긴급 킬스위치
 
 앱 릴리스를 기다릴 수 없을 때만 `WEB_PINNED_CACHE_TYPES`([cacheStorageRouting.ts](../../src/data/cacheStorageRouting.ts))로
 웹 배포만으로 전 버전을 즉시 off한다. 네이티브 내구성을 IndexedDB로 낮추는 임시방편이다.
@@ -381,6 +402,11 @@ export const isNativeCacheTypeUsable = (type: CacheType): boolean => appVersion(
 - [cacheContract.test.ts](../../../../apps/mobile/src/app/database/sqlite/cacheContract.test.ts) —
   계약 맵 키 == `SUPPORTED_CACHE_TYPES`, 전 도메인 1판, 도달 버전별 포함/제외, 그리고 각
   `sinceUserVersion`을 근거가 되는 마이그레이션 SQL과 대조(특히 두 번 만들어진 `metas`).
+- [SyncMetaLocalDataSourceV2.test.ts](../../../data/src/data/local/data-sources-v2/SyncMetaLocalDataSourceV2.test.ts) —
+  라우팅 지문이 같으면 커서 유지, 다르면 TTL이 남아도 0, 지문 없는 구버전 행도 0, 조립부가 지문을
+  주지 않으면 검사 자체를 끔.
+- [localFactory.test.ts](../../src/data/factories/localFactory.test.ts) — 지문이 두 환경에서 다르고,
+  손으로 관리하는 목록이 아니라 실제 조립된 전 타입을 덮는지.
 - [cacheDomainVersions.test.ts](../../../../apps/mobile/src/app/services/cache/cacheDomainVersions.test.ts) —
   DB 실패·타임아웃 시 reject가 아니라 `undefined`, 성공은 1회만 측정, **실패는 캐시하지 않고 재시도**.
 - [useBaseBridge.test.ts](../../../../apps/mobile/src/app/webview/hooks/useBaseBridge.test.ts) —

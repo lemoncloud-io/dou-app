@@ -144,6 +144,14 @@ export type CacheMetaView = CacheViewBase & {
     cid: string;
     uid: string;
     syncedAt?: number;
+    /**
+     * 이 커서를 저장할 때의 캐시 저장소 라우팅 지문 (ADR-0053).
+     *
+     * 커서는 **다른 도메인**의 동기화 지점을 가리키므로, 그 도메인이 다른 저장소로 옮겨가면 커서만
+     * 남아 "이미 동기화됨"이라고 거짓말한다 — 새 저장소는 비어 있는데 델타만 받게 된다. 지문이
+     * 다르면 커서를 무효로 보고 전체 재동기화(`since=0`)로 떨어뜨린다.
+     */
+    routing?: string;
 };
 
 /**

@@ -89,19 +89,34 @@ export const createLocalDataSources = ({
     cacheStorageFactory?: CacheStorageFactory;
     cache?: CacheAssemblyOptions;
 }): LocalDataSourcesV2 => {
+    // Sync cursors describe data in OTHER domains' stores, so a cursor outlives the routing it was
+    // written under and would claim "already synced" over a store the data no longer lives in
+    // (ADR-0053). Recording each decision as the storages are actually built keeps the fingerprint
+    // honest and drift-proof — a cache type added later shows up here without anyone remembering to
+    // list it. An injected factory (tests) leaves it empty, which disables the check.
+    const routed: string[] = [];
     const factory: CacheStorageFactory =
-        cacheStorageFactory ?? ((type, provider) => getCacheStorage(type, provider, cache));
+        cacheStorageFactory ??
+        ((type, provider) => {
+            routed.push(`${type}:${resolveCacheBackend(type)}`);
+            return getCacheStorage(type, provider, cache);
+        });
     const storages = createCacheStorages(contextProvider, factory);
+    const routingFingerprint = routed.length > 0 ? routed.sort().join(',') : undefined;
 
-    return createDataLocalDataSources(contextProvider, {
-        channel: storages.channel,
-        chat: storages.chat,
-        inviteCloud: storages.inviteCloud,
-        invite: storages.invite,
-        join: storages.join,
-        profile: storages.profile,
-        site: storages.site,
-        user: storages.user,
-        meta: storages.meta,
-    });
+    return createDataLocalDataSources(
+        contextProvider,
+        {
+            channel: storages.channel,
+            chat: storages.chat,
+            inviteCloud: storages.inviteCloud,
+            invite: storages.invite,
+            join: storages.join,
+            profile: storages.profile,
+            site: storages.site,
+            user: storages.user,
+            meta: storages.meta,
+        },
+        { routingFingerprint }
+    );
 };

@@ -176,6 +176,69 @@ describe('getCacheStorage storage routing', () => {
     });
 });
 
+// Sync cursors are stamped with the routing they were written under, so a cursor cannot claim
+// "already synced" after its domain moved stores (ADR-0053). The fingerprint is built from the
+// decisions actually made while assembling, which is what keeps it from drifting when a cache type
+// is added later.
+describe('createLocalDataSources routing fingerprint', () => {
+    const contextProvider: DataContextProvider = {
+        getContext: () => ({ cid: 'c1', uid: 'u1' }),
+        setContext: () => undefined,
+    };
+
+    const loadFactory = async (isNative: boolean) => {
+        jest.resetModules();
+        if (isNative) (window as any).ReactNativeWebView = { postMessage: jest.fn() };
+        else delete (window as any).ReactNativeWebView;
+        return import('./localFactory');
+    };
+
+    afterEach(() => {
+        delete (window as any).ReactNativeWebView;
+    });
+
+    // Reaching into the data source is the only way to observe the stamp without a live store; the
+    // behavioural contract itself is pinned in SyncMetaLocalDataSourceV2's own suite. `isNativeApp`
+    // reads `window` at CALL time, so each environment must be assembled before the next is loaded.
+    const fingerprintIn = async (isNative: boolean) => {
+        const { createLocalDataSources } = await loadFactory(isNative);
+        const sources = createLocalDataSources({ contextProvider });
+        return (sources.syncMeta as any).routingFingerprint as string;
+    };
+
+    it('records every type it routed, so the two environments cannot share a fingerprint', async () => {
+        const browserPrint = await fingerprintIn(false);
+        const nativePrint = await fingerprintIn(true);
+
+        expect(browserPrint).toContain('chat:web');
+        expect(nativePrint).toContain('chat:native');
+        expect(browserPrint).not.toEqual(nativePrint);
+    });
+
+    it('covers every cache type the assembler built, not a hand-kept list', async () => {
+        const { createLocalDataSources } = await loadFactory(false);
+
+        const print = (createLocalDataSources({ contextProvider }).syncMeta as any).routingFingerprint as string;
+
+        for (const type of ['chat', 'channel', 'invitecloud', 'join', 'site', 'user', 'meta', 'profile', 'invite']) {
+            expect(print).toContain(`${type}:`);
+        }
+    });
+
+    // An injected factory means the caller, not the router, chose the stores — there is nothing
+    // honest to stamp, so the check switches off rather than guessing.
+    it('leaves the fingerprint unset when the storage factory is injected', async () => {
+        const { createLocalDataSources } = await loadFactory(true);
+
+        const sources = createLocalDataSources({
+            contextProvider,
+            cacheStorageFactory: () => ({}) as never,
+        });
+
+        expect((sources.syncMeta as any).routingFingerprint).toBeUndefined();
+    });
+});
+
 describe('getCacheStorage chat cap injection', () => {
     const contextProvider: DataContextProvider = {
         getContext: () => ({ cid: 'c1', uid: 'u1' }),

@@ -45,6 +45,14 @@ export const createLocalDataSourcesV2 = (
         site: CacheStorage<'site'>;
         user: CacheStorage<'user'>;
         meta: CacheStorage<'meta'>;
+    },
+    options?: {
+        /**
+         * Identifies the storage routing `storages` were built under, stamped onto sync cursors so
+         * one written against a different routing cannot be trusted (ADR-0053). Only the assembler
+         * knows this — it is the layer that resolved the routing in the first place.
+         */
+        routingFingerprint?: string;
     }
 ): LocalDataSourcesV2 => ({
     channel: new ChannelLocalDataSourceV2(contextProvider, storages.channel),
@@ -55,5 +63,5 @@ export const createLocalDataSourcesV2 = (
     profile: new ProfileLocalDataSourceV2(contextProvider, storages.profile),
     place: new PlaceLocalDataSourceV2(contextProvider, storages.site),
     user: new UserLocalDataSourceV2(contextProvider, storages.user),
-    syncMeta: new SyncMetaLocalDataSourceV2(contextProvider, storages.meta),
+    syncMeta: new SyncMetaLocalDataSourceV2(contextProvider, storages.meta, options?.routingFingerprint),
 });
