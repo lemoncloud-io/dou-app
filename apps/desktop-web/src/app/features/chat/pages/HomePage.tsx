@@ -48,6 +48,7 @@ import {
     MentionsPanel,
     ThreadPanel,
 } from '../components';
+import { useMessageViewer, useReadCounts } from '../hooks';
 import { useThreadStore } from '../stores';
 
 const isWindowActive = (): boolean =>
@@ -399,6 +400,13 @@ export const HomePage = () => {
         // channel.list-user at the new socket → 403 not-a-member on the relay.
     } = useChannelMembers(selectedChannel?.id ?? null, selectedChannel?.ownerId);
 
+    // One read-state subscription per open channel, shared by the chat pane and the thread
+    // panel — same reason the member subscription above lives here. Each mount registers a
+    // join sync for the whole roster and observes the join cache, so a second one would run
+    // the cache scan again on every emit for counts identical to the first's.
+    const viewer = useMessageViewer(selectedChannel);
+    const readCountOf = useReadCounts(selectedChannel, viewer);
+
     // Keep the open channel marked read up to its latest message (cursor grows as
     // new messages arrive while it's open), so it never shows unread after you
     // switch away. Gate on window focus/visibility: a message arriving while the
@@ -461,7 +469,14 @@ export const HomePage = () => {
                         </div>
                     </>
                 }
-                main={<ChatPane channel={selectedChannel} members={members} membersLoading={membersLoading} />}
+                main={
+                    <ChatPane
+                        channel={selectedChannel}
+                        members={members}
+                        membersLoading={membersLoading}
+                        readCountOf={readCountOf}
+                    />
+                }
                 panel={
                     showDebugPanel ? (
                         <DebugPanel />
@@ -471,6 +486,7 @@ export const HomePage = () => {
                             rootId={openThreadRootId}
                             members={members}
                             membersLoading={membersLoading}
+                            readCountOf={readCountOf}
                         />
                     ) : settingsChannel ? (
                         <ChannelSettingsPanel

@@ -13,6 +13,7 @@ import {
     isViewerId,
     type MessageViewer,
     type ReactionTally,
+    type ReadCount,
     type ThreadMeta,
 } from '../utils';
 import { DateSeparator } from './DateSeparator';
@@ -52,6 +53,8 @@ interface MessageListProps {
     jumpTarget?: { chatNo: number; nonce: number };
     /** Called once a jump is consumed (landed or abandoned) so the store can clear. */
     onJumpConsumed?: () => void;
+    /** Read/unread counts per message (see `useReadCounts`); absent shows no receipts. */
+    readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -88,6 +91,7 @@ export const MessageList = ({
     onOpenThread,
     jumpTarget,
     onJumpConsumed,
+    readCountOf,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -523,6 +527,7 @@ export const MessageList = ({
                             withDayInTime={threadReplyCount !== undefined}
                             reactions={reactions}
                             reactorName={reactorName}
+                            readCountOf={readCountOf}
                         />
                     );
                 })}

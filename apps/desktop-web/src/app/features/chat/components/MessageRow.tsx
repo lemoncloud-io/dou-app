@@ -20,6 +20,7 @@ import {
     threadRootId,
     type MessageGroup,
     type ReactionTally,
+    type ReadCount,
 } from '../utils';
 import {
     Skeleton,
@@ -35,6 +36,7 @@ import { BlockKitMessage } from '../blocks';
 import { EmojiPicker } from './EmojiPicker';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionBar } from './ReactionBar';
+import { ReadReceipt } from './ReadReceipt';
 import { RichText } from './RichText';
 
 // Active place id (with the relay 'default' sentinel), read at call time so a saved item is
@@ -80,6 +82,11 @@ interface MessageRowProps {
     highlightChatNo?: number;
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
     withDayInTime?: boolean;
+    /**
+     * Read/unread counts for a message, or null when it gets no receipt (see
+     * `useReadCounts`). Absent on a surface that shows no receipts at all.
+     */
+    readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
 }
 
 /**
@@ -174,6 +181,7 @@ export const MessageRow = memo(
         selfNames,
         highlightChatNo,
         withDayInTime,
+        readCountOf,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -315,6 +323,16 @@ export const MessageRow = memo(
                             const isSettled = !!message.id && !isPending && !isFailed;
                             const isEditing = editingKey === key;
                             const wasEdited = isEdited(message);
+                            // One receipt per author block, on its last message — the same
+                            // place the group's own timestamp belongs to. Per-message
+                            // receipts would stack four identical lines under a burst of
+                            // four messages sent a second apart. A message still in flight,
+                            // failed or deleted has no meaningful count.
+                            const isLastInGroup = i === group.messages.length - 1;
+                            const receipt =
+                                readCountOf && isLastInGroup && isSettled && !message.hidden && message.chatNo
+                                    ? readCountOf(message.chatNo, message.ownerId)
+                                    : null;
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the
@@ -470,6 +488,9 @@ export const MessageRow = memo(
                                         <span className="mt-0.5 block text-caption text-destructive">
                                             {t('chat.reaction.failed')}
                                         </span>
+                                    )}
+                                    {receipt && (
+                                        <ReadReceipt readCount={receipt.readCount} unreadCount={receipt.unreadCount} />
                                     )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the

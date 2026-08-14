@@ -24,7 +24,7 @@ import {
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import { useMentionables, useMessageViewer } from '../hooks';
+import { useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
@@ -36,9 +36,11 @@ interface ChatPaneProps {
     members: ChannelMember[];
     /** Roster still loading — message headers show a name skeleton, not "Unknown". */
     membersLoading?: boolean;
+    /** Per-message read counts, from the one `useReadCounts` the host mounts per channel. */
+    readCountOf?: ReadCountOf;
 }
 
-export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) => {
+export const ChatPane = ({ channel, members, membersLoading, readCountOf }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useSessionIdentity().userId;
@@ -206,6 +208,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 onOpenThread={openThread}
                 jumpTarget={jumpTarget}
                 onJumpConsumed={clearJump}
+                readCountOf={readCountOf}
             />
             <Composer
                 onSend={handleSend}

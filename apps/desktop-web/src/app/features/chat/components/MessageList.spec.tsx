@@ -165,6 +165,45 @@ describe('MessageList', () => {
         expect(screen.getByText('{"blocks": [')).toBeDefined();
     });
 
+    // One receipt per author block, not one per message: a burst of four messages a second
+    // apart shares a single read position, and four identical lines under it would be four
+    // times the noise for the same fact.
+    it('puts the read receipt on the last message of an author block', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                // Answers for every message, so the assertion is about which one asked.
+                readCountOf={chatNo => ({ readCount: chatNo, unreadCount: 1 })}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getAllByText(/^Read /)).toHaveLength(1);
+        expect(screen.getByText('Read 2')).toBeDefined();
+        expect(screen.getByText('Unread 1')).toBeDefined();
+    });
+
+    // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
+    // one active member, or nothing synced yet. Rendering "Read 0" there states something
+    // false rather than staying quiet.
+    it('shows no receipt when the counts are unavailable', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'first')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                readCountOf={() => null}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.queryByText(/^Read /)).toBeNull();
+    });
+
     it('renders a reaction chip without throwing', () => {
         const reactions = new Map([['C1:1', [{ emoji: '👍', key: '👍', userIds: ['me', 'ada'], mine: true }]]]);
 
