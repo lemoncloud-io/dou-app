@@ -1,6 +1,7 @@
 import type { CacheUserView, UserQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 /**
  * 유저(User) 프로필 도메인 전용 데이터 소스
  */
@@ -25,6 +26,10 @@ export class UserDataSource implements ICacheDataSource<CacheUserView, UserQuery
         const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheUserView;
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheUserView[]> {
+        return fetchManyByIds<CacheUserView>(this.database, this.tableName, ids, cid, uid);
     }
 
     /**

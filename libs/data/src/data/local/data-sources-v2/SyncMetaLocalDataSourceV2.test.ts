@@ -5,10 +5,14 @@ import { SyncMetaLocalDataSourceV2 } from './SyncMetaLocalDataSourceV2';
 const MINUTE_MS = 60 * 1000;
 // Mirror of the sync-cursor TTL in storages/utils (`meta`). Kept explicit so the test pins the
 // intended window rather than tautologically re-deriving it from the code under test.
-const TTL_MS = 30 * MINUTE_MS;
+// Temporarily 5 minutes while data is migrating — restore to 30 with storages/utils.
+const TTL_MS = 5 * MINUTE_MS;
 
 describe('SyncMetaLocalDataSourceV2', () => {
-    const createSource = (loaded?: { syncedAt?: number; __cacheMeta?: CacheTtlMeta } | null) => {
+    const createSource = (
+        loaded?: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
+        routingFingerprint?: string
+    ) => {
         const save = jest.fn().mockResolvedValue(undefined);
         const storage = {
             load: jest.fn().mockResolvedValue(loaded ?? null),
@@ -18,7 +22,10 @@ describe('SyncMetaLocalDataSourceV2', () => {
             getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
             setContext: () => undefined,
         };
-        return { source: new SyncMetaLocalDataSourceV2(contextProvider, storage), save };
+        return {
+            source: new SyncMetaLocalDataSourceV2(contextProvider, storage, routingFingerprint),
+            save,
+        };
     };
 
     // Adapters stamp __cacheMeta on save; tests reproduce it relative to now.
@@ -65,6 +72,75 @@ describe('SyncMetaLocalDataSourceV2', () => {
             cid: 'cloud-a',
             uid: 'me',
             syncedAt: 5678,
+        });
+    });
+});
+
+// A cursor is a claim about data in ANOTHER domain's store. When that domain moves stores — the
+// gate raising a required contract version, or the emergency web pin — the cursor survives but the
+// data does not follow it, so trusting it would mean asking for deltas after T over an empty store
+// (ADR-0053).
+describe('SyncMetaLocalDataSourceV2 — 라우팅이 바뀐 커서', () => {
+    const ROUTING = 'chat:native,channel:native';
+    const MOVED = 'chat:web,channel:native';
+
+    const createSource = (
+        loaded: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
+        routingFingerprint?: string
+    ) => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        const storage = {
+            load: jest.fn().mockResolvedValue(loaded),
+            save,
+        } as unknown as CacheStorage<'meta'>;
+        const contextProvider = {
+            getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
+            setContext: () => undefined,
+        };
+        return {
+            source: new SyncMetaLocalDataSourceV2(contextProvider, storage, routingFingerprint),
+            save,
+        };
+    };
+
+    const fresh = (routing?: string) => ({
+        syncedAt: 1234,
+        routing,
+        __cacheMeta: { lastSyncedAt: Date.now(), expiresAt: Date.now() + TTL_MS },
+    });
+
+    it('같은 라우팅에서 쓴 커서는 그대로 쓴다', async () => {
+        const { source } = createSource(fresh(ROUTING), ROUTING);
+        await expect(source.getSyncedAt('channel-sync')).resolves.toBe(1234);
+    });
+
+    it('라우팅이 달라졌으면 TTL이 남아 있어도 0으로 떨어뜨린다', async () => {
+        const { source } = createSource(fresh(ROUTING), MOVED);
+        await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
+    });
+
+    // 지문이 생기기 전에 쓰인 행. 현재 라우팅을 설명한다고 볼 근거가 없으므로 함께 은퇴한다 —
+    // 배포 직후 전체 재동기화 1회가 대가다.
+    it('지문이 없는 구버전 커서도 0으로 떨어뜨린다', async () => {
+        const { source } = createSource(fresh(undefined), ROUTING);
+        await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
+    });
+
+    // 조립부가 지문을 주지 않는 경우(주입된 스토리지 팩토리, 테스트). 검사 자체를 끈다.
+    it('지문이 주어지지 않으면 검사하지 않는다', async () => {
+        const { source } = createSource(fresh(undefined), undefined);
+        await expect(source.getSyncedAt('channel-sync')).resolves.toBe(1234);
+    });
+
+    it('커서를 쓸 때 현재 라우팅 지문을 함께 남긴다', async () => {
+        const { source, save } = createSource(null, ROUTING);
+        await source.setSyncedAt('channel-sync', 5678);
+        expect(save).toHaveBeenCalledWith('channel-sync', {
+            id: 'channel-sync',
+            cid: 'cloud-a',
+            uid: 'me',
+            syncedAt: 5678,
+            routing: ROUTING,
         });
     });
 });

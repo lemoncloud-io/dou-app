@@ -1,6 +1,7 @@
 import type { CacheMetaView, MetaQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 /**
  * 동기화 커서 등 메타(Meta) 도메인 전용 데이터 소스
  *
@@ -30,6 +31,10 @@ export class MetaDataSource implements ICacheDataSource<CacheMetaView, MetaQuery
         const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheMetaView;
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheMetaView[]> {
+        return fetchManyByIds<CacheMetaView>(this.database, this.tableName, ids, cid, uid);
     }
 
     /**

@@ -32,6 +32,17 @@ export class CloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICl
         super(contextProvider);
     }
 
+    /**
+     * Clouds live in one global storage partition (`resolveScopedContext` forces cid/uid='global'),
+     * so their observer scope must be fixed too — the same reason `CLOUD_LIST_KEY` is a constant.
+     * The inherited scope key is built from the ACTIVE cid/sid/uid, which would split one physical
+     * partition across several observer scopes: a write made under cloud A would not reemit the
+     * observer that subscribed under cloud B, even though both read the very same rows.
+     */
+    protected override getScopeKey(): string {
+        return 'global';
+    }
+
     public async cacheRead(id: string): Promise<DomainCloud | null> {
         const requiredId = this.assertRequiredString(id, 'id');
         const item = await this.cacheStorage.load(requiredId);
@@ -90,9 +101,9 @@ export class CloudLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICl
     ): Promise<void> {
         const validItems = items.filter(item => !!item.id);
         if (validItems.length === 0) return;
-        const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
-        const mergedList = validItems.map((item, index) => {
-            const existing = existingItems[index];
+        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
+        const mergedList = validItems.map(item => {
+            const existing = existingById.get(item.id!);
             const id = this.assertRequiredString(item.id, 'id');
             const cid = this.assertRequiredString(item.cid, 'cid');
             return {

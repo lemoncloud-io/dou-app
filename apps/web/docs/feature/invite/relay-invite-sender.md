@@ -1,8 +1,10 @@
 # Relay 1:1 초대 — 발신자 흐름 (Contact Invite Sender)
 
-> 상태: Live · 최종 갱신: 2026-08-04 · 관련 ADR: [ADR-0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [ADR-0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) (게스트 게이트), [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) (Track B)
+> 상태: Live · 최종 갱신: 2026-08-13 · 관련 ADR: [ADR-0052](../../../../../docs/adr/0052-invite-local-cache-and-native-table.md) (로컬 캐시·네이티브 테이블), [ADR-0043](../../../../../docs/adr/0043-relay-invite-cancel-reject-adoption.md) (취소·거절 실 API 전환), [ADR-0041](../../../../../docs/adr/0041-place-profile-as-invite-precondition.md) (프로필 전제조건), [ADR-0034](../../../../../docs/adr/0034-inviter-phone-verification-guest-gate-and-sheet.md) (게스트 게이트), [ADR-0033](../../../../../docs/adr/0033-relay-dm-invite-and-auth-parallel-tracks.md) · 로드맵: [relay-dm-invite-parallel-roadmap.md](../../../../../docs/plans/relay-dm-invite-parallel-roadmap.md) (Track B)
 >
-> 최근 개정(2026-08-04, ADR-0043): 백엔드 요청 1번(`invite.cancel` + `canceled`)·2번(`invite.reject` +
+> 최근 개정(2026-08-13, ADR-0052): `invite.list`가 로컬 우선 읽기로 전환됐다 — 상세는
+> [invite-local-cache.md](../../../../../libs/app-runtime/docs/data/invite-local-cache.md) 참고.
+> 이전 개정(2026-08-04, ADR-0043): 백엔드 요청 1번(`invite.cancel` + `canceled`)·2번(`invite.reject` +
 > `rejected`)이 도착 — sockets-lib `0.4.13` / sockets-api `0.26.710` / backend-api `0.26.709`.
 > 취소 스텁(로컬 숨김)을 실 API로, 거절 상태 표시를 실 상태로 전환했고, 재발급을 "이전 초대
 > cancel → 새로 create" 조합으로 바꿨다. 아래 서술은 전환 후(현재) 상태다.
@@ -338,6 +340,13 @@ stateDiagram-v2
 - **대기 화면 거절 블록(Figma 3263-30117) 카피는 잠정이다**: 구현 시점에 시안 접근 경로(데스크톱
   Dev Mode MCP·Chrome 확장·웹 로그인)가 전부 막혀 있었다. `inviteWaiting.rejected.title/description`은
   스펙 카피로 배포했다 — 실제 시안 확인 시 두 i18n 키만 조정하면 된다.
-- **목록 창 밖 legacy 취소 기록**: reconcile이 코드를 얻을 수 없는 경우(창 밖으로 밀린
-  `canceledInviteIds` 항목)는 로컬 기록만 지우고 서버 상태는 건드리지 않는다 — 그 초대는 만료로
-  자연 소멸하므로 데이터 정합성 문제는 없다.
+- **목록 창 밖 legacy 취소 기록**: reconcile이 코드를 얻을 수 없는 경우(창 밖으로 밀려 `state`가
+  없는 마이그레이션 스텁)는 스텁만 지우고 서버 상태는 건드리지 않는다 — 그 초대는 만료로 자연
+  소멸하므로 데이터 정합성 문제는 없다.
+
+## 로컬 캐싱 (ADR-0052, 착수 완료)
+
+`invite.list`가 로컬 우선 읽기로 전환됐다 — 상세 설계·다이어그램·검증 방법은
+[invite-local-cache.md](../../../../../libs/app-runtime/docs/data/invite-local-cache.md) 참고.
+`useLocallyCanceledInvites`(로컬 취소 기록)는 그 트랙에서 캐시 레이어(`dismissedAt` 필드)로
+흡수됐다 — `canceledInviteIds`(localStorage)는 일회성 마이그레이션의 읽기 전용 소스로만 남는다.

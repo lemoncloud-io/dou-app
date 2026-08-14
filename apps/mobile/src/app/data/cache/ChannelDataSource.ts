@@ -1,6 +1,7 @@
 import type { CacheChannelView, ChannelQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 
 export class ChannelDataSource implements ICacheDataSource<CacheChannelView, ChannelQueryOptions> {
     constructor(
@@ -39,6 +40,10 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
             return JSON.parse(result.rows[0].data as string) as CacheChannelView;
         }
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheChannelView[]> {
+        return fetchManyByIds<CacheChannelView>(this.database, this.tableName, ids, cid, uid);
     }
 
     public async fetchAll(cid?: string, query?: ChannelQueryOptions, uid?: string): Promise<CacheChannelView[]> {

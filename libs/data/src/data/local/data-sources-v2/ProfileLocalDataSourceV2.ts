@@ -74,7 +74,7 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         callback: LocalDataSourceV2Callback<DomainProfile | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
+        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback, contextOverride);
     }
 
     public observeList(
@@ -107,7 +107,7 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         if (legacyId && legacyId !== normalized.id) {
             await this.cacheStorage.delete(legacyId);
         }
-        this.scheduleItemReemit([normalized.id]);
+        this.scheduleItemReemit([normalized.id], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, normalized.sid], contextOverride));
     }
 
@@ -115,24 +115,36 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         items: Array<Partial<DomainProfile>>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<void> {
-        const normalized = await Promise.all(
-            items.map(async item => {
-                const existingId = this.makeProfileId(item, contextOverride);
-                const existing = existingId ? await this.cacheStorage.load(existingId) : null;
-                return this.normalizeProfile(item, existing ?? undefined, contextOverride);
-            })
-        );
+        // 기존 행을 한 번에 읽습니다. 예전에는 아이템마다 `load`를 걸어서, 프로필 50건 동기화가
+        // 브릿지 왕복 50회로 시작했습니다.
+        const existingIds = items
+            .map(item => this.makeProfileId(item, contextOverride))
+            .filter((id): id is string => !!id);
+        const existingById = this.indexById(await this.cacheStorage.loadMany(existingIds));
+
+        const normalized = items.map(item => {
+            const existingId = this.makeProfileId(item, contextOverride);
+            const existing = existingId ? existingById.get(existingId) : undefined;
+            return this.normalizeProfile(item, existing, contextOverride);
+        });
         const valid = normalized.filter((item): item is DomainProfile => !!item?.id);
         if (valid.length === 0) return;
 
         await this.cacheStorage.saveAll(valid);
-        await Promise.all(
-            valid.map(item => {
-                const legacyId = this.buildLegacyProfileId(item.sid, item.uid);
-                return legacyId && legacyId !== item.id ? this.cacheStorage.delete(legacyId) : Promise.resolve();
-            })
+
+        // legacy 키 정리도 한 번에 묶습니다. 개별 `delete`는 왕복을 다시 N회로 늘려, 쓰기 한 번의
+        // 총비용을 2N+1로 만들던 나머지 절반이었습니다.
+        const legacyIds = valid
+            .map(item => ({ item, legacyId: this.buildLegacyProfileId(item.sid, item.uid) }))
+            .filter(({ item, legacyId }) => !!legacyId && legacyId !== item.id)
+            .map(({ legacyId }) => legacyId);
+        if (legacyIds.length > 0) {
+            await this.cacheStorage.deleteAll(Array.from(new Set(legacyIds)));
+        }
+        this.scheduleItemReemit(
+            valid.map(item => item.id),
+            contextOverride
         );
-        this.scheduleItemReemit(valid.map(item => item.id));
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 valid.map(item => item.sid),
@@ -145,19 +157,20 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const requiredId = this.assertRequiredString(id, 'id');
         const existing = await this.cacheStorage.load(requiredId);
         await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId]);
+        this.scheduleItemReemit([requiredId], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid], contextOverride));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        const existingItems = await Promise.all(validIds.map(id => this.cacheStorage.load(id)));
+        // 영향받은 sid 집합만 필요하므로 없는 id가 빠져도 무관합니다.
+        const existingItems = await this.cacheStorage.loadMany(validIds);
         await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds);
+        this.scheduleItemReemit(validIds, contextOverride);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                existingItems.map(item => item?.sid),
+                existingItems.map(item => item.sid),
                 contextOverride
             )
         );
@@ -241,6 +254,14 @@ export class ProfileLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
-        return [`${scopeKey}|profiles`, ...uniqueSids.map(sid => `${scopeKey}|profiles|sid:${sid}`)];
+        // Written sids, plus the all-sites observers (`sid:__all__`, what getListKey falls back to)
+        // which must hear about every sid.
+        //
+        // Two traps, both from `flush` matching with `key.startsWith(prefix)`:
+        //  - A bare `${scopeKey}|profiles` prefix matches EVERY profile observer, so one write woke
+        //    them all and each wake re-reads storage.
+        //  - Without the trailing `|`, `sid:site-1` also matches `sid:site-10`. The delimiter pins
+        //    the match to a whole key segment.
+        return [`${scopeKey}|profiles|sid:__all__|`, ...uniqueSids.map(sid => `${scopeKey}|profiles|sid:${sid}|`)];
     }
 }

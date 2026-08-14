@@ -11,6 +11,7 @@ const mockVerifyNativeAppToken = jest.fn();
 
 const mockSetUseXLemonLanguage = jest.fn();
 const mockIsAuthenticated = jest.fn();
+const mockHasStoredRelaySession = jest.fn();
 const mockBuildCredentialsByToken = jest.fn();
 const mockLogout = jest.fn();
 const mockStartWebCoreInit = jest.fn();
@@ -78,6 +79,7 @@ jest.mock('../api', () => ({
 jest.mock('../transport', () => ({
     clearRelayTransportOverrides: (...args: unknown[]) => mockClearRelayTransportOverrides(...args),
     calcSignature: (...args: unknown[]) => mockCalcSignature(...args),
+    hasStoredRelaySession: (...args: unknown[]) => mockHasStoredRelaySession(...args),
     webTransport: {
         setUseXLemonLanguage: (...args: unknown[]) => mockSetUseXLemonLanguage(...args),
         isAuthenticated: (...args: unknown[]) => mockIsAuthenticated(...args),
@@ -208,7 +210,9 @@ describe('session/services', () => {
         mockGetWss.mockReturnValue('wss://cloud.example.com');
     });
 
-    it('initializes relay session and updates runtime state', async () => {
+    it('initializes relay session and updates runtime state from the read-only session probe', async () => {
+        mockHasStoredRelaySession.mockResolvedValue(true);
+
         await initializeRelaySession();
 
         expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(1, {
@@ -217,10 +221,32 @@ describe('session/services', () => {
         });
         expect(mockStartWebCoreInit).toHaveBeenCalledTimes(1);
         expect(mockSetUseXLemonLanguage).toHaveBeenCalledWith(true, 'i18nextLng');
-        expect(mockIsAuthenticated).toHaveBeenCalledTimes(1);
+        expect(mockHasStoredRelaySession).toHaveBeenCalledTimes(1);
         expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, {
             isInitialized: true,
             isAuthenticated: true,
+        });
+    });
+
+    it('boot never fires lemon isAuthenticated (its internal refresh is the sealed second engine)', async () => {
+        mockHasStoredRelaySession.mockResolvedValue(true);
+
+        await initializeRelaySession();
+
+        // audit §7 Phase 2-2: the boot probe is read-only; refresh belongs to the socket
+        // AuthController (or an explicit requestSessionRefresh) — never to boot.
+        expect(mockIsAuthenticated).not.toHaveBeenCalled();
+        expect(mockRefreshAuthToken).not.toHaveBeenCalled();
+    });
+
+    it('reports unauthenticated when no relay session is stored (guest boot)', async () => {
+        mockHasStoredRelaySession.mockResolvedValue(false);
+
+        await initializeRelaySession();
+
+        expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, {
+            isInitialized: true,
+            isAuthenticated: false,
         });
     });
 
@@ -518,9 +544,10 @@ describe('session/services', () => {
         it('rolls the sid back to the previous site when the commit fails', async () => {
             mockGetSelectedSiteId.mockReturnValue('site-old');
             setupCloud();
-            // refreshCloudToken always rejects, so the failure-only re-bootstrap retry runs once:
-            // its switchCloudSession must succeed (below) before the second refresh re-rejects and
-            // 'boom' finally propagates.
+            // refreshCloudToken always rejects, so the failure-only recovery retry runs once: the
+            // explicit relay re-mint (refreshRelaySession) and its switchCloudSession must succeed
+            // (below) before the second cloud refresh re-rejects and 'boom' finally propagates.
+            mockRefreshAuthToken.mockResolvedValue({ Token: { identityToken: 'relay-fresh' } });
             mockIssueCloudDelegationToken.mockResolvedValue({
                 backend: 'https://cloud.example.com',
                 delegationToken: 'delegation-token',
@@ -529,6 +556,12 @@ describe('session/services', () => {
             mockRefreshCloudToken.mockRejectedValue(new Error('boom'));
 
             await expect(switchSiteSession('site-new')).rejects.toThrow('boom');
+
+            // The recovery re-mints the relay session EXPLICITLY (consistent double-write) instead
+            // of the old resetWebCoreInit/startWebCoreInit re-bootstrap, whose lemon-internal
+            // refresh the sealed transport init no longer performs (audit §7 Phase 2-2).
+            expect(mockRefreshAuthToken).toHaveBeenCalledTimes(1);
+            expect(mockResetWebCoreInit).not.toHaveBeenCalled();
 
             const calls = mockSetSelectedSiteId.mock.calls.map(c => c[0]);
             expect(calls).toEqual(['site-new', 'site-old']); // optimistic then rollback

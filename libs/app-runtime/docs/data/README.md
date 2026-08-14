@@ -81,8 +81,32 @@ flowchart TD
 - data는 자기 리소스만 정리한다.
 - socket/session 상태를 직접 제어하지 않는다.
 
+## 저장소 선택과 web↔app 배포 스큐
+
+`resolveCacheBackend(type)`(`cacheStorageRouting.ts`)가 도메인별 저장소를 고른다 — 라우팅
+결정의 단일 지점이며, `getCacheStorage`(`factories/localFactory.ts`)는 그 결과를 어댑터로
+실체화만 한다. 전체 설계는 [cache-storage-routing.md](cache-storage-routing.md) 참고. 판정은 셋뿐이다.
+
+1. 브라우저(네이티브 브리지 없음) → 항상 web(IndexedDB).
+2. `WEB_PINNED_CACHE_TYPES`에 고정된 타입 → web(IndexedDB). 현재 비어 있다.
+3. **네이티브가 못 다루는 도메인** → web(IndexedDB). 그 외 → native(NativeDB/SQLite).
+
+3번이 배포 스큐 대응이다. 웹은 앱보다 먼저 배포되므로 **웹이 아는 CacheType이
+설치된 앱이 아는 것보다 많을 수 있다**. 그런 타입을 그냥 보내면 네이티브 `CacheCrudService`의
+`default:` 분기가 `success: true` + `null`로 답한다 — 에러가 아니라 **영원히 빈 캐시**로 보인다.
+
+판정은 **도메인별 계약 판번호**로 한다(ADR-0053): 앱은 자신이 **구현한** 판을 핸드셰이크로 보고하고,
+웹은 자신이 **요구하는** 판을 선언해 도메인마다 비교한다. 앱 보고는 실제 도달한 DB 상태에서 도출하고,
+서버 목록 API가 없어 캐시가 곧 권위인 도메인(`invitecloud`)은 아예 게이트 대상에서 뺀다. 판번호 체계,
+보고 형식, 새 도메인·새 판 추가 절차는 **[cache-contract-versions.md](cache-contract-versions.md)가
+소유한다** — 이 절은 라우팅에서 그 판정이 어디에 끼는지만 가리킨다.
+
 ## 관련 문서
 
+- [cache-storage-routing.md](cache-storage-routing.md) — 캐시 저장소 라우팅 설계 (ADR-0051)
+- [cache-contract-versions.md](cache-contract-versions.md) — 도메인별 캐시 계약 판번호 협상 (ADR-0053) — 위 3번 판정의 소유 문서
+- [invite-local-cache.md](invite-local-cache.md) — 초대 목록 로컬 캐시·자격증명 분리 (ADR-0052) — `invite` CacheType이 스큐 게이트를 실제로 처음 통과한 사례
+- [invite-cloud-durability.md](invite-cloud-durability.md) — 초대클라우드 푸시 복구·이름 동기화
 - [context-design.md](context-design.md) — 전역/요청 context 분리 설계
 - [../architecture.md](../architecture.md) — 전체 아키텍처·소유 규칙
 - [../sync/README.md](../socket/sync/README.md) — sync 결과의 cache 반영 경계

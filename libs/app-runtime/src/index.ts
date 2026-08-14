@@ -33,19 +33,33 @@ export { useSiteSwitch, useSessionLogout, useLogoutCloudSession } from './sessio
 // the phone-verification flow (roadmap ADR-0033 Track A contract; Track C imports it via apps/web).
 export { applySessionToken } from './socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from './socket/auth/applySessionToken';
+// Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
+// useSocketWakeRecovery; desktop-web keeps its local variant). See 2026-08 session audit §7 Phase 1.
+export { recoverUnverifiedSockets } from './socket/auth/recoverUnverifiedSockets';
+export type { RecoverUnverifiedSocketsDeps } from './socket/auth/recoverUnverifiedSockets';
+// The single "make this session's credentials fresh" entry point — socket-owned refresh first,
+// service-level HTTP fallback second. Replaces callers' own refresh engines (audit §7 Phase 2-3).
+export { requestSessionRefresh } from './socket/auth/requestSessionRefresh';
+export type { RequestSessionRefreshDeps } from './socket/auth/requestSessionRefresh';
 
 // --- Cache tier helpers ---------------------------------------------------------------------
-// Native cold-DB activation + invited-cloud durability. See docs/data/cold-db-activation-and-invite-recovery.md.
-export { isNativeApp, setChatCacheLimit } from './data/factories/localFactory';
-// App-level repository policies for the lazily created data runtime; must run before first access
-// (see apps/web main.tsx: relay-only embedded-$site persistence, ADR-0045).
+// Storage routing: which physical store each cache type lands in. See docs/data/cache-storage-routing.md.
+export { isNativeApp } from './data/cacheStorageRouting';
+// Native local-cache capability reported in the bridge handshake. The web ships ahead of the app,
+// so a domain the installed app cannot store is routed to web storage instead of a silent void.
+export { setNativeCacheSupport, getNativeCacheSupport } from './data/nativeCacheSupport';
+export type { NativeCacheSupport } from './data/nativeCacheSupport';
+// App-level repository and cache-assembly policies for the lazily created data runtime; must run
+// before first access (apps/web: relay-only embedded-$site persistence, ADR-0045; desktop-web: the
+// per-channel chat cap).
 export { configureDataRuntime } from './data/runtime';
+export type { DataRuntimeConfig } from './data/runtime';
+export type { CacheAssemblyOptions } from './data/factories/localFactory';
 export {
-    useInvitedCloudColdRecovery,
     useInvitedCloudNameSync,
     recoverInvitedCloudIfMissing,
     syncInvitedCloudName,
-} from './data/invitedCloudColdSync';
+} from './data/invitedCloudDurability';
 
 // --- Sync registration hooks ----------------------------------------------------------------
 export { useChatSync, useChannelSync, usePlaceSync } from './socket';

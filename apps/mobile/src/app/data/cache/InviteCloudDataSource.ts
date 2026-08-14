@@ -1,6 +1,7 @@
 import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 
 /**
  * 초대 클라우드(Invite Cloud) 도메인 전용 데이터 소스입니다.
@@ -17,6 +18,11 @@ export class InviteCloudDataSource implements ICacheDataSource<CacheCloudView, I
         const result = await this.database.execute(`SELECT data FROM ${this.tableName} WHERE id = ?`, [id]);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheCloudView;
         return null;
+    }
+
+    public async fetchMany(ids: string[], _cid?: string, _uid?: string): Promise<CacheCloudView[]> {
+        // 전역 테이블이므로 cid/uid를 조건에 넣지 않습니다 — `fetch`와 같은 규칙입니다.
+        return fetchManyByIds<CacheCloudView>(this.database, this.tableName, ids);
     }
 
     public async fetchAll(_cid?: string, _query?: InviteCloudQueryOptions, _uid?: string): Promise<CacheCloudView[]> {

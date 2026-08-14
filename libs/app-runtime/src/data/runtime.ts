@@ -2,6 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import type { DataContext, DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 import { DataManager } from './DataManager';
+import type { CacheAssemblyOptions } from './factories/localFactory';
 import type { IDataManager } from './types';
 
 export interface DataRuntime {
@@ -11,12 +12,14 @@ export interface DataRuntime {
 
 let dataRuntimeSingleton: DataRuntime | null = null;
 let pendingRepositoryOptions: DataRepositoriesV2Options | undefined;
+let pendingCacheOptions: CacheAssemblyOptions | undefined;
 
 export const createDataRuntime = (
     initialContext?: DataContext,
-    repositoryOptions?: DataRepositoriesV2Options
+    repositoryOptions?: DataRepositoriesV2Options,
+    cacheOptions?: CacheAssemblyOptions
 ): DataRuntime => {
-    const manager = new DataManager(initialContext, repositoryOptions);
+    const manager = new DataManager(initialContext, repositoryOptions, cacheOptions);
 
     return {
         manager,
@@ -24,23 +27,37 @@ export const createDataRuntime = (
     };
 };
 
+export interface DataRuntimeConfig {
+    /** Repository policies, e.g. apps/web's relay-only embedded-$site persistence (ADR-0045). */
+    repositories?: DataRepositoriesV2Options;
+    /** Cache assembly policies, e.g. desktop-web's per-channel chat cap. */
+    cache?: CacheAssemblyOptions;
+}
+
 /**
- * Registers app-level repository policies (e.g. apps/web's relay-only embedded-$site persistence,
- * ADR-0045) for the lazily created singleton. Must run before the first getDataRuntime() access —
- * repositories are built once in the DataManager constructor, so a late call cannot apply and is
- * ignored with a warning instead of silently rebuilding shared state.
+ * Registers app-level policies for the lazily created runtime singleton. Must run before the first
+ * getDataRuntime() access — repositories and cache storages are built once in the DataManager
+ * constructor, so a late call cannot apply and is ignored with a warning instead of silently
+ * rebuilding shared state.
+ *
+ * Calls merge, so an app may register the two policy kinds separately.
  */
-export const configureDataRuntime = (repositoryOptions: DataRepositoriesV2Options): void => {
+export const configureDataRuntime = ({ repositories, cache }: DataRuntimeConfig): void => {
     if (dataRuntimeSingleton) {
         logger.warn('CACHE', '[data-runtime] configureDataRuntime called after the runtime was created; ignored');
         return;
     }
-    pendingRepositoryOptions = repositoryOptions;
+    if (repositories) {
+        pendingRepositoryOptions = { ...pendingRepositoryOptions, ...repositories };
+    }
+    if (cache) {
+        pendingCacheOptions = { ...pendingCacheOptions, ...cache };
+    }
 };
 
 export const getDataRuntime = (): DataRuntime => {
     if (!dataRuntimeSingleton) {
-        dataRuntimeSingleton = createDataRuntime(undefined, pendingRepositoryOptions);
+        dataRuntimeSingleton = createDataRuntime(undefined, pendingRepositoryOptions, pendingCacheOptions);
     }
     return dataRuntimeSingleton;
 };

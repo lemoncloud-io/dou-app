@@ -20,7 +20,7 @@ import { useAcceptedChannelSync } from '../hooks/useAcceptedChannelSync';
 import { useInviteWaitingStatus } from '../hooks/useInviteWaitingStatus';
 import { useLocallyCanceledInvites } from '../hooks/useLocallyCanceledInvites';
 import { useRetireInvite } from '../hooks/useRetireInvite';
-import { composeInviteCode } from '../utils/inviteCode';
+import { resolveInviteCode } from '../utils/inviteCode';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
@@ -39,7 +39,7 @@ export const InviteWaitingPage = () => {
     const navigate = useNavigateWithTransition();
     const { inviteId } = useParams<{ inviteId: string }>();
 
-    const { invite, isLoading, refetch } = useInviteWaitingStatus(inviteId);
+    const { invite, invites, isLoading, refetch } = useInviteWaitingStatus(inviteId);
     const countdown = useInviteCountdown(invite?.expiredAt ?? undefined);
     const { isCanceled } = useLocallyCanceledInvites();
     const { createInvite, cancelInvite } = useRelayInviteMutations();
@@ -141,17 +141,22 @@ export const InviteWaitingPage = () => {
     };
 
     const handleCancelConfirm = async () => {
-        if (!invite || isCanceling) return;
-        const code = composeInviteCode(invite);
-        if (!code) {
-            // Only reachable on malformed list data — a row the server answered without its code.
-            setIsCancelDialogOpen(false);
-            toast({ title: t('inviteWaiting.cancelFailed'), variant: 'destructive' });
-            return;
-        }
-
+        if (!invite || !invite.id || isCanceling) return;
+        // Set before the (async) code resolution below, not after — code resolution can itself
+        // take a network round trip (see resolveInviteCode's refetch fallback), and leaving
+        // isCanceling unset across that window would let a second click double-submit.
         setIsCanceling(true);
         try {
+            // A cache-first row (ADR-0052) carries no code — resolve against the current list
+            // first and fall back to one re-ask before giving up.
+            const code = await resolveInviteCode(invites, refetch, invite.id);
+            if (!code) {
+                // Only reachable on malformed list data — a row the server answered without its code.
+                setIsCancelDialogOpen(false);
+                toast({ title: t('inviteWaiting.cancelFailed'), variant: 'destructive' });
+                return;
+            }
+
             // Idempotent and final: any resolution means the invite is retired (the view can come
             // back `rejected` when the recipient declined first — the card is equally gone).
             await cancelInvite(code);

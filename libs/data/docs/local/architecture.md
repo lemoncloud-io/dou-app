@@ -1,6 +1,6 @@
 # local 아키텍처
 
-> 개요는 [README.md](./README.md). 정본: [data-sources-v2/types.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/types.ts), [storages/index.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/storages/index.ts).
+> 개요는 [README.md](./README.md). 정본: [data-sources-v2/types.ts](../../src/data/local/data-sources-v2/types.ts), [storages/index.ts](../../src/data/local/storages/index.ts).
 
 ## stream 모델
 
@@ -32,13 +32,12 @@ scope는 `cid`(cloud) · `sid`(place) · `uid`(user)다. observer 격리는 이 
 
 `CacheStorage<TType>` 인터페이스: `save` / `saveAll` / `load` / `loadAll` / `delete` / `deleteAll` / `clearAll` / `clearByChannelId`.
 
-- `IndexedDBAdapter` — hot tier(웹).
-- `NativeDBAdapter` — native bridge.
-- `DynamicCacheStorage`(DCS) — hot/cold 2계층 + eviction. `dynamicCacheTypes.ts`가 정책 훅을 정의한다:
-    - `PolicyResolver` — type별 read / loadAll 정책(`hot-first` / `cold-first`).
-    - `EvictionStrategy` — `onStartup`(TTL sweep) / `onAfterWrite`(per-type cap) / `onQuotaExceeded`(비상 cleanup).
-    - `CapacityPolicy` — type별 최대 항목 수와 group key.
-    - `CacheErrorReporter` — tier(`hot`/`cold`/`eviction`/`stampede`)·operation별 에러 보고.
+- `IndexedDBAdapter` — 웹(IndexedDB).
+- `NativeDBAdapter` — native bridge(SQLite).
+
+도메인별로 **둘 중 어느 어댑터를 쓸지 고르는 책임은 이 라이브러리에 없다.** `@chatic/app-runtime`의
+`resolveCacheBackend`가 환경·타입 핀·네이티브 capability를 한 곳에서 판정한다 —
+[cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md) 참고.
 
 ## databases 계층
 
@@ -74,3 +73,8 @@ local의 역할은 cursor를 계산하는 게 아니라, repository가 준 query
 - 요청 시점 context와 응답 시점 context가 달라질 수 있다 → scope 캡처는 repository에서.
 - `sid` fallback 오류는 cross-place 오염으로 이어진다.
 - `chat.feed`는 overwrite보다 merge가 중요하다.
+
+## 더 읽기
+
+- [db-adapter-refactoring.md](../../../../docs/specs/cache/db-adapter-refactoring.md) — `BaseDbAdapter`/`IndexedDBAdapter`/`NativeDBAdapter`/`ChatQueryExecutor` 클래스 구조의 설계 근거.
+- [cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md) — 도메인별로 어느 어댑터를 쓸지 정하는 라우팅(app-runtime 소관).

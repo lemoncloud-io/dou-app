@@ -30,6 +30,11 @@ export {
     logoutRelaySession,
     applySelectedSite,
     loginRelayByToken,
+    // HTTP fallbacks for app-runtime's requestSessionRefresh — the ONLY sanctioned refresh entry
+    // points besides the socket AuthController (both service-level single-flight, consistent
+    // double-write). Apps do not call these directly.
+    refreshRelaySession,
+    refreshActiveCloudSession,
 } from './session/services';
 export type { LogoutOptions, ServerKind } from './session/services';
 // Selected-site read model getter, for app-runtime's socket-driven site switch (auth.switch).

@@ -36,6 +36,23 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
         expect(getDebugOverlayState().screen).toBe('LogBuffer');
     });
 
+    it('float은 선택된 스크린을 띄운 채 플로팅으로 전환한다', () => {
+        debugOverlayActions.selectScreen('DBBrowser');
+        debugOverlayActions.float();
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'float', screen: 'DBBrowser' });
+
+        // 다시 확장하면 같은 스크린으로 돌아온다.
+        debugOverlayActions.expand();
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'expanded', screen: 'DBBrowser' });
+    });
+
+    // 스크린이 없으면 띄울 게 없으므로 빈 프레임 대신 관찰 패널로 떨어진다.
+    it('스크린이 없을 때 float은 미니 모드로 떨어진다', () => {
+        debugOverlayActions.open('expanded');
+        debugOverlayActions.float();
+        expect(getDebugOverlayState()).toEqual({ isOpen: true, mode: 'mini', screen: null });
+    });
+
     it('스크린에서 goBack하면 홈 메뉴로 돌아간다', () => {
         debugOverlayActions.selectScreen('Push');
         debugOverlayActions.goBack();

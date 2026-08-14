@@ -16,7 +16,7 @@
 4. **저수준 데이터베이스 엔진 물리 격리**
     - 로컬 DB 커넥션 및 물리 테이블 세팅 로직을 `@libs/data/src/data/local/databases` 패키지로 물리 격리하여 비즈니스 코드와 결합도를 낮췄습니다.
 5. **동적 환경(Web vs. Native) 분기 및 조립 격리**
-    - `DataProvider.tsx`가 로컬 DB 생성 과정을 몰라도 되도록 설계하고, 모든 환경 분기 및 스토리지 인스턴스 조립 책임을 `@apps/web/src/app/shared/data/localFactory.ts`로 온전히 이관 및 단일화했습니다.
+    - 소비자가 로컬 DB 생성 과정을 몰라도 되도록 설계하고, 모든 환경 분기 및 스토리지 인스턴스 조립 책임을 팩토리 한 곳으로 이관 및 단일화했습니다. (이후 그 팩토리는 `libs/app-runtime/src/data/factories/localFactory.ts`로 옮겨졌고, 환경 분기 자체는 `cacheStorageRouting.ts`의 `resolveCacheBackend`가 소유합니다 — [cache-storage-routing.md](../../../libs/app-runtime/docs/data/cache-storage-routing.md).)
 
 ---
 
@@ -33,10 +33,10 @@ flowchart TD
     classDef extLayer fill:#180f2a,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
     classDef dataStore fill:#2d1a15,stroke:#f97316,stroke-width:2px,color:#f8fafc;
 
-    subgraph UI_App_Layer ["1. Application Layer (apps/web)"]
-        A["DataProvider.tsx"] -->|"1. 호스팅 & 실행"| B["useLocalDataSourcesFactory"]
+    subgraph UI_App_Layer ["1. Application Layer (libs/app-runtime)"]
+        A["DataManager"] -->|"1. 호스팅 & 실행"| B["createLocalDataSources"]
         B -->|"2. 조립 요청"| C["localFactory.ts (getCacheStorage)"]
-        C -->|"3. 환경 감지 (isNativeApp)"| D{Native 환경 여부?}
+        C -->|"3. 저장소 결정 (resolveCacheBackend)"| D{native / web?}
     end
 
     subgraph Logic_Adapter_Layer ["2. Storage Core & Adapters (libs/data)"]
@@ -141,25 +141,25 @@ classDiagram
 
 ### 1) Core Cache Types & Base Class
 
-- **[cache.ts](file:///Users/raine/Project/lemon/chatic-front/libs/app-messages/src/types/model/cache.ts)**
+- **[cache.ts](../../../libs/app-messages/src/types/model/cache.ts)**
     - `CacheModelOf<TType>` 및 `CacheQueryOf<TType>` 제네릭 매핑 타입을 선언하여 도메인별 추론 안정성을 확보했습니다.
-- **[types.ts](file:///Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/storages/types.ts)**
+- **[types.ts](../../../libs/data/src/data/local/storages/types.ts)**
     - 공통 기반이 되는 추상 클래스 `BaseDbAdapter<TType>`를 선언하여 `getScope()` 정규화 규칙을 통합했습니다.
     - 도메인 단위로 일치된 `CacheStorage<TType>` 인터페이스 및 `CacheSchema<TType>` 저장 구조 형식을 재정의했습니다.
 
 ### 2) Database Engine & Strategies
 
-- **[indexedDbQueryExecutor.ts & chatQueryExecutor.ts](file:///Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/databases)**
+- **[IndexedDbQueryExecutor.ts & ChatQueryExecutor.ts](../../../libs/data/src/data/local/databases)**
     - IndexedDB 조회 전략 규격인 `IndexedDbQueryExecutor<TType>` 인터페이스를 정의하고, 채팅 최적화 페이징을 처리하는 `ChatQueryExecutor`를 구현하여 도메인 쿼리를 완전히 분리했습니다.
-- **[indexedDBDatabase.ts & types.ts](file:///Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/databases)**
+- **[IndexedDBDatabase.ts & types.ts](../../../libs/data/src/data/local/databases)**
     - 저수준 IndexedDB 드라이버 커넥션 및 물리 CRUD(`save`, `loadWithCursor` 등) 처리를 수행하는 엔진 계층 모듈입니다. 제네릭 타이핑을 적용하여 `any`를 완전히 걷어냈습니다.
 
 ### 3) Storage Adapters
 
-- **[indexedDBAdapter.ts](file:///Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/storages/indexedDBAdapter.ts)**
+- **[IndexedDBAdapter.ts](../../../libs/data/src/data/local/storages/IndexedDBAdapter.ts)**
     - `IndexedDBAdapter<TType>` 제네릭 클래스로 고도화하고, 생성자에서 저수준 `db` 엔진 및 복잡한 페이징을 대리해 줄 `executor`를 외부에서 주입(DI)받도록 개선했습니다.
     - 레거시 팩터리 함수 `createIndexedDBAdapter`를 지우고 direct class instantiation 구조로 완전히 이전했습니다.
-- **[nativeDBAdapter.ts](file:///Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/storages/nativeDBAdapter.ts)**
+- **[NativeDBAdapter.ts](../../../libs/data/src/data/local/storages/NativeDBAdapter.ts)**
     - `NativeDBAdapter<TType>` 클래스로 리팩토링하고, TypeScript `Extract<UnionPayload, { type: TType }>` 구조를 적용하여 Native WebView Bridge 데이터 송수신의 안전성을 확보했습니다.
 
 ---

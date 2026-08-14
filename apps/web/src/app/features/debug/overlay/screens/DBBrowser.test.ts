@@ -4,7 +4,7 @@ jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn() }));
 
 import { TEMPLATES } from './DBBrowser';
 
-const ALL_TYPES = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile'] as const;
+const ALL_TYPES = ['channel', 'chat', 'user', 'join', 'site', 'invitecloud', 'profile', 'invite'] as const;
 
 describe('DBBrowser TEMPLATES', () => {
     it('모든 캐시 타입에 대해 비어있지 않은 id를 가진 행을 만든다', () => {

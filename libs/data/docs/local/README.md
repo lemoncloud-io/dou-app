@@ -12,10 +12,10 @@ local은 remote를 직접 호출하지 않는다. repository가 적재한 remote
 local/
   data-sources-v2/   도메인별 LocalDataSourceV2 + BaseLocalDataSourceV2(stream)
   databases/         storage 위 복합 조회 (현재 chat query executor)
-  storages/          CacheStorage 어댑터 (IndexedDB / Native / DynamicCache)
+  storages/          CacheStorage 어댑터 (IndexedDB / Native)
 ```
 
-- **`storages/`** — `CacheStorage<TType>` 어댑터. `IndexedDBAdapter`(hot), `NativeDBAdapter`, 그리고 hot/cold 계층화·eviction을 다루는 `DynamicCacheStorage`. scope(`cid`/`uid`)는 `BaseDbAdapter`가 결정한다.
+- **`storages/`** — `CacheStorage<TType>` 어댑터 두 종: `IndexedDBAdapter`(웹), `NativeDBAdapter`(네이티브 브릿지). scope(`cid`/`uid`)는 `BaseDbAdapter`가 결정한다. 도메인별로 **어느 어댑터를 쓸지 고르는 책임은 이 라이브러리에 없다** — `@chatic/app-runtime`의 `resolveCacheBackend`가 소유한다([cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md)).
 - **`databases/`** — storage 위의 복합 조회 계층. 현재는 cursor 기반 역순 페이징을 처리하는 `ChatQueryExecutor`와 `IndexedDBDatabase`.
 - **`data-sources-v2/`** — 도메인별 local data source. 공통 계약 `ILocalDataSourceV2`와 stream 엔진 `BaseLocalDataSourceV2`를 따른다.
 
@@ -28,7 +28,7 @@ local/
 
 ## 공통 계약
 
-정본: [data-sources-v2/types.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/types.ts).
+정본: [data-sources-v2/types.ts](../../src/data/local/data-sources-v2/types.ts).
 
 ```ts
 interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
@@ -52,7 +52,7 @@ interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
 
 `channel`, `chat`, `cloud`, `join`, `place`, `profile`, `user`, `syncMeta`.
 
-팩토리: [data-sources-v2/index.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/local/data-sources-v2/index.ts) — `createLocalDataSourcesV2(contextProvider, storages)`.
+팩토리: [data-sources-v2/index.ts](../../src/data/local/data-sources-v2/index.ts) — `createLocalDataSourcesV2(contextProvider, storages)`.
 
 ## 더 읽기
 

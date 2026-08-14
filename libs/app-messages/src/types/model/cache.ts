@@ -6,10 +6,21 @@ import type {
     ProfileView,
     UserView,
 } from '@lemoncloud/chatic-socials-api';
-import type { CloudView, MySiteView } from '@lemoncloud/chatic-backend-api';
+import type { CloudView, MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /** 캐시 가능한 도메인 타입 정의 */
-export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta';
+export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta' | 'invite';
+
+/**
+ * 도메인별 캐시 계약의 판번호 (ADR-0053).
+ *
+ * 앱은 **자신이 구현한** 판을, 웹은 **자신이 요구하는** 판을 각각 독립적으로 선언합니다. 같은 상수를
+ * 양쪽이 import하면 협상이 아니라 항등식이 되므로, 여기서는 **타입만** 공유하고 값은 공유하지
+ * 않습니다. 판번호는 단조 증가하며, 전역 SQLite 스키마 번호나 도메인이 추가된 시점과 무관합니다.
+ *
+ * 설계 전체는 libs/app-runtime/docs/data/cache-contract-versions.md 참고.
+ */
+export type CacheDomainVersions = Partial<Record<CacheType, number>>;
 
 /** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
 export type PagingMeta = {
@@ -51,6 +62,7 @@ export type CacheModelMap = {
     user: CacheUserView;
     profile: CacheProfileView;
     meta: CacheMetaView;
+    invite: CacheInviteView;
 };
 
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
@@ -132,7 +144,31 @@ export type CacheMetaView = CacheViewBase & {
     cid: string;
     uid: string;
     syncedAt?: number;
+    /**
+     * 이 커서를 저장할 때의 캐시 저장소 라우팅 지문 (ADR-0053).
+     *
+     * 커서는 **다른 도메인**의 동기화 지점을 가리키므로, 그 도메인이 다른 저장소로 옮겨가면 커서만
+     * 남아 "이미 동기화됨"이라고 거짓말한다 — 새 저장소는 비어 있는데 델타만 받게 된다. 지문이
+     * 다르면 커서를 무효로 보고 전체 재동기화(`since=0`)로 떨어뜨린다.
+     */
+    routing?: string;
 };
+
+/**
+ * 발신자가 보낸 relay 1:1 초대 카드의 캐시 뷰.
+ *
+ * `code`와 `deeplink`는 의도적으로 뺐다 — `code`는 식별자가 아니라 자격증명이고, `deeplink`는
+ * `?code=<code>` 형태로 그것을 통째로 품는다. 이 타입에서 빠졌다는 사실은 컴파일 시점 계약일
+ * 뿐이라, 실제 방어는 저장 직전 허용 목록 매퍼(`toCacheInviteView`)가 한다.
+ */
+export type CacheInviteView = Omit<MyInviteView, 'code' | 'deeplink'> &
+    CacheViewBase & {
+        id: string;
+        cid: string;
+        uid: string;
+        /** 로컬에서 이 행을 숨긴 시각(epoch ms). 서버 상태가 아니라 이 기기의 표시 결정이다. */
+        dismissedAt?: number;
+    };
 
 /** 플레이스(사이트)별 표시 프로필 뷰 */
 export type CacheProfileView = ProfileView &
@@ -201,6 +237,9 @@ export type ProfileQueryOptions = BaseQueryOptions & {
 /** 메타 쿼리 (cid/uid 스코프, 추가 필터 없음) */
 export type MetaQueryOptions = BaseQueryOptions;
 
+/** 초대 쿼리 (cid/uid 스코프, 추가 필터 없음) */
+export type InviteQueryOptions = BaseQueryOptions;
+
 /** 도메인별 쿼리 옵션 매핑 */
 export type CacheQueryMap = {
     channel: ChannelQueryOptions;
@@ -211,6 +250,7 @@ export type CacheQueryMap = {
     invitecloud: InviteCloudQueryOptions;
     profile: ProfileQueryOptions;
     meta: MetaQueryOptions;
+    invite: InviteQueryOptions;
 };
 
 /** [요청] ID 기반 단일 데이터 조회 */
@@ -221,6 +261,31 @@ export type FetchCacheDataPayload = {
 /** [응답] 단일 데이터 반환 (없으면 item은 null) */
 export type OnFetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] | null };
+}[CacheType];
+
+/**
+ * [요청] ID 목록 기반 다건 조회.
+ *
+ * `FetchCacheData`를 id마다 보내는 것과 결과는 같지만, 브릿지 왕복이 1회입니다. 캐시 계층의 병합
+ * 쓰기(`cacheWriteMany`)는 아이템마다 기존 행을 읽어야 하는데, 그게 왕복 N회가 되면서 네이티브
+ * 저장소의 실제 비용이 되었습니다 — 채팅 50건 저장이 51 왕복입니다. SQLite 쿼리 N회는 인프로세스라
+ * 싸고, 비싼 건 왕복이므로 왕복만 접습니다.
+ *
+ * 앱이 이 메시지를 모르면 host가 `NOT_FOUND`로 거절하고, 웹은 id별 조회로 폴백합니다
+ * (`NativeDBAdapter.loadMany`) — 웹이 앱보다 먼저 배포되므로 폴백은 선택이 아니라 필수입니다.
+ */
+export type FetchManyCacheDataPayload = {
+    [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
+}[CacheType];
+
+/**
+ * [응답] 요청한 id들에 해당하는 행.
+ *
+ * 없는 id는 자리를 비워두지 않고 그냥 빠집니다 — 순서와 길이는 요청과 일치하지 않습니다. 호출자가
+ * id로 다시 색인하므로(`loadMany`) 빈 자리를 채워 보낼 이유가 없고, `null` 자리는 전송량만 늘립니다.
+ */
+export type OnFetchManyCacheDataPayload = {
+    [K in CacheType]: CacheBasePayload<K> & { ids: string[]; items: CacheModelMap[K][] | null };
 }[CacheType];
 
 /** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */

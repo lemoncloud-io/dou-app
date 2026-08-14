@@ -1,6 +1,6 @@
 # remote 아키텍처
 
-> 개요는 [README.md](./README.md). 정본 코드: [gateways/index.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/remote/gateways/index.ts), [data-sources/index.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/remote/data-sources/index.ts).
+> 개요는 [README.md](./README.md). 정본 코드: [gateways/index.ts](../../src/data/remote/gateways/index.ts), [data-sources/index.ts](../../src/data/remote/data-sources/index.ts).
 
 ## gateway 매핑
 

@@ -19,12 +19,12 @@ Date: 2026-07-10
 
 ## 1. 출처 (relay vs cloud)
 
-> ⚠️ **authId는 `$auth.id`다 (`Token.authId` 아님).** 소켓 서버의 `auth.update`/`auth.refresh`는 auth model을 `$auth.id`로 조회하고 **서명도 `$auth.id`를 HMAC 키로** 검증한다. register의 authId와 sign의 서명 authId가 둘 다 `$auth.id`여야 하며, `Token.authId`(HTTP `/oauth/{authId}/refresh`용 id)를 쓰면 서버가 다른 서명을 계산해 `no auth model`로 영구 실패한다. 그래서 relay 서명은 `getTokenSignature()`(= `Token.authId` 기반, HTTP 경로) 재사용을 **버리고 `$auth.id`로 직접 계산**한다.
+> ⚠️ **relay의 authId는 `$auth.id`다 (`Token.authId` 아님).** relay 소켓 서버의 `auth.update`/`auth.refresh`는 auth model을 `$auth.id`로 조회하고 **서명도 `$auth.id`를 HMAC 키로** 검증한다. register의 authId와 sign의 서명 authId가 둘 다 `$auth.id`여야 하며, `Token.authId`(HTTP `/oauth/{authId}/refresh`용 id)를 쓰면 서버가 다른 서명을 계산해 `no auth model`로 영구 실패한다. 그래서 relay 서명은 `getTokenSignature()`(= `Token.authId` 기반, HTTP 경로) 재사용을 **버리고 `$auth.id`로 직접 계산**한다. **cloud는 반대로 `Token.authId`를 쓴다** — exchange-token으로 발급된 cloud 토큰은 그 id로 키잉된다(커밋 a535055a에서 정렬; 이 표의 옛 `$auth.id` 표기는 2026-08 session audit §5-10에서 정정).
 
-|           | token (register 초기값 / Authorization)       | authId (register + 서명 HMAC 키) + signature                                                                                                                                                            |
-| --------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **relay** | `relayCore.getIdentityToken()`                | `relayCore.getRelayToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../../web-core/src/transport/awsSigning.ts)) |
-| **cloud** | `cloudCore.getIdentityToken()` (= cloudToken) | `cloudCore.getCloudToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../../web-core/src/transport/awsSigning.ts)) |
+|           | token (register 초기값 / Authorization)       | authId (register + 서명 HMAC 키) + signature                                                                                                                                                                |
+| --------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **relay** | `relayCore.getIdentityToken()`                | `relayCore.getRelayToken()`의 `$auth.id` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../../web-core/src/transport/awsSigning.ts))     |
+| **cloud** | `cloudCore.getIdentityToken()` (= cloudToken) | `cloudCore.getCloudToken()`의 `Token.authId` + `Token.{accountId, identityId}` → `calcSignature(payload, current)` ([web-core `transport/awsSigning.ts`](../../../../web-core/src/transport/awsSigning.ts)) |
 
 ### 서명식은 token 문자열에 의존하지 않는다
 

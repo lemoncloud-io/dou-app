@@ -14,9 +14,11 @@ import { Router } from '../routes';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
-import { InvitedCloudColdSyncRunner } from './InvitedCloudColdSyncRunner';
+import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { PreferenceLoader } from './PreferenceLoader';
+import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
+import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
 /**
  * Runtime layer — assembles the declarative `RuntimeConnectionHost` (transport bootstrap,
@@ -36,13 +38,23 @@ export const AppRuntime = () => {
     // Global focus-scroll for all text fields (touch only; excludes [data-no-autoscroll]).
     useAutoScrollOnFocus();
 
+    // Foreground wake kick: recycle bound-but-unverified sockets immediately on resume instead of
+    // waiting for the keep-alive loop to notice the zombie. No-op before the sockets boot.
+    useSocketWakeRecovery();
+
+    // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies. The
+    // sealed transport init no longer refreshes them and the SDK's first writeback is a refresh
+    // cycle (5min) away, so without this every relay-signed request — notably the cloud entry
+    // calls — 403s meanwhile.
+    useRelayCredentialRefresh();
+
     return (
         <RuntimeConnectionHost binding={binding}>
             <PreferenceLoader />
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />
             <MyUserSeedRunner />
-            <InvitedCloudColdSyncRunner />
+            <InvitedCloudDurabilityRunner />
             <VersionUpdateBanner
                 isVisible={hasUpdate}
                 currentVersion={currentVersion}

@@ -37,7 +37,6 @@ jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: 'me' } }),
     useUserPermissions: () => ({ canCreatePlace: true }),
-    useActiveCloudChannels: () => [],
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
     useHomeChannels: () => ({ channels: [], isLoading: false }),
@@ -89,6 +88,11 @@ jest.mock('../../invite/hooks/useInviteListRows', () => ({
 // suite is not about.
 jest.mock('../../invite/hooks/useCanceledInviteReconcile', () => ({
     useCanceledInviteReconcile: () => undefined,
+}));
+// Same reasoning — the one-time dismiss-migration hook (ADR-0052) reaches the preference store
+// and repositories this suite doesn't stub for; it is not what this suite is testing.
+jest.mock('../../invite/hooks/useInviteDismissMigration', () => ({
+    useInviteDismissMigration: () => undefined,
 }));
 
 beforeEach(() => jest.clearAllMocks());

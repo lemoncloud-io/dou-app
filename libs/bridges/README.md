@@ -81,10 +81,10 @@ flowchart TD
 
 ### Module Responsibilities
 
-- **[WebBridgeClient.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/web/WebBridgeClient.ts)**: 비동기 핑퐁 매칭(`refId` 맵 관리), 기본/개별 타임아웃 타이머 관리, 브릿지 준비 전까지 요청 버퍼링, 기대 응답 타입 유효성 검사, 클라이언트 소멸(`destroy()`) 처리.
-- **[NativeBridgeAdapter.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/web/adapters/NativeBridgeAdapter.ts)**: 전역 `window` 객체 유무 파악 및 `postMessage` 전송, DOM 브라우저 `message` 이벤트 리스너 바인딩 및 역직렬화.
-- **[common/utils.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/common/utils.ts)**: 네이티브 브릿지 환경 탐지 (`isNative()`).
-- **[AppBridgeHost.ts](file:///Users/raine/Project/lemon/chatic-front/libs/bridges/src/app/AppBridgeHost.ts)**: 앱 내부 핸들러 매핑, 요청 객체의 `refId` 및 메타데이터를 유지하여 역전송, 에러 발생 시 표준 프로토콜 에러 응답(`BridgeErrorResponse`) 작성.
+- **[WebBridgeClient.ts](./src/web/WebBridgeClient.ts)**: 비동기 핑퐁 매칭(`refId` 맵 관리), 기본/개별 타임아웃 타이머 관리, 브릿지 준비 전까지 요청 버퍼링, 기대 응답 타입 유효성 검사, 클라이언트 소멸(`destroy()`) 처리.
+- **[NativeBridgeAdapter.ts](./src/web/adapters/NativeBridgeAdapter.ts)**: 전역 `window` 객체 유무 파악 및 `postMessage` 전송, DOM 브라우저 `message` 이벤트 리스너 바인딩 및 역직렬화.
+- **[common/utils.ts](./src/common/utils.ts)**: 네이티브 브릿지 환경 탐지 (`isNative()`).
+- **[AppBridgeHost.ts](./src/app/AppBridgeHost.ts)**: 앱 내부 핸들러 매핑, 요청 객체의 `refId` 및 메타데이터를 유지하여 역전송, 에러 발생 시 표준 프로토콜 에러 응답(`BridgeErrorResponse`) 작성.
 
 ---
 

@@ -20,9 +20,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
     });
 
     it('fire-and-forget 메서드는 webClient.post를 호출한다', () => {
-        appBridge.notifyWebAppReady();
-        expect(postMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: {} });
-
         appBridge.dismissResumeOverlay();
         expect(postMock).toHaveBeenLastCalledWith({ type: 'DismissResumeOverlay', data: {} });
 
@@ -147,5 +144,28 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
     it('openStore는 fire-and-forget으로 post를 호출한다', () => {
         appBridge.openStore();
         expect(postMock).toHaveBeenLastCalledWith({ type: 'OpenStore', data: {} });
+    });
+
+    // 핸드셰이크는 단방향 알림이 아니라 capability 교환이다 — 웹이 자기보다 구버전인 앱을
+    // 감지하려면 응답을 읽어야 한다(기록은 main.tsx가 한다).
+    it('notifyWebAppReady는 request로 보내고 앱의 capability 응답을 돌려준다', async () => {
+        const report = {
+            cacheSchemaVersion: 7,
+            supportedCacheTypes: ['chat', 'channel'],
+            // ADR-0053: per-domain contract editions ride the same reply. Passed straight through —
+            // main.tsx hands the whole payload to setNativeCacheSupport.
+            cacheDomainVersions: { chat: 1, channel: 1 },
+        };
+        requestMock.mockResolvedValueOnce({ success: true, data: report });
+
+        await expect(appBridge.notifyWebAppReady()).resolves.toEqual(report);
+        expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: {} });
+    });
+
+    // 네이티브가 없는 평범한 브라우저에서는 reject가 정상이다 — 부팅을 깨선 안 된다.
+    it('브릿지가 없어 요청이 실패하면 reject 대신 null이다', async () => {
+        requestMock.mockRejectedValueOnce(new Error('no native bridge'));
+
+        await expect(appBridge.notifyWebAppReady()).resolves.toBeNull();
     });
 });

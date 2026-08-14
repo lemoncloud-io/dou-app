@@ -5,9 +5,7 @@ import type { CacheStorage } from './types';
 export * from './types';
 export * from './IndexedDBAdapter';
 export * from './NativeDBAdapter';
-export * from './DynamicCacheStorage';
-export * from './dynamicCacheTypes';
-export * from './defaultPolicies';
+export * from './nativeCacheMetrics';
 export * from './stableHash';
 
 export type CacheStorageFactory = <TType extends CacheType>(
@@ -24,6 +22,7 @@ export interface LocalCacheStorages {
     site: CacheStorage<'site'>;
     user: CacheStorage<'user'>;
     meta: CacheStorage<'meta'>;
+    invite: CacheStorage<'invite'>;
 }
 
 export const createCacheStorages = (
@@ -38,4 +37,5 @@ export const createCacheStorages = (
     site: storageFactory('site', contextProvider),
     user: storageFactory('user', contextProvider),
     meta: storageFactory('meta', contextProvider),
+    invite: storageFactory('invite', contextProvider),
 });

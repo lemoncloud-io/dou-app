@@ -1,117 +1,122 @@
 import type { CacheType } from '@chatic/app-messages';
 import type { DataContextProvider, IGlobalCacheSearchSource } from '@chatic/data';
 import {
-    type CacheErrorReporter,
     type CacheStorage,
     type CacheStorageFactory,
-    type CapacityPolicy,
+    ChatQueryExecutor,
     createCacheStorages,
     createLocalDataSourcesV2 as createDataLocalDataSources,
-    type EvictionStrategy,
+    IndexedDBAdapter,
+    IndexedDBDatabase,
+    IndexedDbGlobalSearchSource,
     type LocalDataSourcesV2,
-    type PolicyResolver,
+    NativeDBAdapter,
+    NativeGlobalSearchSource,
 } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
-import {
-    type CacheStorageStrategy,
-    IndexedDbOnlyCacheStorageStrategy,
-    NativeDbOnlyCacheStorageStrategy,
-} from '../cacheStorageStrategies';
-
-export const isNativeApp = (): boolean => {
-    return typeof window !== 'undefined' && !!(window as any).ReactNativeWebView;
-};
-
-export interface CacheFactoryOptions {
-    policyResolver?: PolicyResolver;
-    evictionStrategy?: EvictionStrategy;
-    capacityPolicy?: CapacityPolicy;
-    reporter?: CacheErrorReporter;
-}
-
-// Cache types pinned to Hot(IndexedDB) regardless of environment, overriding the strategy selected
-// below. `profile` is here because the native Cold writer stamps the scope `uid` over the profile
-// OWNER's `uid`, collapsing every member of a place onto one canonical `sid@myUid` key so only a
-// single profile survives a list read (missing nicks/photos). Hot storage keeps the item verbatim,
-// so routing profile here fixes that without waiting on a native app release.
-// Trade-off: WebView IndexedDB can be evicted by the OS, which is exactly why the native path is
-// otherwise Cold-only. Profiles are server-derived display data and refetch on demand, so an
-// eviction costs a refetch rather than data loss.
-const HOT_ONLY_CACHE_TYPES = new Set<CacheType>(['profile']);
-
-// Memoized so all cache types share one strategy instance.
-let sharedStrategy: CacheStorageStrategy | null = null;
-let hotStrategy: CacheStorageStrategy | null = null;
-let chatCacheLimit: number | undefined;
+import { isNativeApp, resolveCacheBackend } from '../cacheStorageRouting';
 
 /**
- * Caps how many chat rows the browser cache keeps per channel. Unset = unbounded, which is what
- * every client did before and still does unless it opts in.
- *
- * This is the APP's policy, not the engine's: the IndexedDB-only strategy serves every client
- * without `window.ReactNativeWebView` — `apps/web` opened in a plain browser and `apps/admin-v2`
- * included — so a limit baked into the engine would silently truncate their scrollback too.
- *
- * Must be called before the runtime mounts (the strategy is memoized on first cache access, which
- * happens when `DataManager` is constructed). An app entry module is the right place.
+ * App-level cache assembly policy, injected when the data runtime is built (runtime.ts passes it
+ * into the DataManager constructor). This is the APP's policy, not the engine's — a default baked
+ * in here would silently apply to every client that assembles a data runtime.
  */
-export const setChatCacheLimit = (maxChatsPerChannel: number): void => {
-    chatCacheLimit = maxChatsPerChannel;
+export interface CacheAssemblyOptions {
+    /**
+     * Caps how many chat rows the web cache keeps per channel. Unset = unbounded, which is what
+     * every client did before and still does unless it opts in. Only meaningful where chat is
+     * served from web storage — a plain browser (`apps/web`, `apps/admin-v2`, desktop-web); inside
+     * the native WebView chat always routes to native SQLite.
+     */
+    maxChatsPerChannel?: number;
+}
+
+// ─── 공유 IndexedDB 인스턴스 ─────────────────────────────────────────
+// The ONLY module state in this factory: one physical IndexedDB connection shared by every
+// web-backed adapter. Everything else here is assembled per call from its inputs.
+
+let sharedDatabase: IndexedDBDatabase | null = null;
+const getSharedDatabase = (): IndexedDBDatabase => {
+    if (!sharedDatabase) {
+        sharedDatabase = new IndexedDBDatabase();
+    }
+    return sharedDatabase;
 };
 
-// `profile` only (see HOT_ONLY_CACHE_TYPES), so no chat cap belongs here — the cap is applied
-// where chat is actually served, in selectStrategy below.
-const getHotStrategy = (): CacheStorageStrategy => {
-    if (!hotStrategy) {
-        hotStrategy = new IndexedDbOnlyCacheStorageStrategy();
+const createIndexedDBAdapter = <TType extends CacheType>(
+    type: TType,
+    contextProvider: DataContextProvider,
+    maxChatsPerChannel?: number
+): IndexedDBAdapter<TType> => {
+    const db = getSharedDatabase();
+    if (type === 'chat') {
+        return new IndexedDBAdapter(db, 'chat', contextProvider, {
+            executor: new ChatQueryExecutor(),
+            maxChatsPerChannel,
+        }) as unknown as IndexedDBAdapter<TType>;
     }
-    return hotStrategy;
-};
-
-const selectStrategy = (_options?: CacheFactoryOptions): CacheStorageStrategy => {
-    if (!sharedStrategy) {
-        // Native WebView: Cold(NativeDB/SQLite) only — a single durable store that survives WebView
-        // IndexedDB eviction and drops the hot/cold coordination pitfalls of the 2-tier strategy
-        // (cold-first write gate, missing cold→hot read fallback).
-        // Web / desktop-web: Hot(IndexedDB) only — no native bridge to reach a cold tier.
-        sharedStrategy = isNativeApp()
-            ? new NativeDbOnlyCacheStorageStrategy(webClient)
-            : new IndexedDbOnlyCacheStorageStrategy(chatCacheLimit);
-    }
-    return sharedStrategy;
+    return new IndexedDBAdapter(db, type, contextProvider);
 };
 
 // DataContext 스냅샷 대신 DataContextProvider를 주입받습니다.
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
-    contextProvider: DataContextProvider
+    contextProvider: DataContextProvider,
+    cache?: CacheAssemblyOptions
 ): CacheStorage<TType> =>
-    HOT_ONLY_CACHE_TYPES.has(type)
-        ? getHotStrategy().create(type, contextProvider)
-        : selectStrategy().create(type, contextProvider);
+    // Where the type lands is decided in ONE place (see resolveCacheBackend); this factory only
+    // materializes that decision as an adapter. The chat cap rides along unconditionally because
+    // it only ever matters on the web backend — the adapter ignores it for non-chat types.
+    resolveCacheBackend(type) === 'web'
+        ? createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel)
+        : new NativeDBAdapter(webClient, type, contextProvider);
 
-export const getGlobalCacheSearchSource = (): IGlobalCacheSearchSource => selectStrategy().createGlobalSearchSource();
+// Cloud(cid) 불문 전역 캐시 검색 소스. 환경별 구현체는 다르지만(IndexedDB 범위 스캔 vs 네이티브
+// 브리지) 기대 동작은 동일해야 합니다(ADR-0033). 네이티브에서는 SQLite가 source of truth이므로
+// 검색도 그쪽을 향한다 — 웹 저장소는 핀/스큐 예외만 담는 파생 캐시라 검색 대상이 아니다.
+export const getGlobalCacheSearchSource = (): IGlobalCacheSearchSource =>
+    isNativeApp() ? new NativeGlobalSearchSource(webClient) : new IndexedDbGlobalSearchSource(getSharedDatabase());
 
 /**
  * 환경에 맞는 스토리지를 판별하고 LocalDataSource 묶음을 조립하여 반환하는 훅입니다.
  */
 export const createLocalDataSources = ({
     contextProvider, // 주입 파라미터 변경
-    cacheStorageFactory = getCacheStorage,
+    cacheStorageFactory,
+    cache,
 }: {
     contextProvider: DataContextProvider;
     cacheStorageFactory?: CacheStorageFactory;
+    cache?: CacheAssemblyOptions;
 }): LocalDataSourcesV2 => {
-    const storages = createCacheStorages(contextProvider, cacheStorageFactory);
+    // Sync cursors describe data in OTHER domains' stores, so a cursor outlives the routing it was
+    // written under and would claim "already synced" over a store the data no longer lives in
+    // (ADR-0053). Recording each decision as the storages are actually built keeps the fingerprint
+    // honest and drift-proof — a cache type added later shows up here without anyone remembering to
+    // list it. An injected factory (tests) leaves it empty, which disables the check.
+    const routed: string[] = [];
+    const factory: CacheStorageFactory =
+        cacheStorageFactory ??
+        ((type, provider) => {
+            routed.push(`${type}:${resolveCacheBackend(type)}`);
+            return getCacheStorage(type, provider, cache);
+        });
+    const storages = createCacheStorages(contextProvider, factory);
+    const routingFingerprint = routed.length > 0 ? routed.sort().join(',') : undefined;
 
-    return createDataLocalDataSources(contextProvider, {
-        channel: storages.channel,
-        chat: storages.chat,
-        inviteCloud: storages.inviteCloud,
-        join: storages.join,
-        profile: storages.profile,
-        site: storages.site,
-        user: storages.user,
-        meta: storages.meta,
-    });
+    return createDataLocalDataSources(
+        contextProvider,
+        {
+            channel: storages.channel,
+            chat: storages.chat,
+            inviteCloud: storages.inviteCloud,
+            invite: storages.invite,
+            join: storages.join,
+            profile: storages.profile,
+            site: storages.site,
+            user: storages.user,
+            meta: storages.meta,
+        },
+        { routingFingerprint }
+    );
 };

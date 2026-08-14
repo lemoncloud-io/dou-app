@@ -1,5 +1,6 @@
 import { logger } from '@chatic/bridges';
 
+import type { AuthActivationGate } from './bootstrapSocketConnection';
 import type { ISocketManager, SocketKind } from '../types';
 import type { SocketSessionDelegate } from './types';
 
@@ -40,7 +41,8 @@ export const reauthenticateActiveSocket = async ({
 }: ReauthenticateActiveSocketArgs): Promise<void> => {
     // Target the slot for THIS kind, not the global active slot: a relay identity change must re-auth
     // the relay client even while a cloud slot is the active one (getClient() would return cloud).
-    const auth = manager.getClient(kind)?.auth;
+    const client = manager.getClient(kind);
+    const auth = client?.auth;
     if (!auth) {
         return;
     }
@@ -91,4 +93,15 @@ export const reauthenticateActiveSocket = async ({
         authId: registration.authId,
         sign: (token, ctx) => delegate.signAuth(kind, token, ctx?.target),
     });
+
+    // register() on an inactive controller re-activates it. On a LIVE connection that fires
+    // auth.update right here — in order, since device.save:ok already ran for this connection. But
+    // when the socket is NOT connected, leaving the controller active makes the SDK auto-send
+    // auth.update on the next `connected` BEFORE that connection's device.save:ok — the exact
+    // ordering failure the bootstrap gate exists for (a failed initial update is never retried as
+    // update → terminal `expired`). Re-close the gate; the bootstrap's device.save:ok handler
+    // start()s it at the right time. (2026-08 session audit — found alongside §5-1.)
+    if (client && client.state !== 'connected') {
+        (auth as unknown as AuthActivationGate).stop();
+    }
 };

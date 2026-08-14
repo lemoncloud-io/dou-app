@@ -90,7 +90,7 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         callback: LocalDataSourceV2Callback<DomainPlace | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
+        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback, contextOverride);
     }
 
     public observeList(
@@ -121,7 +121,7 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
             order: item.order ?? existing?.order ?? Number.MAX_SAFE_INTEGER,
         };
         await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id]);
+        this.scheduleItemReemit([id], contextOverride);
         this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
@@ -134,9 +134,9 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
 
         const context = this.getContext(contextOverride);
         const cid = context.cid || 'default';
-        const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
-        const mergedList = validItems.map((item, index) => {
-            const existing = existingItems[index];
+        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
+        const mergedList = validItems.map(item => {
+            const existing = existingById.get(item.id!);
             return {
                 ...(existing ?? ({} as DomainPlace)),
                 ...item,
@@ -147,14 +147,14 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         });
 
         await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
         this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
     public async cacheDelete(id: string, contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const requiredId = this.assertRequiredString(id, 'id');
         await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId]);
+        this.scheduleItemReemit([requiredId], contextOverride);
         this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 
@@ -162,7 +162,7 @@ export class PlaceLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IPl
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
         await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds);
+        this.scheduleItemReemit(validIds, contextOverride);
         this.scheduleListReemit([`${this.getScopeKey(contextOverride)}|places`]);
     }
 

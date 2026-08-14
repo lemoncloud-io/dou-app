@@ -15,18 +15,18 @@ interface UseMyJoinsOptions {
 }
 
 /**
- * Loads MY join (read cursor) for every channel in the active cloud so the home unread badges read
- * the subscribed join list rather than each channel's embedded `$join` snapshot — the embedded copy
- * lags the live read state (a room read advances the join cache immediately, but `channel.$join`
- * only catches up on the next channel sync).
+ * Loads MY join (read cursor) for every channel in `channels` so unread badges read the subscribed
+ * join list rather than each channel's embedded `$join` snapshot — the embedded copy lags the live
+ * read state (a room read advances the join cache immediately, but `channel.$join` only catches up
+ * on the next channel sync).
  *
  * With `sync` (default), registers a join (read-state) sync per channel keyed `${channelId}@${myUserId}`
  * so my cursor stays current while mounted. Only HomePage does this, so leaving home tears the
  * registrations down. Observe-only consumers (UnreadBadgeRunner / UnifiedLayout, `sync: false`) still
- * get a live map from the join cache — reflecting my own reads (optimistic cache writes) and new
- * messages (channel head from the cloud-wide syncChannels) — and reconcile fully on the next home
- * visit. The chat room separately registers every member's join while open (useJoinPositions) for
- * read receipts; registerJoin refcounts by key, so any overlapping registration dedups.
+ * get a live map from the join cache — reflecting my own reads (optimistic cache writes) and whatever
+ * else keeps a channel's cursor fresh — and reconcile fully on the next home visit. The chat room
+ * separately registers every member's join while open (useJoinPositions) for read receipts;
+ * registerJoin refcounts by key, so any overlapping registration dedups.
  *
  * Returns a channelId → my {@link DomainJoin} map; channels with no synced join row are simply
  * absent (the consumer treats them as "no read boundary yet").

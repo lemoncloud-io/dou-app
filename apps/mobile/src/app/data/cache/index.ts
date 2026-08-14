@@ -6,5 +6,6 @@ export * from './UserDataSource';
 export * from './ProfileDataSource';
 export * from './MetaDataSource';
 export * from './InviteCloudDataSource';
+export * from './InviteDataSource';
 export * from './TestRecordDataSource';
 export * from './types';

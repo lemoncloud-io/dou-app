@@ -46,12 +46,17 @@ type TypeListenerEntry = {
 interface ClientEntry {
     client: ClientSocketV2;
     config: SocketBindingConfig;
-    /** Mirrors this slot's SDK AuthController authenticated flag (via setAuthenticated). */
+    /**
+     * Mirrors this slot's SDK AuthController authenticated flag (via setAuthenticated), scoped to the
+     * CURRENT connection — any transport state other than `connected` clears it (see bindEntry).
+     */
     authenticated: boolean;
     /** Latest transport state for this slot (from its onState). */
     connState: ClientSocketState;
     /** Cloud id this slot was bound to (frozen at bind) — cache attribution. */
     boundCid: string | null;
+    /** `connected` transitions since bind — reconnect-churn telemetry (2026-08 session audit §7 Phase 0). */
+    connectCount: number;
     unsubscribes: Array<() => void>;
 }
 
@@ -138,6 +143,7 @@ export class SocketManager implements ISocketManager {
             // Freeze this slot's cloud (set only on an actual rebind), so a mid-switch cid flip that
             // doesn't change the url leaves it pinned to the socket's real cloud.
             boundCid: config.cid ?? null,
+            connectCount: 0,
             unsubscribes: [],
         };
         this.entries.set(kind, entry);
@@ -499,6 +505,28 @@ export class SocketManager implements ISocketManager {
         entry.unsubscribes.push(
             entry.client.onState((event: ClientSocketStateEvent) => {
                 entry.connState = event.next;
+                // Leaving `connected` invalidates the auth flag, because the server authenticates a
+                // CONNECTION, not a device: the next socket starts unauthenticated until its own
+                // `auth.update` lands. The SDK AuthController emits no state change on a transport
+                // drop (it only clears timers), so without this the flag stays `authenticated` from
+                // the dead connection and `isKindVerified` goes true the instant the transport
+                // reconnects — before device.save:ok → auth.update. Anything gated on it then fires
+                // into that window and the server answers `401 UNAUTHORIZED - not authenticated`
+                // (observed on relay-pinned `invite.list`). The flag is restored by the controller's
+                // own `authenticated` emission after the handshake.
+                if (event.next !== 'connected') {
+                    entry.authenticated = false;
+                }
+                if (event.next === 'connected') {
+                    entry.connectCount += 1;
+                    // One line per (re)connect: a reconnect storm (server dropping failed-auth
+                    // sockets, wake flapping) shows up as a fast-growing count for one slot.
+                    if (entry.connectCount > 1) {
+                        logger.info('SOCKET', '[SocketManager] reconnected', {
+                            data: { kind, connectCount: entry.connectCount },
+                        });
+                    }
+                }
                 this.notifyKindVerified(kind);
                 // Only the active slot drives the observable state; background (relay-while-cloud)
                 // transport changes are tracked on the entry but not surfaced.

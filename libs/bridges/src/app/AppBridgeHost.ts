@@ -7,6 +7,7 @@ import {
     type AppMessageData,
     type AppMessageType,
     type BridgeErrorResponse,
+    type CacheDomainVersions,
     type WebMessageData,
     type WebMessageHandlerResponse,
     type WebMessageType,
@@ -20,6 +21,33 @@ export interface AppBridgeHostConfig {
     version?: string;
     eventBuffer?: IMessageQueue<EventMessage>;
     onAppReady?: () => void;
+    /**
+     * This host's local cache DB schema version, reported in the handshake. Kept for debugging and
+     * for web bundles that predate per-domain contract versions; the current web does NOT route on
+     * it. Omitted by hosts with no local cache DB — the web then treats this host as legacy.
+     */
+    cacheSchemaVersion?: number;
+    /**
+     * CacheTypes this host can persist. The web reads a listed type as contract version 1.
+     *
+     * Static declaration, so it is only the FALLBACK once `resolveCacheDomainVersions` is supplied
+     * — see there.
+     */
+    supportedCacheTypes?: string[];
+    /**
+     * Per-domain cache contract versions this host actually implements (ADR-0053). A thunk, not a
+     * value: the answer is measured from the local DB, and the host must not touch that DB before
+     * the web asks. Awaited inside the WebAppReady handler, so it MUST settle promptly — bound any
+     * slow work on the implementing side, which is the only side that knows how slow it can be.
+     * Rejecting (or resolving undefined) simply omits the field, leaving the two fields above as
+     * the report, which is exactly what a pre-ADR-0053 host sends.
+     *
+     * When it DOES answer, the reported `supportedCacheTypes` is derived from its keys instead of
+     * the static list. That is not a second policy but the same statement twice: a domain this host
+     * could not actually materialize must not be reported as supported, or the web's name-based
+     * fallback (a listed type counts as version 1) would cancel out the measurement.
+     */
+    resolveCacheDomainVersions?: () => Promise<CacheDomainVersions | undefined>;
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
@@ -38,7 +66,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     private handlers: Map<
         string,
-        (message: any) => WebMessageHandlerResponse<any> | Promise<WebMessageHandlerResponse<any>>
+        (message: any) => WebMessageHandlerResponse<any> | void | Promise<WebMessageHandlerResponse<any> | void>
     > = new Map();
 
     private isWebReady = false;
@@ -53,6 +81,19 @@ export class AppBridgeHost implements IAppBridgeHost {
         // WebAppReady는 단순 ready 신호가 아니라 웹/모바일 protocol capability를 교환하는 handshake입니다.
         this.registerHandler('WebAppReady', async message => {
             config.onAppReady?.();
+            // Measured, so it can fail or be slow; a failure must not cost the rest of the
+            // handshake, which is the only chance the web gets to learn any of this.
+            let cacheDomainVersions: CacheDomainVersions | undefined;
+            try {
+                cacheDomainVersions = await config.resolveCacheDomainVersions?.();
+            } catch (error) {
+                logger.warn('BRIDGE', '[AppBridgeHost] cache domain versions unavailable', { error });
+            }
+            // Measured domains win over the static list (see the config field's note); without a
+            // measurement the static list stands, which is the pre-ADR-0053 payload.
+            const supportedCacheTypes = cacheDomainVersions
+                ? Object.keys(cacheDomainVersions)
+                : config.supportedCacheTypes;
             return {
                 type: 'OnWebAppReady',
                 success: true,
@@ -61,6 +102,13 @@ export class AppBridgeHost implements IAppBridgeHost {
                     protocolVersion: message.version ?? this.version,
                     supportedWebMessages: Object.keys(WEB_MESSAGE_RESPONSE_TYPE),
                     supportedAppMessages: Object.values(WEB_MESSAGE_RESPONSE_TYPE),
+                    // Reported only when the host declares them, so a host with no local cache DB
+                    // (desktop main process) sends exactly the payload it sent before these existed.
+                    ...(config.cacheSchemaVersion !== undefined
+                        ? { cacheSchemaVersion: config.cacheSchemaVersion }
+                        : {}),
+                    ...(supportedCacheTypes ? { supportedCacheTypes } : {}),
+                    ...(cacheDomainVersions ? { cacheDomainVersions } : {}),
                 },
             };
         });
@@ -89,7 +137,9 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: WebMessageData<K>) => WebMessageHandlerResponse<K> | Promise<WebMessageHandlerResponse<K>>
+        handler: (
+            message: WebMessageData<K>
+        ) => WebMessageHandlerResponse<K> | void | Promise<WebMessageHandlerResponse<K> | void>
     ): void {
         this.handlers.set(type as string, handler);
     }
@@ -147,6 +197,18 @@ export class AppBridgeHost implements IAppBridgeHost {
         try {
             // 핸들러 실행
             const result = await handler(message);
+
+            // 아무것도 반환하지 않은 핸들러는 "응답 없음"을 뜻합니다 — 여기서 끝냅니다.
+            //
+            // 응답 한 건은 공짜가 아닙니다. `sendToWeb`은 Android에서 `evaluateJavascript`,
+            // iOS에서 `evaluateJavaScript`로 내려가 UI 스레드를 쓰는데, 그건 캐시 요청/응답이
+            // 경합하는 바로 그 자원입니다. 그런데 `SendLog`처럼 refId 없이 올라온 fire-and-forget
+            // 메시지의 응답은 웹에서 매칭될 pending이 없어 이벤트로 흘러가 리스너 없이 폐기됩니다 —
+            // 100% 낭비인 왕복이 로그 건수만큼 UI 스레드를 점유했습니다.
+            //
+            // 반환값이 있는 핸들러는 이전과 완전히 동일하게 동작하므로, 응답을 기대하는 웹의
+            // `request()` 경로는 이 분기에 영향을 받지 않습니다.
+            if (!result) return;
 
             // handler는 도메인 응답만 반환하고, host가 request metadata를 응답에 다시 연결합니다.
             const response = {

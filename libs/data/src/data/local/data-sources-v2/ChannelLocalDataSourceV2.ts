@@ -85,7 +85,7 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         callback: LocalDataSourceV2Callback<DomainChannel | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
+        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback, contextOverride);
     }
 
     public observeList(
@@ -126,7 +126,7 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         };
 
         await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id]);
+        this.scheduleItemReemit([id], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, sid], contextOverride));
     }
 
@@ -173,7 +173,7 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         }
 
         await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(ids);
+        this.scheduleItemReemit(ids, contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes(Array.from(sids), contextOverride));
     }
 
@@ -181,19 +181,21 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
         const requiredId = this.assertRequiredString(id, 'id');
         const existing = await this.cacheStorage.load(requiredId);
         await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId]);
+        this.scheduleItemReemit([requiredId], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid], contextOverride));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        const existingItems = await Promise.all(validIds.map(id => this.cacheStorage.load(id)));
+        // 어떤 sid의 리스트를 다시 읽어야 하는지만 알면 되므로, 없는 id가 빠져도 무관합니다
+        // (`loadMany`는 결과 길이/순서를 보장하지 않습니다).
+        const existingItems = await this.cacheStorage.loadMany(validIds);
         await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds);
+        this.scheduleItemReemit(validIds, contextOverride);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                existingItems.map(item => item?.sid),
+                existingItems.map(item => item.sid),
                 contextOverride
             )
         );
@@ -224,6 +226,14 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
-        return [`${scopeKey}|channels`, ...uniqueSids.map(sid => `${scopeKey}|channels|sid:${sid}`)];
+        // Written sids, plus cloud-wide observers (`sid: ''`) which must hear about every sid — see
+        // the sid-independent routing test.
+        //
+        // Two traps, both from `flush` matching with `key.startsWith(prefix)`:
+        //  - A bare `${scopeKey}|channels` prefix matches EVERY channel observer, so one write woke
+        //    them all and each wake re-reads storage.
+        //  - Without the trailing `|`, `sid:site-1` also matches `sid:site-10`, and `sid:` matches
+        //    everything. The delimiter pins the match to a whole key segment.
+        return [`${scopeKey}|channels|sid:|`, ...uniqueSids.map(sid => `${scopeKey}|channels|sid:${sid}|`)];
     }
 }

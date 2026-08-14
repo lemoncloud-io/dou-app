@@ -1,5 +1,5 @@
 import { webClient } from '@chatic/bridges';
-import type { WebMessageData, WebMessageResponse, WebMessageType } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload, WebMessageData, WebMessageResponse, WebMessageType } from '@chatic/app-messages';
 
 /**
  * Centralized outbound bridge API (Web -> Native).
@@ -20,9 +20,20 @@ export const appBridge = {
     // System & navigation
     // ---------------------------------------------------------------
 
-    /** Notify native shell that the web app has mounted and is ready. */
-    notifyWebAppReady(): void {
-        webClient.post({ type: 'WebAppReady', data: {} });
+    /**
+     * Notify the native shell that the web app has mounted and is ready, and return what it
+     * answers about itself.
+     *
+     * `request`, not `post`, because the reply is the capability handshake: it reports what the
+     * INSTALLED app can do, which a web build deployed ahead of that app cannot assume (see
+     * `setNativeCacheSupport` at the call site in main.tsx). Never rejects — a plain browser has no
+     * native bridge, which is not an error condition here, and resolves `null` instead.
+     */
+    notifyWebAppReady(): Promise<OnWebAppReadyPayload | null> {
+        return webClient
+            .request({ type: 'WebAppReady', data: {} })
+            .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
+            .catch(() => null);
     },
 
     /** Ask native to dismiss the resume/cold-start overlay. */

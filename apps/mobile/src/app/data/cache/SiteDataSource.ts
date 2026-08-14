@@ -1,6 +1,7 @@
 import type { CacheSiteView, SiteQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 
 /**
  * 사이트(Site/Place) 도메인 전용 데이터 소스
@@ -25,6 +26,10 @@ export class SiteDataSource implements ICacheDataSource<CacheSiteView, SiteQuery
         const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheSiteView;
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheSiteView[]> {
+        return fetchManyByIds<CacheSiteView>(this.database, this.tableName, ids, cid, uid);
     }
 
     public async fetchAll(cid?: string, query?: SiteQueryOptions, uid?: string): Promise<CacheSiteView[]> {

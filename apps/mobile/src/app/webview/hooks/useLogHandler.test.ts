@@ -21,7 +21,10 @@ describe('useLogHandler', () => {
             sendLog({ level: 'warn', tag: 'SOCKET', timestamp: 1234, source: 'web', data: { id: 1 } })
         );
 
-        expect(res).toEqual({ type: 'OnSendLog', success: true });
+        // 응답을 반환하지 않습니다 — host가 이걸 "응답 없음"으로 읽어서 하강 메시지를 생략합니다.
+        // 웹은 refId 없이 올려보내므로 그 응답은 어차피 폐기되는데, 폐기되는 응답마다 UI 스레드가
+        // 한 번씩 돌아 로그 건수만큼 브릿지를 태웠습니다.
+        expect(res).toBeUndefined();
         const [entry] = logBuffer.peek();
         expect(entry).toMatchObject({
             level: 'warn',

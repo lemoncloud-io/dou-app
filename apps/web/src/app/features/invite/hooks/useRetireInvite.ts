@@ -3,9 +3,9 @@ import { useCallback } from 'react';
 import { logger } from '@chatic/bridges';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-import { useRelayInviteMutations } from '../../../hooks';
+import { useRelayInviteMutations, useRelayInvites } from '../../../hooks';
 import { useLocallyCanceledInvites } from './useLocallyCanceledInvites';
-import { composeInviteCode } from '../utils/inviteCode';
+import { resolveInviteCode } from '../utils/inviteCode';
 import { getSocketErrorCode } from '../../../utils/errors';
 
 /**
@@ -27,6 +27,7 @@ export type RetireOutcome = 'canceled' | 'dismissed' | 'conflict' | 'failed' | '
  * best-effort tidying — the old link is already dead, so `failed` does not block the reissue.
  */
 export const useRetireInvite = () => {
+    const { invites, refetch } = useRelayInvites();
     const { cancelInvite } = useRelayInviteMutations();
     const { markCanceled } = useLocallyCanceledInvites();
 
@@ -35,7 +36,9 @@ export const useRetireInvite = () => {
             switch (invite.state) {
                 case 'pending':
                 case 'expired': {
-                    const code = composeInviteCode(invite);
+                    // A cache-first row (ADR-0052) carries no code — resolve against the current
+                    // list first and fall back to one re-ask before giving up.
+                    const code = invite.id ? await resolveInviteCode(invites, refetch, invite.id) : undefined;
                     if (!code) {
                         // A row the server answered without `id`/`code`. The caller can only report a
                         // generic failure from here, so say which invite it was while we still know.
@@ -72,7 +75,7 @@ export const useRetireInvite = () => {
                     return 'skipped';
             }
         },
-        [cancelInvite, markCanceled]
+        [invites, refetch, cancelInvite, markCanceled]
     );
 
     return { retire };

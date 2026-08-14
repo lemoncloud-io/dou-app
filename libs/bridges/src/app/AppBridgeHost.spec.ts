@@ -52,6 +52,103 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         );
     });
 
+    // The web deploys ahead of the app, so it cannot assume what the INSTALLED app can store. The
+    // handshake is where the app says so — and a host with no local cache DB must keep sending the
+    // exact payload it sent before these fields existed.
+    it('reports local-cache capability only when the host declares it', async () => {
+        const readyRequest = JsonProtocol.encode({
+            type: 'WebAppReady',
+            refId: '1',
+            version: BRIDGE_PROTOCOL_VERSION,
+            data: {},
+        } as any);
+
+        const silent = new AppBridgeHost({ sendToWeb: mockSendToWeb, protocol: JsonProtocol });
+        await silent.handleMessage(readyRequest as string);
+        const silentData = (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
+        expect(silentData).not.toHaveProperty('cacheSchemaVersion');
+        expect(silentData).not.toHaveProperty('supportedCacheTypes');
+
+        mockSendToWeb.mockClear();
+        const declaring = new AppBridgeHost({
+            sendToWeb: mockSendToWeb,
+            protocol: JsonProtocol,
+            cacheSchemaVersion: 4,
+            supportedCacheTypes: ['chat', 'channel'],
+        });
+        await declaring.handleMessage(readyRequest as string);
+        const declaredData = (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
+        expect(declaredData.cacheSchemaVersion).toBe(4);
+        expect(declaredData.supportedCacheTypes).toEqual(['chat', 'channel']);
+        expect(declaredData).not.toHaveProperty('cacheDomainVersions');
+    });
+
+    // ADR-0053: the app reports the contract version it IMPLEMENTS, measured rather than declared.
+    // Measuring can be slow or fail, so the resolver is a thunk the handshake awaits — and the rest
+    // of the handshake must survive it failing, since this reply is the web's only chance to learn
+    // any of this.
+    describe('per-domain cache contract versions', () => {
+        const readyRequest = () =>
+            JsonProtocol.encode({
+                type: 'WebAppReady',
+                refId: '1',
+                version: BRIDGE_PROTOCOL_VERSION,
+                data: {},
+            } as any) as string;
+
+        const replyData = () => (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
+
+        it('reports the resolved versions and derives supportedCacheTypes from them', async () => {
+            const host = new AppBridgeHost({
+                sendToWeb: mockSendToWeb,
+                protocol: JsonProtocol,
+                // The static list still claims `invite`; the measurement says the table is not
+                // there. The report must follow the measurement, or the web reads the name alone as
+                // contract version 1 and the measurement buys nothing.
+                supportedCacheTypes: ['chat', 'invite'],
+                resolveCacheDomainVersions: async () => ({ chat: 1 }),
+            });
+
+            await host.handleMessage(readyRequest());
+
+            expect(replyData().cacheDomainVersions).toEqual({ chat: 1 });
+            expect(replyData().supportedCacheTypes).toEqual(['chat']);
+        });
+
+        it('falls back to the static declaration when the resolver rejects', async () => {
+            const host = new AppBridgeHost({
+                sendToWeb: mockSendToWeb,
+                protocol: JsonProtocol,
+                cacheSchemaVersion: 11,
+                supportedCacheTypes: ['chat', 'invite'],
+                resolveCacheDomainVersions: async () => {
+                    throw new Error('SQLite unavailable');
+                },
+            });
+
+            await host.handleMessage(readyRequest());
+
+            // Degrading to exactly the pre-ADR-0053 payload, not to silence.
+            expect(replyData()).not.toHaveProperty('cacheDomainVersions');
+            expect(replyData().supportedCacheTypes).toEqual(['chat', 'invite']);
+            expect(replyData().cacheSchemaVersion).toBe(11);
+        });
+
+        it('falls back the same way when the resolver answers undefined (e.g. its own timeout)', async () => {
+            const host = new AppBridgeHost({
+                sendToWeb: mockSendToWeb,
+                protocol: JsonProtocol,
+                supportedCacheTypes: ['chat', 'invite'],
+                resolveCacheDomainVersions: async () => undefined,
+            });
+
+            await host.handleMessage(readyRequest());
+
+            expect(replyData()).not.toHaveProperty('cacheDomainVersions');
+            expect(replyData().supportedCacheTypes).toEqual(['chat', 'invite']);
+        });
+    });
+
     it('should flush buffered events upon receiving ANY message from web if WebAppReady was not explicitly sent', async () => {
         const host = new AppBridgeHost({
             sendToWeb: mockSendToWeb,
@@ -200,5 +297,52 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
                 }),
             })
         );
+    });
+    it('아무것도 반환하지 않는 핸들러는 응답을 보내지 않는다 (fire-and-forget)', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        // `SendLog`가 이 경로입니다. 웹의 로그 전달자는 refId 없이 올려보내므로 응답이 내려가도
+        // 매칭될 pending이 없어 폐기되는데, 그 폐기되는 응답 한 건마다 UI 스레드의
+        // evaluateJavascript가 한 번 돕니다 — 로그 건수만큼 브릿지 대역을 태우는 순수 낭비였습니다.
+        const handler = jest.fn().mockResolvedValue(undefined);
+        host.registerHandler('SendLog', handler as any);
+
+        await host.handleMessage(JsonProtocol.encode({ type: 'SendLog', data: { message: 'hi' } }) as string);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(mockSendToWeb).not.toHaveBeenCalled();
+    });
+
+    it('반환값이 있는 핸들러는 이전과 동일하게 응답을 보낸다', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        host.registerHandler('FetchManyCacheData', (() => ({
+            type: 'OnFetchManyCacheData',
+            success: true,
+            data: { items: [] },
+        })) as any);
+
+        await host.handleMessage(
+            JsonProtocol.encode({
+                type: 'FetchManyCacheData',
+                refId: 'ref-1',
+                data: { type: 'chat', ids: ['c1'] },
+            }) as string
+        );
+
+        const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
+        expect(response).toEqual(
+            expect.objectContaining({ type: 'OnFetchManyCacheData', refId: 'ref-1', success: true })
+        );
+    });
+
+    it('핸들러가 던지면 반환값이 없어도 에러 응답은 나간다', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        host.registerHandler('SendLog', (() => {
+            throw new Error('boom');
+        }) as any);
+
+        await host.handleMessage(JsonProtocol.encode({ type: 'SendLog', refId: 'ref-2', data: {} }) as string);
+
+        const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
+        expect(response).toEqual(expect.objectContaining({ type: 'ERROR', success: false }));
     });
 });

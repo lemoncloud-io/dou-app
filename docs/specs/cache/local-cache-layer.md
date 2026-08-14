@@ -1,5 +1,15 @@
 # Repository Local Cache Integration Specification
 
+> 상태: **부분 유효** (최종 확인 2026-08-12) — V1 리포지토리 시절 작성된 명세다.
+>
+> - **여전히 유효**: §3.1 캐시 파티셔닝 규칙(`(cid, uid, 고유ID)` 유니크 키, 읽기는 활성 `cid`에
+>   갇힘, 행의 `uid`는 소유자이지 주인이 아님). 이 리포에서 이 규칙을 서술하는 유일한 문서다.
+> - **더 이상 사실이 아님**: `DomainEventBus` 기반 캐시 갱신(§2.1–2.2)과 `RepositoryOptions`(§3.2).
+>   V2(`BaseRepositoryV2`)는 이벤트 버스를 쓰지 않고 `refresh*`/`cacheWrite*` 명시적 호출로만
+>   로컬에 반영한다([libs/data/docs/README.md](../../../libs/data/docs/README.md)).
+> - 저장소 선택(어느 물리 DB로 가는가)은 이 문서 범위 밖이다 →
+>   [cache-storage-routing.md](../../../libs/app-runtime/docs/data/cache-storage-routing.md).
+
 ## 1. 목적 (Purpose)
 
 Repository 계층에 `LocalDataSource`를 주입하여, 원격 서버 응답 및 도메인 이벤트(Domain Event)를 기반으로 로컬 캐시를 갱신하고 관리합니다. UI 계층과 데이터 소스 간의 결합도를 낮추기 위해 `DataProvider`를 통한 의존성 주입(DI) 패턴을 도입하며, 사용자 및 클라우드 환경(`cid`, `sid`, `uid`)에 따른 데이터 파티셔닝을 완벽하게 지원하는 것을 목표로 합니다.
@@ -32,13 +42,15 @@ Repository 계층에 `LocalDataSource`를 주입하여, 원격 서버 응답 및
 - **읽기는 활성 컨텍스트에 갇힙니다**: Repository/LocalDataSource의 조회는 호출 시점의 활성 `cid` 파티션만 봅니다. 다른 클라우드의 행을 읽어야 하는 경우(전역 검색과 그 결과 행의 컨텍스트)는 이 계층이 아니라 **읽기 전용 별도 경로**를 씁니다 → [[global-cache-search]](./global-cache-search.md). `cacheRead`/`cacheReadList`의 컨텍스트 오버라이드는 cid 오버라이드가 아니므로 이 용도로 쓸 수 없습니다.
 - **행의 `uid`는 캐시 소유자입니다**: 행 주인이 아닙니다. 예를 들어 채널의 다른 멤버 join 행도 내 `uid` 파티션에 저장되므로(읽음 확인용), 내 것만 골라야 할 때는 `join.userId`로 한 번 더 걸러야 합니다.
 
-### 3.2 캐싱 운용 옵션 (`RepositoryOptions`)
+### 3.2 캐싱 운용 옵션 (`RepositoryOptions`) — **미구현**
 
-메서드 호출 시 다음 캐시 정책을 지원해야 합니다.
+당시 계획했던 정책 옵션이며, 구현되지 않았다. `RepositoryOptions` 타입도 `cache-first` /
+`network-only` / `cache-only` 문자열도 현재 코드에 없다. V2는 대신 용도별 메서드로 나뉜다 —
+`cacheRead*`(로컬만), `refresh*`(원격 후 로컬 반영), `observe*`(로컬 스트림 구독).
 
-- `cache-first` (기본값): 로컬 캐시 우선 반환 + 백그라운드 원격 동기화
-- `network-only`: 캐시를 무시하고 항상 원격 서버에 요청
-- `cache-only`: 원격 요청 없이 로컬 캐시만 조회
+- ~~`cache-first` (기본값): 로컬 캐시 우선 반환 + 백그라운드 원격 동기화~~
+- ~~`network-only`: 캐시를 무시하고 항상 원격 서버에 요청~~
+- ~~`cache-only`: 원격 요청 없이 로컬 캐시만 조회~~
 
 ### 3.3 예외 및 장애 대응 (Fallback)
 
@@ -89,9 +101,12 @@ Repository 계층에 `LocalDataSource`를 주입하여, 원격 서버 응답 및
 3. apps/web/...shared/data/\*
 4.
 
-## 7. 후속 작업 처리 (완료)
+## 7. 후속 작업 (백로그)
 
-본 스코프에서는 제외되나, 향후 데이터 계층의 안정성과 성능을 극대화하기 위해 다음 단계에서 진행할 아키텍처 고도화 작업입니다.
+본 스코프에서 제외했던 고도화 항목이다. **2026-08-12 확인 기준으로 실제 착수된 것은 TTL 메타데이터
+뿐이다** — `lastSyncedAt`/`expiresAt`와 조회 시 만료 GC가 `libs/data/.../storages/utils.ts`에 있다.
+Stale-While-Revalidate, Optimistic Rollback, `hasGap()`/`checkContinuity()`,
+`fetchWithCachePolicy`는 코드에 존재하지 않는다.
 
 - **정규화 고도화 (Normalization & Type Safety)**
     - **Mapper 분리**: 순수 도메인 모델(`DomainModel`)과 로컬 캐시 모델(`CacheModel`) 간의 양방향 변환을 담당하는 Mapper 로직을 명시적인 클래스나 함수형 모듈로 완전히 분리합니다.

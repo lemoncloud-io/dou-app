@@ -174,8 +174,9 @@ sequenceDiagram
   모듈에서 `connection/`(조립·orchestration 계층)으로 올린다. socket은
   transport와 plan 실행 엔진만 남고, "무엇을 어느 repository에 쓰나"는
   orchestration이 소유한다.
-- **data → runtime 컷**: `invitedCloudColdSync.ts`의 React 훅 2개를 `runtime/`
-  으로 이동 (raw 리더 `createHotInviteCloudStorage`는 data에 남되 훅에 주입).
+- **data → runtime 컷**: `invitedCloudDurability.ts`의 React 훅을 `runtime/`으로 이동.
+  (ADR-0053에서 마이그레이션 훅과 그 전용 웹 리더가 사라져 남은 훅은
+  `useInvitedCloudNameSync` 하나다.)
 
 ### D. profile 수렴·선언형 API·Host 통합
 
@@ -199,7 +200,7 @@ sequenceDiagram
 - 기존 테스트 유지 통과: `libs/app-runtime`의 `useRuntimeBinding.test.ts` ·
   `useRuntimeProfile.test.ts` · `RuntimeConnectionHost.test.tsx` ·
   `SocketBinder.test.tsx` · `SocketReauthBinder.test.tsx` ·
-  `invitedCloudColdSync.test.ts`, `libs/data` 스위트 전체.
+  `invitedCloudDurability.test.ts`, `libs/data` 스위트 전체.
 - 신규 유닛 테스트: InviteRemoteDataSource(봉투 제거·코드 body 한정),
   AuthRemoteDataSource(step 매핑·미지정 스위치 제외),
   InviteRepositoryV2/AuthRepositoryV2(pass-through 계약 — 같은 참조 반환, reject
@@ -231,7 +232,7 @@ sequenceDiagram
 > 트랙 1 완료. 남은 것은 트랙 2 이후다.
 
 **트랙 2 — cloudScope 단일화 + 순환 컷** 5. `cloudScope` 모듈 신설, `dropForeignFrame`·`isCidActive`·socketAwareProvider
-판정 이전 + 판정 표 테스트. 6. `DataManager` boundCid 주입화 (data→socket 컷). 7. sync plan 조립을 `connection/`으로 이동 (socket→data 컷). 8. `invitedCloudColdSync` 훅 `runtime/` 이동 (data→runtime 컷).
+판정 이전 + 판정 표 테스트. 6. `DataManager` boundCid 주입화 (data→socket 컷). 7. sync plan 조립을 `connection/`으로 이동 (socket→data 컷). 8. `invitedCloudDurability` 훅 `runtime/` 이동 (data→runtime 컷).
 
 **트랙 3 — 표면 정리** 9. profile 소비처 수렴 (`useMyUser`·직접 호출 → `useRuntimeProfile`). 10. `useSyncRegistration` 선언형 훅 도입, 15+파일 교체. 11. Host 통합 (`RuntimeAuthHost` → `RuntimeConnectionHost` 옵션화).
 

@@ -1,6 +1,24 @@
 # ADR-0030: app-runtime cold DB 전환, hot→cold 시딩, 초대클라우드 복구
 
-> 상태: Accepted · 결정일: 2026-07-24
+> 상태: Superseded (2-tier 관련 결정 한정) → [ADR-0051](0051-cache-storage-routing-simplification.md) · 결정일: 2026-07-24
+
+> **아래 본문은 2026-07-24 시점의 기록이며 수정하지 않는다.** 이후 무엇이 바뀌었는지는 다음과 같다.
+>
+> - **결정 1(cold DB 활성화)의 수단이 뒤집혔다.** `HotColdCacheStorageStrategy`로 hot/cold 2-tier를
+>   켜기로 했으나, 3일 뒤 커밋 `796aa3cf`(2026-07-27)가 네이티브를 **cold 단일 계층**으로 바꿨다 —
+>   2-tier의 cold-first 쓰기 게이트와 cold 미스→hot 폴백 부재가 채널·채팅 로드 실패로 드러났기
+>   때문이다. 그 전환에는 ADR이 남지 않았고, [ADR-0051](0051-cache-storage-routing-simplification.md)이
+>   그 현실을 기록하며 죽은 2-tier 기계를 삭제했다. **"cold(SQLite)를 네이티브의 진실원본으로 쓴다"는
+>   목적 자체는 그대로 유효하다.**
+> - **결정 3의 "hot 유실 자가복구" 근거는 더 이상 성립하지 않는다.** `DynamicCacheStorage`의
+>   hot 미스→cold 폴백→hot 재백필 기계는 삭제됐다. 다만 네이티브에서 초대클라우드는 이제 cold에만
+>   저장되므로 "hot에서 사라짐"이라는 실패 모드 자체가 없어졌고, 결론(캐시 DB 단일 원천, durable cold)은
+>   유지된다.
+> - **결정 2(invitecloud hot→cold 일회 시딩)는 그대로 살아 있다.** 지금은 web→native 어휘로
+>   이름이 바뀌어 `createWebInviteCloudStorage`와 `invitedCloudDurability`가 그 역할을 한다
+>   (완료 플래그의 localStorage 키는 재실행을 막기 위해 옛 이름 그대로 동결).
+>
+> 현재 저장소 라우팅의 실제 동작: [cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md)
 
 ## 맥락 (Context)
 

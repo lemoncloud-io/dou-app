@@ -54,7 +54,7 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         callback: LocalDataSourceV2Callback<DomainJoin | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
+        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback, contextOverride);
     }
 
     public observeList(
@@ -93,7 +93,7 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         };
 
         await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id]);
+        this.scheduleItemReemit([id], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], contextOverride));
     }
 
@@ -115,10 +115,10 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         }
 
         const cid = context.cid || 'default';
-        const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
+        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
 
-        const mergedList = validItems.map((item, index) => {
-            const existing = existingItems[index];
+        const mergedList = validItems.map(item => {
+            const existing = existingById.get(item.id!);
             return {
                 ...(existing ?? ({} as DomainJoin)),
                 ...item,
@@ -132,10 +132,10 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         });
 
         await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                mergedList.flatMap((item, index) => [existingItems[index]?.channelId, item.channelId]),
+                mergedList.flatMap(item => [existingById.get(item.id)?.channelId, item.channelId]),
                 contextOverride
             )
         );
@@ -145,19 +145,20 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
         const requiredId = this.assertRequiredString(id, 'id');
         const existing = await this.cacheStorage.load(requiredId);
         await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId]);
+        this.scheduleItemReemit([requiredId], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId], contextOverride));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        const existingItems = await Promise.all(validIds.map(id => this.cacheStorage.load(id)));
+        // 영향받은 채널 집합만 필요하므로 없는 id가 빠져도 무관합니다.
+        const existingItems = await this.cacheStorage.loadMany(validIds);
         await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds);
+        this.scheduleItemReemit(validIds, contextOverride);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                existingItems.map(item => item?.channelId),
+                existingItems.map(item => item.channelId),
                 contextOverride
             )
         );
@@ -190,6 +191,16 @@ export class JoinLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IJoi
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
-        return [`${scopeKey}|joins`, ...uniqueChannels.map(channelId => `${scopeKey}|joins|channel:${channelId}`)];
+        // Re-emit ONLY the written channels. A bare `${scopeKey}|joins` prefix used to sit in front
+        // of these and looked harmless, but `flush` matches with `key.startsWith(prefix)` and every
+        // join observer key begins with it — so one write woke every channel's observer, and each
+        // wake re-reads storage. With one observer per channel (useMyJoins) that made a single write
+        // cost N round trips; measured on device it was 16.5 reads per write.
+        //
+        // No catch-all entry: `cacheReadList` requires channelId, so a channel-less observer cannot
+        // exist. The per-channel prefix still spans that channel's query variants (activeOnly).
+        // The trailing `|` pins the match to a whole key segment; without it `channel:ch-1` also
+        // matches `channel:ch-10`.
+        return uniqueChannels.map(channelId => `${scopeKey}|joins|channel:${channelId}|`);
     }
 }

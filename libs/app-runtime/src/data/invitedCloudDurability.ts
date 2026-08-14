@@ -4,31 +4,8 @@ import type { DomainCloud, ICloudRepositoryV2 } from '@chatic/data';
 import { issueCloudDelegationToken, useSessionSelection } from '@chatic/web-core';
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '../runtime';
-import { createHotInviteCloudStorage } from './cacheStorageStrategies';
-import { isNativeApp } from './factories/localFactory';
+import { isNativeApp } from './cacheStorageRouting';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
-
-// One-time flag marking that existing invited clouds were migrated from hot(IndexedDB) into
-// cold(NativeDB). Kept in localStorage — a store independent of the cache DB — so the bulk migration
-// runs only on the first boot after native switched to cold-only storage. See
-// libs/app-runtime/docs/data/cold-db-activation-and-invite-recovery.md.
-const SEED_FLAG_KEY = 'chatic-invitecloud-cold-seeded';
-
-const hasSeeded = (): boolean => {
-    try {
-        return typeof window !== 'undefined' && window.localStorage.getItem(SEED_FLAG_KEY) === '1';
-    } catch {
-        return false;
-    }
-};
-
-const markSeeded = (): void => {
-    try {
-        window.localStorage.setItem(SEED_FLAG_KEY, '1');
-    } catch {
-        // localStorage unavailable — the seed simply re-runs next boot (idempotent writes).
-    }
-};
 
 /**
  * Rebuild an invited-cloud cache row from re-derived endpoints (no name — the name is owned by
@@ -48,37 +25,12 @@ const rehydrateInvitedCloud = async (cloud: ICloudRepositoryV2, cloudId: string)
 };
 
 /**
- * One-time migration of existing invited clouds from hot(IndexedDB) into cold(NativeDB), on the
- * first boot after native switched to cold-only storage. Earlier (2-tier) builds kept invited
- * clouds in hot IndexedDB, and the cold-only strategy no longer reads that tier — so without this
- * bridge those invited clouds, the only local-only cache type (no server list API), would be
- * stranded; every other type refills from server re-sync. It reads hot directly (via a dedicated
- * IndexedDB reader, since the active repository now sees only cold), filters invited rows, and
- * writes them cold-first through the repository. The flag is set only after a successful pass, so a
- * transient failure (hot store unreachable, cold write error) retries next boot; cold writes merge
- * by id, so re-running is idempotent.
- */
-export const reconcileInvitedCloudsIntoCold = async (
-    cloud: ICloudRepositoryV2,
-    readHotClouds: () => Promise<DomainCloud[]>
-): Promise<void> => {
-    if (hasSeeded()) return;
-    try {
-        const hotClouds = await readHotClouds();
-        const invited: DomainCloud[] = hotClouds.filter(c => c.cloudType === 'invited');
-        if (invited.length > 0) {
-            await cloud.cacheWriteMany(invited);
-        }
-        markSeeded();
-    } catch {
-        // Hot store unreachable or the cold write failed — leave the flag unset so the next boot
-        // retries. The migration is idempotent, so a retry is safe.
-    }
-};
-
-/**
  * Push safety net: when a push names a source cloud that is not in the local cache, re-derive and
  * re-cache it so cross-cloud routing can resolve it. No-op for empty cid or an already-present cloud.
+ *
+ * The ONLY safety net left for this domain now that the web→native migration bridge is gone
+ * (ADR-0053 decision 5). It is reactive — it fires when a push names a cid — so it repairs a
+ * specific cloud, never the list. Closing that gap needs a server list API (ADR-0030).
  */
 export const recoverInvitedCloudIfMissing = async (
     cloud: ICloudRepositoryV2,
@@ -113,25 +65,6 @@ export const syncInvitedCloudName = async (cloud: ICloudRepositoryV2, cloudId: s
     const name = fresh?.name;
     if (!name || name === existing.name) return;
     await cloud.cacheWrite({ id: cloudId, cid: existing.cid ?? cloudId, name, cloudType: 'invited' });
-};
-
-/**
- * Mounts the boot migration once. Native WebView only — web/desktop-web have no cold tier. Reads
- * invited clouds straight from hot(IndexedDB) so the cold-only repository can be seeded with rows a
- * prior 2-tier build left in the hot store.
- */
-export const useInvitedCloudColdRecovery = (): void => {
-    const { cloud } = useRuntimeRepositories();
-    const startedRef = useRef(false);
-
-    useEffect(() => {
-        if (!isNativeApp()) return;
-        if (startedRef.current) return;
-        startedRef.current = true;
-        // Build the hot reader lazily inside the thunk so a construction failure (e.g. no IndexedDB
-        // in this WebView) is caught by the migration's own retry guard rather than the effect.
-        void reconcileInvitedCloudsIntoCold(cloud, () => createHotInviteCloudStorage().loadAll());
-    }, [cloud]);
 };
 
 /**

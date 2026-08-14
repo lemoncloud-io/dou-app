@@ -5,6 +5,7 @@ export type DebugScreenKey =
     | 'EmailLogin'
     | 'LogBuffer'
     | 'CacheTest'
+    | 'CacheMetrics'
     | 'UploadTest'
     | 'Push'
     | 'InviteRedirect'
@@ -29,6 +30,7 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
             { key: 'EmailLogin', title: 'Email Login' },
             { key: 'LogBuffer', title: 'Log Buffer' },
             { key: 'CacheTest', title: 'Cache DB Test' },
+            { key: 'CacheMetrics', title: 'Cache Metrics' },
             { key: 'UploadTest', title: 'Chunk Upload Test' },
             { key: 'Push', title: 'Push (Token & Receive)' },
             { key: 'InviteRedirect', title: 'Invite Link Converter' },

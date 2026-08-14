@@ -53,6 +53,28 @@ export const useCrudCacheHandler = () => {
         [logger]
     );
 
+    const handleFetchManyCache = useCallback(
+        async (message: WebMessageData<'FetchManyCacheData'>) => {
+            const data = message.data;
+            try {
+                const items = await provider.cacheCrudService.fetchMany(data);
+                return {
+                    type: 'OnFetchManyCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, ids: data.ids, items },
+                };
+            } catch (e) {
+                logger.error('CACHE', `FetchMany error: ${data.type}`, e);
+                return {
+                    type: 'OnFetchManyCacheData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, ids: data.ids, items: null },
+                };
+            }
+        },
+        [logger]
+    );
+
     const handleSaveCache = useCallback(
         async (message: WebMessageData<'SaveCacheData'>) => {
             const data = message.data;
@@ -173,6 +195,7 @@ export const useCrudCacheHandler = () => {
     return {
         handleFetchAllCache,
         handleFetchCache,
+        handleFetchManyCache,
         handleSaveCache,
         handleSaveAllCache,
         handleDeleteCache,

@@ -4,6 +4,7 @@ import type {
     CacheChannelView,
     CacheChatView,
     CacheCloudView,
+    CacheInviteView,
     CacheJoinView,
     CacheProfileView,
     CacheSiteView,
@@ -52,6 +53,9 @@ export type DomainCloud = CacheCloudView;
 
 /** @deprecated Use {@link DomainCloud}. InviteCloud was consolidated into the Cloud domain. */
 export type DomainInviteCloud = DomainCloud;
+
+/** Sender-side relay 1:1 invite card, credential fields (code/deeplink) already stripped. */
+export type DomainInvite = CacheInviteView;
 
 /**
  * 도메인 리스트 표준 래퍼입니다.

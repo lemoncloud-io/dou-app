@@ -20,6 +20,7 @@ import type {
     OnFetchAppLogBufferSizePayload,
     OnFetchBadgeCountPayload,
     OnFetchCacheDataPayload,
+    OnFetchManyCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
     OnFetchFcmTokenPayload,
     OnFetchPendingReportsPayload,
@@ -144,6 +145,7 @@ export type AppMessageDataMap = {
     // 4. Cache
     OnFetchAllCacheData: OnFetchAllCacheDataPayload;
     OnFetchCacheData: OnFetchCacheDataPayload;
+    OnFetchManyCacheData: OnFetchManyCacheDataPayload;
     OnSaveCacheData: OnSaveCacheDataPayload;
     OnSaveAllCacheData: OnSaveAllCacheDataPayload;
     OnDeleteCacheData: OnDeleteCacheDataPayload;

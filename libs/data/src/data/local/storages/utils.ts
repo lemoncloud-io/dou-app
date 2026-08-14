@@ -10,6 +10,9 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     channel: 30 * MINUTE_MS,
     chat: 100 * 12 * 30 * DAY_MS, // no expiration
     invitecloud: 100 * 12 * 30 * DAY_MS, // 100 years; permanent cache
+    // Invite expiry is judged from the server's `state`/`expiredAt`, never from cache TTL — a TTL
+    // eviction here would undo the whole point of this cache (instant render on cold boot).
+    invite: 100 * 12 * 30 * DAY_MS, // 100 years; permanent cache
     join: 30 * MINUTE_MS,
     profile: 30 * MINUTE_MS,
     site: 30 * MINUTE_MS,
@@ -20,7 +23,13 @@ const CACHE_TTL_MS: Record<CacheType, number> = {
     // restarts, so a 1-day TTL kept reopened-after-idle lists stale for up to a day. An expired
     // cursor forces a full re-sync (since=0). Active use rarely hits this: each 60s poll re-saves the
     // cursor and refreshes its TTL, so it only expires across an inactivity gap longer than the TTL.
-    meta: 30 * MINUTE_MS,
+    //
+    // TEMPORARY (migration): held at 5 minutes while data is migrating. A delta replayed across a
+    // migration can describe a shape the client no longer has, and a full re-sync is the cheap way
+    // out — so the cursor is expired aggressively to lean on since=0 instead of trusting deltas.
+    // Cost: every user returning from an inactivity gap over 5 minutes pays a full re-sync, which is
+    // real server load. Restore to `30 * MINUTE_MS` once the migration is done.
+    meta: 5 * MINUTE_MS,
 };
 
 /** 어댑터 공통 스코프 표현입니다. */

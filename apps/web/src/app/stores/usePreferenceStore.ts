@@ -190,7 +190,12 @@ interface PreferenceState {
     pinnedChannels: Record<string, string[]>;
     /** Live store version the update prompt was last dismissed for; '' means never dismissed. */
     dismissedUpdateVersion: string;
-    /** Locally hidden sent-invite ids — rejected-row dismisses and legacy pre-API cancel stamps (ADR-0043). */
+    /**
+     * Legacy pre-API cancel stamps (ADR-0043), read-only from here on (ADR-0052 결정 5 moved the
+     * live dismiss flag onto the invite cache's `dismissedAt`). `useInviteDismissMigration` is the
+     * only remaining reader — it folds each id into a cache stub once, then drains this list via
+     * `clearInviteCanceled`. New dismisses never write here again.
+     */
     canceledInviteIds: string[];
     /** Epoch ms the cloud-promo banner was last dismissed; 0 means never (see parseCloudPromoDismissedAt). */
     cloudPromoDismissedAt: number;
@@ -211,9 +216,11 @@ interface PreferenceActions {
     setChannelPinned: (scope: string, channelId: string, pinned: boolean) => void;
     /** Mark the update prompt as dismissed for the given live version; suppresses it until a newer version appears. */
     dismissUpdate: (version: string) => void;
-    /** Hide a sent invite on this device (rejected-row dismiss; legacy pre-API cancel stamps). Idempotent. */
-    markInviteCanceled: (inviteId: string) => void;
-    /** Drop one hidden-invite record — the reconcile pass calls this once the server state is settled. */
+    /**
+     * Drop one legacy hidden-invite record — `useInviteDismissMigration` calls this once it has
+     * folded the id into a cache dismiss stub. The write counterpart (`markInviteCanceled`) is
+     * gone: nothing stamps new legacy records anymore (ADR-0052), so this store only ever shrinks.
+     */
     clearInviteCanceled: (inviteId: string) => void;
     /**
      * Record "dismissed now" for the cloud-promo banner. Expiry is NOT enforced here — readers
@@ -305,13 +312,6 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     dismissUpdate: (version: string) => {
         set({ dismissedUpdateVersion: version });
         persistPreference('dismissedUpdateVersion', version);
-    },
-
-    markInviteCanceled: (inviteId: string) => {
-        if (!inviteId || get().canceledInviteIds.includes(inviteId)) return;
-        const next = [...get().canceledInviteIds, inviteId];
-        set({ canceledInviteIds: next });
-        persistPreference('canceledInvites', JSON.stringify(next));
     },
 
     clearInviteCanceled: (inviteId: string) => {

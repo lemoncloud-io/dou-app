@@ -20,9 +20,14 @@ export const EmailLoginScreen = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            // loginRelayUser builds credentials and hydrates the session internally.
+            // loginRelayUser builds credentials and hydrates the session internally, and the app
+            // re-renders off that session — so there is nothing to navigate to. Staying put also
+            // keeps the debug overlay open, which is the point of logging in from here: switch
+            // accounts and keep inspecting, instead of a full reload that drops the overlay and
+            // every metric collected so far.
             await login({ uid, pwd });
-            window.location.href = ROUTES.root;
+            setPwd('');
+            toast({ title: 'Logged in', description: uid });
         } catch {
             toast({
                 title: t('mypageLogin.error'),

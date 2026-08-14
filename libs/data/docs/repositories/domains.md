@@ -73,7 +73,7 @@ repository V2는 서버에서 온 변경분을 local read-model로 해석하는 
 `getSyncedAt(kind)` · `setSyncedAt(kind, syncedAt)`
 
 - **remote data source가 없는 local-only repository.** sync cursor(예: `channel.sync`의 `since`)를 `cid`/`uid` scope에 보관·조회한다.
-- 즉, "다음 `since`를 어디에 저장하나"의 답이 이 repository다. 정본: [SyncMetaRepositoryV2.ts](/Users/raine/Project/lemon/chatic-front/libs/data/src/data/repositories-v2/SyncMetaRepositoryV2.ts).
+- 즉, "다음 `since`를 어디에 저장하나"의 답이 이 repository다. 정본: [SyncMetaRepositoryV2.ts](../../src/data/repositories-v2/SyncMetaRepositoryV2.ts).
 
 ---
 

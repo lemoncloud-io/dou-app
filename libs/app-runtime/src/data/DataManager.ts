@@ -1,7 +1,7 @@
 import type { DataContext, DataContextProvider, DataRepositoriesV2, DataRepositoriesV2Options } from '@chatic/data';
 import { DataContextHolder } from '@chatic/data';
 
-import { createLocalDataSources } from './factories/localFactory';
+import { type CacheAssemblyOptions, createLocalDataSources } from './factories/localFactory';
 import { createRemoteDataSources } from './factories/remoteFactory';
 import { createRepositories } from './factories/repositoryFactory';
 import type { IDataManager } from './types';
@@ -12,11 +12,15 @@ export class DataManager implements IDataManager {
     private readonly contextHolder: DataContextProvider;
     private readonly repositories: DataRepositoriesV2;
 
-    constructor(initialContext: DataContext = DEFAULT_CONTEXT, repositoryOptions?: DataRepositoriesV2Options) {
+    constructor(
+        initialContext: DataContext = DEFAULT_CONTEXT,
+        repositoryOptions?: DataRepositoriesV2Options,
+        cacheOptions?: CacheAssemblyOptions
+    ) {
         this.contextHolder = new DataContextHolder(initialContext);
 
         const { remoteDataSources } = createRemoteDataSources();
-        const localDataSources = createLocalDataSources({ contextProvider: this.contextHolder });
+        const localDataSources = createLocalDataSources({ contextProvider: this.contextHolder, cache: cacheOptions });
 
         // Repositories see a context augmented with the live socket's bound cloud (socketCid), so
         // a refresh/sync that runs while the socket still serves the OUTGOING cloud (cid already

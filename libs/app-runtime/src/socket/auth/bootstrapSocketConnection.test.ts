@@ -19,6 +19,8 @@ const makeAuth = (order: string[]) => {
     const unsubAuthState = jest.fn();
     const unsubToken = jest.fn();
     return {
+        // Mirrors AuthController.state; tests set it to drive the expired-resume throttle.
+        state: '',
         register: jest.fn(() => order.push('register')),
         start: jest.fn(() => order.push('start')),
         stop: jest.fn(() => order.push('stop')),
@@ -249,6 +251,78 @@ describe('bootstrapSocketConnection', () => {
         expect(client.onMessage).not.toHaveBeenCalled();
         expect(client.onState).not.toHaveBeenCalled();
         expect(order).toEqual(['connect']);
+    });
+
+    describe('terminal-expired resume throttle', () => {
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('resumes an expired controller on the first device.save:ok, then holds within the cooldown', async () => {
+            const auth = makeAuth([]);
+            const client = makeClient(auth);
+            const manager = makeManager(client, []);
+            const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+            await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+
+            auth.state = 'expired';
+            client.emitMessage('device.save:ok');
+            expect(auth.start).toHaveBeenCalledTimes(1); // first resume is immediate
+
+            // Reconnect churn within the 30s cooldown: the gate stays closed (no auth.update spam).
+            nowSpy.mockReturnValue(1_000_000 + 10_000);
+            client.emitMessage('device.save:ok');
+            client.emitMessage('device.save:ok');
+            expect(auth.start).toHaveBeenCalledTimes(1);
+
+            // Past the cooldown the next resume runs (and the cooldown doubles behind it).
+            nowSpy.mockReturnValue(1_000_000 + 31_000);
+            client.emitMessage('device.save:ok');
+            expect(auth.start).toHaveBeenCalledTimes(2);
+
+            // The doubled (60s) cooldown now applies: 31s later is still inside it.
+            nowSpy.mockReturnValue(1_000_000 + 62_000);
+            client.emitMessage('device.save:ok');
+            expect(auth.start).toHaveBeenCalledTimes(2);
+        });
+
+        it('resets the resume budget once the controller authenticates again', async () => {
+            const auth = makeAuth([]);
+            const client = makeClient(auth);
+            const manager = makeManager(client, []);
+            const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+            await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+
+            auth.state = 'expired';
+            client.emitMessage('device.save:ok'); // consumes the immediate resume
+            expect(auth.start).toHaveBeenCalledTimes(1);
+
+            // Recovery: the SDK re-authenticates → budget resets to "immediate".
+            auth.state = 'authenticated';
+            auth.emitAuthState('authenticated');
+
+            auth.state = 'expired';
+            nowSpy.mockReturnValue(1_000_001); // 1ms later — would be inside the old cooldown
+            client.emitMessage('device.save:ok');
+            expect(auth.start).toHaveBeenCalledTimes(2);
+        });
+
+        it('never throttles a healthy (non-expired) controller', async () => {
+            const auth = makeAuth([]);
+            const client = makeClient(auth);
+            const manager = makeManager(client, []);
+            jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+            await bootstrapSocketConnection({ manager, kind: 'relay', config: CONFIG, delegate: makeDelegate() });
+
+            auth.state = 'pending';
+            client.emitMessage('device.save:ok');
+            client.emitState('closed');
+            client.emitMessage('device.save:ok');
+            expect(auth.start).toHaveBeenCalledTimes(2); // same-instant reconnects both start
+        });
     });
 
     it('connects without wiring when the client has no AuthController (defensive)', async () => {

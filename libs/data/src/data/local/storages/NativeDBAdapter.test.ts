@@ -1,4 +1,4 @@
-import { NativeDBAdapter } from './NativeDBAdapter';
+import { NativeDBAdapter, resetNativeBatchReadSupport } from './NativeDBAdapter';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { DataContextProvider } from '../../repositories-v2/types';
 
@@ -157,6 +157,144 @@ describe('NativeDBAdapter', () => {
                 type: 'ClearCacheData',
                 data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid },
             });
+        });
+    });
+
+    describe('loadMany', () => {
+        beforeEach(() => {
+            resetNativeBatchReadSupport();
+        });
+
+        it('빈 배열이면 브릿지를 호출하지 않는다', async () => {
+            const result = await adapter.loadMany([]);
+            expect(result).toEqual([]);
+            expect(mockBridge.request).not.toHaveBeenCalled();
+        });
+
+        it('id가 몇 개든 FetchManyCacheData 한 번으로 읽는다', async () => {
+            mockBridge.request.mockResolvedValue({
+                data: { type: 'chat', items: [{ id: 'chat-2' }, { id: 'chat-1' }] },
+            } as any);
+
+            const result = await adapter.loadMany(['chat-1', 'chat-2', 'chat-3']);
+
+            expect(mockBridge.request).toHaveBeenCalledTimes(1);
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'FetchManyCacheData',
+                data: {
+                    type: 'chat',
+                    cid: mockScope.cid,
+                    uid: mockScope.uid,
+                    ids: ['chat-1', 'chat-2', 'chat-3'],
+                },
+            });
+            // 네이티브가 준 순서를 그대로 돌려줍니다 — 요청 순서로 재정렬하지 않습니다.
+            expect(result).toEqual([{ id: 'chat-2' }, { id: 'chat-1' }]);
+        });
+
+        it('items가 null이면(네이티브 내부 오류) 빈 배열로 답한다', async () => {
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', items: null } } as any);
+            await expect(adapter.loadMany(['chat-1'])).resolves.toEqual([]);
+        });
+
+        it('핸들러가 없는 구버전 앱(NOT_FOUND)에서는 id별 조회로 폴백한다', async () => {
+            mockBridge.request.mockImplementation((message: any) => {
+                if (message.type === 'FetchManyCacheData') return Promise.reject({ code: 'NOT_FOUND' });
+                return Promise.resolve({
+                    data: { type: 'chat', id: message.data.id, item: { id: message.data.id } },
+                } as any);
+            });
+
+            const result = await adapter.loadMany(['chat-1', 'chat-2']);
+
+            expect(result).toEqual([{ id: 'chat-1' }, { id: 'chat-2' }]);
+            expect(mockBridge.request).toHaveBeenCalledWith(expect.objectContaining({ type: 'FetchManyCacheData' }));
+            expect(mockBridge.request).toHaveBeenCalledWith(expect.objectContaining({ type: 'FetchCacheData' }));
+        });
+
+        it('폴백을 한 번 배우면 이후에는 배치 요청을 시도하지 않는다', async () => {
+            mockBridge.request.mockImplementation((message: any) => {
+                if (message.type === 'FetchManyCacheData') return Promise.reject({ code: 'NOT_FOUND' });
+                return Promise.resolve({ data: { type: 'chat', id: message.data.id, item: null } } as any);
+            });
+
+            await adapter.loadMany(['chat-1']);
+            mockBridge.request.mockClear();
+            await adapter.loadMany(['chat-2']);
+
+            expect(mockBridge.request).not.toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'FetchManyCacheData' })
+            );
+        });
+
+        it('NOT_FOUND가 아닌 실패는 폴백으로 감추지 않고 그대로 던진다', async () => {
+            // 타임아웃을 폴백으로 감추면 왕복이 2배가 되면서 원인도 숨습니다.
+            mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
+
+            await expect(adapter.loadMany(['chat-1'])).rejects.toEqual({ code: 'TIMEOUT' });
+            expect(mockBridge.request).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('in-flight 읽기 중복 제거', () => {
+        it('같은 loadAll이 동시에 두 번 요청되면 왕복은 한 번만 난다', async () => {
+            // 논리 키가 다른 두 옵저버가 같은 물리 쿼리(인자 없는 loadAll)를 내보내는 실제 상황.
+            let resolveRequest: (value: unknown) => void = () => undefined;
+            mockBridge.request.mockReturnValue(
+                new Promise(resolve => {
+                    resolveRequest = resolve;
+                }) as any
+            );
+
+            const first = adapter.loadAll();
+            const second = adapter.loadAll();
+            resolveRequest({ data: { type: 'chat', items: [{ id: 'chat-1' }] } });
+
+            expect(await first).toEqual([{ id: 'chat-1' }]);
+            expect(await second).toEqual([{ id: 'chat-1' }]);
+            expect(mockBridge.request).toHaveBeenCalledTimes(1);
+        });
+
+        it('앞선 요청이 끝난 뒤의 같은 요청은 새로 나간다 (캐시가 아니다)', async () => {
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', items: [] } } as any);
+
+            await adapter.loadAll();
+            await adapter.loadAll();
+
+            expect(mockBridge.request).toHaveBeenCalledTimes(2);
+        });
+
+        it('페이로드가 다르면 합치지 않는다', async () => {
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', id: 'x', item: null } } as any);
+
+            await Promise.all([adapter.load('chat-1'), adapter.load('chat-2')]);
+
+            expect(mockBridge.request).toHaveBeenCalledTimes(2);
+        });
+
+        it('쓰기는 합치지 않는다 — 두 번째 호출자가 자기 쓰기가 반영됐다고 믿으면 안 된다', async () => {
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', id: 'chat-1', success: true } } as any);
+
+            await Promise.all([
+                adapter.save('chat-1', { id: 'chat-1' } as any),
+                adapter.save('chat-1', { id: 'chat-1' } as any),
+            ]);
+
+            expect(mockBridge.request).toHaveBeenCalledTimes(2);
+        });
+
+        it('실패한 읽기도 공유하지만, 다음 호출은 새로 나간다', async () => {
+            mockBridge.request.mockRejectedValueOnce({ code: 'TIMEOUT' });
+
+            const [first, second] = await Promise.allSettled([adapter.loadAll(), adapter.loadAll()]);
+
+            expect(first.status).toBe('rejected');
+            expect(second.status).toBe('rejected');
+            expect(mockBridge.request).toHaveBeenCalledTimes(1);
+
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', items: [] } } as any);
+            await expect(adapter.loadAll()).resolves.toEqual([]);
+            expect(mockBridge.request).toHaveBeenCalledTimes(2);
         });
     });
 });

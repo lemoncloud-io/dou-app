@@ -74,7 +74,7 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         callback: LocalDataSourceV2Callback<DomainChat | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
+        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback, contextOverride);
     }
 
     public observeList(
@@ -116,7 +116,7 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         };
 
         await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id]);
+        this.scheduleItemReemit([id], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], contextOverride));
     }
 
@@ -133,10 +133,10 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         }
 
         const cid = context.cid || 'default';
-        const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
+        const existingById = this.indexById(await this.cacheStorage.loadMany(validItems.map(item => item.id!)));
 
-        const mergedList = validItems.map((item, index) => {
-            const existing = existingItems[index];
+        const mergedList = validItems.map(item => {
+            const existing = existingById.get(item.id!);
             return {
                 ...(existing ?? ({} as DomainChat)),
                 ...item,
@@ -152,7 +152,7 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         });
 
         await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 mergedList.map(item => item.channelId),
@@ -165,19 +165,21 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         const requiredId = this.assertRequiredString(id, 'id');
         const existing = await this.cacheStorage.load(requiredId);
         await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId]);
+        this.scheduleItemReemit([requiredId], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId], contextOverride));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        const existingItems = await Promise.all(validIds.map(id => this.cacheStorage.load(id)));
+        // 어떤 채널의 리스트를 다시 읽어야 하는지만 알면 되므로, 없는 id가 빠져도 무관합니다
+        // (`loadMany`는 결과 길이/순서를 보장하지 않습니다).
+        const existingItems = await this.cacheStorage.loadMany(validIds);
         await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds);
+        this.scheduleItemReemit(validIds, contextOverride);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
-                existingItems.map(item => item?.channelId),
+                existingItems.map(item => item.channelId),
                 contextOverride
             )
         );
@@ -199,11 +201,18 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
 
     private getListKey(query: ChatFeedInput, contextOverride?: LocalDataSourceV2ContextOverride): string {
         return this.createListObserverKey(
+            // Every field that reaches storage must be in the key: observers on one key share a
+            // single query execution, so a field left out would let two different reads collapse
+            // into one wrong answer. `cacheReadList` spreads the whole query into `loadAll`, and
+            // the executor branches on includeUnsent (sort/keyword go on to the native path).
             [
                 'chats',
                 `channel:${query.channelId || '__none__'}`,
                 `cursor:${query.cursorNo ?? 'latest'}`,
                 `limit:${query.limit ?? 50}`,
+                `unsent:${(query as { includeUnsent?: boolean }).includeUnsent ? 1 : 0}`,
+                `sort:${(query as { sort?: string }).sort ?? 'default'}`,
+                `keyword:${(query as { keyword?: string }).keyword ?? ''}`,
             ],
             contextOverride
         );
@@ -215,6 +224,13 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
-        return [`${scopeKey}|chats`, ...uniqueChannels.map(channelId => `${scopeKey}|chats|channel:${channelId}`)];
+        // Written channels only. A bare `${scopeKey}|chats` prefix matches EVERY chat observer under
+        // `key.startsWith(prefix)`, so one write re-read storage for every open channel's list
+        // instead of the one that changed. No catch-all entry: `cacheReadList` requires channelId,
+        // so a channel-less observer cannot exist. The per-channel prefix still spans that channel's
+        // cursor/limit variants.
+        // The trailing `|` pins the match to a whole key segment; without it `channel:ch-1` also
+        // matches `channel:ch-10`.
+        return uniqueChannels.map(channelId => `${scopeKey}|chats|channel:${channelId}|`);
     }
 }

@@ -158,11 +158,12 @@ export const useBackgroundSync = (): void => {
     // reject:
     //  - Socket survived suspension (still verified) → no rising edge fires, so this is the only
     //    re-sync path, and the guard passes → fires here.
-    //  - Socket died (unverified on resume) → this skips; recovery is owned by the SDK AuthController
-    //    (SocketManager.request no longer self-heals 401s/reconnects): keepAlive closes a zombie socket
-    //    → reconnect re-auth, and a terminal `expired` escalates via the delegate (relay →
-    //    logout/redirect, §6-10). Trigger 1's false→true rising edge then re-syncs once the SDK
-    //    re-verifies, so the foreground refresh is deferred to auth completion rather than lost.
+    //  - Socket died (unverified on resume) → this skips; recovery is owned by the runtime:
+    //    useSocketWakeRecovery force-recycles the slot on this same foreground signal (else the
+    //    keep-alive loop closes the zombie → reconnect re-auth). A terminal relay `expired` does
+    //    NOT auto-logout (delegate policy is warn-only — 2026-08 session audit §3); the wake kick
+    //    re-seeds it. Trigger 1's false→true rising edge then re-syncs once the SDK re-verifies,
+    //    so the foreground refresh is deferred to auth completion rather than lost.
     // The `isSwitching` guard remains — mid-switch the socket is rebinding to a new identity, so a
     // fetch could race the wrong session. The handler is a fresh closure each render, so `isVerified`
     // is read live (not captured stale) — see useAppVisibility's handlerRef.

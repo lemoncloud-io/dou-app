@@ -1,6 +1,7 @@
 import type { CacheJoinView, JoinQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 /**
  * 참여(Join) 도메인 전용 데이터 소스 구현체
  * 유저가 어떤 채널에 참여하고 있는지, 혹은 채널에 어떤 유저들이 있는지
@@ -26,6 +27,10 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
         const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheJoinView;
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheJoinView[]> {
+        return fetchManyByIds<CacheJoinView>(this.database, this.tableName, ids, cid, uid);
     }
 
     public async fetchAll(cid?: string, query?: JoinQueryOptions, uid?: string): Promise<CacheJoinView[]> {

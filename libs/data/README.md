@@ -137,12 +137,10 @@ classDiagram
     }
     class IndexedDBAdapter
     class NativeDBAdapter
-    class DynamicCacheStorage
 
     CacheStorage <|.. BaseDbAdapter
     BaseDbAdapter <|-- IndexedDBAdapter
     BaseDbAdapter <|-- NativeDBAdapter
-    CacheStorage <|.. DynamicCacheStorage
 ```
 
 ---

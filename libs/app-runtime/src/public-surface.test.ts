@@ -36,13 +36,18 @@ describe('@chatic/app-runtime public surface', () => {
             'useLogoutCloudSession',
             // session actions (non-hook) — verify-hash-alias $token → relay session/socket switch
             'applySessionToken',
-            // apps/web boot-time DataRepositoriesV2 option injection (e.g. persistEmbeddedSite gating,
-            // ADR-0045) — pre-existing export this list had drifted out of sync with.
+            // foreground/wake kick for wedged sockets (2026-08 session audit §7 Phase 1)
+            'recoverUnverifiedSockets',
+            // single credentials-refresh entry point (socket-owned first, HTTP fallback; §7 Phase 2-3)
+            'requestSessionRefresh',
+            // Boot-time app policy injection: repository options (persistEmbeddedSite gating,
+            // ADR-0045) and cache assembly options (desktop-web's chat cap).
             'configureDataRuntime',
-            // cache tier helpers (cold-db activation + invited-cloud durability)
+            // storage routing helper
             'isNativeApp',
-            'setChatCacheLimit',
-            'useInvitedCloudColdRecovery',
+            // web↔app deploy skew: what the installed app says it can store locally
+            'setNativeCacheSupport',
+            'getNativeCacheSupport',
             'useInvitedCloudNameSync',
             'recoverInvitedCloudIfMissing',
             // desktop-web repairs the active invited cloud itself: the hook above is native-gated,
