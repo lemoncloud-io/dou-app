@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 
-import { decodeSlackEntities } from '../../../shared';
+import { SLACK_MARKS, decodeSlackEntities, markPattern } from '../../../shared';
 import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTION_CLASS } from '../components/RichText';
 
 /**
@@ -9,19 +9,17 @@ import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTIO
  * The two parsers therefore stay apart — the styles are shared, the grammar is
  * not.
  *
- * A mark only counts when its delimiters stand alone, so `**x**` from the
- * composer stays literal instead of being read as an italic in stray asterisks,
- * and `user_id` keeps its underscore. That is why each mark alternative also
- * captures the character in front of it: it is put back as text.
+ * The mark alternatives come from `markPattern`, the same source the flattener
+ * compiles, so "what counts as a mark" has one definition rather than two that
+ * have to be kept in step. Each contributes two groups: the character in front
+ * of the mark, which is put back as text, and the content between delimiters.
  */
 const INLINE = new RegExp(
     [
         '(<[^<>|]+\\|[^<>]*>)', // 1: <url|label>
         '(<[@!][^<>|]+>)', // 2: <@U123>, <!here>
         '(<[^<>|]+>)', // 3: <url>
-        '(^|[^\\w*])(\\*[^*\\n]+\\*)(?![\\w*])', // 4,5: *bold*
-        '(^|[^\\w_])(_[^_\\n]+_)(?![\\w_])', // 6,7: _italic_
-        '(^|[^\\w~])(~[^~\\n]+~)(?![\\w~])', // 8,9: ~strike~
+        ...SLACK_MARKS.map(markPattern), // 4,5 bold · 6,7 italic · 8,9 strike
     ].join('|'),
     'gu'
 );
@@ -68,13 +66,13 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
         } else if (bold) {
             nodes.push(
                 <strong key={key} className={MSG_BOLD_CLASS}>
-                    {decodeSlackEntities(bold.slice(1, -1))}
+                    {decodeSlackEntities(bold)}
                 </strong>
             );
         } else if (italic) {
-            nodes.push(<em key={key}>{decodeSlackEntities(italic.slice(1, -1))}</em>);
+            nodes.push(<em key={key}>{decodeSlackEntities(italic)}</em>);
         } else {
-            nodes.push(<s key={key}>{decodeSlackEntities(strike.slice(1, -1))}</s>);
+            nodes.push(<s key={key}>{decodeSlackEntities(strike)}</s>);
         }
         last = match.index + token.length;
     }

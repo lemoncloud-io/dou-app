@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Bookmark, Check, ChevronRight, Copy, MessageSquare, Pencil, Reply, SmilePlus, Trash2 } from 'lucide-react';
@@ -210,6 +210,26 @@ export const MessageRow = memo(
             isMe: group.isMine,
         };
 
+        // Parsed once per group, not once per render. Hovering a row, opening the
+        // emoji picker or copying flips row-local state, and re-deriving every
+        // message's body from that would put a JSON.parse and the mrkdwn passes on
+        // the hover path. `group` is a stable prop on a memo'd component, so this
+        // recomputes exactly when the messages change.
+        const bodies = useMemo(
+            () =>
+                group.messages.map(message => {
+                    const content = message.content ?? '';
+                    // A structured message the server sent as Block Kit; null for
+                    // everything else, which is still the overwhelming majority.
+                    const blocks = parseBlocks(content);
+                    // What the row *says*, as opposed to what it is made of. Copy,
+                    // Save and the link unfurl all mean the former — reading `content`
+                    // there would hand the reader the payload's JSON.
+                    return { content, blocks, plain: blocks ? blocksToPlainText(blocks) : content };
+                }),
+            [group.messages]
+        );
+
         const copy = (key: string, content: string) => {
             void navigator.clipboard?.writeText(content).then(() => {
                 setCopiedKey(key);
@@ -271,14 +291,7 @@ export const MessageRow = memo(
                             const isPending = message.isPending && !isStuck;
                             const isFailed = message.isFailed || isStuck;
                             const key = String(message.id ?? message.tempId ?? message.chatNo);
-                            const content = message.content ?? '';
-                            // A structured message the server sent as Block Kit; null for
-                            // everything else, which is still the overwhelming majority.
-                            const blocks = parseBlocks(content);
-                            // What this row *says*, as opposed to what it is made of. Copy,
-                            // Save, and the link unfurl all mean the former — reading `content`
-                            // there would hand the reader the payload's JSON.
-                            const plain = blocks ? blocksToPlainText(blocks) : content;
+                            const { content, blocks, plain } = bodies[i];
                             const firstUrl = plain.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);

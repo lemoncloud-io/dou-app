@@ -1,4 +1,4 @@
-import { decodeSlackEntities, type BlockTextObject, type KnownBlock } from './blockKit';
+import { SLACK_MARKS, decodeSlackEntities, markPattern, type BlockTextObject, type KnownBlock } from './blockKit';
 
 /**
  * Flatten Block Kit content to plain text for every surface that is not the
@@ -7,15 +7,10 @@ import { decodeSlackEntities, type BlockTextObject, type KnownBlock } from './bl
  * it: a surface that reads `chat.content` directly would show raw JSON.
  */
 
-/**
- * A mark only counts when its delimiters stand alone, the way Slack reads them.
- * Without this, `user_id` loses its underscore — and error reports, the messages
- * most likely to arrive as blocks, are full of identifiers.
- */
-const unwrap = (mark: string): [RegExp, string] => [
-    new RegExp(`(^|[^\\w${mark}])${mark}([^${mark}\\n]+)${mark}(?![\\w${mark}])`, 'g'),
-    '$1$2',
-];
+// Compiled once at module load, not per message: this runs over every cached row
+// of a search, and `markPattern` is the same grammar the renderer folds into its
+// own matcher.
+const MARKS = SLACK_MARKS.map(mark => new RegExp(markPattern(mark), 'g'));
 
 /**
  * Slack's mrkdwn is not the dialect `RichText` renders — `*x*` is bold here and
@@ -23,18 +18,15 @@ const unwrap = (mark: string): [RegExp, string] => [
  * go first: decoding entities before them would turn an escaped `&lt;` into a
  * link that was never in the message.
  */
-export const mrkdwnToPlainText = (text: string): string =>
-    decodeSlackEntities(
-        text
-            .replace(/<[^<>|]+\|([^<>]*)>/g, '$1') // <url|label> → label
-            .replace(/<[@!]([^<>|]+)>/g, '@$1') // <@U123>, <!here> → @U123, @here
-            .replace(/<([^<>|]+)>/g, '$1') // <url> → url
-            .replace(/```([\s\S]*?)```/g, '$1')
-            .replace(/`([^`\n]+)`/g, '$1')
-            .replace(...unwrap('\\*'))
-            .replace(...unwrap('_'))
-            .replace(...unwrap('~'))
-    );
+export const mrkdwnToPlainText = (text: string): string => {
+    const tokensGone = text
+        .replace(/<[^<>|]+\|([^<>]*)>/g, '$1') // <url|label> → label
+        .replace(/<[@!]([^<>|]+)>/g, '@$1') // <@U123>, <!here> → @U123, @here
+        .replace(/<([^<>|]+)>/g, '$1') // <url> → url
+        .replace(/```([\s\S]*?)```/g, '$1')
+        .replace(/`([^`\n]+)`/g, '$1');
+    return decodeSlackEntities(MARKS.reduce((acc, mark) => acc.replace(mark, '$1$2'), tokensGone));
+};
 
 const textOf = (text: BlockTextObject): string =>
     text.type === 'mrkdwn' ? mrkdwnToPlainText(text.text) : decodeSlackEntities(text.text);

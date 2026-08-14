@@ -47,6 +47,21 @@ export type KnownBlock = SectionBlock | HeaderBlock | DividerBlock | ContextBloc
 export const decodeSlackEntities = (text: string): string =>
     text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
+/** The three inline marks Slack's mrkdwn defines, as regex-safe literals. */
+export const SLACK_MARKS = ['\\*', '_', '~'] as const;
+
+/**
+ * What counts as a mark, as a pattern source both readers build on — the renderer
+ * folds these into one alternation, the flattener compiles one each.
+ *
+ * A mark only counts when its delimiters stand alone, which is what keeps
+ * `user_id` whole and leaves the composer's `**x**` literal instead of reading it
+ * as an italic in stray asterisks. Captures the character in front of the mark
+ * (group 1) so the caller can put it back, and the content between the
+ * delimiters (group 2).
+ */
+export const markPattern = (mark: string): string => `(^|[^\\w${mark}])${mark}([^${mark}\\n]+)${mark}(?![\\w${mark}])`;
+
 const asText = (value: unknown): BlockTextObject | null => {
     if (!value || typeof value !== 'object') return null;
     const { type, text } = value as { type?: unknown; text?: unknown };
