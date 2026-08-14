@@ -13,7 +13,7 @@ import {
     isMentioned,
     isNotifiableChat,
     resolveMyMentionNames,
-    stripMarkdown,
+    messagePlainText,
 } from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, useReadCursorStore, useSelectedChannelStore } from '../stores';
 
@@ -82,12 +82,14 @@ export const useDesktopNotifications = (): void => {
 
         // Mentions-only channels: drop anything that doesn't @-mention me
         // (global profile name + this place's nick, plus @channel/@here).
-        if (notifyMode === 'mention' && !isMentioned(chat.content ?? '', resolveMyMentionNames())) return;
+        // Flattened first: a mention lives in the block text, not in the JSON that
+        // carries it, and the raw payload would also match on field names.
+        const message = messagePlainText(chat.content);
+        if (notifyMode === 'mention' && !isMentioned(message, resolveMyMentionNames())) return;
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
         // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
         const sender = chat.owner$?.name;
-        const message = stripMarkdown(chat.content ?? '');
         void webClient
             .request({
                 type: 'ShowNotification',

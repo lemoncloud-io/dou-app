@@ -45,7 +45,10 @@ export const ConfirmDialog = ({
         <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent className="sm:max-w-sm">
                 <AlertDialogTitle>{title}</AlertDialogTitle>
-                <AlertDialogDescription className={cn(description ? '' : 'sr-only')}>
+                {/* Clamped: the description quotes user content — a message, a channel
+                    name — and it is here to identify the thing, not to reproduce it. A
+                    long message would otherwise push the buttons off the dialog. */}
+                <AlertDialogDescription className={cn(description ? 'line-clamp-3' : 'sr-only')}>
                     {description ?? title}
                 </AlertDialogDescription>
                 <div className="flex justify-end gap-2 pt-2">

@@ -4,7 +4,14 @@ import { webClient } from '@chatic/bridges';
 import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { buildOpenDeeplink, isDndActive, isMentioned, resolveMyMentionNames, resolvePushCloudId } from '../utils';
+import {
+    buildOpenDeeplink,
+    isDndActive,
+    isMentioned,
+    messagePlainText,
+    resolveMyMentionNames,
+    resolvePushCloudId,
+} from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useSelectedChannelStore } from '../stores';
 
 /**
@@ -44,12 +51,16 @@ const presentPush = async (
     const myUid = getGlobalSessionContext().identity.userId;
     if (myUid && String(data.ownerId) === String(myUid)) return; // my own message
     // Per-channel notify mode — same policy the same-cloud path honors: muted
-    // channels stay silent, mention-only channels drop non-@me messages. Uses the
-    // raw `data.content` (the localized `body` isn't the original text).
+    // channels stay silent, mention-only channels drop non-@me messages. Read from
+    // `data.content` rather than the localized `body`, flattened the way the
+    // same-cloud path flattens it: a mention lives in a Block Kit message's text,
+    // not in the JSON carrying it, and the raw payload would also match on field
+    // names. `body` remains the last resort when the push carries no content.
     if (data.channelId) {
         const mode = channelNotifyMode(prefs, String(data.channelId));
         if (mode === 'none') return;
-        if (mode === 'mention' && !isMentioned(String(data.content ?? body ?? ''), resolveMyMentionNames())) return;
+        const text = messagePlainText(String(data.content ?? body ?? ''));
+        if (mode === 'mention' && !isMentioned(text, resolveMyMentionNames())) return;
     }
 
     // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -108,6 +108,61 @@ describe('MessageList', () => {
         expect(screen.queryByText('was here')).toBeNull();
         expect(screen.queryByLabelText('Copy')).toBeNull();
         expect(screen.queryByLabelText('Delete message')).toBeNull();
+    });
+
+    // The feed and the thread panel share one renderer, so a block message has to be
+    // drawn by whatever `MessageRow` decides — not by a second code path per surface.
+    // `ThreadPanel.spec` asserts the same thing through the panel.
+    it('draws a Block Kit message instead of its payload', () => {
+        const payload = JSON.stringify({
+            blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied by policy' } }],
+        });
+
+        render(
+            <MessageList
+                messages={[message(1, 'ada', payload)]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('403').tagName).toBe('STRONG');
+        expect(screen.queryByText(payload)).toBeNull();
+    });
+
+    // The dialog quotes the message so the answer is about *this* message. Quoting the
+    // payload instead answers nothing and buries the buttons under 1900 characters of
+    // JSON — this was the fourth place reading `content` where it meant "what it says".
+    it('quotes what a block message says when asking to delete it', () => {
+        const payload = JSON.stringify({
+            blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied' } }],
+        });
+
+        render(
+            <MessageList messages={[message(1, 'me', payload)]} isLoading={false} viewer={VIEWER} names={new Map()} />,
+            { wrapper }
+        );
+        fireEvent.click(screen.getByLabelText('Delete message'));
+
+        expect(screen.queryByText(payload)).toBeNull();
+        expect(screen.getByText('403 denied')).toBeDefined();
+    });
+
+    // A payload we cannot read must not take the pane down or blank the row.
+    it('falls back to the raw text when the payload is broken', () => {
+        render(
+            <MessageList
+                messages={[message(1, 'ada', '{"blocks": [')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('{"blocks": [')).toBeDefined();
     });
 
     it('renders a reaction chip without throwing', () => {
