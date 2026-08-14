@@ -46,6 +46,24 @@ export class SqliteDatabase implements ISqliteDatabase {
         }
     }
 
+    /**
+     * The version migrations actually REACHED, not `TARGET_VERSION`. `execute` waits on `ready`, so
+     * this reads the DB after migrations have run (or failed and rolled back) — which is what makes
+     * it an honest input to the handshake's per-domain contract report (ADR-0053).
+     */
+    public async getSchemaVersion(): Promise<number> {
+        const result = await this.execute('PRAGMA user_version');
+        const version = (result.rows?.[0] as any)?.user_version;
+        // Throw rather than coerce a missing value to 0: version 0 is a real answer (a DB whose
+        // migrations never ran), so silently returning it for an unreadable PRAGMA would report
+        // "this app persists nothing" as if it were measured. The caller has a fallback for a
+        // failure and none for a confident wrong answer.
+        if (typeof version !== 'number') {
+            throw new Error('PRAGMA user_version returned no numeric value');
+        }
+        return version;
+    }
+
     public async execute(query: string, params?: Scalar[]): Promise<QueryResult> {
         await this.ready;
         return this.db.execute(query, params);

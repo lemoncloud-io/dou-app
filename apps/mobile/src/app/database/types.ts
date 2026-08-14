@@ -11,6 +11,14 @@ export interface IKeyValueStorage {
 export interface ISqliteDatabase {
     initTables(): Promise<void>;
     /**
+     * 마이그레이션이 끝난 뒤 **실제로 도달한** `PRAGMA user_version`을 반환합니다.
+     *
+     * `TARGET_VERSION`(의도한 값)과 다를 수 있고, 그 차이가 이 메서드의 존재 이유입니다 — 마이그레이션
+     * 전체가 단일 트랜잭션이라 어느 한 스텝이 실패하면 전부 롤백되고 이 값은 오르지 않습니다. 즉 이
+     * 숫자 하나가 "어떤 테이블이 존재하는가"를 완전히 결정합니다(ADR-0053 결정 8).
+     */
+    getSchemaVersion(): Promise<number>;
+    /**
      * 단일 SQL 쿼리를 실행합니다.
      *
      * @param query - 실행할 SQL 쿼리 문자열 (예: `SELECT * FROM users WHERE id = ?`)

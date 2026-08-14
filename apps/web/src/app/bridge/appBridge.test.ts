@@ -149,7 +149,13 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
     // 핸드셰이크는 단방향 알림이 아니라 capability 교환이다 — 웹이 자기보다 구버전인 앱을
     // 감지하려면 응답을 읽어야 한다(기록은 main.tsx가 한다).
     it('notifyWebAppReady는 request로 보내고 앱의 capability 응답을 돌려준다', async () => {
-        const report = { cacheSchemaVersion: 7, supportedCacheTypes: ['chat', 'channel'] };
+        const report = {
+            cacheSchemaVersion: 7,
+            supportedCacheTypes: ['chat', 'channel'],
+            // ADR-0053: per-domain contract editions ride the same reply. Passed straight through —
+            // main.tsx hands the whole payload to setNativeCacheSupport.
+            cacheDomainVersions: { chat: 1, channel: 1 },
+        };
         requestMock.mockResolvedValueOnce({ success: true, data: report });
 
         await expect(appBridge.notifyWebAppReady()).resolves.toEqual(report);

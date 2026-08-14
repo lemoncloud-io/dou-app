@@ -80,6 +80,73 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const declaredData = (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
         expect(declaredData.cacheSchemaVersion).toBe(4);
         expect(declaredData.supportedCacheTypes).toEqual(['chat', 'channel']);
+        expect(declaredData).not.toHaveProperty('cacheDomainVersions');
+    });
+
+    // ADR-0053: the app reports the contract version it IMPLEMENTS, measured rather than declared.
+    // Measuring can be slow or fail, so the resolver is a thunk the handshake awaits — and the rest
+    // of the handshake must survive it failing, since this reply is the web's only chance to learn
+    // any of this.
+    describe('per-domain cache contract versions', () => {
+        const readyRequest = () =>
+            JsonProtocol.encode({
+                type: 'WebAppReady',
+                refId: '1',
+                version: BRIDGE_PROTOCOL_VERSION,
+                data: {},
+            } as any) as string;
+
+        const replyData = () => (JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).data;
+
+        it('reports the resolved versions and derives supportedCacheTypes from them', async () => {
+            const host = new AppBridgeHost({
+                sendToWeb: mockSendToWeb,
+                protocol: JsonProtocol,
+                // The static list still claims `invite`; the measurement says the table is not
+                // there. The report must follow the measurement, or the web reads the name alone as
+                // contract version 1 and the measurement buys nothing.
+                supportedCacheTypes: ['chat', 'invite'],
+                resolveCacheDomainVersions: async () => ({ chat: 1 }),
+            });
+
+            await host.handleMessage(readyRequest());
+
+            expect(replyData().cacheDomainVersions).toEqual({ chat: 1 });
+            expect(replyData().supportedCacheTypes).toEqual(['chat']);
+        });
+
+        it('falls back to the static declaration when the resolver rejects', async () => {
+            const host = new AppBridgeHost({
+                sendToWeb: mockSendToWeb,
+                protocol: JsonProtocol,
+                cacheSchemaVersion: 11,
+                supportedCacheTypes: ['chat', 'invite'],
+                resolveCacheDomainVersions: async () => {
+                    throw new Error('SQLite unavailable');
+                },
+            });
+
+            await host.handleMessage(readyRequest());
+
+            // Degrading to exactly the pre-ADR-0053 payload, not to silence.
+            expect(replyData()).not.toHaveProperty('cacheDomainVersions');
+            expect(replyData().supportedCacheTypes).toEqual(['chat', 'invite']);
+            expect(replyData().cacheSchemaVersion).toBe(11);
+        });
+
+        it('falls back the same way when the resolver answers undefined (e.g. its own timeout)', async () => {
+            const host = new AppBridgeHost({
+                sendToWeb: mockSendToWeb,
+                protocol: JsonProtocol,
+                supportedCacheTypes: ['chat', 'invite'],
+                resolveCacheDomainVersions: async () => undefined,
+            });
+
+            await host.handleMessage(readyRequest());
+
+            expect(replyData()).not.toHaveProperty('cacheDomainVersions');
+            expect(replyData().supportedCacheTypes).toEqual(['chat', 'invite']);
+        });
     });
 
     it('should flush buffered events upon receiving ANY message from web if WebAppReady was not explicitly sent', async () => {

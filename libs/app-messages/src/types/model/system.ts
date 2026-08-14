@@ -1,5 +1,7 @@
 import type { ShareAction } from 'react-native';
 
+import type { CacheDomainVersions } from './cache';
+
 /**
  * 디바이스 미디어 자산 (사진, 동영상) 상세 정보
  */
@@ -435,13 +437,26 @@ export type OnWebAppReadyPayload = {
     /**
      * App 로컬 캐시 DB의 스키마 버전(네이티브 SQLite `PRAGMA user_version` 목표치).
      *
-     * 웹이 앱보다 먼저 배포되는 구조라, 웹이 기대하는 스키마가 앱에 아직 없을 수 있습니다. 웹은 이
-     * 값으로 그 스큐를 감지해 도메인별로 네이티브 DB 대신 자기 저장소를 씁니다. 이 필드를 보내지
-     * 않는 구버전 앱 = legacy로 취급합니다.
+     * ADR-0053 이후 **라우팅 판정에서는 읽지 않습니다** — 논리 계약(`cacheDomainVersions`)과 물리 DB
+     * 버전을 분리했기 때문입니다. 디버깅·로깅 용도로 계속 실어 보내고, 이 필드만 읽는 구버전 웹
+     * 번들과의 하위 호환을 위해서도 유지합니다.
      */
     cacheSchemaVersion?: number;
-    /** App이 로컬 캐시로 저장·조회할 수 있는 CacheType 목록. 미보고 시 legacy로 취급합니다. */
+    /**
+     * App이 로컬 캐시로 저장·조회할 수 있는 CacheType 목록. 미보고 시 legacy로 취급합니다.
+     *
+     * ADR-0053 이후 웹은 이 목록을 "해당 도메인 1판"으로 환산합니다 — 판번호를 보내지 않는 구버전
+     * 앱의 라우팅을 그대로 유지하기 위한 하위 호환 축입니다.
+     */
     supportedCacheTypes?: string[];
+    /**
+     * App이 **구현한** 도메인별 캐시 계약 판번호 (ADR-0053).
+     *
+     * 웹은 자신이 요구하는 판번호와 도메인마다 비교해 저장소를 정합니다. 이 필드를 보내지 않는
+     * 구버전 앱은 위 `supportedCacheTypes`로 1판 환산되므로 판정 결과가 달라지지 않습니다. 로컬 캐시
+     * DB가 없는 호스트(desktop main process)는 앞으로도 보내지 않습니다.
+     */
+    cacheDomainVersions?: CacheDomainVersions;
     /** 기능 플래그. 새 기능은 여기서 협상한 뒤 사용합니다. */
     capabilities?: Record<string, boolean | string | number>;
 };

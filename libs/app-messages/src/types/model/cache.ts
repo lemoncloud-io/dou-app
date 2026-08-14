@@ -11,6 +11,17 @@ import type { CloudView, MyInviteView, MySiteView } from '@lemoncloud/chatic-bac
 /** 캐시 가능한 도메인 타입 정의 */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta' | 'invite';
 
+/**
+ * 도메인별 캐시 계약의 판번호 (ADR-0053).
+ *
+ * 앱은 **자신이 구현한** 판을, 웹은 **자신이 요구하는** 판을 각각 독립적으로 선언합니다. 같은 상수를
+ * 양쪽이 import하면 협상이 아니라 항등식이 되므로, 여기서는 **타입만** 공유하고 값은 공유하지
+ * 않습니다. 판번호는 단조 증가하며, 전역 SQLite 스키마 번호나 도메인이 추가된 시점과 무관합니다.
+ *
+ * 설계 전체는 libs/app-runtime/docs/data/cache-contract-versions.md 참고.
+ */
+export type CacheDomainVersions = Partial<Record<CacheType, number>>;
+
 /** 페이징 및 리스트 처리를 위한 공통 메타데이터 */
 export type PagingMeta = {
     page?: number; // 페이지 번호

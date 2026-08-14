@@ -107,6 +107,73 @@ describe('getCacheStorage storage routing', () => {
             expect(adapterName(native.getCacheStorage(type as CacheType, contextProvider))).toBe(expected.native);
         }
     });
+
+    // ADR-0053 replaced the gate's criteria (frozen set + name list + global schema number) with one
+    // comparison against per-domain contract versions. The whole design rests on that switch moving
+    // ZERO routing decisions, since the web ships ahead of the app and most apps a new web meets
+    // still report names only. This pins the routing table across every report shape in the wild.
+    it('routes every type identically whatever shape the app reports in', async () => {
+        const ALL_TYPES: CacheType[] = [
+            'chat',
+            'channel',
+            'invitecloud',
+            'join',
+            'site',
+            'user',
+            'meta',
+            'profile',
+            'invite',
+        ];
+        const REPORT_SHAPES = [
+            // Pre-handshake / a build older than the fields. Only the frozen floor applies.
+            { label: 'unreported', report: undefined, expected: (t: CacheType) => t !== 'invite' },
+            // What almost every installed app sends today: names, no contract versions.
+            {
+                label: 'names only',
+                report: { cacheSchemaVersion: 11, supportedCacheTypes: ALL_TYPES },
+                expected: () => true,
+            },
+            // A post-ADR-0053 app: measured contract versions alongside the legacy fields.
+            {
+                label: 'names + contract versions',
+                report: {
+                    cacheSchemaVersion: 11,
+                    supportedCacheTypes: ALL_TYPES,
+                    cacheDomainVersions: Object.fromEntries(ALL_TYPES.map(t => [t, 1])),
+                },
+                expected: () => true,
+            },
+            // A partially migrated app: `invites` never landed, so it reports neither for that
+            // domain — the one case where the measurement must actually change a decision.
+            {
+                label: 'partially migrated',
+                report: {
+                    cacheSchemaVersion: 11,
+                    supportedCacheTypes: ALL_TYPES.filter(t => t !== 'invite'),
+                    cacheDomainVersions: Object.fromEntries(ALL_TYPES.filter(t => t !== 'invite').map(t => [t, 1])),
+                },
+                expected: (t: CacheType) => t !== 'invite',
+            },
+        ];
+
+        for (const { label, report, expected } of REPORT_SHAPES) {
+            const factory = await loadFactory(true);
+            const { setNativeCacheSupport } = await import('../nativeCacheSupport');
+            if (report) setNativeCacheSupport(report);
+
+            for (const type of ALL_TYPES) {
+                expect({
+                    shape: label,
+                    type,
+                    adapter: adapterName(factory.getCacheStorage(type, contextProvider)),
+                }).toEqual({
+                    shape: label,
+                    type,
+                    adapter: expected(type) ? 'NativeDBAdapter' : 'IndexedDBAdapter',
+                });
+            }
+        }
+    });
 });
 
 describe('getCacheStorage chat cap injection', () => {

@@ -23,7 +23,9 @@ export const isNativeApp = (): boolean => {
 // eviction.
 //
 // Adding an entry here is a stopgap, not a home: it trades native durability for web storage the OS
-// can clear, so it only holds for data the server can re-derive.
+// can clear, so it only holds for data the server can re-derive. That rules out the local-authority
+// domains outright (nativeCacheSupport.LOCAL_AUTHORITY_CACHE_TYPES) — for those, sending rows to web
+// storage is not a downgrade but a loss, so this lever must never be pointed at them either.
 const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
 
 /**
@@ -35,7 +37,9 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  * 3. The installed shell cannot be trusted to store the type → `web`. The web deploys ahead of
  *    the app, so a type newer than the installed app would otherwise be written into a native
  *    `default:` arm that answers `null` with `success: true` — a permanently empty cache that
- *    looks like a cold miss forever (see nativeCacheSupport for how the shell reports this).
+ *    looks like a cold miss forever. How the shell reports what it implements, and why one domain
+ *    is exempt from this check entirely, is owned by `nativeCacheSupport` (ADR-0053; see
+ *    docs/data/cache-contract-versions.md).
  * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
  */
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
