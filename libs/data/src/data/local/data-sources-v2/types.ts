@@ -44,13 +44,35 @@ export interface ILocalDataSourceV2<TItem, TListQuery, TListResult> {
 interface ObserverGroup {
     query: () => Promise<unknown>;
     callbacks: Map<number, (value: never) => void>;
+    /**
+     * 이 그룹이 마지막으로 읽어낸 값, 그리고 아직 읽는 중이라면 그 진행 중인 읽기.
+     *
+     * 신규 구독자에게 저장소를 다시 읽히지 않기 위한 것입니다. 그룹핑만으로는 재emit 때만 합쳐졌고
+     * **마운트는 각자 자기 쿼리를 돌았습니다** — 채팅방 진입 한 번에 훅 여러 개가 붙으면서 그 수만큼
+     * 왕복이 났습니다. 같은 키는 같은 쿼리라는 전제가 재emit에서 성립한다면 마운트에서도 성립합니다.
+     *
+     * `hasValue`가 따로 있는 이유: `value`가 `null`/`undefined`인 것("행이 없다")과 아직 한 번도 안
+     * 읽은 것은 다르고, 전자는 그대로 전달해야 하는 유효한 답입니다.
+     *
+     * **낡은 값을 줄 위험은 어디까지인가.** 이 값은 그 키에 구독자가 최소 한 명 살아 있는 동안만
+     * 유지되고(마지막 구독자가 떠나면 그룹째로 registry에서 사라져 다음 마운트는 새로 읽습니다),
+     * 재emit이 올 때마다 갱신됩니다. 따라서 신규 구독자가 볼 수 있는 최악은 **이미 화면에 떠 있는
+     * 기존 구독자들과 똑같은 값**입니다 — 재emit 공유가 원래 보장하던 것과 같은 수준이고, 새 구독자
+     * 하나가 남들보다 앞선 값을 보는 불일치도 이 규칙 덕분에 생기지 않습니다.
+     *
+     * 뒤집어 말하면 재emit 라우팅(`getAffectedListPrefixes`)에 빠뜨린 경로가 있으면 그 낡음이 더
+     * 오래 보입니다. 그건 여기서 감출 문제가 아니라 그 라우팅에서 고칠 문제입니다.
+     */
+    value?: unknown;
+    hasValue: boolean;
+    pending?: Promise<unknown>;
 }
 
 export abstract class BaseLocalDataSourceV2 {
     private nextObserverId = 0;
     private readonly itemObservers = new Map<string, ObserverGroup>();
     private readonly listObservers = new Map<string, ObserverGroup>();
-    private readonly pendingItemIds = new Set<string>();
+    private readonly pendingItemKeys = new Set<string>();
     private readonly pendingListPrefixes = new Set<string>();
     private emitAllItems = false;
     private emitAllLists = false;
@@ -95,6 +117,22 @@ export abstract class BaseLocalDataSourceV2 {
         return `${this.getScopeKey(contextOverride)}|${normalized}`;
     }
 
+    /**
+     * 캐시에서 읽은 행들을 id로 색인합니다.
+     *
+     * 병합 쓰기가 이걸 반드시 거쳐야 하는 이유: `CacheStorage.loadMany`는 **없는 id를 결과에서
+     * 빼기 때문에** 반환 배열이 요청한 id 배열과 길이도 순서도 다릅니다. 예전처럼 `existing[index]`로
+     * 짝을 맞추면 중간에 캐시에 없는 항목이 하나 있는 순간 그 뒤 전부가 남의 기존 행과 병합됩니다 —
+     * 조용히 데이터를 섞는 실패라 눈에 늦게 띕니다.
+     */
+    protected indexById<T extends { id?: string }>(items: T[]): Map<string, T> {
+        const byId = new Map<string, T>();
+        for (const item of items) {
+            if (item?.id) byId.set(item.id, item);
+        }
+        return byId;
+    }
+
     protected assertRequiredString(value: string | undefined, fieldName: string): string {
         if (typeof value === 'string' && value.trim().length > 0) {
             return value;
@@ -102,12 +140,34 @@ export abstract class BaseLocalDataSourceV2 {
         throw new Error(`[LocalDataSourceV2] ${fieldName} is required.`);
     }
 
+    /**
+     * 아이템 옵저버 레지스트리 키. 리스트 키와 마찬가지로 scope를 포함합니다.
+     *
+     * 예전에는 raw `id`가 그대로 키였습니다. 그런데 그룹은 **첫 등록자의 query 클로저를 재사용**하므로
+     * (`registerObserver`), 다른 cid/uid에서 같은 id를 관찰하면 뒤에 붙은 쪽이 앞선 scope의 데이터를
+     * 받았습니다. 클라우드를 바꿔도 같은 id의 행이 존재하는 도메인에서 조용히 남의 데이터를 보여주는
+     * 실패입니다.
+     *
+     * scope 정의는 `getScopeKey`가 소유하므로 하위 클래스의 재정의(ChannelLocalDataSourceV2가 sid를
+     * 빼는 것)가 여기에도 그대로 적용됩니다 — 관찰과 재emit이 같은 함수를 지나므로 둘이 어긋날 수
+     * 없습니다.
+     */
+    private createItemObserverKey(id: string, contextOverride?: LocalDataSourceV2ContextOverride): string {
+        return `${this.getScopeKey(contextOverride)}|item|${id}`;
+    }
+
     protected observeItemQuery<T>(
         id: string,
         query: () => Promise<T>,
-        callback: LocalDataSourceV2Callback<T>
+        callback: LocalDataSourceV2Callback<T>,
+        contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.registerObserver(this.itemObservers, id, query, callback);
+        return this.registerObserver(
+            this.itemObservers,
+            this.createItemObserverKey(id, contextOverride),
+            query,
+            callback
+        );
     }
 
     protected observeListQuery<T>(
@@ -125,13 +185,47 @@ export abstract class BaseLocalDataSourceV2 {
         callback: LocalDataSourceV2Callback<T>
     ): LocalDataSourceV2Unsubscribe {
         const observerId = ++this.nextObserverId;
-        const group = registry.get(key) ?? { query: query as () => Promise<unknown>, callbacks: new Map() };
+        const group: ObserverGroup = registry.get(key) ?? {
+            query: query as () => Promise<unknown>,
+            callbacks: new Map(),
+            hasValue: false,
+        };
         group.callbacks.set(observerId, callback as (value: never) => void);
         registry.set(key, group);
 
         // The first emit goes to the newcomer alone — the others already have this value, and
         // re-delivering it would re-render every consumer on the key whenever one more mounts.
-        void this.safeNotify(async () => callback(await query()));
+        //
+        // 어디서 값을 얻느냐가 셋으로 갈립니다. 저장소를 새로 읽는 건 마지막 경우뿐입니다:
+        //  1. 그룹이 이미 값을 갖고 있으면 그걸 그대로 준다 — 재emit이 같은 값을 나눠주는 것과 같은
+        //     근거이고, 값이 낡았다면 다음 flush가 모두에게 새 값을 보냅니다.
+        //  2. 같은 키의 읽기가 진행 중이면 그 Promise에 붙는다 — 마운트가 몰리는 순간(한 화면의 훅
+        //     여러 개)이 정확히 여기 해당합니다.
+        //  3. 둘 다 아니면(그 키의 첫 구독자) 읽는다.
+        if (group.hasValue) {
+            void this.safeNotify(async () => callback(group.value as T));
+        } else if (group.pending) {
+            const pending = group.pending;
+            void this.safeNotify(async () => callback((await pending) as T));
+        } else {
+            const pending = query();
+            group.pending = pending;
+            void this.safeNotify(async () => {
+                try {
+                    const value = await pending;
+                    // 이 그룹이 여전히 살아 있을 때만 값을 심습니다. 읽는 동안 마지막 구독자가
+                    // 떠났다면(registry에서 제거됨) 그 그룹은 버려진 객체이고, 나중에 같은 키가
+                    // 새로 등록되면 새 객체를 받으므로 여기서 값을 심어도 아무도 보지 않습니다.
+                    if (registry.get(key) === group) {
+                        group.value = value;
+                        group.hasValue = true;
+                    }
+                    callback(value);
+                } finally {
+                    if (group.pending === pending) group.pending = undefined;
+                }
+            });
+        }
 
         return () => {
             const current = registry.get(key);
@@ -143,10 +237,14 @@ export abstract class BaseLocalDataSourceV2 {
         };
     }
 
-    protected scheduleItemReemit(ids: string[], delay = 50): void {
+    /**
+     * `contextOverride`는 관찰 시점과 **같은 scope 키**를 만들기 위해 필요합니다. 쓰기와 관찰이 다른
+     * scope를 계산하면 재emit이 아무도 깨우지 않고 화면이 낡은 채로 남습니다.
+     */
+    protected scheduleItemReemit(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride, delay = 50): void {
         if (ids.length === 0) return;
         for (const id of ids) {
-            if (id) this.pendingItemIds.add(id);
+            if (id) this.pendingItemKeys.add(this.createItemObserverKey(id, contextOverride));
         }
         this.scheduleFlush(delay);
     }
@@ -182,8 +280,8 @@ export abstract class BaseLocalDataSourceV2 {
         if (this.emitAllItems) {
             groups.push(...this.itemObservers.values());
         } else {
-            for (const id of this.pendingItemIds) {
-                const group = this.itemObservers.get(id);
+            for (const key of this.pendingItemKeys) {
+                const group = this.itemObservers.get(key);
                 if (group) groups.push(group);
             }
         }
@@ -197,7 +295,7 @@ export abstract class BaseLocalDataSourceV2 {
             }
         }
 
-        this.pendingItemIds.clear();
+        this.pendingItemKeys.clear();
         this.pendingListPrefixes.clear();
         this.emitAllItems = false;
         this.emitAllLists = false;
@@ -214,6 +312,11 @@ export abstract class BaseLocalDataSourceV2 {
             logger.error('CACHE', '[LocalDataSourceV2] observer query failed', { error });
             return;
         }
+        // 재emit 결과도 그룹에 기억시킵니다. 이렇게 해야 이후에 같은 키로 붙는 구독자가 저장소를
+        // 다시 읽지 않고 최신 값을 받습니다 — 기억하지 않으면 낡은 값을 주거나(더 나쁨) 마운트마다
+        // 다시 읽는 원래 문제로 돌아갑니다. 실패한 재emit은 기록하지 않습니다(위에서 return).
+        group.value = value;
+        group.hasValue = true;
         for (const callback of group.callbacks.values()) {
             try {
                 (callback as (value: unknown) => void)(value);

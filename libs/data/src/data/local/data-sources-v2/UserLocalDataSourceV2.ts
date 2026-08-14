@@ -38,8 +38,9 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         _contextOverride?: LocalDataSourceV2ContextOverride
     ): Promise<DomainUser[]> {
         if (ids.length === 0) return [];
-        const items = await Promise.all(ids.map(id => this.cacheStorage.load(id)));
-        return items.filter((item): item is DomainUser => !!item);
+        // `loadMany`가 이미 없는 id를 걸러내므로 추가 필터가 필요 없습니다. 반환 순서는 `ids`와
+        // 무관합니다 — 호출자(useChats의 작성자 조회 등)는 id로 찾아 쓰므로 순서를 쓰지 않습니다.
+        return this.cacheStorage.loadMany(ids);
     }
 
     public async cacheReadList(
@@ -67,7 +68,7 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         callback: LocalDataSourceV2Callback<DomainUser | null>,
         contextOverride?: LocalDataSourceV2ContextOverride
     ): LocalDataSourceV2Unsubscribe {
-        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback);
+        return this.observeItemQuery(id, () => this.cacheRead(id, contextOverride), callback, contextOverride);
     }
 
     public observeList(
@@ -102,7 +103,7 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         };
 
         await this.cacheStorage.save(id, merged);
-        this.scheduleItemReemit([id]);
+        this.scheduleItemReemit([id], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing, merged], contextOverride));
     }
 
@@ -114,10 +115,11 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         if (validItems.length === 0) return;
 
         const context = this.getContext(contextOverride);
-        const existingItems = await Promise.all(validItems.map(item => this.cacheStorage.load(item.id!)));
+        const existingItems = await this.cacheStorage.loadMany(validItems.map(item => item.id!));
+        const existingById = this.indexById(existingItems);
 
-        const mergedList = validItems.map((item, index) => {
-            const existing = existingItems[index];
+        const mergedList = validItems.map(item => {
+            const existing = existingById.get(item.id!);
             const channelIds = Array.from(new Set([...(existing?.channelIds || []), ...(item.channelIds || [])]));
 
             return {
@@ -130,7 +132,7 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         });
 
         await this.cacheStorage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean));
+        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes([...existingItems, ...mergedList], contextOverride));
     }
 
@@ -138,16 +140,17 @@ export class UserLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IUse
         const requiredId = this.assertRequiredString(id, 'id');
         const existing = await this.cacheStorage.load(requiredId);
         await this.cacheStorage.delete(requiredId);
-        this.scheduleItemReemit([requiredId]);
+        this.scheduleItemReemit([requiredId], contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes(existing ? [existing] : [], contextOverride));
     }
 
     public async cacheDeleteMany(ids: string[], contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        const existingItems = await Promise.all(validIds.map(id => this.cacheStorage.load(id)));
+        // 영향받은 채널 집합만 필요하므로 없는 id가 빠져도 무관합니다.
+        const existingItems = await this.cacheStorage.loadMany(validIds);
         await this.cacheStorage.deleteAll(validIds);
-        this.scheduleItemReemit(validIds);
+        this.scheduleItemReemit(validIds, contextOverride);
         this.scheduleListReemit(this.getAffectedListPrefixes(existingItems, contextOverride));
     }
 

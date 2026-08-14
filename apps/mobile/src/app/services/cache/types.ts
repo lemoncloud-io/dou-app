@@ -12,6 +12,18 @@ export interface ICacheCrudService {
     }): Promise<CacheModelMap[K] | null>;
 
     /**
+     * [조회] ID 목록 기반 다건 조회
+     *
+     * 없는 id는 결과에서 빠지므로 반환 길이/순서는 `ids`와 일치하지 않습니다.
+     */
+    fetchMany<K extends CacheType>(payload: {
+        type: K;
+        ids: string[];
+        cid?: string;
+        uid?: string;
+    }): Promise<CacheModelMap[K][]>;
+
+    /**
      * [조회] 다수/페이징 캐시 조회
      */
     fetchAll<K extends CacheType>(payload: {

@@ -231,4 +231,51 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             })
         );
     });
+    it('아무것도 반환하지 않는 핸들러는 응답을 보내지 않는다 (fire-and-forget)', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        // `SendLog`가 이 경로입니다. 웹의 로그 전달자는 refId 없이 올려보내므로 응답이 내려가도
+        // 매칭될 pending이 없어 폐기되는데, 그 폐기되는 응답 한 건마다 UI 스레드의
+        // evaluateJavascript가 한 번 돕니다 — 로그 건수만큼 브릿지 대역을 태우는 순수 낭비였습니다.
+        const handler = jest.fn().mockResolvedValue(undefined);
+        host.registerHandler('SendLog', handler as any);
+
+        await host.handleMessage(JsonProtocol.encode({ type: 'SendLog', data: { message: 'hi' } }) as string);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(mockSendToWeb).not.toHaveBeenCalled();
+    });
+
+    it('반환값이 있는 핸들러는 이전과 동일하게 응답을 보낸다', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        host.registerHandler('FetchManyCacheData', (() => ({
+            type: 'OnFetchManyCacheData',
+            success: true,
+            data: { items: [] },
+        })) as any);
+
+        await host.handleMessage(
+            JsonProtocol.encode({
+                type: 'FetchManyCacheData',
+                refId: 'ref-1',
+                data: { type: 'chat', ids: ['c1'] },
+            }) as string
+        );
+
+        const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
+        expect(response).toEqual(
+            expect.objectContaining({ type: 'OnFetchManyCacheData', refId: 'ref-1', success: true })
+        );
+    });
+
+    it('핸들러가 던지면 반환값이 없어도 에러 응답은 나간다', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
+        host.registerHandler('SendLog', (() => {
+            throw new Error('boom');
+        }) as any);
+
+        await host.handleMessage(JsonProtocol.encode({ type: 'SendLog', refId: 'ref-2', data: {} }) as string);
+
+        const response = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
+        expect(response).toEqual(expect.objectContaining({ type: 'ERROR', success: false }));
+    });
 });

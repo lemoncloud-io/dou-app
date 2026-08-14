@@ -244,6 +244,31 @@ export type OnFetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] | null };
 }[CacheType];
 
+/**
+ * [요청] ID 목록 기반 다건 조회.
+ *
+ * `FetchCacheData`를 id마다 보내는 것과 결과는 같지만, 브릿지 왕복이 1회입니다. 캐시 계층의 병합
+ * 쓰기(`cacheWriteMany`)는 아이템마다 기존 행을 읽어야 하는데, 그게 왕복 N회가 되면서 네이티브
+ * 저장소의 실제 비용이 되었습니다 — 채팅 50건 저장이 51 왕복입니다. SQLite 쿼리 N회는 인프로세스라
+ * 싸고, 비싼 건 왕복이므로 왕복만 접습니다.
+ *
+ * 앱이 이 메시지를 모르면 host가 `NOT_FOUND`로 거절하고, 웹은 id별 조회로 폴백합니다
+ * (`NativeDBAdapter.loadMany`) — 웹이 앱보다 먼저 배포되므로 폴백은 선택이 아니라 필수입니다.
+ */
+export type FetchManyCacheDataPayload = {
+    [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
+}[CacheType];
+
+/**
+ * [응답] 요청한 id들에 해당하는 행.
+ *
+ * 없는 id는 자리를 비워두지 않고 그냥 빠집니다 — 순서와 길이는 요청과 일치하지 않습니다. 호출자가
+ * id로 다시 색인하므로(`loadMany`) 빈 자리를 채워 보낼 이유가 없고, `null` 자리는 전송량만 늘립니다.
+ */
+export type OnFetchManyCacheDataPayload = {
+    [K in CacheType]: CacheBasePayload<K> & { ids: string[]; items: CacheModelMap[K][] | null };
+}[CacheType];
+
 /** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */
 export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {

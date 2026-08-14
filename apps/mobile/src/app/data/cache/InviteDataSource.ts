@@ -1,6 +1,7 @@
 import type { CacheInviteView, InviteQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 
 /**
  * 발신자의 relay 1:1 초대 카드(ADR-0052) 도메인 전용 데이터 소스.
@@ -30,6 +31,10 @@ export class InviteDataSource implements ICacheDataSource<CacheInviteView, Invit
         const result = await this.database.execute(query, params);
         if (result.rows && result.rows.length > 0) return JSON.parse(result.rows[0].data as string) as CacheInviteView;
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheInviteView[]> {
+        return fetchManyByIds<CacheInviteView>(this.database, this.tableName, ids, cid, uid);
     }
 
     /**

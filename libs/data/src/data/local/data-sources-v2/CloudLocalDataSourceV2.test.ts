@@ -21,6 +21,14 @@ const createMemoryStorage = (): CacheStorage<'invitecloud'> => {
         async load(id) {
             return map.has(id) ? { ...map.get(id) } : null;
         },
+        async loadMany(ids) {
+            // 계약대로 없는 id는 빼고, 순서도 보장하지 않습니다(뒤집어 돌려줍니다) — 위치로 짝을
+            // 맞추는 코드가 여기서 반드시 깨지도록 두는 것이 이 fixture의 역할입니다.
+            return ids
+                .filter(id => map.has(id))
+                .map(id => ({ ...map.get(id) }))
+                .reverse();
+        },
         async loadAll() {
             return Array.from(map.values()).map(item => ({ ...item }));
         },

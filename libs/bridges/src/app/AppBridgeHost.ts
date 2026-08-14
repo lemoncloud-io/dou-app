@@ -46,7 +46,7 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     private handlers: Map<
         string,
-        (message: any) => WebMessageHandlerResponse<any> | Promise<WebMessageHandlerResponse<any>>
+        (message: any) => WebMessageHandlerResponse<any> | void | Promise<WebMessageHandlerResponse<any> | void>
     > = new Map();
 
     private isWebReady = false;
@@ -103,7 +103,9 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     public registerHandler<K extends WebMessageType>(
         type: K,
-        handler: (message: WebMessageData<K>) => WebMessageHandlerResponse<K> | Promise<WebMessageHandlerResponse<K>>
+        handler: (
+            message: WebMessageData<K>
+        ) => WebMessageHandlerResponse<K> | void | Promise<WebMessageHandlerResponse<K> | void>
     ): void {
         this.handlers.set(type as string, handler);
     }
@@ -161,6 +163,18 @@ export class AppBridgeHost implements IAppBridgeHost {
         try {
             // 핸들러 실행
             const result = await handler(message);
+
+            // 아무것도 반환하지 않은 핸들러는 "응답 없음"을 뜻합니다 — 여기서 끝냅니다.
+            //
+            // 응답 한 건은 공짜가 아닙니다. `sendToWeb`은 Android에서 `evaluateJavascript`,
+            // iOS에서 `evaluateJavaScript`로 내려가 UI 스레드를 쓰는데, 그건 캐시 요청/응답이
+            // 경합하는 바로 그 자원입니다. 그런데 `SendLog`처럼 refId 없이 올라온 fire-and-forget
+            // 메시지의 응답은 웹에서 매칭될 pending이 없어 이벤트로 흘러가 리스너 없이 폐기됩니다 —
+            // 100% 낭비인 왕복이 로그 건수만큼 UI 스레드를 점유했습니다.
+            //
+            // 반환값이 있는 핸들러는 이전과 완전히 동일하게 동작하므로, 응답을 기대하는 웹의
+            // `request()` 경로는 이 분기에 영향을 받지 않습니다.
+            if (!result) return;
 
             // handler는 도메인 응답만 반환하고, host가 request metadata를 응답에 다시 연결합니다.
             const response = {

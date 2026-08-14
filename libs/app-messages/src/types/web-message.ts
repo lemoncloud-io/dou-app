@@ -11,6 +11,7 @@ import type {
     AckPendingReportsPayload,
     FetchAppLogBufferPayload,
     FetchCacheDataPayload,
+    FetchManyCacheDataPayload,
     FetchPendingReportsPayload,
     FetchPreferencePayload,
     FetchTestRecordPayload,
@@ -122,6 +123,7 @@ export type WebMessagePayloadMap = {
 
     // 4. Cache
     FetchCacheData: FetchCacheDataPayload;
+    FetchManyCacheData: FetchManyCacheDataPayload;
     FetchAllCacheData: FetchAllCacheDataPayload;
     SaveCacheData: SaveCacheDataPayload;
     SaveAllCacheData: SaveAllCacheDataPayload;

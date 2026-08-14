@@ -64,6 +64,70 @@ export class CacheCrudService implements ICacheCrudService {
         this.inviteDataSource = inviteDataSource;
     }
 
+    /**
+     * 타입 → 데이터 소스. `fetchMany`만 이걸 씁니다.
+     *
+     * 다른 연산이 switch를 펼쳐 쓰는 건 도메인마다 인자 순서와 형태가 다르기 때문인데(`fetchAll`은
+     * (cid, query, uid), `save`는 (id, item, cid, uid)), `fetchMany`는 모든 도메인이 (ids, cid, uid)로
+     * 같아서 분기가 데이터 소스 선택 하나뿐입니다. 여기서 unsupported를 `null`로 답하는 규칙도
+     * 기존 `default` arm과 같습니다 — 웹이 앱보다 먼저 배포되므로 모르는 타입이 도착할 수 있고,
+     * 그때 던지면 브릿지 에러가 되어 웹의 폴백 판단을 어렵게 만듭니다.
+     */
+    private getDataSource<K extends CacheType>(type: K): ICacheDataSource<CacheModelMap[K], CacheQueryMap[K]> | null {
+        switch (type) {
+            case 'chat':
+                return this.chatDataSource as never;
+            case 'channel':
+                return this.channelDataSource as never;
+            case 'join':
+                return this.joinDataSource as never;
+            case 'site':
+                return this.siteDataSource as never;
+            case 'user':
+                return this.userDataSource as never;
+            case 'invitecloud':
+                return this.inviteCloudDataSource as never;
+            case 'profile':
+                return this.profileDataSource as never;
+            case 'meta':
+                return this.metaDataSource as never;
+            case 'invite':
+                return this.inviteDataSource as never;
+            default:
+                return null;
+        }
+    }
+
+    public async fetchMany<K extends CacheType>(payload: {
+        type: K;
+        ids: string[];
+        cid?: string;
+        uid?: string;
+    }): Promise<CacheModelMap[K][]> {
+        const { type, ids, cid, uid } = payload;
+        if (!ids || ids.length === 0) return [];
+
+        try {
+            const dataSource = this.getDataSource(type);
+            if (!dataSource) return [];
+
+            // `fetchMany`는 선택 구현입니다. 없으면 `fetch`를 반복합니다 — 이래도 브릿지 왕복은
+            // 여전히 1회이므로 목적(왕복 접기)은 달성됩니다. 느려지는 건 인프로세스 SQLite 쿼리
+            // 횟수뿐이고, 그건 왕복 앞에서 무시할 수준입니다.
+            if (dataSource.fetchMany) {
+                return await dataSource.fetchMany(ids, cid, uid);
+            }
+
+            const items: Array<CacheModelMap[K] | null> = await Promise.all(
+                ids.map(id => dataSource.fetch(id, cid, uid))
+            );
+            return items.filter((item): item is CacheModelMap[K] => !!item);
+        } catch (error) {
+            this.logService.error('CACHE', `FetchMany error for type: ${type}`, error as Error);
+            return [];
+        }
+    }
+
     public async fetch<K extends CacheType>(payload: {
         type: K;
         id: string;

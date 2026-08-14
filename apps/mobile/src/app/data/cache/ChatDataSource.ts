@@ -1,6 +1,7 @@
 import type { CacheChatView, ChatQueryOptions } from '@chatic/app-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { fetchManyByIds } from './fetchManyByIds';
 
 /**
  * 채팅(Chat) 도메인 전용 데이터 소스 구현체
@@ -28,6 +29,10 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             return JSON.parse(result.rows[0].data as string) as CacheChatView;
         }
         return null;
+    }
+
+    public async fetchMany(ids: string[], cid?: string, uid?: string): Promise<CacheChatView[]> {
+        return fetchManyByIds<CacheChatView>(this.database, this.tableName, ids, cid, uid);
     }
 
     public async fetchAll(cid?: string, query?: ChatQueryOptions, uid?: string): Promise<CacheChatView[]> {

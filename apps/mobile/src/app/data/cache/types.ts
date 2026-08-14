@@ -17,6 +17,21 @@ export interface ICacheDataSource<T, Q = void> {
     fetch: (id: string, cid?: string, uid?: string) => Promise<T | null>;
 
     /**
+     * 다수의 데이터를 id 목록으로 한 번에 조회합니다. (`fetch`를 id마다 부르는 것과 결과 동일)
+     *
+     * 없는 id는 결과에서 빠지므로 반환 길이와 순서는 `ids`와 일치하지 않습니다. 호출자가 id로 다시
+     * 색인합니다.
+     *
+     * 선택 구현입니다 — 없으면 `CacheCrudService`가 `fetch`를 반복해서 채웁니다. 브릿지 왕복은
+     * 어느 쪽이든 1회이므로, 미구현이 성능 목표를 깨지는 않습니다.
+     *
+     * @param ids - 조회할 데이터의 고유 ID 배열
+     * @param cid - (선택) 데이터 격리를 위한 Cloud ID
+     * @param uid - (선택) 데이터 격리를 위한 User ID
+     */
+    fetchMany?: (ids: string[], cid?: string, uid?: string) => Promise<T[]>;
+
+    /**
      * 다수(목록)의 캐시 데이터를 조건에 맞게 조회합니다.
      *
      * @param cid - (선택) 데이터 격리를 위한 Cloud ID
