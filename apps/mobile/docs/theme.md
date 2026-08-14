@@ -1,6 +1,6 @@
 # 테마 (Theme) — 라이트 기본과 웹↔네이티브 동기화
 
-> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0034](../../../docs/adr/0034-theme-light-default-and-web-native-sync.md)
+> 상태: Live · 최종 갱신: 2026-08-03 · 관련 ADR: [ADR-0054](../../../docs/adr/0054-theme-light-default-and-web-native-sync.md)
 > 관련: [webview](./webview.md)(브릿지 메시지 표) · [boot-optimization](./boot-optimization.md)(부팅 경로) · [apps/web 테마](../../web/docs/architecture/theme.md)(웹 국소 상세)
 
 **문서 소유 범위:** 이 문서가 **웹↔네이티브 테마 계약과 부팅 경로 전체**를 소유한다. `apps/web/docs/architecture/theme.md`는 웹 내부의 상태·DOM 적용 상세만 다루고 계약은 이 문서를 참조한다. 값 모델·기본값·저장 포맷을 바꿀 때는 이 문서를 먼저 고친다.
@@ -36,7 +36,7 @@
 
 **제외**
 
-- **`'system'` 선택 UI.** 값·저장·해석은 전부 지원하지만 사용자가 고를 수단은 만들지 않는다 → 이번 릴리스에서 `'system'`은 도달 불가 상태다. ADR-0034 참조.
+- **`'system'` 선택 UI.** 값·저장·해석은 전부 지원하지만 사용자가 고를 수단은 만들지 않는다 → 이번 릴리스에서 `'system'`은 도달 불가 상태다. ADR-0054 참조.
 - 새 브릿지 메시지 **타입**. `libs/app-messages`는 건드리지 않는다 — 주입이 부팅 경로를 덮고, 네이티브에 테마 변경 UI가 없어 런타임 push 수요가 없다. (기존 `SavePreference`를 `request`로 보내는 확인 경로는 포함한다.)
 - `'language'` 브릿지 값 검증. `theme`만 검증하므로 두 케이스는 보호 수준이 다르다 — 별도 작업.
 - `libs/theme`와 그 소비자(`admin` · `desktop-web` · `landing`)
