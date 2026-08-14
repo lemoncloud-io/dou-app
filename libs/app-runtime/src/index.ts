@@ -56,7 +56,6 @@ export { configureDataRuntime } from './data/runtime';
 export type { DataRuntimeConfig } from './data/runtime';
 export type { CacheAssemblyOptions } from './data/factories/localFactory';
 export {
-    useInvitedCloudMigration,
     useInvitedCloudNameSync,
     recoverInvitedCloudIfMissing,
     syncInvitedCloudName,

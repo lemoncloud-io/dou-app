@@ -5,33 +5,7 @@ import { issueCloudDelegationToken, useSessionSelection } from '@chatic/web-core
 
 import { useRuntimeRepositories, useRuntimeSocketState } from '../runtime';
 import { isNativeApp } from './cacheStorageRouting';
-import { createWebInviteCloudStorage } from './factories/localFactory';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
-
-// One-time flag marking that existing invited clouds were migrated from web(IndexedDB) into the
-// native store. Kept in localStorage — a store independent of the cache DB — so the bulk migration
-// runs only on the first boot after native stopped reading web storage for this type. See
-// libs/app-runtime/docs/data/invite-cloud-durability.md.
-//
-// The VALUE is frozen: it predates the hot/cold → web/native rename, and changing it would make
-// every already-migrated install run the migration again.
-const SEED_FLAG_KEY = 'chatic-invitecloud-cold-seeded';
-
-const hasSeeded = (): boolean => {
-    try {
-        return typeof window !== 'undefined' && window.localStorage.getItem(SEED_FLAG_KEY) === '1';
-    } catch {
-        return false;
-    }
-};
-
-const markSeeded = (): void => {
-    try {
-        window.localStorage.setItem(SEED_FLAG_KEY, '1');
-    } catch {
-        // localStorage unavailable — the seed simply re-runs next boot (idempotent writes).
-    }
-};
 
 /**
  * Rebuild an invited-cloud cache row from re-derived endpoints (no name — the name is owned by
@@ -51,37 +25,12 @@ const rehydrateInvitedCloud = async (cloud: ICloudRepositoryV2, cloudId: string)
 };
 
 /**
- * One-time migration of existing invited clouds from web(IndexedDB) into the native store, on the
- * first boot after native stopped reading web storage for this type. Earlier (2-tier) builds kept
- * invited clouds in IndexedDB, and routing now sends invitecloud to the native store — so without
- * this bridge those invited clouds, the only local-only cache type (no server list API), would be
- * stranded; every other type refills from server re-sync. It reads web storage directly (via a
- * dedicated IndexedDB reader, since the repository no longer routes there), filters invited rows,
- * and writes them through the repository. The flag is set only after a successful pass, so a
- * transient failure (web store unreachable, native write error) retries next boot; writes merge by
- * id, so re-running is idempotent.
- */
-export const migrateInvitedCloudsIntoNativeStore = async (
-    cloud: ICloudRepositoryV2,
-    readWebClouds: () => Promise<DomainCloud[]>
-): Promise<void> => {
-    if (hasSeeded()) return;
-    try {
-        const webClouds = await readWebClouds();
-        const invited: DomainCloud[] = webClouds.filter(c => c.cloudType === 'invited');
-        if (invited.length > 0) {
-            await cloud.cacheWriteMany(invited);
-        }
-        markSeeded();
-    } catch {
-        // Web store unreachable or the native write failed — leave the flag unset so the next boot
-        // retries. The migration is idempotent, so a retry is safe.
-    }
-};
-
-/**
  * Push safety net: when a push names a source cloud that is not in the local cache, re-derive and
  * re-cache it so cross-cloud routing can resolve it. No-op for empty cid or an already-present cloud.
+ *
+ * The ONLY safety net left for this domain now that the web→native migration bridge is gone
+ * (ADR-0053 decision 5). It is reactive — it fires when a push names a cid — so it repairs a
+ * specific cloud, never the list. Closing that gap needs a server list API (ADR-0030).
  */
 export const recoverInvitedCloudIfMissing = async (
     cloud: ICloudRepositoryV2,
@@ -116,25 +65,6 @@ export const syncInvitedCloudName = async (cloud: ICloudRepositoryV2, cloudId: s
     const name = fresh?.name;
     if (!name || name === existing.name) return;
     await cloud.cacheWrite({ id: cloudId, cid: existing.cid ?? cloudId, name, cloudType: 'invited' });
-};
-
-/**
- * Mounts the boot migration once. Native WebView only — a plain browser already keeps invitecloud
- * in web storage, so there is nothing to move. Reads invited clouds straight from IndexedDB so the
- * native store can be seeded with rows a prior 2-tier build left behind there.
- */
-export const useInvitedCloudMigration = (): void => {
-    const { cloud } = useRuntimeRepositories();
-    const startedRef = useRef(false);
-
-    useEffect(() => {
-        if (!isNativeApp()) return;
-        if (startedRef.current) return;
-        startedRef.current = true;
-        // Build the web reader lazily inside the thunk so a construction failure (e.g. no IndexedDB
-        // in this WebView) is caught by the migration's own retry guard rather than the effect.
-        void migrateInvitedCloudsIntoNativeStore(cloud, () => createWebInviteCloudStorage().loadAll());
-    }, [cloud]);
 };
 
 /**
