@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { deeplinkService, logger, notificationService } from '../../services';
 import type { NativeRouteState, PushNavigationData } from '../../services/deeplinks/deeplinkUtils';
-import { navigationRef } from '../../features/core/navigation';
+// Imported from the leaf module, not the navigation barrel: the barrel re-exports RootNavigator,
+// which pulls the whole navigator graph (and @react-navigation's ESM) into anything that only needs
+// the ref. That is the coupling navigationRef.ts was split out to avoid.
+import { navigationRef } from '../../features/core/navigation/navigationRef';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 // Delay before lifting the cold-start splash after the WebView reports load: keeps the "home" frame
