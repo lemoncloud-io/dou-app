@@ -29,9 +29,6 @@ vi.mock('../hooks', () => ({
     useMessageViewer: () => ({ uid: 'me', name: 'Me', cloudUid: 'me-cloud' }),
     useMessageActions: () => ({ editMessage: vi.fn(), deleteMessage: vi.fn(), failedId: null }),
     useReactions: () => ({ toggleReaction: vi.fn(), failedId: null }),
-    // Read receipts need the join cache and the sync manager; this file is about what the
-    // panel draws, so the counts come back as "none for this message".
-    useReadCounts: () => () => null,
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about
 // what the panel renders above it.
@@ -103,6 +100,25 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
         expect(screen.getByRole('heading', { name: 'Error report' })).toBeTruthy();
+    });
+
+    // The read counts are mounted once by the host and handed to both surfaces. The panel
+    // shares the feed's renderer, so forgetting to pass them on would leave replies silently
+    // without a receipt — the shape of the three twin bugs in CLAUDE.md.
+    it('passes the read counts through to the replies', () => {
+        messages = [chat(1, { content: 'root' }), chat(2, { content: 'reply', parentId: 'C1:1' })];
+
+        render(
+            <ThreadPanel
+                channel={CHANNEL}
+                rootId="C1:1"
+                members={[]}
+                readCountOf={() => ({ readCount: 2, unreadCount: 1 })}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getAllByText('Read 2').length).toBeGreaterThan(0);
     });
 
     it('counts only real replies, not the reaction events', () => {

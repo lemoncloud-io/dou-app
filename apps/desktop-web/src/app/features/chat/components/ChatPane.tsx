@@ -24,7 +24,7 @@ import {
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import { useMentionables, useMessageViewer, useReadCounts } from '../hooks';
+import { useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
@@ -36,9 +36,11 @@ interface ChatPaneProps {
     members: ChannelMember[];
     /** Roster still loading — message headers show a name skeleton, not "Unknown". */
     membersLoading?: boolean;
+    /** Per-message read counts, from the one `useReadCounts` the host mounts per channel. */
+    readCountOf?: ReadCountOf;
 }
 
-export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) => {
+export const ChatPane = ({ channel, members, membersLoading, readCountOf }: ChatPaneProps) => {
     const { t } = useTranslation();
     const channelId = channel?.id ?? null;
     const myUid = useSessionIdentity().userId;
@@ -110,9 +112,6 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
-    // The other half of the same story: every member's read position, so a message can say
-    // how many have seen it. Registers the roster's join syncs while the channel is open.
-    const readCountOf = useReadCounts(channel, viewer);
 
     // A notification click asks this channel to open at its latest message (the pinged
     // one) rather than the unread divider. Read the one-shot flag for THIS channel and

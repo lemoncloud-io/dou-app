@@ -24,6 +24,20 @@ export const readCursorsOf = (joins: DomainJoin[]): Map<string, number> => {
 };
 
 /**
+ * A value signature of everything the receipt reads out of the join rows.
+ *
+ * The join cache re-emits the whole row set on any write to any field — a notification
+ * mode, a role change — and the array is a new identity every time. Deriving off that
+ * identity would hand every message row a fresh callback and re-render the feed for a
+ * change no receipt can see, so the derivation keys off this instead.
+ */
+export const readStateKeyOf = (joins: DomainJoin[]): string =>
+    joins
+        .map(join => `${join.userId}:${Math.max(join.readNo ?? 0, join.chatNo ?? 0)}:${join.joined}`)
+        .sort()
+        .join('|');
+
+/**
  * Members still in the channel (`joined !== 0`) — the receipt's denominator.
  *
  * Derived here rather than taken from the join list as a whole: the join cache keeps the
@@ -60,5 +74,5 @@ export const countReadsAt = (
     for (const userId of activeMemberIds) {
         if (userId === senderId || (cursorByUser.get(userId) ?? 0) >= chatNo) readCount++;
     }
-    return { readCount, unreadCount: Math.max(0, activeMemberIds.length - readCount) };
+    return { readCount, unreadCount: activeMemberIds.length - readCount };
 };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DomainJoin } from '@chatic/data';
 
-import { activeMemberIdsOf, countReadsAt, readCursorsOf } from './readCounts';
+import { activeMemberIdsOf, countReadsAt, readCursorsOf, readStateKeyOf } from './readCounts';
 
 const join = (userId: string, chatNo: number, extra: Partial<DomainJoin> = {}): DomainJoin =>
     ({ id: `C1@${userId}`, channelId: 'C1', userId, joined: 1, readNo: 0, chatNo, ...extra }) as DomainJoin;
@@ -15,6 +15,22 @@ describe('readCursorsOf', () => {
 
         expect(cursors.get('ada')).toBe(7);
         expect(cursors.get('bob')).toBe(9);
+    });
+});
+
+describe('readStateKeyOf', () => {
+    // The join cache re-emits every row on any write. Keying the derivation on the array
+    // identity would rebuild the receipt callback — and re-render every message row — for a
+    // notification-mode toggle no receipt can see.
+    it('ignores fields the receipt never reads', () => {
+        const before = readStateKeyOf([join('ada', 5), join('bob', 3)]);
+        const muted = { ...join('ada', 5), notifyMode: 'mute' } as DomainJoin;
+
+        expect(readStateKeyOf([muted, join('bob', 3)])).toBe(before);
+    });
+
+    it('changes when a member reads further', () => {
+        expect(readStateKeyOf([join('ada', 6)])).not.toBe(readStateKeyOf([join('ada', 5)]));
     });
 });
 

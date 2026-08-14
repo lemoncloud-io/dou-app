@@ -9,7 +9,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
-import { useMentionables, useMessageViewer, useReadCounts } from '../hooks';
+import { useMentionables, useMessageViewer, type ReadCountOf } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -22,6 +22,13 @@ interface ThreadPanelProps {
     /** Roster shared with the chat pane — used to name reply authors. */
     members: ChannelMember[];
     membersLoading?: boolean;
+    /**
+     * Per-message read counts, from the one `useReadCounts` the host mounts per channel.
+     * A reply carries the same channel-wide chatNo the read cursors point at, so its receipt
+     * is the same question the feed asks — and the panel shares the feed's renderer, so a
+     * prop the host forgets here is how `foldReactions` went missing in this file (CLAUDE.md).
+     */
+    readCountOf?: ReadCountOf;
 }
 
 /**
@@ -31,7 +38,7 @@ interface ThreadPanelProps {
  * feed. Reuses MessageList for rendering; passes no thread props down, so the
  * pane shows no nested reply affordances (threads are root-only).
  */
-export const ThreadPanel = ({ channel, rootId, members, membersLoading }: ThreadPanelProps) => {
+export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCountOf }: ThreadPanelProps) => {
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
@@ -49,11 +56,6 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
     const mentionables = useMentionables(members);
-    // Replies carry the same channel-wide chatNo the read cursors point at, so a reply's
-    // receipt is the same question the feed asks. Wired here too because the panel is a
-    // second surface over one renderer — a prop the feed passes and the panel forgets is
-    // exactly how `foldReactions` went missing in here before (see CLAUDE.md).
-    const readCountOf = useReadCounts(channel, viewer);
 
     const { root, threadMessages, replyCount } = useMemo(() => {
         const thread = buildThread(messages, rootId);

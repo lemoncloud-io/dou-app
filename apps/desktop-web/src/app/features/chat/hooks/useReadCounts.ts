@@ -4,7 +4,14 @@ import { getSyncManager, useRuntimeRepositories, useSocketState } from '@chatic/
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { isSelfChannel, useReadCursorStore } from '../../../shared';
-import { activeMemberIdsOf, countReadsAt, readCursorsOf, type MessageViewer, type ReadCount } from '../utils';
+import {
+    activeMemberIdsOf,
+    countReadsAt,
+    readCursorsOf,
+    readStateKeyOf,
+    type MessageViewer,
+    type ReadCount,
+} from '../utils';
 
 /**
  * Counts for one message — its `chatNo` and its author — or null when it gets no receipt.
@@ -67,13 +74,14 @@ export const useReadCounts = (channel: DomainChannel | undefined, viewer: Messag
     // as unread by me for a beat — and in a 1:1 that is the whole unread count.
     const localCursor = useReadCursorStore(s => (channelId ? (s.cursors[channelId] ?? 0) : 0));
 
-    const cursorByUser = useMemo(() => {
+    // Keyed by the read state's value, not the row array's identity — see `readStateKeyOf`.
+    // `joins` is deliberately absent from the deps: everything read out of it is in the key.
+    const readStateKey = readStateKeyOf(joins);
+    const { cursorByUser, activeMemberIds } = useMemo(() => {
         const cursors = readCursorsOf(joins);
         if (myId) cursors.set(myId, Math.max(cursors.get(myId) ?? 0, localCursor));
-        return cursors;
-    }, [joins, myId, localCursor]);
-
-    const activeMemberIds = useMemo(() => activeMemberIdsOf(joins), [joins]);
+        return { cursorByUser: cursors, activeMemberIds: activeMemberIdsOf(joins) };
+    }, [readStateKey, myId, localCursor]);
 
     // A receipt on a self-channel or a 1-member channel counts only me, which says nothing.
     // Two active members is also what stands in for "the join rows have arrived": they are
