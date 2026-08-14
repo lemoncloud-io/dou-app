@@ -1,5 +1,12 @@
 import { webClient } from '@chatic/bridges';
-import type { OnWebAppReadyPayload, WebMessageData, WebMessageResponse, WebMessageType } from '@chatic/app-messages';
+import type {
+    OnFetchPushMarksPayload,
+    OnWebAppReadyPayload,
+    PushCloudMarkRecord,
+    WebMessageData,
+    WebMessageResponse,
+    WebMessageType,
+} from '@chatic/app-messages';
 
 /**
  * Centralized outbound bridge API (Web -> Native).
@@ -101,6 +108,18 @@ export const appBridge = {
     /** Set the app icon badge count. */
     setBadgeCount(count: number): void {
         webClient.post({ type: 'SetBadgeCount', data: { count } });
+    },
+
+    /**
+     * Drains the cross-cloud push marks recorded natively for a background chat push (ADR-0056) —
+     * read + clear in one native call, so a mark is delivered exactly once. Resolves `[]` on a
+     * plain browser (no native bridge) or a shell build that predates this bridge message.
+     */
+    fetchPushMarks(): Promise<PushCloudMarkRecord[]> {
+        return webClient
+            .request({ type: 'FetchPushMarks', data: {} })
+            .then(response => (response?.data as OnFetchPushMarksPayload | undefined)?.marks ?? [])
+            .catch(() => []);
     },
 
     // ---------------------------------------------------------------

@@ -1,6 +1,6 @@
 # home — 언리드 점 (비활성 플레이스 · 타 클라우드)
 
-> 상태: Approved · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0056](../../../../../docs/adr/0056-place-cloud-unread-dot-from-cache-and-push.md) (본체) · [ADR-0048](../../../../../docs/adr/0048-unread-count-derivation-contract.md) (unread 공식) · [ADR-0045](../../../../../docs/adr/0045-web-emoji-reaction-and-thread.md) (`'#'` relay 센티널)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0056](../../../../../docs/adr/0056-place-cloud-unread-dot-from-cache-and-push.md) (본체) · [ADR-0048](../../../../../docs/adr/0048-unread-count-derivation-contract.md) (unread 공식) · [ADR-0045](../../../../../docs/adr/0045-web-emoji-reaction-and-thread.md) (`'#'` relay 센티널)
 >
 > 대상: `apps/web/src/app/features/home` · `apps/web/src/app/hooks` · `apps/web/src/app/utils/countUnread.ts` · `libs/web-ui-kit/.../AppHeader.tsx` · `libs/app-messages`(브릿지 타입) · `apps/mobile`(iOS NSE · Android FCM 서비스 · 마크 브릿지)
 >
@@ -142,31 +142,30 @@ sequenceDiagram
 
 ### 1. `countUnread` — 커서를 사용자-메시지 스케일로 (ADR-0048 정합)
 
-현재 [countUnread.ts:23-32](../../../../../apps/web/src/app/utils/countUnread.ts)는 헤드만 `chatNo − metaNo`로 변환하고 커서(`max(join.readNo, join.chatNo)`, 통합 스케일)는 변환하지 않아 `join.metaNo`만큼 **과소 집계**한다(점이 안 뜨는 방향). 정본 공식으로 맞춘다:
+[countUnread.ts](../../../../../apps/web/src/app/utils/countUnread.ts)는 헤드와 커서 양쪽을 각자의 `metaNo` 스냅샷으로 사용자-메시지 스케일로 변환한 뒤 뺀다:
 
 ```
 unread = (channel.chatNo − channel.metaNo) − (cursor − cursorMetaNo)
 cursor = max(join.readNo, join.chatNo) · cursorMetaNo = join.metaNo ?? channel.metaNo
 ```
 
-- `UnreadInputs`에 `readMetaNo?: number` 추가, 부재 시 `headMetaNo` 폴백(ADR-0048 규칙: 서버가 스냅샷을 남기기 전에 쓰인 행). `CacheJoinView.metaNo`는 이미 선언돼 있다([cache.ts:115-130](../../../../../libs/app-messages/src/types/model/cache.ts)).
-- 호출부 3곳이 함께 바뀐다: `useChannelUnreads` · `useOtherCloudUnread` · `useSearchContext`. 공식이 한 파일이라 호출부는 `join.metaNo`를 넘기기만 한다.
+이전에는 헤드만 변환하고 커서(통합 스케일)는 그대로 빼서 `join.metaNo`만큼 과소 집계했다(점이 안 뜨는 방향) — `UnreadInputs.readMetaNo?: number`를 추가하고, 값이 없으면(서버가 스냅샷을 남기기 전에 쓰인 join 행) `headMetaNo`로 폴백해 고쳤다. `CacheJoinView.metaNo`는 이미 선언돼 있었다([cache.ts:115-130](../../../../../libs/app-messages/src/types/model/cache.ts)).
 
-### 2. 클라우드-와이드 `byPlace` — 홈의 데이터 소스 교체
+호출부 3곳이 함께 `join.metaNo`를 넘긴다: `useChannelUnreads` · `useOtherCloudUnread` · `useSearchContext`. 공식이 한 파일이라 호출부는 값을 전달만 한다.
 
-`UnreadBadgeRunner`([UnreadBadgeRunner.tsx:29-39](../../../../../apps/web/src/app/features/home/UnreadBadgeRunner.tsx))가 이미 정확히 이 계산을 하고 `byPlace`를 버리고 있다:
+### 2. 클라우드-와이드 `byPlace` — 홈의 데이터 소스
+
+캐시-온리 클라우드 전체 관측 하나를 [useActiveCloudUnreads](../../../../../apps/web/src/app/hooks/useActiveCloudUnreads.ts)로 추출해 두 소비자가 공유한다:
 
 ```ts
 const cloudChannels = useActiveCloudChannels(); // 캐시-온리, 활성 클라우드 전 사이트
-const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
+return useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
 ```
 
-이 조합을 **`useActiveCloudUnreads()` 훅으로 추출**해 러너와 HomePage가 공유한다. HomePage는:
+- `UnreadBadgeRunner`는 여기서 `total`만 가져와 앱 뱃지를 계산한다(기존 그대로).
+- `HomePage`는 `byPlace`를 가져와 `unreadByPlace`로 쓴다(모든 사이트에 키가 채워져 `PlaceItem` 점이 켜진다) — `unreadByChannel`은 **별도로** 활성 사이트 채널 + `useMyJoins(channels)`(join sync 유지)로 그대로 계산한다.
 
-- `unreadByPlace` ← 신규 훅의 `byPlace` (모든 사이트에 키가 채워져 `PlaceItem` 점이 켜진다)
-- `unreadByChannel` ← **기존 그대로** 활성 사이트 채널 + `useMyJoins(channels)`(sync 유지) — 활성 플레이스의 채널별 카운트 신선도를 지키기 위해 두 계산이 공존한다
-
-ADR 결정 1은 "입력을 바꾼다"고 썼지만, 문자 그대로 단일 교체하면 (a) 클라우드 전체 조인 sync 등록(서버 요청 추가 — 금지) 또는 (b) 활성 플레이스 조인 신선도 하락 중 하나를 강요한다. 두 소스 병행이 ADR의 두 제약("서버 요청 0" + "활성 플레이스는 기존대로")을 모두 지키는 형태다. [HomePage.tsx:146-152](../../../../../apps/web/src/app/features/home/pages/HomePage.tsx)의 "later step" 주석은 이 문서를 가리키도록 갱신한다.
+두 소스를 병행하는 이유: 단일 교체는 (a) 클라우드 전체 조인 sync 등록(서버 요청 추가) 또는 (b) 활성 플레이스 조인 신선도 하락 중 하나를 강요한다. 병행이 ADR의 두 제약("서버 요청 0" + "활성 플레이스는 기존대로")을 모두 지킨다. [HomePage.tsx](../../../../../apps/web/src/app/features/home/pages/HomePage.tsx)의 unread 소스 주석이 이 문서를 가리킨다.
 
 ### 3. 푸시 마크 — desktop 포트 3종
 
@@ -178,60 +177,39 @@ ADR 결정 1은 "입력을 바꾼다"고 썼지만, 문자 그대로 단일 교�
 - `cid` 유효 → 그대로
 - `cid` 빈 값 → `joinsByRef`에서 `$join.userId === uid`인 클라우드가 유일하면 채택; 아니면 `channelsByRef`에서 `channel.id === channelId`(있으면 `sid`/`channelName`으로 좁히되 후보가 남을 때만) 유일 매칭; 실패 시 `null`(마크 없음)
 
-**`CloudPushMarkRunner`** (`apps/web/src/app/runtime/`, [AppRuntime.tsx](../../../../../apps/web/src/app/runtime/AppRuntime.tsx)에 마운트): desktop [useCrossCloudPushBadge.ts](../../../../../apps/desktop-web/src/app/shared/hooks/useCrossCloudPushBadge.ts) 포트.
+**`CloudPushMarkRunner`** ([apps/web/.../features/home/CloudPushMarkRunner.tsx](../../../../../apps/web/src/app/features/home/CloudPushMarkRunner.tsx), [AppRuntime.tsx](../../../../../apps/web/src/app/runtime/AppRuntime.tsx)에 `UnreadBadgeRunner` 옆으로 마운트): desktop [useCrossCloudPushBadge.ts](../../../../../apps/desktop-web/src/app/shared/hooks/useCrossCloudPushBadge.ts) 포트.
 
+- 힌트 추출은 `extractPushCloudHint`([resolveInAppPushRoute.ts](../../../../../apps/web/src/app/utils/resolveInAppPushRoute.ts)) — 기존 `extractPushContext`(cid/sid만)와 payload-merge 로직을 공유하되 uid/channelId/channelName까지 뽑는 확장판. 두 함수가 병합 규칙을 두 벌 갖지 않도록 `mergePushPayload`로 추출해 공유한다.
 - 수신: `useOnReceiveNotification`([useHandleAppMessage.ts:38](../../../../../apps/web/src/app/bridge/useHandleAppMessage.ts) — handler-ref 패턴이라 desktop의 명령형 세션 조회 우회가 불필요)
+- 클라우드 후보 집합(`cids`)은 오너 카탈로그 + 초대 클라우드 + relay를 매 렌더 계산하되 `cidsKey`(join한 문자열)로 안정화 — `useOtherCloudUnread`와 같은 패턴
 - 활성 클라우드 판별 후 제외, `mark(cloudId)`
-- 해제: `useSocketState().isVerified && activeBadged` 상태 키 이펙트(S4). `useSocketState`는 `@chatic/app-runtime`이 이미 export한다
-- 네이티브 drain: 마운트 시 + `OnBackgroundStatusChanged` 포그라운드 시 `FetchPushMarks` 호출(네이티브 환경에서만), 레코드별 판별 → 마크
+- 해제: `useRuntimeSocketState().isVerified && activeBadged` 상태 키 이펙트(S4)
+- 네이티브 drain(`drainNativeMarks`): 마운트 시 1회(부팅) + `useOnBackgroundStatusChanged`로 포그라운드 복귀마다 `appBridge.fetchPushMarks()` 호출 → 레코드마다 같은 `resolvePushCloudId` 경로로 판별 → 마크. 구버전 셸/브라우저에서는 `appBridge.fetchPushMarks()`가 빈 배열로 우아하게 축소된다(S7).
 
 ### 4. 점 표면 2곳
 
-**시트**: [CloudSessionSheet.tsx:170·255](../../../../../apps/web/src/app/features/home/components/CloudSessionSheet.tsx)의 `hasUnread`를 `(cloudUnread[id] > 0) || badged[id]`로 확장. `Home`(relay) 행에는 `badged['default']`. `useOtherCloudUnread`는 시트 내부에서 **HomePage로 리프트**해 헤더 점과 단일 소스를 공유하고, 시트에는 prop으로 내린다(열림 시 refresh 호출은 유지).
+**시트**: [CloudSessionSheet.tsx](../../../../../apps/web/src/app/features/home/components/CloudSessionSheet.tsx)의 `hasUnread`를 `(cloudUnread[id] > 0) || isBadged(id)`로 확장 — `isBadged`는 `id !== selectedCloudId && catalogCloudIds.has(id) && badged[id]`(원칙 5의 카탈로그 필터, `catalogCloudIds` = 오너 카탈로그 + 초대 클라우드 + `RELAY_CLOUD_ID`). `DouHomeItem`(relay/`Home` 행)에 `hasUnread` prop을 새로 추가해 `isBadged('default')`를 전달. `useOtherCloudUnread`는 시트 밖 **HomePage로 리프트**해 `cloudUnread`/`refreshCloudUnread`를 prop으로 내리고, 헤더 점과 단일 캐시 읽기를 공유한다(열림 시 refresh 호출은 시트에 그대로 유지).
 
-**헤더**: `AppHeader`(libs/web-ui-kit)에 additive optional prop(예: `switcherDot?: boolean`) — 스위처 트리거의 이름 행(chevron 옆)에 기존과 같은 `size-1.5 rounded-full bg-red-500` 점. HomePage가 `otherCloudUnread.total > 0 || (카탈로그-필터된 마크 존재)`로 계산해 내린다. 카탈로그 필터(원칙 5): 소유+초대+`'default'` 집합에 있고 활성이 아닌 마크만 인정.
+**헤더**: `AppHeader`(libs/web-ui-kit)에 additive optional prop `switcherDot?: boolean` — `cloud`/`no-cloud` 두 kind 모두, 스위처 트리거의 chevron 옆에 기존과 같은 `size-1.5 rounded-full bg-red-500` 점. HomePage가 `otherCloudUnreadTotal > 0 || hasOtherCloudMark`로 계산해 내린다. `hasOtherCloudMark`는 시트와 같은 카탈로그 필터를 HomePage 레벨에서 다시 적용한 것(중복이지만 두 표면이 각자 자기 스코프의 카탈로그로 필터링 — 시트는 `useCloudSessionCatalog`를 이미 갖고 있고 HomePage도 이미 갖고 있어 별도 훅 추출 없이 인라인).
 
 ### 5. 네이티브 마크 기록 + drain 브릿지
 
-**저장 형식** (양 플랫폼 공통 계약): 힌트 레코드 배열 `[{cid, uid, channelId, sid, channelName}]` — 전부 원시 문자열, 부재 필드는 생략. 상한(예: 최근 100건)으로 무한 성장 방지. ADR 결정 3의 "원시 `cid` 저장"을 **원시 힌트 레코드 저장**으로 구체화한다 — 빈 `cid`의 역조회에는 `uid`/`channelId`가 필요하므로 `cid`만으로는 웹의 단일 판별 지점(원칙 3)이 성립하지 않는다.
+**저장 형식** (양 플랫폼 공통 계약): 힌트 레코드 배열 `[{cid, uid, channelId, sid, channelName}]` — 전부 원시 문자열, 부재 필드는 생략. 상한 100건으로 무한 성장 방지. ADR 결정 3의 "원시 `cid` 저장"을 **원시 힌트 레코드 저장**으로 구체화했다 — 빈 `cid`의 역조회에는 `uid`/`channelId`가 필요하므로 `cid`만으로는 웹의 단일 판별 지점(원칙 3)이 성립하지 않는다.
 
-**iOS** ([NotificationService.swift](../../../../../apps/mobile/ios/ChaticNotificationServiceExtension/NotificationService.swift)): `applyBadgeIncrementIfNeeded` 안(같은 가드: chat 채널만 · `app_active` 제외 · silent은 NSE 미실행으로 구조적 배제)에서 App Group `group.io.chatic.dou`의 새 키(`push_cloud_marks`)에 레코드 append. NSE는 현재 `cid`를 전혀 파싱하지 않으므로 **파서 신설**: `userInfo`의 `payload`/`data` 키를 문자열(JSON)·딕셔너리 양쪽으로 처리(기존 `normalizeArgs`와 JS `extractPushContext`가 같은 이중 형태를 다루는 선례). 프로비저닝 재작업 없음 — App Group은 이미 3개 entitlements에 등록돼 있다.
+**iOS** ([NotificationService.swift](../../../../../apps/mobile/ios/ChaticNotificationServiceExtension/NotificationService.swift)): `applyBadgeIncrementIfNeeded` 안(같은 가드: chat 채널만 · `app_active` 제외 · silent은 NSE 미실행으로 구조적 배제)에서 App Group `group.io.chatic.dou`의 새 키 `push_marks`에 레코드 append(카운터 `badge_count`와 같은 파일). NSE는 원래 `cid`를 전혀 파싱하지 않았으므로 `parsePushCloudHint`를 신설: `userInfo`의 최상위 필드를 베이스로, `data`/`payload` 필드(문자열 JSON 또는 딕셔너리 — 기존 `normalizeArgs`가 loc-args에서 다루는 것과 같은 이중 형태)를 덮어써 병합한다. 드레인은 신규 **`PushMarksModule.m`**(순수 Objective-C, `AppIconManager.m`과 동일한 `RCT_EXPORT_MODULE`/`RCT_EXPORT_METHOD` + Promise 패턴) — App Group에서 `push_marks` 배열을 읽고 그 자리에서 `removeObjectForKey`. `Bridges/` 폴더가 Xcode의 `PBXFileSystemSynchronizedRootGroup`이라 프로젝트 파일 수동 등록 없이 자동 인식된다. 프로비저닝 재작업 없음 — App Group은 이미 3개 entitlements에 등록돼 있다.
 
-**Android** ([ChaticFirebaseMessagingService.kt:91](../../../../../apps/mobile/android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt)): `BadgeStore.increment` 호출 분기에서 신규 `PushMarkStore.append(...)`. 페이로드 JSON 파싱은 `mergeContextIntoLink`(L114)가 이미 하는 방식을 확장(`uid`/`channelId`/`channelName` 추가). 저장은 `BadgeStore`와 같은 패턴의 SharedPreferences.
+**Android** ([ChaticFirebaseMessagingService.kt](../../../../../apps/mobile/android/app/src/main/java/io/chatic/dou/push/ChaticFirebaseMessagingService.kt)): `BadgeStore.increment` 호출 분기에서 신규 **`PushMarkStore.append(...)`**(`BadgeStore`와 같은 `chatic_badge` SharedPreferences 파일, 새 키 `push_marks`, 상한 100건에 오래된 것부터 제거). 페이로드 파싱은 `mergeContextIntoLink`가 쓰는 것과 같은 `JSONObject.optString` 패턴을 그대로 따르되 별도 함수(`parsePushCloudHint`)로 분리 — cid/sid만 보는 기존 함수와 우려사항이 다르다(마크 힌트는 uid/channelId/channelName까지 필요).
 
-**브릿지** (`FetchPushMarks`, drain 시맨틱 — 응답과 동시에 네이티브 저장소 클리어, 원자적):
+**드레인 브릿지** (`FetchPushMarks`, 응답과 동시에 네이티브 저장소 클리어):
 
-- 타입: `libs/app-messages`의 web-message 4개 파일(model/notification.ts · web-message.ts · app-message.ts · web-message-response.ts — 마지막이 handshake `supportedWebMessages` 노출 지점)
-- RN 핸들러: [useFcmHandler.ts](../../../../../apps/mobile/src/app/webview/hooks/useFcmHandler.ts)에 추가, [useWebMessageRouter.ts](../../../../../apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts) 3곳(초기 ref · 갱신 ref · handlerMap) 등록
-- 네이티브 모듈: Android는 신규 `PushMarksModule`(패턴: `BadgeSyncModule`), iOS는 **신규 모듈**(App Group을 읽는 JS 모듈이 현재 없다 — 패턴: `AppIconManager.m`), TS 래퍼는 `src/app/bridge/` 컨벤션
+- 타입: `libs/app-messages`의 4개 파일(model/notification.ts에 `PushCloudMarkRecord`/`FetchPushMarksPayload`/`OnFetchPushMarksPayload` · web-message.ts · app-message.ts · web-message-response.ts — 마지막이 handshake `supportedWebMessages` 노출 지점)
+- RN 핸들러: [useFcmHandler.ts](../../../../../apps/mobile/src/app/webview/hooks/useFcmHandler.ts)의 `handleFetchPushMarks`(네이티브 drain 결과를 `OnFetchPushMarks` 성공/실패 응답으로 감싼다), [useWebMessageRouter.ts](../../../../../apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts) 3곳(구조분해 · `handlersRef` 초기값/갱신 · `handlerMap`) 등록
+- 네이티브 모듈: Android `PushMarksModule`/`PushMarksPackage`(패턴: `BadgeSyncModule`/`BadgeSyncPackage`, `MainApplication.kt`에 등록), iOS `PushMarksModule.m`(패턴: `AppIconManager.m`)
+- TS 래퍼: [PushMarksBridge.ts](../../../../../apps/mobile/src/app/bridge/PushMarksBridge.ts) — `NativeModules.PushMarks`가 없으면(구버전 셸) 경고 로그만 남기고 빈 배열
+- 웹 쪽 호출: `appBridge.fetchPushMarks()`([appBridge.ts](../../../../../apps/web/src/app/bridge/appBridge.ts)) — `webClient.request`가 실패해도(플레인 브라우저·구버전 셸) `.catch(() => [])`로 빈 배열
 
 ## 검증 방법
 
-- **유닛 (jest, co-located)**: `countUnread.test.ts`(커서 스케일 케이스 추가 — `join.metaNo` 유/무/폴백) · `resolvePushCloudId.test.ts`(센티널·유효·빈 값 유일/비유일·sid 좁히기) · `useCloudPushMarkStore.test.ts`(mark/clear·no-op 참조) · `CloudPushMarkRunner.test.tsx`(`useOnReceiveNotification` jest.mock 캡처 패턴 — [useInAppPushMessage.test.tsx](../../../../../apps/web/src/app/hooks/useInAppPushMessage.test.tsx) 참조; 활성 제외·해제 조건·drain 병합) · `useActiveCloudUnreads` · 시트/헤더 렌더 테스트. `'#'` 처리는 [useHandlePushNavigation.test.ts:177-250](../../../../../apps/web/src/app/bridge/navigation/useHandlePushNavigation.test.ts)의 기존 relay 스위트와 일관되게.
-- **타입/빌드**: `apps/web` typecheck(기준선 0건 유지) · `libs/app-messages`는 `tsc -b tsconfig.lib.json`(라이브러리 no-op 함정 주의).
-- **수동 (실기 필수)**: 네이티브 코드는 CI 컴파일 검증이 없다 — iOS·Android 실기 빌드로 (1) 백그라운드 푸시 → 뱃지+마크 기록, (2) 앱 열기 → 점 복원, (3) 해당 클라우드 전환 → 점 해제, (4) 구버전 셸 시나리오(브릿지 미지원 → 무해).
-
----
-
-## 구현 체크리스트 (임시 — Live 전환 시 섹션째 삭제)
-
-1. **`countUnread` 정합** — `readMetaNo` 입력 추가 + 폴백, 호출부 3곳(`useChannelUnreads`·`useOtherCloudUnread`·`useSearchContext`)에서 `join.metaNo` 전달, 테스트. _(독립 — 먼저 커밋 가능)_
-2. **`useActiveCloudUnreads` 추출** — `UnreadBadgeRunner` 리팩토링 + HomePage `unreadByPlace` 소스 교체, L146-152 주석 갱신, 테스트.
-3. **마크 스토어 + 리졸버** — `useCloudPushMarkStore` · `resolvePushCloudId`(순수 함수) + 테스트.
-4. **`CloudPushMarkRunner`** — 수신·판별·마크·해제, AppRuntime 마운트, 테스트.
-5. **표면** — `useOtherCloudUnread` HomePage 리프트, 시트 `hasUnread` OR 확장 + relay 행, `AppHeader` 점 prop + HomePage 배선, 테스트.
-6. **브릿지 타입** — `libs/app-messages`에 `FetchPushMarks` 4개 파일 + 빌드.
-7. **Android 네이티브** — `PushMarkStore.kt` + FCM 서비스 append + `PushMarksModule` drain.
-8. **iOS 네이티브** — NSE 페이로드 파서 + App Group append + drain 모듈(+브릿징 헤더 확인).
-9. **RN 배선** — `useFcmHandler` 핸들러 + `useWebMessageRouter` 3곳 + TS 래퍼.
-10. **웹 drain 연결** — 러너의 부팅/포그라운드 drain 경로 완성, 통합 테스트.
-11. **문서 Live 전환** — 본 문서 다듬기 + `badge.md`/`push.md` 마크 언급(dev-4 소관이면 위임).
-
-## 리스크와 미지수 (임시 — Live 전환 시 섹션째 삭제)
-
-- **`uid`가 페이로드에 실제로 오는가.** desktop 리졸버는 `data.uid`를 1차 키로 쓰지만, [cross-cloud-push.md](../../../../../docs/specs/cross-cloud-push.md) §4의 페이로드 예시에는 `ownerId`만 있고 `uid`가 없다. 구현 초기에 실페이로드를 확인하고, 없으면 `channelId` 폴백이 1차가 된다(정확도 하락, 동작은 유지).
-- **iOS APNs `payload` 키의 실형태**(dict vs JSON string) — 파서는 양쪽을 다루지만 실기 확인 전까지 미검증.
-- **네이티브 컴파일 CI 부재** — Swift/Kotlin은 실기 빌드가 유일한 검증. 릴리스 전 필수.
-- **재계산 빈도** — 홈의 unread 입력이 클라우드 전체로 늘어난다(러너와 동일 계산의 두 번째 구독). 채널 수가 큰 클라우드에서 관찰 지점.
-- **`countUnread` 변경의 파급** — 홈·타 클라우드·검색 3곳이 같은 공식을 쓴다. 방향은 과소 집계 해소(숫자가 커지는 쪽)라 시각적 회귀 가능성 있음 — 테스트로 고정하고 QA에서 확인.
-- **드레인 원자성** — drain 응답 후 웹 persist 전에 웹이 죽으면 그 배치는 유실된다(점 미탐 방향, 원칙 2와 일관). 재전송 프로토콜은 과잉으로 판단.
+- **유닛 (jest, co-located)**: `countUnread.test.ts`(커서 스케일 케이스) · `resolvePushCloudId.test.ts`(센티널·유효·빈 값 유일/비유일·sid 좁히기) · `useCloudPushMarkStore.test.ts`(mark/clear·no-op 참조) · `resolveInAppPushRoute.test.ts`(`extractPushCloudHint`) · `CloudPushMarkRunner.test.tsx`(jest.mock 캡처 패턴; 활성 제외·해제 조건·마운트/포그라운드 drain) · `appBridge.test.ts`(`fetchPushMarks`) · `useFcmHandler.test.ts`/`PushMarksBridge.test.ts`(RN 쪽 drain 왕복) · `useActiveCloudUnreads.test.ts` · `CloudSessionSheet.test.tsx`/`AppHeader.test.tsx`(점 렌더). `'#'` 처리는 [useHandlePushNavigation.test.ts](../../../../../apps/web/src/app/bridge/navigation/useHandlePushNavigation.test.ts)의 기존 relay 스위트와 일관되게 유지된다.
+- **타입/빌드**: `apps/web`·`apps/mobile` typecheck 클린(무관한 두 건의 동시 작업 이슈 제외) · `libs/app-messages`/`libs/web-ui-kit`은 `tsc -b tsconfig.lib.json`.
+- **네이티브 실기 컴파일** (완료): Android `./gradlew :app:compileDevDebugKotlin` BUILD SUCCESSFUL · iOS `xcodebuild`로 `ChaticNotificationServiceExtension` 스킴과 `Chatic Dev`(메인 앱, `PushMarksModule.m` 포함) 스킴 모두 BUILD SUCCEEDED. 남은 것은 시뮬레이터/실기에서의 동작 확인(백그라운드 푸시 → 마크 기록 → 앱 열기 → 점 복원 → 클라우드 전환 → 점 해제) — 코드 경로 자체는 컴파일 검증됐다.

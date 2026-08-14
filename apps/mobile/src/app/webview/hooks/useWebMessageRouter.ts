@@ -49,7 +49,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
-    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount } = useFcmHandler(bridge);
+    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } = useFcmHandler(bridge);
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -122,6 +122,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         fetchFcmToken,
         handleFetchBadgeCount,
         handleSetBadgeCount,
+        handleFetchPushMarks,
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
         handleDismissResumeOverlay,
@@ -189,6 +190,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             fetchFcmToken,
             handleFetchBadgeCount,
             handleSetBadgeCount,
+            handleFetchPushMarks,
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
             handleDismissResumeOverlay,
@@ -260,6 +262,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
+            FetchPushMarks: message => handlersRef.current.handleFetchPushMarks(message),
             FetchSafeArea: message => handlersRef.current.fetchSafeAreaInfo(message),
             FetchBackgroundStatus: message => handlersRef.current.handleFetchBackgroundStatus(message),
             FetchProducts: message => handlersRef.current.fetchProducts(message),

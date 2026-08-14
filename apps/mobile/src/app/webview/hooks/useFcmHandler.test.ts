@@ -31,6 +31,9 @@ jest.mock('../../services', () => ({
     },
 }));
 
+const mockDrain = jest.fn();
+jest.mock('../../bridge', () => ({ PushMarksBridge: { drain: () => mockDrain() } }));
+
 describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () => {
     let bridge: { pushEvent: jest.Mock };
 
@@ -39,6 +42,34 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
         mockOnMessageCb = undefined;
         mockOnReceiveCb = undefined;
         bridge = { pushEvent: jest.fn() };
+    });
+
+    describe('handleFetchPushMarks', () => {
+        it('네이티브 drain 결과를 OnFetchPushMarks 성공 응답으로 감싼다', async () => {
+            mockDrain.mockResolvedValue([{ cid: 'cloud_1' }]);
+            const { result } = renderHook(() => useFcmHandler(bridge as any));
+
+            const response = await result.current.handleFetchPushMarks({} as any);
+
+            expect(response).toEqual({
+                type: 'OnFetchPushMarks',
+                success: true,
+                data: { marks: [{ cid: 'cloud_1' }] },
+            });
+        });
+
+        it('drain이 실패하면 실패 응답을 반환한다', async () => {
+            mockDrain.mockRejectedValue(new Error('native error'));
+            const { result } = renderHook(() => useFcmHandler(bridge as any));
+
+            const response = await result.current.handleFetchPushMarks({} as any);
+
+            expect(response).toEqual({
+                type: 'OnFetchPushMarks',
+                success: false,
+                error: { code: 'PUSH_MARKS_ERROR', message: 'native error' },
+            });
+        });
     });
 
     it('포그라운드 수신(onMessage)을 PushEventManager로 전달한다', () => {

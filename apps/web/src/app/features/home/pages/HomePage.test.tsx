@@ -39,10 +39,15 @@ jest.mock('../../../hooks', () => ({
     useUserPermissions: () => ({ canCreatePlace: true }),
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
+    useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
     useHomeChannels: () => ({ channels: [], isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds: [] }),
     useMyJoins: () => new Map(),
+    useOtherCloudUnread: () => ({ byCloud: {}, total: 0, refresh: jest.fn() }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
+}));
+jest.mock('../stores/useCloudPushMarkStore', () => ({
+    useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),
 }));
 jest.mock('../../../stores/usePreferenceStore', () => ({
     usePreferenceStore: (sel?: (s: unknown) => unknown) => {

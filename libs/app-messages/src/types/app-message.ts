@@ -19,6 +19,7 @@ import type {
     OnFetchAppLogBufferPayload,
     OnFetchAppLogBufferSizePayload,
     OnFetchBadgeCountPayload,
+    OnFetchPushMarksPayload,
     OnFetchCacheDataPayload,
     OnFetchManyCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
@@ -129,6 +130,7 @@ export type AppMessageDataMap = {
     OnFetchFcmToken: OnFetchFcmTokenPayload;
     OnReceiveNotification: OnNotificationPayload;
     OnFetchBadgeCount: OnFetchBadgeCountPayload;
+    OnFetchPushMarks: OnFetchPushMarksPayload;
     OnSetBadgeCount: OnSetBadgeCountPayload;
     OnShowNotification: OnShowNotificationPayload;
     OnFetchUrlMetadata: OnFetchUrlMetadataPayload;

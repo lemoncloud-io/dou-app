@@ -37,7 +37,17 @@ import {
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
-import { useCachedCloudNames, useChannelUnreads, useHomeChannels, useInvitedClouds, useMyJoins } from '../../../hooks';
+import {
+    useActiveCloudUnreads,
+    useCachedCloudNames,
+    useChannelUnreads,
+    useHomeChannels,
+    useInvitedClouds,
+    useMyJoins,
+    useOtherCloudUnread,
+} from '../../../hooks';
+import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
+import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { resolveHeaderProfile } from '../lib';
 import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
 import { useInviteDismissMigration } from '../../invite/hooks/useInviteDismissMigration';
@@ -143,15 +153,33 @@ export const HomePage = () => {
     // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
     // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
     useCanceledInviteReconcile();
-    // Badge counting is being reworked (a later step fills in cross-place totals a different way);
-    // for now home only fetches join/channel data for the currently-viewed site's own channels —
-    // no cloud-wide aggregation. Unread derives from each channel head (`chatNo`/`metaNo`) and MY
-    // read cursor from the subscribed join list (useMyJoins), not the channel-embedded `$join`.
-    // `unreadByPlace` is therefore only populated for the active place until that later step lands;
-    // other places show no dot in the meantime. The app-icon badge is unaffected — UnreadBadgeRunner
-    // (AppRuntime) computes that independently, still cloud-wide.
+    // Two unread sources, deliberately not one (see docs/feature/home/unread-dot.md 상세 구현 §2,
+    // ADR-0056): per-channel counts for the ACTIVE site keep their own join-sync'd call so the
+    // registration stays scoped to home and tears down on unmount. `byPlace` instead comes from
+    // useActiveCloudUnreads — the same cache-only, cloud-wide observation UnreadBadgeRunner already
+    // runs for the app-icon badge — so every place gets a dot without adding cloud-wide join sync.
     const myJoins = useMyJoins(channels);
-    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(channels, myJoins);
+    const { byChannel: unreadByChannel } = useChannelUnreads(channels, myJoins);
+    const { byPlace: unreadByPlace } = useActiveCloudUnreads();
+
+    // Cross-cloud dot (ADR-0056 결정 2/4) — one subscription shared by the switcher-button dot
+    // (below, on AppHeader) and CloudSessionSheet's row dots, so the two surfaces never disagree.
+    const {
+        byCloud: otherCloudUnread,
+        total: otherCloudUnreadTotal,
+        refresh: refreshCloudUnread,
+    } = useOtherCloudUnread(selectedCloudId);
+    const badgedClouds = useCloudPushMarkStore(s => s.badged);
+    // Catalog filter: only a mark for a cloud actually in THIS account's reach (owned + invited +
+    // relay) and not the one being viewed counts toward the dot — a stale/foreign mark otherwise
+    // never clears (see docs/feature/home/unread-dot.md 설계 원칙 5).
+    const hasOtherCloudMark = useMemo(() => {
+        const catalogIds = new Set<string>([RELAY_CLOUD_ID]);
+        for (const cloud of clouds) if (cloud.id) catalogIds.add(cloud.id);
+        for (const cloud of invitedClouds) if (cloud.id) catalogIds.add(cloud.id);
+        return Object.keys(badgedClouds).some(id => id !== selectedCloudId && catalogIds.has(id));
+    }, [badgedClouds, clouds, invitedClouds, selectedCloudId]);
+    const switcherDot = otherCloudUnreadTotal > 0 || hasOtherCloudMark;
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on
     // navigation). Restore only once the list content has rendered so the offset isn't clamped
@@ -302,6 +330,7 @@ export const HomePage = () => {
                 // The cloud-switch entry is always available — even a plain guest can open the sheet
                 // to reach DoU Home, view invited clouds, or add a cloud (subscribe).
                 onSwitcher={() => setIsCloudSessionOpen(true)}
+                switcherDot={switcherDot}
                 switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
                 avatar={profileMenu}
                 profileLabel={t('homePage.profile', '프로필')}
@@ -369,6 +398,8 @@ export const HomePage = () => {
                 open={isCloudSessionOpen}
                 onOpenChange={setIsCloudSessionOpen}
                 onAddCloud={requestAddCloud}
+                cloudUnread={otherCloudUnread}
+                refreshCloudUnread={refreshCloudUnread}
             />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}

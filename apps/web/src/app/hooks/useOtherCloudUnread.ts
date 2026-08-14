@@ -90,10 +90,12 @@ export const useOtherCloudUnread = (activeCloudId: string): OtherCloudUnread => 
                     if (!cid || !channel.id) continue;
                     const places = placesByCloud.get(cid);
                     if (places && channel.sid && !places.has(channel.sid)) continue;
+                    const join = context.joinsByRef[globalCacheRefKey(cid, channel.id)];
                     const unread = countUnread({
                         headChatNo: channel.chatNo,
                         headMetaNo: channel.metaNo,
-                        readNo: readCursorOf(context.joinsByRef[globalCacheRefKey(cid, channel.id)]),
+                        readNo: readCursorOf(join),
+                        readMetaNo: join?.metaNo,
                     });
                     if (unread > 0) totals[cid] = (totals[cid] ?? 0) + unread;
                 }

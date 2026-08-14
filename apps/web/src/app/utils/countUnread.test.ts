@@ -1,9 +1,15 @@
 import { countUnread, readCursorOf } from './countUnread';
 
 describe('countUnread', () => {
-    it('nets out system messages before comparing against the cursor', () => {
-        // Head 30 with 5 join/leave events = 25 user messages; 20 of them read.
-        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20 })).toBe(5);
+    it('converts both the head and the cursor to the user-message scale before comparing', () => {
+        // Head 30 with 5 system events = 25 user messages. Cursor 20 with 3 system events by then
+        // = 17 user messages read. Unread = 25 - 17 = 8.
+        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20, readMetaNo: 3 })).toBe(8);
+    });
+
+    it('falls back the cursor metaNo to the head metaNo when the join row predates the snapshot (ADR-0048)', () => {
+        // No readMetaNo: cursor is netted against the head's own metaNo (5), not left unified-scale.
+        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20 })).toBe(10);
     });
 
     it('counts nothing when no read cursor is known yet', () => {

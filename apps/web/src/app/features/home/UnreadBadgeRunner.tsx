@@ -4,7 +4,7 @@ import { useSessionSelection } from '@chatic/web-core';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins, useOtherCloudUnread } from '../../hooks';
+import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 
 /**
  * App-global unread badge. Mounted once under AppRuntime (not the home page) so the native
@@ -26,12 +26,9 @@ import { useActiveCloudChannels, useChannelUnreads, useMyJoins, useOtherCloudUnr
  * server-side summary and cannot be done from the client.
  */
 export const UnreadBadgeRunner = (): null => {
-    const cloudChannels = useActiveCloudChannels();
-    // Observe-only (sync: false): the app-global badge must not own per-channel join sync — that
-    // registration is scoped to the home surface so it tears down when home unmounts. The cursor
-    // still reflects my reads (join cache) and new messages (channel head via syncChannels), and
-    // reconciles on the next home visit.
-    const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
+    // Shared with HomePage's `byPlace` (ADR-0056) — see useActiveCloudUnreads for why this stays
+    // observe-only (no per-channel join sync registration lives here).
+    const { total } = useActiveCloudUnreads();
     const { selectedCloudId } = useSessionSelection();
     const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread(selectedCloudId);
 

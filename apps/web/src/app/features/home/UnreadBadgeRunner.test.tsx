@@ -2,22 +2,20 @@ import { render } from '@testing-library/react';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
-import { useChannelUnreads, useOtherCloudUnread } from '../../hooks';
+import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
 jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedCloudId: 'cloud_1' }) }));
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn() } }));
 jest.mock('../../bridge/useHandleAppMessage', () => ({ useOnBackgroundStatusChanged: jest.fn() }));
 jest.mock('../../hooks', () => ({
-    useActiveCloudChannels: () => [],
-    useMyJoins: () => new Map(),
-    useChannelUnreads: jest.fn(),
+    useActiveCloudUnreads: jest.fn(),
     useOtherCloudUnread: jest.fn(),
 }));
 
 const setBadge = appBridge.setBadgeCount as jest.Mock;
 const useBg = useOnBackgroundStatusChanged as jest.Mock;
-const unreadsMock = useChannelUnreads as jest.Mock;
+const unreadsMock = useActiveCloudUnreads as jest.Mock;
 const otherMock = useOtherCloudUnread as jest.Mock;
 const refreshOther = jest.fn();
 

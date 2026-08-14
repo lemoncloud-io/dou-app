@@ -58,8 +58,9 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
 
         const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
 
-        await waitFor(() => expect(result.current.total).toBe(2));
-        expect(result.current.byCloud).toEqual({ cloud_2: 2 }); // ch1: 8-6=2, ch2: 5-5=0
+        // join.metaNo 없음 → head의 metaNo로 대체(ADR-0048 폴백). ch1: 8-(6-2)=4. ch2: 5-(5-0)=0.
+        await waitFor(() => expect(result.current.total).toBe(4));
+        expect(result.current.byCloud).toEqual({ cloud_2: 4 });
     });
 
     // 유령 뱃지가 구조적으로 불가능해지는 지점: 커서가 헤드를 따라잡으면 항목 자체가 사라진다.

@@ -99,8 +99,8 @@ describe('useSearchContext', () => {
             lastMessage: 'see you',
             lastMessageAt: 1700,
         });
-        // (chatNo 20 - metaNo 2) - readNo 8
-        expect(row.unread).toBe(10);
+        // join.metaNo 없음 → head의 metaNo로 대체(ADR-0048 폴백). (20-2) - (8-2) = 12.
+        expect(row.unread).toBe(12);
     });
 
     it('shows no unread badge for a cloud with no cached join row', async () => {

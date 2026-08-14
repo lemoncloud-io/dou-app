@@ -38,6 +38,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     DismissResumeOverlay: 'OnDismissResumeOverlay',
     FetchFcmToken: 'OnFetchFcmToken',
     FetchBadgeCount: 'OnFetchBadgeCount',
+    FetchPushMarks: 'OnFetchPushMarks',
     SetBadgeCount: 'OnSetBadgeCount',
     ShowNotification: 'OnShowNotification',
     FetchUrlMetadata: 'OnFetchUrlMetadata',

@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { CloudSessionSheet } from './CloudSessionSheet';
+import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
 // NOTE: @chatic/web-ui-kit is deliberately NOT mocked here. The point of this suite is the
 // composition — three real CollapsibleSections, with the add-cloud button living in the owned
@@ -38,12 +39,9 @@ jest.mock('@chatic/web-core', () => ({
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),
 }));
-const mockCloudUnread: Record<string, number> = {};
 jest.mock('../../../hooks', () => ({
     useCachedCloudNames: () => ({}),
     useInvitedClouds: () => ({ invitedClouds: invited }),
-    // Presence dots now come from the same cross-cloud cache read the app badge uses.
-    useOtherCloudUnread: () => ({ byCloud: mockCloudUnread, total: 0, refresh: jest.fn() }),
 }));
 // The real CloudPromoBanner is kept (so the 0-cloud branch is exercised); only its decision hook,
 // which reaches into the preference store and thus the app bridge, is stubbed.
@@ -60,7 +58,18 @@ const activeCloud = (id: string, over: Record<string, unknown> = {}) => ({
 });
 
 const onAddCloud = jest.fn();
-const renderSheet = () => render(<CloudSessionSheet open onOpenChange={jest.fn()} onAddCloud={onAddCloud} />);
+const refreshCloudUnread = jest.fn();
+let cloudUnread: Record<string, number> = {};
+const renderSheet = () =>
+    render(
+        <CloudSessionSheet
+            open
+            onOpenChange={jest.fn()}
+            onAddCloud={onAddCloud}
+            cloudUnread={cloudUnread}
+            refreshCloudUnread={refreshCloudUnread}
+        />
+    );
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -68,6 +77,8 @@ beforeEach(() => {
     selectedCloudId = 'default';
     invited = [];
     promoVisible = true;
+    cloudUnread = {};
+    useCloudPushMarkStore.setState({ badged: {} });
 });
 
 describe('CloudSessionSheet — section layout', () => {
@@ -221,6 +232,67 @@ describe('CloudSessionSheet — selection', () => {
 
         // The pencil (and CloudNameEditDialog) were removed — /mypage/cloud-profile is the only path.
         expect(screen.queryByRole('button', { name: /edit|이름|rename/i })).not.toBeInTheDocument();
+    });
+});
+
+describe('CloudSessionSheet — presence dots (ADR-0056)', () => {
+    const dotCount = (baseElement: HTMLElement) => baseElement.querySelectorAll('.bg-red-500').length;
+
+    it('캐시 힌트(cloudUnread)만으로도 오너 클라우드 행에 점이 뜬다', () => {
+        catalog.clouds = [activeCloud('c1')];
+        cloudUnread = { c1: 3 };
+
+        const { baseElement } = renderSheet();
+
+        expect(dotCount(baseElement)).toBe(1);
+    });
+
+    it('푸시 마크만으로도(캐시 힌트 없이) 오너 클라우드 행에 점이 뜬다', () => {
+        catalog.clouds = [activeCloud('c1')];
+        useCloudPushMarkStore.setState({ badged: { c1: true } });
+
+        const { baseElement } = renderSheet();
+
+        expect(dotCount(baseElement)).toBe(1);
+    });
+
+    it('활성 클라우드에 마크가 있어도(스테일) 그 행에는 점을 그리지 않는다', () => {
+        catalog.clouds = [activeCloud('c1')];
+        selectedCloudId = 'c1';
+        useCloudPushMarkStore.setState({ badged: { c1: true } });
+
+        const { baseElement } = renderSheet();
+
+        expect(dotCount(baseElement)).toBe(0);
+    });
+
+    it('카탈로그에 없는 클라우드의 마크는 무시한다', () => {
+        catalog.clouds = [activeCloud('c1')];
+        useCloudPushMarkStore.setState({ badged: { 'cloud-not-in-catalog': true } });
+
+        const { baseElement } = renderSheet();
+
+        expect(dotCount(baseElement)).toBe(0);
+    });
+
+    it("relay('default') 마크는 DoU Home 행에 점을 띄운다", () => {
+        selectedCloudId = 'c1';
+        catalog.clouds = [activeCloud('c1')];
+        useCloudPushMarkStore.setState({ badged: { default: true } });
+
+        renderSheet();
+
+        const homeRow = screen.getByText('cloudSessionSheet.douHome').closest('button') as HTMLElement;
+        expect(homeRow.querySelector('.bg-red-500')).not.toBeNull();
+    });
+
+    it('초대받은 클라우드 행에도 마크로 점이 뜬다', () => {
+        invited = [{ id: 'i1', cid: 'i1', name: 'Lemon Cloud', owner$: { name: 'sunny' } }];
+        useCloudPushMarkStore.setState({ badged: { i1: true } });
+
+        const { baseElement } = renderSheet();
+
+        expect(dotCount(baseElement)).toBe(1);
     });
 });
 

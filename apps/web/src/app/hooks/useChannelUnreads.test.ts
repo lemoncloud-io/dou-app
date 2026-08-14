@@ -25,12 +25,20 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(result.current.total).toBe(4);
     });
 
-    it('시스템 메시지(metaNo)는 head에서 빠져 안읽음에 포함되지 않는다', () => {
-        // chatNo 10 중 metaNo 3이 시스템 → userHead 7. 커서 3 → 4 (시스템 제외).
+    it('시스템 메시지(metaNo)는 head와 커서 양쪽에서 빠져야 정확한 안읽음이 나온다 (ADR-0048)', () => {
+        // userHead = 10 - 3 = 7. 커서 chatNo 3, 그 시점 metaNo 1 → user-scale 2. unread = 7 - 2 = 5.
+        const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
+        const joins = joinMap({ c1: join({ chatNo: 3, metaNo: 1 }) });
+
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(5);
+    });
+
+    it('커서의 metaNo 스냅샷이 없으면 head의 metaNo로 대체한다 (구 join 행)', () => {
+        // join.metaNo 없음 → head의 metaNo(3)로 대체. userHead 7, 커서 user-scale 3-3=0 → unread 7.
         const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
         const joins = joinMap({ c1: join({ chatNo: 3 }) });
 
-        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(4);
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(7);
     });
 
     it('join 행이 없는 채널은 읽음 기준이 없어 배지를 띄우지 않는다 (0)', () => {

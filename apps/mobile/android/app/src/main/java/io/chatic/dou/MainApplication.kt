@@ -11,6 +11,7 @@ import io.chatic.dou.bridge.BackNavigationPackage
 import io.chatic.dou.bridge.BadgeSyncPackage
 import io.chatic.dou.bridge.FileManagerPackage
 import io.chatic.dou.bridge.NativeLoggerPackage
+import io.chatic.dou.bridge.PushMarksPackage
 import io.chatic.dou.bridge.SystemBarsPackage
 import io.chatic.dou.bridge.UploadManagerPackage
 
@@ -26,6 +27,7 @@ class MainApplication : Application(), ReactApplication {
             add(BadgeSyncPackage())
             add(FileManagerPackage())
             add(NativeLoggerPackage())
+            add(PushMarksPackage())
             add(SystemBarsPackage())
             add(UploadManagerPackage())
         },

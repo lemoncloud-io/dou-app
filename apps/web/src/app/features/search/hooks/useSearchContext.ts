@@ -170,6 +170,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         headChatNo: channel.chatNo,
                         headMetaNo: channel.metaNo,
                         readNo: readCursorOf(context.joinsByRef[ref]),
+                        readMetaNo: context.joinsByRef[ref]?.metaNo,
                     }),
                     lastMessage: lastChat?.content,
                     lastMessageAt: lastChat?.createdAtMs,

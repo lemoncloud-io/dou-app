@@ -12,7 +12,7 @@ import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
 import { useAutoScrollOnFocus } from '../ui/hooks';
-import { UnreadBadgeRunner } from '../features/home';
+import { CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
@@ -53,6 +53,7 @@ export const AppRuntime = () => {
             <PreferenceLoader />
             <BackgroundSyncRunner />
             <UnreadBadgeRunner />
+            <CloudPushMarkRunner />
             <MyUserSeedRunner />
             <InvitedCloudDurabilityRunner />
             <VersionUpdateBanner

@@ -31,6 +31,11 @@ export interface AppHeaderProps {
     /** Switcher (cloud/place) handler; renders the chevron and makes the left a button. */
     onSwitcher?: () => void;
     /**
+     * Presence dot next to the switcher chevron — something needs attention behind it (e.g. an
+     * unread cross-cloud push) that opening the switcher would reveal. Off by default.
+     */
+    switcherDot?: boolean;
+    /**
      * Dropdown content for the switcher (e.g. DropdownMenuItem list). When set,
      * the left cluster becomes a DropdownMenu trigger — the Radix primitive owns
      * the open state, so this component stays stateless.
@@ -83,6 +88,7 @@ export const AppHeader = ({
     name,
     subName,
     onSwitcher,
+    switcherDot = false,
     switcherMenu,
     planTier,
     onPlanClick,
@@ -109,6 +115,7 @@ export const AppHeader = ({
                             {name}
                         </span>
                         {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
+                        {hasSwitcher && switcherDot && <span className="size-1.5 shrink-0 rounded-full bg-red-500" />}
                     </span>
                     {subName && <span className="truncate text-[13px] leading-4 text-description">{subName}</span>}
                 </span>
@@ -117,6 +124,7 @@ export const AppHeader = ({
             <>
                 {logo ?? <img src={douMark} alt="DoU" className="h-[38px] w-auto shrink-0" />}
                 {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
+                {hasSwitcher && switcherDot && <span className="size-1.5 shrink-0 rounded-full bg-red-500" />}
             </>
         );
 

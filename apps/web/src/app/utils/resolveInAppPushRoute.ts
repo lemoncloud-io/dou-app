@@ -15,6 +15,26 @@ const asString = (value: unknown): string | undefined =>
     typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 
 /**
+ * Merges a push's `payload` (JSON string or object, per sender) over its top-level fields. Some
+ * senders flatten cid/sid/etc. onto `data` directly; others nest them in `payload`. Shared by every
+ * field-extractor below so the merge rule lives in exactly one place.
+ */
+const mergePushPayload = (data: InAppPushData): Record<string, unknown> => {
+    const { payload } = data;
+    if (typeof payload === 'string') {
+        try {
+            return { ...data, ...(JSON.parse(payload) as Record<string, unknown>) };
+        } catch {
+            return data; // Malformed payload JSON: keep the top-level data as the source.
+        }
+    }
+    if (payload && typeof payload === 'object') {
+        return { ...data, ...(payload as Record<string, unknown>) };
+    }
+    return data;
+};
+
+/**
  * Resolves cloud/site context from the push data. cid/sid live inside `payload` per spec, but we
  * also honor top-level `cid`/`sid` as a fallback for senders that flatten them onto `data`.
  * (Web port of the mobile `extractPushContext` in `deeplinkUtils.ts` — keep the two in sync.)
@@ -24,20 +44,32 @@ const asString = (value: unknown): string | undefined =>
  * the mobile port has no use for it because the tap path resolves its own link natively.
  */
 export const extractPushContext = (data: InAppPushData): { cid?: string; sid?: string; chatId?: string } => {
-    let source: Record<string, unknown> = data;
-
-    const { payload } = data;
-    if (typeof payload === 'string') {
-        try {
-            source = { ...data, ...(JSON.parse(payload) as Record<string, unknown>) };
-        } catch {
-            // Malformed payload JSON: keep the top-level data as the context source.
-        }
-    } else if (payload && typeof payload === 'object') {
-        source = { ...data, ...(payload as Record<string, unknown>) };
-    }
-
+    const source = mergePushPayload(data);
     return { cid: asString(source.cid), sid: asString(source.sid), chatId: asString(source.chatId) };
+};
+
+/** Cross-cloud push mark hint (ADR-0056) — every field `resolvePushCloudId` can use to disambiguate. */
+export interface PushCloudHint {
+    cid?: string;
+    uid?: string;
+    channelId?: string;
+    sid?: string;
+    channelName?: string;
+}
+
+/**
+ * The fuller field set `resolvePushCloudId` needs — same merge rule as {@link extractPushContext},
+ * plus the fields that only matter for cross-cloud dot marking (`uid`, `channelId`, `channelName`).
+ */
+export const extractPushCloudHint = (data: InAppPushData): PushCloudHint => {
+    const source = mergePushPayload(data);
+    return {
+        cid: asString(source.cid),
+        uid: asString(source.uid),
+        channelId: asString(source.channelId),
+        sid: asString(source.sid),
+        channelName: asString(source.channelName),
+    };
 };
 
 /** Drop a leading custom scheme (chatic://, chatic-dev://) so only path/query is parsed. */

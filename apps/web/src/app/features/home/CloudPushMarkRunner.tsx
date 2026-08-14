@@ -4,19 +4,25 @@ import { useGlobalCacheSearch, useRuntimeSocketState } from '@chatic/app-runtime
 import { useCloudSessionCatalog, useSessionSelection } from '@chatic/web-core';
 import type { AppMessageData } from '@chatic/app-messages';
 
-import { useOnReceiveNotification } from '../../bridge/useHandleAppMessage';
+import { appBridge } from '../../bridge/appBridge';
+import { useOnBackgroundStatusChanged, useOnReceiveNotification } from '../../bridge/useHandleAppMessage';
 import { extractPushCloudHint } from '../../utils/resolveInAppPushRoute';
 import { useInvitedClouds } from '../../hooks';
 import { useCloudPushMarkStore } from './stores/useCloudPushMarkStore';
 import { RELAY_CLOUD_ID, resolvePushCloudId } from './utils/resolvePushCloudId';
 
 /**
- * Cross-cloud push → dot mark (ADR-0056 결정 2). Mounted once under AppRuntime, alongside
+ * Cross-cloud push → dot mark (ADR-0056 결정 2·3). Mounted once under AppRuntime, alongside
  * `UnreadBadgeRunner`.
  *
- * Foreground only: a push arriving while backgrounded/killed never reaches this bridge at all
- * (see docs/mobile/push.md) — that path is recovered separately by draining the native mark store
- * on boot/foreground (docs/feature/home/unread-dot.md §5), wired once the native bridge lands.
+ * Two arrival paths feed the same mark store:
+ * - **Foreground**: `OnReceiveNotification` resolves the source cloud immediately.
+ * - **Background/killed**: never reaches this bridge at all (see docs/mobile/push.md) — the
+ *   native shell (iOS NSE / Android FCM service) records the raw hint instead, and this runner
+ *   drains that store (`appBridge.fetchPushMarks`, read+clear in one call) on mount — by the time
+ *   this runner mounts inside `RuntimeConnectionHost`, the `WebAppReady` handshake has already
+ *   completed, so a plain mount-effect IS "after boot" — and again on every foreground return,
+ *   since a mark can land while the app was merely backgrounded (not killed).
  *
  * A push naming the ACTIVE cloud is never marked — the live socket already owns that cloud's
  * unread state, so marking it would just be redundant with something the dot is already reading
@@ -67,6 +73,28 @@ export const CloudPushMarkRunner = (): null => {
     );
 
     useOnReceiveNotification(handleReceiveNotification);
+
+    // Drains the native mark store (background/killed arrivals) and resolves+marks each record with
+    // the same single-point logic as the foreground path above.
+    const drainNativeMarks = useCallback(async () => {
+        const records = await appBridge.fetchPushMarks();
+        for (const hint of records) {
+            const cloudId = await resolvePushCloudId(hint, { cids, resolveContext });
+            if (!cloudId || cloudId === selectedCloudId) continue;
+            mark(cloudId);
+        }
+        // Keyed on cidsKey, not cids: the array is rebuilt every render (see useOtherCloudUnread).
+    }, [cidsKey, resolveContext, selectedCloudId, mark]);
+
+    useEffect(() => {
+        // Boot-only: a native mark backlog is drained once here, not re-read on every
+        // cids/selectedCloudId change — the store's own mark/clear already reacts to those.
+        void drainNativeMarks();
+    }, []);
+
+    useOnBackgroundStatusChanged(message => {
+        if (message.data.isForeground) void drainNativeMarks();
+    });
 
     useEffect(() => {
         if (isVerified && selectedCloudId && activeBadged) clear(selectedCloudId);

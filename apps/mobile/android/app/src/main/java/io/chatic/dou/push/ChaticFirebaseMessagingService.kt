@@ -88,7 +88,18 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 // the badge) is suspended here, so this native handler is the only place a
                 // backgrounded message can move the count. Non-chat channels (notice/marketing/cloud)
                 // are excluded to stay consistent with the web's chat-only unread total.
-                val badgeCount = if (isChatChannel(channelId)) BadgeStore.increment(this) else null
+                val badgeCount = if (isChatChannel(channelId)) {
+                    // Cross-cloud push mark (ADR-0056): same gate as the badge bump — the socket
+                    // that would otherwise cover this cloud is suspended right now. Record the raw
+                    // hint alongside the badge so the web can resolve+mark it on the next launch.
+                    val hint = parsePushCloudHint(payload)
+                    if (hint.cid != null || hint.uid != null || hint.channelId != null) {
+                        PushMarkStore.append(this, hint.cid, hint.uid, hint.channelId, hint.sid, hint.channelName)
+                    }
+                    BadgeStore.increment(this)
+                } else {
+                    null
+                }
                 NativeLogger.log("debug", TAG, "App is in background/killed. Displaying native notification banner. badge=$badgeCount")
                 displayNotification(
                     messageId = messageId,
@@ -133,6 +144,37 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
     /** Chat channels contribute to the unread badge; notice/marketing/cloud pushes do not. */
     private fun isChatChannel(channelId: String): Boolean =
         channelId == "dou_chat" || channelId == "dou_chat_muted"
+
+    /** Raw cross-cloud push mark hint (ADR-0056) — fields only, no interpretation of any of them. */
+    private data class PushCloudHint(
+        val cid: String?,
+        val uid: String?,
+        val channelId: String?,
+        val sid: String?,
+        val channelName: String?
+    )
+
+    /**
+     * Parses the mark hint fields straight off the payload JSON — separate from
+     * [mergeContextIntoLink]'s cid/sid extraction because this needs the fuller field set
+     * (`uid`/`channelId`/`channelName`) that only cross-cloud mark resolution uses.
+     */
+    private fun parsePushCloudHint(payload: String): PushCloudHint {
+        if (payload.isEmpty()) return PushCloudHint(null, null, null, null, null)
+        return try {
+            val json = JSONObject(payload)
+            PushCloudHint(
+                cid = json.optString("cid").takeIf { it.isNotEmpty() },
+                uid = json.optString("uid").takeIf { it.isNotEmpty() },
+                channelId = json.optString("channelId").takeIf { it.isNotEmpty() },
+                sid = json.optString("sid").takeIf { it.isNotEmpty() },
+                channelName = json.optString("channelName").takeIf { it.isNotEmpty() }
+            )
+        } catch (e: Exception) {
+            NativeLogger.log("error", TAG, "Failed to parse push cloud hint: $payload", e)
+            PushCloudHint(null, null, null, null, null)
+        }
+    }
 
     private fun resolveLanguage(): String {
         val defaultLang = Locale.getDefault().language
