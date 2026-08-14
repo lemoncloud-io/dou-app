@@ -497,6 +497,19 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
         expect(screen.getByText('안녕하세요')).toBeInTheDocument();
     });
 
+    // ADR-0055 — 한 줄 행에는 코드블럭을 그릴 자리가 없다. 렌더가 아니라 평문화다.
+    it('인라인 백틱은 벗겨서 보여준다', () => {
+        mockLastChat = { content: '배포는 `yarn deploy` 로', createdAt: 1 };
+        renderRow();
+        expect(screen.getByText('배포는 yarn deploy 로')).toBeInTheDocument();
+    });
+
+    it('펜스 블록은 첫 줄만 보여준다', () => {
+        mockLastChat = { content: '```ts\nconst x = 1;\nconst y = 2;\n```', createdAt: 1 };
+        renderRow();
+        expect(screen.getByText('const x = 1;')).toBeInTheDocument();
+    });
+
     it('마지막 메시지가 tombstone이면 삭제 문구를 쓰고 원문을 노출하지 않는다', () => {
         mockLastChat = { content: '지워진 원문', createdAt: 1, hidden: true };
         renderRow();

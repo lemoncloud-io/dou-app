@@ -12,6 +12,9 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 // app-runtime in at import time.
 jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
 
+// Same reason: the clipboard helper reaches the bridge barrel at import time.
+jest.mock('../utils/copyMessageToClipboard', () => ({ copyMessageToClipboard: jest.fn().mockResolvedValue(true) }));
+
 // Stubbed so these cases assert what the row decides — whether a preview is mounted and for which
 // URL — rather than how the card resolves its metadata.
 jest.mock('./MessageLinkPreview', () => ({
@@ -21,6 +24,20 @@ jest.mock('./MessageLinkPreview', () => ({
 // Lightweight web-ui-kit stand-ins so assertions target ChannelMessageRow's own
 // wiring (which avatar/size, which read-receipt counts) rather than library internals.
 jest.mock('@chatic/web-ui-kit', () => ({
+    InlineCode: ({ children }: any) => <code data-testid="inline-code">{children}</code>,
+    // Faithful about the one thing the row cares about: buttonProps must land on the real button,
+    // because that is what keeps a press on it away from the bubble's long-press gesture. That the
+    // REAL CodeBlock forwards them is pinned in the kit's own test.
+    CodeBlock: ({ code, lang, onCopy, copyLabel, buttonProps }: any) => (
+        <span data-testid="code-block" data-lang={lang ?? ''}>
+            {onCopy && (
+                <button data-testid="code-copy" onClick={onCopy} {...buttonProps}>
+                    {copyLabel}
+                </button>
+            )}
+            <code>{code}</code>
+        </span>
+    ),
     // `data-expandable` surfaces the row's decision to offer "view all" — the real bubble
     // renders that affordance only when it gets an onExpand.
     MessageBubble: ({ children, onExpand }: any) => (
@@ -192,6 +209,102 @@ describe('ChannelMessageRow', () => {
             render(<ChannelMessageRow {...withContent(content)} />);
 
             expect(screen.getByRole('link')).toHaveAttribute('href', 'https://example.com/a');
+        });
+    });
+
+    describe('code in the bubble', () => {
+        const withContent = (content: string) => ({
+            ...baseProps,
+            message: { ...message, content } as unknown as ClientChatView,
+        });
+
+        // The span wrapping the bubble carries the long-press handlers.
+        const bubbleTrigger = () => screen.getByTestId('bubble').parentElement as HTMLElement;
+
+        it('renders inline backticks as inline code', () => {
+            render(<ChannelMessageRow {...withContent('배포는 `yarn deploy` 로')} />);
+
+            expect(screen.getByTestId('inline-code')).toHaveTextContent('yarn deploy');
+        });
+
+        it('renders a fence as a code block carrying its language', () => {
+            render(<ChannelMessageRow {...withContent('```ts\nconst x = 1;\n```')} />);
+
+            const block = screen.getByTestId('code-block');
+            expect(block).toHaveAttribute('data-lang', 'ts');
+            expect(block).toHaveTextContent('const x = 1;');
+        });
+
+        it('does not link a URL inside a code block', () => {
+            render(<ChannelMessageRow {...withContent("```\nfetch('https://api.example.com')\n```")} />);
+
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        });
+
+        it('does not mount a preview card for a URL that only appears in code', () => {
+            render(<ChannelMessageRow {...withContent('`https://api.example.com`')} />);
+
+            expect(screen.queryByTestId('link-preview')).not.toBeInTheDocument();
+        });
+
+        it('gives the bubble block a copy button', () => {
+            render(<ChannelMessageRow {...withContent('```\ncode\n```')} />);
+
+            expect(screen.getByTestId('code-copy')).toBeInTheDocument();
+        });
+
+        // The riskiest interaction in this feature: the whole bubble is a long-press target, so a
+        // press that starts on the copy button must not also open the action sheet.
+        it('a long press ON THE COPY BUTTON does not open the action sheet', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('```\ncode\n```');
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.pointerDown(screen.getByTestId('code-copy'), { pointerType: 'touch' });
+                act(() => {
+                    jest.advanceTimersByTime(1000);
+                });
+
+                expect(props.onLongPress).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('a long press beside the button still opens the action sheet', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('```\ncode\n```');
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.pointerDown(bubbleTrigger(), { pointerType: 'touch' });
+                act(() => {
+                    jest.advanceTimersByTime(1000);
+                });
+
+                expect(props.onLongPress).toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('a right-click on the copy button does not open the action sheet', () => {
+            const props = withContent('```\ncode\n```');
+            render(<ChannelMessageRow {...props} />);
+
+            fireEvent.contextMenu(screen.getByTestId('code-copy'));
+
+            expect(props.onLongPress).not.toHaveBeenCalled();
+        });
+
+        // A fence cut open by the 200-char bubble limit renders as a block rather than leaking
+        // three stray backticks into the message.
+        it('renders a fence left open by truncation as a block', () => {
+            const long = `${'가'.repeat(190)}\n\`\`\`ts\nconst x = 1;\nconst y = 2;`;
+            render(<ChannelMessageRow {...withContent(long)} />);
+
+            expect(screen.getByTestId('code-block')).toBeInTheDocument();
         });
     });
 

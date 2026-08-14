@@ -1,3 +1,4 @@
+export * from './CodeBlock';
 export * from './DateDivider';
 export * from './FloatingDateChip';
 export * from './LinkPreviewCard';

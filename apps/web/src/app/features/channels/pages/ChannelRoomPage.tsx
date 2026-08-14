@@ -23,7 +23,7 @@ import {
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
-import { LinkedText } from '../components/LinkedText';
+import { MessageText } from '../components/MessageText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
@@ -893,8 +893,8 @@ export const ChannelRoomPage = () => {
                     <div className="flex-1 overflow-y-auto px-4 py-3">
                         <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
                             {/* Full content, so no `truncated` — a URL the bubble had to cut is a
-                                complete, tappable link here. */}
-                            {expandedMessage && <LinkedText text={expandedMessage.content} />}
+                                complete, tappable link here, and every fence is closed. */}
+                            {expandedMessage && <MessageText text={expandedMessage.content} />}
                         </p>
                     </div>
                 </DialogContent>

@@ -35,6 +35,7 @@ import { ROUTES } from '../../../routes/paths';
 import { useLastChat } from '../../../hooks/useLastChat';
 import { useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
+import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
@@ -114,7 +115,11 @@ const ChannelItem = ({
     // A tombstone still previews — it IS the channel's last message, and the room now renders it
     // the same way, so the two screens agree (ADR-0047 decision 6). What it must not do is show
     // the deleted body, hence the shared phrase rather than `content`.
-    const preview = lastChat?.hidden ? t('chat.room.deletedMessage') : (lastChat?.content ?? '');
+    //
+    // Code markup is flattened, not rendered: a one-line row has nowhere to put a code block, and
+    // leaving the backticks in would make the list dirtier than before code was supported. No badge
+    // or monospace either — that would complicate the row and tangle with blurLastMessage (ADR-0055).
+    const preview = lastChat?.hidden ? t('chat.room.deletedMessage') : toPlainPreview(lastChat?.content ?? '');
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with

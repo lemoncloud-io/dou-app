@@ -8,9 +8,10 @@ import { cn } from '@chatic/ui-kit';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
-import { extractFirstUrl } from '../utils/linkTokens';
+import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
-import { LinkedText } from './LinkedText';
+import { MessageCodeBlock } from './MessageCodeBlock';
+import { MessageText } from './MessageText';
 import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
 import { ThreadFooter } from './ThreadFooter';
@@ -262,13 +263,15 @@ export const ChannelMessageRow = ({
                             <span className="italic text-muted-foreground">{t('chat.room.deletedMessage')}</span>
                         ) : (
                             <>
-                                {/* The ellipsis stays outside LinkedText so it can't be swallowed
+                                {/* The ellipsis stays outside MessageText so it can't be swallowed
                                     into a URL at the cut. `truncated` also stops a URL that runs
-                                    to the cut from being linked at all — it may be a fragment. */}
-                                <LinkedText
+                                    to the cut from being linked at all — it may be a fragment, and
+                                    makes a fence left open at the cut render as a block anyway. */}
+                                <MessageText
                                     text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
                                     truncated={isLong}
                                     onUrlClick={handleUrlClick}
+                                    renderCodeBlock={(code, lang) => <MessageCodeBlock code={code} lang={lang} />}
                                 />
                                 {isLong && '...'}
                             </>
