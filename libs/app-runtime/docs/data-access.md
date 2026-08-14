@@ -174,8 +174,9 @@ sequenceDiagram
   모듈에서 `connection/`(조립·orchestration 계층)으로 올린다. socket은
   transport와 plan 실행 엔진만 남고, "무엇을 어느 repository에 쓰나"는
   orchestration이 소유한다.
-- **data → runtime 컷**: `invitedCloudDurability.ts`의 React 훅 2개를 `runtime/`
-  으로 이동 (raw 리더 `createWebInviteCloudStorage`는 data에 남되 훅에 주입).
+- **data → runtime 컷**: `invitedCloudDurability.ts`의 React 훅을 `runtime/`으로 이동.
+  (ADR-0053에서 마이그레이션 훅과 그 전용 웹 리더가 사라져 남은 훅은
+  `useInvitedCloudNameSync` 하나다.)
 
 ### D. profile 수렴·선언형 API·Host 통합
 

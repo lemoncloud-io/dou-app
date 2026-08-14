@@ -252,7 +252,8 @@ TTL은 [storages/utils.ts](../../../data/src/data/local/storages/utils.ts)의 `C
 - [tables.ts](../../../../apps/mobile/src/app/database/sqlite/tables.ts)에 `INVITES: 'invites'`.
 - [schema.ts:278](../../../../apps/mobile/src/app/database/sqlite/schema.ts)에 마이그레이션 `10`
   — 표준 `(cid, uid, id, data)` blob 스키마. 추출 컬럼·인덱스가 없어 웹이 네이티브 materialize에
-  의존하지 않으므로 `MIN_SCHEMA_VERSION_BY_TYPE`에는 넣지 않았다. `TARGET_VERSION`이 9→11로
+  의존하지 않으므로 웹의 요구 판번호(`REQUIRED_DOMAIN_VERSION`)에는 넣지 않았다 — `invite` 계약은
+  1판 그대로다([cache-contract-versions.md](cache-contract-versions.md)). `TARGET_VERSION`이 9→11로
   올랐다.
 - [InviteDataSource.ts](../../../../apps/mobile/src/app/data/cache/InviteDataSource.ts) —
   `MetaDataSource`/`UserDataSource`와 동형(표준 CRUD, 저장 payload에 `{...item, id, cid, uid}`로

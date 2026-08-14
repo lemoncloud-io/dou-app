@@ -1,6 +1,10 @@
 # 캐시 저장소 라우팅 (Cache Storage Routing)
 
-> 상태: Live · 최종 갱신: 2026-08-12 · 관련 ADR: [ADR-0051](../../../../docs/adr/0051-cache-storage-routing-simplification.md)
+> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0051](../../../../docs/adr/0051-cache-storage-routing-simplification.md) · [ADR-0053](../../../../docs/adr/0053-per-domain-cache-contract-versions.md)
+>
+> "설치된 앱이 이 도메인을 저장할 수 있는가"라는 판정 하나는 이 문서가 아니라
+> [cache-contract-versions.md](cache-contract-versions.md)가 소유한다. 이 문서는 그 답을 포함한
+> **라우팅 결정 전체**를 다룬다.
 
 ## 목적
 
@@ -25,6 +29,9 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
   아니라 데이터 런타임 조립 옵션(`CacheAssemblyOptions`)으로 전달한다.
 - **웹 선배포 스큐는 보수적으로 판정한다.** 네이티브가 지원을 보고하지 않은 타입은 웹
   저장소로 보낸다 — 이른 판정은 틀린 게 아니라 보수적일 뿐이어야 한다([nativeCacheSupport](../../src/data/nativeCacheSupport.ts) 참고).
+- **단, 그 보수성이 안전하지 않은 도메인이 있다.** 서버에 목록 API가 없어 캐시가 곧 권위인
+  도메인(`invitecloud`)은 웹 저장소로 보내는 것이 내구성 하락이 아니라 **소실**이다. 핀도 게이트도
+  이 도메인에는 쓰지 않는다 — [cache-contract-versions.md](cache-contract-versions.md)의 도메인 분류.
 
 ## 시나리오
 
@@ -42,9 +49,9 @@ Cold-only로 전환된 뒤 실질 결정은 "타입별로 웹 저장소(IndexedD
 4. **일반 브라우저(apps/web, admin-v2, desktop-web).** 네이티브 브리지 없음 → 모든 타입
    `'web'`. chat은 조립 옵션 `maxChatsPerChannel`이 주입된 경우에만 채널당 상한이
    걸린다(미주입=무제한).
-5. **부팅 마이그레이션(invitecloud).** 과거 2-tier 빌드가 웹 IndexedDB에 남긴 초대 클라우드를
-   네이티브 저장소로 회수하는 [invitedCloudDurability](../../src/data/invitedCloudDurability.ts)는 라우팅을 우회하는 전용
-   웹 리더(`createWebInviteCloudStorage`)를 계속 사용한다 —
+5. **라우팅을 우회하는 경로는 없다.** 초대 클라우드를 웹 IndexedDB에서 네이티브로 회수하던
+   일회성 마이그레이션과 그 전용 웹 리더(`createWebInviteCloudStorage`)는 ADR-0053에서 함께
+   제거됐다. 저장소는 예외 없이 `resolveCacheBackend`가 정한다 —
    [invite-cloud-durability.md](invite-cloud-durability.md).
 
 ## 다이어그램
@@ -54,7 +61,7 @@ flowchart TD
     Q["getCacheStorage(type)"] --> R{resolveCacheBackend}
     R -->|"브라우저 환경\n(ReactNativeWebView 없음)"| W[web]
     R -->|"웹 핀 테이블 WEB_PINNED_CACHE_TYPES\n(현재 비어 있음)"| W
-    R -->|"네이티브 미지원 타입\n(레거시 집합 ∉ ∧ 핸드셰이크 보고 ∉)\n또는 스키마 버전 미달"| W
+    R -->|"네이티브가 못 다루는 도메인\n(앱 계약 판번호 < 웹 요구 판번호)\ncache-contract-versions.md"| W
     R -->|그 외| N[native]
     W --> IDB["IndexedDBAdapter\n(공유 IndexedDBDatabase,\nchat이면 maxChatsPerChannel 적용)"]
     N --> SQL["NativeDBAdapter\n(bridge → 네이티브 SQLite)"]
@@ -87,7 +94,6 @@ flowchart LR
   NativeDBAdapter. chat 상한은 무조건 동반해도 안전하다: 어댑터가 chat 외 타입에서 무시하고,
   네이티브 WebView의 chat은 레거시 집합 보장으로 항상 `'native'`라 웹 경로를 타지 않는다.
 - 공유 `IndexedDBDatabase`가 **유일한 모듈 상태**(물리 공유 자원)다.
-- `createWebInviteCloudStorage()`: 부팅 마이그레이션 전용 웹(IndexedDB) 리더(시나리오 5).
 - `getGlobalCacheSearchSource()`: 환경 직결 — 네이티브면 `NativeGlobalSearchSource`(SQLite가
   source of truth), 아니면 `IndexedDbGlobalSearchSource`(ADR-0033: 기대 동작 동일).
 - `createLocalDataSources({ contextProvider, cacheStorageFactory?, cache? })`: `cache`를 기본
@@ -100,11 +106,11 @@ flowchart LR
   늦은 호출은 경고 후 무시(레포지토리·스토리지는 DataManager 생성자에서 1회 조립되므로).
 - `getDataRuntime()`이 pending 등록을 `DataManager(ctx, repoOpts, cacheOpts)`로 전달한다.
 
-**[nativeCacheSupport.ts](../../src/data/nativeCacheSupport.ts)** — 핸드셰이크 게이트(별도 트랙에서 랜딩).
+**[nativeCacheSupport.ts](../../src/data/nativeCacheSupport.ts)** — 핸드셰이크 게이트.
 
-- 네이티브가 `OnWebAppReady` 응답으로 보고한 `supportedCacheTypes`·`cacheSchemaVersion`
-  스냅샷과 프로즌 레거시 집합으로 `isNativeCacheTypeUsable`을 판정한다. 상세는
-  [README.md의 배포 스큐 절](README.md#저장소-선택과-webapp-배포-스큐) 참고.
+- 앱이 보고한 도메인 계약 판번호와 웹이 요구하는 판번호를 비교해 `isNativeCacheTypeUsable`을
+  판정한다. 판정 규칙·보고 형식·로컬 권위 도메인 예외는 모두
+  [cache-contract-versions.md](cache-contract-versions.md)가 소유한다.
 
 **삭제된 것들** — `HotColdCacheStorageStrategy`·`AppPolicyResolver`·read-policy 표
 (`cacheStorageStrategies.ts` 전체)와 `@chatic/data`의 `DynamicCacheStorage`·
@@ -117,7 +123,8 @@ flowchart LR
   매트릭스 테스트**(라우팅 변화가 부수효과로 스며들 수 없게 고정) + chat 상한 주입 2종.
 - [runtime.test.ts](../../src/data/runtime.test.ts) — 옵션 주입 경로: `repositories`·`cache`가 각각
   DataManager에 도달하는지, 여러 호출이 병합되는지, 늦은 등록이 무시되는지.
-- [nativeCacheSupport.test.ts](../../src/data/nativeCacheSupport.test.ts) — 게이트 판정(레거시 집합 동결, 보고 누적, 스키마 버전).
+- [nativeCacheSupport.test.ts](../../src/data/nativeCacheSupport.test.ts) — 게이트 판정. 상세는
+  [cache-contract-versions.md](cache-contract-versions.md)의 검증 방법 절이 소유한다.
 - 실행: `libs/app-runtime`에서 `../../node_modules/.bin/jest`(libs/data도 동일 명령).
 - **타입체크는 반드시 `npx tsc -b libs/app-runtime/tsconfig.lib.json`으로 한다.** 각 lib의
   `tsconfig.json`은 `files: []` + `include: []`인 solution 파일이라 그 디렉터리에서 `tsc --noEmit`을
