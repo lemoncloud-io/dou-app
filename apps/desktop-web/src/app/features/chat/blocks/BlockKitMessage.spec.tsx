@@ -67,6 +67,23 @@ describe('BlockKitMessage', () => {
         expect(screen.getByText('Silly')).toBeDefined();
     });
 
+    // Slack writes a field as "*Label*\nvalue" and newlines are significant in every
+    // text object. jsdom has no layout, so the whitespace rule is the only observable
+    // — but it is the thing that broke, and nothing else in the block reinstates it.
+    it('preserves the line breaks Slack puts inside a text object', () => {
+        const { container } = draw([
+            { type: 'section', fields: [{ type: 'mrkdwn', text: '*Service*\nchatic-sockets-api' }] },
+        ]);
+        const field = screen.getByText('Service').closest('.whitespace-pre-wrap');
+        expect(field).toBeTruthy();
+        expect(container.textContent).toContain('\n');
+    });
+
+    it('names the block type it could not draw, so the JSON does not read as content', () => {
+        draw([{ type: 'unknown', raw: '{"type":"actions"}' }, { type: 'divider' }]);
+        expect(screen.getByText(/unsupported block · actions/)).toBeDefined();
+    });
+
     it('shows the source of a block it cannot draw, beside the ones it can', () => {
         draw([
             { type: 'section', text: { type: 'mrkdwn', text: 'drawn' } },
