@@ -61,7 +61,13 @@ describe('blocksToPlainText', () => {
         expect(blocksToPlainText(blocks)).toBe('Error report\n403 denied by policy\nHigh Silly\n@U123');
     });
 
-    it('shows the raw source of a block it cannot read', () => {
+    // These surfaces are one line. JSON standing beside real text is noise there,
+    // even though the message body shows it — that is where there is room to say so.
+    it('drops an unreadable block when the message says anything else', () => {
+        expect(blocksToPlainText([...blocks, { type: 'unknown', raw: '{"type":"actions"}' }])).not.toContain('actions');
+    });
+
+    it('falls back to the raw source when nothing else has text', () => {
         expect(blocksToPlainText([{ type: 'unknown', raw: '{"type":"actions"}' }])).toBe('{"type":"actions"}');
     });
 

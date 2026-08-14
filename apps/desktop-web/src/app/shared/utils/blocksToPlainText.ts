@@ -39,11 +39,21 @@ const lineOf = (block: KnownBlock): string => {
             return [block.text && textOf(block.text), block.fields?.map(textOf).join(' ')].filter(Boolean).join(' ');
         case 'context':
             return block.elements.map(textOf).join(' ');
-        case 'unknown':
-            return block.raw;
         default:
             return '';
     }
 };
 
-export const blocksToPlainText = (blocks: KnownBlock[]): string => blocks.map(lineOf).filter(Boolean).join('\n');
+/**
+ * The same two-tier rule the renderer uses, one dimension down. A block we could
+ * not draw shows its source *in the message*, where there is room to say so — but
+ * these surfaces are one line, and JSON pasted into a sidebar preview or a delete
+ * confirmation is noise standing in for the thing the reader is trying to
+ * identify. So unknown blocks are dropped while anything else has text, and only
+ * carry their source when nothing else does.
+ */
+export const blocksToPlainText = (blocks: KnownBlock[]): string => {
+    const drawn = blocks.map(lineOf).filter(Boolean);
+    if (drawn.length) return drawn.join('\n');
+    return blocks.flatMap(block => (block.type === 'unknown' ? [block.raw] : [])).join('\n');
+};
