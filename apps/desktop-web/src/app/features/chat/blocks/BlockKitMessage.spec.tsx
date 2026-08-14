@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-import type { KnownBlock } from '../../../shared';
+import { blocksToPlainText, type BlockTextObject, type KnownBlock } from '../../../shared';
 import { BlockKitMessage } from './BlockKitMessage';
 
 const draw = (blocks: KnownBlock[], raw = '{"blocks":[]}') => render(<BlockKitMessage blocks={blocks} raw={raw} />);
@@ -77,6 +77,18 @@ describe('BlockKitMessage', () => {
         const field = screen.getByText('Service').closest('.whitespace-pre-wrap');
         expect(field).toBeTruthy();
         expect(container.textContent).toContain('\n');
+    });
+
+    // The rendered context line and the flattened one go to different surfaces — the
+    // message and the sidebar preview — so they have to agree on the spacing.
+    it('separates context elements the same way the flattener does', () => {
+        const elements: BlockTextObject[] = [
+            { type: 'mrkdwn', text: '*Owner:* platform' },
+            { type: 'mrkdwn', text: '· severity S1' },
+        ];
+        const { container } = draw([{ type: 'context', elements }]);
+        expect(container.textContent).toContain('platform · severity');
+        expect(blocksToPlainText([{ type: 'context', elements }])).toBe('Owner: platform · severity S1');
     });
 
     it('names the block type it could not draw, so the JSON does not read as content', () => {

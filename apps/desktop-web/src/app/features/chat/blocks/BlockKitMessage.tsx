@@ -48,10 +48,16 @@ const drawBlock = (block: KnownBlock, key: number): ReactNode => {
                 </div>
             );
         case 'context':
+            // A space between elements, not a gap: `blocksToPlainText` joins them with
+            // one, and a context line that reads differently in the sidebar preview than
+            // in the message is the same value disagreeing with itself.
             return (
                 <div key={key} className={cn('text-caption text-muted-foreground', TEXT_FLOW)}>
                     {block.elements.map((element, i) => (
-                        <span key={i}>{textOf(element)}</span>
+                        <span key={i}>
+                            {i > 0 && ' '}
+                            {textOf(element)}
+                        </span>
                     ))}
                 </div>
             );
