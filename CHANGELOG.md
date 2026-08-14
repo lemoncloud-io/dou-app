@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-08-14] - root@0.54.0, @chatic/desktop-web@0.6.0
+
+### Features
+
+- (desktop-web) show who has read a message
+
+### Refactor
+
+- (desktop-web) one read-state subscription per open channel
+
 ## [2026-08-14] - root@0.53.0, @chatic/desktop-web@0.5.0
 
 ### Features
