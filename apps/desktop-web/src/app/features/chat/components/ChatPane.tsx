@@ -24,7 +24,7 @@ import {
 import type { ChannelMember } from '../../channels';
 import { useChannelSettingsStore } from '../../channels';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import { useMentionables, useMessageViewer } from '../hooks';
+import { useMentionables, useMessageViewer, useReadCounts } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { Composer } from './Composer';
@@ -110,6 +110,9 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages);
+    // The other half of the same story: every member's read position, so a message can say
+    // how many have seen it. Registers the roster's join syncs while the channel is open.
+    const readCountOf = useReadCounts(channel, viewer);
 
     // A notification click asks this channel to open at its latest message (the pinged
     // one) rather than the unread divider. Read the one-shot flag for THIS channel and
@@ -206,6 +209,7 @@ export const ChatPane = ({ channel, members, membersLoading }: ChatPaneProps) =>
                 onOpenThread={openThread}
                 jumpTarget={jumpTarget}
                 onJumpConsumed={clearJump}
+                readCountOf={readCountOf}
             />
             <Composer
                 onSend={handleSend}

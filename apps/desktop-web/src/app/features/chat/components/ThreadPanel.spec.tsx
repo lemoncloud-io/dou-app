@@ -29,6 +29,9 @@ vi.mock('../hooks', () => ({
     useMessageViewer: () => ({ uid: 'me', name: 'Me', cloudUid: 'me-cloud' }),
     useMessageActions: () => ({ editMessage: vi.fn(), deleteMessage: vi.fn(), failedId: null }),
     useReactions: () => ({ toggleReaction: vi.fn(), failedId: null }),
+    // Read receipts need the join cache and the sync manager; this file is about what the
+    // panel draws, so the counts come back as "none for this message".
+    useReadCounts: () => () => null,
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about
 // what the panel renders above it.

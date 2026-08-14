@@ -84,6 +84,11 @@ const resources = {
             'chat.system.join': '{{name}} joined the channel',
             'chat.system.leave': '{{name}} left the channel',
             'chat.newMessages': 'New messages',
+            // Per-message read receipt. `n`, not `count`: these never pluralise the noun
+            // ("Read 1", not "1 read"), and a `count` variable would send i18next hunting
+            // for _one/_other forms that do not exist.
+            'chat.readReceipt.read': 'Read {{n}}',
+            'chat.readReceipt.unread': 'Unread {{n}}',
             'sidebar.dms': 'Direct messages',
             'dm.you': 'You',
             'chat.save': 'Save for later',

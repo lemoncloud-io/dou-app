@@ -9,7 +9,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { lastChatNoOf, useAuthorNames, useChatMutations, useChats, usePanelWidth } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';
-import { useMentionables, useMessageViewer } from '../hooks';
+import { useMentionables, useMessageViewer, useReadCounts } from '../hooks';
 import { useThreadStore } from '../stores';
 import { Composer } from './Composer';
 import { MessageList } from './MessageList';
@@ -49,6 +49,11 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
     const mentionables = useMentionables(members);
+    // Replies carry the same channel-wide chatNo the read cursors point at, so a reply's
+    // receipt is the same question the feed asks. Wired here too because the panel is a
+    // second surface over one renderer — a prop the feed passes and the panel forgets is
+    // exactly how `foldReactions` went missing in here before (see CLAUDE.md).
+    const readCountOf = useReadCounts(channel, viewer);
 
     const { root, threadMessages, replyCount } = useMemo(() => {
         const thread = buildThread(messages, rootId);
@@ -128,6 +133,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                     threadReplyCount={replyCount}
                     onRetry={retryMessage}
                     onDiscard={handleDiscard}
+                    readCountOf={readCountOf}
                 />
             ) : (
                 <div
