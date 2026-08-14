@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 
+import { messagePlainText } from '../../../shared';
+
 export interface ChannelSearchResult {
     channel: DomainChannel;
     /** Newest matches first, capped at {@link MAX_MATCHES_PER_CHANNEL}. */
@@ -45,7 +47,9 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
                     const page = await chatRepository
                         .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
                         .catch(() => null);
-                    const all = (page?.list ?? []).filter(c => (c.content ?? '').toLowerCase().includes(q));
+                    const all = (page?.list ?? []).filter(c =>
+                        messagePlainText(c.content, c.contentType).toLowerCase().includes(q)
+                    );
                     if (all.length === 0) return null;
                     const matches = [...all]
                         .sort((a, b) => (b.chatNo ?? 0) - (a.chatNo ?? 0))

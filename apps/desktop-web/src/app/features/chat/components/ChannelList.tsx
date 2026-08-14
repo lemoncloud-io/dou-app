@@ -16,7 +16,7 @@ import {
     lastChatNoOf,
     relativeTime,
     resolveDisplay,
-    stripMarkdown,
+    messagePlainText,
     useAuthorNames,
     useSiteProfileMap,
 } from '../../../shared';
@@ -83,12 +83,15 @@ const ChannelRow = ({ channel, label, icon, isActive, onSelect, rowRef }: Channe
     const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
     const lastChat = useLastChat(id, lastChatNoOf(channel));
     // Memo the preview so the parent's minute tick (which must recompute `time`) doesn't
-    // re-run stripMarkdown for every row — the preview only changes when lastChat does.
+    // re-flatten every row — the preview only changes when lastChat does.
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
     const preview = useMemo(
-        () => (lastChat?.hidden ? t('sidebar.deletedPreview') : stripMarkdown(lastChat?.content?.trim() ?? '')),
+        () =>
+            lastChat?.hidden
+                ? t('sidebar.deletedPreview')
+                : messagePlainText(lastChat?.content?.trim(), lastChat?.contentType),
         [lastChat, t]
     );
     const time = relativeTime(lastChat?.createdAt ?? channel.lastActivityAt);

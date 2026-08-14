@@ -1,7 +1,7 @@
 import { getGlobalSessionContext } from '@chatic/web-core';
 
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
-import { isMentioned, isNotifiableChat, resolveMyMentionNames } from '../utils';
+import { isMentioned, isNotifiableChat, messagePlainText, resolveMyMentionNames } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';
 
 const chatAuthorId = (chat: ChannelLastChat): string | undefined => chat.owner$?.id ?? chat.ownerId;
@@ -21,7 +21,9 @@ export const useMentionCapture = (): void => {
     const add = useMentionsStore(s => s.add);
 
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
-        const content = chat.content ?? '';
+        // Flattened first: a Block Kit payload hides its text inside JSON, so both the
+        // '@' pre-filter and the stored copy have to read what the message says.
+        const content = messagePlainText(chat.content, chat.contentType);
         // Cheap pre-filter: only '@'-bearing messages can mention me (or @channel/@here).
         if (!content || !content.includes('@')) return;
         // The '@' filter above catches most system rows, but a join event for a channel

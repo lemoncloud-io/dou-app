@@ -4,7 +4,14 @@ import { webClient } from '@chatic/bridges';
 import { getGlobalSessionContext } from '@chatic/web-core';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { buildOpenDeeplink, isDndActive, isMentioned, resolveMyMentionNames, resolvePushCloudId } from '../utils';
+import {
+    buildOpenDeeplink,
+    isDndActive,
+    isMentioned,
+    messagePlainText,
+    resolveMyMentionNames,
+    resolvePushCloudId,
+} from '../utils';
 import { channelNotifyMode, useNotificationPrefsStore, usePendingOpenStore, useSelectedChannelStore } from '../stores';
 
 /**
@@ -49,7 +56,11 @@ const presentPush = async (
     if (data.channelId) {
         const mode = channelNotifyMode(prefs, String(data.channelId));
         if (mode === 'none') return;
-        if (mode === 'mention' && !isMentioned(String(data.content ?? body ?? ''), resolveMyMentionNames())) return;
+        if (
+            mode === 'mention' &&
+            !isMentioned(messagePlainText(String(data.content ?? body ?? '')), resolveMyMentionNames())
+        )
+            {return;}
     }
 
     // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space

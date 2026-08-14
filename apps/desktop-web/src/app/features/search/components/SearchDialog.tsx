@@ -6,7 +6,7 @@ import { Hash, Search } from 'lucide-react';
 import type { DomainChannel } from '@chatic/data';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { stripMarkdown } from '../../../shared';
+import { messagePlainText } from '../../../shared';
 import { useMessageSearch } from '../hooks';
 
 const formatTime = (ms?: number): string => {
@@ -121,7 +121,7 @@ export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
                                             className="focus-ring tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile hover:bg-accent/60"
                                         >
                                             <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
-                                                {highlight(stripMarkdown(chat.content ?? ''), trimmed)}
+                                                {highlight(messagePlainText(chat.content, chat.contentType), trimmed)}
                                             </span>
                                             <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
                                                 {formatTime(chat.createdAt ?? chat.createdAtMs)}

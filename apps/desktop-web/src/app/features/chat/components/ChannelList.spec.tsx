@@ -53,6 +53,22 @@ describe('ChannelList preview line', () => {
         expect(screen.getByText('ship it')).toBeTruthy();
     });
 
+    // The preview is the surface where a Block Kit payload is most obviously wrong: the
+    // whole line is JSON, and there is no room to recover from it.
+    it('reads what a Block Kit message says, not the payload that carries it', () => {
+        lastChat = {
+            id: 'C1:1',
+            chatNo: 1,
+            content: JSON.stringify({
+                blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied by policy' } }],
+            }),
+        } as DomainChat;
+
+        render(list(), { wrapper });
+
+        expect(screen.getByText('403 denied by policy')).toBeTruthy();
+    });
+
     // The delete is soft, so `content` survives it. Printing that content would show the
     // sidebar the very text the row says is gone.
     it('says a deleted message is gone instead of printing what it said', () => {
