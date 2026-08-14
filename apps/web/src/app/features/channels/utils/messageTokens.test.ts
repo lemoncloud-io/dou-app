@@ -162,11 +162,14 @@ describe('fenced code blocks', () => {
         expect(token).toEqual({ type: 'codeBlock', value: 'a\nb', lang: undefined });
     });
 
-    it('keeps the surrounding text as its own runs', () => {
+    // The newline ending each fence line belongs to the fence. Leaving it in the text runs stacked
+    // a blank line above and below every block, since the bubble renders whitespace-pre-wrap and
+    // the block is already its own box (measured: one extra line box in Chrome).
+    it('keeps the surrounding text as its own runs, without the fence line breaks', () => {
         expect(tokenizeMessage('보세요:\n```\ncode\n```\n끝')).toEqual([
-            { type: 'text', value: '보세요:\n' },
+            { type: 'text', value: '보세요:' },
             { type: 'codeBlock', value: 'code', lang: undefined },
-            { type: 'text', value: '\n끝' },
+            { type: 'text', value: '끝' },
         ]);
     });
 
@@ -223,7 +226,8 @@ describe('code wins over URLs', () => {
 
     it('tokenizes a message mixing text, fence, inline code and a URL in order', () => {
         const tokens = tokenizeMessage('먼저 https://a.com\n```ts\nx\n```\n그리고 `npm i`');
-        expect(tokens.map(t => t.type)).toEqual(['text', 'url', 'text', 'codeBlock', 'text', 'code']);
+        // No text run between the URL and the fence: it held only the newline the fence consumes.
+        expect(tokens.map(t => t.type)).toEqual(['text', 'url', 'codeBlock', 'text', 'code']);
     });
 });
 
@@ -246,5 +250,58 @@ describe('toPlainPreview', () => {
 
     it('returns an empty string for empty input', () => {
         expect(toPlainPreview('')).toBe('');
+    });
+});
+
+// Message content is chosen by whoever sends it, and the home list now tokenizes the full last
+// message of every channel — so a pathological string must not be able to hang the main thread.
+describe('adversarial input', () => {
+    const budgetMs = 300;
+
+    it('trims a long punctuation run in linear time', () => {
+        const started = Date.now();
+        toPlainPreview(`https://a${'.'.repeat(60_000)}x`);
+        expect(Date.now() - started).toBeLessThan(budgetMs);
+    });
+
+    it('trims a long alternating bracket/punctuation run in linear time', () => {
+        const started = Date.now();
+        toPlainPreview(`https://a${').'.repeat(20_000)}`);
+        expect(Date.now() - started).toBeLessThan(budgetMs);
+    });
+
+    it('still trims correctly after the rewrite', () => {
+        expect(extractFirstUrl('보세요 https://example.com/a...')).toBe('https://example.com/a');
+        expect(extractFirstUrl('(see https://example.com/a)')).toBe('https://example.com/a');
+        expect(extractFirstUrl('https://en.wikipedia.org/wiki/Foo_(bar)')).toBe(
+            'https://en.wikipedia.org/wiki/Foo_(bar)'
+        );
+    });
+});
+
+describe('extractFirstUrl and the bubble agree about code', () => {
+    // A message over the bubble cap whose fence never closes: the bubble treats the dangling fence
+    // as closed and renders the URL as code, so the card must not appear either.
+    it('skips a URL under a fence the bubble closes at the cut', () => {
+        const text = `\`\`\`\n${'가'.repeat(250)} https://inside.example.com/x`;
+        expect(extractFirstUrl(text, true)).toBeUndefined();
+        expect(extractFirstUrl(text, false)).toBe('https://inside.example.com/x');
+    });
+
+    // Closing a dangling fence must not also drop a trailing URL — the card exists precisely to
+    // reach a link the bubble had to cut.
+    it('still finds a trailing URL past the truncation point', () => {
+        const long = `${'가'.repeat(250)} https://example.com/late`;
+        expect(extractFirstUrl(long, true)).toBe('https://example.com/late');
+    });
+});
+
+describe('toPlainPreview — blank leading line', () => {
+    it('takes the first non-empty line of a block', () => {
+        expect(toPlainPreview('```\n\nhello\n```')).toBe('hello');
+    });
+
+    it('returns empty for a block with no content', () => {
+        expect(toPlainPreview('```\n```')).toBe('');
     });
 });

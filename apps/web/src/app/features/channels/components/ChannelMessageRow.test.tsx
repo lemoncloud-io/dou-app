@@ -289,6 +289,28 @@ describe('ChannelMessageRow', () => {
             }
         });
 
+        // The copy button must not swallow the CANCEL half of the gesture. A press begun on the code
+        // text and released on the button would otherwise never reach clearTimer, and the sheet
+        // would open on top of the copy — the exact outcome the button exists to prevent. Touch
+        // hides this via implicit pointer capture; a mouse reproduces it.
+        it('a press started on the code and released on the button cancels the long press', () => {
+            jest.useFakeTimers();
+            try {
+                const props = withContent('```\ncode\n```');
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.pointerDown(bubbleTrigger(), { pointerType: 'mouse', button: 0 });
+                fireEvent.pointerUp(screen.getByTestId('code-copy'));
+                act(() => {
+                    jest.advanceTimersByTime(1000);
+                });
+
+                expect(props.onLongPress).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
         it('a right-click on the copy button does not open the action sheet', () => {
             const props = withContent('```\ncode\n```');
             render(<ChannelMessageRow {...props} />);

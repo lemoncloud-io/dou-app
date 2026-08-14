@@ -115,8 +115,13 @@ export const ChannelMessageRow = ({
     // card for the link it had to cut — and the card is then the only way to reach it.
     // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
     // not keep unfurling, which would also keep fetching the page on every render pass.
+    // `isLong` rides along so the card agrees with the bubble about what is code: the bubble closes
+    // a fence left dangling at the cut, and a URL under that fence must not summon a card the
+    // bubble is rendering as literal text.
     const previewUrl =
-        message.isPending || message.isFailed || message.isSystem || isDeleted ? undefined : extractFirstUrl(content);
+        message.isPending || message.isFailed || message.isSystem || isDeleted
+            ? undefined
+            : extractFirstUrl(content, isLong);
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.

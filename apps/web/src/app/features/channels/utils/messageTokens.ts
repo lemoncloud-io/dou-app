@@ -20,7 +20,7 @@ export type MessageToken =
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
 
 /** Punctuation that ends a sentence far more often than it ends a URL. */
-const TRAILING_PUNCTUATION = /[.,;:!?'"·…]+$/;
+const TRAILING_PUNCTUATION = new Set(['.', ',', ';', ':', '!', '?', "'", '"', '·', '…']);
 
 const BRACKET_PAIRS = [
     ['(', ')'],
@@ -34,8 +34,6 @@ const LANG_PATTERN = /^[A-Za-z0-9_+#-]*$/;
 /** Inline code: shortest backtick pair that stays on one line. */
 const INLINE_CODE_PATTERN = /`([^`\n]+)`/g;
 
-const countChar = (value: string, char: string): number => value.split(char).length - 1;
-
 /**
  * Drops characters that the greedy match swallowed but that aren't part of the address:
  * `자세히는 https://example.com/a.` must link to `/a`, not `/a.`.
@@ -43,20 +41,43 @@ const countChar = (value: string, char: string): number => value.split(char).len
  * Closing brackets are counted rather than stripped, so `(see https://example.com/a)` loses its
  * `)` while `https://en.wikipedia.org/wiki/Foo_(bar)` keeps it. Repeated until stable because
  * removing a bracket can expose more punctuation underneath.
+ *
+ * Counts are taken once and decremented as characters are dropped, and the walk moves an index
+ * rather than reslicing. The earlier version re-ran a `$`-anchored regex and six `split()` scans
+ * over the whole string on every dropped character — quadratic, and message content is chosen by
+ * whoever sends it, so a run of 60k punctuation marks froze the main thread for ~9s. That is now
+ * reachable from the home list too, where one message would have hung the screen for every member
+ * of the channel.
  */
 const trimTrailingNoise = (url: string): string => {
-    let result = url;
-    let previous: string;
-    do {
-        previous = result;
-        result = result.replace(TRAILING_PUNCTUATION, '');
+    const counts = new Map<string, number>();
+    for (let index = 0; index < url.length; index += 1) {
+        const char = url[index] as string;
+        counts.set(char, (counts.get(char) ?? 0) + 1);
+    }
+
+    let end = url.length;
+    const dropLast = () => {
+        const char = url[end - 1] as string;
+        counts.set(char, (counts.get(char) ?? 1) - 1);
+        end -= 1;
+    };
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        while (end > 0 && TRAILING_PUNCTUATION.has(url[end - 1] as string)) {
+            dropLast();
+            changed = true;
+        }
         for (const [open, close] of BRACKET_PAIRS) {
-            while (result.endsWith(close) && countChar(result, close) > countChar(result, open)) {
-                result = result.slice(0, -1);
+            while (end > 0 && url[end - 1] === close && (counts.get(close) ?? 0) > (counts.get(open) ?? 0)) {
+                dropLast();
+                changed = true;
             }
         }
-    } while (result !== previous);
-    return result;
+    }
+    return url.slice(0, end);
 };
 
 /** Rejects leftovers like a bare `https://` once the trailing noise is gone. */
@@ -70,6 +91,12 @@ export interface TokenizeOptions {
      * half is on the other side of the truncation rather than absent from the message.
      */
     truncated?: boolean;
+    /**
+     * Close a dangling fence WITHOUT also distrusting a trailing URL — the half of `truncated` that
+     * `extractFirstUrl` needs. It runs on the full message so a link the bubble had to cut still
+     * gets a card, but it has to agree with the bubble about which runs are code.
+     */
+    closeDanglingFence?: boolean;
 }
 
 /** Splits an opening fence's body into its language tag and its code. */
@@ -90,7 +117,7 @@ const trimFenceEdges = (value: string): string => value.replace(/\n$/, '');
 type Segment = { type: 'text'; value: string } | Extract<MessageToken, { type: 'codeBlock' }>;
 
 /** Pass 1 — carve out fenced blocks, leaving everything else as raw text to look at later. */
-const splitFences = (text: string, truncated: boolean): Segment[] => {
+const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
     const segments: Segment[] = [];
     let buffer = '';
     let index = 0;
@@ -110,24 +137,33 @@ const splitFences = (text: string, truncated: boolean): Segment[] => {
         const bodyStart = index + FENCE.length;
         const close = text.indexOf(FENCE, bodyStart);
 
+        // The newline that ends the line the fence sits on belongs to the fence, not to the text
+        // around it. The bubble renders with `whitespace-pre-wrap` and the block is already its own
+        // box, so leaving it in stacks a blank line above (and below) every block.
+        const flushBeforeFence = () => {
+            if (buffer.endsWith('\n')) buffer = buffer.slice(0, -1);
+            flush();
+        };
+
         if (close === -1) {
             // Unterminated. When the text was cut, the closing fence is beyond the cut, so honour
             // the block; otherwise the user simply typed three backticks — leave them as text.
-            if (!truncated) {
+            if (!closeDanglingFence) {
                 buffer += FENCE;
                 index = bodyStart;
                 continue;
             }
             const { lang, value } = splitFenceBody(text.slice(bodyStart));
-            flush();
+            flushBeforeFence();
             segments.push({ type: 'codeBlock', value: trimFenceEdges(value), lang });
             return segments;
         }
 
         const { lang, value } = splitFenceBody(text.slice(bodyStart, close));
-        flush();
+        flushBeforeFence();
         segments.push({ type: 'codeBlock', value: trimFenceEdges(value), lang });
         index = close + FENCE.length;
+        if (text[index] === '\n') index += 1;
     }
 
     flush();
@@ -182,14 +218,14 @@ const tokenizeInline = (text: string, dropTrailingUrl: boolean): MessageToken[] 
 export const tokenizeMessage = (text: string, options?: TokenizeOptions): MessageToken[] => {
     if (!text) return [];
 
-    const truncated = options?.truncated === true;
-    const segments = splitFences(text, truncated);
+    const dropTrailingUrl = options?.truncated === true;
+    const segments = splitFences(text, dropTrailingUrl || options?.closeDanglingFence === true);
 
     return segments.flatMap((segment, index) => {
         if (segment.type === 'codeBlock') return [segment];
         // Only a URL at the very end of the whole message can be a truncation fragment.
         const isFinal = index === segments.length - 1;
-        return tokenizeInline(segment.value, truncated && isFinal);
+        return tokenizeInline(segment.value, dropTrailingUrl && isFinal);
     });
 };
 
@@ -201,8 +237,11 @@ export const tokenizeMessage = (text: string, options?: TokenizeOptions): Messag
  * cache key always equals the href rendered in the bubble — and skips code, so a URL in a code
  * example never summons a card.
  */
-export const extractFirstUrl = (text: string): string | undefined =>
-    tokenizeMessage(text).find(token => token.type === 'url')?.value;
+export const extractFirstUrl = (text: string, closeDanglingFence = false): string | undefined =>
+    tokenizeMessage(text, { closeDanglingFence }).find(token => token.type === 'url')?.value;
+
+/** Pasted code often starts with a blank line, and a row previewing "" reads as an empty channel. */
+const firstNonEmptyLine = (value: string): string => value.split('\n').find(line => line.trim() !== '') ?? '';
 
 /**
  * Message text flattened for a one-line preview (the home list).
@@ -213,5 +252,5 @@ export const extractFirstUrl = (text: string): string | undefined =>
  */
 export const toPlainPreview = (text: string): string =>
     tokenizeMessage(text)
-        .map(token => (token.type === 'codeBlock' ? (token.value.split('\n')[0] ?? '') : token.value))
+        .map(token => (token.type === 'codeBlock' ? firstNonEmptyLine(token.value) : token.value))
         .join('');

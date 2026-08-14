@@ -165,9 +165,11 @@
 ### S9. 복사 버튼과 롱프레스가 겹치는 지점
 
 1. 펜스 블록의 복사 버튼 위에서 손가락을 **길게** 누른다.
-2. 버튼이 포인터 이벤트를 삼켜 롱프레스 타이머가 **시작조차 하지 않는다** — 액션 시트가 뜨지 않는다.
+2. 버튼이 `pointerdown`을 삼켜 롱프레스 타이머가 **시작조차 하지 않는다** — 액션 시트가 뜨지 않는다.
 3. 손을 떼면 복사만 실행된다.
 4. 버튼을 **비껴서** 코드 본문을 길게 누르면 정상적으로 액션 시트가 뜬다.
+5. 코드 본문에서 누르기 시작해 **버튼 위에서 떼면** 롱프레스는 정상적으로 **취소된다.** 버튼이 막는
+   것은 제스처를 *시작*하는 이벤트뿐이고, 취소 이벤트는 그대로 통과시킨다.
 
 이번 작업에서 가장 손이 많이 가는 지점이며, 실기기 확인이 필수인 항목이다.
 
@@ -468,8 +470,19 @@ export const toPlainPreview = (text: string): string;
 `extractFirstUrl`은 `tokenizeMessage(text).find(t => t.type === 'url')`로 유지된다 — 3단계가 코드를
 건너뛰므로 **코드 안의 URL이 프리뷰 카드를 띄우지 않는 성질을 자동으로 얻는다** (S4 마지막 행).
 
-`toPlainPreview`는 홈 전용 평문화다 (S12). 토큰을 순회해 `code`는 값만, `codeBlock`은 **첫 줄만**
-남기고 이어 붙인다. 렌더가 아니라 문자열 → 문자열 변환이다.
+`toPlainPreview`는 홈 전용 평문화다 (S12). 토큰을 순회해 `code`는 값만, `codeBlock`은 **첫 비어 있지
+않은 줄만** 남기고 이어 붙인다. 렌더가 아니라 문자열 → 문자열 변환이다. (붙여넣은 코드는 빈 줄로
+시작하는 경우가 흔해서, 문자 그대로 첫 줄을 쓰면 행이 빈 채널처럼 보인다.)
+
+**펜스 줄의 줄바꿈은 펜스가 가져간다.** 여는·닫는 펜스가 놓인 줄의 개행을 앞뒤 텍스트 런에 남기면,
+말풍선이 `whitespace-pre-wrap`이고 블록은 이미 자기 박스라 **모든 코드블럭 위아래에 빈 줄이 하나씩**
+쌓인다(크롬 실측: 한 줄 상자만큼 차이). CommonMark와 같은 처리다.
+
+**후행 문자 정리(`trimTrailingNoise`)는 선형이어야 한다.** 원래 구현은 문자를 하나 떼어낼 때마다
+`$` 앵커 정규식과 6번의 `split()`을 문자열 전체에 다시 돌렸다 — 이차식이고, 메시지 내용은 보내는
+사람이 고른다. 문장부호 6만 개를 붙인 메시지 하나가 메인 스레드를 약 9초 멈춘다. 홈이 채널마다
+마지막 메시지 전문을 토크나이징하게 되면서 **그 한 메시지가 채널 멤버 전원의 홈을 멈추는 경로**가
+열렸으므로, 개수를 한 번만 세고 인덱스만 뒤로 옮기도록 고쳤다.
 
 ### 4. `apps/web` — 본문 렌더러 (`features/channels/components/MessageText.tsx`)
 
@@ -563,9 +576,13 @@ const stopGesture = (event: React.PointerEvent | React.MouseEvent) => event.stop
 />;
 ```
 
-버튼에 붙는 핸들러는 `onPointerDown`·`onPointerUp`·`onClick`·`onContextMenu` 넷이다.
-`ChannelMessageRow`가 감시하는 이벤트(`onPointerDown`/`onPointerUp`/`onPointerLeave`/
-`onPointerCancel`/`onContextMenu`, `ChannelMessageRow.tsx:243-248`)를 모두 덮어야 한다.
+버튼이 막는 것은 **제스처를 시작하는 두 이벤트뿐**이다 — `onPointerDown`과 `onContextMenu`.
+
+`ChannelMessageRow`는 `onPointerDown`으로 타이머를 **걸고**, `onPointerUp`/`onPointerLeave`/
+`onPointerCancel`로 타이머를 **푼다**(`ChannelMessageRow.tsx:246-250`). 그래서 뒤의 셋까지 막으면
+의도와 정반대가 된다 — 코드 본문에서 누르기 시작해 버튼 위에서 뗀 제스처는 취소가 삼켜져 액션 시트가
+그대로 열린다. 터치에서는 implicit pointer capture가 `pointerup`을 `pointerdown` 요소로 되돌려
+가려지지만 마우스에서는 그대로 재현된다.
 
 복사는 기존 `copyMessageToClipboard`(`features/channels/utils/`)를 그대로 쓴다 — 네이티브
 `appBridge.copyClipBoard`와 브라우저 `navigator.clipboard` 분기가 이미 그 안에 있다. 성공 시
