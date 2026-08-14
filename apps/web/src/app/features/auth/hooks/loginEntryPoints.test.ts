@@ -17,8 +17,14 @@ import { extname, join } from 'node:path';
  */
 const SRC_ROOT = join(__dirname, '../../..');
 
-/** Only the hook that owns this navigation may name the route. */
-const ALLOWED = ['features/auth/hooks/useNavigateToLogin.ts'];
+/** Only the hook that owns this navigation, and the path table that defines it, may name it. */
+const ALLOWED = ['features/auth/hooks/useNavigateToLogin.ts', 'routes/paths.ts'];
+
+/**
+ * Both spellings. Matching only `ROUTES.mypage.login` would miss the raw literal — which already
+ * exists in-tree (routes/paths.ts defines it), so it is one copy-paste away from a call site.
+ */
+const LOGIN_ROUTE_PATTERN = /ROUTES\.mypage(\.login|\['login'\]|\["login"\])|['"`]\/mypage\/login['"`]/;
 
 const sourceFiles = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -33,7 +39,7 @@ const sourceFiles = (dir: string): string[] =>
 const findDirectLoginNavigations = () =>
     sourceFiles(SRC_ROOT)
         .filter(file => !ALLOWED.some(allowed => file.endsWith(allowed)))
-        .filter(file => readFileSync(file, 'utf-8').includes('ROUTES.mypage.login'))
+        .filter(file => LOGIN_ROUTE_PATTERN.test(readFileSync(file, 'utf-8')))
         .map(file => file.slice(SRC_ROOT.length + 1));
 
 describe('로그인 진입점', () => {
@@ -51,8 +57,12 @@ describe('로그인 진입점', () => {
         ];
 
         for (const entry of entryPoints) {
+            // readFileSync throws ENOENT on a wrong SRC_ROOT, which is what anchors the scan above.
             const source = readFileSync(join(SRC_ROOT, entry), 'utf-8');
-            expect({ entry, usesHook: source.includes('useNavigateToLogin') }).toEqual({ entry, usesHook: true });
+            expect({ entry, callsHook: source.includes('useNavigateToLogin()') }).toEqual({
+                entry,
+                callsHook: true,
+            });
         }
     });
 });

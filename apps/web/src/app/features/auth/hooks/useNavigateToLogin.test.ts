@@ -4,13 +4,14 @@ import { useNavigateToLogin } from './useNavigateToLogin';
 
 const navigate = jest.fn();
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
-let currentLocation = { pathname: '/mypage', search: '' };
+let currentLocation = { pathname: '/mypage', search: '', hash: '' };
 jest.mock('react-router-dom', () => ({ useLocation: () => currentLocation }));
 
 beforeEach(() => {
     jest.clearAllMocks();
-    currentLocation = { pathname: '/mypage', search: '' };
+    currentLocation = { pathname: '/mypage', search: '', hash: '' };
 });
 
 describe('useNavigateToLogin', () => {
@@ -23,7 +24,7 @@ describe('useNavigateToLogin', () => {
 
     // 쿼리로 상태를 나르는 화면(구독 플랜 등)은 경로만 복원하면 절반만 돌아온다.
     it('쿼리스트링까지 보존한다', () => {
-        currentLocation = { pathname: '/subscription/plans', search: '?plan=pro&from=banner' };
+        currentLocation = { pathname: '/subscription/plans', search: '?plan=pro&from=banner', hash: '' };
         const { result } = renderHook(() => useNavigateToLogin());
         result.current();
 
@@ -39,5 +40,25 @@ describe('useNavigateToLogin', () => {
         result.current();
 
         expect(navigate.mock.calls[0][1]).not.toHaveProperty('replace');
+    });
+});
+
+describe('useNavigateToLogin — returnTo를 남기지 않는 경우', () => {
+    // 로그인 화면 위에서 진입점이 렌더되는 날, returnTo가 로그인 자신을 가리키면 로그인 후 다시
+    // 로그인 화면으로 돌아온다.
+    it('이미 로그인 화면이면 returnTo를 싣지 않는다', () => {
+        currentLocation = { pathname: '/mypage/login', search: '', hash: '' };
+        const { result } = renderHook(() => useNavigateToLogin());
+        result.current();
+
+        expect(navigate).toHaveBeenCalledWith('/mypage/login', { state: { returnTo: undefined } });
+    });
+
+    it('해시도 보존한다', () => {
+        currentLocation = { pathname: '/mypage', search: '', hash: '#section' };
+        const { result } = renderHook(() => useNavigateToLogin());
+        result.current();
+
+        expect(navigate).toHaveBeenCalledWith('/mypage/login', { state: { returnTo: '/mypage#section' } });
     });
 });

@@ -33,8 +33,9 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 1. **로그인은 흐름의 중단이 아니라 삽입이다.** 사용자가 하던 일이 있고, 로그인은 그 일을 계속하기 위해
    끼어든 단계다. 끝나면 하던 자리로 돌아간다.
 2. **뒤로가기로 로그인 화면에 다시 들어갈 수 없어야 한다.** 이미 지나온 관문이다. 이 방어는
-   **`replace` 하나로** 얻는다 — 히스토리 전체를 되감는 것은 과잉이고, 그 과정에서 사용자가 쌓아온
-   내비게이션 맥락을 통째로 버린다.
+   **히스토리를 한 칸 되돌아가는 것으로** 얻는다 — 진입점이 로그인 화면을 push했으므로 직전 항목이
+   곧 돌아갈 화면이고, 뒤로 가면 로그인 항목이 뒤쪽 경로에서 빠진다. 스택 전체를 되감는 것은 과잉이고,
+   그 과정에서 사용자가 쌓아온 내비게이션 맥락을 통째로 버린다.
 3. **복귀는 "화면 단위"이지 "상태 단위"가 아니다.** 구독 플랜 화면으로 돌아가더라도 로그인 전에 고르던
    플랜 선택은 복원되지 않는다. 상태 복원을 원하면 그건 별도 설계다.
 4. **풀 리로드는 신원 교체의 수단이 아니다.** 소셜·폰 양쪽 모두 세션 신원이 콜백 **이전에** 교체된다
@@ -95,7 +96,9 @@ window.history.go(-stepsBack); // 히스토리를 처음까지 되감고
 
 1. `/mypage`의 "로그인하기" 헤더를 누른다 → `returnTo: '/mypage'`.
 2. 로그인 성공 → `/mypage`로 `replace` 복귀. 이제 게스트 분기가 풀려 프로필·구독·로그아웃 행이 보인다.
-3. **뒤로가기** — 로그인 화면이 아니라 `/mypage` 이전 화면(대개 홈)으로 간다.
+3. **뒤로가기** — 로그인 화면이 아니라 `/mypage` 이전 화면(대개 홈)으로 간다. 복귀가 `replace`가
+   아니라 **뒤로가기**이기 때문이다. `replace`로 덮으면 `/mypage`가 연속 두 항목이 되어 첫 뒤로가기가
+   같은 화면에 머무르고, 사용자에게는 뒤로가기가 고장난 것으로 보인다.
 
 ### S3. 계정 갈라짐 방어 배너를 타고 온 경우
 
@@ -155,13 +158,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[로그인 성공] --> B{"location.state?.returnTo<br/>있는가?"}
-    B -- 없다 --> C["ROUTES.home ('/')"]
-    B -- 있다 --> D["returnTo"]
-    C --> E["navigate(target, {<br/>replace: true,<br/>transition: true,<br/>direction: 'back' })"]
+    A[로그인 성공] --> B{"state.returnTo가 있고<br/>돌아갈 히스토리가 있는가?"}
+    B -- 예 --> C["navigate(-1)<br/>진입점이 push한 직전 항목"]
+    B -- 아니오 --> D["navigate('/', {<br/>replace: true,<br/>transition: true,<br/>direction: 'back' })"]
+    C --> E[복귀 완료 · 리로드 없음]
     D --> E
-    E --> F[복귀 완료 · 리로드 없음]
 ```
+
+`returnTo`는 **목적지가 아니라 플래그로만** 읽힌다 — "앱 안에서 push되어 왔는가". 문자열이 라우터에
+목적지로 넘어가는 경로가 아예 없으므로 오픈 리다이렉트 표면이 존재하지 않는다.
 
 ### 진입과 복귀의 전체 흐름
 
@@ -187,7 +192,7 @@ sequenceDiagram
         Auth-->>Login: onVerified
     end
 
-    Login->>Router: navigate(returnTo ?? '/', { replace: true })
+    Login->>Router: navigate(-1)  (returnTo 없으면 '/' replace)
     Router-->>Entry: 원래 화면 (리로드 없음)
 ```
 
@@ -228,30 +233,43 @@ export const useNavigateToLogin = () => {
 
 ### 2. `LoginPage` — `leaveForHome` 교체 (`features/mypage/pages/LoginPage.tsx`)
 
-`leaveForHome`(`:38-46`)을 통째로 걷어내고 복귀 함수로 바꾼다:
+`leaveForHome`을 걷어내고 복귀 함수로 바꾼다:
 
 ```ts
-const location = useLocation();
-const navigate = useNavigateWithTransition();
-
-/**
- * 로그인 화면을 떠난다. `replace`가 이 화면의 히스토리 항목을 대체하므로 뒤로가기로 여기에 다시
- * 들어올 수 없다 — 예전 `leaveForHome`이 스택을 통째로 되감아 얻던 방어를 그 한 줄이 대신한다.
- * 소셜·폰 양쪽이 공유한다.
- */
 const leaveForReturnTo = () => {
     const { returnTo } = (location.state ?? {}) as LoginLocationState;
-    void navigate(returnTo ?? ROUTES.home, { replace: true, transition: true, direction: 'back' });
+    const cameFromInsideTheApp = !!returnTo && window.history.length > 1;
+    const leaving = cameFromInsideTheApp
+        ? navigate(-1)
+        : navigate(ROUTES.home, { replace: true, transition: true, direction: 'back' });
+    void Promise.resolve(leaving).catch(error =>
+        logger.error('AUTH', '[LoginPage] Failed to leave the login screen', { error })
+    );
 };
 ```
 
-호출 지점 두 곳은 그대로다 — `handleOAuthLogin`의 성공 경로(`:67`)와 `PhoneVerifySheet`의
-`onVerified`(`:184`).
+호출 지점 두 곳은 그대로다 — `handleOAuthLogin`의 성공 경로와 `PhoneVerifySheet`의 `onVerified`.
 
-**`transition: true, direction: 'back'`을 명시하는 이유.** `useNavigateWithTransition`은
-`replace: true`일 때 트랜지션을 **기본으로 끈다**(`TransitionNavigateOptions`의
-`transition?: boolean` — `@default true (false if replace: true)`). 명시하지 않으면 복귀가 뚝 끊기듯
-바뀐다. `direction: 'back'`은 "왔던 곳으로 되돌아간다"는 이 내비게이션의 의미와 맞다.
+**왜 `replace`가 아니라 뒤로가기인가.** 진입점이 로그인 화면을 **push**하므로 스택은
+`[…, returnTo, /mypage/login]`이다. `replace: true`는 현재 항목만 덮으므로 결과가
+`[…, returnTo, returnTo]` — 같은 경로가 연속 두 개다. 첫 뒤로가기가 같은 화면에 머무르고(트랜지션만
+재생된다) 두 번 눌러야 실제로 이동한다. 뒤로가기는 그 자리에서 직전 항목으로 이동하므로 로그인
+항목이 뒤쪽 경로에서 빠지고 스택도 깨끗하다.
+
+**부수 효과로 리다이렉트 표면이 사라진다.** 뒤로가기는 문자열을 받지 않으므로 `returnTo`는 "앱
+안에서 왔는가"라는 **플래그로만** 쓰인다. (검토 결과 `location.state`는 세션 히스토리 항목에만 살고
+URL에 실리지 않아 딥링크·외부 링크·네이티브 셸이 설정할 수 없으며, 데이터 라우터가 모든 내비게이션을
+`encodeLocation`에 통과시켜 `//evil.com`조차 동일 출처 경로로 접힌다 — 즉 이전 방식에도 오픈
+리다이렉트는 없었다. 그럼에도 문자열을 아예 쓰지 않는 편이 질문 자체를 없앤다.)
+
+**폴백은 홈 `replace`.** `returnTo`가 없거나(딥링크·새로고침) 돌아갈 히스토리가 없을 때
+(셸이 웹뷰를 새로 만들어 스택은 잃고 라우터 state만 남은 경우) 쓰인다. `transition`/`direction`을
+명시하는 이유는 트랜지션 헬퍼가 `replace: true`일 때 애니메이션을 **기본으로 끄기** 때문이다
+(`TransitionNavigateOptions`의 `transition?: boolean` — `@default true (false if replace: true)`).
+
+**내비게이션 promise를 삼키지 않는다.** `useNavigateWithTransition`은 뷰 트랜지션 promise를 돌려주고,
+이 시점엔 세션이 이미 승격된 뒤다 — 조용히 실패하면 로그인된 사용자가 아무 안내 없이 로그인 화면에
+갇힌다.
 
 ### 3. 진입점 5곳 — `navigate(ROUTES.mypage.login)` → `goToLogin()`
 

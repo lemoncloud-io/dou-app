@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { ROUTES } from '../../../routes/paths';
@@ -24,10 +25,15 @@ export interface LoginLocationState {
  */
 export const useNavigateToLogin = () => {
     const navigate = useNavigateWithTransition();
-    const { pathname, search } = useLocation();
+    const { pathname, search, hash } = useLocation();
 
     return useCallback(() => {
-        const returnTo = `${pathname}${search}`;
-        void navigate(ROUTES.mypage.login, { state: { returnTo } satisfies LoginLocationState });
-    }, [navigate, pathname, search]);
+        // Never point back at login itself. No entry point renders there today, but the day one
+        // does, signing in would return the user to the screen they just left.
+        const isOnLogin = pathname === ROUTES.mypage.login;
+        const returnTo = isOnLogin ? undefined : `${pathname}${search}${hash}`;
+        void Promise.resolve(navigate(ROUTES.mypage.login, { state: { returnTo } satisfies LoginLocationState })).catch(
+            error => logger.error('AUTH', '[useNavigateToLogin] Navigation failed', { error })
+        );
+    }, [navigate, pathname, search, hash]);
 };

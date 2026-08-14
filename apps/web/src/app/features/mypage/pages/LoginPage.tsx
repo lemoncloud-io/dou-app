@@ -37,23 +37,35 @@ export const LoginPage = () => {
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
 
     /**
-     * Leave the login screen for wherever the user came from (`useNavigateToLogin` put it in the
-     * router state); home when nothing was passed — a deep link or a refresh landed here directly.
+     * Leave the login screen for wherever the user came from.
      *
-     * `replace` is what keeps back-navigation out of a login the user has already passed: it
-     * overwrites this screen's history entry. That is the whole job the previous implementation did
-     * by rewinding the stack to its first entry and doing a full-page `location.replace('/')` —
-     * which also threw away every screen the user had navigated through, and flashed white on the
-     * way out. Neither is needed: both sign-in paths install the new identity BEFORE this runs
-     * (phone via `applySessionToken`, social via `loginRelaySocial`), so there is nothing a reload
-     * would fix (ADR-0055).
+     * `history.back()`, not a replace. The entry point PUSHED this screen (see useNavigateToLogin),
+     * so the previous entry is already the screen to return to — going back lands on it and takes
+     * the login entry out of the backward path in one move. Replacing instead would overwrite login
+     * with a second copy of that screen, leaving two identical adjacent entries: the first back
+     * press would appear to do nothing, which reads as broken navigation.
      *
-     * `transition`/`direction` are explicit because the transition helper turns animation OFF by
-     * default when `replace` is set; coming back should read as going back, not as a hard cut.
+     * A useful side effect: `returnTo` is read as a FLAG (did we get here from inside the app?),
+     * never handed to the router as a destination, so there is no path for it to become a redirect
+     * target at all.
+     *
+     * The old implementation rewound the whole history stack and did a full-page
+     * `location.replace('/')`. Neither is needed: both sign-in paths install the new identity before
+     * this runs (phone via `applySessionToken`, social via `loginRelaySocial`), so a reload fixes
+     * nothing and only costs a white flash (ADR-0055).
      */
     const leaveForReturnTo = () => {
         const { returnTo } = (location.state ?? {}) as LoginLocationState;
-        void navigate(returnTo ?? ROUTES.home, { replace: true, transition: true, direction: 'back' });
+        const cameFromInsideTheApp = !!returnTo && window.history.length > 1;
+        const leaving = cameFromInsideTheApp
+            ? navigate(-1)
+            : // Deep link or refresh landed here directly, so there is nothing to go back to.
+              navigate(ROUTES.home, { replace: true, transition: true, direction: 'back' });
+        void Promise.resolve(leaving).catch(error =>
+            // The session is already promoted by this point, so a silent failure would strand a
+            // signed-in user on the login screen with no feedback.
+            logger.error('AUTH', '[LoginPage] Failed to leave the login screen', { error })
+        );
     };
 
     const handleOAuthLogin = async (provider: 'google' | 'apple') => {
