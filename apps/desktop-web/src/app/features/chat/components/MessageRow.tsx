@@ -698,7 +698,7 @@ export const MessageRow = memo(
                                             open
                                             onOpenChange={next => !next && setConfirmingKey(null)}
                                             title={t('chat.deleteConfirm.title')}
-                                            description={content || t('chat.deleteConfirm.noPreview')}
+                                            description={plain || t('chat.deleteConfirm.noPreview')}
                                             confirmLabel={t('chat.deleteConfirm.action')}
                                             onConfirm={() => {
                                                 setConfirmingKey(null);
