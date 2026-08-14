@@ -43,6 +43,10 @@ export interface UnknownBlock {
 
 export type KnownBlock = SectionBlock | HeaderBlock | DividerBlock | ContextBlock | UnknownBlock;
 
+/** Slack escapes exactly these three on the wire. */
+export const decodeSlackEntities = (text: string): string =>
+    text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+
 const asText = (value: unknown): BlockTextObject | null => {
     if (!value || typeof value !== 'object') return null;
     const { type, text } = value as { type?: unknown; text?: unknown };

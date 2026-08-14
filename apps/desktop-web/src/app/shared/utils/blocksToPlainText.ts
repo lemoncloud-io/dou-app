@@ -1,4 +1,4 @@
-import type { BlockTextObject, KnownBlock } from './blockKit';
+import { decodeSlackEntities, type BlockTextObject, type KnownBlock } from './blockKit';
 
 /**
  * Flatten Block Kit content to plain text for every surface that is not the
@@ -6,10 +6,6 @@ import type { BlockTextObject, KnownBlock } from './blockKit';
  * blocks counterpart of `stripMarkdown`, and the only place that knows how to do
  * it: a surface that reads `chat.content` directly would show raw JSON.
  */
-
-// Slack escapes exactly these three on the wire.
-const decodeEntities = (text: string): string =>
-    text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
 /**
  * A mark only counts when its delimiters stand alone, the way Slack reads them.
@@ -28,7 +24,7 @@ const unwrap = (mark: string): [RegExp, string] => [
  * link that was never in the message.
  */
 export const mrkdwnToPlainText = (text: string): string =>
-    decodeEntities(
+    decodeSlackEntities(
         text
             .replace(/<[^<>|]+\|([^<>]*)>/g, '$1') // <url|label> → label
             .replace(/<[@!]([^<>|]+)>/g, '@$1') // <@U123>, <!here> → @U123, @here
@@ -41,7 +37,7 @@ export const mrkdwnToPlainText = (text: string): string =>
     );
 
 const textOf = (text: BlockTextObject): string =>
-    text.type === 'mrkdwn' ? mrkdwnToPlainText(text.text) : decodeEntities(text.text);
+    text.type === 'mrkdwn' ? mrkdwnToPlainText(text.text) : decodeSlackEntities(text.text);
 
 const lineOf = (block: KnownBlock): string => {
     switch (block.type) {
