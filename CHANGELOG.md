@@ -1,5 +1,62 @@
 # Changelog
 
+## [2026-08-14] - No version updates
+
+### Features
+
+- (app-runtime,bridges,mobile) negotiate cache storage per domain contract version (ADR-0053)
+- (data,mobile,web) give sent invites a local cache and native table (ADR-0052)
+- (web/home) keep a live channel head for every cloud channel, not just the rendered ones
+- (web/debug) fold inspection screens into the panel, and stop email login reloading
+- (web/debug) read cache metrics in the overlay, and float a tool screen over the app
+- (data) measure what a native cache call actually costs
+- (app-runtime/data) route cache types the installed app cannot store to web storage
+- (app-runtime) add requestSessionRefresh, the single credentials-refresh entry point
+- (app-runtime,web) kick wedged sockets on foreground wake
+
+### Bug Fixes
+
+- (data,app-runtime) retire sync cursors when their data changes stores
+- (app-runtime/data) store profiles natively now that the writer keeps them intact
+- (data) wake only the observers a write actually affects
+- (web/runtime) re-mint stale relay credentials once the relay socket verifies
+- (web/invite) hand the waiting-screen poll to react-query so the relay gate holds
+- (app-runtime/socket) clear a slot's auth flag when the transport leaves connected
+- (web-core) seal lemon-web-core's auto-refresh out of the boot path
+- (admin-v2) require a failure streak before the zombie logout, and notify the socket on logout
+- (web-core/transport) stop retrying signature-invalid errors
+- (app-runtime/socket) throttle expired-auth resume and close the disconnected re-register race
+
+### Documentation
+
+- (app-runtime/data) record the cache contract version design (ADR-0053)
+- (cache) sync the cache docs with the post-ADR-0051 code
+- (app-runtime/data) record the cache storage routing redesign (ADR-0051)
+- (web/invite) record the invite-list local caching redesign as not started
+- (audit) record the apps/web boot-credential regression and its fix
+- (audit) keep reconnect unlimited by design, drop the give-up option
+- (audit) mark Phase 2-2/2-3 implemented
+- (audit) record the 2026-08 session-management audit and align stale auth comments
+
+### Refactor
+
+- (app-runtime,web) retire the web->native invite-cloud migration bridge
+- (web/home) scope home's join/channel fetch to the active site only
+- (app-runtime/data) drop the setChatCacheLimit shim for one configureDataRuntime call
+- (app-runtime/data) retire the hot/cold vocabulary from the invite-cloud module
+- (app-runtime/data) collapse cache storage selection into one routing table
+- (data) delete the dead hot/cold 2-tier cache machinery
+- (admin-v2) drive the session guard through requestSessionRefresh
+
+### Chores
+
+- (data) shorten the sync-cursor TTL to 5 minutes during the migration
+
+### Other
+
+- perf: (data,bridges,mobile) batch multi-id cache reads into one bridge round trip
+- perf: (data) run one query per observer key, not one per observer
+
 ## [2026-08-14] - root@0.54.0, @chatic/desktop-web@0.6.0
 
 ### Features
