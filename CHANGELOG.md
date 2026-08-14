@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-08-14] - root@0.53.0, @chatic/desktop-web@0.5.0
+
+### Features
+
+- (desktop-web) read block messages on every surface, not just the feed
+- (desktop-web) show Block Kit messages in the feed and in threads
+- (desktop-web) draw a Block Kit message
+- (desktop-web) read a Block Kit payload without trusting it
+
+### Bug Fixes
+
+- (desktop-web) keep a confirmation dialog the size of a question
+- (desktop-web) ask about the message, not about its payload
+- (desktop-web) space the elements of a Block Kit context line
+- (desktop-web) keep the line breaks inside a Block Kit text object
+- (desktop-web) decide a block payload by its content, not by contentType
+
+### Documentation
+
+- (specs) the Block Kit contract the server writes against
+
+### Refactor
+
+- (desktop-web) one definition of what counts as a Slack mark
+
 ## [2026-08-12] - root@0.52.0, @chatic/web@0.45.0
 
 ### Features
