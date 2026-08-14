@@ -23,7 +23,7 @@ export const useMentionCapture = (): void => {
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
         // Flattened first: a Block Kit payload hides its text inside JSON, so both the
         // '@' pre-filter and the stored copy have to read what the message says.
-        const content = messagePlainText(chat.content, chat.contentType);
+        const content = messagePlainText(chat.content);
         // Cheap pre-filter: only '@'-bearing messages can mention me (or @channel/@here).
         if (!content || !content.includes('@')) return;
         // The '@' filter above catches most system rows, but a join event for a channel

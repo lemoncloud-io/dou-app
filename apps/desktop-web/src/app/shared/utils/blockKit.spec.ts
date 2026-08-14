@@ -11,9 +11,11 @@ describe('parseBlocks', () => {
         expect(parseBlocks(undefined)).toBeNull();
     });
 
-    // The fast path: a message the server already labelled as text is never JSON.
-    it('does not even try when contentType says text', () => {
-        expect(parseBlocks(wire([{ type: 'divider' }]), 'text')).toBeNull();
+    // The `contentType` marker is not consulted at all: this client's own send path
+    // stamps `'text'` by default, so a marker-gated reader would answer "no" to
+    // everything and the whole feature would sit dead behind a green suite.
+    it('reads a payload whatever the message was labelled', () => {
+        expect(parseBlocks(wire([{ type: 'divider' }]))).toEqual([{ type: 'divider' }]);
     });
 
     it('survives broken JSON', () => {

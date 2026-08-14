@@ -121,7 +121,7 @@ export const SearchDialog = ({ channels, onSelect }: SearchDialogProps) => {
                                             className="focus-ring tactile flex items-baseline gap-2 rounded-md py-1 pl-7 pr-3 text-left transition-colors ease-tactile hover:bg-accent/60"
                                         >
                                             <span className="min-w-0 flex-1 truncate text-callout text-muted-foreground">
-                                                {highlight(messagePlainText(chat.content, chat.contentType), trimmed)}
+                                                {highlight(messagePlainText(chat.content), trimmed)}
                                             </span>
                                             <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
                                                 {formatTime(chat.createdAt ?? chat.createdAtMs)}

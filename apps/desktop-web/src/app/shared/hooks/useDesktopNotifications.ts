@@ -84,7 +84,7 @@ export const useDesktopNotifications = (): void => {
         // (global profile name + this place's nick, plus @channel/@here).
         // Flattened first: a mention lives in the block text, not in the JSON that
         // carries it, and the raw payload would also match on field names.
-        const message = messagePlainText(chat.content, chat.contentType);
+        const message = messagePlainText(chat.content);
         if (notifyMode === 'mention' && !isMentioned(message, resolveMyMentionNames())) return;
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's

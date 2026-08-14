@@ -274,7 +274,7 @@ export const MessageRow = memo(
                             const content = message.content ?? '';
                             // A structured message the server sent as Block Kit; null for
                             // everything else, which is still the overwhelming majority.
-                            const blocks = parseBlocks(content, message.contentType);
+                            const blocks = parseBlocks(content);
                             // What this row *says*, as opposed to what it is made of. Copy,
                             // Save, and the link unfurl all mean the former — reading `content`
                             // there would hand the reader the payload's JSON.

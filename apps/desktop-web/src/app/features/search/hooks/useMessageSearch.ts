@@ -47,9 +47,7 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
                     const page = await chatRepository
                         .cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT })
                         .catch(() => null);
-                    const all = (page?.list ?? []).filter(c =>
-                        messagePlainText(c.content, c.contentType).toLowerCase().includes(q)
-                    );
+                    const all = (page?.list ?? []).filter(c => messagePlainText(c.content).toLowerCase().includes(q));
                     if (all.length === 0) return null;
                     const matches = [...all]
                         .sort((a, b) => (b.chatNo ?? 0) - (a.chatNo ?? 0))

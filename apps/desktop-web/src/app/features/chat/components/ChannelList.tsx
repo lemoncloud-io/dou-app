@@ -88,10 +88,7 @@ const ChannelRow = ({ channel, label, icon, isActive, onSelect, rowRef }: Channe
     // content survives the soft delete, and printing it would show text the row itself
     // says is gone.
     const preview = useMemo(
-        () =>
-            lastChat?.hidden
-                ? t('sidebar.deletedPreview')
-                : messagePlainText(lastChat?.content?.trim(), lastChat?.contentType),
+        () => (lastChat?.hidden ? t('sidebar.deletedPreview') : messagePlainText(lastChat?.content?.trim())),
         [lastChat, t]
     );
     const time = relativeTime(lastChat?.createdAt ?? channel.lastActivityAt);

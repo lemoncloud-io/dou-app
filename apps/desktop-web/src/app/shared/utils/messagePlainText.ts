@@ -11,7 +11,7 @@ import { stripMarkdown } from './stripMarkdown';
  * shows the reader raw JSON, and each surface that solves it privately is one
  * more place to forget.
  */
-export const messagePlainText = (content?: string, contentType?: string): string => {
-    const blocks = parseBlocks(content, contentType);
+export const messagePlainText = (content?: string): string => {
+    const blocks = parseBlocks(content);
     return blocks ? blocksToPlainText(blocks) : stripMarkdown(content ?? '');
 };

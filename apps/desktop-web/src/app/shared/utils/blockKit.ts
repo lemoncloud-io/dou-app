@@ -92,13 +92,19 @@ const toBlock = (element: unknown): KnownBlock => {
 };
 
 /**
- * Is this message body a Block Kit payload? Decided by content, not by the
- * `contentType` marker — the marker is only trusted when it says `text`, which
- * lets an ordinary message skip the work. Never throws: every failure is `null`,
- * which callers read as "plain text, render it the way we always did".
+ * Is this message body a Block Kit payload? Decided by content alone.
+ *
+ * The `contentType` marker is deliberately not consulted: its value is not
+ * settled server-side, `toDomainChat` passes through whatever arrives, and this
+ * client's own send path stamps `'text'` by default — so trusting the marker
+ * risks answering "no" to every message and leaving the feature dead while every
+ * test stays green. The opening-brace check is the cheap guard instead.
+ *
+ * Never throws: every failure is `null`, which callers read as "plain text,
+ * render it the way we always did".
  */
-export const parseBlocks = (content?: string, contentType?: string): KnownBlock[] | null => {
-    if (!content || contentType === 'text') return null;
+export const parseBlocks = (content?: string): KnownBlock[] | null => {
+    if (!content) return null;
     const trimmed = content.trim();
     if (!trimmed.startsWith('{')) return null;
     let payload: unknown;
