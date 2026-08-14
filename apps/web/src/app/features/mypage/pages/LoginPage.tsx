@@ -1,21 +1,27 @@
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useLoginRelaySocial } from '@chatic/web-core';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';
 
 import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
+import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { isDevBuild } from '../../../utils/buildEnv';
+import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 
 export const LoginPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const location = useLocation();
+    const navigate = useNavigateWithTransition();
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
     const [isPhoneOpen, setIsPhoneOpen] = useState(false);
@@ -31,18 +37,23 @@ export const LoginPage = () => {
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
 
     /**
-     * Clean up the history stack: [/, /mypage, /mypage/login] → [/]. Going back to the first entry and
-     * replacing prevents a back-navigation loop into a login page the user has already passed. Shared
-     * by both sign-in methods — either one leaves this screen behind for good.
+     * Leave the login screen for wherever the user came from (`useNavigateToLogin` put it in the
+     * router state); home when nothing was passed — a deep link or a refresh landed here directly.
+     *
+     * `replace` is what keeps back-navigation out of a login the user has already passed: it
+     * overwrites this screen's history entry. That is the whole job the previous implementation did
+     * by rewinding the stack to its first entry and doing a full-page `location.replace('/')` —
+     * which also threw away every screen the user had navigated through, and flashed white on the
+     * way out. Neither is needed: both sign-in paths install the new identity BEFORE this runs
+     * (phone via `applySessionToken`, social via `loginRelaySocial`), so there is nothing a reload
+     * would fix (ADR-0055).
+     *
+     * `transition`/`direction` are explicit because the transition helper turns animation OFF by
+     * default when `replace` is set; coming back should read as going back, not as a hard cut.
      */
-    const leaveForHome = () => {
-        const stepsBack = window.history.length - 1;
-        if (stepsBack > 0) {
-            window.addEventListener('popstate', () => window.location.replace('/'), { once: true });
-            window.history.go(-stepsBack);
-        } else {
-            window.location.replace('/');
-        }
+    const leaveForReturnTo = () => {
+        const { returnTo } = (location.state ?? {}) as LoginLocationState;
+        void navigate(returnTo ?? ROUTES.home, { replace: true, transition: true, direction: 'back' });
     };
 
     const handleOAuthLogin = async (provider: 'google' | 'apple') => {
@@ -64,7 +75,7 @@ export const LoginPage = () => {
             // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
             await loginRelaySocial({ body: result, provider: result.provider });
 
-            leaveForHome();
+            leaveForReturnTo();
         } catch (e) {
             setIsOAuthPending(false);
             setActiveProvider(null);
@@ -181,7 +192,7 @@ export const LoginPage = () => {
             {/* `login`: this is a device session proving a number to become that number's main user, so
                 a `$token` comes back and `usePhoneVerify` installs it before `onVerified` fires. */}
             {isPhoneOpen && (
-                <PhoneVerifySheet mode="login" onVerified={leaveForHome} onClose={() => setIsPhoneOpen(false)} />
+                <PhoneVerifySheet mode="login" onVerified={leaveForReturnTo} onClose={() => setIsPhoneOpen(false)} />
             )}
         </div>
     );

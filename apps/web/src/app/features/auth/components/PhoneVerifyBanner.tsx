@@ -1,12 +1,10 @@
 import { ChevronRight, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { useNavigateWithTransition } from '@chatic/shared';
-
 // Concrete module, not the hooks barrel: that barrel pulls the whole app-runtime surface, and this
 // component renders inside a dialog the auth suites load under jsdom.
 import { useLinkedAccounts } from '../../../hooks/useLinkedAccounts';
-import { ROUTES } from '../../../routes/paths';
+import { useNavigateToLogin } from '../hooks/useNavigateToLogin';
 
 interface PhoneVerifyBannerProps {
     /** Dismisses the verification screen before leaving for the social-login page. */
@@ -25,13 +23,13 @@ interface PhoneVerifyBannerProps {
  */
 export const PhoneVerifyBanner = ({ onClose }: PhoneVerifyBannerProps) => {
     const { t } = useTranslation();
-    const navigate = useNavigateWithTransition();
+    const goToLogin = useNavigateToLogin();
     const { social } = useLinkedAccounts();
 
     const handleGoToSocialLogin = () => {
         // Leave the verification flow first so the dialog is not left mounted under the login page.
         onClose();
-        navigate(ROUTES.mypage.login);
+        goToLogin();
     };
 
     // Already proved a social account, so verifying a number here hangs it on THAT user — there is no
