@@ -5,6 +5,7 @@ export * from './useExcessClouds';
 export * from './useNativeCatalog';
 export * from './usePlanCatalog';
 export * from './usePlanOptions';
+export * from './usePlanPrice';
 export * from './useSubscriptionIap';
 export * from './useTierPurchase';
 export * from './useVerifyEmailCode';

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
-import { planDisplayName } from '../../lib';
+import { formatPlanPrice, planDisplayName } from '../../lib';
 
 interface PlanCardProps {
     product: ProductView;
@@ -35,12 +35,10 @@ export const PlanCard = ({
     displayPrice,
     onSelect,
 }: PlanCardProps) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const displayName = planDisplayName(product, isKo);
     const isDisabled = isBlocked || isCurrent || !!disabledReason;
-    // The store's price is the one the user is actually charged; the server value is a USD
-    // reference and only stands in where no store applies (web) or the store has no entry.
-    const price = displayPrice ?? (product.price != null ? `$${product.price}` : undefined);
+    const price = formatPlanPrice(displayPrice, product.price, i18n.language);
 
     return (
         <button

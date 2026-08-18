@@ -5,7 +5,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { FloatingButton, ScreenLayout } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
-import { usePlanCatalog } from '../hooks';
+import { usePlanCatalog, usePlanPrice } from '../hooks';
 
 const formatDate = (timestamp?: number): string => {
     if (!timestamp || timestamp <= 0) return '-';
@@ -24,10 +24,11 @@ export const SubscriptionCompletePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { summary, currentPlan } = usePlanCatalog();
+    const priceOf = usePlanPrice();
 
     const isTrial = (summary.trialDaysLeft ?? 0) > 0;
     const endsAt = formatDate(summary.validUntil);
-    const price = currentPlan?.price != null ? `$${currentPlan.price}` : '-';
+    const price = priceOf(currentPlan) ?? '-';
 
     return (
         <ScreenLayout

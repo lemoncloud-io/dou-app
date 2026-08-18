@@ -13,7 +13,7 @@ import { useMembershipInfo } from '@chatic/web-core';
 
 import { ExcessCloudBanner } from '../components';
 import { planDisplayName } from '../lib';
-import { usePlanCatalog, useSubscriptionIap } from '../hooks';
+import { usePlanCatalog, usePlanPrice, useSubscriptionIap } from '../hooks';
 import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
@@ -36,6 +36,7 @@ export const SubscriptionPage = () => {
 
     const { data: membership, isLoading } = useMembershipInfo();
     const { summary, currentPlan, pendingPlan } = usePlanCatalog();
+    const priceOf = usePlanPrice();
     const isKo = i18n.language.startsWith('ko');
     const { isGuest } = useRuntimeProfile();
 
@@ -176,14 +177,14 @@ export const SubscriptionPage = () => {
                                             </span>
                                         </div>
                                     )}
-                                    {currentPlan?.price != null && (
+                                    {priceOf(currentPlan) && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.price')}
                                             </span>
                                             <span className="text-[16px] font-medium">
                                                 {t('mypage.subscription.pricePerMonth', {
-                                                    price: `$${currentPlan.price}`,
+                                                    price: priceOf(currentPlan),
                                                 })}
                                             </span>
                                         </div>
