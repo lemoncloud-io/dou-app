@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useTheme } from '../../hooks';
-import { isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../utils';
+import { isEmailVerifyRefusal, isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../utils';
 import { EmailStep, VerifyStep } from './email-verify';
 
 type Step = 'email' | 'verify';
@@ -92,8 +92,11 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail 
             await verifyEmail({ email, step: 'send' });
             setStep('verify');
             startTimer();
-        } catch {
-            toast({ title: t('addAccount.sendCodeFailed'), variant: 'destructive' });
+        } catch (e) {
+            // Only a deliberate refusal carries copy written for the user; anything else is a
+            // failed request whose message is backend wording.
+            const reason = isEmailVerifyRefusal(e) ? e.message : t('addAccount.sendCodeFailed');
+            toast({ title: reason, variant: 'destructive' });
         } finally {
             setLoading(false);
         }
@@ -106,8 +109,9 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail 
             setCode('');
             setVerifyError(false);
             startTimer();
-        } catch {
-            toast({ title: t('addAccount.resendFailed'), variant: 'destructive' });
+        } catch (e) {
+            const reason = isEmailVerifyRefusal(e) ? e.message : t('addAccount.resendFailed');
+            toast({ title: reason, variant: 'destructive' });
         } finally {
             setLoadingState('idle');
         }
