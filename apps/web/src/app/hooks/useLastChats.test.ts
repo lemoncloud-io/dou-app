@@ -1,13 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
+import { useRuntimeRepositories } from '@chatic/app-runtime';
 import type { DomainChannel, DomainLastChat } from '@chatic/data';
 
 import { useLastChats } from './useLastChats';
 
 jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
-    useRuntimeSocketState: jest.fn(),
 }));
 
 const observeLastList = jest.fn();
@@ -25,7 +24,6 @@ let emitRows: (rows: DomainLastChat[]) => void = () => undefined;
 
 beforeEach(() => {
     jest.clearAllMocks();
-    refreshList.mockResolvedValue(undefined);
     observeLastList.mockImplementation((_ids: string[], cb: (rows: DomainLastChat[]) => void) => {
         emitRows = rows => act(() => cb(rows));
         return () => undefined;
@@ -33,7 +31,6 @@ beforeEach(() => {
     (useRuntimeRepositories as jest.Mock).mockReturnValue({
         chat: { observeLastList, refreshList },
     });
-    (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
 });
 
 describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', () => {
@@ -59,43 +56,10 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         expect(observeLastList).toHaveBeenCalledTimes(1);
     });
 
-    it('첫 관측 결과가 오기 전에는 head가 앞서 있어도 refresh를 쏘지 않는다', () => {
-        // 구 useLastChat의 초기화 레이스: 비교 기준(cachedMax)이 느린 읽기로 채워지기 전에
-        // 채널 head가 먼저 도착하면 warm 캐시에도 fetch가 나갔다. 새 훅은 기준이 없으면 잠근다.
+    // 최근 메시지 적재는 이 화면 밖에서 따로 관리된다(네이티브 백그라운드 적재). 이 훅이
+    // fetch를 들고 있으면 목록 렌더가 곧 네트워크가 되는 구조로 되돌아간다 — 그 회귀를 잡는다.
+    it('순수 관측이다 — head가 앞서 있어도 네트워크(refreshList)를 만들지 않는다', () => {
         renderHook(() => useLastChats([channel('ch-a', 7)]));
-
-        expect(refreshList).not.toHaveBeenCalled();
-    });
-
-    it('관측 결과 도착 후 head가 lastNo를 넘어선 채널만 refresh한다', () => {
-        const { rerender } = renderHook(({ channels }) => useLastChats(channels), {
-            initialProps: { channels: [channel('ch-a', 3), channel('ch-b', 5)] },
-        });
-
-        emitRows([row('ch-a', 3, 3), row('ch-b', 3, 3)]);
-
-        // ch-a: head(3) == lastNo(3) → 조용. ch-b: head(5) > lastNo(3) → 그 채널만.
-        expect(refreshList).toHaveBeenCalledTimes(1);
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-b', limit: 30 });
-
-        // 같은 head로는 다시 쏘지 않는다 — 최신 행이 답글/리액션이라 lastNo가 안 오르는
-        // 채널이 리렌더마다 fetch를 반복하면 그게 곧 폭주다.
-        rerender({ channels: [channel('ch-a', 3), channel('ch-b', 5)] });
-        expect(refreshList).toHaveBeenCalledTimes(1);
-    });
-
-    it('프리뷰 chatNo가 아니라 lastNo와 비교한다 — 최신 행이 리액션인 채널을 오판하지 않는다', () => {
-        renderHook(() => useLastChats([channel('ch-a', 5)]));
-
-        // 캐시 최신은 5(리액션)지만 프리뷰는 3에 머무는 상태: 부족분이 아니다.
-        emitRows([row('ch-a', 5, 3)]);
-
-        expect(refreshList).not.toHaveBeenCalled();
-    });
-
-    it('소켓 미인증 상태에서는 refresh를 유보한다', () => {
-        (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
-        renderHook(() => useLastChats([channel('ch-a', 9)]));
 
         emitRows([row('ch-a', 1, 1)]);
 
