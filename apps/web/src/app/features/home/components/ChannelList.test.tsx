@@ -14,8 +14,12 @@ jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () 
 // under test have no messages); the preview cases below seed it for EVERY row. Preview picking
 // itself is covered by chatPreview.test.ts (libs/data) and useLastChats.test.ts.
 let mockLastChat: any = null;
+// Per-channel override, for the ordering cases — the list sorts by these same times (ADR-0055 결정 2).
+let mockLastChatByChannel: Map<string, any> | null = null;
 jest.mock('../../../hooks/useLastChats', () => ({
-    useLastChats: () => ({ get: () => mockLastChat ?? undefined }),
+    useLastChats: () => ({
+        get: (channelId: string) => mockLastChatByChannel?.get(channelId) ?? mockLastChat ?? undefined,
+    }),
 }));
 
 // My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
@@ -136,7 +140,12 @@ describe('ChannelList self-chat row', () => {
         expect(screen.getByText('MY_NICK')).toBeInTheDocument();
     });
 
-    it('채널 목록을 join updatedAt 최신순으로 정렬한다', () => {
+    it('채널 목록을 마지막 메시지 시각 최신순으로 정렬한다', () => {
+        // 내 읽음 커서(join.updatedAt)는 a가 더 최신이지만, 순서는 메시지 시각만 본다.
+        mockLastChatByChannel = new Map([
+            ['a', { content: 'a의 마지막', createdAtMs: 100 }],
+            ['b', { content: 'b의 마지막', createdAtMs: 200 }],
+        ]);
         render(
             <ChannelList
                 channels={[
@@ -146,8 +155,8 @@ describe('ChannelList self-chat row', () => {
                 unreadByChannel={{}}
                 joinByChannel={
                     new Map([
-                        ['a', { updatedAt: 100 } as any],
-                        ['b', { updatedAt: 200 } as any],
+                        ['a', { updatedAt: 900 } as any],
+                        ['b', { updatedAt: 100 } as any],
                     ])
                 }
                 isLoading={false}
@@ -155,7 +164,8 @@ describe('ChannelList self-chat row', () => {
         );
 
         const titles = screen.getAllByTestId('row-title').map(el => el.textContent);
-        expect(titles).toEqual(['B방', 'A방']); // b(updatedAt 200) before a(100)
+        expect(titles).toEqual(['B방', 'A방']); // b(마지막 메시지 200) before a(100)
+        mockLastChatByChannel = null;
     });
 
     it('그룹 행은 channel.name을 제목으로 쓰고 MY 배지가 없다', () => {
@@ -492,6 +502,7 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
 
     afterEach(() => {
         mockLastChat = null;
+        mockLastChatByChannel = null;
     });
 
     it('평범한 마지막 메시지는 본문을 그대로 미리보기로 쓴다', () => {

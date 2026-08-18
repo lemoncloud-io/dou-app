@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 
 import type { ChannelSortMethod } from '../stores/preferenceKeys';
 
@@ -14,8 +14,11 @@ export const toTime = (value: unknown): number => {
 
 export interface SortChannelsInput {
     channels: DomainChannel[];
-    /** My join per channel (subscribed join list) — freshest activity time source. */
-    joinByChannel?: Map<string, DomainJoin>;
+    /**
+     * The last cached message per channel id (`useLastChats`) — the activity time. A channel with
+     * no cached message falls back to `channel.updatedAt`.
+     */
+    lastChatByChannel?: ReadonlyMap<string, DomainChat>;
     /** Unread count per channel id — drives the 'unread' method. */
     unreadByChannel: Record<string, number>;
     sortMethod: ChannelSortMethod;
@@ -25,21 +28,31 @@ export interface SortChannelsInput {
 
 /**
  * Order channels for the home list by the place's chosen sort method (pure — unit-tested).
- * Base order is always most-recent-activity first (join updatedAt → embedded $join → channel
- * activity). 'unread' then floats channels with unread messages above read ones, keeping the
- * activity order within each group (Array.sort is stable). 'recent' returns the base order.
- * Pinned channels are floated last of all, so a pin always wins over the sort method.
+ *
+ * Base order is always most-recent-activity first, and activity means **the last message's time**
+ * (`lastChatByChannel`) — the very value the row prints beside the preview, so the order and the
+ * times on screen can never disagree (ADR-0055 decision 2, landed on ADR-0057's list-level read).
+ * My join's `updatedAt` is deliberately not consulted: it bumps when I *read* a room, which is not
+ * when the room moved. A channel with nothing cached yet falls back to `channel.updatedAt`.
+ *
+ * 'unread' then floats channels with unread messages above read ones, keeping the activity order
+ * within each group (Array.sort is stable). 'recent' returns the base order. Pinned channels are
+ * floated last of all, so a pin always wins over the sort method.
  */
 export const sortChannels = ({
     channels,
-    joinByChannel,
+    lastChatByChannel,
     unreadByChannel,
     sortMethod,
     pinnedChannelIds,
 }: SortChannelsInput): DomainChannel[] => {
-    const activityAt = (channel: DomainChannel): number =>
-        toTime(joinByChannel?.get(channel.id)?.updatedAt ?? channel.$join?.updatedAt) ||
-        toTime(channel.lastActivityAt ?? channel.updatedAt);
+    const activityAt = (channel: DomainChannel): number => {
+        // A just-sent optimistic row carries `createdAt = now`, so sending floats the channel at once.
+        const lastChat = lastChatByChannel?.get(channel.id);
+        return (
+            toTime(lastChat?.createdAtMs ?? lastChat?.createdAt) || toTime(channel.lastActivityAt ?? channel.updatedAt)
+        );
+    };
     const byActivity = [...channels].sort((left, right) => activityAt(right) - activityAt(left));
     if (sortMethod === 'unread') {
         const hasUnread = (channel: DomainChannel): number => ((unreadByChannel[channel.id] ?? 0) > 0 ? 1 : 0);

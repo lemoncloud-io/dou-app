@@ -97,12 +97,12 @@ export const PlaceChannelManagePage = () => {
         () =>
             sortChannels({
                 channels,
-                joinByChannel: myJoins,
+                lastChatByChannel: lastChats,
                 unreadByChannel,
                 sortMethod: (placeScope && sortMethodMap[placeScope]) || DEFAULT_CHANNEL_SORT,
                 pinnedChannelIds,
             }),
-        [channels, myJoins, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
+        [channels, lastChats, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
     );
 
     // Self-chat can be neither deleted nor left, so it is not selectable (Figma: the MY row has no

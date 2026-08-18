@@ -21,7 +21,6 @@ export interface ChatRefreshResult {
 export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatFeedInput, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainChat | null) => void): () => void;
-    /** 채널 집합의 마지막 프리뷰 일괄 관측 (ADR-0057) — 홈 채널 목록 전용. */
     observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
     refreshList(query: ChatFeedInput): Promise<ChatRefreshResult>;

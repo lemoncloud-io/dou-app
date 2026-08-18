@@ -1,10 +1,16 @@
 import { sortChannels, toTime } from './sortChannels';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 
 // Minimal channel factory — only the fields sortChannels reads.
 const channel = (id: string, lastActivityAt: number): DomainChannel =>
     ({ id, lastActivityAt }) as unknown as DomainChannel;
+
+const lastChat = (channelId: string, createdAtMs: number): DomainChat =>
+    ({ id: `${channelId}:1`, channelId, createdAtMs }) as unknown as DomainChat;
+
+const join = (channelId: string, updatedAt: number): DomainJoin =>
+    ({ id: `${channelId}@me`, channelId, updatedAt }) as unknown as DomainJoin;
 
 const ids = (channels: DomainChannel[]) => channels.map(c => c.id);
 
@@ -76,6 +82,66 @@ describe('sortChannels', () => {
                 sortMethod: 'unread',
             });
             expect(ids(result)).toEqual(['c2', 'c3', 'c1']);
+        });
+    });
+
+    describe('마지막 메시지 시각 기준 (lastChatByChannel)', () => {
+        it('채널의 lastActivityAt이 아니라 마지막 메시지 시각으로 정렬한다', () => {
+            // 채널 시각은 c3 > c2 > c1이지만, 마지막 메시지 시각은 그 반대다.
+            const result = sortChannels({
+                channels,
+                lastChatByChannel: new Map([
+                    ['c1', lastChat('c1', 3000)],
+                    ['c2', lastChat('c2', 2000)],
+                    ['c3', lastChat('c3', 1000)],
+                ]),
+                unreadByChannel: {},
+                sortMethod: 'recent',
+            });
+            expect(ids(result)).toEqual(['c1', 'c2', 'c3']);
+        });
+
+        it('내 읽음 커서(join.updatedAt)는 정렬에 전혀 영향을 주지 않는다', () => {
+            // 내가 c3을 방금 읽어 join이 갱신돼도, 순서는 메시지 시각과 channel.updatedAt만 본다.
+            const result = sortChannels({
+                channels: [c1, c2, { ...c3, $join: join('c3', 9000) } as unknown as DomainChannel],
+                lastChatByChannel: new Map([['c1', lastChat('c1', 3000)]]),
+                unreadByChannel: {},
+                sortMethod: 'recent',
+            });
+            expect(ids(result)).toEqual(['c1', 'c3', 'c2']);
+        });
+
+        it('캐시된 메시지가 없는 방은 기존 시각 체인으로 폴백한다', () => {
+            // c2만 메시지가 있고, c1/c3은 채널 시각(100/300)으로 비교된다.
+            const result = sortChannels({
+                channels,
+                lastChatByChannel: new Map([['c2', lastChat('c2', 500)]]),
+                unreadByChannel: {},
+                sortMethod: 'recent',
+            });
+            expect(ids(result)).toEqual(['c2', 'c3', 'c1']);
+        });
+
+        it('맵이 비어 있으면 기존 정렬과 동일하다', () => {
+            const result = sortChannels({
+                channels,
+                lastChatByChannel: new Map(),
+                unreadByChannel: {},
+                sortMethod: 'recent',
+            });
+            expect(ids(result)).toEqual(['c3', 'c2', 'c1']);
+        });
+
+        it('createdAtMs가 없으면 createdAt으로 비교한다 (문자열 타임스탬프 포함)', () => {
+            const isoChat = { id: 'c1:1', channelId: 'c1', createdAt: '2020-01-01T00:00:00.000Z' };
+            const result = sortChannels({
+                channels,
+                lastChatByChannel: new Map([['c1', isoChat as unknown as DomainChat]]),
+                unreadByChannel: {},
+                sortMethod: 'recent',
+            });
+            expect(ids(result)).toEqual(['c1', 'c3', 'c2']);
         });
     });
 

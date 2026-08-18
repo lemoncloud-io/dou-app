@@ -260,11 +260,12 @@ export const ChannelList = ({
     // gone with it. Freshness rides on each row's channel poll (see useLastChats' head trigger).
     const lastChats = useLastChats(channels);
 
-    // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
-    // channels above). See sortChannels (pure, unit-tested).
+    // Order by the place's chosen sort method ('unread' floats unread channels above). The base
+    // order is the last message's time, read from the same `lastChats` map the rows render — so the
+    // order and the previews can never tell two different stories. See sortChannels (unit-tested).
     const sortedChannels = useMemo(
-        () => sortChannels({ channels, joinByChannel, unreadByChannel, sortMethod, pinnedChannelIds }),
-        [channels, joinByChannel, unreadByChannel, sortMethod, pinnedChannelIds]
+        () => sortChannels({ channels, lastChatByChannel: lastChats, unreadByChannel, sortMethod, pinnedChannelIds }),
+        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds]
     );
 
     const createMenu = canCreate ? (

@@ -1,15 +1,17 @@
 # ADR-0055: 모바일 웹 — 코드블럭 렌더링, 홈 정렬 기준 정정, 로그인 후 원위치 복귀
 
-> 상태: 결정 1·4 Accepted(구현 완료) · **결정 2·3 Reverted (2026-08-14)** · 결정일: 2026-08-14
+> 상태: 결정 1·4 Accepted(구현 완료) · **결정 2·3 Reverted (2026-08-14) → Re-landed (2026-08-18)** ·
+> 결정일: 2026-08-14
 >
 > 구현된 모습은 두 문서에 있다 — 결정 1은
 > [chat-link-preview.md](../chat-link-preview.md),
 > 결정 4는 [apps/web/docs/feature/auth/login-return.md](../../apps/web/docs/feature/auth/login-return.md).
 >
-> **결정 2·3(홈 정렬 기준 변경, `lastChat$` 파생 제거)은 런타임 오류로 롤백되어 현재 코드에
-> 없다.** 홈 정렬은 다시 `join.updatedAt` 1차 키로, `useLastChat`은 다시 행 단위 훅으로,
-> `mappers.ts`의 `lastActivityAt` 파생은 원래대로 돌아갔다. 자세한 노트는 각 결정 밑에 있다.
-> [last-chat.md](../../apps/web/docs/feature/home/last-chat.md)도 롤백 후 상태를 기술한다.
+> **결정 2·3(홈 정렬 기준 변경, `lastChat$` 파생 제거)은 2026-08-14 런타임 오류로 롤백됐다가
+> 2026-08-18 다시 반영됐다.** 롤백 당시의 실패 원인(행 단위 `useLastChat`을 리스트 레벨로 올리는
+> 리팩터)은 ADR-0057이 `useLastChats` + `chat.observeLastList`로 이미 대체했으므로, 이번에는 정렬만
+> 그 결과를 받아 쓰면 됐다. 자세한 노트는 각 결정 밑에 있다.
+> [last-chat.md](../../apps/web/docs/feature/home/last-chat.md)도 참고한다.
 >
 > 이 문서는 히스토리이므로 원 결정문을 고치지 않는다. **본문이 인용하는 `linkTokens.ts`·
 > `LinkedText.tsx` 경로는 구현 과정에서 각각 `messageTokens.ts`·`MessageText.tsx`로 대체되어
@@ -194,6 +196,16 @@ route set(`privateRoutes`)은 그대로 유지된다
 > **"표시 시각과 정렬 순서가 갈라진 선재 결함"은 다시 열려 있고**, ADR-0047 §3이 남긴 후속도
 > 여전히 미해결이다. 재시도하려면 별도 ADR로 다룬다.
 
+> **재반영 노트 (2026-08-18).** 이 결정을 **다시 반영했다.** 롤백을 부른 부분(행 단위 훅을 리스트
+> 레벨로 올리는 일)은 ADR-0057이 이미 다른 근거로 완료해 놓았다 — `useLastChats`는 fan-out 상한이
+> 아니라 `chat.observeLastList` 한 번으로 목록 전체를 읽고, 홈과 관리 화면이 그 결과를 prop으로
+> 나눠 쓴다. 그래서 이번 변경면은 `sortChannels`의 1차 키뿐이다: 이미 화면에 떠 있는 그 맵을
+> `lastChatByChannel`로 받아 `createdAtMs`로 정렬하고, `join.updatedAt`/`$join.updatedAt`을 활동
+> 시각 체인에서 제거했다(폴백은 결정문대로 `channel.updatedAt`). `joinByChannel`은 `sortChannels`
+> 입력에서 빠졌지만 닉네임·음소거 표시용으로 `ChannelList` prop에는 남아 있고, 관리 화면의
+> `myJoins`도 언리드 집계에 그대로 쓰인다. 따라서 **"표시 시각과 정렬 순서가 갈라진 선재 결함"은
+> 이제 닫혔다.**
+
 ### 결정 3 — `lastChat$` 파생을 매퍼에서 제거한다
 
 - [`mappers.ts`](../../libs/data/src/data/domain/mappers.ts)의 `toDomainChannel`에서 `lastChat$`
@@ -205,6 +217,13 @@ route set(`privateRoutes`)은 그대로 유지된다
 > `lastActivityAt` 파생과 해당 단위 테스트가 원래 계약으로 복구되어 있다. 위 맥락(§2)이 지적한
 > "`lastChatAtMs`는 항상 `0`이라 파생이 아무 일도 하지 않는다"는 관찰 자체는 **여전히 유효한
 > 선재 부채**이며, 정렬과 무관하게 별도로 정리할 여지가 남아 있다.
+
+> **재반영 노트 (2026-08-18).** 결정 2와 함께 **다시 반영했다.** `toDomainChannel`의
+> `lastActivityAt`은 `updatedAt` 단독이 되었고, 단위 테스트도 "`lastChat$`을 보지 않는다"를 명시적으로
+> 고정한다. 더 나아가 **`lastChat$`은 어떤 용도로도 쓰지 않는다**(2026-08-18 결정): 마지막 메시지와
+> 그 시각의 유일한 출처는 chat 캐시(`chat.observeLastList`)이며, 서버 요약을 섞으면 한 채널이 "마지막
+> 움직임"에 대해 서로 다른 두 답을 갖게 된다. 캐시에 행이 없는 채널의 빈 프리뷰는 이 필드로 메우지
+> 않고, 채우는 일은 chat 적재 경로의 몫으로 둔다.
 
 ### 결정 4 — 로그인 복귀는 `returnTo` + `replace` 소프트 내비게이션
 

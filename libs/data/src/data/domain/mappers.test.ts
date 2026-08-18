@@ -24,13 +24,18 @@ describe('domain 매퍼 (API View → Domain)', () => {
             expect(withoutSid.sid).toBe('site-1');
         });
 
-        it('isNotificationEnabled 기본값은 true이고 lastActivityAt은 updatedAt/lastChat 중 최신이다', () => {
+        it('isNotificationEnabled 기본값은 true이고 lastActivityAt은 updatedAt이다', () => {
+            const domain = toDomainChannel({ id: 'ch-1', updatedAt: 100 } as any, context);
+            expect(domain.isNotificationEnabled).toBe(true);
+            expect(domain.lastActivityAt).toBe(100);
+        });
+
+        it('lastActivityAt은 서버의 lastChat$을 보지 않는다 — 마지막 메시지 시각은 chat 캐시 소관', () => {
             const domain = toDomainChannel(
                 { id: 'ch-1', updatedAt: 100, lastChat$: { createdAt: 500 } } as any,
                 context
             );
-            expect(domain.isNotificationEnabled).toBe(true);
-            expect(domain.lastActivityAt).toBe(500);
+            expect(domain.lastActivityAt).toBe(100);
         });
 
         it('원본 API 필드를 보존한다 (View↔Domain 호환성)', () => {
