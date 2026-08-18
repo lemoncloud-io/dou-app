@@ -152,7 +152,7 @@ export const SubscriptionSelectDialog = ({
                                   ))}
                         </div>
 
-                        {selectedOption && <TierChangeNotice kind={selectedOption.kind} />}
+                        <TierChangeNotice />
 
                         <PolicyFooter onOpenPolicy={openPolicyUrl} />
                     </div>

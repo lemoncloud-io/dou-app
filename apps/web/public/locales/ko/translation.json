@@ -234,7 +234,15 @@
             "purchaseSuccess": "구독이 완료되었어요",
             "purchaseSuccessDescription": "클라우드 설정에 최대 10분이 소요될 수 있어요",
             "purchaseFailed": "결제에 실패했어요",
-            "notice": "꼭 확인해 주세요.",
+            "notice": {
+                "title": "꼭 확인해 주세요.",
+                "upgradeImmediate": "상위 구독으로 변경하면 즉시 적용됩니다.",
+                "downgradeNextRenewal": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
+                "manageAt": {
+                    "apple": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
+                    "google": "구독 관리는 Google Play > 프로필 > 결제 및 정기 결제 > 정기 결제에서 가능"
+                }
+            },
             "notice1": "구독 변경하면 즉시 적용되며, 남은 기간을 반영해 추가 요금이 청구됩니다.",
             "notice2": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
             "notice3": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
@@ -296,22 +304,36 @@
             "productNotFound": "스토어에서 이 상품을 찾을 수 없어요",
             "offerTokenMissing": "스토어 결제 정보를 불러오지 못했어요",
             "trialRemaining": "무료 체험 {{days}}일 남음",
-            "tierChange": {
-                "upgrade": "상위 등급으로 변경합니다",
-                "downgrade": "하위 등급으로 변경합니다",
-                "billing": {
-                    "apple": "남은 기간이 환불되고 새 등급 요금이 즉시 청구돼요. 갱신일도 오늘로 다시 시작해요.",
-                    "google": "차액만 즉시 청구되고 기존 청구주기는 그대로 유지돼요."
-                },
-                "downgradeExcess": "한도가 줄어들면 초과한 계정은 직접 정리해야 해요."
-            },
             "excess": {
                 "title": "계정 {{count}}개가 한도({{max}}개)를 넘었어요",
                 "description": "아래 계정이 정리 대상이 될 수 있어요. 계정 관리에서 직접 해지해 주세요.",
                 "manage": "계정 관리로 이동"
             },
             "allowance": "보유 한도",
-            "price": "요금"
+            "price": "요금",
+            "guideTitle": "구독 안내",
+            "pickTitle": "구독제 선택",
+            "later": "다음에 하기",
+            "loginRequiredTitle": "구독을 진행하려면\n로그인이 필요해요",
+            "hero": {
+                "trialLead": "DoU가 처음이라면,",
+                "trialAccent": "{{days}}일 무료 사용 혜택",
+                "trialSub": "첫 사용자 한해 1회 무료 혜택,\n무료 사용이 끝나면 월 정기 결제",
+                "plain": "나만의 클라우드를\n만들어 보세요",
+                "plainSub": "플레이스를 만들고 여러 친구와\n함께 대화할 수 있어요"
+            },
+            "benefits": {
+                "title": "구독 혜택"
+            },
+            "complete": {
+                "title": "구독이 완료되었습니다.",
+                "trialEndsOn": "{{date}} 이후 무료 사용 종료",
+                "renewsOn": "{{date}}에 다음 결제",
+                "autoChargeAfter": "무료 사용 종료 후 월 {{price}} 자동 결제",
+                "cancelAnytime": "구독 취소는 언제든지 가능합니다.",
+                "setUpPlace": "플레이스 설정 후 서비스를 이용해 주세요.",
+                "cta": "시작하기"
+            }
         },
         "accountManage": {
             "title": "계정 관리",

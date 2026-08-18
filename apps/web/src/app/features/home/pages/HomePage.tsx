@@ -125,7 +125,7 @@ export const HomePage = () => {
     // (the user is already deep in cloud management there); the home banner instead sends first-time
     // users to the guide, which explains what a cloud is before asking them to pay.
     const { requestAddCloud } = useAddCloudFlow();
-    const openCloudGuide = () => navigate(ROUTES.subscription.guide);
+    const openCloudGuide = () => navigate(ROUTES.subscription.plans);
 
     // Promo gate: only clouds the account OWNS count. Being a guest in someone else's cloud does not
     // satisfy "make a cloud of your own", so invited ids are subtracted from the relay catalog — the

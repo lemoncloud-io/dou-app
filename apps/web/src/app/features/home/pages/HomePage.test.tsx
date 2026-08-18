@@ -159,7 +159,7 @@ describe('HomePage — relay mode', () => {
 
         // First-time users get the explanation before being asked to pay. The switcher sheet's own
         // footer button still opens the plan picker directly.
-        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
     });
 });
 

@@ -2,6 +2,7 @@ export * from './useAddCloud';
 export * from './useCloudEmailGuard';
 export * from './useCloudQuota';
 export * from './useExcessClouds';
+export * from './useNativeCatalog';
 export * from './usePlanCatalog';
 export * from './usePlanOptions';
 export * from './useSubscriptionIap';

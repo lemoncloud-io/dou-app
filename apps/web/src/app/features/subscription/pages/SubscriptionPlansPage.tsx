@@ -1,31 +1,48 @@
-import { ChevronLeft, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import {
+    FloatingButton,
+    IconBack,
+    IconButton,
+    ModalTopBar,
+    ScreenLayout,
+    myCloudIllustration,
+} from '@chatic/web-ui-kit';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
-import { appBridge } from '../../../bridge';
+import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
-
-import { EmailVerifyDialog, PlanCard, PolicyFooter, TierChangeNotice } from '../components';
-import { POLICY_BASE_URL } from '../consts';
+import {
+    EmailVerifyDialog,
+    LoginRequiredDialog,
+    PlanCard,
+    SubscriptionBenefits,
+    TierChangeNotice,
+} from '../components';
 import { useCloudEmailGuard, usePlanCatalog, usePlanOptions, useTierPurchase } from '../hooks';
 import { PageState } from '../types';
 
+/**
+ * "구독 안내" — the single screen a user decides on (Figma 2870-33021).
+ *
+ * It merges what used to be two: the cloud guide's pitch (why subscribe) and the plan picker (which
+ * tier). Splitting them meant the benefits argument sat on a screen the home entry points
+ * deliberately skipped (ADR-0034), so half the users never saw it.
+ */
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
 
-    const { isOnMobileApp } = usePlanCatalog();
-    const { options, isLoading: isPlansLoading } = usePlanOptions();
+    const { sellablePlans, summary } = usePlanCatalog();
+    const { options, isLoading } = usePlanOptions();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
     const { isGuest } = useRuntimeProfile();
     const verifyEmail = useCloudEmailGuard();
@@ -33,27 +50,20 @@ export const SubscriptionPlansPage = () => {
     const [selected, setSelected] = useState<ProductView | null>(null);
     const [matched, setMatched] = useState<IapProductSubscription | null>(null);
     const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
+    const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
 
     const isKo = i18n.language.startsWith('ko');
     const selectedOption = options.find(o => o.plan.id === selected?.id);
+
+    // The entry tier is the only one that carries a trial, and only for a first-time subscriber.
+    const trialDays = summary.state === 'none' ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const submitLabel =
         pageState === PageState.Purchasing ? t('mypage.subscription.purchasing') : t('mypage.subscription.subscribe');
-
-    const openPolicyUrl = (path: string) => {
-        const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) appBridge.openURL(url);
-        else window.open(url, '_blank');
-    };
 
     const finish = async (plan: ProductView, native: IapProductSubscription, email?: string) => {
         try {
             await purchaseTier(plan, native, email);
-            toast({
-                title: t('mypage.subscription.purchaseSuccess'),
-                description: t('mypage.subscription.purchaseSuccessDescription'),
-            });
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            navigate(-1);
+            navigate(ROUTES.subscription.complete);
         } catch (e) {
             const isCancelled = (e as { code?: string })?.code === 'user-cancelled';
             if (!isCancelled) {
@@ -68,10 +78,10 @@ export const SubscriptionPlansPage = () => {
 
     const handleSubscribe = async () => {
         if (!selected || !selectedOption || isBlocked) return;
-        // A guest session has no account for the receipt to attach to, so send them to login before
-        // the email step rather than after.
+        // A guest has no account for the receipt to attach to. The design asks before sending them
+        // away rather than yanking them to login mid-decision (Figma 2870-33015).
         if (isGuest) {
-            goToLogin();
+            setIsLoginPromptOpen(true);
             return;
         }
         try {
@@ -94,61 +104,110 @@ export const SubscriptionPlansPage = () => {
 
     return (
         <>
-            <div className="flex h-screen flex-col bg-background">
-                <header className="flex items-center px-[6px] pt-safe-top">
-                    <button onClick={() => !isBlocked && navigate(-1)} className="rounded-full p-[9px]">
-                        <ChevronLeft size={26} strokeWidth={2} className={cn(isBlocked && 'opacity-30')} />
-                    </button>
-                    <h1 className="flex-1 text-center text-[16px] font-semibold">{t('mypage.subscription.plans')}</h1>
-                    <div className="w-[44px]" />
-                </header>
+            <ScreenLayout
+                className="h-screen"
+                header={
+                    <ModalTopBar
+                        safeArea
+                        title={t('mypage.subscription.guideTitle')}
+                        leftSlot={
+                            <IconButton
+                                icon={<IconBack className="size-[26px]" />}
+                                label={t('common.back')}
+                                onClick={() => !isBlocked && navigate(-1)}
+                            />
+                        }
+                        onClose={() => !isBlocked && navigate(-1)}
+                    />
+                }
+                footer={
+                    <FloatingButton
+                        label={submitLabel}
+                        onClick={() => void handleSubscribe()}
+                        disabled={!selected || isBlocked}
+                        link={
+                            <button
+                                type="button"
+                                onClick={() => !isBlocked && navigate(-1)}
+                                className="text-center text-[15px] font-medium text-muted-foreground"
+                            >
+                                {t('mypage.subscription.later')}
+                            </button>
+                        }
+                    />
+                }
+            >
+                <div className="flex flex-col gap-8 px-4 pb-6 pt-2">
+                    {/* Hero — the trial is the pitch when one is available, the cloud itself otherwise. */}
+                    <section className="flex flex-col items-center gap-4 text-center">
+                        <h1 className="whitespace-pre-line text-[22px] font-bold leading-[1.35] tracking-[-0.02em] text-foreground">
+                            {trialDays > 0 ? (
+                                <>
+                                    {t('mypage.subscription.hero.trialLead')}
+                                    {'\n'}
+                                    <span className="text-[#90C304]">
+                                        {t('mypage.subscription.hero.trialAccent', { days: trialDays })}
+                                    </span>
+                                </>
+                            ) : (
+                                t('mypage.subscription.hero.plain')
+                            )}
+                        </h1>
+                        <p className="whitespace-pre-line text-[14px] leading-[1.5] text-[#78828A]">
+                            {trialDays > 0
+                                ? t('mypage.subscription.hero.trialSub')
+                                : t('mypage.subscription.hero.plainSub')}
+                        </p>
+                        <img src={myCloudIllustration} alt="" className="size-[160px]" />
+                    </section>
 
-                <div className="flex flex-1 flex-col overflow-y-auto p-4">
-                    {isPlansLoading ? (
-                        <div className="flex flex-col gap-3">
-                            {Array.from({ length: 3 }).map((_, i) => (
-                                <div key={i} className="h-[80px] animate-pulse rounded-[16px] bg-muted" />
-                            ))}
-                        </div>
-                    ) : options.length === 0 ? (
-                        <div className="flex flex-1 items-center justify-center">
-                            <span className="text-[15px] text-muted-foreground">
+                    <SubscriptionBenefits />
+
+                    <section className="flex flex-col gap-3">
+                        <h2 className="text-[18px] font-bold leading-[1.35] tracking-[-0.02em] text-foreground">
+                            {t('mypage.subscription.pickTitle')}
+                        </h2>
+                        {isLoading ? (
+                            <div className="flex flex-col gap-3">
+                                {Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={i} className="h-[97px] animate-pulse rounded-[16px] bg-muted" />
+                                ))}
+                            </div>
+                        ) : options.length === 0 ? (
+                            <span className="py-6 text-center text-[15px] text-muted-foreground">
                                 {t('mypage.subscription.noProducts')}
                             </span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3">
-                            {options.map(option => (
-                                <PlanCard
-                                    key={option.plan.id}
-                                    product={option.plan}
-                                    isSelected={selected?.id === option.plan.id}
-                                    isBlocked={isBlocked}
-                                    isKo={isKo}
-                                    isCurrent={option.isCurrent}
-                                    disabledReason={option.disabledReason}
-                                    onSelect={setSelected}
-                                />
-                            ))}
-                        </div>
-                    )}
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {options.map(option => (
+                                    <PlanCard
+                                        key={option.plan.id}
+                                        product={option.plan}
+                                        isSelected={selected?.id === option.plan.id}
+                                        isBlocked={isBlocked}
+                                        isKo={isKo}
+                                        isCurrent={option.isCurrent}
+                                        disabledReason={option.disabledReason}
+                                        displayPrice={option.displayPrice}
+                                        onSelect={setSelected}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </section>
 
-                    {options.length > 0 && (
-                        <div className="mt-auto pb-safe-bottom pt-6">
-                            {selectedOption && <TierChangeNotice kind={selectedOption.kind} />}
-                            <PolicyFooter onOpenPolicy={openPolicyUrl} />
-                            <button
-                                onClick={handleSubscribe}
-                                disabled={!selected || isBlocked}
-                                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-[16px] font-semibold text-background disabled:opacity-40"
-                            >
-                                {isBlocked && <Loader2 size={18} className="animate-spin" />}
-                                {submitLabel}
-                            </button>
-                        </div>
-                    )}
+                    <TierChangeNotice />
                 </div>
-            </div>
+            </ScreenLayout>
+
+            <LoginRequiredDialog
+                open={isLoginPromptOpen}
+                onOpenChange={setIsLoginPromptOpen}
+                onConfirm={() => {
+                    setIsLoginPromptOpen(false);
+                    goToLogin();
+                }}
+            />
 
             <EmailVerifyDialog
                 open={isEmailVerifyOpen}

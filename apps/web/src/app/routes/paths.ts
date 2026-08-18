@@ -79,9 +79,9 @@ export const ROUTES = {
     // ── Subscription (Private) ───────────────────────────────────
     subscription: {
         root: '/subscription',
+        // The merged guide + plan picker: why subscribe and which tier, on one screen.
         plans: '/subscription/plans',
-        // Read-only pitch for "내 클라우드"; reached from the MyPage subscription card (ADR-0034).
-        guide: '/subscription/guide',
+        complete: '/subscription/complete',
     },
 
     // ── MyPage hub (Private) ─────────────────────────────────────

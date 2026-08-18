@@ -168,7 +168,7 @@ export const MyPage = () => {
                         <ListRow
                             title={t('mypage.subscription.cloudGuide.entry')}
                             trailing={<Chevron />}
-                            onClick={() => navigate(ROUTES.subscription.guide)}
+                            onClick={() => navigate(ROUTES.subscription.plans)}
                         />
                         {isCloudActive && (
                             <ListRow

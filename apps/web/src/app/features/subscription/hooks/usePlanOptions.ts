@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
-import { getTierChangeKind, isSelectableTier, type TierChangeKind } from '../lib';
+import { getTierChangeKind, isSelectableTier, matchNativeProduct, type TierChangeKind } from '../lib';
+import { useNativeCatalog } from './useNativeCatalog';
 import { usePlanCatalog } from './usePlanCatalog';
 
 export interface PlanOption {
@@ -14,6 +15,11 @@ export interface PlanOption {
     disabledReason?: string;
     /** A new cloud (and therefore an email) is created. A tier change only moves the allowance. */
     needsEmail: boolean;
+    /**
+     * The store's localized, tax-inclusive price (e.g. `₩8,600`). Absent off-native or when the
+     * store has no entry for the plan — callers fall back to the server's USD reference value.
+     */
+    displayPrice?: string;
 }
 
 /**
@@ -26,7 +32,8 @@ export interface PlanOption {
  */
 export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } => {
     const { t } = useTranslation();
-    const { sellablePlans, replaceablePlan, isLoading } = usePlanCatalog();
+    const { sellablePlans, replaceablePlan, isIOS, isLoading } = usePlanCatalog();
+    const { nativeProducts, isLoading: isCatalogLoading } = useNativeCatalog();
 
     const options = sellablePlans.map<PlanOption>(plan => {
         const kind = getTierChangeKind(replaceablePlan, plan);
@@ -37,8 +44,9 @@ export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } 
             isCurrent: kind === 'current',
             disabledReason: kind === 'blocked' ? t('mypage.subscription.adjacentTierOnly') : undefined,
             needsEmail: kind === 'new',
+            displayPrice: matchNativeProduct(nativeProducts, plan, isIOS)?.displayPrice,
         };
     });
 
-    return { options, isLoading };
+    return { options, isLoading: isLoading || isCatalogLoading };
 };

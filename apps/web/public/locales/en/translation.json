@@ -234,7 +234,15 @@
             "purchaseSuccess": "Subscription completed",
             "purchaseSuccessDescription": "Cloud setup may take up to 10 minutes",
             "purchaseFailed": "Payment failed",
-            "notice": "Please note",
+            "notice": {
+                "title": "Please note",
+                "upgradeImmediate": "Moving up a plan takes effect immediately.",
+                "downgradeNextRenewal": "Moving down a plan takes effect at your next renewal.",
+                "manageAt": {
+                    "apple": "Manage your subscription in iPhone Settings > Apple ID > Subscriptions, or in the App Store.",
+                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions."
+                }
+            },
             "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
             "notice2": "Downgrading will take effect from the next renewal date.",
             "notice3": "Manage subscriptions in iPhone Settings > Apple ID > Subscriptions or App Store subscription management.",
@@ -296,22 +304,36 @@
             "productNotFound": "This product was not found on the store",
             "offerTokenMissing": "Could not load the store purchase details",
             "trialRemaining": "{{days}} day(s) left in your free trial",
-            "tierChange": {
-                "upgrade": "Moving up a plan",
-                "downgrade": "Moving down a plan",
-                "billing": {
-                    "apple": "The remaining time is refunded and the new plan is charged in full now. Your renewal date restarts today.",
-                    "google": "Only the difference is charged now; your existing billing cycle stays the same."
-                },
-                "downgradeExcess": "If the allowance drops, you will need to release the extra accounts yourself."
-            },
             "excess": {
                 "title": "{{count}} account(s) over your limit of {{max}}",
                 "description": "These accounts may be the ones released. Please cancel them yourself in account management.",
                 "manage": "Go to account management"
             },
             "allowance": "Allowance",
-            "price": "Price"
+            "price": "Price",
+            "guideTitle": "Subscription",
+            "pickTitle": "Choose a plan",
+            "later": "Maybe later",
+            "loginRequiredTitle": "You need to log in to subscribe",
+            "hero": {
+                "trialLead": "New to DoU?",
+                "trialAccent": "Get {{days}} days free",
+                "trialSub": "One free trial per new user.\nBilled monthly once the trial ends.",
+                "plain": "Create your own cloud",
+                "plainSub": "Make places and talk with\nseveral friends at once."
+            },
+            "benefits": {
+                "title": "What you get"
+            },
+            "complete": {
+                "title": "You are subscribed.",
+                "trialEndsOn": "Free use ends after {{date}}",
+                "renewsOn": "Next payment on {{date}}",
+                "autoChargeAfter": "{{price}} charged monthly once the free period ends",
+                "cancelAnytime": "You can cancel at any time.",
+                "setUpPlace": "Set up a place to start using the service.",
+                "cta": "Get started"
+            }
         },
         "accountManage": {
             "title": "Account Management",
