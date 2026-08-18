@@ -34,9 +34,12 @@ features/subscription/
     usePlanCatalog.ts       # 상품 목록 + 현재 상품 + 상태 요약 (단일 진입점)
     usePlanOptions.ts       # tier별 선택 가능 여부·사유
     useCloudQuota.ts        # 클라우드 한도 판정 (모든 "＋ 추가"가 쓰는 하나)
-    useExcessClouds.ts · useTierPurchase.ts · useAddCloud.ts · useCloudEmailGuard.ts
+    useExcessClouds.ts · useTierPurchase.ts · useAddCloud.ts
+    useCloudEmailGuard.ts · useVerifyEmailCode.ts
   components/
     AddCloudFlowHost.tsx      # 클라우드 추가 요청 수신 (PrivateShell이 마운트)
+    EmailVerifyDialog.tsx     # 이메일 인증 (ui/에서 이관 · web-ui-kit 조립)
+    SubscriptionDebugScreen.tsx  # 디버그 오버레이가 lazy로 합성
     SubscriptionSelectDialog.tsx · TierChangeNotice.tsx · ExcessCloudBanner.tsx
     subscription-select/      #   PlanCard · PolicyFooter
   types/

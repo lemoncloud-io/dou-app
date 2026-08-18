@@ -309,7 +309,9 @@
                 "title": "{{count}} account(s) over your limit of {{max}}",
                 "description": "These accounts may be the ones released. Please cancel them yourself in account management.",
                 "manage": "Go to account management"
-            }
+            },
+            "allowance": "Allowance",
+            "price": "Price"
         },
         "accountManage": {
             "title": "Account Management",
@@ -1295,7 +1297,9 @@
         "cloudUserRequired": "Only cloud users can add an account",
         "emailAlreadyUsed": "This email is already used by another account",
         "cancelScheduled": "You cannot add an account while cancellation is scheduled",
-        "addFailed": "Could not add the account"
+        "addFailed": "Could not add the account",
+        "emailInvalid": "That email address is not valid",
+        "codeExpired": "The code has expired — please resend"
     },
     "nameSetup": {
         "title": "Set Your Name",

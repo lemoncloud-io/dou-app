@@ -65,6 +65,11 @@ ADR의 전제 셋이 코드와 어긋났다. 아래가 정본이다.
 **대신** `membership.productId`(예: `#pro-tier-01`)를 상품 목록과 조인한다. `productId`는 `#` 접두가
 붙은 채 저장되고(`updateHead`) `products/plans`의 `product.id`와 형식이 같다.
 
+이 조인 결과(`currentPlan`·`pendingPlan`)가 **화면 표시값의 유일한 출처**다. 상품명·한도·요금·등급은
+전부 여기서 나오고, 화면은 raw membership 필드를 상품 정보로 쓰지 않는다 — 그렇게 두면 상품명 자리에
+`#pro-tier-01`이 그대로 찍힌다(실제로 그랬다). `planDisplayName`이 로케일을 고르고, 이름이 아예 없을
+때만 id로 떨어져 조인 실패가 실패처럼 보이게 한다.
+
 ### 2. 해지 예약 구간에는 `isValid`가 false다
 
 백엔드 `isValid`는 `status !== 'active'`이거나 `canceledAt > 0`이면 false다(`proxy.ts:717`). 해지
@@ -284,8 +289,7 @@ libs/web-core/
 apps/web/src/app/
   stores/useAddCloudRequest.ts      feature 간 seam (zustand)
   routes/PrivateRoutes.tsx          PrivateShell = UnifiedLayout + AddCloudFlowHost
-  utils/verification.ts             + EmailVerifyRefusal · isEmailVerifyRefusal
-  ui/components/EmailVerifyDialog   send/resend 실패 중 '의도된 거절'만 문구를 노출
+  ui/components/InlineAction.tsx    TextField의 trailing/helperTrailing용 텍스트 링크 (auth와 공용)
 
   features/subscription/
     lib/                            순수 판정 (React·네트워크 무지)
@@ -295,6 +299,7 @@ apps/web/src/app/
       membershipStatus.ts           summarizeMembership
       nativeProducts.ts             matchNativeProduct · buildPurchaseProduct
       cloudEmails.ts                normalizeEmail · findCloudByEmail
+      emailVerify.ts                EmailVerifyRefusal · isEmailVerifyRefusal
     hooks/
       usePlanCatalog.ts             상품 목록 + 현재/교체대상 상품 + 상태 요약 (단일 진입점)
       usePlanOptions.ts             tier별 선택 가능 여부·사유·이메일 필요 여부
@@ -304,8 +309,11 @@ apps/web/src/app/
       useAddCloud.ts                구매 없이 클라우드 1개 생성
       useCloudEmailGuard.ts         이메일 재사용 사전 차단
       useSubscriptionIap.ts         (기존) purchase payload에 oldPlanId 통과
+      useVerifyEmailCode.ts         (app/hooks에서 이관) 인증 교환 한 다리
     components/
       AddCloudFlowHost.tsx          요청 수신 → 판정 → 적절한 다이얼로그
+      EmailVerifyDialog.tsx         (ui/에서 이관) 이메일 인증 — 한 화면, web-ui-kit 조립
+      SubscriptionDebugScreen.tsx   디버그 오버레이용 진단 + 규칙 매트릭스
       SubscriptionSelectDialog.tsx  (home에서 이관) 플랜 선택 시트
       TierChangeNotice.tsx          플랫폼별 청구 안내
       ExcessCloudBanner.tsx         초과 노출 (삭제 버튼 없음)
@@ -385,11 +393,17 @@ apps/web/src/app/
 판정을 얻으면 `useSubscriptionIap`이 두 번 인스턴스화되어 **`OnPurchaseSuccess` 브리지 구독이 두 벌**
 생긴다. 그래서 "무엇이 현재 상품인가"는 카탈로그 한 곳에서만 정의하고 둘이 각자 읽는다.
 
-### 5. 이메일 재사용 차단
+### 5. 이메일 인증과 재사용 차단
 
 `useCloudEmailGuard`가 `useVerifyEmailCode`를 감싸 `send`/`resend` 단계에서 먼저 거절한다.
-`EmailVerifyDialog`는 `ui/components`에 있고 도메인을 몰라야 하므로(ADR-0046 §1-1) 차단은 주입되는
-콜백 쪽에 있다.
+`EmailVerifyDialog`는 이제 이 피처가 소유한다 — 호출부 세 곳이 전부 구독 흐름이고, `ui/`에 있던
+근거(홈 시트가 `features/home`에 있었다)는 그 시트가 옮겨오면서 사라졌다. 차단은 여전히 주입되는
+콜백(`useCloudEmailGuard`) 쪽에 두어 다이얼로그가 제어 컴포넌트로 남게 한다.
+
+화면 자체는 `PhoneVerifyFields`와 같은 방식으로 다시 짰다 — 2단계 전체화면 + 자체 마크업(~430줄)
+대신 `TextField` 두 개를 한 화면에 두고, 각 필드의 동작은 `trailing`(인증 요청·재전송), 카운트다운은
+`helperTrailing`에 넣는다. 두 인증 흐름이 같은 슬롯을 다르게 채우면 그때부터 갈라지므로, 인필드 텍스트
+링크는 `ui/components/InlineAction`으로 올려 둘이 공유한다.
 
 다이얼로그는 실패를 전부 한 문장(`addAccount.sendCodeFailed`)으로 덮고 있었다. 거절 사유를 사용자에게
 보이려면 그 문장을 뚫어야 하는데, **"Error면 message를 쓴다"로 뚫으면 안 된다** — 네트워크·서버 실패도
@@ -490,6 +504,18 @@ npx nx run web:typecheck
 ```bash
 npx nx lint web && npx nx lint web-core
 ```
+
+**디버그 오버레이 — `Subscription (State & Quota)`**
+
+마이페이지 10탭 → 입장 코드 → `Subscription`. 두 부분으로 나뉜다.
+
+- **Live**: 화면들이 읽는 것과 같은 훅(`usePlanCatalog`·`useCloudQuota`·`useExcessClouds`)을 그대로
+  읽어 "지금 앱이 무엇을 무엇으로 판정하고 있는지"를 보여준다. 여기와 화면이 다르면 화면이 틀린 것이다.
+- **Matrix**: 순수 판정을 전 입력 조합에 대해 직접 호출해 표로 그린다. 상태 4종·한도 3종·tier 5×5가
+  서버 상태 없이 한 화면에 나오므로, 계정 다섯 개를 서로 다른 결제 상태로 만들지 않아도 규칙 전체를
+  확인할 수 있다.
+
+`requestAddCloud()` 트리거 버튼도 여기 있다. 읽기 전용이며 서버에 쓰지 않는다.
 
 **수동 확인** (네이티브 셸 필요 — dev는 dryRun이라 클라우드 생성까지는 검증되지 않는다)
 
