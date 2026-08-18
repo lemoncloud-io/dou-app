@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
+import { getSocketManager, useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 
@@ -38,6 +38,16 @@ export interface RelayInviteCreateInput {
  * has a reason to grow past this.
  */
 const INVITE_LIST_LIMIT = 100;
+
+/**
+ * How long a caller-driven `refetch` waits for the relay handshake before giving up (ms).
+ *
+ * Every refetch here is user-driven (a cancel/reissue tap that needs the invite `code`, which the
+ * durable cache deliberately never holds — ADR-0052), so waiting beats failing: on a cold boot or
+ * right after a reconnect the handshake is 1-2s away and the tap succeeds a moment later. Well
+ * under the manager's 10s default, because a person is watching a button.
+ */
+const REFETCH_VERIFY_TIMEOUT_MS = 3_000;
 
 export interface RelayInvitesOptions {
     /**
@@ -139,13 +149,36 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
 
     const invites = mergeCachedAndRemoteInvites(cachedInvites, query.data ?? []);
 
+    /**
+     * Caller-driven re-ask, gated the way the query itself is.
+     *
+     * react-query's `refetch()` fires even while a query is DISABLED (TanStack v5), so handing
+     * `query.refetch` out raw punched straight through the relay gate above — every cancel/reissue
+     * tap on a cache-first row (the rows that carry no `code`, hence the ones that need this
+     * re-ask) hit the socket while relay was still unauthenticated and the server answered
+     * `401 UNAUTHORIZED - not authenticated @invite.list`, twice per tap under the app's `retry: 1`.
+     *
+     * So wait for the slot instead of racing it, and when the wait times out answer from what is
+     * already in hand rather than putting a doomed packet on the wire. The shape matches
+     * `query.refetch`'s in the one field callers read (`data`), which is all `resolveInviteCode`
+     * needs.
+     */
+    const refetch = useCallback(async (): Promise<{ data?: MyInviteView[] }> => {
+        if (!isRelayVerified) {
+            const verified = await getSocketManager().waitUntilKindVerified('relay', REFETCH_VERIFY_TIMEOUT_MS);
+            if (!verified) return { data: query.data };
+        }
+        return query.refetch();
+        // `query.refetch` is stable per query instance; `query.data` is only read on the timeout path.
+    }, [isRelayVerified, query.refetch, query.data]);
+
     return {
         invites,
         // A cache hit already has something to paint, so the loading spinner is reserved for the
         // genuinely empty case (nothing cached, response not back yet) — the cold-boot win ADR-0052
         // exists for.
         isLoading: query.isLoading && invites.length === 0,
-        refetch: query.refetch,
+        refetch,
     };
 };
 

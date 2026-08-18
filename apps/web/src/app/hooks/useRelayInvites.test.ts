@@ -14,11 +14,15 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
+import { getSocketManager, useKindVerified, useRuntimeRepositories } from '@chatic/app-runtime';
 
 import { relayInviteKeys, useRelayInviteMutations, useRelayInvites } from './useRelayInvites';
 
-jest.mock('@chatic/app-runtime', () => ({ useRuntimeRepositories: jest.fn(), useKindVerified: jest.fn() }));
+jest.mock('@chatic/app-runtime', () => ({
+    useRuntimeRepositories: jest.fn(),
+    useKindVerified: jest.fn(),
+    getSocketManager: jest.fn(),
+}));
 
 const list = jest.fn();
 const create = jest.fn();
@@ -29,6 +33,8 @@ const reject = jest.fn();
 // Cache observer: never emits by default (empty local cache) — a test that wants a cache-first
 // render sets a different mock implementation for the individual case.
 const observeList = jest.fn(() => () => undefined);
+// The one-shot relay gate a caller-driven refetch waits on (SocketManager.waitUntilKindVerified).
+const waitUntilKindVerified = jest.fn(async () => false);
 
 /** Mirrors the app's QueryClient defaults (app.tsx) — `staleTime: Infinity` is load-bearing below. */
 const createAppQueryClient = () =>
@@ -53,6 +59,8 @@ beforeEach(() => {
         invite: { list, create, get, accept, cancel, reject, observeList },
     });
     (useKindVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
+    waitUntilKindVerified.mockResolvedValue(false);
+    (getSocketManager as jest.Mock).mockReturnValue({ waitUntilKindVerified });
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
 });
@@ -391,5 +399,50 @@ describe('useRelayInviteMutations', () => {
         await expect(result.current.createInvite({ phone: '01012345678', name: '홍길동' })).rejects.toThrow(
             '403 NOT ALLOWED'
         );
+    });
+});
+
+// 취소·재발송이 캐시 전용 행(code 없음)에서 부르는 재조회다. react-query의 refetch()는 disabled
+// 쿼리에서도 발사되므로, 이걸 그대로 노출하면 relay 미인증 구간에 그대로 나가 서버가
+// `401 UNAUTHORIZED - not authenticated @invite.list`로 거절했다 (retry:1이라 탭 1회에 2건).
+describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다', () => {
+    it('미인증이면 슬롯을 기다리고, 끝내 안 되면 소켓을 건드리지 않는다', async () => {
+        (useKindVerified as jest.Mock).mockReturnValue(false);
+        waitUntilKindVerified.mockResolvedValue(false);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+
+        const answer = await act(async () => result.current.refetch());
+
+        expect(waitUntilKindVerified).toHaveBeenCalledWith('relay', 3_000);
+        expect(list).not.toHaveBeenCalled();
+        // 손에 있는 값으로 답한다 — resolveInviteCode가 읽는 필드는 data 하나다.
+        expect(answer).toEqual({ data: undefined });
+    });
+
+    it('기다리는 동안 relay가 인증되면 그때 조회한다', async () => {
+        (useKindVerified as jest.Mock).mockReturnValue(false);
+        waitUntilKindVerified.mockResolvedValue(true);
+        list.mockResolvedValue([{ id: 'invite-1', code: 'c0de' }]);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        expect(list).not.toHaveBeenCalled(); // 마운트 시점에는 게이트가 닫혀 있다
+
+        const answer = await act(async () => result.current.refetch());
+
+        expect(list).toHaveBeenCalledTimes(1);
+        expect(answer.data).toEqual([{ id: 'invite-1', code: 'c0de' }]);
+    });
+
+    it('이미 인증돼 있으면 기다리지 않고 바로 조회한다', async () => {
+        (useKindVerified as jest.Mock).mockReturnValue(true);
+
+        const { result } = renderHook(() => useRelayInvites(), { wrapper });
+        await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+
+        await act(async () => result.current.refetch());
+
+        expect(waitUntilKindVerified).not.toHaveBeenCalled();
+        expect(list).toHaveBeenCalledTimes(2);
     });
 });
