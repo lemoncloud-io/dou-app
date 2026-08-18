@@ -12,6 +12,11 @@ export interface PurchaseProduct {
     id: string;
     newPlanId?: string;
     offerToken?: string;
+    /**
+     * (Android) the base plan being replaced. Android derives the replacement mode from old-vs-new
+     * plan rank, so a tier change without this is booked as a brand-new subscription.
+     */
+    oldPlanId?: string;
 }
 
 /** UI state for the subscription plans page purchase flow. */

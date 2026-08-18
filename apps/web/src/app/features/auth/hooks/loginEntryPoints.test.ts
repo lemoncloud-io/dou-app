@@ -51,7 +51,7 @@ describe('로그인 진입점', () => {
         const entryPoints = [
             'features/mypage/pages/MyPage.tsx',
             'features/auth/components/PhoneVerifyBanner.tsx',
-            'features/home/components/SubscriptionSelectDialog.tsx',
+            'features/subscription/components/SubscriptionSelectDialog.tsx',
             'features/subscription/pages/SubscriptionPage.tsx',
             'features/subscription/pages/SubscriptionPlansPage.tsx',
         ];

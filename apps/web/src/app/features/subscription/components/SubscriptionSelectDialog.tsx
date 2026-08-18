@@ -7,26 +7,20 @@ import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { isNative } from '@chatic/bridges';
 import { useRuntimeProfile } from '@chatic/app-runtime';
-import { appBridge } from '../../../bridge';
-import { reportError, useProductPlans } from '@chatic/web-core';
-import { toError } from '../../../utils/errors';
-import { useNavigateToLogin } from '../../auth/hooks';
+import { reportError } from '@chatic/web-core';
 
-import { useVerifyEmailCode } from '../../../hooks';
-import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
-import { useSubscriptionIap } from '../../subscription/hooks/useSubscriptionIap';
-import {
-    ALLOWED_PRODUCT_ID_ANDROID,
-    ALLOWED_PRODUCT_ID_IOS,
-    POLICY_BASE_URL,
-    PageState,
-    PlanCard,
-    PolicyFooter,
-    buildPurchaseProduct,
-} from './subscription-select';
-
-import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import type { IapProductSubscription } from '@chatic/app-messages';
+import type { ProductView } from '@lemoncloud/chatic-backend-api';
+
+import { appBridge } from '../../../bridge';
+import { useNavigateToLogin } from '../../auth/hooks';
+import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
+import { toError } from '../../../utils/errors';
+import { POLICY_BASE_URL } from '../consts';
+import { useCloudEmailGuard, usePlanOptions, useTierPurchase } from '../hooks';
+import { PageState } from '../types';
+import { PlanCard, PolicyFooter } from './subscription-select';
+import { TierChangeNotice } from './TierChangeNotice';
 
 interface SubscriptionSelectDialogProps {
     open: boolean;
@@ -35,6 +29,11 @@ interface SubscriptionSelectDialogProps {
     onError?: (error: Error) => void;
 }
 
+/**
+ * Full-screen plan picker opened from the home affordances (ADR-0034 sends them straight here rather
+ * than through the cloud guide). Owned by `features/subscription` because it is entirely tier
+ * domain — store matching, adjacency, offer tokens (ADR-0060 §6).
+ */
 export const SubscriptionSelectDialog = ({
     open,
     onOpenChange,
@@ -45,24 +44,17 @@ export const SubscriptionSelectDialog = ({
     const goToLogin = useNavigateToLogin();
     const { isGuest } = useRuntimeProfile();
     const isOnMobileApp = isNative();
-    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
-    const { fetchNativeProducts, purchaseAndValidate } = useSubscriptionIap();
 
-    const platform = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
-    const { data: plansData, isLoading: isPlansLoading } = useProductPlans(
-        platform ? { platform, limit: -1 } : { limit: -1 }
-    );
-    const allowedProductId = isIOS ? ALLOWED_PRODUCT_ID_IOS : ALLOWED_PRODUCT_ID_ANDROID;
-    const plans = (plansData?.list ?? []).filter(p => p.id === allowedProductId);
+    const { options, isLoading: isPlansLoading } = usePlanOptions();
+    const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
+    const verifyEmail = useCloudEmailGuard();
 
-    const [selectedProduct, setSelectedProduct] = useState<ProductView | null>(null);
-    const [matchedNativeProduct, setMatchedNativeProduct] = useState<IapProductSubscription | null>(null);
-    const verifyEmailCode = useVerifyEmailCode();
+    const [selected, setSelected] = useState<ProductView | null>(null);
+    const [matched, setMatched] = useState<IapProductSubscription | null>(null);
     const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
-    const [pageState, setPageState] = useState<PageState>(PageState.Idle);
 
-    const isBlocked = pageState !== PageState.Idle;
     const isKo = i18n.language.startsWith('ko');
+    const selectedOption = options.find(o => o.plan.id === selected?.id);
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
@@ -72,43 +64,14 @@ export const SubscriptionSelectDialog = ({
 
     const handleClose = () => {
         if (isBlocked) return;
-        setSelectedProduct(null);
-        setMatchedNativeProduct(null);
+        setSelected(null);
+        setMatched(null);
         onOpenChange(false);
     };
 
-    const handleNext = async () => {
-        if (!selectedProduct || isBlocked) return;
-        // Same guest gate as the plans page: close the sheet and route to login instead of collecting an
-        // email for a purchase that has no account to attach to.
-        if (isGuest) {
-            handleClose();
-            goToLogin();
-            return;
-        }
-        setPageState(PageState.Fetching);
+    const finish = async (product: ProductView, native: IapProductSubscription, email?: string) => {
         try {
-            const nativeProducts = await fetchNativeProducts();
-            const matched = nativeProducts.find(p =>
-                isIOS ? p.id === selectedProduct.id?.replace('#', '') : p.basePlanId === selectedProduct.planId
-            );
-            setMatchedNativeProduct(matched ?? null);
-            setIsEmailVerifyOpen(true);
-        } finally {
-            setPageState(PageState.Idle);
-        }
-    };
-
-    const handleVerified = async (email: string) => {
-        if (!selectedProduct || !matchedNativeProduct) return;
-        const product = buildPurchaseProduct(matchedNativeProduct, isIOS);
-        if (!product) {
-            onError?.(new Error('offerToken is required for Android'));
-            return;
-        }
-        setPageState(PageState.Purchasing);
-        try {
-            await purchaseAndValidate(product, email);
+            await purchaseTier(product, native, email);
             onComplete?.();
             handleClose();
         } catch (e) {
@@ -117,8 +80,29 @@ export const SubscriptionSelectDialog = ({
                 reportError(toError(e));
                 onError?.(e instanceof Error ? e : new Error(String(e)));
             }
-        } finally {
-            setPageState(PageState.Idle);
+        }
+    };
+
+    const handleNext = async () => {
+        if (!selected || !selectedOption || isBlocked) return;
+        // Same guest gate as the plans page: route to login rather than collect an email for a
+        // purchase that has no account to attach to.
+        if (isGuest) {
+            handleClose();
+            goToLogin();
+            return;
+        }
+        try {
+            const native = await resolveNativeProduct(selected);
+            // A tier change moves the allowance; it creates no cloud, so there is no email to verify.
+            if (!selectedOption.needsEmail) {
+                await finish(selected, native);
+                return;
+            }
+            setMatched(native);
+            setIsEmailVerifyOpen(true);
+        } catch (e) {
+            onError?.(e instanceof Error ? e : new Error(String(e)));
         }
     };
 
@@ -154,17 +138,21 @@ export const SubscriptionSelectDialog = ({
                                 ? Array.from({ length: 3 }).map((_, i) => (
                                       <div key={i} className="h-[80px] animate-pulse rounded-[16px] bg-muted" />
                                   ))
-                                : plans.map(product => (
+                                : options.map(option => (
                                       <PlanCard
-                                          key={product.id}
-                                          product={product}
-                                          isSelected={selectedProduct?.id === product.id}
+                                          key={option.plan.id}
+                                          product={option.plan}
+                                          isSelected={selected?.id === option.plan.id}
                                           isBlocked={isBlocked}
                                           isKo={isKo}
-                                          onSelect={setSelectedProduct}
+                                          isCurrent={option.isCurrent}
+                                          disabledReason={option.disabledReason}
+                                          onSelect={setSelected}
                                       />
                                   ))}
                         </div>
+
+                        {selectedOption && <TierChangeNotice kind={selectedOption.kind} />}
 
                         <PolicyFooter onOpenPolicy={openPolicyUrl} />
                     </div>
@@ -173,7 +161,7 @@ export const SubscriptionSelectDialog = ({
                     <div className="px-6 pb-safe-bottom pt-4">
                         <button
                             onClick={handleNext}
-                            disabled={!selectedProduct || isBlocked}
+                            disabled={!selected || isBlocked}
                             className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-3.5 text-[16px] font-semibold text-background disabled:opacity-40"
                         >
                             {isBlocked && <Loader2 size={18} className="animate-spin" />}
@@ -186,8 +174,8 @@ export const SubscriptionSelectDialog = ({
             <EmailVerifyDialog
                 open={isEmailVerifyOpen}
                 onOpenChange={setIsEmailVerifyOpen}
-                onVerified={handleVerified}
-                verifyEmail={verifyEmailCode}
+                onVerified={email => selected && matched && finish(selected, matched, email)}
+                verifyEmail={verifyEmail}
             />
         </>
     );

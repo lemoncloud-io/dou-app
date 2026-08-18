@@ -287,6 +287,28 @@
                 "ctaCaption": "Subscribe to build your own space",
                 "ctaWithTrial": "Start {{days}}-day free trial",
                 "ctaPlain": "Get started"
+            },
+            "maxClouds": "Up to {{count}} account(s)",
+            "trialBadge": "{{days}}d Free",
+            "currentBadge": "Current",
+            "changeTier": "Change plan",
+            "adjacentTierOnly": "You can move one step at a time",
+            "productNotFound": "This product was not found on the store",
+            "offerTokenMissing": "Could not load the store purchase details",
+            "trialRemaining": "{{days}} day(s) left in your free trial",
+            "tierChange": {
+                "upgrade": "Moving up a plan",
+                "downgrade": "Moving down a plan",
+                "billing": {
+                    "apple": "The remaining time is refunded and the new plan is charged in full now. Your renewal date restarts today.",
+                    "google": "Only the difference is charged now; your existing billing cycle stays the same."
+                },
+                "downgradeExcess": "If the allowance drops, you will need to release the extra accounts yourself."
+            },
+            "excess": {
+                "title": "{{count}} account(s) over your limit of {{max}}",
+                "description": "These accounts may be the ones released. Please cancel them yourself in account management.",
+                "manage": "Go to account management"
             }
         },
         "accountManage": {
@@ -1268,9 +1290,12 @@
         "codeError": "Please enter the correct verification code",
         "success": "Account added successfully",
         "tooltip": "If you didn't receive the email,\nplease check your spam folder",
-        "limitExceeded": "You can add up to 1 account",
+        "limitExceeded": "You can add up to {{max}} account(s)",
         "subscriptionRequired": "You can only add an account on your subscribed platform",
-        "cloudUserRequired": "Only cloud users can add an account"
+        "cloudUserRequired": "Only cloud users can add an account",
+        "emailAlreadyUsed": "This email is already used by another account",
+        "cancelScheduled": "You cannot add an account while cancellation is scheduled",
+        "addFailed": "Could not add the account"
     },
     "nameSetup": {
         "title": "Set Your Name",

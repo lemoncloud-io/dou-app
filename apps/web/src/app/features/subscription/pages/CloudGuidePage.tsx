@@ -15,7 +15,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
-import { useAllowedProduct } from '../hooks';
+import { usePlanCatalog } from '../hooks';
 import cloudGuidePreview from '../../../../assets/cloud-guide-preview.png';
 
 /**
@@ -29,10 +29,10 @@ export const CloudGuidePage = () => {
     const navigate = useNavigateWithTransition();
 
     // Trial length comes from the store product so the CTA never promises a trial that isn't
-    // configured. `product` is undefined off-native (see useAllowedProduct), so the web default is
-    // the label that makes no trial claim at all.
-    const { product } = useAllowedProduct();
-    const trialDays = product?.trialDays ?? 0;
+    // configured. Only the entry tier carries one, and `sellablePlans` is empty off-native (no store
+    // applies), so the web default is the label that makes no trial claim at all.
+    const { sellablePlans } = usePlanCatalog();
+    const trialDays = sellablePlans[0]?.trialDays ?? 0;
     const ctaLabel =
         trialDays > 0
             ? t('mypage.subscription.cloudGuide.ctaWithTrial', { days: trialDays })

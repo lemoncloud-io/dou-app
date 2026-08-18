@@ -89,7 +89,7 @@ const useHomePlaces = jest.fn(() => ({ places: [{ id: 'site-1', stereo: 'group' 
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId: 'site-1', switchPlace: jest.fn(), isSwitching: false }));
 
 jest.mock('../hooks', () => ({
-    useAddCloudFlow: () => ({ requestAddCloud: jest.fn(), addCloudDialog: null }),
+    useAddCloudFlow: () => ({ requestAddCloud: jest.fn() }),
     useHomePlaces: (...args: unknown[]) => useHomePlaces(...(args as [])),
     useSwitchPlace: (...args: unknown[]) => useSwitchPlace(...(args as [])),
 }));

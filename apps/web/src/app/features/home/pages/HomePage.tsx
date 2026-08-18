@@ -124,7 +124,7 @@ export const HomePage = () => {
     // Subscribe-a-cloud flow. The switcher sheet's footer button opens the plan picker directly
     // (the user is already deep in cloud management there); the home banner instead sends first-time
     // users to the guide, which explains what a cloud is before asking them to pay.
-    const { requestAddCloud, addCloudDialog } = useAddCloudFlow();
+    const { requestAddCloud } = useAddCloudFlow();
     const openCloudGuide = () => navigate(ROUTES.subscription.guide);
 
     // Promo gate: only clouds the account OWNS count. Being a guest in someone else's cloud does not
@@ -411,7 +411,6 @@ export const HomePage = () => {
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
-            {addCloudDialog}
         </div>
     );
 };

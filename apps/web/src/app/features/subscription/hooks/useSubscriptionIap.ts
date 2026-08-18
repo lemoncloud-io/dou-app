@@ -137,7 +137,13 @@ export const useSubscriptionIap = () => {
 
                 appBridge.purchase({
                     id: product.id,
-                    ...(!isIOS && { offerToken: product.offerToken, newPlanId: product.newPlanId }),
+                    ...(!isIOS && {
+                        offerToken: product.offerToken,
+                        newPlanId: product.newPlanId,
+                        // Android reads the replacement mode from old-vs-new plan rank. Omit this on
+                        // a tier change and the store books a brand-new subscription instead.
+                        ...(product.oldPlanId && { oldPlanId: product.oldPlanId }),
+                    }),
                 });
             });
 

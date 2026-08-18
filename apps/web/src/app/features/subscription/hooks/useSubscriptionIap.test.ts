@@ -130,3 +130,43 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
         expect(unknownResult.current.isMissingSocialForCloud).toBe(false);
     });
 });
+
+describe('useSubscriptionIap — 등급 교체 페이로드', () => {
+    const tierChange = { id: 'dou_pro_subscription', newPlanId: 'pro-tier-02', offerToken: 'base-02' };
+
+    beforeEach(() => setSocial('linked'));
+    // Cleared here rather than at the end of the iOS case: a failing assertion would skip an
+    // inline delete and leak the platform into every suite that runs after this one.
+    afterEach(() => delete window.CHATIC_APP_PLATFORM);
+
+    it('Android 등급 변경은 oldPlanId를 스토어까지 실어 보낸다', () => {
+        // 이 값이 없으면 네이티브가 교체가 아닌 신규 구매로 판정한다.
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        void result.current.purchaseAndValidate({ ...tierChange, oldPlanId: 'pro-tier-01' });
+
+        expect(appBridge.purchase).toHaveBeenCalledWith({
+            id: 'dou_pro_subscription',
+            offerToken: 'base-02',
+            newPlanId: 'pro-tier-02',
+            oldPlanId: 'pro-tier-01',
+        });
+    });
+
+    it('신규 구독에는 oldPlanId 키 자체가 붙지 않는다', () => {
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        void result.current.purchaseAndValidate(tierChange);
+
+        expect(appBridge.purchase).toHaveBeenCalledWith(expect.not.objectContaining({ oldPlanId: expect.anything() }));
+    });
+
+    it('iOS는 Android 전용 필드를 하나도 보내지 않는다', () => {
+        window.CHATIC_APP_PLATFORM = 'ios';
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        void result.current.purchaseAndValidate({ ...tierChange, oldPlanId: 'pro_tier_01' });
+
+        expect(appBridge.purchase).toHaveBeenCalledWith({ id: 'dou_pro_subscription' });
+    });
+});

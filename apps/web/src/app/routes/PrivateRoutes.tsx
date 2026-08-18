@@ -9,6 +9,7 @@ const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ defaul
 const SubscriptionRoutes = lazy(() =>
     import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
 );
+const AddCloudFlowHost = lazy(() => import('../features/subscription').then(m => ({ default: m.AddCloudFlowHost })));
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
 const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default: m.PlaceRoutes })));
 const InviteRoutes = lazy(() => import('../features/invite').then(m => ({ default: m.InviteRoutes })));
@@ -56,10 +57,27 @@ const withSuspense = (Component: React.ComponentType) => (
     </Suspense>
 );
 
+/**
+ * The private shell plus the flows the router composes on top of it.
+ *
+ * `AddCloudFlowHost` is mounted here rather than in `AppRuntime` because it navigates (a guest is
+ * sent to login) and therefore needs router context; and it is composed here rather than imported
+ * by home because features do not import each other (ADR-0046 §3). It renders nothing — and runs no
+ * queries — until something raises a request through `stores/useAddCloudRequest`.
+ */
+const PrivateShell = () => (
+    <>
+        <UnifiedLayout />
+        <Suspense fallback={null}>
+            <AddCloudFlowHost />
+        </Suspense>
+    </>
+);
+
 export const privateRoutes = [
     {
         path: '/',
-        element: <UnifiedLayout />,
+        element: <PrivateShell />,
         children: [
             // The gate forwards an invite landing to `/invite/accept` instead of rendering home —
             // `/?provider=invite&…` is the address every already-installed native app still builds.
