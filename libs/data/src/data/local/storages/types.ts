@@ -1,4 +1,4 @@
-import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
+import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/app-messages';
 import type { DataContextProvider } from '../../repositories-v2/types';
 import { resolveScopedContext } from './utils';
 
@@ -86,6 +86,18 @@ export interface CacheStorage<TType extends CacheType> {
     deleteAll(ids: string[]): Promise<void>;
     clearAll(): Promise<void>;
     clearByChannelId(channelId: string): Promise<void>;
+    /**
+     * 채널별 최신 프리뷰 1건 + 그 채널의 최대 chatNo를 한 번에 읽습니다 (chat 전용, ADR-0057).
+     *
+     * 선택 구현입니다. `null`은 "이 저장소는 이 조회를 제공하지 못한다"는 뜻으로 — 미구현
+     * 어댑터(IndexedDB), 이 메시지를 모르는 구버전 앱, 일시적 네이티브 오류가 전부 여기에
+     * 해당합니다 — 호출자(`ChatLocalDataSourceV2`)가 채널별 윈도우 읽기로 폴백합니다.
+     * IndexedDB가 구현하지 않는 이유: 폴백 경로가 인프로세스라 왕복 비용이 없어 그게 곧
+     * 최선이고, 굳이 판정 로직을 두 벌 두면 의미론만 드리프트합니다.
+     *
+     * 반환 배열은 요청 순서·길이를 보장하지 않습니다 — 호출자가 channelId로 다시 색인합니다.
+     */
+    loadLastPerChannel?(channelIds: string[]): Promise<LastChatItem[] | null>;
 }
 
 /**

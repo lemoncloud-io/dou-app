@@ -6,7 +6,7 @@ import type {
 } from '@lemoncloud/chatic-sockets-lib';
 import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 
-import { SyncManager } from './SyncManager';
+import { SyncManager, UNREGISTER_GRACE_MS } from './SyncManager';
 import type { ISocketManager, SocketClientListener, SocketKind, SocketSlotClientListener } from '../types';
 
 // Keep the real lib (plan classes, types) but stub createDeviceRuntime so the
@@ -39,6 +39,8 @@ describe('SyncManager', () => {
     let runtimeFactory: jest.Mock;
 
     beforeEach(() => {
+        // unregister는 유예 타이머(UNREGISTER_GRACE_MS) 뒤에야 stop한다 — 시간을 손에 쥔다.
+        jest.useFakeTimers();
         slotListener = null;
         activeListener = null;
         manager = {
@@ -75,6 +77,10 @@ describe('SyncManager', () => {
         }) as unknown as typeof createDeviceRuntime);
     });
 
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
     // Mirrors the SocketManager notification order for one slot mutation: slot first, active second.
     const bindActiveSlot = (kind: SocketKind, client: ClientSocketV2) => {
         slotListener?.(kind, client);
@@ -99,7 +105,69 @@ describe('SyncManager', () => {
 
         dispose();
 
+        // dispose는 즉시 stop하지 않는다 — 화면 전환의 재등록 창을 위한 유예(ADR-0058).
+        expect(runtimes[0].stopSync).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(runtimes[0].stopSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
+    });
+
+    it('유예 내 재등록은 stop도 재시작도 만들지 않는다 — 살아 있는 타깃에 합류한다', () => {
+        const syncManager = new SyncManager(manager, {
+            buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+        bindActiveSlot('relay', makeClient('relay'));
+
+        const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
+        dispose();
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS / 2);
+
+        // 방↔홈 왕복: 다음 화면이 같은 타깃을 다시 등록한다.
+        syncManager.register({ type: 'channel', id: 'ch-1' });
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS * 2);
+
+        expect(runtimes[0].stopSync).not.toHaveBeenCalled();
+        // 재등록은 merge 경로라 startSync는 최초 1회뿐 — 즉시 재폴링이 없다는 뜻이다.
+        expect(runtimes[0].startSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('활성 클라이언트 교체는 유예 엔트리를 버린다 — 재등록이 새 클라이언트에서 다시 시작되게', () => {
+        const syncManager = new SyncManager(manager, {
+            buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+        bindActiveSlot('relay', makeClient('relay'));
+
+        const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
+        dispose(); // 유예 진입
+
+        // 유예 중 클라우드로 전환: refs 0 엔트리는 replay되지 않아야 한다.
+        bindActiveSlot('cloud', makeClient('cloud'));
+        const cloudRuntime = runtimes[1];
+        expect(cloudRuntime.startSync).not.toHaveBeenCalled();
+
+        // purge되지 않았다면 이 재등록은 merge 경로로 빠져 startSync가 영영 없다 — 그 회귀를 잡는다.
+        syncManager.register({ type: 'channel', id: 'ch-1' });
+        expect(cloudRuntime.startSync).toHaveBeenCalledWith({ type: 'channel', id: 'ch-1' });
+
+        // 버려진 유예 타이머가 뒤늦게 새 클라이언트의 타깃을 내리지 않는다.
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
+        expect(cloudRuntime.stopSync).not.toHaveBeenCalled();
+    });
+
+    it('destroy()는 유예 타이머를 정리한다 — 파괴 후 지연 stop이 날아오지 않는다', () => {
+        const syncManager = new SyncManager(manager, {
+            buildSyncPlans: () => [{ domain: 'channel' } as DomainSyncPlan],
+            createRuntime: runtimeFactory,
+        });
+        bindActiveSlot('relay', makeClient('relay'));
+
+        const dispose = syncManager.register({ type: 'channel', id: 'ch-1' });
+        dispose();
+        syncManager.destroy();
+
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
+        expect(runtimes[0].stopSync).not.toHaveBeenCalled();
     });
 
     it('keeps the relay runtime running when a cloud becomes active (device.save/keepAlive per slot)', () => {
@@ -218,6 +286,7 @@ describe('SyncManager', () => {
         expect(runtimes[0].startSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
 
         dispose();
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(runtimes[0].stopSync).toHaveBeenCalledWith({ type: 'chat', id: 'ch-1' });
     });
 
@@ -268,9 +337,11 @@ describe('SyncManager', () => {
         expect(runtimes[0].startSync).toHaveBeenCalledTimes(1);
 
         disposeA();
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(runtimes[0].stopSync).not.toHaveBeenCalled();
 
         disposeB();
+        jest.advanceTimersByTime(UNREGISTER_GRACE_MS);
         expect(runtimes[0].stopSync).toHaveBeenCalledTimes(1);
         expect(runtimes[0].stopSync).toHaveBeenCalledWith(target);
     });

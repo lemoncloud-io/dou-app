@@ -146,7 +146,56 @@ describe('observer group sharing', () => {
         expect(counters.loadAll).toBe(0);
     });
 
-    it('마지막 구독자가 떠난 뒤 다시 붙으면 값이 없으므로 새로 읽는다', async () => {
+    // 화면 전환의 파괴/재생성 사이클: 마지막 구독자가 떠나도 그룹은 유예로 남아, 되돌아온
+    // 구독자가 저장소(네이티브: 브릿지 왕복)를 건너뛰고 값을 즉시 받는다.
+    it('마지막 구독자가 떠나도 유예 내 재구독은 읽기 없이 값을 즉시 받는다', async () => {
+        const counters: Counters = { loadAll: 0, load: 0 };
+        const dataSource = new UserLocalDataSourceV2(
+            createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
+            createMemoryStorage(counters)
+        );
+        await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
+        await new Promise(resolve => setTimeout(resolve, 80)); // 쓰기 리이밋 flush 통과
+
+        const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
+        await flushPromises();
+        unsubscribe();
+        counters.loadAll = 0;
+
+        const returning = jest.fn();
+        dataSource.observeList({ channelId: 'ch-1' } as any, returning);
+        await flushPromises();
+
+        expect(counters.loadAll).toBe(0);
+        expect(returning.mock.calls[0][0]?.list.map((item: any) => item.id)).toEqual(['u1']);
+    });
+
+    it('유예 중 해당 키에 쓰기가 오면 그룹을 버린다 — 재구독은 새 값을 새로 읽는다', async () => {
+        const counters: Counters = { loadAll: 0, load: 0 };
+        const dataSource = new UserLocalDataSourceV2(
+            createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
+            createMemoryStorage(counters)
+        );
+
+        const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
+        await flushPromises();
+        unsubscribe();
+
+        await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
+        await new Promise(resolve => setTimeout(resolve, 80)); // flush가 유예 그룹을 무효화
+        counters.loadAll = 0;
+
+        const returning = jest.fn();
+        dataSource.observeList({ channelId: 'ch-1' } as any, returning);
+        await flushPromises();
+
+        // 듣는 이 없는 재조회는 없었고(위에서 카운터 리셋 전에도 flush는 읽지 않는다),
+        // 재구독은 유예값이 아니라 쓰기 이후의 답을 새로 읽는다.
+        expect(counters.loadAll).toBe(1);
+        expect(returning.mock.calls[0][0]?.list.map((item: any) => item.id)).toEqual(['u1']);
+    });
+
+    it('유예 중 쓰기 flush는 구독자 없는 그룹을 재조회하지 않는다', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSourceV2(
             createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
@@ -158,10 +207,70 @@ describe('observer group sharing', () => {
         unsubscribe();
         counters.loadAll = 0;
 
-        dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
-        await flushPromises();
+        await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
+        await new Promise(resolve => setTimeout(resolve, 80));
 
-        expect(counters.loadAll).toBe(1);
+        expect(counters.loadAll).toBe(0);
+    });
+
+    it('첫 쿼리가 실패하면 잠시 뒤 한 번 다시 읽어 구독자에게 전달한다 (ADR-0059)', async () => {
+        jest.useFakeTimers();
+        try {
+            const counters: Counters = { loadAll: 0, load: 0 };
+            const storage = createMemoryStorage(counters);
+            // 첫 호출만 실패하는 저장소 — 순간 혼잡(브릿지 타임아웃)의 재현.
+            const originalLoadAll = storage.loadAll.bind(storage);
+            let attempts = 0;
+            storage.loadAll = async (...args: unknown[]) => {
+                attempts += 1;
+                if (attempts === 1) throw new Error('bridge timeout');
+                return originalLoadAll(...(args as []));
+            };
+            const dataSource = new UserLocalDataSourceV2(
+                createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
+                storage
+            );
+
+            const observer = jest.fn();
+            dataSource.observeList({ channelId: 'ch-1' } as any, observer);
+            await flushPromises();
+
+            // 실패를 삼키기만 하던 시절: 여기서 영영 무소식(빈 화면 고착)이었다.
+            expect(observer).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1_000);
+            await flushPromises();
+
+            expect(attempts).toBe(2);
+            expect(observer).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('유예가 만료되면 값이 버려져 다음 구독은 새로 읽는다', async () => {
+        jest.useFakeTimers();
+        try {
+            const counters: Counters = { loadAll: 0, load: 0 };
+            const dataSource = new UserLocalDataSourceV2(
+                createContextProvider({ cid: 'c', sid: 's', uid: 'u' }) as any,
+                createMemoryStorage(counters)
+            );
+
+            const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
+            await flushPromises();
+            unsubscribe();
+            counters.loadAll = 0;
+
+            jest.advanceTimersByTime(60_000); // RETIRED_GROUP_TTL_MS 경과
+
+            dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
+            await flushPromises();
+
+            expect(counters.loadAll).toBe(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });
 

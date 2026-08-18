@@ -49,6 +49,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     OpenSubscriptionManagement: 'OnOpenSubscriptionManagement',
     FetchCacheData: 'OnFetchCacheData',
     FetchManyCacheData: 'OnFetchManyCacheData',
+    FetchLastChatsData: 'OnFetchLastChatsData',
     FetchAllCacheData: 'OnFetchAllCacheData',
     SaveCacheData: 'OnSaveCacheData',
     SaveAllCacheData: 'OnSaveAllCacheData',

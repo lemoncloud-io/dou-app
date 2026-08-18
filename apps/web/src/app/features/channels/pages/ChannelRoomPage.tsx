@@ -1,11 +1,12 @@
 import { Loader2, Settings, X } from 'lucide-react';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useSessionIdentity } from '@chatic/web-core';
+import type { DomainChannel } from '@chatic/data';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
@@ -64,6 +65,7 @@ export const ChannelRoomPage = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId } = useParams<{ channelId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
 
     // UI 상태 관리
     const [content, setContent] = useState('');
@@ -97,9 +99,20 @@ export const ChannelRoomPage = () => {
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
+    // The home row hands its channel across the navigation (ADR-0058) — same reason openThread
+    // passes rootChat: the cache's first emission is asynchronous even when warm, and the header
+    // showing a skeleton (or, under a congested bridge, the resolve-timeout error page) for a room
+    // whose row was on screen a moment ago reads as a broken app. Display-only; useChannel keeps
+    // resolution semantics on the observer.
+    const seedChannel = (location.state as { channel?: DomainChannel } | null)?.channel ?? null;
+
     // Resolved before the member hook so its roster (`channel.memberIds`) can seed the member list —
     // the two have no dependency on each other beyond that.
-    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
+    const {
+        channel,
+        isLoading: isChannelLoading,
+        isError: isChannelError,
+    } = useChannel(stableChannelIdForChannelHook, { seed: seedChannel });
 
     // Loads member user identities (name/avatar fallback) + join read-state into the cache and
     // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.

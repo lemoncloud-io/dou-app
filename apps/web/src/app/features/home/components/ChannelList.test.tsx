@@ -10,10 +10,13 @@ jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
-// The row's preview source. Null by default (rows under test have no messages); the preview
-// cases below seed it. pickPreviewChat itself is covered in useLastChat.test.ts.
+// The rows' preview source — the list-level combined lookup (ADR-0057). Null by default (rows
+// under test have no messages); the preview cases below seed it for EVERY row. Preview picking
+// itself is covered by chatPreview.test.ts (libs/data) and useLastChats.test.ts.
 let mockLastChat: any = null;
-jest.mock('../../../hooks/useLastChat', () => ({ useLastChat: () => mockLastChat }));
+jest.mock('../../../hooks/useLastChats', () => ({
+    useLastChats: () => ({ get: () => mockLastChat ?? undefined }),
+}));
 
 // My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
 // (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real

@@ -11,7 +11,7 @@ export * from './useDeviceSync';
 export * from './useHomeChannels';
 export * from './useInAppPushMessage';
 export * from './useInvitedClouds';
-export * from './useLastChat';
+export * from './useLastChats';
 export * from './useLinkAccount';
 export * from './useLinkedAccounts';
 export * from './useMyJoins';

@@ -6,7 +6,7 @@ import { BellOff, Pin } from 'lucide-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import {
@@ -32,7 +32,7 @@ import { useDmPeers, type DmPeer } from '../../channels/hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
-import { useLastChat } from '../../../hooks/useLastChat';
+import { useLastChats } from '../../../hooks/useLastChats';
 import { useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
@@ -59,6 +59,7 @@ const ChannelItem = ({
     dmPeer,
     pinned,
     muted,
+    lastChat,
 }: {
     channel: DomainChannel;
     unread: number;
@@ -73,6 +74,11 @@ const ChannelItem = ({
     pinned?: boolean;
     /** Room notifications off (my join's notify === 'none', ADR-0025) — shown as a bell-off glyph. */
     muted?: boolean;
+    /**
+     * This row's last-message preview, from the ONE list-level useLastChats subscription
+     * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
+     */
+    lastChat?: DomainChat;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -84,11 +90,9 @@ const ChannelItem = ({
     const isDm = channel.stereo === 'dm';
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
-    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
+    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
+    // the polled `chatNo` head doubles as useLastChats' per-channel freshness trigger.
     useChannelSync(channel.id);
-    // Last-message preview source: the server no longer embeds `lastChat$`, so register + prime a
-    // chat target for this visible row and read its latest cached message (live via ChatSyncPlan).
-    const lastChat = useLastChat(channel.id);
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';
@@ -183,7 +187,9 @@ const ChannelItem = ({
                     <UnreadBadge count={unread} variant="pill" />
                 </div>
             }
-            onClick={() => navigate(ROUTES.channels.room(channel.id))}
+            // Hand the row's channel across so the room renders its header instantly instead of
+            // re-resolving a row that was just on screen (ADR-0058; same pattern as openThread).
+            onClick={() => navigate(ROUTES.channels.room(channel.id), { state: { channel } })}
         />
     );
 };
@@ -249,6 +255,10 @@ export const ChannelList = ({
     const { userId: uid } = useSessionIdentity();
     // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
     const dmPeers = useDmPeers(sid, channels, uid);
+    // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole
+    // list costs a single bridge round trip on a current app, and per-row chat sync targets are
+    // gone with it. Freshness rides on each row's channel poll (see useLastChats' head trigger).
+    const lastChats = useLastChats(channels);
 
     // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
     // channels above). See sortChannels (pure, unit-tested).
@@ -321,6 +331,7 @@ export const ChannelList = ({
                         // The mute state lives on my join row, same source the settings toggle
                         // writes through (join.update) — not the channel's embedded $join.
                         muted={joinByChannel?.get(channel.id)?.notify === 'none'}
+                        lastChat={lastChats.get(channel.id)}
                     />
                 ))
             )}

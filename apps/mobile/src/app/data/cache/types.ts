@@ -1,3 +1,5 @@
+import type { LastChatItem } from '@chatic/app-messages';
+
 /**
  * 모든 로컬 캐시 데이터 소스에 대한 인터페이스입니다.
  * 각 도메인(Chat, User 등)의 데이터 엑세스 로직을 규격화합니다.
@@ -83,4 +85,14 @@ export interface ICacheDataSource<T, Q = void> {
      * 주의: cid 구분 없이 해당 도메인의 전체 데이터가 날아갑니다.
      */
     clear: (cid?: string, uid?: string) => Promise<void>;
+}
+
+/**
+ * chat 전용 확장 — 채널별 최신 프리뷰 1건 + 최대 chat_no 일괄 조회 (ADR-0057).
+ *
+ * 홈 채널 목록의 `FetchLastChatsData`가 이 메서드 하나로 답합니다. chat 외 도메인에는 프리뷰
+ * 개념이 없으므로 공통 인터페이스가 아니라 확장으로 둡니다.
+ */
+export interface IChatCacheDataSource<T, Q = void> extends ICacheDataSource<T, Q> {
+    fetchLastPerChannel: (channelIds: string[], cid?: string, uid?: string) => Promise<LastChatItem[]>;
 }

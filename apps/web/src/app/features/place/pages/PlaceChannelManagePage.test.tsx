@@ -88,7 +88,7 @@ jest.mock('../../../hooks', () => ({
     useHomeChannels: () => ({ channels: channelsValue, isLoading: false }),
     useMyJoins: () => new Map(),
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),
-    useLastChat: () => undefined,
+    useLastChats: () => new Map(),
 }));
 
 jest.mock('../../../stores/usePreferenceStore', () => ({

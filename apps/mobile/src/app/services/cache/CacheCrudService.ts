@@ -1,7 +1,7 @@
-import type { CacheModelMap, CacheQueryMap, CacheType, PagingMeta } from '@chatic/app-messages';
+import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/app-messages';
 import type { ICacheCrudService } from './types';
 import type { ILogService } from '../log';
-import type { ICacheDataSource } from '../../data/cache';
+import type { ICacheDataSource, IChatCacheDataSource } from '../../data/cache';
 
 /**
  * CacheTypes this app can actually persist — the `switch` arms below, as data.
@@ -26,7 +26,7 @@ export const SUPPORTED_CACHE_TYPES: readonly CacheType[] = [
 
 export class CacheCrudService implements ICacheCrudService {
     private readonly logService: ILogService;
-    private readonly chatDataSource: ICacheDataSource<CacheModelMap['chat'], CacheQueryMap['chat']>;
+    private readonly chatDataSource: IChatCacheDataSource<CacheModelMap['chat'], CacheQueryMap['chat']>;
     private readonly channelDataSource: ICacheDataSource<CacheModelMap['channel'], CacheQueryMap['channel']>;
     private readonly joinDataSource: ICacheDataSource<CacheModelMap['join'], CacheQueryMap['join']>;
     private readonly siteDataSource: ICacheDataSource<CacheModelMap['site'], CacheQueryMap['site']>;
@@ -41,7 +41,7 @@ export class CacheCrudService implements ICacheCrudService {
 
     constructor(
         logService: ILogService,
-        chatDataSource: ICacheDataSource<CacheModelMap['chat'], CacheQueryMap['chat']>,
+        chatDataSource: IChatCacheDataSource<CacheModelMap['chat'], CacheQueryMap['chat']>,
         channelDataSource: ICacheDataSource<CacheModelMap['channel'], CacheQueryMap['channel']>,
         joinDataSource: ICacheDataSource<CacheModelMap['join'], CacheQueryMap['join']>,
         siteDataSource: ICacheDataSource<CacheModelMap['site'], CacheQueryMap['site']>,
@@ -235,6 +235,30 @@ export class CacheCrudService implements ICacheCrudService {
         } catch (error) {
             this.logService.error('CACHE', `FetchAll error for type: ${type}`, error as Error);
             return [];
+        }
+    }
+
+    /**
+     * [조회] 채널별 최신 프리뷰 1건 + 최대 chat_no (chat 전용, ADR-0057).
+     *
+     * `null`은 "답할 수 없음"입니다 — 웹은 그 읽기 1회만 채널별 윈도우 조회로 폴백합니다.
+     * 던지지 않고 null로 답하는 것은 다른 연산들의 오류 규칙과 같은 근거입니다: 웹이 앱보다
+     * 먼저 배포되므로 브릿지 에러는 폴백 판단만 어렵게 만듭니다.
+     */
+    public async fetchLastChats(payload: {
+        type: 'chat';
+        channelIds: string[];
+        cid?: string;
+        uid?: string;
+    }): Promise<LastChatItem[] | null> {
+        const { type, channelIds, cid, uid } = payload;
+        if (type !== 'chat') return null;
+
+        try {
+            return await this.chatDataSource.fetchLastPerChannel(channelIds ?? [], cid, uid);
+        } catch (error) {
+            this.logService.error('CACHE', 'FetchLastChats error', error as Error);
+            return null;
         }
     }
 

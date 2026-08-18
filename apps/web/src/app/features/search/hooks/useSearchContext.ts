@@ -69,7 +69,7 @@ export interface SearchResultRows {
  * carry: the owning place/channel names, my unread count and the newest cached message.
  *
  * These come from `resolveContext`, a batch read, rather than from per-row hooks: the home row's
- * `useChannelSync`/`useChatSync`/`useLastChat` would register a sync target per rendered row and
+ * `useChannelSync`/`useChatSync`/`useLastChats` would register a sync target per rendered row and
  * re-register on every keystroke (see docs/specs/search/web-search-page.md, "검색 결과 행은 데이터를
  * 당겨오지 않는다"). Rows therefore take a plain model and call nothing.
  *

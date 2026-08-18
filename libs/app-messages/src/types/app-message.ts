@@ -21,6 +21,7 @@ import type {
     OnFetchBadgeCountPayload,
     OnFetchPushMarksPayload,
     OnFetchCacheDataPayload,
+    OnFetchLastChatsDataPayload,
     OnFetchManyCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
     OnFetchFcmTokenPayload,
@@ -148,6 +149,7 @@ export type AppMessageDataMap = {
     OnFetchAllCacheData: OnFetchAllCacheDataPayload;
     OnFetchCacheData: OnFetchCacheDataPayload;
     OnFetchManyCacheData: OnFetchManyCacheDataPayload;
+    OnFetchLastChatsData: OnFetchLastChatsDataPayload;
     OnSaveCacheData: OnSaveCacheDataPayload;
     OnSaveAllCacheData: OnSaveAllCacheDataPayload;
     OnDeleteCacheData: OnDeleteCacheDataPayload;
