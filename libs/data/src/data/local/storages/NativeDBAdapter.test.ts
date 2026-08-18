@@ -1,4 +1,4 @@
-import { NativeDBAdapter, resetNativeBatchReadSupport } from './NativeDBAdapter';
+import { NativeDBAdapter, resetNativeBatchReadSupport, resetNativeLastChatsSupport } from './NativeDBAdapter';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { DataContextProvider } from '../../repositories-v2/types';
 
@@ -233,6 +233,67 @@ describe('NativeDBAdapter', () => {
 
             await expect(adapter.loadMany(['chat-1'])).rejects.toEqual({ code: 'TIMEOUT' });
             expect(mockBridge.request).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('loadLastPerChannel (ADR-0057)', () => {
+        beforeEach(() => {
+            resetNativeLastChatsSupport();
+        });
+
+        it('chat 스코프로 FetchLastChatsData를 요청하고 items를 그대로 돌려준다', async () => {
+            const items = [{ channelId: 'ch-1', lastNo: 3, item: { id: 'm3' } }];
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', items } } as any);
+
+            const result = await adapter.loadLastPerChannel(['ch-1', 'ch-2']);
+
+            expect(mockBridge.request).toHaveBeenCalledWith({
+                type: 'FetchLastChatsData',
+                data: { type: 'chat', cid: mockScope.cid, uid: mockScope.uid, channelIds: ['ch-1', 'ch-2'] },
+            });
+            expect(result).toEqual(items);
+        });
+
+        it('chat이 아닌 타입은 브릿지를 부르지 않고 폴백(null)한다', async () => {
+            const channelAdapter = new NativeDBAdapter<'channel'>(mockBridge, 'channel', mockContextProvider);
+            await expect(channelAdapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
+            expect(mockBridge.request).not.toHaveBeenCalled();
+        });
+
+        it('빈 채널 목록이면 브릿지를 부르지 않는다', async () => {
+            await expect(adapter.loadLastPerChannel([])).resolves.toEqual([]);
+            expect(mockBridge.request).not.toHaveBeenCalled();
+        });
+
+        it('items가 null이면(네이티브 내부 오류) 이번 읽기만 폴백하고 학습하지 않는다', async () => {
+            mockBridge.request.mockResolvedValue({ data: { type: 'chat', items: null } } as any);
+
+            await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
+            await adapter.loadLastPerChannel(['ch-1']);
+
+            // 학습하지 않았으므로 두 번째 읽기도 다시 시도한다.
+            expect(mockBridge.request).toHaveBeenCalledTimes(2);
+        });
+
+        it('핸들러가 없는 구버전 앱(NOT_FOUND)은 한 번으로 배우고 이후 시도하지 않는다', async () => {
+            mockBridge.request.mockRejectedValue({ code: 'NOT_FOUND' });
+
+            await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
+            mockBridge.request.mockClear();
+            await expect(adapter.loadLastPerChannel(['ch-2'])).resolves.toBeNull();
+
+            expect(mockBridge.request).not.toHaveBeenCalled();
+        });
+
+        it('타임아웃 등 다른 실패는 던지지 않고 null로 답하되 학습하지 않는다', async () => {
+            // 이 조회의 실패 시 정답은 언제나 윈도우 폴백이므로 throw 대신 null — 단 일시
+            // 오류를 미지원으로 새기면 앱 배포 후에도 fast path가 영영 죽으므로 학습은 금지.
+            mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
+
+            await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
+            await adapter.loadLastPerChannel(['ch-1']);
+
+            expect(mockBridge.request).toHaveBeenCalledTimes(2);
         });
     });
 

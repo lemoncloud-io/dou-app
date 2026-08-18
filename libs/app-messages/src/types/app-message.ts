@@ -19,7 +19,9 @@ import type {
     OnFetchAppLogBufferPayload,
     OnFetchAppLogBufferSizePayload,
     OnFetchBadgeCountPayload,
+    OnFetchPushMarksPayload,
     OnFetchCacheDataPayload,
+    OnFetchLastChatsDataPayload,
     OnFetchManyCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
     OnFetchFcmTokenPayload,
@@ -129,6 +131,7 @@ export type AppMessageDataMap = {
     OnFetchFcmToken: OnFetchFcmTokenPayload;
     OnReceiveNotification: OnNotificationPayload;
     OnFetchBadgeCount: OnFetchBadgeCountPayload;
+    OnFetchPushMarks: OnFetchPushMarksPayload;
     OnSetBadgeCount: OnSetBadgeCountPayload;
     OnShowNotification: OnShowNotificationPayload;
     OnFetchUrlMetadata: OnFetchUrlMetadataPayload;
@@ -146,6 +149,7 @@ export type AppMessageDataMap = {
     OnFetchAllCacheData: OnFetchAllCacheDataPayload;
     OnFetchCacheData: OnFetchCacheDataPayload;
     OnFetchManyCacheData: OnFetchManyCacheDataPayload;
+    OnFetchLastChatsData: OnFetchLastChatsDataPayload;
     OnSaveCacheData: OnSaveCacheDataPayload;
     OnSaveAllCacheData: OnSaveAllCacheDataPayload;
     OnDeleteCacheData: OnDeleteCacheDataPayload;

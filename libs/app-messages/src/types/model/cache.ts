@@ -288,6 +288,40 @@ export type OnFetchManyCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[]; items: CacheModelMap[K][] | null };
 }[CacheType];
 
+/**
+ * [요청] 채널별 최신 프리뷰 1건 조회 (chat 전용, ADR-0057).
+ *
+ * 홈 채널 목록이 채널마다 최신 30행 윈도우를 읽는 대신, 목록 전체를 왕복 1회로 접습니다.
+ * 프리뷰 판정(스레드 답글·리액션 이벤트·시스템 행·실패 전송 제외, 톰스톤 포함, 미전송 최신)은
+ * 앱의 SQL이 수행하되 의미론의 최종 소유자는 웹입니다 — 웹은 응답 행을 재검증하고 불합격이면
+ * 그 채널만 윈도우 조회로 폴백합니다.
+ *
+ * 앱이 이 메시지를 모르면 host가 `NOT_FOUND`로 거절하고, 웹은 채널별 윈도우 조회로 폴백합니다
+ * (`NativeDBAdapter.loadLastPerChannel`) — 웹이 앱보다 먼저 배포되므로 폴백은 선택이 아니라 필수입니다.
+ */
+export type FetchLastChatsDataPayload = CacheBasePayload<'chat'> & { channelIds: string[] };
+
+/** 채널 하나의 최신 프리뷰 판정 결과 */
+export interface LastChatItem {
+    channelId: string;
+    /** 그 채널 캐시의 최대 chatNo (프리뷰 가능 여부 무관) — 웹 head-트리거의 비교 기준 */
+    lastNo: number;
+    /** 프리뷰 규칙을 통과한 최신 행. 채널에 프리뷰할 행이 없으면 null */
+    item: CacheChatView | null;
+}
+
+/**
+ * [응답] 요청한 채널들의 프리뷰 판정 결과.
+ *
+ * `items: null`은 네이티브 처리 오류입니다(형제 핸들러들과 같은 관례) — 웹은 그 읽기 1회만
+ * 폴백하고 미지원으로 학습하지 않습니다. 캐시에 행이 없는 채널은 null이 아니라
+ * `{ lastNo: 0, item: null }`로 자리가 채워집니다.
+ */
+export type OnFetchLastChatsDataPayload = CacheBasePayload<'chat'> & {
+    channelIds: string[];
+    items: LastChatItem[] | null;
+};
+
 /** [요청] 다수/페이징 데이터 조회 (query와 meta를 조합하여 캐시 키 생성) */
 export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {

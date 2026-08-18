@@ -45,17 +45,28 @@ const CHANNEL_RESOLVE_TIMEOUT_MS = 10_000;
  *
  * A `null` AFTER a row has been seen is a real removal (leaving the channel, a cache clear) and
  * resolves immediately — callers still need to leave the screen in that case.
+ *
+ * `seed` (ADR-0058): the row the navigating screen already had (a home list row, passed through
+ * navigation state). Display-only — it renders the room instantly and disarms the resolve timeout
+ * (a seeded room shows content, never the error screen the timeout exists for), but it does NOT
+ * touch the resolution semantics above: `hasResolvedRef` stays observer-owned, so a cold cache's
+ * initial `null` is still "fetch in flight", not a removal bounce. Ignored unless its id matches.
  */
-export const useChannel = (channelId: string | null) => {
+export const useChannel = (channelId: string | null, options?: { seed?: DomainChannel | null }) => {
     const { channel: channelRepository } = useRuntimeRepositories();
     const { userId } = useSessionIdentity();
     const myUid = userId ?? '';
+
+    const seed = options?.seed && channelId && options.seed.id === channelId ? options.seed : null;
 
     const [channel, setChannel] = useState<DomainChannel | null>(null);
     const [isLoading, setIsLoading] = useState(!!channelId);
     const [isError, setIsError] = useState(false);
     /** Whether a row has ever arrived for the CURRENT channelId — tells a miss from a removal. */
     const hasResolvedRef = useRef(false);
+    /** Read inside the timeout without re-arming the effect when only the seed identity changes. */
+    const hasSeedRef = useRef(!!seed);
+    hasSeedRef.current = !!seed;
 
     // Keep the channel row synced for as long as the hook is mounted.
     useChannelSync(channelId ?? undefined);
@@ -72,9 +83,10 @@ export const useChannel = (channelId: string | null) => {
         setIsLoading(true);
 
         // Give up waiting eventually: a channel the user has no access to (or one that really is
-        // gone) would otherwise hold the screen in a permanent loading state.
+        // gone) would otherwise hold the screen in a permanent loading state. With a seed there is
+        // content on screen, so expiry keeps showing it instead of trading it for an error page.
         const timer = setTimeout(() => {
-            if (hasResolvedRef.current) return;
+            if (hasResolvedRef.current || hasSeedRef.current) return;
             setIsLoading(false);
             setIsError(true);
         }, CHANNEL_RESOLVE_TIMEOUT_MS);
@@ -100,7 +112,10 @@ export const useChannel = (channelId: string | null) => {
         };
     }, [channelRepository, channelId]);
 
-    const clientChannel = useMemo(() => (channel ? toClientChannel(channel, myUid) : null), [channel, myUid]);
+    // The observer's answer always wins; the seed only fills the gap until it lands. A resolved
+    // REMOVAL must still win over the seed, so the fallback applies only while unresolved.
+    const effective = channel ?? (!hasResolvedRef.current ? seed : null);
+    const clientChannel = useMemo(() => (effective ? toClientChannel(effective, myUid) : null), [effective, myUid]);
 
-    return { channel: clientChannel, isLoading, isError };
+    return { channel: clientChannel, isLoading: isLoading && !seed, isError };
 };

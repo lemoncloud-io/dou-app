@@ -49,7 +49,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     // --- Domain-specific Handlers (memoized with useCallback) ---
     const { fetchSafeAreaInfo } = useSafeAreaHandler();
     const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
-    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount } = useFcmHandler(bridge);
+    const { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks } = useFcmHandler(bridge);
     const {
         fetchProducts,
         fetchCurrentPurchases,
@@ -62,6 +62,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const {
         handleFetchAllCache,
         handleFetchCache,
+        handleFetchLastChats,
         handleFetchManyCache,
         handleSaveCache,
         handleSaveAllCache,
@@ -122,6 +123,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         fetchFcmToken,
         handleFetchBadgeCount,
         handleSetBadgeCount,
+        handleFetchPushMarks,
         fetchSafeAreaInfo,
         handleFetchBackgroundStatus,
         handleDismissResumeOverlay,
@@ -132,6 +134,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleOpenSubscriptionManagement,
         handleFetchCache,
         handleFetchAllCache,
+        handleFetchLastChats,
         handleFetchManyCache,
         handleSaveCache,
         handleSaveAllCache,
@@ -189,6 +192,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             fetchFcmToken,
             handleFetchBadgeCount,
             handleSetBadgeCount,
+            handleFetchPushMarks,
             fetchSafeAreaInfo,
             handleFetchBackgroundStatus,
             handleDismissResumeOverlay,
@@ -199,6 +203,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleOpenSubscriptionManagement,
             handleFetchCache,
             handleFetchAllCache,
+            handleFetchLastChats,
             handleFetchManyCache,
             handleSaveCache,
             handleSaveAllCache,
@@ -260,6 +265,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchFcmToken: message => handlersRef.current.fetchFcmToken(message),
             FetchBadgeCount: message => handlersRef.current.handleFetchBadgeCount(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
+            FetchPushMarks: message => handlersRef.current.handleFetchPushMarks(message),
             FetchSafeArea: message => handlersRef.current.fetchSafeAreaInfo(message),
             FetchBackgroundStatus: message => handlersRef.current.handleFetchBackgroundStatus(message),
             FetchProducts: message => handlersRef.current.fetchProducts(message),
@@ -269,6 +275,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             OpenSubscriptionManagement: message => handlersRef.current.handleOpenSubscriptionManagement(message),
             FetchCacheData: message => handlersRef.current.handleFetchCache(message),
             FetchAllCacheData: message => handlersRef.current.handleFetchAllCache(message),
+            FetchLastChatsData: message => handlersRef.current.handleFetchLastChats(message),
             FetchManyCacheData: message => handlersRef.current.handleFetchManyCache(message),
             SaveCacheData: message => handlersRef.current.handleSaveCache(message),
             SaveAllCacheData: message => handlersRef.current.handleSaveAllCache(message),

@@ -566,7 +566,9 @@
             "reactionsDescription": "See who reacted, by emoji",
             "deletedMessage": "This message was deleted.",
             "moreEmoji": "More emoji",
-            "pickEmoji": "Pick an emoji"
+            "pickEmoji": "Pick an emoji",
+            "copyCode": "Copy",
+            "codeCopied": "Copied"
         },
         "settings": {
             "title": "Room Settings",

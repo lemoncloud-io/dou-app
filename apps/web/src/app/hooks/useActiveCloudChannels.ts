@@ -5,6 +5,7 @@ import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
 
 import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
+import { useActiveCloudData } from './activeCloudDataContext';
 
 /**
  * Observes the active cloud's channel list across every site, not just the selected one, and drops
@@ -39,7 +40,7 @@ import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
  * provider cid and the post-commit write reemit never reaches it (needs a manual refresh). See
  * PlaceLocalDataSourceV2 reemit-routing tests.
  */
-export const useActiveCloudChannels = (): DomainChannel[] => {
+export const useActiveCloudChannelsSource = (): { channels: DomainChannel[]; isLoaded: boolean } => {
     const { channel } = useRuntimeRepositories();
     const accessiblePlaceIds = useAccessiblePlaceIds();
     const { selectedCloudId } = useSessionSelection();
@@ -47,6 +48,12 @@ export const useActiveCloudChannels = (): DomainChannel[] => {
     const cid = selectedCloudId ?? 'default';
 
     const [channels, setChannels] = useState<DomainChannel[]>([]);
+    /**
+     * Whether the observer has answered once for the CURRENT scope. Callers that render a per-site
+     * slice off this list need it as their loading signal, and an empty array cannot serve: a cloud
+     * with no channels yet and a cloud whose first read has not landed look identical.
+     */
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // Clear only when the cloud/uid actually changes — the cloud-wide list is the same set across a
     // site switch, so clearing there would flash an empty list for no reason.
@@ -58,18 +65,28 @@ export const useActiveCloudChannels = (): DomainChannel[] => {
         if (scopeRef.current !== scope) {
             scopeRef.current = scope;
             setChannels([]);
+            setIsLoaded(false);
         }
         return channel.observeList(
             { sid: '' },
             result => {
                 setChannels(result?.list ?? []);
+                setIsLoaded(true);
             },
             { cid, uid }
         );
     }, [channel, cid, uid]);
 
-    return useMemo(() => {
+    const accessible = useMemo(() => {
         if (!accessiblePlaceIds) return channels;
         return channels.filter(row => !row.sid || accessiblePlaceIds.has(row.sid));
     }, [channels, accessiblePlaceIds]);
+
+    return useMemo(() => ({ channels: accessible, isLoaded }), [accessible, isLoaded]);
 };
+
+/**
+ * The active cloud's channel rows, from the ONE shared observation (see {@link ActiveCloudData}).
+ * Mounting this costs nothing — the subscription lives in `ActiveCloudDataProvider`.
+ */
+export const useActiveCloudChannels = (): DomainChannel[] => useActiveCloudData().channels;

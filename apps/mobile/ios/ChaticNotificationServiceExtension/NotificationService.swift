@@ -49,7 +49,7 @@ class NotificationService: UNNotificationServiceExtension {
             // so this extension is the only place a backgrounded message can move the count: we read
             // the base the app captured on backgrounding and increment it, and the app re-aggregates
             // the true total on the next foreground.
-            applyBadgeIncrementIfNeeded(channelId: channelId, content: bestAttemptContent)
+            applyBadgeIncrementIfNeeded(channelId: channelId, userInfo: userInfo, content: bestAttemptContent)
 
             contentHandler(bestAttemptContent)
         }
@@ -67,11 +67,16 @@ class NotificationService: UNNotificationServiceExtension {
     private static let appGroupId = "group.io.chatic.dou"
     private static let badgeCountKey = "badge_count"
     private static let appActiveKey = "app_active"
+    private static let pushMarksKey = "push_marks"
+    /// Backstop against unbounded growth if the app build predates the drain bridge and never reads it.
+    private static let maxPushMarks = 100
 
     /// Increments the shared badge counter for a background chat push and writes it onto the banner.
     /// No-ops for non-chat channels (to match the web's chat-only unread total) and while the app is
     /// active (the web owns the badge over the socket then, so incrementing would double-count).
-    private func applyBadgeIncrementIfNeeded(channelId: String, content: UNMutableNotificationContent) {
+    /// Cross-cloud push mark (ADR-0056): same gate — record the raw hint alongside the badge bump so
+    /// the web can resolve+mark it on the next launch/foreground.
+    private func applyBadgeIncrementIfNeeded(channelId: String, userInfo: [AnyHashable: Any], content: UNMutableNotificationContent) {
         let isChatChannel = channelId == "dou_chat" || channelId == "dou_chat_muted"
         guard isChatChannel else { return }
 
@@ -81,6 +86,76 @@ class NotificationService: UNNotificationServiceExtension {
         let next = defaults.integer(forKey: NotificationService.badgeCountKey) + 1
         defaults.set(next, forKey: NotificationService.badgeCountKey)
         content.badge = NSNumber(value: next)
+
+        appendPushMarkIfNeeded(userInfo: userInfo, defaults: defaults)
+    }
+
+    // MARK: - Cross-cloud push mark (ADR-0056, shared with the main app via App Group)
+
+    /// Raw push-mark hint — parsed here, never interpreted. The relay sentinel (`cid == "#"`) and an
+    /// empty `cid`'s cross-partition cache lookup both happen once, on the web
+    /// (see resolvePushCloudId.ts) — this extension only carries the fields across.
+    private struct PushCloudHint {
+        let cid: String?
+        let uid: String?
+        let channelId: String?
+        let sid: String?
+        let channelName: String?
+    }
+
+    /// Reads the mark hint fields off the APNs payload: top-level fields first, then the nested
+    /// `data`/`payload` field — a dictionary OR a JSON-encoded string, sender-dependent (the same
+    /// dual-shape ambiguity `normalizeArgs` already handles for loc-args) — overriding them.
+    private func parsePushCloudHint(_ userInfo: [AnyHashable: Any]) -> PushCloudHint {
+        var source: [String: Any] = [:]
+        for (key, value) in userInfo {
+            if let key = key as? String {
+                source[key] = value
+            }
+        }
+
+        let nested = userInfo["data"] ?? userInfo["payload"]
+        if let dict = nested as? [String: Any] {
+            source.merge(dict) { _, new in new }
+        } else if let str = nested as? String, !str.isEmpty,
+                  let data = str.data(using: .utf8),
+                  let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            source.merge(parsed) { _, new in new }
+        }
+
+        func stringField(_ key: String) -> String? {
+            guard let value = source[key] as? String, !value.isEmpty else { return nil }
+            return value
+        }
+
+        return PushCloudHint(
+            cid: stringField("cid"),
+            uid: stringField("uid"),
+            channelId: stringField("channelId"),
+            sid: stringField("sid"),
+            channelName: stringField("channelName")
+        )
+    }
+
+    /// Appends one raw hint record to the shared App Group store, capped at `maxPushMarks`. A no-op
+    /// when nothing in the hint could ever identify a cloud (no `cid`/`uid`/`channelId`).
+    private func appendPushMarkIfNeeded(userInfo: [AnyHashable: Any], defaults: UserDefaults) {
+        let hint = parsePushCloudHint(userInfo)
+        guard hint.cid != nil || hint.uid != nil || hint.channelId != nil else { return }
+
+        var record: [String: String] = [:]
+        record["cid"] = hint.cid
+        record["uid"] = hint.uid
+        record["channelId"] = hint.channelId
+        record["sid"] = hint.sid
+        record["channelName"] = hint.channelName
+
+        var marks = defaults.array(forKey: NotificationService.pushMarksKey) as? [[String: String]] ?? []
+        marks.append(record)
+        if marks.count > NotificationService.maxPushMarks {
+            marks.removeFirst(marks.count - NotificationService.maxPushMarks)
+        }
+        defaults.set(marks, forKey: NotificationService.pushMarksKey)
     }
 
     // MARK: - Localization Helpers

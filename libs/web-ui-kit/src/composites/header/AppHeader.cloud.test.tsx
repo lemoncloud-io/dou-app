@@ -43,4 +43,18 @@ describe('AppHeader — cloud kind (Type 2)', () => {
         // Radix wires the trigger with a menu popup; it stays closed until opened.
         expect(screen.getByRole('button', { name: '클라우드 선택' })).toHaveAttribute('aria-haspopup', 'menu');
     });
+
+    it('renders the switcher dot next to the cloud name (ADR-0056)', () => {
+        render(
+            <AppHeader
+                kind="cloud"
+                name="<클라우드 명>"
+                onSwitcher={jest.fn()}
+                switcherLabel="클라우드 선택"
+                switcherDot
+            />
+        );
+
+        expect(screen.getByRole('button', { name: '클라우드 선택' }).querySelector('.bg-red-500')).not.toBeNull();
+    });
 });

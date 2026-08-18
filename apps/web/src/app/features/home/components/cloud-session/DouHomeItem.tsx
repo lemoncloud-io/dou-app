@@ -8,6 +8,8 @@ import { SELECTED_HIGHLIGHT } from './shared';
 interface DouHomeItemProps {
     isSelected: boolean;
     isDisabled: boolean;
+    /** presence dot: a relay-cloud push mark or last-visited unread hint (ADR-0056). */
+    hasUnread?: boolean;
     onSelect: () => void;
 }
 
@@ -17,7 +19,7 @@ interface DouHomeItemProps {
  * `selectedCloudId === 'default'`), so it is rendered as a synthetic row. Selecting
  * it returns to relay; the active row shows the trailing green check (Figma 2933-9794).
  */
-export const DouHomeItem = ({ isSelected, isDisabled, onSelect }: DouHomeItemProps) => {
+export const DouHomeItem = ({ isSelected, isDisabled, hasUnread, onSelect }: DouHomeItemProps) => {
     const { t } = useTranslation();
 
     return (
@@ -34,8 +36,9 @@ export const DouHomeItem = ({ isSelected, isDisabled, onSelect }: DouHomeItemPro
             <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#90c304]">
                 <img src={douLogo} alt="" className="h-8 w-8" />
             </span>
-            <span className="flex-1 text-left text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+            <span className="flex flex-1 items-center gap-[6px] text-left text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                 {t('cloudSessionSheet.douHome', '두유 홈')}
+                {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
             </span>
             {isSelected && <IconCheckCircleSolid size={28} className="shrink-0 text-primary" />}
         </button>

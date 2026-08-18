@@ -11,6 +11,7 @@ import type {
     AckPendingReportsPayload,
     FetchAppLogBufferPayload,
     FetchCacheDataPayload,
+    FetchLastChatsDataPayload,
     FetchManyCacheDataPayload,
     FetchPendingReportsPayload,
     FetchPreferencePayload,
@@ -56,6 +57,7 @@ import type {
     FetchAppIconListPayload,
     FetchFcmTokenPayload,
     FetchBadgeCountPayload,
+    FetchPushMarksPayload,
     ShowNotificationPayload,
     FetchUrlMetadataPayload,
     FetchProductsPayload,
@@ -110,6 +112,7 @@ export type WebMessagePayloadMap = {
     // 2. Notification
     FetchFcmToken: FetchFcmTokenPayload;
     FetchBadgeCount: FetchBadgeCountPayload;
+    FetchPushMarks: FetchPushMarksPayload;
     SetBadgeCount: SetBadgeCountPayload;
     ShowNotification: ShowNotificationPayload;
     FetchUrlMetadata: FetchUrlMetadataPayload;
@@ -124,6 +127,7 @@ export type WebMessagePayloadMap = {
     // 4. Cache
     FetchCacheData: FetchCacheDataPayload;
     FetchManyCacheData: FetchManyCacheDataPayload;
+    FetchLastChatsData: FetchLastChatsDataPayload;
     FetchAllCacheData: FetchAllCacheDataPayload;
     SaveCacheData: SaveCacheDataPayload;
     SaveAllCacheData: SaveAllCacheDataPayload;

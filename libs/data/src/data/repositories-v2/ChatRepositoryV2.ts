@@ -1,5 +1,5 @@
 import type { ChatFeedInput, ChatSendInput } from '@lemoncloud/chatic-sockets-api';
-import type { DomainChat, DomainListResult } from '../domain';
+import type { DomainChat, DomainLastChat, DomainListResult } from '../domain';
 import type { IChatLocalDataSourceV2 } from '../local/data-sources-v2';
 import type {
     ChatDeleteInput,
@@ -21,6 +21,7 @@ export interface ChatRefreshResult {
 export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
     observeList(query: ChatFeedInput, callback: (result: DomainListResult<DomainChat> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainChat | null) => void): () => void;
+    observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
     refreshList(query: ChatFeedInput): Promise<ChatRefreshResult>;
     getChat(payload: ChatGetInput): Promise<DomainChat>;
@@ -31,6 +32,7 @@ export interface IChatRepositoryV2 extends DisposableRepositoryV2 {
 
     cacheRead(id: string): Promise<DomainChat | null>;
     cacheReadList(query: ChatFeedInput): Promise<DomainListResult<DomainChat> | null>;
+    cacheReadLastList(channelIds: string[]): Promise<DomainLastChat[]>;
     cacheWrite(item: Partial<DomainChat>): Promise<void>;
     cacheWriteMany(items: Array<Partial<DomainChat>>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
@@ -57,6 +59,14 @@ export class ChatRepositoryV2 extends BaseRepositoryV2 implements IChatRepositor
 
     public observeItem(id: string, callback: (item: DomainChat | null) => void): () => void {
         return this.chatLocalDataSource.observeItem(id, callback, this.getRepositoryContext());
+    }
+
+    public observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void {
+        return this.chatLocalDataSource.observeLastList(channelIds, callback, this.getRepositoryContext());
+    }
+
+    public cacheReadLastList(channelIds: string[]): Promise<DomainLastChat[]> {
+        return this.chatLocalDataSource.cacheReadLastList(channelIds, this.getRepositoryContext());
     }
 
     public cacheRead(id: string): Promise<DomainChat | null> {

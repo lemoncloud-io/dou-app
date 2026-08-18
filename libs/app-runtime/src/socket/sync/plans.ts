@@ -33,11 +33,24 @@ const dropForeignFrame = (): boolean => {
     return boundCid != null && boundCid !== cacheCid;
 };
 
+/**
+ * 폴링 plan 공통 옵션: 재연결 시 스냅샷을 리셋하지 않는다 (ADR-0059).
+ *
+ * 라이브러리 기본값은 리셋이다 — 재연결 직후 첫 폴이 무조건 "변경됨"으로 판정되어 onUpdate가
+ * 최소 한 번 보장된다. 우리 소비자는 그 보장이 필요 없다: onUpdate는 캐시 쓰기뿐이고 캐시에는
+ * 같은 행이 이미 있으므로, 리셋은 재연결(포그라운드 복귀마다 일어난다)마다 등록된 모든 타깃
+ * 수만큼의 동일-데이터 쓰기 → 리이밋 → 재조회 연쇄만 만들었다. 스냅샷을 유지하면 오프라인 동안
+ * 실제로 바뀐 행(updatedAt 전진)만 쓴다. 세션 경계(클라우드 전환·로그아웃)는 scheduler의
+ * `stopAll`이 스냅샷을 함께 비우므로 낡은 기준선이 세션을 넘어 살아남지 못한다.
+ */
+const KEEP_SNAPSHOT_ON_RECONNECT = { resetSnapshotOnConnected: false } as const;
+
 // DeviceSyncPlan is no longer created here: createDeviceRuntime injects its own
 // DeviceSyncPlan and owns device save, so these plans are passed as `extraSyncPlans`.
 export const createSyncPlans = (): DomainSyncPlan[] => {
     return [
         new ChannelSyncPlan<ChannelView>({
+            ...KEEP_SNAPSHOT_ON_RECONNECT,
             onUpdate: (_target, view) => {
                 if (dropForeignFrame()) return;
                 const { channel } = getRepositories();
@@ -53,6 +66,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // onUpdate's view matches toDomainPlace's input instead of the default
         // bare SyncableView (id/updatedAt only).
         new PlaceSyncPlan<MySiteView>({
+            ...KEEP_SNAPSHOT_ON_RECONNECT,
             onUpdate: (_target, view) => {
                 if (dropForeignFrame()) return;
                 const { place } = getRepositories();
@@ -65,6 +79,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
             },
         }),
         new ProfileSyncPlan<ProfileView>({
+            ...KEEP_SNAPSHOT_ON_RECONNECT,
             onUpdate: (_target, view) => {
                 if (dropForeignFrame()) return;
                 const { profile } = getRepositories();
@@ -91,6 +106,7 @@ export const createSyncPlans = (): DomainSyncPlan[] => {
         // join은 single-join polling plan. join.get 응답의 updatedAt 변화 시 onUpdate가 호출되며,
         // read-state sync 소유권은 이 plan이 갖고 local cache 반영은 JoinRepositoryV2가 맡는다.
         new JoinSyncPlan({
+            ...KEEP_SNAPSHOT_ON_RECONNECT,
             onUpdate: (_target, view) => {
                 if (dropForeignFrame()) return;
                 const { join } = getRepositories();

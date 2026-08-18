@@ -29,6 +29,16 @@
   않는다. 라우트는 `invite.id`로만 파라미터화한다. 취소가 요구하는 전체 코드(`invt:<id>:<code>`)는
   `invite.list` 행의 `id`·`code`(초대자 본인 소유라 서버가 실어 준다)로 **호출 직전에 메모리에서만
   조립**하고(`composeInviteCode`), 그 값을 저장하거나 로그에 남기지 않는다.
+- **내가 소유한 초대에 대한 서버 응답은 전부 캐시에 남는다.** `invite.list` 미러 외에 `invite.create`·
+  `invite.cancel` 응답도 같은 allowlist·cid 게이트를 지나 캐시에 쓰인다(ADR-0052 추가 노트) — 발급
+  직후의 대기 화면이 콜드부트·오프라인에서도 카드를 그리고, 취소한 초대가 다음 `list`까지 `pending`을
+  주장하지 않는다. `accept`/`reject`는 수신자 커맨드라 미러하지 않는다.
+- **code를 얻기 위한 재조회는 relay 게이트를 지난다.** durable 캐시는 `code`/`deeplink`를 담지 않으므로
+  (ADR-0052) 캐시 전용 행에서 취소·재발송을 누르면 `resolveInviteCode`가 `invite.list`를 한 번 다시
+  부른다. react-query의 `refetch()`는 disabled 쿼리에서도 발사되기 때문에, `useRelayInvites`가 내주는
+  `refetch`는 raw가 아니라 **미인증이면 `waitUntilKindVerified('relay', 3s)`로 기다리고 그래도 아니면
+  손에 있는 값으로 답하는** 래퍼다. 게이트를 우회했을 때 서버가 실제로 거절한 형태는
+  `401 UNAUTHORIZED - not authenticated @invite.list`이고, 앱의 `retry: 1` 때문에 탭 1회에 2건이었다.
 - **종국 카드의 정리 책임은 상태마다 다르다.** `canceled`는 목록 필터가 자연히 거른다.
   `rejected`는 서버가 영구 보존하고 만료로 퇴화하지도 않으므로(파생 우선순위상 `rejectedAt`이
   `expiredAt`보다 앞), 사용자가 재초대로 "처리"한 뒤에는 로컬 dismiss(`canceledInviteIds`)로 걷는다.

@@ -16,13 +16,13 @@ import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
 import { resolveChannelAvatar } from '../lib';
 import {
     useChannel,
+    useChannelJoins,
     useChannelMembers,
     useChannelProfiles,
     useChannelTitle,
     useChatMutations,
     useChats,
     useDmPeer,
-    useMyJoin,
     useReactions,
 } from '../hooks';
 import type { ClientChatView, DomainChat } from '../types';
@@ -70,18 +70,22 @@ export const ThreadPage = () => {
 
     const { userId } = useSessionIdentity();
     const { channel } = useChannel(channelId || null);
-    const { members, activeMemberIds } = useChannelMembers({
+    // One join subscription for the screen — my row and the active-member set are two readings of it
+    // (see useChannelJoins). A thread and its room are two views of one channel, so they compose the
+    // same way.
+    const { joins, myJoin, activeMemberIds } = useChannelJoins(channelId || null);
+    const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
         memberIds: channel?.memberIds,
+        joins,
     });
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
 
     // Header identity, resolved exactly as the room resolves it — a thread and its channel are
     // two views of one room, so the header has no reason to diverge (ADR-0047 decision 4). The
-    // join nick has to come from the join CACHE, not `channel.$join`, or a rename lags here
-    // while the room header already shows it.
-    const myJoin = useMyJoin(channelId || null);
+    // join nick has to come from the join CACHE (`myJoin` above), not `channel.$join`, or a rename
+    // lags here while the room header already shows it.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
     const channelTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
     const isSelfChat = channel?.isSelfChat ?? false;

@@ -8,9 +8,10 @@ import { cn } from '@chatic/ui-kit';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
-import { extractFirstUrl } from '../utils/linkTokens';
+import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
-import { LinkedText } from './LinkedText';
+import { MessageCodeBlock } from './MessageCodeBlock';
+import { MessageText } from './MessageText';
 import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
 import { ThreadFooter } from './ThreadFooter';
@@ -114,8 +115,13 @@ export const ChannelMessageRow = ({
     // card for the link it had to cut — and the card is then the only way to reach it.
     // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
     // not keep unfurling, which would also keep fetching the page on every render pass.
+    // `isLong` rides along so the card agrees with the bubble about what is code: the bubble closes
+    // a fence left dangling at the cut, and a URL under that fence must not summon a card the
+    // bubble is rendering as literal text.
     const previewUrl =
-        message.isPending || message.isFailed || message.isSystem || isDeleted ? undefined : extractFirstUrl(content);
+        message.isPending || message.isFailed || message.isSystem || isDeleted
+            ? undefined
+            : extractFirstUrl(content, isLong);
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.
@@ -231,7 +237,16 @@ export const ChannelMessageRow = ({
             className={cn(!showProfileAndName && '-mt-1')}
         >
             {!mine && showProfileAndName && <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>}
-            <div className="flex min-w-0 items-center gap-1.5">
+            {/* `w-full` rather than shrink-to-fit. A fenced block's `whitespace-pre` line has no
+                break opportunity, so its min-content contribution is the WHOLE line, and every
+                shrink-to-fit ancestor (this row, the bubble's `w-fit`) is obliged to honour it —
+                min-content beats a max-width, so the row's 75% cap lost and one long code line
+                dragged the bubble ~850px wide on a 390px screen. Pinning this row to the column
+                gives the bubble's own `max-w-full` a definite basis to resolve against, and the
+                block then scrolls inside the bubble, which is what `overflow-x-auto` was for.
+                `justify-end` because my bubble no longer sits in a row that hugs it: the column is
+                wider than the bubble whenever the chips or the thread footer are. */}
+            <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && 'justify-end')}>
                 {message.isFailed && mine && (
                     <button onClick={onRetry} className="flex shrink-0 items-center">
                         <AlertCircle size={20} className="text-destructive" />
@@ -262,13 +277,15 @@ export const ChannelMessageRow = ({
                             <span className="italic text-muted-foreground">{t('chat.room.deletedMessage')}</span>
                         ) : (
                             <>
-                                {/* The ellipsis stays outside LinkedText so it can't be swallowed
+                                {/* The ellipsis stays outside MessageText so it can't be swallowed
                                     into a URL at the cut. `truncated` also stops a URL that runs
-                                    to the cut from being linked at all — it may be a fragment. */}
-                                <LinkedText
+                                    to the cut from being linked at all — it may be a fragment, and
+                                    makes a fence left open at the cut render as a block anyway. */}
+                                <MessageText
                                     text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
                                     truncated={isLong}
                                     onUrlClick={handleUrlClick}
+                                    renderCodeBlock={(code, lang) => <MessageCodeBlock code={code} lang={lang} />}
                                 />
                                 {isLong && '...'}
                             </>

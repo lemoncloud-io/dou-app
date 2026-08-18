@@ -33,12 +33,22 @@ const readPreference = (name: keyof typeof PREFERENCES): string =>
 /** Whether a value is already cached locally — used to decide bridge fallback reads. */
 export const hasLocalPreference = (name: keyof typeof PREFERENCES): boolean => readLocalPreference(name) !== null;
 
-/** Write a value into the local cache only (no bridge round-trip). */
+/**
+ * Write a value into the local cache only (no bridge round-trip).
+ *
+ * Best-effort: a full quota or a zero-quota private mode makes setItem throw, and this runs
+ * during store creation (readInitialTheme) where an uncaught throw would fail the module import
+ * and blank the app. Losing the cache only costs a bridge read on the next boot.
+ */
 const cacheLocalPreference = (name: keyof typeof PREFERENCES, value: string): void => {
     if (typeof window === 'undefined') return;
     const config = PREFERENCES[name];
-    if (config.strategy === 'session') sessionStorage.setItem(config.sessionKey, value);
-    else localStorage.setItem(config.localKey, value);
+    try {
+        if (config.strategy === 'session') sessionStorage.setItem(config.sessionKey, value);
+        else localStorage.setItem(config.localKey, value);
+    } catch {
+        /* storage unavailable or full — the in-memory store value still stands */
+    }
 };
 
 /**
@@ -172,6 +182,68 @@ export const parseTheme = (value: unknown): Theme | null => {
     }
 };
 
+/**
+ * Theme the native shell injected before content load (`window.CHATIC_APP_THEME`).
+ *
+ * This is the restore path after a WebView cache wipe: localStorage is empty but native still
+ * holds the value, and the injected global is the only source that arrives early enough to be
+ * used by the first paint — a bridge round-trip lands after it. Absent outside a native shell,
+ * and absent on older shells that predate the injection (capability skew), where
+ * PreferenceLoader's bridge read remains the fallback.
+ */
+const readInjectedTheme = (): Theme | null => {
+    if (typeof window === 'undefined') return null;
+    return parseTheme((window as unknown as { CHATIC_APP_THEME?: unknown }).CHATIC_APP_THEME);
+};
+
+/**
+ * Push the theme to the native shell with confirmation and one retry.
+ *
+ * The theme is the one preference where a dropped write is not self-healing. The native shell
+ * owns the status bar, the root background and the resume overlay, so if `SavePreference` is
+ * lost the two layers disagree — and they stay that way: the web cached its own value, so
+ * `readInitialTheme` never consults the injected native value again, and PreferenceLoader skips
+ * the bridge read. Fire-and-forget cannot detect that; a confirmed send can.
+ *
+ * Deliberately not awaited by the caller: the UI updates optimistically and the confirmation
+ * happens in the background, so a slow or missing bridge never blocks the toggle.
+ */
+const syncThemeToNative = async (value: string): Promise<void> => {
+    if (!isNative()) return;
+    const attempt = () => appBridge.savePreferenceConfirmed({ key: PREFERENCES.theme.nativeKey, value });
+    try {
+        await attempt();
+    } catch {
+        // Retry once: the realistic failure is a transient drop or a native router that was not
+        // listening yet, not a rejected value.
+        try {
+            await attempt();
+        } catch {
+            /* give up — the next theme change or the next cold boot re-syncs */
+        }
+    }
+};
+
+/**
+ * Initial theme: local cache -> native injection -> default (light).
+ *
+ * A value taken from the injection is written into the local cache right away, so the next boot
+ * resolves it synchronously and PreferenceLoader skips the bridge read for this key — which also
+ * removes the late `hydrate` that used to flip the theme after the first paint.
+ */
+export const readInitialTheme = (): Theme => {
+    const cached = parseTheme(readLocalPreference('theme'));
+    if (cached) return cached;
+
+    const injected = readInjectedTheme();
+    if (injected) {
+        cacheLocalPreference('theme', injected);
+        return injected;
+    }
+
+    return parseTheme(PREFERENCES.theme.defaultValue) ?? 'light';
+};
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -180,7 +252,7 @@ interface PreferenceState {
     blurLastMessage: boolean;
     /** true until the user completes onboarding for the first time. */
     isFirstRun: boolean;
-    /** Theme preference; 'system' resolves against the OS scheme (see app/theme). */
+    /** Theme preference; defaults to light. 'system' resolves against the OS scheme (see useTheme). */
     theme: Theme;
     /** Device-global push mute (optimistic local mirror of device.update-remote; no server read). */
     pushMuted: boolean;
@@ -249,8 +321,9 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
     // isFirstRun is the inverse of the 'completed' flag stored in localStorage.
     isFirstRun: readPreference('isFirstRun') !== 'true',
 
-    // A corrupt cached value falls back to 'system' rather than leaking into the DOM class.
-    theme: parseTheme(readPreference('theme')) ?? 'system',
+    // Local cache -> native injection -> light. A corrupt value falls back to the default
+    // rather than leaking into the DOM class.
+    theme: readInitialTheme(),
 
     pushMuted: readPreference('pushMuted') === 'true',
 
@@ -283,7 +356,10 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
 
     setTheme: (theme: Theme) => {
         set({ theme });
-        persistPreference('theme', theme);
+        // Not persistPreference: the native half needs confirmation + retry, which the generic
+        // fire-and-forget path does not provide.
+        cacheLocalPreference('theme', theme);
+        void syncThemeToNative(theme);
     },
 
     setPushMuted: (value: boolean) => {
@@ -361,7 +437,7 @@ export const usePreferenceStore = create<PreferenceState & PreferenceActions>()(
             set({ isFirstRun: bool });
             cacheLocalPreference('isFirstRun', bool ? 'true' : 'false');
         } else if (key === PREFERENCES.theme.nativeKey) {
-            // An unparseable bridge value is ignored — the synchronous 'system' default stands.
+            // An unparseable bridge value is ignored — the synchronous default stands.
             const theme = parseTheme(value);
             if (theme) {
                 set({ theme });

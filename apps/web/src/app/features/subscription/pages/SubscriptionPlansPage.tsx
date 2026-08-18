@@ -6,7 +6,7 @@ import { cn } from '@chatic/lib/utils';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
-import { ROUTES } from '../../../routes/paths';
+import { useNavigateToLogin } from '../../auth/hooks';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useClouds } from '@chatic/web-core';
@@ -22,6 +22,7 @@ import { POLICY_BASE_URL } from '../consts';
 
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
+    const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
     // Platform sniffing + allowed-product resolution is shared with the cloud guide (useAllowedProduct)
@@ -58,7 +59,7 @@ export const SubscriptionPlansPage = () => {
         // email step rather than after. `purchaseAndValidate` also refuses, but only once the email
         // dialog has already opened — which reads as "collect my email, then fail".
         if (isGuest) {
-            navigate(ROUTES.mypage.login);
+            goToLogin();
             return;
         }
         if (clouds.length >= 1) {

@@ -15,6 +15,9 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
+// The banner's useNavigateToLogin reads the current location to remember where to come back to;
+// this screen renders outside a Router here, so stand it in rather than wrap every case.
+jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/invite/accept', search: '', hash: '' }) }));
 jest.mock('@chatic/app-runtime', () => ({
     applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
 }));
@@ -211,7 +214,9 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         fireEvent.click(screen.getByText('phoneVerify.socialFirstTitle'));
 
         expect(onClose).toHaveBeenCalled();
-        expect(mockNavigate).toHaveBeenCalledWith('/mypage/login');
+        // returnTo is the screen the banner was shown on, so finishing social sign-in comes back
+        // here rather than dumping the user on home mid-flow (ADR-0055).
+        expect(mockNavigate).toHaveBeenCalledWith('/mypage/login', { state: { returnTo: '/invite/accept' } });
     });
 
     // The banner tells a user with an existing social account to log in with it FIRST, or they will

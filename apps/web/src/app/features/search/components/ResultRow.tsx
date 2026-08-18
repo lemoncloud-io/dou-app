@@ -16,7 +16,7 @@ interface ResultRowProps {
  * One clickable search result row, shared across the cloud/place/channel/message sections.
  *
  * Purely presentational on purpose: every value is passed in, because a search result usually
- * belongs to a NON-ACTIVE cloud and any hook that reads data (useLastChat, useChannelSync, …)
+ * belongs to a NON-ACTIVE cloud and any hook that reads data (useLastChats, useChannelSync, …)
  * would query the active cloud's partition instead — coming back empty and registering sync
  * targets on the wrong cloud's socket. See docs/specs/search/web-search-page.md.
  */

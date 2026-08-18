@@ -10,15 +10,23 @@ jest.mock('@chatic/app-runtime', () => ({ useChannelSync: () => undefined }));
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: () => ({ userId: 'me' }) }));
 jest.mock('../../../stores/usePreferenceStore', () => ({ usePreferenceStore: () => false }));
-// The row's preview source. Null by default (rows under test have no messages); the preview
-// cases below seed it. pickPreviewChat itself is covered in useLastChat.test.ts.
+// The rows' preview source — the list-level combined lookup (ADR-0057). Null by default (rows
+// under test have no messages); the preview cases below seed it for EVERY row. Preview picking
+// itself is covered by chatPreview.test.ts (libs/data) and useLastChats.test.ts.
 let mockLastChat: any = null;
-jest.mock('../../../hooks/useLastChat', () => ({ useLastChat: () => mockLastChat }));
+// Per-channel override, for the ordering cases — the list sorts by these same times (ADR-0055 결정 2).
+let mockLastChatByChannel: Map<string, any> | null = null;
+jest.mock('../../../hooks/useLastChats', () => ({
+    useLastChats: () => ({
+        get: (channelId: string) => mockLastChatByChannel?.get(channelId) ?? mockLastChat ?? undefined,
+    }),
+}));
 
 // My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
 // (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real
 // pure fns (unit-tested separately).
 jest.mock('../../../hooks', () => ({
+    ...jest.requireActual('../../../hooks'),
     useMyProfile: () => ({ profile: { nick: 'MY_NICK', thumbnail: 'my-photo.png' } }),
 }));
 
@@ -51,7 +59,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     PlanBadge: () => <span>PRO</span>,
     StatusBadge: ({ label }: any) => <span data-testid="status-badge">{label}</span>,
-    UnreadBadge: () => <span data-testid="unread" />,
+    UnreadBadge: ({ count }: any) => <span data-testid="unread">{count}</span>,
 }));
 
 const makeChannel = (over: any) => ({ id: 'c1', name: '', stereo: 'group', memberNo: 3, ...over });
@@ -63,7 +71,6 @@ describe('ChannelList self-chat row', () => {
                 channels={[
                     makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', $join: { nick: '내 메모장' } }),
                 ]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -78,7 +85,6 @@ describe('ChannelList self-chat row', () => {
                 channels={[
                     makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', $join: { nick: '옛닉' } }),
                 ]}
-                unreadByChannel={{}}
                 joinByChannel={new Map([['self1', { nick: '새닉' } as any]])}
                 isLoading={false}
             />
@@ -92,7 +98,6 @@ describe('ChannelList self-chat row', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'self2', stereo: 'self', memberNo: 1, name: '' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -109,7 +114,6 @@ describe('ChannelList self-chat row', () => {
                 channels={[
                     makeChannel({ id: 'self3', stereo: 'self', memberNo: 1, name: '', $join: { nick: uuidNick } }),
                 ]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -125,7 +129,6 @@ describe('ChannelList self-chat row', () => {
                     // useSessionIdentity mock returns userId: 'me'; a nick equal to it is the default, not a name.
                     makeChannel({ id: 'self4', stereo: 'self', memberNo: 1, name: '', $join: { nick: 'me' } }),
                 ]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -133,18 +136,22 @@ describe('ChannelList self-chat row', () => {
         expect(screen.getByText('MY_NICK')).toBeInTheDocument();
     });
 
-    it('채널 목록을 join updatedAt 최신순으로 정렬한다', () => {
+    it('채널 목록을 마지막 메시지 시각 최신순으로 정렬한다', () => {
+        // 내 읽음 커서(join.updatedAt)는 a가 더 최신이지만, 순서는 메시지 시각만 본다.
+        mockLastChatByChannel = new Map([
+            ['a', { content: 'a의 마지막', createdAtMs: 100 }],
+            ['b', { content: 'b의 마지막', createdAtMs: 200 }],
+        ]);
         render(
             <ChannelList
                 channels={[
                     makeChannel({ id: 'a', stereo: 'group', memberNo: 1, name: 'A방' }),
                     makeChannel({ id: 'b', stereo: 'group', memberNo: 1, name: 'B방' }),
                 ]}
-                unreadByChannel={{}}
                 joinByChannel={
                     new Map([
-                        ['a', { updatedAt: 100 } as any],
-                        ['b', { updatedAt: 200 } as any],
+                        ['a', { updatedAt: 900 } as any],
+                        ['b', { updatedAt: 100 } as any],
                     ])
                 }
                 isLoading={false}
@@ -152,14 +159,26 @@ describe('ChannelList self-chat row', () => {
         );
 
         const titles = screen.getAllByTestId('row-title').map(el => el.textContent);
-        expect(titles).toEqual(['B방', 'A방']); // b(updatedAt 200) before a(100)
+        expect(titles).toEqual(['B방', 'A방']); // b(마지막 메시지 200) before a(100)
+        mockLastChatByChannel = null;
+    });
+
+    it('unread 뱃지는 channel과 join 스트림만으로 계산된다', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'u1', stereo: 'group', name: '알림방', chatNo: 10, metaNo: 2 })]}
+                joinByChannel={new Map([['u1', { readNo: 4, metaNo: 1 } as any]])}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getByTestId('unread')).toHaveTextContent('5');
     });
 
     it('그룹 행은 channel.name을 제목으로 쓰고 MY 배지가 없다', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'g1', stereo: 'group', memberNo: 3, name: '스터디방', ownerId: 'other' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -180,7 +199,6 @@ describe('ChannelList self-chat row', () => {
                         $join: { nick: '내별명' },
                     }),
                 ]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -193,7 +211,6 @@ describe('ChannelList self-chat row', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
-                unreadByChannel={{}}
                 joinByChannel={new Map([['g1', { nick: '내별명' } as any]])}
                 isLoading={false}
             />
@@ -207,7 +224,6 @@ describe('ChannelList self-chat row', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -226,7 +242,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     it('상대 프로필 닉을 제목으로 쓴다', () => {
         mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
 
-        render(<ChannelList channels={[dmChannel()]} unreadByChannel={{}} isLoading={false} />);
+        render(<ChannelList channels={[dmChannel()]} isLoading={false} />);
 
         expect(screen.getByText('토끼')).toBeInTheDocument();
     });
@@ -234,7 +250,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     it('내가 오너여도 channel.name이 아니라 상대 닉을 쓴다', () => {
         mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
 
-        render(<ChannelList channels={[dmChannel({ name: '서버 이름' })]} unreadByChannel={{}} isLoading={false} />);
+        render(<ChannelList channels={[dmChannel({ name: '서버 이름' })]} isLoading={false} />);
 
         expect(screen.getByText('토끼')).toBeInTheDocument();
         expect(screen.queryByText('서버 이름')).not.toBeInTheDocument();
@@ -246,7 +262,6 @@ describe('ChannelList — 1:1(DM) 행', () => {
         render(
             <ChannelList
                 channels={[dmChannel()]}
-                unreadByChannel={{}}
                 joinByChannel={new Map([['dm1', { nick: '토끼친구' } as any]])}
                 isLoading={false}
             />
@@ -258,7 +273,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     it('상대 프로필이 없으면 DM 전용 라벨로 떨어진다', () => {
         mockDmPeers.set('dm1', { id: 'peer' });
 
-        render(<ChannelList channels={[dmChannel()]} unreadByChannel={{}} isLoading={false} />);
+        render(<ChannelList channels={[dmChannel()]} isLoading={false} />);
 
         expect(screen.getByText('chat.dm.unnamedPeer')).toBeInTheDocument();
     });
@@ -266,9 +281,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     it('아바타로 상대 thumbnail을 쓴다 (채널 thumbnail은 무시)', () => {
         mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼', thumbnail: 'peer.png' });
 
-        render(
-            <ChannelList channels={[dmChannel({ thumbnail: 'channel.png' })]} unreadByChannel={{}} isLoading={false} />
-        );
+        render(<ChannelList channels={[dmChannel({ thumbnail: 'channel.png' })]} isLoading={false} />);
 
         expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'peer.png');
     });
@@ -276,7 +289,7 @@ describe('ChannelList — 1:1(DM) 행', () => {
     it('상대 thumbnail이 없으면 기본 아바타를 쓴다', () => {
         mockDmPeers.set('dm1', { id: 'peer', profileNick: '토끼' });
 
-        render(<ChannelList channels={[dmChannel()]} unreadByChannel={{}} isLoading={false} />);
+        render(<ChannelList channels={[dmChannel()]} isLoading={false} />);
 
         expect(screen.getByTestId('default-avatar')).toBeInTheDocument();
     });
@@ -287,7 +300,6 @@ describe('ChannelList — 1:1(DM) 행', () => {
         render(
             <ChannelList
                 channels={[dmChannel(), makeChannel({ id: 'g1', stereo: 'group', name: '공지방', memberNo: 5 })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -302,7 +314,6 @@ describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
-                unreadByChannel={{}}
                 isLoading={false}
                 sentInvites={[{ id: 'invite-1', state: 'pending', name: '홍길동' } as any]}
             />
@@ -317,7 +328,6 @@ describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
         render(
             <ChannelList
                 channels={[]}
-                unreadByChannel={{}}
                 isLoading={false}
                 sentInvites={[{ id: 'invite-1', state: 'pending', name: '홍길동' } as any]}
                 onSelectInvite={onSelectInvite}
@@ -332,7 +342,6 @@ describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
         render(
             <ChannelList
                 channels={[]}
-                unreadByChannel={{}}
                 isLoading={false}
                 sentInvites={[{ id: 'invite-1', state: 'pending', name: '홍길동' } as any]}
             />
@@ -342,7 +351,7 @@ describe('ChannelList — 초대 행 (ADR-0033 Track B)', () => {
     });
 
     it('채널도 초대도 없으면 기존처럼 채널 없음 문구를 보여준다', () => {
-        render(<ChannelList channels={[]} unreadByChannel={{}} isLoading={false} />);
+        render(<ChannelList channels={[]} isLoading={false} />);
 
         expect(screen.getByText('channelList.empty')).toBeInTheDocument();
     });
@@ -353,7 +362,6 @@ describe('ChannelList 아바타', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -365,7 +373,6 @@ describe('ChannelList 아바타', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', thumbnail: 'room.png' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -377,7 +384,6 @@ describe('ChannelList 아바타', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'g1', stereo: 'group', name: '스터디방', thumbnail: 'room.png' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -387,11 +393,7 @@ describe('ChannelList 아바타', () => {
 
     it('사진 없는 그룹 행은 2인 글리프를 쓴다 (1인 기본값이 아니라 — Figma 3164-12515)', () => {
         render(
-            <ChannelList
-                channels={[makeChannel({ id: 'g1', stereo: 'group', name: '스터디방' })]}
-                unreadByChannel={{}}
-                isLoading={false}
-            />
+            <ChannelList channels={[makeChannel({ id: 'g1', stereo: 'group', name: '스터디방' })]} isLoading={false} />
         );
 
         expect(screen.getByTestId('default-avatar')).toHaveAttribute('data-variant', 'group');
@@ -401,7 +403,6 @@ describe('ChannelList 아바타', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'd1', stereo: 'dm', memberNo: 2, name: '' })]}
-                unreadByChannel={{}}
                 isLoading={false}
             />
         );
@@ -415,7 +416,6 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'c1', stereo: 'group', name: '스터디방', ownerId: 'me' })]}
-                unreadByChannel={{}}
                 isLoading={false}
                 {...(props as any)}
             />
@@ -478,23 +478,30 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
 // 방과 홈이 같은 문구를 쓰지 않으면 한쪽만 원문을 계속 보여주게 된다.
 describe('ChannelList — 마지막 메시지 미리보기', () => {
     const renderRow = () =>
-        render(
-            <ChannelList
-                channels={[makeChannel({ name: '개발방', ownerId: 'me' })]}
-                unreadByChannel={{}}
-                sid="s1"
-                isLoading={false}
-            />
-        );
+        render(<ChannelList channels={[makeChannel({ name: '개발방', ownerId: 'me' })]} sid="s1" isLoading={false} />);
 
     afterEach(() => {
         mockLastChat = null;
+        mockLastChatByChannel = null;
     });
 
     it('평범한 마지막 메시지는 본문을 그대로 미리보기로 쓴다', () => {
         mockLastChat = { content: '안녕하세요', createdAt: 1 };
         renderRow();
         expect(screen.getByText('안녕하세요')).toBeInTheDocument();
+    });
+
+    // ADR-0055 — 한 줄 행에는 코드블럭을 그릴 자리가 없다. 렌더가 아니라 평문화다.
+    it('인라인 백틱은 벗겨서 보여준다', () => {
+        mockLastChat = { content: '배포는 `yarn deploy` 로', createdAt: 1 };
+        renderRow();
+        expect(screen.getByText('배포는 yarn deploy 로')).toBeInTheDocument();
+    });
+
+    it('펜스 블록은 첫 줄만 보여준다', () => {
+        mockLastChat = { content: '```ts\nconst x = 1;\nconst y = 2;\n```', createdAt: 1 };
+        renderRow();
+        expect(screen.getByText('const x = 1;')).toBeInTheDocument();
     });
 
     it('마지막 메시지가 tombstone이면 삭제 문구를 쓰고 원문을 노출하지 않는다', () => {

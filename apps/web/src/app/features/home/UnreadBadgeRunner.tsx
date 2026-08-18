@@ -1,10 +1,8 @@
 import { useCallback, useEffect } from 'react';
 
-import { useSessionSelection } from '@chatic/web-core';
-
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins, useOtherCloudUnread } from '../../hooks';
+import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 
 /**
  * App-global unread badge. Mounted once under AppRuntime (not the home page) so the native
@@ -26,14 +24,10 @@ import { useActiveCloudChannels, useChannelUnreads, useMyJoins, useOtherCloudUnr
  * server-side summary and cannot be done from the client.
  */
 export const UnreadBadgeRunner = (): null => {
-    const cloudChannels = useActiveCloudChannels();
-    // Observe-only (sync: false): the app-global badge must not own per-channel join sync — that
-    // registration is scoped to the home surface so it tears down when home unmounts. The cursor
-    // still reflects my reads (join cache) and new messages (channel head via syncChannels), and
-    // reconciles on the next home visit.
-    const { total } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
-    const { selectedCloudId } = useSessionSelection();
-    const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread(selectedCloudId);
+    // Shared with HomePage's `byPlace` (ADR-0056) — see useActiveCloudUnreads for why this stays
+    // observe-only (no per-channel join sync registration lives here).
+    const { total } = useActiveCloudUnreads();
+    const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread();
 
     const pushBadge = useCallback(() => {
         appBridge.setBadgeCount(total + otherTotal);
@@ -46,6 +40,8 @@ export const UnreadBadgeRunner = (): null => {
     // The active cloud's count moving is the app's best hint that the cache changed at all — a
     // send, a read, an arriving message. Re-read the other clouds on the same beat so a cloud
     // synced in the background (push recovery, cold sync) does not wait for a switch to show up.
+    // `refresh` coalesces: a burst of arriving messages produces one cross-cloud scan, not one per
+    // message (each scan reads every inactive cloud's partitions in full).
     useEffect(() => {
         refreshOtherClouds();
     }, [total, refreshOtherClouds]);

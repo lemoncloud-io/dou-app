@@ -41,7 +41,7 @@ main.tsx → App 마운트
   ▼ canRenderApp = true (프로필 로드 완료 또는 localStorage 캐시 존재)
   │
   Provider 트리:
-    I18nextProvider → Suspense → QueryClientProvider → ThemeProvider
+    I18nextProvider → Suspense → QueryClientProvider
       → DataProvider (Repository 인스턴스 생성, Context 제공)
         ├── WebSocketV2Connection     WebSocket 연결 관리
         ├── GlobalChatSync            전역 채팅 동기화
@@ -50,6 +50,8 @@ main.tsx → App 마운트
 ```
 
 **인증 분기**: `isAuthenticated === true` → private 라우트, `false` → `/auth/login`으로 리다이렉트.
+
+**테마**: 이 트리 안에 프로바이더가 없습니다. `ThemeApplier`가 `canRenderApp` 게이트 **바깥**에 마운트되어 세션 준비 전에도 테마가 적용됩니다 ([apps/web/docs/architecture/theme.md](../apps/web/docs/architecture/theme.md)).
 
 ### 3-tier 통신 구조
 

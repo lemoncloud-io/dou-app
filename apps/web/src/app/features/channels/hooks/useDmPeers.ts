@@ -7,10 +7,10 @@ import { useChannelProfiles } from './useChannelProfiles';
 import type { DmPeer } from './useDmPeer';
 
 /**
- * Profile poll cadence for list surfaces. `useChannelProfiles` defaults to a room-tuned 5s, which is
- * wrong here: a list is a resident screen holding one target per row, so 5s means N requests every
- * five seconds for as long as the user sits on home. First paint does not depend on the interval —
- * the hook's one-shot bootstrap covers uncached ids.
+ * Profile poll cadence for list surfaces. `useChannelProfiles` defaults to a room-tuned interval,
+ * which is wrong here: a list is a resident screen holding one target per row, so that cadence means
+ * N requests every few seconds for as long as the user sits on home. First paint does not depend on
+ * the interval — the hook's one-shot bootstrap covers uncached ids.
  */
 export const LIST_PROFILE_SYNC_INTERVAL_MS = 60_000;
 

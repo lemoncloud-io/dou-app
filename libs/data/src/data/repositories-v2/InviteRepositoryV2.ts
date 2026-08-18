@@ -20,7 +20,11 @@ export interface IInviteRepositoryV2 extends DisposableRepositoryV2 {
      */
     list(filter?: InviteListInput | null): Promise<MyInviteView[]>;
 
-    /** invite.create — issue a number-bound invite code. The returned view carries the `deeplink` to hand off. */
+    /**
+     * invite.create — issue a number-bound invite code. The returned view carries the `deeplink` to
+     * hand off, and is mirrored into the local cache (credential fields stripped) so the card exists
+     * locally the moment it exists on the server, without waiting for the next `list`.
+     */
     create(input: InviteCreateInput): Promise<MyInviteView>;
 
     /**
@@ -35,6 +39,8 @@ export interface IInviteRepositoryV2 extends DisposableRepositoryV2 {
     /**
      * invite.cancel — retire my own invite. Session-ownership authorization (403 otherwise),
      * 409 once accepted, idempotent on already-final invites. Success is `state === 'canceled'`.
+     * The final view is mirrored into the local cache, so the cached row cannot keep claiming
+     * `pending` after the server has retired it.
      */
     cancel(code: string): Promise<MyInviteView>;
 
@@ -69,8 +75,20 @@ export interface IInviteRepositoryV2 extends DisposableRepositoryV2 {
 
 /**
  * Relay 1:1 (DM) invites (ADR-0052). Local-first for reads that only need "what did the last
- * server response say" (the sender's own list), remote-only for everything else — accept/cancel/
- * reject/create/get are commands or code-driven inspections with no cache slot of their own.
+ * server response say" (the sender's own list); `get` and the recipient-side commands stay
+ * remote-only.
+ *
+ * WHAT REACHES THE CACHE: every server answer about an invite THIS user owns — the `list` mirror
+ * plus the `create` and `cancel` responses. Mirroring only `list` left the cache one round trip
+ * behind its own device: a just-issued invite did not exist locally until the follow-up list
+ * landed (so a cold boot or an offline waiting screen had nothing to paint, and the invalidate →
+ * list → mirror chain was the only way in), and a just-canceled invite kept claiming `pending`
+ * for the same window. Both responses are the same `MyInviteView` shape `list` returns, so the
+ * mirror is the same allowlist mapping with the same cid gate.
+ *
+ * `accept`/`reject` are deliberately NOT mirrored: those are the RECIPIENT's commands, and the
+ * recipient's own `invite.list` never returns the row (the list is the inviter's cards), so caching
+ * it would seed exactly the kind of orphan row the cid gate below exists to prevent.
  *
  * The cache is never authority: acceptance/rejection happen on someone else's device with no
  * notification packet, so `list` always re-asks the server and the cache only ever reflects the
@@ -93,7 +111,9 @@ export class InviteRepositoryV2 extends BaseRepositoryV2 implements IInviteRepos
     }
 
     public async create(input: InviteCreateInput): Promise<MyInviteView> {
-        return this.inviteRemoteDataSource.createInvite(input);
+        const view = await this.inviteRemoteDataSource.createInvite(input);
+        await this.mirrorToCache([view]);
+        return view;
     }
 
     public async get(code: string): Promise<RelayInviteView> {
@@ -105,7 +125,9 @@ export class InviteRepositoryV2 extends BaseRepositoryV2 implements IInviteRepos
     }
 
     public async cancel(code: string): Promise<MyInviteView> {
-        return this.inviteRemoteDataSource.cancelInvite(code);
+        const view = await this.inviteRemoteDataSource.cancelInvite(code);
+        await this.mirrorToCache([view]);
+        return view;
     }
 
     public async reject(code: string): Promise<MyInviteView> {
@@ -169,13 +191,21 @@ export class InviteRepositoryV2 extends BaseRepositoryV2 implements IInviteRepos
         return (this.getNormalizedContext().cid || 'default') === 'default';
     }
 
+    /**
+     * Writes server-owned invite rows into the local cache through the credential allowlist.
+     *
+     * A view with no `id` is skipped rather than written: `toCacheInviteView` would coerce it to the
+     * empty-string id, and one such row would collide with the next one on the same key — a
+     * malformed response must not become a poison row every later read has to step over.
+     */
     private async mirrorToCache(views: MyInviteView[]): Promise<void> {
         const context = this.getNormalizedContext();
         if (!this.isDefaultCloud()) return;
 
         const cid = context.cid || 'default';
         const uid = context.uid || 'default';
-        const mapped = views.map(view => toCacheInviteView(view, { cid, uid }));
+        const mapped = views.filter(view => !!view?.id).map(view => toCacheInviteView(view, { cid, uid }));
+        if (mapped.length === 0) return;
         await this.inviteLocalDataSource.cacheWriteMany(mapped, context);
     }
 }

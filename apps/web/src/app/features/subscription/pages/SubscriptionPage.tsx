@@ -14,6 +14,7 @@ import { useMembershipInfo } from '@chatic/web-core';
 import { useSubscriptionIap } from '../hooks';
 import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
+import { useNavigateToLogin } from '../../auth/hooks';
 
 const formatDate = (timestamp?: number | null): string => {
     if (!timestamp || timestamp <= 0) return '-';
@@ -23,6 +24,7 @@ const formatDate = (timestamp?: number | null): string => {
 
 export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
+    const goToLogin = useNavigateToLogin();
     const { t } = useTranslation();
     const { toast } = useToast();
     useQueryClient();
@@ -40,7 +42,7 @@ export const SubscriptionPage = () => {
 
     const handleViewPlans = () => {
         if (isGuest) {
-            navigate(ROUTES.mypage.login);
+            goToLogin();
             return;
         }
         navigate(ROUTES.subscription.plans);

@@ -65,3 +65,27 @@ export type ShowNotificationPayload = {
 export type OnShowNotificationPayload = {
     success: boolean;
 };
+
+/**
+ * 백그라운드/종료 중 도착한 크로스 클라우드 푸시 한 건의 원시 판별 힌트 (ADR-0056).
+ * 네이티브는 이 필드들을 해석하지 않고 그대로 저장만 한다 — `cid`의 relay 센티널(`'#'`)과
+ * 배포 백엔드의 빈 문자열도 원시 그대로 남는다. 판별(resolvePushCloudId)은 웹의 단일
+ * 지점에서만 수행한다.
+ */
+export type PushCloudMarkRecord = {
+    cid?: string;
+    uid?: string;
+    channelId?: string;
+    sid?: string;
+    channelName?: string;
+};
+
+/** [요청] 크로스 클라우드 푸시 마크 조회 페이로드 (ADR-0056). 응답과 동시에 네이티브 저장소를 비운다(drain). */
+export type FetchPushMarksPayload = {
+    // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
+};
+
+/** [응답] 크로스 클라우드 푸시 마크 drain 결과 페이로드 */
+export type OnFetchPushMarksPayload = {
+    marks: PushCloudMarkRecord[];
+};

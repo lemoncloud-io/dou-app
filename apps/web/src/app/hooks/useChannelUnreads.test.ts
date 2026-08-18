@@ -14,8 +14,8 @@ const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;
 const joinMap = (entries: Record<string, DomainJoin>): Map<string, DomainJoin> => new Map(Object.entries(entries));
 
 describe('useChannelUnreads — 채널 안읽음 계산', () => {
-    it('unread = (chatNo - metaNo) - 내 join 커서, 음수는 0으로 보정한다', () => {
-        // c1: userHead = 7 - 0 = 7, cursor 3 → 4. c2: userHead 8, cursor 10 → 0.
+    it('unread = countUnread(head, read cursor) 이고 음수는 0으로 보정한다', () => {
+        // c1: userHead = 7, cursor 3 → 4. c2: userHead 8, cursor 10 → 0.
         const channels = [channel('c1', { chatNo: 7 }), channel('c2', { chatNo: 8 })];
         const joins = joinMap({ c1: join({ chatNo: 3 }), c2: join({ chatNo: 10 }) });
 
@@ -25,12 +25,12 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(result.current.total).toBe(4);
     });
 
-    it('시스템 메시지(metaNo)는 head에서 빠져 안읽음에 포함되지 않는다', () => {
-        // chatNo 10 중 metaNo 3이 시스템 → userHead 7. 커서 3 → 4 (시스템 제외).
+    it('시스템 메시지(metaNo)는 head와 join 둘 다에서 빠진다 (ADR-0048)', () => {
+        // userHead = 10 - 3 = 7. join.chatNo 3, join.metaNo 1 → unread 5.
         const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
-        const joins = joinMap({ c1: join({ chatNo: 3 }) });
+        const joins = joinMap({ c1: join({ chatNo: 3, metaNo: 1 }) });
 
-        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(4);
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(5);
     });
 
     it('join 행이 없는 채널은 읽음 기준이 없어 배지를 띄우지 않는다 (0)', () => {
@@ -49,8 +49,8 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(renderHook(() => useChannelUnreads(channels)).result.current.byChannel.c1).toBe(0);
     });
 
-    it('커서는 max(readNo, chatNo)로 가장 최근 읽음 위치를 사용한다', () => {
-        // userHead 8; readNo 6 vs chatNo 2 → 커서 6 → 2.
+    it('join.readNo와 join.chatNo 중 더 최신 읽음 경계를 사용한다', () => {
+        // userHead 8; readNo 6 vs chatNo 2 → cursor 6 → 2.
         const channels = [channel('c1', { chatNo: 8 })];
         const joins = joinMap({ c1: join({ readNo: 6, chatNo: 2 }) });
 

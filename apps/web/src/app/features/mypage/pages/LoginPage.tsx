@@ -1,21 +1,27 @@
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useLoginRelaySocial } from '@chatic/web-core';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';
 
 import { PageHeader } from '../../../ui/components';
 import { appBridge } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
+import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { isDevBuild } from '../../../utils/buildEnv';
+import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 
 export const LoginPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const location = useLocation();
+    const navigate = useNavigateWithTransition();
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
     const [isPhoneOpen, setIsPhoneOpen] = useState(false);
@@ -31,18 +37,35 @@ export const LoginPage = () => {
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } = useLoginRelaySocial();
 
     /**
-     * Clean up the history stack: [/, /mypage, /mypage/login] → [/]. Going back to the first entry and
-     * replacing prevents a back-navigation loop into a login page the user has already passed. Shared
-     * by both sign-in methods — either one leaves this screen behind for good.
+     * Leave the login screen for wherever the user came from.
+     *
+     * `history.back()`, not a replace. The entry point PUSHED this screen (see useNavigateToLogin),
+     * so the previous entry is already the screen to return to — going back lands on it and takes
+     * the login entry out of the backward path in one move. Replacing instead would overwrite login
+     * with a second copy of that screen, leaving two identical adjacent entries: the first back
+     * press would appear to do nothing, which reads as broken navigation.
+     *
+     * A useful side effect: `returnTo` is read as a FLAG (did we get here from inside the app?),
+     * never handed to the router as a destination, so there is no path for it to become a redirect
+     * target at all.
+     *
+     * The old implementation rewound the whole history stack and did a full-page
+     * `location.replace('/')`. Neither is needed: both sign-in paths install the new identity before
+     * this runs (phone via `applySessionToken`, social via `loginRelaySocial`), so a reload fixes
+     * nothing and only costs a white flash (ADR-0055).
      */
-    const leaveForHome = () => {
-        const stepsBack = window.history.length - 1;
-        if (stepsBack > 0) {
-            window.addEventListener('popstate', () => window.location.replace('/'), { once: true });
-            window.history.go(-stepsBack);
-        } else {
-            window.location.replace('/');
-        }
+    const leaveForReturnTo = () => {
+        const { returnTo } = (location.state ?? {}) as LoginLocationState;
+        const cameFromInsideTheApp = !!returnTo && window.history.length > 1;
+        const leaving = cameFromInsideTheApp
+            ? navigate(-1)
+            : // Deep link or refresh landed here directly, so there is nothing to go back to.
+              navigate(ROUTES.home, { replace: true, transition: true, direction: 'back' });
+        void Promise.resolve(leaving).catch(error =>
+            // The session is already promoted by this point, so a silent failure would strand a
+            // signed-in user on the login screen with no feedback.
+            logger.error('AUTH', '[LoginPage] Failed to leave the login screen', { error })
+        );
     };
 
     const handleOAuthLogin = async (provider: 'google' | 'apple') => {
@@ -64,7 +87,7 @@ export const LoginPage = () => {
             // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
             await loginRelaySocial({ body: result, provider: result.provider });
 
-            leaveForHome();
+            leaveForReturnTo();
         } catch (e) {
             setIsOAuthPending(false);
             setActiveProvider(null);
@@ -181,7 +204,7 @@ export const LoginPage = () => {
             {/* `login`: this is a device session proving a number to become that number's main user, so
                 a `$token` comes back and `usePhoneVerify` installs it before `onVerified` fires. */}
             {isPhoneOpen && (
-                <PhoneVerifySheet mode="login" onVerified={leaveForHome} onClose={() => setIsPhoneOpen(false)} />
+                <PhoneVerifySheet mode="login" onVerified={leaveForReturnTo} onClose={() => setIsPhoneOpen(false)} />
             )}
         </div>
     );

@@ -18,6 +18,7 @@ export type NativeCacheOperation =
     | 'load'
     | 'loadMany'
     | 'loadAll'
+    | 'loadLast'
     | 'delete'
     | 'deleteAll'
     | 'clearAll';

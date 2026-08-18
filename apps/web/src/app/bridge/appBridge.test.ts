@@ -168,4 +168,19 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
 
         await expect(appBridge.notifyWebAppReady()).resolves.toBeNull();
     });
+
+    describe('fetchPushMarks (ADR-0056)', () => {
+        it('request로 FetchPushMarks를 호출하고 marks 배열을 반환한다', async () => {
+            requestMock.mockResolvedValueOnce({ success: true, data: { marks: [{ cid: 'cloud_1' }] } });
+
+            await expect(appBridge.fetchPushMarks()).resolves.toEqual([{ cid: 'cloud_1' }]);
+            expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchPushMarks', data: {} });
+        });
+
+        it('구버전 셸/평범한 브라우저에서 요청이 실패하면 빈 배열이다', async () => {
+            requestMock.mockRejectedValueOnce(new Error('no native bridge'));
+
+            await expect(appBridge.fetchPushMarks()).resolves.toEqual([]);
+        });
+    });
 });

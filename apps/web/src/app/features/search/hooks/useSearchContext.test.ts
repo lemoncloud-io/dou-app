@@ -99,7 +99,7 @@ describe('useSearchContext', () => {
             lastMessage: 'see you',
             lastMessageAt: 1700,
         });
-        // (chatNo 20 - metaNo 2) - readNo 8
+        // join.metaNo 없음 → 커서를 환산하지 않고 그대로 뺀다. (20-2) - 8 = 10.
         expect(row.unread).toBe(10);
     });
 

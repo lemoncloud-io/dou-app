@@ -16,7 +16,13 @@
         <script>
             (function () {
                 var storageKey = 'vite-ui-theme';
-                var theme = localStorage.getItem(storageKey);
+                // Local cache -> theme injected by the native shell (window.CHATIC_APP_THEME, set by
+                // injectedJavaScriptBeforeContentLoaded) -> light. The injection is what keeps a wiped
+                // WebView cache from painting the wrong colors on the very first frame; a bridge
+                // message would arrive too late. Default is light, never the OS scheme: web and native
+                // resolve 'system' independently, so it cannot decide the default without risking a
+                // mismatch. Keep this order in sync with readInitialTheme() in usePreferenceStore.
+                var theme = localStorage.getItem(storageKey) || window.CHATIC_APP_THEME || 'light';
                 var isDark =
                     theme === 'dark' ||
                     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);

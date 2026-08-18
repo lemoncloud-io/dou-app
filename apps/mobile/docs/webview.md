@@ -55,11 +55,11 @@ sequenceDiagram
 
 `AppWebView.tsx` intercepts these messages before normal bridge routing:
 
-| Message                       | 동작                                         |
-| ----------------------------- | -------------------------------------------- |
-| `WebAppReady`                 | loading state 해제, debug runtime state 갱신 |
-| `ResumeReady`                 | iOS resume overlay 해제                      |
-| `SavePreference` with `theme` | native theme store 갱신                      |
+| Message                       | 동작                                             |
+| ----------------------------- | ------------------------------------------------ |
+| `WebAppReady`                 | loading state 해제, debug runtime state 갱신     |
+| `ResumeReady`                 | iOS resume overlay 해제                          |
+| `SavePreference` with `theme` | native theme store 갱신 ([theme.md](./theme.md)) |
 
 ## Injection
 
@@ -69,6 +69,7 @@ WebView load 전에 다음 runtime data가 script로 주입된다.
 - keyboard height
 - device id (`CHATIC_APP_DEVICE_ID` = `deviceId:firebaseInstallId` 조합) / platform / app version / build number
 - installation id (`CHATIC_APP_INSTALLATION_ID` = 원시 device id) / latest version check result
+- 영속화된 테마(`CHATIC_APP_THEME`) — 웹의 프리페인트 스크립트가 첫 페인트에 읽는다. [theme.md](./theme.md) 참고
 - console override script
 
 > device id는 원시 `DeviceInfo.getUniqueId`에 Firebase installation id를 이어붙인 값이다([`buildInjectedUniqueId.ts`](../src/app/webview/utils/buildInjectedUniqueId.ts)). Firebase id는 비동기 조회([`useFirebaseInstallId.ts`](../src/app/webview/hooks/useFirebaseInstallId.ts))라 아직 없으면 원시 device id만 들어간다.

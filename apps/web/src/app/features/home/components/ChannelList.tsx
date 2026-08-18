@@ -6,7 +6,7 @@ import { BellOff, Pin } from 'lucide-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useChannelSync } from '@chatic/app-runtime';
 import { useSessionIdentity } from '@chatic/web-core';
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import {
@@ -32,9 +32,10 @@ import { useDmPeers, type DmPeer } from '../../channels/hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
-import { useLastChat } from '../../../hooks/useLastChat';
-import { useMyProfile } from '../../../hooks';
+import { useLastChats } from '../../../hooks/useLastChats';
+import { useChannelUnreads, useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
+import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 
@@ -58,6 +59,7 @@ const ChannelItem = ({
     dmPeer,
     pinned,
     muted,
+    lastChat,
 }: {
     channel: DomainChannel;
     unread: number;
@@ -72,6 +74,11 @@ const ChannelItem = ({
     pinned?: boolean;
     /** Room notifications off (my join's notify === 'none', ADR-0025) — shown as a bell-off glyph. */
     muted?: boolean;
+    /**
+     * This row's last-message preview, from the ONE list-level useLastChats subscription
+     * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
+     */
+    lastChat?: DomainChat;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -83,11 +90,9 @@ const ChannelItem = ({
     const isDm = channel.stereo === 'dm';
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
-    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`.
+    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
+    // the polled `chatNo` head doubles as the chat catch-up trigger (useChatSyncRegistration).
     useChannelSync(channel.id);
-    // Last-message preview source: the server no longer embeds `lastChat$`, so register + prime a
-    // chat target for this visible row and read its latest cached message (live via ChatSyncPlan).
-    const lastChat = useLastChat(channel.id);
 
     const formatTime = (dateValue?: string | number) => {
         if (!dateValue) return '';
@@ -114,7 +119,11 @@ const ChannelItem = ({
     // A tombstone still previews — it IS the channel's last message, and the room now renders it
     // the same way, so the two screens agree (ADR-0047 decision 6). What it must not do is show
     // the deleted body, hence the shared phrase rather than `content`.
-    const preview = lastChat?.hidden ? t('chat.room.deletedMessage') : (lastChat?.content ?? '');
+    //
+    // Code markup is flattened, not rendered: a one-line row has nowhere to put a code block, and
+    // leaving the backticks in would make the list dirtier than before code was supported. No badge
+    // or monospace either — that would complicate the row and tangle with blurLastMessage (ADR-0055).
+    const preview = lastChat?.hidden ? t('chat.room.deletedMessage') : toPlainPreview(lastChat?.content ?? '');
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with
@@ -178,14 +187,15 @@ const ChannelItem = ({
                     <UnreadBadge count={unread} variant="pill" />
                 </div>
             }
-            onClick={() => navigate(ROUTES.channels.room(channel.id))}
+            // Hand the row's channel across so the room renders its header instantly instead of
+            // re-resolving a row that was just on screen (ADR-0058; same pattern as openThread).
+            onClick={() => navigate(ROUTES.channels.room(channel.id), { state: { channel } })}
         />
     );
 };
 
 interface ChannelListProps {
     channels: DomainChannel[];
-    unreadByChannel: Record<string, number>;
     /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
     joinByChannel?: Map<string, DomainJoin>;
     /**
@@ -220,7 +230,6 @@ interface ChannelListProps {
 
 export const ChannelList = ({
     channels,
-    unreadByChannel,
     joinByChannel,
     sid,
     isLoading,
@@ -242,14 +251,22 @@ export const ChannelList = ({
     const myThumbnail = myProfile?.thumbnail;
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
     const { userId: uid } = useSessionIdentity();
+    // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
+    const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
     // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
     const dmPeers = useDmPeers(sid, channels, uid);
+    // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole
+    // list costs a single bridge round trip on a current app, and per-row chat sync targets are
+    // gone with it. This read stays PURE — freshness (live push + head-triggered catch-up) is owned
+    // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
+    const lastChats = useLastChats(channels);
 
-    // Order by the place's chosen sort method (most-recent-activity base; 'unread' floats unread
-    // channels above). See sortChannels (pure, unit-tested).
+    // Order by the place's chosen sort method ('unread' floats unread channels above). The base
+    // order is the last message's time, read from the same `lastChats` map the rows render — so the
+    // order and the previews can never tell two different stories. See sortChannels (unit-tested).
     const sortedChannels = useMemo(
-        () => sortChannels({ channels, joinByChannel, unreadByChannel, sortMethod, pinnedChannelIds }),
-        [channels, joinByChannel, unreadByChannel, sortMethod, pinnedChannelIds]
+        () => sortChannels({ channels, lastChatByChannel: lastChats, unreadByChannel, sortMethod, pinnedChannelIds }),
+        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds]
     );
 
     const createMenu = canCreate ? (
@@ -316,6 +333,7 @@ export const ChannelList = ({
                         // The mute state lives on my join row, same source the settings toggle
                         // writes through (join.update) — not the channel's embedded $join.
                         muted={joinByChannel?.get(channel.id)?.notify === 'none'}
+                        lastChat={lastChats.get(channel.id)}
                     />
                 ))
             )}

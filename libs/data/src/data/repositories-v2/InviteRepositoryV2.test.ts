@@ -175,6 +175,85 @@ describe('InviteRepositoryV2', () => {
         });
     });
 
+    // 캐시에 내용을 넣는 곳이 list 미러뿐이면, 캐시는 자기 기기의 행동보다 한 왕복 뒤처진다 —
+    // 방금 발급한 초대가 로컬에 없고(콜드부트·오프라인 대기 화면이 빈다), 방금 취소한 초대가
+    // 다음 list까지 pending이라고 주장한다. 내가 소유한 초대에 대한 서버의 답은 전부 미러한다.
+    describe('커맨드 응답의 캐시 미러링', () => {
+        it('create 응답을 자격증명 제거 후 캐시에 쓴다 (다음 list를 기다리지 않는다)', async () => {
+            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+                cid: 'default',
+                uid: 'me',
+            });
+            const view = { id: 'invt-9', state: 'pending', code: 'secret', deeplink: 'https://x/s?code=secret' };
+            inviteRemoteDataSource.createInvite.mockResolvedValue(view);
+
+            const result = await repository.create({} as any);
+
+            const [written] = inviteLocalDataSource.cacheWriteMany.mock.calls[0];
+            expect(written).toEqual([expect.objectContaining({ id: 'invt-9', state: 'pending' })]);
+            expect(written[0]).not.toHaveProperty('code');
+            expect(written[0]).not.toHaveProperty('deeplink');
+            // 호출부가 딥링크를 넘겨야 하므로 반환값은 손대지 않은 원본이다.
+            expect(result).toBe(view);
+        });
+
+        it('cancel 응답을 캐시에 써서 캐시 행이 pending을 주장하지 못하게 한다', async () => {
+            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+                cid: 'default',
+                uid: 'me',
+            });
+            inviteRemoteDataSource.cancelInvite.mockResolvedValue({ id: 'invt-9', state: 'canceled', canceledAt: 7 });
+
+            await repository.cancel('invt:invt-9:secret');
+
+            const [written] = inviteLocalDataSource.cacheWriteMany.mock.calls[0];
+            expect(written).toEqual([expect.objectContaining({ id: 'invt-9', state: 'canceled', canceledAt: 7 })]);
+        });
+
+        // 수신자 커맨드다. 수신자의 invite.list는 그 행을 돌려주지 않으므로(목록은 초대자의 카드다)
+        // 캐시에 넣으면 아무도 다시 읽지 않는 고아 행만 생긴다.
+        it('accept/reject는 미러하지 않는다 (수신자 측 커맨드)', async () => {
+            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+                cid: 'default',
+                uid: 'me',
+            });
+            inviteRemoteDataSource.acceptInvite.mockResolvedValue({ id: 'invt-9', state: 'accepted' });
+            inviteRemoteDataSource.rejectInvite.mockResolvedValue({ id: 'invt-8', state: 'rejected' });
+
+            await repository.accept('invt:invt-9:secret');
+            await repository.reject('invt:invt-8:secret');
+
+            expect(inviteLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        });
+
+        it('활성 클라우드(cid !== default)에서는 create도 캐시에 쓰지 않는다', async () => {
+            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+                cid: 'cloud-a',
+                uid: 'me',
+            });
+            inviteRemoteDataSource.createInvite.mockResolvedValue({ id: 'invt-9', state: 'pending' });
+
+            await repository.create({} as any);
+
+            expect(inviteLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        });
+
+        // id 없는 응답은 빈 문자열 id로 저장돼 다음 행과 같은 키에서 충돌한다 — 독이 되는 행을
+        // 만들지 않고 그냥 건너뛴다.
+        it('id 없는 응답은 캐시에 쓰지 않는다', async () => {
+            const { repository, inviteRemoteDataSource, inviteLocalDataSource } = createRepository({
+                cid: 'default',
+                uid: 'me',
+            });
+            inviteRemoteDataSource.listInvites.mockResolvedValue([{ state: 'pending' }, { id: 'invt-1' }]);
+
+            await repository.list();
+
+            const [written] = inviteLocalDataSource.cacheWriteMany.mock.calls[0];
+            expect(written).toEqual([expect.objectContaining({ id: 'invt-1' })]);
+        });
+    });
+
     describe('로컬 전용 읽기·쓰기', () => {
         it('cacheReadList는 로컬 데이터소스에 위임한다', async () => {
             const { repository, inviteLocalDataSource } = createRepository();

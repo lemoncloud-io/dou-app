@@ -39,10 +39,26 @@ jest.mock('../../../hooks', () => ({
     useUserPermissions: () => ({ canCreatePlace: true }),
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
+    // The app-wide shared observation home reads instead of subscribing for itself.
+    useActiveCloudData: () => ({
+        channels: [],
+        isLoaded: true,
+        myJoins: new Map(),
+        unreads: { byChannel: {}, byPlace: {}, total: 0 },
+    }),
+    useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
     useHomeChannels: () => ({ channels: [], isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds: [] }),
+    // Registration is the one join concern still scoped to home — a no-op here.
+    useJoinSyncRegistration: jest.fn(),
+    // Same for the active site's chat sync (message freshness) — a no-op here.
+    useChatSyncRegistration: jest.fn(),
     useMyJoins: () => new Map(),
+    useOtherCloudUnread: () => ({ byCloud: {}, total: 0, refresh: jest.fn() }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
+}));
+jest.mock('../stores/useCloudPushMarkStore', () => ({
+    useCloudPushMarkStore: (selector: (state: { badged: Record<string, true> }) => unknown) => selector({ badged: {} }),
 }));
 jest.mock('../../../stores/usePreferenceStore', () => ({
     usePreferenceStore: (sel?: (s: unknown) => unknown) => {

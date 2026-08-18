@@ -1,13 +1,14 @@
 import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { logger, notificationService, pushEventManager } from '../../services';
+import { PushMarksBridge } from '../../bridge';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/app-messages';
 
 /**
  * Hook that integrates FCM foreground push and badge/token bridge requests inside the WebView.
- * Handles FetchFcmToken, FetchBadgeCount, and SetBadgeCount requests from the Web, and forwards
- * foreground push receipts to the web as OnReceiveNotification (via PushEventManager).
+ * Handles FetchFcmToken, FetchBadgeCount, SetBadgeCount, and FetchPushMarks requests from the Web,
+ * and forwards foreground push receipts to the web as OnReceiveNotification (via PushEventManager).
  *
  * Notification-tap navigation is intentionally NOT handled here — it lives in useDeepLinkNavigation
  * so taps and deep links converge on a single OnNavigate owner. Push keeps foreground receipt only.
@@ -85,6 +86,24 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         }
     }, []);
 
+    const handleFetchPushMarks = useCallback(async (_message: WebMessageData<'FetchPushMarks'>) => {
+        try {
+            const marks = await PushMarksBridge.drain();
+            return {
+                type: 'OnFetchPushMarks' as const,
+                success: true,
+                data: { marks },
+            };
+        } catch (e: any) {
+            logger.error('NOTIFICATION', 'Fetch push marks error.', e);
+            return {
+                type: 'OnFetchPushMarks' as const,
+                success: false,
+                error: { code: 'PUSH_MARKS_ERROR', message: e.message },
+            };
+        }
+    }, []);
+
     useEffect(() => {
         if (!bridge) return;
 
@@ -148,5 +167,5 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         };
     }, [bridge]);
 
-    return { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount };
+    return { fetchFcmToken, handleFetchBadgeCount, handleSetBadgeCount, handleFetchPushMarks };
 };

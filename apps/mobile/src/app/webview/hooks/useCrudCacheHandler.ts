@@ -53,6 +53,31 @@ export const useCrudCacheHandler = () => {
         [logger]
     );
 
+    // 오류를 success:true + items:null로 답하는 것은 형제 핸들러들과 같은 규칙입니다 — 웹은
+    // null을 "이번 읽기만 윈도우 조회로 폴백"으로 해석하고, 미지원 학습은 핸들러 부재의
+    // NOT_FOUND(구버전 앱)에서만 일어납니다 (ADR-0057).
+    const handleFetchLastChats = useCallback(
+        async (message: WebMessageData<'FetchLastChatsData'>) => {
+            const data = message.data;
+            try {
+                const items = await provider.cacheCrudService.fetchLastChats(data);
+                return {
+                    type: 'OnFetchLastChatsData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, channelIds: data.channelIds, items },
+                };
+            } catch (e) {
+                logger.error('CACHE', `FetchLastChats error`, e);
+                return {
+                    type: 'OnFetchLastChatsData' as const,
+                    success: true,
+                    data: { type: data.type, cid: data.cid, uid: data.uid, channelIds: data.channelIds, items: null },
+                };
+            }
+        },
+        [logger]
+    );
+
     const handleFetchManyCache = useCallback(
         async (message: WebMessageData<'FetchManyCacheData'>) => {
             const data = message.data;
@@ -195,6 +220,7 @@ export const useCrudCacheHandler = () => {
     return {
         handleFetchAllCache,
         handleFetchCache,
+        handleFetchLastChats,
         handleFetchManyCache,
         handleSaveCache,
         handleSaveAllCache,

@@ -55,17 +55,19 @@
 
 ### 🏠 홈 화면
 
-| 무엇           | 메커니즘                                                                                                                | 진입점                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| place 실시간   | `usePlaceSync(place.id)` — 렌더된 place row마다 `registerPlace`                                                         | `apps/web/src/app/features/home/components/PlaceItem.tsx`           |
-| channel 실시간 | `useChannelSync(channel.id)` — 렌더된 channel row마다 `registerChannel` (메타데이터 + `$join` 갱신)                     | `apps/web/src/app/features/home/components/ChannelList.tsx`         |
-| 마지막 메시지  | `useLastChat(channel.id)` — 렌더된 channel row마다 `registerChat` + prime 후 chat 캐시의 max chatNo 관측(미리보기 소스) | `apps/web/src/app/features/home/hooks/useLastChat.ts` (ChannelItem) |
-| 안읽음 계산    | `useChannelUnreads` — **join 등록 없이** `channel.$join.chatNo`에서 파생                                                | `apps/web/src/app/features/home/hooks/useChannelUnreads.ts`         |
+| 무엇           | 메커니즘                                                                                                                                                                 | 진입점                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| place 실시간   | `usePlaceSync(place.id)` — 렌더된 place row마다 `registerPlace`                                                                                                          | `apps/web/src/app/features/home/components/PlaceItem.tsx`      |
+| channel 실시간 | `useChannelSync(channel.id)` — 렌더된 channel row마다 `registerChannel` (메타데이터 + `$join` 갱신)                                                                      | `apps/web/src/app/features/home/components/ChannelList.tsx`    |
+| chat 실시간    | `useChatSyncRegistration(channels)` — **활성 사이트의 채널마다** `registerChat` + 결합 관측의 `lastNo`로 기준선 정렬, head(`channel.chatNo`)가 앞선 채널만 소량 catch-up | `apps/web/src/app/hooks/useChatSyncRegistration.ts` (HomePage) |
+| 내 읽음 실시간 | `useJoinSyncRegistration(channels)` — 활성 사이트의 채널마다 `registerJoin(\`${ch}@${uid}\`)`                                                                            | `apps/web/src/app/hooks/useMyJoins.ts` (HomePage)              |
+| 마지막 메시지  | `useLastChats(channels)` — 목록 전체를 `chat.observeLastList` 하나로 **순수 관측**(네트워크 없음)                                                                        | `apps/web/src/app/hooks/useLastChats.ts` (ChannelList)         |
+| 안읽음 계산    | `useChannelUnreads` — 앱 전역 관측(`ActiveCloudDataProvider`)의 채널 head + 구독 join 커서에서 파생                                                                      | `apps/web/src/app/hooks/useChannelUnreads.ts`                  |
 
-> 홈은 채널별 **join** 타깃은 등록하지 않는다 — 읽음 경계는 채널에 임베드된 `$join`을 타고 오고, 읽음
-> 전송 시 ChannelPlan으로 채널 동기화가 트리거되어 `$join.chatNo`가 갱신된다. 단 **chat** 타깃은 마지막
-> 메시지 미리보기를 위해 렌더된 행마다 등록한다(서버가 `lastChat$`를 더 이상 내려주지 않음 →
-> [chat-sync.md](chat-sync.md), 소비처는 apps/web `feature/home/last-chat.md`).
+> 등록은 화면(홈)이 소유하고 관측은 앱 전역이 소유한다 — 등록이 라우트를 넘어 살아남지 않게 하려는
+> 분업(ADR-0056). **chat** 타깃은 행별이 아니라 활성 사이트 채널 집합에 대해 한 번 등록한다: 서버가
+> `lastChat$`를 더 이상 내려주지 않고 `ChatSyncPlan.run`은 no-op이라, 라이브 push(등록)와 head-트리거
+> catch-up 둘 다 있어야 홈 프리뷰가 수렴한다 → [chat-sync.md](chat-sync.md), ADR-0057 보완(2026-08-18).
 
 ### 💬 채팅방 화면 (`apps/web/src/app/features/channels/pages/ChannelRoomPage.tsx`)
 

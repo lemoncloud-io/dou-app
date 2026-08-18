@@ -11,7 +11,16 @@ jest.mock('react-native', () => ({
     },
 }));
 
-jest.mock('../../hooks/useServices', () => ({
+// Stub the services barrel: importing the real one drags in the whole provider
+// (MMKV via nitro-modules, SQLite, Firebase, ...) which cannot load under jsdom.
+// These tests call createUploadHandlers directly with their own injected upload
+// service, so `provider` only has to exist for the module import to resolve.
+jest.mock('../../services', () => ({ provider: {} }));
+
+// Must target the barrel, which is what useUploadHandler imports — mocking
+// '../../hooks/useServices' left the real barrel to load useAppVersionCheck ->
+// react-native-device-info, which needs a native module.
+jest.mock('../../hooks', () => ({
     useServices: jest.fn(),
 }));
 

@@ -1,5 +1,12 @@
 import { webClient } from '@chatic/bridges';
-import type { OnWebAppReadyPayload, WebMessageData, WebMessageResponse, WebMessageType } from '@chatic/app-messages';
+import type {
+    OnFetchPushMarksPayload,
+    OnWebAppReadyPayload,
+    PushCloudMarkRecord,
+    WebMessageData,
+    WebMessageResponse,
+    WebMessageType,
+} from '@chatic/app-messages';
 
 /**
  * Centralized outbound bridge API (Web -> Native).
@@ -103,6 +110,18 @@ export const appBridge = {
         webClient.post({ type: 'SetBadgeCount', data: { count } });
     },
 
+    /**
+     * Drains the cross-cloud push marks recorded natively for a background chat push (ADR-0056) —
+     * read + clear in one native call, so a mark is delivered exactly once. Resolves `[]` on a
+     * plain browser (no native bridge) or a shell build that predates this bridge message.
+     */
+    fetchPushMarks(): Promise<PushCloudMarkRecord[]> {
+        return webClient
+            .request({ type: 'FetchPushMarks', data: {} })
+            .then(response => (response?.data as OnFetchPushMarksPayload | undefined)?.marks ?? [])
+            .catch(() => []);
+    },
+
     // ---------------------------------------------------------------
     // Preference & back handling
     // ---------------------------------------------------------------
@@ -110,6 +129,15 @@ export const appBridge = {
     /** Persist a preference key/value in native storage. */
     savePreference(data: Payload<'SavePreference'>): void {
         webClient.post({ type: 'SavePreference', data });
+    },
+
+    /**
+     * Persist a preference and wait for the native confirmation. Rejects on a `success: false`
+     * response and on timeout, so the caller can retry — see usePreferenceStore's theme sync,
+     * where a silently dropped write leaves the native status bar disagreeing with the page.
+     */
+    savePreferenceConfirmed(data: Payload<'SavePreference'>): Promise<WebMessageResponse<'SavePreference'>> {
+        return webClient.request({ type: 'SavePreference', data });
     },
 
     /** Request the current value of a preference key from native storage. */

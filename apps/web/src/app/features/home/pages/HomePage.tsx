@@ -17,7 +17,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile, useScrollRestoration, useUserPermissions } from '../../../hooks';
+import { useActiveCloudData, useMyProfile, useScrollRestoration, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
@@ -37,7 +37,16 @@ import {
 } from '../components';
 import { getCloudDisplayName } from '../components/cloud-session';
 import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
-import { useCachedCloudNames, useChannelUnreads, useHomeChannels, useInvitedClouds, useMyJoins } from '../../../hooks';
+import {
+    useCachedCloudNames,
+    useChatSyncRegistration,
+    useHomeChannels,
+    useInvitedClouds,
+    useJoinSyncRegistration,
+    useOtherCloudUnread,
+} from '../../../hooks';
+import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
+import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { resolveHeaderProfile } from '../lib';
 import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
 import { useInviteDismissMigration } from '../../invite/hooks/useInviteDismissMigration';
@@ -143,15 +152,40 @@ export const HomePage = () => {
     // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
     // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
     useCanceledInviteReconcile();
-    // Badge counting is being reworked (a later step fills in cross-place totals a different way);
-    // for now home only fetches join/channel data for the currently-viewed site's own channels —
-    // no cloud-wide aggregation. Unread derives from each channel head (`chatNo`/`metaNo`) and MY
-    // read cursor from the subscribed join list (useMyJoins), not the channel-embedded `$join`.
-    // `unreadByPlace` is therefore only populated for the active place until that later step lands;
-    // other places show no dot in the meantime. The app-icon badge is unaffected — UnreadBadgeRunner
-    // (AppRuntime) computes that independently, still cloud-wide.
-    const myJoins = useMyJoins(channels);
-    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = useChannelUnreads(channels, myJoins);
+    // ONE unread source now (see docs/feature/home/unread-dot.md 상세 구현 §2, ADR-0056): the
+    // app-wide observation already aggregates the whole cloud, so the per-row counts, the join rows
+    // the rows read (nick/mute) and the place dots all come off it — home used to compute the
+    // active-site half a second time, from its own observer per channel, purely as a side effect of
+    // wanting the join SYNC. `byChannel` / `joinByChannel` are cloud-wide supersets and every
+    // consumer looks rows up by channel id, so the extra keys are inert.
+    const { myJoins, unreads } = useActiveCloudData();
+    const { byPlace: unreadByPlace } = unreads;
+    // What actually had to stay scoped to home: registering MY read-cursor sync for the ACTIVE
+    // site's channels, so it tears down when home unmounts rather than living app-wide.
+    useJoinSyncRegistration(channels);
+    // Same shape for messages: the ACTIVE site's channels get a chat sync while home is mounted, so
+    // a new message reaches the cache — and therefore the row's preview and the activity order —
+    // without waiting for the room to be opened. See useChatSyncRegistration for the two mechanisms.
+    useChatSyncRegistration(channels);
+
+    // Cross-cloud dot (ADR-0056 결정 2/4) — one subscription shared by the switcher-button dot
+    // (below, on AppHeader) and CloudSessionSheet's row dots, so the two surfaces never disagree.
+    const {
+        byCloud: otherCloudUnread,
+        total: otherCloudUnreadTotal,
+        refresh: refreshCloudUnread,
+    } = useOtherCloudUnread();
+    const badgedClouds = useCloudPushMarkStore(s => s.badged);
+    // Catalog filter: only a mark for a cloud actually in THIS account's reach (owned + invited +
+    // relay) and not the one being viewed counts toward the dot — a stale/foreign mark otherwise
+    // never clears (see docs/feature/home/unread-dot.md 설계 원칙 5).
+    const hasOtherCloudMark = useMemo(() => {
+        const catalogIds = new Set<string>([RELAY_CLOUD_ID]);
+        for (const cloud of clouds) if (cloud.id) catalogIds.add(cloud.id);
+        for (const cloud of invitedClouds) if (cloud.id) catalogIds.add(cloud.id);
+        return Object.keys(badgedClouds).some(id => id !== selectedCloudId && catalogIds.has(id));
+    }, [badgedClouds, clouds, invitedClouds, selectedCloudId]);
+    const switcherDot = otherCloudUnreadTotal > 0 || hasOtherCloudMark;
 
     // Restore the list scroll position when returning from a chat room (the page unmounts on
     // navigation). Restore only once the list content has rendered so the offset isn't clamped
@@ -302,6 +336,7 @@ export const HomePage = () => {
                 // The cloud-switch entry is always available — even a plain guest can open the sheet
                 // to reach DoU Home, view invited clouds, or add a cloud (subscribe).
                 onSwitcher={() => setIsCloudSessionOpen(true)}
+                switcherDot={switcherDot}
                 switcherLabel={t('homePage.switchCloud', '클라우드 전환')}
                 avatar={profileMenu}
                 profileLabel={t('homePage.profile', '프로필')}
@@ -337,7 +372,6 @@ export const HomePage = () => {
                 {selectedPlaceId ? (
                     <ChannelList
                         channels={channels}
-                        unreadByChannel={unreadByChannel}
                         joinByChannel={myJoins}
                         sid={selectedPlaceId}
                         isLoading={isChannelsLoading}
@@ -369,6 +403,8 @@ export const HomePage = () => {
                 open={isCloudSessionOpen}
                 onOpenChange={setIsCloudSessionOpen}
                 onAddCloud={requestAddCloud}
+                cloudUnread={otherCloudUnread}
+                refreshCloudUnread={refreshCloudUnread}
             />
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}

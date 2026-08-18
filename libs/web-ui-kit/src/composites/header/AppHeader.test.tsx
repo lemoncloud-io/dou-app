@@ -83,4 +83,22 @@ describe('AppHeader', () => {
 
         expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
     });
+
+    it('renders the switcher dot when switcherDot is set (ADR-0056)', () => {
+        render(<AppHeader logo={<span>DoU</span>} onSwitcher={jest.fn()} switcherDot />);
+
+        expect(screen.getByRole('button', { name: 'Switch' }).querySelector('.bg-red-500')).not.toBeNull();
+    });
+
+    it('omits the switcher dot by default', () => {
+        render(<AppHeader logo={<span>DoU</span>} onSwitcher={jest.fn()} />);
+
+        expect(screen.getByRole('button', { name: 'Switch' }).querySelector('.bg-red-500')).toBeNull();
+    });
+
+    it('never renders the dot without a switcher, even if switcherDot is set', () => {
+        const { container } = render(<AppHeader logo={<span>DoU</span>} switcherDot />);
+
+        expect(container.querySelector('.bg-red-500')).toBeNull();
+    });
 });

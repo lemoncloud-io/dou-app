@@ -6,12 +6,11 @@ import { Loader2, X } from 'lucide-react';
 import { cn } from '@chatic/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { isNative } from '@chatic/bridges';
-import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
 import { reportError, useProductPlans } from '@chatic/web-core';
 import { toError } from '../../../utils/errors';
-import { ROUTES } from '../../../routes/paths';
+import { useNavigateToLogin } from '../../auth/hooks';
 
 import { useVerifyEmailCode } from '../../../hooks';
 import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
@@ -43,7 +42,7 @@ export const SubscriptionSelectDialog = ({
     onError,
 }: SubscriptionSelectDialogProps) => {
     const { t, i18n } = useTranslation();
-    const navigate = useNavigateWithTransition();
+    const goToLogin = useNavigateToLogin();
     const { isGuest } = useRuntimeProfile();
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
@@ -84,7 +83,7 @@ export const SubscriptionSelectDialog = ({
         // email for a purchase that has no account to attach to.
         if (isGuest) {
             handleClose();
-            navigate(ROUTES.mypage.login);
+            goToLogin();
             return;
         }
         setPageState(PageState.Fetching);

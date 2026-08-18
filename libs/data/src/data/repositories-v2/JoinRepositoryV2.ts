@@ -3,14 +3,15 @@ import type { DomainJoin, DomainJoinListPayload, DomainListResult } from '../dom
 import { createDomainListResult } from '../domain';
 import type { IJoinLocalDataSourceV2 } from '../local/data-sources-v2';
 import type { IJoinRemoteDataSource } from '../remote/data-sources';
-import type { DataContextProvider } from './types';
+import type { DataContext, DataContextProvider } from './types';
 import { BaseRepositoryV2, type DisposableRepositoryV2 } from './types';
 import type { JoinGetInput, JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
 
 export interface IJoinRepositoryV2 extends DisposableRepositoryV2 {
     observeList(
         query: DomainJoinListPayload,
-        callback: (result: DomainListResult<DomainJoin> | null) => void
+        callback: (result: DomainListResult<DomainJoin> | null) => void,
+        contextOverride?: DataContext
     ): () => void;
     observeItem(id: string, callback: (item: DomainJoin | null) => void): () => void;
 
@@ -40,9 +41,10 @@ export class JoinRepositoryV2 extends BaseRepositoryV2 implements IJoinRepositor
 
     public observeList(
         query: DomainJoinListPayload,
-        callback: (result: DomainListResult<DomainJoin> | null) => void
+        callback: (result: DomainListResult<DomainJoin> | null) => void,
+        contextOverride?: DataContext
     ): () => void {
-        return this.joinLocalDataSource.observeList(query, callback, this.getRepositoryContext());
+        return this.joinLocalDataSource.observeList(query, callback, contextOverride ?? this.getRepositoryContext());
     }
 
     public observeItem(id: string, callback: (item: DomainJoin | null) => void): () => void {

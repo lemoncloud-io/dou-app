@@ -122,7 +122,6 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
             cid,
             sid,
             isNotificationEnabled: item.isNotificationEnabled ?? existing?.isNotificationEnabled ?? true,
-            lastActivityAt: item.lastActivityAt ?? existing?.lastActivityAt ?? Date.now(),
         };
 
         await this.cacheStorage.save(id, merged);
@@ -164,7 +163,6 @@ export class ChannelLocalDataSourceV2 extends BaseLocalDataSourceV2 implements I
                 cid,
                 sid,
                 isNotificationEnabled: item.isNotificationEnabled ?? existing?.isNotificationEnabled ?? true,
-                lastActivityAt: item.lastActivityAt ?? existing?.lastActivityAt ?? Date.now(),
             };
             mergedList.push(next);
             ids.push(id);

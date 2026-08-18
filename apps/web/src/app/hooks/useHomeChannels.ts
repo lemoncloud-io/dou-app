@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 
-import { useRuntimeRepositories } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
 import type { DomainChannel } from '@chatic/data';
+
+import { useActiveCloudData } from './activeCloudDataContext';
 
 export interface HomeChannelsResult {
     channels: DomainChannel[];
@@ -10,51 +10,29 @@ export interface HomeChannelsResult {
 }
 
 /**
- * Observes the channel list for the active site and is the source for the displayed channel list
- * + its number badges. Keyed on sid so it re-subscribes on a site switch — the cache reemits by a
- * key hashed over {cid, sid, uid}, so the observer must re-key on the active sid to keep matching
- * the realtime channel writes (which run under the active sid context).
+ * The channel list for one site — a slice of the app's single cloud-wide observation, NOT an
+ * observer of its own.
  *
- * List discovery (fetch) is owned globally by useBackgroundSync, and per-channel realtime sync is
- * registered by the rendered ChannelItem (useChannelSync) — so this hook only subscribes to cache.
- * The cache read on the relay cloud is not sid-isolated, so results are filtered to the active
- * site to avoid flashing the previous site's channels mid-switch.
+ * It used to open `channel.observeList({ sid })` while the badge surfaces observed
+ * `channel.observeList({ sid: '' })`. Those two queries carry different observer keys
+ * (`ChannelLocalDataSourceV2.getListKey` puts the sid in the key), so the cache layer could not
+ * share the read between them — and the re-emit routing wakes both on any channel write
+ * (`getAffectedListPrefixes` deliberately includes the cloud-wide `sid:|` prefix), so a single
+ * channel write cost TWO full `loadAll` scans, one bridge round trip each on native. On the relay
+ * cloud the two reads were not even different: `cacheReadList` skips sid scoping there, so the
+ * per-site observer received the whole cloud and this hook filtered it in JS anyway — which is
+ * exactly what it does now, minus the second observer.
  *
- * uid is part of the cache observer scope key ({cid, uid}) and flips at cloud-switch commit, which
- * can lag the sid change (a cross-cloud switch may reuse a numerically equal sid). Re-keying on uid
- * too keeps the observer aligned with the scope the post-commit fetch reemits against.
+ * The filter stays because the cloud-wide read is not sid-isolated (see above), so rows from other
+ * sites must not reach a per-site list.
  *
- * SCOPE PINNING — the {cid, uid} override keys the observer off the React session, not the live
- * DataContextProvider whose ancestor commits the new cloud AFTER this hook subscribes; without it a
- * cloud switch registers the observer under the stale provider cid and misses the post-commit write
- * (needs a manual refresh). The channel scope drops sid, so the per-site view stays isolated by the
- * query `sid` (the list-key suffix), not the scope key. See PlaceLocalDataSourceV2 reemit tests.
+ * `isLoading` follows the shared observation's first answer rather than an emptiness test: a site
+ * with no channels and a site whose read has not landed are indistinguishable from the array alone.
  */
 export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
-    const { channel } = useRuntimeRepositories();
-    const session = useGlobalSession();
-    const uid = session.identity.userId ?? undefined;
-    const cid = session.cloud?.cloudId && session.cloud.cloudId !== 'default' ? session.cloud.cloudId : 'default';
+    const { channels, isLoaded } = useActiveCloudData();
 
-    const [channels, setChannels] = useState<DomainChannel[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const scoped = useMemo(() => (sid ? channels.filter(channel => channel.sid === sid) : []), [channels, sid]);
 
-    useEffect(() => {
-        if (!sid) {
-            setChannels([]);
-            return;
-        }
-        setIsLoading(true);
-        return channel.observeList(
-            { sid },
-            result => {
-                const list = (result?.list ?? []).filter(c => c.sid === sid);
-                setChannels(list);
-                setIsLoading(false);
-            },
-            { cid, uid }
-        );
-    }, [channel, sid, cid, uid]);
-
-    return { channels, isLoading };
+    return { channels: scoped, isLoading: !!sid && !isLoaded };
 };

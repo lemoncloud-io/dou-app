@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { logger } from '@chatic/bridges';
 import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { reportError, useSessionIdentity, useSessionSelection } from '@chatic/web-core';
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { Badge, Button, DefaultAvatar, ImageAvatar, ManageChannelItem } from '@chatic/web-ui-kit';
@@ -18,7 +18,7 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
 import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
-import { useChannelUnreads, useHomeChannels, useLastChat, useMyJoins } from '../../../hooks';
+import { useActiveCloudData, useHomeChannels, useJoinSyncRegistration, useLastChats } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
 import { useMyProfile } from '../../../hooks';
@@ -57,13 +57,20 @@ export const PlaceChannelManagePage = () => {
     const isOwner = !!place?.isOwner;
 
     const { channels, isLoading } = useHomeChannels(placeId ?? null);
-    const myJoins = useMyJoins(channels);
-    const { byChannel: unreadByChannel } = useChannelUnreads(channels, myJoins);
+    // Same source as home (see ActiveCloudData): the cloud-wide aggregation already holds this
+    // place's rows, so this page reads them instead of opening its own observer per channel. The
+    // read-cursor SYNC still belongs to this screen, so it registers that itself.
+    const { myJoins, unreads } = useActiveCloudData();
+    const { byChannel: unreadByChannel } = unreads;
+    useJoinSyncRegistration(channels);
     const { profile: myProfile } = useMyProfile();
     const { userId: uid } = useSessionIdentity();
     // 1:1 peers for every DM row, from ONE place-level profile subscription — the same source the
     // home list uses, so both lists name a DM identically (ADR-0039).
     const dmPeers = useDmPeers(placeId ?? null, channels, uid);
+    // Last-message previews from ONE combined observation (ADR-0057) — the same source as the home
+    // list, replacing the per-row cache-window subscription this page used to make per rendered row.
+    const lastChats = useLastChats(channels);
 
     // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
     // cloud half comes from the active session.
@@ -90,12 +97,12 @@ export const PlaceChannelManagePage = () => {
         () =>
             sortChannels({
                 channels,
-                joinByChannel: myJoins,
+                lastChatByChannel: lastChats,
                 unreadByChannel,
                 sortMethod: (placeScope && sortMethodMap[placeScope]) || DEFAULT_CHANNEL_SORT,
                 pinnedChannelIds,
             }),
-        [channels, myJoins, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
+        [channels, lastChats, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
     );
 
     // Self-chat can be neither deleted nor left, so it is not selectable (Figma: the MY row has no
@@ -278,6 +285,7 @@ export const PlaceChannelManagePage = () => {
                                 myThumbnail={myProfile?.thumbnail}
                                 joinNick={myJoins.get(channel.id)?.nick}
                                 dmPeer={dmPeers.get(channel.id)}
+                                lastChat={lastChats.get(channel.id)}
                                 unread={unreadByChannel[channel.id] ?? 0}
                                 selectable={isSelectable(channel)}
                                 checked={selectedIds.has(channel.id)}
@@ -345,6 +353,8 @@ interface ManageChannelRowProps {
     joinNick?: string;
     /** The 1:1 peer for this row (from the page-level useDmPeers). Undefined for non-DM rows. */
     dmPeer?: DmPeer;
+    /** This row's last-message preview, from the page-level useLastChats (ADR-0057). */
+    lastChat?: DomainChat;
     unread: number;
     selectable: boolean;
     checked: boolean;
@@ -353,10 +363,7 @@ interface ManageChannelRowProps {
     onTogglePin: (pinned: boolean) => void;
 }
 
-/**
- * One management row. Split out so each row can own its last-message subscription (useLastChat),
- * the same way the home list does.
- */
+/** One management row — presentation only; the preview arrives as a prop from the page. */
 const ManageChannelRow = ({
     channel,
     uid,
@@ -364,6 +371,7 @@ const ManageChannelRow = ({
     myThumbnail,
     joinNick,
     dmPeer,
+    lastChat,
     unread,
     selectable,
     checked,
@@ -373,7 +381,6 @@ const ManageChannelRow = ({
 }: ManageChannelRowProps) => {
     const { t, i18n } = useTranslation();
     const isSelf = channel.stereo === 'self';
-    const lastChat = useLastChat(channel.id);
 
     const name = resolveChannelTitle({
         channel,

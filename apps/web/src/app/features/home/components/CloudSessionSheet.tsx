@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Inbox } from 'lucide-react';
@@ -12,7 +12,9 @@ import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
-import { useCachedCloudNames, useInvitedClouds, useOtherCloudUnread } from '../../../hooks';
+import { useCachedCloudNames, useInvitedClouds } from '../../../hooks';
+import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
+import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { CloudPromoBanner } from './CloudPromoBanner';
 
 import {
@@ -32,6 +34,12 @@ interface CloudSessionSheetProps {
      * 1-cloud cap guard and the plan-picker dialog exist exactly once in the tree.
      */
     onAddCloud: () => void;
+    /**
+     * Lifted to HomePage (ADR-0056) so the switcher-button dot and this sheet's row dots read the
+     * same cross-cloud cache pass instead of each triggering their own.
+     */
+    cloudUnread: Record<string, number>;
+    refreshCloudUnread: () => void;
 }
 
 /**
@@ -42,7 +50,13 @@ interface CloudSessionSheetProps {
  * The "add cloud" button lives in the owned section's FOOTER, outside the collapsible body, so it
  * stays reachable while that section is collapsed.
  */
-export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessionSheetProps) => {
+export const CloudSessionSheet = ({
+    open,
+    onOpenChange,
+    onAddCloud,
+    cloudUnread,
+    refreshCloudUnread,
+}: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
 
@@ -66,13 +80,24 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
     // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
 
-    // Presence dots come from the same cross-cloud cache read the app badge uses, so a dot and the
-    // badge can never disagree. Re-read when the sheet opens — enough for a "has unread" hint, and
-    // the row for the cloud you are already in needs no dot.
-    const { byCloud: cloudUnread, refresh: refreshCloudUnread } = useOtherCloudUnread(selectedCloudId);
+    // Re-read the cache-hint half of the dot when the sheet opens — enough for a "has unread" hint,
+    // and the row for the cloud you are already in needs no dot.
     useEffect(() => {
         if (open) refreshCloudUnread();
     }, [open, refreshCloudUnread]);
+
+    // Cross-cloud push marks (ADR-0056 결정 2) — the other half of the dot, for pushes that arrived
+    // while away. Filtered to clouds actually in this account's catalog (owned + invited + relay)
+    // and never the active one, so a stale/foreign mark can't paint a dot nothing else corroborates.
+    const badged = useCloudPushMarkStore(s => s.badged);
+    const catalogCloudIds = useMemo(() => {
+        const ids = new Set<string>([RELAY_CLOUD_ID]);
+        for (const cloud of catalogClouds) if (cloud.id) ids.add(cloud.id);
+        for (const cloud of invitedClouds) if (cloud.id) ids.add(cloud.id);
+        return ids;
+    }, [catalogClouds, invitedClouds]);
+    const isBadged = (cloudId: string) =>
+        cloudId !== selectedCloudId && catalogCloudIds.has(cloudId) && !!badged[cloudId];
 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
@@ -167,7 +192,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
                     cloud={cloud}
                     isSelected={selectedId === cloud.id}
                     isDisabled={isSwitching}
-                    hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0}
+                    hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0 || isBadged(cloud.id ?? '')}
                     onSelectCloud={handleSelectCloud}
                     onErrorClick={() =>
                         toast({
@@ -204,6 +229,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
                             <DouHomeItem
                                 isSelected={isDefaultSelected}
                                 isDisabled={isSwitching || isLoggingOutCloudSession}
+                                hasUnread={(cloudUnread[RELAY_CLOUD_ID] ?? 0) > 0 || isBadged(RELAY_CLOUD_ID)}
                                 onSelect={handleDisconnect}
                             />
                         </div>
@@ -252,7 +278,10 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud }: CloudSessi
                                         inviteCloud={inviteCloud}
                                         isSelected={selectedId === inviteCloud.id}
                                         isDisabled={isSwitching}
-                                        hasUnread={(cloudUnread[inviteCloud.id ?? ''] ?? 0) > 0}
+                                        hasUnread={
+                                            (cloudUnread[inviteCloud.id ?? ''] ?? 0) > 0 ||
+                                            isBadged(inviteCloud.id ?? '')
+                                        }
                                         onSelectCloud={handleSelectCloud}
                                     />
                                 ))}

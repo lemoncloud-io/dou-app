@@ -1,4 +1,4 @@
-import type { CacheModelMap, CacheQueryMap, CacheType, PagingMeta } from '@chatic/app-messages';
+import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/app-messages';
 
 export interface ICacheCrudService {
     /**
@@ -32,6 +32,17 @@ export interface ICacheCrudService {
         cid?: string;
         uid?: string;
     }): Promise<CacheModelMap[K][]>;
+
+    /**
+     * [조회] 채널별 최신 프리뷰 1건 + 최대 chat_no (chat 전용, ADR-0057).
+     * `null` = 답할 수 없음 — 웹은 이번 읽기만 윈도우 조회로 폴백한다.
+     */
+    fetchLastChats(payload: {
+        type: 'chat';
+        channelIds: string[];
+        cid?: string;
+        uid?: string;
+    }): Promise<LastChatItem[] | null>;
 
     /**
      * [저장] 단일 아이템 저장

@@ -117,6 +117,58 @@ describe('useChannel', () => {
         expect(result.current.channel?.id).toBe('ch-1');
     });
 
+    describe('seed (ADR-0058)', () => {
+        it('시드가 있으면 관측 해소 전에도 즉시 렌더 가능한 채널을 준다', () => {
+            const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow({ name: '시드' }) }));
+
+            // 옵저버가 아직 아무것도 안 줬다 — 시드로 즉시 표시.
+            expect(result.current.isLoading).toBe(false);
+            expect(result.current.channel?.id).toBe('ch-1');
+            expect(result.current.isError).toBe(false);
+        });
+
+        it('id가 다른 시드는 무시한다 — 남의 행으로 방을 그리지 않는다', () => {
+            const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow({ id: 'ch-OTHER' }) }));
+
+            expect(result.current.isLoading).toBe(true);
+            expect(result.current.channel).toBeNull();
+        });
+
+        it('관측이 해소되면 시드가 아니라 관측 값이 이긴다', async () => {
+            const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow({ name: '시드' }) }));
+
+            act(() => emit(channelRow({ name: '실제' })));
+
+            await waitFor(() => expect(result.current.channel?.name).toBe('실제'));
+        });
+
+        it('시드가 있으면 해소 타임아웃이 에러 화면으로 넘어가지 않는다', () => {
+            // 화면에 내용이 있는데 10초 뒤 에러 페이지로 바꿔치우는 것이 이 타이머의 원래
+            // 목적(무한 로딩 차단)보다 나쁘다 — 시드가 곧 내용이다.
+            jest.useFakeTimers();
+            const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow() }));
+
+            act(() => emit(null));
+            act(() => {
+                jest.advanceTimersByTime(10_000);
+            });
+
+            expect(result.current.isError).toBe(false);
+            expect(result.current.channel?.id).toBe('ch-1');
+        });
+
+        it('해소된 제거(행 소멸)는 시드보다 이긴다 — 호출부의 이탈 처리가 살아 있다', async () => {
+            const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow() }));
+
+            act(() => emit(channelRow()));
+            await waitFor(() => expect(result.current.channel).not.toBeNull());
+
+            act(() => emit(null));
+
+            expect(result.current.channel).toBeNull();
+        });
+    });
+
     it('channelId가 없으면 기다리지 않고 바로 해소한다', () => {
         const { result } = renderHook(() => useChannel(null));
 

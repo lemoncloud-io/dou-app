@@ -22,13 +22,13 @@ import { JoinNickDialog } from '../components/JoinNickDialog';
 import { UpdateChannelDialog } from '../components/UpdateChannelDialog';
 import {
     useChannel,
+    useChannelJoins,
     useChannelMembers,
     useChannelMutations,
     useChannelProfiles,
     useChannelTitle,
     useDmPeer,
     useJoinMutations,
-    useMyJoin,
 } from '../hooks';
 import { resolveChannelAvatar } from '../lib';
 import { getRoomDistance } from '../utils/roomDistance';
@@ -59,12 +59,17 @@ export const ChannelSettingsPage = () => {
     const { channel, isError } = useChannel(channelId ?? null);
     const activePlaceName = useActivePlaceName();
 
+    // One join subscription for the screen: the member rows' read-state and my own row (the notify
+    // toggle, my nick) are two readings of the same cache list — see useChannelJoins.
+    const { joins, myJoin } = useChannelJoins(channelId ?? null);
+
     const { members, isLoading: isMembersLoading } = useChannelMembers({
         channelId: channelId || '',
         detail: true,
         // The roster names members before any per-channel sync lands — without it a self-chat shows
         // an empty "방 친구", since its one member has no user-cache row to be found by.
         memberIds: channel?.memberIds,
+        joins,
     });
 
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
@@ -77,7 +82,6 @@ export const ChannelSettingsPage = () => {
     // notifier, so we trust the server value and keep a local optimistic mirror
     // for instant feedback (updateJoin's optimistic write lands on the join cache
     // too, so this reconciles from the same source).
-    const myJoin = useMyJoin(channelId ?? null);
     const serverNotify = myJoin?.notify;
     const [notifyEnabled, setNotifyEnabled] = useState(serverNotify !== 'none');
 

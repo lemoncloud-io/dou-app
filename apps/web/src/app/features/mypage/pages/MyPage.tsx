@@ -18,6 +18,7 @@ import { useMyUser, useTheme } from '../../../hooks';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { ROUTES } from '../../../routes/paths';
+import { useNavigateToLogin } from '../../auth/hooks';
 
 // import.meta.env read stays here rather than in useDebugUnlock/useDebugMode: those modules
 // have unit tests, and ts-jest's CommonJS transform cannot parse `import.meta` (see
@@ -28,6 +29,7 @@ const Chevron = () => <IconChevronRight className="size-[18px] text-description"
 
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
+    const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
     const { isGuest, isCloudActive } = useRuntimeProfile();
     const { data: membership } = useMembershipInfo();
@@ -124,7 +126,7 @@ export const MyPage = () => {
                 Tapping it opens the account profile editor (/mypage/edit). */}
             <div className="px-5 pb-3 pt-safe-top">
                 {isGuest ? (
-                    <button onClick={() => navigate(ROUTES.mypage.login)} className="flex flex-col gap-1.5 text-left">
+                    <button onClick={goToLogin} className="flex flex-col gap-1.5 text-left">
                         <div className="flex items-center gap-1">
                             <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
                                 {t('mypage.loginPrompt')}

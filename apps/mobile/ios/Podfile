@@ -60,6 +60,10 @@ target 'Chatic' do
     # 응답 파일(.resp)이 그 공백을 escape하지 못해 clang이 경로를 단어 단위로 쪼갠다
     # ("no such file or directory: 'Dev/IntermediateBuildFilesPath/...'"). 공백이 없는
     # $TMPDIR 하위로 실제 빌드 디렉터리를 옮겨서 이 문제를 원천 차단한다.
+    #
+    # 추가로, Xcode GUI에서 빌드하면 스크립트 페이즈의 PATH에 Homebrew 경로가 없어서
+    # `cmake: command not found`로 실패한다 (터미널 빌드는 셸 PATH를 물려받아 통과).
+    # Homebrew 표준 경로를 PATH 뒤에 붙여서 실행 경로와 무관하게 cmake를 찾게 한다.
     installer.pods_project.targets.each do |target|
       next unless target.name == 'ReactNativeStaticServer'
       target.build_phases.each do |phase|
@@ -69,6 +73,8 @@ target 'Chatic' do
           .sub(
             'set -e',
             "set -e\n\n" \
+            "      # Xcode GUI 빌드의 PATH에는 Homebrew가 없어 cmake를 못 찾는다 — 표준 설치 경로를 추가\n" \
+            '      export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"' + "\n\n" \
             "      # 공백 없는 임시 디렉터리로 CMake 빌드 경로를 리다이렉트 (스킴/설정 이름 공백 우회)\n" \
             '      SAFE_CONFIG="$(echo ${CONFIGURATION} | tr -d \' \')"' + "\n" \
             '      TARGET_TEMP_DIR="${TMPDIR%/}/rnss-build-${TARGET_NAME}-${SAFE_CONFIG}-${EFFECTIVE_PLATFORM_NAME}"' + "\n" \

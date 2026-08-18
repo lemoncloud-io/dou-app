@@ -1,6 +1,9 @@
 import { useCallback } from 'react';
 import type { PreferenceKey, WebMessageData } from '@chatic/app-messages';
 import { useLanguageStore, useThemeStore } from '../../stores';
+// Imported past the barrel on purpose: themeMode is provider-free, so this stays
+// testable against the parser that actually ships.
+import { parseThemeMode } from '../../stores/themeMode';
 import { useServices } from '../../hooks';
 
 // SavePreference bridge messages originate from untrusted WebView page JS. Only
@@ -10,6 +13,9 @@ import { useServices } from '../../hooks';
 // single crafted bridge message could silently hijack the app origin (persistent
 // MITM). theme/language are handled by their own cases below; every other key
 // falls through to this allowlist.
+// NOTE: 'theme' validates its value below; 'language' does NOT yet — it still trusts the
+// web's value verbatim, which lets a page write an arbitrary blob into native storage under
+// that key. Tracked separately; do not read the two cases as equally guarded.
 const BRIDGE_WRITABLE_PREFERENCE_KEYS: readonly PreferenceKey[] = ['blurLastMessage', 'isFirstRun'];
 
 export const usePreferenceCacheHandler = () => {
@@ -39,9 +45,22 @@ export const usePreferenceCacheHandler = () => {
 
             try {
                 switch (key) {
-                    case 'theme':
-                        useThemeStore.getState().setTheme(value as any);
+                    case 'theme': {
+                        // Validate before it reaches the store: an unrecognized value would be
+                        // persisted verbatim and then silently degrade the status bar to light on
+                        // every boot. Rejecting keeps the stored value the only normalized one.
+                        const theme = parseThemeMode(value);
+                        if (!theme) {
+                            logService.warn('CACHE', `SavePreference rejected invalid theme: ${String(value)}`);
+                            return {
+                                type: 'OnSavePreference' as const,
+                                success: false,
+                                error: { code: 'PREF_INVALID_VALUE', message: `Invalid theme value: ${String(value)}` },
+                            };
+                        }
+                        useThemeStore.getState().setTheme(theme);
                         break;
+                    }
                     case 'language':
                         useLanguageStore.getState().setLanguage(value as any);
                         break;

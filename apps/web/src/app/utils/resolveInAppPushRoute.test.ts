@@ -1,4 +1,4 @@
-import { resolveInAppPushRoute } from './resolveInAppPushRoute';
+import { extractPushCloudHint, resolveInAppPushRoute } from './resolveInAppPushRoute';
 
 describe('resolveInAppPushRoute', () => {
     it('link 경로에 cid/sid 컨텍스트를 쿼리로 병합한다', () => {
@@ -86,5 +86,33 @@ describe('resolveInAppPushRoute', () => {
         expect(resolveInAppPushRoute(undefined)).toBeNull();
         expect(resolveInAppPushRoute(null)).toBeNull();
         expect(resolveInAppPushRoute({ link: '   ' })).toBeNull();
+    });
+});
+
+describe('extractPushCloudHint — 크로스 클라우드 마크용 힌트 (ADR-0056)', () => {
+    it('최상위 필드에서 cid/uid/channelId/sid/channelName을 모두 뽑는다', () => {
+        expect(
+            extractPushCloudHint({ cid: 'cloud1', uid: 'u1', channelId: 'ch1', sid: 'site1', channelName: 'Lounge' })
+        ).toEqual({ cid: 'cloud1', uid: 'u1', channelId: 'ch1', sid: 'site1', channelName: 'Lounge' });
+    });
+
+    it('payload JSON 문자열 안의 필드도 같은 병합 규칙으로 인식한다', () => {
+        expect(extractPushCloudHint({ payload: JSON.stringify({ cid: '', uid: 'u1', channelId: 'ch1' }) })).toEqual({
+            cid: undefined,
+            uid: 'u1',
+            channelId: 'ch1',
+            sid: undefined,
+            channelName: undefined,
+        });
+    });
+
+    it('payload가 깨져 있으면 최상위 필드로 대체한다', () => {
+        expect(extractPushCloudHint({ payload: '{not json', uid: 'u1' })).toEqual({
+            cid: undefined,
+            uid: 'u1',
+            channelId: undefined,
+            sid: undefined,
+            channelName: undefined,
+        });
     });
 });

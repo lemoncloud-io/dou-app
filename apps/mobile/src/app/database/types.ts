@@ -3,6 +3,13 @@ import type { Scalar, SQLBatchTuple, QueryResult, BatchQueryResult } from '@op-e
 export interface IKeyValueStorage {
     set<T>(key: string, value: T): Promise<void>;
     get<T>(key: string): Promise<T | null>;
+    /** Synchronous write. For values read back before the first paint (see getSync). */
+    setSync<T>(key: string, value: T): void;
+    /**
+     * Synchronous read. The backing store (MMKV) is natively synchronous, so first-paint values
+     * such as the theme can be read during module evaluation instead of after an async rehydrate.
+     */
+    getSync<T>(key: string): T | null;
     remove(key: string): Promise<void>;
     clearAll(): Promise<void>;
     getAllKeys(): string[];

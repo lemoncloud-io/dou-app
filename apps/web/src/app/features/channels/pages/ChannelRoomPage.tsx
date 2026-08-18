@@ -1,11 +1,12 @@
 import { Loader2, Settings, X } from 'lucide-react';
 import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useSessionIdentity } from '@chatic/web-core';
+import type { DomainChannel } from '@chatic/data';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
@@ -23,7 +24,7 @@ import {
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
-import { LinkedText } from '../components/LinkedText';
+import { MessageText } from '../components/MessageText';
 import { MessageActionSheet } from '../components/MessageActionSheet';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
@@ -32,6 +33,7 @@ import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
     useChannel,
+    useChannelJoins,
     useChannelMembers,
     useChannelProfiles,
     useChannelTitle,
@@ -41,7 +43,6 @@ import {
     useDmPeer,
     useJoinPositions,
     useMessageJump,
-    useMyJoin,
     useReactions,
     useReadMarker,
 } from '../hooks';
@@ -64,6 +65,7 @@ export const ChannelRoomPage = () => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const { channelId } = useParams<{ channelId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
 
     // UI 상태 관리
     const [content, setContent] = useState('');
@@ -97,16 +99,32 @@ export const ChannelRoomPage = () => {
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
+    // The home row hands its channel across the navigation (ADR-0058) — same reason openThread
+    // passes rootChat: the cache's first emission is asynchronous even when warm, and the header
+    // showing a skeleton (or, under a congested bridge, the resolve-timeout error page) for a room
+    // whose row was on screen a moment ago reads as a broken app. Display-only; useChannel keeps
+    // resolution semantics on the observer.
+    const seedChannel = (location.state as { channel?: DomainChannel } | null)?.channel ?? null;
+
     // Resolved before the member hook so its roster (`channel.memberIds`) can seed the member list —
     // the two have no dependency on each other beyond that.
-    const { channel, isLoading: isChannelLoading, isError: isChannelError } = useChannel(stableChannelIdForChannelHook);
+    const {
+        channel,
+        isLoading: isChannelLoading,
+        isError: isChannelError,
+    } = useChannel(stableChannelIdForChannelHook, { seed: seedChannel });
 
-    // Loads member user identities (name/avatar fallback) + join read-state into the cache and
-    // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.
-    const { members, activeMemberIds } = useChannelMembers({
+    // ONE join-cache subscription for this screen. My row (nick / notify / the read baseline), every
+    // member's read cursor and the active-membership set are all readings of the same rows, and each
+    // used to open its own observer of the same query (see useChannelJoins).
+    const { joins, myJoin, activeMemberIds, cursorByUser } = useChannelJoins(stableChannelIdForChannelHook);
+
+    // Loads member user identities (name/avatar fallback) and merges them with the join rows above.
+    const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
         memberIds: channel?.memberIds,
+        joins,
     });
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
@@ -144,7 +162,8 @@ export const ChannelRoomPage = () => {
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(
         stableChannelIdForChannelHook,
         activeMemberIds,
-        allMemberIds
+        allMemberIds,
+        cursorByUser
     );
 
     const isSelfChat = channel?.isSelfChat ?? false;
@@ -156,10 +175,9 @@ export const ChannelRoomPage = () => {
     // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
     // from the site profile only. Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    // My join row from the join cache stream — NOT `channel.$join`, which is a projection that lags
-    // the cache (see useMyJoin). The DM title reads the nick off it, so a rename in settings has to
-    // land here immediately or the header disagrees with every other surface.
-    const myJoin = useMyJoin(stableChannelIdForChannelHook);
+    // `myJoin` (above, from the join cache stream) is NOT `channel.$join`, which is a projection that
+    // lags the cache. The DM title reads the nick off it, so a rename in settings has to land here
+    // immediately or the header disagrees with every other surface.
     // One title chain for every surface (see useChannelTitle): the header must read exactly what
     // the home list row reads, so neither the branch nor the fallback label lives here.
     const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
@@ -893,8 +911,8 @@ export const ChannelRoomPage = () => {
                     <div className="flex-1 overflow-y-auto px-4 py-3">
                         <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
                             {/* Full content, so no `truncated` — a URL the bubble had to cut is a
-                                complete, tappable link here. */}
-                            {expandedMessage && <LinkedText text={expandedMessage.content} />}
+                                complete, tappable link here, and every fence is closed. */}
+                            {expandedMessage && <MessageText text={expandedMessage.content} />}
                         </p>
                     </div>
                 </DialogContent>

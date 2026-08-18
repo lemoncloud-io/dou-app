@@ -3,9 +3,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 import type { DomainProfile } from '@chatic/data';
 
-// Per-member profile poll cadence (ms). Matches testbed CreateChannelPage's profile sync interval.
-// Tuned for a chat room, where a member's nick/avatar changing mid-conversation should show up fast.
-const PROFILE_SYNC_INTERVAL_MS = 5000;
+/**
+ * Per-member profile poll cadence (ms) for a chat room.
+ *
+ * One sync target per ACTIVE member, so the request rate is `members / interval` for as long as the
+ * room is open — the inherited 5s meant a 20-person room sustained four profile polls a second for
+ * data that changes when somebody edits their nick or photo. 20s keeps a mid-conversation rename
+ * visibly quick while cutting that rate fourfold; first paint does not depend on it at all (the
+ * one-shot bootstrap below covers members the cache does not hold). List surfaces sit on a resident
+ * screen and go slower still — see LIST_PROFILE_SYNC_INTERVAL_MS.
+ */
+const PROFILE_SYNC_INTERVAL_MS = 20_000;
 
 /**
  * Site-scoped member profiles (nick/avatar) for a channel. Observes the profile cache by `sid`

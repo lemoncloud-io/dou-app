@@ -86,9 +86,17 @@ jest.mock('../../channels/components', () => ({
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: '내프로필' } }),
     useHomeChannels: () => ({ channels: channelsValue, isLoading: false }),
+    // 이 화면은 join/안읽음을 앱 전체가 공유하는 관측에서 읽고, 커서 동기화만 스스로 등록한다.
+    useActiveCloudData: () => ({
+        channels: channelsValue,
+        isLoaded: true,
+        myJoins: new Map(),
+        unreads: { byChannel: unreadByChannel, byPlace: {}, total: 0 },
+    }),
+    useJoinSyncRegistration: jest.fn(),
     useMyJoins: () => new Map(),
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),
-    useLastChat: () => undefined,
+    useLastChats: () => new Map(),
 }));
 
 jest.mock('../../../stores/usePreferenceStore', () => ({

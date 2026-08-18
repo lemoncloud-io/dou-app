@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 
 import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { useMyJoins } from './useMyJoins';
@@ -11,7 +11,7 @@ jest.mock('@chatic/app-runtime', () => ({
     useRuntimeRepositories: jest.fn(),
     useRuntimeSocketState: jest.fn(),
 }));
-jest.mock('@chatic/web-core', () => ({ useGlobalSession: jest.fn() }));
+jest.mock('@chatic/web-core', () => ({ useGlobalSession: jest.fn(), useSessionSelection: jest.fn() }));
 
 const channel = (id: string): DomainChannel => ({ id }) as unknown as DomainChannel;
 const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;
@@ -32,6 +32,7 @@ beforeEach(() => {
     (useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList: observeListMock } });
     (useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
     (useGlobalSession as jest.Mock).mockReturnValue({ identity: { userId: 'u1' } });
+    (useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
     (getSyncManager as jest.Mock).mockReturnValue({ registerJoin: registerJoinMock });
     registerJoinMock.mockReturnValue(jest.fn());
 });
@@ -78,5 +79,17 @@ describe('useMyJoins — 구독 join 목록', () => {
         // 등록은 건너뛰되 관측 맵은 그대로 채워진다.
         expect(registerJoinMock).not.toHaveBeenCalled();
         expect(result.current.get('c1')?.chatNo).toBe(7);
+    });
+
+    it('join 관측은 선택된 cloud와 채널 sid를 scope로 고정한다', () => {
+        emitJoins({ c1: [join({ userId: 'u1', channelId: 'c1', chatNo: 7 })] });
+
+        renderHook(() => useMyJoins([channel('c1')], { sync: false }));
+
+        expect(observeListMock).toHaveBeenCalledWith({ channelId: 'c1' }, expect.any(Function), {
+            cid: 'cloud-a',
+            sid: undefined,
+            uid: 'u1',
+        });
     });
 });

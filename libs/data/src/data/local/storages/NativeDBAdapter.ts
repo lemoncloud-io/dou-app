@@ -13,8 +13,10 @@ import type {
     FetchAllCacheDataPayload,
     FetchCacheDataPayload,
     FetchManyCacheDataPayload,
+    LastChatItem,
     OnFetchAllCacheDataPayload,
     OnFetchCacheDataPayload,
+    OnFetchLastChatsDataPayload,
     OnFetchManyCacheDataPayload,
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
@@ -25,13 +27,14 @@ import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeC
 import { stableHash } from './stableHash';
 import { BaseDbAdapter } from './types';
 
-/** 브릿지 메시지 → 계측 연산명. 이 어댑터가 보내는 8종이 전부입니다. */
+/** 브릿지 메시지 → 계측 연산명. 이 어댑터가 보내는 9종이 전부입니다. */
 const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     SaveCacheData: 'save',
     SaveAllCacheData: 'saveAll',
     FetchCacheData: 'load',
     FetchManyCacheData: 'loadMany',
     FetchAllCacheData: 'loadAll',
+    FetchLastChatsData: 'loadLast',
     DeleteCacheData: 'delete',
     DeleteAllCacheData: 'deleteAll',
     ClearCacheData: 'clearAll',
@@ -53,6 +56,20 @@ let batchReadUnsupported = false;
 /** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
 export const resetNativeBatchReadSupport = (): void => {
     batchReadUnsupported = false;
+};
+
+/**
+ * `FetchLastChatsData`(ADR-0057)를 모르는 앱 빌드가 설치되어 있는가.
+ *
+ * `batchReadUnsupported`와 같은 근거의 모듈 스코프 학습 플래그입니다 — 웹이 앱보다 먼저
+ * 배포되므로 이 메시지를 모르는 host의 `NOT_FOUND`를 한 번 받으면 이후로는 시도조차 하지
+ * 않고, 호출자는 채널별 윈도우 읽기로 폴백합니다.
+ */
+let lastChatsUnsupported = false;
+
+/** 테스트 seam — 배운 폴백 상태를 되돌립니다. */
+export const resetNativeLastChatsSupport = (): void => {
+    lastChatsUnsupported = false;
 };
 
 /**
@@ -231,6 +248,41 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
 
         const data = response?.data as Extract<OnFetchAllCacheDataPayload, { type: TType }> | undefined;
         return (data?.items ?? []) as CacheModelOf<TType>[];
+    }
+
+    /**
+     * 채널별 최신 프리뷰 1건 + 최대 chatNo를 왕복 1회로 읽습니다 (chat 전용, ADR-0057).
+     *
+     * `null`은 전부 "폴백하라"는 답입니다 — chat이 아닌 타입, 이 메시지를 모르는 구버전 앱
+     * (`NOT_FOUND` 1회로 학습), 네이티브 처리 오류(`items: null` — 학습하지 않고 이번 읽기만),
+     * 그 외 브릿지 실패(타임아웃 등 — 역시 학습하지 않음). 오류를 던지지 않는 이유:
+     * 이 조회의 실패 시 정답은 언제나 "오늘의 동작"(채널별 윈도우 읽기)이고, 그 판단은
+     * 호출자(`ChatLocalDataSourceV2`)가 폴백 한 곳에서 내리는 편이 단순합니다.
+     */
+    async loadLastPerChannel(channelIds: string[]): Promise<LastChatItem[] | null> {
+        if (this.type !== 'chat') return null;
+        if (channelIds.length === 0) return [];
+        if (lastChatsUnsupported) return null;
+
+        const scope = this.getScope();
+        try {
+            const response = await this.sendRead({
+                type: 'FetchLastChatsData',
+                data: { type: 'chat', cid: scope.cid, uid: scope.uid, channelIds },
+            });
+            const data = response?.data as OnFetchLastChatsDataPayload | undefined;
+            return data?.items ?? null;
+        } catch (error) {
+            if ((error as { code?: string })?.code === 'NOT_FOUND') {
+                lastChatsUnsupported = true;
+                logger.info('CACHE', '[NativeDBAdapter] last-chats read unsupported by this app build — falling back', {
+                    data: { type: this.type },
+                });
+                return null;
+            }
+            logger.warn('CACHE', '[NativeDBAdapter] last-chats read failed — falling back this read', { error });
+            return null;
+        }
     }
 
     async delete(id: string): Promise<void> {

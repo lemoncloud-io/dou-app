@@ -1,6 +1,10 @@
 # home — 마지막 메시지 미리보기 (last-chat)
 
 > 대상: `apps/web/src/app/features/home` · 참조 구현: `apps/testbed/src/app/pages/ChatHomePage.tsx`
+>
+> **아래 "흐름"·"등록 범위"는 행 단위 `useLastChat` 시절의 서술이다.** ADR-0057이 이를 리스트 레벨
+> `useLastChats` + `chat.observeLastList` 하나로 대체했다 — 현재 구현의 정본은
+> [docs/specs/cache/last-chat-preview.md](../../../../../docs/specs/cache/last-chat-preview.md)다.
 
 ## 배경
 
@@ -39,11 +43,16 @@
 `channel.chatNo`(서버가 계속 전송)와 채널에 임베드된 `$join.chatNo`로 계산하며, chat 등록/구독에 의존하지
 않는다(`hooks/useChannelUnreads.ts`).
 
-## 정렬 주의
+## 정렬 — 미리보기와 같은 출처 (2026-08-18)
 
-정렬 키 `lastActivityAt`는 `toDomainChannel` 매퍼(`libs/data/src/data/domain/mappers.ts`)에서 계산된다.
-`lastChat$.createdAt`가 사라지면 `updatedAt` 기준으로 폴백하므로, 새 메시지에 채널 `updatedAt`이 갱신되는 한
-최신순 정렬은 유지된다.
+홈·관리 화면의 기본 순서는 **미리보기가 찍는 그 시각**이다. `sortChannels`가 `useLastChats`의 결과를
+`lastChatByChannel`로 받아 `createdAtMs` 내림차순으로 정렬하므로, 행에 보이는 시각과 행의 위치가 갈라질 수
+없다(ADR-0055 결정 2, ADR-0057의 리스트 레벨 읽기 위에 재반영).
+
+- **내 `join.updatedAt`은 정렬에 쓰지 않는다** — 내가 방을 *읽을 때*도 갱신되므로 "방이 움직인 시각"이
+  아니다. `joinByChannel`은 닉네임·음소거 표시용으로만 남는다.
+- **캐시에 메시지가 없는 채널만** `channel.updatedAt`으로 자리를 잡는다.
+- **서버의 `lastChat$`는 쓰지 않는다** — `toDomainChannel`은 `updatedAt`만 둔다.
 
 ## 파일 지도
 

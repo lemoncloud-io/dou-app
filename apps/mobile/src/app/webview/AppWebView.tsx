@@ -14,11 +14,8 @@ import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
 import { bootMetricsService, logBufferService, logger, pendingReportQueueService } from '../services';
-import { useDebugSettingsStore } from '../stores';
+import { useDebugSettingsStore, useThemeStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
-
-const LIGHT_BG = '#ffffff';
-const DARK_BG = '#121212';
 
 interface AppWebViewProps extends WebViewProps {
     /** 모바일 브릿지 호스트 인스턴스 (네이티브 기능 라우팅 및 이벤트 발송 담당) */
@@ -47,8 +44,7 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const { bridge, onMessage, ...restProps } = props;
 
-    const { isDark } = useResolvedTheme();
-    const bgColor = isDark ? DARK_BG : LIGHT_BG;
+    const { isDark, backgroundColor } = useResolvedTheme();
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
@@ -97,10 +93,15 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const firebaseInstallId = useFirebaseInstallId();
     const versionCheck = getVersionCheckResult();
     const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
+    // Seeds the web's pre-paint script. Only `injectedJavaScriptBeforeContentLoaded` matters for
+    // that, which applies to the next load — a live theme change needs no push, since the web
+    // initiated it and already knows.
+    const theme = useThemeStore(state => state.theme);
     const syncInjectionScript = getSyncInjectionScript({
         insets,
         keyboardHeight,
         debugModeEnabled,
+        theme,
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: Config.VITE_ENV || 'PROD',
             appLanguage: getAppLanguage(),
@@ -128,7 +129,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         <View style={styles.webViewContainer}>
             <WebView
                 ref={setRefs}
-                style={{ backgroundColor: bgColor }}
+                style={{ backgroundColor }}
                 startInLoadingState={false}
                 showsVerticalScrollIndicator={false}
                 javaScriptEnabled={true}

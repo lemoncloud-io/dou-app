@@ -27,7 +27,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     }, []);
 
     const { bridge, onMessage } = useAppBridge(webViewRef, handleAppReady);
-    const { isDark } = useResolvedTheme();
+    const { isDark, backgroundColor } = useResolvedTheme();
     const webViewBaseUrl = useDebugSettingsStore(state => state.getResolvedWebviewBaseUrl());
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
 
@@ -73,7 +73,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
 
     if (!webViewBaseUrl || isRestoringCustomZip) {
         return (
-            <View style={[loadingStyles.container, { backgroundColor: isDark ? '#121212' : '#ffffff' }]}>
+            <View style={[loadingStyles.container, { backgroundColor }]}>
                 <Image
                     source={require('../../../../assets/logo.png')}
                     style={loadingStyles.logo}
@@ -88,7 +88,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: isDark ? '#121212' : '#ffffff' }}>
+        <View style={{ flex: 1, backgroundColor }}>
             <AppWebView
                 key={webViewReloadToken}
                 ref={webViewRef}
