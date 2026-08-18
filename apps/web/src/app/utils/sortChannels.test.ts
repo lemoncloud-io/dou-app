@@ -3,8 +3,7 @@ import { sortChannels, toTime } from './sortChannels';
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 
 // Minimal channel factory — only the fields sortChannels reads.
-const channel = (id: string, lastActivityAt: number): DomainChannel =>
-    ({ id, lastActivityAt }) as unknown as DomainChannel;
+const channel = (id: string, updatedAt: number): DomainChannel => ({ id, updatedAt }) as unknown as DomainChannel;
 
 const lastChat = (channelId: string, createdAtMs: number): DomainChat =>
     ({ id: `${channelId}:1`, channelId, createdAtMs }) as unknown as DomainChat;
@@ -86,7 +85,7 @@ describe('sortChannels', () => {
     });
 
     describe('마지막 메시지 시각 기준 (lastChatByChannel)', () => {
-        it('채널의 lastActivityAt이 아니라 마지막 메시지 시각으로 정렬한다', () => {
+        it('채널의 updatedAt이 아니라 마지막 메시지 시각으로 정렬한다', () => {
             // 채널 시각은 c3 > c2 > c1이지만, 마지막 메시지 시각은 그 반대다.
             const result = sortChannels({
                 channels,

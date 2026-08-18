@@ -49,9 +49,7 @@ export const sortChannels = ({
     const activityAt = (channel: DomainChannel): number => {
         // A just-sent optimistic row carries `createdAt = now`, so sending floats the channel at once.
         const lastChat = lastChatByChannel?.get(channel.id);
-        return (
-            toTime(lastChat?.createdAtMs ?? lastChat?.createdAt) || toTime(channel.lastActivityAt ?? channel.updatedAt)
-        );
+        return toTime(lastChat?.createdAtMs ?? lastChat?.createdAt) || toTime(channel.updatedAt);
     };
     const byActivity = [...channels].sort((left, right) => activityAt(right) - activityAt(left));
     if (sortMethod === 'unread') {

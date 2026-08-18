@@ -51,8 +51,8 @@
 
 - **내 `join.updatedAt`은 정렬에 쓰지 않는다** — 내가 방을 *읽을 때*도 갱신되므로 "방이 움직인 시각"이
   아니다. `joinByChannel`은 닉네임·음소거 표시용으로만 남는다.
-- **캐시에 메시지가 없는 채널만** `channel.lastActivityAt`(= `updatedAt`)로 자리를 잡는다.
-- **서버의 `lastChat$`는 쓰지 않는다** — `toDomainChannel`의 `lastActivityAt`은 `updatedAt` 단독이다.
+- **캐시에 메시지가 없는 채널만** `channel.updatedAt`으로 자리를 잡는다.
+- **서버의 `lastChat$`는 쓰지 않는다** — `toDomainChannel`은 `updatedAt`만 둔다.
 
 ## 파일 지도
 

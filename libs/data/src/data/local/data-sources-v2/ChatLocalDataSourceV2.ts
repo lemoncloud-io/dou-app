@@ -39,21 +39,6 @@ const LAST_CHAT_FALLBACK_LOOKBACK = 30;
 
 /** Stores chat pages locally and re-emits only the channel timelines touched by each write. */
 export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements IChatLocalDataSourceV2 {
-    /**
-     * 폴백 모드(fast path 없음)의 채널별 마지막 판정 메모와 그 무효화 표시. 키는
-     * `${scopeKey}|${channelId}` (ADR-0059).
-     *
-     * 결합 옵저버는 `chats-last|` 전역 프리픽스로 깨어나므로 **어느 채널의 쓰기든** 재실행된다.
-     * fast path에서는 재실행이 왕복 1회라 무해하지만, 폴백에서는 채널 N개의 윈도우 읽기가
-     * 그대로 N왕복이다 — 쓰기 버스트(재연결 catch-up 등) 동안 플러시마다 N왕복이면 원래
-     * 폭주의 재연이다. 그래서 쓰기가 건드린 채널만 dirty로 표시하고, 재실행은 dirty 채널만
-     * 윈도우를 다시 읽고 나머지는 메모를 재사용한다. 메모는 "관측자가 마지막으로 본 답"
-     * 그대로라서, dirty 표시가 쓰기 지점(getAffectedListPrefixes)과 같은 깔때기를 지나는 한
-     * 낡을 수 없다. cacheClear는 깔때기를 지나지 않으므로 거기서 통째로 비운다.
-     */
-    private readonly lastChatMemo = new Map<string, DomainLastChat>();
-    private readonly dirtyLastChatKeys = new Set<string>();
-
     constructor(
         contextProvider: DataContextProvider,
         private readonly cacheStorage: CacheStorage<'chat'>
@@ -156,21 +141,8 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
             fallbackIds.push(...validIds);
         }
 
-        const scopeKey = this.getScopeKey(contextOverride);
         await Promise.all(
             fallbackIds.map(async channelId => {
-                // 쓰기가 건드리지 않은 채널은 지난 판정을 재사용한다 — lastChatMemo 필드 참조.
-                const memoKey = `${scopeKey}|${channelId}`;
-                const memo = this.dirtyLastChatKeys.has(memoKey) ? undefined : this.lastChatMemo.get(memoKey);
-                if (memo) {
-                    byChannel.set(channelId, memo);
-                    return;
-                }
-
-                // dirty는 읽기 **전에** 선점한다. 읽는 도중 도착한 쓰기가 다시 표시하면 그대로
-                // 남아 다음 실행이 재읽기한다 — 완료 후에 지우면 그 표시까지 지워져, 쓰기 이전
-                // 데이터를 담은 메모가 낡은 채 재사용된다.
-                this.dirtyLastChatKeys.delete(memoKey);
                 const page = await this.cacheReadList(
                     { channelId, limit: LAST_CHAT_FALLBACK_LOOKBACK },
                     contextOverride
@@ -179,7 +151,6 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
                 const lastNo = list.reduce((max, chat) => Math.max(max, chat.chatNo ?? 0), 0);
                 const row: DomainLastChat = { channelId, lastNo, chat: pickPreviewChat(list) ?? null };
                 byChannel.set(channelId, row);
-                this.lastChatMemo.set(memoKey, row);
             })
         );
 
@@ -304,9 +275,6 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
 
     public async cacheClear(_contextOverride?: LocalDataSourceV2ContextOverride): Promise<void> {
         await this.cacheStorage.clearAll();
-        // 전체 삭제는 dirty 깔때기(getAffectedListPrefixes)를 지나지 않으므로 메모를 직접 비운다.
-        this.lastChatMemo.clear();
-        this.dirtyLastChatKeys.clear();
         this.scheduleFullReemit();
     }
 
@@ -367,12 +335,6 @@ export class ChatLocalDataSourceV2 extends BaseLocalDataSourceV2 implements ICha
         // inventing a set-aware matcher. `|chats|` keys don't match it (different segment), so the
         // per-channel routing above is untouched.
         //
-        // The dirty marks ride the same funnel: every mutation path computes its touched channels
-        // exactly once, here — so "which channels must the fallback re-read" and "which observers
-        // wake" can never disagree (see lastChatMemo).
-        for (const channelId of uniqueChannels) {
-            this.dirtyLastChatKeys.add(`${scopeKey}|${channelId}`);
-        }
         return [
             ...uniqueChannels.map(channelId => `${scopeKey}|chats|channel:${channelId}|`),
             `${scopeKey}|chats-last|`,

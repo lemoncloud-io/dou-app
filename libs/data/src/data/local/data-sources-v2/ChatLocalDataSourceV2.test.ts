@@ -162,7 +162,7 @@ describe('ChatLocalDataSourceV2', () => {
             expect(result[1]?.lastNo).toBe(9);
         });
 
-        it('폴백 모드의 재실행은 쓰기가 건드린 채널만 다시 읽는다 (ADR-0059 dirty 축소)', async () => {
+        it('폴백 모드의 재실행은 요청된 모든 채널을 다시 읽는다', async () => {
             const storage = createMemoryStorage(); // loadLastPerChannel 없음 = 폴백 모드
             const loadAllSpy = jest.spyOn(storage, 'loadAll');
             const dataSource = new ChatLocalDataSourceV2(contextProvider as any, storage);
@@ -180,9 +180,8 @@ describe('ChatLocalDataSourceV2', () => {
             loadAllSpy.mockClear();
             const result = await dataSource.cacheReadLastList(['ch-1', 'ch-2']);
 
-            // 재실행은 dirty(ch-2)만 윈도우를 다시 읽고, ch-1은 메모를 재사용한다 — 쓰기
-            // 버스트마다 N채널 전량 재읽기가 원래 폭주의 재연이 되는 것을 막는 핵심.
-            expect(loadAllSpy).toHaveBeenCalledTimes(1);
+            // 이제는 채널별 dirty 추적 없이, 요청된 집합을 그대로 다시 계산한다.
+            expect(loadAllSpy).toHaveBeenCalledTimes(2);
             expect(result.map(row => row.chat?.id)).toEqual(['a1', 'b2']);
         });
 

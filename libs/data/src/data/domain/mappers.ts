@@ -74,15 +74,14 @@ const normalizeJoinId = (id: unknown, channelId: unknown, userId: unknown): stri
 // local data sources consume the resulting domain models without re-mapping.
 
 /**
- * API View -> DomainChannel. `lastActivityAt` is the channel's own `updatedAt`.
+ * API View -> DomainChannel.
  *
  * The view's `lastChat$` is deliberately NOT read here. The last message — and therefore its time —
  * is owned by the chat cache (`chat.observeLastList`, ADR-0057), so folding a server-side summary
- * into this field would give one channel two disagreeing answers for "when did this last move".
+ * into the channel model would give one channel two disagreeing answers for "when did this last move".
  * Ordering by the last chat's time is done from that cache instead; see `sortChannels`.
  */
 export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, context: DataContext): DomainChannel => {
-    const updatedAtMs = toEpochMs(api.updatedAt);
     const cid = context.cid || 'default';
 
     return {
@@ -93,7 +92,6 @@ export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, conte
         // Mirrors ChannelLocalDataSourceV2's precedence so a view's own site wins over context.
         sid: api.sid || api.$?.sid || context.sid || '',
         isNotificationEnabled: toBooleanSafe(api.isNotificationEnabled, true),
-        lastActivityAt: updatedAtMs,
     };
 };
 

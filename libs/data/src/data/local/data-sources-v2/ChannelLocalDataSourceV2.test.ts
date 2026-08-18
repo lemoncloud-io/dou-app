@@ -57,12 +57,12 @@ describe('ChannelLocalDataSourceV2', () => {
         const storage = createMemoryStorage();
         const dataSource = new ChannelLocalDataSourceV2(contextProvider as any, storage);
 
-        // Seed two channels for the active place and one for another place. lastActivityAt is
-        // intentionally out of id order to prove the local cache orders by id, not by activity.
+        // Seed two channels for the active place and one for another place.
+        // The local cache orders by id, not by activity.
         await dataSource.cacheWriteMany([
-            { id: 'ch-2', sid: 'site-1', name: 'Newer', lastActivityAt: 300 } as any,
-            { id: 'ch-1', sid: 'site-1', name: 'Older', lastActivityAt: 100 } as any,
-            { id: 'ch-3', sid: 'site-2', name: 'Other place', lastActivityAt: 999 } as any,
+            { id: 'ch-2', sid: 'site-1', name: 'Newer' } as any,
+            { id: 'ch-1', sid: 'site-1', name: 'Older' } as any,
+            { id: 'ch-3', sid: 'site-2', name: 'Other place' } as any,
         ]);
 
         const result = await dataSource.cacheReadList({ sid: 'site-1' } as any);
