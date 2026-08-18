@@ -33,6 +33,7 @@ import { resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import {
     useChannel,
+    useChannelJoins,
     useChannelMembers,
     useChannelProfiles,
     useChannelTitle,
@@ -42,7 +43,6 @@ import {
     useDmPeer,
     useJoinPositions,
     useMessageJump,
-    useMyJoin,
     useReactions,
     useReadMarker,
 } from '../hooks';
@@ -114,12 +114,17 @@ export const ChannelRoomPage = () => {
         isError: isChannelError,
     } = useChannel(stableChannelIdForChannelHook, { seed: seedChannel });
 
-    // Loads member user identities (name/avatar fallback) + join read-state into the cache and
-    // derives the active-membership set (join `joined !== 0`) that scopes the join/profile syncs.
-    const { members, activeMemberIds } = useChannelMembers({
+    // ONE join-cache subscription for this screen. My row (nick / notify / the read baseline), every
+    // member's read cursor and the active-membership set are all readings of the same rows, and each
+    // used to open its own observer of the same query (see useChannelJoins).
+    const { joins, myJoin, activeMemberIds, cursorByUser } = useChannelJoins(stableChannelIdForChannelHook);
+
+    // Loads member user identities (name/avatar fallback) and merges them with the join rows above.
+    const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
         memberIds: channel?.memberIds,
+        joins,
     });
 
     const { profileMap } = useChannelProfiles(channel?.sid ?? null, activeMemberIds);
@@ -157,7 +162,8 @@ export const ChannelRoomPage = () => {
     const { getReadCount, isReady: isJoinReady } = useJoinPositions(
         stableChannelIdForChannelHook,
         activeMemberIds,
-        allMemberIds
+        allMemberIds,
+        cursorByUser
     );
 
     const isSelfChat = channel?.isSelfChat ?? false;
@@ -169,10 +175,9 @@ export const ChannelRoomPage = () => {
     // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
     // from the site profile only. Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    // My join row from the join cache stream — NOT `channel.$join`, which is a projection that lags
-    // the cache (see useMyJoin). The DM title reads the nick off it, so a rename in settings has to
-    // land here immediately or the header disagrees with every other surface.
-    const myJoin = useMyJoin(stableChannelIdForChannelHook);
+    // `myJoin` (above, from the join cache stream) is NOT `channel.$join`, which is a projection that
+    // lags the cache. The DM title reads the nick off it, so a rename in settings has to land here
+    // immediately or the header disagrees with every other surface.
     // One title chain for every surface (see useChannelTitle): the header must read exactly what
     // the home list row reads, so neither the branch nor the fallback label lives here.
     const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });

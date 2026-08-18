@@ -188,7 +188,13 @@ jest.mock('../hooks', () => ({
     useChannelProfiles: () => profilesValue,
     useDmPeer: () => dmPeerValue,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
-    useMyJoin: () => myJoinValue,
+    // 방의 단일 join 관측: 내 행(닉/알림)과 로스터용 행 목록이 한 출처에서 나온다.
+    useChannelJoins: () => ({
+        joins: myJoinValue ? [myJoinValue] : [],
+        myJoin: myJoinValue,
+        activeMemberIds: myJoinValue?.userId ? [myJoinValue.userId] : [],
+        cursorByUser: new Map<string, number>(),
+    }),
     // The title chain is what these tests are checking, so run the real hook — only the barrel
     // around it (which drags in the socket runtime) is stubbed.
     useChannelTitle: jest.requireActual('../hooks/useChannelTitle').useChannelTitle,

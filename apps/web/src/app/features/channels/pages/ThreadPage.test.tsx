@@ -48,7 +48,9 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 }));
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
-    useChannelMembers: () => ({ members: [], activeMemberIds: [] }),
+    // 방과 스레드는 같은 채널의 두 화면이라 같은 단일 join 관측을 쓴다.
+    useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
+    useChannelMembers: () => ({ members: [] }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => '개발 모임방',
     useChatMutations: () => ({ sendMessage: jest.fn(), readMessage: jest.fn() }),
@@ -60,7 +62,6 @@ jest.mock('../hooks', () => ({
         loadMore: jest.fn(),
     }),
     useDmPeer: () => null,
-    useMyJoin: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
 }));
 

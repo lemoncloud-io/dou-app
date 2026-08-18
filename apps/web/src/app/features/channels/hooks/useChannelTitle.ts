@@ -7,7 +7,7 @@ import { useMyProfile } from '../../../hooks';
 import { resolveChannelTitle } from '../lib';
 
 interface UseChannelTitleInput {
-    /** My nick in this channel, read from the join CACHE (`useMyJoin`) — never `channel.$join`,
+    /** My nick in this channel, read from the join CACHE (`useChannelJoins`) — never `channel.$join`,
      *  which is a projection that lags a rename. */
     joinNick?: string | null;
     /** The DM peer's place-profile nick (`useDmPeer`); ignored for non-DM channels. */

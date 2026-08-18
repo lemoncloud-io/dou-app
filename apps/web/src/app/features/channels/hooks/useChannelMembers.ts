@@ -15,11 +15,18 @@ interface UseChannelMembersParams {
      * makes the member list appear immediately instead of waiting on `syncChannelUsers`.
      */
     memberIds?: string[];
+    /**
+     * This channel's join rows, from {@link useChannelJoins} — the screen's single join observer.
+     * Passed in rather than observed here because a room reads the same rows for three other things
+     * (my nick/notify, the read cursors, the active-member set), and one screen has no reason to
+     * hold four copies of one cache list.
+     */
+    joins: DomainJoin[];
 }
 
 /**
- * Channel participants for a channel. Observes the user cache (identity) and the
- * join cache (per-member read-state/role), merging them by user id.
+ * Channel participants for a channel. Observes the user cache (identity) and merges it with the
+ * join rows the caller supplies (per-member read-state/role) by user id.
  *
  * Hydration runs through `syncChannelUsers` alone, gated on `isVerified` (so it never runs
  * against a stale session and auto-retries on the false→true edge after re-auth):
@@ -29,19 +36,17 @@ interface UseChannelMembersParams {
  * `refreshList` (channel.listUser) is intentionally not called: syncChannelUsers returns the
  * same users + `$join` from one response, so a separate full-snapshot fetch would be redundant.
  *
- * `activeMemberIds` is derived here (the single owner of member/join hydration) as the
- * authoritative active-membership set — join rows with `joined !== 0`. Callers feed it to the
- * profile sync registration and read-count denominator (active users only); the join read-state
- * sync instead covers the full channel roster (channel.memberIds), registered in useJoinPositions.
+ * The active-membership set moved to {@link useChannelJoins} along with the join observation — it is
+ * a reading of the join rows, and deriving it here as well would put two owners on one fact.
  */
-export const useChannelMembers = ({ channelId, detail = true, memberIds }: UseChannelMembersParams) => {
-    const { user: userRepository, join: joinRepository } = useRuntimeRepositories();
+export const useChannelMembers = ({ channelId, detail = true, memberIds, joins }: UseChannelMembersParams) => {
+    const { user: userRepository } = useRuntimeRepositories();
     const { isVerified } = useRuntimeSocketState();
 
     const [users, setUsers] = useState<DomainUser[]>([]);
-    const [joins, setJoins] = useState<DomainJoin[]>([]);
-    // Cleared by EITHER stream emitting. Keying it to the user stream alone would hang the list on
-    // the one source with no sync plan — and the roster below can already name members without it.
+    // Cleared by the user stream emitting OR by join rows arriving. Keying it to the user stream
+    // alone would hang the list on the one source with no sync plan — and the roster below can
+    // already name members without it.
     const [isLoading, setIsLoading] = useState(!!channelId);
 
     // Incremental channel-users sync cursor (since). Reset per channel; advanced per sync.
@@ -60,16 +65,12 @@ export const useChannelMembers = ({ channelId, detail = true, memberIds }: UseCh
         });
     }, [userRepository, channelId, detail]);
 
+    // Join rows arriving are enough to render the list (the roster names members without the user
+    // cache), so they settle the loading flag too — same contract as before this hook stopped
+    // observing them itself.
     useEffect(() => {
-        if (!channelId) {
-            setJoins([]);
-            return;
-        }
-        return joinRepository.observeList({ channelId, activeOnly: false }, result => {
-            setJoins(result?.list ?? []);
-            setIsLoading(false);
-        });
-    }, [joinRepository, channelId]);
+        if (joins.length > 0) setIsLoading(false);
+    }, [joins]);
 
     // Reset the incremental cursor when the channel changes so a new room starts a fresh sync.
     useEffect(() => {
@@ -129,15 +130,5 @@ export const useChannelMembers = ({ channelId, detail = true, memberIds }: UseCh
         return rows;
     }, [users, joins, memberIds]);
 
-    // Active-membership set: join rows still joined (`joined !== 0`), deduped by user id. This is
-    // the authoritative input for the join/profile sync registrations downstream.
-    const activeMemberIds = useMemo<string[]>(() => {
-        const ids = new Set<string>();
-        for (const join of joins) {
-            if (join.userId && join.joined !== 0) ids.add(join.userId);
-        }
-        return [...ids];
-    }, [joins]);
-
-    return { members, activeMemberIds, total: members.length, isLoading, isError: false };
+    return { members, total: members.length, isLoading, isError: false };
 };

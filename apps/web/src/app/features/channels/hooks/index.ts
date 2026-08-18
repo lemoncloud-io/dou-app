@@ -1,5 +1,6 @@
 export * from './useChannel';
 export * from './useChannelTitle';
+export * from './useChannelJoins';
 export * from './useChannelMembers';
 export * from './useChannelProfiles';
 export * from './useDmPeer';
@@ -9,7 +10,6 @@ export * from './useReadMarker';
 export * from './useChatScroll';
 export * from './useChannelMutations';
 export * from './useJoinMutations';
-export * from './useMyJoin';
 export * from './useChats';
 export * from './useMessageJump';
 export * from './useForegroundChatRefresh';
