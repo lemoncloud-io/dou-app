@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 
+import { ErrorBoundary } from 'react-error-boundary';
+
 import { useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { metricsCollector } from '../metrics/MetricsCollector';
@@ -33,7 +35,11 @@ export const DebugOverlayHost = () => {
     if (!isEnabled) return null;
 
     return (
-        <>
+        // A tab that throws used to hit the app-wide boundary in app.tsx and replace the ENTIRE UI
+        // with the error screen — a read-only inspector taking the app down with it. Contain the
+        // failure here: the overlay dies, the app underneath keeps running, and the message stays
+        // visible so the tab can be fixed.
+        <ErrorBoundary FallbackComponent={OverlayCrashNotice}>
             <MetricsSocketReporter />
             {!isOpen && (
                 <button
@@ -46,6 +52,13 @@ export const DebugOverlayHost = () => {
             {isOpen && mode === 'mini' && <MiniPanel />}
             {isOpen && mode === 'float' && <FloatingScreen />}
             {isOpen && mode === 'expanded' && <ExpandedSheet />}
-        </>
+        </ErrorBoundary>
     );
 };
+
+/** Overlay-local crash message: reload is the only recovery, and the app itself is unaffected. */
+const OverlayCrashNotice = ({ error }: { error: Error }) => (
+    <div className="fixed bottom-4 right-4 z-50 max-w-[80vw] rounded-md border border-destructive bg-background p-3 font-mono text-xs text-destructive shadow-md">
+        debug overlay crashed: {error.message}
+    </div>
+);

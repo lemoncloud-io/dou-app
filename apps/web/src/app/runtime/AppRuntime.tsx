@@ -13,6 +13,7 @@ import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 import { Router } from '../routes';
 import { ActiveCloudDataProvider, OtherCloudUnreadProvider } from '../hooks';
 import { useAutoScrollOnFocus } from '../ui/hooks';
+import { DebugObservationReporter } from '../features/debug';
 import { CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
@@ -64,6 +65,10 @@ export const AppRuntime = () => {
                     <CloudPushMarkRunner />
                     <MyUserSeedRunner />
                     <InvitedCloudDurabilityRunner />
+                    {/* Mirrors the two shared observations out to the debug overlay, which is mounted
+                        outside AppRuntime and so cannot consume the providers. Nothing mounts below it
+                        unless debug mode is unlocked. */}
+                    <DebugObservationReporter />
                     <VersionUpdateBanner
                         isVisible={hasUpdate}
                         currentVersion={currentVersion}
