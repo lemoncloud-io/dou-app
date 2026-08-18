@@ -89,6 +89,18 @@ unread = (channel.chatNo − channel.metaNo) − (join.chatNo − join.metaNo)
 써서 보정을 0으로 만든다 — 결과는 예전의 슬롯 차이와 같고, 그 채널을 한 번 읽으면 서버가
 스냅샷을 채우며 스스로 교정된다. 서버의 `calcUnreadCount`가 하는 것과 같은 폴백이다.
 
+> **재검토 노트 (2026-08-18) — `apps/web`은 이 폴백을 쓰지 않는다.** "결과는 예전의 슬롯 차이와
+> 같다"가 바로 문제였다. 슬롯 차이는 읽은 뒤 달린 **시스템 챗을 전부 안 읽은 메시지로 센다.**
+> 리액션이 하나 달릴 때마다 뱃지가 1씩 오르고, 방을 다시 읽어 커서를 머리까지 올려도 다음
+> 리액션이 곧바로 되돌린다 — 이 문서가 리액션 때문에 쓰였는데, 폴백 경로에 같은 결함이 그대로
+> 남아 있었다. `channel.metaNo`는 **커서가 아니라 지금 머리의** 시스템 개수이므로 규칙 1(머리와
+> `metaNo`는 같은 레코드에서)을 폴백 안에서 스스로 어긴다.
+>
+> `apps/web/src/app/utils/countUnread.ts`는 스냅샷이 없으면 커서를 **환산하지 않고 그대로 뺀다**
+> (`userHead - readNo`). 대가는 `join.metaNo`만큼의 과소 집계이고, 그 방향은 이 문서가 이미
+> "눈에 잘 안 띈다"고 적어 둔 쪽이다. 두 경우 모두 그 방을 한 번 읽으면 서버가 스냅샷을 채우며
+> 정확해진다 — 차이는 그때까지 뱃지가 **올라가느냐 내려가느냐**뿐이다.
+
 ### 3. "내 메시지가 최신이면 0" 지름길은 **사용자 메시지에만** 건다
 
 보낸 사람의 커서가 전진하지 않는 문제를 가리려고 이 지름길이 있다. 그런데 내가 남긴
@@ -116,7 +128,7 @@ OS 배너와 사이드바 미리보기가 쓰는 바로 그 술어다.
 | 서버 (정본)        | `chatic-socials-api` `src/modules/chats/proxy.ts:155` | 기준                                                              |
 | `apps/desktop-web` | `src/app/shared/utils/channelUnread.ts`               | ✅ 규칙 1~4 전부                                                  |
 | `apps/testbed`     | `src/app/features/unread/computeUnreads.ts`           | ⚠️ 네팅은 맞으나 머리를 `lastChat$.chatNo`에서 가져와 규칙 1 위반 |
-| `apps/web`         | `src/app/utils/countUnread.ts`                        | ❌ 커서를 환산하지 않음 (아래)                                    |
+| `apps/web`         | `src/app/utils/countUnread.ts`                        | ✅ 규칙 1·2 (2026-08-18: 커서 환산 반영, 규칙 2는 위 재검토 노트) |
 
 `apps/desktop-web`만 규칙 3·4를 갖는다. 서버 `unreadCount` 폴백과 로컬 커서 상한도 데스크톱
 전용이다 — 모바일에는 둘 다 없다.

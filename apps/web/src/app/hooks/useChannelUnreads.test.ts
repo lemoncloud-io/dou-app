@@ -33,12 +33,23 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(5);
     });
 
-    it('커서의 metaNo 스냅샷이 없으면 head의 metaNo로 대체한다 (구 join 행)', () => {
-        // join.metaNo 없음 → head의 metaNo(3)로 대체. userHead 7, 커서 user-scale 3-3=0 → unread 7.
+    it('커서의 metaNo 스냅샷이 없으면 커서를 환산하지 않고 그대로 뺀다 (구 join 행)', () => {
+        // join.metaNo 없음 → 커서를 통합 스케일 그대로 뺀다. userHead 7 - 커서 3 = 4.
+        // head의 metaNo(3)를 빌려 쓰던 예전 폴백은 7을 냈다 — 그 3은 커서가 아니라 지금 머리의
+        // 시스템 개수라, 읽은 뒤 달린 리액션 하나하나가 뱃지를 올리고 다시 내려가지 않았다.
         const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
         const joins = joinMap({ c1: join({ chatNo: 3 }) });
 
-        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(7);
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(4);
+    });
+
+    it('스냅샷 없는 커서로 다 읽은 방은 리액션이 쌓여도 0을 유지한다', () => {
+        // 커서가 머리까지 와 있는 상태에서 시스템 챗(리액션)만 3개 더 달린 방:
+        // chatNo/metaNo가 함께 올라가 사용자 메시지 수는 그대로이므로 뱃지는 계속 비어 있어야 한다.
+        const channels = [channel('c1', { chatNo: 13, metaNo: 6 })];
+        const joins = joinMap({ c1: join({ chatNo: 10 }) });
+
+        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(0);
     });
 
     it('join 행이 없는 채널은 읽음 기준이 없어 배지를 띄우지 않는다 (0)', () => {

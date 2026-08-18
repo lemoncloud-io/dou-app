@@ -99,8 +99,8 @@ describe('useSearchContext', () => {
             lastMessage: 'see you',
             lastMessageAt: 1700,
         });
-        // join.metaNo 없음 → head의 metaNo로 대체(ADR-0048 폴백). (20-2) - (8-2) = 12.
-        expect(row.unread).toBe(12);
+        // join.metaNo 없음 → 커서를 환산하지 않고 그대로 뺀다. (20-2) - 8 = 10.
+        expect(row.unread).toBe(10);
     });
 
     it('shows no unread badge for a cloud with no cached join row', async () => {

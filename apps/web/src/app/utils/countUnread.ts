@@ -7,9 +7,8 @@ export interface UnreadInputs {
     /** My read cursor (`join.chatNo`/`readNo`) — also on the unified scale, not the user-message one. */
     readNo?: number;
     /**
-     * `join.metaNo` — the channel's `metaNo` snapshotted at the read cursor. Falls back to
-     * `headMetaNo` when absent (rows written before the server started snapshotting it, see
-     * ADR-0048) — an approximation, but the ADR's documented one.
+     * `join.metaNo` — the channel's `metaNo` snapshotted at the read cursor. Absent on rows written
+     * before the server started snapshotting it (ADR-0048); see below for what that costs.
      */
     readMetaNo?: number;
 }

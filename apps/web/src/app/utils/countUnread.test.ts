@@ -7,9 +7,31 @@ describe('countUnread', () => {
         expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20, readMetaNo: 3 })).toBe(8);
     });
 
-    it('falls back the cursor metaNo to the head metaNo when the join row predates the snapshot (ADR-0048)', () => {
-        // No readMetaNo: cursor is netted against the head's own metaNo (5), not left unified-scale.
-        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20 })).toBe(10);
+    it('subtracts an unconvertible cursor as-is when the join row predates the snapshot', () => {
+        // No readMetaNo, so the cursor stays on the unified scale: 25 user messages at the head
+        // minus a cursor of 20 = 5. Undercounts by the join's real metaNo, which is the direction
+        // to fail in — borrowing the head's metaNo (the old fallback) overcounted instead.
+        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20 })).toBe(5);
+    });
+
+    it('stays at zero as system events arrive after a snapshot-less read (the badge that never went down)', () => {
+        // Read to the head: 25 user messages, cursor 30, no join snapshot.
+        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 30 })).toBe(0);
+        // Three reactions land. They move the head and the head's metaNo together, so the user
+        // count is unchanged and the badge must stay empty — the old fallback showed 1, then 2,
+        // then 3, and re-reading the room could not clear it.
+        expect(countUnread({ headChatNo: 31, headMetaNo: 6, readNo: 30 })).toBe(0);
+        expect(countUnread({ headChatNo: 32, headMetaNo: 7, readNo: 30 })).toBe(0);
+        expect(countUnread({ headChatNo: 33, headMetaNo: 8, readNo: 30 })).toBe(0);
+    });
+
+    it('undercounts a snapshot-less cursor by the system events below it, and says so', () => {
+        // The cost of the line above. Head 40 / metaNo 8 = 32 user messages against an unconverted
+        // cursor of 30 reads as 2, where a cursor carrying its own snapshot (metaNo 5 at slot 30)
+        // would read as 7. The row repairs itself the next time the room is read: the server
+        // answers `join.read` with a cursor AND its snapshot, and the branch above stops applying.
+        expect(countUnread({ headChatNo: 40, headMetaNo: 8, readNo: 30 })).toBe(2);
+        expect(countUnread({ headChatNo: 40, headMetaNo: 8, readNo: 30, readMetaNo: 5 })).toBe(7);
     });
 
     it('counts nothing when no read cursor is known yet', () => {
