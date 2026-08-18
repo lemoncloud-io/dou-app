@@ -1,6 +1,6 @@
 # 홈 마지막 메시지 프리뷰 (FetchLastChatsData)
 
-> 상태: Live · 최종 갱신: 2026-08-14 · 관련 ADR: [ADR-0057](../../adr/0057-home-last-chat-preview-single-query.md)
+> 상태: Live · 최종 갱신: 2026-08-18 · 관련 ADR: [ADR-0057](../../adr/0057-home-last-chat-preview-single-query.md)
 
 ## 목적
 
@@ -10,7 +10,7 @@
 
 - **웹이 앱보다 먼저 배포된다.** 브릿지에 닿는 확장은 구버전 앱 안에서 실행되는 새 웹을 전제한다: 새 기능은 새 메시지 타입으로(옵션 얹기 금지 — 구버전이 조용히 오답), 미지원은 `NOT_FOUND` 1회로 학습, 폴백은 "오늘의 동작"을 보존한다.
 - **프리뷰 의미론의 최종 소유자는 웹이다.** 앱의 SQL 판정은 성능 최적화일 뿐이며, 웹은 응답 행을 자신의 `isPreviewableChat`으로 재검증하고 불합격 채널만 윈도우 폴백한다. 의미론이 진화해도 구버전 앱이 정답을 막지 못한다.
-- **head-트리거는 손에 든 결과와만 비교한다.** 비동기 초기화를 기다리는 가드(ref가 채워지기 전 발사)를 만들지 않는다.
+- **head-트리거는 손에 든 결과와만 비교한다.** 비동기 초기화를 기다리는 가드(ref가 채워지기 전 발사)를 만들지 않는다. 트리거의 소유자는 목록 컴포넌트가 아니라 화면이 등록하는 sync 훅이다 — 행 렌더가 네트워크를 부르는 구조로 되돌아가지 않게.
 
 ## 범위
 
@@ -21,7 +21,7 @@
 
 1. **홈 진입(신버전 앱)**: `ChannelList`가 `useLastChats(channels)`를 마운트 → `chat.observeLastList(channelIds)` → 옵저버 첫 쿼리가 `FetchLastChatsData` 1회 발사 → 채널별 `{channelId, lastNo, item}` 수신 → 각 행에 프리뷰/시간 렌더.
 2. **전송 직후 이탈 → 홈**: 방에서 보낸 메시지의 낙관적 행(`chatNo 0, isPending`)이 아직 ack 전이어도 pending 프로브가 그 행을 답하므로 홈 프리뷰에 즉시 보인다. ack가 오면 chat 캐시 쓰기 → `chats-last` 리이밋 → 결합 쿼리 재실행 → 커밋 행으로 교체.
-3. **홈 체류 중 새 메시지**: 최근 메시지의 캐시 적재는 이 화면 밖에서 별도로 관리된다(네이티브 백그라운드 적재). 그 쓰기가 `chats-last` 리이밋으로 결합 관측을 깨우고 목록이 새 프리뷰를 그린다 — 목록 자체는 네트워크를 만들지 않는다.
+3. **홈 체류 중 새 메시지**: 홈이 마운트한 `useChatSyncRegistration`이 활성 사이트의 채널마다 chat 타깃을 등록해 두므로 `chat.sync` push가 그 채널에 append되고, push가 오지 않아도 폴링으로 앞선 `channel.chatNo`가 캐시 `lastNo`를 넘어선 채널만 head-트리거로 소량 페이지를 당긴다. 어느 쪽이든 chat 캐시 쓰기 → `chats-last` 리이밋 → 결합 관측이 새 프리뷰를 그린다 — **목록 컴포넌트 자체는 네트워크를 만들지 않는다**(적재는 화면이 소유하는 sync 등록 훅의 책임).
 4. **구버전 앱**: 첫 `FetchLastChatsData`가 `NOT_FOUND` → 모듈 플래그 학습 → 이후 채널별 30행 윈도우 읽기 + `pickPreviewChat`(오늘의 동작). 브라우저(IndexedDB)는 항상 이 경로다.
 5. **네이티브 일시 오류**: `items: null` 응답 → 그 읽기 1회만 윈도우 폴백(학습하지 않음).
 
@@ -60,15 +60,16 @@ sequenceDiagram
 - **도메인 유틸** — [`libs/data/src/data/domain/chatPreview.ts`](../../../libs/data/src/data/domain/chatPreview.ts): `compareByChatNo`/`isNotifiableChat`/`isFeedVisible`/`isPreviewableChat`/`pickPreviewChat` (기존 `apps/web/src/app/utils/chat.ts`에서 이동, 웹은 재수출). `DomainLastChat { channelId; lastNo; chat }` 도메인 타입.
 - **리포지토리** — [`ChatRepositoryV2`](../../../libs/data/src/data/repositories-v2/ChatRepositoryV2.ts): `observeLastList`/`cacheReadLastList` 컨텍스트 패스스루.
 - **웹 훅** — [`useLastChats`](../../../apps/web/src/app/hooks/useLastChats.ts): **순수 캐시 관측**(Map 상태) — 네트워크를 만들지 않는다. [`ChannelList`](../../../apps/web/src/app/features/home/components/ChannelList.tsx): 리스트 레벨 훅 1회 호출, `ChannelItem`은 `lastChat` prop 수신(행별 `useLastChat`/`useChatSync` 제거, `useChannelSync`는 유지).
-- **신선도 경계** — 최근 메시지의 캐시 적재는 이 트랙의 범위 밖이며 별도로 관리된다(네이티브 백그라운드 적재). 목록 계층은 캐시가 말하는 것만 비추고, 리이밋으로 갱신을 받는다.
+- **신선도 경계** — 캐시 적재는 [`useChatSyncRegistration`](../../../apps/web/src/app/hooks/useChatSyncRegistration.ts)이 소유한다(`HomePage`가 마운트, `useJoinSyncRegistration`과 같은 자리·같은 수명). 활성 사이트 채널마다 `registerChat` + 결합 관측의 `lastNo`로 `updateLocalSnapshot`(기준선), 그리고 `channel.chatNo > lastNo`인 채널만 `refreshList(limit 30)`. 목록 계층은 캐시가 말하는 것만 비추고 리이밋으로 갱신을 받는다 — ADR-0057 보완(2026-08-18).
 
 ## 검증 방법
 
 - `libs/data`: `chatPreview.test.ts`(판정·정렬), `ChatLocalDataSourceV2.test.ts`(fast-path/재검증/폴백/리이밋 라우팅), `NativeDBAdapter.test.ts`(메시지 모양·NOT_FOUND 학습·오류 null) — `yarn nx test data`.
 - `apps/mobile`: `ChatDataSource.test.ts`(프로브 SQL·pending 우선·오류 격리), `CacheCrudService.test.ts`(라우팅) — `yarn nx test mobile`.
-- `apps/web`: `useLastChats.test.ts`(관측·순수성 — refreshList 미호출 계약), `ChannelList.test.tsx`(prop 경로) — `yarn nx test web`.
+- `apps/web`: `useLastChats.test.ts`(관측·순수성 — refreshList 미호출 계약), `useChatSyncRegistration.test.ts`(등록·해제·기준선·head 트리거·중복 발사 억제·첫 결과 전 잠금), `ChannelList.test.tsx`(prop 경로) — `yarn nx test web`.
 - 수동(네이티브): 홈 진입 시 브릿지 로그에서 `FetchLastChatsData` 1회 확인, `getNativeCacheMetrics()`에 `loadLast:chat`이 잡히고 `loadAll:chat` count가 홈 진입당 2N에서 0으로 내려가는지.
 - 수동(브라우저 폴백): 게스트 부팅 → Self Chat 전송 → 즉시 홈 복귀 → 행에 방금 메시지의 프리뷰·시간 표시 (2026-08-14 확인).
+- 수동(head-트리거): 위 상태에서 IndexedDB의 `chat:*` 행만 삭제(채널의 `chatNo`는 유지) → 새로고침 → **방에 들어가지 않고** 홈에서 프리뷰가 복구되고 `chat:*` 행이 다시 채워지는지 (2026-08-18 확인).
 
 ## 남은 것 / 알려진 한계
 

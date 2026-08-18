@@ -91,7 +91,7 @@ const ChannelItem = ({
 
     // Keep the channel metadata synced while rendered (unregisters on unmount). The read
     // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
-    // the polled `chatNo` head doubles as useLastChats' per-channel freshness trigger.
+    // the polled `chatNo` head doubles as the chat catch-up trigger (useChatSyncRegistration).
     useChannelSync(channel.id);
 
     const formatTime = (dateValue?: string | number) => {
@@ -257,7 +257,8 @@ export const ChannelList = ({
     const dmPeers = useDmPeers(sid, channels, uid);
     // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole
     // list costs a single bridge round trip on a current app, and per-row chat sync targets are
-    // gone with it. Freshness rides on each row's channel poll (see useLastChats' head trigger).
+    // gone with it. This read stays PURE — freshness (live push + head-triggered catch-up) is owned
+    // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
     const lastChats = useLastChats(channels);
 
     // Order by the place's chosen sort method ('unread' floats unread channels above). The base

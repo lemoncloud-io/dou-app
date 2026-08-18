@@ -56,6 +56,32 @@
 할 이유가 없다. `useLastChats`는 순수 캐시 관측이며, 적재 쪽의 쓰기가 `chats-last` 리이밋으로
 목록을 갱신한다 — 목록 렌더는 어떤 경우에도 네트워크를 만들지 않는다.
 
+## 보완 (2026-08-18) — 적재 주체를 홈이 명시적으로 갖는다
+
+위 보완이 전제한 "별도로 관리되는 네이티브 백그라운드 적재"는 **실재하지 않았다**. `apps/mobile`의
+`ChatDataSource`는 브릿지 crud 핸들러로만 도달하므로 chat 캐시 쓰기는 전부 웹이 조회할 때만
+일어나고, 브라우저(IndexedDB)에는 그런 주체가 아예 없다. 그 결과 홈에 머무는 동안 chat 캐시를
+쓰는 주체가 하나도 없어 — 행별 `useChatSync`는 결정 4가, head-트리거는 위 보완이 걷어냈다 —
+프리뷰와 (ADR-0055로 프리뷰 시각을 따르게 된) 정렬이 방에 들어갔다 나올 때까지 멈췄다.
+
+`channel`/`join`과 같은 방식으로, **활성 사이트의 채널들에 대한 chat sync를 홈이 등록한다**:
+[`useChatSyncRegistration`](../../apps/web/src/app/hooks/useChatSyncRegistration.ts)(`useJoinSyncRegistration`의
+chat 도메인 형제)을 `HomePage`가 마운트한다.
+
+- **타깃 등록** — 채널마다 `registerChat(channelId)`. `chat.sync` 프레임은 등록된 모든 chat
+  타깃에 디스패치되고 각 타깃이 자기 `channelId`로 거르므로, 사이트의 어느 채널에 도착한
+  메시지든 라이브로 append된다. 방이 등록한 같은 키와는 ref-count로 dedup된다.
+- **head-트리거 catch-up** — `ChatSyncPlan.run`이 no-op이라 등록만으로는 아무것도 안 당긴다.
+  폴링으로 앞선 `channel.chatNo`가 캐시의 `lastNo`를 넘어선 채널만 소량 페이지를 당긴다. push가
+  오든 안 오든 수렴을 보장하는 안전판이며, 실제로 움직인 채널에만 발사되므로 warm 목록은 0회다.
+- **기준선** — 목록이 이미 도는 결합 관측(`observeLastList`, 동일 채널 집합 → 동일 옵저버 키라
+  읽기가 공유된다)의 `lastNo`로 `updateLocalSnapshot`한다. `lastNo`만 패치하므로 열려 있는 방의
+  메시지 윈도우는 건드리지 않는다.
+
+위 보완의 원칙 — **목록 렌더는 네트워크를 만들지 않는다** — 은 그대로 유지된다. catch-up은 행이
+아니라 화면이 소유하는 sync 등록 훅에 있고, `useLastChats`는 순수 관측인 채로 남는다(그 계약은
+`useLastChats.test.ts`가 계속 못박는다).
+
 ## 관련
 
 - 스펙/아키텍처: [docs/specs/cache/last-chat-preview.md](../specs/cache/last-chat-preview.md)

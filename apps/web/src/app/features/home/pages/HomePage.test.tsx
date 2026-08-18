@@ -51,6 +51,8 @@ jest.mock('../../../hooks', () => ({
     useInvitedClouds: () => ({ invitedClouds: [] }),
     // Registration is the one join concern still scoped to home — a no-op here.
     useJoinSyncRegistration: jest.fn(),
+    // Same for the active site's chat sync (message freshness) — a no-op here.
+    useChatSyncRegistration: jest.fn(),
     useMyJoins: () => new Map(),
     useOtherCloudUnread: () => ({ byCloud: {}, total: 0, refresh: jest.fn() }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),

@@ -39,6 +39,7 @@ import { getCloudDisplayName } from '../components/cloud-session';
 import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
 import {
     useCachedCloudNames,
+    useChatSyncRegistration,
     useHomeChannels,
     useInvitedClouds,
     useJoinSyncRegistration,
@@ -162,6 +163,10 @@ export const HomePage = () => {
     // What actually had to stay scoped to home: registering MY read-cursor sync for the ACTIVE
     // site's channels, so it tears down when home unmounts rather than living app-wide.
     useJoinSyncRegistration(channels);
+    // Same shape for messages: the ACTIVE site's channels get a chat sync while home is mounted, so
+    // a new message reaches the cache — and therefore the row's preview and the activity order —
+    // without waiting for the room to be opened. See useChatSyncRegistration for the two mechanisms.
+    useChatSyncRegistration(channels);
 
     // Cross-cloud dot (ADR-0056 결정 2/4) — one subscription shared by the switcher-button dot
     // (below, on AppHeader) and CloudSessionSheet's row dots, so the two surfaces never disagree.
