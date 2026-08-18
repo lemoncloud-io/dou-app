@@ -55,8 +55,9 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
         expect(registerProfile).toHaveBeenCalledTimes(2);
-        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 5000);
-        expect(registerProfile).toHaveBeenCalledWith('s1@u2', 5000);
+        // 기본 주기는 20초 — 멤버 수 / 주기가 그대로 요청률이라, 20인 방의 5초는 초당 4회였다.
+        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000);
+        expect(registerProfile).toHaveBeenCalledWith('s1@u2', 20_000);
     });
 
     it('캐시에 없는 멤버만 refreshItem으로 즉시 부트스트랩한다', async () => {
@@ -75,7 +76,7 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         renderHook(() => useChannelProfiles('s1', ['u1']));
 
         await waitFor(() => expect(refreshItem).toHaveBeenCalledWith('s1@u1'));
-        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 5000);
+        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000);
     });
 
     it('sid가 없으면 구독/등록하지 않는다', () => {
