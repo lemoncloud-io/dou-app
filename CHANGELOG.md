@@ -1,5 +1,55 @@
 # Changelog
 
+## [2026-08-18] - root@0.54.1, @chatic/web@0.45.1
+
+### Features
+
+- (web,mobile,app-messages) show unread dots for inactive places and clouds (ADR-0056)
+- (mobile) add the push marks bridge
+- (web,web-ui-kit) render code blocks in chat messages
+
+### Bug Fixes
+
+- simplify chat preview reread handling
+- unread sync scope for home badges
+- (web/unread) adjust unread calculation for missing join.metaNo
+- (web,data) mirror invite commands
+- (web) correct unread derivation
+- (web/home) sync the active site's chats while home is mounted
+- (web/debug) mirror the shared observation into the out-of-tree overlay
+- (mobile/ios) find cmake when the static server pod builds from Xcode
+- (web/channels) keep a long code line from stretching the message bubble
+- (web,data) order the home list by the last message, not my read cursor
+- (web/auth) go back to the previous screen instead of replacing login
+- (web/channels) stop the copy button swallowing the long-press cancel
+- (web/auth) return to the screen the user came from after login
+- (web) default the theme to light and restore it from the native shell
+- (mobile) keep the theme from unsetting on cold start and resume
+
+### Documentation
+
+- (adr) mark the ADR-0055 home sort decisions as reverted
+- (adr) record the web code block, home sort and login return decisions
+- (adr) renumber the theme ADR to 0054
+
+### Refactor
+
+- (web/home) make the last-chat preview a pure cache read
+
+### Chores
+
+- (mobile) bump app versions 0.22.1
+- (mobile) bump app versions 0.22.0
+
+### Other
+
+- perf: (web) dedupe the in-flight my-profile fetch across mounted hooks
+- perf: (web) observe the active cloud's channels and read cursors once, app-wide
+- perf: (web/channels) poll member profiles every 20s in a room, not every 5s
+- perf: (web/channels) read the room's join rows from one subscription
+- perf: (web,mobile,data) single-query last-chat previews and navigation grace (ADR-0057~0059)
+- test: (mobile) repair the two suites that could not load their modules
+
 ## [2026-08-14] - No version updates
 
 ### Features
