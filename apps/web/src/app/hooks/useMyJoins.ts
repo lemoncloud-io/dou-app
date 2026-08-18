@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { getSyncManager, useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
-import { useGlobalSession } from '@chatic/web-core';
+import { useGlobalSession, useSessionSelection } from '@chatic/web-core';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 interface UseMyJoinsOptions {
@@ -63,13 +63,15 @@ export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions
     const { sync: shouldSync = true } = options;
     const { join: joinRepository } = useRuntimeRepositories();
     const uid = useGlobalSession().identity.userId ?? undefined;
+    const { selectedCloudId } = useSessionSelection();
 
     const [joinByChannel, setJoinByChannel] = useState<Map<string, DomainJoin>>(new Map());
 
     // Stable channel-id key so the effects only re-run when the channel set actually changes,
     // not on every render's new array identity.
     const channelIds = channels.map(ch => ch.id);
-    const channelKey = channelIds.join(',');
+    const channelKey = channels.map(ch => `${ch.id}:${ch.sid ?? ''}`).join(',');
+    const channelById = useMemo(() => new Map(channels.map(channel => [channel.id, channel] as const)), [channelKey]);
 
     // Registration is a separate hook so a surface can own it WITHOUT opening its own observers —
     // home reads the shared cloud-wide join map (ActiveCloudDataProvider) and calls that hook
@@ -89,15 +91,19 @@ export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions
         }
 
         const disposers = channelIds.map(id =>
-            joinRepository.observeList({ channelId: id }, result => {
-                const mine = result?.list?.find(join => join.userId === uid);
-                if (mine) current.set(id, mine);
-                else current.delete(id);
-                setJoinByChannel(new Map(current));
-            })
+            joinRepository.observeList(
+                { channelId: id },
+                result => {
+                    const mine = result?.list?.find(join => join.userId === uid);
+                    if (mine) current.set(id, mine);
+                    else current.delete(id);
+                    setJoinByChannel(new Map(current));
+                },
+                { cid: selectedCloudId ?? 'default', sid: channelById.get(id)?.sid, uid }
+            )
         );
         return () => disposers.forEach(dispose => dispose());
-    }, [joinRepository, channelKey, uid]);
+    }, [joinRepository, channelKey, uid, selectedCloudId, channelById]);
 
     return joinByChannel;
 };

@@ -159,7 +159,7 @@ export const HomePage = () => {
     // wanting the join SYNC. `byChannel` / `joinByChannel` are cloud-wide supersets and every
     // consumer looks rows up by channel id, so the extra keys are inert.
     const { myJoins, unreads } = useActiveCloudData();
-    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = unreads;
+    const { byPlace: unreadByPlace } = unreads;
     // What actually had to stay scoped to home: registering MY read-cursor sync for the ACTIVE
     // site's channels, so it tears down when home unmounts rather than living app-wide.
     useJoinSyncRegistration(channels);
@@ -372,7 +372,6 @@ export const HomePage = () => {
                 {selectedPlaceId ? (
                     <ChannelList
                         channels={channels}
-                        unreadByChannel={unreadByChannel}
                         joinByChannel={myJoins}
                         sid={selectedPlaceId}
                         isLoading={isChannelsLoading}

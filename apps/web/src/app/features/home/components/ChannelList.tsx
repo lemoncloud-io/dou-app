@@ -33,7 +33,7 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
 import { useLastChats } from '../../../hooks/useLastChats';
-import { useMyProfile } from '../../../hooks';
+import { useChannelUnreads, useMyProfile } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { sortChannels } from '../../../utils/sortChannels';
@@ -196,7 +196,6 @@ const ChannelItem = ({
 
 interface ChannelListProps {
     channels: DomainChannel[];
-    unreadByChannel: Record<string, number>;
     /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
     joinByChannel?: Map<string, DomainJoin>;
     /**
@@ -231,7 +230,6 @@ interface ChannelListProps {
 
 export const ChannelList = ({
     channels,
-    unreadByChannel,
     joinByChannel,
     sid,
     isLoading,
@@ -253,6 +251,8 @@ export const ChannelList = ({
     const myThumbnail = myProfile?.thumbnail;
     // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
     const { userId: uid } = useSessionIdentity();
+    // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
+    const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
     // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
     const dmPeers = useDmPeers(sid, channels, uid);
     // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole
