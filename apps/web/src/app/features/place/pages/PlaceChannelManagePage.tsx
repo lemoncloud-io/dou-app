@@ -18,7 +18,7 @@ import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { ConfirmDialog } from '../../channels/components';
 import { useChannelMutations, useChatMutations, useDmPeers, type DmPeer } from '../../channels/hooks';
-import { useChannelUnreads, useHomeChannels, useLastChats, useMyJoins } from '../../../hooks';
+import { useActiveCloudData, useHomeChannels, useJoinSyncRegistration, useLastChats } from '../../../hooks';
 import { resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
 import { useMyProfile } from '../../../hooks';
@@ -57,8 +57,12 @@ export const PlaceChannelManagePage = () => {
     const isOwner = !!place?.isOwner;
 
     const { channels, isLoading } = useHomeChannels(placeId ?? null);
-    const myJoins = useMyJoins(channels);
-    const { byChannel: unreadByChannel } = useChannelUnreads(channels, myJoins);
+    // Same source as home (see ActiveCloudData): the cloud-wide aggregation already holds this
+    // place's rows, so this page reads them instead of opening its own observer per channel. The
+    // read-cursor SYNC still belongs to this screen, so it registers that itself.
+    const { myJoins, unreads } = useActiveCloudData();
+    const { byChannel: unreadByChannel } = unreads;
+    useJoinSyncRegistration(channels);
     const { profile: myProfile } = useMyProfile();
     const { userId: uid } = useSessionIdentity();
     // 1:1 peers for every DM row, from ONE place-level profile subscription — the same source the

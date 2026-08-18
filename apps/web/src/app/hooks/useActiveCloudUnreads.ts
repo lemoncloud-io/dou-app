@@ -1,21 +1,17 @@
-import { useActiveCloudChannels } from './useActiveCloudChannels';
-import { useChannelUnreads, type ChannelUnreads } from './useChannelUnreads';
-import { useMyJoins } from './useMyJoins';
+import { useActiveCloudData } from './activeCloudDataContext';
+import type { ChannelUnreads } from './useChannelUnreads';
 
 /**
  * Unread across every site of the active cloud, not just the one being viewed.
  *
- * Cache-only (`sync: false`): mounting this registers zero per-channel join sync — freshness rides
- * {@link useActiveCloudChannels}'s cloud-wide `syncChannels` delta (via `useBackgroundSync`) plus
- * each channel's live join cache, which still reflects my own reads immediately (optimistic write).
+ * A read of the ONE shared observation (`ActiveCloudDataProvider`), not a subscription: three
+ * surfaces consume it — `UnreadBadgeRunner` (app-icon `total`), `UnifiedLayout` (bottom-nav
+ * `total`) and `HomePage` (`byPlace` place dots, `byChannel` row counts) — and each used to
+ * assemble the same number from its own channel observer plus one join observer per channel
+ * (ADR-0056). The cache layer shared the storage reads, but not the callbacks, the `Map` rebuilds
+ * or the O(channels) aggregation, so every join write paid for all three.
  *
- * One shared subscription for two consumers (ADR-0056): `UnreadBadgeRunner` (app-icon `total`) and
- * `HomePage` (`byPlace`, so every place — not just the active one — can show a dot). HomePage's
- * per-channel counts for the active site keep their own `useChannelUnreads(channels, useMyJoins(channels))`
- * call instead (join sync `true`) — that registration is intentionally scoped to the active site's
- * channels alone, so it tears down when home unmounts rather than living for the app's lifetime.
+ * `byChannel` is cloud-wide. Home reads its rows out of it by channel id, so the extra keys for
+ * other sites are inert — and it no longer needs a second, active-site-only aggregation.
  */
-export const useActiveCloudUnreads = (): ChannelUnreads => {
-    const cloudChannels = useActiveCloudChannels();
-    return useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
-};
+export const useActiveCloudUnreads = (): ChannelUnreads => useActiveCloudData().unreads;

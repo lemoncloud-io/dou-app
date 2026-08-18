@@ -4,14 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@chatic/lib/utils';
 
 import { useHandlePushNavigation } from '../../bridge';
-import {
-    useActiveCloudChannels,
-    useBackHandler,
-    useChannelUnreads,
-    useDeviceSync,
-    useInAppPushMessage,
-    useMyJoins,
-} from '../../hooks';
+import { useActiveCloudUnreads, useBackHandler, useDeviceSync, useInAppPushMessage } from '../../hooks';
 import { ROUTES } from '../../routes/paths';
 import { BottomNavigation } from '../components';
 
@@ -43,11 +36,11 @@ export const UnifiedLayout = (): JSX.Element => {
     // Own the bottom-nav unread badge here (the layout that renders the nav), rather than inside
     // the nav component. The native app-icon badge is a separate concern owned by UnreadBadgeRunner.
     const showBottomNav = shouldShowBottomNav(pathname);
-    const cloudChannels = useActiveCloudChannels();
-    // Observe-only (sync: false): this layout is mounted on every route, so it must not own the
-    // per-channel join sync (that stays scoped to HomePage). The nav badge total is derived from
-    // the observed join cache + channel head.
-    const { total: unreadTotal } = useChannelUnreads(cloudChannels, useMyJoins(cloudChannels, { sync: false }));
+    // A read of the app-wide shared observation, not a subscription. This layout wraps EVERY route,
+    // so the cloud-wide channel + per-channel join observers it used to open here made any join
+    // write in the cloud re-render the shell — from inside a chat room, for a badge that only shows
+    // on home and mypage. Ownership now sits in ActiveCloudDataProvider (see ActiveCloudData).
+    const { total: unreadTotal } = useActiveCloudUnreads();
 
     return (
         <div

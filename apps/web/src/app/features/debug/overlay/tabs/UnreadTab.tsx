@@ -1,18 +1,15 @@
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
-import { useActiveCloudChannels, useChannelUnreads, useMyJoins, useOtherCloudUnread } from '../../../../hooks';
-import { useSessionSelection } from '@chatic/web-core';
+import { useActiveCloudChannels, useActiveCloudUnreads, useOtherCloudUnread } from '../../../../hooks';
 
-// Unread inspector: observes the active cloud's full channel list and shows the same aggregates the
-// home surface / app badge use — cloud total, per-site sums, the per-channel unread list — plus the
-// inactive clouds read from the local cache, which is the badge's other half. Read-only.
+// Unread inspector: shows the aggregates the home surface / app badge use — cloud total, per-site
+// sums, the per-channel unread list — plus the inactive clouds read from the local cache, which is
+// the badge's other half. Read-only, and reads the app-wide shared observation rather than opening
+// its own, so opening the overlay adds no subscriptions and no join sync registration.
 export const UnreadTab = () => {
     const channels = useActiveCloudChannels();
-    const { selectedCloudId } = useSessionSelection();
-    const { byCloud: otherByCloud, total: otherTotal } = useOtherCloudUnread(selectedCloudId);
-    // Read-only inspector: observe-only (sync: false) so opening the debug overlay never registers
-    // per-channel join sync (that ownership stays with the home surface).
-    const { byChannel, byPlace, total } = useChannelUnreads(channels, useMyJoins(channels, { sync: false }));
+    const { byCloud: otherByCloud, total: otherTotal } = useOtherCloudUnread();
+    const { byChannel, byPlace, total } = useActiveCloudUnreads();
     const nameById = new Map(channels.map(ch => [ch.id, ch.name ?? ch.id]));
 
     // "안읽음 목록" — only entries with unread > 0.

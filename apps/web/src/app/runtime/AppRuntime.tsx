@@ -11,6 +11,7 @@ import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
 import { RuntimeConnectionHost, useRuntimeBinding } from '@chatic/app-runtime';
 
 import { Router } from '../routes';
+import { ActiveCloudDataProvider, OtherCloudUnreadProvider } from '../hooks';
 import { useAutoScrollOnFocus } from '../ui/hooks';
 import { CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
@@ -50,22 +51,31 @@ export const AppRuntime = () => {
 
     return (
         <RuntimeConnectionHost binding={binding}>
-            <PreferenceLoader />
-            <BackgroundSyncRunner />
-            <UnreadBadgeRunner />
-            <CloudPushMarkRunner />
-            <MyUserSeedRunner />
-            <InvitedCloudDurabilityRunner />
-            <VersionUpdateBanner
-                isVisible={hasUpdate}
-                currentVersion={currentVersion}
-                latestVersion={latestVersion}
-                onDismiss={dismissUpdate}
-            />
-            <Router />
-            <GlobalLoader />
-            <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
-            <Toaster />
+            {/* One cloud-wide channel/read-cursor observation and one cross-cloud unread read for
+                the whole app, above BOTH the badge runners and the router — the badge, the bottom
+                nav and home each used to assemble the same numbers from their own subscriptions.
+                A cache write re-renders these providers and their consumers only: `children` is one
+                unchanged element, so the router subtree bails out. */}
+            <ActiveCloudDataProvider>
+                <OtherCloudUnreadProvider>
+                    <PreferenceLoader />
+                    <BackgroundSyncRunner />
+                    <UnreadBadgeRunner />
+                    <CloudPushMarkRunner />
+                    <MyUserSeedRunner />
+                    <InvitedCloudDurabilityRunner />
+                    <VersionUpdateBanner
+                        isVisible={hasUpdate}
+                        currentVersion={currentVersion}
+                        latestVersion={latestVersion}
+                        onDismiss={dismissUpdate}
+                    />
+                    <Router />
+                    <GlobalLoader />
+                    <SonnerToaster offset={SONNER_SAFE_OFFSET} mobileOffset={SONNER_SAFE_OFFSET} />
+                    <Toaster />
+                </OtherCloudUnreadProvider>
+            </ActiveCloudDataProvider>
         </RuntimeConnectionHost>
     );
 };

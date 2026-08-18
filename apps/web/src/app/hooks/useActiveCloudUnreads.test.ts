@@ -1,36 +1,28 @@
+import { createElement, type ReactNode } from 'react';
+
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
-
-import { useActiveCloudChannels } from './useActiveCloudChannels';
+import { ActiveCloudDataContext, type ActiveCloudData } from './activeCloudDataContext';
 import { useActiveCloudUnreads } from './useActiveCloudUnreads';
-import { useChannelUnreads } from './useChannelUnreads';
-import { useMyJoins } from './useMyJoins';
 
-jest.mock('./useActiveCloudChannels', () => ({ useActiveCloudChannels: jest.fn() }));
-jest.mock('./useMyJoins', () => ({ useMyJoins: jest.fn() }));
-jest.mock('./useChannelUnreads', () => ({ useChannelUnreads: jest.fn() }));
+// 이 훅은 공유 관측(ActiveCloudDataProvider)의 집계를 읽을 뿐이다. 집계를 실제로 만드는 조립
+// (채널 → 관측 전용 join → useChannelUnreads)은 ActiveCloudDataProvider.test.tsx가 고정한다.
+describe('useActiveCloudUnreads — 공유 집계 읽기', () => {
+    it('컨텍스트의 unreads를 그대로 돌려준다', () => {
+        const unreads = { byChannel: { c1: 2 }, byPlace: { s1: 4 }, total: 4 };
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(
+                ActiveCloudDataContext.Provider,
+                { value: { channels: [], isLoaded: true, myJoins: new Map(), unreads } as ActiveCloudData },
+                children
+            );
 
-const channelsMock = useActiveCloudChannels as jest.Mock;
-const myJoinsMock = useMyJoins as jest.Mock;
-const unreadsMock = useChannelUnreads as jest.Mock;
+        const { result } = renderHook(() => useActiveCloudUnreads(), { wrapper });
 
-const channels = [{ id: 'c1', sid: 's1' }] as unknown as DomainChannel[];
-const joins = new Map();
+        expect(result.current).toBe(unreads);
+    });
 
-beforeEach(() => {
-    jest.clearAllMocks();
-    channelsMock.mockReturnValue(channels);
-    myJoinsMock.mockReturnValue(joins);
-    unreadsMock.mockReturnValue({ byChannel: {}, byPlace: { s1: 4 }, total: 4 });
-});
-
-describe('useActiveCloudUnreads — 클라우드 전체 안읽음 (관측 전용)', () => {
-    it('활성 클라우드 채널을 관측 전용(sync: false) join과 함께 useChannelUnreads로 넘긴다', () => {
-        const { result } = renderHook(() => useActiveCloudUnreads());
-
-        expect(myJoinsMock).toHaveBeenCalledWith(channels, { sync: false });
-        expect(unreadsMock).toHaveBeenCalledWith(channels, joins);
-        expect(result.current).toEqual({ byChannel: {}, byPlace: { s1: 4 }, total: 4 });
+    it('프로바이더가 없으면 던진다', () => {
+        expect(() => renderHook(() => useActiveCloudUnreads())).toThrow(/ActiveCloudDataProvider is missing/);
     });
 });

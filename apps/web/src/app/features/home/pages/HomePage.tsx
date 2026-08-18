@@ -17,7 +17,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMyProfile, useScrollRestoration, useUserPermissions } from '../../../hooks';
+import { useActiveCloudData, useMyProfile, useScrollRestoration, useUserPermissions } from '../../../hooks';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 import { DEFAULT_CHANNEL_SORT, placeScopeKey } from '../../../stores/preferenceKeys';
 import { usePendingInviteChannel } from '../../../stores/usePendingInviteChannel';
@@ -38,12 +38,10 @@ import {
 import { getCloudDisplayName } from '../components/cloud-session';
 import { useAddCloudFlow, useHomePlaces, useSwitchPlace } from '../hooks';
 import {
-    useActiveCloudUnreads,
     useCachedCloudNames,
-    useChannelUnreads,
     useHomeChannels,
     useInvitedClouds,
-    useMyJoins,
+    useJoinSyncRegistration,
     useOtherCloudUnread,
 } from '../../../hooks';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
@@ -153,14 +151,17 @@ export const HomePage = () => {
     // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
     // (ADR-0043 결정 8) — a no-op once the legacy records are drained.
     useCanceledInviteReconcile();
-    // Two unread sources, deliberately not one (see docs/feature/home/unread-dot.md 상세 구현 §2,
-    // ADR-0056): per-channel counts for the ACTIVE site keep their own join-sync'd call so the
-    // registration stays scoped to home and tears down on unmount. `byPlace` instead comes from
-    // useActiveCloudUnreads — the same cache-only, cloud-wide observation UnreadBadgeRunner already
-    // runs for the app-icon badge — so every place gets a dot without adding cloud-wide join sync.
-    const myJoins = useMyJoins(channels);
-    const { byChannel: unreadByChannel } = useChannelUnreads(channels, myJoins);
-    const { byPlace: unreadByPlace } = useActiveCloudUnreads();
+    // ONE unread source now (see docs/feature/home/unread-dot.md 상세 구현 §2, ADR-0056): the
+    // app-wide observation already aggregates the whole cloud, so the per-row counts, the join rows
+    // the rows read (nick/mute) and the place dots all come off it — home used to compute the
+    // active-site half a second time, from its own observer per channel, purely as a side effect of
+    // wanting the join SYNC. `byChannel` / `joinByChannel` are cloud-wide supersets and every
+    // consumer looks rows up by channel id, so the extra keys are inert.
+    const { myJoins, unreads } = useActiveCloudData();
+    const { byChannel: unreadByChannel, byPlace: unreadByPlace } = unreads;
+    // What actually had to stay scoped to home: registering MY read-cursor sync for the ACTIVE
+    // site's channels, so it tears down when home unmounts rather than living app-wide.
+    useJoinSyncRegistration(channels);
 
     // Cross-cloud dot (ADR-0056 결정 2/4) — one subscription shared by the switcher-button dot
     // (below, on AppHeader) and CloudSessionSheet's row dots, so the two surfaces never disagree.
@@ -168,7 +169,7 @@ export const HomePage = () => {
         byCloud: otherCloudUnread,
         total: otherCloudUnreadTotal,
         refresh: refreshCloudUnread,
-    } = useOtherCloudUnread(selectedCloudId);
+    } = useOtherCloudUnread();
     const badgedClouds = useCloudPushMarkStore(s => s.badged);
     // Catalog filter: only a mark for a cloud actually in THIS account's reach (owned + invited +
     // relay) and not the one being viewed counts toward the dot — a stale/foreign mark otherwise

@@ -1,6 +1,9 @@
+import { createElement, type ReactNode } from 'react';
+
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { useOtherCloudUnread } from './useOtherCloudUnread';
+import { OtherCloudUnreadContext } from './otherCloudUnreadContext';
+import { useOtherCloudUnread, useOtherCloudUnreadSource } from './useOtherCloudUnread';
 
 let mockOwned: { id?: string }[] = [];
 let mockInvited: { id?: string }[] = [];
@@ -27,9 +30,9 @@ beforeEach(() => {
     resolveContext.mockResolvedValue(context({}));
 });
 
-describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐시)', () => {
+describe('useOtherCloudUnreadSource — 비활성 클라우드 미읽음 (로컬 캐시)', () => {
     it('활성 클라우드는 제외하고 나머지 + relay를 조회한다', async () => {
-        renderHook(() => useOtherCloudUnread('cloud_1'));
+        renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         expect(resolveContext).toHaveBeenCalledWith({ cids: ['cloud_2', 'default'], channelRefs: [] });
@@ -38,7 +41,7 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
     it('초대받은 클라우드도 포함한다', async () => {
         mockInvited = [{ id: 'invited_9' }];
 
-        renderHook(() => useOtherCloudUnread('cloud_1'));
+        renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         expect(resolveContext.mock.calls[0][0].cids).toEqual(['cloud_2', 'default', 'invited_9']);
@@ -56,7 +59,7 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
             )
         );
 
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         // join.metaNo 없음 → head의 metaNo로 대체(ADR-0048 폴백). ch1: 8-(6-2)=4. ch2: 5-(5-0)=0.
         await waitFor(() => expect(result.current.total).toBe(4));
@@ -69,7 +72,7 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
             context({ 'cloud_2:ch1': { id: 'ch1', chatNo: 9, metaNo: 1 } }, { 'cloud_2:ch1': { chatNo: 8 } })
         );
 
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         expect(result.current.byCloud).toEqual({});
@@ -81,7 +84,7 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
     it('내 join 행이 없는 채널은 0으로 센다', async () => {
         resolveContext.mockResolvedValue(context({ 'cloud_2:ch1': { id: 'ch1', chatNo: 50, metaNo: 0 } }));
 
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         await waitFor(() => expect(resolveContext).toHaveBeenCalled());
         expect(result.current.total).toBe(0);
@@ -100,7 +103,7 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
             )
         );
 
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         await waitFor(() => expect(result.current.total).toBe(2)); // ch1만: 5-3
     });
@@ -115,18 +118,35 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
             )
         );
 
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
         await waitFor(() => expect(result.current.total).toBe(2));
     });
 
-    it('refresh를 부르면 캐시를 다시 읽는다', async () => {
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+    it('refresh를 부르면 (합치기 창이 닫힌 뒤) 캐시를 다시 읽는다', async () => {
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
         await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(1));
 
         act(() => result.current.refresh());
 
-        await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    });
+
+    // 버스트마다 클라우드별 파티션을 전부 다시 읽으면(네이티브에선 왕복 N회) 뱃지 하나 값에 비해
+    // 비싸다. 트레일링 1초 창이 연속 호출을 재읽기 1회로 합친다.
+    it('연달아 부른 refresh는 캐시 재읽기 한 번으로 합친다', async () => {
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
+        await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(1));
+
+        act(() => {
+            result.current.refresh();
+            result.current.refresh();
+            result.current.refresh();
+        });
+
+        await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(2), { timeout: 3000 });
+        // 창이 닫힌 뒤로도 추가 읽기가 없다 — 3번이 1번으로 합쳐졌다.
+        expect(resolveContext).toHaveBeenCalledTimes(2);
     });
 
     // 캐시 읽기가 실패했다고 뱃지가 활성 클라우드 값으로 떨어졌다 돌아오면 깜빡인다.
@@ -134,13 +154,13 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
         resolveContext.mockResolvedValue(
             context({ 'cloud_2:ch1': { id: 'ch1', chatNo: 4, metaNo: 0 } }, { 'cloud_2:ch1': { chatNo: 1 } })
         );
-        const { result } = renderHook(() => useOtherCloudUnread('cloud_1'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
         await waitFor(() => expect(result.current.total).toBe(3));
 
         resolveContext.mockRejectedValueOnce(new Error('cache down'));
         act(() => result.current.refresh());
 
-        await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(2), { timeout: 3000 });
         expect(result.current.total).toBe(3);
     });
 
@@ -148,9 +168,27 @@ describe('useOtherCloudUnread — 비활성 클라우드 미읽음 (로컬 캐�
         mockOwned = [];
         mockInvited = [];
 
-        const { result } = renderHook(() => useOtherCloudUnread('default'));
+        const { result } = renderHook(() => useOtherCloudUnreadSource('default'));
 
         await waitFor(() => expect(result.current.total).toBe(0));
         expect(resolveContext).not.toHaveBeenCalled();
+    });
+});
+
+// 얇은 훅은 공유 읽기(OtherCloudUnreadProvider)의 값을 읽을 뿐이다 — 자기 스캔을 돌리지 않는다.
+describe('useOtherCloudUnread — 공유 읽기', () => {
+    it('컨텍스트 값을 그대로 돌려주고 캐시를 건드리지 않는다', () => {
+        const shared = { byCloud: { cloud_2: 3 }, total: 3, refresh: jest.fn() };
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(OtherCloudUnreadContext.Provider, { value: shared }, children);
+
+        const { result } = renderHook(() => useOtherCloudUnread(), { wrapper });
+
+        expect(result.current).toBe(shared);
+        expect(resolveContext).not.toHaveBeenCalled();
+    });
+
+    it('프로바이더가 없으면 던진다', () => {
+        expect(() => renderHook(() => useOtherCloudUnread())).toThrow(/OtherCloudUnreadProvider is missing/);
     });
 });

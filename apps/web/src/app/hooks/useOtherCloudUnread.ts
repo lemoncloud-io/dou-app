@@ -1,13 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useGlobalCacheSearch, globalCacheRefKey } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '@chatic/web-core';
 
 import { countUnread, readCursorOf } from '../utils/countUnread';
+import { useOtherCloudUnreadContext } from './otherCloudUnreadContext';
 import { useInvitedClouds } from './useInvitedClouds';
 
 /** Relay mode reads as this cloud id (see useSessionSelection). */
 const RELAY_CLOUD_ID = 'default';
+
+/**
+ * Coalescing window for `refresh` (ms).
+ *
+ * One `refresh` reads EVERY inactive cloud's channel, site and join partition in full
+ * (`resolveContext`) — on native, bridge round trips proportional to the cached clouds. Its main
+ * caller re-reads whenever the active cloud's unread moves (`UnreadBadgeRunner`), which during a
+ * burst of arriving or read messages fires many times a second, each time re-scanning partitions
+ * that could not have changed meaningfully in between. A trailing 1s window collapses a burst into
+ * one scan; the badge is a summary of already-cached state, so arriving a second later costs
+ * nothing observable.
+ */
+const REFRESH_COALESCE_MS = 1_000;
 
 export interface OtherCloudUnread {
     /** Unread per inactive cloud id; clouds with nothing cached are simply absent. */
@@ -37,14 +51,30 @@ export interface OtherCloudUnread {
  * is opened again. A live cross-cloud count needs a server-side summary; the client cannot get
  * there on its own.
  */
-export const useOtherCloudUnread = (activeCloudId: string): OtherCloudUnread => {
+export const useOtherCloudUnreadSource = (activeCloudId: string): OtherCloudUnread => {
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
     const { resolveContext } = useGlobalCacheSearch();
 
     const [byCloud, setByCloud] = useState<Record<string, number>>({});
     const [token, setToken] = useState(0);
-    const refresh = useCallback(() => setToken(n => n + 1), []);
+
+    // Trailing coalesce (see REFRESH_COALESCE_MS): the pending timer is kept so a burst of callers
+    // advances the token exactly once, and cleared on unmount so it cannot set state afterwards.
+    const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (refreshTimerRef.current !== null) clearTimeout(refreshTimerRef.current);
+        },
+        []
+    );
+    const refresh = useCallback(() => {
+        if (refreshTimerRef.current !== null) return;
+        refreshTimerRef.current = setTimeout(() => {
+            refreshTimerRef.current = null;
+            setToken(n => n + 1);
+        }, REFRESH_COALESCE_MS);
+    }, []);
 
     // Owned + invited + relay, minus wherever the user is now — that one is observed live by the
     // caller and would otherwise be counted from a staler source.
@@ -116,3 +146,13 @@ export const useOtherCloudUnread = (activeCloudId: string): OtherCloudUnread => 
 
     return { byCloud, total, refresh };
 };
+
+/**
+ * Unread for the inactive clouds, from the ONE shared read (`OtherCloudUnreadProvider`).
+ *
+ * `HomePage` (switcher dot + the sheet's per-cloud rows) and `UnreadBadgeRunner` (app-icon total)
+ * both need this, and each used to run its own full cross-cloud partition scan — with the runner
+ * re-triggering its copy on every change in the active cloud's count. One instance now serves both,
+ * and its `refresh` coalesces bursts.
+ */
+export const useOtherCloudUnread = (): OtherCloudUnread => useOtherCloudUnreadContext();

@@ -1,7 +1,5 @@
 import { useCallback, useEffect } from 'react';
 
-import { useSessionSelection } from '@chatic/web-core';
-
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
 import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
@@ -29,8 +27,7 @@ export const UnreadBadgeRunner = (): null => {
     // Shared with HomePage's `byPlace` (ADR-0056) — see useActiveCloudUnreads for why this stays
     // observe-only (no per-channel join sync registration lives here).
     const { total } = useActiveCloudUnreads();
-    const { selectedCloudId } = useSessionSelection();
-    const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread(selectedCloudId);
+    const { total: otherTotal, refresh: refreshOtherClouds } = useOtherCloudUnread();
 
     const pushBadge = useCallback(() => {
         appBridge.setBadgeCount(total + otherTotal);
@@ -43,6 +40,8 @@ export const UnreadBadgeRunner = (): null => {
     // The active cloud's count moving is the app's best hint that the cache changed at all — a
     // send, a read, an arriving message. Re-read the other clouds on the same beat so a cloud
     // synced in the background (push recovery, cold sync) does not wait for a switch to show up.
+    // `refresh` coalesces: a burst of arriving messages produces one cross-cloud scan, not one per
+    // message (each scan reads every inactive cloud's partitions in full).
     useEffect(() => {
         refreshOtherClouds();
     }, [total, refreshOtherClouds]);
