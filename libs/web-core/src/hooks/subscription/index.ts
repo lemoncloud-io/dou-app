@@ -8,6 +8,7 @@ import {
     fetchMembershipInfo,
     fetchPlans,
     fetchReceiptDetail,
+    makeCloud,
     productPlansKeys,
     subscriptionKeys,
     validateApple,
@@ -23,7 +24,7 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { CloudView, CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
+import type { CloudBody, CloudView, CreateMembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 import { useCustomMutation } from '@chatic/shared';
 
 export const useValidateGoogle = () =>
@@ -91,3 +92,9 @@ export const useIsSubscriptionAvailable = () => {
 
 export const useDeleteCloud = () =>
     useCustomMutation<CloudView, string, { id: string; params?: Params }>(({ id, params }) => deleteCloud(id, params));
+
+/** Adds one cloud to an active membership. See `makeCloud` for why this is separate from purchase. */
+export const useMakeCloud = () =>
+    useCustomMutation<CloudView, string, { body: CloudBody; params?: Params }>(({ body, params }) =>
+        makeCloud(body, params)
+    );

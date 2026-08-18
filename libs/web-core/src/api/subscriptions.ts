@@ -8,7 +8,13 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { Params } from '@lemoncloud/lemon-web-core';
-import type { CloudView, CreateMembershipBody, MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
+import type {
+    CloudBody,
+    CloudView,
+    CreateMembershipBody,
+    MembershipView,
+    ProductView,
+} from '@lemoncloud/chatic-backend-api';
 
 export const fetchPlans = async (params: Params = {}): Promise<ListResult<ProductView>> => {
     return executeSignedRelayRequest<ListResult<ProductView>, never, Params>({
@@ -67,6 +73,26 @@ export const validateMembership = async (body: CreateMembershipBody, params: Par
         method: 'POST',
         baseURL: `${getCoreEndpoint()}/memberships/0`,
         params: { ...params },
+        body,
+    });
+};
+
+/**
+ * Creates ONE cloud against the caller's membership quota.
+ *
+ * `POST /memberships/0` only ever enqueues a single `make` (with the one email in its body), so a
+ * tier that allows several clouds needs this call for every cloud past the first — each with its
+ * own verified address. The server guards the quota atomically (`guardQuota`) and answers 409 when
+ * the allowance is already spent, so this is safe to call optimistically.
+ *
+ * `auto=1` is required: unlike the membership route, `make` defaults to `auto=0` and would create
+ * the record without enqueueing the workspace assignment.
+ */
+export const makeCloud = async (body: CloudBody, params: Params = {}): Promise<CloudView> => {
+    return executeSignedRelayRequest<CloudView, CloudBody, Params>({
+        method: 'POST',
+        baseURL: `${getCoreEndpoint()}/clouds/0/make`,
+        params: { auto: 1, ...params },
         body,
     });
 };
