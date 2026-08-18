@@ -237,7 +237,16 @@ export const ChannelMessageRow = ({
             className={cn(!showProfileAndName && '-mt-1')}
         >
             {!mine && showProfileAndName && <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>}
-            <div className="flex min-w-0 items-center gap-1.5">
+            {/* `w-full` rather than shrink-to-fit. A fenced block's `whitespace-pre` line has no
+                break opportunity, so its min-content contribution is the WHOLE line, and every
+                shrink-to-fit ancestor (this row, the bubble's `w-fit`) is obliged to honour it —
+                min-content beats a max-width, so the row's 75% cap lost and one long code line
+                dragged the bubble ~850px wide on a 390px screen. Pinning this row to the column
+                gives the bubble's own `max-w-full` a definite basis to resolve against, and the
+                block then scrolls inside the bubble, which is what `overflow-x-auto` was for.
+                `justify-end` because my bubble no longer sits in a row that hugs it: the column is
+                wider than the bubble whenever the chips or the thread footer are. */}
+            <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && 'justify-end')}>
                 {message.isFailed && mine && (
                     <button onClick={onRetry} className="flex shrink-0 items-center">
                         <AlertCircle size={20} className="text-destructive" />

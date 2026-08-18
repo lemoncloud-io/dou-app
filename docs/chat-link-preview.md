@@ -547,8 +547,14 @@ export interface CodeBlockProps {
 
 - 루트는 `<span className="block …">`, 본문은 `font-mono text-[13px]` + `overflow-x-auto`.
   **가로 스크롤이 하이라이팅 대신 가독성을 담당한다** (ADR-0055 대안).
-- `overflow-x-auto`가 버블 밖으로 밀지 않도록 `min-w-0`을 함께 준다 — `MessageBubble.tsx:40-43`이 남긴
-  교훈과 같은 이유다.
+- **`overflow-x-auto`만으로는 버블이 밀리는 것을 못 막는다** (2026-08-18 정정 — 설계 당시 적어둔
+  "`min-w-0`을 함께 준다"는 처방은 실제로 붙지도 않았고, 붙였어도 듣지 않는다). 스크롤 컨테이너라도
+  `whitespace-pre` 줄에는 줄바꿈 기회가 없어 **min-content 기여가 줄 전체 폭**이고, min-content는
+  max-width보다 세기 때문에 `w-fit`·shrink-to-fit 조상들이 그 폭을 그대로 따라간다 — 375px 화면에서
+  말풍선이 842px까지 벌어졌다(실측). 막는 자리는 kit이 아니라 말풍선 줄이다: `ChannelMessageRow`의
+  버블 줄을 `w-full`(+ `mine`이면 `justify-end`)로 못 박아 버블 자신의 `max-w-full`이 확정된 폭을
+  기준으로 풀리게 한다. 그러면 짧은 코드블럭은 여전히 내용만큼만 차지하고(실측 98px), 긴 줄은
+  75% 상한 안에서 **코드블럭 안에서만** 가로 스크롤된다(실측 257px).
 - 복사 버튼은 우상단. **`onCopy`가 없으면 렌더하지 않는다** (전체보기 다이얼로그처럼 필요 없는 곳).
 - `lang`은 좌상단에 옅은 라벨로. 없으면 라벨 자체를 렌더하지 않는다.
 
