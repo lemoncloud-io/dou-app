@@ -61,9 +61,9 @@ describe('useOtherCloudUnreadSource — 비활성 클라우드 미읽음 (로컬
 
         const { result } = renderHook(() => useOtherCloudUnreadSource('cloud_1'));
 
-        // join.metaNo 없음 → 커서를 환산하지 않고 그대로 뺀다. ch1: 8-6=2. ch2: 5-5=0.
-        await waitFor(() => expect(result.current.total).toBe(2));
-        expect(result.current.byCloud).toEqual({ cloud_2: 2 });
+        // join.metaNo 없음 → head의 metaNo를 기준으로 환산한다. ch1: 8-(6-2)=4. ch2: 5-(5-0)=0.
+        await waitFor(() => expect(result.current.total).toBe(4));
+        expect(result.current.byCloud).toEqual({ cloud_2: 4 });
     });
 
     // 유령 뱃지가 구조적으로 불가능해지는 지점: 커서가 헤드를 따라잡으면 항목 자체가 사라진다.

@@ -14,8 +14,8 @@ const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;
 const joinMap = (entries: Record<string, DomainJoin>): Map<string, DomainJoin> => new Map(Object.entries(entries));
 
 describe('useChannelUnreads — 채널 안읽음 계산', () => {
-    it('unread = (chatNo - metaNo) - 내 join 커서, 음수는 0으로 보정한다', () => {
-        // c1: userHead = 7 - 0 = 7, cursor 3 → 4. c2: userHead 8, cursor 10 → 0.
+    it('unread = countUnread(head, read cursor) 이고 음수는 0으로 보정한다', () => {
+        // c1: userHead = 7, cursor 3 → 4. c2: userHead 8, cursor 10 → 0.
         const channels = [channel('c1', { chatNo: 7 }), channel('c2', { chatNo: 8 })];
         const joins = joinMap({ c1: join({ chatNo: 3 }), c2: join({ chatNo: 10 }) });
 
@@ -25,31 +25,12 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(result.current.total).toBe(4);
     });
 
-    it('시스템 메시지(metaNo)는 head와 커서 양쪽에서 빠져야 정확한 안읽음이 나온다 (ADR-0048)', () => {
-        // userHead = 10 - 3 = 7. 커서 chatNo 3, 그 시점 metaNo 1 → user-scale 2. unread = 7 - 2 = 5.
+    it('시스템 메시지(metaNo)는 head와 join 둘 다에서 빠진다 (ADR-0048)', () => {
+        // userHead = 10 - 3 = 7. join.chatNo 3, join.metaNo 1 → unread 5.
         const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
         const joins = joinMap({ c1: join({ chatNo: 3, metaNo: 1 }) });
 
         expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(5);
-    });
-
-    it('커서의 metaNo 스냅샷이 없으면 커서를 환산하지 않고 그대로 뺀다 (구 join 행)', () => {
-        // join.metaNo 없음 → 커서를 통합 스케일 그대로 뺀다. userHead 7 - 커서 3 = 4.
-        // head의 metaNo(3)를 빌려 쓰던 예전 폴백은 7을 냈다 — 그 3은 커서가 아니라 지금 머리의
-        // 시스템 개수라, 읽은 뒤 달린 리액션 하나하나가 뱃지를 올리고 다시 내려가지 않았다.
-        const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
-        const joins = joinMap({ c1: join({ chatNo: 3 }) });
-
-        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(4);
-    });
-
-    it('스냅샷 없는 커서로 다 읽은 방은 리액션이 쌓여도 0을 유지한다', () => {
-        // 커서가 머리까지 와 있는 상태에서 시스템 챗(리액션)만 3개 더 달린 방:
-        // chatNo/metaNo가 함께 올라가 사용자 메시지 수는 그대로이므로 뱃지는 계속 비어 있어야 한다.
-        const channels = [channel('c1', { chatNo: 13, metaNo: 6 })];
-        const joins = joinMap({ c1: join({ chatNo: 10 }) });
-
-        expect(renderHook(() => useChannelUnreads(channels, joins)).result.current.byChannel.c1).toBe(0);
     });
 
     it('join 행이 없는 채널은 읽음 기준이 없어 배지를 띄우지 않는다 (0)', () => {
@@ -68,8 +49,8 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
         expect(renderHook(() => useChannelUnreads(channels)).result.current.byChannel.c1).toBe(0);
     });
 
-    it('커서는 max(readNo, chatNo)로 가장 최근 읽음 위치를 사용한다', () => {
-        // userHead 8; readNo 6 vs chatNo 2 → 커서 6 → 2.
+    it('join.readNo와 join.chatNo 중 더 최신 읽음 경계를 사용한다', () => {
+        // userHead 8; readNo 6 vs chatNo 2 → cursor 6 → 2.
         const channels = [channel('c1', { chatNo: 8 })];
         const joins = joinMap({ c1: join({ readNo: 6, chatNo: 2 }) });
 
