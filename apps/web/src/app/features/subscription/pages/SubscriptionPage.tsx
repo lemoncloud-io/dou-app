@@ -12,6 +12,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/web-core';
 
 import { ExcessCloudBanner } from '../components';
+import { planDisplayName } from '../lib';
 import { usePlanCatalog, useSubscriptionIap } from '../hooks';
 import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
@@ -26,7 +27,7 @@ const formatDate = (timestamp?: number | null): string => {
 export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { toast } = useToast();
     useQueryClient();
     const isOnMobileApp = isNative();
@@ -34,7 +35,8 @@ export const SubscriptionPage = () => {
     const [isRestoring, setIsRestoring] = useState(false);
 
     const { data: membership, isLoading } = useMembershipInfo();
-    const { summary } = usePlanCatalog();
+    const { summary, currentPlan, pendingPlan } = usePlanCatalog();
+    const isKo = i18n.language.startsWith('ko');
     const { isGuest } = useRuntimeProfile();
 
     // One judgement, four states (`summarizeMembership`). The screen used to branch on
@@ -105,11 +107,11 @@ export const SubscriptionPage = () => {
                                 {/* Plan Info */}
                                 <div className="flex items-center justify-between gap-2 px-4 py-3">
                                     <span className="min-w-0 truncate text-[18px] font-semibold tracking-[-0.015em]">
-                                        {membership?.productId ?? '-'}
+                                        {planDisplayName(currentPlan, isKo) ?? summary.productId ?? '-'}
                                     </span>
-                                    {membership?.grade && (
+                                    {(currentPlan?.grade ?? membership?.grade) && (
                                         <span className="shrink-0 rounded-full bg-[#B0EA10]/20 px-2.5 py-0.5 text-[12px] font-semibold uppercase text-[#6a8a00] dark:text-[#B0EA10]">
-                                            {membership.grade}
+                                            {currentPlan?.grade ?? membership?.grade}
                                         </span>
                                     )}
                                 </div>
@@ -133,7 +135,7 @@ export const SubscriptionPage = () => {
                                     <div className="mx-3 mt-1 rounded-[10px] bg-blue-50 px-3 py-2 text-center dark:bg-blue-950/30">
                                         <span className="text-[14px] font-medium text-blue-600 dark:text-blue-400">
                                             {t('mypage.subscription.pendingChange', {
-                                                product: summary.pendingProductId,
+                                                product: planDisplayName(pendingPlan, isKo) ?? summary.pendingProductId,
                                             })}
                                         </span>
                                     </div>
@@ -164,6 +166,28 @@ export const SubscriptionPage = () => {
                                                   : t('mypage.subscription.statusActive')}
                                         </span>
                                     </div>
+                                    {currentPlan?.maxClouds != null && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.allowance')}
+                                            </span>
+                                            <span className="text-[16px] font-medium">
+                                                {t('mypage.subscription.maxClouds', { count: currentPlan.maxClouds })}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {currentPlan?.price != null && (
+                                        <div className="flex items-center gap-[18px]">
+                                            <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
+                                                {t('mypage.subscription.price')}
+                                            </span>
+                                            <span className="text-[16px] font-medium">
+                                                {t('mypage.subscription.pricePerMonth', {
+                                                    price: `$${currentPlan.price}`,
+                                                })}
+                                            </span>
+                                        </div>
+                                    )}
                                     {membership?.platform && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">

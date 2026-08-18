@@ -24,6 +24,8 @@ export interface PlanCatalog {
      * here so the picker and the purchase path cannot disagree about what "current" means.
      */
     replaceablePlan: ProductView | undefined;
+    /** The plan queued for the next renewal, resolved from `pendingProductId`. */
+    pendingPlan: ProductView | undefined;
     /** Four-state view of the membership, entitlement included. */
     summary: SubscriptionSummary;
     isLoading: boolean;
@@ -49,6 +51,7 @@ export const usePlanCatalog = (): PlanCatalog => {
 
     const plans = plansData?.list ?? [];
     const currentPlan = findPlanById(plans, membership?.productId);
+    const pendingPlan = findPlanById(plans, membership?.pendingProductId);
 
     // Sampling the clock in render would hand out a fresh `summary` on every pass; memoising keeps
     // the object stable and re-reads the time only when the inputs it describes actually change.
@@ -61,6 +64,7 @@ export const usePlanCatalog = (): PlanCatalog => {
         sellablePlans: selectSellablePlans(plans, platform),
         currentPlan,
         replaceablePlan: summary.isEntitled ? currentPlan : undefined,
+        pendingPlan,
         summary,
         isLoading: isPlansLoading || isMembershipLoading,
     };

@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useClouds } from '@chatic/web-core';
 
-import { useVerifyEmailCode, type EmailVerifyRequest } from '../../../hooks';
-import { EmailVerifyRefusal } from '../../../utils';
-import { findCloudByEmail } from '../lib';
+import { EmailVerifyRefusal, findCloudByEmail } from '../lib';
+import { useVerifyEmailCode, type EmailVerifyRequest } from './useVerifyEmailCode';
 
 /**
  * `useVerifyEmailCode` with the one-email-per-cloud rule in front of it.
@@ -13,9 +12,6 @@ import { findCloudByEmail } from '../lib';
  * The refusal happens on `send`/`resend`, before a code goes out — waiting for the server would
  * mean delivering a code and only then failing, and the backend does not even error: it silently
  * overwrites the first cloud's `verify$.cloudId` pointer and breaks that cloud's release cascade.
- *
- * Sits in the callback rather than in `EmailVerifyDialog` because the dialog is cross-cutting UI
- * and must not know about clouds (ADR-0046 §1-1).
  */
 export const useCloudEmailGuard = (): ((request: EmailVerifyRequest) => Promise<void>) => {
     const { t } = useTranslation();

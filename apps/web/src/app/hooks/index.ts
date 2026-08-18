@@ -30,4 +30,3 @@ export * from './useSentInviteLog';
 export * from './useSetMyPlaceProfile';
 export * from './useTheme';
 export * from './useUserPermissions';
-export * from './useVerifyEmailCode';

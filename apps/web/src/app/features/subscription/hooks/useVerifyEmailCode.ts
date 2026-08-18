@@ -13,10 +13,9 @@ export interface EmailVerifyRequest {
 /**
  * Drives the email verification exchange (`useVerifyEmail` from web-core).
  *
- * Lives here rather than inside {@link EmailVerifyDialog} because the dialog is cross-cutting UI and
- * must stay free of the web-core surface to live in `ui/components` (directory-structure.md §4-5);
- * both callers — the subscription page and the home subscription sheet — pass the returned function
- * straight to the dialog's `verifyEmail`.
+ * Kept apart from {@link EmailVerifyDialog} so the dialog stays a controlled component: callers
+ * decide what one leg of the exchange does. `useCloudEmailGuard` wraps this to refuse a reused
+ * address before a code is sent.
  */
 export const useVerifyEmailCode = (): ((request: EmailVerifyRequest) => Promise<void>) => {
     const verifyEmail = useVerifyEmail();

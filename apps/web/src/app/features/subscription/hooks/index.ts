@@ -6,3 +6,4 @@ export * from './usePlanCatalog';
 export * from './usePlanOptions';
 export * from './useSubscriptionIap';
 export * from './useTierPurchase';
+export * from './useVerifyEmailCode';

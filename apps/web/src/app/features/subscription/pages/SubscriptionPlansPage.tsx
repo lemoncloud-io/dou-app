@@ -12,8 +12,8 @@ import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
 import { appBridge } from '../../../bridge';
 import { useNavigateToLogin } from '../../auth/hooks';
-import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
-import { PlanCard, PolicyFooter, TierChangeNotice } from '../components';
+
+import { EmailVerifyDialog, PlanCard, PolicyFooter, TierChangeNotice } from '../components';
 import { POLICY_BASE_URL } from '../consts';
 import { useCloudEmailGuard, usePlanCatalog, usePlanOptions, useTierPurchase } from '../hooks';
 import { PageState } from '../types';

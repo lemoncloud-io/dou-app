@@ -5,7 +5,7 @@ import { reportError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
-import { EmailVerifyDialog } from '../../../ui/components/EmailVerifyDialog';
+import { EmailVerifyDialog } from './EmailVerifyDialog';
 import { toError } from '../../../utils/errors';
 import { useAddCloud, useCloudEmailGuard, useCloudQuota } from '../hooks';
 import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';

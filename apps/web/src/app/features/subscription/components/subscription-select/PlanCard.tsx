@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/lib/utils';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
+import { planDisplayName } from '../../lib';
+
 interface PlanCardProps {
     product: ProductView;
     isSelected: boolean;
@@ -33,7 +35,7 @@ export const PlanCard = ({
     const { t } = useTranslation();
     const hasTrial = (product.trialDays ?? 0) > 0;
     const description = isKo ? product.desc : (product.descEn ?? product.desc);
-    const displayName = isKo ? (product.name ?? product.id) : (product.nameEn ?? product.name ?? product.id);
+    const displayName = planDisplayName(product, isKo);
     const isDisabled = isBlocked || isCurrent || !!disabledReason;
 
     return (

@@ -7,6 +7,7 @@ import { formatCountdown } from '../../../utils';
 // Concrete module, not the ui/components barrel: CountrySelect is deliberately kept out of it so
 // libphonenumber's metadata stays off the eager path.
 import { CountrySelect } from '../../../ui/components/CountrySelect';
+import { InlineAction } from '../../../ui/components/InlineAction';
 import type { PhoneVerifyFieldsState } from '../hooks/usePhoneVerify';
 
 /** Below this the countdown turns red (Figma 3428-60171 / 3432-61204 / 3430-60970). */
@@ -20,31 +21,6 @@ interface PhoneVerifyFieldsProps {
      */
     autoFocusPhone?: boolean;
 }
-
-/** In-field / helper-row text link. Blue is the actionable accent, dark is a secondary action. */
-const InlineAction = ({
-    label,
-    onClick,
-    enabled,
-    accent = false,
-}: {
-    label: string;
-    onClick: () => void;
-    enabled: boolean;
-    accent?: boolean;
-}) => (
-    <button
-        type="button"
-        onClick={onClick}
-        disabled={!enabled}
-        className={cn(
-            'whitespace-nowrap text-[14px] font-medium underline',
-            !enabled ? 'text-placeholder' : accent ? 'text-point-blue' : 'text-foreground'
-        )}
-    >
-        {label}
-    </button>
-);
 
 /**
  * The phone-verification input body — the two fields the design shares between its full-screen and

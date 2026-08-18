@@ -66,3 +66,14 @@ export const getTierChangeKind = (current: ProductView | undefined, target: Prod
 /** Selectable in the picker — `current` is shown as already-owned rather than as a choice. */
 export const isSelectableTier = (kind: TierChangeKind): boolean =>
     kind === 'new' || kind === 'upgrade' || kind === 'downgrade';
+
+/**
+ * The plan's name in the reader's language, falling back through the other locale to the raw id.
+ *
+ * The id is a last resort, not a display value — `#pro-tier-01` reaching a screen means the catalog
+ * join failed, and it should look like the failure it is rather than like a product name.
+ */
+export const planDisplayName = (plan: ProductView | undefined, isKo: boolean): string | undefined => {
+    if (!plan) return undefined;
+    return (isKo ? (plan.name ?? plan.nameEn) : (plan.nameEn ?? plan.name)) ?? plan.id;
+};

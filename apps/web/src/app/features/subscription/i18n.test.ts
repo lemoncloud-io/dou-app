@@ -26,6 +26,8 @@ const SUBSCRIPTION_KEYS = [
     'productNotFound',
     'offerTokenMissing',
     'trialRemaining',
+    'allowance',
+    'price',
     'tierChange.upgrade',
     'tierChange.downgrade',
     'tierChange.billing.apple',
@@ -43,7 +45,30 @@ const SUBSCRIPTION_KEYS = [
     'pendingChange',
 ];
 
-const ADD_ACCOUNT_KEYS = ['limitExceeded', 'emailAlreadyUsed', 'cancelScheduled', 'addFailed', 'success'];
+const ADD_ACCOUNT_KEYS = [
+    'limitExceeded',
+    'emailAlreadyUsed',
+    'cancelScheduled',
+    'addFailed',
+    'success',
+    // 개편된 인증 화면이 읽는 키
+    'emailTitle',
+    'emailSubtitle',
+    'emailLabel',
+    'emailPlaceholder',
+    'emailDescription',
+    'emailInvalid',
+    'sendCode',
+    'sendCodeFailed',
+    'verificationTitle',
+    'verificationDescription',
+    'resend',
+    'resendFailed',
+    'codeError',
+    'codeExpired',
+    'tooltip',
+    'complete',
+];
 
 describe('구독 tier 문구 — 로케일 정의', () => {
     it.each(LOCALES)('%s가 mypage.subscription 키를 모두 정의한다', locale => {

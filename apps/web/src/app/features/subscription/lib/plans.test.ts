@@ -4,6 +4,7 @@ import {
     findPlanById,
     getTierChangeKind,
     isSelectableTier,
+    planDisplayName,
     resolveMaxClouds,
     selectSellablePlans,
     sortPlansByTier,
@@ -133,5 +134,27 @@ describe('isSelectableTier', () => {
         expect(isSelectableTier('downgrade')).toBe(true);
         expect(isSelectableTier('current')).toBe(false);
         expect(isSelectableTier('blocked')).toBe(false);
+    });
+});
+
+describe('planDisplayName', () => {
+    const plan = { id: '#pro-tier-02', name: 'DoU Pro 2', nameEn: 'DoU Pro 2 (EN)' } as ProductView;
+
+    it('읽는 사람의 언어를 고른다', () => {
+        expect(planDisplayName(plan, true)).toBe('DoU Pro 2');
+        expect(planDisplayName(plan, false)).toBe('DoU Pro 2 (EN)');
+    });
+
+    it('한쪽 로케일이 비면 다른 쪽으로 넘어간다', () => {
+        expect(planDisplayName({ id: '#x', nameEn: 'Only EN' } as ProductView, true)).toBe('Only EN');
+        expect(planDisplayName({ id: '#x', name: '한글만' } as ProductView, false)).toBe('한글만');
+    });
+
+    it('이름이 아예 없으면 id로 떨어진다 — 조인 실패가 실패처럼 보여야 한다', () => {
+        expect(planDisplayName({ id: '#pro-tier-01' } as ProductView, true)).toBe('#pro-tier-01');
+    });
+
+    it('상품이 없으면 undefined — 호출부가 스스로 폴백을 고르게 둔다', () => {
+        expect(planDisplayName(undefined, true)).toBeUndefined();
     });
 });
