@@ -12,11 +12,11 @@
 
 ## 화면
 
-| 페이지                  | 경로(`ROUTES.subscription.*`) | 설명                                                                  |
-| ----------------------- | ----------------------------- | --------------------------------------------------------------------- |
-| `SubscriptionPage`      | `/subscription`               | 구독 현황(상태 4종, 초과 배너, 복원, 약관)                            |
-| `SubscriptionPlansPage` | `/subscription/plans`         | tier 1~5 선택 → 구매 / 등급 변경                                      |
-| `CloudGuidePage`        | `/subscription/guide`         | 클라우드 안내(구독 전 가치 설명) — [cloud-guide.md](./cloud-guide.md) |
+| 페이지                     | 경로(`ROUTES.subscription.*`) | 설명                                                         |
+| -------------------------- | ----------------------------- | ------------------------------------------------------------ |
+| `SubscriptionPage`         | `/subscription`               | 구독 현황(상태 4종, 초과 배너, 복원, 약관)                   |
+| `SubscriptionPlansPage`    | `/subscription/plans`         | 구독 안내 — 혜택 + tier 선택 + 주의사항 (구 CloudGuide 통합) |
+| `SubscriptionCompletePage` | `/subscription/complete`      | 구독 완료 → 설정 위자드로 인계                               |
 
 ## 구조
 
@@ -25,8 +25,7 @@ features/subscription/
   pages/
     SubscriptionPage.tsx
     SubscriptionPlansPage.tsx
-    CloudGuidePage.tsx        # 클라우드 안내 (읽기 전용, CTA만 plans로 navigate)
-    cloud-guide/              #   PlanCompareCard · GuideBulletList (이 화면 전용 조각)
+    SubscriptionCompletePage.tsx
   lib/                        # 순수 판정 (React·네트워크 무지) — tier-and-quota.md
     plans.ts · quota.ts · membershipStatus.ts · nativeProducts.ts · cloudEmails.ts
   hooks/
@@ -40,7 +39,8 @@ features/subscription/
     AddCloudFlowHost.tsx      # 클라우드 추가 요청 수신 (PrivateShell이 마운트)
     EmailVerifyDialog.tsx     # 이메일 인증 (ui/에서 이관 · web-ui-kit 조립)
     SubscriptionDebugScreen.tsx  # 디버그 오버레이가 lazy로 합성
-    SubscriptionSelectDialog.tsx · TierChangeNotice.tsx · ExcessCloudBanner.tsx
+    LoginRequiredDialog.tsx · TierChangeNotice.tsx · ExcessCloudBanner.tsx
+    SubscriptionBenefits.tsx
     subscription-select/      #   PlanCard · PolicyFooter
   types/
     index.ts                # PurchaseProduct · NativePurchase · PurchaseError · PageState

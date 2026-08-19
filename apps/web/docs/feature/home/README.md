@@ -18,7 +18,7 @@
 - **클라우드** — Place 섹션과 Chat 섹션을 모두 노출한다. 소유자면 `＋ 플레이스 추가`가 붙는다.
 
 UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구독 자체를 설명하는 화면은 이 문서가
-아니라 [subscription/cloud-guide.md](../subscription/cloud-guide.md)가 담당한다.
+아니라 [subscription/tier-and-quota.md](../subscription/tier-and-quota.md)가 담당한다.
 
 ## 설계 원칙
 
@@ -52,7 +52,7 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
 **제외**
 
 - 검색 기능(버튼만, TBD) · `1:1 대화` 생성 플로우(버튼만, TBD).
-- 클라우드 구독 안내 화면 → [subscription/cloud-guide.md](../subscription/cloud-guide.md).
+- 클라우드 구독 안내 화면 → [subscription/tier-and-quota.md](../subscription/tier-and-quota.md).
 - 구독·IAP 로직(`SubscriptionSelectDialog`, `EmailVerifyDialog`) 내부.
 - 세션 전환 파이프라인(`switchCloudSession` / `logoutCloudSession`) 내부.
 - 클라우드 이름 변경 — 시트에서 제거됐고 `/mypage/cloud-profile`이 단일 경로다.
@@ -471,6 +471,6 @@ npx nx build web
 검증할 수 없으니 클라우드 보유 계정으로도 한 번 확인한다.
 
 > 남은 제품 판단 하나: 마이페이지 구독 MenuCard가 `!isGuest`로 게이팅되어 있어 게스트는
-> [클라우드 안내 화면](../subscription/cloud-guide.md)에 닿지 못한다. 안내의 1차 타깃이 미구독자인데 게스트가
+> [구독 안내 화면](../subscription/tier-and-quota.md)에 닿지 못한다. 안내의 1차 타깃이 미구독자인데 게스트가
 > 그 정의에 가장 잘 맞으므로 어긋남이 남아 있다 — 게이팅 완화는 구독 섹션 전체의 노출 정책 문제라 이번
 > 범위에서 손대지 않았다.

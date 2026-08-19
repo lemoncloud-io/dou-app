@@ -1,8 +1,8 @@
 # 구독 tier와 클라우드 한도
 
-> 상태: Live · 최종 갱신: 2026-08-13 · 관련 ADR: [ADR-0060](../../../../../docs/adr/0060-subscription-tier-quota-from-server.md)
+> 상태: Live · 최종 갱신: 2026-08-19 · 관련 ADR: [ADR-0060](../../../../../docs/adr/0060-subscription-tier-quota-from-server.md)
 >
-> 같은 피처의 다른 문서: [README.md](./README.md) (피처 개요) · [cloud-guide.md](./cloud-guide.md) (구독 전 안내 화면)
+> 같은 피처의 다른 문서: [README.md](./README.md) (피처 개요)
 
 ## 목적
 
@@ -39,10 +39,12 @@ tier 서열·인접 / 구독 상태 4종 / 초과 클라우드 — 을 순수 �
 - 구독 후 추가 클라우드 생성 (`POST /clouds/0/make`)
 - 클라우드 이메일 재사용 사전 차단
 - 초과 클라우드 감지 + 구독 화면 배너
+- 화면 3종 (구독 안내 · 로그인 확인 · 구독 완료)과 이메일 인증 화면 개편
+- 요금은 스토어 현지 가격(`displayPrice`)에서만
 
 **제외**
 
-- 구독 카드·등급 비교·구독 관리 화면 **리디자인**과 신규 화면 (후속 화면 트랙)
+- 구독 현황 화면 리디자인 (아직 옛 마크업)
 - 초과 클라우드 **정리 실행 UI**, 유예 길이, 자동 정리 기준 (서버 소관 + 후속 화면 트랙)
 - 여러 칸 다운그레이드 (해지 실행 UI가 나온 뒤 잠금 해제)
 - 서버 기점 정기 재조회(CRON), 환불 실시간 회수 (백엔드 소관)
@@ -98,15 +100,16 @@ ADR의 전제 셋이 코드와 어긋났다. 아래가 정본이다.
 
 ## 시나리오
 
-### S1. 미구독 유저가 tier3을 신규 구독한다
+### S1. 미구독 유저가 신규 구독한다
 
 1. 구독 화면 → "플랜 보기" → `SubscriptionPlansPage`.
 2. `usePlanCatalog`이 `GET /products/plans`(stage 필터만) 결과를 받고, 현재 플랫폼 것만 골라 `sort`
    오름차순 5장을 렌더한다.
-3. 미구독이므로 5장 모두 선택 가능하다 (인접 제약은 **등급 변경**에만 걸린다).
-4. tier3 선택 → 이메일 인증 → `freeTrial ?? base` offerToken으로 구매. (tier3은 `trialDays=0`이라
-   체험 토큰이 없어 `base`로 떨어진다.)
-5. 검증 후 한도는 3, 클라우드는 1개다.
+3. **진입 tier(sort 1)만 선택 가능하다.** 상위 tier를 바로 사면 클라우드 5개 분량의 한도와 이메일
+   인증 5번이 한꺼번에 생기는데 그중 아무것도 바로 쓸 수 없다 — 등급 변경을 한 칸으로 묶은 것과
+   같은 이유다.
+4. 이메일 인증 → `freeTrial ?? base` offerToken으로 구매.
+5. 검증 후 구독 완료 화면 → 설정 위자드(클라우드 → 플레이스 → 프로필).
 
 ### S2. 남은 한도로 클라우드를 추가한다 (구매 없음)
 
@@ -114,7 +117,7 @@ ADR의 전제 셋이 코드와 어긋났다. 아래가 정본이다.
 2. 프라이빗 라우터에 마운트된 `AddCloudFlowHost`가 깨어나 `useCloudQuota`로 판정한다.
     - **active + 한도 여유** → `EmailVerifyDialog`만 열린다. 인증되면 `POST /clouds/0/make`로 클라우드
       하나를 만든다. 결제는 없다.
-    - **미구독** → 추가하려면 구독부터 해야 하므로 `SubscriptionSelectDialog`(플랜 선택)가 열린다.
+    - **미구독** → 추가하려면 구독부터 해야 하므로 구독 안내 화면으로 이동한다.
     - **한도 도달** → 다이얼로그를 열지 않고 `계정은 최대 {{max}}개까지 추가할 수 있어요`를 토스트한다.
     - **해지 예약 중** → 서버가 provisioning을 거부하므로 사유를 토스트한다.
 3. 버튼은 어느 경우에도 숨기지 않는다.
@@ -299,9 +302,12 @@ apps/web/src/app/
       membershipStatus.ts           summarizeMembership
       nativeProducts.ts             matchNativeProduct · buildPurchaseProduct
       cloudEmails.ts                normalizeEmail · findCloudByEmail
+      price.ts                      formatPlanPrice — 스토어 문자열만 통과
       emailVerify.ts                EmailVerifyRefusal · isEmailVerifyRefusal
     hooks/
-      usePlanCatalog.ts             상품 목록 + 현재/교체대상 상품 + 상태 요약 (단일 진입점)
+      usePlanCatalog.ts             상품 목록 + 현재/교체대상/예약 상품 + 상태 요약 (단일 진입점)
+      useNativeCatalog.ts           스토어 카탈로그 (요금)
+      usePlanPrice.ts               상품 → 스토어 표기 가격
       usePlanOptions.ts             tier별 선택 가능 여부·사유·이메일 필요 여부
       useCloudQuota.ts              한도 판정 (모든 "＋ 추가"가 쓰는 하나)
       useExcessClouds.ts            초과 감지
@@ -313,9 +319,10 @@ apps/web/src/app/
     components/
       AddCloudFlowHost.tsx          요청 수신 → 판정 → 적절한 다이얼로그
       EmailVerifyDialog.tsx         (ui/에서 이관) 이메일 인증 — 한 화면, web-ui-kit 조립
+      LoginRequiredDialog.tsx       게스트에게 먼저 묻는다
+      SubscriptionBenefits.tsx      구독 혜택 3
+      TierChangeNotice.tsx          변경 적용 시점 안내
       SubscriptionDebugScreen.tsx   디버그 오버레이용 진단 + 규칙 매트릭스
-      SubscriptionSelectDialog.tsx  (home에서 이관) 플랜 선택 시트
-      TierChangeNotice.tsx          플랫폼별 청구 안내
       ExcessCloudBanner.tsx         초과 노출 (삭제 버튼 없음)
       subscription-select/          PlanCard · PolicyFooter
 ```
