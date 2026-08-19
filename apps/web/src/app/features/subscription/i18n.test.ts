@@ -4,7 +4,7 @@ import { join } from 'node:path';
 /**
  * The tier screens render copy through keys, and a typo'd key renders as the key itself — visible
  * only to whoever opens that exact screen on that exact locale. This suite is what stops that
- * shipping (same reasoning as the cloudGuide locale suite in `pages/CloudGuidePage.test.tsx`).
+ * shipping — the i18n stub in component tests happily renders a typo'd key.
  */
 
 // Read the shipped JSON off disk: a default JSON import resolves to undefined under this ts-jest
@@ -39,6 +39,16 @@ const SUBSCRIPTION_KEYS = [
     'hero.plain',
     'hero.plainSub',
     'benefits.title',
+    'benefits.item1Title',
+    'benefits.item1Description',
+    'benefits.item2Title',
+    'benefits.item2Description',
+    'benefits.item3Title',
+    'benefits.item3Description',
+    'guideEntry',
+    'autoRenewNotice',
+    'termsOfService',
+    'privacyPolicy',
     'notice.title',
     'notice.upgradeImmediate',
     'notice.downgradeNextRenewal',

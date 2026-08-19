@@ -269,33 +269,6 @@
             "privacyPolicy": "Privacy Policy",
             "inUse": "Subscribed",
             "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account.",
-            "cloudGuide": {
-                "entry": "Learn about My Cloud",
-                "heroAccent": "My Cloud",
-                "heroRest": "\nCreate places and chat\nwith all your friends",
-                "free": {
-                    "name": "DoU Home",
-                    "badge": "FREE",
-                    "headline": "Start chatting right away",
-                    "limit1": "1:1 chats with friends only",
-                    "limit2": "No cloud of your own",
-                    "limit3": "No group chats"
-                },
-                "pro": {
-                    "name": "My Cloud",
-                    "badge": "PRO",
-                    "headline": "A space you build yourself",
-                    "benefit1Title": "Your own cloud",
-                    "benefit1Description": "Create places and manage group chats freely",
-                    "benefit2Title": "Create places",
-                    "benefit2Description": "A space per topic",
-                    "benefit3Title": "Group chat rooms",
-                    "benefit3Description": "Chat with many friends inside a place"
-                },
-                "ctaCaption": "Subscribe to build your own space",
-                "ctaWithTrial": "Start {{days}}-day free trial",
-                "ctaPlain": "Get started"
-            },
             "maxClouds": "Up to {{count}} account(s)",
             "trialBadge": "{{days}}d Free",
             "currentBadge": "Current",
@@ -323,7 +296,13 @@
                 "plainSub": "Make places and talk with\nseveral friends at once."
             },
             "benefits": {
-                "title": "What you get"
+                "title": "What you get",
+                "item1Title": "Your own cloud",
+                "item1Description": "Create places and manage group chats freely",
+                "item2Title": "Create places",
+                "item2Description": "A space per topic",
+                "item3Title": "Group chat rooms",
+                "item3Description": "Chat with many friends inside a place"
             },
             "complete": {
                 "title": "You are subscribed.",
@@ -334,7 +313,8 @@
                 "setUpPlace": "Set up a place to start using the service.",
                 "cta": "Get started"
             },
-            "startAtEntryTier": "A first subscription starts on the entry plan"
+            "startAtEntryTier": "A first subscription starts on the entry plan",
+            "guideEntry": "Learn about My Cloud"
         },
         "accountManage": {
             "title": "Account Management",

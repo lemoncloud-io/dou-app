@@ -1,39 +1,47 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { ROUTES } from '../../../routes/paths';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
-import { EmailVerifyDialog } from './EmailVerifyDialog';
 import { toError } from '../../../utils/errors';
 import { useAddCloud, useCloudEmailGuard, useCloudQuota } from '../hooks';
-import { SubscriptionSelectDialog } from './SubscriptionSelectDialog';
+import { EmailVerifyDialog } from './EmailVerifyDialog';
 
 /**
  * Runs the "add a cloud" flow on behalf of whoever asked for it.
  *
  * The affordances live on home, the flow belongs to subscription, and features do not import each
- * other (ADR-0046 §3) — so the request arrives through `useAddCloudRequest` and the runtime mounts
- * this inside the router (the flow navigates for guests, so it needs router context).
+ * other (ADR-0046 §3) — so the request arrives through `useAddCloudRequest` and the router mounts
+ * this inside the private shell (the flow navigates, so it needs router context).
  *
- * Which flow depends on the membership: without one, adding a cloud IS subscribing, so the plan
- * picker opens. With one that still has room, no purchase is involved — verify an address and ask
- * the server for the cloud.
+ * With a membership that still has room, adding a cloud is not a purchase: verify an address and
+ * ask the server for it. Without one it IS a purchase, and that belongs on the 구독 안내 screen
+ * rather than in a second plan picker — ADR-0034 asked home not to detour through a pitch, and the
+ * pitch now lives on the purchase screen itself, so going straight there satisfies both.
  */
 const AddCloudFlow = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
+    const navigate = useNavigateWithTransition();
     const closeAddCloud = useAddCloudRequest(s => s.closeAddCloud);
     const { canAdd, reason, limit, isLoading } = useCloudQuota();
     const verifyEmail = useCloudEmailGuard();
     const addCloud = useAddCloud();
 
-    const isSubscribing = reason === 'notEntitled';
-
     useEffect(() => {
-        // Wait for the verdict; refusing on half-loaded inputs would show the wrong reason.
-        if (isLoading || canAdd || isSubscribing) return;
+        // Wait for the verdict; acting on half-loaded inputs would show the wrong reason.
+        if (isLoading || canAdd) return;
+
+        if (reason === 'notEntitled') {
+            closeAddCloud();
+            navigate(ROUTES.subscription.plans);
+            return;
+        }
+
         toast({
             title:
                 reason === 'limitReached'
@@ -42,7 +50,7 @@ const AddCloudFlow = () => {
             variant: 'destructive',
         });
         closeAddCloud();
-    }, [isLoading, canAdd, isSubscribing, reason, limit, t, toast, closeAddCloud]);
+    }, [isLoading, canAdd, reason, limit, t, toast, closeAddCloud, navigate]);
 
     const handleVerified = async (email: string) => {
         try {
@@ -56,23 +64,6 @@ const AddCloudFlow = () => {
         }
     };
 
-    if (isSubscribing) {
-        return (
-            <SubscriptionSelectDialog
-                open
-                onOpenChange={open => !open && closeAddCloud()}
-                onComplete={() => {
-                    toast({
-                        title: t('addAccount.success'),
-                        description: t('mypage.subscription.purchaseSuccessDescription'),
-                    });
-                    closeAddCloud();
-                }}
-                onError={e => toast({ title: e.message, variant: 'destructive' })}
-            />
-        );
-    }
-
     return (
         <EmailVerifyDialog
             open={canAdd}
@@ -83,9 +74,7 @@ const AddCloudFlow = () => {
     );
 };
 
-/**
- * Mounted once inside the private router. Renders nothing — and runs no queries — until asked.
- */
+/** Mounted once inside the private router. Renders nothing — and runs no queries — until asked. */
 export const AddCloudFlowHost = () => {
     const isOpen = useAddCloudRequest(s => s.isOpen);
     return isOpen ? <AddCloudFlow /> : null;

@@ -16,15 +16,18 @@ import {
 import type { IapProductSubscription } from '@chatic/app-messages';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
+import { appBridge } from '../../../bridge';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
 import {
     EmailVerifyDialog,
     LoginRequiredDialog,
     PlanCard,
+    PolicyFooter,
     SubscriptionBenefits,
     TierChangeNotice,
 } from '../components';
+import { POLICY_BASE_URL } from '../consts';
 import { useCloudEmailGuard, usePlanCatalog, usePlanOptions, useTierPurchase } from '../hooks';
 import { PageState } from '../types';
 
@@ -41,7 +44,7 @@ export const SubscriptionPlansPage = () => {
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
 
-    const { sellablePlans, summary } = usePlanCatalog();
+    const { sellablePlans, summary, isOnMobileApp } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
     const { isGuest } = useRuntimeProfile();
@@ -59,6 +62,12 @@ export const SubscriptionPlansPage = () => {
     const trialDays = summary.state === 'none' ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const submitLabel =
         pageState === PageState.Purchasing ? t('mypage.subscription.purchasing') : t('mypage.subscription.subscribe');
+
+    const openPolicyUrl = (path: string) => {
+        const url = `${POLICY_BASE_URL}${path}`;
+        if (isOnMobileApp) appBridge.openURL(url);
+        else window.open(url, '_blank');
+    };
 
     const finish = async (plan: ProductView, native: IapProductSubscription, email?: string) => {
         try {
@@ -197,6 +206,10 @@ export const SubscriptionPlansPage = () => {
                     </section>
 
                     <TierChangeNotice />
+
+                    {/* Auto-renewal disclosure + terms/privacy. Both stores require these next to
+                        the purchase, so they belong on this screen and not only in settings. */}
+                    <PolicyFooter onOpenPolicy={openPolicyUrl} />
                 </div>
             </ScreenLayout>
 

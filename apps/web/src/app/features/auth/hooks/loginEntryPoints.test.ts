@@ -10,7 +10,7 @@ import { extname, join } from 'node:path';
  * that their subscription flow got cut short (ADR-0055).
  *
  * Asserted over the source tree rather than per screen so a NEW entry point is covered the day it
- * is written, without anyone remembering to add a case here. The five known ones are listed below
+ * is written, without anyone remembering to add a case here. The known ones are listed below
  * only so a reviewer can see the expected shape of the list.
  *
  * If this fails: use `useNavigateToLogin()` instead of `navigate(ROUTES.mypage.login)`.
@@ -47,12 +47,12 @@ describe('로그인 진입점', () => {
         expect(findDirectLoginNavigations()).toEqual([]);
     });
 
-    it('알려진 진입점 5곳이 모두 훅을 쓴다', () => {
+    it('알려진 진입점이 모두 훅을 쓴다', () => {
         const entryPoints = [
             'features/mypage/pages/MyPage.tsx',
             'features/auth/components/PhoneVerifyBanner.tsx',
-            'features/subscription/components/SubscriptionSelectDialog.tsx',
-            'features/subscription/pages/SubscriptionPage.tsx',
+            // The subscription status screen deliberately is NOT one: it routes to the plans
+            // screen, which is where a guest is asked before being sent to login.
             'features/subscription/pages/SubscriptionPlansPage.tsx',
         ];
 

@@ -16,7 +16,6 @@ import { planDisplayName } from '../lib';
 import { usePlanCatalog, usePlanPrice, useSubscriptionIap } from '../hooks';
 import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
-import { useNavigateToLogin } from '../../auth/hooks';
 
 const formatDate = (timestamp?: number | null): string => {
     if (!timestamp || timestamp <= 0) return '-';
@@ -26,7 +25,6 @@ const formatDate = (timestamp?: number | null): string => {
 
 export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
-    const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
     useQueryClient();
@@ -49,13 +47,9 @@ export const SubscriptionPage = () => {
     const hasSubscription = summary.state !== 'none';
     const hasPendingChange = !!summary.pendingProductId;
 
-    const handleViewPlans = () => {
-        if (isGuest) {
-            goToLogin();
-            return;
-        }
-        navigate(ROUTES.subscription.plans);
-    };
+    // No guest branch here: the plans screen asks before sending anyone to login (Figma
+    // 2870-33015). Redirecting from this button too would give the same intent two behaviours.
+    const handleViewPlans = () => navigate(ROUTES.subscription.plans);
 
     const handleRestore = async () => {
         setIsRestoring(true);
