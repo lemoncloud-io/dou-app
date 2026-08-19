@@ -14,7 +14,7 @@ interface PlanCardProps {
     isCurrent?: boolean;
     /** Why this tier cannot be picked (tier jump). Shown in place of a silent disabled card. */
     disabledReason?: string;
-    /** The store's localized price. Falls back to the server's USD reference when absent. */
+    /** The store's localized price. Absent off-native, where nothing can be bought. */
     displayPrice?: string;
     onSelect: (product: ProductView) => void;
 }
@@ -35,10 +35,10 @@ export const PlanCard = ({
     displayPrice,
     onSelect,
 }: PlanCardProps) => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const displayName = planDisplayName(product, isKo);
     const isDisabled = isBlocked || isCurrent || !!disabledReason;
-    const price = formatPlanPrice(displayPrice, product.price, i18n.language);
+    const price = formatPlanPrice(displayPrice);
 
     return (
         <button

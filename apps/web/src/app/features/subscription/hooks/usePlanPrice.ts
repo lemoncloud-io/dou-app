@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
@@ -8,26 +7,20 @@ import { useNativeCatalog } from './useNativeCatalog';
 import { usePlanCatalog } from './usePlanCatalog';
 
 /**
- * Formats a plan's price for display, preferring the store's localized string.
+ * A plan's price as the store states it, for screens outside the picker.
  *
- * Screens outside the picker (the subscription card, the completion notice) were printing the
- * server's USD reference with a hardcoded `$`, so a Korean subscriber saw dollars for a charge
- * their store had already taken in won.
+ * The subscription card and the completion notice used to print the server's USD reference with a
+ * hardcoded `$`, so a Korean subscriber read dollars for a charge their store had taken in won.
+ * Returns `undefined` when the store has no entry for the plan — off-native, or a membership bought
+ * on the other store — and callers drop the line rather than substitute a number.
  */
 export const usePlanPrice = (): ((plan: ProductView | undefined) => string | undefined) => {
-    const { i18n } = useTranslation();
     const { isIOS } = usePlanCatalog();
     const { nativeProducts } = useNativeCatalog();
 
     return useCallback(
         (plan: ProductView | undefined) =>
-            plan
-                ? formatPlanPrice(
-                      matchNativeProduct(nativeProducts, plan, isIOS)?.displayPrice,
-                      plan.price,
-                      i18n.language
-                  )
-                : undefined,
-        [i18n.language, isIOS, nativeProducts]
+            plan ? formatPlanPrice(matchNativeProduct(nativeProducts, plan, isIOS)?.displayPrice) : undefined,
+        [isIOS, nativeProducts]
     );
 };

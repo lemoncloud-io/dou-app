@@ -28,7 +28,7 @@ export const SubscriptionCompletePage = () => {
 
     const isTrial = (summary.trialDaysLeft ?? 0) > 0;
     const endsAt = formatDate(summary.validUntil);
-    const price = priceOf(currentPlan) ?? '-';
+    const price = priceOf(currentPlan);
 
     return (
         <ScreenLayout
@@ -56,17 +56,21 @@ export const SubscriptionCompletePage = () => {
                     </div>
                     <ul className="flex flex-col gap-1.5 pl-7">
                         {[
-                            t('mypage.subscription.complete.autoChargeAfter', { price }),
+                            // Only when the store told us the amount — a charge notice without a
+                            // real figure is worse than no notice.
+                            price ? t('mypage.subscription.complete.autoChargeAfter', { price }) : null,
                             t('mypage.subscription.complete.cancelAnytime'),
                             t('mypage.subscription.complete.setUpPlace'),
-                        ].map(text => (
-                            <li key={text} className="flex items-start gap-2">
-                                <span className="text-[14px] leading-[1.5] text-[#78828A]">•</span>
-                                <span className="text-[14px] leading-[1.5] tracking-[-0.015em] text-[#78828A]">
-                                    {text}
-                                </span>
-                            </li>
-                        ))}
+                        ]
+                            .filter((text): text is string => !!text)
+                            .map(text => (
+                                <li key={text} className="flex items-start gap-2">
+                                    <span className="text-[14px] leading-[1.5] text-[#78828A]">•</span>
+                                    <span className="text-[14px] leading-[1.5] tracking-[-0.015em] text-[#78828A]">
+                                        {text}
+                                    </span>
+                                </li>
+                            ))}
                     </ul>
                 </div>
             </div>
