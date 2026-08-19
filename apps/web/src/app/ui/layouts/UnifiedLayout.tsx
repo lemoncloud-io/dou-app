@@ -45,10 +45,13 @@ export const UnifiedLayout = (): JSX.Element => {
     return (
         <div
             className={cn(
-                'flex flex-col w-full bg-background',
-                isMain
-                    ? 'max-w-[430px] mx-auto min-h-dvh text-foreground relative overflow-x-hidden'
-                    : 'h-dvh overflow-hidden'
+                // `w-full max-w-app mx-auto` on BOTH branches: every screen here is laid out for a
+                // phone-sized WebView, so on anything wider it caps and centres instead of
+                // stretching. The detail branch used to have no cap at all, which left routes like
+                // the chat room spanning a desktop browser — the one place `apps/web` is reachable
+                // outside the shell (invite and share links land there).
+                'flex flex-col w-full max-w-app mx-auto bg-background',
+                isMain ? 'min-h-dvh text-foreground relative overflow-x-hidden' : 'h-dvh overflow-hidden'
             )}
             style={{ colorScheme: 'light' }}
         >

@@ -124,7 +124,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                 <DialogTitle className="sr-only">{t('createPlace.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('createPlace.subtitle')}</DialogDescription>
 
-                <div className="flex h-full w-full max-w-[440px] flex-col">
+                <div className="mx-auto flex h-full w-full max-w-app flex-col">
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {/* Glass top bar floats above the scroll area (sticky + z-index) instead of
                             occupying a band of its own, so the content passes under the translucent bar

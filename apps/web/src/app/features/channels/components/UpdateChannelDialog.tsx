@@ -132,7 +132,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 <DialogDescription className="sr-only">Update room info</DialogDescription>
 
                 {/* Full-bleed on phones, capped to a phone-width column on wider screens. */}
-                <div className="flex h-full w-full max-w-[440px] flex-col">
+                <div className="mx-auto flex h-full w-full max-w-app flex-col">
                     {/* safeArea={false}: the native WebView is already inset below the status bar,
                         so adding the safe-top inset here would double the top gap. */}
                     <ModalTopBar

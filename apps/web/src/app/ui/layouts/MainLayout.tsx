@@ -13,7 +13,7 @@ export const MainLayout = (): JSX.Element => {
         <div
             className={cn(
                 'flex flex-col w-full min-h-dvh',
-                'max-w-[430px] mx-auto',
+                'max-w-app mx-auto',
                 'bg-background text-foreground',
                 'relative overflow-x-hidden'
             )}

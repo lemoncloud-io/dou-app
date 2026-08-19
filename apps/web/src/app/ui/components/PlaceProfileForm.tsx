@@ -311,7 +311,7 @@ export const PlaceProfileForm = ({
     if (container === 'page') {
         return (
             <div className="flex h-full flex-col bg-background pt-safe-top">
-                <div className="mx-auto flex h-full w-full max-w-[440px] flex-col">
+                <div className="mx-auto mx-auto flex h-full w-full max-w-app flex-col">
                     <PageHeader title={title} onBack={requestClose} />
                     {body}
                     {noticeEl}
@@ -344,7 +344,7 @@ export const PlaceProfileForm = ({
 
                 {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
                     screens so the layout (and the full-width CTA) never stretches. */}
-                <div className="flex h-full w-full max-w-[440px] flex-col">
+                <div className="mx-auto flex h-full w-full max-w-app flex-col">
                     {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button.
                         safeArea={false}: the native WebView is already inset below the status bar,
                         so adding the safe-top inset here would double the top gap. */}

@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
  * translucency frost the green behind into glass.
  */
 export const InviteGlassSurface = ({ children }: { children: ReactNode }) => (
-    <div className="relative flex h-full w-full max-w-[440px] flex-col overflow-hidden bg-[#eef1e8] dark:bg-[#0c0e0b]">
+    <div className="relative mx-auto flex h-full w-full max-w-app flex-col overflow-hidden bg-[#eef1e8] dark:bg-[#0c0e0b]">
         <div
             aria-hidden
             className="pointer-events-none absolute inset-0 z-0"
