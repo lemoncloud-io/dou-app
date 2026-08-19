@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { resizeImageToBase64 } from '@chatic/shared';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
@@ -11,8 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 // (directory-structure.md §6). Keep the direct paths.
 import { PageHeader } from './PageHeader';
 import { KeyboardSafeAreaSpacer } from '../layouts/KeyboardSafeAreaSpacer';
+import { usePickImage } from '../../hooks/usePickImage';
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
 const SUCCESS_CLOSE_DELAY = 1300; // keep the success toast visible briefly before closing
 
@@ -129,7 +128,6 @@ export const PlaceProfileForm = ({
     onDone,
     onExit,
 }: PlaceProfileFormProps) => {
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const seededRef = useRef(false);
 
@@ -168,24 +166,13 @@ export const PlaceProfileForm = ({
     const isDirty = name !== initialNick || thumbnail !== initialThumbnail;
     const canSubmit = isValidName && isDirty && !submitting;
 
-    const handleImageClick = () => fileInputRef.current?.click();
-
-    const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        event.target.value = '';
-        if (!file) return;
-        if (file.size > MAX_IMAGE_SIZE) {
-            setNotice({ variant: 'error', message: imageSizeError });
-            return;
-        }
-        try {
-            const base64 = await resizeImageToBase64(file, 150);
+    const { open: handleImageClick, inputProps: imageInputProps } = usePickImage({
+        onPicked: base64 => {
             setThumbnail(base64);
             setNotice(null);
-        } catch {
-            setNotice({ variant: 'error', message: imageSizeError });
-        }
-    };
+        },
+        onError: () => setNotice({ variant: 'error', message: imageSizeError }),
+    });
 
     // X / esc / overlay / page back: confirm before leaving when there are unsaved changes, else exit
     // directly. No-op when mandatory (dismissible === false) so there's no way to skip setup.
@@ -266,13 +253,7 @@ export const PlaceProfileForm = ({
                 />
             </div>
 
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleImageChange}
-                className="hidden"
-            />
+            <input {...imageInputProps} />
         </div>
     );
 
@@ -311,7 +292,7 @@ export const PlaceProfileForm = ({
     if (container === 'page') {
         return (
             <div className="flex h-full flex-col bg-background pt-safe-top">
-                <div className="mx-auto mx-auto flex h-full w-full max-w-app flex-col">
+                <div className="mx-auto flex h-full w-full max-w-app flex-col">
                     <PageHeader title={title} onBack={requestClose} />
                     {body}
                     {noticeEl}

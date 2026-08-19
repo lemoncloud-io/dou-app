@@ -33,7 +33,7 @@ export const SubscriptionPage = () => {
     const [isRestoring, setIsRestoring] = useState(false);
 
     const { data: membership, isLoading } = useMembershipInfo();
-    const { summary, currentPlan, pendingPlan } = usePlanCatalog();
+    const { summary, currentPlan, pendingPlan, isIOS } = usePlanCatalog();
     const priceOf = usePlanPrice();
     const isKo = i18n.language.startsWith('ko');
     const { isGuest } = useRuntimeProfile();
@@ -46,6 +46,16 @@ export const SubscriptionPage = () => {
     const isExpired = summary.state === 'expired';
     const hasSubscription = summary.state !== 'none';
     const hasPendingChange = !!summary.pendingProductId;
+    // Where to manage a subscription depends on the store it was bought on, not the current device.
+    // Fall back to this device's store only pre-subscription, when there is no membership to read one off.
+    const managePlatform =
+        membership?.platform === 'google'
+            ? 'google'
+            : membership?.platform === 'apple'
+              ? 'apple'
+              : isIOS
+                ? 'apple'
+                : 'google';
 
     // No guest branch here: the plans screen asks before sending anyone to login (Figma
     // 2870-33015). Redirecting from this button too would give the same intent two behaviours.
@@ -190,9 +200,9 @@ export const SubscriptionPage = () => {
                                             </span>
                                             <span className="text-[16px] font-medium capitalize">
                                                 {membership.platform === 'apple'
-                                                    ? 'App Store'
+                                                    ? t('mypage.subscription.platformApple')
                                                     : membership.platform === 'google'
-                                                      ? 'Google Play'
+                                                      ? t('mypage.subscription.platformGoogle')
                                                       : membership.platform}
                                             </span>
                                         </div>
@@ -250,7 +260,7 @@ export const SubscriptionPage = () => {
                             >
                                 {t('mypage.subscription.manageSubscription')}
                             </button>
-                            {isActive && (
+                            {isOnMobileApp && (
                                 <button
                                     onClick={handleRestore}
                                     disabled={isRestoring}
@@ -290,12 +300,29 @@ export const SubscriptionPage = () => {
                                       : t('mypage.subscription.emptyDescription')}
                             </span>
                         </div>
-                        <button
-                            onClick={() => appBridge.openSubscriptionManagement()}
-                            className="w-full rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
-                        >
-                            {t('mypage.subscription.manageSubscription')}
-                        </button>
+                        <div className="flex w-full gap-2">
+                            <button
+                                onClick={() => appBridge.openSubscriptionManagement()}
+                                className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground"
+                            >
+                                {t('mypage.subscription.manageSubscription')}
+                            </button>
+                            {/* Recovers a purchase the store already has but this account's record never picked up
+                                (fresh install, reinstall, membership sync gap) — the exact case an empty state hides. */}
+                            {isOnMobileApp && !isGuest && (
+                                <button
+                                    onClick={handleRestore}
+                                    disabled={isRestoring}
+                                    className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground disabled:opacity-50"
+                                >
+                                    {isRestoring ? (
+                                        <Loader2 size={16} className="mx-auto animate-spin" />
+                                    ) : (
+                                        t('mypage.subscription.restore')
+                                    )}
+                                </button>
+                            )}
+                        </div>
                         {isOnMobileApp && (
                             <button
                                 onClick={handleViewPlans}
@@ -311,14 +338,18 @@ export const SubscriptionPage = () => {
                 <div className="flex flex-col gap-2 pt-2">
                     <div className="flex items-center gap-2 px-1">
                         <AlertCircle size={20} className="flex-shrink-0 text-foreground" />
-                        <span className="text-[16px] font-semibold">{t('mypage.subscription.notice')}</span>
+                        <span className="text-[16px] font-semibold">{t('mypage.subscription.notice.title')}</span>
                     </div>
                     <div className="flex flex-col gap-1.5 px-1">
-                        {(['notice1', 'notice2', 'notice3'] as const).map(key => (
-                            <div key={key} className="flex items-start gap-2 px-4 py-1.5">
+                        {[
+                            t('mypage.subscription.notice1'),
+                            t('mypage.subscription.notice2'),
+                            t(`mypage.subscription.notice.manageAt.${managePlatform}`),
+                        ].map(text => (
+                            <div key={text} className="flex items-start gap-2 px-4 py-1.5">
                                 <span className="text-[14px] text-muted-foreground">•</span>
                                 <span className="text-[14px] leading-[1.4] tracking-[-0.015em] text-muted-foreground">
-                                    {t(`mypage.subscription.${key}`)}
+                                    {text}
                                 </span>
                             </div>
                         ))}

@@ -245,9 +245,10 @@
             },
             "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
             "notice2": "Downgrading will take effect from the next renewal date.",
-            "notice3": "Manage subscriptions in iPhone Settings > Apple ID > Subscriptions or App Store subscription management.",
             "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
             "platform": "Platform",
+            "platformApple": "App Store",
+            "platformGoogle": "Google Play",
             "canceledNotice": "Subscription will end on {{date}}",
             "pendingChange": "Plan will change to {{product}} on next renewal",
             "manageSubscription": "Manage Subscription",
@@ -1452,5 +1453,32 @@
         "unknown": "unknown",
         "refresh": "Refresh",
         "later": "Later"
+    },
+    "setupWizard": {
+        "next": "Next",
+        "done": "Done",
+        "namePlaceholder": "Enter a name",
+        "nameHint": "Up to {{max}} characters.",
+        "nameTooLong": "Up to {{max}} characters.",
+        "photoOptional": "[optional]",
+        "imageSizeError": "That image could not be loaded. Please pick another.",
+        "saveError": "Could not save. Please try again.",
+        "cloud": {
+            "title": "Create your own cloud",
+            "subtitle": "A cloud is where you manage\nseveral conversation spaces.",
+            "nameLabel": "Cloud name"
+        },
+        "place": {
+            "title": "Make a place\nand start talking",
+            "subtitle": "A place is where you create and manage\nchat rooms inside your cloud.",
+            "nameLabel": "Place name",
+            "photoLabel": "Place photo"
+        },
+        "profile": {
+            "title": "Create the profile\nyou will use in {{place}}",
+            "subtitle": "This profile is used only in this place.\nYou can be someone new in each place.",
+            "nameLabel": "Name",
+            "photoLabel": "Profile photo"
+        }
     }
 }

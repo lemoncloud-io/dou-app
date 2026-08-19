@@ -14,7 +14,7 @@ import { cloudsKeys, useSessionSelection } from '@chatic/web-core';
 
 import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 
-import { useUpdateCloudProfile } from '../hooks';
+import { useUpdateCloudProfile } from '../../../hooks';
 import { useActiveCloudOwnership } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';

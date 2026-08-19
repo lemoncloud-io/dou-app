@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
-import { useCreatePlace } from '../hooks';
+import { useCreatePlace } from '../../../hooks';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;

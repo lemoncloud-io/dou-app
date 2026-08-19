@@ -84,6 +84,12 @@ export const ROUTES = {
         complete: '/subscription/complete',
     },
 
+    // ── First-run setup after subscribing (Private) ──────────────
+    onboarding: {
+        /** Cloud → place → profile, in that order. Each step depends on the one before it. */
+        setup: '/onboarding/setup',
+    },
+
     // ── MyPage hub (Private) ─────────────────────────────────────
     mypage: {
         root: '/mypage',
