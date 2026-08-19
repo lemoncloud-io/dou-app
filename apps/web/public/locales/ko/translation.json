@@ -333,7 +333,8 @@
                 "cancelAnytime": "구독 취소는 언제든지 가능합니다.",
                 "setUpPlace": "플레이스 설정 후 서비스를 이용해 주세요.",
                 "cta": "시작하기"
-            }
+            },
+            "startAtEntryTier": "첫 구독은 1단계부터 시작할 수 있어요"
         },
         "accountManage": {
             "title": "계정 관리",

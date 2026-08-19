@@ -46,16 +46,21 @@ export const findPlanById = (plans: ProductView[], productId?: string | null): P
 export const resolveMaxClouds = (plans: ProductView[], productId?: string | null): number | null =>
     findPlanById(plans, productId)?.maxClouds ?? null;
 
+/** The tier every subscription starts on. */
+export const ENTRY_TIER_SORT = 1;
+
 /**
  * Adjacency is purely an app policy — neither store enforces it, and the backend's `calcNeededClouds`
  * only does the arithmetic. The reason is that every cloud carries its own email verification, so a
  * tier1 → tier3 jump would ask for two verifications back to back; downgrades are locked to one step
  * for as long as there is no UI to release the clouds a multi-step drop would strand.
  *
- * `current` absent means nothing to replace, so any tier is a plain new subscription.
+ * The same rule governs the first purchase: a new subscription starts on the entry tier and climbs
+ * one step at a time. Selling tier 5 outright would hand someone an allowance for five clouds and
+ * five email verifications to work through before any of it is usable.
  */
 export const getTierChangeKind = (current: ProductView | undefined, target: ProductView): TierChangeKind => {
-    if (!current) return 'new';
+    if (!current) return (target.sort ?? 0) === ENTRY_TIER_SORT ? 'new' : 'blocked';
     if (stripPlanId(current.id) === stripPlanId(target.id)) return 'current';
     const step = (target.sort ?? 0) - (current.sort ?? 0);
     if (step === 1) return 'upgrade';

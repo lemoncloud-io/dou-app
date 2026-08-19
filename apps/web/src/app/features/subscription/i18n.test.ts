@@ -23,6 +23,7 @@ const SUBSCRIPTION_KEYS = [
     'currentBadge',
     'changeTier',
     'adjacentTierOnly',
+    'startAtEntryTier',
     'productNotFound',
     'offerTokenMissing',
     'trialRemaining',

@@ -108,8 +108,13 @@ describe('resolveMaxClouds', () => {
 });
 
 describe('getTierChangeKind', () => {
-    it('현재 상품이 없으면 어떤 tier든 신규다 — 인접 제약은 등급 변경에만 건다', () => {
-        expect(getTierChangeKind(undefined, googlePlan(5))).toBe('new');
+    it('첫 구독은 진입 tier에서만 시작한다', () => {
+        expect(getTierChangeKind(undefined, googlePlan(1))).toBe('new');
+    });
+
+    it('첫 구독으로 상위 tier를 바로 사지 못한다 — 이메일 인증이 그만큼 밀린다', () => {
+        expect(getTierChangeKind(undefined, googlePlan(2))).toBe('blocked');
+        expect(getTierChangeKind(undefined, googlePlan(5))).toBe('blocked');
     });
 
     it('같은 상품은 current다', () => {

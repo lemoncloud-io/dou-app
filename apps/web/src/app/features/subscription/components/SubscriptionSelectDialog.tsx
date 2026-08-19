@@ -55,6 +55,10 @@ export const SubscriptionSelectDialog = ({
 
     const isKo = i18n.language.startsWith('ko');
     const selectedOption = options.find(o => o.plan.id === selected?.id);
+    // This sheet only opens for someone without a subscription, so the tier lineup is not the
+    // point — the entry tier is the only thing they can buy. Showing four refused cards would be
+    // four ways to be told no. The full lineup lives on the 구독 안내 screen.
+    const pickable = options.filter(o => o.isSelectable || o.isCurrent);
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
@@ -138,7 +142,7 @@ export const SubscriptionSelectDialog = ({
                                 ? Array.from({ length: 3 }).map((_, i) => (
                                       <div key={i} className="h-[80px] animate-pulse rounded-[16px] bg-muted" />
                                   ))
-                                : options.map(option => (
+                                : pickable.map(option => (
                                       <PlanCard
                                           key={option.plan.id}
                                           product={option.plan}
@@ -147,6 +151,7 @@ export const SubscriptionSelectDialog = ({
                                           isKo={isKo}
                                           isCurrent={option.isCurrent}
                                           disabledReason={option.disabledReason}
+                                          displayPrice={option.displayPrice}
                                           onSelect={setSelected}
                                       />
                                   ))}

@@ -10,6 +10,7 @@ import {
     summarizeMembership,
     type CloudQuotaReason,
     type SubscriptionState,
+    type TierChangeKind,
 } from '../lib';
 
 /**
@@ -29,6 +30,14 @@ import {
 const DAY = 24 * 60 * 60 * 1000;
 const STATES: SubscriptionState[] = ['none', 'active', 'cancelScheduled', 'expired'];
 const TIERS = [1, 2, 3, 4, 5];
+
+const KIND_MARK: Record<TierChangeKind, string> = {
+    new: '신규',
+    current: '이용중',
+    upgrade: '↑',
+    downgrade: '↓',
+    blocked: '✗',
+};
 
 const plan = (tier: number): ProductView => ({ id: `#pro-tier-0${tier}`, sort: tier }) as ProductView;
 
@@ -237,24 +246,24 @@ export const SubscriptionDebugScreen = () => {
                         <tbody>
                             <tr className="border-t border-border/50">
                                 <td className="py-1 pr-2 font-medium">미구독</td>
-                                {TIERS.map(t => (
-                                    <td key={t} className="py-1 text-center">
-                                        {getTierChangeKind(undefined, plan(t)) === 'new' ? '신규' : '?'}
-                                    </td>
-                                ))}
+                                {TIERS.map(t => {
+                                    const kind = getTierChangeKind(undefined, plan(t));
+                                    return (
+                                        <td
+                                            key={t}
+                                            className={`py-1 text-center ${kind === 'blocked' ? 'text-muted-foreground' : 'font-medium'}`}
+                                        >
+                                            {KIND_MARK[kind]}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                             {TIERS.map(from => (
                                 <tr key={from} className="border-t border-border/50">
                                     <td className="py-1 pr-2 font-medium">tier{from}</td>
                                     {TIERS.map(to => {
                                         const kind = getTierChangeKind(plan(from), plan(to));
-                                        const mark = {
-                                            current: '이용중',
-                                            upgrade: '↑',
-                                            downgrade: '↓',
-                                            blocked: '✗',
-                                            new: '신규',
-                                        }[kind];
+                                        const mark = KIND_MARK[kind];
                                         return (
                                             <td
                                                 key={to}

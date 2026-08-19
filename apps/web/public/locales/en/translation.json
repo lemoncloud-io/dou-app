@@ -333,7 +333,8 @@
                 "cancelAnytime": "You can cancel at any time.",
                 "setUpPlace": "Set up a place to start using the service.",
                 "cta": "Get started"
-            }
+            },
+            "startAtEntryTier": "A first subscription starts on the entry plan"
         },
         "accountManage": {
             "title": "Account Management",

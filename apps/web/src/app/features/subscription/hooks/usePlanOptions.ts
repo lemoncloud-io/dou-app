@@ -42,7 +42,16 @@ export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } 
             kind,
             isSelectable: isSelectableTier(kind),
             isCurrent: kind === 'current',
-            disabledReason: kind === 'blocked' ? t('mypage.subscription.adjacentTierOnly') : undefined,
+            disabledReason:
+                kind !== 'blocked'
+                    ? undefined
+                    : // Two different refusals wear the same verdict: nothing to replace means the
+                      // first purchase must start at the entry tier; otherwise it is a tier jump.
+                      t(
+                          replaceablePlan
+                              ? 'mypage.subscription.adjacentTierOnly'
+                              : 'mypage.subscription.startAtEntryTier'
+                      ),
             needsEmail: kind === 'new',
             displayPrice: matchNativeProduct(nativeProducts, plan, isIOS)?.displayPrice,
         };

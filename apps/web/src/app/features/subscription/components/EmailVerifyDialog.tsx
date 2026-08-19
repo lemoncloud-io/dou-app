@@ -6,6 +6,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
 import { FloatingButton, ModalTopBar, ScreenLayout, TextField } from '@chatic/web-ui-kit';
 
+import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { InlineAction } from '../../../ui/components/InlineAction';
 import { formatCountdown, isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../../utils';
 import { isEmailVerifyRefusal } from '../lib';
@@ -145,15 +146,19 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail 
                 <ScreenLayout
                     header={<ModalTopBar safeArea title={t('addAccount.emailTitle')} onClose={handleClose} />}
                     footer={
-                        <FloatingButton
-                            label={t('addAccount.complete')}
-                            onClick={() => void verify()}
-                            disabled={!isCodeComplete || isBusy || expired}
-                        />
+                        <>
+                            <FloatingButton
+                                label={t('addAccount.complete')}
+                                onClick={() => void verify()}
+                                disabled={!isCodeComplete || isBusy || expired}
+                            />
+                            {/* Rides the CTA above the soft keyboard; collapses to nothing without one. */}
+                            <KeyboardSafeAreaSpacer />
+                        </>
                     }
                 >
-                    <div className="flex flex-col gap-6 px-4 pt-4">
-                        <p className="whitespace-pre-line text-[15px] leading-[1.5] text-muted-foreground">
+                    <div className="flex flex-col gap-6 pt-4">
+                        <p className="whitespace-pre-line px-4 text-[15px] leading-[1.5] text-muted-foreground">
                             {t('addAccount.emailSubtitle')}
                         </p>
 
