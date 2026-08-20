@@ -6,10 +6,10 @@ import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { CloudGuidePage } from './CloudGuidePage';
-import { useAllowedProduct } from '../hooks';
+import { usePlanCatalog } from '../hooks';
 import { ROUTES } from '../../../routes/paths';
 
-jest.mock('../hooks', () => ({ useAllowedProduct: jest.fn() }));
+jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn() }));
 
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigateMock }));
@@ -28,14 +28,15 @@ jest.mock('react-i18next', () => ({
 
 const K = 'mypage.subscription.cloudGuide';
 
-/** `product` is undefined off-native — see useAllowedProduct. */
+/** `sellablePlans` is empty off-native — no store applies there. See usePlanCatalog. */
 const setProduct = (product: { trialDays?: number } | undefined) =>
-    (useAllowedProduct as jest.Mock).mockReturnValue({
+    (usePlanCatalog as jest.Mock).mockReturnValue({
         isOnMobileApp: !!product,
         isIOS: false,
         platform: product ? 'google' : undefined,
-        allowedProductId: '#pro-tier-01',
-        product,
+        sellablePlans: product ? [product] : [],
+        currentPlan: undefined,
+        summary: { state: 'none', isEntitled: false },
         isLoading: false,
     });
 
@@ -87,7 +88,8 @@ describe('CloudGuidePage — locale keys', () => {
         'ctaCaption',
         'ctaWithTrial',
         'ctaPlain',
-        'entry',
+        // The MyPage entry-row label is NOT here: it lives at `mypage.subscription.guideEntry`, one
+        // level up, because the row belongs to the MyPage menu rather than to this screen's copy.
         'free.name',
         'free.badge',
         'free.headline',

@@ -9,10 +9,15 @@ const MyPageRoutes = lazy(() => import('../features/mypage').then(m => ({ defaul
 const SubscriptionRoutes = lazy(() =>
     import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
 );
+const AddCloudFlowHost = lazy(() => import('../features/subscription').then(m => ({ default: m.AddCloudFlowHost })));
+const EmailBindRequestHost = lazy(() =>
+    import('../features/subscription').then(m => ({ default: m.EmailBindRequestHost }))
+);
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
 const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default: m.PlaceRoutes })));
 const InviteRoutes = lazy(() => import('../features/invite').then(m => ({ default: m.InviteRoutes })));
 const SearchRoutes = lazy(() => import('../features/search').then(m => ({ default: m.SearchRoutes })));
+const OnboardingRoutes = lazy(() => import('../features/onboarding').then(m => ({ default: m.OnboardingRoutes })));
 
 const RouteFallback = () => (
     <div className="flex h-full flex-col bg-background px-5 pt-safe-top">
@@ -56,10 +61,31 @@ const withSuspense = (Component: React.ComponentType) => (
     </Suspense>
 );
 
+/**
+ * The private shell plus the flows the router composes on top of it.
+ *
+ * `AddCloudFlowHost` is mounted here rather than in `AppRuntime` because it navigates (a guest is
+ * sent to login) and therefore needs router context; and it is composed here rather than imported
+ * by home because features do not import each other (ADR-0046 §3). It renders nothing — and runs no
+ * queries — until something raises a request through `stores/useAddCloudRequest`.
+ *
+ * `EmailBindRequestHost` is the same seam for `stores/useEmailBindRequest` — answers a request from
+ * anywhere a cloud with no email is noticed (the switcher's unbound row, "구독 관리"'s banner).
+ */
+const PrivateShell = () => (
+    <>
+        <UnifiedLayout />
+        <Suspense fallback={null}>
+            <AddCloudFlowHost />
+            <EmailBindRequestHost />
+        </Suspense>
+    </>
+);
+
 export const privateRoutes = [
     {
         path: '/',
-        element: <UnifiedLayout />,
+        element: <PrivateShell />,
         children: [
             // The gate forwards an invite landing to `/invite/accept` instead of rendering home —
             // `/?provider=invite&…` is the address every already-installed native app still builds.
@@ -78,6 +104,7 @@ export const privateRoutes = [
             { path: 'place/*', element: withSuspense(PlaceRoutes) },
             { path: 'invite/*', element: withSuspense(InviteRoutes) },
             { path: 'search/*', element: withSuspense(SearchRoutes) },
+            { path: 'onboarding/*', element: withSuspense(OnboardingRoutes) },
         ],
     },
 ];

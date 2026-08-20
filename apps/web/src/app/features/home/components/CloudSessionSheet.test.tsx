@@ -2,6 +2,8 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
+import { logger } from '@chatic/bridges';
+
 import { CloudSessionSheet } from './CloudSessionSheet';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
@@ -11,7 +13,9 @@ import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useInterval: () => undefined }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
+const toast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), error: jest.fn() } }));
 
 const switchCloud = jest.fn().mockResolvedValue(undefined);
 const logoutCloudSession = jest.fn().mockResolvedValue(undefined);
@@ -236,7 +240,10 @@ describe('CloudSessionSheet — selection', () => {
 });
 
 describe('CloudSessionSheet — presence dots (ADR-0056)', () => {
-    const dotCount = (baseElement: HTMLElement) => baseElement.querySelectorAll('.bg-red-500').length;
+    // The 6×6 red dot became the 20×20 "N" badge (Figma 4147:24964), so match on the badge's
+    // accessible label (CloudUnreadBadge) rather than on its fill class.
+    const UNREAD_BADGE = '[aria-label="cloudSessionSheet.unreadBadge"]';
+    const dotCount = (baseElement: HTMLElement) => baseElement.querySelectorAll(UNREAD_BADGE).length;
 
     it('캐시 힌트(cloudUnread)만으로도 오너 클라우드 행에 점이 뜬다', () => {
         catalog.clouds = [activeCloud('c1')];
@@ -283,7 +290,7 @@ describe('CloudSessionSheet — presence dots (ADR-0056)', () => {
         renderSheet();
 
         const homeRow = screen.getByText('cloudSessionSheet.douHome').closest('button') as HTMLElement;
-        expect(homeRow.querySelector('.bg-red-500')).not.toBeNull();
+        expect(homeRow.querySelector(UNREAD_BADGE)).not.toBeNull();
     });
 
     it('초대받은 클라우드 행에도 마크로 점이 뜬다', () => {
@@ -310,5 +317,33 @@ describe('CloudSessionSheet — invited section', () => {
 
         expect(screen.getByText('Lemon Cloud')).toBeInTheDocument();
         expect(screen.getByText('cloudSessionSheet.invitedOwnerLabel')).toBeInTheDocument();
+    });
+});
+
+describe('CloudSessionSheet — failed cloud row', () => {
+    const rawError = '.accountNo[#mock:1001494] is invalid (duplicated by 1000038)';
+
+    it('explains the state and keeps the server trace out of the toast', () => {
+        catalog = {
+            clouds: [{ id: 'CL9', status: 'error', error: rawError, createdAt: 1 }],
+            isCloudsError: false,
+            isFetchingClouds: false,
+            isPendingClouds: false,
+        };
+
+        renderSheet();
+        fireEvent.click(screen.getByText('cloudSessionSheet.statusErrorDescription'));
+
+        expect(toast).toHaveBeenCalledWith({
+            title: 'cloudSessionSheet.statusErrorTitle',
+            description: 'cloudSessionSheet.statusErrorGuide',
+            variant: 'destructive',
+        });
+        // The trace is for the log, not the user.
+        expect(logger.warn).toHaveBeenCalledWith('CLOUD', expect.any(String), {
+            cloudId: 'CL9',
+            error: rawError,
+        });
+        expect(screen.queryByText(rawError)).not.toBeInTheDocument();
     });
 });

@@ -15,24 +15,28 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
-import { useAllowedProduct } from '../hooks';
+import { usePlanCatalog } from '../hooks';
 import cloudGuidePreview from '../../../../assets/cloud-guide-preview.png';
 
 /**
- * "내 클라우드" guide (`/subscription/guide`, Figma 3519-29515) — a read-only pitch comparing the
- * free relay experience with a subscribed cloud. Reached from the MyPage subscription card; the home
- * banner and the cloud switcher deliberately bypass it and go straight to the purchase flow
- * (ADR-0034). The only side effect here is the CTA's navigate.
+ * "내 클라우드" guide (`/subscription/guide`, Figma 3519-29515) — a read-only pitch comparing the free
+ * relay experience with a subscribed cloud. It is the first of two screens: this one argues WHY, the
+ * plan picker then asks WHICH tier. The only side effect here is the CTA's navigate.
+ *
+ * Entry points (ADR-0034 §4 and its 2026-08-04 revision): the MyPage subscription card and the home
+ * promo banner both land here, because someone reading a banner does not yet know what a cloud is.
+ * The cloud switcher sheet deliberately bypasses it and goes straight to the picker — that user is
+ * already deep in cloud management, so the pitch would be a step backwards.
  */
 export const CloudGuidePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
 
     // Trial length comes from the store product so the CTA never promises a trial that isn't
-    // configured. `product` is undefined off-native (see useAllowedProduct), so the web default is
-    // the label that makes no trial claim at all.
-    const { product } = useAllowedProduct();
-    const trialDays = product?.trialDays ?? 0;
+    // configured. Only the entry tier carries one, and `sellablePlans` is empty off-native (no store
+    // applies), so the web default is the label that makes no trial claim at all.
+    const { sellablePlans } = usePlanCatalog();
+    const trialDays = sellablePlans[0]?.trialDays ?? 0;
     const ctaLabel =
         trialDays > 0
             ? t('mypage.subscription.cloudGuide.ctaWithTrial', { days: trialDays })
@@ -76,8 +80,6 @@ export const CloudGuidePage = () => {
                 <FloatingButton
                     label={ctaLabel}
                     onClick={() => navigate(ROUTES.subscription.plans)}
-                    // FloatingButton renders `link` BELOW the button; Figma puts the caption above
-                    // it (3519-30594 sits over 3519-30588), so reverse the panel's column.
                     // Three overrides on the shared floating panel:
                     //  - flex-col-reverse: FloatingButton draws `link` BELOW the button, Figma puts
                     //    the caption above it (3519-30594 over 3519-30588).

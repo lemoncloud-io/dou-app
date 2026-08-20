@@ -46,18 +46,26 @@ export const PlaceList = ({
             ? t('placeList.subtitleInvited', '초대받은 플레이스')
             : t('placeList.subtitleOwned', '내 플레이스');
 
+    // No count while the list is still arriving: "플레이스 0" next to a skeleton asserts an answer
+    // we don't have. The pulse is offset per row so the placeholder reads as a wave, not a blink.
     if (isLoading) {
         return (
             <CollapsibleSection title={t('homePage.places')}>
-                {Array.from({ length: 2 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-3">
-                        <div className="size-[46px] animate-pulse rounded-full bg-muted" />
-                        <div className="flex flex-col gap-1.5">
-                            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                            <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+                <div role="status" aria-label={t('placeList.loading', '플레이스를 불러오는 중이에요')}>
+                    {Array.from({ length: 2 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="flex animate-pulse items-center gap-3 px-4 py-3"
+                            style={{ animationDelay: `${i * 150}ms` }}
+                        >
+                            <div className="size-[46px] rounded-full bg-muted" />
+                            <div className="flex flex-col gap-1.5">
+                                <div className="h-4 w-24 rounded bg-muted" />
+                                <div className="h-3 w-16 rounded bg-muted" />
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </CollapsibleSection>
         );
     }
@@ -70,6 +78,9 @@ export const PlaceList = ({
                     place={place}
                     isSelected={selectedPlaceId === place.id}
                     isDisabled={!!isSwitching}
+                    // The switch pre-applies the sid, so the row that is already selected while
+                    // `isSwitching` holds IS the destination — that is the one carrying the spinner.
+                    isSwitchingTo={!!isSwitching && selectedPlaceId === place.id}
                     unreadCount={unreadByPlace?.[place.id]}
                     onSelectPlace={onSelectPlace}
                     subtitle={placeSubtitle()}

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
-import { useCreatePlace } from '../hooks';
+import { useCreatePlace } from '../../../hooks';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
@@ -108,7 +108,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
     return (
         <Dialog open={open} onOpenChange={next => !next && requestClose()}>
             <DialogContent
-                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
@@ -124,7 +124,7 @@ export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps
                 <DialogTitle className="sr-only">{t('createPlace.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('createPlace.subtitle')}</DialogDescription>
 
-                <div className="flex h-full w-full max-w-[440px] flex-col">
+                <div className="flex h-full w-full flex-col">
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {/* Glass top bar floats above the scroll area (sticky + z-index) instead of
                             occupying a band of its own, so the content passes under the translucent bar

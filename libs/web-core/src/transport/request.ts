@@ -3,7 +3,7 @@ import axios from 'axios';
 import { cloudCore, DOU_ENDPOINT, getDynamicDOUEndpoint, OAUTH_ENDPOINT } from '../session/core';
 import { signAwsRequest } from './awsSigning';
 import { withNetworkLog } from './networkLog';
-import { webTransport } from './webTransport';
+import { WEB_IAP_ENDPOINT, webTransport } from './webTransport';
 
 import type { AxiosRequestConfig, AxiosResponse, Method } from 'axios';
 
@@ -14,6 +14,14 @@ export interface ApiRequestOptions<TBody = unknown, TParams = Record<string, unk
     baseURL: string;
     body?: TBody;
     params?: TParams;
+    /**
+     * Set when the 200 body is a domain RECORD whose own `error` field is DATA, not a failed call.
+     *
+     * A cloud row keeps its last provisioning trace in `error` (`.accountNo[...] is invalid
+     * (duplicated by 1000038)`) even after `status` moves on, so endpoints that answer with the
+     * record — `POST /clouds/{id}/release` — would otherwise report a plain success as a failure.
+     */
+    allowRecordError?: boolean;
 }
 
 interface CloudRequestBuilder {
@@ -48,7 +56,7 @@ export const getOAuthEndpoint = (): string => OAUTH_ENDPOINT;
 /**
  * Returns the static IAP endpoint configured for this runtime.
  */
-export const getIapEndpoint = (): string => import.meta.env.VITE_IAP_ENDPOINT || '';
+export const getIapEndpoint = (): string => WEB_IAP_ENDPOINT;
 
 const buildCloudRequest = (requestConfig: AxiosRequestConfig): CloudRequestBuilder => {
     let config = requestConfig;
@@ -90,6 +98,7 @@ export const executeRelayRequest = async <TResponse, TBody = unknown, TParams = 
     baseURL,
     body,
     params,
+    allowRecordError,
 }: ApiRequestOptions<TBody, TParams>): Promise<TResponse> => {
     const request = webTransport.buildRequest({
         method,
@@ -99,10 +108,10 @@ export const executeRelayRequest = async <TResponse, TBody = unknown, TParams = 
     if (params) request.setParams(params as Record<string, unknown>);
     if (body !== undefined) request.setBody(body as never);
 
-    const { data } = await withNetworkLog({ method, url: baseURL, params, body }, () =>
+    const { data } = await withNetworkLog({ method, url: baseURL, params, body, allowRecordError }, () =>
         request.execute<TResponse & { error?: string }>()
     );
-    return throwIfApiError(data);
+    return allowRecordError ? data : throwIfApiError(data);
 };
 
 /**
@@ -113,6 +122,7 @@ export const executeSignedRelayRequest = async <TResponse, TBody = unknown, TPar
     baseURL,
     body,
     params,
+    allowRecordError,
 }: ApiRequestOptions<TBody, TParams>): Promise<TResponse> => {
     const request = webTransport.buildSignedRequest({
         method,
@@ -122,10 +132,10 @@ export const executeSignedRelayRequest = async <TResponse, TBody = unknown, TPar
     if (params) request.setParams(params as Record<string, unknown>);
     if (body !== undefined) request.setBody(body as never);
 
-    const { data } = await withNetworkLog({ method, url: baseURL, params, body }, () =>
+    const { data } = await withNetworkLog({ method, url: baseURL, params, body, allowRecordError }, () =>
         request.execute<TResponse & { error?: string }>()
     );
-    return throwIfApiError(data);
+    return allowRecordError ? data : throwIfApiError(data);
 };
 
 /**
@@ -136,6 +146,7 @@ export const executeCloudRequest = async <TResponse, TBody = unknown, TParams = 
     baseURL,
     body,
     params,
+    allowRecordError,
 }: ApiRequestOptions<TBody, TParams>): Promise<TResponse> => {
     const request = buildCloudRequest({
         method,
@@ -145,8 +156,8 @@ export const executeCloudRequest = async <TResponse, TBody = unknown, TParams = 
     if (params) request.setParams(params as Record<string, unknown>);
     if (body !== undefined) request.setBody(body as never);
 
-    const { data } = await withNetworkLog({ method, url: baseURL, params, body }, () =>
+    const { data } = await withNetworkLog({ method, url: baseURL, params, body, allowRecordError }, () =>
         request.execute<TResponse & { error?: string }>()
     );
-    return throwIfApiError(data);
+    return allowRecordError ? data : throwIfApiError(data);
 };

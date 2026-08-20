@@ -93,7 +93,7 @@ export const JoinNickDialog = ({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="m-0 flex w-full max-w-full flex-col rounded-none bg-background"
+                className="flex w-full flex-col rounded-none bg-background"
                 hideClose
                 variant="slide-up"
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the

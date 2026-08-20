@@ -79,9 +79,17 @@ export const ROUTES = {
     // ── Subscription (Private) ───────────────────────────────────
     subscription: {
         root: '/subscription',
-        plans: '/subscription/plans',
-        // Read-only pitch for "내 클라우드"; reached from the MyPage subscription card (ADR-0034).
+        /** Read-only "why subscribe" pitch — free vs paid. Precedes `plans` (ADR-0034 §4). */
         guide: '/subscription/guide',
+        /** Which tier, at what price. Reachable directly, without the guide. */
+        plans: '/subscription/plans',
+        complete: '/subscription/complete',
+    },
+
+    // ── First-run setup after subscribing (Private) ──────────────
+    onboarding: {
+        /** Cloud → place → profile, in that order. Each step depends on the one before it. */
+        setup: '/onboarding/setup',
     },
 
     // ── MyPage hub (Private) ─────────────────────────────────────
@@ -90,10 +98,13 @@ export const ROUTES = {
         login: '/mypage/login',
         account: {
             info: '/mypage/account',
-            manage: '/mypage/account-manage',
             edit: '/mypage/edit',
             cloudProfile: '/mypage/cloud-profile',
             withdrawal: '/mypage/withdrawal',
+        },
+        /** Owned clouds (workspaces), not login credentials — see `account` above for those. */
+        cloud: {
+            manage: '/mypage/cloud-manage',
         },
         policy: {
             root: '/mypage/policy',

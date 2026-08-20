@@ -46,12 +46,19 @@ export const Checkbox = ({
     className,
 }: CheckboxProps) => {
     const classes = cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors',
+        'inline-flex shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all duration-200',
         checked ? CHECKED_TONE[tone] : 'border-placeholder',
         disabled && 'opacity-50',
+        interactive && 'active:scale-90',
         className
     );
-    const glyph = checked ? <IconCheck className="size-4" strokeWidth={3} /> : null;
+    // Keyed on `checked` so the pop-in animation restarts every time the check mark newly
+    // appears, rather than once and never again (a stable key would only mount it the first time).
+    const glyph = checked ? (
+        <span key="check" className="animate-in zoom-in-50 fade-in-0 duration-200">
+            <IconCheck className="size-4" strokeWidth={3} />
+        </span>
+    ) : null;
     const style = { width: size, height: size };
 
     if (!interactive) {

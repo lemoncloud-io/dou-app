@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { BrandWordmark } from '@chatic/web-ui-kit';
 import { useLoginRelaySocial } from '@chatic/web-core';
 import { useNavigateWithTransition } from '@chatic/shared';
 
@@ -108,7 +109,7 @@ export const LoginPage = () => {
 
             <div className="flex flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">
                 <div className="flex flex-col items-center pb-10">
-                    <img src="/logo-chatic.svg" alt="DoU" className="h-8" />
+                    <BrandWordmark height={32} />
                 </div>
 
                 {isOnMobileApp ? (

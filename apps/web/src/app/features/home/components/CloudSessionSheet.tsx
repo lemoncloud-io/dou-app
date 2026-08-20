@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Inbox } from 'lucide-react';
 
+import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useCloudSessionCatalog, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
@@ -13,6 +14,7 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { useCachedCloudNames, useInvitedClouds } from '../../../hooks';
+import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { CloudPromoBanner } from './CloudPromoBanner';
@@ -76,6 +78,7 @@ export const CloudSessionSheet = ({
     const { switchCloud, isPending: isSwitching } = useSwitchCloudSession();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
     const { selectedCloudId } = useSessionSelection();
+    const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
 
     // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
@@ -141,6 +144,18 @@ export const CloudSessionSheet = ({
         await logoutCloudSession().catch(() => undefined);
     };
 
+    // Tapping a failed row explains the state and points at the one thing that fixes it (release it
+    // in 클라우드 관리, then add it again). The record's raw `error` is a server trace — it goes to the
+    // log, where support can read it, and never into the toast.
+    const handleErrorClick = (cloud: CloudView) => {
+        logger.warn('CLOUD', 'cloud row is in error state', { cloudId: cloud.id, error: cloud.error });
+        toast({
+            title: t('cloudSessionSheet.statusErrorTitle'),
+            description: t('cloudSessionSheet.statusErrorGuide'),
+            variant: 'destructive',
+        });
+    };
+
     const isDefaultSelected = !selectedId || selectedId === 'default';
     // Skeleton on the FIRST load only. Keying it off `isFetching` made every background refetch
     // (the sheet refetches on open, and `useClouds` is `refetchOnMount: 'always'`) replace the list —
@@ -185,7 +200,9 @@ export const CloudSessionSheet = ({
         // This branch IS the zero-owned-cloud case, so the banner's own gate is satisfied.
         <CloudPromoBanner hasOwnedCloud={false} className="pb-1" />
     ) : (
-        <div className="flex flex-col gap-1 px-2">
+        // Rows butt up against each other (Figma 3486:25641 — 61px rows at y=55/116/177/…): the
+        // row's own py-2 IS the spacing, so no gap between them.
+        <div className="flex flex-col px-2">
             {sortedClouds.map(cloud => (
                 <CloudItem
                     key={cloud.id}
@@ -194,13 +211,8 @@ export const CloudSessionSheet = ({
                     isDisabled={isSwitching}
                     hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0 || isBadged(cloud.id ?? '')}
                     onSelectCloud={handleSelectCloud}
-                    onErrorClick={() =>
-                        toast({
-                            title: t('cloudSessionSheet.statusError'),
-                            description: cloud.error ?? undefined,
-                            variant: 'destructive',
-                        })
-                    }
+                    onErrorClick={() => handleErrorClick(cloud)}
+                    onRequestEmailBind={requestEmailBind}
                 />
             ))}
         </div>
@@ -225,7 +237,7 @@ export const CloudSessionSheet = ({
                         title={t('cloudSessionSheet.sectionHome')}
                         toggleLabel={t('cloudSessionSheet.toggleSection')}
                     >
-                        <div className="px-2 pb-1">
+                        <div className="px-2">
                             <DouHomeItem
                                 isSelected={isDefaultSelected}
                                 isDisabled={isSwitching || isLoggingOutCloudSession}
@@ -235,7 +247,9 @@ export const CloudSessionSheet = ({
                         </div>
                     </CollapsibleSection>
 
-                    <Divider className="my-1" />
+                    {/* Section separator: the Figma sheet uses the 4px `block` band (Rectangle 1037/1038,
+                        375×4) with 14px of air on each side — not the 1px row hairline. */}
+                    <Divider variant="block" className="my-[14px]" />
 
                     <CollapsibleSection
                         title={t('cloudSessionSheet.sectionMy')}
@@ -249,7 +263,7 @@ export const CloudSessionSheet = ({
                         {ownedBody}
                     </CollapsibleSection>
 
-                    <Divider className="my-1" />
+                    <Divider variant="block" className="my-[14px]" />
 
                     <CollapsibleSection
                         title={t('cloudSessionSheet.sectionInvited')}
@@ -271,7 +285,7 @@ export const CloudSessionSheet = ({
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-1 px-2">
+                            <div className="flex flex-col px-2">
                                 {sortedInvited.map(inviteCloud => (
                                     <InviteCloudItem
                                         key={inviteCloud.id}

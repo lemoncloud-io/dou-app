@@ -42,10 +42,7 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                 CTA landed 10px below a 640px viewport, and 310px below it once the keyboard was up).
                 Pinning the row to `minmax(0,1fr)` clamps it to the dialog, which is also what lets
                 the `min-h-0`/`min-w-0` below take effect. */}
-            <DialogContent
-                className="grid-rows-[minmax(0,1fr)] h-full max-w-none rounded-none p-0 sm:rounded-none"
-                hideClose
-            >
+            <DialogContent className="grid-rows-[minmax(0,1fr)] h-full rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{t('phoneVerify.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('phoneVerify.title')}</DialogDescription>
 

@@ -45,7 +45,7 @@
 
 **제외**
 
-- `AccountManagePage.tsx`에 소셜 연동 섹션을 넣는 것 — 조사 결과 이 화면은 클라우드(워크스페이스) 소유권·구독 도메인이라 소셜 로그인 수단과 다른 개념이다(아래 "상세 구현 > `AccountManagePage`를 제외한 근거").
+- `CloudManagePage.tsx`(구 `AccountManagePage`)에 소셜 연동 섹션을 넣는 것 — 조사 결과 이 화면은 클라우드(워크스페이스) 소유권·구독 도메인이라 소셜 로그인 수단과 다른 개념이다(아래 "상세 구현 > `CloudManagePage`를 제외한 근거"). 화면 이름·경로·i18n 키가 `cloud*`로 바뀐 것도 같은 이유다.
 - 연동 목록 조회·연동 해제 백엔드 API 자체(요청 6·7번) — 클라이언트 스텁으로 대응하고 요청 목록은 로드맵 문서가 이미 소유.
 - 전화번호 인증/세션 전환(Track A), 초대 화면(Track B·C), `paths.ts`·`HomePage.tsx`·`SocketManager` — 소유권 밖, 변경 없음.
 - 비네이티브 환경을 위한 신규 브라우저 OAuth 통합(예: Google Identity Services JS SDK) — 이번 범위 밖(아래 "운영 주의" 참고).
@@ -175,10 +175,10 @@ flowchart TD
 백엔드 구현 계획의 순서에 없다. 안 돌았다면 그 유저들은 `'absent'`가 아니라 빈 `link$` 또는
 `link$` 자체가 없어 `'unknown'`으로 읽히고, 섹션이 접힌다 — 틀린 상태를 보여주지는 않는다.
 
-### `AccountManagePage.tsx`를 제외한 근거
+### `CloudManagePage.tsx`를 제외한 근거
 
-- `AccountManagePage.tsx:20`의 `useClouds`(`libs/web-core/src/hooks/user/useClouds.ts`)가 반환하는 `CloudView`(`node_modules/@lemoncloud/chatic-backend-api/dist/modules/clouds/model.d.ts:38-62`)는 `ownerId`/`email`(구독 키)/`account$`(`AccountHead`)/멤버십 필드를 가진 **클라우드(워크스페이스) 소유권·구독** 모델이다.
-- `AccountStereo`의 `social`(로그인 수단)과는 완전히 다른 도메인이다. 실제로 `apps/web/public/locales/ko/translation.json:240`의 `accountManage.noAccounts: "등록된 클라우드 계정이 없어요"`가 이 화면의 정체가 "클라우드 계정" 목록임을 보여준다.
+- `CloudManagePage.tsx`의 `useClouds`(`libs/web-core/src/hooks/user/useClouds.ts`)가 반환하는 `CloudView`(`node_modules/@lemoncloud/chatic-backend-api/dist/modules/clouds/model.d.ts:38-62`)는 `ownerId`/`email`(구독 키)/`account$`(`AccountHead`)/멤버십 필드를 가진 **클라우드(워크스페이스) 소유권·구독** 모델이다.
+- `AccountStereo`의 `social`(로그인 수단)과는 완전히 다른 도메인이다. 실제로 로케일의 `cloudManage.noAccounts`("등록된 클라우드가 없어요")가 이 화면의 정체가 클라우드 목록임을 보여준다.
 - 여기에 구글/애플 연동 섹션을 끼워 넣으면 "클라우드 계정"과 "소셜 로그인 수단"이 한 화면에서 같은 개념처럼 보여 혼동을 만든다 — client-guide가 정확히 경고하는 종류의 혼동("소셜 로그인 자체는 웹소켓에 없다... 혼동하지 마라")과 같은 성격이다. 그래서 소셜 연동 섹션은 `AccountInfoPage.tsx` 하나에만 둔다.
 
 ### 비네이티브 OAuth relay 재사용 조사 (백엔드 요청과 무관, 클라 단독 조사)

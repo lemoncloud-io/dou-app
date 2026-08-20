@@ -42,10 +42,10 @@ describe('ROUTES — 상수 경로', () => {
         expect(ROUTES.mypage.root).toBe('/mypage');
         expect(ROUTES.mypage.login).toBe('/mypage/login');
         expect(ROUTES.mypage.account.info).toBe('/mypage/account');
-        expect(ROUTES.mypage.account.manage).toBe('/mypage/account-manage');
         expect(ROUTES.mypage.account.edit).toBe('/mypage/edit');
         expect(ROUTES.mypage.account.cloudProfile).toBe('/mypage/cloud-profile');
         expect(ROUTES.mypage.account.withdrawal).toBe('/mypage/withdrawal');
+        expect(ROUTES.mypage.cloud.manage).toBe('/mypage/cloud-manage');
         expect(ROUTES.mypage.policy.root).toBe('/mypage/policy');
         expect(ROUTES.mypage.policy.terms).toBe('/mypage/policy/terms');
         expect(ROUTES.mypage.policy.licenses).toBe('/mypage/policy/licenses');

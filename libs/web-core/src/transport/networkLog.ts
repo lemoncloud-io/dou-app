@@ -12,6 +12,11 @@ export interface NetworkRequestMeta {
     url: string;
     params?: unknown;
     body?: unknown;
+    /**
+     * Mirrors `ApiRequestOptions.allowRecordError`: the caller reads the body as a record whose
+     * `error` field is data, so an `error` in a 200 is not an escalation here either.
+     */
+    allowRecordError?: boolean;
 }
 
 /** Structured payload attached to every network log entry as `data`. */
@@ -62,7 +67,8 @@ const readResponseData = (error: unknown): unknown => {
  * dropped.
  *
  * - success: `debug` (or `warn` when the 200 body carries an `error` field,
- *   which `throwIfApiError` will reject downstream)
+ *   which `throwIfApiError` will reject downstream — unless the caller passed
+ *   `allowRecordError`, which keeps that field as data)
  * - failure: `error`, carrying status/code and the response body; the original
  *   error is re-thrown so caller behavior is unchanged.
  */
@@ -85,7 +91,7 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
             responseData: truncate(redactSensitive(res?.data)),
         };
 
-        if (responseError !== undefined) {
+        if (responseError !== undefined && !req.allowRecordError) {
             logger.warn(NETWORK_LOG_TAG, `${req.method} ${req.url} responded with error field`, fields);
         } else {
             logger.debug(NETWORK_LOG_TAG, `${req.method} ${req.url}`, fields);

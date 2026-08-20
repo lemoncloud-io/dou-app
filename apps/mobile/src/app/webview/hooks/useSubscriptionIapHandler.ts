@@ -3,6 +3,8 @@ import { useCallback } from 'react';
 import { useSubscriptionIap } from '../../hooks';
 import { logger } from '../../services';
 
+import { ErrorCode } from 'react-native-iap';
+
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { OnPurchaseErrorPayload, OnPurchaseSuccessPayload, WebMessageData } from '@chatic/app-messages';
 import type { Purchase, PurchaseError } from 'react-native-iap';
@@ -31,7 +33,14 @@ export const useSubscriptionIapHandler = (bridge: IAppBridgeHost) => {
              * @param error
              */
             onPurchaseError: (error: PurchaseError) => {
-                logger.error('IAP', 'Purchase failed:', error);
+                // Already-owned means the store still holds an entitlement for this account (e.g. a
+                // crash between charge and validation) — the web side recovers via restorePurchases,
+                // so this isn't an unexpected failure and shouldn't read as one in error logs/reporting.
+                if (error.code === ErrorCode.AlreadyOwned) {
+                    logger.warn('IAP', 'Purchase failed: already owned', error);
+                } else {
+                    logger.error('IAP', 'Purchase failed:', error);
+                }
                 bridge.pushEvent<'OnPurchaseError'>({
                     type: 'OnPurchaseError',
                     success: false,

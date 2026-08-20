@@ -15,9 +15,11 @@ export const SubscriptionRequiredDialog = ({ open, onClose }: SubscriptionRequir
 
     if (!open) return null;
 
+    // This dialog only ever opens for someone without a subscription, so it leads to the guide —
+    // the plan picker and the empty membership screen both assume the pitch already landed.
     const handleSubscribe = () => {
         onClose();
-        navigate(ROUTES.subscription.root);
+        navigate(ROUTES.subscription.guide);
     };
 
     return createPortal(

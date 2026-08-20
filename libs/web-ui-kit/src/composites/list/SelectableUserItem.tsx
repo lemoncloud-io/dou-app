@@ -36,7 +36,10 @@ export const SelectableUserItem = ({
             aria-checked={checked}
             disabled={disabled}
             onClick={() => onToggle?.(!checked)}
-            className={cn('flex w-full items-center gap-3 px-4 py-3 text-left disabled:opacity-50', className)}
+            className={cn(
+                'flex w-full items-center gap-3 px-4 py-3 text-left transition-transform active:scale-[0.99] disabled:opacity-50 disabled:active:scale-100',
+                className
+            )}
         >
             <ProfileAvatar src={avatarSrc} size={42} />
             <span className="min-w-0 flex-1 truncate text-[16px] font-medium tracking-[-0.5px] text-foreground">

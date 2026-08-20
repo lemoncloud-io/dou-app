@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import {
     AccountInfoPage,
-    AccountManagePage,
+    CloudManagePage,
     CloudProfileEditPage,
     LicensesPage,
     LoginPage,
@@ -21,7 +21,7 @@ export const MyPageRoutes = () => {
         <Routes>
             <Route index element={<MyPage />} />
             <Route path="account" element={<AccountInfoPage />} />
-            <Route path="account-manage" element={<AccountManagePage />} />
+            <Route path="cloud-manage" element={<CloudManagePage />} />
             <Route path="edit" element={<ProfileEditPage />} />
             <Route path="cloud-profile" element={<CloudProfileEditPage />} />
             <Route path="login" element={<LoginPage />} />

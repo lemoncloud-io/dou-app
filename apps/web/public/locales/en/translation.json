@@ -234,12 +234,21 @@
             "purchaseSuccess": "Subscription completed",
             "purchaseSuccessDescription": "Cloud setup may take up to 10 minutes",
             "purchaseFailed": "Payment failed",
-            "notice": "Please note",
+            "notice": {
+                "title": "Please note",
+                "upgradeImmediate": "Moving up a plan takes effect immediately.",
+                "downgradeNextRenewal": "Moving down a plan takes effect at your next renewal.",
+                "manageAt": {
+                    "apple": "Manage your subscription in iPhone Settings > Apple ID > Subscriptions, or in the App Store.",
+                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions."
+                }
+            },
             "notice1": "Plan changes take effect immediately, and additional charges may apply based on the remaining period.",
             "notice2": "Downgrading will take effect from the next renewal date.",
-            "notice3": "Manage subscriptions in iPhone Settings > Apple ID > Subscriptions or App Store subscription management.",
             "noticeTerms": "For details on purchase policies, please refer to our <terms>Terms of Service</terms>.",
             "platform": "Platform",
+            "platformApple": "App Store",
+            "platformGoogle": "Google Play",
             "canceledNotice": "Subscription will end on {{date}}",
             "pendingChange": "Plan will change to {{product}} on next renewal",
             "manageSubscription": "Manage Subscription",
@@ -260,9 +269,50 @@
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
             "inUse": "Subscribed",
+            "summaryLine": "On {{plan}}",
+            "summaryLineWithQuota": "On {{plan}} · {{used}}/{{max}} clouds",
             "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account.",
+            "maxClouds": "Up to {{count}} account(s)",
+            "trialBadge": "{{days}}d Free",
+            "currentBadge": "Current",
+            "changeTier": "Change plan",
+            "adjacentTierOnly": "You can move one step at a time",
+            "productNotFound": "This product was not found on the store",
+            "offerTokenMissing": "Could not load the store purchase details",
+            "trialRemaining": "{{days}} day(s) left in your free trial",
+            "excess": {
+                "title": "{{count}} cloud(s) over your limit of {{max}}",
+                "description": "These clouds may be the ones released. Please cancel them yourself in Cloud Management.",
+                "manage": "Go to Cloud Management"
+            },
+            "emailRequired": {
+                "title": "{{count}} cloud(s) without a recovery email",
+                "description": "Your email is how a cloud is recovered when you change devices or reinstall the app. Without one, this cloud cannot be brought back.",
+                "action": "Register email"
+            },
+            "allowance": "Allowance",
+            "price": "Price",
+            "guideTitle": "Subscription",
+            "pickTitle": "Choose a plan",
+            "later": "Maybe later",
+            "loginRequiredTitle": "You need to log in to subscribe",
+            "hero": {
+                "trialLead": "New to DoU?",
+                "trialAccent": "Get {{days}} days free",
+                "trialSub": "One free trial per new user.\nBilled monthly once the trial ends.",
+                "plain": "Create your own cloud",
+                "plainSub": "Make places and talk with\nseveral friends at once."
+            },
+            "benefits": {
+                "title": "What you get",
+                "item1Title": "Your own cloud",
+                "item1Description": "Create places and manage group chats freely",
+                "item2Title": "Create places",
+                "item2Description": "A space per topic",
+                "item3Title": "Group chat rooms",
+                "item3Description": "Chat with many friends inside a place"
+            },
             "cloudGuide": {
-                "entry": "Learn about My Cloud",
                 "heroAccent": "My Cloud",
                 "heroRest": "\nCreate places and chat\nwith all your friends",
                 "free": {
@@ -287,18 +337,48 @@
                 "ctaCaption": "Subscribe to build your own space",
                 "ctaWithTrial": "Start {{days}}-day free trial",
                 "ctaPlain": "Get started"
-            }
+            },
+            "complete": {
+                "title": "You are subscribed.",
+                "trialEndsOn": "Free use ends after {{date}}",
+                "renewsOn": "Next payment on {{date}}",
+                "autoChargeAfter": "{{price}} charged monthly once the free period ends",
+                "cancelAnytime": "You can cancel at any time.",
+                "setUpPlace": "Set up a place to start using the service.",
+                "cta": "Get started"
+            },
+            "startAtEntryTier": "A first subscription starts on the entry plan",
+            "refusal": {
+                "current": {
+                    "title": "You are already on this plan",
+                    "description": "This is the plan you are subscribed to right now, so it cannot be selected again."
+                },
+                "tierJump": {
+                    "title": "One step at a time",
+                    "description": "Every cloud needs its own email verification, so a plan can only move one step at a time."
+                },
+                "entryTier": {
+                    "title": "A first subscription starts on plan 1",
+                    "description": "Subscribe to plan 1 first, then move up one step at each renewal."
+                },
+                "pickInstead": "You can pick {{plan}} right now.",
+                "selectInstead": "Select {{plan}}"
+            },
+            "guideEntry": "Learn about My Cloud"
         },
-        "accountManage": {
-            "title": "Account Management",
-            "noAccounts": "No cloud accounts registered",
+        "cloudManage": {
+            "title": "Cloud Management",
+            "noAccounts": "No clouds registered",
             "delete": "Delete",
-            "deleteConfirmTitle": "Delete account?",
+            "deleteConfirmTitle": "Delete this cloud?",
             "deleteConfirmDesc": "{{name}} will be permanently deleted.",
-            "deleteSuccess": "Account deleted",
-            "deleteFailed": "Failed to delete account",
-            "deleteSelectedCloudWarning": "This is your current account. The app will refresh after deletion.",
-            "subscriptionActive": "subscription active"
+            "deleteSuccess": "Cloud deleted",
+            "deleteFailed": "Failed to delete the cloud",
+            "deleteSelectedCloudWarning": "This is your current cloud. The app will refresh after deletion.",
+            "emailMissing": "No recovery email",
+            "setupFailed": "This cloud failed to set up. Delete it and add it again.",
+            "registerEmail": "Add a recovery email",
+            "editName": "Edit name"
         },
         "policy": {
             "title": "Terms & Policies",
@@ -335,7 +415,10 @@
     },
     "notifications": {
         "title": "Notifications",
-        "empty": "No notifications"
+        "empty": "No notifications",
+        "inApp": {
+            "now": "now"
+        }
     },
     "globalLoader": {
         "switchingCloud": "Switching cloud...",
@@ -348,6 +431,12 @@
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud",
         "placeLimitReached": "You can create up to 5 places",
+        "placeLimit": {
+            "title": "You can't add more places",
+            "description": "Each cloud can hold up to <strong>{{max}} places</strong>.\nDelete a place, or create a <strong>new cloud</strong>.",
+            "manage": "Manage places",
+            "addCloud": "Add cloud"
+        },
         "channelLimitReached": "You can create up to 100 group rooms",
         "profile": "Profile",
         "menuPlaceSettings": "Place Settings",
@@ -357,7 +446,8 @@
         "directComingSoon": "1:1 chat is coming soon",
         "setupProfile": "Set up your profile",
         "noPlaceTitle": "No place connected",
-        "noPlaceDescription": "Connect to a place to start chatting"
+        "noPlaceDescription": "Connect to a place to start chatting",
+        "loadingCloud": "Loading cloud"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
@@ -374,12 +464,17 @@
         "empty": "No clouds registered",
         "switchFailed": "Failed to switch cloud",
         "invited": "Invited",
+        "unreadBadge": "Unread",
         "emptyInvited": "No invited clouds",
         "emptyInvitedDescription": "Clouds you've been invited to will appear here",
         "invitedOwnerLabel": "{{owner}}'s cloud",
         "invitedFallbackLabel": "Invited cloud",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
+        "statusErrorDescription": "This cloud failed to set up",
+        "statusErrorTitle": "Cloud setup failed",
+        "statusErrorGuide": "Delete it in Cloud Management, then add it again. Contact us if it keeps failing.",
         "cloudReady": "Your cloud is ready!",
+        "emailRequired": "Add recovery email",
         "disconnectCloud": "Disconnect Cloud",
         "disconnectCloudDesc": "Disconnect from cloud",
         "authTimeout": "Cloud authentication timed out",
@@ -411,7 +506,9 @@
         "subtitleOwned": "My Place",
         "subtitleInvited": "Invited Place",
         "hasUnread": "Unread",
-        "selected": "Selected"
+        "selected": "Selected",
+        "loading": "Loading places",
+        "switching": "Switching place"
     },
     "placeOrder": {
         "title": "Place List",
@@ -443,7 +540,11 @@
         "createDirect": "1:1 Chat",
         "createGroup": "Create Group",
         "pinned": "Pinned chat",
-        "muted": "Notifications off"
+        "muted": "Notifications off",
+        "emptyInvited": "You're not in any chat room yet.\nRooms you're invited to will show up here.",
+        "emptyInvitedLeaveHint": "You can leave this place if you no longer use it.",
+        "emptyInvitedPlaceInfo": "Go to place info",
+        "loading": "Loading chat rooms"
     },
     "channelManage": {
         "title": "Manage chats",
@@ -979,7 +1080,7 @@
         },
         "permissionDenied": {
             "title": "Contacts access is turned off",
-            "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure.",
+            "description": "To find friends quickly and start a conversation, DoU needs access to your contacts. Contact info is used only for picking friends and sending invites, and is kept secure.",
             "action": "Allow contacts in Settings"
         }
     },
@@ -1253,7 +1354,7 @@
     "addAccount": {
         "title": "Add Account",
         "emailTitle": "Register Email",
-        "emailSubtitle": "Enter your email address\nfor chat backup",
+        "emailSubtitle": "Enter the email address used to\nrecover this cloud later",
         "emailLabel": "Email",
         "emailPlaceholder": "Enter your email",
         "emailDescription": "Enter the email to receive a verification code",
@@ -1266,11 +1367,17 @@
         "resendFailed": "Failed to resend code",
         "complete": "Confirm",
         "codeError": "Please enter the correct verification code",
-        "success": "Account added successfully",
+        "success": "Account setup has started — it may take up to 10 minutes",
         "tooltip": "If you didn't receive the email,\nplease check your spam folder",
-        "limitExceeded": "You can add up to 1 account",
+        "limitExceeded": "You can add up to {{max}} account(s)",
         "subscriptionRequired": "You can only add an account on your subscribed platform",
-        "cloudUserRequired": "Only cloud users can add an account"
+        "cloudUserRequired": "Only cloud users can add an account",
+        "emailAlreadyUsed": "This email is already used by another account",
+        "cancelScheduled": "You cannot add an account while cancellation is scheduled",
+        "addFailed": "Could not add the account",
+        "emailInvalid": "That email address is not valid",
+        "codeExpired": "The code has expired — please resend",
+        "emailSkip": "I'll verify later"
     },
     "nameSetup": {
         "title": "Set Your Name",
@@ -1420,5 +1527,32 @@
         "unknown": "unknown",
         "refresh": "Refresh",
         "later": "Later"
+    },
+    "setupWizard": {
+        "next": "Next",
+        "done": "Done",
+        "namePlaceholder": "Enter a name",
+        "nameHint": "Up to {{max}} characters.",
+        "nameTooLong": "Up to {{max}} characters.",
+        "photoOptional": "[optional]",
+        "imageSizeError": "That image could not be loaded. Please pick another.",
+        "saveError": "Could not save. Please try again.",
+        "cloud": {
+            "title": "Create your own cloud",
+            "subtitle": "A cloud is where you manage\nseveral conversation spaces.",
+            "nameLabel": "Cloud name"
+        },
+        "place": {
+            "title": "Make a place\nand start talking",
+            "subtitle": "A place is where you create and manage\nchat rooms inside your cloud.",
+            "nameLabel": "Place name",
+            "photoLabel": "Place photo"
+        },
+        "profile": {
+            "title": "Create the profile\nyou will use in {{place}}",
+            "subtitle": "This profile is used only in this place.\nYou can be someone new in each place.",
+            "nameLabel": "Name",
+            "photoLabel": "Profile photo"
+        }
     }
 }

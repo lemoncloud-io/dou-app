@@ -69,3 +69,9 @@ export { IconUsersGroup, type IconUsersGroupProps } from './IconUsersGroup';
 export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';
 export { IconGalleryAdd, type IconGalleryAddProps } from './IconGalleryAdd';
 export { IconCheckCircleSolid, type IconCheckCircleSolidProps } from './IconCheckCircleSolid';
+export { IconDangerCircle, type IconDangerCircleProps } from './IconDangerCircle';
+// Subscription tier glyphs (Solar "Bold" set, exported from the 구독 상태 뱃지 component). The lucide
+// `IconBolt`/`IconPlan` aliases above are the older stand-ins and stay exported for callers that
+// want the outline look; the tier pills use these.
+export { IconBoltSolid, type IconBoltSolidProps } from './IconBoltSolid';
+export { IconStarsSolid, type IconStarsSolidProps } from './IconStarsSolid';

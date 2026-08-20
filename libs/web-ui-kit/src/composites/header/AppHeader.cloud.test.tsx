@@ -58,3 +58,32 @@ describe('AppHeader — cloud kind (Type 2)', () => {
         expect(screen.getByRole('button', { name: '클라우드 선택' }).querySelector('.bg-red-500')).not.toBeNull();
     });
 });
+
+describe('AppHeader — cloud kind loading placeholder', () => {
+    it('replaces the avatar and name with an announced placeholder while loading', () => {
+        render(
+            <AppHeader
+                kind="cloud"
+                loading
+                loadingLabel="클라우드를 불러오는 중이에요"
+                name="<클라우드 명>"
+                subName="<플레이스 닉네임>"
+                cloudAvatar={<span>CLOUD</span>}
+                onSwitcher={jest.fn()}
+            />
+        );
+
+        expect(screen.getByRole('status', { name: '클라우드를 불러오는 중이에요' })).toBeInTheDocument();
+        // A half-resolved header (blank circle + blank text) reads as a nameless cloud, so neither
+        // the stale identity nor the real avatar may show through the placeholder.
+        expect(screen.queryByText('<클라우드 명>')).not.toBeInTheDocument();
+        expect(screen.queryByText('CLOUD')).not.toBeInTheDocument();
+    });
+
+    it('keeps the brand mark for the no-cloud kind even when loading is set', () => {
+        // Only the cloud identity is fetched; the brand mark is known before any request.
+        render(<AppHeader kind="no-cloud" loading loadingLabel="loading" onSwitcher={jest.fn()} />);
+
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+});

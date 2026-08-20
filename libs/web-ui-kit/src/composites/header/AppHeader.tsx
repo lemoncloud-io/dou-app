@@ -6,8 +6,8 @@ import { cn } from '@chatic/lib/utils';
 
 import { CloudAvatar } from '../../foundations/avatar/CloudAvatar';
 import { DefaultAvatar } from '../../foundations/avatar/DefaultAvatar';
+import { BrandMark } from '../../foundations/brand/BrandMark';
 import { SubscriptionButton } from '../../foundations/button/SubscriptionButton';
-import douMark from '../../resources/assets/dou-mark.svg';
 import { IconChevronDown, IconSearch } from '../../resources/icons';
 
 export interface AppHeaderProps {
@@ -17,7 +17,7 @@ export interface AppHeaderProps {
      * switcher chevron on the left.
      */
     kind?: 'no-cloud' | 'cloud';
-    /** Brand mark node — `no-cloud` kind. Defaults to the DoU character+wordmark asset. */
+    /** Brand mark node — `no-cloud` kind. Defaults to the theme-aware DoU character+wordmark. */
     logo?: React.ReactNode;
     /**
      * Cloud profile avatar node — `cloud` kind. Falls back to a Slack-style
@@ -28,6 +28,14 @@ export interface AppHeaderProps {
     name?: string;
     /** Place nickname (line 2, optional) — `cloud` kind. */
     subName?: string;
+    /**
+     * The cloud identity is still being fetched — `cloud` kind renders a pulsing placeholder for
+     * the avatar and the name instead of an empty row. Without it a cold start shows a blank
+     * circle next to blank text, which reads as "this cloud has no name" rather than "loading".
+     */
+    loading?: boolean;
+    /** Accessible label for the loading placeholder. Host supplies a localized string. */
+    loadingLabel?: string;
     /** Switcher (cloud/place) handler; renders the chevron and makes the left a button. */
     onSwitcher?: () => void;
     /**
@@ -87,6 +95,8 @@ export const AppHeader = ({
     cloudAvatar,
     name,
     subName,
+    loading = false,
+    loadingLabel = 'Loading',
     onSwitcher,
     switcherDot = false,
     switcherMenu,
@@ -103,30 +113,37 @@ export const AppHeader = ({
     className,
 }: AppHeaderProps) => {
     const hasSwitcher = !!(onSwitcher || switcherMenu);
-    const left =
-        kind === 'cloud' ? (
-            <>
-                <span className="size-[46px] shrink-0 overflow-hidden rounded-full bg-muted">
-                    {cloudAvatar ?? <CloudAvatar name={name ?? ''} size="lg" />}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                    <span className="flex items-center gap-1">
-                        <span className="truncate text-[16px] font-medium leading-[25px] tracking-[-0.5px] text-foreground">
-                            {name}
-                        </span>
-                        {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
-                        {hasSwitcher && switcherDot && <span className="size-1.5 shrink-0 rounded-full bg-red-500" />}
+    // Only the `cloud` kind can be "loading": the `no-cloud` kind shows the static brand mark,
+    // which is known before any fetch.
+    const isLoading = loading && kind === 'cloud';
+    const left = isLoading ? (
+        <span role="status" aria-label={loadingLabel} className="flex min-w-0 items-center gap-2">
+            <span className="size-[46px] shrink-0 animate-pulse rounded-full bg-muted" />
+            <span className="h-[18px] w-28 animate-pulse rounded bg-muted" />
+        </span>
+    ) : kind === 'cloud' ? (
+        <>
+            <span className="size-[46px] shrink-0 overflow-hidden rounded-full bg-muted">
+                {cloudAvatar ?? <CloudAvatar name={name ?? ''} size="lg" />}
+            </span>
+            <span className="flex min-w-0 flex-col">
+                <span className="flex items-center gap-1">
+                    <span className="truncate text-[16px] font-medium leading-[25px] tracking-[-0.5px] text-foreground">
+                        {name}
                     </span>
-                    {subName && <span className="truncate text-[13px] leading-4 text-description">{subName}</span>}
+                    {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
+                    {hasSwitcher && switcherDot && <span className="size-1.5 shrink-0 rounded-full bg-red-500" />}
                 </span>
-            </>
-        ) : (
-            <>
-                {logo ?? <img src={douMark} alt="DoU" className="h-[38px] w-auto shrink-0" />}
-                {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
-                {hasSwitcher && switcherDot && <span className="size-1.5 shrink-0 rounded-full bg-red-500" />}
-            </>
-        );
+                {subName && <span className="truncate text-[13px] leading-4 text-description">{subName}</span>}
+            </span>
+        </>
+    ) : (
+        <>
+            {logo ?? <BrandMark />}
+            {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
+            {hasSwitcher && switcherDot && <span className="size-1.5 shrink-0 rounded-full bg-red-500" />}
+        </>
+    );
 
     const switcherTrigger = (
         <button

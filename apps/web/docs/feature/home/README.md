@@ -18,7 +18,7 @@
 - **클라우드** — Place 섹션과 Chat 섹션을 모두 노출한다. 소유자면 `＋ 플레이스 추가`가 붙는다.
 
 UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구독 자체를 설명하는 화면은 이 문서가
-아니라 [subscription/cloud-guide.md](../subscription/cloud-guide.md)가 담당한다.
+아니라 [subscription/tier-and-quota.md](../subscription/tier-and-quota.md)가 담당한다.
 
 ## 설계 원칙
 
@@ -45,14 +45,15 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
 - 헤더(`AppHeader`) — 중계=로고 / 클라우드=이름+아바타, 구독 배지, 검색 슬롯, 프로필 드롭다운.
 - 클라우드 유도 배너 — 중계 홈 상단. 소유 클라우드 0개일 때만, 닫기 24시간 유지. 링크는 안내 화면으로.
 - Place 섹션 — **클라우드 모드 전용**. 접기 가능, 소유자면 `＋ 플레이스 추가`.
-- Chat 섹션 — 두 모드 공통. 접기 가능, `＋` 생성 팝오버(중계=`1:1 대화`, 클라우드=`그룹 방 만들기`[PRO 게이팅]).
+- Chat 섹션 — 두 모드 공통. 접기 가능, `＋` 생성 팝오버(중계=`1:1 대화` + 미구독자만 `그룹 방 만들기`
+  업셀, 클라우드=`그룹 방 만들기`[PRO 게이팅]).
 - 클라우드 전환 시트(`CloudSessionSheet`) — `Home` / `내 클라우드` / `초대된 클라우드` 접기 섹션 3개.
 - 미읽음 집계(플레이스 점 · 채널 배지 · 클라우드별 스냅샷)와 스크롤 복원.
 
 **제외**
 
 - 검색 기능(버튼만, TBD) · `1:1 대화` 생성 플로우(버튼만, TBD).
-- 클라우드 구독 안내 화면 → [subscription/cloud-guide.md](../subscription/cloud-guide.md).
+- 클라우드 구독 안내 화면 → [subscription/tier-and-quota.md](../subscription/tier-and-quota.md).
 - 구독·IAP 로직(`SubscriptionSelectDialog`, `EmailVerifyDialog`) 내부.
 - 세션 전환 파이프라인(`switchCloudSession` / `logoutCloudSession`) 내부.
 - 클라우드 이름 변경 — 시트에서 제거됐고 `/mypage/cloud-profile`이 단일 경로다.
@@ -82,6 +83,8 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
    세 섹션도 같은 규칙을 따른다. 접혀도 섹션 헤더의 서브캡션과 footer(`＋ 클라우드 추가`)는 계속 보인다.
 7. **채널 생성** — Chat 섹션 `＋` 탭 → 팝오버. 중계면 `1:1 대화`(TBD), 클라우드면 `그룹 방 만들기`.
    후자는 구독중(pro)이 아니면 `SubscriptionRequiredDialog`로 유도, 구독중이면 `CreateChannelDialog`.
+   중계에서도 **미구독자에게만** `그룹 방 만들기`가 한 줄 더 붙는다(Figma `2870-20387`) — 그룹방은 내
+   클라우드에서 만드는 것이므로 구독자에겐 감추고, 미구독자의 탭은 언제나 구독 유도로만 간다.
 8. **클라우드 전환** — 헤더 좌측 chevron 탭 → `CloudSessionSheet`(BottomSheet, 90vh 고정). 위에서부터
    세 개의 접기 섹션이다:
     - `Home` — 중계를 나타내는 `두유 홈` 행 하나. 선택 = 중계 복귀(`logoutCloudSession`).
@@ -97,7 +100,8 @@ UI는 전부 `@chatic/web-ui-kit`으로 조립한다(ADR-0013). 클라우드 구
    `계정은 최대 1개까지 추가할 수 있어요` 토스트로 막고, 0개면 `SubscriptionSelectDialog`를 연다.
    버튼은 두 경우 모두 보인다.
 10. **프로필 진입** — 헤더 우측 프로필 탭 → 드롭다운. `플레이스 설정` → `/place/:sid/settings`. 중계에서도
-    `selectedSiteId`가 있으므로 동작하며, **중계에서 플레이스 설정에 닿는 유일한 경로**다.
+    `selectedSiteId`가 있으므로 동작하며, **중계에서 플레이스 설정에 닿는 유일한 경로**다. 항목 아래에는
+    구독 상태 뱃지가 한 줄 붙는다 — 두유 홈은 `FREE` 고정, 클라우드는 내 등급을 읽는다.
 
 ## 다이어그램
 
@@ -212,12 +216,26 @@ flowchart TD
 
 ### 프로필 드롭다운
 
-`AppHeader`의 `onProfile`을 트리거로 `@chatic/ui-kit`의 `DropdownMenu`를 홈에서 조합한다(kit 신규 컴포넌트
-아님). 헤더 상단엔 내 플레이스 프로필(닉/썸네일), 항목:
+`AppHeader`의 `avatar` 슬롯에 홈이 `@chatic/ui-kit`의 `DropdownMenu`를 조합해 넣는다(kit 신규 컴포넌트
+아님). 맨 위는 내 플레이스 프로필(닉/썸네일) + 닫기(X), 그 아래:
 
-- `프로필` → 플레이스 프로필 수정 오버레이(`PlaceProfileEditDialog`)를 연다(클라우드 종류 무관, 라우팅 아님). 활성 플레이스(`selectedSiteId`)가 없으면 비활성. 상세는 [place-profile.md](./place-profile.md).
-- `설정` → `navigate(ROUTES.mypage.root)`(`/mypage` 설정 허브).
-- `알림` → TBD(전용 라우트 없음).
+- `플레이스 설정` → `navigate(ROUTES.place.settings(selectedSiteId))`. 활성 플레이스(`selectedSiteId`)가
+  없으면 비활성.
+- **구독 상태 뱃지**(Figma `3108-25868`) — `SubscriptionBadge tier={menuTier} size="xs"`. `menuTier = isDefaultCloud
+? 'free' : planTier`: 구독이 사주는 것은 *내 클라우드*이므로 두유 홈은 구독자에게도 `FREE` 고정이고,
+  클라우드에서만 계정 등급(`planTier`)을 읽는다. 등급 미결정(멤버십 조회 중)이면 헤더 필과 같게 아무것도
+  그리지 않는다. 라우팅하지 않는 **읽기 전용 표시**다 — 구독으로 가는 컨트롤은 헤더 필 하나뿐이다.
+
+### 구독 상태 뱃지 (kit)
+
+드롭다운 안에 들어가는 등급 필은 헤더 컨트롤(`SubscriptionButton`)보다 한 단계 좁다 — 그래서
+`SubscriptionBadge`에 `size="xs"`(버튼 시스템의 새 `xs` 사이즈: `py-1.5 pl-2 pr-[9px]`, 13px/12px,
+tracking `-0.13px`)를 두고, PRO만 Figma대로 간격 2px + 흰 바탕으로 조인다. 글리프도 lucide 대역
+(`Zap`/`Sparkles`)에서 디자인 원본(Solar Bold)으로 교체했다 — `IconBoltSolid`(PRO) / `IconStarsSolid`(FREE),
+둘 다 16px 프레임에 `currentColor`. 헤더 필까지 같은 `subscriptionTierIcon` 헬퍼를 쓰므로 한곳에서 바뀐다.
+
+CSS 테두리는 패딩 박스 밖에 그려지므로 실측 높이는 Figma의 28px가 아니라 30px다(안쪽 stroke 차이).
+패딩 값을 깎아 28로 맞추는 대신 디자인 토큰 값을 그대로 둔다.
 
 ### 클라우드 유도 배너 (`CloudPromoBanner`)
 
@@ -301,9 +319,14 @@ flowchart TD
   기준이다(예전 relay-only 게이트 폐기).
 - `useChannelSync`·`useLastChat` 등록, `useChannelUnreads` 계산은 그대로.
 - 섹션 헤더 `＋`(생성 팝오버) — `DropdownMenu` 조합, 접속 유형별 단일 항목:
-    - 중계(`isDefaultCloud`) → `1:1 대화`(TBD 플레이스홀더 토스트).
-    - 클라우드 → `그룹 방 만들기`(미구독 시 `PlanBadge PRO` 노출): 구독(`planTier==='pro'`)이면
-      `CreateChannelDialog`, 아니면 `SubscriptionRequiredDialog`
+    - 중계(`isDefaultCloud`) → `1:1 대화` + (미구독일 때만) `그룹 방 만들기` 업셀 행.
+    - 클라우드 → `그룹 방 만들기` 하나.
+    - `그룹 방 만들기`는 미구독(`!isPro`)일 때 `SubscriptionBadge tier="pro" size="xs"`를 달고, 노출 자체도
+      `showGroupCreate = !isDefaultCloud || !isPro`로 결정된다 — 중계에서 구독자는 이 행을 보지 않는다.
+    - 탭 처리는 호스트(`HomePage.handleCreateGroup`) 몫: 중계면 곧바로 `SubscriptionRequiredDialog`(중계
+      플레이스의 채널 수가 업셀을 상한 토스트로 바꿔버리지 않도록 상한 체크보다 앞에 둔다), 클라우드면
+      상한 체크 후 구독(`planTier==='pro'`)이면 `CreateChannelDialog`, 아니면
+      `SubscriptionRequiredDialog`
       ([components/SubscriptionRequiredDialog.tsx](../../../src/app/features/home/components/SubscriptionRequiredDialog.tsx)).
 
 ### 클라우드 전환 시트 (`CloudSessionSheet`)
@@ -471,6 +494,6 @@ npx nx build web
 검증할 수 없으니 클라우드 보유 계정으로도 한 번 확인한다.
 
 > 남은 제품 판단 하나: 마이페이지 구독 MenuCard가 `!isGuest`로 게이팅되어 있어 게스트는
-> [클라우드 안내 화면](../subscription/cloud-guide.md)에 닿지 못한다. 안내의 1차 타깃이 미구독자인데 게스트가
+> [구독 안내 화면](../subscription/tier-and-quota.md)에 닿지 못한다. 안내의 1차 타깃이 미구독자인데 게스트가
 > 그 정의에 가장 잘 맞으므로 어긋남이 남아 있다 — 게이팅 완화는 구독 섹션 전체의 노출 정책 문제라 이번
 > 범위에서 손대지 않았다.

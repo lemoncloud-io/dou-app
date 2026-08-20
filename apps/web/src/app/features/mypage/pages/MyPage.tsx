@@ -7,7 +7,7 @@ import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, IconUserOutline, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
-import { useMembershipInfo } from '@chatic/web-core';
+import { useCloudSessionCatalog, useMembershipInfo } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
@@ -31,8 +31,11 @@ export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
-    const { isGuest, isCloudActive } = useRuntimeProfile();
+    const { isGuest } = useRuntimeProfile();
     const { data: membership } = useMembershipInfo();
+    // Owned clouds only (the relay catalog); invited clouds are deliberately absent — you cannot
+    // release someone else's cloud, so they must not summon the 클라우드 관리 row.
+    const { clouds } = useCloudSessionCatalog();
     const myUser = useMyUser();
 
     const { setTheme, isDarkTheme } = useTheme();
@@ -77,6 +80,11 @@ export const MyPage = () => {
     // Subscription status label — "구독 이용 중" when a membership is valid, else "구독 관리".
     // Free-trial D-N state is intentionally out of scope (no reliable server "in trial" flag).
     const hasSubscription = membership?.isValid === true;
+    // Gate on OWNERSHIP, not on `isCloudActive`. The latter means "currently switched into a
+    // non-default cloud", which hid the only release path whenever the user sat on 두유 홈 — including
+    // the exact case ExcessCloudBanner deep-links here for (over the allowance after a downgrade),
+    // and a lapsed subscriber whose leftover clouds still need deleting.
+    const hasOwnedCloud = clouds.length > 0;
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
     // The store row is always present on iOS and only its trailing label branches, so tapping
@@ -91,10 +99,10 @@ export const MyPage = () => {
         navigate(ROUTES.auth.logout);
     };
 
-    // The header shows account-level data (name/email/photo), so tapping it opens the account profile
-    // editor, which edits exactly that. The cloud-entity name editor is a separate, owner-gated screen
-    // reachable from AccountInfoPage. No ownership gate here: any signed-in user can edit their own
-    // profile.
+    // The header shows the RELAY account's data (name/email/photo) — the same record whichever cloud
+    // is connected — so tapping it opens the account profile editor, which edits exactly that. No
+    // ownership gate: any signed-in user can edit their own account profile. The cloud entity's own
+    // name is not an account attribute and is no longer editable from this tree (see AccountInfoPage).
     const handleProfileClick = () => {
         navigate(ROUTES.mypage.account.edit);
     };
@@ -159,22 +167,21 @@ export const MyPage = () => {
                 {/* Subscription + account management */}
                 {!isGuest && (
                     <MenuCard>
+                        {/* One row, two destinations. A subscriber wants their membership; someone
+                            who has never subscribed wants to know what a cloud even is, so they get
+                            the guide rather than the plan picker or an empty membership screen. */}
                         <ListRow
                             title={hasSubscription ? t('mypage.subscription.inUse') : t('mypage.subscription.title')}
                             trailing={<Chevron />}
-                            onClick={() => navigate(ROUTES.subscription.root)}
+                            onClick={() =>
+                                navigate(hasSubscription ? ROUTES.subscription.root : ROUTES.subscription.guide)
+                            }
                         />
-                        {/* Read-only pitch for "내 클라우드" — the only entry point (ADR-0034). */}
-                        <ListRow
-                            title={t('mypage.subscription.cloudGuide.entry')}
-                            trailing={<Chevron />}
-                            onClick={() => navigate(ROUTES.subscription.guide)}
-                        />
-                        {isCloudActive && (
+                        {hasOwnedCloud && (
                             <ListRow
-                                title={t('mypage.accountManage.title')}
+                                title={t('mypage.cloudManage.title')}
                                 trailing={<Chevron />}
-                                onClick={() => navigate(ROUTES.mypage.account.manage)}
+                                onClick={() => navigate(ROUTES.mypage.cloud.manage)}
                             />
                         )}
                     </MenuCard>

@@ -6,6 +6,21 @@
 
 @layer base {
     :root {
+        /**
+         * The app's own width — the single source of truth for it.
+         *
+         * `apps/web` is laid out for a phone-sized WebView, so on anything wider (a tablet, a
+         * desktop browser opening an invite link) every surface caps here and centres instead of
+         * stretching a phone layout across the viewport. Read two ways: `max-w-app` inside
+         * `apps/web`, and `max-w-[var(--app-width,…)]` inside `libs/ui-kit` / `libs/web-ui-kit`,
+         * where the value cannot be hardcoded because other apps share those primitives.
+         *
+         * A CSS variable rather than a Tailwind-only token because the overlay primitives are
+         * `fixed` and portalled to `document.body`, so they escape the shell's cap and have to
+         * re-declare it themselves — from a lib that must not know this app's number.
+         */
+        --app-width: 430px;
+
         /* Chatic Light Theme */
         --background: 0 0% 100%;
         --foreground: 220 20% 10%;

@@ -105,6 +105,9 @@ export const WEB_SOCIAL_OAUTH_ENDPOINT = (
 ).toLowerCase();
 export const WEB_DOU_ENDPOINT = import.meta.env.VITE_DOU_ENDPOINT || '';
 export const WEB_WS_ENDPOINT = import.meta.env.VITE_WS_ENDPOINT || '';
+// Read here with the other build-time endpoints so `request.ts` — the module every relay
+// call funnels through — stays free of `import.meta` and thus importable from a CJS test.
+export const WEB_IAP_ENDPOINT = import.meta.env.VITE_IAP_ENDPOINT || '';
 
 export const getDynamicRelayBackend = (): string => {
     return (

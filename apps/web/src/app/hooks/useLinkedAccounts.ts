@@ -28,7 +28,13 @@ export interface LinkedAccounts {
 }
 
 /**
- * What the server says this user has proved — read off `link$` on the cached user row.
+ * What the server says this user has proved — read off `link$` on the RELAY account (`useMyUser`).
+ *
+ * Relay is the only scope that makes sense here, and until `useMyUser` was pinned to it this hook was
+ * quietly mismatched: it read `link$` off whichever session was active while `auth.linkAccount` — the
+ * write it gates — has always been relay-pinned, because the main user it resolves lives on the
+ * central backend behind relay (apps/web/docs/feature/auth/account-linking.md). Read and write now
+ * agree, so a phone/social link made on relay can no longer read as unlinked from inside a cloud.
  *
  * The truth of ownership lives on the account records, not here; `link$` is the pointer the server
  * exposes so a client can render state without a per-credential probe. It is a HINT for choosing a

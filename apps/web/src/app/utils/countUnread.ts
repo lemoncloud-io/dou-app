@@ -24,6 +24,18 @@ export interface UnreadInputs {
  * subtracting a still-unified-scale cursor undercounts by however many system events happened
  * between the cursor and the head.
  *
+ * When the cursor carries NO snapshot of its own (a join row written before the server started
+ * snapshotting `metaNo`), the head's `metaNo` stands in for it — the ADR's documented fallback, and
+ * the same one the server's `calcUnreadCount` applies. It is an approximation in a known direction:
+ * `headMetaNo >= readMetaNo` always, so the count comes out HIGH by the system events between the
+ * cursor and the head. Reading the room once repairs the row for good, because the server then
+ * answers `join.read` with a cursor AND its snapshot and this branch stops applying.
+ *
+ * Subtracting the cursor unconverted (`userHead - readNo`) was tried as the alternative and
+ * abandoned: it errs low instead, which hides genuinely unread messages. See ADR-0048 — the
+ * trade-off between the two is recorded there, and the count is only ever approximate while a
+ * snapshot-less row exists.
+ *
  * No read cursor means no read boundary, which counts 0 rather than flashing a full count.
  *
  * Extracted so the home list ({@link useChannelUnreads}) and the search results share one formula;

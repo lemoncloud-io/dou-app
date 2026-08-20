@@ -38,15 +38,23 @@ jest.mock('../../channels/hooks', () => ({ useDmPeers: () => mockDmPeers }));
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
     DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-    DropdownMenuItem: ({ children }: any) => <div>{children}</div>,
+    DropdownMenuItem: ({ children, onClick }: any) => <div onClick={onClick}>{children}</div>,
     DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
 }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
     Badge: ({ children }: any) => <span>{children}</span>,
-    CollapsibleSection: ({ children }: any) => <section>{children}</section>,
+    CollapsibleSection: ({ actions, children, count }: any) => (
+        // `count` is surfaced as an attribute, not text: the rows under test already render bare
+        // numbers (member counts, unread badges), so a text node would collide with them.
+        <section data-count={count ?? ''}>
+            {actions}
+            {children}
+        </section>
+    ),
     DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
-    IconBolt: () => <i />,
+    IconChatAdd: () => <i />,
+    IconPin: ({ role, 'aria-label': label }: any) => <i role={role} aria-label={label} />,
     IconPlus: () => <i />,
     ImageAvatar: ({ src }: any) => <img alt="" src={src} data-testid="image-avatar" />,
     ListRow: ({ leading, title, subtitle, trailing, onClick }: any) => (
@@ -57,7 +65,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
             <div data-testid="row-trailing">{trailing}</div>
         </div>
     ),
-    PlanBadge: () => <span>PRO</span>,
+    SubscriptionBadge: ({ tier }: any) => <span data-testid="tier-badge">{tier}</span>,
     StatusBadge: ({ label }: any) => <span data-testid="status-badge">{label}</span>,
     UnreadBadge: ({ count }: any) => <span data-testid="unread">{count}</span>,
 }));
@@ -519,5 +527,87 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
 
         // 시각은 로케일 포맷이라 문자열을 고정하지 않고 숫자가 찍혔는지로 본다.
         expect(screen.getByTestId('row-trailing').textContent).toMatch(/\d/);
+    });
+});
+
+// 생성 팝오버(Chat 섹션 ＋) — 중계에서는 "1:1 대화"가 실제 동작이고 "그룹 방 만들기"는 미구독자에게만
+// 업셀로 얹힌다(Figma 2870:20387). 탭이 무엇을 하는지는 호스트(HomePage) 몫이라 여기선 위임만 본다.
+describe('ChannelList 생성 메뉴', () => {
+    const renderMenu = (props: any) =>
+        render(<ChannelList channels={[]} sid="site-1" isLoading={false} canCreate {...props} />);
+
+    it('중계 + 미구독이면 1:1 대화와 그룹 방 만들기를 함께 보이고 그룹 쪽에 PRO 뱃지를 붙인다', () => {
+        renderMenu({ isDefaultCloud: true, isPro: false });
+
+        expect(screen.getByText('channelList.createDirect')).toBeInTheDocument();
+        expect(screen.getByText('channelList.createGroup')).toBeInTheDocument();
+        expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
+    });
+
+    it('중계 + 구독이면 그룹 방 만들기를 감춘다 — 그룹 방은 내 클라우드에서 만든다', () => {
+        renderMenu({ isDefaultCloud: true, isPro: true });
+
+        expect(screen.getByText('channelList.createDirect')).toBeInTheDocument();
+        expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+    });
+
+    it('중계의 그룹 방 만들기 탭은 호스트의 onCreateGroup으로 넘긴다', () => {
+        const onCreateGroup = jest.fn();
+        renderMenu({ isDefaultCloud: true, isPro: false, onCreateGroup });
+        fireEvent.click(screen.getByText('channelList.createGroup'));
+
+        expect(onCreateGroup).toHaveBeenCalledTimes(1);
+    });
+
+    it('클라우드에선 1:1 대화 없이 그룹 방 만들기만 보이고, 미구독이면 뱃지가 붙는다', () => {
+        renderMenu({ isDefaultCloud: false, isPro: false });
+
+        expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
+        expect(screen.getByText('channelList.createGroup')).toBeInTheDocument();
+        expect(screen.getByTestId('tier-badge')).toBeInTheDocument();
+    });
+
+    it('구독한 클라우드에선 뱃지 없이 그룹 방 만들기만 보인다', () => {
+        renderMenu({ isDefaultCloud: false, isPro: true });
+
+        expect(screen.getByText('channelList.createGroup')).toBeInTheDocument();
+        expect(screen.queryByTestId('tier-badge')).not.toBeInTheDocument();
+    });
+
+    it('canCreate가 아니면 생성 메뉴 자체가 없다', () => {
+        renderMenu({ canCreate: false, isDefaultCloud: true, isPro: false });
+
+        expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
+        expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+    });
+});
+
+describe('ChannelList 빈 상태 / 로딩', () => {
+    it('초대받은 플레이스에서 채널이 없으면 초대 안내와 플레이스 정보 링크를 보여준다', () => {
+        const onOpenPlaceInfo = jest.fn();
+        render(<ChannelList channels={[]} isLoading={false} isInvitedPlace onOpenPlaceInfo={onOpenPlaceInfo} />);
+
+        expect(screen.getByText('channelList.emptyInvited')).toBeInTheDocument();
+        // The create-oriented copy would be a dead end here: an invited member cannot make a room.
+        expect(screen.queryByText('channelList.empty')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('channelList.emptyInvitedPlaceInfo'));
+        expect(onOpenPlaceInfo).toHaveBeenCalledTimes(1);
+    });
+
+    it('로딩 중에는 스켈레톤을 status로 알리고 개수는 감춘다', () => {
+        const { container } = render(<ChannelList channels={[]} isLoading />);
+
+        expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'channelList.loading');
+        // "0" next to a skeleton asserts an answer that has not arrived yet.
+        expect(container.querySelector('section')).toHaveAttribute('data-count', '');
+        expect(screen.queryByText('channelList.empty')).not.toBeInTheDocument();
+        expect(screen.queryByText('channelList.emptyInvited')).not.toBeInTheDocument();
+    });
+
+    it('로딩이 끝나면 실제 개수를 보여준다', () => {
+        const { container } = render(<ChannelList channels={[makeChannel({ id: 'c1' })]} isLoading={false} />);
+
+        expect(container.querySelector('section')).toHaveAttribute('data-count', '1');
     });
 });

@@ -4,15 +4,33 @@
 
 ## 책임
 
-구독(멤버십) 현황 표시와 플랜 선택·구매를 담당한다. 인앱결제(IAP)는 네이티브 브릿지를 통해 수행한다.
+구독(멤버십) 현황 표시와 플랜 선택·구매·등급 변경, 그리고 클라우드 보유 한도 판정을 담당한다.
+인앱결제(IAP)는 네이티브 브릿지를 통해 수행한다.
+
+> tier 목록·한도·서열·구독 상태 4종·초과 클라우드 판정은 [tier-and-quota.md](./tier-and-quota.md)에
+> 정리돼 있다 — 이 피처의 도메인 로직 정본이다.
 
 ## 화면
 
-| 페이지                  | 경로(`ROUTES.subscription.*`) | 설명                                                                  |
-| ----------------------- | ----------------------------- | --------------------------------------------------------------------- |
-| `SubscriptionPage`      | `/subscription`               | 구독 현황(현재 멤버십, 복원, 약관)                                    |
-| `SubscriptionPlansPage` | `/subscription/plans`         | 플랜 선택 → 구매 흐름                                                 |
-| `CloudGuidePage`        | `/subscription/guide`         | 클라우드 안내(구독 전 가치 설명) — [cloud-guide.md](./cloud-guide.md) |
+| 페이지                     | 경로(`ROUTES.subscription.*`) | 설명                                                 |
+| -------------------------- | ----------------------------- | ---------------------------------------------------- |
+| `SubscriptionPage`         | `/subscription`               | 구독 현황(상태 4종, 초과 배너, 복원, 약관)           |
+| `CloudGuidePage`           | `/subscription/guide`         | 내 클라우드 안내 — FREE vs PRO 비교 (읽기 전용 소개) |
+| `SubscriptionPlansPage`    | `/subscription/plans`         | 구독 안내 — 혜택 + tier 선택 + 주의사항              |
+| `SubscriptionCompletePage` | `/subscription/complete`      | 구독 완료 → 설정 위자드로 인계                       |
+
+### 구독 진입 흐름
+
+`guide`와 `plans`는 **별개 화면**이다 — 앞은 "왜 구독하나"(Figma 3519-29515), 뒤는 "어느 tier인가"(2870-33021).
+
+```
+마이페이지 「나만의 클라우드 알아보기」 ┐
+홈 프로모션 배너 「클라우드 추가 >」   ┴→ /subscription/guide ─CTA→ /subscription/plans → IAP → /subscription/complete
+클라우드 전환 시트 footer ─────────────────────(guide 우회)────→ /subscription/plans
+```
+
+진입점별 목적지는 ADR-0034 §4와 그 2026-08-04 개정이 정본이다. 전환 시트만 안내를 건너뛴다 — 이미 클라우드 관리
+중인 사용자에게 소개 화면은 뒷걸음질이기 때문이다.
 
 ## 구조
 
@@ -20,21 +38,37 @@
 features/subscription/
   pages/
     SubscriptionPage.tsx
+    CloudGuidePage.tsx          # FREE vs PRO 소개 (web-ui-kit PlanCompareCard 조립)
     SubscriptionPlansPage.tsx
-    CloudGuidePage.tsx        # 클라우드 안내 (읽기 전용, CTA만 plans로 navigate)
-    cloud-guide/              #   PlanCompareCard · GuideBulletList (이 화면 전용 조각)
+    SubscriptionCompletePage.tsx
+  lib/                        # 순수 판정 (React·네트워크 무지) — tier-and-quota.md
+    plans.ts · quota.ts · membershipStatus.ts · nativeProducts.ts · cloudEmails.ts
   hooks/
     useSubscriptionIap.ts   # IAP: 구매·검증·복원 (appBridge 경유)
+    usePlanCatalog.ts       # 상품 목록 + 현재 상품 + 상태 요약 (단일 진입점)
+    usePlanOptions.ts       # tier별 선택 가능 여부·사유
+    useCloudQuota.ts        # 클라우드 한도 판정 (모든 "＋ 추가"가 쓰는 하나)
+    useExcessClouds.ts · useTierPurchase.ts · useAddCloud.ts
+    useUnboundClouds.ts     # 복원용 이메일이 없는 클라우드 감지
+    useCloudEmailGuard.ts · useVerifyEmailCode.ts
+  components/
+    AddCloudFlowHost.tsx      # 클라우드 추가 요청 수신 (PrivateShell이 마운트)
+    EmailVerifyDialog.tsx     # 이메일 인증 (ui/에서 이관 · web-ui-kit 조립)
+    LoginRequiredDialog.tsx · TierChangeNotice.tsx · ExcessCloudBanner.tsx
+    EmailRequiredBanner.tsx   # 복원용 이메일이 빈 클라우드를 이름으로 지목
+    SubscriptionBenefits.tsx
+    subscription-select/      #   PlanCard · PolicyFooter · TierRefusalDialog
   types/
     index.ts                # PurchaseProduct · NativePurchase · PurchaseError · PageState
   consts/
-    index.ts                # IS_DEV · APP_ID · POLICY_BASE_URL · ALLOWED_PRODUCT_ID_*
+    index.ts                # IS_DEV · APP_ID · POLICY_BASE_URL
   routes/
-  index.ts                  # SubscriptionRoutes
+  index.ts                  # SubscriptionRoutes · AddCloudFlowHost
 ```
 
 - **타입은 `types/`로 통합**: `NativePurchase`는 `WebMessageResponse<'FetchCurrentPurchases'>`에서 파생해 브릿지 계약과 동기화된다.
-- **상수는 `consts/`로 통합**: 환경 분기 상수(`IS_DEV`/`APP_ID`/`POLICY_BASE_URL`/`ALLOWED_PRODUCT_ID_*`). 약관 URL도 `POLICY_BASE_URL` 재사용.
+- **상수는 `consts/`로 통합**: 환경 분기 상수(`IS_DEV`/`APP_ID`/`POLICY_BASE_URL`). 약관 URL도 `POLICY_BASE_URL` 재사용. 판매 가능한 상품 목록은 **상수가 아니라 서버**에서 온다(ADR-0060).
+- **판정은 `lib/`, 데이터 결합은 `hooks/`**: `lib/`의 함수는 입력만 받는 순수 함수라 테스트가 값 비교로 끝난다.
 
 ## IAP 흐름
 

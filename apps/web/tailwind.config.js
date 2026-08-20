@@ -19,6 +19,23 @@ module.exports = {
             },
         },
         extend: {
+            maxWidth: {
+                /**
+                 * The app's own width. `apps/web` renders inside a phone-sized WebView, so every
+                 * screen is laid out for that width; on anything wider (a tablet, a desktop browser
+                 * opening an invite link) the content caps here and centres rather than stretching
+                 * a phone layout across the viewport.
+                 *
+                 * Always paired with `w-full` and `mx-auto`: fill whatever the device gives, stop
+                 * here, stay centred.
+                 *
+                 * The number lives in `--app-width` (`src/styles.css`), not here: the overlay
+                 * primitives in `libs/ui-kit` are `fixed` and portalled out of the shell, so they
+                 * have to re-declare the cap themselves and cannot read a Tailwind token that only
+                 * this app's config defines. One variable, both readers.
+                 */
+                app: 'var(--app-width, 430px)',
+            },
             colors: {
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',

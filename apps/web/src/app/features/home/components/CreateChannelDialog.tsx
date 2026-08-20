@@ -109,7 +109,7 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
     return (
         <Dialog open={open} onOpenChange={next => !next && requestClose()}>
             <DialogContent
-                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
                 // The slide-up variant bakes in `pt-safe-top` / `pb-safe-bottom`, and both insets are
@@ -135,7 +135,7 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                 <DialogTitle className="sr-only">{t('createChannel.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('createChannel.subtitle')}</DialogDescription>
 
-                <div className="flex h-full w-full max-w-[440px] flex-col">
+                <div className="flex h-full w-full flex-col">
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {/* Glass top bar floats above the scroll area (sticky + z-index) instead of
                             occupying a band of its own, so the content passes under the translucent bar

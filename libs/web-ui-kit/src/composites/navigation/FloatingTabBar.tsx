@@ -50,7 +50,11 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
     return (
         <div
             className={cn(
-                'pointer-events-none fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-[430px] justify-center',
+                // `fixed` escapes the host's centred app column, so the bar re-declares the cap
+                // itself: `inset-x-0 mx-auto` + the host's `--app-width` centres it back over that
+                // column. The 430px fallback is this kit's own mobile design width, for a host
+                // (or a story) that does not set the variable.
+                'pointer-events-none fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-[var(--app-width,430px)] justify-center',
                 className
             )}
             style={{ paddingBottom: 'calc(var(--safe-bottom, 0px) + 18px)' }}

@@ -650,6 +650,11 @@ export const commitServerRefreshedToken = async (kind: ServerKind, view: UserTok
         // when the fresh view lacks one, mirroring the HTTP refresh path (api/auth.ts `refreshAuthToken`).
         const previous = relayCore.getRelayToken();
         const merged = {
+            // `...previous` first, mirroring the cloud branch above: a socket refresh view is not
+            // guaranteed to be a full user view, and the relay token is now also the ACCOUNT profile
+            // display source (getRelaySessionUser). Without the merge, a slim refresh silently drops
+            // name/photo/email and the MY page header blanks out mid-session.
+            ...previous,
             ...view,
             Token: {
                 ...view.Token,

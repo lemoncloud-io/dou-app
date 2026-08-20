@@ -33,6 +33,18 @@ describe('withNetworkLog', () => {
         expect(mockLogger.debug).not.toHaveBeenCalled();
     });
 
+    it('keeps a record `error` at debug when the caller passed allowRecordError', async () => {
+        // `POST /clouds/{id}/release` answers 200 with the released cloud, whose own `error` column
+        // holds its last provisioning trace — a successful call, so not a warn.
+        await withNetworkLog({ ...req, allowRecordError: true }, async () => ({
+            data: { id: '1000047', error: '.accountNo[#mock:1] is invalid' },
+            status: 200,
+        }));
+
+        expect(mockLogger.warn).not.toHaveBeenCalled();
+        expect(mockLogger.debug).toHaveBeenCalledTimes(1);
+    });
+
     it('logs an error entry with status/code/responseData and rethrows the original error', async () => {
         const axiosError = Object.assign(new Error('Request failed'), {
             code: 'ERR_BAD_RESPONSE',

@@ -1,5 +1,10 @@
 import { cloudCore } from './core';
-import { getActiveSessionUser, rebuildSessionIdentity } from './contextStore';
+import {
+    getActiveSessionUser,
+    getRelaySessionUser,
+    patchRelaySessionUser,
+    rebuildSessionIdentity,
+} from './contextStore';
 import type {
     ActiveServerContext,
     CloudContext,
@@ -29,6 +34,11 @@ export const getActiveServerIdentityToken = (): string | null =>
 
 // The active session token's user fields — the synchronous seed for useProfileFacts.
 export { getActiveSessionUser };
+
+// The RELAY token's user fields, and the patch that writes them back — the account-level profile
+// source, which must not follow the active slot into a cloud. See contextStore for why the local
+// cache cannot serve this.
+export { getRelaySessionUser, patchRelaySessionUser };
 
 export const clearCloudSession = (): void => {
     cloudCore.clearSession();

@@ -8,6 +8,14 @@ export const CLOUD_AVATAR_CLASS =
 /** A cloud still being provisioned (not yet selectable). */
 export const isProvisioning = (status?: CloudView['status']): boolean => status === 'reserved' || status === 'init';
 
+/**
+ * An `active` cloud with no email bound yet — the backend confirmed a cloud reaches `active` with
+ * no email at all (a skipped purchase, or a skipped add-cloud request), so this isn't an error
+ * state, just an unfinished one. Only checked once provisioning is done: while still `init`/
+ * `reserved`, the provisioning row already says everything there is to say.
+ */
+export const needsEmailBind = (cloud: CloudView): boolean => cloud.status === 'active' && !cloud.email;
+
 export const getCloudDisplayName = (cloud: CloudView): string => cloud.name ?? cloud.email?.split('@')[0] ?? '';
 
 /**

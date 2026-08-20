@@ -117,7 +117,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
@@ -132,7 +132,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 <DialogDescription className="sr-only">Update room info</DialogDescription>
 
                 {/* Full-bleed on phones, capped to a phone-width column on wider screens. */}
-                <div className="flex h-full w-full max-w-[440px] flex-col">
+                <div className="flex h-full w-full flex-col">
                     {/* safeArea={false}: the native WebView is already inset below the status bar,
                         so adding the safe-top inset here would double the top gap. */}
                     <ModalTopBar
