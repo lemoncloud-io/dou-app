@@ -413,7 +413,10 @@
     },
     "notifications": {
         "title": "Notifications",
-        "empty": "No notifications"
+        "empty": "No notifications",
+        "inApp": {
+            "now": "now"
+        }
     },
     "globalLoader": {
         "switchingCloud": "Switching cloud...",
@@ -426,6 +429,12 @@
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud",
         "placeLimitReached": "You can create up to 5 places",
+        "placeLimit": {
+            "title": "You can't add more places",
+            "description": "Each cloud can hold up to <strong>{{max}} places</strong>.\nDelete a place, or create a <strong>new cloud</strong>.",
+            "manage": "Manage places",
+            "addCloud": "Add cloud"
+        },
         "channelLimitReached": "You can create up to 100 group rooms",
         "profile": "Profile",
         "menuPlaceSettings": "Place Settings",
@@ -435,7 +444,8 @@
         "directComingSoon": "1:1 chat is coming soon",
         "setupProfile": "Set up your profile",
         "noPlaceTitle": "No place connected",
-        "noPlaceDescription": "Connect to a place to start chatting"
+        "noPlaceDescription": "Connect to a place to start chatting",
+        "loadingCloud": "Loading cloud"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
@@ -452,12 +462,14 @@
         "empty": "No clouds registered",
         "switchFailed": "Failed to switch cloud",
         "invited": "Invited",
+        "unreadBadge": "Unread",
         "emptyInvited": "No invited clouds",
         "emptyInvitedDescription": "Clouds you've been invited to will appear here",
         "invitedOwnerLabel": "{{owner}}'s cloud",
         "invitedFallbackLabel": "Invited cloud",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
         "cloudReady": "Your cloud is ready!",
+        "emailRequired": "Add recovery email",
         "disconnectCloud": "Disconnect Cloud",
         "disconnectCloudDesc": "Disconnect from cloud",
         "authTimeout": "Cloud authentication timed out",
@@ -489,7 +501,9 @@
         "subtitleOwned": "My Place",
         "subtitleInvited": "Invited Place",
         "hasUnread": "Unread",
-        "selected": "Selected"
+        "selected": "Selected",
+        "loading": "Loading places",
+        "switching": "Switching place"
     },
     "placeOrder": {
         "title": "Place List",
@@ -521,7 +535,11 @@
         "createDirect": "1:1 Chat",
         "createGroup": "Create Group",
         "pinned": "Pinned chat",
-        "muted": "Notifications off"
+        "muted": "Notifications off",
+        "emptyInvited": "You're not in any chat room yet.\nRooms you're invited to will show up here.",
+        "emptyInvitedLeaveHint": "You can leave this place if you no longer use it.",
+        "emptyInvitedPlaceInfo": "Go to place info",
+        "loading": "Loading chat rooms"
     },
     "channelManage": {
         "title": "Manage chats",
@@ -1057,7 +1075,7 @@
         },
         "permissionDenied": {
             "title": "Contacts access is turned off",
-            "description": "To quickly find friends and start chatting, contacts permission is required. Your contact information is only used for friend recommendations and invitations, and is kept secure.",
+            "description": "To find friends quickly and start a conversation, DoU needs access to your contacts. Contact info is used only for picking friends and sending invites, and is kept secure.",
             "action": "Allow contacts in Settings"
         }
     },

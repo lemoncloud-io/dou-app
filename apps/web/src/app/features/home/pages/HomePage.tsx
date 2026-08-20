@@ -7,7 +7,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useCloudSessionCatalog, useMembershipInfo, useSessionSelection } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 
-import { AppHeader, EmptyState, ProfileAvatar } from '@chatic/web-ui-kit';
+import { AppHeader, EmptyState, ProfileAvatar, SubscriptionBadge } from '@chatic/web-ui-kit';
 
 import {
     DropdownMenu,
@@ -32,6 +32,7 @@ import {
     CloudSessionSheet,
     CreateChannelDialog,
     CreatePlaceDialog,
+    PlaceLimitDialog,
     PlaceList,
     SubscriptionRequiredDialog,
 } from '../components';
@@ -79,7 +80,7 @@ export const HomePage = () => {
     // (it lives in invitedClouds), so look there too — matched by id or cid. Invited clouds may lack
     // name/email (and even id), so fall back name → id → cid so both the header label and its
     // initials avatar always have something to show instead of a blank "?".
-    const { clouds } = useCloudSessionCatalog();
+    const { clouds, isPendingClouds } = useCloudSessionCatalog();
     const activeOwnedCloud = clouds.find(cloud => cloud.id === selectedCloudId);
     const activeInvitedCloud = invitedClouds.find(
         cloud => cloud.id === selectedCloudId || cloud.cid === selectedCloudId
@@ -92,6 +93,11 @@ export const HomePage = () => {
     const cloudName =
         cachedCloudName ??
         (activeCloud ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || '' : '');
+    // Cold start on a cloud: the catalog has not answered yet AND nothing was cached locally, so
+    // there is no name to print. The header shows a pulsing placeholder for that window instead of
+    // a blank circle beside blank text — which otherwise reads as a nameless cloud, not a pending
+    // fetch. A cached name short-circuits this, so the common (warm) case never flashes a skeleton.
+    const isCloudHeaderLoading = !isDefaultCloud && isPendingClouds && !cloudName;
 
     // Subscription tier drives the FREE/PRO plan badge. A guest is always FREE; otherwise PRO when
     // either a valid membership OR at least one activated cloud exists — owning a live cloud (status
@@ -125,7 +131,7 @@ export const HomePage = () => {
     // (the user is already deep in cloud management there); the home banner instead sends first-time
     // users to the guide, which explains what a cloud is before asking them to pay.
     const { requestAddCloud } = useAddCloudFlow();
-    const openCloudGuide = () => navigate(ROUTES.subscription.plans);
+    const openCloudGuide = () => navigate(ROUTES.subscription.guide);
 
     // Promo gate: only clouds the account OWNS count. Being a guest in someone else's cloud does not
     // satisfy "make a cloud of your own", so invited ids are subtracted from the relay catalog — the
@@ -142,6 +148,11 @@ export const HomePage = () => {
     const ownedPlaceCount = places.filter(place => place.stereo !== 'place').length;
 
     const { channels, isLoading: isChannelsLoading } = useHomeChannels(selectedPlaceId);
+    // A place switch is also a channel load: `useHomeChannels` slices the ALREADY-loaded cloud-wide
+    // observation by sid, so the moment the switch pre-applies the new sid the slice is empty with
+    // isLoading === false. Without folding the switch in, the Chat section would flash its empty
+    // state ("채팅방이 없어요") on the way into every place. Skeletons cover the gap instead.
+    const isChannelSectionLoading = isChannelsLoading || isSwitching;
     // Sent relay invites (ADR-0033 Track B) — 1:1 DM invites only make sense on the default
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
@@ -190,7 +201,7 @@ export const HomePage = () => {
     // Restore the list scroll position when returning from a chat room (the page unmounts on
     // navigation). Restore only once the list content has rendered so the offset isn't clamped
     // against a still-loading (short) list.
-    const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelsLoading);
+    const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelSectionLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
 
     // Header identity is the PLACE (site) profile only — HomePage never uses the account/user
@@ -214,10 +225,17 @@ export const HomePage = () => {
     // is active, since there'd be no place to configure.
     const hasActivePlace = !!selectedSiteId;
 
+    // Tier readout for the profile menu (Figma 3108:25868). DoU Home is pinned to FREE: what a
+    // subscription buys is a cloud of one's OWN, so the relay stays the free home even for a paying
+    // account — only a cloud reads `planTier`. Undecided (membership still in flight) shows nothing,
+    // exactly like the header pill.
+    const menuTier = isDefaultCloud ? 'free' : planTier;
+
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isPlaceDialogOpen, setIsPlaceDialogOpen] = useState(false);
     const [isCloudSessionOpen, setIsCloudSessionOpen] = useState(false);
     const [isSubscriptionRequiredOpen, setIsSubscriptionRequiredOpen] = useState(false);
+    const [isPlaceLimitOpen, setIsPlaceLimitOpen] = useState(false);
 
     const { isFirstRun, completeOnboarding } = usePreferenceStore();
     // Sort + pins are scoped to cid:sid — a place id is only unique within its cloud, so the same
@@ -258,10 +276,12 @@ export const HomePage = () => {
             toast({ title: t('homePage.cannotCreatePlace'), variant: 'destructive' });
             return;
         }
-        // Places are capped per owned cloud; the "+" stays visible and the attempt is toasted.
+        // Places are capped per owned cloud; the "+" stays visible and the attempt opens the cap
+        // dialog, which offers both ways out (free a slot / add a cloud) instead of only naming the
+        // limit as the old toast did.
         // Dev-class builds (VITE_ENV DEV/LOCAL) are uncapped so testers can seed freely.
         if (!isDevBuild() && ownedPlaceCount >= MAX_PLACES) {
-            toast({ title: t('homePage.placeLimitReached') });
+            setIsPlaceLimitOpen(true);
             return;
         }
         setIsPlaceDialogOpen(true);
@@ -270,6 +290,13 @@ export const HomePage = () => {
     // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
     // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners).
     const handleCreateGroup = () => {
+        // On relay the entry exists ONLY as an upsell (ChannelList shows it there while unpaid), so
+        // it never reaches the create dialog — and the relay place's own channel count must not
+        // turn that upsell into a cap toast.
+        if (isDefaultCloud) {
+            setIsSubscriptionRequiredOpen(true);
+            return;
+        }
         if (!isDevBuild() && channels.length >= MAX_CHANNELS_PER_PLACE) {
             toast({ title: t('homePage.channelLimitReached') });
             return;
@@ -300,15 +327,17 @@ export const HomePage = () => {
                     <ProfileAvatar src={displayImageUrl} size={36} />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-                <div className="flex items-center gap-2 px-2 py-2">
-                    <ProfileAvatar src={displayImageUrl} size={32} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{displayName}</span>
+            {/* Menu metrics are the design's, not the ui-kit defaults: 281px wide, 16px corners, no
+                side gutter (every row carries its own 16px) and 8/10px top/bottom — Figma 3108:25868. */}
+            <DropdownMenuContent align="end" className="w-[281px] rounded-2xl p-0 pb-2.5 pt-2">
+                <div className="flex items-center gap-3 px-4 py-2">
+                    <ProfileAvatar src={displayImageUrl} size={42} />
+                    <span className="min-w-0 flex-1 truncate font-semibold text-foreground">{displayName}</span>
                     <button
                         type="button"
                         aria-label={t('homePage.menuClose', '닫기')}
                         onClick={() => setIsProfileMenuOpen(false)}
-                        className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+                        className="flex size-[18px] shrink-0 items-center justify-center text-foreground"
                     >
                         <X size={18} />
                     </button>
@@ -316,10 +345,17 @@ export const HomePage = () => {
                 <DropdownMenuItem
                     disabled={!hasActivePlace}
                     onClick={() => selectedSiteId && navigate(ROUTES.place.settings(selectedSiteId))}
-                    className="cursor-pointer"
+                    className="cursor-pointer px-4 py-2 text-base font-semibold"
                 >
                     {t('homePage.menuPlaceSettings', '플레이스 설정')}
                 </DropdownMenuItem>
+                {/* A readout, not a control: the header pill is the one place that routes to
+                    subscription, so this stays a non-interactive span outside the menu items. */}
+                {menuTier && (
+                    <div className="flex items-center px-4 py-1.5">
+                        <SubscriptionBadge tier={menuTier} size="xs" />
+                    </div>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -331,6 +367,8 @@ export const HomePage = () => {
                 name={cloudName}
                 planTier={planTier}
                 onPlanClick={() => navigate(ROUTES.subscription.root)}
+                loading={isCloudHeaderLoading}
+                loadingLabel={t('homePage.loadingCloud', '클라우드를 불러오는 중이에요')}
                 onSearch={handleSearch}
                 searchLabel={t('homePage.search', '검색')}
                 // The cloud-switch entry is always available — even a plain guest can open the sheet
@@ -374,14 +412,21 @@ export const HomePage = () => {
                         channels={channels}
                         joinByChannel={myJoins}
                         sid={selectedPlaceId}
-                        isLoading={isChannelsLoading}
-                        canCreate={!isChannelsLoading && (isDefaultCloud || isCloudOwner)}
+                        isLoading={isChannelSectionLoading}
+                        canCreate={!isChannelSectionLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
                         isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
                         pinnedChannelIds={pinnedChannelIds}
                         onCreateOneOnOne={handleCreateOneOnOne}
                         onCreateGroup={handleCreateGroup}
+                        // An invited member cannot create rooms here, so the empty body explains
+                        // that rooms arrive by invitation and points at the place-info hub — the
+                        // one place they CAN act on (leaving). See ChannelEmptyState.
+                        isInvitedPlace={isInvitedCloud}
+                        onOpenPlaceInfo={
+                            selectedSiteId ? () => navigate(ROUTES.place.settings(selectedSiteId)) : undefined
+                        }
                         sentInvites={isDefaultCloud ? sentInvites : []}
                         onSelectInvite={inviteId => navigate(ROUTES.invite.waiting(inviteId))}
                     />
@@ -409,6 +454,17 @@ export const HomePage = () => {
             <SubscriptionRequiredDialog
                 open={isSubscriptionRequiredOpen}
                 onClose={() => setIsSubscriptionRequiredOpen(false)}
+            />
+            {/* '플레이스 관리' goes to the ACTIVE place's settings hub (where a place can be deleted to
+                free a slot), so it is only offered when a site is active — same reason the header's
+                '플레이스 설정' entry is gated on `hasActivePlace`. '클라우드 추가' reuses the one
+                add-cloud entry point, which owns the cloud quota check. */}
+            <PlaceLimitDialog
+                open={isPlaceLimitOpen}
+                onOpenChange={setIsPlaceLimitOpen}
+                maxPlaces={MAX_PLACES}
+                onManagePlaces={selectedSiteId ? () => navigate(ROUTES.place.settings(selectedSiteId)) : undefined}
+                onAddCloud={requestAddCloud}
             />
             <OnboardingModal open={isFirstRun} onComplete={completeOnboarding} />
         </div>

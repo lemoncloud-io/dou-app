@@ -4,13 +4,14 @@ import { cn } from '@chatic/lib/utils';
 import { CloudAvatar, IconCheckCircleSolid } from '@chatic/web-ui-kit';
 import type { DomainCloud } from '@chatic/data';
 
+import { CloudUnreadBadge } from './CloudUnreadBadge';
 import { SELECTED_HIGHLIGHT } from './shared';
 
 interface InviteCloudItemProps {
     inviteCloud: DomainCloud;
     isSelected: boolean;
     isDisabled: boolean;
-    /** presence dot: any unread across this cloud's places (last-visited snapshot). */
+    /** presence badge: any unread across this cloud's places (last-visited snapshot). */
     hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
 }
@@ -48,11 +49,13 @@ export const InviteCloudItem = ({
                 cloud name (no image field exists in the model). */}
             <CloudAvatar name={displayName} size="lg" />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-[6px]">
+                {/* `min-w-0` on the row so the truncating name — not the badge — absorbs the
+                    overflow when the cloud name is long (Figma 3486:25664). */}
+                <div className="flex min-w-0 items-center gap-[6px]">
                     <span className="truncate text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                         {displayName}
                     </span>
-                    {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
+                    {hasUnread && <CloudUnreadBadge />}
                 </div>
                 <span className="truncate text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-description">
                     {subtitle}

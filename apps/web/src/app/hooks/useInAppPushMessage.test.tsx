@@ -7,6 +7,8 @@ import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { useInAppPushMessage } from './useInAppPushMessage';
 
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
+// The banner card translates its "now" label; echo keys so assertions target the key.
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/web-core', () => ({ useSessionIdentity: jest.fn() }));
 jest.mock('../bridge', () => ({
     useOnReceiveNotification: jest.fn(),
@@ -129,5 +131,14 @@ describe('useInAppPushMessage', () => {
 
         expect(screen.getByText('#general')).toBeTruthy();
         expect(screen.getByText('B')).toBeTruthy();
+    });
+
+    // 배너는 방금 도착한 푸시만 띄우므로 시각 라벨은 계산 없이 항상 고정 문구다.
+    it('배너에는 항상 "지금" 라벨이 붙는다', () => {
+        invoke({ title: 'T', body: 'B', data: { channelId: 'abc' } });
+
+        renderToastContent();
+
+        expect(screen.getByText('notifications.inApp.now')).toBeTruthy();
     });
 });

@@ -413,7 +413,10 @@
     },
     "notifications": {
         "title": "알림",
-        "empty": "알림이 없습니다"
+        "empty": "알림이 없습니다",
+        "inApp": {
+            "now": "지금"
+        }
     },
     "globalLoader": {
         "switchingCloud": "클라우드 전환 중...",
@@ -427,6 +430,12 @@
         "selectCloud": "클라우드 선택하기",
         "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
         "placeLimitReached": "플레이스는 최대 5개까지 만들 수 있어요",
+        "placeLimit": {
+            "title": "플레이스를 더 이상 추가할 수 없어요",
+            "description": "플레이스는 <strong>클라우드당 최대 {{max}}개</strong>까지 추가할 수 있습니다.\n플레이스를 삭제하거나\n<strong>새로운 클라우드</strong>를 만들어 주세요.",
+            "manage": "플레이스 관리",
+            "addCloud": "클라우드 추가"
+        },
         "channelLimitReached": "그룹방은 최대 100개까지 만들 수 있어요",
         "profile": "프로필",
         "menuPlaceSettings": "플레이스 설정",
@@ -435,7 +444,8 @@
         "switchCloud": "클라우드 전환",
         "directComingSoon": "1:1 대화는 준비 중이에요",
         "noPlaceTitle": "접속한 플레이스가 없어요",
-        "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요"
+        "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요",
+        "loadingCloud": "클라우드를 불러오는 중이에요"
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
@@ -452,12 +462,14 @@
         "empty": "등록된 클라우드가 없어요",
         "switchFailed": "클라우드 전환에 실패했어요",
         "invited": "초대됨",
+        "unreadBadge": "읽지 않음",
         "emptyInvited": "초대된 클라우드가 없어요",
         "emptyInvitedDescription": "초대를 받으면 여기에 표시돼요",
         "invitedOwnerLabel": "{{owner}}님의 클라우드",
         "invitedFallbackLabel": "초대받은 클라우드",
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
         "cloudReady": "클라우드가 준비되었어요!",
+        "emailRequired": "복원용 이메일 등록하기",
         "disconnectCloud": "클라우드 해제",
         "disconnectCloudDesc": "클라우드 연결을 해제합니다",
         "authTimeout": "클라우드 인증 시간이 초과되었어요",
@@ -489,7 +501,9 @@
         "subtitleOwned": "내 플레이스",
         "subtitleInvited": "초대받은 플레이스",
         "hasUnread": "읽지 않음",
-        "selected": "선택됨"
+        "selected": "선택됨",
+        "loading": "플레이스를 불러오는 중이에요",
+        "switching": "플레이스로 이동 중이에요"
     },
     "placeOrder": {
         "title": "플레이스 목록",
@@ -521,7 +535,11 @@
         "createDirect": "1:1 대화",
         "createGroup": "그룹 방 만들기",
         "pinned": "고정된 채팅방",
-        "muted": "알림 꺼짐"
+        "muted": "알림 꺼짐",
+        "emptyInvited": "현재 참여 중인 채팅방이 없어요.\n새로운 채팅방에 초대되면 이곳에 표시됩니다.",
+        "emptyInvitedLeaveHint": "이 플레이스를 더 이상 이용하지 않는다면 나갈 수 있어요.",
+        "emptyInvitedPlaceInfo": "플레이스 정보 바로가기",
+        "loading": "채팅방을 불러오는 중이에요"
     },
     "channelManage": {
         "title": "채팅방 관리",
@@ -1057,7 +1075,7 @@
         },
         "permissionDenied": {
             "title": "연락처 접근 허용이 꺼져 있어요",
-            "description": "친구를 빠르게 찾고 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 추천 및 초대에만 사용되며 안전하게 보호됩니다.",
+            "description": "친구를 빠르게 찾고, 대화를 시작하려면 연락처 접근 권한이 필요합니다. 연락처 정보는 친구 선택 및 초대에만 사용되며 안전하게 보호됩니다.",
             "action": "설정에서 연락처 허용하기"
         }
     },

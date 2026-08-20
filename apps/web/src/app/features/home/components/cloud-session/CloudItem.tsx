@@ -6,7 +6,8 @@ import { cn } from '@chatic/lib/utils';
 import { CloudAvatar, IconCheckCircleSolid } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
-import { CLOUD_AVATAR_CLASS, SELECTED_HIGHLIGHT, getCloudDisplayName, isProvisioning } from './shared';
+import { CloudUnreadBadge } from './CloudUnreadBadge';
+import { CLOUD_AVATAR_CLASS, SELECTED_HIGHLIGHT, getCloudDisplayName, isProvisioning, needsEmailBind } from './shared';
 
 const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
     const { t } = useTranslation();
@@ -24,7 +25,9 @@ const CloudStatusBadge = ({ status }: { status: CloudView['status'] }) => {
     if (!config) return null;
 
     return (
-        <div className="flex items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
+        // `shrink-0`: the name row is now `min-w-0`, so without this the status pill would be the
+        // thing that squashes instead of the name.
+        <div className="flex shrink-0 items-center gap-1 rounded-[5px] bg-secondary px-[6px] py-1">
             <span className={`text-[14px] font-medium leading-[1.19] ${config.className}`}>{config.label}</span>
         </div>
     );
@@ -34,10 +37,12 @@ interface CloudItemProps {
     cloud: CloudView;
     isSelected: boolean;
     isDisabled: boolean;
-    /** presence dot: any unread across this cloud's places (last-visited snapshot). */
+    /** presence badge: any unread across this cloud's places (last-visited snapshot). */
     hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
     onErrorClick: () => void;
+    /** Raised instead of `onSelectCloud` when the row `needsEmailBind` — see that helper. */
+    onRequestEmailBind?: (cloudId: string) => void;
 }
 
 /**
@@ -51,10 +56,12 @@ export const CloudItem = ({
     hasUnread,
     onSelectCloud,
     onErrorClick,
+    onRequestEmailBind,
 }: CloudItemProps) => {
     const { t } = useTranslation();
     const isError = cloud.status === 'error';
     const isActive = cloud.status === 'active';
+    const unbound = needsEmailBind(cloud);
     const disabled = isDisabled || isSelected || !isActive;
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
@@ -64,6 +71,12 @@ export const CloudItem = ({
             onClick={() => {
                 if (isError) {
                     onErrorClick();
+                    return;
+                }
+                // An unbound cloud is `active` (not `disabled`) but there's nothing to sign into it
+                // with yet — route the tap at fixing that instead of switching.
+                if (unbound && onRequestEmailBind) {
+                    if (cloud.id) onRequestEmailBind(cloud.id);
                     return;
                 }
                 if (!disabled && cloud.id) onSelectCloud(cloud.id);
@@ -88,13 +101,15 @@ export const CloudItem = ({
             ) : (
                 <CloudAvatar name={displayName} size="lg" />
             )}
-            <div className="flex flex-1 flex-col gap-0.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {hasName ? (
-                    <div className="flex items-center gap-[6px]">
-                        <span className="text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
+                    // `min-w-0` + `truncate` on the NAME only: a long cloud name is clipped with an
+                    // ellipsis while the unread badge stays fully visible (Figma 3486:25664).
+                    <div className="flex min-w-0 items-center gap-[6px]">
+                        <span className="truncate text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                             {displayName}
                         </span>
-                        {hasUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />}
+                        {hasUnread && <CloudUnreadBadge />}
                         <CloudStatusBadge status={cloud.status} />
                     </div>
                 ) : (
@@ -105,8 +120,15 @@ export const CloudItem = ({
                         </span>
                     </div>
                 )}
-                <span className="truncate text-left text-[14px] font-normal leading-[1.19] tracking-[-0.01em] text-description">
-                    {cloud.email ?? ''}
+                <span
+                    className={cn(
+                        'truncate text-left text-[14px] leading-[1.19] tracking-[-0.01em]',
+                        unbound
+                            ? 'font-medium text-point-blue underline underline-offset-2'
+                            : 'font-normal text-description'
+                    )}
+                >
+                    {unbound ? t('cloudSessionSheet.emailRequired') : (cloud.email ?? '')}
                 </span>
                 {isProvisioning(cloud.status) && (
                     <span className="text-left text-[12px] leading-[1.3] text-[#9FA2A7]">

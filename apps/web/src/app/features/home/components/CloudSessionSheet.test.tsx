@@ -236,7 +236,10 @@ describe('CloudSessionSheet — selection', () => {
 });
 
 describe('CloudSessionSheet — presence dots (ADR-0056)', () => {
-    const dotCount = (baseElement: HTMLElement) => baseElement.querySelectorAll('.bg-red-500').length;
+    // The 6×6 red dot became the 20×20 "N" badge (Figma 4147:24964), so match on the badge's
+    // accessible label (CloudUnreadBadge) rather than on its fill class.
+    const UNREAD_BADGE = '[aria-label="cloudSessionSheet.unreadBadge"]';
+    const dotCount = (baseElement: HTMLElement) => baseElement.querySelectorAll(UNREAD_BADGE).length;
 
     it('캐시 힌트(cloudUnread)만으로도 오너 클라우드 행에 점이 뜬다', () => {
         catalog.clouds = [activeCloud('c1')];
@@ -283,7 +286,7 @@ describe('CloudSessionSheet — presence dots (ADR-0056)', () => {
         renderSheet();
 
         const homeRow = screen.getByText('cloudSessionSheet.douHome').closest('button') as HTMLElement;
-        expect(homeRow.querySelector('.bg-red-500')).not.toBeNull();
+        expect(homeRow.querySelector(UNREAD_BADGE)).not.toBeNull();
     });
 
     it('초대받은 클라우드 행에도 마크로 점이 뜬다', () => {

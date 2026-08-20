@@ -81,7 +81,8 @@ owner가 새 **플레이스(=Site)** 와 **그룹방(=Channel)** 을 개설하�
 ### 그룹방 생성
 
 1. **진입** — owner 클라우드에서 선택된 플레이스의 Chat 섹션 `+` → `그룹 방 만들기`. PRO 아니면 구독 유도
-   다이얼로그. 이미 100개면 토스트로 막는다.
+   다이얼로그. 이미 100개면 토스트로 막는다. 중계의 같은 이름 항목은 **미구독자 업셀 전용**이라 개수와
+   무관하게 항상 구독 유도 다이얼로그로 간다(구독자에겐 항목 자체가 없다).
 2. **입력** — 타이틀 "그룹방을 만들고 대화를 시작해 보세요" + 부제. 이름 규칙은 플레이스와 동일. placeholder는
    "예: 여름 여행, 가족 모임, 프로젝트 A".
 3. **사진(선택)** — 동일. 기본 글리프는 그룹(`IconUsers`).
@@ -145,11 +146,13 @@ owner 게이팅은 클라우드 컨텍스트(렐리 1:1 vs 클라우드 그룹)�
 - `canAddPlace = isCloudOwner && permissions.canCreatePlace`(= owner && 비게스트 && 활성 클라우드). PlaceList의
   `+`는 이 값으로만 노출된다.
 - 채널 `+` 메뉴: `canCreate = !isChannelsLoading && (isDefaultCloud || isCloudOwner)`. 렐리에선 모두에게 `1:1
-대화`(placeholder)를, 클라우드에선 owner에게만 `그룹 방 만들기`를 보인다.
+대화`(placeholder)를, 클라우드에선 owner에게만 `그룹 방 만들기`를 보인다. 렐리의 미구독자에게는 `그룹 방
+만들기`가 업셀 행으로 한 줄 더 붙는다(`showGroupCreate = !isDefaultCloud || !isPro`).
 - 한도 체크는 개수를 아는 HomePage 핸들러에서 한다. `handleCreatePlace`는 `ownedPlaceCount >= MAX_PLACES`
   (relay 구독행 `stereo === 'place'` 제외 카운트)면 `homePage.placeLimitReached` 토스트 후 return.
-  `handleCreateGroup`은 `channels.length >= MAX_CHANNELS_PER_PLACE`면 `homePage.channelLimitReached` 토스트
-  후 return(그다음 PRO 게이트). 단, dev-class 빌드(`VITE_ENV` DEV/LOCAL, `isDevBuild()`)에서는 두 한도
+  `handleCreateGroup`은 렐리면 상한 체크 없이 곧바로 구독 유도로 빠지고(업셀 전용 입구라 렐리 플레이스의
+  채널 수가 상한 토스트로 바뀌면 안 된다), 클라우드에선 `channels.length >= MAX_CHANNELS_PER_PLACE`면
+  `homePage.channelLimitReached` 토스트 후 return(그다음 PRO 게이트). 단, dev-class 빌드(`VITE_ENV` DEV/LOCAL, `isDevBuild()`)에서는 두 한도
   체크를 건너뛴다 — 테스터가 자유롭게 시드할 수 있도록. PRO 게이트는 그대로 남는다.
 
 ### 2) 한도 상수 단일화

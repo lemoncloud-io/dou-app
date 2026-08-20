@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { Loader2 } from 'lucide-react';
+
 import { usePlaceSync } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 
@@ -15,13 +17,28 @@ interface PlaceItemProps {
     unreadCount?: number;
     /** Place-type caption below the name (내/초대받은 플레이스). */
     subtitle: string;
+    /**
+     * This row is the target of a switch that is still in flight. The switch pre-applies the sid
+     * optimistically, so the row is already "selected" while the session is still committing —
+     * without a mark of its own that reads as "done" a beat too early. A spinner takes the
+     * selected badge's slot for the duration.
+     */
+    isSwitchingTo?: boolean;
 }
 
 /**
  * One row of the cloud-mode Place section. There is no relay variant: relay hides the whole section
  * (ADR-0034), so the former "DoU Home" branding of the single relay place is gone.
  */
-export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unreadCount, subtitle }: PlaceItemProps) => {
+export const PlaceItem = ({
+    place,
+    isSelected,
+    isDisabled,
+    onSelectPlace,
+    unreadCount,
+    subtitle,
+    isSwitchingTo,
+}: PlaceItemProps) => {
     const { t } = useTranslation();
     // Register this place as a sync target while it is rendered; the runtime keeps its
     // metadata (name, thumbnail, …) live and unregisters on unmount.
@@ -41,7 +58,15 @@ export const PlaceItem = ({ place, isSelected, isDisabled, onSelectPlace, unread
     );
 
     // Selected place shows the blue verified check; an unselected place with unread shows a red dot.
-    const trailingMark = isSelected ? (
+    // A switch still in flight pre-empts both — see isSwitchingTo.
+    const trailingMark = isSwitchingTo ? (
+        <Loader2
+            size={16}
+            role="img"
+            aria-label={t('placeList.switching', '플레이스로 이동 중이에요')}
+            className="shrink-0 animate-spin text-description"
+        />
+    ) : isSelected ? (
         <VerifiedBadge size={18} label={t('placeList.selected', '선택됨')} />
     ) : hasUnread ? (
         <span

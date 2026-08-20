@@ -122,7 +122,7 @@ if (sid && needsSiteSwitch) await switchSite(sid);
 `logoutCloudSession()`(`libs/web-core/src/session/services.ts:297`)을 지목했지만, 앱
 레이어의 정석 진입점은 그것을 감싼 app-runtime 버전이다
 (`libs/app-runtime/src/socket/auth/logoutCloudSession.ts:16` — cloud 소켓에 best-effort
-`auth.logout` 통지 후 web-core 클리어). `CloudSessionSheet`·`AccountManagePage`가 같은
+`auth.logout` 통지 후 web-core 클리어). `CloudSessionSheet`·`CloudManagePage`가 같은
 훅을 쓴다.
 
 **핸드셰이크 게이트는 relay 복귀에도 동일하게 적용된다.** `needsRelayReturn`이
