@@ -7,13 +7,10 @@ import { appBridge } from '../../../bridge';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: jest.fn() }) }));
 
-const validateMutate = jest.fn().mockResolvedValue({ isValid: true });
-const membershipMutate = jest.fn().mockResolvedValue({});
+const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
 jest.mock('@chatic/web-core', () => ({
     cloudsKeys: { all: ['clouds'] },
     subscriptionKeys: { all: ['subscription'] },
-    useValidateApple: () => ({ mutateAsync: validateMutate }),
-    useValidateGoogle: () => ({ mutateAsync: validateMutate }),
     useValidateMembership: () => ({ mutateAsync: membershipMutate }),
 }));
 

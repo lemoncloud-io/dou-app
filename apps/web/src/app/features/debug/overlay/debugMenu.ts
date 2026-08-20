@@ -11,8 +11,7 @@ export type DebugScreenKey =
     | 'InviteRedirect'
     | 'DBBrowser'
     | 'ProfileEditor'
-    | 'DeviceInfo'
-    | 'Subscription';
+    | 'DeviceInfo';
 
 export interface DebugMenuItem {
     key: DebugScreenKey;
@@ -35,7 +34,6 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = [
             { key: 'UploadTest', title: 'Chunk Upload Test' },
             { key: 'Push', title: 'Push (Token & Receive)' },
             { key: 'InviteRedirect', title: 'Invite Link Converter' },
-            { key: 'Subscription', title: 'Subscription (State & Quota)' },
         ],
     },
     {

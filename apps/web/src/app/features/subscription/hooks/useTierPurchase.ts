@@ -16,7 +16,7 @@ export interface TierPurchase {
     changeKindOf: (plan: ProductView) => TierChangeKind;
     /** Looks the plan up in the store catalog. Rejects with a user-facing message when absent. */
     resolveNativeProduct: (plan: ProductView) => Promise<IapProductSubscription>;
-    /** Buys (or replaces) the plan. `email` is only for a new cloud — a tier change creates none. */
+    /** Buys (or replaces) the plan. `email` is optional — skipping it still validates the purchase. */
     purchaseTier: (plan: ProductView, matched: IapProductSubscription, email?: string) => Promise<void>;
 }
 

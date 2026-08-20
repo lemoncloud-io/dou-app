@@ -2,27 +2,19 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import {
-    cloudsKeys,
-    subscriptionKeys,
-    useValidateApple,
-    useValidateGoogle,
-    useValidateMembership,
-} from '@chatic/web-core';
+import { cloudsKeys, subscriptionKeys, useValidateMembership } from '@chatic/web-core';
 
 import type { IapProductSubscription } from '@chatic/app-messages';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
 import { useLinkedAccounts } from '../../../hooks';
-import { APP_ID, IS_DEV } from '../consts';
+import { APP_ID } from '../consts';
 import type { NativePurchase, PurchaseError, PurchaseProduct } from '../types';
 
 export const useSubscriptionIap = () => {
     const isIOS = typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
     const { t } = useTranslation();
-    const validateGoogle = useValidateGoogle();
-    const validateApple = useValidateApple();
     const validateMembership = useValidateMembership();
     const queryClient = useQueryClient();
     const linked = useLinkedAccounts();
@@ -58,25 +50,13 @@ export const useSubscriptionIap = () => {
         purchaseResolverRef.current = null;
     });
 
+    // The receipt is only ever validated server-side: `POST /memberships/0` validates against
+    // Apple/Google itself (backend-api → iap-api) before creating/renewing the membership. Calling
+    // iap-api's `/validate/<platform>` directly from the client was dead weight — that route was
+    // never meant to be reachable by a client credential, only by backend-api's own.
     const validate = useCallback(
         async (result: NativePurchase, email?: string) => {
-            const validateFn = isIOS ? validateApple : validateGoogle;
-            const response = await validateFn.mutateAsync({
-                body: {
-                    paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
-                    appId: APP_ID,
-                    productId: result.productId,
-                    purchaseToken: result.purchaseToken ?? '',
-                    isSubscription: true,
-                },
-                params: { detail: 1 },
-            });
-
-            if (!response.isValid) {
-                throw new Error('Validation failed: isValid=false');
-            }
-
-            await validateMembership.mutateAsync({
+            const membership = await validateMembership.mutateAsync({
                 body: {
                     appId: APP_ID,
                     paymentType: isIOS ? 'apple-inapp' : 'google-inapp',
@@ -84,12 +64,15 @@ export const useSubscriptionIap = () => {
                     productId: result.productId,
                     ...(email && { email }),
                 },
-                ...(IS_DEV && { params: { dryRun: 1 } }),
             });
 
-            return response;
+            if (!membership.isValid) {
+                throw new Error('Validation failed: isValid=false');
+            }
+
+            return membership;
         },
-        [isIOS, validateApple, validateGoogle, validateMembership]
+        [isIOS, validateMembership]
     );
 
     /** Fetch the native product catalog (used on Android to extract offerToken). */

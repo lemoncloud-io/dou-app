@@ -228,6 +228,20 @@ tier 서열·인접 판정·초과 판정·상태 4종 판정·체험 표기 폴
    앱에 없었으므로, `POST /clouds/0/make`(`makeCloud`/`useMakeCloud`)를 `libs/web-core`에 추가했다.
    결정 1의 "tier2~5 판매가 열린다"가 성립하기 위한 전제다.
 
+## 결정 번복: 멤버십 검증의 DEV dryRun 제거 (2026-08-19)
+
+결정 7("DEV `dryRun: 1`도 그대로 둔다")을 되돌린다. `POST /memberships/0`의 `dryRun`은 서버가 멤버십을
+실제로 부여하지 않게 만들었고, 그 결과 **dev 빌드에서는 iOS 샌드박스 결제가 성공해도 구독이 앱에
+반영되지 않았다.** 구매복원도 같은 경로를 타므로 함께 무력화됐다. 리스크 항목에 적어둔
+"프로덕션 첫 결제가 사실상 첫 검증"이 실제 비용으로 돌아온 셈이다.
+
+`apps/web/.../hooks/useSubscriptionIap.ts`의 `validateMembership` 호출에서 `dryRun`을 뺀다. dev에서도
+구독이 실제로 부여되고, 그에 딸린 첫 클라우드 make도 실제로 enqueue된다.
+
+`useAddCloud`의 `dryRun`은 **유지한다.** 이쪽은 tier2+ 에서 클라우드를 추가로 만드는 경로라, 결정 7의
+"dev가 실제 인프라를 프로비저닝하지 않는다"는 원래 의도가 그대로 유효하다. 결과적으로 dev는 구독
+자체와 첫 클라우드까지는 실검증하고, 두 번째 이후 클라우드 생성은 여전히 미검증으로 남는다.
+
 ## 다음 단계
 
 구현은 완료됐다([tier-and-quota.md](../../apps/web/docs/feature/subscription/tier-and-quota.md)).
