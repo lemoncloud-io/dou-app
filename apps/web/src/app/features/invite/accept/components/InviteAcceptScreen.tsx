@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button, IconClose, ProfileAvatar, Text, douMark } from '@chatic/web-ui-kit';
+import { BrandMark, Button, IconClose, ProfileAvatar, Text } from '@chatic/web-ui-kit';
 
 import { InviteGlassSurface } from './InviteGlassSurface';
 import { InvitePlaceCard } from './InvitePlaceCard';
@@ -79,7 +79,7 @@ export const InviteAcceptScreen = ({
             {/* Header: brand character+wordmark (left) + close (right). The wide mark doesn't fit
                 ModalTopBar's 44px slot, so this mirrors that bar's safe-area padding inline. */}
             <header className="relative z-10 flex items-center justify-between bg-transparent px-4 pb-2 pt-[calc(var(--safe-top,0px)+0.5rem)]">
-                <img src={douMark} alt="DoU" className="h-10 w-auto" />
+                <BrandMark height={40} />
                 <button
                     type="button"
                     onClick={onClose}

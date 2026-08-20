@@ -8,3 +8,4 @@ export * from './divider';
 export * from './avatar';
 export * from './bubble';
 export * from './toast';
+export * from './brand';
