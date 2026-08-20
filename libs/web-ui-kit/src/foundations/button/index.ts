@@ -4,5 +4,6 @@ export * from './FloatingButton';
 export * from './IconButton';
 export * from './InlineActionButton';
 export * from './OutlineButton';
+export * from './SubscriptionBadge';
 export * from './SubscriptionButton';
 export * from './TextLink';
