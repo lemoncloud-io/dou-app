@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Inbox } from 'lucide-react';
 
+import { logger } from '@chatic/bridges';
 import { useInterval } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useCloudSessionCatalog, useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
@@ -143,6 +144,18 @@ export const CloudSessionSheet = ({
         await logoutCloudSession().catch(() => undefined);
     };
 
+    // Tapping a failed row explains the state and points at the one thing that fixes it (release it
+    // in 클라우드 관리, then add it again). The record's raw `error` is a server trace — it goes to the
+    // log, where support can read it, and never into the toast.
+    const handleErrorClick = (cloud: CloudView) => {
+        logger.warn('CLOUD', 'cloud row is in error state', { cloudId: cloud.id, error: cloud.error });
+        toast({
+            title: t('cloudSessionSheet.statusErrorTitle'),
+            description: t('cloudSessionSheet.statusErrorGuide'),
+            variant: 'destructive',
+        });
+    };
+
     const isDefaultSelected = !selectedId || selectedId === 'default';
     // Skeleton on the FIRST load only. Keying it off `isFetching` made every background refetch
     // (the sheet refetches on open, and `useClouds` is `refetchOnMount: 'always'`) replace the list —
@@ -198,13 +211,7 @@ export const CloudSessionSheet = ({
                     isDisabled={isSwitching}
                     hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0 || isBadged(cloud.id ?? '')}
                     onSelectCloud={handleSelectCloud}
-                    onErrorClick={() =>
-                        toast({
-                            title: t('cloudSessionSheet.statusError'),
-                            description: cloud.error ?? undefined,
-                            variant: 'destructive',
-                        })
-                    }
+                    onErrorClick={() => handleErrorClick(cloud)}
                     onRequestEmailBind={requestEmailBind}
                 />
             ))}

@@ -376,6 +376,7 @@
             "deleteFailed": "Failed to delete the cloud",
             "deleteSelectedCloudWarning": "This is your current cloud. The app will refresh after deletion.",
             "emailMissing": "No recovery email",
+            "setupFailed": "This cloud failed to set up. Delete it and add it again.",
             "registerEmail": "Add a recovery email"
         },
         "policy": {
@@ -468,6 +469,9 @@
         "invitedOwnerLabel": "{{owner}}'s cloud",
         "invitedFallbackLabel": "Invited cloud",
         "statusReservedDescription": "Setting up your cloud. This may take up to 10 minutes.",
+        "statusErrorDescription": "This cloud failed to set up",
+        "statusErrorTitle": "Cloud setup failed",
+        "statusErrorGuide": "Delete it in Cloud Management, then add it again. Contact us if it keeps failing.",
         "cloudReady": "Your cloud is ready!",
         "emailRequired": "Add recovery email",
         "disconnectCloud": "Disconnect Cloud",

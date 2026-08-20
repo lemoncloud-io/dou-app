@@ -97,6 +97,15 @@ export const makeCloud = async (body: CloudBody, params: Params = {}): Promise<C
     });
 };
 
+/**
+ * Releases (deletes) one cloud, answering with the released record.
+ *
+ * `allowRecordError`: the response IS that record, and a cloud that failed provisioning keeps its
+ * last trace in its own `error` column (`.accountNo[...] is invalid (duplicated by ...)`) — which is
+ * exactly the cloud a user comes here to remove. Without the flag the default 200-body check would
+ * rethrow that stale trace, and the cloud-manage screen would report a successful release
+ * as a failure.
+ */
 export const deleteCloud = async (cloudId: string, params: Params = {}): Promise<CloudView> => {
     return executeSignedRelayRequest<CloudView, Record<string, never>, Params>({
         method: 'POST',
@@ -105,5 +114,6 @@ export const deleteCloud = async (cloudId: string, params: Params = {}): Promise
         params: {
             ...params,
         },
+        allowRecordError: true,
     });
 };

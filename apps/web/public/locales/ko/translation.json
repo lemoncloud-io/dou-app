@@ -376,6 +376,7 @@
             "deleteFailed": "클라우드 삭제에 실패했어요",
             "deleteSelectedCloudWarning": "현재 선택 중인 클라우드입니다. 삭제 시 앱이 새로고침됩니다.",
             "emailMissing": "복원용 이메일 없음",
+            "setupFailed": "설정에 실패한 클라우드예요. 삭제 후 다시 추가해 주세요.",
             "registerEmail": "복원용 이메일 등록하기"
         },
         "policy": {
@@ -468,6 +469,9 @@
         "invitedOwnerLabel": "{{owner}}님의 클라우드",
         "invitedFallbackLabel": "초대받은 클라우드",
         "statusReservedDescription": "클라우드 설정 중이에요. 최대 10분이 소요될 수 있어요.",
+        "statusErrorDescription": "설정에 실패한 클라우드예요",
+        "statusErrorTitle": "클라우드 설정에 실패했어요",
+        "statusErrorGuide": "클라우드 관리에서 삭제한 뒤 다시 추가해 주세요. 계속 실패하면 문의해 주세요.",
         "cloudReady": "클라우드가 준비되었어요!",
         "emailRequired": "복원용 이메일 등록하기",
         "disconnectCloud": "클라우드 해제",

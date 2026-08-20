@@ -491,6 +491,46 @@ ADR-0060 §6대로 `SubscriptionSelectDialog`와 `subscription-select/*`를 `fea
 둔다. 이메일의 용도(기기 교체·재설치 시 복원)를 문구에 명시한다 — "로그인에 필요"라고만 하면 지금
 쓰는 데 지장이 없어 보이므로 미루게 된다.
 
+### 9. 실패한 클라우드 — `error` 컬럼은 "실패한 호출"이 아니다
+
+클라우드 레코드는 마지막 프로비저닝 흔적을 **자기 `error` 컬럼**에 들고 있고, 그 값은 `status`가
+움직인 뒤에도 남는다(`error: null`로 덮이기도 한다).
+
+```json
+{
+    "id": "1000047",
+    "status": "error",
+    "error": ".accountNo[#mock:1001494] is invalid (duplicated by 1000038) - doPostWorkspace(clouds/1000047)"
+}
+```
+
+그런데 relay 규약은 **200 + `{ error }` = 실패한 호출**이고, 모든 relay 호출은
+`throwIfApiError`를 지나간다(`libs/web-core/src/transport/request.ts`). 두 규약은 응답 본문이 곧
+레코드인 엔드포인트에서 충돌한다. `POST /clouds/{id}/release`가 그 경우다 — 삭제는 200으로 성공하는데
+응답에 실린 레코드의 옛 `error` 문자열이 그대로 다시 던져져, 클라우드 관리가 **성공한 삭제를 실패로**
+토스트했다. 실패한 클라우드는 사용자가 지우러 오는 바로 그 대상이라 항상 이 경로를 탔다.
+
+- 해결: `ApiRequestOptions.allowRecordError`. **기본값은 그대로 거절**이고, 응답이 레코드인 호출만
+  opt-in한다(현재 `deleteCloud` 하나). `withNetworkLog`도 같은 플래그를 받아, 성공한 release를
+  `warn`으로 승격하지 않는다.
+- 서버 원문은 **화면에 내보내지 않는다**. 내부 식별자(`#mock:1001494`, `doPostWorkspace`)를 그대로
+  읽히는 데다 사용자가 할 수 있는 일이 없다. 스위처 행은 `cloudSessionSheet.statusErrorDescription`
+  한 줄로 상태만 말하고, 탭하면 안내 토스트(`statusErrorTitle`/`statusErrorGuide` — "클라우드 관리에서
+  삭제한 뒤 다시 추가")가 뜬다. 원문은 `logger.warn('CLOUD', …)`로만 남긴다.
+- 그 탭은 원래 올라오지 않았다. `CloudItem`의 버튼이 `disabled={!isActive}`여서 `error` 행의 클릭이
+  DOM에서 먹혔고, `onErrorClick`은 죽은 코드였다(§8의 `PlanCard`와 같은 함정). 이제 `error` 행은
+  입장은 못 하되 **탭은 된다**.
+- 클라우드 관리(`CloudManagePage`)의 `error` 행은 "복원용 이메일 등록하기" CTA를 내지 않는다. 이메일을
+  붙여도 고쳐지지 않는 상태이고, 스위처가 이 화면으로 보내는 목적은 삭제다.
+
+```bash
+npx jest --config libs/web-core/jest.config.js --rootDir libs/web-core src/transport
+```
+
+```bash
+npx jest --config apps/web/jest.config.js --rootDir apps/web --testPathPatterns="cloud-session|CloudSessionSheet|CloudManagePage"
+```
+
 ## 검증 방법
 
 **유닛 테스트**

@@ -82,9 +82,13 @@ export const CloudManagePage = () => {
                     </div>
                 ) : (
                     clouds.map((cloud, index) => {
+                        // A cloud whose provisioning failed has no email either, but binding one
+                        // fixes nothing — the switcher sends the user here to release it, so the row
+                        // says that instead of offering the email CTA.
+                        const setupFailed = cloud.status === 'error';
                         // Same rule as `isUnboundCloud` in features/subscription: a cloud reaches
                         // `active` with no email at all, and a released one is past caring.
-                        const needsEmail = cloud.status !== 'expired' && !cloud.email;
+                        const needsEmail = !setupFailed && cloud.status !== 'expired' && !cloud.email;
 
                         return (
                             <div key={cloud.id}>
@@ -100,7 +104,11 @@ export const CloudManagePage = () => {
                                             <span className="truncate text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
                                                 {cloud.name ?? cloud.email?.split('@')[0] ?? '-'}
                                             </span>
-                                            {needsEmail ? (
+                                            {setupFailed ? (
+                                                <span className="text-[14px] leading-[1.19] tracking-[-0.01em] text-destructive">
+                                                    {t('mypage.cloudManage.setupFailed')}
+                                                </span>
+                                            ) : needsEmail ? (
                                                 <>
                                                     <span className="text-[14px] leading-[1.19] tracking-[-0.01em] text-[#9FA2A7]">
                                                         {t('mypage.cloudManage.emailMissing')}

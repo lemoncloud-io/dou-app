@@ -2,6 +2,8 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
+import { logger } from '@chatic/bridges';
+
 import { CloudSessionSheet } from './CloudSessionSheet';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
@@ -11,7 +13,9 @@ import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useInterval: () => undefined }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
+const toast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
+jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), error: jest.fn() } }));
 
 const switchCloud = jest.fn().mockResolvedValue(undefined);
 const logoutCloudSession = jest.fn().mockResolvedValue(undefined);
@@ -313,5 +317,33 @@ describe('CloudSessionSheet — invited section', () => {
 
         expect(screen.getByText('Lemon Cloud')).toBeInTheDocument();
         expect(screen.getByText('cloudSessionSheet.invitedOwnerLabel')).toBeInTheDocument();
+    });
+});
+
+describe('CloudSessionSheet — failed cloud row', () => {
+    const rawError = '.accountNo[#mock:1001494] is invalid (duplicated by 1000038)';
+
+    it('explains the state and keeps the server trace out of the toast', () => {
+        catalog = {
+            clouds: [{ id: 'CL9', status: 'error', error: rawError, createdAt: 1 }],
+            isCloudsError: false,
+            isFetchingClouds: false,
+            isPendingClouds: false,
+        };
+
+        renderSheet();
+        fireEvent.click(screen.getByText('cloudSessionSheet.statusErrorDescription'));
+
+        expect(toast).toHaveBeenCalledWith({
+            title: 'cloudSessionSheet.statusErrorTitle',
+            description: 'cloudSessionSheet.statusErrorGuide',
+            variant: 'destructive',
+        });
+        // The trace is for the log, not the user.
+        expect(logger.warn).toHaveBeenCalledWith('CLOUD', expect.any(String), {
+            cloudId: 'CL9',
+            error: rawError,
+        });
+        expect(screen.queryByText(rawError)).not.toBeInTheDocument();
     });
 });

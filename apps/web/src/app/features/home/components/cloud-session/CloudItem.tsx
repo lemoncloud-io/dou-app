@@ -62,7 +62,10 @@ export const CloudItem = ({
     const isError = cloud.status === 'error';
     const isActive = cloud.status === 'active';
     const unbound = needsEmailBind(cloud);
-    const disabled = isDisabled || isSelected || !isActive;
+    // An error row can't be entered but IS tappable — the tap is what explains the state. The
+    // button-level `disabled` below used to cover every non-active status, so `onErrorClick` was
+    // unreachable and the row's only voice was the raw server trace it printed.
+    const disabled = isDisabled || isSelected || (!isActive && !isError);
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
 
@@ -81,7 +84,7 @@ export const CloudItem = ({
                 }
                 if (!disabled && cloud.id) onSelectCloud(cloud.id);
             }}
-            disabled={isDisabled || !isActive}
+            disabled={isDisabled || (!isActive && !isError)}
             className={cn(
                 'flex w-full items-center gap-3 rounded-xl px-2 py-2 transition-colors',
                 isSelected && SELECTED_HIGHLIGHT,
@@ -135,8 +138,14 @@ export const CloudItem = ({
                         {t('cloudSessionSheet.statusReservedDescription')}
                     </span>
                 )}
-                {isError && cloud.error && (
-                    <span className="text-left text-[11px] leading-[1.3] text-red-400">{cloud.error}</span>
+                {/* The record's own `error` is a server-side provisioning trace
+                    (".accountNo[...] is invalid (duplicated by ...)") — it names internals, not
+                    anything the user can act on. The row states the outcome instead; the raw trace
+                    goes to the log from the sheet's `onErrorClick`. */}
+                {isError && (
+                    <span className="text-left text-[11px] leading-[1.3] text-red-400">
+                        {t('cloudSessionSheet.statusErrorDescription')}
+                    </span>
                 )}
             </div>
             {/* Selection mark — trailing filled lime check disc (Figma 3477-23611). `text-primary`

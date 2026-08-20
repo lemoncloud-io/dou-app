@@ -63,3 +63,36 @@ describe('CloudItem — unbound email (active cloud with no email)', () => {
         expect(screen.getByText('cloudSessionSheet.statusReservedDescription')).toBeInTheDocument();
     });
 });
+
+describe('CloudItem — 실패한 클라우드', () => {
+    const failed = {
+        ...baseCloud,
+        status: 'error',
+        error: '.accountNo[#mock:1001494] is invalid (duplicated by 1000038) - doPostWorkspace(clouds/1000047)',
+    } as CloudView;
+
+    it('상태만 문장으로 알리고 서버 원문은 노출하지 않는다', () => {
+        renderItem(failed);
+
+        expect(screen.getByText('cloudSessionSheet.statusErrorDescription')).toBeInTheDocument();
+        expect(screen.queryByText(failed.error as string)).not.toBeInTheDocument();
+    });
+
+    it('error 필드가 비어 있어도 실패 문장은 그대로 보인다', () => {
+        // 서버는 정리된 행에 `error: null`을 실어 보낸다 — CloudView 타입은 string|undefined다.
+        renderItem({ ...failed, error: undefined });
+
+        expect(screen.getByText('cloudSessionSheet.statusErrorDescription')).toBeInTheDocument();
+    });
+
+    it('탭은 전환이 아니라 onErrorClick으로 간다', () => {
+        const onSelectCloud = jest.fn();
+        const onErrorClick = jest.fn();
+        renderItem(failed, { onSelectCloud, onErrorClick });
+
+        fireEvent.click(screen.getByRole('button'));
+
+        expect(onErrorClick).toHaveBeenCalledTimes(1);
+        expect(onSelectCloud).not.toHaveBeenCalled();
+    });
+});

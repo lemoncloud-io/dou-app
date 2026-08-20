@@ -76,6 +76,34 @@ describe('CloudManagePage — 복원용 이메일', () => {
     });
 });
 
+describe('CloudManagePage — 설정에 실패한 클라우드', () => {
+    // 이 화면이 실패한 클라우드를 지우는 유일한 경로다(스위처가 여기로 보낸다).
+    const failed = {
+        id: 'CL9',
+        name: '#cloud/1001494/3',
+        status: 'error',
+        error: '.accountNo[#mock:1001494] is invalid (duplicated by 1000038)',
+    } satisfies Partial<CloudView>;
+
+    it('이메일 등록을 권하지 않고 실패 상태만 알린다', () => {
+        setClouds([failed]);
+
+        render(<CloudManagePage />);
+
+        expect(screen.getByText(`${K}.setupFailed`)).toBeInTheDocument();
+        expect(screen.queryByText(`${K}.registerEmail`)).not.toBeInTheDocument();
+        expect(screen.queryByText(`${K}.emailMissing`)).not.toBeInTheDocument();
+    });
+
+    it('서버 원문 에러는 화면에 내보내지 않는다', () => {
+        setClouds([failed]);
+
+        render(<CloudManagePage />);
+
+        expect(screen.queryByText(failed.error)).not.toBeInTheDocument();
+    });
+});
+
 describe('CloudManagePage — 구독 표시', () => {
     it('멤버십은 목록 위에 한 번만 — 계정 단위라 행마다 반복하지 않는다', () => {
         setClouds([
