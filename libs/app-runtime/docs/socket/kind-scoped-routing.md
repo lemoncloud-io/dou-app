@@ -142,7 +142,7 @@ relay: create(manager.getScopedClient('relay')), cloud: create(manager.getScoped
 - [`stores/usePreferenceStore.ts`](../../../../apps/web/src/app/stores/usePreferenceStore.ts) — `pushMuted`/`setPushMuted`
   (issueReportHidden 패턴 그대로).
 - `features/mypage/hooks/useDevicePushMute.ts`(신규) — `useRuntimeRepositories().device` + preference store.
-  낙관적 set → **성공 시 서버 echo(`muted`)로 재조정** → 실패 시 롤백 + 토스트([`useToast`](../../../../apps/web/src/app/features/mypage/pages/AccountManagePage.tsx) 패턴).
+  낙관적 set → **성공 시 서버 echo(`muted`)로 재조정** → 실패 시 롤백 + 토스트([`useToast`](../../../../apps/web/src/app/features/mypage/pages/CloudManagePage.tsx) 패턴).
   `isSupported`(네이티브 셸 여부, `CHATIC_APP_PLATFORM`)를 노출 — 비셸(일반 브라우저)은 pushes-api에
   push 디바이스가 없어 write가 404이므로 토글을 disabled + "앱에서만 설정" 안내로 렌더한다.
 - [`features/mypage/pages/MyPage.tsx`](../../../../apps/web/src/app/features/mypage/pages/MyPage.tsx) — Settings `MenuCard`에
