@@ -11,7 +11,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 // Direct path, not the `ui/layouts` barrel: the barrel reaches PrivateLayout → ui/components →
 // Sidebar, whose `import.meta` the CommonJS test transform cannot parse
 // (architecture/directory-structure.md §6).
-import { KeyboardAwareLayout } from '../../../ui/layouts/KeyboardAwareLayout';
+import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts/KeyboardAwareLayout';
 import { buildReportContext } from '../lib';
 
 /**
@@ -96,7 +96,7 @@ export const FeedbackPage = () => {
 
     return (
         <KeyboardAwareLayout
-            className="fixed inset-0 overflow-hidden"
+            className={fixedViewportScreen}
             // ModalTopBar frosts its own notch strip, so the scaffold must not pad above it —
             // that would push the glass down and leave the inset bare.
             headerSafeArea={false}

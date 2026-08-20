@@ -28,8 +28,13 @@ module.exports = {
                  *
                  * Always paired with `w-full` and `mx-auto`: fill whatever the device gives, stop
                  * here, stay centred.
+                 *
+                 * The number lives in `--app-width` (`src/styles.css`), not here: the overlay
+                 * primitives in `libs/ui-kit` are `fixed` and portalled out of the shell, so they
+                 * have to re-declare the cap themselves and cannot read a Tailwind token that only
+                 * this app's config defines. One variable, both readers.
                  */
-                app: '430px',
+                app: 'var(--app-width, 430px)',
             },
             colors: {
                 border: 'hsl(var(--border))',

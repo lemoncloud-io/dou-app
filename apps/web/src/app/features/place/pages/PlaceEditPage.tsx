@@ -8,7 +8,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { AlertDialog, FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
-import { KeyboardAwareLayout } from '../../../ui/layouts';
+import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { useUpdatePlace } from '../../home';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
@@ -119,7 +119,7 @@ export const PlaceEditPage = () => {
 
     if (!place) {
         return (
-            <KeyboardAwareLayout className="fixed inset-0 overflow-hidden" header={<PageHeader title={title} />}>
+            <KeyboardAwareLayout className={fixedViewportScreen} header={<PageHeader title={title} />}>
                 <div className="flex min-h-full items-center justify-center">
                     <Text className="text-muted-foreground">{t('placeEdit.notFound')}</Text>
                 </div>
@@ -129,7 +129,7 @@ export const PlaceEditPage = () => {
 
     return (
         <KeyboardAwareLayout
-            className="fixed inset-0 overflow-hidden"
+            className={fixedViewportScreen}
             header={<PageHeader title={title} onBack={requestClose} />}
             footer={
                 <FloatingButton

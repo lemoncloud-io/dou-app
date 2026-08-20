@@ -292,7 +292,7 @@ export const PlaceProfileForm = ({
     if (container === 'page') {
         return (
             <div className="flex h-full flex-col bg-background pt-safe-top">
-                <div className="mx-auto flex h-full w-full max-w-app flex-col">
+                <div className="flex h-full w-full flex-col">
                     <PageHeader title={title} onBack={requestClose} />
                     {body}
                     {noticeEl}
@@ -308,7 +308,7 @@ export const PlaceProfileForm = ({
     return (
         <Dialog open={open} onOpenChange={next => !next && dismissible && requestClose()}>
             <DialogContent
-                className="m-0 flex h-full max-h-[100dvh] w-full max-w-full flex-col items-center rounded-none bg-background p-0"
+                className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
                 // The slide-up variant bakes in `pb-safe-bottom`, but KeyboardSafeAreaSpacer below the
@@ -325,7 +325,7 @@ export const PlaceProfileForm = ({
 
                 {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
                     screens so the layout (and the full-width CTA) never stretches. */}
-                <div className="mx-auto flex h-full w-full max-w-app flex-col">
+                <div className="flex h-full w-full flex-col">
                     {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button.
                         safeArea={false}: the native WebView is already inset below the status bar,
                         so adding the safe-top inset here would double the top gap. */}

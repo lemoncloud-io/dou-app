@@ -17,7 +17,7 @@ import { FloatingButton, TextField } from '@chatic/web-ui-kit';
 import { useUpdateCloudProfile } from '../../../hooks';
 import { useActiveCloudOwnership } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
-import { KeyboardAwareLayout } from '../../../ui/layouts';
+import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
 
 const MIN_NAME_LENGTH = 2;
@@ -98,7 +98,7 @@ export const CloudProfileEditPage = () => {
 
     return (
         <KeyboardAwareLayout
-            className="fixed inset-0 overflow-hidden"
+            className={fixedViewportScreen}
             header={<PageHeader title={t('profileEdit.tabCloud')} />}
             footer={
                 <FloatingButton

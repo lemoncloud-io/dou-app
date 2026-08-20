@@ -35,7 +35,11 @@ export const VersionUpdateBanner = ({
     return (
         <div
             className={cn(
-                'fixed top-0 left-0 right-0 z-[60] pt-safe-top animate-in slide-in-from-top duration-300',
+                // `fixed` leaves the host's layout behind, so the banner caps at the host app's
+                // `--app-width` and centres over the same column its screens use — otherwise it
+                // stretches across a desktop browser above a phone-width app. A host that declares
+                // no app width (a desktop layout) keeps the full-bleed `100%`.
+                'fixed top-0 left-0 right-0 mx-auto max-w-[var(--app-width,100%)] z-[60] pt-safe-top animate-in slide-in-from-top duration-300',
                 className
             )}
         >

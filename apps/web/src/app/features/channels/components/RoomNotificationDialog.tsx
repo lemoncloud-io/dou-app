@@ -22,11 +22,7 @@ export const RoomNotificationDialog = ({ open, onOpenChange }: RoomNotificationD
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent
-                className="m-0 flex w-full max-w-full flex-col rounded-none bg-background"
-                hideClose
-                variant="slide-up"
-            >
+            <DialogContent className="flex w-full flex-col rounded-none bg-background" hideClose variant="slide-up">
                 <DialogDescription className="sr-only">Room notification settings</DialogDescription>
                 {/* Top Bar */}
                 <div className="flex items-center justify-between bg-background px-1.5 py-3">

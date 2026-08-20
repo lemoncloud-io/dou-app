@@ -22,6 +22,17 @@ interface KeyboardAwareLayoutProps {
 }
 
 /**
+ * Class list for a route page that lifts itself out of the document flow — the pages whose keyboard
+ * handling needs a viewport-anchored box rather than a scrolling one.
+ *
+ * `fixed` escapes the app shell, cap and all, so the page has to re-declare the shell's own width
+ * here: `mx-auto max-w-app` puts it back over the same centred column every other screen occupies.
+ * Without it these pages were the only ones that stretched to a desktop viewport while their
+ * siblings stayed phone-width.
+ */
+export const fixedViewportScreen = 'fixed inset-0 mx-auto max-w-app overflow-hidden';
+
+/**
  * Full-screen scaffold: header and footer float as z-index overlays above a
  * full-bleed scrollable body, instead of being column siblings that push the
  * body down with their own height. This lets a translucent header/footer

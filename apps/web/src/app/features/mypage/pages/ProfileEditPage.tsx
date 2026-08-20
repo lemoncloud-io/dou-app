@@ -10,7 +10,7 @@ import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-k
 import { useUpdateProfile } from '../hooks';
 import { useMyUser } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
-import { KeyboardAwareLayout } from '../../../ui/layouts';
+import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 
 const MAX_NAME_LENGTH = 30;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -84,7 +84,7 @@ export const ProfileEditPage = () => {
 
     return (
         <KeyboardAwareLayout
-            className="fixed inset-0 overflow-hidden"
+            className={fixedViewportScreen}
             header={<PageHeader title={t('profileEdit.title')} />}
             footer={
                 <FloatingButton
