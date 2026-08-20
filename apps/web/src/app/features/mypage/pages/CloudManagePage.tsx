@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2, User } from 'lucide-react';
+import { ChevronLeft, Loader2, Pencil, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +13,7 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { CloudMembershipSummary } from '../../subscription';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
+import { ROUTES } from '../../../routes/paths';
 
 /**
  * "클라우드 관리" — the owned clouds, with release and the recovery-email gap.
@@ -101,9 +102,24 @@ export const CloudManagePage = () => {
 
                                         {/* 이름 + 이메일 (없으면 등록 버튼) */}
                                         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                                            <span className="truncate text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
-                                                {cloud.name ?? cloud.email?.split('@')[0] ?? '-'}
-                                            </span>
+                                            <div className="flex min-w-0 items-center gap-1">
+                                                <span className="truncate text-[17px] font-semibold leading-[1.19] tracking-[-0.025em] text-[#3A3C40] dark:text-foreground">
+                                                    {cloud.name ?? cloud.email?.split('@')[0] ?? '-'}
+                                                </span>
+                                                {/* Rename has a single path (ADR-0034): CloudProfileEditPage
+                                                    edits only the active cloud, so the pencil only appears
+                                                    on that row — other owned clouds are not renameable here. */}
+                                                {cloud.id === selectedCloudId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(ROUTES.mypage.account.cloudProfile)}
+                                                        aria-label={t('mypage.cloudManage.editName')}
+                                                        className="flex-shrink-0 p-1 text-muted-foreground"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                             {setupFailed ? (
                                                 <span className="text-[14px] leading-[1.19] tracking-[-0.01em] text-destructive">
                                                     {t('mypage.cloudManage.setupFailed')}

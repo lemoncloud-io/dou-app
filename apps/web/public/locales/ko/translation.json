@@ -377,7 +377,8 @@
             "deleteSelectedCloudWarning": "현재 선택 중인 클라우드입니다. 삭제 시 앱이 새로고침됩니다.",
             "emailMissing": "복원용 이메일 없음",
             "setupFailed": "설정에 실패한 클라우드예요. 삭제 후 다시 추가해 주세요.",
-            "registerEmail": "복원용 이메일 등록하기"
+            "registerEmail": "복원용 이메일 등록하기",
+            "editName": "이름 변경"
         },
         "policy": {
             "title": "약관 및 정책",

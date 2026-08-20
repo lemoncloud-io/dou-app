@@ -377,7 +377,8 @@
             "deleteSelectedCloudWarning": "This is your current cloud. The app will refresh after deletion.",
             "emailMissing": "No recovery email",
             "setupFailed": "This cloud failed to set up. Delete it and add it again.",
-            "registerEmail": "Add a recovery email"
+            "registerEmail": "Add a recovery email",
+            "editName": "Edit name"
         },
         "policy": {
             "title": "Terms & Policies",
