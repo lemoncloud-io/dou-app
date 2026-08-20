@@ -87,7 +87,19 @@ export type CacheChannelView = ChannelView &
         cid: string;
         sid: string;
         isNotificationEnabled: boolean;
-        lastActivityAt: number; // 추가: 정렬용 활성 시간
+        /**
+         * 정렬용 활성 시간. **옵셔널이다 — 이 값을 채우는 곳이 아직 없다.**
+         *
+         * 필수로 선언돼 있었는데 `toDomainChannel`을 포함해 어떤 매퍼·데이터 소스도 쓰지 않아서
+         * `libs/data`가 빌드되지 않았고(그 stale `dist` 때문에 `apps/web`에 유령 타입 오류가 남았다),
+         * 매퍼가 임의로 채우는 것도 답이 아니다: 채널이 마지막으로 움직인 시각은 chat 캐시가
+         * 소유한다(ADR-0057), 그래서 `toDomainChannel`은 `lastChat$`을 의도적으로 읽지 않는다 —
+         * 여기에 서버 요약을 접어 넣으면 한 채널이 "언제 마지막으로 움직였나"에 두 가지 답을 갖는다.
+         * 유일한 독자(desktop-web ChannelList)도 `lastChat?.createdAt ?? channel.lastActivityAt`으로
+         * 읽고 `relativeTime`이 `undefined`를 받아 빈 문자열을 낸다. 저장 형태는 바뀌지 않으므로
+         * 캐시 판번호(ADR-0053)를 올릴 이유도 없다.
+         */
+        lastActivityAt?: number;
     };
 
 /** 채팅 메시지 뷰 (전송 상태 및 도메인 필드 포함) */
