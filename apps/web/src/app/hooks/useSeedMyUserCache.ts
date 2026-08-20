@@ -4,13 +4,16 @@ import { useRuntimeRepositories } from '@chatic/app-runtime';
 import { getActiveSessionUser, useSessionIdentity } from '@chatic/web-core';
 
 /**
- * Seeds the user cache from the session profile so `useMyUser`'s `observeItem(uid)` has a row to
- * emit on subscribe — closing the flash window before `getMyProfile` resolves.
+ * Seeds the user cache from the ACTIVE session profile so cache-observing profile readers have a row
+ * to emit on subscribe — closing the flash window before a `getMyProfile` fetch resolves.
  *
- * The session profile (`cloudProfile ?? relayProfile`) is token-derived state; its `$user`
- * (name/photo) is written into the user repo cache, which is the single source every profile reader
- * observes. Seeds ONLY when the cache has no row yet, so it never clobbers an observed/edited value;
- * `getMyProfile` (triggered by useMyUser) refreshes it from the socket afterward.
+ * Its reader is `useRuntimeProfile` (isGuest / userRole / permissions), which observes the
+ * active-scope cache by the active uid. It is NOT what feeds the MY page any more: account screens
+ * read the relay token directly (`useMyUser`), because the cache is partitioned by the active cloud
+ * and cannot answer "who is the relay account" while a cloud is selected.
+ *
+ * The active session user is token-derived state; its name/photo are written into the user repo
+ * cache. Seeds ONLY when the cache has no row yet, so it never clobbers an observed/edited value.
  */
 export const useSeedMyUserCache = (): void => {
     const { user } = useRuntimeRepositories();

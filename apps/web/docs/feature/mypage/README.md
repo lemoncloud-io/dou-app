@@ -99,9 +99,9 @@ mypage는 세 가지 프로필 편집 진입점을 가진다 — 구분 주의:
 | `ProfileEditPage`      | 계정(relay) 프로필 | `useUpdateProfile` |
 | `CloudProfileEditPage` | 클라우드 이름      | `useUpdateCloud`   |
 
-표시되는 계정 프로필은 **활성 세션을 따른다** — 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면 릴레이 user 프로필(`useMyUser`가 활성 컨텍스트의 user 캐시를 관찰한다). `user.update`도 양쪽 서버에서 동작하며 활성 소켓이 닿는 쪽 레코드를 고치므로 표시와 쓰기가 같은 스코프이고, `ProfileEditPage`는 세션 종류와 무관하게 항상 편집 가능하다. (한때 relay 고정으로 바꿨다가 되돌렸다 — [place/relay-default-place-scoping.md](../place/relay-default-place-scoping.md) §6.)
+표시되는 계정 프로필은 **항상 relay(계정) 프로필이다** — 어느 클라우드에 접속해 있든 같은 레코드를 보여준다. 소스는 user 캐시가 아니라 **저장된 relay 토큰**이다(`getRelaySessionUser`): 캐시는 물리 키가 `${type}:${cid}:${uid}:${id}`이고 읽기 경로가 컨텍스트 오버라이드를 무시하므로, 클라우드가 활성인 동안 relay user 행은 애초에 읽을 수 없다 — 데이터 레이어에서 고치려던 첫 시도가 되돌려진 이유가 그것이다([place/relay-default-place-scoping.md](../place/relay-default-place-scoping.md) §6). 쓰기(`user.update`)도 **relay 슬롯에 고정**되고(`getRelayAccountGateway`) 응답을 relay 토큰에 되써서 팬아웃한다. 즉 표시와 쓰기가 같은 스코프(relay 토큰)이며, `ProfileEditPage`는 세션 종류와 무관하게 항상 편집 가능하다. `useLinkedAccounts`의 `link$`도 같은 소스라, 이미 relay에 고정돼 있던 `auth.linkAccount`와 읽기·쓰기 스코프가 처음으로 일치한다.
 
-`CloudProfileEditPage` 진입점(AccountInfoPage)은 **활성 클라우드를 소유했을 때만** 보인다 — `useUserPermissions().useCloudProfile`(비게스트 + 클라우드 세션 활성) 위에 [`useActiveCloudOwnership`](../../../src/app/hooks/useActiveCloudOwnership.ts)(relay 카탈로그 `view: 'mine'` 멤버십)을 얹는다. 화면 자체도 같은 훅으로 비소유자를 되돌려보내므로 행과 화면이 어긋날 수 없다.
+`CloudProfileEditPage`는 **MY 트리에서 더 이상 진입할 수 없다** — 클라우드 엔티티의 이름은 계정 속성이 아니므로 relay 전용이 된 이 트리에서 AccountInfoPage의 진입 행을 제거했다. 라우트(`/mypage/cloud-profile`)와 화면 자체는 소유자 가드까지 그대로 살아 있고, 클라우드 성격의 진입점(전환 시트 또는 계정 관리)을 붙이는 일은 남아 있다.
 
 허브 상단 프로필(아바타·이름·이메일)은 **계정 프로필**(`useMyUser`)이며, 탭 시 `account.edit`로 이동한다. 플레이스(사이트) 내 내 프로필(닉·썸네일)은 홈 헤더 드롭다운에서 `PlaceProfileEditDialog` 오버레이로 편집하며 상세는 [home/place-profile.md](../home/place-profile.md).
 

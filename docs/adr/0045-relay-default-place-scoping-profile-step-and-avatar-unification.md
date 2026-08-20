@@ -85,7 +85,13 @@ predicate)을 연다. 주입처는 리포지토리 와이어링(`createRepositor
 > `CreateChannelDialog`와 같은 모양(다이얼로그가 직접 `place.create`+`switchSite`를 들고
 > 성공 시 닫힘)으로 되돌렸고, `PlaceProfileCreateDialog` 강제 오픈은 제거했다. owner도 다른
 > 진입자와 동일하게 방 설정 nudge(ADR-0040)로 프로필을 나중에 채운다.
-> 아래는 철회된 원문이다.
+>
+> > **재채택 (2026-08-19):** relay 고정 자체는 [ADR-0062](0062-relay-fixed-account-profile-in-mypage.md)로
+> > 돌아왔다. 다만 이 결정이 적으로 삼았던 경로(캐시 스코프 pin + 데이터 레이어 라우팅)는 채택되지 않았다 —
+> > 읽기 경로가 컨텍스트 오버라이드를 무시하므로 애초에 불가능하다는 것이 §6 조사의 결론이었다. ADR-0062는
+> > 캐시를 아예 쓰지 않고 **relay 토큰**을 소스로 삼고, 쓰기는 relay 소켓 슬롯에 고정한다.
+
+아래는 철회된 원문이다.
 
 `CreatePlaceDialog` 성공(생성 + 전환) 직후 `PlaceProfileCreateDialog`를 **생성 플로우의
 마지막 스텝으로 자동 오픈**하고, 이 진입에서는 닫기(X)를 제공하지 않는다 — 프로필을 만들어야
@@ -98,7 +104,7 @@ nudge(ADR-0040), 초대 경로(ADR-0041) — 는 지금처럼 스킵 가능하�
 (부분 Supersede가 아니라 예외 추가 — 생성자는 자기 플레이스의 첫 멤버이므로 초대 수락자와
 같은 수준의 전제조건을 갖는 게 ADR-0041과 오히려 정합적이다).
 
-### 5. `useMyUser`를 relay 스코프로 고정한다 — ❌ 되돌림 (2026-08-06)
+### 5. `useMyUser`를 relay 스코프로 고정한다 — ❌ 되돌림 (2026-08-06) → ↩︎ [ADR-0062](0062-relay-fixed-account-profile-in-mypage.md)가 다른 방식으로 재채택 (2026-08-19)
 
 > 이 결정만 구현 후 철회했다. 의도한 규칙은 "계정 프로필은 항상 relay"가 아니라 **활성 세션을 따른다**
 > — 클라우드 세션이면 그 클라우드의 user 프로필, 릴레이면 릴레이 user 프로필. `user.update`도 양쪽

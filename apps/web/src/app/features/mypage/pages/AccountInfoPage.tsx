@@ -5,18 +5,21 @@ import { useNavigateWithTransition } from '@chatic/shared';
 
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
-import { useActiveCloudOwnership, useUserPermissions } from '../../../hooks';
 import { AccountLinkSection } from '../components';
 
+/**
+ * 계정 정보 — the account-level screen. Everything here is scoped to the RELAY account, never the
+ * connected cloud: profile edit writes the relay record (`useUpdateProfile`) and the linked
+ * credentials come from the relay token's `link$`.
+ *
+ * The cloud-entity name editor (`/mypage/cloud-profile`) used to hang off this screen behind an
+ * owner gate. It is gone from here because the MY tree is relay-only now — a cloud's own name is not
+ * an account attribute. The page and route still exist and still work; they just need a cloud-shaped
+ * entry point (the switcher, or 계정 관리) instead of an account-shaped one.
+ */
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
-    const permissions = useUserPermissions();
-    // The cloud-entity editor is owner-only and bounces everyone else, so the row is hidden unless
-    // the active cloud is a live session the user owns — `useCloudProfile` alone only says a cloud
-    // session is up, which is also true on an INVITED cloud. Ownership resolves from the relay
-    // catalog, so the row simply stays hidden while that fetch is in flight.
-    const { isOwner: isCloudOwner } = useActiveCloudOwnership();
 
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
@@ -35,17 +38,6 @@ export const AccountInfoPage = () => {
                         </span>
                         <ChevronRight size={18} className="text-muted-foreground" />
                     </button>
-                    {permissions.useCloudProfile && isCloudOwner && (
-                        <button
-                            onClick={() => navigate(ROUTES.mypage.account.cloudProfile)}
-                            className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                        >
-                            <span className="text-[15px] font-medium text-foreground">
-                                {t('mypage.accountInfo.cloudProfileEdit')}
-                            </span>
-                            <ChevronRight size={18} className="text-muted-foreground" />
-                        </button>
-                    )}
                 </div>
 
                 <AccountLinkSection />

@@ -59,6 +59,48 @@ export const getActiveSessionUser = (): Record<string, unknown> | null => {
     return ((view as { $user?: Record<string, unknown> }).$user ?? view) as Record<string, unknown>;
 };
 
+/**
+ * The user fields of the RELAY token specifically — the ACCOUNT identity, regardless of which slot
+ * is active. Same extraction as {@link getActiveSessionUser}, but never cloud-wins.
+ *
+ * This is the read half of the account-level profile source: account screens (MY page and what it
+ * opens) must show the relay account no matter which cloud the user is connected to, and the local
+ * cache cannot answer that question — its physical key is `${type}:${cid}:${uid}:${id}` and the read
+ * path ignores context overrides, so while a cloud is active the relay `user` row is unreachable
+ * (see apps/web/docs/feature/place/relay-default-place-scoping.md §6). The relay token, by contrast,
+ * is always present and always the relay account's: it carries `name`/`photo`/`email`/`link$`
+ * because `UserTokenView extends UserView extends Partial<UserModel>`.
+ *
+ * Synchronous and allocation-cheap on purpose — callers re-read it on each session signal rather
+ * than holding a copy, so a token refresh or a profile save fans out with no cache to invalidate.
+ */
+export const getRelaySessionUser = (): Record<string, unknown> | null => {
+    const token = relayCore.getRelayToken();
+    if (!token) return null;
+    const { Token: _token, ...view } = token as unknown as Record<string, unknown> & { Token?: unknown };
+    return ((view as { $user?: Record<string, unknown> }).$user ?? view) as Record<string, unknown>;
+};
+
+/**
+ * Merges display fields (name/photo/…) into the STORED relay token — the write half of the same
+ * source. Used after a relay-pinned `user.update` or `user.profile` so every reader of
+ * {@link getRelaySessionUser} sees the new value immediately, and so the next cold start seeds from
+ * the fresh one.
+ *
+ * Patches inside `$user` when the token carries that wrapper, mirroring the read's preference, so
+ * the value written is the value read back. `Token` is never touched: it is the auth carrier, and a
+ * display patch has no business rewriting credentials. `saveRelayToken` notifies session listeners,
+ * which is what makes this reactive. No-op without a relay session.
+ */
+export const patchRelaySessionUser = (patch: Record<string, unknown>): void => {
+    const token = relayCore.getRelayToken();
+    if (!token) return;
+    const { Token: _token, ...rest } = patch as Record<string, unknown> & { Token?: unknown };
+    const carrier = token as unknown as Record<string, unknown> & { $user?: Record<string, unknown> };
+    const merged = carrier.$user ? { ...carrier, $user: { ...carrier.$user, ...rest } } : { ...carrier, ...rest };
+    relayCore.saveRelayToken(merged as unknown as UserTokenView);
+};
+
 const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
     // Pure state store: the uid (for cache observing) + session flags. Profile facts
     // (userRole/isGuest/userType/permissions/name) are tracked from the cached profile via
