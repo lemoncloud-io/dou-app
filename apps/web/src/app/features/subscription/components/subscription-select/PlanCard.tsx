@@ -8,14 +8,18 @@ import { formatPlanPrice, planDisplayName } from '../../lib';
 interface PlanCardProps {
     product: ProductView;
     isSelected: boolean;
+    /** A purchase is in flight — the only state that actually swallows a tap. */
     isBlocked: boolean;
     isKo: boolean;
     /** The plan the user is already subscribed to. */
     isCurrent?: boolean;
     /** Why this tier cannot be picked (tier jump). Shown in place of a silent disabled card. */
     disabledReason?: string;
+    /** Whether the tier can be picked at all. An unpickable one still reports its tap (see below). */
+    isSelectable?: boolean;
     /** The store's localized price. Absent off-native, where nothing can be bought. */
     displayPrice?: string;
+    /** Raised on every tap, pickable or not — the caller decides between selecting and explaining. */
     onSelect: (product: ProductView) => void;
 }
 
@@ -23,7 +27,10 @@ interface PlanCardProps {
  * One tier in the plan picker: name, price with the VAT note, and how many clouds it allows.
  *
  * A blocked tier stays visible with its reason rather than disappearing — the plan is to tell the
- * user why, not to make the option vanish.
+ * user why, not to make the option vanish. It also stays TAPPABLE: an HTML-disabled card fires no
+ * event at all, so the reason printed under it was the only explanation anyone got, and a tap that
+ * does nothing reads as a broken button. The tap goes up to the caller, which answers with the
+ * refusal dialog (`TierRefusalDialog`). Only a purchase in flight really disables the card.
  */
 export const PlanCard = ({
     product,
@@ -32,22 +39,26 @@ export const PlanCard = ({
     isKo,
     isCurrent = false,
     disabledReason,
+    isSelectable = true,
     displayPrice,
     onSelect,
 }: PlanCardProps) => {
     const { t } = useTranslation();
     const displayName = planDisplayName(product, isKo);
-    const isDisabled = isBlocked || isCurrent || !!disabledReason;
+    const isUnavailable = !isSelectable || isCurrent || !!disabledReason;
     const price = formatPlanPrice(displayPrice);
 
     return (
         <button
-            onClick={() => !isDisabled && onSelect(product)}
-            disabled={isDisabled}
+            onClick={() => !isBlocked && onSelect(product)}
+            disabled={isBlocked}
+            // Greyed out and announced as unavailable, but still reachable: `aria-disabled` keeps the
+            // tap (and the explanation it opens), where `disabled` would drop both.
+            aria-disabled={isUnavailable}
             className={cn(
                 'flex w-full items-center gap-3 rounded-[16px] border-2 bg-card px-4 py-3 text-left transition-colors',
                 isSelected ? 'border-[#B0EA10]' : 'border-[#F4F5F5] dark:border-border',
-                isDisabled && 'opacity-60'
+                isUnavailable && 'opacity-60'
             )}
         >
             <div className="flex min-w-0 flex-1 flex-col gap-[4px]">

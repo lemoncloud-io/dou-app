@@ -12,11 +12,25 @@
 
 ## 화면
 
-| 페이지                     | 경로(`ROUTES.subscription.*`) | 설명                                                         |
-| -------------------------- | ----------------------------- | ------------------------------------------------------------ |
-| `SubscriptionPage`         | `/subscription`               | 구독 현황(상태 4종, 초과 배너, 복원, 약관)                   |
-| `SubscriptionPlansPage`    | `/subscription/plans`         | 구독 안내 — 혜택 + tier 선택 + 주의사항 (구 CloudGuide 통합) |
-| `SubscriptionCompletePage` | `/subscription/complete`      | 구독 완료 → 설정 위자드로 인계                               |
+| 페이지                     | 경로(`ROUTES.subscription.*`) | 설명                                                 |
+| -------------------------- | ----------------------------- | ---------------------------------------------------- |
+| `SubscriptionPage`         | `/subscription`               | 구독 현황(상태 4종, 초과 배너, 복원, 약관)           |
+| `CloudGuidePage`           | `/subscription/guide`         | 내 클라우드 안내 — FREE vs PRO 비교 (읽기 전용 소개) |
+| `SubscriptionPlansPage`    | `/subscription/plans`         | 구독 안내 — 혜택 + tier 선택 + 주의사항              |
+| `SubscriptionCompletePage` | `/subscription/complete`      | 구독 완료 → 설정 위자드로 인계                       |
+
+### 구독 진입 흐름
+
+`guide`와 `plans`는 **별개 화면**이다 — 앞은 "왜 구독하나"(Figma 3519-29515), 뒤는 "어느 tier인가"(2870-33021).
+
+```
+마이페이지 「나만의 클라우드 알아보기」 ┐
+홈 프로모션 배너 「클라우드 추가 >」   ┴→ /subscription/guide ─CTA→ /subscription/plans → IAP → /subscription/complete
+클라우드 전환 시트 footer ─────────────────────(guide 우회)────→ /subscription/plans
+```
+
+진입점별 목적지는 ADR-0034 §4와 그 2026-08-04 개정이 정본이다. 전환 시트만 안내를 건너뛴다 — 이미 클라우드 관리
+중인 사용자에게 소개 화면은 뒷걸음질이기 때문이다.
 
 ## 구조
 
@@ -24,6 +38,7 @@
 features/subscription/
   pages/
     SubscriptionPage.tsx
+    CloudGuidePage.tsx          # FREE vs PRO 소개 (web-ui-kit PlanCompareCard 조립)
     SubscriptionPlansPage.tsx
     SubscriptionCompletePage.tsx
   lib/                        # 순수 판정 (React·네트워크 무지) — tier-and-quota.md
@@ -34,14 +49,15 @@ features/subscription/
     usePlanOptions.ts       # tier별 선택 가능 여부·사유
     useCloudQuota.ts        # 클라우드 한도 판정 (모든 "＋ 추가"가 쓰는 하나)
     useExcessClouds.ts · useTierPurchase.ts · useAddCloud.ts
+    useUnboundClouds.ts     # 복원용 이메일이 없는 클라우드 감지
     useCloudEmailGuard.ts · useVerifyEmailCode.ts
   components/
     AddCloudFlowHost.tsx      # 클라우드 추가 요청 수신 (PrivateShell이 마운트)
     EmailVerifyDialog.tsx     # 이메일 인증 (ui/에서 이관 · web-ui-kit 조립)
-    SubscriptionDebugScreen.tsx  # 디버그 오버레이가 lazy로 합성
     LoginRequiredDialog.tsx · TierChangeNotice.tsx · ExcessCloudBanner.tsx
+    EmailRequiredBanner.tsx   # 복원용 이메일이 빈 클라우드를 이름으로 지목
     SubscriptionBenefits.tsx
-    subscription-select/      #   PlanCard · PolicyFooter
+    subscription-select/      #   PlanCard · PolicyFooter · TierRefusalDialog
   types/
     index.ts                # PurchaseProduct · NativePurchase · PurchaseError · PageState
   consts/

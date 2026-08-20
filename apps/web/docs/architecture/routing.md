@@ -71,10 +71,13 @@ export const ROUTES = {
         root: '/mypage',
         account: {
             info: '/mypage/account',
-            manage: '/mypage/account-manage',
             edit: '/mypage/edit',
             cloudProfile: '/mypage/cloud-profile',
             withdrawal: '/mypage/withdrawal',
+        },
+        // 클라우드(워크스페이스) 소유권 — 로그인 수단인 account와 다른 그룹이다
+        cloud: {
+            manage: '/mypage/cloud-manage',
         },
         policy: {
             root: '/mypage/policy',

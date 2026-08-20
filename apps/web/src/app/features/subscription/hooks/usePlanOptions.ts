@@ -2,7 +2,14 @@ import { useTranslation } from 'react-i18next';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
-import { getTierChangeKind, isSelectableTier, matchNativeProduct, type TierChangeKind } from '../lib';
+import {
+    getTierChangeKind,
+    getTierRefusal,
+    isSelectableTier,
+    matchNativeProduct,
+    type TierChangeKind,
+    type TierRefusal,
+} from '../lib';
 import { useNativeCatalog } from './useNativeCatalog';
 import { usePlanCatalog } from './usePlanCatalog';
 
@@ -13,8 +20,11 @@ export interface PlanOption {
     isCurrent: boolean;
     /** Set only when the tier is refused — the card shows it instead of going quietly grey. */
     disabledReason?: string;
-    /** A new cloud (and therefore an email) is created. A tier change only moves the allowance. */
-    needsEmail: boolean;
+    /**
+     * Why the tier cannot be picked, when it cannot. The card stays tappable either way and the tap
+     * opens the explanation (`TierRefusalDialog`) — a card that swallows the tap looks broken.
+     */
+    refusal?: TierRefusal;
     /**
      * The store's localized, tax-inclusive price (e.g. `₩8,600`). Absent off-native or when the
      * store has no entry for the plan — callers fall back to the server's USD reference value.
@@ -42,6 +52,7 @@ export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } 
             kind,
             isSelectable: isSelectableTier(kind),
             isCurrent: kind === 'current',
+            refusal: getTierRefusal(replaceablePlan, kind),
             disabledReason:
                 kind !== 'blocked'
                     ? undefined
@@ -52,7 +63,6 @@ export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } 
                               ? 'mypage.subscription.adjacentTierOnly'
                               : 'mypage.subscription.startAtEntryTier'
                       ),
-            needsEmail: kind === 'new',
             displayPrice: matchNativeProduct(nativeProducts, plan, isIOS)?.displayPrice,
         };
     });

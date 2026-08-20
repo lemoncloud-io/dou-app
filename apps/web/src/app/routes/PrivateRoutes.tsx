@@ -10,6 +10,9 @@ const SubscriptionRoutes = lazy(() =>
     import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
 );
 const AddCloudFlowHost = lazy(() => import('../features/subscription').then(m => ({ default: m.AddCloudFlowHost })));
+const EmailBindRequestHost = lazy(() =>
+    import('../features/subscription').then(m => ({ default: m.EmailBindRequestHost }))
+);
 const AccountRoutes = lazy(() => import('../features/account').then(m => ({ default: m.AccountRoutes })));
 const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default: m.PlaceRoutes })));
 const InviteRoutes = lazy(() => import('../features/invite').then(m => ({ default: m.InviteRoutes })));
@@ -65,12 +68,16 @@ const withSuspense = (Component: React.ComponentType) => (
  * sent to login) and therefore needs router context; and it is composed here rather than imported
  * by home because features do not import each other (ADR-0046 §3). It renders nothing — and runs no
  * queries — until something raises a request through `stores/useAddCloudRequest`.
+ *
+ * `EmailBindRequestHost` is the same seam for `stores/useEmailBindRequest` — answers a request from
+ * anywhere a cloud with no email is noticed (the switcher's unbound row, "구독 관리"'s banner).
  */
 const PrivateShell = () => (
     <>
         <UnifiedLayout />
         <Suspense fallback={null}>
             <AddCloudFlowHost />
+            <EmailBindRequestHost />
         </Suspense>
     </>
 );

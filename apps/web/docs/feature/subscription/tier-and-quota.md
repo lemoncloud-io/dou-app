@@ -128,7 +128,8 @@ ADR의 전제 셋이 코드와 어긋났다. 아래가 정본이다.
    `한 단계씩만 변경할 수 있어요`.
 2. 선택하면 `TierChangeNotice`가 플랫폼별 청구 방식을 보여준다 — Android는 "차액만 즉시 청구, 기존
    청구주기 유지".
-3. 등급 변경은 클라우드를 만들지 않으므로 **이메일 단계를 건너뛴다.**
+3. 등급 변경도 신규 구독과 동일하게 **이메일 인증을 거친다** — 클라우드를 새로 만들지 않아도 예외는
+   없다.
 4. 구매 payload에 `oldPlanId`(= `membership.productId`에서 `#` 제거 = `pro-tier-01`)를 싣는다. 없으면
    네이티브 `getReplacementMode`가 교체로 판정하지 못해 신규 구매가 된다.
 5. offerToken은 **항상 `base`**. 체험은 tier1 최초 구독 1회뿐이다.
@@ -138,15 +139,16 @@ ADR의 전제 셋이 코드와 어긋났다. 아래가 정본이다.
 
 1. tier1만 선택 가능(인접 1칸). `TierChangeNotice`가 플랫폼별 청구 방식과 함께 "한도가 줄어들면
    초과한 계정은 직접 정리해야 해요"를 안내한다.
-2. 확정되면 `membership.pendingProductId`가 잡히고 구독 화면이 "다음 갱신 시 변경"을 표시한다.
-3. 갱신 시점에 한도가 1로 줄면 보유 2개 중 1개가 초과가 된다 → S5.
+2. 등급 변경이므로 S3와 동일하게 확정 전 이메일 인증을 거친다 — 다운그레이드도 예외가 아니다.
+3. 확정되면 `membership.pendingProductId`가 잡히고 구독 화면이 "다음 갱신 시 변경"을 표시한다.
+4. 갱신 시점에 한도가 1로 줄면 보유 2개 중 1개가 초과가 된다 → S5.
 
 ### S5. 초과 클라우드가 생긴다
 
 1. `useExcessClouds`가 `보유 수 > 한도`를 감지하고 `cloudNo` 오름차순 정렬 후 한도를 넘는 **뒤쪽
    (나중에 만든)** 클라우드를 지목한다.
 2. `SubscriptionPage` 상단에 `ExcessCloudBanner`가 뜬다 — 초과 개수·한도·대상 이메일을 보여주되
-   **삭제 버튼은 없다.** CTA는 계정 관리 화면(`ROUTES.mypage.account.manage`)으로의 이동뿐이다.
+   **삭제 버튼은 없다.** CTA는 클라우드 관리 화면(`ROUTES.mypage.cloud.manage`)으로의 이동뿐이다.
 3. 거기서 기존 release를 실행하면 배너가 사라진다.
 
 ### S6. 이미 쓴 이메일로 클라우드를 추가하려 한다
@@ -255,13 +257,14 @@ sequenceDiagram
     T->>B: fetchProducts()
     B-->>T: IapProductSubscription[]
     T->>T: matchNativeProduct(list, tier2, isIOS)<br/>basePlanId === 'pro-tier-02'
-    Note over P: needsEmail=false → 이메일 단계 건너뜀
-    P->>T: purchaseTier(tier2, matched)
+    P->>U: EmailVerifyDialog 열림 (신규 구독과 동일, 예외 없음)
+    U->>P: 인증 코드 확인 완료
+    P->>T: purchaseTier(tier2, matched, email)
     T->>B: purchase({ id, offerToken: base,<br/>newPlanId: 'pro-tier-02',<br/>oldPlanId: 'pro-tier-01' })
     B-->>T: OnPurchaseSuccess (push)
     T->>I: POST /validate/google
     I-->>T: isValid
-    T->>C: POST /memberships/0 (DEV는 dryRun=1)
+    T->>C: POST /memberships/0 (DEV는 dryRun=1, email 포함)
     C-->>T: MembershipView
     T->>B: finishPurchaseTransaction
     T->>T: invalidate subscriptionKeys · cloudsKeys
@@ -298,19 +301,21 @@ apps/web/src/app/
     lib/                            순수 판정 (React·네트워크 무지)
       plans.ts                      stripPlanId · sortPlansByTier · selectSellablePlans
                                     findPlanById · resolveMaxClouds · getTierChangeKind · isSelectableTier
+                                    getTierRefusal · nearestSelectablePlan
       quota.ts                      countOwnedClouds · evaluateCloudQuota · findExcessClouds
       membershipStatus.ts           summarizeMembership
       nativeProducts.ts             matchNativeProduct · buildPurchaseProduct
-      cloudEmails.ts                normalizeEmail · findCloudByEmail
+      cloudEmails.ts                normalizeEmail · findCloudByEmail · findUnboundClouds · unboundCloudLabel
       price.ts                      formatPlanPrice — 스토어 문자열만 통과
       emailVerify.ts                EmailVerifyRefusal · isEmailVerifyRefusal
     hooks/
       usePlanCatalog.ts             상품 목록 + 현재/교체대상/예약 상품 + 상태 요약 (단일 진입점)
       useNativeCatalog.ts           스토어 카탈로그 (요금)
       usePlanPrice.ts               상품 → 스토어 표기 가격
-      usePlanOptions.ts             tier별 선택 가능 여부·사유·이메일 필요 여부
+      usePlanOptions.ts             tier별 선택 가능 여부·사유
       useCloudQuota.ts              한도 판정 (모든 "＋ 추가"가 쓰는 하나)
       useExcessClouds.ts            초과 감지
+      useUnboundClouds.ts           복원용 이메일이 없는 클라우드 감지
       useTierPurchase.ts            매칭 → payload → 구매 (두 화면 공용)
       useAddCloud.ts                구매 없이 클라우드 1개 생성
       useCloudEmailGuard.ts         이메일 재사용 사전 차단
@@ -322,9 +327,9 @@ apps/web/src/app/
       LoginRequiredDialog.tsx       게스트에게 먼저 묻는다
       SubscriptionBenefits.tsx      구독 혜택 3
       TierChangeNotice.tsx          변경 적용 시점 안내
-      SubscriptionDebugScreen.tsx   디버그 오버레이용 진단 + 규칙 매트릭스
       ExcessCloudBanner.tsx         초과 노출 (삭제 버튼 없음)
-      subscription-select/          PlanCard · PolicyFooter
+      EmailRequiredBanner.tsx       복원용 이메일이 빈 클라우드를 이름으로 지목
+      subscription-select/          PlanCard · PolicyFooter · TierRefusalDialog
 ```
 
 ### 1. 상품 목록: platform 없이 한 번 받고 앱에서 나눈다
@@ -465,32 +470,44 @@ ADR-0060 §6대로 `SubscriptionSelectDialog`와 `subscription-select/*`를 `fea
 
 리디자인은 없다. 데이터 출처와 판정만 바뀌었다.
 
-| 화면                       | 바뀐 것                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `SubscriptionPlansPage`    | 1장 → 5장, 인접 1칸 외 비활성 + 사유, `clouds.length>=1` 가드 제거, `TierChangeNotice`, `useTierPurchase` |
-| `SubscriptionSelectDialog` | 공통 매칭·구매 훅(Android 매칭 버그 소멸), 카탈로그 기반 목록                                             |
-| `SubscriptionPage`         | 4상태 분기, `ExcessCloudBanner`, 체험 잔여일, 활성 상태에서도 "등급 변경" 버튼                            |
-| `CloudGuidePage`           | `useAllowedProduct` → `usePlanCatalog().sellablePlans[0]`                                                 |
-| `useAddCloudFlow` (home)   | 상수 가드 제거 → store 요청만                                                                             |
+| 화면                       | 바뀐 것                                                                                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SubscriptionPlansPage`    | 1장 → 5장, 인접 1칸 외는 비활성 표시지만 **탭 가능** → `TierRefusalDialog`, `clouds.length>=1` 가드 제거, `TierChangeNotice`, `useTierPurchase` |
+| `SubscriptionSelectDialog` | 공통 매칭·구매 훅(Android 매칭 버그 소멸), 카탈로그 기반 목록                                                                                   |
+| `SubscriptionPage`         | 4상태 분기, `ExcessCloudBanner`, 체험 잔여일, 활성 상태에서도 "등급 변경" 버튼                                                                  |
+| `CloudGuidePage`           | `useAllowedProduct` → `usePlanCatalog().sellablePlans[0]`                                                                                       |
+| `useAddCloudFlow` (home)   | 상수 가드 제거 → store 요청만                                                                                                                   |
 
 `PlanCard`는 플랜 페이지에 인라인돼 있던 카드 마크업과 합쳤다 — 같은 카드를 두 벌로 두면 매칭 로직이
 갈라졌던 것과 같은 일이 반복된다. `isCurrent` 배지와 `disabledReason` 줄이 추가됐다.
+
+고를 수 없는 tier는 **HTML `disabled`로 막지 않는다**. `disabled` 버튼은 이벤트를 아예 내지 않아서,
+회색 카드 + 작은 사유 줄 하나가 설명의 전부였고 탭은 고장난 버튼처럼 읽혔다. 지금은 `aria-disabled`로
+비활성임을 알리되 탭은 화면까지 올라오고, 화면이 `TierRefusalDialog`로 규칙(이용 중 · 한 단계씩 ·
+첫 구독은 1단계)을 말한다. 고를 수 있는 가장 가까운 tier가 있으면(`nearestSelectablePlan`) 확인 버튼이
+그 tier를 대신 선택해 준다 — 거절만 하고 어디로 가라는 말이 없으면 사용자가 카드를 하나씩 찍어봐야 한다.
+
+`EmailRequiredBanner`는 **어떤** 클라우드에 복원용 이메일이 없는지 이름으로 짚고, 행마다 등록 버튼을
+둔다. 이메일의 용도(기기 교체·재설치 시 복원)를 문구에 명시한다 — "로그인에 필요"라고만 하면 지금
+쓰는 데 지장이 없어 보이므로 미루게 된다.
 
 ## 검증 방법
 
 **유닛 테스트**
 
-| 파일                               | 핵심 케이스                                                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `lib/plans.test.ts`                | `#` 접두 조인 · 애플/구글 키 혼동 방지 · 플랫폼 분리 · 인접/점프 · head-only 멤버십에서 `null`               |
-| `lib/quota.test.ts`                | 상태별 사유 · **해지 예약은 생성 불가** · `limit=null`은 미차단 · 초과 대상이 나중 클라우드                  |
-| `lib/membershipStatus.test.ts`     | 4상태 전이 · **해지 예약이 `isEntitled=true`** · 결제 실패 유예가 `active` · `trialDaysLeft` 범위 방어       |
-| `lib/nativeProducts.test.ts`       | iOS는 `id`/Android는 `basePlanId` · **`planId`(부모 SKU) 회귀 방지** · 등급 변경은 `base` · `oldPlanId` 부착 |
-| `lib/cloudEmails.test.ts`          | 대소문자·공백 정규화 · `expired`는 재사용 가능                                                               |
-| `utils/verification.test.ts`       | **의도된 거절만 문구 노출** · 서버/axios 에러는 매칭 안 됨                                                   |
-| `hooks/useSubscriptionIap.test.ts` | Android 등급 변경에 `oldPlanId` 실림 · 신규엔 미포함 · iOS는 Android 필드 없음                               |
-| `i18n.test.ts`                     | ko/en 양쪽 키 존재 · `{{max}}`/`{{count}}`/`{{days}}` 치환 유지                                              |
-| `pages/CloudGuidePage.test.tsx`    | (기존) CTA 체험 문구 · 로케일 키                                                                             |
+| 파일                                               | 핵심 케이스                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `lib/plans.test.ts`                                | `#` 접두 조인 · 애플/구글 키 혼동 방지 · 플랫폼 분리 · 인접/점프 · head-only 멤버십에서 `null`               |
+| `lib/quota.test.ts`                                | 상태별 사유 · **해지 예약은 생성 불가** · `limit=null`은 미차단 · 초과 대상이 나중 클라우드                  |
+| `lib/membershipStatus.test.ts`                     | 4상태 전이 · **해지 예약이 `isEntitled=true`** · 결제 실패 유예가 `active` · `trialDaysLeft` 범위 방어       |
+| `lib/nativeProducts.test.ts`                       | iOS는 `id`/Android는 `basePlanId` · **`planId`(부모 SKU) 회귀 방지** · 등급 변경은 `base` · `oldPlanId` 부착 |
+| `lib/cloudEmails.test.ts`                          | 대소문자·공백 정규화 · `expired`는 재사용 가능 · 이메일 없는 클라우드 전부, 오래된 것부터                    |
+| `components/subscription-select/PlanCard.test.tsx` | 거절된 tier도 탭이 올라간다 · `aria-disabled`이되 버튼은 살아 있다 · 결제 중에만 실제 차단                   |
+| `components/EmailRequiredBanner.test.tsx`          | 이름으로 지목 · 이름 없으면 id · 행별 요청 · id 없는 클라우드는 제외                                         |
+| `utils/verification.test.ts`                       | **의도된 거절만 문구 노출** · 서버/axios 에러는 매칭 안 됨                                                   |
+| `hooks/useSubscriptionIap.test.ts`                 | Android 등급 변경에 `oldPlanId` 실림 · 신규엔 미포함 · iOS는 Android 필드 없음                               |
+| `i18n.test.ts`                                     | ko/en 양쪽 키 존재 · `{{max}}`/`{{count}}`/`{{days}}` 치환 유지                                              |
+| `pages/CloudGuidePage.test.tsx`                    | (기존) CTA 체험 문구 · 로케일 키                                                                             |
 
 ```bash
 npx jest --config apps/web/jest.config.js --rootDir apps/web --testPathPatterns="features/subscription"
@@ -528,7 +545,8 @@ npx nx lint web && npx nx lint web-core
 
 1. 플랜 화면에 tier1~5 다섯 장이 뜨고 현재 플랫폼 상품만 보이는지.
 2. tier1 구독 상태에서 tier1은 `이용 중`, tier2만 활성, tier3~5는 비활성 + 사유가 보이는지.
-3. 등급 변경 시 이메일 단계를 건너뛰고, Android 로그에 `oldPlanId`가 실려 나가는지.
+3. 등급 변경(업·다운 모두) 시에도 이메일 인증 단계가 뜨고, Android 로그에 `oldPlanId`가 실려
+   나가는지.
 4. 홈 "＋ 계정 추가"가 한도 도달 시 다이얼로그 없이 사유를 토스트하는지, 한도가 남으면 이메일 인증만
    열리는지.
 5. 보유 클라우드의 이메일을 다시 입력하면 코드 발송 없이 사유가 뜨는지.

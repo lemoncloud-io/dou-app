@@ -1,4 +1,7 @@
 export * from './AddCloudFlowHost';
+export * from './CloudMembershipSummary';
+export * from './EmailBindRequestHost';
+export * from './EmailRequiredBanner';
 export * from './EmailVerifyDialog';
 export * from './ExcessCloudBanner';
 export * from './LoginRequiredDialog';

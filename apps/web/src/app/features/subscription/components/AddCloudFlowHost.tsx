@@ -52,7 +52,11 @@ const AddCloudFlow = () => {
         closeAddCloud();
     }, [isLoading, canAdd, reason, limit, t, toast, closeAddCloud, navigate]);
 
-    const handleVerified = async (email: string) => {
+    // `make` only returns once the cloud model exists (`status=init`) — workspace assignment and
+    // deploy happen afterward, asynchronously, with no committed SLA. The success toast reflects
+    // that a request was accepted, not that the cloud is ready; the switcher (`CloudSessionSheet`)
+    // already shows the provisioning state and its own "ready" toast once `active` lands.
+    const finish = async (email?: string) => {
         try {
             await addCloud(email);
             toast({ title: t('addAccount.success') });
@@ -68,7 +72,8 @@ const AddCloudFlow = () => {
         <EmailVerifyDialog
             open={canAdd}
             onOpenChange={open => !open && closeAddCloud()}
-            onVerified={handleVerified}
+            onVerified={email => void finish(email)}
+            onSkip={() => void finish()}
             verifyEmail={verifyEmail}
         />
     );

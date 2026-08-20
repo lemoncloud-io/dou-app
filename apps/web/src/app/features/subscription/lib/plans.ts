@@ -72,6 +72,44 @@ export const getTierChangeKind = (current: ProductView | undefined, target: Prod
 export const isSelectableTier = (kind: TierChangeKind): boolean =>
     kind === 'new' || kind === 'upgrade' || kind === 'downgrade';
 
+/** Why a tier cannot be picked. The discriminant the refusal dialog turns into copy. */
+export type TierRefusal = 'current' | 'tierJump' | 'entryTier';
+
+/**
+ * The refusal behind an unpickable tier, or `undefined` when the tier can be picked.
+ *
+ * `blocked` covers two different refusals that read nothing alike to the user: with a running
+ * subscription it is a tier jump, without one it is the entry-tier rule (see `getTierChangeKind`).
+ * Splitting them here is what lets the dialog explain the actual rule instead of one blanket line.
+ */
+export const getTierRefusal = (current: ProductView | undefined, kind: TierChangeKind): TierRefusal | undefined => {
+    if (kind === 'current') return 'current';
+    if (kind !== 'blocked') return undefined;
+    return current ? 'tierJump' : 'entryTier';
+};
+
+/**
+ * The pickable tier nearest to the one the user tapped — what the refusal dialog offers instead.
+ *
+ * Distance is in tier steps, and a tie goes to the lower tier: when a refused pick sits between two
+ * pickable ones, the cheaper of the two is the safer thing to nudge someone towards. Returns
+ * `undefined` when nothing is pickable at all (an expired catalog, a single-plan build).
+ */
+export const nearestSelectablePlan = <T extends { plan: ProductView; isSelectable: boolean }>(
+    options: T[],
+    target: ProductView
+): T | undefined => {
+    const targetSort = target.sort ?? 0;
+    return options
+        .filter(o => o.isSelectable)
+        .sort((a, b) => {
+            const aSort = a.plan.sort ?? 0;
+            const bSort = b.plan.sort ?? 0;
+            const byDistance = Math.abs(aSort - targetSort) - Math.abs(bSort - targetSort);
+            return byDistance !== 0 ? byDistance : aSort - bSort;
+        })[0];
+};
+
 /**
  * The plan's name in the reader's language, falling back through the other locale to the raw id.
  *

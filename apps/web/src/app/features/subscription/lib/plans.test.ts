@@ -3,7 +3,9 @@ import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import {
     findPlanById,
     getTierChangeKind,
+    getTierRefusal,
     isSelectableTier,
+    nearestSelectablePlan,
     planDisplayName,
     resolveMaxClouds,
     selectSellablePlans,
@@ -139,6 +141,43 @@ describe('isSelectableTier', () => {
         expect(isSelectableTier('downgrade')).toBe(true);
         expect(isSelectableTier('current')).toBe(false);
         expect(isSelectableTier('blocked')).toBe(false);
+    });
+});
+
+describe('getTierRefusal', () => {
+    it('구독 중인 등급은 current 거절이다', () => {
+        expect(getTierRefusal(applePlan(1), 'current')).toBe('current');
+    });
+
+    it('구독이 있는 상태의 blocked는 단계 점프다', () => {
+        expect(getTierRefusal(applePlan(1), 'blocked')).toBe('tierJump');
+    });
+
+    it('구독이 없는 상태의 blocked는 1단계 시작 규칙이다 — 같은 blocked, 다른 이유', () => {
+        expect(getTierRefusal(undefined, 'blocked')).toBe('entryTier');
+    });
+
+    it('고를 수 있는 등급은 거절 사유가 없다', () => {
+        expect(getTierRefusal(applePlan(1), 'upgrade')).toBeUndefined();
+        expect(getTierRefusal(undefined, 'new')).toBeUndefined();
+    });
+});
+
+describe('nearestSelectablePlan', () => {
+    const option = (tier: number, isSelectable: boolean) => ({ plan: applePlan(tier), isSelectable });
+
+    it('거절된 등급에서 가장 가까운 선택 가능 등급을 고른다', () => {
+        const options = [option(1, false), option(2, false), option(3, true), option(5, true)];
+        expect(nearestSelectablePlan(options, applePlan(4))?.plan.sort).toBe(3);
+    });
+
+    it('거리가 같으면 낮은 등급 — 더 싼 쪽으로 안내한다', () => {
+        const options = [option(1, true), option(3, true)];
+        expect(nearestSelectablePlan(options, applePlan(2))?.plan.sort).toBe(1);
+    });
+
+    it('고를 수 있는 등급이 하나도 없으면 undefined다 — 대안 없이 사유만 알린다', () => {
+        expect(nearestSelectablePlan([option(1, false)], applePlan(3))).toBeUndefined();
     });
 });
 

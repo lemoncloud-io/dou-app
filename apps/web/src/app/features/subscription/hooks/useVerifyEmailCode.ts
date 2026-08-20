@@ -2,12 +2,18 @@ import { useCallback } from 'react';
 
 import { useVerifyEmail } from '@chatic/web-core';
 
-/** One leg of the email verification exchange: send a code, resend it, or check what was typed. */
+/**
+ * One leg of the email verification exchange: send a code, resend it, check what was typed, or
+ * confirm the bind to a specific cloud. `confirm` is a distinct step from `check` — checking only
+ * validates the code typed back; confirming is what actually links the address to a `cloudId`.
+ */
 export interface EmailVerifyRequest {
     email: string;
-    step: 'send' | 'resend' | 'check';
+    step: 'send' | 'resend' | 'check' | 'confirm';
     /** Required for `check`, ignored otherwise. */
     code?: string;
+    /** Required for `confirm`, ignored otherwise. */
+    cloudId?: string;
 }
 
 /**

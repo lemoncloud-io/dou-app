@@ -41,7 +41,7 @@ export const ExcessCloudBanner = () => {
             </ul>
             <button
                 type="button"
-                onClick={() => navigate(ROUTES.mypage.account.manage)}
+                onClick={() => navigate(ROUTES.mypage.cloud.manage)}
                 className="mt-1 self-start text-[13px] font-semibold text-yellow-700 underline underline-offset-2 dark:text-yellow-300"
             >
                 {t('mypage.subscription.excess.manage')}

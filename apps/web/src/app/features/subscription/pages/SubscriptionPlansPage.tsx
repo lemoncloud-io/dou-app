@@ -20,15 +20,16 @@ import { appBridge } from '../../../bridge';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
 import {
-    EmailVerifyDialog,
     LoginRequiredDialog,
     PlanCard,
     PolicyFooter,
     SubscriptionBenefits,
     TierChangeNotice,
+    TierRefusalDialog,
 } from '../components';
 import { POLICY_BASE_URL } from '../consts';
-import { useCloudEmailGuard, usePlanCatalog, usePlanOptions, useTierPurchase } from '../hooks';
+import { usePlanCatalog, usePlanOptions, useRestorePurchases, useTierPurchase, type PlanOption } from '../hooks';
+import { nearestSelectablePlan } from '../lib';
 import { PageState } from '../types';
 
 /**
@@ -48,20 +49,31 @@ export const SubscriptionPlansPage = () => {
     const { options, isLoading } = usePlanOptions();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
     const { isGuest } = useRuntimeProfile();
-    const verifyEmail = useCloudEmailGuard();
+    const { restore: restorePurchases } = useRestorePurchases();
 
     const [selected, setSelected] = useState<ProductView | null>(null);
-    const [matched, setMatched] = useState<IapProductSubscription | null>(null);
-    const [isEmailVerifyOpen, setIsEmailVerifyOpen] = useState(false);
     const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
+    const [refused, setRefused] = useState<PlanOption | null>(null);
 
     const isKo = i18n.language.startsWith('ko');
     const selectedOption = options.find(o => o.plan.id === selected?.id);
+    // What the refusal dialog can offer instead of the tier that was refused.
+    const alternative = refused ? nearestSelectablePlan(options, refused.plan) : undefined;
 
     // The entry tier is the only one that carries a trial, and only for a first-time subscriber.
     const trialDays = summary.state === 'none' ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const submitLabel =
         pageState === PageState.Purchasing ? t('mypage.subscription.purchasing') : t('mypage.subscription.subscribe');
+
+    // Every card reports its tap, including the ones that cannot be picked (see `PlanCard`): a tier
+    // the rules refuse gets the rule stated out loud instead of a tap that goes nowhere.
+    const handlePick = (option: PlanOption) => {
+        if (!option.isSelectable) {
+            setRefused(option);
+            return;
+        }
+        setSelected(option.plan);
+    };
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
@@ -69,19 +81,30 @@ export const SubscriptionPlansPage = () => {
         else window.open(url, '_blank');
     };
 
-    const finish = async (plan: ProductView, native: IapProductSubscription, email?: string) => {
+    const finish = async (plan: ProductView, native: IapProductSubscription) => {
         try {
-            await purchaseTier(plan, native, email);
+            // No email here — a cloud is provisioned without one and gets bound afterward, on home
+            // or "구독 관리" (see `EmailRequiredBanner`, `CloudItem`'s unbound-email state). The
+            // backend confirmed a cloud reaches `active` with no email at all, so nothing about the
+            // purchase itself depends on it.
+            await purchaseTier(plan, native);
             navigate(ROUTES.subscription.complete);
         } catch (e) {
-            const isCancelled = (e as { code?: string })?.code === 'user-cancelled';
-            if (!isCancelled) {
-                toast({
-                    title: t('mypage.subscription.purchaseFailed'),
-                    description: e instanceof Error ? e.message : undefined,
-                    variant: 'destructive',
-                });
+            const code = (e as { code?: string })?.code;
+            if (code === 'user-cancelled') return;
+            // The store already holds an active entitlement this account never got attached to
+            // (e.g. a crash or reinstall between the charge and our validation step). That isn't a
+            // payment failure, so route it to the same recovery the policy footer's restore button
+            // uses instead of the generic "payment failed" toast.
+            if (code === 'already-owned') {
+                await restorePurchases();
+                return;
             }
+            toast({
+                title: t('mypage.subscription.purchaseFailed'),
+                description: e instanceof Error ? e.message : undefined,
+                variant: 'destructive',
+            });
         }
     };
 
@@ -95,13 +118,7 @@ export const SubscriptionPlansPage = () => {
         }
         try {
             const native = await resolveNativeProduct(selected);
-            // A tier change moves the allowance and creates no cloud — nothing to verify.
-            if (!selectedOption.needsEmail) {
-                await finish(selected, native);
-                return;
-            }
-            setMatched(native);
-            setIsEmailVerifyOpen(true);
+            await finish(selected, native);
         } catch (e) {
             toast({
                 title: t('mypage.subscription.purchaseFailed'),
@@ -197,8 +214,9 @@ export const SubscriptionPlansPage = () => {
                                         isKo={isKo}
                                         isCurrent={option.isCurrent}
                                         disabledReason={option.disabledReason}
+                                        isSelectable={option.isSelectable}
                                         displayPrice={option.displayPrice}
-                                        onSelect={setSelected}
+                                        onSelect={() => handlePick(option)}
                                     />
                                 ))}
                             </div>
@@ -213,6 +231,17 @@ export const SubscriptionPlansPage = () => {
                 </div>
             </ScreenLayout>
 
+            <TierRefusalDialog
+                refusal={refused?.refusal ?? null}
+                onOpenChange={open => !open && setRefused(null)}
+                alternative={alternative?.plan}
+                onPickAlternative={plan => {
+                    setSelected(plan);
+                    setRefused(null);
+                }}
+                isKo={isKo}
+            />
+
             <LoginRequiredDialog
                 open={isLoginPromptOpen}
                 onOpenChange={setIsLoginPromptOpen}
@@ -220,13 +249,6 @@ export const SubscriptionPlansPage = () => {
                     setIsLoginPromptOpen(false);
                     goToLogin();
                 }}
-            />
-
-            <EmailVerifyDialog
-                open={isEmailVerifyOpen}
-                onOpenChange={setIsEmailVerifyOpen}
-                onVerified={email => selected && matched && finish(selected, matched, email)}
-                verifyEmail={verifyEmail}
             />
         </>
     );

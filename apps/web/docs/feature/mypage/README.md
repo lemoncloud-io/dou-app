@@ -12,15 +12,15 @@
 
 ## 화면
 
-| 페이지                                       | 경로(`ROUTES.mypage.*`)  | 설명                                                               |
-| -------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
-| `MyPage`                                     | `/mypage`                | 허브 — 프로필 + 카드형 설정 메뉴(아래 [허브 재설계](#허브-재설계)) |
-| `AccountInfoPage`                            | `/mypage/account`        | 계정 정보 + [소셜 연동](../account/social-links.md)                |
-| `AccountManagePage`                          | `/mypage/account-manage` | 계정 관리(클라우드 세션)                                           |
-| `ProfileEditPage`                            | `/mypage/edit`           | 기본 클라우드(relay) 프로필 편집                                   |
-| `CloudProfileEditPage`                       | `/mypage/cloud-profile`  | 클라우드 프로필(이름) 편집                                         |
-| `WithdrawalPage`                             | `/mypage/withdrawal`     | 회원 탈퇴                                                          |
-| `TermsPage` / `PrivacyPage` / `LicensesPage` | `/mypage/policy/*`       | 약관·개인정보·라이선스                                             |
+| 페이지                                       | 경로(`ROUTES.mypage.*`) | 설명                                                               |
+| -------------------------------------------- | ----------------------- | ------------------------------------------------------------------ |
+| `MyPage`                                     | `/mypage`               | 허브 — 프로필 + 카드형 설정 메뉴(아래 [허브 재설계](#허브-재설계)) |
+| `AccountInfoPage`                            | `/mypage/account`       | 계정 정보 + [소셜 연동](../account/social-links.md)                |
+| `CloudManagePage`                            | `/mypage/cloud-manage`  | 클라우드 관리 — 보유 클라우드 목록 + 복원용 이메일 등록 + 삭제     |
+| `ProfileEditPage`                            | `/mypage/edit`          | 기본 클라우드(relay) 프로필 편집                                   |
+| `CloudProfileEditPage`                       | `/mypage/cloud-profile` | 클라우드 프로필(이름) 편집                                         |
+| `WithdrawalPage`                             | `/mypage/withdrawal`    | 회원 탈퇴                                                          |
+| `TermsPage` / `PrivacyPage` / `LicensesPage` | `/mypage/policy/*`      | 약관·개인정보·라이선스                                             |
 
 ## 허브 재설계
 
@@ -30,11 +30,11 @@
 
 인증(`isGuest`)과 구독(`useMembershipInfo().isValid`)으로 분기한다. **무료 구독 D-N(잔여일) 상태는 이번 범위 제외** — 서버에 "현재 체험 중" 신뢰 플래그가 없어 보류(→ [리스크](#리스크와-미지수-임시)).
 
-| 상태             | 조건                   | 프로필/카드 구성                                                            |
-| ---------------- | ---------------------- | --------------------------------------------------------------------------- |
-| **비로그인**     | `isGuest`              | "로그인하기" 헤더 + 설정 카드 + 약관·버전 카드만. 내정보/구독/로그아웃 없음 |
-| **구독 미가입**  | `!isGuest && !isValid` | 프로필 + 내정보 + **구독 관리** + (계정 관리) + 설정 + 약관·버전 + 로그아웃 |
-| **구독 이용 중** | `!isGuest && isValid`  | 위와 동일, 구독 행 라벨이 **구독 이용 중**                                  |
+| 상태             | 조건                   | 프로필/카드 구성                                                                |
+| ---------------- | ---------------------- | ------------------------------------------------------------------------------- |
+| **비로그인**     | `isGuest`              | "로그인하기" 헤더 + 설정 카드 + 약관·버전 카드만. 내정보/구독/로그아웃 없음     |
+| **구독 미가입**  | `!isGuest && !isValid` | 프로필 + 내정보 + **구독 관리** + (클라우드 관리) + 설정 + 약관·버전 + 로그아웃 |
+| **구독 이용 중** | `!isGuest && isValid`  | 위와 동일, 구독 행 라벨이 **구독 이용 중**                                      |
 
 > 구독 상태 단일 원천은 `useMembershipInfo()`([web-core](../../../../../libs/web-core/src/hooks/subscription/index.ts)). 플랫폼 매칭을 강제하는 `useIsSubscriptionAvailable()`은 웹에서 부적합하므로 쓰지 않는다.
 
@@ -43,7 +43,10 @@
 Figma 기준 카드(좌우 16px 마진, 행 높이 46px, chevron 우측):
 
 1. **내 정보** — `→ ROUTES.mypage.account.info` (비로그인 숨김)
-2. **구독 + 계정 관리** — 구독 행(`→ subscription.root`, 상태 라벨) + 계정 관리 행(`isCloudActive`일 때, `→ account.manage`) (비로그인 숨김)
+2. **구독 + 클라우드 관리** — 구독 행(`→ subscription.root`, 상태 라벨) + 클라우드 관리 행(보유 클라우드가 1개 이상일 때, `→ cloud.manage`) (비로그인 숨김)
+
+    > 이 행의 게이트는 **보유 여부**(`useCloudSessionCatalog().clouds.length > 0`)다. 예전 게이트인 `isCloudActive`는 "지금 default가 아닌 클라우드 세션에 들어가 있음"이라, 두유 홈에 머무는 동안 유일한 삭제 경로를 숨겼다 — 다운그레이드 초과분을 이 화면으로 딥링크하는 [ExcessCloudBanner](../subscription/README.md)와, 구독이 만료됐지만 남은 클라우드를 지워야 하는 사용자가 정확히 그 사각지대였다. 초대받은 클라우드는 relay 카탈로그에 없으므로 이 게이트를 열지 않는다(남의 클라우드는 삭제 대상이 아니다).
+
 3. **설정**(유지·재스타일) — 다크모드 토글 / 메시지 미리보기 토글 / 언어 / (네이티브)앱 아이콘 / 온보딩 다시보기. 모든 사용자 노출
 4. **약관·버전** — 약관 및 정책(`→ policy.root`) + 앱 버전(업데이트 필요 링크, 디버그 언락 탭)
 5. **로그아웃** — `LogoutDialog` → `navigate(ROUTES.auth.logout)` (비로그인 숨김)

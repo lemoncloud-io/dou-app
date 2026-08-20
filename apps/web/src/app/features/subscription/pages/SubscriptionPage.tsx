@@ -1,19 +1,17 @@
 import { AlertCircle, ChevronLeft, Loader2 } from 'lucide-react';
-import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { isNative, logger } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { appBridge } from '../../../bridge';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useMembershipInfo } from '@chatic/web-core';
 
-import { ExcessCloudBanner } from '../components';
+import { EmailRequiredBanner, ExcessCloudBanner } from '../components';
 import { planDisplayName } from '../lib';
-import { usePlanCatalog, usePlanPrice, useSubscriptionIap } from '../hooks';
+import { usePlanCatalog, usePlanPrice, useRestorePurchases } from '../hooks';
 import { POLICY_BASE_URL } from '../consts';
 import { ROUTES } from '../../../routes/paths';
 
@@ -26,11 +24,9 @@ const formatDate = (timestamp?: number | null): string => {
 export const SubscriptionPage = () => {
     const navigate = useNavigateWithTransition();
     const { t, i18n } = useTranslation();
-    const { toast } = useToast();
     useQueryClient();
     const isOnMobileApp = isNative();
-    const { restorePurchases } = useSubscriptionIap();
-    const [isRestoring, setIsRestoring] = useState(false);
+    const { restore, isRestoring, canRestore } = useRestorePurchases();
 
     const { data: membership, isLoading } = useMembershipInfo();
     const { summary, currentPlan, pendingPlan, isIOS } = usePlanCatalog();
@@ -45,7 +41,10 @@ export const SubscriptionPage = () => {
     const isCanceled = summary.state === 'cancelScheduled';
     const isExpired = summary.state === 'expired';
     const hasSubscription = summary.state !== 'none';
-    const hasPendingChange = !!summary.pendingProductId;
+    // A pending tier change or a next-payment date only means something while the paid period is
+    // still running — an expired membership can carry a stale `pendingProductId` (a downgrade that
+    // was queued but never applied because the user let the subscription lapse instead of renewing).
+    const hasPendingChange = summary.isEntitled && !!summary.pendingProductId;
     // Where to manage a subscription depends on the store it was bought on, not the current device.
     // Fall back to this device's store only pre-subscription, when there is no membership to read one off.
     const managePlatform =
@@ -61,24 +60,6 @@ export const SubscriptionPage = () => {
     // 2870-33015). Redirecting from this button too would give the same intent two behaviours.
     const handleViewPlans = () => navigate(ROUTES.subscription.plans);
 
-    const handleRestore = async () => {
-        setIsRestoring(true);
-        try {
-            const count = await restorePurchases();
-            toast({
-                title:
-                    count > 0
-                        ? t('mypage.subscription.restoreSuccess', { count })
-                        : t('mypage.subscription.restoreEmpty'),
-            });
-        } catch (e) {
-            logger.error('IAP', '[SubscriptionPage] restore failed', { error: e });
-            toast({ title: t('mypage.subscription.restoreFailed'), variant: 'destructive' });
-        } finally {
-            setIsRestoring(false);
-        }
-    };
-
     return (
         <div className="flex min-h-screen flex-col overflow-y-auto bg-background">
             {/* Header */}
@@ -93,6 +74,9 @@ export const SubscriptionPage = () => {
             <div className="flex flex-col gap-[18px] px-4 pb-safe-bottom pt-4">
                 {/* Over the allowance after a downgrade — detection only, no delete button here. */}
                 <ExcessCloudBanner />
+                {/* A cloud created without an email (a skipped purchase or add-cloud step) — the one
+                    dialog that can fix it, surfaced here rather than left silently unusable. */}
+                <EmailRequiredBanner />
 
                 {isLoading ? (
                     <div className="flex items-center justify-center pt-20">
@@ -176,8 +160,16 @@ export const SubscriptionPage = () => {
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.allowance')}
                                             </span>
-                                            <span className="text-[16px] font-medium">
-                                                {t('mypage.subscription.maxClouds', { count: currentPlan.maxClouds })}
+                                            {/* An expired membership holds no allowance: `evaluateCloudQuota`
+                                                already refuses on `expired`, so printing the lapsed tier's
+                                                figure here claimed a limit the user does not have. A scheduled
+                                                cancellation still does (`isEntitled`), and keeps its number. */}
+                                            <span
+                                                className={`text-[16px] font-medium ${summary.isEntitled ? '' : 'text-gray-400'}`}
+                                            >
+                                                {t('mypage.subscription.maxClouds', {
+                                                    count: summary.isEntitled ? currentPlan.maxClouds : 0,
+                                                })}
                                             </span>
                                         </div>
                                     )}
@@ -228,7 +220,7 @@ export const SubscriptionPage = () => {
                                             </span>
                                         </div>
                                     )}
-                                    {(membership?.validUntil ?? 0) > 0 && (
+                                    {summary.isEntitled && (membership?.validUntil ?? 0) > 0 && (
                                         <div className="flex items-center gap-[18px]">
                                             <span className="w-[100px] shrink-0 text-[16px] text-muted-foreground">
                                                 {t('mypage.subscription.nextPayment')}
@@ -260,9 +252,9 @@ export const SubscriptionPage = () => {
                             >
                                 {t('mypage.subscription.manageSubscription')}
                             </button>
-                            {isOnMobileApp && (
+                            {canRestore && (
                                 <button
-                                    onClick={handleRestore}
+                                    onClick={() => void restore()}
                                     disabled={isRestoring}
                                     className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground disabled:opacity-50"
                                 >
@@ -309,9 +301,9 @@ export const SubscriptionPage = () => {
                             </button>
                             {/* Recovers a purchase the store already has but this account's record never picked up
                                 (fresh install, reinstall, membership sync gap) — the exact case an empty state hides. */}
-                            {isOnMobileApp && !isGuest && (
+                            {canRestore && (
                                 <button
-                                    onClick={handleRestore}
+                                    onClick={() => void restore()}
                                     disabled={isRestoring}
                                     className="flex-1 rounded-[14px] border border-border bg-card px-4 py-3.5 text-center text-[15px] font-medium text-muted-foreground disabled:opacity-50"
                                 >

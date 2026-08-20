@@ -36,7 +36,7 @@ export const SubscriptionCompletePage = () => {
             footer={
                 <FloatingButton
                     label={t('mypage.subscription.complete.cta')}
-                    onClick={() => navigate(ROUTES.onboarding.setup, { replace: true })}
+                    onClick={() => navigate(ROUTES.home, { replace: true })}
                 />
             }
         >

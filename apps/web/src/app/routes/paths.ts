@@ -79,7 +79,9 @@ export const ROUTES = {
     // ── Subscription (Private) ───────────────────────────────────
     subscription: {
         root: '/subscription',
-        // The merged guide + plan picker: why subscribe and which tier, on one screen.
+        /** Read-only "why subscribe" pitch — free vs paid. Precedes `plans` (ADR-0034 §4). */
+        guide: '/subscription/guide',
+        /** Which tier, at what price. Reachable directly, without the guide. */
         plans: '/subscription/plans',
         complete: '/subscription/complete',
     },
@@ -96,10 +98,13 @@ export const ROUTES = {
         login: '/mypage/login',
         account: {
             info: '/mypage/account',
-            manage: '/mypage/account-manage',
             edit: '/mypage/edit',
             cloudProfile: '/mypage/cloud-profile',
             withdrawal: '/mypage/withdrawal',
+        },
+        /** Owned clouds (workspaces), not login credentials — see `account` above for those. */
+        cloud: {
+            manage: '/mypage/cloud-manage',
         },
         policy: {
             root: '/mypage/policy',
