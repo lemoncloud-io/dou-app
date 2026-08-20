@@ -1,5 +1,55 @@
 # Changelog
 
+## [2026-08-20] - root@0.55.0, @chatic/web@0.46.0
+
+### Features
+
+- (web/mypage) add a rename entry point on the active cloud's row
+- (web/home) upsell group rooms on relay, and stop the list asserting empty while it loads
+- (web/subscription) restore the guide screen, bind emails after the fact, explain refused tiers
+- (web-ui-kit,web) animate the friend picker's selection and make its banner tappable
+- (web-ui-kit) add a non-interactive tier badge beside the tier button
+- (web-ui-kit) let the brand mark follow the theme, and give the header a loading state
+- (web,web-core) pin the account profile to relay, whichever cloud is active (ADR-0062)
+- (web/onboarding) guide a new subscriber through cloud, place and profile
+- (web/subscription) build the guide, login prompt and completion screens
+- (web/subscription) show plan data instead of raw product ids, and add a debug screen
+- (web/subscription) sell tier 1~5 and judge the cloud quota from the server
+- (web) let a verify-email caller refuse with its own wording
+- (web-core) add the call that provisions one cloud against a membership
+
+### Bug Fixes
+
+- (web,web-core) stop a cloud's own `error` column reading as a failed call
+- (mobile/subscription) stop the purchase button freezing when the store never answers
+- (web/subscription) let the server validate the receipt, and stop dry-running it in dev
+- (app-messages) make `lastActivityAt` optional so libs/data builds again
+- (web,ui-kit) cap the overlays at the app width, not just the screens
+- (web) give every screen one width that fills the device and centres beyond it
+- (web/subscription) clear the keyboard, widen the fields, and start new subscriptions at tier 1
+- (web/subscription) take the price only from the store, never from the server
+- (web/subscription) show the store's price, not dollars, wherever it is known
+
+### Documentation
+
+- (app-runtime) repoint the toast-pattern link at the renamed CloudManagePage
+- (web/subscription) sync the feature docs with the shipped flow
+- (web/subscription) document the tier and quota design
+- (adr) source subscription tiers and the cloud quota from the server
+
+### Refactor
+
+- (web/subscription) one plan picker, one guest prompt, one benefits namespace
+- (web/subscription) own the email verification the flow depends on
+
+### Chores
+
+- (mobile) bump app versions 0.23.0
+
+### Other
+
+- test: (web/unread) realign the tests and ADR-0048 with the code that shipped
+
 ## [2026-08-18] - root@0.54.1, @chatic/web@0.45.1
 
 ### Features
