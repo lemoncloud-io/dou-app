@@ -7,31 +7,35 @@ describe('countUnread', () => {
         expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20, readMetaNo: 3 })).toBe(8);
     });
 
-    it('subtracts an unconvertible cursor as-is when the join row predates the snapshot', () => {
-        // No readMetaNo, so the cursor stays on the unified scale: 25 user messages at the head
-        // minus a cursor of 20 = 5. Undercounts by the join's real metaNo, which is the direction
-        // to fail in — borrowing the head's metaNo (the old fallback) overcounted instead.
-        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20 })).toBe(5);
+    it("borrows the head's metaNo when the join row predates the snapshot", () => {
+        // No readMetaNo, so headMetaNo stands in for it (ADR-0048 fallback, same as the server's
+        // calcUnreadCount): 25 user messages at the head minus a cursor converted as 20 - 5 = 15,
+        // so 10. Compare the exact form on the line above, where the cursor's own snapshot of 3
+        // gives 8 — the fallback reads HIGH by whatever system events sit between cursor and head.
+        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 20 })).toBe(10);
     });
 
-    it('stays at zero as system events arrive after a snapshot-less read (the badge that never went down)', () => {
-        // Read to the head: 25 user messages, cursor 30, no join snapshot.
-        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 30 })).toBe(0);
-        // Three reactions land. They move the head and the head's metaNo together, so the user
-        // count is unchanged and the badge must stay empty — the old fallback showed 1, then 2,
-        // then 3, and re-reading the room could not clear it.
-        expect(countUnread({ headChatNo: 31, headMetaNo: 6, readNo: 30 })).toBe(0);
-        expect(countUnread({ headChatNo: 32, headMetaNo: 7, readNo: 30 })).toBe(0);
-        expect(countUnread({ headChatNo: 33, headMetaNo: 8, readNo: 30 })).toBe(0);
-    });
-
-    it('undercounts a snapshot-less cursor by the system events below it, and says so', () => {
-        // The cost of the line above. Head 40 / metaNo 8 = 32 user messages against an unconverted
-        // cursor of 30 reads as 2, where a cursor carrying its own snapshot (metaNo 5 at slot 30)
-        // would read as 7. The row repairs itself the next time the room is read: the server
-        // answers `join.read` with a cursor AND its snapshot, and the branch above stops applying.
-        expect(countUnread({ headChatNo: 40, headMetaNo: 8, readNo: 30 })).toBe(2);
+    it('overcounts a snapshot-less cursor by the system events above it, and says so', () => {
+        // The cost of the fallback, stated plainly. Head 40 / metaNo 8 = 32 user messages against a
+        // cursor of 30 converted with the HEAD's metaNo (30 - 8 = 22) reads as 10, where the cursor
+        // carrying its own snapshot (metaNo 5 at slot 30) reads as the true 7. The row repairs
+        // itself the next time the room is read: the server answers `join.read` with a cursor AND
+        // its snapshot, and this branch stops applying.
+        expect(countUnread({ headChatNo: 40, headMetaNo: 8, readNo: 30 })).toBe(10);
         expect(countUnread({ headChatNo: 40, headMetaNo: 8, readNo: 30, readMetaNo: 5 })).toBe(7);
+    });
+
+    // Worth keeping visible: this is the shape the fallback gets WRONG, and the reason the
+    // alternative (subtracting the cursor unconverted) was tried. A room read to the head still
+    // shows a badge that climbs with each reaction, until the next read fills in join.metaNo.
+    it('still reads non-zero as system events land after a snapshot-less read to the head', () => {
+        // Read to the head. Cursor 30 converted with headMetaNo 5 = 25, head user count 25 → 0.
+        expect(countUnread({ headChatNo: 30, headMetaNo: 5, readNo: 30 })).toBe(0);
+        // Three reactions. Head and headMetaNo move together so the user count stays 25, but the
+        // cursor is re-converted with the NEW headMetaNo each time, so the badge drifts up.
+        expect(countUnread({ headChatNo: 31, headMetaNo: 6, readNo: 30 })).toBe(1);
+        expect(countUnread({ headChatNo: 32, headMetaNo: 7, readNo: 30 })).toBe(2);
+        expect(countUnread({ headChatNo: 33, headMetaNo: 8, readNo: 30 })).toBe(3);
     });
 
     it('counts nothing when no read cursor is known yet', () => {
