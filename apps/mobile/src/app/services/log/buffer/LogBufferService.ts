@@ -1,16 +1,26 @@
-import { attachLogPersistence, logBuffer } from '@chatic/logger';
+import { attachLogPersistence, logBuffer, safeSerializable } from '@chatic/logger';
 import type { LogEntry, LogPersistence } from '@chatic/logger';
-import { serializeError, serializeLogValue } from '../utils';
 import type { ILogBufferService } from './types';
 
 /**
  * Makes an entry safe to cross the JSON bridge / persist: circular data and
  * Error instances are flattened before `JSON.stringify` ever sees them.
+ *
+ * `safeSerializable` is the shared core serializer, not a local one. The local
+ * pair it replaced spread `...error` for an axios error, widening the payload to
+ * include `config` — auth headers and the request body — at the exact moment it
+ * crossed the bridge. Downstream key-based masking caught it, but a serializer
+ * whose job is to narrow must not widen.
+ *
+ * Plain `data` is still passed through structurally and masked at the boundary
+ * that stores or sends it (`serializeLogs` here, `toWireLogEntry` on the wire).
+ * That is the documented split — the merged buffer is a debug-UI source and
+ * wants the structure.
  */
 const toBridgeSafe = (entry: LogEntry): LogEntry => ({
     ...entry,
-    data: serializeLogValue(entry.data),
-    error: entry.error != null ? serializeError(entry.error) : undefined,
+    data: safeSerializable(entry.data),
+    error: safeSerializable(entry.error),
 });
 
 /**

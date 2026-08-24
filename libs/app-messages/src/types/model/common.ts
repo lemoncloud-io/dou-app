@@ -197,7 +197,11 @@ export type PendingReportInfo = {
     stack?: string;
     /** 감지 시각 (ms) — 대리 전송 시각이 아닌 이 값을 payload timestamp로 쓴다 */
     detectedAt: number;
-    /** 감지 시점의 통합 버퍼 스냅샷 (breadcrumb) */
+    /**
+     * @deprecated 리포트는 더 이상 로그를 첨부하지 않는다 — 엔트리는 배치
+     * 업로더가 낱건으로 올린다. 필드는 구버전 셸이 계속 채워 보내기 때문에
+     * 남겨둔다(웹은 읽지 않는다).
+     */
     logs?: AppLogInfo[];
     /** 플랫폼 부가 정보 (isFatal, exit reason 등) */
     extra?: unknown;

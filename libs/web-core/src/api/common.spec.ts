@@ -15,18 +15,13 @@ jest.mock('../session', () => ({
 
 jest.mock('@chatic/bridges', () => ({
     isNative: jest.fn(() => false),
-    logBuffer: { peek: jest.fn(() => []) },
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-    serializeLogs: jest.fn((entries: unknown[]) => entries),
-    // Mirrors the local-source behavior (tail of the error-time snapshot) so
-    // breadcrumb assertions keep exercising the assembled flow (ADR-0047).
-    collectBreadcrumbs: jest.fn(async (count: number, fallback: unknown[]) => fallback.slice(-count)),
 }));
 
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import * as transport from '../transport';
 import { webTransport } from '../transport';
-import { isNative, logBuffer, logger } from '@chatic/bridges';
+import { isNative, logger } from '@chatic/bridges';
 import { reportError, reportIssue } from './common';
 
 const execute = jest.fn().mockResolvedValue(undefined);
@@ -48,7 +43,6 @@ beforeEach(() => {
     (webTransport.buildSignedRequest as jest.Mock).mockReturnValue({ setBody });
     (isNative as jest.Mock).mockReturnValue(false);
     setWebProject('chatic');
-    (logBuffer.peek as jest.Mock).mockReturnValue([]);
     (getActiveSessionUser as jest.Mock).mockReturnValue({ userRole: 'user', name: 'Tester' });
     (getGlobalSessionContext as jest.Mock).mockReturnValue({
         identity: { userId: '1000', isAuthenticated: true },
@@ -240,34 +234,22 @@ describe('reportError — 리포트 조립', () => {
         expect(lastReport().payload.message).toBe('q1 already stated reason → POST /hello/chats');
     });
 
-    it('categoryOverride 리포트는 감지 시각(occurredAt)과 logsOverride를 그대로 싣는다 (ADR-0047)', async () => {
+    it('categoryOverride 리포트는 감지 시각(occurredAt)을 그대로 싣는다 (ADR-0047)', async () => {
         await reportError(new Error('previous session died'), {
             source: 'page-crash-sentinel',
             categoryOverride: 'page-crash',
             occurredAt: 1_700_000_000_000,
-            logsOverride: [{ level: 'info', tag: 'T', message: 'last breath', timestamp: 9 }],
         });
         const { title, payload } = lastReport();
         expect(title).toBe('[web] page-crash');
         expect(payload.timestamp).toBe(new Date(1_700_000_000_000).toISOString());
-        expect(payload.logs).toHaveLength(1);
-        expect(payload.logs[0].message).toBe('last breath');
     });
 
-    it('링버퍼가 비어있지 않으면 breadcrumb(logs)과 path를 붙인다', async () => {
-        (logBuffer.peek as jest.Mock).mockReturnValue([
-            { level: 'info', tag: 'T', message: 'before crash', timestamp: 1 },
-        ]);
-        await reportError(new Error('q1 with breadcrumb'));
+    it('리포트에 path는 남기고 로그는 붙이지 않는다 — 로그는 배치 업로드가 낱건으로 나른다', async () => {
+        await reportError(new Error('q1 no breadcrumb'));
         const { payload } = lastReport();
-        expect(payload.logs).toHaveLength(1);
-        expect(payload.logs[0].message).toBe('before crash');
+        expect(payload).not.toHaveProperty('logs');
         expect(typeof payload.path).toBe('string'); // jsdom → '/'
-    });
-
-    it('링버퍼가 비어있으면 logs를 생략한다', async () => {
-        await reportError(new Error('q1 empty buffer'));
-        expect(lastReport().payload.logs).toBeUndefined();
     });
 
     // 스로틀 제거됨: 반복 발생 빈도 자체가 신호라 매번 그대로 admin에 쌓인다.
@@ -291,6 +273,16 @@ describe('reportError — 리포트 조립', () => {
 
     // 에러/이슈가 같은 엔드포인트를 쓰므로 stereo가 서버측 구분의 유일한 단서다.
     // 이 값이 admin 조회의 `?type=` 필터 기준이라 회귀하면 종류별 조회가 깨진다.
+    // payload.url은 저장되고(이슈 리포트는 Slack까지) 가므로, 쿼리에 실린
+    // 토큰류가 그대로 따라가면 안 된다. @see ./reportUrl
+    it('payload.url의 쿼리 값을 가린다 — 초대 code만 남긴다', async () => {
+        window.history.pushState({}, '', '/invite/accept?code=inv-1&state=secret');
+
+        await reportError(new Error('q1 url'));
+
+        expect(lastReport().payload.url).toBe('http://localhost/invite/accept?code=inv-1&state=[REDACTED]');
+    });
+
     it('에러 리포트는 stereo를 log로 보낸다', async () => {
         await reportError(new Error('q1 stereo error'));
         expect(lastReport().stereo).toBe('log');
@@ -358,6 +350,14 @@ describe('reportIssue — 사용자 이슈 리포트', () => {
     it('첨부가 없으면 그 로그를 남기지 않는다', async () => {
         await reportIssue('제목', '본문');
         expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it('이슈 리포트의 url도 같은 규칙으로 가린다 — 첨부 없으면 Slack까지 간다', async () => {
+        window.history.pushState({}, '', '/auth/callback?state=secret');
+
+        await reportIssue('제목', '본문');
+
+        expect(lastReport().payload.url).toBe('http://localhost/auth/callback?state=[REDACTED]');
     });
 
     it('meta 필드는 더 이상 쓰지 않는다 — 백엔드가 버린다', async () => {

@@ -1,5 +1,6 @@
+import { safeSerializable } from '@chatic/logger';
+
 import type { ILogService } from '../types';
-import { serializeError } from '../utils';
 import type { IConsoleLogger } from './types';
 
 export class ConsoleLogger implements IConsoleLogger {
@@ -29,7 +30,7 @@ export class ConsoleLogger implements IConsoleLogger {
             // live in `data` (see withNetworkLog), so the console showed the request
             // but never why it failed. Mirrors the core console listener.
             if (entry.level === 'error') {
-                console.error(prefix, serializeError(entry.error), entry.data ?? '');
+                console.error(prefix, safeSerializable(entry.error) ?? 'Unknown error.', entry.data ?? '');
                 return;
             }
 

@@ -10,4 +10,3 @@ export * from './uploadQueue/LogUploadQueueService';
 // './persistence' above — it imports react-native-mmkv.
 export * from './console/ConsoleLogger';
 export * from './console/types';
-export * from './utils';

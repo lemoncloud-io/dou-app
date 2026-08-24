@@ -4,7 +4,6 @@ import type { ErrorCategory } from '@chatic/web-core';
 import type { PendingReportInfo } from '@chatic/app-messages';
 
 import { appBridge } from '../bridge';
-import { toLogEntry } from '../bridge/nativeLogSource';
 
 /** Settle delay past window load so the session bootstrap can sign requests. */
 const FLUSH_DELAY_MS = 3_000;
@@ -23,7 +22,10 @@ const relayReport = async (report: PendingReportInfo): Promise<void> => {
     await reportError(error, {
         source: 'pending-report',
         categoryOverride: toCategory(report.category),
-        logsOverride: (report.logs ?? []).map(toLogEntry),
+        // `report.logs` is ignored on purpose: those entries are in the native
+        // merged buffer the uploader already drains, so relaying them here
+        // would store a second copy of logs the collector has. Older shells
+        // keep sending the field; nothing reads it.
         occurredAt: report.detectedAt,
     });
 };

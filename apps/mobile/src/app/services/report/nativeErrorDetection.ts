@@ -3,9 +3,6 @@ import type { ILogService } from '../log';
 import type { ILogBufferService } from '../log/buffer';
 import type { IPendingReportQueueService } from './types';
 
-/** Breadcrumb tail attached to each detected report. */
-const BREADCRUMB_COUNT = 50;
-
 export interface NativeErrorDetectionDeps {
     logService: ILogService;
     logBufferService: ILogBufferService;
@@ -37,7 +34,7 @@ const toMessage = (value: unknown): string => {
  * preserved so RedBox/Crashlytics keep working.
  */
 export const installNativeErrorDetection = (deps: NativeErrorDetectionDeps): void => {
-    const { logService, logBufferService, pendingReports } = deps;
+    const { logService, pendingReports } = deps;
 
     const capture = (error: unknown, extra: Record<string, unknown>): void => {
         const message = toMessage(error);
@@ -47,7 +44,6 @@ export const installNativeErrorDetection = (deps: NativeErrorDetectionDeps): voi
             message,
             stack: error instanceof Error ? error.stack : undefined,
             detectedAt: Date.now(),
-            logs: logBufferService.peek().slice(-BREADCRUMB_COUNT),
             extra,
         });
     };
@@ -96,14 +92,15 @@ export const checkCrashOnPreviousExecution = async (deps: NativeErrorDetectionDe
         const crashed = await crashlytics().didCrashOnPreviousExecution();
         if (!crashed) return;
 
-        const logs = logBufferService.peek().slice(-BREADCRUMB_COUNT);
-        const lastEntry = logs.at(-1);
+        // The buffer is read for its last entry's TIME, not to attach it: the
+        // relaunch detection has no crash timestamp of its own, and the newest
+        // entry from the dead run is the closest approximation.
+        const lastEntry = logBufferService.peek().at(-1);
         logService.warn('GLOBAL', '[native-crash] previous execution crashed (Crashlytics relaunch detection)');
         pendingReports.enqueue({
             category: 'native-crash',
             message: 'Previous app execution crashed (stack in Crashlytics console)',
             detectedAt: lastEntry?.timestamp || Date.now(),
-            logs,
         });
     } catch (error) {
         logService.warn('GLOBAL', 'didCrashOnPreviousExecution check failed', { error });

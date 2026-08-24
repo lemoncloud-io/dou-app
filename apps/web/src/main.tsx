@@ -4,12 +4,11 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { isNative, setReportLogSource, setupBridgeLogger } from '@chatic/bridges';
+import { setupBridgeLogger } from '@chatic/bridges';
 import { configureDataRuntime, setNativeCacheSupport } from '@chatic/app-runtime';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
-import { nativeMergedLogSource } from './app/bridge/nativeLogSource';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachLogContext } from './app/runtime/logContext';
@@ -17,7 +16,7 @@ import { startLogUploader } from './app/runtime/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
-import { attachWebLogPersistence } from './app/runtime/webLogPersistence';
+import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { initWebVitals } from './app/utils';
 
 // Wire log sinks before anything else logs: native WebView forwards to the
@@ -28,18 +27,11 @@ setupBridgeLogger({ consoleInNative: import.meta.env.DEV });
 // so an entry written earlier would carry none and be unattributable.
 attachLogContext();
 
-// Persist the log buffer across reloads (sessionStorage, tab-scoped) and read
-// the previous session's fate — a session that died without a clean pagehide
-// is reported as page-crash with its persisted buffer attached (ADR-0047 S7).
-const webLogBoot = attachWebLogPersistence();
+// Read the previous session's fate — a session that died without a clean
+// pagehide is reported as page-crash (ADR-0047 S7). The report carries no
+// buffer: the run's entries reach the collector through the batch uploader.
+const webLogBoot = attachWebCrashSentinel();
 schedulePageCrashReport(webLogBoot);
-
-// Hybrid runs route report breadcrumbs to the native merged buffer — the
-// outermost shell owns the merged stream (ADR-0047). Standalone web keeps the
-// local-buffer default inside web-core.
-if (isNative()) {
-    setReportLogSource(nativeMergedLogSource);
-}
 
 // Relay reports the native side detected while the web was down (WebView
 // crash, RN exceptions, native crashes) through the signed web reporter.

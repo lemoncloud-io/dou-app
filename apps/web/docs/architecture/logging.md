@@ -32,18 +32,17 @@ interface LogEntry {
 | 순서 | 호출                                          | 역할                                                                                                        |
 | ---- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | 1    | `setupBridgeLogger({ consoleInNative: DEV })` | sink 배선: 네이티브면 SendLog 포워더(+dev 콘솔), 웹이면 콘솔                                                |
-| 2    | `attachWebLogPersistence()`                   | sessionStorage 영속화(디바운스 1s, error 즉시) + alive 센티널 + 직전 세션 크래시 판정                       |
-| 3    | `schedulePageCrashReport(...)`                | 직전 세션이 pagehide 없이 죽었으면 그 버퍼를 breadcrumb으로 `page-crash` 사후 리포트 (load+3s)              |
-| 4    | `setReportLogSource(nativeMergedLogSource)`   | 하이브리드 한정 — 리포트 breadcrumb 소스를 네이티브 통합 버퍼로 교체                                        |
-| 5    | `schedulePendingReportFlush()`                | 하이브리드 한정 — 네이티브 지연 리포트 큐(WebView 크래시·RN 예외·네이티브 크래시)를 pull해 대리 전송 후 Ack |
+| 2    | `attachWebCrashSentinel()`                    | alive 센티널 + 직전 세션 크래시 판정                                                                        |
+| 3    | `schedulePageCrashReport(...)`                | 직전 세션이 pagehide 없이 죽었으면 `page-crash` 사후 리포트 (load+3s) — 로그는 싣지 않는다                  |
+| 4    | `schedulePendingReportFlush()`                | 하이브리드 한정 — 네이티브 지연 리포트 큐(WebView 크래시·RN 예외·네이티브 크래시)를 pull해 대리 전송 후 Ack |
 
 - **내장 버퍼(500)는 구독과 무관하게 항상 적재**한다. 배선 전(부팅 초기)에 찍힌 로그도 유실되지 않는다.
 - **구독자가 하나도 없으면** facade가 콘솔 폴백으로 직접 출력한다 — `setupBridgeLogger`를 부르지 않는 앱(desktop-web·admin·landing·testbed)도 기존 콘솔 동작을 그대로 유지한다.
-- 웹 버퍼는 sessionStorage로 영속되어 **크래시→리로드에도 살아남는다** (탭을 닫으면 사라짐 — redact 미적용 로그의 잔존을 줄이는 의도된 선택).
+- 웹 버퍼는 메모리에만 있다. 리포트가 로그를 첨부하지 않게 된 뒤로 sessionStorage 영속화는 읽는 곳이 없어져 제거했다(2026-08-21) — 서버로 나가야 할 것은 업로드 큐(localStorage)가 따로 들고 있다.
 
 ## 전역 에러 감지 (`app.tsx`)
 
-모든 감지는 **로깅 먼저, 리포트는 그다음** — 에러 자체가 버퍼의 일급 엔트리가 되어 스로틀로 리포트가 생략돼도 breadcrumb에는 남는다.
+모든 감지는 **로깅 먼저, 리포트는 그다음** — 에러 자체가 버퍼의 일급 엔트리가 되므로, 리포트가 생략돼도 그 엔트리는 업로드 파이프라인을 타고 서버에 남는다.
 
 | 경로                                    | 카테고리                                                                                                      |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -53,9 +52,11 @@ interface LogEntry {
 | `securitypolicyviolation`               | `csp-violation` — WebView 안 차단 스크립트는 Script Error 원인군 단서                                         |
 | Query/Mutation `onError`, ErrorBoundary | 기존 유지                                                                                                     |
 
-## 리포트 breadcrumb
+## 리포트와 로그의 관계
 
-`reportError`/`reportIssue`/이슈 위젯은 `collectBreadcrumbs`(@chatic/bridges)를 쓴다: 활성 `LogSource`에서 tail 50을 pull(하이브리드 = 네이티브 통합 버퍼, 1.5s 타임아웃)하고, `reportError`는 에러 이후 끼어든 로그를 `timestamp <= errorAt`으로 걸러낸다. 실패 시 에러 시점의 동기 웹 스냅샷으로 폴백.
+**리포트는 로그를 첨부하지 않는다(2026-08-21).** `reportError`·`reportIssue`·페이지 크래시·네이티브 대리 전송 어느 쪽도 마찬가지다. 로그는 배치 업로더가 엔트리 낱건으로 `/hello/report-bulk`에 올리므로, 리포트에 사본을 실으면 같은 로그가 두 벌 저장되고 그 사본만 공유 Slack 채널로도 나간다. 둘을 잇는 축은 엔트리마다 실려 있는 `runId`(+`uid`)다 — 어드민에서 리포트의 runId로 그 실행의 로그 전체를 좁힌다.
+
+`LogSource`·`collectBreadcrumbs`·`setReportLogSource`는 함께 제거됐다. 네이티브 통합 버퍼를 읽는 경로는 디버그 오버레이의 `peek` 하나만 남는다 — 서버로 갈 엔트리는 앱 전송 큐가 따로 들고 있다(ADR-0063).
 
 ## 디버그 UI 통합
 

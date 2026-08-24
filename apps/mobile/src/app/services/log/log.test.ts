@@ -88,6 +88,34 @@ describe('LogBufferService (core buffer facade)', () => {
         expect(typeof (second.error as { stack?: string }).stack).toBe('string');
     });
 
+    it('브리지를 건너는 axios 에러는 그 자리에서 마스킹된다 — config/headers가 실려 나가지 않는다', () => {
+        const persistence = createFakePersistence();
+        const service = new LogBufferService(persistence);
+        const axiosError = Object.assign(new Error('Request failed with status code 400'), {
+            name: 'AxiosError',
+            isAxiosError: true,
+            config: {
+                method: 'post',
+                url: '/hello/login',
+                data: { deviceId: 'd1', password: 'secret' },
+                headers: { authorization: 'Bearer top-secret' },
+            },
+            response: { status: 400, statusText: 'Bad Request', data: { error: 'INVALID' } },
+        });
+
+        new LogService().error('NETWORK', 'login failed', axiosError);
+
+        const [entry] = service.peek();
+        const error = entry.error as Record<string, any>;
+
+        // Narrowed, not widened: the axios detail is lifted out field by field,
+        // so `config` itself never rides along.
+        expect(error.config).toBeUndefined();
+        expect(error.request.headers).toBeUndefined();
+        expect(error.request.data).toEqual({ deviceId: 'd1', password: '[REDACTED]' });
+        expect(error.response).toEqual({ status: 400, statusText: 'Bad Request', data: { error: 'INVALID' } });
+    });
+
     it('poll은 꺼낸 뒤 남은 상태를 즉시 영속화한다', async () => {
         const persistence = createFakePersistence();
         const service = new LogBufferService(persistence);

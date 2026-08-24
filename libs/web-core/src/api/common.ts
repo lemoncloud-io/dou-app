@@ -4,7 +4,8 @@ import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { collectCauses } from './errorCause';
 import { describeHttp } from './httpContext';
 import { classifyReport } from './reportCategory';
-import { collectBreadcrumbs, isNative, logBuffer, logger, serializeLogs } from '@chatic/bridges';
+import { sanitizeReportUrl } from './reportUrl';
+import { isNative, logger } from '@chatic/bridges';
 
 import type { SlackReportBody, SlackReportResult } from '@lemoncloud/chatic-backend-api';
 import type { AppType, ErrorReportContext, ErrorReportPayload, IssueReportExtras } from './types';
@@ -24,9 +25,6 @@ const REPORT_STEREO_ERROR = 'log';
 const REPORT_STEREO_ISSUE = 'issue';
 
 type ReportBody = SlackReportBody & { stereo?: string };
-
-/** breadcrumb으로 붙일 최근 로그 개수 (링버퍼 tail). */
-const RECENT_LOG_COUNT = 50;
 
 /**
  * 리포트를 보낸 앱. 타이틀 `[app] <category>`의 그 app이고, admin 목록의 App 필터
@@ -57,10 +55,6 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
     // detection time; live reports use the call time.
     const errorAt = context?.occurredAt ?? now;
 
-    // Synchronous local-buffer snapshot at error time — the fallback baseline
-    // when the async LogSource pull fails or times out (ADR-0047).
-    const localSnapshot = logBuffer.peek();
-
     try {
         const app: AppType = resolveAppType();
 
@@ -85,14 +79,6 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
 
         // 디바이스 정보 (모바일 WebView 주입값)
         const w = window as any;
-
-        // breadcrumb (ADR-0047): logsOverride(직전 세션/감지 시점 스냅샷)가 있으면
-        // 그대로, 없으면 활성 LogSource(하이브리드=네이티브 통합 버퍼, 웹 단독=
-        // 로컬 버퍼)에서 pull하고 errorAt 이후 로그를 걸러낸다. 실패 시 에러
-        // 시점의 동기 스냅샷으로 폴백.
-        const recentLogs = context?.logsOverride
-            ? context.logsOverride.slice(-RECENT_LOG_COUNT)
-            : await collectBreadcrumbs(RECENT_LOG_COUNT, localSnapshot, errorAt);
 
         // location: window.onerror가 준 filename/lineno/colno. message가 opaque해도
         // 브라우저가 채워주므로 opaque script error의 유일한 위치 단서가 된다.
@@ -143,7 +129,10 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
             app,
             env: ENV,
             webVersion: WEB_VERSION,
-            url: window.location.href,
+            // 쿼리 값은 가려서 싣는다 — OAuth 콜백·검증 링크의 토큰이 실리는
+            // 자리이고, 이 payload는 저장되며 첨부 없는 이슈 리포트는 Slack
+            // 채널로도 나간다. 초대 `code`만 추적을 위해 예외. @see ./reportUrl
+            url: sanitizeReportUrl(window.location.href),
             timestamp: new Date(errorAt).toISOString(),
             userAgent: navigator.userAgent,
             user: {
@@ -175,7 +164,6 @@ export const reportError = async (error: Error, context?: ErrorReportContext): P
             location: hasLocation
                 ? { filename: context?.filename, lineno: context?.lineno, colno: context?.colno }
                 : undefined,
-            logs: recentLogs.length ? serializeLogs(recentLogs) : undefined,
             path: window.location.pathname,
         };
 
@@ -239,7 +227,10 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
             message,
             app,
             env: ENV,
-            url: window.location.href,
+            // 쿼리 값은 가려서 싣는다 — OAuth 콜백·검증 링크의 토큰이 실리는
+            // 자리이고, 이 payload는 저장되며 첨부 없는 이슈 리포트는 Slack
+            // 채널로도 나간다. 초대 `code`만 추적을 위해 예외. @see ./reportUrl
+            url: sanitizeReportUrl(window.location.href),
             timestamp: new Date().toISOString(),
             user: {
                 uid: state.identity.userId ?? undefined,

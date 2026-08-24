@@ -7,11 +7,10 @@ import type { LogEntry, LogUploadSource } from '@chatic/bridges';
 
 /**
  * The app's upload queue, reached over the bridge, as a `LogUploadSource`
- * (ADR-0063). Sibling to `nativeLogSource` — that one routes report
- * breadcrumbs to the native merged buffer, this one routes the upload batch to
- * the native queue. Same principle in both: the outermost shell owns the store,
- * and the consumer is told which one to use at boot rather than branching on
- * `isNative()` internally.
+ * (ADR-0063). Sibling to `nativeLogSource`, which is now just the `AppLogInfo`
+ * → `LogEntry` mapping both sides share. The principle here: the outermost
+ * shell owns the store, and the consumer is told which one to use at boot
+ * rather than branching on `isNative()` internally.
  *
  * Nothing in here calls `logger`. This is the upload path, and a log emitted
  * from it would feed the very queue it is draining.

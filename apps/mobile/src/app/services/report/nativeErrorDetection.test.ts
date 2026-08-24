@@ -77,7 +77,8 @@ describe('installNativeErrorDetection', () => {
             message: 'boom',
             extra: { isFatal: true },
         });
-        expect(enqueued[0].logs?.map(l => l.message)).toEqual(['breadcrumb']);
+        // 로그 스냅샷은 싣지 않는다 — 같은 엔트리를 업로더가 낱건으로 올린다.
+        expect(enqueued[0].logs).toBeUndefined();
         expect(typeof enqueued[0].stack).toBe('string');
         expect(previous).toHaveBeenCalledWith(boom, true);
     });
@@ -105,7 +106,9 @@ describe('checkCrashOnPreviousExecution', () => {
         didCrashOnPreviousExecution.mockReset();
     });
 
-    it('직전 실행이 크래시였으면 복원된 버퍼 tail을 붙여 native-crash를 큐잉한다', async () => {
+    // 버퍼는 로그를 붙이려고 읽는 게 아니라 크래시 시각을 알아내려고 읽는다 —
+    // 재실행 감지에는 자체 타임스탬프가 없다.
+    it('직전 실행이 크래시였으면 마지막 엔트리 시각으로 native-crash를 큐잉한다', async () => {
         didCrashOnPreviousExecution.mockResolvedValue(true);
         const { deps, enqueued } = createDeps([entry('old-1', 10), entry('old-2', 20)]);
 
@@ -113,7 +116,7 @@ describe('checkCrashOnPreviousExecution', () => {
 
         expect(enqueued).toHaveLength(1);
         expect(enqueued[0]).toMatchObject({ category: 'native-crash', detectedAt: 20 });
-        expect(enqueued[0].logs?.map(l => l.message)).toEqual(['old-1', 'old-2']);
+        expect(enqueued[0].logs).toBeUndefined();
     });
 
     it('크래시가 아니면 아무것도 큐잉하지 않는다', async () => {
