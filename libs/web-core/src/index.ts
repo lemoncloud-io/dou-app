@@ -35,6 +35,10 @@ export {
     // double-write). Apps do not call these directly.
     refreshRelaySession,
     refreshActiveCloudSession,
+    // Lets a host register teardown that must run while the session is still
+    // signed — the log uploader ships its pending queue here before logout
+    // discards it.
+    registerSessionLogoutCallback,
 } from './session/services';
 export type { LogoutOptions, ServerKind } from './session/services';
 // Selected-site read model getter, for app-runtime's socket-driven site switch (auth.switch).

@@ -97,7 +97,7 @@ export const setNativeCacheSupport = (reported: {
         types: new Set((reported.supportedCacheTypes ?? []) as CacheType[]),
         domainVersions: reported.cacheDomainVersions ?? {},
     };
-    logger.info('CACHE', '[nativeCacheSupport] native cache capability reported', {
+    logger.debug('CACHE', '[nativeCacheSupport] native cache capability reported', {
         data: {
             schemaVersion: support.schemaVersion,
             typeCount: support.types.size,

@@ -123,9 +123,9 @@ export const initializeRelaySession = async (): Promise<void> => {
         error: null,
     });
 
-    logger.info('WEB_CORE', '[initialize] awaiting relay transport init');
+    logger.debug('WEB_CORE', '[initialize] awaiting relay transport init');
     await startWebCoreInit();
-    logger.info('WEB_CORE', '[initialize] relay transport init done, setting language + probing session');
+    logger.debug('WEB_CORE', '[initialize] relay transport init done, setting language + probing session');
     const [, isAuthenticated] = await Promise.all([
         webTransport.setUseXLemonLanguage(true, LANGUAGE_KEY),
         hasStoredRelaySession(),

@@ -4,3 +4,4 @@ export * from './subscriptions';
 export * from './types';
 export * from './reportCategory';
 export * from './common';
+export * from './logBatch';

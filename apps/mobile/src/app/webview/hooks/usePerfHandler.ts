@@ -26,7 +26,7 @@ export const usePerfHandler = () => {
     const handleSetDebugMode = useCallback(
         async (message: WebMessageData<'SetDebugMode'>) => {
             const { enabled } = message.data;
-            logger.info('APP', `SetDebugMode received from web: ${enabled}`);
+            logger.debug('APP', `SetDebugMode received from web: ${enabled}`);
             setDebugModeEnabled(enabled);
             return {
                 type: 'OnSetDebugMode' as const,

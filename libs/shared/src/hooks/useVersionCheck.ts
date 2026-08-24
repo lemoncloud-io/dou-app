@@ -125,7 +125,7 @@ export const useVersionCheck = (config?: VersionCheckConfig): VersionCheckResult
             return;
         }
 
-        logger.info('VERSION', '[VersionCheck] Starting version check interval', { interval, currentVersion });
+        logger.debug('VERSION', '[VersionCheck] Starting version check interval', { interval, currentVersion });
         intervalRef.current = setInterval(checkVersion, interval);
     }, [checkVersion, interval, currentVersion]);
 

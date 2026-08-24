@@ -83,12 +83,15 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
         const durationMs = Date.now() - startedAt;
         const responseError = (res?.data as { error?: unknown } | undefined)?.error;
 
+        // No response body on success: it is bulk with little diagnostic value,
+        // and every one of these entries is now a candidate for upload rather
+        // than just a local breadcrumb. Failures still carry theirs — that is
+        // where the body explains something.
         const fields: NetworkLogFields = {
             outcome: 'success',
             ...baseFields(req),
             durationMs,
             status: readStatus(res),
-            responseData: truncate(redactSensitive(res?.data)),
         };
 
         if (responseError !== undefined && !req.allowRecordError) {

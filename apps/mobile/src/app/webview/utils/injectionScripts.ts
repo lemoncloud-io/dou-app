@@ -6,6 +6,12 @@ import type { ThemeMode } from '../../stores/themeMode';
  * Parameter interface for injecting device information
  */
 export interface DeviceInfoParams {
+    /**
+     * Identifier for this app run, issued once by the native shell. Injected so
+     * web entries carry the same value as native ones from the same launch;
+     * without it the web issues its own and the two sides do not line up.
+     */
+    runId: string;
     platform: string;
     applicationName: string;
     stage: string;
@@ -15,6 +21,8 @@ export interface DeviceInfoParams {
      */
     uniqueId: string;
     deviceModel: string;
+    /** DeviceInfo.getSystemVersion() — the log context's `osVersion`. */
+    osVersion: string;
     appVersion: string;
     buildNumber: string;
     appLanguage: string;
@@ -68,11 +76,13 @@ export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): s
  * @returns JavaScript string to be injected into the WebView
  */
 export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
+    window.CHATIC_APP_RUN_ID = ${JSON.stringify(params.runId)};
     window.CHATIC_APP_PLATFORM = ${JSON.stringify(params.platform)};
     window.CHATIC_APP_APPLICATION = ${JSON.stringify(params.applicationName)};
     window.CHATIC_APP_STAGE = ${JSON.stringify(params.stage)};
     window.CHATIC_APP_DEVICE_ID = ${JSON.stringify(params.uniqueId || '')};
     window.CHATIC_APP_DEVICE_MODEL = ${JSON.stringify(params.deviceModel || '')};
+    window.CHATIC_APP_OS_VERSION = ${JSON.stringify(params.osVersion || '')};
     window.CHATIC_APP_CURRENT_VERSION = ${JSON.stringify(params.appVersion)};
     window.CHATIC_APP_BUILD_NUMBER = ${JSON.stringify(params.buildNumber)};
     window.CHATIC_APP_CURRENT_LANGUAGE = ${JSON.stringify(params.appLanguage)};

@@ -1,7 +1,8 @@
 import { createConsoleListener } from './consoleListener';
 import { createLogHub } from './hub';
+import { createLogId } from './id';
 import { createRingBuffer } from './ringBuffer';
-import type { LogEntry, LogErrorOptions, Logger, LogLevel } from './types';
+import type { LogContext, LogContextProvider, LogEntry, LogErrorOptions, Logger, LogLevel } from './types';
 
 /** Number of entries retained in the in-memory log buffer. */
 export const LOG_BUFFER_CAPACITY = 500;
@@ -20,27 +21,67 @@ const normalizeErrorOptions = (options?: LogErrorOptions | unknown): LogErrorOpt
     return { error: options };
 };
 
+let contextProvider: LogContextProvider | undefined;
+
+/**
+ * Registers the source of occurrence-time context (runId, session, route,
+ * device). The host app wires this at boot, before anything logs; the pure
+ * core never reads platform state itself. Pass `undefined` to detach.
+ */
+export const setLogContextProvider = (provider: LogContextProvider | undefined): void => {
+    contextProvider = provider;
+};
+
+const readContext = (): LogContext => {
+    if (!contextProvider) return {};
+    try {
+        return contextProvider() ?? {};
+    } catch {
+        // A broken provider must never take logging down with it.
+        return {};
+    }
+};
+
 /**
  * Ingests an entry that was already stamped in another runtime (bridge relay,
  * native emitter): pushed and published as-is, WITHOUT restamping
- * `timestamp`, so merged buffers keep original occurrence times. (ADR-0047)
+ * `timestamp` or its context, so merged buffers keep original occurrence
+ * times and labels. (ADR-0047)
+ *
+ * The one field that may be filled in is `id`, and only when absent: an older
+ * app relaying entries without one would otherwise be undedupable, and a
+ * resend would store a second document. Backfilling here gives such an entry
+ * a stable key from the moment it enters this runtime.
  */
 export const ingestLogEntry = (entry: LogEntry): void => {
+    const stamped: LogEntry = entry.id ? entry : { ...entry, id: createLogId() };
+
     // The buffer is fed directly (not via subscription) so it always captures
     // entries — including those emitted before any app wiring runs.
-    buffer.push(entry);
+    buffer.push(stamped);
 
     // Zero-config fallback: apps that never wire subscribers keep the legacy
     // console output instead of silently losing their logs.
     if (hub.size() === 0) {
-        consoleFallback(entry);
+        consoleFallback(stamped);
     }
 
-    hub.publish(entry);
+    hub.publish(stamped);
 };
 
 const dispatch = (level: LogLevel, tag: string, message: string, data?: unknown, error?: unknown): void => {
-    ingestLogEntry({ level, tag, message, data, error, timestamp: Date.now() });
+    // Context is spread first so the entry's own fields always win, and the id
+    // is issued here (not at flush) so it survives retries of the same entry.
+    ingestLogEntry({
+        ...readContext(),
+        id: createLogId(),
+        level,
+        tag,
+        message,
+        data,
+        error,
+        timestamp: Date.now(),
+    });
 };
 
 /**

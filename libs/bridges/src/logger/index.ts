@@ -3,4 +3,5 @@
 export * from '@chatic/logger';
 export * from './logSource';
 export * from './nativeForwarder';
+export * from './toAppLogInfo';
 export * from './setupBridgeLogger';

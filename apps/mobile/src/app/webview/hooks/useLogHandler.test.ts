@@ -61,4 +61,42 @@ describe('useLogHandler', () => {
         expect(entry.level).toBe('info');
         expect(entry.timestamp).toBeGreaterThanOrEqual(before);
     });
+
+    it('웹이 실어 보낸 id와 발생 시점 컨텍스트를 보존한다', async () => {
+        // 하이브리드에서 이 엔트리는 웹 업로드 큐에도 들어가 있고, 업로더가 이 버퍼를 다시
+        // 배출해 간다. id가 살아 있어야 서버가 같은 문서로 덮어써 한 건으로 남는다.
+        const { result } = renderHook(() => useLogHandler());
+
+        await result.current.handleSendLog(
+            sendLog({
+                id: 'web-entry-1',
+                runId: 'run-7',
+                uid: 'u-7',
+                cid: 'c-7',
+                route: '/chat/7',
+                webVersion: '0.45.0',
+                timestamp: 900,
+            })
+        );
+
+        expect(logBuffer.peek()[0]).toMatchObject({
+            id: 'web-entry-1',
+            runId: 'run-7',
+            uid: 'u-7',
+            cid: 'c-7',
+            route: '/chat/7',
+            webVersion: '0.45.0',
+            timestamp: 900,
+        });
+    });
+
+    it('id 없이 온 구버전 웹 로그에는 id가 채워진다', async () => {
+        const { result } = renderHook(() => useLogHandler());
+
+        await result.current.handleSendLog(sendLog({ timestamp: 800 }));
+
+        const [entry] = logBuffer.peek();
+        expect(entry.id).toEqual(expect.any(String));
+        expect(entry.timestamp).toBe(800);
+    });
 });

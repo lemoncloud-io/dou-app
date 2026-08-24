@@ -8,6 +8,7 @@ import {
     firebaseInstallationService,
     keyValueStorage,
     logBufferService,
+    logUploadQueueService,
     logger,
     notificationService,
     pendingReportQueueService,
@@ -26,6 +27,7 @@ import {
 export const useServices = () => ({
     logService: logger,
     logBufferService: logBufferService,
+    logUploadQueueService: logUploadQueueService,
     pendingReportQueueService: pendingReportQueueService,
     deviceService: deviceService,
     clipboardService: clipboardService,

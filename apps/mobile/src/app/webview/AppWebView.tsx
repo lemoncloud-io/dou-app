@@ -10,6 +10,7 @@ import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
+import { NATIVE_RUN_ID } from '../services/log/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
@@ -39,6 +40,10 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
     appVersion,
     buildNumber,
     deviceId: DeviceInfo.getUniqueIdSync(),
+    osVersion: DeviceInfo.getSystemVersion(),
+    // Issued by the logging layer at app start; injected so the WebView stamps
+    // its entries with the same run identity as the native side.
+    runId: NATIVE_RUN_ID,
 };
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {

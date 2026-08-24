@@ -61,6 +61,7 @@ const mockRebuildSessionIdentity = jest.fn();
 const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
 const mockIsNative = jest.fn();
+const mockLoggerDebug = jest.fn();
 const mockLoggerInfo = jest.fn();
 const mockLoggerError = jest.fn();
 const mockLoggerWarn = jest.fn();
@@ -153,6 +154,7 @@ jest.mock('@chatic/shared', () => ({
 jest.mock('@chatic/bridges', () => ({
     isNative: (...args: unknown[]) => mockIsNative(...args),
     logger: {
+        debug: (...args: unknown[]) => mockLoggerDebug(...args),
         info: (...args: unknown[]) => mockLoggerInfo(...args),
         error: (...args: unknown[]) => mockLoggerError(...args),
         warn: (...args: unknown[]) => mockLoggerWarn(...args),

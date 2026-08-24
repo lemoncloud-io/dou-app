@@ -8,6 +8,8 @@ const cached: CachedDeviceInfo = {
     appVersion: '1.0.0',
     buildNumber: '42',
     deviceId: 'device-1',
+    osVersion: '18.0',
+    runId: 'run-abc',
 };
 
 const dynamic: DynamicDeviceInfo = {
@@ -59,5 +61,14 @@ describe('buildDeviceInfoParams — 주입 deviceInfo 조립', () => {
         const params = buildDeviceInfoParams({ ...cached, deviceModel: '' }, dynamic);
 
         expect(params.deviceModel).toBe('');
+    });
+});
+
+describe('로그 컨텍스트용 필드', () => {
+    it('runId와 osVersion을 그대로 옮긴다 — 웹이 이 값으로 엔트리를 스탬프한다', () => {
+        const params = buildDeviceInfoParams(cached, dynamic);
+
+        expect(params.runId).toBe('run-abc');
+        expect(params.osVersion).toBe('18.0');
     });
 });

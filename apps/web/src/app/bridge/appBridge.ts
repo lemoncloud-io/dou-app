@@ -1,5 +1,6 @@
 import { webClient } from '@chatic/bridges';
 import type {
+    AppLogInfo,
     OnFetchPushMarksPayload,
     OnWebAppReadyPayload,
     PushCloudMarkRecord,
@@ -245,6 +246,30 @@ export const appBridge = {
     /** Fetch the current size of the native app log buffer. */
     fetchAppLogBufferSize(nonce: string): Promise<WebMessageResponse<'FetchAppLogBufferSize'>> {
         return webClient.request({ type: 'FetchAppLogBufferSize', data: { nonce } });
+    },
+
+    // ---------------------------------------------------------------
+    // App log upload queue (ADR-0063)
+    // ---------------------------------------------------------------
+
+    /** Hand a batch of web entries to the app's buffer + upload queue. */
+    sendLogBatch(logs: AppLogInfo[]): Promise<WebMessageResponse<'SendLogBatch'>> {
+        return webClient.request({ type: 'SendLogBatch', data: { logs } });
+    },
+
+    /** Read a batch from the app's upload queue WITHOUT removing it. */
+    fetchLogUploadQueue(limit: number): Promise<WebMessageResponse<'FetchLogUploadQueue'>> {
+        return webClient.request({ type: 'FetchLogUploadQueue', data: { limit } });
+    },
+
+    /** Release entries the server has taken (or that were given up on). */
+    ackLogUploadQueue(ids: string[]): Promise<WebMessageResponse<'AckLogUploadQueue'>> {
+        return webClient.request({ type: 'AckLogUploadQueue', data: { ids } });
+    },
+
+    /** Drop the app's upload queue outright — device opt-out only. */
+    clearLogUploadQueue(): Promise<WebMessageResponse<'ClearLogUploadQueue'>> {
+        return webClient.request({ type: 'ClearLogUploadQueue', data: {} });
     },
 
     // ---------------------------------------------------------------

@@ -12,6 +12,9 @@ import { appBridge, pendingNavigationStore } from './app/bridge';
 import { nativeMergedLogSource } from './app/bridge/nativeLogSource';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
+import { attachLogContext } from './app/runtime/logContext';
+import { startLogUploader } from './app/runtime/logUploader';
+import { createLogUploadSwitch } from './app/runtime/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
 import { attachWebLogPersistence } from './app/runtime/webLogPersistence';
@@ -20,6 +23,10 @@ import { initWebVitals } from './app/utils';
 // Wire log sinks before anything else logs: native WebView forwards to the
 // app (mirrored to the console in dev builds), plain web logs to the console.
 setupBridgeLogger({ consoleInNative: import.meta.env.DEV });
+
+// Context must be registered before anything logs: it is stamped at dispatch,
+// so an entry written earlier would carry none and be unattributable.
+attachLogContext();
 
 // Persist the log buffer across reloads (sessionStorage, tab-scoped) and read
 // the previous session's fate — a session that died without a clean pagehide
@@ -37,6 +44,16 @@ if (isNative()) {
 // Relay reports the native side detected while the web was down (WebView
 // crash, RN exceptions, native crashes) through the signed web reporter.
 schedulePendingReportFlush();
+
+// Always-on log collection: batches leave on size, time, or backgrounding,
+// independently of whether anything went wrong. Started after the report paths
+// so its own queue restore never delays crash reporting.
+//
+// The build flag is read here rather than inside the switch: `import.meta` in a
+// runtime module would make that module unloadable under the test transform.
+startLogUploader({
+    isEnabled: createLogUploadSwitch(import.meta.env.VITE_LOG_UPLOAD_DISABLED === 'true'),
+});
 
 // Repository policies must land before the data runtime is lazily created (first render):
 // the embedded `$site` of user.profile is persisted into the place cache only on the relay

@@ -1,4 +1,6 @@
-import { logBuffer, logger } from '@chatic/logger';
+import { logBuffer, logger, setLogContextProvider } from '@chatic/logger';
+
+import { markBatchRelayActive, resetBatchRelay } from './nativeForwarder';
 
 import { setupBridgeLogger } from './setupBridgeLogger';
 
@@ -134,5 +136,133 @@ describe('setupBridgeLogger', () => {
 
         // Exactly once: via the built-in fallback, not a leftover subscriber.
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('createNativeForwarder — id와 발생 시점 컨텍스트 전달', () => {
+    let teardown: (() => void) | undefined;
+
+    const postAndRead = (emit: () => void): Record<string, unknown> => {
+        const postMessage = jest.fn();
+        (window as any).ReactNativeWebView = { postMessage };
+        teardown = setupBridgeLogger();
+
+        emit();
+
+        return JSON.parse(postMessage.mock.calls[0][0]).data;
+    };
+
+    beforeEach(() => {
+        logBuffer.clear();
+        delete (window as any).ReactNativeWebView;
+    });
+
+    afterEach(() => {
+        teardown?.();
+        teardown = undefined;
+        setLogContextProvider(undefined);
+    });
+
+    it('엔트리 id를 함께 보낸다 — 없으면 하이브리드에서 한 로그가 문서 두 건이 된다', () => {
+        // The uploader queues this entry AND later drains it back out of the
+        // native buffer; a shared id is what collapses the two into one
+        // document server-side.
+        const data = postAndRead(() => logger.info('TEST', 'hybrid entry'));
+
+        expect(data.id).toEqual(expect.any(String));
+    });
+
+    it('발생 시점 컨텍스트를 그대로 실어 보낸다', () => {
+        setLogContextProvider(() => ({ runId: 'run-9', uid: 'u-9', cid: 'c-9', route: '/home' }));
+
+        const data = postAndRead(() => logger.warn('TEST', 'with context'));
+
+        expect(data).toEqual(expect.objectContaining({ runId: 'run-9', uid: 'u-9', cid: 'c-9', route: '/home' }));
+    });
+});
+
+describe('createNativeForwarder — debug 릴레이 차단', () => {
+    let teardown: (() => void) | undefined;
+    let postMessage: jest.Mock;
+
+    beforeEach(() => {
+        logBuffer.clear();
+        postMessage = jest.fn();
+        (window as any).ReactNativeWebView = { postMessage };
+        teardown = setupBridgeLogger();
+    });
+
+    afterEach(() => {
+        teardown?.();
+        teardown = undefined;
+        delete (window as any).ReactNativeWebView;
+    });
+
+    it('debug는 브릿지로 보내지 않는다 — 업로드는 못 하면서 네이티브 링버퍼만 밀어낸다', () => {
+        // `withNetworkLog` emits one of these per HTTP request. The upload queue
+        // drops `debug`, so relaying it only evicts native-origin entries — which
+        // have no second copy anywhere — from the 500-slot native buffer.
+        logger.debug('NET', 'GET /messages');
+
+        expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    it('debug는 링버퍼에는 그대로 남는다 — 웹 로컬 브레드크럼은 잃지 않는다', () => {
+        logger.debug('NET', 'GET /messages');
+
+        expect(logBuffer.peek()).toEqual([expect.objectContaining({ level: 'debug', message: 'GET /messages' })]);
+    });
+
+    it('info/warn/error는 계속 릴레이한다', () => {
+        logger.info('TEST', 'kept');
+        logger.warn('TEST', 'kept');
+        logger.error('TEST', 'kept');
+
+        const levels = postMessage.mock.calls.map(([raw]) => JSON.parse(raw).data.level);
+        expect(levels).toEqual(['info', 'warn', 'error']);
+    });
+});
+
+describe('createNativeForwarder — 배치 충전이 인수하면 건당 릴레이를 멈춘다', () => {
+    let teardown: (() => void) | undefined;
+    let postMessage: jest.Mock;
+
+    beforeEach(() => {
+        logBuffer.clear();
+        resetBatchRelay();
+        postMessage = jest.fn();
+        (window as any).ReactNativeWebView = { postMessage };
+        teardown = setupBridgeLogger();
+    });
+
+    afterEach(() => {
+        teardown?.();
+        teardown = undefined;
+        resetBatchRelay();
+        delete (window as any).ReactNativeWebView;
+    });
+
+    it('충전이 인수하기 전에는 건당으로 보낸다 — 구버전 앱은 이 경로뿐이다', () => {
+        logger.info('TEST', 'before');
+
+        expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('인수한 뒤에는 보내지 않는다 — 두 경로가 같은 링버퍼에 이중 적재된다', () => {
+        markBatchRelayActive();
+
+        logger.info('TEST', 'after');
+        logger.warn('TEST', 'after');
+        logger.error('TEST', 'after');
+
+        expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    it('인수 여부와 무관하게 링버퍼에는 남는다 — 로컬 진단은 브리지와 상관없다', () => {
+        markBatchRelayActive();
+
+        logger.error('TEST', 'local');
+
+        expect(logBuffer.peek().map(entry => entry.message)).toEqual(['local']);
     });
 });

@@ -1,7 +1,10 @@
 import type { IConsoleLogger, ILogService } from './log';
-import { ConsoleLogger, LogBufferService, LogService } from './log';
+import { ConsoleLogger, LogBufferService, LogService, LogUploadQueueService } from './log';
 import { MmkvLogPersistence } from './log/persistence';
+// Deep path, per the barrel policy: this module imports react-native-mmkv.
+import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/nativeLoggerBridge';
+import { attachNativeLogContext } from './log/nativeLogContext';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -57,6 +60,7 @@ import { TestRecordService } from './cache/TestRecordService';
 import type { IKeyValueStorage, ISqliteDatabase } from '../database';
 import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
 import type { ILogBufferService } from './log/buffer';
+import type { ILogUploadQueueService } from './log/uploadQueue/types';
 
 class DependencyProvider {
     private static instance: DependencyProvider;
@@ -66,6 +70,7 @@ class DependencyProvider {
     public readonly logService: ILogService;
     public readonly consoleLogger: IConsoleLogger;
     public readonly logBufferService: ILogBufferService;
+    public readonly logUploadQueueService: ILogUploadQueueService;
     public readonly keyValueStorage: IKeyValueStorage;
     public readonly bootMetricsService: IBootMetricsService;
     public readonly notificationService: INotificationService;
@@ -121,6 +126,11 @@ class DependencyProvider {
         // The buffer itself lives in the core logger (merged native+web,
         // fixed capacity); this service only wires MMKV persistence to it.
         this.logBufferService = new LogBufferService(new MmkvLogPersistence());
+        // The server-bound queue is a different store with a different lifetime
+        // (ADR-0063): non-debug only, its own MMKV key, and nothing leaves it
+        // before the web acks a successful upload. Constructed next to the buffer
+        // because both must exist before the first dispatch.
+        this.logUploadQueueService = new LogUploadQueueService(new MmkvLogUploadQueuePersistence());
 
         // Deep link / notification services stay eager: cold-start capture reads them during the first
         // render (getInitialUrl / getInitialNotification), so they must exist before then.
@@ -131,8 +141,12 @@ class DependencyProvider {
         this.firebaseCrashlyticsService = new FirebaseCrashlyticsService(this.logService);
 
         // Initialize Logging
+        // Context first: it is stamped at dispatch, so anything logged before
+        // this would carry no runId and be unattributable to this app run.
+        attachNativeLogContext();
         this.consoleLogger.init();
         this.logBufferService.init();
+        this.logUploadQueueService.init();
         // Pure-native (Kotlin/Swift) logs join the same core buffer with
         // source:'native'; ready() flushes the native cold-start queue (ADR-0047).
         attachNativeLoggerBridge();

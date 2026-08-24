@@ -17,7 +17,7 @@ jest.mock('./useDynamicDeviceId', () => ({
 }));
 
 jest.mock('@chatic/bridges', () => ({
-    logger: { info: jest.fn(), error: jest.fn() },
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
 const { useRelaySessionKeepAlive } = require('./useRelaySessionKeepAlive');

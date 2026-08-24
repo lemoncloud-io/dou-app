@@ -19,6 +19,14 @@ export interface CachedDeviceInfo {
     buildNumber: string;
     /** DeviceInfo.getUniqueIdSync() — bare unique device id. */
     deviceId: string;
+    /** DeviceInfo.getSystemVersion(). */
+    osVersion: string;
+    /**
+     * Identifier for this app run. Not a device fact, but it shares the exact
+     * lifetime of these values — issued once at process start — so it rides
+     * along rather than being threaded separately.
+     */
+    runId: string;
 }
 
 /**
@@ -45,11 +53,13 @@ export const buildDeviceInfoParams = (cached: CachedDeviceInfo, dynamic: Dynamic
     const uniqueId = buildInjectedUniqueId(cached.deviceId, dynamic.firebaseInstallId);
 
     return {
+        runId: cached.runId,
         platform: cached.platform,
         applicationName: cached.applicationName,
         stage: dynamic.stage,
         uniqueId,
         deviceModel: cached.deviceModel || '',
+        osVersion: cached.osVersion,
         appVersion: cached.appVersion,
         buildNumber: cached.buildNumber,
         appLanguage: dynamic.appLanguage,

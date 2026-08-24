@@ -24,7 +24,7 @@ export const useRelaySessionKeepAlive = (enabled: boolean): void => {
         }
 
         runningRef.current = true;
-        logger.info('AUTH', '[keepAlive] relay session absent, running background guest login');
+        logger.debug('AUTH', '[keepAlive] relay session absent, running background guest login');
         loginRelayGuestByDevice(deviceId)
             .catch(error => logger.error('AUTH', '[keepAlive] guest login failed', { error }))
             .finally(() => {

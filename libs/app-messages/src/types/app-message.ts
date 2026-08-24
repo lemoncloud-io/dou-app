@@ -25,6 +25,9 @@ import type {
     OnFetchManyCacheDataPayload,
     OnFetchCurrentPurchasesPayload,
     OnFetchFcmTokenPayload,
+    OnAckLogUploadQueuePayload,
+    OnClearLogUploadQueuePayload,
+    OnFetchLogUploadQueuePayload,
     OnFetchPendingReportsPayload,
     OnFetchPreferencePayload,
     OnFetchProductsPayload,
@@ -69,6 +72,7 @@ import type {
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
+    OnSendLogBatchPayload,
     OnSendLogPayload,
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
@@ -177,6 +181,10 @@ export type AppMessageDataMap = {
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
+    OnSendLogBatch: OnSendLogBatchPayload;
+    OnFetchLogUploadQueue: OnFetchLogUploadQueuePayload;
+    OnAckLogUploadQueue: OnAckLogUploadQueuePayload;
+    OnClearLogUploadQueue: OnClearLogUploadQueuePayload;
     OnFetchPendingReports: OnFetchPendingReportsPayload;
     OnAckPendingReports: OnAckPendingReportsPayload;
     OnCopyToClipboard: OnCopyToClipboardPayload;

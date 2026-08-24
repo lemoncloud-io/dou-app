@@ -21,7 +21,7 @@ export class DeepLinkManager {
     constructor(private readonly logger?: ILogService) {}
 
     private trace(message: string, data?: Record<string, unknown>): void {
-        this.logger?.info('DEEPLINK', `[DeepLinkManager] ${message}`, data);
+        this.logger?.debug('DEEPLINK', `[DeepLinkManager] ${message}`, data);
     }
 
     private traceError(message: string, error?: unknown): void {

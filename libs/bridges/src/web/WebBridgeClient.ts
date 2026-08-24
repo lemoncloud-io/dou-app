@@ -304,7 +304,13 @@ export class WebBridgeClient implements IWebBridgeClient {
         if (this.availabilityFailed) {
             // `createNativeForwarder`는 `NativeBridgeAdapter`를 직접 쓰므로 이 클래스는
             // 로그 전달 경로 밖이다 — logger를 써도 재귀하지 않는다.
-            logger.warn('BRIDGE', `[WebBridgeClient] post [${String(type)}] ignored — no native bridge interface`);
+            //
+            // warn이 아니라 debug인 이유: 네이티브 셸 밖(브라우저·데스크톱)에서는 인터페이스가
+            // 없는 게 정상이고, 그런 환경에서 post 한 번마다 warn이 나가면 상시 업로드에서
+            // 이 한 줄이 배치 대부분을 차지한다(SetBadgeCount 하나에 수십 건). debug는
+            // 링버퍼와 breadcrumb에는 그대로 남고 error가 낀 배치에만 동봉되므로,
+            // 진짜 문제가 생긴 순간의 진단 가치는 잃지 않는다.
+            logger.debug('BRIDGE', `[WebBridgeClient] post [${String(type)}] ignored — no native bridge interface`);
             return;
         }
 
