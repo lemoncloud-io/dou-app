@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '../types';
 
@@ -31,7 +31,14 @@ jest.mock('@chatic/web-ui-kit', () => ({
 }));
 
 jest.mock('../components/ChannelMessageRow', () => ({
-    ChannelMessageRow: ({ message }: any) => <div data-testid={`row-${message.id}`}>{message.content}</div>,
+    // The real row shows the "전체보기" affordance only on a truncated message; here every row
+    // carries it, so a test can drive `onExpand` without composing a 200-character body.
+    ChannelMessageRow: ({ message, onExpand }: any) => (
+        <div data-testid={`row-${message.id}`}>
+            {message.content}
+            <button data-testid={`expand-${message.id}`} onClick={onExpand} />
+        </div>
+    ),
 }));
 jest.mock('../components/MessageActionSheet', () => ({ MessageActionSheet: () => null }));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
@@ -145,5 +152,19 @@ describe('ThreadPage — 헤더는 채널방과 같은 정체성', () => {
         render(<ThreadPage />);
 
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', expected);
+    });
+});
+
+describe('ThreadPage — 긴 메시지 전체보기', () => {
+    // 스레드도 방과 같은 규칙으로 긴 본문을 자른다. 예전에는 자른 자리에 버튼만 있고
+    // 뒤에 아무것도 없어서 눌러도 반응이 없었다.
+    it('답글의 전체보기를 누르면 전문 다이얼로그가 열린다', () => {
+        mockChats = [chat(), chat({ id: 'ch1:8', chatNo: 8, content: '아주 긴 답글 본문', parentId: '7' })];
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('expand-ch1:8'));
+
+        expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
+        expect(screen.getAllByText('아주 긴 답글 본문').length).toBeGreaterThan(1);
     });
 });

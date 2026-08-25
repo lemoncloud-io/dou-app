@@ -11,6 +11,7 @@ import { ChatRoomHeader, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow } from '../components/ChannelMessageRow';
 import { MessageActionSheet } from '../components/MessageActionSheet';
+import { MessageDetailDialog } from '../components/MessageDetailDialog';
 import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { EmojiPickerSheet } from '../components/EmojiPickerSheet';
 import { resolveChannelAvatar } from '../lib';
@@ -59,6 +60,8 @@ export const ThreadPage = () => {
 
     const [content, setContent] = useState('');
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
+    // A truncated reply's "전체보기" target (null = closed) — the room's dialog, same rule.
+    const [expandedMessage, setExpandedMessage] = useState<{ content: string } | null>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
     // The chip whose reactors are being inspected (message id + long-pressed fold key).
     const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
@@ -249,7 +252,7 @@ export const ThreadPage = () => {
             time={formatTime(message.timestamp)}
             read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
             onLongPress={() => message.content && setActionMessage(message)}
-            onExpand={() => undefined}
+            onExpand={() => setExpandedMessage({ content: message.content ?? '' })}
             onRetry={() => undefined}
             onDelete={() => undefined}
             reactions={message.id ? reactions.get(message.id) : undefined}
@@ -344,6 +347,8 @@ export const ThreadPage = () => {
                     placeholder={t('chat.thread.inputPlaceholder')}
                 />
             </div>
+
+            <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 
             <MessageActionSheet
                 open={!!actionMessage && !pickerOpen}
