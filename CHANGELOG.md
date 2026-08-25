@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-08-25] - root@0.55.1, @chatic/web@0.46.1
+
+### Bug Fixes
+
+- (web/channels) hold the message action sheet at half a screen too
+- (web/channels) hold both reaction sheets at half a screen
+- (web/auth) take the social credential as a push, not as a 15s answer
+- (web) show the room's name in the push banner without a `#`
+- (web/debug) take the entry code in a text field instead of a digit pad
+- (mobile/android) hand the whole foreground push payload to the web
+- (web) report a thread as viewing its channel, not as leaving it
+- (web) read the in-app banner's fields through the push payload merge
+- (web/channels) open the full message from a thread's "view all"
+- (web/channels) hold the emoji sheet at one height across categories
+
+### Documentation
+
+- (mobile) record the thread viewing rule and the push field contract
+
 ## [2026-08-25] - No version updates
 
 ### Features
