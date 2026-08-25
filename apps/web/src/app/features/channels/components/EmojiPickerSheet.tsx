@@ -77,7 +77,10 @@ export const EmojiPickerSheet = ({ open, onOpenChange, onPick }: EmojiPickerShee
                     ))}
                 </div>
                 <p className="px-0.5 text-xs uppercase text-muted-foreground">{label}</p>
-                <div className="grid max-h-64 grid-cols-8 gap-0.5 overflow-y-auto">
+                {/* Fixed height, not `max-h`: the categories hold different counts (recent can hold
+                    one), so a height that follows the content made the sheet jump every time a tab
+                    was switched. The grid keeps its rows at the top and scrolls the overflow. */}
+                <div className="grid h-64 grid-cols-8 content-start gap-0.5 overflow-y-auto">
                     {emojis.map(emoji => (
                         <button
                             key={emoji}
