@@ -66,68 +66,57 @@ export type OnSendLogPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
 };
 
-/** [요청] 로그 버퍼 조회 페이로드 */
+/**
+ * 로그 버퍼 4쌍 — **폐지됨, 호환을 위해서만 남아 있다.**
+ *
+ * 이 메시지들이 읽던 링버퍼는 없어졌고, 미전송 큐(`FetchLogUploadQueue`)가
+ * 유일한 로그 저장소다. 타입과 앱 핸들러를 남기는 이유는 **웹이 앱보다 먼저
+ * 배포되기 때문**이다 — 이 변경 이전의 웹 빌드가 최신 앱에 설치된 채로 여전히
+ * 이 메시지를 보낸다. 핸들러를 지우면 `NOT_FOUND`가 되어 그쪽 디버그 화면이
+ * 실패로 표시되므로, 앱은 빈 결과를 돌려준다.
+ *
+ * 배포된 웹 빌드가 더 이상 부르지 않게 되면 4쌍 전부 삭제한다.
+ */
+/** [요청] 로그 버퍼 조회 페이로드 (폐지 — 빈 결과) */
 export type FetchAppLogBufferPayload = {
     count?: number;
 };
 
-/** [요청] 로그 버퍼 poll(조회+제거) 페이로드 */
+/** [요청] 로그 버퍼 poll 페이로드 (폐지 — 빈 결과, 아무것도 제거하지 않는다) */
 export type PollAppLogBufferPayload = {
     count?: number;
 };
 
-/** [요청] 로그 버퍼 비우기 페이로드 */
+/** [요청] 로그 버퍼 비우기 페이로드 (폐지 — no-op) */
 export type ClearAppLogBufferPayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
 };
 
-/** [요청] 로그 버퍼 크기 조회 페이로드 */
+/** [요청] 로그 버퍼 크기 조회 페이로드 (폐지 — 항상 0) */
 export type FetchAppLogBufferSizePayload = {
     // 추후 확장(옵셔널 필드 등)에 대비한 빈 객체 타입입니다.
 };
 
-/** [응답] 로그 버퍼 조회 페이로드 */
+/** [응답] 로그 버퍼 조회 페이로드 (폐지 — 빈 목록) */
 export type OnFetchAppLogBufferPayload = {
     logs: AppLogInfo[];
     size: number;
 };
 
-/** [응답] 로그 버퍼 poll(조회+제거) 페이로드 */
+/** [응답] 로그 버퍼 poll 페이로드 (폐지 — 빈 목록) */
 export type OnPollAppLogBufferPayload = {
     logs: AppLogInfo[];
     size: number;
 };
 
-/** [응답] 로그 버퍼 전체 비우기 페이로드 */
+/** [응답] 로그 버퍼 전체 비우기 페이로드 (폐지) */
 export type OnClearAppLogBufferPayload = {
     success: boolean;
     size: number;
 };
 
-/** [응답] 로그 버퍼 크기 조회 페이로드 */
+/** [응답] 로그 버퍼 크기 조회 페이로드 (폐지 — 항상 0) */
 export type OnFetchAppLogBufferSizePayload = {
-    size: number;
-};
-
-/**
- * [요청] 웹 큐 → 앱 전송 큐 배치 충전 페이로드 (ADR-0063).
- *
- * 건당 `SendLog`를 대체한다. 로그 1건마다 브리지를 왕복하면 그 횟수가 곧
- * UI 스레드 점유라, 요청마다 debug 1건을 찍는 `withNetworkLog` 같은 자리에서
- * 한 세션에 수백 번이 된다. 배치로 묶으면 주기당 1회다.
- *
- * 받는 쪽이 레벨로 갈라 넣는다 — 전 레벨은 통합 링버퍼(breadcrumb), 비-debug만
- * 전송 큐. 보내는 쪽이 두 번 나눠 보내면 왕복이 두 배가 되므로 분류는 앱의 몫이다.
- */
-export type SendLogBatchPayload = {
-    logs: AppLogInfo[];
-};
-
-/** [응답] 배치 충전 결과 페이로드 (ADR-0063) */
-export type OnSendLogBatchPayload = {
-    /** 전송 큐에 실제로 적재된 건수 (debug 제외분과 id 중복분이 빠진다) */
-    accepted: number;
-    /** 적재 후 앱 전송 큐 크기 — 웹이 업로드 리듬의 크기 트리거로 쓴다 */
     size: number;
 };
 
@@ -137,8 +126,10 @@ export type OnSendLogBatchPayload = {
  * **비파괴다.** 같은 엔트리를 다시 돌려주는 것이 정상이며, 놓아주는 것은
  * `AckLogUploadQueue`뿐이다. 조회가 곧 제거이면 전송 성공 전에 유일한 사본이
  * 사라져, 그 사이 프로세스가 죽으면 엔트리가 어디에도 남지 않는다 — 하필 앱이
- * 죽는 순간의 로그가 가장 필요한데 그것이 유실된다. 파괴적 소비는
- * `PollAppLogBuffer`(디버그 화면 전용)에만 남는다.
+ * 죽는 순간의 로그가 가장 필요한데 그것이 유실된다.
+ *
+ * 이 큐가 유일한 로그 저장소이므로 디버그 뷰도 이 메시지로 읽는다. 파괴적
+ * 소비자는 이제 없다.
  */
 export type FetchLogUploadQueuePayload = {
     limit?: number;

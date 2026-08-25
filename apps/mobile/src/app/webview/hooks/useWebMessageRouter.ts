@@ -7,7 +7,7 @@ import {
     useDeviceHandler,
     useSmsHandler,
     useFcmHandler,
-    useLogBatchHandler,
+    useLogStoreHandler,
     useLogBufferHandler,
     useLogHandler,
     useOAuthHandler,
@@ -74,8 +74,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
     const { handleSendLog } = useLogHandler();
-    const { handleSendLogBatch, handleFetchLogUploadQueue, handleAckLogUploadQueue, handleClearLogUploadQueue } =
-        useLogBatchHandler();
+    const { handleFetchLogUploadQueue, handleAckLogUploadQueue, handleClearLogUploadQueue } = useLogStoreHandler();
     const { handleFetchPendingReports, handleAckPendingReports } = usePendingReportHandler();
     const { handleFetchAppLogBuffer, handlePollAppLogBuffer, handleClearAppLogBuffer, handleFetchAppLogBufferSize } =
         useLogBufferHandler();
@@ -153,7 +152,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleClearAppLogBuffer,
         handleFetchAppLogBufferSize,
         handleSendLog,
-        handleSendLogBatch,
         handleFetchLogUploadQueue,
         handleAckLogUploadQueue,
         handleClearLogUploadQueue,
@@ -226,7 +224,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleClearAppLogBuffer,
             handleFetchAppLogBufferSize,
             handleSendLog,
-            handleSendLogBatch,
             handleFetchLogUploadQueue,
             handleAckLogUploadQueue,
             handleClearLogUploadQueue,
@@ -307,7 +304,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ClearAppLogBuffer: message => handlersRef.current.handleClearAppLogBuffer(message),
             FetchAppLogBufferSize: message => handlersRef.current.handleFetchAppLogBufferSize(message),
             SendLog: message => handlersRef.current.handleSendLog(message),
-            SendLogBatch: message => handlersRef.current.handleSendLogBatch(message),
             FetchLogUploadQueue: message => handlersRef.current.handleFetchLogUploadQueue(message),
             AckLogUploadQueue: message => handlersRef.current.handleAckLogUploadQueue(message),
             ClearLogUploadQueue: message => handlersRef.current.handleClearLogUploadQueue(message),

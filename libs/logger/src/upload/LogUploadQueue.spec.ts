@@ -168,3 +168,117 @@ describe('createLogUploadQueue — pushAll 중복 제거', () => {
         expect(queue.size()).toBe(2);
     });
 });
+
+describe('LogUploadQueue — 바이트 상한', () => {
+    /** 대략 `bytes` 크기가 되도록 data를 채운 엔트리. */
+    const fat = (id: string, bytes: number): LogEntry => ({
+        id,
+        level: 'info',
+        tag: 'TEST',
+        message: 'fat',
+        timestamp: 1,
+        data: { blob: 'x'.repeat(bytes) },
+    });
+
+    it('건수가 남아도 바이트를 넘으면 버린다 — 큰 data 몇 개가 예산을 삼키는 것을 막는다', () => {
+        // 건수 상한만 있으면 이 큐는 3건이라 전혀 걸리지 않는다. 그런데 웹에서는
+        // 이 예산을 오리진 전체가 공유하므로, 로그가 다 먹으면 로그와 무관한
+        // 기능이 먼저 깨진다.
+        const dropped: LogEntry[][] = [];
+        const queue = createLogUploadQueue({
+            capacity: 100,
+            maxBytes: 5_000,
+            onDrop: entries => dropped.push(entries),
+        });
+
+        queue.push(fat('a', 2_000));
+        queue.push(fat('b', 2_000));
+        queue.push(fat('c', 2_000));
+
+        expect(queue.size()).toBeLessThan(3);
+        expect(dropped).toHaveLength(1);
+    });
+
+    it('오래된 것부터 버린다', () => {
+        const queue = createLogUploadQueue({ capacity: 100, maxBytes: 5_000 });
+
+        queue.push(fat('old', 2_000));
+        queue.push(fat('new', 2_000));
+        queue.push(fat('newest', 2_000));
+
+        const held = queue.snapshot().map(entry => entry.id);
+        expect(held).not.toContain('old');
+        expect(held).toContain('newest');
+    });
+
+    it('상한 안에서는 아무것도 버리지 않는다', () => {
+        const onDrop = jest.fn();
+        const queue = createLogUploadQueue({ capacity: 100, maxBytes: 1_000_000, onDrop });
+
+        queue.push(fat('a', 2_000));
+        queue.push(fat('b', 2_000));
+
+        expect(queue.size()).toBe(2);
+        expect(onDrop).not.toHaveBeenCalled();
+    });
+
+    it('버릴 때 요약은 사건당 한 번이다 — 큐의 문제가 큐를 채우면 안 된다', () => {
+        const onDrop = jest.fn();
+        const queue = createLogUploadQueue({ capacity: 100, maxBytes: 5_000, onDrop });
+
+        queue.push(fat('a', 2_000));
+        queue.push(fat('b', 2_000));
+        queue.push(fat('c', 2_000));
+
+        expect(onDrop).toHaveBeenCalledTimes(1);
+        expect(onDrop.mock.calls[0][0].length).toBeGreaterThan(0);
+    });
+});
+
+describe('LogUploadQueue — acceptDebug', () => {
+    it('기본은 debug를 안 받는다 — 릴리스에선 아무도 못 읽는다', () => {
+        const queue = createLogUploadQueue();
+
+        queue.push(entry('debug'));
+
+        expect(queue.size()).toBe(0);
+    });
+
+    it('켜면 debug도 보관한다 — 보는 사람이 있는 빌드에서는 그게 창의 절반이다', () => {
+        const queue = createLogUploadQueue({ acceptDebug: true });
+
+        queue.push(entry('debug'));
+
+        expect(queue.snapshot().map(e => e.level)).toEqual(['debug']);
+    });
+
+    it('상한에 닿으면 debug가 가장 먼저 버려진다 — 이 순서가 보관을 가능하게 한다', () => {
+        // 이게 없으면 요청 로그 한 번의 폭주가 창의 존재 이유인 warn/error를
+        // 밀어낸다. debug를 아예 안 받던 정책이 피하던 실패가 바로 그것이다.
+        const queue = createLogUploadQueue({ acceptDebug: true, capacity: 3 });
+
+        queue.push(entry('error'));
+        queue.push(entry('warn'));
+        queue.push(entry('debug'));
+        queue.push(entry('info'));
+
+        expect(
+            queue
+                .snapshot()
+                .map(e => e.level)
+                .sort()
+        ).toEqual(['error', 'info', 'warn']);
+    });
+
+    it('restore도 같은 정책을 따른다 — 릴리스는 이전 빌드가 남긴 debug를 버린다', () => {
+        const persisted = [entry('debug'), entry('info')];
+
+        const release = createLogUploadQueue();
+        release.restore(persisted);
+        expect(release.snapshot().map(e => e.level)).toEqual(['info']);
+
+        const watched = createLogUploadQueue({ acceptDebug: true });
+        watched.restore(persisted);
+        expect(watched.snapshot()).toHaveLength(2);
+    });
+});

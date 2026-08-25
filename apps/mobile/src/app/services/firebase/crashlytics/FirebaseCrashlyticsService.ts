@@ -2,7 +2,7 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import DeviceInfo from 'react-native-device-info';
 import { redactSensitive, safeStringify } from '@chatic/logger';
 import type { ILogService } from '../../log';
-import { NATIVE_RUN_ID } from '../../log/nativeLogContext';
+import { NATIVE_RUN_ID } from '../../log/native/nativeLogContext';
 import type { IFirebaseCrashlyticsService } from './types';
 import { getUserAgent } from '../../../utils';
 
@@ -46,6 +46,21 @@ export class FirebaseCrashlyticsService implements IFirebaseCrashlyticsService {
 
         this.unsubscribeLog = this.logger.subscribe(entry => {
             const { level, tag, message, data, error } = entry;
+
+            // `debug` is a console-only level: its whole purpose is to be read
+            // live in a terminal, which every build except `prodRelease` does.
+            // It must not become a breadcrumb.
+            //
+            // Crashlytics keeps roughly 64KB of custom log per session and drops
+            // the OLDEST lines when that fills. `withNetworkLog` emits one debug
+            // per HTTP request, so letting them in means a busy session spends
+            // its whole budget on request noise and evicts the `info`/`warn`
+            // lines immediately before the crash — the only ones worth having
+            // there. Filtering here is what makes the remaining breadcrumbs
+            // legible, and it matches the upload queue, which drops `debug` at
+            // its own door (principle 13). One level policy, both sinks.
+            if (level === 'debug') return;
+
             // Occurrence time from the entry, so bridged web logs keep their
             // original timeline in the Crashlytics breadcrumb (ADR-0047).
             const timestamp = new Date(entry.timestamp).toISOString();

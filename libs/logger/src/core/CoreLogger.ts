@@ -1,21 +1,11 @@
 import { createLogId } from './logId';
 
-import type { LogBuffer } from './LogBuffer';
 import type { LogHub } from './LogHub';
-import type { LogContext, LogContextProvider, LogEntry, LogErrorOptions, Logger, LogLevel, LogListener } from './types';
+import type { LogContext, LogContextProvider, LogEntry, LogErrorOptions, Logger, LogLevel } from './types';
 
 export interface CoreLoggerOptions {
     /** Where published entries are broadcast. */
     hub: LogHub;
-    /** The in-memory window every entry is captured into. */
-    buffer: LogBuffer;
-    /**
-     * Zero-config sink, used only while the hub has no subscriber at all. Apps
-     * that never wire one keep the legacy console output instead of silently
-     * losing their logs; injected rather than imported so the core stays free
-     * of any sink implementation.
-     */
-    fallback?: LogListener;
 }
 
 const isLogErrorOptions = (value: unknown): value is LogErrorOptions => {
@@ -29,24 +19,31 @@ const normalizeErrorOptions = (options?: LogErrorOptions | unknown): LogErrorOpt
 };
 
 /**
- * The logging engine: stamps entries, captures them in the buffer and
- * publishes them to the hub.
+ * The logging engine: stamps entries and publishes them to the hub.
  *
  * Pure in the sense that matters here — it reads no platform state itself. The
- * hub, the buffer and the context provider all come from outside, so the same
- * class serves the process-wide singleton in `runtime.ts` and an isolated
- * instance in a test.
+ * hub and the context provider both come from outside, so the same class serves
+ * the process-wide singleton in `runtime.ts` and an isolated instance in a test.
+ *
+ * The engine holds no store of its own, and no sink either. It used to carry a
+ * console fallback that fired whenever the hub happened to have no subscriber —
+ * which meant output appeared or vanished depending on how many listeners were
+ * attached at that instant, and made "detach a listener" a decision about
+ * console output too. That is not pub/sub. Anything that wants to see entries
+ * subscribes, including the console (principle 16).
+ *
+ * It holds no store either. It used to push every entry into a ring buffer,
+ * which was how entries dispatched before any app wiring ran were still
+ * captured. That guarantee is now the wiring order's job: the listeners
+ * subscribe to the hub, and boot registers them before anything logs
+ * (principle 15).
  */
 export class CoreLogger implements Logger {
     private readonly hub: LogHub;
-    private readonly buffer: LogBuffer;
-    private readonly fallback?: LogListener;
     private contextProvider?: LogContextProvider;
 
     constructor(options: CoreLoggerOptions) {
         this.hub = options.hub;
-        this.buffer = options.buffer;
-        this.fallback = options.fallback;
     }
 
     /**
@@ -60,9 +57,9 @@ export class CoreLogger implements Logger {
 
     /**
      * Ingests an entry that was already stamped in another runtime (bridge
-     * relay, native emitter): pushed and published as-is, WITHOUT restamping
-     * `timestamp` or its context, so merged buffers keep original occurrence
-     * times and labels. (ADR-0047)
+     * relay, native emitter): published as-is, WITHOUT restamping `timestamp`
+     * or its context, so entries that crossed a boundary keep their original
+     * occurrence times and labels. (ADR-0047)
      *
      * The one field that may be filled in is `id`, and only when absent: an
      * older app relaying entries without one would otherwise be undedupable,
@@ -71,14 +68,6 @@ export class CoreLogger implements Logger {
      */
     public ingest(entry: LogEntry): void {
         const stamped: LogEntry = entry.id ? entry : { ...entry, id: createLogId() };
-
-        // The buffer is fed directly (not via subscription) so it always captures
-        // entries — including those emitted before any app wiring runs.
-        this.buffer.push(stamped);
-
-        // Zero-config fallback: apps that never wire subscribers keep the legacy
-        // console output instead of silently losing their logs.
-        if (this.hub.size() === 0) this.fallback?.(stamped);
 
         this.hub.publish(stamped);
     }

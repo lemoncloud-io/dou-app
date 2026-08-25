@@ -307,9 +307,12 @@ export class WebBridgeClient implements IWebBridgeClient {
             //
             // warn이 아니라 debug인 이유: 네이티브 셸 밖(브라우저·데스크톱)에서는 인터페이스가
             // 없는 게 정상이고, 그런 환경에서 post 한 번마다 warn이 나가면 상시 업로드에서
-            // 이 한 줄이 배치 대부분을 차지한다(SetBadgeCount 하나에 수십 건). debug는
-            // 링버퍼와 breadcrumb에는 그대로 남고 error가 낀 배치에만 동봉되므로,
-            // 진짜 문제가 생긴 순간의 진단 가치는 잃지 않는다.
+            // 이 한 줄이 배치 대부분을 차지한다(SetBadgeCount 하나에 수십 건).
+            //
+            // debug는 두 영속 sink(업로드 큐·Crashlytics) 모두가 버리므로 릴리스에서는
+            // 아무 데도 남지 않는다. 그걸 감수하는 이유는 이 조건이 둘 중 하나라서다 —
+            // 브라우저에서는 정상이라 기록할 게 없고, 네이티브 셸에서 났다면 브릿지가
+            // 통째로 죽은 것이라 이 한 줄 없이도 자명하다.
             logger.debug('BRIDGE', `[WebBridgeClient] post [${String(type)}] ignored — no native bridge interface`);
             return;
         }

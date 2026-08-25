@@ -19,11 +19,11 @@ ADR-0047 §4는 이미 이렇게 정했다.
 
 한편 리포트 브레드크럼은 같은 버퍼를 `fetchAppLogBuffer` → `peek()`([nativeLogSource.ts:41](../../apps/web/src/app/bridge/nativeLogSource.ts:41))로 비파괴 조회한다. **한 버퍼에 소비자가 둘인데 한쪽만 파괴적**이라, flush 직후 크래시는 브레드크럼이 거의 백지다.
 
-게다가 걷어간 `debug`는 `pushAll`의 필터([uploadQueue.ts:99](../../libs/logger/src/uploadQueue.ts:99))에서 즉시 폐기된다 → **서버에도 없고 버퍼에도 없는 순수 소멸**.
+게다가 걷어간 `debug`는 `pushAll`의 필터([LogUploadQueue.ts](../../libs/logger/src/upload/LogUploadQueue.ts))에서 즉시 폐기된다 → **서버에도 없고 버퍼에도 없는 순수 소멸**.
 
 ### ② 건당 릴레이 + 레벨 무필터가 사본 없는 로그를 밀어낸다
 
-`createNativeForwarder`가 레벨 구분 없이 전 엔트리를 `SendLog`로 릴레이했고, 최대 유입원은 `withNetworkLog`의 성공 로그 — **HTTP 요청 1건당 `debug` 1건**([networkLog.ts:98](../../libs/web-core/src/transport/networkLog.ts:98)). 링버퍼 축출은 레벨 무관 oldest-first([ringBuffer.ts:25](../../libs/logger/src/ringBuffer.ts:25))다.
+`createNativeForwarder`가 레벨 구분 없이 전 엔트리를 `SendLog`로 릴레이했고, 최대 유입원은 `withNetworkLog`의 성공 로그 — **HTTP 요청 1건당 `debug` 1건**([networkLog.ts:98](../../libs/web-core/src/transport/networkLog.ts:98)). 링버퍼 축출은 레벨 무관 oldest-first([RingBuffer.ts](../../libs/logger/src/core/RingBuffer.ts))다.
 
 `pushAll`의 주석이 정확히 이 위험을 지목한다 — _"evict native-only entries that have no second copy"_. 그러나 그 방어는 **업로드 큐**에 있고 실제 축출은 한 단계 앞인 **앱 링버퍼**에서 일어난다. 웹 엔트리는 웹 큐에 사본이 있지만 네이티브 발원 로그(RN 전역 예외·FCM·Kotlin `NativeLogger`)는 사본이 없어 영구 유실이다.
 
@@ -48,8 +48,8 @@ ADR-0047 §4는 이미 이렇게 정했다.
 
 ### 재사용 가능한 기존 자산
 
-- `createLogUploadQueue`·`createLogUploadScheduler`([libs/logger](../../libs/logger/src/uploadQueue.ts)) — 현재 `apps/web` 단독 사용. 모바일은 전 히스토리에서 한 번도 쓰지 않았다.
-- `LogSource` 포트([types.ts:80](../../libs/logger/src/types.ts:80)) + ADR-0047 §4의 원칙: **"병합 버퍼의 소유자는 항상 가장 바깥 셸."**
+- `createLogUploadQueue`·`createLogUploadScheduler`([libs/logger](../../libs/logger/src/upload/LogUploadQueue.ts)) — 현재 `apps/web` 단독 사용. 모바일은 전 히스토리에서 한 번도 쓰지 않았다.
+- `LogSource` 포트([types.ts](../../libs/logger/src/core/types.ts)) + ADR-0047 §4의 원칙: **"병합 버퍼의 소유자는 항상 가장 바깥 셸."**
 - `PendingReportQueueService`의 Fetch/Ack 2단계 관용구와 MMKV 영속 패턴.
 
 ## 결정 (Decision)
@@ -100,7 +100,7 @@ interface LogUploadSource {
 
 ### 5. 리듬을 둘로 분리한다
 
-현재 스케줄러는 큐를 동기로 부른다(`nextBatch`·`remove`·`sendableSize` — [uploadScheduler.ts:179,149,228](../../libs/logger/src/uploadScheduler.ts:179)). 브릿지는 비동기라 하이브리드에서 앱 큐 크기를 동기로 알 수 없다. 그래서 트리거를 두 리듬으로 나눈다.
+현재 스케줄러는 큐를 동기로 부른다(`nextBatch`·`remove`·`sendableSize` — [LogUploadScheduler.ts](../../libs/logger/src/upload/LogUploadScheduler.ts)). 브릿지는 비동기라 하이브리드에서 앱 큐 크기를 동기로 알 수 없다. 그래서 트리거를 두 리듬으로 나눈다.
 
 | 리듬                     | 트리거                                            | 판단 주체                   |
 | ------------------------ | ------------------------------------------------- | --------------------------- |

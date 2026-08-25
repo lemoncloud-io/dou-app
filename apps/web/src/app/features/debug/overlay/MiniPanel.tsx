@@ -18,6 +18,9 @@ import { UnreadTab } from './tabs/UnreadTab';
  *
  * Only inspection screens belong here. Screens that drive something (Cache DB Test, Upload Test,
  * Push) stay menu-only; float them from the expanded sheet when needed.
+ *
+ * Logs earn a tab for the same reason the DB browser did: the thing you want to read is what the
+ * app writes *while you drive it*, and a full-screen sheet covers the app you are driving.
  */
 const TABS: { title: string; render: () => ReactNode }[] = [
     { title: '상태', render: () => <Padded>{<StateTab />}</Padded> },
@@ -25,6 +28,7 @@ const TABS: { title: string; render: () => ReactNode }[] = [
     { title: '성능', render: () => <Padded>{<PerfTab />}</Padded> },
     { title: '안읽음', render: () => <Padded>{<UnreadTab />}</Padded> },
     // Registry screens bring their own padding; the observers above do not.
+    { title: '로그', render: () => <LazyScreen screen="LogBuffer" /> },
     { title: 'DB', render: () => <LazyScreen screen="DBBrowser" /> },
     { title: '캐시', render: () => <LazyScreen screen="CacheMetrics" /> },
 ];
@@ -84,7 +88,7 @@ export const MiniPanel = () => {
                 ))}
             </div>
 
-            <div className="overflow-y-auto">{active.render()}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{active.render()}</div>
         </FloatingPanel>
     );
 };

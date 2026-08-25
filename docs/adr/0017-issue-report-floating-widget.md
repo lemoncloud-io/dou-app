@@ -16,7 +16,7 @@
 착수 전 코드베이스 조사로 확인한 사실(재사용 가능한 기존 자산):
 
 - **이슈 폼과 전송 API가 이미 존재하나 어디에도 마운트되지 않음** — `apps/web/src/app/ui/components/ReportIssueDialog.tsx`, `reportIssue()` (`libs/web-core/src/api/common.ts:125`). `reportIssue`는 이미 env/url/user/cloud 컨텍스트를 자동 첨부해 Slack 리포트 엔드포인트(`${DOU_ENDPOINT}/hello/report`)로 POST 한다.
-- 로그: `logBuffer.peek(50)` (`@chatic/bridges`, 500개 링버퍼 — `libs/logger/src/logger.ts:44`) 로 최근 50개 즉시 획득.
+- 로그: `logBuffer.peek(50)` (`@chatic/bridges`, 500개 링버퍼 — `libs/logger/src/runtime.ts`) 로 최근 50개 즉시 획득.
 - 디바이스/버전: `useDeviceInfo()` → `{ deviceInfo, versionInfo }` (`libs/device-utils/src/hooks/useDeviceInfo.ts`). 세션/유저/서버 컨텍스트: `getGlobalSessionContext()` / `getActiveSessionUser()` (web-core).
 - 드래그 패턴: `apps/web/src/app/features/debug/overlay/MiniPanel.tsx` 에 포인터 이벤트 기반 드래그 + 뷰포트 클램프가 이미 구현됨(단 위치 영속화는 없음). 고정 플로팅 버튼 패턴은 `DebugOverlayHost.tsx`.
 - 설정 영속화 패턴: `usePreferenceStore` + `PREFERENCES` 레지스트리(`apps/web/src/app/stores/`), MyPage의 `ListRow` + `Switch` 토글(`MyPage.tsx:168`).

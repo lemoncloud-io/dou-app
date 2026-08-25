@@ -1,6 +1,5 @@
 import { webClient } from '@chatic/bridges';
 import type {
-    AppLogInfo,
     OnFetchPushMarksPayload,
     OnWebAppReadyPayload,
     PushCloudMarkRecord,
@@ -224,38 +223,14 @@ export const appBridge = {
         return webClient.request({ type: 'FetchProducts', data: {} }, { timeoutMs });
     },
 
-    // ---------------------------------------------------------------
-    // App log buffer (debug)
-    // ---------------------------------------------------------------
-
-    /** Fetch a page of the native app log buffer. */
-    fetchAppLogBuffer(nonce: string, count: number): Promise<WebMessageResponse<'FetchAppLogBuffer'>> {
-        return webClient.request({ type: 'FetchAppLogBuffer', nonce, data: { count } });
-    },
-
-    /** Poll the native app log buffer for the latest entries. */
-    pollAppLogBuffer(nonce: string, count: number): Promise<WebMessageResponse<'PollAppLogBuffer'>> {
-        return webClient.request({ type: 'PollAppLogBuffer', nonce, data: { count } });
-    },
-
-    /** Clear the native app log buffer. */
-    clearAppLogBuffer(nonce: string): Promise<WebMessageResponse<'ClearAppLogBuffer'>> {
-        return webClient.request({ type: 'ClearAppLogBuffer', data: { nonce } });
-    },
-
-    /** Fetch the current size of the native app log buffer. */
-    fetchAppLogBufferSize(nonce: string): Promise<WebMessageResponse<'FetchAppLogBufferSize'>> {
-        return webClient.request({ type: 'FetchAppLogBufferSize', data: { nonce } });
-    },
+    // The four `*AppLogBuffer` methods are gone: the ring buffer they read no
+    // longer exists, and the unsent queue below is the only log store. The
+    // message types and the app-side handlers stay — an older web build still
+    // sends them to a current app — but nothing in this build calls them.
 
     // ---------------------------------------------------------------
-    // App log upload queue (ADR-0063)
+    // App log store (ADR-0063 · ADR-0066)
     // ---------------------------------------------------------------
-
-    /** Hand a batch of web entries to the app's buffer + upload queue. */
-    sendLogBatch(logs: AppLogInfo[]): Promise<WebMessageResponse<'SendLogBatch'>> {
-        return webClient.request({ type: 'SendLogBatch', data: { logs } });
-    },
 
     /** Read a batch from the app's upload queue WITHOUT removing it. */
     fetchLogUploadQueue(limit: number): Promise<WebMessageResponse<'FetchLogUploadQueue'>> {

@@ -12,8 +12,8 @@ export const useLogHandler = () => {
         // `timestamp` is absent for pre-ADR-0047 web builds — fall back to
         // receive time so legacy payloads keep working.
         // The id and occurrence-time context are spread first so the explicit
-        // fields below always win. Keeping the id is what lets the uploader
-        // drain this buffer without turning one web log into two documents.
+        // fields below always win. Keeping the id is what lets the same entry
+        // be uploaded from either side without becoming two documents.
         ingestLogEntry({
             ...context,
             level,

@@ -6,14 +6,22 @@
 
 ## 왜 원격 인스펙터인가
 
-앱은 웹뷰 로그를 네이티브로 포워딩해 Metro 터미널/인앱 버퍼에 남긴다.
+앱은 웹뷰 로그를 네이티브로 포워딩해 Metro 터미널과 미전송 큐에 남긴다.
 
 ```
 [웹] logger.error(...)        libs/bridges/src/logger/logger.ts
-  → SendLog 메시지            libs/bridges/src/logger/adapters/nativeBridgeAdapter.ts
-  → [앱] useLogHandler        src/app/webview/hooks/useLogHandler.ts
-  → LogService → ConsoleLogger(터미널) / LogBufferService(인앱 버퍼: DebugLogBufferPage)
+  → SendLogBatch 메시지       libs/bridges/src/logger/appLogInfoCodec.ts (건당 SendLog는 구버전 폴백)
+  → [앱] useLogBatchHandler   src/app/webview/hooks/useLogBatchHandler.ts
+  → ingestLogEntry → logHub
+      ├─ ConsoleLogger(터미널 — __DEV__ 한정, 전 레벨)
+      ├─ Crashlytics breadcrumb(비-debug)
+      └─ LogUploadQueueService(비-debug — MonitoringScreen이 읽는 그 큐)
 ```
+
+**`debug`는 콘솔 전용이다.** 영속 sink 둘이 모두 버리므로 `prodRelease`에서 `debug`는 어디에도
+남지 않는다 — `prodDebug`·`dev*` 빌드의 터미널에서 읽는 것이 이 레벨의 목적이다. 그래서 인앱
+MonitoringScreen에도 `debug`는 나오지 않는다(버그가 아니다). 릴리스 기기에서 흐름을 봐야 하면
+`info` 이상으로 올리거나 원격 인스펙터를 쓴다.
 
 이 경로는 **흐름을 빠르게 훑기엔 좋지만**, 값이 `safeSerializable`로 문자열화되어 담기기 때문에
 객체 구조, 원본 에러 stack, "웹뷰의 어느 코드 라인에서 났는지"는 뭉개진다. 예를 들어 아래 로그는
@@ -25,21 +33,21 @@ stack이 이스케이프된 한 줄로 눌려 있어 실제 위치(`SocketManage
 
 **상세 관측이 필요하면 원격 인스펙터를 쓴다.** 웹뷰에 실제 DevTools가 붙으므로:
 
-| DevTools 탭 | 얻는 것                                                                  |
-| ----------- | ------------------------------------------------------------------------ |
-| Console     | 문자열이 아닌 **실제 객체**를 펼쳐서 확인, 직접 표현식 평가              |
+| DevTools 탭 | 얻는 것                                                                             |
+| ----------- | ----------------------------------------------------------------------------------- |
+| Console     | 문자열이 아닌 **실제 객체**를 펼쳐서 확인, 직접 표현식 평가                         |
 | Sources     | **소스맵된 stack** — 프레임을 클릭하면 원본 `.tsx`의 해당 줄로 점프, 브레이크포인트 |
-| Network     | 웹뷰가 보낸 실제 요청/응답 (소켓 메시지 포함)                            |
-| Elements    | 렌더된 DOM/CSS (safe-area 변수 주입 결과 등)                             |
+| Network     | 웹뷰가 보낸 실제 요청/응답 (소켓 메시지 포함)                                       |
+| Elements    | 렌더된 DOM/CSS (safe-area 변수 주입 결과 등)                                        |
 
 ## 사전 조건 (중요)
 
 원격 인스펙터가 웹뷰를 인식하려면 웹뷰의 디버깅 플래그가 켜져 있어야 한다. 플랫폼마다 다르다.
 
-| 플랫폼  | 기본 동작                                                                                                    | 조치                                                                 |
-| ------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| Android | **Debug 빌드는 자동 활성화.** react-native-webview가 `ReactBuildConfig.DEBUG`일 때 `setWebContentsDebuggingEnabled(true)` 호출 ([RNCWebViewManagerImpl.kt:91](../../../node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt)) | 별도 조치 불필요 (Debug/Dev 빌드). Release는 불가.                    |
-| iOS     | **자동 활성화 없음.** WKWebView의 `inspectable`은 `webviewDebuggingEnabled` prop으로만 켜진다 ([RNCWebViewImpl.m:571](../../../node_modules/react-native-webview/apple/RNCWebViewImpl.m)). iOS 16.4 미만은 OS가 dev에서 자동 노출하지만, **16.4 이상은 이 prop 없이는 Safari에 안 뜬다.** | `AppWebView`에 prop 추가 필요 (아래 스니펫). 현재 미설정 상태.        |
+| 플랫폼  | 기본 동작                                                                                                                                                                                                                                                                                  | 조치                                                           |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Android | **Debug 빌드는 자동 활성화.** react-native-webview가 `ReactBuildConfig.DEBUG`일 때 `setWebContentsDebuggingEnabled(true)` 호출 ([RNCWebViewManagerImpl.kt:91](../../../node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt)) | 별도 조치 불필요 (Debug/Dev 빌드). Release는 불가.             |
+| iOS     | **자동 활성화 없음.** WKWebView의 `inspectable`은 `webviewDebuggingEnabled` prop으로만 켜진다 ([RNCWebViewImpl.m:571](../../../node_modules/react-native-webview/apple/RNCWebViewImpl.m)). iOS 16.4 미만은 OS가 dev에서 자동 노출하지만, **16.4 이상은 이 prop 없이는 Safari에 안 뜬다.**  | `AppWebView`에 prop 추가 필요 (아래 스니펫). 현재 미설정 상태. |
 
 ### iOS: `webviewDebuggingEnabled` 켜기
 
@@ -86,15 +94,15 @@ stack이 이스케이프된 한 줄로 눌려 있어 실제 위치(`SocketManage
 ```mermaid
 flowchart LR
     WV["WebView (웹 앱)"]
-    WV -->|"logger.* → SendLog"| Fwd["포워딩 로그<br/>Metro 터미널 · 인앱 버퍼"]
+    WV -->|"logger.* → SendLogBatch"| Fwd["포워딩 로그<br/>Metro 터미널 · 미전송 큐"]
     WV -->|"Safari / chrome://inspect"| Insp["원격 인스펙터<br/>실제 DevTools"]
 ```
 
-| 상황                                        | 권장 수단                          |
-| ------------------------------------------- | ---------------------------------- |
-| 흐름을 빠르게 훑기, 실기기에서 원격으로 확인 | 포워딩 로그 (터미널 / DebugLogBufferPage) |
-| 코드 레벨 원인 추적, 객체 펼치기, 브레이크포인트 | 원격 인스펙터                      |
-| 네트워크/소켓 payload 확인                  | 원격 인스펙터 (Network 탭)         |
+| 상황                                             | 권장 수단                               |
+| ------------------------------------------------ | --------------------------------------- |
+| 흐름을 빠르게 훑기, 실기기에서 원격으로 확인     | 포워딩 로그 (터미널 / MonitoringScreen) |
+| 코드 레벨 원인 추적, 객체 펼치기, 브레이크포인트 | 원격 인스펙터                           |
+| 네트워크/소켓 payload 확인                       | 원격 인스펙터 (Network 탭)              |
 
 ## 트러블슈팅
 
@@ -104,4 +112,7 @@ flowchart LR
   프롬프트, (필요 시) 제조사 USB 드라이버를 확인.
 - **원격 인스펙터 연결은 되는데 소스가 번들로만 보임** → dev 서버(Vite) 소스맵으로 접속했는지 확인.
   프로덕션 번들은 minify되어 코드 레벨 추적이 제한된다.
+
+```
+
 ```

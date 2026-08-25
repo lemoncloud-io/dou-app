@@ -17,30 +17,76 @@ import type { LogEntry, LogLevel } from '../core/types';
 /** Entries kept before backpressure starts dropping. */
 export const DEFAULT_QUEUE_CAPACITY = 500;
 
+/**
+ * Bytes kept before backpressure starts dropping, on top of the count.
+ *
+ * Two axes because either alone leaves a hole. A count-only limit is cheap but
+ * says nothing about size, so a handful of entries carrying large `data` can eat
+ * far more than intended — and on the web that budget is shared with everything
+ * else on the origin, so logs winning it breaks features that have nothing to do
+ * with logging. A byte-only limit closes that but pays a serialization per push.
+ * The count does the everyday work; this is the ceiling behind it.
+ */
+export const DEFAULT_QUEUE_MAX_BYTES = 512 * 1024;
+
 export interface LogUploadQueueOptions {
     capacity?: number;
+    maxBytes?: number;
+    /**
+     * Whether `debug` is kept.
+     *
+     * False in a release build, where nothing reads it: the console is not
+     * running and Crashlytics discards it, so holding it would spend the store
+     * on entries no one can ever see. True everywhere else, because that is
+     * where someone *is* watching — and dropping the busiest level leaves the
+     * diagnostic window missing exactly the trace being followed.
+     *
+     * The host decides, using the same flag that decides whether its console
+     * runs, so the two cannot disagree about what "this build is being watched"
+     * means.
+     */
+    acceptDebug?: boolean;
     /** Called when backpressure drops entries, so the owner can log one summary. */
     onDrop?: (dropped: LogEntry[]) => void;
 }
 
-/** Drop order under backpressure: cheapest level first, oldest-first within a level. */
-const DROP_PRIORITY: LogLevel[] = ['info', 'warn', 'error'];
+/**
+ * Drop order under backpressure: cheapest level first, oldest-first within a level.
+ *
+ * `debug` leads because it is the highest-volume level and the least valuable
+ * per line. That ordering is what lets it be stored at all — without it a busy
+ * minute of request logging would evict the `warn`/`error` lines the window
+ * exists for, which is the failure the level policy used to avoid by keeping
+ * `debug` out entirely.
+ */
+const DROP_PRIORITY: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+
+/** Charged to an entry that cannot be measured, so it still counts against the budget. */
+const UNMEASURABLE_ENTRY_BYTES = 1024;
 
 export class LogUploadQueue {
     private readonly capacity: number;
+    private readonly maxBytes: number;
+    private readonly acceptDebug: boolean;
     private readonly onDrop?: (dropped: LogEntry[]) => void;
     private entries: LogEntry[] = [];
+    /**
+     * Measured size per entry, so the byte total costs one serialization per
+     * entry rather than one per check. Weak so a dropped entry's measurement
+     * goes with it.
+     */
+    private readonly measured = new WeakMap<LogEntry, number>();
 
     constructor(options: LogUploadQueueOptions = {}) {
         this.capacity = options.capacity ?? DEFAULT_QUEUE_CAPACITY;
+        this.maxBytes = options.maxBytes ?? DEFAULT_QUEUE_MAX_BYTES;
+        this.acceptDebug = options.acceptDebug ?? false;
         this.onDrop = options.onDrop;
     }
 
     /** Appends an entry, dropping under backpressure when over capacity. */
     public push(entry: LogEntry): void {
-        // debug is the highest-volume level and carries little value on its
-        // own, so it never enters the server-bound queue at all.
-        if (entry.level === 'debug') return;
+        if (entry.level === 'debug' && !this.acceptDebug) return;
 
         this.entries.push(entry);
         this.enforceCapacity();
@@ -50,7 +96,7 @@ export class LogUploadQueue {
     public pushAll(incoming: LogEntry[]): void {
         if (!incoming.length) return;
 
-        const shippable = incoming.filter(entry => entry.level !== 'debug');
+        const shippable = this.acceptDebug ? incoming : incoming.filter(entry => entry.level !== 'debug');
         if (!shippable.length) return;
 
         // Drop ids already queued. In a hybrid run a web entry is queued
@@ -102,9 +148,9 @@ export class LogUploadQueue {
 
     /** Replaces contents, e.g. restoring a persisted queue or adopting an orphan. */
     public restore(restored: LogEntry[]): void {
-        // A snapshot persisted by an older build may still hold debug
-        // entries from before they stopped being queued.
-        this.entries = restored.filter(entry => entry.level !== 'debug');
+        // A release build discards any `debug` a previous (watched) build left
+        // behind: nothing there can read it, and it would occupy the store.
+        this.entries = this.acceptDebug ? restored : restored.filter(entry => entry.level !== 'debug');
         this.enforceCapacity();
     }
 
@@ -127,18 +173,55 @@ export class LogUploadQueue {
         this.entries = [];
     }
 
+    /**
+     * Approximate serialized size of one entry, measured once and remembered.
+     *
+     * Approximate on purpose: this is a budget, not an accounting record, and
+     * the exact on-disk figure depends on the owner's own encoding. A value that
+     * cannot be stringified at all (a cycle the redactor did not flatten) is
+     * charged a nominal amount rather than zero — charging zero would let such
+     * entries accumulate unbounded, which is the opposite of what the axis is
+     * for.
+     */
+    private sizeOf(entry: LogEntry): number {
+        const cached = this.measured.get(entry);
+        if (cached !== undefined) return cached;
+
+        let size: number;
+        try {
+            size = JSON.stringify(entry)?.length ?? UNMEASURABLE_ENTRY_BYTES;
+        } catch {
+            size = UNMEASURABLE_ENTRY_BYTES;
+        }
+
+        this.measured.set(entry, size);
+        return size;
+    }
+
+    private totalBytes(): number {
+        return this.entries.reduce((sum, entry) => sum + this.sizeOf(entry), 0);
+    }
+
     private enforceCapacity(): void {
-        if (this.entries.length <= this.capacity) return;
+        let bytes = this.totalBytes();
+        if (this.entries.length <= this.capacity && bytes <= this.maxBytes) return;
 
         const overflow = this.entries.length - this.capacity;
         const doomed = new Set<LogEntry>();
 
+        // Both axes have to come back under, so a pass stops only when the count
+        // fits AND the bytes do. `over()` is re-read as entries are marked
+        // because dropping one large entry can satisfy the byte axis on its own.
+        const over = () => doomed.size < overflow || bytes > this.maxBytes;
+
         // Walk levels cheapest-to-lose first; within a level the oldest go.
         for (const level of DROP_PRIORITY) {
-            if (doomed.size >= overflow) break;
+            if (!over()) break;
             for (const entry of this.entries) {
-                if (doomed.size >= overflow) break;
-                if (entry.level === level) doomed.add(entry);
+                if (!over()) break;
+                if (entry.level !== level || doomed.has(entry)) continue;
+                doomed.add(entry);
+                bytes -= this.sizeOf(entry);
             }
         }
 

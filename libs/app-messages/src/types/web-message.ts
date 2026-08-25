@@ -38,7 +38,6 @@ import type {
     SavePreferencePayload,
     SaveTestRecordPayload,
     SearchGlobalCacheDataPayload,
-    SendLogBatchPayload,
     SendLogPayload,
     SendSmsPayload,
     SetBadgeCountPayload,
@@ -160,7 +159,6 @@ export type WebMessagePayloadMap = {
     ClearAppLogBuffer: ClearAppLogBufferPayload;
     FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
     SendLog: SendLogPayload;
-    SendLogBatch: SendLogBatchPayload;
     FetchLogUploadQueue: FetchLogUploadQueuePayload;
     AckLogUploadQueue: AckLogUploadQueuePayload;
     ClearLogUploadQueue: ClearLogUploadQueuePayload;

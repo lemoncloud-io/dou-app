@@ -92,26 +92,14 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         });
     });
 
-    it('log-buffer 메서드는 nonce를 올바른 위치에 배치해 request를 호출한다', () => {
-        appBridge.fetchAppLogBuffer('nonce-1', 20);
-        expect(requestMock).toHaveBeenLastCalledWith({
-            type: 'FetchAppLogBuffer',
-            nonce: 'nonce-1',
-            data: { count: 20 },
-        });
-
-        appBridge.pollAppLogBuffer('nonce-2', 10);
-        expect(requestMock).toHaveBeenLastCalledWith({
-            type: 'PollAppLogBuffer',
-            nonce: 'nonce-2',
-            data: { count: 10 },
-        });
-
-        appBridge.clearAppLogBuffer('nonce-3');
-        expect(requestMock).toHaveBeenLastCalledWith({ type: 'ClearAppLogBuffer', data: { nonce: 'nonce-3' } });
-
-        appBridge.fetchAppLogBufferSize('nonce-4');
-        expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchAppLogBufferSize', data: { nonce: 'nonce-4' } });
+    // 링버퍼가 폐지되면서 `*AppLogBuffer` 메서드 4개가 사라졌다. 메시지 타입과
+    // 앱 핸들러는 구버전 웹 호환으로 남지만 이 빌드는 부르지 않으므로, 부르지
+    // 않는다는 것 자체를 고정한다.
+    it('폐지된 log-buffer 메서드를 더 이상 노출하지 않는다', () => {
+        expect('fetchAppLogBuffer' in appBridge).toBe(false);
+        expect('pollAppLogBuffer' in appBridge).toBe(false);
+        expect('clearAppLogBuffer' in appBridge).toBe(false);
+        expect('fetchAppLogBufferSize' in appBridge).toBe(false);
     });
 
     it('sendSms는 수신자와 본문을 담아 request를 호출한다', () => {

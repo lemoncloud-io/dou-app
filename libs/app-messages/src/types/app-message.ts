@@ -72,7 +72,6 @@ import type {
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
-    OnSendLogBatchPayload,
     OnSendLogPayload,
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
@@ -181,7 +180,6 @@ export type AppMessageDataMap = {
     OnClearAppLogBuffer: OnClearAppLogBufferPayload;
     OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
-    OnSendLogBatch: OnSendLogBatchPayload;
     OnFetchLogUploadQueue: OnFetchLogUploadQueuePayload;
     OnAckLogUploadQueue: OnAckLogUploadQueuePayload;
     OnClearLogUploadQueue: OnClearLogUploadQueuePayload;

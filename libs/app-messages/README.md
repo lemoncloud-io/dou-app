@@ -84,19 +84,33 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Log & Common & Others
 
-| Message Type            | Payload (Data Example)                                                           | Description                                   | Expected Response         |
-| :---------------------- | :------------------------------------------------------------------------------- | :-------------------------------------------- | :------------------------ |
-| `WebAppReady`           | -                                                                                | 웹앱 준비가 완료되었음을 네이티브에 알립니다. | -                         |
-| `ShowLoader`            | -                                                                                | 네이티브 로딩 인디케이터를 보여줍니다.        | -                         |
-| `HideLoader`            | -                                                                                | 네이티브 로딩 인디케이터를 숨깁니다.          | -                         |
-| `SyncCredential`        | -                                                                                | 크레덴셜 동기화를 요청합니다.                 | -                         |
-| `PopWebView`            | -                                                                                | 현재 웹뷰를 스택에서 팝(종료) 처리합니다.     | -                         |
-| `SendLog`               | `{ level: 'error', tag: 'CHECKOUT', message: '...', data: {...}, error: {...} }` | Web 로그를 Native logger로 전달합니다.        | `OnSendLog`               |
-| `FetchAppLogBuffer`     | `{ count: 20 }`                                                                  | 버퍼에서 앞쪽 로그를 조회합니다(제거 안 함).  | `OnFetchAppLogBuffer`     |
-| `PollAppLogBuffer`      | `{ count: 20 }`                                                                  | 버퍼에서 앞쪽 로그를 조회하며 제거합니다.     | `OnPollAppLogBuffer`      |
-| `ClearAppLogBuffer`     | -                                                                                | 로그 버퍼를 전체 비웁니다.                    | `OnClearAppLogBuffer`     |
-| `FetchAppLogBufferSize` | -                                                                                | 현재 로그 버퍼 크기를 조회합니다.             | `OnFetchAppLogBufferSize` |
-| `Ping`                  | `{ payload: 'hello' }`                                                           | 연결 및 상태 확인을 위해 핑을 보냅니다.       | `Pong`                    |
+| Message Type            | Payload (Data Example)                                                           | Description                                                                                    | Expected Response         |
+| :---------------------- | :------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- | :------------------------ |
+| `WebAppReady`           | -                                                                                | 웹앱 준비가 완료되었음을 네이티브에 알립니다.                                                  | -                         |
+| `ShowLoader`            | -                                                                                | 네이티브 로딩 인디케이터를 보여줍니다.                                                         | -                         |
+| `HideLoader`            | -                                                                                | 네이티브 로딩 인디케이터를 숨깁니다.                                                           | -                         |
+| `SyncCredential`        | -                                                                                | 크레덴셜 동기화를 요청합니다.                                                                  | -                         |
+| `PopWebView`            | -                                                                                | 현재 웹뷰를 스택에서 팝(종료) 처리합니다.                                                      | -                         |
+| `SendLog`               | `{ level: 'error', tag: 'CHECKOUT', message: '...', data: {...}, error: {...} }` | Web 로그 1건을 Native logger로 전달합니다(구버전 폴백 — 평시에는 `SendLogBatch`).              | `OnSendLog`               |
+| `SendLogBatch`          | `{ logs: [{ id, level, tag, message, timestamp, ... }] }`                        | 웹 큐의 배치를 앱에 넘깁니다. 앱이 레벨로 갈라 넣습니다 — 전 레벨은 hub, 비-`debug`만 전송 큐. | `OnSendLogBatch`          |
+| `FetchLogUploadQueue`   | `{ limit: 50 }`                                                                  | 앱 전송 큐에서 배치를 조회합니다. **비파괴** — 놓아주는 것은 `AckLogUploadQueue`뿐입니다.      | `OnFetchLogUploadQueue`   |
+| `AckLogUploadQueue`     | `{ ids: ['uuid-1', 'uuid-2'] }`                                                  | 서버가 받은 엔트리를 전송 큐에서 제거합니다.                                                   | `OnAckLogUploadQueue`     |
+| `ClearLogUploadQueue`   | -                                                                                | 전송 큐를 전량 폐기합니다. **기기 opt-out 전용** — 로그아웃에는 쓰지 않습니다.                 | `OnClearLogUploadQueue`   |
+| `FetchAppLogBuffer`     | `{ count: 20 }`                                                                  | ~~버퍼 조회~~ **폐지 — 빈 결과.** 아래 주석 참고.                                              | `OnFetchAppLogBuffer`     |
+| `PollAppLogBuffer`      | `{ count: 20 }`                                                                  | ~~버퍼 조회+제거~~ **폐지 — 빈 결과, 아무것도 제거하지 않습니다.**                             | `OnPollAppLogBuffer`      |
+| `ClearAppLogBuffer`     | -                                                                                | ~~버퍼 비우기~~ **폐지 — no-op.**                                                              | `OnClearAppLogBuffer`     |
+| `FetchAppLogBufferSize` | -                                                                                | ~~버퍼 크기 조회~~ **폐지 — 항상 0.**                                                          | `OnFetchAppLogBufferSize` |
+| `Ping`                  | `{ payload: 'hello' }`                                                           | 연결 및 상태 확인을 위해 핑을 보냅니다.                                                        | `Pong`                    |
+
+> **`*AppLogBuffer` 4쌍은 왜 남아 있나** — 이 메시지들이 읽던 링버퍼는 폐지됐고(2026-08-21),
+> 미전송 큐가 유일한 로그 저장소다. 그래도 타입과 앱 핸들러를 지우지 않는 이유는 **웹이 앱보다
+> 먼저 배포되기 때문**이다: 이 변경 이전의 웹 빌드가 최신 앱에 설치된 채로 여전히 이 메시지를
+> 보낸다. 핸들러를 없애면 `NOT_FOUND`가 되어 그쪽 디버그 화면이 실패로 뜨므로, 앱은 빈 결과를
+> 돌려준다. 배포된 웹 빌드가 더 이상 부르지 않게 되면 4쌍 전부 삭제한다.
+>
+> 폐지분이 **전송 큐로 폴백하지 않는 것이 의도**다. `PollAppLogBuffer`는 계약상 파괴적이라,
+> 큐를 그 경로로 내주면 구버전 웹이 서버가 아직 받지 않은 엔트리를 배출시킨다 — 디버그 화면을
+> 채우려고 at-least-once를 깨는 셈이다.
 
 ---
 
@@ -175,10 +189,14 @@ This library was generated with [Nx](https://nx.dev).
 
 ### Log & Common & Others
 
-| Message Type              | Description                         | Data Structure (Example)                               |
-| :------------------------ | :---------------------------------- | :----------------------------------------------------- |
-| `OnSendLog`               | 로그 수신 및 처리 결과 반환         | -                                                      |
-| `OnFetchAppLogBuffer`     | 로그 버퍼 조회 결과 반환            | `{ logs: [{ tag: 'APP', message: '...' }], size: 42 }` |
-| `OnPollAppLogBuffer`      | 로그 버퍼 poll(조회+제거) 결과 반환 | `{ logs: [{ tag: 'APP', message: '...' }], size: 21 }` |
-| `OnClearAppLogBuffer`     | 로그 버퍼 clear 결과 반환           | `{ success: true, size: 0 }`                           |
-| `OnFetchAppLogBufferSize` | 현재 로그 버퍼 크기 반환            | `{ size: 21 }`                                         |
+| Message Type              | Description                                         | Data Structure (Example)     |
+| :------------------------ | :-------------------------------------------------- | :--------------------------- |
+| `OnSendLog`               | 로그 수신 및 처리 결과 반환                         | -                            |
+| `OnSendLogBatch`          | 충전 결과 — 적재 건수와 적재 후 큐 크기             | `{ accepted: 18, size: 42 }` |
+| `OnFetchLogUploadQueue`   | 전송 큐 배치와 **큐 전체 크기**(배치 크기가 아니다) | `{ logs: [...], size: 42 }`  |
+| `OnAckLogUploadQueue`     | 정리 후 남은 큐 크기                                | `{ size: 24 }`               |
+| `OnClearLogUploadQueue`   | 폐기 후 크기 — 정상이면 0                           | `{ size: 0 }`                |
+| `OnFetchAppLogBuffer`     | **폐지** — 항상 빈 목록                             | `{ logs: [], size: 0 }`      |
+| `OnPollAppLogBuffer`      | **폐지** — 항상 빈 목록                             | `{ logs: [], size: 0 }`      |
+| `OnClearAppLogBuffer`     | **폐지** — no-op                                    | `{ success: true, size: 0 }` |
+| `OnFetchAppLogBufferSize` | **폐지** — 항상 0                                   | `{ size: 0 }`                |

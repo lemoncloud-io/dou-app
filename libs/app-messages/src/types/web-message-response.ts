@@ -72,7 +72,6 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     ClearAppLogBuffer: 'OnClearAppLogBuffer',
     FetchAppLogBufferSize: 'OnFetchAppLogBufferSize',
     SendLog: 'OnSendLog',
-    SendLogBatch: 'OnSendLogBatch',
     FetchLogUploadQueue: 'OnFetchLogUploadQueue',
     AckLogUploadQueue: 'OnAckLogUploadQueue',
     ClearLogUploadQueue: 'OnClearLogUploadQueue',

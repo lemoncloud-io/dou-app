@@ -31,13 +31,23 @@ const readStatus = (error: unknown): number | undefined => {
 };
 
 /**
- * 4xx means the request will never be accepted as-is — an expired session, a
- * malformed list — so the batch is discarded rather than retried. Everything
+ * 4xx means the request will never be accepted as-is — a malformed list, a
+ * rejected shape — so the batch is discarded rather than retried. Everything
  * else (5xx, offline, timeout) is worth another attempt. The scheduler caps how
  * many, so this classification alone does not decide termination.
+ *
+ * 401/403 are the exception: they say "not signed in *right now*", which on
+ * this device is a passing state, not a verdict on the batch. Signing out and
+ * back in as someone else is an ordinary path here, and the queue deliberately
+ * survives logout because entries carry the uid/cid they were stamped with —
+ * discarding on 401 would throw away exactly the entries a session problem
+ * leaves behind, moments before the next session could have shipped them.
  */
+const AUTH_STATUSES = new Set([401, 403]);
+
 const classify = (error: unknown): UploadOutcome => {
     const status = readStatus(error);
+    if (status !== undefined && AUTH_STATUSES.has(status)) return 'retry';
     if (status !== undefined && status >= 400 && status < 500) return 'discard';
     return 'retry';
 };
@@ -60,7 +70,7 @@ export const uploadLogBatch = async (entries: LogEntry[]): Promise<UploadOutcome
     } catch (error) {
         const outcome = classify(error);
         // console, never logger — see the note above.
-         
+
         console.warn('[logBatch] upload failed', { outcome, status: readStatus(error) });
         return outcome;
     }

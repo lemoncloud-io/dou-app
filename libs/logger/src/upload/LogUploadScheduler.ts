@@ -1,37 +1,24 @@
-import {
-    DEFAULT_BACKOFF_MS,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_ERROR_ADVANCE_MS,
-    DEFAULT_INTERVAL_MS,
-    DEFAULT_MAX_ATTEMPTS,
-} from './uploadPolicy';
+import { DEFAULT_BACKOFF_MS, DEFAULT_BATCH_SIZE, DEFAULT_INTERVAL_MS, DEFAULT_MAX_ATTEMPTS } from './uploadPolicy';
 
 import type { TimerHandle, UploadOutcome } from './uploadPolicy';
-import type { LogUploadSource } from './LogUploadSource';
+import type { LogStoreReader } from './LogStore';
 import type { LogEntry } from '../core/types';
 
 export interface LogUploadSchedulerOptions {
     /**
-     * Where batches come from. In a hybrid run this is the native shell's queue
-     * reached over the bridge; standalone (and on any fallback) it is the local
-     * queue. The scheduler cannot tell the difference — that is the point.
+     * Where batches come from. In a hybrid run this is the app's store reached
+     * over the bridge; standalone it is the local one. The scheduler cannot tell
+     * the difference — that is the point. It is a *reader*, so the scheduler has
+     * no way to append: principle 16 holds at the type level.
      */
-    source: LogUploadSource;
+    store: LogStoreReader;
     send: (entries: LogEntry[]) => Promise<UploadOutcome>;
     batchSize?: number;
     intervalMs?: number;
-    errorAdvanceMs?: number;
     backoffMs?: number[];
     maxAttempts?: number;
     /** Remote kill switch — checked before every send. */
     isEnabled?: () => boolean;
-    /**
-     * Runs before a batch is composed, on every flush including the periodic
-     * one. The hybrid uploader drains the native buffer here; wiring that only
-     * into the caller's own flush would leave native entries unsent for the
-     * whole time an app stays in the foreground.
-     */
-    beforeFlush?: () => Promise<void>;
     /** Called once when a batch exhausts its attempts and is dropped. */
     onGiveUp?: (entries: LogEntry[], attempts: number) => void;
     /**
@@ -42,7 +29,6 @@ export interface LogUploadSchedulerOptions {
      * already taken — and a reload would resurrect them.
      */
     onSettled?: () => void;
-    now?: () => number;
     schedule?: (run: () => void, ms: number) => TimerHandle;
     cancel?: (handle: TimerHandle) => void;
 }
@@ -52,26 +38,33 @@ export interface LogUploadSchedulerOptions {
  * clock, the timer and the actual transport are injected, so every timing rule
  * below is testable without waiting in real time.
  *
- * The rules exist to keep a batching pipeline from degenerating into a
- * per-entry one:
- * - a flush needs enough to send, enough time, or an explicit lifecycle cue;
- * - an error brings the next batch forward but never sends on its own;
- * - failures back off, and a batch that keeps failing is eventually dropped so
- *   the client always terminates regardless of the status code it is given.
+ * It runs on its interval and nothing else. There is no `notify` — the
+ * scheduler does not observe dispatched entries at all, which is what makes
+ * "the hub's subscribers are the listeners, and only the listeners" true without
+ * any wiring to enforce it (principle 16). The size and error triggers this used
+ * to carry are gone with it: an `error` now waits for the next tick like
+ * everything else, and the thing that needs to react immediately — Crashlytics —
+ * is a listener, so it already does.
+ *
+ * `flushNow()` is the one way to send off-schedule. It is a lifecycle cue
+ * (pagehide, logout), not a trigger, and it is only meaningful web-standalone:
+ * in a hybrid run the app owns the store and the web is not the process that
+ * learns it is dying. What prevents loss there is the store being durable, not
+ * the flush.
+ *
+ * Failures back off, and a batch that keeps failing is eventually dropped so the
+ * client always terminates regardless of the status code it is given.
  */
 export class LogUploadScheduler {
-    private readonly source: LogUploadSource;
+    private readonly store: LogStoreReader;
     private readonly send: (entries: LogEntry[]) => Promise<UploadOutcome>;
     private readonly batchSize: number;
     private readonly intervalMs: number;
-    private readonly errorAdvanceMs: number;
     private readonly backoffMs: number[];
     private readonly maxAttempts: number;
     private readonly isEnabled?: () => boolean;
-    private readonly beforeFlush?: () => Promise<void>;
     private readonly onGiveUp?: (entries: LogEntry[], attempts: number) => void;
     private readonly onSettled?: () => void;
-    private readonly now: () => number;
     private readonly scheduleTimer: (run: () => void, ms: number) => TimerHandle;
     private readonly cancelTimer: (handle: TimerHandle) => void;
 
@@ -79,23 +72,17 @@ export class LogUploadScheduler {
     private running = false;
     private inFlight = false;
     private attempts = 0;
-    // Negative infinity, not 0: the first error must always be allowed to
-    // advance, whatever origin the injected clock counts from.
-    private lastAdvanceAt = Number.NEGATIVE_INFINITY;
 
     constructor(options: LogUploadSchedulerOptions) {
-        this.source = options.source;
+        this.store = options.store;
         this.send = options.send;
         this.batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
         this.intervalMs = options.intervalMs ?? DEFAULT_INTERVAL_MS;
-        this.errorAdvanceMs = options.errorAdvanceMs ?? DEFAULT_ERROR_ADVANCE_MS;
         this.backoffMs = options.backoffMs ?? DEFAULT_BACKOFF_MS;
         this.maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
         this.isEnabled = options.isEnabled;
-        this.beforeFlush = options.beforeFlush;
         this.onGiveUp = options.onGiveUp;
         this.onSettled = options.onSettled;
-        this.now = options.now ?? (() => Date.now());
         this.scheduleTimer = options.schedule ?? ((run, ms) => setTimeout(run, ms));
         this.cancelTimer = options.cancel ?? (handle => clearTimeout(handle));
     }
@@ -113,38 +100,10 @@ export class LogUploadScheduler {
         this.clearTimer();
     }
 
-    /** Records a newly queued entry so size and error triggers can fire. */
-    public notify(entry: LogEntry): void {
-        if (!this.running) return;
-
-        // Nothing jumps the backoff. The ladder is meant to space attempts
-        // out in TIME, but a busy app reaches the size threshold again
-        // within milliseconds of a failure — so without this guard all five
-        // attempts burn instantly and the batch is given up on, turning a
-        // brief server blip into permanent log loss.
-        if (this.isBackingOff()) return;
-
-        // A source that cannot answer synchronously (a bridge one) leaves the
-        // size trigger out entirely — asking would cost a round trip per log
-        // line. The periodic flush and the lifecycle cues still deliver.
-        const pending = this.source.pendingSize?.();
-        if (pending !== undefined && pending >= this.batchSize) {
-            void this.flush();
-            return;
-        }
-
-        if (entry.level !== 'error') return;
-
-        // Bring the next batch forward, but not more often than the floor
-        // and never to zero — an error storm would otherwise turn into one
-        // request per error, which is what batching is for.
-        const at = this.now();
-        if (at - this.lastAdvanceAt < this.errorAdvanceMs) return;
-        this.lastAdvanceAt = at;
-        this.armTimer(this.errorAdvanceMs);
-    }
-
-    /** Sends now if there is anything to send (background entry, pagehide). */
+    /**
+     * Sends now, off-schedule. A lifecycle cue (pagehide, logout) rather than a
+     * trigger — see the class note on why it is web-standalone only.
+     */
     public flushNow(): Promise<void> {
         return this.flush();
     }
@@ -164,11 +123,6 @@ export class LogUploadScheduler {
         }, ms);
     }
 
-    /** True while retrying a failed batch — error advances must not interfere. */
-    private isBackingOff(): boolean {
-        return this.attempts > 0;
-    }
-
     /**
      * Releases a batch the pipeline is done with.
      *
@@ -180,7 +134,7 @@ export class LogUploadScheduler {
      */
     private async release(batch: LogEntry[]): Promise<void> {
         try {
-            await this.source.ack(batch);
+            await this.store.ack(batch);
         } catch {
             /* keep going — the entries stay put and ride the next batch */
         }
@@ -232,25 +186,20 @@ export class LogUploadScheduler {
         // the bandwidth and the doubled attempt count are still ours to pay.
         this.inFlight = true;
         try {
-            if (this.beforeFlush) {
-                try {
-                    await this.beforeFlush();
-                } catch {
-                    // A failed pre-step is not fatal — send what the source holds.
-                }
-            }
-
             let batch: LogEntry[];
             try {
-                batch = await this.source.fetch(this.batchSize);
+                batch = await this.store.peek(this.batchSize);
             } catch {
-                // The source is unreachable this cycle (a bridge round trip that
+                // The store is unreachable this cycle (a bridge round trip that
                 // timed out, say). Nothing is lost — it never released anything —
                 // so treat it like an empty cycle and come back on the timer.
                 this.armTimer(this.intervalMs);
                 return;
             }
 
+            // Nothing to send: skip the request entirely rather than posting an
+            // empty batch. An idle device would otherwise call the collector once
+            // per interval forever.
             if (!batch.length) {
                 this.armTimer(this.intervalMs);
                 return;

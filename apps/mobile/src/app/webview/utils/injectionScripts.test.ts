@@ -1,4 +1,10 @@
-import { getDebugModeScript, getDeviceInfoScript, getSyncInjectionScript, getThemeScript } from './injectionScripts';
+import {
+    getDebugModeScript,
+    getDeviceInfoScript,
+    getLogUploadHoldScript,
+    getSyncInjectionScript,
+    getThemeScript,
+} from './injectionScripts';
 import type { DeviceInfoParams } from './injectionScripts';
 
 const makeParams = (overrides: Partial<DeviceInfoParams> = {}): DeviceInfoParams => ({
@@ -70,6 +76,13 @@ describe('getDebugModeScript — 디버그 모드 언락 주입 스크립트', (
     });
 });
 
+describe('getLogUploadHoldScript — 전송 보류 주입 스크립트', () => {
+    it('보류 상태를 boolean 전역으로 주입한다', () => {
+        expect(getLogUploadHoldScript(true)).toContain('window.CHATIC_APP_LOG_UPLOAD_HOLD = true;');
+        expect(getLogUploadHoldScript(false)).toContain('window.CHATIC_APP_LOG_UPLOAD_HOLD = false;');
+    });
+});
+
 describe('getThemeScript — 테마 주입 스크립트', () => {
     it('영속화된 테마를 문자열 전역으로 주입한다', () => {
         // JSON.stringify, not a quoted template hole: the result is evaluated as JS, so the
@@ -91,5 +104,28 @@ describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
         // The web's pre-paint script reads this global before the first paint, so it must
         // ride along in the same script that is injected before content loads.
         expect(script).toContain('window.CHATIC_APP_THEME = "dark";');
+    });
+
+    it('보류 상태를 부팅 스크립트에 싣는다 — 재시작한 WebView가 보류를 유지해야 한다', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+            logUploadHold: true,
+        });
+
+        expect(script).toContain('window.CHATIC_APP_LOG_UPLOAD_HOLD = true;');
+    });
+
+    it('보류를 안 넘기면 꺼진 상태로 주입한다 — 전역이 없으면 웹이 판단 근거를 잃는다', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+        });
+
+        expect(script).toContain('window.CHATIC_APP_LOG_UPLOAD_HOLD = false;');
     });
 });

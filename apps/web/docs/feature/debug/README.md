@@ -4,7 +4,7 @@
 
 ## 책임
 
-개발자 전용 도구 묶음이다. 런타임 상태·성능 관찰, 인증 흐름 테스트, 캐시/DB 동작 점검, 업로드 모니터링, 로그 버퍼 조회 등 진단·테스트 도구를 제공한다.
+개발자 전용 도구 묶음이다. 런타임 상태·성능 관찰, 인증 흐름 테스트, 캐시/DB 동작 점검, 업로드 모니터링, 미전송 로그 큐 조회 등 진단·테스트 도구를 제공한다.
 
 과거에는 `/debug` 라우트 페이지(DebugPage 허브)와 DEV 전용 플로팅 패널(RuntimeOverlay)로 나뉘어 있었으나, **단일 오버레이(DebugOverlay)로 통합**했다. 오버레이는 라우터 밖(`app.tsx` 레벨)에 마운트되므로:
 
@@ -25,17 +25,17 @@ DebugOverlayHost (app.tsx 마운트, 게이트 통과 시 우하단 "debug" 플�
 
 ## 도구 스크린 (확장 모드)
 
-| 스크린                 | 키               | 설명                                                                |
-| ---------------------- | ---------------- | ------------------------------------------------------------------- |
-| `EmailLoginScreen`     | `EmailLogin`     | 이메일 로그인 테스트(`useLogin`)                                    |
-| `LogBufferScreen`      | `LogBuffer`      | 로그 버퍼 뷰어(fetch/poll/clear) — 네이티브=앱 버퍼, 웹=메모리 버퍼 |
-| `CacheTestScreen`      | `CacheTest`      | SQLite 브릿지 벤치마크(저장/조회·동시성·flood, 레이턴시 통계)       |
-| `UploadTestScreen`     | `UploadTest`     | 멀티파일 청크 업로드 컨트롤러(pause/resume/cancel/retry)            |
-| `PushScreen`           | `Push`           | 푸시 토큰 서버 등록여부 확인 + 포그라운드 수신 목록                 |
-| `InviteRedirectScreen` | `InviteRedirect` | 공유 링크 → 초대 리다이렉트 URL 변환기                              |
-| `DBBrowserScreen`      | `DBBrowser`      | 도메인 캐시 브라우저(repository observe 기반)                       |
-| `ProfileEditorScreen`  | `ProfileEditor`  | 활성 place의 내 프로필(nick/thumbnail) 편집                         |
-| `DeviceInfoScreen`     | `DeviceInfo`     | 네이티브 주입 deviceId/installId/platform (탭하여 복사)             |
+| 스크린                 | 키               | 설명                                                           |
+| ---------------------- | ---------------- | -------------------------------------------------------------- |
+| `EmailLoginScreen`     | `EmailLogin`     | 이메일 로그인 테스트(`useLogin`)                               |
+| `LogBufferScreen`      | `LogBuffer`      | 미전송 큐 뷰어 + 전송 보류 토글 — 하이브리드=앱 큐, 웹=로컬 큐 |
+| `CacheTestScreen`      | `CacheTest`      | SQLite 브릿지 벤치마크(저장/조회·동시성·flood, 레이턴시 통계)  |
+| `UploadTestScreen`     | `UploadTest`     | 멀티파일 청크 업로드 컨트롤러(pause/resume/cancel/retry)       |
+| `PushScreen`           | `Push`           | 푸시 토큰 서버 등록여부 확인 + 포그라운드 수신 목록            |
+| `InviteRedirectScreen` | `InviteRedirect` | 공유 링크 → 초대 리다이렉트 URL 변환기                         |
+| `DBBrowserScreen`      | `DBBrowser`      | 도메인 캐시 브라우저(repository observe 기반)                  |
+| `ProfileEditorScreen`  | `ProfileEditor`  | 활성 place의 내 프로필(nick/thumbnail) 편집                    |
+| `DeviceInfoScreen`     | `DeviceInfo`     | 네이티브 주입 deviceId/installId/platform (탭하여 복사)        |
 
 Chat Test Dashboard, Badge Count Test 스크린은 통합 과정에서 제거했다.
 

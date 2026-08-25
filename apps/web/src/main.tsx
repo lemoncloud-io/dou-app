@@ -11,21 +11,41 @@ import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
-import { attachLogContext } from './app/runtime/logContext';
-import { startLogUploader } from './app/runtime/logUploader';
-import { createLogUploadSwitch } from './app/runtime/logUploadSwitch';
+import { attachConsoleListener } from './app/runtime/logging/consoleListener';
+import { attachLogContext } from './app/runtime/logging/logContext';
+import { startLogUploader } from './app/runtime/logging/logUploader';
+import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
-import { initWebVitals } from './app/utils';
+// Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
+// which the barrel deliberately keeps out (see its comment).
+import { initWebVitals } from './app/utils/webVitals';
 
-// Wire log sinks before anything else logs: native WebView forwards to the
-// app (mirrored to the console in dev builds), plain web logs to the console.
-setupBridgeLogger({ consoleInNative: import.meta.env.DEV });
+// Wire the hub's listeners before anything else logs (principle 15). Two of the
+// three live here; the storage listener is attached by `startLogUploader` below,
+// which owns the queue it writes into.
+setupBridgeLogger();
+attachConsoleListener({ isDev: import.meta.env.DEV });
 
 // Context must be registered before anything logs: it is stamped at dispatch,
 // so an entry written earlier would carry none and be unattributable.
 attachLogContext();
+
+// Always-on log collection, wired BEFORE anything can log: the queue is filled
+// by a hub subscription, so an entry dispatched before this line lands nowhere.
+// Nothing above logs today and nothing below may be moved above it — that
+// ordering is the guarantee now that the core no longer keeps a buffer of its
+// own (see the unified-logging doc, principle 15).
+//
+// The build flag is read here rather than inside the switch: `import.meta` in a
+// runtime module would make that module unloadable under the test transform.
+startLogUploader({
+    isEnabled: createLogUploadSwitch(import.meta.env.VITE_LOG_UPLOAD_DISABLED === 'true'),
+    // Same flag that decides whether the console listener runs: if someone is
+    // watching this build, `debug` is worth keeping; if not, nothing can read it.
+    keepDebug: import.meta.env.DEV,
+});
 
 // Read the previous session's fate — a session that died without a clean
 // pagehide is reported as page-crash (ADR-0047 S7). The report carries no
@@ -36,16 +56,6 @@ schedulePageCrashReport(webLogBoot);
 // Relay reports the native side detected while the web was down (WebView
 // crash, RN exceptions, native crashes) through the signed web reporter.
 schedulePendingReportFlush();
-
-// Always-on log collection: batches leave on size, time, or backgrounding,
-// independently of whether anything went wrong. Started after the report paths
-// so its own queue restore never delays crash reporting.
-//
-// The build flag is read here rather than inside the switch: `import.meta` in a
-// runtime module would make that module unloadable under the test transform.
-startLogUploader({
-    isEnabled: createLogUploadSwitch(import.meta.env.VITE_LOG_UPLOAD_DISABLED === 'true'),
-});
 
 // Repository policies must land before the data runtime is lazily created (first render):
 // the embedded `$site` of user.profile is persisted into the place cache only on the relay

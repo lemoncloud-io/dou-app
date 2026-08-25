@@ -7,7 +7,6 @@ import {
     firebaseCrashlyticsService,
     firebaseInstallationService,
     keyValueStorage,
-    logBufferService,
     logUploadQueueService,
     logger,
     notificationService,
@@ -26,7 +25,6 @@ import {
 // their message callbacks so SQLite opens only on first use. See boot-optimization.md 4.4.
 export const useServices = () => ({
     logService: logger,
-    logBufferService: logBufferService,
     logUploadQueueService: logUploadQueueService,
     pendingReportQueueService: pendingReportQueueService,
     deviceService: deviceService,

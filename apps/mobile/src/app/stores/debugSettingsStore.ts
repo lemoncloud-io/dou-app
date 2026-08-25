@@ -15,6 +15,11 @@ interface DebugSettingsState {
     overlayContentOpacity: number;
     /** Runtime debug unlock propagated from the web 10-tap gesture (works in PROD builds). */
     debugModeEnabled: boolean;
+    /**
+     * 로그 업로드 보류 — 큐를 비우지 말고 쌓아두게 만들어 MonitoringScreen이 읽을 수 있게 한다.
+     * 기기 opt-out(수집 거부)과는 다른 레버다: 보류는 큐를 유지하고, opt-out은 버린다.
+     */
+    logUploadHold: boolean;
     /** 커스텀 web zip이 압축해제된 로컬 루트 (persist — 재시작 시 서버 복원의 유일한 진실원) */
     customZipLocalRoot: string | null;
     /**
@@ -29,6 +34,7 @@ interface DebugSettingsState {
     setOverlayBackdropOpacity: (opacity: number) => void;
     setOverlayContentOpacity: (opacity: number) => void;
     setDebugModeEnabled: (enabled: boolean) => void;
+    setLogUploadHold: (hold: boolean) => void;
     setCustomZipLocalRoot: (root: string | null) => void;
     setCustomZipServerUrl: (url: string | null) => void;
     resetDebugSettings: () => void;
@@ -42,6 +48,7 @@ export const defaultDebugSettings = {
     overlayBackdropOpacity: 0.35,
     overlayContentOpacity: 1,
     debugModeEnabled: false,
+    logUploadHold: false,
     customZipLocalRoot: null,
     customZipServerUrl: null,
 };
@@ -67,6 +74,7 @@ export const useDebugSettingsStore = create<DebugSettingsState>()(
             setOverlayBackdropOpacity: opacity => set({ overlayBackdropOpacity: clampOverlayOpacity(opacity) }),
             setOverlayContentOpacity: opacity => set({ overlayContentOpacity: clampOverlayContentOpacity(opacity) }),
             setDebugModeEnabled: enabled => set({ debugModeEnabled: enabled }),
+            setLogUploadHold: hold => set({ logUploadHold: hold }),
             setCustomZipLocalRoot: root => set({ customZipLocalRoot: root }),
             setCustomZipServerUrl: url => set({ customZipServerUrl: normalizeUrl(url) }),
             resetDebugSettings: () => set(defaultDebugSettings),

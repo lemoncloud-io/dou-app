@@ -34,6 +34,14 @@ export interface CachedDeviceInfo {
  */
 export interface DynamicDeviceInfo {
     stage: string;
+    /**
+     * Whether this build's console listener is live — the web reads it to decide
+     * whether relaying `debug` reaches anything.
+     *
+     * Passed in rather than read from `__DEV__` here so this stays a pure
+     * function, which is the reason it was extracted in the first place.
+     */
+    consoleEnabled: boolean;
     appLanguage: string;
     /** Firebase installation id; resolves asynchronously, absent until then. */
     firebaseInstallId?: string | null;
@@ -57,6 +65,7 @@ export const buildDeviceInfoParams = (cached: CachedDeviceInfo, dynamic: Dynamic
         platform: cached.platform,
         applicationName: cached.applicationName,
         stage: dynamic.stage,
+        consoleEnabled: dynamic.consoleEnabled,
         uniqueId,
         deviceModel: cached.deviceModel || '',
         osVersion: cached.osVersion,

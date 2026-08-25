@@ -75,17 +75,10 @@ export const useOnFetchCurrentPurchases = (handler: (message: AppMessageData<'On
 export const useOnFetchProducts = (handler: (message: AppMessageData<'OnFetchProducts'>) => void) =>
     useHandleAppMessage('OnFetchProducts', handler);
 
-export const useOnFetchAppLogBuffer = (handler: (message: AppMessageData<'OnFetchAppLogBuffer'>) => void) =>
-    useHandleAppMessage('OnFetchAppLogBuffer', handler);
-
-export const useOnPollAppLogBuffer = (handler: (message: AppMessageData<'OnPollAppLogBuffer'>) => void) =>
-    useHandleAppMessage('OnPollAppLogBuffer', handler);
-
-export const useOnClearAppLogBuffer = (handler: (message: AppMessageData<'OnClearAppLogBuffer'>) => void) =>
-    useHandleAppMessage('OnClearAppLogBuffer', handler);
-
-export const useOnFetchAppLogBufferSize = (handler: (message: AppMessageData<'OnFetchAppLogBufferSize'>) => void) =>
-    useHandleAppMessage('OnFetchAppLogBufferSize', handler);
+// The `OnFetchAppLogBuffer` / `OnPollAppLogBuffer` / `OnClearAppLogBuffer` /
+// `OnFetchAppLogBufferSize` hooks are gone with the ring buffer. They had no
+// consumers even before that — these four messages are request/response, so
+// callers read the resolved promise rather than subscribing to an event.
 
 export const useOnOAuthLogin = (handler: (message: AppMessageData<'OnOAuthLogin'>) => void) =>
     useHandleAppMessage('OnOAuthLogin', handler);

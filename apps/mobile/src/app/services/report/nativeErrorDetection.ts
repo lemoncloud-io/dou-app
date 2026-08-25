@@ -1,11 +1,11 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { ILogService } from '../log';
-import type { ILogBufferService } from '../log/buffer';
+import type { ILogUploadQueueService } from '../log/uploadQueue/types';
 import type { IPendingReportQueueService } from './types';
 
 export interface NativeErrorDetectionDeps {
     logService: ILogService;
-    logBufferService: ILogBufferService;
+    logUploadQueue: ILogUploadQueueService;
     pendingReports: IPendingReportQueueService;
 }
 
@@ -79,28 +79,31 @@ export const installNativeErrorDetection = (deps: NativeErrorDetectionDeps): voi
 /**
  * Pure-native crash detection (ADR-0047): JVM/signal crashes kill the process
  * before anything can report, so Crashlytics captures the stack and the NEXT
- * launch queues a `native-crash` report. The breadcrumb is the previous
- * session's buffer tail — alive in MMKV thanks to log persistence. The stack
- * itself exists only in the Crashlytics console (dual-track by design); the
- * report timestamp approximates the crash with the last persisted entry.
+ * launch queues a `native-crash` report. The stack itself exists only in the
+ * Crashlytics console (dual-track by design); the report timestamp approximates
+ * the crash with the previous run's last log.
  *
- * Call AFTER logBufferService.init() so the restored entries are readable.
+ * Call AFTER logUploadQueueService.init(), which is what reads that timestamp
+ * off disk.
  */
 export const checkCrashOnPreviousExecution = async (deps: NativeErrorDetectionDeps): Promise<void> => {
-    const { logService, logBufferService, pendingReports } = deps;
+    const { logService, logUploadQueue, pendingReports } = deps;
     try {
         const crashed = await crashlytics().didCrashOnPreviousExecution();
         if (!crashed) return;
 
-        // The buffer is read for its last entry's TIME, not to attach it: the
-        // relaunch detection has no crash timestamp of its own, and the newest
-        // entry from the dead run is the closest approximation.
-        const lastEntry = logBufferService.peek().at(-1);
+        // A dedicated high-water mark, not the queue's newest entry: `ack`
+        // removes whatever the server accepted, so a device that was uploading
+        // normally right up to the crash has an empty queue and would report the
+        // wrong time — or none at all.
+        const lastLogAt = logUploadQueue.getPreviousRunLastLogAt();
         logService.warn('GLOBAL', '[native-crash] previous execution crashed (Crashlytics relaunch detection)');
         pendingReports.enqueue({
             category: 'native-crash',
             message: 'Previous app execution crashed (stack in Crashlytics console)',
-            detectedAt: lastEntry?.timestamp || Date.now(),
+            // No recorded log means no better guess than now — the report is
+            // still worth more than the timestamp it carries.
+            detectedAt: lastLogAt || Date.now(),
         });
     } catch (error) {
         logService.warn('GLOBAL', 'didCrashOnPreviousExecution check failed', { error });

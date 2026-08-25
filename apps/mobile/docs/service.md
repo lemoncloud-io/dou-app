@@ -21,7 +21,7 @@ flowchart TD
 
 | Instance                                                               | 책임                                          |
 | ---------------------------------------------------------------------- | --------------------------------------------- |
-| `logService`, `consoleLogger`, `logBufferService`                      | 앱 로깅과 인앱 로그 버퍼                      |
+| `logService`, `consoleLogger`, `logUploadQueueService`                 | 앱 로깅과 미전송 로그 큐(유일한 로그 저장소)  |
 | `keyValueStorage`                                                      | MMKV key-value 저장                           |
 | `sqliteDatabase`                                                       | SQLite 접근                                   |
 | `cacheCrudService`, `cacheSearchService`                               | WebView용 로컬 캐시 API                       |

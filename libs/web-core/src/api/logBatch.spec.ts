@@ -99,10 +99,19 @@ describe('uploadLogBatch — 응답 분류', () => {
         await expect(uploadLogBatch([entry()])).resolves.toBe('ok');
     });
 
-    it.each([400, 401, 403, 404, 422])('%s는 재시도하지 않고 폐기한다', async status => {
+    it.each([400, 404, 422])('%s는 재시도하지 않고 폐기한다', async status => {
         execute.mockRejectedValue(httpError(status));
 
         await expect(uploadLogBatch([entry()])).resolves.toBe('discard');
+    });
+
+    // 계정 전환은 흔한 경로고 큐는 로그아웃을 넘겨 살아남는다. 무세션 구간의
+    // 401/403에 배치를 버리면, 다음 세션이 부칠 수 있었던 엔트리를 그 직전에
+    // 잃는다 — 그것도 세션 문제의 정황이 담긴 바로 그 엔트리들을.
+    it.each([401, 403])('%s는 폐기하지 않고 재시도한다 (지나가는 무세션 상태)', async status => {
+        execute.mockRejectedValue(httpError(status));
+
+        await expect(uploadLogBatch([entry()])).resolves.toBe('retry');
     });
 
     it.each([500, 502, 503])('%s는 재시도 대상이다', async status => {

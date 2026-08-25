@@ -17,8 +17,6 @@ export type TimerHandle = ReturnType<typeof setTimeout>;
 
 export const DEFAULT_BATCH_SIZE = 50;
 export const DEFAULT_INTERVAL_MS = 60_000;
-/** An error pulls the next batch in to this delay — not to zero. */
-export const DEFAULT_ERROR_ADVANCE_MS = 5_000;
 export const DEFAULT_BACKOFF_MS = [5_000, 30_000, 120_000];
 /**
  * Attempts for one batch before it is given up on.

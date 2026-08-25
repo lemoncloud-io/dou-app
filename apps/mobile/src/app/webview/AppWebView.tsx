@@ -8,9 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
-import { getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
+import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
-import { NATIVE_RUN_ID } from '../services/log/nativeLogContext';
+import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
@@ -99,6 +99,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const firebaseInstallId = useFirebaseInstallId();
     const versionCheck = getVersionCheckResult();
     const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
+    const logUploadHold = useDebugSettingsStore(state => state.logUploadHold);
     // Seeds the web's pre-paint script. Only `injectedJavaScriptBeforeContentLoaded` matters for
     // that, which applies to the next load — a live theme change needs no push, since the web
     // initiated it and already knows.
@@ -107,9 +108,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         insets,
         keyboardHeight,
         debugModeEnabled,
+        logUploadHold,
         theme,
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: Config.VITE_ENV || 'PROD',
+            // Same flag that gates the console subscription in `provider.ts`.
+            // Tying them together is the point: the web relays `debug` if and
+            // only if something over here will print it.
+            consoleEnabled: __DEV__,
             appLanguage: getAppLanguage(),
             firebaseInstallId,
             latestVersion: versionCheck?.latestVersion ?? '',
@@ -121,6 +127,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         if (!webViewRef.current) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
     }, [insets, keyboardHeight]);
+
+    // Pushed live rather than only at load: the point of holding is to reproduce
+    // a bug while it is on, and a reload would discard the very session being
+    // reproduced. Sending on mount too is harmless — the boot script already set
+    // the same value.
+    useEffect(() => {
+        webViewRef.current?.injectJavaScript(getLogUploadHoldScript(logUploadHold));
+    }, [logUploadHold]);
 
     const setRefs = useCallback(
         (node: WebView | null) => {

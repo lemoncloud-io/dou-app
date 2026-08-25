@@ -1,5 +1,5 @@
 import { createLogUploadQueue } from './LogUploadQueue';
-import { createQueueUploadSource } from './QueueLogUploadSource';
+import { createQueueLogStore } from './QueueLogStore';
 import { createLogUploadScheduler } from './LogUploadScheduler';
 import { DEFAULT_MAX_ATTEMPTS } from './uploadPolicy';
 import type { UploadOutcome } from './uploadPolicy';
@@ -50,194 +50,98 @@ beforeEach(() => {
     seq = 0;
 });
 
-describe('createLogUploadScheduler — flush 트리거', () => {
-    it('보낼 엔트리가 배치 크기에 차면 즉시 보낸다', async () => {
+describe('createLogUploadScheduler — 주기 트리거', () => {
+    it('주기가 오면 쌓인 것을 보낸다', async () => {
         const h = createHarness();
         const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
+        const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
-            batchSize: 2,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
-        scheduler.start();
 
-        const a = entry();
-        queue.push(a);
-        scheduler.notify(a);
-        expect(send).not.toHaveBeenCalled();
-
-        const b = entry();
-        queue.push(b);
-        scheduler.notify(b);
-        await Promise.resolve();
-
-        expect(send).toHaveBeenCalledTimes(1);
-    });
-
-    it('debug만 쌓이면 배치 크기에 닿지 않는다 — 큐 전체로 재면 요청이 증폭된다', async () => {
-        const h = createHarness();
-        const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
-        const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
-            send,
-            batchSize: 2,
-            now: h.now,
-            schedule: h.schedule,
-            cancel: h.cancel,
-        });
-        scheduler.start();
-
-        for (let i = 0; i < 5; i += 1) {
-            const e = entry('debug');
-            queue.push(e);
-            scheduler.notify(e);
-        }
-        await Promise.resolve();
-
-        expect(send).not.toHaveBeenCalled();
-    });
-
-    it('시간이 지나면 배치가 덜 찼어도 보낸다', async () => {
-        const h = createHarness();
-        const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
-        const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
-            send,
-            batchSize: 50,
-            intervalMs: 60_000,
-            now: h.now,
-            schedule: h.schedule,
-            cancel: h.cancel,
-        });
-        scheduler.start();
         queue.push(entry());
-
-        expect(h.dueIn()).toBe(60_000);
+        scheduler.start();
         await h.fire();
 
         expect(send).toHaveBeenCalledTimes(1);
     });
 
-    it('flushNow는 강제로 보낸다 (백그라운드 진입·pagehide)', async () => {
+    it('엔트리가 아무리 쌓여도 주기 전에는 보내지 않는다 — 크기 트리거는 없다', async () => {
+        // notify가 사라진 결과다. 업로더는 엔트리를 관찰하지 않으므로(원칙 16)
+        // 큐가 얼마나 찼는지 알 방법이 없고, 알 필요도 없다.
         const h = createHarness();
         const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
+        const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
-        scheduler.start();
-        queue.push(entry());
 
+        scheduler.start();
+        for (let i = 0; i < 200; i += 1) queue.push(entry());
+        await Promise.resolve();
+
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('error가 쌓여도 앞당기지 않는다 — 즉시성은 Crashlytics 리스너의 몫이다', async () => {
+        const h = createHarness();
+        const queue = createLogUploadQueue();
+        const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
+        const scheduler = createLogUploadScheduler({
+            store: createQueueLogStore(queue),
+            send,
+            schedule: h.schedule,
+            cancel: h.cancel,
+        });
+
+        scheduler.start();
+        const armedBefore = h.dueIn();
+        queue.push(entry('error'));
+        await Promise.resolve();
+
+        expect(send).not.toHaveBeenCalled();
+        expect(h.dueIn()).toBe(armedBefore);
+    });
+
+    it('flushNow는 강제로 보낸다 (pagehide·로그아웃)', async () => {
+        const h = createHarness();
+        const queue = createLogUploadQueue();
+        const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
+        const scheduler = createLogUploadScheduler({
+            store: createQueueLogStore(queue),
+            send,
+            schedule: h.schedule,
+            cancel: h.cancel,
+        });
+
+        queue.push(entry());
+        scheduler.start();
         await scheduler.flushNow();
 
         expect(send).toHaveBeenCalledTimes(1);
     });
 
-    it('보낼 게 없으면 요청하지 않는다', async () => {
+    it('보낼 게 없으면 요청하지 않는다 — 유휴 기기가 주기마다 빈 요청을 쏘면 안 된다', async () => {
         const h = createHarness();
-        const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
+        const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(createLogUploadQueue()),
             send,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
-        scheduler.start();
 
-        await scheduler.flushNow();
+        scheduler.start();
+        await h.fire();
 
         expect(send).not.toHaveBeenCalled();
-    });
-});
-
-describe('createLogUploadScheduler — error 앞당김', () => {
-    it('error가 나면 다음 배치를 앞당기되 즉시 보내지는 않는다', async () => {
-        const h = createHarness();
-        const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
-        const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
-            send,
-            batchSize: 50,
-            intervalMs: 60_000,
-            errorAdvanceMs: 5_000,
-            now: h.now,
-            schedule: h.schedule,
-            cancel: h.cancel,
-        });
-        scheduler.start();
-
-        const e = entry('error');
-        queue.push(e);
-        scheduler.notify(e);
-
-        expect(send).not.toHaveBeenCalled();
-        expect(h.dueIn()).toBe(5_000);
-    });
-
-    it('하한 안에서는 재앞당기지 않는다 — 에러 폭주가 연속 flush가 되면 안 된다', () => {
-        const h = createHarness();
-        const queue = createLogUploadQueue();
-        const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
-            send: jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok'),
-            batchSize: 50,
-            errorAdvanceMs: 5_000,
-            now: h.now,
-            schedule: h.schedule,
-            cancel: h.cancel,
-        });
-        scheduler.start();
-
-        const first = entry('error');
-        queue.push(first);
-        scheduler.notify(first);
-
-        h.advance(1_000);
-        const second = entry('error');
-        queue.push(second);
-        scheduler.notify(second);
-
-        // Still the original advance, not re-armed to a fresh 5s.
-        expect(h.dueIn()).toBe(4_000);
-    });
-
-    it('백오프 재시도 중에는 앞당김을 무시한다', async () => {
-        const h = createHarness();
-        const queue = createLogUploadQueue();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
-        const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
-            send,
-            batchSize: 50,
-            backoffMs: [5_000, 30_000],
-            now: h.now,
-            schedule: h.schedule,
-            cancel: h.cancel,
-        });
-        scheduler.start();
-        queue.push(entry());
-
-        await scheduler.flushNow();
-        expect(h.dueIn()).toBe(5_000);
-
-        const e = entry('error');
-        queue.push(e);
-        scheduler.notify(e);
-
-        expect(h.dueIn()).toBe(5_000);
+        expect(h.dueIn()).toBeDefined();
     });
 });
 
@@ -246,9 +150,8 @@ describe('createLogUploadScheduler — 응답 처리', () => {
         const h = createHarness();
         const queue = createLogUploadQueue();
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send: jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok'),
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -265,10 +168,9 @@ describe('createLogUploadScheduler — 응답 처리', () => {
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('discard');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             intervalMs: 60_000,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -286,11 +188,10 @@ describe('createLogUploadScheduler — 응답 처리', () => {
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             backoffMs: [5_000, 30_000, 120_000],
             maxAttempts: 5,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -316,10 +217,9 @@ describe('createLogUploadScheduler — 응답 처리', () => {
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockRejectedValue(new Error('offline'));
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             backoffMs: [5_000],
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -340,13 +240,12 @@ describe('createLogUploadScheduler — 시도 상한 (무한 재전송 차단)',
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
         const onGiveUp = jest.fn();
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             backoffMs: [1_000],
             maxAttempts: 3,
             intervalMs: 60_000,
             onGiveUp,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -368,11 +267,10 @@ describe('createLogUploadScheduler — 시도 상한 (무한 재전송 차단)',
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             backoffMs: [1_000],
             maxAttempts: 2,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -400,10 +298,9 @@ describe('createLogUploadScheduler — 원격 스위치와 수명', () => {
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             isEnabled: () => false,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -420,9 +317,8 @@ describe('createLogUploadScheduler — 원격 스위치와 수명', () => {
         const h = createHarness();
         const queue = createLogUploadQueue();
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send: jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok'),
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -437,12 +333,11 @@ describe('createLogUploadScheduler — onSettled (영속화 훅)', () => {
     const build = (outcome: UploadOutcome, onSettled: () => void, h: ReturnType<typeof createHarness>) => {
         const queue = createLogUploadQueue();
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send: jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue(outcome),
             backoffMs: [1_000],
             maxAttempts: 2,
             onSettled,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -498,17 +393,20 @@ describe('createLogUploadScheduler — onSettled (영속화 훅)', () => {
 });
 
 describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)', () => {
-    it('백오프 중에는 크기 트리거로도 보내지 않는다 — 시도 예산이 한순간에 소진된다', async () => {
+    it('백오프 중에 엔트리가 아무리 쌓여도 사다리를 뛰어넘지 않는다', async () => {
+        // 원래 이 회귀는 notify의 크기 트리거가 백오프를 무시하고 재발사해
+        // 시도 예산을 한순간에 태우는 것이었다. notify가 사라져 그 경로 자체가
+        // 없어졌지만, 성질은 그대로 고정해 둔다 — 주기 외에 보내는 길이 다시
+        // 생기면 여기서 걸린다.
         const h = createHarness();
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             batchSize: 2,
             backoffMs: [120_000],
             maxAttempts: 99,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -519,11 +417,9 @@ describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)',
         expect(send).toHaveBeenCalledTimes(1);
         expect(h.dueIn()).toBe(120_000);
 
-        // Busy app: the size threshold is met again immediately.
-        for (let i = 0; i < 4; i += 1) {
-            const e = entry();
-            queue.push(e);
-            scheduler.notify(e);
+        // Busy app: entries keep arriving while the ladder is counting down.
+        for (let i = 0; i < 8; i += 1) {
+            queue.push(entry());
             await Promise.resolve();
             await Promise.resolve();
         }
@@ -542,13 +438,12 @@ describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)',
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
         const onGiveUp = jest.fn();
         const scheduler = createLogUploadScheduler({
-            source: createQueueUploadSource(queue),
+            store: createQueueLogStore(queue),
             send,
             batchSize: 2,
             backoffMs: [1_000],
             maxAttempts: 2,
             onGiveUp,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -565,20 +460,21 @@ describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)',
     });
 });
 
-describe('createLogUploadScheduler — 소스 포트 (ADR-0063)', () => {
-    it('fetch가 실패하면 아무것도 보내지 않고 다음 주기를 예약한다 — 소스는 놓아준 게 없다', async () => {
+describe('createLogUploadScheduler — 저장소 포트', () => {
+    it('peek이 실패하면 아무것도 보내지 않고 다음 주기를 예약한다 — 저장소는 놓아준 게 없다', async () => {
         const h = createHarness();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
         const scheduler = createLogUploadScheduler({
-            source: {
-                fetch: async () => {
+            store: {
+                peek: async () => {
                     throw new Error('bridge timeout');
                 },
                 ack: async () => undefined,
+                clear: async () => undefined,
+                size: () => 0,
             },
             send,
             intervalMs: 60_000,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -591,22 +487,23 @@ describe('createLogUploadScheduler — 소스 포트 (ADR-0063)', () => {
     });
 
     it('전송 성공 후 ack이 실패해도 파이프라인이 멈추지 않는다', async () => {
-        // ack 실패는 삼킨다. 소스가 엔트리를 계속 들고 있으므로 다음 주기에 다시
+        // ack 실패는 삼킨다. 저장소가 엔트리를 계속 들고 있으므로 다음 주기에 다시
         // 나가고, 서버의 id 업서트가 중복을 흡수한다. 던지면 타이머를 못 걸어
         // 파이프라인이 영구히 조용해진다 — 중복 요청보다 나쁜 결과다.
         const h = createHarness();
         const held = [entry()];
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
         const scheduler = createLogUploadScheduler({
-            source: {
-                fetch: async limit => held.slice(0, limit),
+            store: {
+                peek: async limit => held.slice(0, limit),
                 ack: async () => {
                     throw new Error('ack failed');
                 },
+                clear: async () => undefined,
+                size: () => held.length,
             },
             send,
             intervalMs: 60_000,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });
@@ -618,35 +515,8 @@ describe('createLogUploadScheduler — 소스 포트 (ADR-0063)', () => {
         expect(h.dueIn()).toBe(60_000);
     });
 
-    it('pendingSize를 못 주는 소스는 크기 트리거가 없다 — 주기·생명주기로만 나간다', async () => {
-        // 브릿지 소스가 이 경우다. 매 로그마다 크기를 물어보면 배치의 존재 이유가 사라진다.
-        const h = createHarness();
-        const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
-        const scheduler = createLogUploadScheduler({
-            source: {
-                fetch: async () => [entry()],
-                ack: async () => undefined,
-            },
-            send,
-            batchSize: 1,
-            now: h.now,
-            schedule: h.schedule,
-            cancel: h.cancel,
-        });
-        scheduler.start();
-
-        scheduler.notify(entry());
-        scheduler.notify(entry());
-        await Promise.resolve();
-
-        expect(send).not.toHaveBeenCalled();
-
-        await h.fire();
-        expect(send).toHaveBeenCalledTimes(1);
-    });
-
-    it('겹친 flush가 같은 배치를 두 번 보내지 않는다 — 비파괴 fetch의 함정', async () => {
-        // fetch가 비파괴라 진행 중 flush를 막지 않으면 두 사이클이 같은 배치를
+    it('겹친 flush가 같은 배치를 두 번 보내지 않는다 — 비파괴 peek의 함정', async () => {
+        // peek이 비파괴라 진행 중 flush를 막지 않으면 두 사이클이 같은 배치를
         // 집어 두 번 전송한다. 서버는 id 업서트로 버티지만 대역폭과 시도 횟수는 우리 몫이다.
         const h = createHarness();
         const held = [entry()];
@@ -658,12 +528,13 @@ describe('createLogUploadScheduler — 소스 포트 (ADR-0063)', () => {
                 })
         );
         const scheduler = createLogUploadScheduler({
-            source: {
-                fetch: async limit => held.slice(0, limit),
+            store: {
+                peek: async limit => held.slice(0, limit),
                 ack: async () => undefined,
+                clear: async () => undefined,
+                size: () => held.length,
             },
             send,
-            now: h.now,
             schedule: h.schedule,
             cancel: h.cancel,
         });

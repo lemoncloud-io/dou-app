@@ -2,7 +2,7 @@ import { REDACTED } from '@chatic/logger';
 import type { LogEntry, LogListener } from '@chatic/logger';
 
 import { FirebaseCrashlyticsService } from './FirebaseCrashlyticsService';
-import { NATIVE_RUN_ID } from '../../log/nativeLogContext';
+import { NATIVE_RUN_ID } from '../../log/native/nativeLogContext';
 
 import type { ILogService } from '../../log';
 
@@ -131,5 +131,27 @@ describe('FirebaseCrashlyticsService', () => {
 
         listener(entry({ level: 'error' }));
         expect(recordError).toHaveBeenCalledTimes(1);
+    });
+
+    // `debug` is console-only by design. Crashlytics keeps ~64KB of custom log
+    // per session and evicts oldest-first, so one debug per HTTP request
+    // (withNetworkLog) would spend the whole budget on request noise and push
+    // out the lines just before the crash.
+    it('drops debug entries instead of spending the breadcrumb budget on them', () => {
+        const listener = startService();
+
+        listener(entry({ level: 'debug', message: 'GET /channels' }));
+
+        expect(crashlyticsLog).not.toHaveBeenCalled();
+    });
+
+    it('still breadcrumbs every level above debug', () => {
+        const listener = startService();
+
+        listener(entry({ level: 'info' }));
+        listener(entry({ level: 'warn' }));
+        listener(entry({ level: 'error' }));
+
+        expect(crashlyticsLog).toHaveBeenCalledTimes(3);
     });
 });
