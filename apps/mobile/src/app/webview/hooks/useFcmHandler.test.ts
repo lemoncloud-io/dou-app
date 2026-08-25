@@ -7,8 +7,15 @@ import { notificationService, pushEventManager } from '../../services';
 let mockOnMessageCb: ((msg: any) => void) | undefined;
 let mockOnReceiveCb: ((msg: any) => void) | undefined;
 
+let mockForegroundPushCb: ((event: any) => void) | undefined;
+
 jest.mock('react-native', () => ({
-    DeviceEventEmitter: { addListener: jest.fn(() => ({ remove: jest.fn() })) },
+    DeviceEventEmitter: {
+        addListener: jest.fn((event: string, cb: (payload: any) => void) => {
+            if (event === 'onForegroundPushReceived') mockForegroundPushCb = cb;
+            return { remove: jest.fn() };
+        }),
+    },
     Platform: { OS: 'ios' },
 }));
 
@@ -41,6 +48,7 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
         jest.clearAllMocks();
         mockOnMessageCb = undefined;
         mockOnReceiveCb = undefined;
+        mockForegroundPushCb = undefined;
         bridge = { pushEvent: jest.fn() };
     });
 
@@ -95,6 +103,53 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
             type: 'OnReceiveNotification',
             success: true,
             data: { notification: { title: '제목', body: '본문', data: { id: '1' } } },
+        });
+    });
+
+    describe('안드로이드 네이티브 포그라운드 이벤트 매핑', () => {
+        // The native service resolves title/body/link itself but knows nothing about `ownerId` or
+        // the chat channel — so it hands over the FCM payload as-is and this mapping must keep it.
+        const emitNative = () =>
+            act(() => {
+                mockForegroundPushCb?.({
+                    messageId: 'm1',
+                    type: 'chat',
+                    title: '제목',
+                    body: '본문',
+                    clickAction: 'chatic://channels/ch1/room',
+                    // The OS notification channel, NOT the chat channel.
+                    channelId: 'dou_chat',
+                    timestamp: '1700000000000',
+                    payload: JSON.stringify({ channelId: 'ch1', ownerId: 'u1', cid: 'c1' }),
+                    data: { silent: 'false', channel_id: 'dou_chat', extra: 'kept' },
+                });
+            });
+
+        it('FCM 데이터 전체와 payload 안의 필드를 모두 웹으로 넘긴다', () => {
+            renderHook(() => useFcmHandler(bridge as any));
+
+            emitNative();
+
+            const [message] = (pushEventManager.emitReceiveNotification as jest.Mock).mock.calls[0];
+            expect(message.data).toMatchObject({
+                channelId: 'ch1',
+                ownerId: 'u1',
+                cid: 'c1',
+                extra: 'kept',
+                payload: JSON.stringify({ channelId: 'ch1', ownerId: 'u1', cid: 'c1' }),
+            });
+        });
+
+        // Overwriting `channelId` with "dou_chat" matched no room route, so the web could never
+        // tell it was already reading the room the push came from.
+        it('OS 알림 채널을 chat channelId 자리에 덮어쓰지 않는다', () => {
+            renderHook(() => useFcmHandler(bridge as any));
+
+            emitNative();
+
+            const [message] = (pushEventManager.emitReceiveNotification as jest.Mock).mock.calls[0];
+            expect(message.data.channelId).toBe('ch1');
+            expect(message.data.notificationChannelId).toBe('dou_chat');
         });
     });
 

@@ -48,6 +48,45 @@ export const extractPushContext = (data: InAppPushData): { cid?: string; sid?: s
     return { cid: asString(source.cid), sid: asString(source.sid), chatId: asString(source.chatId) };
 };
 
+/**
+ * Accepts a number as well as a string: FCM `data` values always arrive as strings, but the fields
+ * nested in the `payload` JSON keep whatever type the sender wrote them with — an id serialized as
+ * a number would otherwise read as absent.
+ */
+const asId = (value: unknown): string | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    return asString(value);
+};
+
+/** Everything the in-app banner reads off a push — see `useInAppPushMessage`. */
+export interface PushBannerFields {
+    /** The sender of the notified message (my own id = my echo, never a banner). */
+    ownerId?: string;
+    /** The CHAT channel the message belongs to — never the OS notification channel. */
+    channelId?: string;
+    /** Channel name for the `#name` headline. */
+    channelName?: string;
+    /** Whatever photo the sender baked in; the card falls back to a glyph without one. */
+    thumbnail?: string;
+}
+
+/**
+ * The fields the banner presents and suppresses on, read through the same `payload` merge as every
+ * other extractor here. Reading them off `data` directly is what let both suppression rules
+ * silently no-op: senders nest these in `payload`, and on the Android foreground path the shell
+ * used to overwrite top-level `channelId` with the OS notification channel ("dou_chat"), which
+ * matches no room route.
+ */
+export const extractPushBannerFields = (data: InAppPushData): PushBannerFields => {
+    const source = mergePushPayload(data);
+    return {
+        ownerId: asId(source.ownerId),
+        channelId: asId(source.channelId),
+        channelName: asString(source.channelName),
+        thumbnail: asString(source.thumbnail) ?? asString(source.imageUrl),
+    };
+};
+
 /** Cross-cloud push mark hint (ADR-0056) — every field `resolvePushCloudId` can use to disambiguate. */
 export interface PushCloudHint {
     cid?: string;

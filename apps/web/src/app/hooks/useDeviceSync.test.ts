@@ -28,9 +28,14 @@ const useAppVisibilityMock = useAppVisibility as jest.Mock;
 const syncDevice = jest.fn();
 const syncStatus = jest.fn();
 
-// Drive the hook by the channel currently matched by the route.
-const setChannel = (channelId: string | null) =>
-    useMatchMock.mockReturnValue(channelId ? { params: { channelId } } : null);
+// Drive the hook by the channel currently matched by the route. The hook matches two patterns
+// (room and thread), so the mock answers per pattern — `surface` picks which one hits.
+const setChannel = (channelId: string | null, surface: 'room' | 'thread' = 'room') =>
+    useMatchMock.mockImplementation((pattern: string) => {
+        if (!channelId) return null;
+        const isThreadPattern = pattern.includes('/thread/');
+        return isThreadPattern === (surface === 'thread') ? { params: { channelId } } : null;
+    });
 
 // Fire the visibility handler captured from the latest render, as the bridge would.
 const emitVisibility = (isForeground: boolean) => {
@@ -76,6 +81,25 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
         rerender();
         expect(syncDevice).toHaveBeenNthCalledWith(2, 'channel', 'B');
         expect(syncDevice).toHaveBeenCalledTimes(2);
+    });
+
+    // A thread is the same room from another angle, so the server must keep filtering that
+    // channel's pushes while the user reads one (docs/specs/mobile/push-notification-scenarios.md).
+    it('스레드 화면도 그 채널을 viewing으로 통지한다', () => {
+        setChannel('A', 'thread');
+        renderHook(() => useDeviceSync());
+
+        expect(syncDevice).toHaveBeenCalledWith('channel', 'A');
+    });
+
+    it('방 → 스레드 이동은 clear도 재통지도 만들지 않는다', () => {
+        setChannel('A', 'room');
+        const { rerender } = renderHook(() => useDeviceSync());
+        expect(syncDevice).toHaveBeenNthCalledWith(1, 'channel', 'A');
+
+        setChannel('A', 'thread');
+        rerender();
+        expect(syncDevice).toHaveBeenCalledTimes(1);
     });
 
     it('같은 채널로 재렌더되면 중복 통지하지 않는다', () => {

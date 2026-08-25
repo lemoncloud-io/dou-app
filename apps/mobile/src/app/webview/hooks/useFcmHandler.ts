@@ -131,6 +131,9 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         const foregroundPushSubscription = DeviceEventEmitter.addListener('onForegroundPushReceived', event => {
             logger.info('NOTIFICATION', 'Received Android native foreground push event:', event);
             try {
+                // The FCM payload verbatim (`event.data`), then the fields nested in its `payload`
+                // JSON on top — the nested copy is the authoritative one for `channelId`/`ownerId`,
+                // which is what the web suppresses its in-app banner on.
                 const customData = event.payload ? JSON.parse(event.payload) : {};
                 const remoteMessage = {
                     messageId: event.messageId,
@@ -140,15 +143,22 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                         body: event.body,
                     },
                     data: {
+                        ...(event.data ?? {}),
                         ...customData,
                         id: event.messageId,
                         messageId: event.messageId,
                         type: event.type,
                         link: event.clickAction,
                         clickAction: event.clickAction,
+                        // The OS NOTIFICATION channel ("dou_chat"), never the chat channel. Writing
+                        // it to `channelId` (as this used to) hid the real chat id from the web, so
+                        // its "am I already reading this room?" check could never match.
                         channel_id: event.channelId,
-                        channelId: event.channelId,
+                        notificationChannelId: event.channelId,
                         timestamp: event.timestamp,
+                        // Kept raw so the web can merge it itself — that merge is what keeps the
+                        // suppression working on app builds older than this one.
+                        payload: event.payload,
                     },
                 };
                 pushEventManager.emitReceiveNotification(remoteMessage as any);

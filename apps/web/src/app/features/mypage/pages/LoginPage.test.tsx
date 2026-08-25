@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { LoginPage } from './LoginPage';
 
@@ -21,8 +21,24 @@ jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
-const oauthLogin = jest.fn();
-jest.mock('../../../bridge', () => ({ appBridge: { oauthLogin: (...a: unknown[]) => oauthLogin(...a) } }));
+/** What native puts on the `OnOAuthLogin` channel: a credential, a cancel, or a failure. */
+type OAuthResultMessage = {
+    success: boolean;
+    data?: { result: { provider: string } | null };
+    error?: { code: string };
+};
+
+const startOAuthLogin = jest.fn();
+let deliverOAuthResult: ((message: OAuthResultMessage) => void) | null = null;
+
+// The screen fires the request and SUBSCRIBES for the result, so a test plays native by capturing
+// the subscriber and calling it — there is no promise to resolve.
+jest.mock('../../../bridge', () => ({
+    appBridge: { startOAuthLogin: (...a: unknown[]) => startOAuthLogin(...a) },
+    useOnOAuthLogin: (handler: (message: OAuthResultMessage) => void) => {
+        deliverOAuthResult = handler;
+    },
+}));
 
 // Phone login is dev-only; keeping it visible lets the onVerified path be exercised here.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => true }));
@@ -39,11 +55,26 @@ jest.mock('../../auth/components/PhoneVerifySheet', () => ({
 beforeEach(() => {
     jest.clearAllMocks();
     currentLocation = { state: null };
-    oauthLogin.mockResolvedValue({ data: { result: { provider: 'google' } } });
+    deliverOAuthResult = null;
     loginRelaySocial.mockResolvedValue(undefined);
 });
 
-const signInWithGoogle = () => fireEvent.click(screen.getByTestId('login-google'));
+const GOOGLE_CREDENTIAL: OAuthResultMessage = { success: true, data: { result: { provider: 'google' } } };
+
+const tapGoogle = () => fireEvent.click(screen.getByTestId('login-google'));
+
+/** Play the native side answering on the push channel. */
+const nativeAnswers = async (message: OAuthResultMessage) => {
+    await act(async () => {
+        deliverOAuthResult?.(message);
+    });
+};
+
+/** The whole happy path: tap, then native comes back with a credential. */
+const signInWithGoogle = async () => {
+    tapGoogle();
+    await nativeAnswers(GOOGLE_CREDENTIAL);
+};
 
 /**
  * jsdom always reports `history.length === 1`, but the real stack has at least the entry point and
@@ -51,6 +82,57 @@ const signInWithGoogle = () => fireEvent.click(screen.getByTestId('login-google'
  * while the router state survives, so the two cases are set explicitly here.
  */
 const withHistoryLength = (length: number) => jest.spyOn(window.history, 'length', 'get').mockReturnValue(length);
+
+describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
+    // 이 화면의 회귀 고정점이다. 요청과 결과가 한 왕복으로 묶여 있던 동안에는 브릿지 기본 15초가
+    // 그 왕복에 걸렸고, 사람이 구글 UI에서 그보다 오래 걸리면 이미 발급된 자격증명이 "기다리는 이가
+    // 없는 응답"으로 도착해 폐기됐다 — 구글에서는 로그인됐는데 앱은 로그인 화면에 남는 증상.
+    it('버튼 탭은 요청만 쏘고 결과를 기다리지 않는다', async () => {
+        withHistoryLength(3);
+        currentLocation = { state: { returnTo: '/mypage' } };
+        render(<LoginPage />);
+
+        tapGoogle();
+
+        expect(startOAuthLogin).toHaveBeenCalledWith('google');
+        // 탭만으로는 아무 일도 일어나지 않는다 — 결과는 별도 채널로 온다.
+        expect(navigate).not.toHaveBeenCalled();
+
+        await nativeAnswers(GOOGLE_CREDENTIAL);
+
+        expect(navigate).toHaveBeenCalledWith(-1);
+    });
+
+    it('네이티브가 실패를 보고하면 이동하지 않는다', async () => {
+        render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers({ success: false, error: { code: 'OAUTH_LOGIN_ERROR' } });
+
+        expect(loginRelaySocial).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('OAuth가 취소되면(result null) 이동하지 않는다', async () => {
+        render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers({ success: true, data: { result: null } });
+
+        expect(loginRelaySocial).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('로그인이 실패하면 이동하지 않는다', async () => {
+        loginRelaySocial.mockRejectedValue(new Error('boom'));
+        render(<LoginPage />);
+
+        await signInWithGoogle();
+
+        expect(loginRelaySocial).toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+});
 
 describe('LoginPage — 로그인 후 복귀', () => {
     // 진입점이 로그인 화면을 push했으므로 직전 항목이 곧 돌아갈 화면이다. replace로 덮으면 같은
@@ -60,7 +142,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
         currentLocation = { state: { returnTo: '/subscription/plans' } };
         render(<LoginPage />);
 
-        signInWithGoogle();
+        await signInWithGoogle();
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(navigate).toHaveBeenCalledWith(-1);
@@ -72,7 +154,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
         currentLocation = { state: { returnTo: '//evil.example.com' } };
         render(<LoginPage />);
 
-        signInWithGoogle();
+        await signInWithGoogle();
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(navigate).not.toHaveBeenCalledWith('//evil.example.com', expect.anything());
@@ -82,7 +164,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
     it('returnTo가 없으면 홈으로 복귀한다', async () => {
         render(<LoginPage />);
 
-        signInWithGoogle();
+        await signInWithGoogle();
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(navigate).toHaveBeenCalledWith('/', expect.objectContaining({ replace: true }));
@@ -92,7 +174,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
     it('홈 폴백은 back 방향 트랜지션을 명시한다', async () => {
         render(<LoginPage />);
 
-        signInWithGoogle();
+        await signInWithGoogle();
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(navigate).toHaveBeenCalledWith('/', { replace: true, transition: true, direction: 'back' });
@@ -106,7 +188,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
         currentLocation = { state: { returnTo: '/mypage' } };
         render(<LoginPage />);
 
-        signInWithGoogle();
+        await signInWithGoogle();
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(navigate).toHaveBeenCalledWith('/', expect.objectContaining({ replace: true }));
@@ -121,7 +203,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
 
         currentLocation = { state: { returnTo: '/mypage' } };
         render(<LoginPage />);
-        signInWithGoogle();
+        await signInWithGoogle();
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(go).not.toHaveBeenCalled();
@@ -142,25 +224,5 @@ describe('LoginPage — 로그인 후 복귀', () => {
         fireEvent.click(screen.getByTestId('phone-verified'));
 
         expect(navigate).toHaveBeenCalledWith(-1);
-    });
-
-    it('OAuth가 취소되면(result null) 이동하지 않는다', async () => {
-        oauthLogin.mockResolvedValue({ data: { result: null } });
-        render(<LoginPage />);
-
-        signInWithGoogle();
-
-        await waitFor(() => expect(oauthLogin).toHaveBeenCalled());
-        expect(navigate).not.toHaveBeenCalled();
-    });
-
-    it('로그인이 실패하면 이동하지 않는다', async () => {
-        loginRelaySocial.mockRejectedValue(new Error('boom'));
-        render(<LoginPage />);
-
-        signInWithGoogle();
-
-        await waitFor(() => expect(loginRelaySocial).toHaveBeenCalled());
-        expect(navigate).not.toHaveBeenCalled();
     });
 });

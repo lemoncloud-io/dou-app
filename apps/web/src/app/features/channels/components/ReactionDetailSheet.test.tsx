@@ -14,9 +14,13 @@ jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boo
 const mockCommits = { count: 0 };
 
 jest.mock('@chatic/web-ui-kit', () => ({
-    BottomSheet: ({ open, children }: any) => {
+    BottomSheet: ({ open, children, className }: any) => {
         mockCommits.count += 1;
-        return open ? <div data-testid="sheet">{children}</div> : null;
+        return open ? (
+            <div data-testid="sheet" className={className}>
+                {children}
+            </div>
+        ) : null;
     },
     ImageAvatar: ({ src }: any) => <img data-testid="image-avatar" src={src} alt="" />,
     DefaultAvatar: () => <div data-testid="default-avatar" />,
@@ -112,6 +116,19 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
 
         expect(screen.getByText('에이다')).toBeInTheDocument();
         expect(screen.getAllByRole('tab')).toHaveLength(1);
+    });
+
+    // 반응자 목록은 시트가 열려 있는 동안에도 늘고 준다. 높이가 내용을 따라가면 읽고 있던
+    // 줄이 손가락 밑에서 움직이므로, 화면 절반으로 고정하고 목록만 스크롤시킨다.
+    it('내용과 무관하게 화면 절반 높이로 열린다', () => {
+        const { rerender } = render(<ReactionDetailSheet {...baseProps} />);
+        expect(screen.getByTestId('sheet')).toHaveClass('h-[50vh]');
+
+        // 반응자가 한 명뿐인 탭으로 바꿔도 시트는 같은 높이를 유지한다.
+        rerender(<ReactionDetailSheet {...baseProps} tallies={[tallies[1]]} />);
+        expect(screen.getByTestId('sheet')).toHaveClass('h-[50vh]');
+        // 남는 높이는 시트가 아니라 목록이 흡수한다.
+        expect(screen.getByRole('list')).toHaveClass('flex-1', 'overflow-y-auto');
     });
 
     it('닫혀 있으면 아무것도 렌더하지 않는다', () => {

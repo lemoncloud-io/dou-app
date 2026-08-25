@@ -105,6 +105,44 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).toHaveBeenCalledTimes(1);
     });
 
+    // 발신자에 따라 이 필드들은 top-level이 아니라 `payload` JSON 안에 온다. 예전처럼 raw로 읽으면
+    // 두 억제 규칙이 조용히 통째로 죽는다 — 그래서 배너가 뜨지 말아야 할 때 떴다.
+    it('payload에 중첩된 ownerId로도 내 메시지를 알아본다', () => {
+        invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelId: 'abc', ownerId: 'me' }) } });
+
+        expect(toastCustom).not.toHaveBeenCalled();
+    });
+
+    it('payload의 ownerId가 숫자로 와도 내 메시지로 본다', () => {
+        (useSessionIdentity as jest.Mock).mockReturnValue({ userId: '1001' });
+
+        invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelId: 'abc', ownerId: 1001 }) } });
+
+        expect(toastCustom).not.toHaveBeenCalled();
+    });
+
+    // 안드로이드 포그라운드 경로는 top-level `channelId`에 OS 알림 채널("dou_chat")을 실어 보냈다.
+    // payload가 top-level을 이겨야 진짜 대화방 id가 라우트 비교에 쓰인다.
+    it('top-level channelId가 OS 알림 채널이어도 payload의 채널 id로 비교한다', () => {
+        setCurrentPath('/channels/abc/room');
+
+        invoke({
+            title: 'T',
+            body: 'B',
+            data: { channelId: 'dou_chat', payload: JSON.stringify({ channelId: 'abc' }) },
+        });
+
+        expect(toastCustom).not.toHaveBeenCalled();
+    });
+
+    it('payload에 중첩된 channelName도 헤드라인으로 쓴다', () => {
+        invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelName: 'general' }) } });
+
+        renderToastContent();
+
+        expect(screen.getByText('general')).toBeTruthy();
+    });
+
     it('배너 클릭 시 토스트를 닫고 푸시 네비게이션 경로로 이동한다', () => {
         invoke({ title: 'T', body: 'B', data: { link: '/channels/abc/room', cid: 'c1' } });
 
@@ -124,12 +162,14 @@ describe('useInAppPushMessage', () => {
         expect(navigateToPush).not.toHaveBeenCalled();
     });
 
-    it('채널명이 있으면 #채널명을 헤드라인으로 쓴다', () => {
+    // 방 이름은 그대로 쓴다 — `#`은 공개 채널 관례라 1:1·나와의 채팅에도 붙어 어색했다.
+    it('채널명이 있으면 이름 그대로를 헤드라인으로 쓴다', () => {
         invoke({ title: 'T', body: 'B', data: { channelId: 'abc', channelName: 'general' } });
 
         renderToastContent();
 
-        expect(screen.getByText('#general')).toBeTruthy();
+        expect(screen.getByText('general')).toBeTruthy();
+        expect(screen.queryByText('#general')).toBeNull();
         expect(screen.getByText('B')).toBeTruthy();
     });
 

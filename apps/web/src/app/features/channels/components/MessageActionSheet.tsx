@@ -67,7 +67,14 @@ export const MessageActionSheet = ({
             title={t('chat.room.messageActions')}
             description={t('chat.room.messageActionsDescription')}
             onClose={() => onOpenChange(false)}
+            // Half the screen, like the two reaction sheets it opens next to: the row count here
+            // moves with the target message (`canReact`/`canReply`, and the quick row's own
+            // recents), so a sheet that sized to its content dealt every message a different
+            // panel and moved copy/reply under the thumb between long-presses.
+            className="h-[50vh]"
         >
+            {/* Actions stay at the top of the fixed panel — the slack below is empty rather
+                than stretched across the rows, which would spread the touch targets apart. */}
             <div className="flex flex-col px-4 pb-2">
                 {canReact && (
                     <div className="flex items-center justify-between gap-1 pb-3 pt-1">

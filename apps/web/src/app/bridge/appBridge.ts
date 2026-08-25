@@ -154,9 +154,43 @@ export const appBridge = {
     // Auth
     // ---------------------------------------------------------------
 
-    /** Start a native OAuth login flow for the given provider. */
-    oauthLogin(provider: Payload<'OAuthLogin'>['provider']): Promise<WebMessageResponse<'OAuthLogin'>> {
-        return webClient.request({ type: 'OAuthLogin', data: { provider } });
+    /**
+     * Start a native OAuth login flow. The credential arrives separately, as an `OnOAuthLogin` push
+     * event — subscribe with `useOnOAuthLogin` (see `features/mypage/pages/LoginPage.tsx`).
+     *
+     * Deliberately NOT a request/response pair. That shape carries the bridge's default 15s budget,
+     * and this flow waits on a HUMAN inside the provider's own UI (account chooser, password, 2FA,
+     * consent). A run that took longer expired mid-flight, and the credential the user had ALREADY
+     * earned came back to a request nobody was waiting for — dropped as an unlistened event. The
+     * result: signed in at Google, still sitting on the login screen. Splitting the two removes the
+     * clock entirely; the credential is welcome whenever it lands.
+     *
+     * The native side answers failures on the same channel (`success: false`), so a subscriber sees
+     * every outcome. Host-level errors (`type: 'ERROR'` — e.g. no registered handler) do NOT travel
+     * this channel, which is why native must keep reporting OAuth failures as an `OnOAuthLogin`
+     * response instead of throwing.
+     */
+    startOAuthLogin(provider: Payload<'OAuthLogin'>['provider']): void {
+        webClient.post({ type: 'OAuthLogin', data: { provider } });
+    },
+
+    /**
+     * Same native flow, awaited — for ACCOUNT LINKING, which needs the raw provider token in hand to
+     * run `verify` then `confirm` (see `features/mypage/hooks/useSocialLinks.ts`).
+     *
+     * Linking keeps the request/response shape because its caller is a promise-shaped hook, but it
+     * cannot keep the 15s default for the reason above: three minutes is "the user walked away",
+     * which is the only case worth failing. Converting this one to the event shape too is a
+     * follow-up — it needs its own pending state and cannot simply await.
+     *
+     * Safe to coexist with `startOAuthLogin`: responses are matched by refId first, so a pending
+     * request always claims its own answer and only an unclaimed one reaches event subscribers.
+     */
+    oauthLogin(
+        provider: Payload<'OAuthLogin'>['provider'],
+        timeoutMs = 180_000
+    ): Promise<WebMessageResponse<'OAuthLogin'>> {
+        return webClient.request({ type: 'OAuthLogin', data: { provider } }, { timeoutMs });
     },
 
     // ---------------------------------------------------------------

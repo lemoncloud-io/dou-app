@@ -56,9 +56,13 @@ export const ReactionDetailSheet = ({
             title={t('chat.room.reactions')}
             description={t('chat.room.reactionsDescription')}
             onClose={() => onOpenChange(false)}
+            // Half the screen, always: the reactor list grows and shrinks live while the sheet is
+            // open, and a sheet that resized under the reader's thumb moved the rows they were
+            // reading. Matches EmojiPickerSheet so the two reaction surfaces open the same size.
+            className="h-[50vh]"
         >
             {active && (
-                <div className="flex flex-col">
+                <div className="flex h-full flex-col">
                     {/* Scrolls sideways rather than wrapping: a message with many distinct
                         reactions would otherwise push the reactor list off the screen. */}
                     <div
@@ -94,7 +98,7 @@ export const ReactionDetailSheet = ({
                         })}
                     </div>
 
-                    <ul className="flex max-h-[45vh] flex-col overflow-y-auto px-4 py-1">
+                    <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-1">
                         {active.userIds.map(userId => {
                             const src = avatarOf(userId);
                             return (

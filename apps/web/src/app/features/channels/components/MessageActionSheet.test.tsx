@@ -62,6 +62,17 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(screen.getByText('chat.room.copyMessage')).toBeInTheDocument();
     });
 
+    // 항목 수가 대상 메시지마다 다르다(canReact·canReply·최근 이모지). 높이가 내용을 따라가면
+    // 롱프레스마다 복사·답글이 다른 자리에 오므로, 시트는 화면 절반으로 고정한다.
+    it('항목 수와 무관하게 화면 절반 높이로 열린다', () => {
+        const { rerender } = render(<MessageActionSheet {...baseProps} />);
+        expect(screen.getByRole('dialog')).toHaveClass('h-[50vh]');
+
+        // 리액션 줄과 답글이 빠져 복사 하나만 남아도 같은 높이다.
+        rerender(<MessageActionSheet {...baseProps} canReact={false} canReply={false} />);
+        expect(screen.getByRole('dialog')).toHaveClass('h-[50vh]');
+    });
+
     it('복사/답글 항목이 각각의 핸들러를 부른다', () => {
         render(<MessageActionSheet {...baseProps} />);
         fireEvent.click(screen.getByText('chat.room.copyMessage'));
