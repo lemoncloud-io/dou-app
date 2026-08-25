@@ -53,7 +53,7 @@ describe('schedulePendingReportFlush', () => {
         jest.useRealTimers();
     });
 
-    it('큐의 리포트를 categoryOverride·감지 시각·스냅샷 breadcrumb으로 대리 전송하고 ack한다', async () => {
+    it('큐의 리포트를 categoryOverride·감지 시각으로 대리 전송하고 ack한다', async () => {
         mockFetchPendingReports.mockResolvedValue({
             success: true,
             data: {
@@ -81,7 +81,9 @@ describe('schedulePendingReportFlush', () => {
             categoryOverride: 'native-error',
             occurredAt: 42,
         });
-        expect(context.logsOverride).toEqual([{ level: 'info', tag: 'APP', message: 'crumb', timestamp: 1 }]);
+        // 구버전 셸은 계속 스냅샷을 실어 보내지만 대리 전송은 그걸 옮기지 않는다 —
+        // 같은 엔트리를 업로더가 이미 낱건으로 올린다.
+        expect(context).not.toHaveProperty('logsOverride');
         expect(mockAckPendingReports).toHaveBeenCalledWith(['a']);
     });
 

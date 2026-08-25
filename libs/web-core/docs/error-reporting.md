@@ -1,8 +1,10 @@
 # 에러 리포트 (Error Reporting)
 
-> 상태: Live · 최종 갱신: 2026-08-11 · 관련 ADR: [ADR-0029](../../../docs/adr/0029-error-report-categorization-and-enrichment.md) · [ADR-0047](../../../docs/adr/0047-unified-logging-core-and-report-traceability.md)
+> 상태: Live · 최종 갱신: 2026-08-21 · 관련 ADR: [ADR-0029](../../../docs/adr/0029-error-report-categorization-and-enrichment.md) · [ADR-0047](../../../docs/adr/0047-unified-logging-core-and-report-traceability.md)
 >
-> ADR-0047로 breadcrumb 소스(LogSource)·감지 커버리지·카테고리가 확장됐다.
+> ADR-0047로 감지 커버리지·카테고리가 확장됐다.
+> **2026-08-21: 리포트의 breadcrumb 첨부는 폐지됐다** — `reportError`·`reportIssue` 어느 쪽도 로그를 싣지 않는다.
+> 로그는 배치 업로더가 엔트리 낱건으로 `/hello/report-bulk`에 올리고, 리포트와는 `runId`/`uid`로 맞춘다.
 > 통합 로깅 전체 그림은 [libs/logger/docs/architecture.md](../../logger/docs/architecture.md) 참고.
 
 ## 목적
@@ -26,7 +28,7 @@
 - 출처 기준 category 6종 도출 및 태깅.
 - 타이틀 포맷 확장(`[app] error` → `[app] <category>`) + payload `category` 필드.
 - `ErrorEvent`의 `filename/lineno/colno` 캡처.
-- `reportError`에 breadcrumb(링버퍼 로그 tail + 현재 라우트) 첨부.
+- ~~`reportError`에 breadcrumb(링버퍼 로그 tail + 현재 라우트) 첨부.~~ (2026-08-21 폐지 — 로그는 배치 업로드가 낱건으로 나른다. 라우트는 `payload.path`로 남는다.)
 - 스로틀 키를 category+message 조합으로 개선.
 - admin-v2 `parseTitle`의 새 타이틀 포맷 대응(하위 호환 유지).
 
@@ -43,14 +45,14 @@
 1. WebView에서 `window.onerror`가 `message="Script error."`, `error=null`, `filename/lineno/colno`를 채워 발화.
 2. 전역 핸들러가 `event.error ?? new Error(event.message)`와 함께 `{ filename, lineno, colno, source: 'window.onerror' }`를 `reportError`에 넘김.
 3. `reportError`가 `error==null`(원시 이벤트에서 전달된 플래그) → category `script-error`로 분류.
-4. payload에 `location: {filename, lineno, colno}`, `category: 'script-error'`, breadcrumb(로그 tail + route) 첨부. **합성 stack은 싣지 않고 `stackSynthetic: true`로 그 사실만 남긴다** — ADR-0047 P1. 위치는 `location`에만 두고 `message`에는 넣지 않는다: admin이 message로 그룹을 묶는데(`groupReportLogs`) 좌표가 발생마다·배포마다 달라 같은 버그가 매번 새 그룹이 되기 때문이다. admin 상세의 `Location` 섹션이 이 필드를 보여준다.
+4. payload에 `location: {filename, lineno, colno}`, `category: 'script-error'`, `path`(현재 라우트) 첨부. **합성 stack은 싣지 않고 `stackSynthetic: true`로 그 사실만 남긴다** — ADR-0047 P1. 위치는 `location`에만 두고 `message`에는 넣지 않는다: admin이 message로 그룹을 묶는데(`groupReportLogs`) 좌표가 발생마다·배포마다 달라 같은 버그가 매번 새 그룹이 되기 때문이다. admin 상세의 `Location` 섹션이 이 필드를 보여준다.
 5. 타이틀 `[mobile] script-error`로 전송. 스로틀 키 = `script-error|Script error.` (filename까지 포함하면 원인별 분리).
 
 **S2. 네트워크 에러**
 
 1. axios가 `ERR_NETWORK` / `Network Error`를 던짐 → React Query `onError`(`source: 'query'`) → `reportError`.
 2. `classifyError`가 NETWORK 판정 → category `network`. (rejection 채널로 들어와도 네트워크 성격이 우선이라 `network`로 분류된다.)
-3. 타이틀 `[mobile] network`, payload에 `http.code`, `network.online`, breadcrumb 첨부. **실패 요청의 URL·메서드가 `http.url`/`http.method`와 `message` 뒤에 노출된다** (`Network Error → POST /hello/chats`) — 어드민 목록에서 어떤 API가 죽었는지 즉시 식별 (ADR-0047).
+3. 타이틀 `[mobile] network`, payload에 `http.code`, `network.online` 첨부. **실패 요청의 URL·메서드가 `http.url`/`http.method`와 `message` 뒤에 노출된다** (`Network Error → POST /hello/chats`) — 어드민 목록에서 어떤 API가 죽었는지 즉시 식별 (ADR-0047).
 
 **S3. React 렌더 에러**
 
@@ -85,7 +87,7 @@ flowchart TD
     CAT -->|4 rejection 채널| UR[unhandled-rejection]
     CAT -->|5 else| UN[unknown]
 
-    S & RR & HTTP & UR & UN --> BUILD[payload 조립<br/>+ category<br/>+ location filename/line/col<br/>+ breadcrumb logs tail·route]
+    S & RR & HTTP & UR & UN --> BUILD[payload 조립<br/>+ category<br/>+ location filename/line/col<br/>+ route path]
     BUILD --> POST[SlackReportBody silent=true<br/>title = app category <br/>POST /hello/report]
     POST --> ADMIN[admin-v2 parseReportLog<br/>title→category 파싱<br/>Slack에는 미전송]
 ```
@@ -101,14 +103,14 @@ flowchart TD
     - `securitypolicyviolation` → `{ source: 'csp-violation', categoryOverride: 'csp-violation', filename, lineno }`.
     - React Query `QueryCache`/`MutationCache onError` → `{ source: 'query' }` / `{ source: 'mutation' }`.
     - `ErrorBoundary onError` → `{ source: 'error-boundary', componentStack }`.
-- 부팅 경로(apps/web `main.tsx`) — `page-crash` 사후 리포트([pageCrashReporter](../../../apps/web/src/app/runtime/pageCrashReporter.ts))와 네이티브 지연 리포트 대리 전송([pendingReportFlusher](../../../apps/web/src/app/runtime/pendingReportFlusher.ts), `webview-crash`/`native-error`/`native-crash`)이 `categoryOverride`+`logsOverride`+`occurredAt`으로 같은 `reportError`를 탄다.
+- 부팅 경로(apps/web `main.tsx`) — `page-crash` 사후 리포트([pageCrashReporter](../../../apps/web/src/app/runtime/pageCrashReporter.ts))와 네이티브 지연 리포트 대리 전송([pendingReportFlusher](../../../apps/web/src/app/runtime/pendingReportFlusher.ts), `webview-crash`/`native-error`/`native-crash`)이 `categoryOverride`+`occurredAt`으로 같은 `reportError`를 탄다.
 - [`apps/admin-v2/.../globalErrorCapture.ts`](../../../apps/admin-v2/src/app/globalErrorCapture.ts) + [`app.tsx`](../../../apps/admin-v2/src/app/app.tsx) — **admin-v2 자신의 전역 캡처 4경로** (`window.onerror` · `unhandledrejection` · `QueryCache`/`MutationCache onError`) + socket-lab `ErrorBoundary`. 2026-08-11 이전엔 admin-v2에 캡처가 **하나도 없어서**, 리포트를 읽는 도구 자신의 에러만 아무 데도 안 남았다 — 리포트 뷰어가 깨진 경우까지 포함해서. 웹의 6경로보다 좁은 건 의도적이다: `resource-error`/`csp-violation`은 모바일 WebView의 opaque `Script error.` 추적용이라 내부 데스크톱 도구엔 해당이 없다.
 - [`libs/web-core/src/api/reportCategory.ts`](../src/api/reportCategory.ts) — `classifyReport(error, ctx): ErrorCategory` (신규). 아래 우선순위로 category 도출, HTTP·network는 `classifyError` 재활용.
 - [`libs/web-core/src/api/common.ts`](../src/api/common.ts) — `reportError(error, context?: ErrorReportContext)`:
-    - 진입 즉시 `classifyReport` 호출 → category. `errorAt`(=`occurredAt` ?? now) 기록 + 동기 스냅샷.
+    - 진입 즉시 `classifyReport` 호출 → category. `errorAt`(=`occurredAt` ?? now) 기록.
     - **스로틀 없음** — 동일 (category+message)도 매번 그대로 보낸다(아래 "스로틀 제거" 참고).
     - 타이틀의 `app`은 `resolveAppType()`이 정한다: `isNative()`면 `mobile`, 아니면 `WEB_PROJECT`(=`VITE_PROJECT`)에 `admin`이 들어있는지로 `admin`/`web`을 가른다. **호출부가 자기 정체를 선언하지 않아도 갈리는 게 요점** — admin은 이미 `CHATIC_ADMIN`으로 배포되고 있어서 별도 설정이 필요 없고, 이 구분이 없으면 admin 자신의 에러가 `[web]`으로 저장돼 프런트 리포트 사이에 섞인다.
-    - breadcrumb (ADR-0047): `logsOverride`가 있으면 그대로, 없으면 `collectBreadcrumbs`(@chatic/bridges)가 활성 `LogSource`(하이브리드=네이티브 통합 버퍼, 웹 단독=로컬 버퍼)에서 tail 50을 pull하고 `timestamp <= errorAt` 필터. 실패·1.5s 타임아웃 시 동기 스냅샷 폴백 → `serializeLogs` → `payload.logs`, `payload.path`.
+    - **로그는 싣지 않는다(2026-08-21).** 엔트리는 배치 업로더가 낱건으로 서버에 올리고 리포트와는 `runId`/`uid`로 맞춘다 — 첨부하면 같은 로그가 두 벌 저장되고, `reportIssue` 쪽은 그 사본만 공유 Slack 채널로도 나간다. 남는 라우트 단서는 `payload.path` 하나다. `LogSource`·`collectBreadcrumbs`·`logsOverride`는 함께 제거됐다.
     - `payload.location`: context의 `filename/lineno/colno` (하나라도 있으면). `errorWasNull`이면 합성 stack 미첨부 + `stackSynthetic: true`.
     - `payload.causes`: [`collectCauses`](../src/api/errorCause.ts)가 편 `error.cause` 체인(바깥→안). **감싼 에러의 `stack`은 감싼 자리를 가리키므로, 무엇이 깨졌는지는 여기에만 남는다** — React가 렌더 실패를 `new Error(msg, { cause })`로 감싸는 게 대표 사례라(`Minified React error #520`의 진짜 원인이 cause에 매달려 온다), 이게 없으면 리포트가 재던진 코드만 지목한다. 깊이 5 · stack당 4천자 · 총 1만2천자 상한이고 순환 체인도 끊는다. 합성 stack이어도 cause는 싣는다 — 합성된 건 바깥 껍데기뿐이다.
     - 요청 실패면 [`describeHttp`](../src/api/httpContext.ts)가 `payload.http`에 **실패한 요청의 전모**를 담는다: `url`(baseURL 합친 절대경로)·`method`·`params`·`requestBody`·`status`·`statusText`·`code`·`responseData`. "Network Error" 한 줄로는 손댈 곳을 알 수 없고, 클라 버그인지 서버 버그인지는 **보낸 것과 돌아온 것을 나란히 봐야** 갈린다. body·params는 `redactSensitive` + `truncate`를 거친다 — 요청 body엔 비밀번호가, 응답엔 개인정보가 흔히 들어있어 그대로 저장하면 안 된다. axios가 body를 문자열로 들고 있어 JSON이면 파싱해서 담는데, 그래야 사람이 읽을 수 있고 **무엇보다 redact가 키를 볼 수 있다**. admin 상세는 이걸 `HTTP · Request` / `HTTP · Response` 두 섹션으로 갈라 보여준다.
@@ -117,8 +119,8 @@ flowchart TD
     - `payload.timestamp = errorAt` (지연 리포트는 감지 시각).
     - 타이틀 `` `[${app}] ${category}` ``.
 - [`libs/web-core/src/transport/error.ts`](../src/transport/error.ts) — `classifyError`/`isNetworkError`. `classifyReport`가 재활용(변경 없음).
-- [`libs/web-core/src/api/types/common.ts`](../src/api/types/common.ts) — `ErrorCategory` union, `ErrorReportContext` 인터페이스 추가. `ErrorReportPayload`에 `category`/`location?`/`logs?: SerializedLog[]`/`path?` 추가.
-- [`libs/logger/src/serialize.ts`](../../logger/src/serialize.ts) — `serializeLogs`/`safeStringify`/`SerializedLog`·char budget 상수. **이슈 제보 전용이던 이 로직을 `apps/web`에서 `libs/logger`로 이동**해 `reportError`와 이슈 제보([`buildReportContext.ts`](../../../apps/web/src/app/features/feedback/lib/buildReportContext.ts))가 `@chatic/bridges`를 통해 공유한다.
+- [`libs/web-core/src/api/types/common.ts`](../src/api/types/common.ts) — `ErrorCategory` union, `ErrorReportContext` 인터페이스 추가. `ErrorReportPayload`에 `category`/`location?`/`path?` 추가 (`logs?`는 2026-08-21 제거).
+- [`libs/logger/src/serialization/serializeLogs.ts`](../../logger/src/serialization/serializeLogs.ts) — `serializeLogs`/`safeStringify`/`SerializedLog`·char budget 상수. **이슈 제보 전용이던 이 로직을 `apps/web`에서 `libs/logger`로 이동**했다. 리포트가 로그를 싣지 않게 된 뒤로 남은 소비자는 기기 영속화(모바일 MMKV)와 wire 직렬화다.
 - [`apps/admin-v2/.../report-logs/lib/parseReportLog.ts`](../../../apps/admin-v2/src/app/features/report-logs/lib/parseReportLog.ts) — `parseTitle`이 `[app] <category>`에서 category 추출(알려진 category Set 대조). 없으면 payload `category` 필드로 폴백. `[app] error`·`[app] issue:` 매칭 유지. `ReportLogRow.category?` 추가.
 
 **category 분류 우선순위** ([`reportCategory.ts`](../src/api/reportCategory.ts), 위→아래 먼저 매칭):
@@ -135,7 +137,7 @@ flowchart TD
 ## 검증 방법
 
 - `libs/web-core/src/api/reportCategory.spec.ts` — `classifyReport` 8케이스(script-error / react-render / 403·500·404 / ERR_NETWORK / rejection+network / rejection+불명 / 완전 불명). rejection이 network 성격을 가릴 수 없음을 명시 검증.
-- `libs/logger/src/serialize.spec.ts` — 이동된 `serializeLogs`의 char budget·circular·Error 펼침·시간순 유지 회귀.
+- `libs/logger/src/serialization/serializeLogs.spec.ts` — 이동된 `serializeLogs`의 char budget·circular·Error 펼침·시간순 유지 회귀.
 - `apps/admin-v2/.../parseReportLog.spec.ts` — 새 타이틀 `[mobile] script-error` category 추출, 과거 `[mobile] error` 하위 호환(category undefined), payload `category` 폴백.
 - 실행: `nx run @chatic/logger:test` (40 pass) · `nx run web-core:test` (71 pass) · `nx run admin-v2:test` (58 pass). 타입체크는 변경 파일 클린(무관한 self-chat/PlaceProfile WIP 에러는 별개).
 - 라이브 리포트 발화는 공유 엔드포인트(`/hello/report`)로 실 POST가 나가는 외부 부작용이라 유닛 테스트로 대체.

@@ -1,6 +1,6 @@
 import type { AppLogInfo } from '@chatic/app-messages';
 
-import { filterLogs } from './logFilter';
+import { collectLogTags, filterLogs } from './logFilter';
 
 const log = (partial: Partial<AppLogInfo>): AppLogInfo => ({
     level: 'info',
@@ -78,5 +78,100 @@ describe('filterLogs', () => {
         filterLogs(logs, { levels: new Set(), query: '' });
 
         expect(logs.map(l => l.message)).toEqual(snapshot);
+    });
+});
+
+describe('filterLogs — 질의 문법', () => {
+    it('여러 낱말은 AND다 — 좁히는 게 목적이다', () => {
+        const logs = [
+            log({ tag: 'SOCKET', message: 'connect failed' }),
+            log({ tag: 'SOCKET', message: 'connected' }),
+            log({ tag: 'NET', message: 'failed' }),
+        ];
+
+        const result = filterLogs(logs, { levels: new Set(), query: 'socket failed' });
+
+        expect(result.map(l => l.message)).toEqual(['connect failed']);
+    });
+
+    it('-접두어는 제외한다 — 시끄러운 한 줄이 나머지를 덮을 때 가장 쓸모 있다', () => {
+        const logs = [log({ message: 'heartbeat' }), log({ message: 'real problem' })];
+
+        const result = filterLogs(logs, { levels: new Set(), query: '-heartbeat' });
+
+        expect(result.map(l => l.message)).toEqual(['real problem']);
+    });
+
+    it('tag:로 태그를 지정한다', () => {
+        const logs = [log({ tag: 'NET', message: 'x' }), log({ tag: 'SOCKET', message: 'x' })];
+
+        const result = filterLogs(logs, { levels: new Set(), query: 'tag:net' });
+
+        expect(result.map(l => l.tag)).toEqual(['NET']);
+    });
+
+    it('따옴표는 구를 통째로 찾는다 — 로그 메시지는 문장이다', () => {
+        const logs = [log({ message: 'failed to fetch profile' }), log({ message: 'fetch ok, nothing failed' })];
+
+        const result = filterLogs(logs, { levels: new Set(), query: '"failed to fetch"' });
+
+        expect(result.map(l => l.message)).toEqual(['failed to fetch profile']);
+    });
+
+    it('data 본문까지 찾는다 — 식별 정보는 message가 아니라 payload에 있다', () => {
+        // message는 대개 일반적인 쪽("request failed")이고, 실제로 아는 단서는
+        // status·id·url처럼 payload에 있다. 그걸 못 찾으면 검색이 반쪽이다.
+        const logs = [
+            log({ message: 'request failed', data: { status: 503, url: '/hello/profile' } }),
+            log({ message: 'request failed', data: { status: 200 } }),
+        ];
+
+        const result = filterLogs(logs, { levels: new Set(), query: '503' });
+
+        expect(result).toHaveLength(1);
+        expect((result[0].data as { status: number }).status).toBe(503);
+    });
+
+    it('레벨 토글과 질의는 함께 걸린다', () => {
+        const logs = [
+            log({ level: 'error', message: 'boom' }),
+            log({ level: 'info', message: 'boom' }),
+            log({ level: 'error', message: 'quiet' }),
+        ];
+
+        const result = filterLogs(logs, { levels: new Set(['error']), query: 'boom' });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].level).toBe('error');
+    });
+
+    it('태그 선택은 질의와 별개로 걸린다', () => {
+        const logs = [log({ tag: 'NET', message: 'x' }), log({ tag: 'SOCKET', message: 'x' })];
+
+        const result = filterLogs(logs, { levels: new Set(), query: '', tags: new Set(['SOCKET']) });
+
+        expect(result.map(l => l.tag)).toEqual(['SOCKET']);
+    });
+
+    it('망가진 질의도 그냥 텍스트로 다룬다 — 검색창이 거부하거나 터지면 안 된다', () => {
+        // 문법으로 안 읽히는 것은 리터럴로 떨어진다. `-` 하나는 "제외"가 아니라
+        // 하이픈 검색이고, `tag:` 하나는 태그 지정이 아니라 그 문자열 검색이다.
+        // 타이핑 도중의 중간 상태에서도 결과가 나오는 쪽이, 빈 화면이나 에러보다 낫다.
+        const logs = [log({ message: 'a-b' }), log({ message: 'zzz' })];
+
+        expect(filterLogs(logs, { levels: new Set(), query: '-' }).map(l => l.message)).toEqual(['a-b']);
+        expect(filterLogs(logs, { levels: new Set(), query: 'tag:' }).map(l => l.message)).toEqual([]);
+        expect(() => filterLogs(logs, { levels: new Set(), query: '"unclosed' })).not.toThrow();
+    });
+});
+
+describe('collectLogTags', () => {
+    it('실제로 존재하는 태그만 빈도순으로 준다', () => {
+        const logs = [log({ tag: 'NET' }), log({ tag: 'SOCKET' }), log({ tag: 'NET' })];
+
+        expect(collectLogTags(logs)).toEqual([
+            { tag: 'NET', count: 2 },
+            { tag: 'SOCKET', count: 1 },
+        ]);
     });
 });

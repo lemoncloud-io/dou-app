@@ -57,9 +57,12 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
      * Refresh purchase history
      */
     const refreshPurchases = useCallback(async () => {
+        // Routine bookkeeping after a transaction, not a user-facing event on its
+        // own — the purchase itself is what's worth an `info` line.
+        logService.debug('IAP', 'Refreshing purchases after transaction');
         const purchases = await subscriptionIapService.getAvailablePurchases();
         setCurrentPurchases(purchases);
-    }, [subscriptionIapService]);
+    }, [subscriptionIapService, logService]);
 
     /**
      * Transaction processing
@@ -93,6 +96,7 @@ export const useSubscriptionIap = ({ onPurchaseSuccess, onPurchaseError }: UseIa
         const init = async () => {
             try {
                 await subscriptionIapService.init();
+                logService.info('IAP', 'Fetching available purchases for restore...');
                 const [subscriptions, availablePurchase] = await Promise.all([
                     subscriptionIapService.getSubscriptions(),
                     subscriptionIapService.getAvailablePurchases(),

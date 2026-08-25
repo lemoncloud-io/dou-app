@@ -1,4 +1,3 @@
-import { collectBreadcrumbs, logBuffer, serializeLogs } from '@chatic/bridges';
 import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
 import type { IssueReportExtras } from '@chatic/web-core';
 
@@ -7,9 +6,6 @@ import type { IssueReportExtras } from '@chatic/web-core';
 // (architecture/directory-structure.md §6).
 import { getRouteTrail } from '../../../utils/routeTrail';
 import { getViewportSize } from '../../../utils/viewport';
-
-/** How many of the most recent log entries to attach. */
-export const RECENT_LOG_COUNT = 50;
 
 interface BuildReportContextArgs {
     deviceInfo: DeviceInfo | null;
@@ -33,9 +29,15 @@ const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
 });
 
 /**
- * Compose the auto-attached context for an issue report: the most recent logs
- * plus a device/version/network/viewport snapshot. Side-effect free (only
- * reads globals + the active LogSource), so it is unit-testable without React.
+ * Compose the auto-attached context for an issue report: a
+ * device/version/network/viewport snapshot. Side-effect free (only reads
+ * globals), so it is unit-testable without React.
+ *
+ * Logs are deliberately NOT attached. They reach the server on their own as
+ * individual entries through the batch uploader, keyed by `runId`/`uid`, so a
+ * copy pasted into the report body would only duplicate what the collector
+ * already has — and duplicate it in the one place that is also relayed to a
+ * shared Slack channel.
  *
  * `reportIssue` already attaches user/cloud/env/url, so this deliberately does
  * not duplicate those.
@@ -44,20 +46,11 @@ const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
  * so `routeTrail` carries the diagnostic weight: its second-to-last entry is the
  * screen the user was actually on.
  */
-export const buildReportContext = async ({
-    deviceInfo,
-    versionInfo,
-}: BuildReportContextArgs): Promise<IssueReportExtras> => {
-    // Breadcrumbs come from the active LogSource (ADR-0047): the native merged
-    // buffer in hybrid runs, the local web buffer standalone. The click IS the
-    // reference time, so no errorAt filter; the local tail is the fallback.
-    const recent = await collectBreadcrumbs(RECENT_LOG_COUNT, logBuffer.peek());
-
+export const buildReportContext = ({ deviceInfo, versionInfo }: BuildReportContextArgs): IssueReportExtras => {
     const viewport = getViewportSize();
     const routeTrail = getRouteTrail();
 
     return {
-        logs: serializeLogs(recent),
         device: deviceInfo ? pickDeviceFields(deviceInfo) : undefined,
         version: versionInfo ?? undefined,
         online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,

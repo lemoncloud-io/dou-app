@@ -230,3 +230,77 @@ describe('parseReportLog — real stored envelope', () => {
         expect(row.title).toBe('레인');
     });
 });
+
+// Batch-uploaded structured logs (chatic-backend-api log-batch-ingest) share the same
+// `stereo='log'` bucket as the Slack error reports above (SPEC.md D6). They're detected
+// structurally — `level`+`tag` together is never set by a Slack report — and skip the
+// title/payload unwrap entirely.
+describe('parseReportLog — batch LogEntry', () => {
+    it('parses a debug-level entry (e.g. WEB_VITALS) as log-entry, not unknown', () => {
+        const row = parseReportLog({
+            id: '1013322',
+            createdAt: 1787211544197,
+            meta: {
+                level: 'debug',
+                tag: 'WEB_VITALS',
+                message: 'INP',
+                data: JSON.stringify({ value: '64.00', rating: 'good' }),
+                timestamp: 1787211544197,
+                source: 'web',
+                id: '1013322',
+            },
+        });
+
+        expect(row.type).toBe('log-entry');
+        expect(row.level).toBe('debug');
+        expect(row.tag).toBe('WEB_VITALS');
+        expect(row.title).toBe('WEB_VITALS');
+        expect(row.message).toBe('INP');
+        expect(row.source).toBe('web');
+        expect(row.logData).toEqual({ value: '64.00', rating: 'good' });
+        expect(row.parseError).toBe(false);
+    });
+
+    it('parses an info-level entry with no `data` and no `source` (e.g. IAP)', () => {
+        const row = parseReportLog({
+            id: '1013397',
+            createdAt: 1787214102551,
+            meta: {
+                level: 'info',
+                tag: 'IAP',
+                message: 'Fetching available purchases for restore...',
+                timestamp: 1787214102551,
+                id: '1013397',
+            },
+        });
+
+        expect(row.type).toBe('log-entry');
+        expect(row.level).toBe('info');
+        expect(row.tag).toBe('IAP');
+        expect(row.source).toBeUndefined();
+        expect(row.logData).toBeUndefined();
+        expect(row.logDataRaw).toBeUndefined();
+    });
+
+    it('prefers uid/runId hoisted onto the record when meta omits them', () => {
+        const row = parseReportLog({
+            id: 'l1',
+            uid: '1000891',
+            runId: 'run-abc',
+            meta: { level: 'error', tag: 'NET', message: 'timeout' },
+        });
+
+        expect(row.userId).toBe('1000891');
+        expect(row.runId).toBe('run-abc');
+    });
+
+    it('still routes a Slack error report through the report parser, not the log-entry one', () => {
+        const row = parseReportLog({
+            id: 'm-not-log',
+            meta: { title: '[web] error', message: JSON.stringify(errorPayload) },
+        });
+
+        expect(row.type).toBe('error');
+        expect(row.level).toBeUndefined();
+    });
+});

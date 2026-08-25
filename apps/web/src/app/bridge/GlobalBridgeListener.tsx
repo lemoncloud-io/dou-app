@@ -16,7 +16,7 @@ export const GlobalBridgeListener = (): null => {
     // Foreground detection (native message + web visibilitychange) is owned by
     // useAppForeground; this listener only keeps the resume-overlay dismiss reaction.
     useAppForeground(() => {
-        logger.info('ROUTER', 'App returned to foreground, triggering dismiss signal');
+        logger.debug('ROUTER', 'App returned to foreground, triggering dismiss signal');
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 appBridge.dismissResumeOverlay();

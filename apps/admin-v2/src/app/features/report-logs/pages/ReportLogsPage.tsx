@@ -41,6 +41,9 @@ export const ReportLogsPage = () => {
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [typeFilter, setTypeFilter] = useState<ReportKind>('all');
+    // Server-side `LogEntry.level` filter — Slack reports never set `level`, so this
+    // incidentally narrows to batch log entries regardless of the type filter above.
+    const [levelFilter, setLevelFilter] = useState('');
     // Aggregated/time views work over a larger recent sample; list view paginates.
     const isSampleView = mode !== 'list';
     const { data, isLoading, isError, error, refetch, isFetching } = useReportLogs(
@@ -55,6 +58,7 @@ export const ReportLogsPage = () => {
             type: STEREO_BY_KIND[typeFilter],
             from: from || undefined,
             to: to || undefined,
+            level: levelFilter || undefined,
         },
         autoRefresh ? AUTO_REFRESH_MS : false
     );
@@ -91,7 +95,18 @@ export const ReportLogsPage = () => {
             if (typeFilter !== 'all' && row.type !== typeFilter) return false;
             if (appFilter !== 'all' && row.app !== appFilter) return false;
             if (q) {
-                const haystack = [row.title, row.message, row.userName, row.userId, row.app, row.env, row.type]
+                const haystack = [
+                    row.title,
+                    row.message,
+                    row.userName,
+                    row.userId,
+                    row.app,
+                    row.env,
+                    row.type,
+                    row.tag,
+                    row.level,
+                    row.source,
+                ]
                     .filter(Boolean)
                     .join(' ')
                     .toLowerCase();
@@ -111,8 +126,8 @@ export const ReportLogsPage = () => {
                     <h1 className="text-lg font-semibold">Report Logs</h1>
                     <p className="text-sm text-muted-foreground">
                         {isSampleView
-                            ? `reportError / reportIssue ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
-                            : 'reportError / reportIssue 리포트 조회 · 타입·기간은 서버 조회(KST), 검색·App은 페이지 내 필터'}
+                            ? `reportError / reportIssue / 배치 로그 ${mode === 'group' ? '메시지별 집계' : '시간대별 추이'} · 최근 ${GROUP_SAMPLE_SIZE.toLocaleString()}건 표본`
+                            : 'reportError / reportIssue 리포트 + 배치 업로드 로그(같은 stereo=log) 조회 · 타입·기간·레벨은 서버 조회(KST), 검색·App은 페이지 내 필터'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -193,6 +208,23 @@ export const ReportLogsPage = () => {
                         <option value="all">전체</option>
                         <option value="error">error</option>
                         <option value="issue">issue</option>
+                        <option value="log-entry">log</option>
+                    </select>
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground" title="서버 조회 (LogEntry.level)">
+                    레벨
+                    <select
+                        value={levelFilter}
+                        onChange={e => {
+                            setPage(0);
+                            setLevelFilter(e.target.value);
+                        }}
+                        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                    >
+                        <option value="">전체</option>
+                        <option value="error">error</option>
+                        <option value="warn">warn</option>
+                        <option value="info">info</option>
                     </select>
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-muted-foreground">

@@ -39,7 +39,7 @@ export class DeeplinkService implements IDeeplinkService {
      * Resolves the initial deep link URL.
      */
     async getInitialUrl(): Promise<string | null> {
-        this.logger.info('DEEPLINK', '[DeeplinkService] getInitialUrl requested');
+        this.logger.debug('DEEPLINK', '[DeeplinkService] getInitialUrl requested');
         return this.manager.getInitialUrl();
     }
 
@@ -47,7 +47,7 @@ export class DeeplinkService implements IDeeplinkService {
      * Subscribes to deep link URL events.
      */
     subscribe(listener: (url: string) => void): () => void {
-        this.logger.info('DEEPLINK', '[DeeplinkService] Subscribed to deep link events');
+        this.logger.debug('DEEPLINK', '[DeeplinkService] Subscribed to deep link events');
         return this.manager.subscribe(listener);
     }
 
@@ -71,12 +71,12 @@ export class DeeplinkService implements IDeeplinkService {
         }
 
         let targetUrl = url.trim();
-        this.logger.info('DEEPLINK', `[DeeplinkService] Processing URL: ${targetUrl}`);
+        this.logger.debug('DEEPLINK', `[DeeplinkService] Processing URL: ${targetUrl}`);
 
         // If URL is a relative path, normalize it to custom scheme (e.g. /chats/ch_1 -> chatic://chats/ch_1)
         if (targetUrl.startsWith('/')) {
             targetUrl = `${this.scheme}://${targetUrl.slice(1)}`;
-            this.logger.info(
+            this.logger.debug(
                 'DEEPLINK',
                 `[DeeplinkService] Normalized relative path to custom scheme URL: ${targetUrl}`
             );

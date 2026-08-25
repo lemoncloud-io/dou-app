@@ -6,15 +6,36 @@ import type { ThemeMode } from '../../stores/themeMode';
  * Parameter interface for injecting device information
  */
 export interface DeviceInfoParams {
+    /**
+     * Identifier for this app run, issued once by the native shell. Injected so
+     * web entries carry the same value as native ones from the same launch;
+     * without it the web issues its own and the two sides do not line up.
+     */
+    runId: string;
     platform: string;
     applicationName: string;
     stage: string;
+    /**
+     * Whether the app's console listener is live in this build.
+     *
+     * Injected so the web can decide whether relaying `debug` buys anything.
+     * It is deliberately the *same* condition that gates the app's console
+     * subscription rather than a stage string: `stage` is the server
+     * environment, which a release build can also point at, and what matters
+     * here is only "will anything over there print this".
+     *
+     * Absent on older apps, which reads as false — the web then keeps `debug`
+     * local, exactly as it did before this existed.
+     */
+    consoleEnabled: boolean;
     /**
      * @deprecated Composite `deviceId:firebaseInstallId` string. Kept injected for
      * older web bundles; use `uniqueDeviceId` + `firebaseInstallationId` instead.
      */
     uniqueId: string;
     deviceModel: string;
+    /** DeviceInfo.getSystemVersion() — the log context's `osVersion`. */
+    osVersion: string;
     appVersion: string;
     buildNumber: string;
     appLanguage: string;
@@ -68,11 +89,14 @@ export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): s
  * @returns JavaScript string to be injected into the WebView
  */
 export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
+    window.CHATIC_APP_RUN_ID = ${JSON.stringify(params.runId)};
     window.CHATIC_APP_PLATFORM = ${JSON.stringify(params.platform)};
     window.CHATIC_APP_APPLICATION = ${JSON.stringify(params.applicationName)};
     window.CHATIC_APP_STAGE = ${JSON.stringify(params.stage)};
+    window.CHATIC_APP_CONSOLE_ENABLED = ${JSON.stringify(params.consoleEnabled)};
     window.CHATIC_APP_DEVICE_ID = ${JSON.stringify(params.uniqueId || '')};
     window.CHATIC_APP_DEVICE_MODEL = ${JSON.stringify(params.deviceModel || '')};
+    window.CHATIC_APP_OS_VERSION = ${JSON.stringify(params.osVersion || '')};
     window.CHATIC_APP_CURRENT_VERSION = ${JSON.stringify(params.appVersion)};
     window.CHATIC_APP_BUILD_NUMBER = ${JSON.stringify(params.buildNumber)};
     window.CHATIC_APP_CURRENT_LANGUAGE = ${JSON.stringify(params.appLanguage)};
@@ -105,6 +129,24 @@ export const getDebugModeScript = (enabled: boolean): string => `
 `;
 
 /**
+ * Generates a script exposing the log-upload hold to the web, whose scheduler is
+ * the only thing that can actually stop a send.
+ *
+ * The toggle lives in the app's debug menu because the app queue is what you
+ * watch while it is held, but the uploader runs in the WebView — so the flag has
+ * to cross. Injection rather than a new bridge message pair: the web reads it
+ * live before each send, an older web build simply ignores an unknown global,
+ * and there is no `NOT_FOUND` handshake to get wrong.
+ *
+ * Re-injected on change (see AppWebView) so holding takes effect without a
+ * reload, and carried in the boot script so a restarted WebView comes up still
+ * holding.
+ */
+export const getLogUploadHoldScript = (hold: boolean): string => `
+    window.CHATIC_APP_LOG_UPLOAD_HOLD = ${hold ? 'true' : 'false'};
+`;
+
+/**
  * Generates a script exposing the persisted theme to the web, so the WebView's pre-paint
  * script can pick it up on the FIRST paint instead of waiting for a bridge round-trip.
  *
@@ -134,6 +176,8 @@ export interface SyncInjectionScriptParams {
     deviceInfo: DeviceInfoParams;
     /** Persisted runtime debug unlock (see debugSettingsStore.debugModeEnabled). */
     debugModeEnabled?: boolean;
+    /** Persisted upload hold (see debugSettingsStore.logUploadHold). */
+    logUploadHold?: boolean;
     /** Persisted theme mode (see themeStore) — seeds the web's first paint. */
     theme: ThemeMode;
 }
@@ -155,6 +199,7 @@ export const getSyncInjectionScript = (params: SyncInjectionScriptParams): strin
         ${getSafeAreaScript(params.insets, params.keyboardHeight)}
         ${getDeviceInfoScript(params.deviceInfo)}
         ${getDebugModeScript(params.debugModeEnabled ?? false)}
+        ${getLogUploadHoldScript(params.logUploadHold ?? false)}
         ${getThemeScript(params.theme)}
     } catch (e) {
         try {

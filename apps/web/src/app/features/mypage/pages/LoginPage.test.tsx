@@ -16,7 +16,10 @@ jest.mock('@chatic/web-core', () => ({
 }));
 
 // Native so the social buttons render; the browser branch shows only copy.
-jest.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({
+    isNative: () => true,
+    logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
+}));
 
 const oauthLogin = jest.fn();
 jest.mock('../../../bridge', () => ({ appBridge: { oauthLogin: (...a: unknown[]) => oauthLogin(...a) } }));

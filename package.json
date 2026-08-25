@@ -114,7 +114,7 @@
     "@dr.pogodin/react-native-fs": "^2.39.2",
     "@dr.pogodin/react-native-static-server": "^0.27.0",
     "@hookform/resolvers": "^3.9.1",
-    "@lemoncloud/chatic-backend-api": "^0.26.709",
+    "@lemoncloud/chatic-backend-api": "^0.26.810",
     "@lemoncloud/chatic-iap-api": "^1.26.121",
     "@lemoncloud/chatic-pushes-api": "^0.26.124",
     "@lemoncloud/chatic-socials-api": "^0.26.721",

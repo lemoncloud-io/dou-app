@@ -1,10 +1,15 @@
 import { renderHook } from '@testing-library/react';
 
+import { logger } from '@chatic/bridges';
+
 import { useSubscriptionIap } from './useSubscriptionIap';
 import { useLinkedAccounts } from '../../../hooks';
 import { appBridge } from '../../../bridge';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('@chatic/bridges', () => ({
+    logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: jest.fn() }) }));
 
 const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
@@ -25,11 +30,18 @@ jest.mock('../../../bridge', () => ({
         fetchCurrentPurchases: jest.fn().mockResolvedValue({ data: { purchases: [] } }),
         fetchProducts: jest.fn().mockResolvedValue({ data: { products: [] } }),
     },
-    // The purchase result arrives as a push event; these register callbacks the tests never fire.
-    useOnPurchaseSuccess: jest.fn(),
-    useOnPurchaseError: jest.fn(),
+    // The purchase result arrives as a push event. Capture the handlers so a test can play the
+    // store's answer back — without that, nothing past `appBridge.purchase` is reachable.
+    useOnPurchaseSuccess: (cb: (message: unknown) => void) => {
+        mockPushHandlers.success = cb;
+    },
+    useOnPurchaseError: (cb: (message: unknown) => void) => {
+        mockPushHandlers.error = cb;
+    },
 }));
 jest.mock('../consts', () => ({ APP_ID: 'app', IS_DEV: false }));
+
+const mockPushHandlers: { success?: (message: unknown) => void; error?: (message: unknown) => void } = {};
 
 const setSocial = (social: 'linked' | 'absent' | 'unknown') =>
     (useLinkedAccounts as jest.Mock).mockReturnValue({ phone: 'unknown', social });
@@ -165,5 +177,55 @@ describe('useSubscriptionIap — 등급 교체 페이로드', () => {
         void result.current.purchaseAndValidate({ ...tierChange, oldPlanId: 'pro_tier_01' });
 
         expect(appBridge.purchase).toHaveBeenCalledWith({ id: 'dou_pro_subscription' });
+    });
+});
+
+describe('useSubscriptionIap — 결제 기록', () => {
+    beforeEach(() => setSocial('linked'));
+
+    it('영수증이 거절되면(isValid=false) 에러로 남긴다 — 돈은 나갔는데 권한이 안 붙는 지점', async () => {
+        membershipMutate.mockResolvedValueOnce({ isValid: false });
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        const pending = result.current.purchaseAndValidate(product);
+        mockPushHandlers.success?.({ data: { purchase: { productId: 'plan-1', purchaseToken: 'RECEIPT-SECRET' } } });
+        await expect(pending).rejects.toThrow('Validation failed');
+
+        expect(logger.error).toHaveBeenCalledWith('IAP', 'membership validation rejected receipt (isValid=false)', {
+            data: { productId: 'plan-1' },
+        });
+        // The receipt never rides along — redaction is key-name based and would not catch it here.
+        expect(JSON.stringify((logger.error as jest.Mock).mock.calls)).not.toContain('RECEIPT-SECRET');
+    });
+
+    it('60초 안에 스토어 결과가 없으면 타임아웃을 에러로 남긴다', async () => {
+        jest.useFakeTimers();
+        try {
+            const { result } = renderHook(() => useSubscriptionIap());
+
+            const caught = result.current.purchaseAndValidate(product).catch((e: unknown) => e);
+            jest.advanceTimersByTime(60_000);
+
+            await expect(caught).resolves.toMatchObject({ code: 'timeout' });
+            expect(logger.error).toHaveBeenCalledWith('IAP', 'purchase timed out after 60s', {
+                data: { productId: 'plan-1' },
+            });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('사용자 취소는 info, 그 밖의 스토어 실패는 error로 가른다', () => {
+        renderHook(() => useSubscriptionIap());
+
+        // 취소를 error로 적으면 퍼널을 오독하고, error가 앞당기는 업로드 flush까지 공짜로 따라온다.
+        mockPushHandlers.error?.({ data: { error: { code: 'user-cancelled' } } });
+        expect(logger.info).toHaveBeenCalledWith('IAP', 'native purchase cancelled by user');
+        expect(logger.error).not.toHaveBeenCalled();
+
+        mockPushHandlers.error?.({ data: { error: { code: 'billing-unavailable' } } });
+        expect(logger.error).toHaveBeenCalledWith('IAP', 'native purchase failed (code=billing-unavailable)', {
+            data: { code: 'billing-unavailable' },
+        });
     });
 });

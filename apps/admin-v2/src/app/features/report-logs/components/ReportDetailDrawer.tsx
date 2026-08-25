@@ -24,6 +24,7 @@ interface ReportDetailDrawerProps {
 const TYPE_BADGE: Record<ReportLogRow['type'], string> = {
     error: 'bg-destructive text-destructive-foreground',
     issue: 'bg-primary text-primary-foreground',
+    'log-entry': 'bg-muted text-muted-foreground',
     unknown: 'bg-muted text-muted-foreground',
 };
 
@@ -154,6 +155,56 @@ const LogsSection = ({ logs }: { logs: unknown[] }) => {
                 ))}
             </ul>
         </section>
+    );
+};
+
+/**
+ * Detail view for a `'log-entry'` row (batch-uploaded structured log — see
+ * `parseReportLog.ts`). There is no report `payload` to unwrap here, so this
+ * renders straight from the `LogEntry` fields lifted onto the row, plus
+ * whatever context fields (`sid`/`appVersion`/`route`/device info/…) survived
+ * in the raw record.
+ */
+const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
+    const rawObj = row.raw && typeof row.raw === 'object' ? (row.raw as Record<string, unknown>) : undefined;
+    const context = rawObj
+        ? {
+              runId: row.runId,
+              uid: row.userId,
+              sid: rawObj.sid,
+              cid: rawObj.cid,
+              appVersion: rawObj.appVersion,
+              webVersion: rawObj.webVersion,
+              route: rawObj.route,
+              os: rawObj.os,
+              osVersion: rawObj.osVersion,
+              model: rawObj.model,
+              error: rawObj.error,
+          }
+        : { runId: row.runId, uid: row.userId };
+
+    return (
+        <>
+            <section className="flex flex-col gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Log Entry</h3>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className={`font-semibold uppercase ${LEVEL_COLOR[row.level ?? ''] ?? 'text-foreground'}`}>
+                        {row.level ?? '-'}
+                    </span>
+                    {row.tag && <span className="text-muted-foreground">[{row.tag}]</span>}
+                    {row.source && <span className="text-muted-foreground">· {row.source}</span>}
+                </div>
+                {row.message && (
+                    <p className="whitespace-pre-wrap break-words text-sm text-foreground">{row.message}</p>
+                )}
+            </section>
+            {row.logData !== undefined && typeof row.logData === 'object' && row.logData !== null ? (
+                <KeyValueSection title="Data" data={row.logData as Record<string, unknown>} />
+            ) : (
+                <TextSection title="Data" text={row.logDataRaw} />
+            )}
+            <KeyValueSection title="Context" data={context} />
+        </>
     );
 };
 
@@ -376,27 +427,31 @@ export const ReportDetailDrawer = ({ row, onClose, onObserve }: ReportDetailDraw
                         payload, so they are still viewable when payload parsing failed. */}
                     {row.images && row.images.length > 0 && <ImagesSection images={row.images} />}
 
-                    {p && (
-                        <>
-                            <KeyValueSection
-                                title="Summary"
-                                data={{ url: p.url, timestamp: p.timestamp, userAgent: p.userAgent, path: p.path }}
-                            />
-                            <TextSection title="Message" text={p.message} />
-                            <StackSection row={row} />
-                            <TextSection title="Component Stack" text={p.componentStack} />
-                            <KeyValueSection title="Location" data={p.location} />
-                            <HttpSection http={p.http} />
-                            <KeyValueSection title="User" data={p.user} />
-                            <KeyValueSection title="Cloud" data={p.cloud} />
-                            <KeyValueSection title="Device" data={p.device} />
-                            <KeyValueSection title="Version" data={p.version} />
-                            <KeyValueSection
-                                title="Network"
-                                data={{ ...(p.network ?? {}), viewport: p.viewport && stringify(p.viewport) }}
-                            />
-                            {Array.isArray(p.logs) && p.logs.length > 0 && <LogsSection logs={p.logs} />}
-                        </>
+                    {row.type === 'log-entry' ? (
+                        <LogEntryDetailSection row={row} />
+                    ) : (
+                        p && (
+                            <>
+                                <KeyValueSection
+                                    title="Summary"
+                                    data={{ url: p.url, timestamp: p.timestamp, userAgent: p.userAgent, path: p.path }}
+                                />
+                                <TextSection title="Message" text={p.message} />
+                                <StackSection row={row} />
+                                <TextSection title="Component Stack" text={p.componentStack} />
+                                <KeyValueSection title="Location" data={p.location} />
+                                <HttpSection http={p.http} />
+                                <KeyValueSection title="User" data={p.user} />
+                                <KeyValueSection title="Cloud" data={p.cloud} />
+                                <KeyValueSection title="Device" data={p.device} />
+                                <KeyValueSection title="Version" data={p.version} />
+                                <KeyValueSection
+                                    title="Network"
+                                    data={{ ...(p.network ?? {}), viewport: p.viewport && stringify(p.viewport) }}
+                                />
+                                {Array.isArray(p.logs) && p.logs.length > 0 && <LogsSection logs={p.logs} />}
+                            </>
+                        )
                     )}
 
                     <TextSection title="Raw" text={redactDataUrls(stringify(row.raw))} />

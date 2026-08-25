@@ -311,7 +311,13 @@ jobs:
                   path: dist/apps/${{ matrix.project }}/**/*.map
                   # desktop-web still emits none; never fail a deploy over this.
                   if-no-files-found: warn
-                  retention-days: 30
+                  # 30 days was too short for what these are for. The reports
+                  # that most need a map are the rare ones, and a rare crash is
+                  # rarely triaged inside a month — past the window the stack is
+                  # unreadable for good, since the map exists nowhere else.
+                  # 90 is the cap for public repos; this one is private, so it
+                  # can go to 400 if storage cost is acceptable.
+                  retention-days: 90
 
     notify-slack:
         needs: [changes, get-version, build-and-deploy]

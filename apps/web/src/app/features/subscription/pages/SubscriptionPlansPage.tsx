@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useRuntimeProfile } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -97,6 +98,7 @@ export const SubscriptionPlansPage = () => {
             // payment failure, so route it to the same recovery the policy footer's restore button
             // uses instead of the generic "payment failed" toast.
             if (code === 'already-owned') {
+                logger.warn('IAP', 'purchase already owned; restoring', { planId: plan.id });
                 await restorePurchases();
                 return;
             }

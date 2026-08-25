@@ -61,7 +61,13 @@ react {
     hermesCommand = file("../../../../node_modules/hermes-compiler/hermesc/${osFolder}/hermesc").absolutePath
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
-    // hermesFlags = ["-O", "-output-source-map"]
+    //
+    // -output-source-map is what makes a release Hermes stack readable. Two maps
+    // exist — Metro's (bundle position -> original file) and hermesc's (bytecode
+    // address -> bundle position) — and only their composition names an original
+    // line. The RN gradle plugin runs that composition itself once this flag is
+    // set; without it a release JS stack is bytecode offsets and nothing more.
+    hermesFlags = ["-O", "-output-source-map"]
 
     /* Autolinking */
     autolinkLibrariesWithApp()
@@ -83,8 +89,8 @@ android {
         applicationId "io.chatic.dou"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 72
-        versionName "0.23.0"
+        versionCode 73
+        versionName "0.23.1"
         resValue "string", "build_config_package", "io.chatic.dou"
     }
 
@@ -132,6 +138,23 @@ android {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+
+            // Ship the .so debug symbols to Crashlytics. Without this a crash in
+            // native code is a list of addresses: the New Architecture is on
+            // (newArchEnabled=true), so the Fabric/TurboModule C++ layer and any
+            // exception thrown across the JSI boundary land here, not in a JS
+            // stack. Needs the -ndk artifact in `dependencies` to be collected
+            // in the first place.
+            firebaseCrashlytics {
+                nativeSymbolUploadEnabled true
+            }
+
+            // FULL keeps function names AND line numbers in the symbol file that
+            // ships with the bundle, which is what makes a tombstone readable
+            // through ndk-stack after the fact. SYMBOL_TABLE gives names only.
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
         }
     }
 }
@@ -146,4 +169,8 @@ dependencies {
     // Firebase dependencies needed for custom native Java/Kotlin FirebaseMessagingService
     implementation platform('com.google.firebase:firebase-bom:33.1.0')
     implementation 'com.google.firebase:firebase-messaging'
+    // The Crashlytics gradle plugin alone reports JVM crashes only. Signal-level
+    // crashes in .so code — the Hermes runtime, the New Architecture C++ layer,
+    // third-party native modules — need this artifact to be caught at all.
+    implementation 'com.google.firebase:firebase-crashlytics-ndk'
 }

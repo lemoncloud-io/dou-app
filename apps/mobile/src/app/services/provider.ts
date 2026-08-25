@@ -1,7 +1,10 @@
-import type { IConsoleLogger, ILogService } from './log';
-import { ConsoleLogger, LogBufferService, LogService } from './log';
-import { MmkvLogPersistence } from './log/persistence';
-import { attachNativeLoggerBridge } from './log/nativeLoggerBridge';
+import type { ILogService } from './log';
+import { LogService, LogUploadQueueService } from './log';
+import { createConsoleListener, logHub } from '@chatic/logger';
+// Deep path, per the barrel policy: this module imports react-native-mmkv.
+import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
+import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
+import { attachNativeLogContext } from './log/native/nativeLogContext';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -56,7 +59,7 @@ import {
 import { TestRecordService } from './cache/TestRecordService';
 import type { IKeyValueStorage, ISqliteDatabase } from '../database';
 import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
-import type { ILogBufferService } from './log/buffer';
+import type { ILogUploadQueueService } from './log/uploadQueue/types';
 
 class DependencyProvider {
     private static instance: DependencyProvider;
@@ -64,8 +67,7 @@ class DependencyProvider {
     // Eager — foundational or boot-critical (logging, storage, boot metrics, deep link / notification
     // cold-start capture, crash reporting). Constructed in the constructor.
     public readonly logService: ILogService;
-    public readonly consoleLogger: IConsoleLogger;
-    public readonly logBufferService: ILogBufferService;
+    public readonly logUploadQueueService: ILogUploadQueueService;
     public readonly keyValueStorage: IKeyValueStorage;
     public readonly bootMetricsService: IBootMetricsService;
     public readonly notificationService: INotificationService;
@@ -109,7 +111,6 @@ class DependencyProvider {
 
     private constructor() {
         this.logService = new LogService();
-        this.consoleLogger = new ConsoleLogger(this.logService);
         this.keyValueStorage = new MmkvStorage(this.logService);
         // Constructed first so its baseline sits as close to JS entry as possible.
         this.bootMetricsService = new BootMetricsService(
@@ -120,7 +121,11 @@ class DependencyProvider {
 
         // The buffer itself lives in the core logger (merged native+web,
         // fixed capacity); this service only wires MMKV persistence to it.
-        this.logBufferService = new LogBufferService(new MmkvLogPersistence());
+        // The server-bound queue is a different store with a different lifetime
+        // (ADR-0063): non-debug only, its own MMKV key, and nothing leaves it
+        // before the web acks a successful upload. Constructed next to the buffer
+        // because both must exist before the first dispatch.
+        this.logUploadQueueService = new LogUploadQueueService(new MmkvLogUploadQueuePersistence(), __DEV__);
 
         // Deep link / notification services stay eager: cold-start capture reads them during the first
         // render (getInitialUrl / getInitialNotification), so they must exist before then.
@@ -131,8 +136,17 @@ class DependencyProvider {
         this.firebaseCrashlyticsService = new FirebaseCrashlyticsService(this.logService);
 
         // Initialize Logging
-        this.consoleLogger.init();
-        this.logBufferService.init();
+        // Context first: it is stamped at dispatch, so anything logged before
+        // this would carry no runId and be unattributable to this app run.
+        attachNativeLogContext();
+        // The hub's listeners, wired before anything logs (principle 15). The app
+        // keeps three: the console, the store, and Crashlytics (below).
+        //
+        // Timestamps are on because relayed web entries arrive later than they
+        // happened — the terminal's own arrival order would misread the merged
+        // timeline, which is the reason to have one.
+        if (__DEV__) logHub.subscribe(createConsoleListener({ timestamps: true }));
+        this.logUploadQueueService.init();
         // Pure-native (Kotlin/Swift) logs join the same core buffer with
         // source:'native'; ready() flushes the native cold-start queue (ADR-0047).
         attachNativeLoggerBridge();
@@ -144,12 +158,12 @@ class DependencyProvider {
 
         // ADR-0047: native-side error detection. Uncaught JS exceptions and
         // unhandled rejections queue deferred reports the web relays; the
-        // relaunch check reads the MMKV-restored buffer, so it runs AFTER
-        // logBufferService.init() above.
+        // relaunch check reads the previous run's last-log timestamp, restored
+        // from MMKV by logUploadQueueService.init() above.
         this.pendingReportQueueService = new PendingReportQueueService();
         const detectionDeps = {
             logService: this.logService,
-            logBufferService: this.logBufferService,
+            logUploadQueue: this.logUploadQueueService,
             pendingReports: this.pendingReportQueueService,
         };
         installNativeErrorDetection(detectionDeps);

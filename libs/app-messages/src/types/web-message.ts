@@ -8,8 +8,11 @@ import type {
     DeletePreferencePayload,
     FetchAllCacheDataPayload,
     FetchAllTestRecordsPayload,
+    AckLogUploadQueuePayload,
+    ClearLogUploadQueuePayload,
     AckPendingReportsPayload,
     FetchAppLogBufferPayload,
+    FetchLogUploadQueuePayload,
     FetchCacheDataPayload,
     FetchLastChatsDataPayload,
     FetchManyCacheDataPayload,
@@ -156,6 +159,9 @@ export type WebMessagePayloadMap = {
     ClearAppLogBuffer: ClearAppLogBufferPayload;
     FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
     SendLog: SendLogPayload;
+    FetchLogUploadQueue: FetchLogUploadQueuePayload;
+    AckLogUploadQueue: AckLogUploadQueuePayload;
+    ClearLogUploadQueue: ClearLogUploadQueuePayload;
     FetchPendingReports: FetchPendingReportsPayload;
     AckPendingReports: AckPendingReportsPayload;
     Ping: PingPayload;

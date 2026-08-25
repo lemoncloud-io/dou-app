@@ -9,7 +9,7 @@
 - **타이틀이 전부 `[mobile] error`로 동일**하다 ([`common.ts:103`](../../libs/web-core/src/api/common.ts)). Slack 알림과 admin 리포트 목록에서 스크립트 에러인지 네트워크 에러인지 제목만으로 구분이 안 돼, 열어보기 전에는 성격을 알 수 없다.
 - **`"Script error."`가 유추 불가능한 형태로 등장**한다. 전역 핸들러 [`app.tsx:22`](../../apps/web/src/app/app.tsx)가 `event.error ?? new Error(event.message)`만 넘기는데, 크로스오리진으로 판정된 스크립트 예외는 `event.error === null`이라 message가 문자 그대로 `"Script error."`가 되고 stack도 `번들URL:line:col` 한 줄뿐이다. 원본 원인을 알 수 없다. (예시의 `url`·`stack`은 모두 동일 오리진 `dou.chatic.io`인데도 opaque하게 지워졌다 → 네이티브 주입 스크립트/서드파티 컨텍스트에서 던진 예외 가능성이 있으나 근본 원인은 미확인.)
 - **스로틀 키가 `error.message` 하나**다 ([`common.ts:16`](../../libs/web-core/src/api/common.ts)). `"Script error."`로 뭉뚱그려진 서로 다른 원인들이 한 버킷으로 묶여 60초당 1건만 통과하고 나머지는 소리 없이 버려진다 → 신호 손실.
-- **직전 맥락(breadcrumb)이 없다.** 이미 [`libs/logger`의 링버퍼](../../libs/logger/src/ringBuffer.ts)가 존재하고 `reportIssue`는 `extras`로 최근 로그를 붙이지만, `reportError`에는 붙지 않는다.
+- **직전 맥락(breadcrumb)이 없다.** 이미 [`libs/logger`의 링버퍼](../../libs/logger/src/core/RingBuffer.ts)가 존재하고 `reportIssue`는 `extras`로 최근 로그를 붙이지만, `reportError`에는 붙지 않는다.
 - **`ErrorEvent`의 `filename`/`lineno`/`colno`를 버린다.** 이 세 값은 message가 opaque해도 브라우저가 별도로 채워주는데 현재 핸들러가 폐기한다.
 
 제약:

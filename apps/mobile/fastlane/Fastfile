@@ -65,6 +65,43 @@ def write_play_changelog(notes)
   File.write(File.join(dir, 'default.txt'), notes)
 end
 
+# A Hermes sourcemap is build-specific and lives inside the platform's build
+# directory, which the next build overwrites. The web deploy keeps its maps as
+# a CI artifact named sourcemaps-<project>-<sha>; mobile has no CI build, so
+# this keeps them on disk under the same idea — the commit is what ties a map
+# to the binary that shipped. Resolve a stack with `yarn trace --map <file>`.
+#
+# Kept in the repo's `.sourcemaps/` (gitignored) rather than under a `build/`
+# directory: build directories are treated as disposable, and this is the only
+# copy that exists. `.sourcemaps/` is already where `yarn trace` caches the
+# maps it downloads, so mobile maps sit beside their web counterparts.
+#
+# The commit suffix is load-bearing here in a way it is not on web. Web bundles
+# are content-hashed, so a name match IS a build match; `index.android.bundle`
+# and `main.jsbundle` are named the same in every build, and picking the wrong
+# one resolves to plausible-but-wrong lines rather than failing.
+#
+# Missing is a warning, not a failure: the upload already succeeded by the time
+# this runs, and losing symbolication is not worth failing a shipped release.
+def keep_hermes_sourcemap(env:, map:)
+  unless File.exist?(map)
+    UI.important("Hermes sourcemap not found at #{map} — release stacks from this build will not symbolicate.")
+    return
+  end
+
+  # Backticks rather than the last_git_commit action: this is a plain method,
+  # not a lane, so fastlane actions are not in scope here.
+  sha = `git rev-parse --short HEAD`.strip
+  repo_root = `git rev-parse --show-toplevel`.strip
+  dest_dir = File.join(repo_root, '.sourcemaps')
+  FileUtils.mkdir_p(dest_dir)
+  dest = File.join(dest_dir, "#{File.basename(map, '.map')}-#{env}-#{sha}.map")
+
+  FileUtils.cp(map, dest)
+  UI.success("Kept Hermes sourcemap: #{dest}")
+  UI.message("Resolve a stack against it with: yarn trace --map #{dest}")
+end
+
 platform :ios do
   desc 'Build the dev app and upload to TestFlight (dev app)'
   lane :dev do
@@ -107,6 +144,40 @@ platform :ios do
       # deliberately do NOT skip_waiting_for_build_processing here.
       distribute_external: false
     )
+
+    upload_store_dsyms(env: env, api_key: api_key)
+
+    keep_hermes_sourcemap(
+      env: env,
+      map: File.join(File.expand_path('..', __dir__), 'build/sourcemaps/main.jsbundle.map')
+    )
+  end
+
+  # The Xcode run script phase uploads the dSYM produced locally by this build,
+  # but App Store Connect regenerates dSYMs while processing — and it is that
+  # copy the store build actually ships with. Without fetching it back,
+  # Crashlytics has no matching UUID and every store crash arrives as a list of
+  # addresses. upload_to_testflight above already waited for processing, so the
+  # dSYMs exist by the time this runs.
+  private_lane :upload_store_dsyms do |options|
+    env = options[:env]
+    plist = env == 'prod' ? 'GoogleService-Info-Prod.plist' : 'GoogleService-Info-Dev.plist'
+
+    download_dsyms(
+      api_key: options[:api_key],
+      app_identifier: APP_IDS[env],
+      wait_for_dsym_processing: true
+    )
+
+    # No dSYM to fetch is not a failure: a rebuild of an already-processed
+    # version returns nothing, and the local run script already covered it.
+    if lane_context[SharedValues::DSYM_PATHS].to_a.empty?
+      UI.important('No regenerated dSYMs came back from App Store Connect — keeping the build-time upload.')
+      next
+    end
+
+    upload_symbols_to_crashlytics(gsp_path: "ios/Firebase/#{plist}")
+    clean_build_artifacts
   end
 end
 
@@ -164,6 +235,14 @@ platform :android do
       skip_upload_images: true,
       skip_upload_screenshots: true,
       skip_upload_apk: true
+    )
+
+    keep_hermes_sourcemap(
+      env: env,
+      map: File.join(
+        android_dir,
+        "app/build/generated/sourcemaps/react/#{env}Release/index.android.bundle.map"
+      )
     )
   end
 end

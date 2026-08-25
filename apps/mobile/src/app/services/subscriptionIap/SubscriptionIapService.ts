@@ -23,9 +23,13 @@ export class SubscriptionIapService implements ISubscriptionIapService {
         return initConnection();
     }
 
+    /**
+     * Callers log their own reason for fetching (restore on launch, post-purchase
+     * refresh, replacement lookup) — logging it here too would print the same
+     * generic line for three unrelated events.
+     */
     public async getAvailablePurchases(): Promise<Purchase[]> {
         try {
-            this.logService.info('IAP', 'Fetching available purchases for restore...');
             return await getAvailablePurchases();
         } catch (error) {
             this.logService.error('IAP', 'Failed to get available purchases', error as Error);
@@ -141,6 +145,7 @@ export class SubscriptionIapService implements ISubscriptionIapService {
         // Android 환경이면서, 업그레이드/다운그레이드에 필요한 데이터가 전부 존재할때
         if (Platform.OS === 'android' && oldPlanId && newPlanId && googleRequest) {
             // sku를 활용하여 이전 구매내역 찾기
+            this.logService.debug('IAP', 'Looking up existing purchase for plan change');
             const availablePurchases = await this.getAvailablePurchases();
             const oldPurchase = availablePurchases.find(p => p.productId === id);
 

@@ -5,6 +5,5 @@ export * from './normalizeReceivedPush';
 export * from './formatRegisteredAt';
 export * from './copyText';
 export * from './verifyDebugCode';
-export * from './webLogSource';
 export * from './formatLogEntry';
 export * from './logFilter';

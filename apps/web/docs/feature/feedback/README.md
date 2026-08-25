@@ -91,7 +91,6 @@ flowchart TD
     Photos --> Encode["scaleImageToDataUrl (1024px · q0.6)"]
     Feedback --> CTA["web-ui-kit FloatingButton"]
     Feedback --> Build["buildReportContext()"]
-    Build --> LogBuffer["logBuffer.peek().slice(-50)"]
     Build --> Device["useDeviceInfo()"]
     Build --> Buffer
     CTA --> Report["reportIssue(title, body, extras)"]
@@ -162,7 +161,7 @@ apps/web/src/app/features/feedback/
 - **[libs/web-ui-kit/.../PhotoAttachField.tsx](../../../../../libs/web-ui-kit/src/foundations/input/PhotoAttachField.tsx)** — 점선 드롭존(h144 · radius24 · `#DFE0E2`) + 88px 썸네일 스트립(radius10 · `border-placeholder`, 16px 삭제 배지 `bg-input-border`). 순수 표현 컴포넌트다: `File[]`을 그대로 돌려주고 `value`를 그리기만 하므로, 인코딩 방식·크기 예산·한도 초과 처리 같은 **페이로드 정책이 디자인 시스템에 새지 않는다**. `max`에 도달하면 드롭존을 감춘다.
 - **[libs/web-core/.../common.ts](../../../../../libs/web-core/src/api/common.ts)** — `reportIssue`가 `extras`를 payload에 펼치고, **첨부가 있을 때만 `silent: true`** 로 보낸다. payload는 `body.message`에 실려 그대로 Slack 메시지 텍스트가 되는데 base64 한 장이면 Slack 상한(~40k자)을 넘기 때문이다. `SlackReportBody.meta`로 분리하는 쪽을 먼저 구현했지만 **백엔드가 클라이언트 `meta`를 저장하지 않아** 사진이 유실됐고(2026-08-11 실측), 저장되는 필드가 `message`뿐이라 알림을 포기하는 쪽으로 돌아섰다([ADR-0049](../../../../../docs/adr/0049-feedback-photo-attachment-inline-base64.md)). 첨부가 있으면 장수·payload KB를 로그로 남겨, 크기 상한에 걸렸을 때 숫자가 함께 남는다.
 - **[admin-v2 parseReportLog.ts](../../../../admin-v2/src/app/features/report-logs/lib/parseReportLog.ts)** — 저장 레코드에서 첨부를 찾아 `row.images`로 올린다. payload `images`(현행 경로) → 래퍼 `meta.images` → 레코드 `meta.images` → 최상위 순으로 탐색하고(뒤쪽 `meta` 지점은 잠깐 배포됐던 meta 빌드와, 백엔드가 나중에 meta를 저장할 경우 대비), `data:image/…`·`http(s)://`만 통과시킨다. **[ReportDetailDrawer.tsx](../../../../admin-v2/src/app/features/report-logs/components/ReportDetailDrawer.tsx)** 는 이를 썸네일 그리드로 그리고(클릭 시 새 탭 원본), Raw 블록에서는 base64를 마커로 치환한다 — 안 그러면 raw가 수 MB 텍스트가 된다. 첨부 섹션은 payload 파싱 실패와 무관하게 보이도록 `payload &&` 밖에 둔다.
-- **[lib/buildReportContext.ts](../../../src/app/features/feedback/lib/buildReportContext.ts)** — `{ logs, device, version, online, viewport, path, routeTrail }`을 반환하는 순수 함수. `logBuffer.peek()`는 FIFO(오래된 것부터)라 "최근 50개"는 전체를 peek해 `slice(-50)`로 꼬리를 취한다 — `peek(50)`은 가장 오래된 50개가 되어 오답이다. `deviceToken`(FCM/APNS 푸시 크리덴셜)과 `deviceId`/`installId`/`firebaseInstallationId`는 `pickDeviceFields`가 걸러낸다: 리포트는 공유 채널에 떨어지므로 capability 토큰을 실으면 안 된다. `app/utils` 배럴이 아니라 `routeTrail`/`viewport` 파일을 **직접 경로로** import 한다 — 배럴은 `import.meta`를 쓰는 모듈까지 끌고 와 CommonJS 테스트 트랜스폼이 파싱하지 못한다(architecture/directory-structure.md §6).
+- **[lib/buildReportContext.ts](../../../src/app/features/feedback/lib/buildReportContext.ts)** — `{ device, version, online, viewport, path, routeTrail }`을 반환하는 순수 함수. **로그는 담지 않는다(2026-08-21)** — 리포트 첨부가 폐지되고 로그는 배치 업로더가 낱건으로 올리므로, 제보 당시 로그는 같은 `runId`로 이미 서버에 있다. `deviceToken`(FCM/APNS 푸시 크리덴셜)과 `deviceId`/`installId`/`firebaseInstallationId`는 `pickDeviceFields`가 걸러낸다: 리포트는 공유 채널에 떨어지므로 capability 토큰을 실으면 안 된다. `app/utils` 배럴이 아니라 `routeTrail`/`viewport` 파일을 **직접 경로로** import 한다 — 배럴은 `import.meta`를 쓰는 모듈까지 끌고 와 CommonJS 테스트 트랜스폼이 파싱하지 못한다(architecture/directory-structure.md §6).
 - **[app/utils/routeTrail.ts](../../../src/app/utils/routeTrail.ts)** — 모듈 레벨 링버퍼(`ROUTE_TRAIL_SIZE = 10`). `recordRoute(path)`(빈 경로·직전과 동일한 경로는 무시), `getRouteTrail()`(복사본 반환 — 호출부가 버퍼를 오염시키지 못하게), `resetRouteTrail()`(테스트용). React 밖 순수 모듈. **호출부는 `pathname`만 넘긴다** — 트레일은 공용 Slack 채널로 나가는데 이 앱은 쿼리스트링에 capability 토큰을 싣는다(`/invite/accept?…`, `/s?…`). 경로 세그먼트는 리포트가 이미 담고 있는 리소스 id지만 쿼리스트링은 크리덴셜이다. 이 계약은 `routeTrail.test.ts`가 못박는다.
 - **[app/utils/viewport.ts](../../../src/app/utils/viewport.ts)** — `getViewportSize()`. 삭제된 `useDraggable`에 있던 것을 그대로 이관했다. 측정 불가(레이아웃 전 WebView/headless)일 때 `{0,0}`을 돌려주고 폴백은 호출부가 정한다.
 - **[routes/index.tsx](../../../src/app/routes/index.tsx)** — 라우트 기록은 별도 러너 컴포넌트 없이 **데이터 라우터를 직접 구독**한다. `Router`가 `createBrowserRouter` + `RouterProvider` 구조라 `AppRuntime`은 라우터 컨텍스트 **밖**이고, `useLocation` 기반 러너는 마운트할 자리가 없다. `router.subscribe(state => recordRoute(state.location.pathname))`는 `Router` 안에서 끝나고 private/public/common 라우트를 전부 덮는다. `subscribe`는 최초 상태를 방출하지 않으므로 구독 직후 `router.state.location.pathname`을 한 번 직접 기록한다. `router`가 `isAuthenticated` 변화로 재생성되면 재구독하는데, `recordRoute`가 연속 중복을 무시하므로 같은 경로가 겹쳐 쌓이지 않는다.
@@ -209,7 +208,7 @@ apps/web/src/app/ui/components/RequiredLabel.tsx       # 위 다이얼로그 전
 
 **유닛 테스트** (ts-jest, `*.test.ts(x)` — 리포 관례. apps/web은 한국어 설명, web-ui-kit은 영어)
 
-- `features/feedback/lib/buildReportContext.test.ts` — 진단 필드만 담는지, 푸시 토큰·영구 식별자 제외, 버퍼 꼬리 50개, `routeTrail` 포함.
+- `features/feedback/lib/buildReportContext.test.ts` — 진단 필드만 담는지, 푸시 토큰·영구 식별자 제외, `routeTrail` 포함.
 - `features/feedback/pages/FeedbackPage.test.tsx` — 제출 버튼 활성 조건(초기·한쪽만·공백만·둘 다), `trim()` 후 전송 인자, 성공 시 토스트 + `navigate(-1)`, 실패 시 입력 보존, 5000자 클램프·카운터 미노출. 사진: 인코딩→썸네일, 개별 삭제, 5장 초과 시 트림+토스트, 만원이면 드롭존 숨김, 인코딩 실패 시 기존 첨부 유지, 제출 인자의 `images` 유무.
 - `libs/web-core/src/api/common.spec.ts` — **`images`가 `meta`로만 가고 `message` 문자열엔 `data:image`가 없다**(회귀 시 Slack 전송이 깨지는 자리), 첨부 없으면 `meta` 키 미생성, 나머지 extras는 payload 유지.
 - `apps/admin-v2 parseReportLog.spec.ts`(vitest) — 첨부를 래퍼 meta·레코드 meta·payload 어디에 두어도 찾아내고, 렌더 불가한 값(`javascript:` 등)은 버린다.

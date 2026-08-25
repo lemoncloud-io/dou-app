@@ -15,11 +15,11 @@ ADR-0017이 이슈 제보 v1을 정하면서 "**로그·디바이스 상태는 �
 
 여기에 리포트가 도착하는 곳이 공유 Slack 채널이라는 사실이 겹친다. "팀만 본다"는 v1의 근거는 채널 범위가 넓어지고 저장까지 생긴 지금 성립하지 않는다.
 
-한편 같은 리포에 이미 답이 있었다. transport의 네트워크 로깅(`libs/web-core/src/transport/networkLog.ts`)은 요청 params·body에 `redactSensitive`를 적용하고 있었고, 마스킹 대상 키 목록(`SENSITIVE_KEYS`)과 구현(`libs/logger/src/redact.ts`)도 이미 있었다. **breadcrumb 경로만 그 처리를 비켜 가고 있었다** — 즉 같은 코드베이스가 "무엇이 비밀인가"에 대해 두 개의 답을 갖고 있었다.
+한편 같은 리포에 이미 답이 있었다. transport의 네트워크 로깅(`libs/web-core/src/transport/networkLog.ts`)은 요청 params·body에 `redactSensitive`를 적용하고 있었고, 마스킹 대상 키 목록(`SENSITIVE_KEYS`)과 구현(`libs/logger/src/redaction/redact.ts`)도 이미 있었다. **breadcrumb 경로만 그 처리를 비켜 가고 있었다** — 즉 같은 코드베이스가 "무엇이 비밀인가"에 대해 두 개의 답을 갖고 있었다.
 
 ## 결정 (Decision)
 
-**`safeStringify`(`libs/logger/src/serialize.ts`)에서 필드명 기반 마스킹을 적용한다.** `SENSITIVE_KEYS`에 걸리는 키의 값은 `[REDACTED]`로 대체한다.
+**`safeStringify`(`libs/logger/src/serialization/safeStringify.ts`)에서 필드명 기반 마스킹을 적용한다.** `SENSITIVE_KEYS`에 걸리는 키의 값은 `[REDACTED]`로 대체한다.
 
 - **적용 지점은 `safeStringify` 한 곳.** `serializeLogs`의 소비자가 리포트(`reportError`·`reportIssue`)와 영속화(sessionStorage·MMKV) 전부라, 여기 한 번 걸면 전 구간이 덮인다.
 - **JSON replacer 안에서 판단한다.** 중첩 객체와 배열 원소까지 닿고, Error 분기보다 **먼저** 검사해 민감한 키에 담긴 Error가 name/message/stack으로 펼쳐지며 새는 경로를 막는다.

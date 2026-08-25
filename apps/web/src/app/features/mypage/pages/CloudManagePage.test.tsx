@@ -1,16 +1,22 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+import { logger } from '@chatic/bridges';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { CloudManagePage } from './CloudManagePage';
 
 const useCloudsMock = jest.fn();
+const mockDeleteCloud = jest.fn();
+jest.mock('@chatic/bridges', () => ({
+    logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 jest.mock('@chatic/web-core', () => ({
     cloudsKeys: { list: () => ['clouds', 'list'] },
     useClouds: (...args: unknown[]) => useCloudsMock(...args),
-    useDeleteCloud: () => ({ mutateAsync: jest.fn(), isPending: false }),
+    useDeleteCloud: () => ({ mutateAsync: mockDeleteCloud, isPending: false }),
     useSessionSelection: () => ({ selectedCloudId: 'CL1' }),
 }));
 
@@ -39,7 +45,17 @@ const K = 'mypage.cloudManage';
 
 const setClouds = (list: Partial<CloudView>[]) => useCloudsMock.mockReturnValue({ data: { list } });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.clearAllMocks();
+    mockDeleteCloud.mockResolvedValue(undefined);
+});
+
+/** Opens the confirm dialog on the first row and presses its destructive button. */
+const releaseFirstCloud = () => {
+    fireEvent.click(screen.getByText(`${K}.delete`));
+    // The row button keeps its label while the dialog is open; the dialog's is the second one.
+    fireEvent.click(screen.getAllByText(`${K}.delete`)[1]);
+};
 
 describe('CloudManagePage — 복원용 이메일', () => {
     it('이메일이 없는 클라우드에만 등록 버튼을 붙인다', () => {
@@ -101,6 +117,41 @@ describe('CloudManagePage — 설정에 실패한 클라우드', () => {
         render(<CloudManagePage />);
 
         expect(screen.queryByText(failed.error)).not.toBeInTheDocument();
+    });
+});
+
+describe('CloudManagePage — 클라우드 해제 기록', () => {
+    const cloud = { id: 'CL2', name: '작업용', email: 'b@example.com', status: 'active' } satisfies Partial<CloudView>;
+
+    it('해제에 실패하면 에러를 기록한다 — 전에는 변수에 담지도 않고 삼켰다', async () => {
+        const boom = new Error('release boom');
+        mockDeleteCloud.mockRejectedValueOnce(boom);
+        setClouds([cloud]);
+
+        render(<CloudManagePage />);
+        releaseFirstCloud();
+
+        await waitFor(() =>
+            expect(logger.error).toHaveBeenCalledWith('CLOUD', 'cloud release failed', {
+                error: boom,
+                data: { cloudId: 'CL2' },
+            })
+        );
+    });
+
+    it('해제에 성공하면 되돌릴 수 없는 조작이므로 info로 남긴다', async () => {
+        setClouds([cloud]);
+
+        render(<CloudManagePage />);
+        releaseFirstCloud();
+
+        await waitFor(() =>
+            expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud released', {
+                cloudId: 'CL2',
+                wasActive: false,
+            })
+        );
+        expect(logger.error).not.toHaveBeenCalled();
     });
 });
 

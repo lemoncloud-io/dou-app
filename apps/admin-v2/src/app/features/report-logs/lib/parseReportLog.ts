@@ -7,10 +7,19 @@
  * string, wrapped one level inside a `SlackReportBody { title, message }`, or
  * at the record's top level. This parser probes those shapes defensively and
  * always preserves the raw record so the drawer can fall back to raw JSON.
+ *
+ * A second, unrelated record shape shares this same list: batch-uploaded
+ * structured logs (`LogEntry` — level/tag/message/data/source/runId), stored
+ * under the same `stereo='log'` bucket as the legacy Slack error reports
+ * (chatic-backend-api log-batch-ingest SPEC.md, decision D6 — "separating the
+ * stereo means fixing the admin list screen; for now they're shared"). Those
+ * are detected structurally (`level`+`tag`, which a Slack report never sets)
+ * and parsed as `'log-entry'` instead of being forced through the report
+ * title/payload unwrap below.
  */
 import type { RawMockView } from '../api/reportLogApi';
 
-export type ReportType = 'error' | 'issue' | 'unknown';
+export type ReportType = 'error' | 'issue' | 'log-entry' | 'unknown';
 
 /** Loose view of the report payload (ErrorReportPayload | issue payload). */
 export interface ReportPayload {
@@ -75,12 +84,20 @@ export interface ReportLogRow {
     createdAt?: number;
     /** User-attached screenshots (base64 data URLs), when the report carried any. */
     images?: string[];
-    /** Parsed inner report payload, or null when parsing failed. */
+    /** Parsed inner report payload, or null when parsing failed. Unused for `'log-entry'` rows. */
     payload: ReportPayload | null;
     /** Original meta/record kept for the raw-JSON fallback view. */
     raw: unknown;
     /** True when the payload could not be parsed into an object. */
     parseError: boolean;
+    /** `'log-entry'` rows only, below: fields lifted straight from the `LogEntry`. */
+    level?: string;
+    tag?: string;
+    /** `LogEntry.data` — a JSON string the client already redacted/serialized; parsed when possible. */
+    logData?: unknown;
+    logDataRaw?: string;
+    source?: string;
+    runId?: string;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -190,15 +207,68 @@ const pickImages = (
     asImageList((mock as Record<string, unknown>).images);
 
 /**
+ * Structural signature of a batch-uploaded `LogEntry`: `level`+`tag` together
+ * is never set by a Slack report (`SlackReportBody` has neither field), so
+ * this is enough to route a record to `parseLogEntryRow` instead of the
+ * report title/payload unwrap below.
+ */
+const isLogEntryShape = (metaObj: Record<string, unknown>): boolean =>
+    typeof metaObj.level === 'string' && typeof metaObj.tag === 'string';
+
+/** `LogEntry.data` is a JSON string the client already redacted; parsed for display when possible. */
+const parseLogData = (value: unknown): unknown => {
+    if (typeof value !== 'string') return undefined;
+    try {
+        return JSON.parse(value);
+    } catch {
+        return undefined;
+    }
+};
+
+/**
+ * Build a row straight from a `LogEntry`'s fields — no title/payload unwrap
+ * applies here, unlike the Slack report shapes `parseReportLog` otherwise
+ * handles.
+ */
+const parseLogEntryRow = (mock: RawMockView, metaObj: Record<string, unknown>): ReportLogRow => {
+    const level = typeof metaObj.level === 'string' ? metaObj.level : undefined;
+    const tag = typeof metaObj.tag === 'string' ? metaObj.tag : undefined;
+    const dataRaw = typeof metaObj.data === 'string' ? metaObj.data : undefined;
+    const uid = typeof metaObj.uid === 'string' ? metaObj.uid : typeof mock.uid === 'string' ? mock.uid : undefined;
+    const runId =
+        typeof metaObj.runId === 'string' ? metaObj.runId : typeof mock.runId === 'string' ? mock.runId : undefined;
+
+    return {
+        id: mock.id ?? '',
+        type: 'log-entry',
+        title: tag ?? '(no tag)',
+        message: typeof metaObj.message === 'string' ? metaObj.message : undefined,
+        userId: uid,
+        createdAt: typeof mock.createdAt === 'number' ? mock.createdAt : undefined,
+        payload: null,
+        raw: mock.meta ?? mock,
+        parseError: false,
+        level,
+        tag,
+        logData: parseLogData(dataRaw),
+        logDataRaw: dataRaw,
+        source: typeof metaObj.source === 'string' ? metaObj.source : undefined,
+        runId,
+    };
+};
+
+/**
  * Convert a raw report record into a `ReportLogRow`. Never throws — on any
  * failure it returns a row with `parseError: true` and the raw record retained.
  */
 export const parseReportLog = (mock: RawMockView): ReportLogRow => {
+    // Payload can be inside meta (object/string) or reconstructed from the record.
+    const metaObj = asObject(mock.meta);
+    if (metaObj && isLogEntryShape(metaObj)) return parseLogEntryRow(mock, metaObj);
+
     const id = mock.id ?? '';
     const createdAt = typeof mock.createdAt === 'number' ? mock.createdAt : undefined;
 
-    // Payload can be inside meta (object/string) or reconstructed from the record.
-    const metaObj = asObject(mock.meta);
     const { title: unwrappedTitle, payload } =
         metaObj !== undefined ? unwrapReport(metaObj) : { title: undefined, payload: undefined };
 

@@ -20,7 +20,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const updateWebViewState = useDebugRuntimeStore(state => state.updateWebViewState);
 
     const handleAppReady = useCallback(() => {
-        logger.info('WEBVIEW', 'WebAppReady received in MainScreen');
+        logger.debug('WEBVIEW', 'WebAppReady received in MainScreen');
         bootMetricsService.mark('web-app-ready');
         if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
         setIsWebAppReady(true);
@@ -50,7 +50,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
 
         if (webAppReadyTimeoutRef.current) clearTimeout(webAppReadyTimeoutRef.current);
         webAppReadyTimeoutRef.current = setTimeout(() => {
-            logger.info('WEBVIEW', 'WebAppReady fallback timeout reached');
+            logger.debug('WEBVIEW', 'WebAppReady fallback timeout reached');
             setIsWebAppReady(true);
         }, 1000);
     }, [isWebAppReady]);
@@ -105,7 +105,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                         currentUrl: event.nativeEvent.url,
                         lastLoadStartUrl: event.nativeEvent.url,
                     });
-                    logger.info('DEEPLINK', '[MainScreen] WebView load started', {
+                    logger.debug('DEEPLINK', '[MainScreen] WebView load started', {
                         url: event.nativeEvent.url,
                         routeParams: route.params,
                     });
@@ -117,7 +117,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                         currentUrl: event.nativeEvent.url,
                         lastLoadEndUrl: event.nativeEvent.url,
                     });
-                    logger.info('DEEPLINK', '[MainScreen] WebView load ended', {
+                    logger.debug('DEEPLINK', '[MainScreen] WebView load ended', {
                         url: event.nativeEvent.url,
                         routeParams: route.params,
                     });
@@ -129,7 +129,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                         canGoBack: navState.canGoBack,
                         canGoForward: navState.canGoForward,
                     });
-                    logger.info('DEEPLINK', '[MainScreen] WebView navigation state changed', {
+                    logger.debug('DEEPLINK', '[MainScreen] WebView navigation state changed', {
                         url: navState.url,
                         loading: navState.loading,
                         canGoBack: navState.canGoBack,

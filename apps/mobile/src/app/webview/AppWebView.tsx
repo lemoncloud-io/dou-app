@@ -8,12 +8,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_USER_AGENT_PREFIX, getAppLanguage, t } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
-import { getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
+import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
+import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
-import { bootMetricsService, logBufferService, logger, pendingReportQueueService } from '../services';
+import { bootMetricsService, logger, pendingReportQueueService } from '../services';
 import { useDebugSettingsStore, useThemeStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
@@ -39,6 +40,10 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
     appVersion,
     buildNumber,
     deviceId: DeviceInfo.getUniqueIdSync(),
+    osVersion: DeviceInfo.getSystemVersion(),
+    // Issued by the logging layer at app start; injected so the WebView stamps
+    // its entries with the same run identity as the native side.
+    runId: NATIVE_RUN_ID,
 };
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
@@ -57,15 +62,16 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     useVersionCheckHandler(bridge);
 
     // WebView 프로세스 크래시 감지 (ADR-0047): 웹은 통째로 죽어 스스로 리포트할 수
-    // 없으므로, 네이티브가 그 순간의 통합 버퍼 스냅샷을 지연 리포트 큐에 담는다 —
-    // 재부팅된 웹이 세션 준비 후 pull해 대리 전송한다.
+    // 없으므로, 네이티브가 지연 리포트 큐에 사실만 담는다 — 재부팅된 웹이 세션
+    // 준비 후 pull해 대리 전송한다. 버퍼 스냅샷은 싣지 않는다: 그 엔트리들은
+    // 업로더가 통합 버퍼에서 낱건으로 이미 올리므로, 여기 복사하면 같은 로그가
+    // 리포트로 한 번 더 저장될 뿐이다.
     const captureWebViewCrash = useCallback((reason: string) => {
         logger.error('WEBVIEW', `[webview-crash] ${reason}`);
         pendingReportQueueService.enqueue({
             category: 'webview-crash',
             message: reason,
             detectedAt: Date.now(),
-            logs: logBufferService.peek().slice(-50),
         });
     }, []);
 
@@ -93,6 +99,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const firebaseInstallId = useFirebaseInstallId();
     const versionCheck = getVersionCheckResult();
     const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
+    const logUploadHold = useDebugSettingsStore(state => state.logUploadHold);
     // Seeds the web's pre-paint script. Only `injectedJavaScriptBeforeContentLoaded` matters for
     // that, which applies to the next load — a live theme change needs no push, since the web
     // initiated it and already knows.
@@ -101,9 +108,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         insets,
         keyboardHeight,
         debugModeEnabled,
+        logUploadHold,
         theme,
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: Config.VITE_ENV || 'PROD',
+            // Same flag that gates the console subscription in `provider.ts`.
+            // Tying them together is the point: the web relays `debug` if and
+            // only if something over here will print it.
+            consoleEnabled: __DEV__,
             appLanguage: getAppLanguage(),
             firebaseInstallId,
             latestVersion: versionCheck?.latestVersion ?? '',
@@ -115,6 +127,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         if (!webViewRef.current) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
     }, [insets, keyboardHeight]);
+
+    // Pushed live rather than only at load: the point of holding is to reproduce
+    // a bug while it is on, and a reload would discard the very session being
+    // reproduced. Sending on mount too is harmless — the boot script already set
+    // the same value.
+    useEffect(() => {
+        webViewRef.current?.injectJavaScript(getLogUploadHoldScript(logUploadHold));
+    }, [logUploadHold]);
 
     const setRefs = useCallback(
         (node: WebView | null) => {

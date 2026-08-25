@@ -24,6 +24,10 @@ export const formatRelative = (ms?: number, now: number = Date.now()): string =>
 const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ['id', r => r.id],
     ['type', r => r.type],
+    ['level', r => r.level ?? ''],
+    ['tag', r => r.tag ?? ''],
+    ['source', r => r.source ?? ''],
+    ['runId', r => r.runId ?? ''],
     ['app', r => r.app ?? ''],
     ['env', r => r.env ?? ''],
     ['title', r => r.title],

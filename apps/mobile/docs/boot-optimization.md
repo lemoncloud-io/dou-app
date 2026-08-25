@@ -149,9 +149,11 @@ provider.x`로 서비스를 즉시 읽고, 그 배럴이 부팅 경로에서 imp
 - [`provider.ts`](../src/app/services/provider.ts): 비필수 서비스를 lazy getter로 전환(최초 접근 시
   생성·memoize). `sqliteDatabase` getter가 최초 생성 시 `initTables()`를 부른다(생성자에서 이동).
   DataSource들은 `dataSources` memoized getter로 묶는다.
-    - **Eager 유지:** `logService`·`consoleLogger`·`logBufferService`·`keyValueStorage`·
+    - **Eager 유지:** `logService`·`consoleLogger`·`logUploadQueueService`·`keyValueStorage`·
       `bootMetricsService`·`notificationService`·`pushEventManager`·`deeplinkManager`·`deeplinkService`·
       `firebaseCrashlyticsService`(부팅 크래시 관측성 — `init()` 즉시 호출 유지).
+      로그 큐가 eager인 이유는 성능이 아니라 **유실 방어**다: 큐는 hub 구독으로 채워지므로
+      `init()`보다 먼저 나온 엔트리는 어디에도 남지 않는다(원칙 15). lazy로 돌리면 안 된다.
     - **Lazy:** `sqliteDatabase` + 9 DataSource + `cacheCrudService`·`cacheSearchService`·
       `uploadService`·`testRecordService`, 그리고 `deviceService`·`clipboardService`·`smsService`·
       `permissionService`·`oauthService`·`dynamicAppIconService`·`firebaseInstallationService`·

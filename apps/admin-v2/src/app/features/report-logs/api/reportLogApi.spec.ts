@@ -21,6 +21,12 @@ describe('reportLogApi', () => {
             expect(STEREO_BY_KIND.all).toBeUndefined();
             expect(buildReportLogListParams({ type: STEREO_BY_KIND.all })).toEqual({ page: 0, limit: 100 });
         });
+
+        // Batch LogEntry saves share the `log` stereo with error reports (not split
+        // server-side yet — log-batch-ingest SPEC.md D6); parseReportLog splits them client-side.
+        it('should map the log-entry kind to the same log stereo as error', () => {
+            expect(STEREO_BY_KIND['log-entry']).toBe('log');
+        });
     });
 
     describe('buildReportLogListParams', () => {
@@ -45,6 +51,19 @@ describe('reportLogApi', () => {
                 from: '2026-08-01',
             });
             expect(buildReportLogListParams({ to: '2026-08-04' })).toEqual({ page: 0, limit: 100, to: '2026-08-04' });
+        });
+
+        it('should pass level/runId through when set', () => {
+            expect(buildReportLogListParams({ level: 'error', runId: 'run-abc' })).toEqual({
+                page: 0,
+                limit: 100,
+                level: 'error',
+                runId: 'run-abc',
+            });
+        });
+
+        it('should omit an empty-string level/runId', () => {
+            expect(buildReportLogListParams({ level: '', runId: '' })).toEqual({ page: 0, limit: 100 });
         });
     });
 });

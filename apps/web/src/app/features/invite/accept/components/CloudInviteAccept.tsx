@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useInviteInfo } from '@chatic/web-core';
 import { AlertDialog } from '@chatic/web-ui-kit';
@@ -55,7 +56,12 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     const countdown = useInviteCountdown(info?.expiredAt);
 
     const goHome = () => navigate(ROUTES.home, { replace: true });
-    const doLogout = () => logout({ preserveUrl: true });
+    const doLogout = () => {
+        // A logout that never passes through LogoutPage — worth its own entry so the session end is
+        // attributable to the missing-delegator dialog rather than looking like an unexplained drop.
+        logger.info('AUTH', '[CloudInviteAccept] logout from invite missing-delegator dialog');
+        return logout({ preserveUrl: true });
+    };
     // Block dismissal (X / esc / overlay) while the accept pipeline is in flight, so a mid-accept
     // dismissal can't strip the URL and swallow a later failure dialog.
     const requestClose = () => {

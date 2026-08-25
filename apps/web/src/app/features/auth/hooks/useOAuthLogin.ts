@@ -38,6 +38,9 @@ export const useOAuthLogin = (): void => {
             const isSuccess = code.length > 5;
 
             if (!isSuccess) {
+                logger.error('AUTH', '[useOAuthLogin] oauth callback carried no code', {
+                    data: { provider },
+                });
                 toast(t('oauth.error.general'));
                 navigate(ROUTES.auth.login, { replace: true });
                 return;
@@ -50,6 +53,7 @@ export const useOAuthLogin = (): void => {
                 await createCredentialsByProvider(provider, code);
             }
             await refreshRelaySession({ syncProfile: true });
+            logger.info('AUTH', '[useOAuthLogin] oauth login succeeded', { provider });
 
             let redirectTo = '/home';
             try {
@@ -62,6 +66,8 @@ export const useOAuthLogin = (): void => {
             navigate(redirectTo, { replace: true });
         };
 
-        run();
+        // Without this catch the invite-branch throw above escapes as an unhandled rejection, so the
+        // login failure reaches the global handler with no AUTH breadcrumb of its own.
+        void run().catch(error => logger.error('AUTH', '[useOAuthLogin] oauth login failed', { error }));
     }, [location.search, navigate, delegatorId, refreshRelaySession, t]);
 };

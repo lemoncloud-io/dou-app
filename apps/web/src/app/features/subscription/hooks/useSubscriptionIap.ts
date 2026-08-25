@@ -41,11 +41,23 @@ export const useSubscriptionIap = () => {
     } | null>(null);
 
     useOnPurchaseSuccess(message => {
-        purchaseResolverRef.current?.resolve(message.data.purchase as NativePurchase);
+        const purchase = message.data.purchase as NativePurchase;
+        logger.info('IAP', 'native purchase success received', { productId: purchase?.productId });
+        purchaseResolverRef.current?.resolve(purchase);
         purchaseResolverRef.current = null;
     });
 
+    // Every store failure passes through here, so this is the one place worth logging them — the
+    // screens that call `purchaseAndValidate` do not need their own error line.
     useOnPurchaseError(message => {
+        const code = message.data.error?.code;
+        // A cancellation is an ordinary outcome, not a failure: filing it as `error` would misread the
+        // funnel and advance the upload flush for nothing.
+        if (code === 'user-cancelled') {
+            logger.info('IAP', 'native purchase cancelled by user');
+        } else {
+            logger.error('IAP', `native purchase failed (code=${code ?? '-'})`, { data: { code } });
+        }
         purchaseResolverRef.current?.reject(message.data.error);
         purchaseResolverRef.current = null;
     });
@@ -67,6 +79,11 @@ export const useSubscriptionIap = () => {
             });
 
             if (!membership.isValid) {
+                // Charged by the store but the membership never attaches — the "paid and got nothing"
+                // case. The receipt itself is never logged.
+                logger.error('IAP', 'membership validation rejected receipt (isValid=false)', {
+                    data: { productId: result.productId },
+                });
                 throw new Error('Validation failed: isValid=false');
             }
 
@@ -92,16 +109,20 @@ export const useSubscriptionIap = () => {
             // linking screen a guest cannot use. This is only a backstop — both entry points send a
             // guest to login before the email step, so reaching here means a gate was bypassed.
             if (isGuest) {
+                logger.warn('IAP', 'purchase refused before store', { reason: 'guest' });
                 throw new Error(t('mypage.subscription.loginRequired'));
             }
             if (isMissingSocialForCloud) {
+                logger.warn('IAP', 'purchase refused before store', { reason: 'social-link-missing' });
                 throw new Error(t('mypage.subscription.socialLinkRequired'));
             }
             // Purchase result arrives via OnPurchaseSuccess / OnPurchaseError push events,
             // not as a request-response. Wrap in a Promise resolved by the useOn* handlers above.
+            logger.info('IAP', 'purchase started', { productId: product.id });
             const result = await new Promise<NativePurchase>((resolve, reject) => {
                 const timeout = setTimeout(() => {
                     if (purchaseResolverRef.current) {
+                        logger.error('IAP', 'purchase timed out after 60s', { data: { productId: product.id } });
                         purchaseResolverRef.current.reject({ code: 'timeout', message: 'Purchase timed out' });
                         purchaseResolverRef.current = null;
                     }
@@ -131,7 +152,17 @@ export const useSubscriptionIap = () => {
             });
 
             await validate(result, email);
-            await appBridge.finishPurchaseTransaction(result);
+            try {
+                await appBridge.finishPurchaseTransaction(result);
+            } catch (error) {
+                // An unfinished transaction is re-presented by the store, so this failure is what
+                // turns into a second charge for a purchase that already validated.
+                logger.error('IAP', 'finish purchase transaction failed', {
+                    error,
+                    data: { productId: result.productId },
+                });
+                throw error;
+            }
 
             // Fire-and-forget: notify native to refresh its purchase state
             void appBridge.fetchCurrentPurchases();
@@ -140,6 +171,7 @@ export const useSubscriptionIap = () => {
             await new Promise(resolve => setTimeout(resolve, 1500));
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
             await queryClient.invalidateQueries({ queryKey: cloudsKeys.all });
+            logger.info('IAP', 'purchase completed', { productId: product.id });
         },
         [isIOS, validate, queryClient, isGuest, isMissingSocialForCloud, t]
     );

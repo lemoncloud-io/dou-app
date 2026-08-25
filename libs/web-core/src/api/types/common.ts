@@ -3,8 +3,6 @@
 // @see clipbiz-backend-api@0.26.103
 // ============================================================================
 
-import type { LogEntry, SerializedLog } from '@chatic/bridges';
-
 import type { ReportedCause } from '../errorCause';
 import type { HttpContext } from '../httpContext';
 
@@ -69,12 +67,6 @@ export interface ErrorReportContext {
      * 성질로 재분류하면 오히려 왜곡되는 케이스.
      */
     categoryOverride?: ErrorCategory;
-    /**
-     * breadcrumb 대체 로그 (ADR-0047). 현재 버퍼가 아니라 다른 스냅샷
-     * (직전 세션 버퍼, 네이티브 감지 시점 스냅샷)을 첨부해야 하는 리포트가
-     * 쓴다. 직렬화는 reportError가 수행한다.
-     */
-    logsOverride?: LogEntry[];
     /**
      * 실제 발생(감지) 시각 — 부재 시 전송 시각. 지연 전송되는 리포트
      * (page-crash, 네이티브 대리 전송)는 이 값을 payload timestamp로 쓴다.
@@ -156,8 +148,6 @@ export interface ErrorReportPayload {
         lineno?: number;
         colno?: number;
     };
-    // breadcrumb: 직전 로그 tail (링버퍼) — "무슨 일 직후 터졌나"
-    logs?: SerializedLog[];
     // 리포트 시점 라우트 (window.location.pathname)
     path?: string;
 }
@@ -169,8 +159,6 @@ export interface ErrorReportPayload {
  * issue-report feature) composes and passes a concrete shape.
  */
 export interface IssueReportExtras {
-    /** Recent log entries (already serialized/truncated by the caller). */
-    logs?: unknown[];
     /** Device snapshot (platform, model, stage, ...). */
     device?: Record<string, unknown>;
     /** Version snapshot (appVersion, webVersion, ...). */

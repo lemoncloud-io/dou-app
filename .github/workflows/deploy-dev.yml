@@ -317,7 +317,7 @@ jobs:
                   path: dist/apps/${{ matrix.project }}/**/*.map
                   # A project may not emit maps; never fail a deploy over this.
                   if-no-files-found: warn
-                  retention-days: 30
+                  retention-days: 90
 
     notify-slack:
         needs: [changes, version-update, build-and-deploy]

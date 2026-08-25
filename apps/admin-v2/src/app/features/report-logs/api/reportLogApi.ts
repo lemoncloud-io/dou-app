@@ -23,7 +23,7 @@ import { webTransport } from '@chatic/web-core';
 export interface RawMockView {
     id?: string;
     name?: string;
-    /** JSON encoding of the stored data (SlackReportBody / report payload). */
+    /** JSON encoding of the stored data (SlackReportBody / report payload, or a `LogEntry`). */
     meta?: unknown;
     ns?: string;
     type?: string;
@@ -31,6 +31,10 @@ export interface RawMockView {
     uid?: string;
     createdAt?: number;
     updatedAt?: number;
+    /** `LogEntry` saves only, hoisted onto the record for server-side filtering — see `level`/`runId` below. */
+    level?: string;
+    runId?: string;
+    cid?: string;
     [key: string]: unknown;
 }
 
@@ -56,17 +60,22 @@ export type ReportStage = 'v1' | 'd1';
 const DOU_BASE = (import.meta.env.VITE_DOU_ENDPOINT ?? '').replace(/\/dou-[^/]*\/?$/, '');
 
 /** Report kind as offered in the UI; `all` means "no server-side kind filter". */
-export type ReportKind = 'all' | 'error' | 'issue';
+export type ReportKind = 'all' | 'error' | 'issue' | 'log-entry';
 
 /**
  * UI kind → stored `stereo`. Errors save as `log` and user issues as `issue`
  * (see `reportError`/`reportIssue` in web-core) — the names deliberately differ, so keep
  * this mapping rather than passing the UI value straight through.
+ *
+ * `log-entry` (batch-uploaded structured logs) shares the `log` stereo with `error` —
+ * they are not separated server-side yet (log-batch-ingest SPEC.md D6) — so selecting
+ * either fetches the same `stereo=log` bucket and `parseReportLog` splits it client-side.
  */
 export const STEREO_BY_KIND: Record<ReportKind, string | undefined> = {
     all: undefined,
     error: 'log',
     issue: 'issue',
+    'log-entry': 'log',
 };
 
 export interface FetchReportLogsParams {
@@ -84,6 +93,15 @@ export interface FetchReportLogsParams {
     from?: string;
     /** (optional) createdAt range end, `YYYY-MM-DD` (KST day end, inclusive, server-side). */
     to?: string;
+    /**
+     * (optional) `LogEntry.level` filter, e.g. `error`/`warn`/`info` (chatic-backend-api
+     * log-batch-ingest SPEC.md §3 — hoisted onto the model alongside `uid`/`cid`/`runId`
+     * for exactly this). Slack reports never set `level`, so this incidentally narrows to
+     * batch log entries.
+     */
+    level?: string;
+    /** (optional) `LogEntry.runId` filter — isolate one app run's logs. */
+    runId?: string;
 }
 
 /**
@@ -91,23 +109,30 @@ export interface FetchReportLogsParams {
  * backend treats an absent key as "no filter", but an empty string would be matched
  * literally against `stereo.keyword` / rejected by the date parser.
  */
-export const buildReportLogListParams = ({ page = 0, limit = 100, type, from, to }: FetchReportLogsParams = {}): Record<
-    string,
-    string | number
-> => ({
+export const buildReportLogListParams = ({
+    page = 0,
+    limit = 100,
+    type,
+    from,
+    to,
+    level,
+    runId,
+}: FetchReportLogsParams = {}): Record<string, string | number> => ({
     page,
     limit,
     ...(type ? { type } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
+    ...(level ? { level } : {}),
+    ...(runId ? { runId } : {}),
 });
 
 /**
  * Fetch a page of stored reports. The backend paginates (verified: total ~7.7k,
  * default limit 100), so the page/limit params drive server-side pagination.
- * `type`/`from`/`to` filter server-side (against the FULL dataset — so pagination
- * and the group/time samples respect the range); free-text search remains a
- * client-side filter over the fetched page.
+ * `type`/`from`/`to`/`level`/`runId` filter server-side (against the FULL dataset —
+ * so pagination and the group/time samples respect the range); free-text search
+ * remains a client-side filter over the fetched page.
  */
 export const fetchReportLogs = async ({
     page = 0,
@@ -116,13 +141,15 @@ export const fetchReportLogs = async ({
     type,
     from,
     to,
+    level,
+    runId,
 }: FetchReportLogsParams = {}): Promise<ReportLogListResponse> => {
     const { data } = await webTransport
         .buildSignedRequest({
             method: 'GET',
             baseURL: `${DOU_BASE}/dou-${stage}/mocks/0/list`,
         })
-        .setParams(buildReportLogListParams({ page, limit, type, from, to }))
+        .setParams(buildReportLogListParams({ page, limit, type, from, to, level, runId }))
         .execute<ReportLogListResponse>();
     return data ?? {};
 };

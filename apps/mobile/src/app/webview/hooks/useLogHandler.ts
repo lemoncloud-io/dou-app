@@ -4,14 +4,18 @@ import type { WebMessageData } from '@chatic/app-messages';
 
 export const useLogHandler = () => {
     const handleSendLog = useCallback(async (message: WebMessageData<'SendLog'>) => {
-        const { level = 'info', tag, message: logMessage, data, error, timestamp, source } = message.data;
+        const { level = 'info', tag, message: logMessage, data, error, timestamp, source, ...context } = message.data;
 
         // Ingest as-is (ADR-0047): the original tag, occurrence timestamp and
         // source survive the bridge instead of being rewritten to WEBVIEW /
         // receive-time, and data+error ride together (no more either/or).
         // `timestamp` is absent for pre-ADR-0047 web builds — fall back to
         // receive time so legacy payloads keep working.
+        // The id and occurrence-time context are spread first so the explicit
+        // fields below always win. Keeping the id is what lets the same entry
+        // be uploaded from either side without becoming two documents.
         ingestLogEntry({
+            ...context,
             level,
             tag: tag ?? 'WEBVIEW',
             message: logMessage,

@@ -26,6 +26,22 @@ describe('withNetworkLog', () => {
         expect(typeof (fields as { durationMs: number }).durationMs).toBe('number');
     });
 
+    it('omits the response body on success — bulk without diagnostic value, and these entries now get uploaded', async () => {
+        await withNetworkLog(req, async () => ({ data: { huge: 'payload' }, status: 200 }));
+
+        const [, , fields] = mockLogger.debug.mock.calls[0];
+        expect(fields).not.toHaveProperty('responseData');
+    });
+
+    it('still attaches the response body on failure — that is where it explains something', async () => {
+        const failure = Object.assign(new Error('nope'), { response: { status: 500, data: { reason: 'db down' } } });
+
+        await expect(withNetworkLog(req, async () => Promise.reject(failure))).rejects.toBe(failure);
+
+        const [, , options] = mockLogger.error.mock.calls[0];
+        expect((options as { data: { responseData: unknown } }).data.responseData).toEqual({ reason: 'db down' });
+    });
+
     it('escalates to warn when the 200 body carries an error field', async () => {
         await withNetworkLog(req, async () => ({ data: { error: 'BAD_REQUEST' }, status: 200 }));
 

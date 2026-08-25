@@ -94,7 +94,8 @@
         "@testing-library/react": "*",
         "@notifee/react-native": "*",
         "@react-native-community/push-notification-ios": "*",
-        "ts-jest": "*"
+        "ts-jest": "*",
+        "promise": "*"
     },
     "devDependencies": {
         "better-sqlite3": "*"

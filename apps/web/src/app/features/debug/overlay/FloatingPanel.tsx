@@ -38,7 +38,6 @@ export const FloatingPanel = ({
     // exists — before paint, so it never renders clipped.
     useLayoutEffect(() => {
         setPos(current => clampToViewport(current.x, current.y));
-         
     }, []);
 
     const onHandlePointerDown = (e: React.PointerEvent) => {
@@ -73,6 +72,14 @@ export const FloatingPanel = ({
                 <div className="flex shrink-0 items-center gap-3">{actions}</div>
             </div>
 
+            {/*
+             * Callers own the scrolling area, and it must be `min-h-0 flex-1`.
+             * A flex child defaults to `min-height: auto`, which refuses to
+             * shrink below its content — so `overflow-y-auto` alone never
+             * activates, the child grows past the panel, and `overflow-hidden`
+             * above silently clips the remainder. The symptom is a panel whose
+             * content simply cannot be reached.
+             */}
             {children}
         </div>
     );

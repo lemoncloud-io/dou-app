@@ -1,18 +1,20 @@
-import { ChevronDown, ChevronRight, Copy, RefreshCw, Scissors, Search, Trash2, Zap } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, RefreshCw, Search, Trash2, Zap } from 'lucide-react';
 import { type ReactNode, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { isNative, logger } from '@chatic/bridges';
+import { isNative, logger, toAppLogInfo } from '@chatic/bridges';
 import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
 
 import { appBridge } from '../../../../bridge';
+import { getLogQueueView } from '../../../../runtime/logging/logQueueView';
+import { isLogUploadHeld, isLogUploadHeldByApp, setLogUploadHold } from '../../../../runtime/logging/logUploadSwitch';
 import {
+    collectLogTags,
     copyText,
     filterLogs,
     formatLogForCopy,
     formatTimestamp,
     hasErrorValue,
     stringifyValue,
-    webLogSource,
 } from '../../lib';
 
 const LOG_FETCH_LIMIT = 20;
@@ -26,9 +28,6 @@ const levelClassName: Record<AppLogLevel | 'unknown', string> = {
     error: 'bg-destructive/10 text-destructive',
     unknown: 'bg-muted text-muted-foreground',
 };
-
-const createNonce = (prefix: string) =>
-    `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
     <section className="min-w-0 max-w-full overflow-hidden rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
@@ -73,6 +72,45 @@ const ActionButton = ({
         </button>
     );
 };
+
+/**
+ * The send-hold lever.
+ *
+ * Held means the queue is not drained, which is what makes it readable — so the
+ * copy has to keep saying that this is a send pause, not an opt-out. Someone who
+ * reads it as "stop collecting my logs" would believe a privacy control that
+ * isn't one.
+ */
+const HoldToggle = ({ held, byApp, onToggle }: { held: boolean; byApp: boolean; onToggle: () => void }) => (
+    <div className="flex flex-col gap-2">
+        <button
+            type="button"
+            onClick={onToggle}
+            disabled={byApp}
+            className={`flex min-h-[42px] items-center justify-between gap-3 rounded-[10px] border px-3 text-left text-[13px] font-semibold disabled:opacity-60 ${
+                held
+                    ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'
+                    : 'border-border bg-background text-foreground'
+            }`}
+        >
+            <span>서버 전송 {held ? '보류 중' : '보류'}</span>
+            <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                    held ? 'bg-yellow-500/20' : 'bg-muted text-muted-foreground'
+                }`}
+            >
+                {held ? 'ON' : 'OFF'}
+            </span>
+        </button>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+            {byApp
+                ? '앱 디버그 메뉴가 보류를 켰습니다 — 끄는 것도 그쪽입니다.'
+                : held
+                  ? '큐를 비우지 않습니다. 재현한 로그가 큐에 남습니다. 수집은 계속되며, 끄면 다음 전송에 쌓인 것이 나갑니다.'
+                  : '평시에는 전송돼 큐가 비어 있는 것이 정상입니다. 수집 거부(기기 opt-out)와는 다른 레버입니다.'}
+        </p>
+    </div>
+);
 
 /** Small copy button used inside an expanded log entry. */
 const CopyButton = ({ label, value, onCopy }: { label: string; value: string; onCopy: (value: string) => void }) => (
@@ -171,13 +209,17 @@ export const LogBufferScreen = () => {
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const [limit, setLimit] = useState(LOG_FETCH_LIMIT);
     const [logs, setLogs] = useState<AppLogInfo[]>([]);
-    const [bufferSize, setBufferSize] = useState<number | null>(null);
+    const [queueSize, setQueueSize] = useState<number | null>(null);
     const [isFetchingLogs, setIsFetchingLogs] = useState(false);
     const [lastAction, setLastAction] = useState('Idle');
     const [lastResponseAt, setLastResponseAt] = useState<string | null>(null);
     const [clearSuccess, setClearSuccess] = useState<boolean | null>(null);
 
+    const [uploadHeld, setUploadHeld] = useState(isLogUploadHeld);
+    const heldByApp = useMemo(isLogUploadHeldByApp, []);
+
     const [activeLevels, setActiveLevels] = useState<Set<AppLogLevel>>(new Set());
+    const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
     const [query, setQuery] = useState('');
     const [expandedKey, setExpandedKey] = useState<number | null>(null);
     const [copiedAt, setCopiedAt] = useState<number | null>(null);
@@ -188,9 +230,28 @@ export const LogBufferScreen = () => {
     }, []);
 
     // Native loads oldest-first in pages; web loads the whole snapshot at once.
-    const hasMoreLogs = isOnMobileApp && (bufferSize === null || logs.length < bufferSize);
+    const hasMoreLogs = isOnMobileApp && (queueSize === null || logs.length < queueSize);
 
-    const visibleLogs = useMemo(() => filterLogs(logs, { levels: activeLevels, query }), [logs, activeLevels, query]);
+    const visibleLogs = useMemo(
+        () => filterLogs(logs, { levels: activeLevels, query, tags: activeTags }),
+        [logs, activeLevels, query, activeTags]
+    );
+
+    /**
+     * Tag chips, derived from what is present rather than from the tag
+     * constant. A picker listing every tag the app can emit — of which two
+     * occurred — is a worse picker, and there is no room for it in the panel.
+     */
+    const availableTags = useMemo(() => collectLogTags(logs), [logs]);
+
+    const toggleTag = useCallback((tag: string) => {
+        setActiveTags(previous => {
+            const next = new Set(previous);
+            if (next.has(tag)) next.delete(tag);
+            else next.add(tag);
+            return next;
+        });
+    }, []);
 
     // Each buffer entry is a distinct object even when content is identical
     // (socket retries repeat the same tag/message/timestamp), so rows are keyed
@@ -214,20 +275,21 @@ export const LogBufferScreen = () => {
 
     const markResponse = useCallback((action: string, size: number) => {
         setLastAction(`${action} received`);
-        setBufferSize(size);
+        setQueueSize(size);
         setLastResponseAt(new Date().toLocaleTimeString());
     }, []);
 
     const fetchLogs = useCallback(
         async (nextLimit: number, action = 'Fetch') => {
-            // Plain web: read the whole in-memory buffer synchronously. Ordering
-            // and paging are handled at display time (newest-first), so there is
-            // no incremental limit or bridge round-trip here.
+            // Plain web: read the running uploader's queue synchronously.
+            // Ordering and paging are handled at display time (newest-first), so
+            // there is no incremental limit or bridge round-trip here.
             if (!isOnMobileApp) {
-                const { logs: webLogs, size } = webLogSource.fetch();
-                setLogs(webLogs);
+                const view = getLogQueueView();
+                const entries = view?.snapshot() ?? [];
+                setLogs(entries.map(toAppLogInfo));
                 setIsFetchingLogs(false);
-                markResponse(action, size);
+                markResponse(action, entries.length);
                 return;
             }
 
@@ -237,15 +299,15 @@ export const LogBufferScreen = () => {
             markRequest(action);
 
             try {
-                // The native reply carries the request's refId, so the bridge
-                // resolves this promise instead of emitting an event — the logs
-                // must be read from the response here, not from a listener.
-                const res = await appBridge.fetchAppLogBuffer(createNonce('fetch-log-buffer'), normalizedLimit);
-                setLogs(res.data.logs ?? []);
-                markResponse(action, res.data.size);
+                // `FetchLogUploadQueue` is non-destructive by contract, which is
+                // what makes it usable from a viewer at all — the old
+                // `PollAppLogBuffer` consumed what it showed.
+                const res = await appBridge.fetchLogUploadQueue(normalizedLimit);
+                setLogs(res.data?.logs ?? []);
+                markResponse(action, res.data?.size ?? 0);
             } catch (error) {
                 setLastAction(`${action} failed`);
-                logger.warn('LOG_BUFFER', 'fetchAppLogBuffer failed', error);
+                logger.warn('LOG_BUFFER', 'fetchLogUploadQueue failed', error);
             } finally {
                 setIsFetchingLogs(false);
             }
@@ -260,9 +322,9 @@ export const LogBufferScreen = () => {
     const loadMoreLogs = useCallback(() => {
         if (isFetchingLogs || !hasMoreLogs) return;
 
-        const nextLimit = bufferSize === null ? limit + LOG_FETCH_LIMIT : Math.min(limit + LOG_FETCH_LIMIT, bufferSize);
+        const nextLimit = queueSize === null ? limit + LOG_FETCH_LIMIT : Math.min(limit + LOG_FETCH_LIMIT, queueSize);
         fetchLogs(nextLimit, 'Load more');
-    }, [bufferSize, fetchLogs, hasMoreLogs, isFetchingLogs, limit]);
+    }, [queueSize, fetchLogs, hasMoreLogs, isFetchingLogs, limit]);
 
     const handleScroll = useCallback(
         (event: UIEvent<HTMLDivElement>) => {
@@ -276,40 +338,34 @@ export const LogBufferScreen = () => {
         [loadMoreLogs]
     );
 
-    // Native-only: poll consumes entries from the app buffer. Omitted on web
-    // because consuming logs from a live viewer is destructive.
-    const pollLogs = useCallback(async () => {
-        markRequest('Poll');
-        try {
-            const res = await appBridge.pollAppLogBuffer(createNonce('poll-log-buffer'), limit);
-            setLogs(res.data.logs ?? []);
-            markResponse('Poll', res.data.size);
-        } catch (error) {
-            setLastAction('Poll failed');
-            logger.warn('LOG_BUFFER', 'pollAppLogBuffer failed', error);
-        }
-    }, [limit, markRequest, markResponse]);
-
-    const clearLogs = useCallback(async () => {
+    /**
+     * Throws away what is queued.
+     *
+     * Destructive, and there is no undo: these entries were waiting to be sent,
+     * so discarding them means the server never sees them. That is the point
+     * during a reproduction — you want a clean slate for the next attempt — which
+     * is why the label says 버리기 rather than the old neutral "Clear".
+     */
+    const discardQueued = useCallback(async () => {
         setExpandedKey(null);
 
         if (!isOnMobileApp) {
-            const { success, size } = webLogSource.clear();
+            getLogQueueView()?.clear();
             setLogs([]);
-            setClearSuccess(success);
-            markResponse('Clear', size);
+            setClearSuccess(true);
+            markResponse('Discard', 0);
             return;
         }
 
-        markRequest('Clear');
+        markRequest('Discard');
         try {
-            const res = await appBridge.clearAppLogBuffer(createNonce('clear-log-buffer'));
+            const res = await appBridge.clearLogUploadQueue();
             setLogs([]);
-            setClearSuccess(res.data.success);
-            markResponse('Clear', res.data.size);
+            setClearSuccess(Boolean(res?.success));
+            markResponse('Discard', res.data?.size ?? 0);
         } catch (error) {
-            setLastAction('Clear failed');
-            logger.warn('LOG_BUFFER', 'clearAppLogBuffer failed', error);
+            setLastAction('Discard failed');
+            logger.warn('LOG_BUFFER', 'clearLogUploadQueue failed', error);
         }
     }, [isOnMobileApp, markRequest, markResponse]);
 
@@ -326,8 +382,10 @@ export const LogBufferScreen = () => {
         });
 
         setLastAction('Sample logs sent');
-        // Native needs a bridge round-trip; web reads synchronously. A short
-        // delay lets the native buffer settle before we re-fetch.
+        // The debug sample never reaches the queue and so never shows up here —
+        // that is the level policy working, not a bug.
+        // Hybrid needs a charge to land before the app queue holds these, which
+        // is a bridge round-trip away; web queues synchronously.
         window.setTimeout(refreshLogs, isOnMobileApp ? 250 : 0);
     }, [isOnMobileApp, refreshLogs]);
 
@@ -348,6 +406,16 @@ export const LogBufferScreen = () => {
     const toggleExpanded = useCallback((key: number) => {
         setExpandedKey(prev => (prev === key ? null : key));
     }, []);
+
+    const toggleUploadHold = useCallback(() => {
+        // Written outside the state updater: an updater can be re-invoked, and
+        // the uploader reads the stored flag rather than this component's state,
+        // so the persist has to be the deliberate step and the render a
+        // consequence of it.
+        const next = !uploadHeld;
+        setLogUploadHold(next);
+        setUploadHeld(next);
+    }, [uploadHeld]);
 
     // Auto-hide the "Copied" hint shortly after a copy.
     useEffect(() => {
@@ -380,19 +448,19 @@ export const LogBufferScreen = () => {
                     <Section title="Status">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                             <Metric label="Mobile App" value={isOnMobileApp} />
-                            <Metric label="Buffer Size" value={bufferSize} />
+                            <Metric label="Queue Size" value={queueSize} />
                             <Metric label="Loaded Logs" value={logs.length} />
                             <Metric label="Shown" value={visibleLogs.length} />
                             <Metric label="Last Action" value={lastAction} />
                             <Metric label="Last Response" value={lastResponseAt} />
                             {isOnMobileApp ? <Metric label="Limit" value={limit} /> : null}
-                            <Metric label="Clear Success" value={clearSuccess} />
+                            <Metric label="Discarded" value={clearSuccess} />
                         </div>
-                        {!isOnMobileApp ? (
-                            <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-                                Showing the in-memory web log buffer, newest first (current session only).
-                            </p>
-                        ) : null}
+                        <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+                            {isOnMobileApp
+                                ? '앱의 미전송 큐입니다 (비-debug만). debug는 콘솔에만 남습니다.'
+                                : '이 탭의 미전송 큐입니다 (비-debug만). debug는 콘솔에만 남습니다.'}
+                        </p>
                     </Section>
 
                     <Section title="Controls">
@@ -404,11 +472,17 @@ export const LogBufferScreen = () => {
                                 onClick={generateSampleLogs}
                             />
                             <ActionButton icon={<RefreshCw size={15} />} label="Refresh" onClick={refreshLogs} />
-                            {isOnMobileApp ? (
-                                <ActionButton icon={<Scissors size={15} />} label="Poll" onClick={pollLogs} />
-                            ) : null}
-                            <ActionButton icon={<Trash2 size={15} />} label="Clear" tone="danger" onClick={clearLogs} />
+                            <ActionButton
+                                icon={<Trash2 size={15} />}
+                                label="버리기"
+                                tone="danger"
+                                onClick={discardQueued}
+                            />
                         </div>
+                    </Section>
+
+                    <Section title="Upload">
+                        <HoldToggle held={uploadHeld} byApp={heldByApp} onToggle={toggleUploadHold} />
                     </Section>
 
                     <Section title="Filter">
@@ -418,7 +492,7 @@ export const LogBufferScreen = () => {
                                 type="text"
                                 value={query}
                                 onChange={event => setQuery(event.target.value)}
-                                placeholder="Search tag or message"
+                                placeholder={'검색 · -제외 · tag:NET · "따옴표 구"'}
                                 className="min-h-[40px] w-full min-w-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
                             />
                             {query ? (
@@ -457,15 +531,63 @@ export const LogBufferScreen = () => {
                                 </button>
                             ) : null}
                         </div>
+
+                        {availableTags.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {availableTags.map(({ tag, count }) => {
+                                    const active = activeTags.has(tag);
+                                    return (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => toggleTag(tag)}
+                                            className={`rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold ${
+                                                active
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-muted/50 text-muted-foreground'
+                                            }`}
+                                        >
+                                            {tag}
+                                            <span className="ml-1 opacity-60">{count}</span>
+                                        </button>
+                                    );
+                                })}
+                                {activeTags.size > 0 ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTags(new Set())}
+                                        className="rounded-full px-3 py-1 text-[11px] font-semibold text-muted-foreground"
+                                    >
+                                        Reset
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </Section>
 
                     <Section
                         title={`Logs (${visibleLogs.length}${visibleLogs.length !== logs.length ? ` / ${logs.length}` : ''})`}
                     >
                         {visibleLogs.length === 0 ? (
-                            <p className="py-8 text-center text-[13px] text-muted-foreground">
-                                {logs.length === 0 ? 'No logs loaded' : 'No logs match the filter'}
-                            </p>
+                            <div className="py-8 text-center">
+                                <p className="text-[13px] text-muted-foreground">
+                                    {logs.length > 0
+                                        ? 'No logs match the filter'
+                                        : uploadHeld
+                                          ? '보류 중이지만 큐가 비어 있습니다 — 아직 전송할 로그가 없습니다.'
+                                          : '큐가 비어 있습니다.'}
+                                </p>
+                                {/* The empty view is the expected state while sending is on
+                                    — the uploader drains what it ships. Saying so here is
+                                    the only thing standing between this screen and a bug
+                                    report (S11). */}
+                                {logs.length === 0 && !uploadHeld ? (
+                                    <p className="mx-auto mt-2 max-w-[280px] text-[11px] leading-relaxed text-muted-foreground">
+                                        전송이 켜져 있으면 비어 있는 것이 정상입니다. 로그를 붙잡아 보려면 위의 전송
+                                        보류를 켜세요.
+                                    </p>
+                                ) : null}
+                            </div>
                         ) : (
                             <div className="divide-y divide-border">
                                 {visibleLogs.map((log, index) => {

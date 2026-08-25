@@ -66,6 +66,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
         // Relay invites legitimately carry no backend address: registerUserWithInviteCode resolves the
         // env relay endpoint. Only a link that is neither addressed nor marked relay is unusable.
         if (!backend && !relay) {
+            logger.warn('INVITE', 'invite entry missing server info', { hasBackend: !!backend, relay: !!relay });
             toast({ title: t('inviteAccept.missingServerInfo'), variant: 'destructive' });
             return;
         }
@@ -102,6 +103,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             await enterSite(info);
             step = 'enter-channel';
             enterChannel(info);
+            logger.info('INVITE', 'cloud invite accepted; entering channel', { cloudId: info?.cloudId });
         } catch (error) {
             const err = toError(error);
             logger.error('AUTH', `[useInviteAccept] accept failed at step=${step}`, { error: err, data: { step } });

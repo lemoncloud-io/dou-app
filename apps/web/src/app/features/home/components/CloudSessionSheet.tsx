@@ -121,6 +121,7 @@ export const CloudSessionSheet = ({
             if (!cloud.id || !cloud.status) continue;
             const prevStatus = prev.get(cloud.id);
             if (isProvisioning(prevStatus) && cloud.status === 'active') {
+                logger.info('CLOUD', 'cloud provisioning completed', { cloudId: cloud.id });
                 toast({ title: t('cloudSessionSheet.cloudReady') });
             }
             next.set(cloud.id, cloud.status);
@@ -135,13 +136,26 @@ export const CloudSessionSheet = ({
         handleClose();
         // Optimistic switch + rollback-on-failure live inside switchCloud (session service).
         // Invited clouds enter via the same path — the cache holds the real target cid.
-        await switchCloud(cloudId).catch(() => undefined);
+        try {
+            await switchCloud(cloudId);
+            logger.info('CLOUD', 'cloud switch succeeded', { cloudId });
+        } catch {
+            // Deliberately not logged here: the session service already records the failure and does
+            // the cid/sid rollback. A second entry would double the error count — and `error` advances
+            // the upload flush, so it would double that too.
+        }
     };
 
     // Disconnect cloud == log out the cloud session and fall back to relay (relay auth kept).
     const handleDisconnect = async () => {
         handleClose();
-        await logoutCloudSession().catch(() => undefined);
+        try {
+            await logoutCloudSession();
+        } catch (error) {
+            // Unlike the switch above, nothing downstream records this — `logoutCloudSession` has no
+            // try/catch of its own, so without this line a failed disconnect leaves no trace at all.
+            logger.error('CLOUD', 'cloud session disconnect failed', { error });
+        }
     };
 
     // Tapping a failed row explains the state and points at the one thing that fixes it (release it

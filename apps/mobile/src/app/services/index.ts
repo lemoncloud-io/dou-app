@@ -30,7 +30,7 @@ export * from './deeplinks/DeepLinkManager';
 // SQLite on the pre-webview critical path. Access them via `provider.x` at the point of use so the
 // database opens only when first needed (first web cache/upload message). See boot-optimization.md 4.4.
 export const logger = provider.logService;
-export const logBufferService = provider.logBufferService;
+export const logUploadQueueService = provider.logUploadQueueService;
 export const pendingReportQueueService = provider.pendingReportQueueService;
 export const deviceService = provider.deviceService;
 export const clipboardService = provider.clipboardService;

@@ -23,11 +23,11 @@ export const useInitWebCore = () => {
 
     const runInitialization = useCallback(async () => {
         try {
-            logger.info('WEB_CORE', 'Starting initialization attempt', {
+            logger.debug('WEB_CORE', 'Starting initialization attempt', {
                 data: { retry: retryCountRef.current },
             });
             await initializeRelaySession();
-            logger.info('WEB_CORE', 'Initialization completed successfully');
+            logger.debug('WEB_CORE', 'Initialization completed successfully');
             setLocalInitState('completed');
             retryCountRef.current = 0;
         } catch (error) {
@@ -36,7 +36,7 @@ export const useInitWebCore = () => {
 
             if (retryCountRef.current < MAX_INIT_RETRIES) {
                 retryCountRef.current++;
-                logger.info('WEB_CORE', 'Retrying initialization', {
+                logger.debug('WEB_CORE', 'Retrying initialization', {
                     data: { retryCount: retryCountRef.current, maxRetries: MAX_INIT_RETRIES },
                 });
                 setTimeout(() => {

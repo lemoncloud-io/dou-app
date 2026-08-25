@@ -21,22 +21,28 @@ const formatLogTime = (timestamp: number) => {
 export const MonitoringScreen = () => {
     const colors = useDebugTheme();
     const { appState, isForeground, isBackground, isInactive } = useAppState();
-    const { logBufferService, clipboardService, bootMetricsService } = useServices();
+    const { logUploadQueueService, clipboardService, bootMetricsService } = useServices();
     const webView = useDebugRuntimeStore(state => state.webView);
     const { getResolvedWebviewBaseUrl, mockServiceMode, mockServiceBaseUrl } = useDebugSettingsStore();
+    const logUploadHold = useDebugSettingsStore(state => state.logUploadHold);
+    const setLogUploadHold = useDebugSettingsStore(state => state.setLogUploadHold);
     const [logs, setLogs] = useState<AppLogInfo[]>([]);
     const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
     const [usedMemoryMb, setUsedMemoryMb] = useState<number | null>(null);
 
+    // The unsent queue, read non-destructively — `ack` is what releases entries,
+    // so a viewer can poll it without competing with the uploader. `debug` is
+    // never queued, so it never appears here (it goes to the console and the RN
+    // local debug pipeline instead).
     const refreshLogs = () => {
-        setLogs(logBufferService.peek(20).reverse());
+        setLogs(logUploadQueueService.fetch(20).reverse());
     };
 
     useEffect(() => {
         refreshLogs();
         const timer = setInterval(refreshLogs, 2000);
         return () => clearInterval(timer);
-    }, [logBufferService]);
+    }, [logUploadQueueService]);
 
     // Perf: app memory footprint, polled on the same cadence as the log view.
     useEffect(() => {
@@ -66,7 +72,8 @@ export const MonitoringScreen = () => {
                 mockServiceMode,
                 mockServiceBaseUrl,
             },
-            logBufferSize: logBufferService.getSize(),
+            logQueueSize: logUploadQueueService.getSize(),
+            logUploadHold,
         }),
         [
             appState,
@@ -74,7 +81,8 @@ export const MonitoringScreen = () => {
             isBackground,
             isForeground,
             isInactive,
-            logBufferService,
+            logUploadHold,
+            logUploadQueueService,
             mockServiceBaseUrl,
             mockServiceMode,
             webView,
@@ -86,10 +94,13 @@ export const MonitoringScreen = () => {
         setCopiedMessage('진단 snapshot을 복사했습니다.');
     };
 
-    const clearLogs = async () => {
-        await logBufferService.clear();
+    // Destructive: these entries were waiting to be sent, so discarding them
+    // means the server never sees them. Useful between reproduction attempts,
+    // which is why the label says 버리기.
+    const discardQueued = async () => {
+        logUploadQueueService.clear();
         refreshLogs();
-        setCopiedMessage('로그 버퍼를 비웠습니다.');
+        setCopiedMessage('미전송 큐를 버렸습니다. 서버로 가지 않습니다.');
     };
 
     const renderStatusRow = (label: string, value: string | number | boolean | null | undefined) => (
@@ -136,8 +147,10 @@ export const MonitoringScreen = () => {
 
             <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.panelHeader}>
-                    <Text style={[styles.title, { color: colors.text }]}>로그</Text>
-                    <Text style={[styles.countText, { color: colors.subtleText }]}>{logBufferService.getSize()}개</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>미전송 큐</Text>
+                    <Text style={[styles.countText, { color: colors.subtleText }]}>
+                        {logUploadQueueService.getSize()}개
+                    </Text>
                 </View>
                 <View style={styles.actions}>
                     <TouchableOpacity style={styles.primaryButton} onPress={refreshLogs}>
@@ -145,14 +158,32 @@ export const MonitoringScreen = () => {
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.secondaryButton, { borderColor: colors.border }]}
-                        onPress={clearLogs}
+                        onPress={discardQueued}
                     >
-                        <Text style={[styles.secondaryButtonText, { color: colors.text }]}>비우기</Text>
+                        <Text style={[styles.secondaryButtonText, { color: colors.text }]}>버리기</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.primaryButton} onPress={copySnapshot}>
                         <Text style={styles.primaryButtonText}>Snapshot 복사</Text>
                     </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                    style={[
+                        styles.holdToggle,
+                        { borderColor: logUploadHold ? '#F59E0B' : colors.border },
+                        logUploadHold && styles.holdToggleOn,
+                    ]}
+                    onPress={() => setLogUploadHold(!logUploadHold)}
+                >
+                    <Text style={[styles.holdToggleLabel, { color: logUploadHold ? '#B45309' : colors.text }]}>
+                        서버 전송 {logUploadHold ? '보류 중' : '보류'}
+                    </Text>
+                    <Text style={[styles.holdToggleHint, { color: colors.subtleText }]}>
+                        {logUploadHold
+                            ? '큐를 비우지 않습니다. 재현한 로그가 여기 남습니다. 수집은 계속됩니다.'
+                            : '평시에는 전송돼 큐가 비어 있는 것이 정상입니다.'}
+                    </Text>
+                </TouchableOpacity>
                 {logs.map(log => (
                     <View
                         key={`${log.timestamp}-${log.tag}-${log.message}`}
@@ -165,7 +196,14 @@ export const MonitoringScreen = () => {
                     </View>
                 ))}
                 {logs.length === 0 && (
-                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>로그가 없습니다.</Text>
+                    // An empty queue is the expected state while sending is on —
+                    // the uploader drains what it ships. Without saying so, this
+                    // screen reads as broken.
+                    <Text style={[styles.emptyText, { color: colors.subtleText }]}>
+                        {logUploadHold
+                            ? '보류 중이지만 큐가 비어 있습니다 — 아직 전송할 로그가 없습니다.'
+                            : '큐가 비어 있습니다. 전송이 켜져 있으면 정상입니다 — 붙잡아 보려면 위의 보류를 켜세요.'}
+                    </Text>
                 )}
             </View>
 
@@ -237,6 +275,23 @@ const styles = StyleSheet.create({
     },
     secondaryButtonText: {
         fontWeight: '700',
+    },
+    holdToggle: {
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        gap: 4,
+    },
+    holdToggleOn: {
+        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    },
+    holdToggleLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    holdToggleHint: {
+        fontSize: 11,
+        lineHeight: 16,
     },
     logRow: {
         borderWidth: 1,

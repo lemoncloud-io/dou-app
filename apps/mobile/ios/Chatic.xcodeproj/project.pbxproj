@@ -209,7 +209,6 @@
 				831743313C8864959E2DEE52 /* [CP-User] [RNFB] Core Configuration */,
 				F760292B2F333E860009C3A7 /* Setup Firebase Environment */,
 				655DAACA2F8AEFC271FD89A5 /* [CP-User] [RNFB] Crashlytics Configuration */,
-				F7A07F952F7B582C00E1C310 /* Firebase Crashlytics */,
 			);
 			buildRules = (
 			);
@@ -319,7 +318,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\n\nexport NODE_BINARY=$(command -v node)\n\n\nexport ENTRY_FILE=src/main.tsx\n\n\nexport PROJECT_ROOT=$PWD/..\n\n\nexport BUNDLE_CONFIG=metro.config.js\n\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
+			shellScript = "set -e\n\n\nexport NODE_BINARY=$(command -v node)\n\n\nexport ENTRY_FILE=src/main.tsx\n\n\nexport PROJECT_ROOT=$PWD/..\n\n\nexport BUNDLE_CONFIG=metro.config.js\n\n\n# Release Hermes stacks are bytecode offsets without this. Setting it makes\n# react-native-xcode.sh emit Metro's map AND compose hermesc's bytecode map\n# onto it, which is the only combination that names an original line. Written\n# outside the .app (a sibling of ios/, gitignored) so it is never shipped, and\n# at a fixed path so the fastlane lane can archive it per build.\nif [ \"$CONFIGURATION\" != \"Debug\" ] && [ \"$CONFIGURATION\" != \"Debug Dev\" ]; then\n  mkdir -p \"$PROJECT_DIR/../build/sourcemaps\"\n  export SOURCEMAP_FILE=\"$PROJECT_DIR/../build/sourcemaps/main.jsbundle.map\"\nfi\n\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
 		00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -422,26 +421,6 @@
 			shellPath = /bin/sh;
 			shellScript = "PLIST_FILE=\"GoogleService-Info-Prod.plist\"\n\nif [[ \"${CONFIGURATION}\" == *\"Dev\"* ]]; then\n  PLIST_FILE=\"GoogleService-Info-Dev.plist\"\nfi\n\necho \"Copying ${PLIST_FILE} to GoogleService-Info.plist\"\ncp \"${PROJECT_DIR}/Firebase/${PLIST_FILE}\" \"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist\"\n";
 		};
-		F7A07F952F7B582C00E1C310 /* Firebase Crashlytics */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
-				"$(SRCROOT)/$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
-			);
-			name = "Firebase Crashlytics";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${PODS_ROOT}/FirebaseCrashlytics/run\"\n";
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -494,7 +473,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 72;
+				CURRENT_PROJECT_VERSION = 73;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
@@ -505,7 +484,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.23.0;
+				MARKETING_VERSION = 0.23.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -533,7 +512,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 72;
+				CURRENT_PROJECT_VERSION = 73;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -543,7 +522,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.23.0;
+				MARKETING_VERSION = 0.23.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1029,7 +1008,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 72;
+				CURRENT_PROJECT_VERSION = 73;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Chatic/Info.plist;
@@ -1040,7 +1019,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.23.0;
+				MARKETING_VERSION = 0.23.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1155,7 +1134,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 72;
+				CURRENT_PROJECT_VERSION = 73;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				INFOPLIST_FILE = Chatic/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
@@ -1165,7 +1144,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.23.0;
+				MARKETING_VERSION = 0.23.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

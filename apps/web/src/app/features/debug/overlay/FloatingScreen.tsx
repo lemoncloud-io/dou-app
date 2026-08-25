@@ -43,7 +43,7 @@ export const FloatingScreen = () => {
                 </>
             }
         >
-            <div className="overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
                 <Suspense fallback={<p className="p-6 text-center text-sm text-muted-foreground">Loading…</p>}>
                     <Screen />
                 </Suspense>
