@@ -47,6 +47,16 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(postMock).toHaveBeenLastCalledWith({ type: 'SetCanGoBack', data: { canGoBack: true } });
     });
 
+    // 회귀 고정: 로그인 시작은 응답을 기다리는 왕복이 아니다. request로 되돌리면 브릿지 기본 15초가
+    // 사람의 구글/애플 조작 시간에 걸려, 이미 발급된 자격증명이 폐기된다.
+    it('startOAuthLogin은 request가 아니라 post로 요청만 쏜다', () => {
+        appBridge.startOAuthLogin('google');
+
+        expect(postMock).toHaveBeenLastCalledWith({ type: 'OAuthLogin', data: { provider: 'google' } });
+        expect(requestMock).not.toHaveBeenCalled();
+        expect(appBridge.startOAuthLogin('google')).toBeUndefined();
+    });
+
     it('preference 페이로드는 post로 전달된다', () => {
         appBridge.savePreference({ key: 'language', value: 'ko' });
         expect(postMock).toHaveBeenLastCalledWith({
@@ -59,8 +69,12 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         appBridge.fetchFcmToken();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchFcmToken', data: {} });
 
+        // 계정 연동만 응답을 기다린다. 사람이 조작하는 흐름이라 기본 15초를 쓰지 않는다.
         appBridge.oauthLogin('apple');
-        expect(requestMock).toHaveBeenLastCalledWith({ type: 'OAuthLogin', data: { provider: 'apple' } });
+        expect(requestMock).toHaveBeenLastCalledWith(
+            { type: 'OAuthLogin', data: { provider: 'apple' } },
+            { timeoutMs: 180_000 }
+        );
 
         appBridge.getContacts();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'GetContacts', data: {} });

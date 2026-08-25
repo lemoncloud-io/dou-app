@@ -11,7 +11,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative, logger } from '@chatic/bridges';
 
 import { PageHeader } from '../../../ui/components';
-import { appBridge } from '../../../bridge';
+import { appBridge, useOnOAuthLogin } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { isDevBuild } from '../../../utils/buildEnv';
@@ -69,38 +69,61 @@ export const LoginPage = () => {
         );
     };
 
-    const handleOAuthLogin = async (provider: 'google' | 'apple') => {
+    const reportOAuthFailure = (error: unknown) => {
+        logger.error('AUTH', '[LoginPage] OAuth login failed', { error });
+        toast({
+            title: t('mypageLogin.error'),
+            description: t('mypageLogin.errorDescription'),
+            variant: 'destructive',
+        });
+    };
+
+    /**
+     * The credential comes back HERE, not from the call that started the flow.
+     *
+     * `startOAuthLogin` only fires the request; the provider's UI then belongs to the user for as
+     * long as they need (account chooser, password, 2FA, consent). The request/response pair this
+     * replaces gave that a 15s budget and abandoned anything slower — so a user who really did sign
+     * in came back to an error toast and the login screen, because their credential arrived to a
+     * request that had already been given up on and was dropped (see `appBridge.startOAuthLogin`).
+     *
+     * Every outcome lands on this one channel: success carries the credential, a cancel carries
+     * `result: null`, and a native failure carries `success: false`.
+     */
+    useOnOAuthLogin(message => {
+        setIsOAuthPending(false);
+        setActiveProvider(null);
+
+        if (!message.success) {
+            reportOAuthFailure(message.error);
+            return;
+        }
+
+        const result = message.data.result;
+        // null result means the user cancelled the native OAuth flow
+        if (!result) {
+            logger.warn('AUTH', '[LoginPage] native oauth returned no credential');
+            toast({ title: t('mypageLogin.oauthFailed'), variant: 'destructive' });
+            return;
+        }
+
+        void (async () => {
+            try {
+                // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
+                await loginRelaySocial({ body: result, provider: result.provider });
+                logger.info('AUTH', '[LoginPage] social login succeeded', { provider: result.provider });
+
+                leaveForReturnTo();
+            } catch (e) {
+                reportOAuthFailure(e);
+            }
+        })();
+    });
+
+    const handleOAuthLogin = (provider: 'google' | 'apple') => {
         setIsOAuthPending(true);
         setActiveProvider(provider);
-        try {
-            const response = await appBridge.oauthLogin(provider);
-            const result = response.data.result;
-
-            setIsOAuthPending(false);
-            setActiveProvider(null);
-
-            // null result means the user cancelled the native OAuth flow
-            if (!result) {
-                logger.warn('AUTH', '[LoginPage] native oauth returned no credential', { provider });
-                toast({ title: t('mypageLogin.oauthFailed'), variant: 'destructive' });
-                return;
-            }
-
-            // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
-            await loginRelaySocial({ body: result, provider: result.provider });
-            logger.info('AUTH', '[LoginPage] social login succeeded', { provider: result.provider });
-
-            leaveForReturnTo();
-        } catch (e) {
-            setIsOAuthPending(false);
-            setActiveProvider(null);
-            logger.error('AUTH', '[LoginPage] OAuth login failed', { error: e });
-            toast({
-                title: t('mypageLogin.error'),
-                description: t('mypageLogin.errorDescription'),
-                variant: 'destructive',
-            });
-        }
+        appBridge.startOAuthLogin(provider);
     };
 
     const isLoading = isOAuthPending || isLoginRelaySocialPending;

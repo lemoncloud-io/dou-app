@@ -184,7 +184,8 @@ sequenceDiagram
     Router->>Login: 렌더
 
     alt 소셜
-        Login->>Auth: appBridge.oauthLogin → loginRelaySocial
+        Login->>Login: appBridge.startOAuthLogin(provider)<br/>요청만 쏜다 (응답 대기 없음)
+        Login->>Auth: OnOAuthLogin 푸시 수신 → loginRelaySocial
         Auth-->>Login: 세션 하이드레이트 완료
     else 폰 (dev)
         Login->>Auth: PhoneVerifySheet(mode='login')
