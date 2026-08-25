@@ -78,7 +78,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                 clickAction = clickAction,
                 channelId = channelId,
                 timestamp = timestamp,
-                payload = payload
+                payload = payload,
+                data = data
             )
         } else {
             if (silent) {
@@ -265,6 +266,18 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         return false
     }
 
+    /**
+     * Hands a foreground push to the web through React Native.
+     *
+     * [data] is the FCM payload verbatim; the named parameters above it are the fields this service
+     * already resolved (translated title/body, the notification channel, the raw link). Sending the
+     * whole map matters because the web suppresses its in-app banner on `ownerId`/`channelId` —
+     * fields this handler has no reason to interpret, and which used to be dropped here, so the
+     * banner fired for the reader's own message.
+     *
+     * Note [channelId] is the OS NOTIFICATION channel ("dou_chat"), never the chat channel; it is
+     * emitted under its own key so the web cannot mistake one for the other.
+     */
     private fun emitForegroundEvent(
         messageId: String,
         type: String,
@@ -273,7 +286,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         clickAction: String,
         channelId: String,
         timestamp: String,
-        payload: String
+        payload: String,
+        data: Map<String, String>
     ) {
         try {
             val reactApplication = applicationContext as? ReactApplication ?: return
@@ -289,6 +303,9 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                     putString("channelId", channelId)
                     putString("timestamp", timestamp)
                     putString("payload", payload)
+                    putMap("data", Arguments.createMap().apply {
+                        data.forEach { (key, value) -> putString(key, value) }
+                    })
                 }
 
                 reactContext
