@@ -140,7 +140,7 @@ describe('useInAppPushMessage', () => {
 
         renderToastContent();
 
-        expect(screen.getByText('#general')).toBeTruthy();
+        expect(screen.getByText('general')).toBeTruthy();
     });
 
     it('배너 클릭 시 토스트를 닫고 푸시 네비게이션 경로로 이동한다', () => {
@@ -162,12 +162,14 @@ describe('useInAppPushMessage', () => {
         expect(navigateToPush).not.toHaveBeenCalled();
     });
 
-    it('채널명이 있으면 #채널명을 헤드라인으로 쓴다', () => {
+    // 방 이름은 그대로 쓴다 — `#`은 공개 채널 관례라 1:1·나와의 채팅에도 붙어 어색했다.
+    it('채널명이 있으면 이름 그대로를 헤드라인으로 쓴다', () => {
         invoke({ title: 'T', body: 'B', data: { channelId: 'abc', channelName: 'general' } });
 
         renderToastContent();
 
-        expect(screen.getByText('#general')).toBeTruthy();
+        expect(screen.getByText('general')).toBeTruthy();
+        expect(screen.queryByText('#general')).toBeNull();
         expect(screen.getByText('B')).toBeTruthy();
     });
 

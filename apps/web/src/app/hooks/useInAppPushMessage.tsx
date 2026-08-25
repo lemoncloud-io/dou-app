@@ -24,12 +24,12 @@ const VIEWING_CHANNEL_ROUTES = [ROUTES.channels.room(':channelId'), ROUTES.chann
 const IN_APP_PUSH_DURATION_MS = 5_000;
 
 /**
- * Headline for the banner: the channel (`#name`) when known — sender titles baked by
- * the backend are unreliable (same policy as desktop-web's cross-cloud presenter) —
- * else the push's own title.
+ * Headline for the banner: the channel's name when known — sender titles baked by the backend are
+ * unreliable — else the push's own title. The name is shown as-is: the `#` this used to prefix is
+ * a public-channel convention DoU has no equivalent of, and the payload carries no stereo, so it
+ * was landing on 1:1 and self rooms too.
  */
-const headline = (channelName: string | undefined, title: string | undefined): string =>
-    channelName ? `#${channelName}` : (title ?? '');
+const headline = (channelName: string | undefined, title: string | undefined): string => channelName ?? title ?? '';
 
 /**
  * Presents foreground pushes (`OnReceiveNotification`) as an in-app banner, Slack/Kakao
