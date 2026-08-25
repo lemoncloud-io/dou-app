@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import {
     AlertDialog,
@@ -6,9 +6,8 @@ import {
     AlertDialogDescription,
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
-import { VerificationCodeInput } from '@chatic/web-ui-kit';
-
-import { DEBUG_CODE_LENGTH } from '../consts';
+import { Button } from '@chatic/ui-kit/components/ui/button';
+import { TextField } from '@chatic/web-ui-kit';
 
 interface DebugUnlockDialogProps {
     isOpen: boolean;
@@ -18,8 +17,12 @@ interface DebugUnlockDialogProps {
 }
 
 /**
- * Entry-code challenge shown after the hidden 10-tap unlock. Auto-submits once
- * `DEBUG_CODE_LENGTH` digits are entered — no separate confirm button.
+ * Entry-code challenge shown after the hidden 10-tap unlock. A plain text field rather than a
+ * fixed-length digit pad: the pad auto-submitted at its length, which tied the dialog to a code
+ * that is exactly that many characters. Submitting is now explicit — the confirm button or Enter.
+ *
+ * The value is trimmed on submit (a soft keyboard's trailing space would otherwise fail an exact
+ * match) but never otherwise transformed: `verifyDebugCode` compares it as typed.
  */
 export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: DebugUnlockDialogProps) => {
     const [code, setCode] = useState('');
@@ -30,9 +33,10 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
         if (!isOpen || hasError) setCode('');
     }, [isOpen, hasError]);
 
-    const handleChange = (value: string) => {
-        setCode(value);
-        if (value.length === DEBUG_CODE_LENGTH) onSubmit(value);
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const trimmed = code.trim();
+        if (trimmed) onSubmit(trimmed);
     };
 
     const handleOpenChange = (open: boolean) => {
@@ -48,14 +52,23 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
                 <AlertDialogDescription className="sr-only">
                     Enter the debug entry code to unlock debug tools.
                 </AlertDialogDescription>
-                <VerificationCodeInput
-                    value={code}
-                    onChange={handleChange}
-                    length={DEBUG_CODE_LENGTH}
-                    error={hasError}
-                    autoFocus
-                    ariaLabel="debug entry code"
-                />
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <TextField
+                        value={code}
+                        onChange={setCode}
+                        error={hasError ? 'Wrong code' : undefined}
+                        placeholder="Debug code"
+                        autoFocus
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-label="debug entry code"
+                    />
+                    <Button type="submit" disabled={!code.trim()}>
+                        Unlock
+                    </Button>
+                </form>
             </AlertDialogContent>
         </AlertDialog>
     );
