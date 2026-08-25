@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-08-25] - No version updates
+
+### Features
+
+- (web,admin-v2,mobile) give the pipeline something to carry and somewhere to land
+- (logger,web,mobile,bridges) upload logs on a schedule instead of only with reports
+
+### Refactor
+
+- (logger,web,mobile) one store, three listeners, and an uploader that just ticks
+- (logger,web,mobile) stop attaching logs to reports
+
+### Chores
+
+- (mobile) bump app versions 0.23.1
+
 ## [2026-08-20] - root@0.55.0, @chatic/web@0.46.0
 
 ### Features
