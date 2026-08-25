@@ -4,6 +4,7 @@ import { useMatch } from 'react-router-dom';
 import { useRuntimeRepositories, useRuntimeSocketState } from '@chatic/app-runtime';
 
 import { useAppVisibility } from '../bridge';
+import { ROUTES } from '../routes/paths';
 
 /** Presence status the server holds for this device: green = foreground, yellow = background. */
 type PresenceStatus = 'green' | 'yellow';
@@ -16,11 +17,13 @@ const toStatus = (isForeground: boolean): PresenceStatus => (isForeground ? 'gre
  * observes every private-route transition — robust to the component remounts a per-page
  * hook would miss, and it also sees the channel→list exit.
  *
- * Viewing is scoped to the channel room only; settings/list/other routes clear it. Backgrounding
- * the app also clears the viewing pair (the server must not show this device "in" a room while it
- * is hidden), and returning to the foreground restores the current room. Each real change fires
- * exactly one device.sync (fire-and-forget), deduped via a ref so re-render churn does not
- * re-notify an unchanged target.
+ * Viewing covers the channel room AND its thread — a thread is the same room seen from another
+ * angle, so a reader inside one is "in" the channel and the server must keep filtering its pushes
+ * out (docs/specs/mobile/push-notification-scenarios.md §3.2). Settings/list/other routes clear it.
+ * Backgrounding the app also clears the viewing pair (the server must not show this device "in" a
+ * room while it is hidden), and returning to the foreground restores the current room. Each real
+ * change fires exactly one device.sync (fire-and-forget), deduped via a ref so re-render churn
+ * does not re-notify an unchanged target.
  *
  * Every device.sync send is gated on a connected socket (isVerified): device.sync is a
  * fire-and-forget `send` (not the self-healing request path), so a send on a dead socket would be
@@ -29,8 +32,11 @@ const toStatus = (isForeground: boolean): PresenceStatus => (isForeground ? 'gre
  * covers the very first green after app start.
  */
 export const useDeviceSync = (): void => {
-    const match = useMatch('/channels/:channelId/room');
-    const channelId = match?.params.channelId ?? '';
+    const roomMatch = useMatch(ROUTES.channels.room(':channelId'));
+    const threadMatch = useMatch(ROUTES.channels.thread(':channelId', ':rootNo'));
+    // Room and thread report the same viewing pair, so the hop between them is not a change at all —
+    // syncViewing dedups it away and the server never sees a gap it could push into.
+    const channelId = roomMatch?.params.channelId ?? threadMatch?.params.channelId ?? '';
     const { device } = useRuntimeRepositories();
     const { isVerified } = useRuntimeSocketState();
 
