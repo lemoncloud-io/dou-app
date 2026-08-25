@@ -11,7 +11,13 @@ const mockToast = jest.fn();
 const mockLoggerError = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-jest.mock('@chatic/bridges', () => ({ logger: { error: (...args: unknown[]) => mockLoggerError(...args) } }));
+jest.mock('@chatic/bridges', () => ({
+    logger: {
+        error: (...args: unknown[]) => mockLoggerError(...args),
+        warn: jest.fn(),
+        info: jest.fn(),
+    },
+}));
 jest.mock('@chatic/web-core', () => ({
     useInviteFlow: () => ({ runInviteFlow: mockRunInviteFlow, isInviting: false }),
 }));

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { useClouds } from '@chatic/web-core';
 
 import { EmailVerifyRefusal, findCloudByEmail } from '../lib';
@@ -23,6 +24,7 @@ export const useCloudEmailGuard = (): ((request: EmailVerifyRequest) => Promise<
         async (request: EmailVerifyRequest) => {
             if (request.step !== 'check' && findCloudByEmail(clouds, request.email)) {
                 // Tagged so the dialog shows this wording rather than treating it as a failed request.
+                logger.warn('CLOUD', 'email already bound to another cloud', { step: request.step });
                 throw new EmailVerifyRefusal(t('addAccount.emailAlreadyUsed'));
             }
             await verifyEmailCode(request);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
@@ -143,14 +144,20 @@ export const EmailVerifyDialog = ({
     const verify = useCallback(async () => {
         setBusy('verifying');
         setCodeError(false);
+        let stage: 'check' | 'confirm' = 'check';
         try {
             await verifyEmail({ email, step: 'check', code });
             // `check` only validates the code — binding to a specific cloud is a separate `confirm`
             // call, and only needed when the caller asked to bind one (see `cloudId` on the props).
+            stage = 'confirm';
             if (cloudId) await verifyEmail({ email, step: 'confirm', cloudId });
             onVerified(email);
             handleClose();
-        } catch {
+        } catch (error) {
+            // A mistyped code is ordinary; a failed `confirm` is not — it leaves the cloud unbound
+            // after the address was already proven. Both collapse into the same red field, so the
+            // stage is the only thing that tells them apart afterward. The address is never logged.
+            logger.warn('CLOUD', `cloud email verification failed (stage=${stage})`, { error, cloudId });
             setCodeError(true);
         } finally {
             setBusy('idle');

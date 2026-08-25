@@ -25,7 +25,11 @@ jest.mock('@chatic/app-runtime', () => ({
     useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
 }));
 jest.mock('@chatic/bridges', () => ({
-    logger: { error: (...a: unknown[]) => loggerError(...a), warn: (...a: unknown[]) => loggerWarn(...a) },
+    logger: {
+        error: (...a: unknown[]) => loggerError(...a),
+        warn: (...a: unknown[]) => loggerWarn(...a),
+        info: jest.fn(),
+    },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/web-core', () => ({ useSessionSelection: () => ({ selectedSiteId: mockSid }) }));

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { getSocketManager, useSiteSwitch } from '@chatic/app-runtime';
+import { logger } from '@chatic/bridges';
 import { useSessionSelection, useSwitchCloudSession } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -52,6 +53,10 @@ export const useSearchNavigate = () => {
             const awaitVerified = async () => {
                 const verified = await getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
                 if (!verified) {
+                    logger.warn('SEARCH', 'socket handshake not verified before search navigation', {
+                        cid,
+                        sid,
+                    });
                     toast({ title: t('search.navigateFailed', '이동할 수 없어요. 잠시 후 다시 시도해주세요.') });
                 }
                 return verified;
@@ -68,7 +73,11 @@ export const useSearchNavigate = () => {
                     await switchSite(sid as string);
                 }
                 navigate(target);
-            } catch {
+            } catch (error) {
+                // The error used to be discarded without even a binding. When the cause is the cloud
+                // switch this is a second entry alongside the session service's — accepted, because
+                // this one carries the user-facing outcome (the result they clicked never opened).
+                logger.error('SEARCH', 'navigate to search result failed', { error, data: { cid, sid } });
                 toast({ title: t('search.navigateFailed', '이동할 수 없어요. 잠시 후 다시 시도해주세요.') });
             } finally {
                 inFlightRef.current = false;

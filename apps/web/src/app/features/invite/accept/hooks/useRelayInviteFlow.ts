@@ -260,6 +260,19 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     }, []);
 
     /**
+     * The four terminal states arrive as `state` rather than as errors (ADR-0043), so they slip past
+     * every catch in this file and used to leave no record at all. `warn`, not `error`: the invite
+     * lapsing or having been used already is an ordinary ending, not a malfunction.
+     */
+    const failTerminalState = useCallback(
+        (state: string, next: RelayInviteNotice, stage: 'entry' | 'advance') => {
+            logger.warn('INVITE', `[useRelayInviteFlow] invite in terminal state: ${state}`, { stage });
+            return fail(next);
+        },
+        [fail]
+    );
+
+    /**
      * Accepted: resolve the room the accept created, then hand off to home's channel entry.
      *
      * `acceptedChannelId` is tier 1 of the resolution (ADR-0035) — when the accept response already
@@ -277,6 +290,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             // next background sync. Say so rather than leaving the user on a spinner.
             else latest.current.toast({ title: latest.current.t('relayInviteAccept.channelPending') });
 
+            logger.info('INVITE', 'relay invite accepted; entering channel', { channelId, resolved: !!channelId });
             setPhase('closed');
             latest.current.navigate(ROUTES.home, { replace: true });
         },
@@ -307,12 +321,12 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         if (isStale(run)) return;
         setInvite(view);
 
-        if (view.state === 'expired') return fail('expired');
-        if (view.state === 'accepted') return fail('alreadyJoined');
+        if (view.state === 'expired') return failTerminalState('expired', 'expired', 'advance');
+        if (view.state === 'accepted') return failTerminalState('accepted', 'alreadyJoined', 'advance');
         // Same final-state branches as the entry read — verification takes minutes, and the
         // inviter can retire the code in that window.
-        if (view.state === 'canceled') return fail('inviteCanceled');
-        if (view.state === 'rejected') return fail('rejected');
+        if (view.state === 'canceled') return failTerminalState('canceled', 'inviteCanceled', 'advance');
+        if (view.state === 'rejected') return failTerminalState('rejected', 'rejected', 'advance');
 
         // Verify, then name yourself, then accept (ADR-0033 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
@@ -363,7 +377,12 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             const accepted = await latest.current.mutations.acceptInvite(code);
             if (isStale(run)) return;
             // `state` is the only success signal the response carries.
-            if (accepted.state !== 'accepted') return fail('generic');
+            if (accepted.state !== 'accepted') {
+                logger.error('INVITE', 'invite.accept returned non-accepted state', {
+                    data: { state: accepted.state },
+                });
+                return fail('generic');
+            }
             setInvite(prev => ({ ...prev, ...accepted }));
             // May be absent — the room is created asynchronously (ADR-0035 tier 1).
             acceptedChannelId = accepted.channelId;
@@ -377,6 +396,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             // cache believes — so pin the proof to `login`. Without this the flow would re-derive
             // `link` from a stale `isGuest: false` and the send would 403 again, with no way out.
             if (status === 403 && !verifiedRef.current) {
+                logger.info(
+                    'INVITE',
+                    '[useRelayInviteFlow] invite accept refused as main user; routing to verification'
+                );
                 setRefusedAsMainUser(true);
                 return setPhase('verifying');
             }
@@ -385,7 +408,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         }
 
         await enterChannel(run, acceptedChannelId);
-    }, [code, fail, enterChannel]);
+    }, [code, fail, failTerminalState, enterChannel]);
 
     // Entry read. Unlike `advance` this stops at the accept screen — the user has not chosen yet.
     useEffect(() => {
@@ -400,12 +423,12 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
                 const view = await latest.current.mutations.getInvite(code);
                 if (isStale(run)) return;
                 setInvite(view);
-                if (view.state === 'expired') return fail('expired');
-                if (view.state === 'accepted') return fail('alreadyJoined');
+                if (view.state === 'expired') return failTerminalState('expired', 'expired', 'entry');
+                if (view.state === 'accepted') return failTerminalState('accepted', 'alreadyJoined', 'entry');
                 // Final states arrive as `state`, not as errors (ADR-0043): canceled by the
                 // inviter, or rejected by this number on an earlier open.
-                if (view.state === 'canceled') return fail('inviteCanceled');
-                if (view.state === 'rejected') return fail('rejected');
+                if (view.state === 'canceled') return failTerminalState('canceled', 'inviteCanceled', 'entry');
+                if (view.state === 'rejected') return failTerminalState('rejected', 'rejected', 'entry');
                 setPhase('review');
             } catch (error) {
                 if (isStale(run)) return;
@@ -417,7 +440,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             }
         })();
         // `attempt` is the retry trigger — re-running this effect IS the retry.
-    }, [code, fail, attempt]);
+    }, [code, fail, failTerminalState, attempt]);
 
     // The link can lapse while the accept screen is open — the countdown is the only thing watching.
     useEffect(() => {

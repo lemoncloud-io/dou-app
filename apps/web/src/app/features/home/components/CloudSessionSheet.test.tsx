@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
 
@@ -15,7 +15,7 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/shared', () => ({ useInterval: () => undefined }));
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), error: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 const switchCloud = jest.fn().mockResolvedValue(undefined);
 const logoutCloudSession = jest.fn().mockResolvedValue(undefined);
@@ -227,6 +227,37 @@ describe('CloudSessionSheet — selection', () => {
         fireEvent.click(screen.getByText('c1@example.com'));
 
         expect(switchCloud).toHaveBeenCalledWith('c1');
+    });
+
+    it('records the switch once it lands, and leaves the failure to the session service', async () => {
+        catalog.clouds = [activeCloud('c1')];
+        selectedCloudId = 'default';
+
+        renderSheet();
+        fireEvent.click(screen.getByText('c1@example.com'));
+        await waitFor(() =>
+            expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud switch succeeded', { cloudId: 'c1' })
+        );
+
+        // `switchCloudSession` already logs its own failure and does the rollback — a second entry
+        // here would double the error count and the flush it advances.
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('records a failed disconnect instead of swallowing it', async () => {
+        const boom = new Error('disconnect boom');
+        logoutCloudSession.mockRejectedValueOnce(boom);
+        catalog.clouds = [activeCloud('c1')];
+        selectedCloudId = 'c1';
+
+        renderSheet();
+        fireEvent.click(screen.getByText('cloudSessionSheet.douHome'));
+
+        // Nothing downstream logs this one: `logoutCloudSession` has no catch of its own, so before
+        // this line a failed disconnect left no trace anywhere.
+        await waitFor(() =>
+            expect(logger.error).toHaveBeenCalledWith('CLOUD', 'cloud session disconnect failed', { error: boom })
+        );
     });
 
     it('does not offer a rename affordance on owned rows', () => {

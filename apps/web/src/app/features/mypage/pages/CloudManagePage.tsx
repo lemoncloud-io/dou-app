@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { cloudsKeys, useClouds, useDeleteCloud, useSessionSelection } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -51,12 +52,16 @@ export const CloudManagePage = () => {
                 list: old?.list?.filter((c: any) => c.id !== confirmCloud.id) ?? [],
                 total: (old?.total ?? 1) - 1,
             }));
+            logger.info('CLOUD', 'cloud released', { cloudId: confirmCloud.id, wasActive: isDeletingSelectedCloud });
             toast({ title: t('mypage.cloudManage.deleteSuccess') });
             if (isDeletingSelectedCloud) {
                 await logoutCloudSession();
                 window.location.href = '/auth/login';
             }
-        } catch {
+        } catch (error) {
+            // The error was not even bound to a variable before this: releasing a cloud is
+            // irreversible and cascades, and a failure left nothing behind to explain it.
+            logger.error('CLOUD', 'cloud release failed', { error, data: { cloudId: confirmCloud.id } });
             toast({ title: t('mypage.cloudManage.deleteFailed'), variant: 'destructive' });
         } finally {
             setDeletingId(null);

@@ -323,7 +323,9 @@ export const usePhoneVerify = ({
             // The wrong-answer counter survives a resend (§발송 제한) — say so with the new code.
             toast({ title: t('phoneVerify.resent'), description: t('phoneVerify.resendKeepsCounter') });
         } catch (error) {
-            if (getSocketErrorCode(error) === 429) {
+            const status = getSocketErrorCode(error);
+            logger.warn('AUTH', `[usePhoneVerify] otp resend failed (status=${status ?? '-'})`, { error });
+            if (status === 429) {
                 // Mid-flow resend tripping 429 is the 60s cooldown.
                 setOtpError(t('phoneVerify.cooldown'));
             } else {
@@ -341,7 +343,10 @@ export const usePhoneVerify = ({
             setPendingToken(null);
             toast({ title: t('phoneVerify.verified') });
             onVerified();
-        } catch {
+        } catch (error) {
+            // Verified but the session did not switch — the one failure in this file that used to
+            // leave no trace, and the exact shape of "authenticated yet not signed in".
+            logger.error('AUTH', '[usePhoneVerify] session switch failed after verification', { error });
             setPendingToken(token);
             setOtpError(t('phoneVerify.sessionSwitchFailed'));
             setLoadingState('idle');
@@ -414,6 +419,7 @@ export const usePhoneVerify = ({
         setOtpError('');
         try {
             const result = await confirm(sentWith.phone, code, { mode, countryCode: sentWith.country });
+            logger.info('AUTH', '[usePhoneVerify] phone verification confirmed', { mode });
             // A token only ever rides on the login-mode confirm; `link` leaves the session alone.
             if ('$token' in result && result.$token) {
                 await applyToken(result.$token);

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { reportError } from '@chatic/web-core';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -36,6 +37,8 @@ const AddCloudFlow = () => {
         // Wait for the verdict; acting on half-loaded inputs would show the wrong reason.
         if (isLoading || canAdd) return;
 
+        logger.warn('CLOUD', 'add cloud blocked by quota', { reason, limit });
+
         if (reason === 'notEntitled') {
             closeAddCloud();
             navigate(ROUTES.subscription.plans);
@@ -59,8 +62,12 @@ const AddCloudFlow = () => {
     const finish = async (email?: string) => {
         try {
             await addCloud(email);
+            logger.info('CLOUD', 'cloud created', { withEmail: !!email });
             toast({ title: t('addAccount.success') });
         } catch (e) {
+            // `logger` before `reportError` (ADR-0047 S1): the entry survives even when the report is
+            // throttled or dropped.
+            logger.error('CLOUD', 'cloud creation failed', { error: e });
             reportError(toError(e));
             toast({ title: t('addAccount.addFailed'), variant: 'destructive' });
         } finally {

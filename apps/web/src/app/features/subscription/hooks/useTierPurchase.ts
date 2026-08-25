@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { IapProductSubscription } from '@chatic/app-messages';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
+import { logger } from '@chatic/bridges';
+
 import { buildPurchaseProduct, getTierChangeKind, matchNativeProduct, type TierChangeKind } from '../lib';
 import { PageState } from '../types';
 import { usePlanCatalog } from './usePlanCatalog';
@@ -43,7 +45,14 @@ export const useTierPurchase = (): TierPurchase => {
             setPageState(PageState.Fetching);
             try {
                 const matched = matchNativeProduct(await fetchNativeProducts(), plan, isIOS);
-                if (!matched) throw new Error(t('mypage.subscription.productNotFound'));
+                if (!matched) {
+                    // The plan is sellable per the server catalog but absent from the store's — a
+                    // config skew that blocks purchase entirely and is invisible from the outside.
+                    logger.error('IAP', 'no native product matched tier', {
+                        data: { planId: plan.id, isIOS },
+                    });
+                    throw new Error(t('mypage.subscription.productNotFound'));
+                }
                 return matched;
             } finally {
                 setPageState(PageState.Idle);
@@ -60,7 +69,12 @@ export const useTierPurchase = (): TierPurchase => {
                 isTierChange: kind === 'upgrade' || kind === 'downgrade',
                 currentProductId: summary.productId,
             });
-            if (!product) throw new Error(t('mypage.subscription.offerTokenMissing'));
+            if (!product) {
+                logger.error('IAP', 'offerToken missing for tier change', {
+                    data: { planId: plan.id, kind, currentProductId: summary.productId },
+                });
+                throw new Error(t('mypage.subscription.offerTokenMissing'));
+            }
 
             setPageState(PageState.Purchasing);
             try {

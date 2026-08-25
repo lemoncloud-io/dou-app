@@ -13,6 +13,7 @@ interface ReportLogGroupTableProps {
 const TYPE_BADGE: Record<ReportType, string> = {
     error: 'bg-destructive text-destructive-foreground',
     issue: 'bg-primary text-primary-foreground',
+    'log-entry': 'bg-muted text-muted-foreground',
     unknown: 'bg-muted text-muted-foreground',
 };
 

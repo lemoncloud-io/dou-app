@@ -15,7 +15,16 @@ interface ReportLogTableProps {
 const TYPE_BADGE: Record<ReportLogRow['type'], string> = {
     error: 'bg-destructive text-destructive-foreground',
     issue: 'bg-primary text-primary-foreground',
+    'log-entry': 'bg-muted text-muted-foreground',
     unknown: 'bg-muted text-muted-foreground',
+};
+
+/** `log-entry` rows show their `level` here instead of the generic type — that's the axis worth scanning by. */
+const LEVEL_BADGE: Record<string, string> = {
+    error: 'bg-destructive text-destructive-foreground',
+    warn: 'bg-yellow-500 text-black',
+    info: 'bg-primary text-primary-foreground',
+    debug: 'bg-muted text-muted-foreground',
 };
 
 const absoluteTime = (ms?: number): string => (ms ? new Date(ms).toLocaleString() : '-');
@@ -34,7 +43,7 @@ export const ReportLogTable = ({ rows, onSelect, selectedId }: ReportLogTablePro
                         <th className="px-3 py-2 font-medium">제목</th>
                         <th className="px-3 py-2 font-medium">메시지</th>
                         <th className="px-3 py-2 font-medium">사용자</th>
-                        <th className="px-3 py-2 font-medium">App</th>
+                        <th className="px-3 py-2 font-medium">App/Source</th>
                         <th className="px-3 py-2 font-medium">시각</th>
                     </tr>
                 </thead>
@@ -49,9 +58,13 @@ export const ReportLogTable = ({ rows, onSelect, selectedId }: ReportLogTablePro
                         >
                             <td className="px-3 py-2">
                                 <span
-                                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${TYPE_BADGE[row.type]}`}
+                                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${
+                                        row.type === 'log-entry'
+                                            ? (LEVEL_BADGE[row.level ?? ''] ?? TYPE_BADGE['log-entry'])
+                                            : TYPE_BADGE[row.type]
+                                    }`}
                                 >
-                                    {row.type}
+                                    {row.type === 'log-entry' ? (row.level ?? 'log') : row.type}
                                 </span>
                             </td>
                             <td className="max-w-[16rem] px-3 py-2">
@@ -72,7 +85,7 @@ export const ReportLogTable = ({ rows, onSelect, selectedId }: ReportLogTablePro
                                     {row.userName ?? row.userId ?? '-'}
                                 </span>
                             </td>
-                            <td className="px-3 py-2 text-muted-foreground">{row.app ?? '-'}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{row.app ?? row.source ?? '-'}</td>
                             <td
                                 className="whitespace-nowrap px-3 py-2 text-muted-foreground"
                                 title={absoluteTime(row.createdAt)}

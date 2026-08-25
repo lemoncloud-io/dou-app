@@ -81,12 +81,14 @@ export const LoginPage = () => {
 
             // null result means the user cancelled the native OAuth flow
             if (!result) {
+                logger.warn('AUTH', '[LoginPage] native oauth returned no credential', { provider });
                 toast({ title: t('mypageLogin.oauthFailed'), variant: 'destructive' });
                 return;
             }
 
             // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
             await loginRelaySocial({ body: result, provider: result.provider });
+            logger.info('AUTH', '[LoginPage] social login succeeded', { provider: result.provider });
 
             leaveForReturnTo();
         } catch (e) {
