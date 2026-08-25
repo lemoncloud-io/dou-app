@@ -8,7 +8,7 @@ import type { AppMessageData } from '@chatic/app-messages';
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { ROUTES } from '../routes/paths';
 import { InAppNotificationCard } from '../ui/components/InAppNotificationCard';
-import { resolveInAppPushRoute, type InAppPushData } from '../utils/resolveInAppPushRoute';
+import { extractPushBannerFields, resolveInAppPushRoute, type InAppPushData } from '../utils/resolveInAppPushRoute';
 
 /** Fixed toast id so consecutive pushes replace the banner instead of stacking. */
 const IN_APP_PUSH_TOAST_ID = 'in-app-push-message';
@@ -55,13 +55,17 @@ export const useInAppPushMessage = (): void => {
             if (!title && !body) return;
 
             const data: InAppPushData = notification?.data ?? {};
-            if (userId && String(data.ownerId) === String(userId)) return;
+            // Read through the `payload` merge, never off `data` directly: senders nest these
+            // fields, so a raw read silently disarms both rules below (see
+            // `extractPushBannerFields`).
+            const { ownerId, channelId, channelName, thumbnail } = extractPushBannerFields(data);
+            if (userId && ownerId && ownerId === String(userId)) return;
 
             // The current channel is read from the live pathname (not `useLocation`) so the
             // check sees where the user is at event time, without re-rendering per route.
-            if (data.channelId) {
+            if (channelId) {
                 const isViewingChannel = VIEWING_CHANNEL_ROUTES.some(
-                    pattern => matchPath(pattern, window.location.pathname)?.params.channelId === String(data.channelId)
+                    pattern => matchPath(pattern, window.location.pathname)?.params.channelId === channelId
                 );
                 if (isViewingChannel) return;
             }
@@ -70,17 +74,9 @@ export const useInAppPushMessage = (): void => {
             toast.custom(
                 toastId => (
                     <InAppNotificationCard
-                        title={headline(data.channelName as string | undefined, title)}
+                        title={headline(channelName, title)}
                         body={body}
-                        // Whatever photo the sender baked in, if any — the payload has no
-                        // guaranteed field for it, so the card falls back to a glyph.
-                        avatarUrl={
-                            typeof data.thumbnail === 'string'
-                                ? data.thumbnail
-                                : typeof data.imageUrl === 'string'
-                                  ? data.imageUrl
-                                  : undefined
-                        }
+                        avatarUrl={thumbnail}
                         onClick={
                             route
                                 ? () => {
