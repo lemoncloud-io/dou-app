@@ -1,3 +1,4 @@
+import { reportPerfMetric } from '@chatic/logger';
 import type { SendBootMetricsPayload } from '@chatic/app-messages';
 
 import type { IKeyValueStorage } from '../../database';
@@ -153,5 +154,34 @@ export class BootMetricsService implements IBootMetricsService {
         } catch (e) {
             this.logService.error('PERF', 'Failed to persist boot record', e as Error);
         }
+
+        this.reportBootMetric(record);
+    }
+
+    /**
+     * Emits the boot number as a structured metric entry (ADR-0071).
+     *
+     * Alongside the human line above rather than replacing it: that line is
+     * already shipping and already read, and the two have different jobs — one
+     * is a sentence someone scans in the log monitor, this is a payload a script
+     * parses. It only leaves sampled runs, so the cost is one extra entry in
+     * roughly one launch out of ten.
+     *
+     * Outside the try/catch on purpose. A storage failure does not invalidate
+     * the measurement, and `reportPerfMetric` must not be mistaken for part of
+     * what the catch above is protecting.
+     */
+    private reportBootMetric(record: BootRecord): void {
+        // A session that never reached WebAppReady has no boot duration to
+        // report. It is still persisted — an aborted boot is worth keeping — but
+        // it is not a sample of "how long boot takes".
+        if (record.totalMs == null) return;
+
+        // `bootType` rides along because a reload session re-baselines on a
+        // WebView content-process crash — a different measurement, and one that
+        // lands disproportionately on memory-pressured devices. The 1.5s budget
+        // is the cold number; without this key the two would be indistinguishable
+        // once they reach the server.
+        reportPerfMetric('boot', record.totalMs, { marks: record.native, bootType: record.type });
     }
 }

@@ -22,6 +22,10 @@
 > 링버퍼가 그 로그들의 유일한 거처였으므로, 배선 없이 지우면 디버그 뷰에서도 서버에서도 사라진다. 큐가 hub를 구독하게 만드는 것이
 > 그 수정이었고(1단계), 그것만으로도 독립적으로 필요한 버그 수정이었다.
 
+> **성능 지표도 이 파이프를 탄다.** 부팅·전환·웹바이탈 측정치가 `info`/`PERF` 엔트리로 같은 큐에 실려 나간다 —
+> 이 파이프의 네 번째 소비자이자, 백프레셔 드롭 순서(원칙 18)의 영향을 정면으로 받는 유일한 소비자다.
+> [성능 예산과 지표 이벤트](./perf-metrics.md) 참고.
+
 ## 목적
 
 `apps/web`과 `apps/mobile`에서 발생하는 모든 로그(웹 JS · RN/TS · 순수 네이티브)를 **하나의 로깅 계약(`LogEntry`)** 으로 수렴시키고, 하이브리드에서는 네이티브 통합 버퍼에, 웹 단독에서는 웹 버퍼에 손실 없이 모아, 어드민에서 추적 가능하게 한다.
@@ -119,6 +123,7 @@ flowchart TB
         red["redaction/<br/>무엇이 비밀인가 · 어떻게 가리는가"]
         ser["serialization/<br/>safeStringify · safeSerializable · serializeLogs · wire"]
         upl["upload/<br/>uploadPolicy · LogUploadQueue<br/>LogStoreReader · LogStoreWriter 포트 · 스케줄러"]
+        perf["perf/<br/>성능 예산 · runId 해시 샘플링<br/>지표 이벤트 · 드롭 카운터"]
     end
 
     sinks --> core
@@ -126,10 +131,13 @@ flowchart TB
     ser --> core
     ser --> red
     upl --> core
+    perf --> core
 
     rt --> core
     rt --> sinks
 ```
+
+`perf/`도 ②의 규칙을 그대로 따른다 — 포트는 인터페이스(`PerfMetricSink` · `PerfBudgetCatalog` · `PerfMetricReporter`), 상태는 `BudgetedPerfMetricReporter` 클래스, 조립은 팩터리 하나(`createPerfMetricReporter`)와 자기 모듈의 홀더 하나. `LogSink`/`ConsoleLogSink`와 `runtime.ts`/`CoreLogger`가 쓰는 모양 그대로다. 계측 지점은 사이트 전환·웹바이탈 콜백처럼 관계없는 코드에 묻혀 있어 인스턴스를 넘겨받을 수 없으므로, 그 홀더를 거치는 자유 함수로 부른다. 자세한 것은 [성능 예산과 지표 이벤트](./perf-metrics.md).
 
 ### ② 엔진의 객체 그래프
 
