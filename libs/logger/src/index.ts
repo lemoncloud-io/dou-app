@@ -18,19 +18,10 @@
  * gone (principle 10).
  *
  * Stateful collaborators are classes (`LogHub`, `CoreLogger`, `LogUploadQueue`,
- * `LogUploadScheduler`, …) and take their dependencies as constructor
+ * `LogUploadScheduler`, `PerfMetricReporter`, …) and take their dependencies as constructor
  * arguments, so any of them can be instantiated standalone. Ports that platform
  * layers implement (`LogStoreReader` / `LogStoreWriter`) stay interfaces. Stateless policy
  * (redaction, serialization) stays as functions.
- *
- * `perf/` is the one deliberate exception to that split: it keeps process-wide
- * state (whether this run is sampled, and how many entries backpressure has
- * eaten) in module variables rather than a class. Its callers are instrumentation
- * points buried in unrelated code — a site switch, a web-vitals callback — which
- * cannot be handed an instance without threading one through every layer above
- * them. A class would therefore still need a singleton holder, so the holder is
- * all there is. It holds a counter and a `Logger` reference, never entries, so
- * "exactly one store" above still stands.
  */
 
 export * from './core';

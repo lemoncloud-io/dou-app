@@ -1,5 +1,11 @@
-import { noteQueueDrops, resetQueueDropTotal } from './dropCounter';
-import { configurePerfMetrics, isPerfMetricsEnabled, reportPerfMetric, resetPerfMetrics } from './reporter';
+import {
+    PerfMetricReporter,
+    configurePerfMetrics,
+    isPerfMetricsEnabled,
+    noteQueueDrops,
+    reportPerfMetric,
+    resetPerfMetrics,
+} from './reporter';
 
 import type { Logger } from '../core/types';
 import type { PerfMetricData } from './types';
@@ -21,7 +27,6 @@ describe('reportPerfMetric', () => {
     beforeEach(() => {
         logger = createLogger();
         resetPerfMetrics();
-        resetQueueDropTotal();
     });
 
     afterEach(() => resetPerfMetrics());
@@ -143,5 +148,59 @@ describe('reportPerfMetric', () => {
         reportPerfMetric('boot', 1099);
 
         expect(logger.info).not.toHaveBeenCalled();
+    });
+});
+
+describe('PerfMetricReporter', () => {
+    let logger: ReturnType<typeof createLogger>;
+
+    beforeEach(() => {
+        logger = createLogger();
+    });
+
+    it('단독으로 만들 수 있다 — 프로세스 상태를 건드리지 않는다', () => {
+        const reporter = new PerfMetricReporter(logger as Logger);
+
+        reporter.report('boot', 1099);
+
+        expect(logger.info).toHaveBeenCalledWith('PERF', 'boot 1099ms', expect.any(Object));
+        // The holder stayed empty: this instance is nobody's singleton.
+        expect(isPerfMetricsEnabled()).toBe(false);
+    });
+
+    it('드롭 총계는 인스턴스마다 따로다', () => {
+        const first = new PerfMetricReporter(logger as Logger);
+        const second = new PerfMetricReporter(logger as Logger);
+
+        first.noteQueueDrops(9);
+        first.report('lcp', 2400);
+        second.report('lcp', 2400);
+
+        expect(dataOf(logger, 0).dropped).toBe(9);
+        expect(dataOf(logger, 1)).not.toHaveProperty('dropped');
+    });
+
+    it('configurePerfMetrics는 매번 새 리포터를 세운다 — 이전 런의 드롭이 넘어오지 않는다', () => {
+        configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
+        noteQueueDrops(12);
+        reportPerfMetric('fcp', 900);
+        expect(dataOf(logger, 0).dropped).toBe(12);
+
+        configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
+        reportPerfMetric('fcp', 900);
+        expect(dataOf(logger, 1)).not.toHaveProperty('dropped');
+
+        resetPerfMetrics();
+    });
+
+    it('구성 전의 드롭은 세지 않는다 — 호스트가 배선 순서로 책임진다', () => {
+        resetPerfMetrics();
+        noteQueueDrops(5);
+
+        configurePerfMetrics({ logger: logger as Logger, runId: 'run-1', samplePercent: 100 });
+        reportPerfMetric('fcp', 900);
+
+        expect(dataOf(logger, 0)).not.toHaveProperty('dropped');
+        resetPerfMetrics();
     });
 });

@@ -32,6 +32,18 @@ attachConsoleListener({ isDev: import.meta.env.DEV });
 // so an entry written earlier would carry none and be unattributable.
 attachLogContext();
 
+// Server-bound performance metrics (ADR-0071), on only inside the app WebView:
+// the native shell injects the run id and the sample verdict is a pure function
+// of it, so both runtimes decide alike without a bridge message. No injection —
+// this bundle opened in a plain browser tab — means no run id, which means off.
+// (The other shells never reach here at all: they have their own entry points
+// and none of them calls this.)
+//
+// Ahead of the uploader below, not after it: the reporter owns the drop total,
+// and the uploader's queue can evict the moment it restores a persisted batch.
+// Configured later, those first evictions would go uncounted.
+configurePerfMetrics({ logger, runId: readInjectedRunId() });
+
 // Always-on log collection, wired BEFORE anything can log: the queue is filled
 // by a hub subscription, so an entry dispatched before this line lands nowhere.
 // Nothing above logs today and nothing below may be moved above it — that
@@ -68,15 +80,6 @@ configureDataRuntime({
 // include everything from here on (surfaced in the debug overlay).
 markBoot('main-start');
 initLongTasks();
-
-// Server-bound performance metrics (ADR-0071), on only inside the app WebView:
-// the native shell injects the run id and the sample verdict is a pure function
-// of it, so both runtimes decide alike without a bridge message. No injection —
-// this bundle opened in a plain browser tab — means no run id, which means off.
-// (The other shells never reach here at all: they have their own entry points and
-// none of them calls this.) Must precede `initWebVitals`, whose FCP/LCP report
-// through it.
-configurePerfMetrics({ logger, runId: readInjectedRunId() });
 
 // Initialize Web Vitals monitoring
 initWebVitals();

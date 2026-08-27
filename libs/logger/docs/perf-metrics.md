@@ -22,7 +22,7 @@
 
 4. **샘플 단위는 세션(`runId`)이고, 판정은 순수함수다.** `hash(runId) % 100 < N`. 네이티브와 웹이 **조율 없이 같은 답에 도달**하므로 샘플 결정을 나르는 브릿지 메시지가 필요 없고, 따라서 "웹이 앱보다 먼저 배포된다" 제약도 발생하지 않는다. 이벤트 단위 샘플링은 쓰지 않는다 — 세션 내 상관("부팅이 느렸던 세션은 전환도 느렸나")이 끊기고, 두 런타임이 각자 주사위를 굴려 같은 세션에서 서로 다른 결정을 낸다.
 
-5. **기본값은 off이고, 켜는 것은 호스트다.** 공유 lib(`libs/logger`·`libs/web-core`·`libs/app-runtime`)에 계측이 얹히므로 기본값이 off가 아니면 `apps/desktop-web`·`apps/testbed`·브라우저 단독 접속으로 자동으로 번진다. `configurePerfMetrics()`를 부르지 않은 호스트에는 **emitter 자체가 없어서** 모든 `reportPerfMetric` 호출이 즉시 반환한다 — 조건문으로 막는 게 아니라 켜는 주체가 없어서 안 도는 것이다.
+5. **기본값은 off이고, 켜는 것은 호스트다.** 공유 lib(`libs/logger`·`libs/web-core`·`libs/app-runtime`)에 계측이 얹히므로 기본값이 off가 아니면 `apps/desktop-web`·`apps/testbed`·브라우저 단독 접속으로 자동으로 번진다. `configurePerfMetrics()`를 부르지 않은 호스트에는 **리포터 자체가 없어서** 모든 `reportPerfMetric` 호출이 즉시 반환한다 — 조건문으로 막는 게 아니라 켜는 주체가 없어서 안 도는 것이다.
 
 6. **계측은 콜사이트가 아니라 초크포인트에 붙인다.** 같은 지표를 여는 문이 둘 이상이면 하나는 반드시 빠뜨린다. 대신 초크포인트를 고를 때는 **그 함수에 사용자 입력 외의 호출자가 있는지**를 본다 — 있으면 한 칸 위로 올라간다(§상세 구현의 전환 두 건이 그 사례다).
 
@@ -72,7 +72,7 @@
 
 ### ① 샘플에 뽑힌 콜드 부팅
 
-1. 앱이 뜨면서 `nativeLogContext`가 `NATIVE_RUN_ID`를 발급하고, provider가 `attachNativeLogContext()` 직후 `configurePerfMetrics({ logger, runId: NATIVE_RUN_ID })`를 부른다. **이때 샘플 판정이 끝난다** — `runId`는 프로세스 내내 고정이므로 지표마다 다시 물을 이유가 없고, 뽑히지 않았으면 emitter가 아예 생기지 않는다.
+1. 앱이 뜨면서 `nativeLogContext`가 `NATIVE_RUN_ID`를 발급하고, provider가 `attachNativeLogContext()` 직후 `configurePerfMetrics({ logger, runId: NATIVE_RUN_ID })`를 부른다. **이때 샘플 판정이 끝난다** — `runId`는 프로세스 내내 고정이므로 지표마다 다시 물을 이유가 없고, 뽑히지 않았으면 리포터가 아예 생기지 않는다.
 2. `AppWebView`가 같은 `runId`를 `window.CHATIC_APP_RUN_ID`로 웹에 주입한다. `main.tsx`가 `readInjectedRunId()`로 그 값을 읽어 웹 쪽 `configurePerfMetrics`를 부른다 — 주입이 없으면 `undefined`가 넘어가고, 그게 곧 off다.
 3. 두 런타임이 같은 `runId`에 같은 순수함수를 적용했으므로 **같은 답**이 나온다. 여기서는 뽑혔다고 하자.
 4. 웹이 `WebAppReady`를 보내고 `BootMetricsService`가 레코드를 확정한다. 기존 진단 라인(`Boot record persisted (cold, total 1099ms)`)은 그대로 나가고, 그 옆에 지표 이벤트가 하나 더 붙는다:
@@ -83,12 +83,12 @@
 
 ### ② 뽑히지 않은 세션
 
-1번에서 emitter가 만들어지지 않으므로 `reportPerfMetric`은 **한 건도 만들지 않는다**. `BootMetricsService`의 기존 진단 라인은 샘플링과 무관하게 그대로 나간다 — 그건 이미 배포된 로그이고, 이 트랙이 건드리는 대상이 아니다.
+1번에서 리포터가 만들어지지 않으므로 `reportPerfMetric`은 **한 건도 만들지 않는다**. `BootMetricsService`의 기존 진단 라인은 샘플링과 무관하게 그대로 나간다 — 그건 이미 배포된 로그이고, 이 트랙이 건드리는 대상이 아니다.
 
 ### ③ 큐가 붐빈 기기
 
 1. 로그를 많이 뱉는 기기에서 앱 전송 큐가 상한(500건 / 512KB)에 닿는다.
-2. `LogUploadQueue`가 `debug` → `info` 순으로 축출하며 `onDrop`을 부른다. 앱 큐가 그 콜백에서 `noteQueueDrops(n)`으로 **누적 카운터**만 올린다(로그 금지 — 원칙 8).
+2. `LogUploadQueue`가 `debug` → `info` 순으로 축출하며 `onDrop`을 부른다. 앱 큐가 그 콜백에서 `noteQueueDrops(n)`으로 **리포터의 누적 총계**만 올린다(로그 금지 — 원칙 8).
 3. 다음 지표 이벤트가 `dropped: 137`을 달고 나간다. 분포를 해석할 때 "이 표본이 얼마나 걸러진 것인가"를 알 수 있다.
 4. 카운터는 **누적**이라 소진되지 않는다. 델타를 실어 보내면 그 이벤트 자체가 드롭됐을 때 델타가 영영 사라지지만, 누적이면 살아남은 마지막 이벤트 하나가 총량을 알려준다.
 
@@ -115,15 +115,14 @@ flowchart LR
 
     subgraph perf["libs/logger/src/perf"]
         CFG["configurePerfMetrics()<br/>isSampledRun(runId) 1회 판정"]
-        RPT["reportPerfMetric()"]
-        DROP["dropCounter<br/>(누적)"]
+        RPT["PerfMetricReporter<br/>report() · noteQueueDrops()<br/>droppedTotal (누적)"]
     end
 
     HUB["logHub"]
     UP["LogUploadScheduler<br/>→ POST /hello/report-bulk"]
 
-    CFG -->|"뽑힘: emitter 보관"| RPT
-    CFG -->|"미샘플·미구성: emitter 없음"| X(["∅"])
+    CFG -->|"뽑힘: new PerfMetricReporter"| RPT
+    CFG -->|"미샘플·미구성: 리포터 없음"| X(["∅"])
 
     BMS -->|"'boot', totalMs, marks"| RPT
     WV -->|"'fcp' / 'lcp'"| RPT
@@ -131,15 +130,14 @@ flowchart LR
     SS -->|"'site-switch', ok"| RPT
 
     RPT --> LOG["logger.info('PERF', msg, data)"]
-    DROP -.->|"dropped: N 동승"| LOG
 
     LOG --> HUB
     HUB --> NQ
-    NQ -->|"onDrop"| DROP
+    NQ -->|"onDrop → noteQueueDrops"| RPT
     NQ --> UP
 
     style CFG fill:#fff3cd,stroke:#856404
-    style DROP fill:#f8d7da,stroke:#721c24
+    style RPT fill:#f8d7da,stroke:#721c24
 ```
 
 ### ② 샘플 결정이 조율 없이 일치하는 이유
@@ -200,16 +198,17 @@ sequenceDiagram
 
 지표가 곧 `LogEntry`이므로 의존이 `@chatic/logger` 하나로 닫힌다. 두 앱 모두 이미 이 패키지를 쓴다(웹은 [`@chatic/bridges`가 재수출](../../bridges/src/logger/index.ts)). ADR-0065가 만들 `libs/perf` 이름을 비워두므로 그 레인과 충돌하지 않는다.
 
-| 파일                                           | 역할                                                                                               |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [`types.ts`](../src/perf/types.ts)             | `PerfMetricName`(5종 닫힌 유니온) · `PerfMetricData`(와이어에 실리는 `data` 형태)                  |
-| [`budgets.ts`](../src/perf/budgets.ts)         | `PERF_BUDGET_MS` · `PERF_BUDGET_STAT` — 예산 표의 런타임 정본                                      |
-| [`sampling.ts`](../src/perf/sampling.ts)       | `PERF_SAMPLE_PERCENT = 10` · `hashRunId()`(FNV-1a 32bit) · `isSampledRun()` — **순수함수**         |
-| [`dropCounter.ts`](../src/perf/dropCounter.ts) | `noteQueueDrops(n)` / `readQueueDropTotal()` / `resetQueueDropTotal()` — 프로세스 전역 누적 카운터 |
-| [`perfNow.ts`](../src/perf/perfNow.ts)         | `performance.now()`가 있으면 그것, 없으면 `Date.now()`                                             |
-| [`reporter.ts`](../src/perf/reporter.ts)       | `configurePerfMetrics()` / `resetPerfMetrics()` / `reportPerfMetric()` / `isPerfMetricsEnabled()`  |
+| 파일                                     | 역할                                                                                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`types.ts`](../src/perf/types.ts)       | `PerfMetricName`(5종 닫힌 유니온) · `PerfMetricData`(와이어에 실리는 `data` 형태)                                                                |
+| [`budgets.ts`](../src/perf/budgets.ts)   | `PERF_BUDGET_MS` · `PERF_BUDGET_STAT` — 예산 표의 런타임 정본                                                                                    |
+| [`sampling.ts`](../src/perf/sampling.ts) | `PERF_SAMPLE_PERCENT = 10` · `hashRunId()`(FNV-1a 32bit) · `isSampledRun()` — **순수함수**                                                       |
+| [`perfNow.ts`](../src/perf/perfNow.ts)   | `performance.now()`가 있으면 그것, 없으면 `Date.now()`                                                                                           |
+| [`reporter.ts`](../src/perf/reporter.ts) | `PerfMetricReporter` 클래스 + 홀더(`configurePerfMetrics` / `reportPerfMetric` / `noteQueueDrops` / `isPerfMetricsEnabled` / `resetPerfMetrics`) |
 
-`reporter.ts`는 프로세스 전역 상태를 하나 갖는다 — 뽑힌 런에서만 존재하는 `Logger` 하나. 그 `Logger`를 [`runtime.ts`](../src/runtime.ts)의 싱글턴에서 import하지 않고 **인자로 받는다**: 이 패키지의 합성 루트는 하나뿐이고 나머지는 싱글턴에 손을 뻗지 않는다는 규칙 때문이며, 덕분에 테스트가 목 하나로 끝난다.
+`reporter.ts`는 [`runtime.ts`](../src/runtime.ts)가 `CoreLogger`에 하는 것과 같은 모양이다 — **상태를 든 클래스 하나 + 그것을 세우는 홀더 하나**, 그리고 홀더를 거치는 자유 함수들. 계측 지점(사이트 전환·웹바이탈 콜백·부팅 확정)은 관계없는 코드에 묻혀 있어 인스턴스를 넘겨받을 수 없으므로 자유 함수로 부르고, 클래스 자체는 단독으로 만들 수 있어 테스트가 프로세스 상태를 건드리지 않는다. `Logger`는 싱글턴에서 import하지 않고 **인자로 받는다**: 이 패키지의 합성 루트는 하나뿐이고 나머지는 싱글턴에 손을 뻗지 않는다는 규칙 때문이다.
+
+**드롭 총계가 리포터 안에 있는 이유.** 예전엔 별도 모듈의 전역이었는데, 그러면 `report()`의 출력이 **생성자에 없는 상태**에 의존한다 — 리포터만 읽어서는 지표에 `dropped`가 왜 붙는지 알 수 없었다. 필드로 들이면 의존이 드러나고, 전역이 하나 줄고, 테스트가 인스턴스마다 독립된다. 대가는 배선 순서다 — 리포터보다 먼저 일어난 드롭은 세지 않으므로, 호스트는 큐보다 **먼저** `configurePerfMetrics`를 불러야 한다(§호스트 배선).
 
 `data`에 실리는 형태:
 
@@ -244,7 +243,7 @@ interface PerfMetricData {
 ### 호스트 배선 (`configurePerfMetrics` 호출부)
 
 - **`apps/mobile`** — [`provider.ts`](../../../apps/mobile/src/app/services/provider.ts)의 `attachNativeLogContext()` 바로 뒤. 컨텍스트가 붙는 자리와 같은 이유로 그 자리다: 무엇이든 지표를 내기 전에 켜져 있어야 한다.
-- **`apps/web`** — [`main.tsx`](../../../apps/web/src/main.tsx)의 `startLogUploader(...)` 뒤, `initWebVitals()` 앞. `readInjectedRunId()`([logContext.ts](../../../apps/web/src/app/runtime/logging/logContext.ts))가 넘기는 값이 게이트다 — 이 함수는 `resolveRunId()`와 달리 **주입이 없으면 `undefined`를 준다.** 웹이 자체 발급한 runId로는 네이티브와 샘플 결정이 갈리고, 애초에 주입이 없다는 건 앱 웹뷰가 아니라는 뜻이다.
+- **`apps/web`** — [`main.tsx`](../../../apps/web/src/main.tsx)의 `attachLogContext()` 뒤, **`startLogUploader(...)` 앞**. 업로더보다 앞인 것이 중요하다 — 리포터가 드롭 총계를 들고 있는데, 업로더의 큐는 영속된 배치를 복원하는 순간 상한을 넘겨 축출할 수 있다. 뒤에 두면 그 첫 축출이 세어지지 않는다. 이 호출은 로그를 한 줄도 만들지 않으므로 "무엇이든 로그를 내기 전에 파이프를 배선한다"(원칙 15)를 깨지 않는다. `readInjectedRunId()`([logContext.ts](../../../apps/web/src/app/runtime/logging/logContext.ts))가 넘기는 값이 게이트다 — 이 함수는 `resolveRunId()`와 달리 **주입이 없으면 `undefined`를 준다.** 웹이 자체 발급한 runId로는 네이티브와 샘플 결정이 갈리고, 애초에 주입이 없다는 건 앱 웹뷰가 아니라는 뜻이다.
 - **`apps/desktop` · `apps/desktop-web` · `apps/testbed`** — 호출부를 만들지 않는다. 그것이 off 배선의 전부다.
 
 ### 드롭 카운터 배선
@@ -260,16 +259,15 @@ interface PerfMetricData {
 
 ### 유닛 테스트
 
-| 파일                                                                                                      | 고정하는 성질                                                                                                                                                                                  |
-| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`sampling.spec.ts`](../src/perf/sampling.spec.ts)                                                        | 결정성 · 32비트 범위 · 비율 경계(0%/100%) · 비율 단조성 · 1만 표본에서 지정 비율 근처 · 빈 `runId` 탈락                                                                                        |
-| [`reporter.spec.ts`](../src/perf/reporter.spec.ts)                                                        | 미구성/미샘플 시 0건 · `info`/`PERF` 형태 · `overBudget` 경계(예산과 같으면 초과 아님) · `ok`/`marks`/`dropped`는 준 것만 실림 · NaN·음수·Infinity 무시 · **직렬화 길이가 2000자 캡에서 멀다** |
-| [`dropCounter.spec.ts`](../src/perf/dropCounter.spec.ts)                                                  | 누적(소진 아님) · 0 이하 무시                                                                                                                                                                  |
-| [`BootMetricsService.test.ts`](../../../apps/mobile/src/app/services/perf/BootMetricsService.test.ts)     | 진단 라인이 그대로 남는다 · 샘플 시 `marks`+`bootType`과 함께 1건 추가 · **리로드 세션은 `bootType: 'reload'`** · 미샘플 0건 · `totalMs` 없는 세션은 표본 아님 · 예산 초과 표시                |
-| [`dropCount.test.ts`](../../../apps/mobile/src/app/services/log/uploadQueue/dropCount.test.ts)            | 상한 초과분만큼 정확히 누적 · 드롭 없으면 0 · 읽어도 안 줄어듦 · **드롭 경로가 로그를 한 줄도 안 냄**                                                                                          |
-| [`switchSite.test.ts`](../../app-runtime/src/socket/auth/switchSite.test.ts)                              | 동일 사이트 no-op 0건 · 사용자 없음 0건 · 성공 `ok:true` 1건 · 실패 `ok:false` 1건 · 미구성 호스트 0건                                                                                         |
-| [`useSwitchCloudSession.test.ts`](../../web-core/src/hooks/session/actions/useSwitchCloudSession.test.ts) | 성공/실패 각 1건 · 미구성 호스트 0건 · 콜백 참조 안정성                                                                                                                                        |
-| [`webVitalsReporter.test.ts`](../../../apps/web/src/app/utils/webVitalsReporter.test.ts)                  | 전 지표가 오버레이 스토어에 들어감 · **FCP·LCP만** 서버로 · INP·CLS·TTFB 전송 0건 · 미구성 호스트 0건                                                                                          |
+| 파일                                                                                                                                       | 고정하는 성질                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`sampling.spec.ts`](../src/perf/sampling.spec.ts)                                                                                         | 결정성 · 32비트 범위 · 비율 경계(0%/100%) · 비율 단조성 · 1만 표본에서 지정 비율 근처 · 빈 `runId` 탈락                                                                                                                                                                                  |
+| [`reporter.spec.ts`](../src/perf/reporter.spec.ts)                                                                                         | 미구성/미샘플 시 0건 · `info`/`PERF` 형태 · `overBudget` 경계(예산과 같으면 초과 아님) · `ok`/`marks`/`dropped`는 준 것만 실림 · NaN·음수·Infinity 무시 · **직렬화 길이가 2000자 캡에서 멀다** · 클래스 단독 인스턴스화 · 드롭 총계가 인스턴스별로 격리됨 · **구성 전 드롭은 세지 않음** |
+| [`BootMetricsService.test.ts`](../../../apps/mobile/src/app/services/perf/BootMetricsService.test.ts)                                      | 진단 라인이 그대로 남는다 · 샘플 시 `marks`+`bootType`과 함께 1건 추가 · **리로드 세션은 `bootType: 'reload'`** · 미샘플 0건 · `totalMs` 없는 세션은 표본 아님 · 예산 초과 표시                                                                                                          |
+| [`LogUploadQueueService.dropCount.test.ts`](../../../apps/mobile/src/app/services/log/uploadQueue/LogUploadQueueService.dropCount.test.ts) | 상한 초과분이 다음 지표의 `dropped`로 정확히 실림 · 드롭 없으면 키 없음 · 읽어도 안 줄어듦 · **드롭 경로가 로그를 한 줄도 안 냄**                                                                                                                                                        |
+| [`switchSite.test.ts`](../../app-runtime/src/socket/auth/switchSite.test.ts)                                                               | 동일 사이트 no-op 0건 · 사용자 없음 0건 · 성공 `ok:true` 1건 · 실패 `ok:false` 1건 · 미구성 호스트 0건                                                                                                                                                                                   |
+| [`useSwitchCloudSession.test.ts`](../../web-core/src/hooks/session/actions/useSwitchCloudSession.test.ts)                                  | 성공/실패 각 1건 · 미구성 호스트 0건 · 콜백 참조 안정성                                                                                                                                                                                                                                  |
+| [`webVitalsReporter.test.ts`](../../../apps/web/src/app/utils/webVitalsReporter.test.ts)                                                   | 전 지표가 오버레이 스토어에 들어감 · **FCP·LCP만** 서버로 · INP·CLS·TTFB 전송 0건 · 미구성 호스트 0건                                                                                                                                                                                    |
 
 > **드롭 카운터 테스트가 자기 파일을 갖는 이유**: 카운터는 프로세스 전역이고 `logHub`는 모듈 싱글턴이다. 다른 테스트가 teardown하지 않고 남긴 서비스와 파일을 공유하면 같은 엔트리를 여러 큐가 각각 버리며 중복으로 세어 숫자가 어긋난다. jest가 파일마다 모듈 레지스트리를 새로 주므로, 파일을 나누는 것이 "몇 건 이상"이 아니라 **정확한 수**를 단언할 수 있게 하는 조건이다.
 
