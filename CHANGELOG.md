@@ -4,6 +4,26 @@
 
 ### Features
 
+- (mobile,web,web-core,app-runtime) report boot, switches and vitals against the budget
+- (logger) weigh a run against a performance budget, one session in ten
+
+### Documentation
+
+- (logger) resync the perf doc with the ports-and-factory shape
+- (logger) describe the metric events and where they are measured
+- (logger) decide to carry performance metrics on the log pipeline (ADR-0071)
+
+### Refactor
+
+- (logger,mobile,web) cut the only edge from perf to the transport
+- (logger,mobile,web) let the queue count its own drops and have perf only read them
+- (logger) split the perf reporter into ports, a class and a factory
+- (logger) give the metric reporter a class and let it own its drop count
+
+## [2026-08-27] - No version updates
+
+### Features
+
 - (web/mypage) give the signed-out hub the same card as a profile
 - (web/mypage) split the MY hub into an identity root and a settings depth
 
