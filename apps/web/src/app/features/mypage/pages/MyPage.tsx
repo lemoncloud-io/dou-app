@@ -1,84 +1,50 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
+import { useNavigateWithTransition } from '@chatic/shared';
 
-import { isNative } from '@chatic/bridges';
-import { appBridge } from '../../../bridge';
-import { useDeviceInfo } from '@chatic/device-utils';
-import { IconChevronRight, IconUserOutline, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
+import { IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 import { useCloudSessionCatalog, useMembershipInfo } from '@chatic/web-core';
 import { useRuntimeProfile } from '@chatic/app-runtime';
-import { usePreferenceStore } from '../../../stores/usePreferenceStore';
 
-import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
 import { BottomNavSpacer } from '../../../ui/components';
-import { useAppIcon, useDevicePushMute } from '../hooks';
-import { useMyUser, useTheme } from '../../../hooks';
-import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
-import { useAppUpdateStatus } from '../../appUpdate';
+import { useMyUser } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
 
-// import.meta.env read stays here rather than in useDebugUnlock/useDebugMode: those modules
-// have unit tests, and ts-jest's CommonJS transform cannot parse `import.meta` (see
-// apps/web/docs/feature/debug/entry-gate.md). MyPage has no test file, so it's the safe spot.
-const DEBUG_CODE = import.meta.env.VITE_DEBUG_CODE;
-
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
+/**
+ * MY hub — identity and the two account-scoped destinations (subscription, clouds). Device and app
+ * preferences moved one depth down behind the header gear (SettingsPage), so this screen stays a
+ * short identity card list rather than a settings dump.
+ */
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { isGuest } = useRuntimeProfile();
     const { data: membership } = useMembershipInfo();
     // Owned clouds only (the relay catalog); invited clouds are deliberately absent — you cannot
-    // release someone else's cloud, so they must not summon the 클라우드 관리 row.
+    // release someone else's cloud, so they must not summon the 클라우드 정보 row.
     const { clouds } = useCloudSessionCatalog();
     const myUser = useMyUser();
 
-    const { setTheme, isDarkTheme } = useTheme();
-    const { pushEnabled, setPushEnabled, isSupported: pushSupported } = useDevicePushMute();
-    const { deviceInfo, versionInfo } = useDeviceInfo();
-    const { resetOnboarding, blurLastMessage, setBlurLastMessage } = usePreferenceStore();
-    const { isEnabled: isDebugMode } = useDebugMode();
-    const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(DEBUG_CODE);
-    const { updateAvailable } = useAppUpdateStatus();
-    const {
-        isSupported: isIconChangeSupported,
-        currentIcon,
-        availableIcons,
-        selectIcon,
-        currentIconLabel,
-    } = useAppIcon();
-
     const displayName = myUser?.name;
     const displayImageUrl = myUser?.photo;
-    const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
-    const [isLanguageSheetOpen, setIsLanguageSheetOpen] = useState(false);
-    const [isAppIconSheetOpen, setIsAppIconSheetOpen] = useState(false);
 
-    const currentLanguageLabel = t(`mypage.language.${i18n.language}`);
     const profileAvatar = (
-        <span className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full border border-avatar-ring bg-muted">
+        <span className="flex h-[60px] w-[60px] items-center justify-center overflow-hidden rounded-full border border-avatar-ring bg-muted">
             {displayImageUrl ? (
                 <img src={displayImageUrl} alt="Profile" className="h-full w-full object-cover" />
             ) : (
-                <IconUserOutline size={20} className="text-placeholder" />
+                <IconUserOutline size={26} className="text-placeholder" />
             )}
         </span>
     );
-    const profileText = (
-        <span className="flex flex-col items-start gap-0.5">
-            <span className="max-w-[200px] truncate text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                {displayName}
-            </span>
-            <span className="text-[14px] text-description">{myUser?.email}</span>
-        </span>
-    );
-    // Subscription status label — "구독 이용 중" when a membership is valid, else "구독 관리".
-    // Free-trial D-N state is intentionally out of scope (no reliable server "in trial" flag).
+
+    // A membership decides the destination, not the label: the row is "구독 정보" either way, but
+    // someone who has never subscribed wants to know what a cloud even is, so they get the guide
+    // rather than the plan picker or an empty membership screen.
     const hasSubscription = membership?.isValid === true;
     // Gate on OWNERSHIP, not on `isCloudActive`. The latter means "currently switched into a
     // non-default cloud", which hid the only release path whenever the user sat on 두유 홈 — including
@@ -86,252 +52,74 @@ export const MyPage = () => {
     // and a lapsed subscriber whose leftover clouds still need deleting.
     const hasOwnedCloud = clouds.length > 0;
 
-    const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
-    // The store row is always present on iOS and only its trailing label branches, so tapping
-    // through to the store never depends on an update existing. iOS only: Android has no
-    // live-version source yet (see ADR-0033), so "최신 버전" there would be a guess, not a check.
-    // `updateAvailable` is the live bridge check, not versionInfo.shouldUpdate — the latter comes
-    // from the boot-time injection, which is always false on a cold start (see useAppUpdateStatus).
-    const showStoreRow = deviceInfo?.platform === 'ios';
-
-    // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
-    const handleLogout = () => {
-        navigate(ROUTES.auth.logout);
-    };
-
     // The header shows the RELAY account's data (name/email/photo) — the same record whichever cloud
-    // is connected — so tapping it opens the account profile editor, which edits exactly that. No
-    // ownership gate: any signed-in user can edit their own account profile. The cloud entity's own
-    // name is not an account attribute and is no longer editable from this tree (see AccountInfoPage).
+    // is connected. It opens 내 정보, the account hub: profile editing, social links and withdrawal
+    // all hang off it, and this row is now their only way in.
     const handleProfileClick = () => {
-        navigate(ROUTES.mypage.account.edit);
+        navigate(ROUTES.mypage.account.info);
     };
-
-    const handleThemeToggle = () => {
-        setTheme(isDarkTheme ? 'light' : 'dark');
-    };
-
-    const handleOpenStore = () => {
-        if (isNative()) {
-            appBridge.openStore();
-            return;
-        }
-
-        const storeUrl = getStoreUrl(deviceInfo?.platform);
-        if (!storeUrl) return;
-        window.open(storeUrl, '_blank');
-    };
-
-    const versionText = isMobilePlatform
-        ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
-        : `v${versionInfo?.webVersion}`;
 
     return (
         // Trailing clearance for the floating nav comes from BottomNavSpacer at the end of the
         // content, not from padding on this container — see BottomNavSpacer for why.
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-4">
-            {/* Account profile header — account-level profile (name/email/photo), not cloud/site.
-                Tapping it opens the account profile editor (/mypage/edit). */}
-            <div className="px-5 pb-3 pt-safe-top">
-                {isGuest ? (
-                    <button onClick={goToLogin} className="flex flex-col gap-1.5 text-left">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
-                                {t('mypage.loginPrompt')}
-                            </span>
-                            <IconChevronRight className="size-[18px] text-foreground" />
-                        </div>
-                        <p className="text-[14px] text-description">{t('mypage.loginDescription')}</p>
-                    </button>
-                ) : (
-                    <button onClick={handleProfileClick} className="flex items-center gap-[9px] text-left">
-                        {profileAvatar}
-                        {profileText}
-                    </button>
-                )}
-            </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-safe-top">
+            <header className="flex items-center justify-between px-4 py-3">
+                <h1 className="text-[22px] font-bold tracking-[-0.11px] text-foreground">{t('mypage.title')}</h1>
+                <button
+                    onClick={() => navigate(ROUTES.mypage.settings.root)}
+                    aria-label={t('mypage.settings.openLabel')}
+                    className="flex size-9 items-center justify-center rounded-full active:bg-muted/50"
+                >
+                    <IconSettings size={22} className="text-foreground" />
+                </button>
+            </header>
 
-            {/* Menu cards */}
-            <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* My info */}
-                {!isGuest && (
-                    <MenuCard>
+            <div className="flex flex-col gap-[18px] px-4 pt-2">
+                {/* Account profile card — account-level profile (name/email/photo), not cloud/site. */}
+                <MenuCard>
+                    {isGuest ? (
                         <ListRow
-                            title={t('mypage.accountInfo.title')}
+                            title={t('mypage.loginPrompt')}
+                            subtitle={t('mypage.loginDescription')}
                             trailing={<Chevron />}
-                            onClick={() => navigate(ROUTES.mypage.account.info)}
+                            onClick={goToLogin}
                         />
-                    </MenuCard>
-                )}
+                    ) : (
+                        <ListRow
+                            leading={profileAvatar}
+                            title={displayName}
+                            subtitle={myUser?.email}
+                            trailing={<Chevron />}
+                            onClick={handleProfileClick}
+                            className="py-3"
+                        />
+                    )}
+                </MenuCard>
 
-                {/* Subscription + account management */}
                 {!isGuest && (
                     <MenuCard>
-                        {/* One row, two destinations. A subscriber wants their membership; someone
-                            who has never subscribed wants to know what a cloud even is, so they get
-                            the guide rather than the plan picker or an empty membership screen. */}
                         <ListRow
-                            title={hasSubscription ? t('mypage.subscription.inUse') : t('mypage.subscription.title')}
+                            title={t('mypage.subscription.hubEntry')}
                             trailing={<Chevron />}
                             onClick={() =>
                                 navigate(hasSubscription ? ROUTES.subscription.root : ROUTES.subscription.guide)
                             }
                         />
-                        {hasOwnedCloud && (
-                            <ListRow
-                                title={t('mypage.cloudManage.title')}
-                                trailing={<Chevron />}
-                                onClick={() => navigate(ROUTES.mypage.cloud.manage)}
-                            />
-                        )}
                     </MenuCard>
                 )}
 
-                {/* Settings — kept from the previous design, restyled onto the DS card. */}
-                <MenuCard>
-                    {/* Device-global push mute. ON = notifications received (muted:false). Outside a
-                        native shell no push device exists (the write would 404), so the toggle is
-                        disabled with a hint instead of erroring — see useDevicePushMute. */}
-                    <ListRow
-                        title={t('mypage.pushNotifications')}
-                        subtitle={pushSupported ? undefined : t('mypage.push.appOnly')}
-                        trailing={
-                            <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} disabled={!pushSupported} />
-                        }
-                    />
-                    <ListRow
-                        title={t('mypage.darkMode')}
-                        trailing={<Switch checked={isDarkTheme} onCheckedChange={handleThemeToggle} />}
-                    />
-                    <ListRow
-                        title={t('mypage.messagePreview')}
-                        trailing={<Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />}
-                    />
-                    <ListRow
-                        title={t('mypage.languageSettings')}
-                        trailing={
-                            <span className="flex items-center gap-1">
-                                <span className="text-[14px] text-description">{currentLanguageLabel}</span>
-                                <Chevron />
-                            </span>
-                        }
-                        onClick={() => setIsLanguageSheetOpen(true)}
-                    />
-                    {isNative() && isIconChangeSupported && (
-                        <ListRow
-                            title={t('mypage.appIconSettings')}
-                            trailing={
-                                <span className="flex items-center gap-1">
-                                    <span className="text-[14px] text-description">{currentIconLabel}</span>
-                                    <Chevron />
-                                </span>
-                            }
-                            onClick={() => setIsAppIconSheetOpen(true)}
-                        />
-                    )}
-                    <ListRow
-                        title={t('mypage.viewOnboarding')}
-                        trailing={<Chevron />}
-                        onClick={() => {
-                            resetOnboarding();
-                            navigate(ROUTES.root, { replace: true });
-                        }}
-                    />
-                </MenuCard>
-
-                {/* Feedback + policy + version */}
-                <MenuCard>
-                    {/* Sole entry point for feedback — reachable by guests too, since `reportIssue`
-                        accepts an unauthenticated session (ADR-0047). */}
-                    <ListRow
-                        title={t('mypage.feedback')}
-                        trailing={<Chevron />}
-                        onClick={() => navigate(ROUTES.mypage.feedback)}
-                    />
-                    <ListRow
-                        title={t('mypage.policy.title')}
-                        trailing={<Chevron />}
-                        onClick={() => navigate(ROUTES.mypage.policy.root)}
-                    />
-                    <ListRow
-                        title={t('mypage.appVersion')}
-                        trailing={
-                            <span className="flex items-center gap-1">
-                                <span className="text-[14px] text-description">{versionText}</span>
-                                <Chevron />
-                            </span>
-                        }
-                        onClick={registerTap}
-                    />
-                    {/* Store row (design): its own row below the version row so the version row can
-                        keep the debug-unlock tap gate. Always tappable through to the store; only
-                        the label branches on whether a newer store build exists. */}
-                    {showStoreRow && (
-                        <ListRow
-                            title={t('mypage.appVersion')}
-                            trailing={
-                                <span className="flex items-center gap-1">
-                                    {updateAvailable ? (
-                                        <span className="text-[14px] font-medium text-primary">
-                                            {t('mypage.updateAvailable')}
-                                        </span>
-                                    ) : (
-                                        <span className="text-[14px] text-description">{t('mypage.upToDate')}</span>
-                                    )}
-                                    <IconChevronRight
-                                        className={`size-[18px] ${updateAvailable ? 'text-primary' : 'text-description'}`}
-                                    />
-                                </span>
-                            }
-                            onClick={handleOpenStore}
-                        />
-                    )}
-                    {isDebugMode && (
-                        <ListRow
-                            title="Debug Mode"
-                            destructive
-                            trailing={<IconChevronRight className="size-[18px] text-destructive" />}
-                            onClick={() => debugOverlayActions.open('expanded')}
-                        />
-                    )}
-                </MenuCard>
-
-                {/* Logout */}
-                {!isGuest && (
+                {!isGuest && hasOwnedCloud && (
                     <MenuCard>
-                        <ListRow title={t('mypage.logout')} destructive onClick={() => setIsLogoutDialogOpen(true)} />
+                        <ListRow
+                            title={t('mypage.cloudManage.hubEntry')}
+                            trailing={<Chevron />}
+                            onClick={() => navigate(ROUTES.mypage.cloud.manage)}
+                        />
                     </MenuCard>
                 )}
             </div>
 
             <BottomNavSpacer />
-
-            {/* Logout Dialog */}
-            <LogoutDialog
-                isOpen={isLogoutDialogOpen}
-                onClose={() => setIsLogoutDialogOpen(false)}
-                onConfirm={handleLogout}
-            />
-
-            {/* Language Select Sheet */}
-            <LanguageSelectSheet isOpen={isLanguageSheetOpen} onClose={() => setIsLanguageSheetOpen(false)} />
-
-            {/* App Icon Select Sheet */}
-            <AppIconSelectSheet
-                isOpen={isAppIconSheetOpen}
-                onClose={() => setIsAppIconSheetOpen(false)}
-                currentIcon={currentIcon}
-                availableIcons={availableIcons}
-                onSelectIcon={selectIcon}
-            />
-
-            {/* Debug Unlock Dialog — opens after the hidden 10-tap on the app version row */}
-            <DebugUnlockDialog
-                isOpen={isChallengeOpen}
-                hasError={hasError}
-                onSubmit={submitCode}
-                onCancel={cancelChallenge}
-            />
         </div>
     );
 };

@@ -166,8 +166,19 @@
         }
     },
     "mypage": {
+        "title": "MY",
         "loginPrompt": "Sign in",
         "loginDescription": "Sign in to safely manage your conversations.",
+        "settings": {
+            "title": "Settings",
+            "openLabel": "Open settings",
+            "sections": {
+                "notification": "Notifications",
+                "app": "App Settings",
+                "support": "Support & Info"
+            }
+        },
+        "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",
         "push": {
             "updateFailed": "Couldn't update push notification settings.",
@@ -269,6 +280,7 @@
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
             "inUse": "Subscribed",
+            "hubEntry": "Subscription",
             "summaryLine": "On {{plan}}",
             "summaryLineWithQuota": "On {{plan}} · {{used}}/{{max}} clouds",
             "socialLinkRequired": "A subscription needs a linked social account. Link one in My Page > Account.",
@@ -368,6 +380,7 @@
         },
         "cloudManage": {
             "title": "Cloud Management",
+            "hubEntry": "Cloud",
             "noAccounts": "No clouds registered",
             "delete": "Delete",
             "deleteConfirmTitle": "Delete this cloud?",
