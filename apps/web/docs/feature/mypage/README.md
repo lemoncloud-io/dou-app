@@ -1,6 +1,6 @@
 # mypage
 
-> 상태: Live · 최종 갱신: 2026-07-15 · 관련 ADR: [ADR-0011](../../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
+> 상태: Live · 최종 갱신: 2026-08-27 · 관련 ADR: [ADR-0011](../../../../../docs/adr/0011-web-layout-shell-and-floating-bottom-nav.md)
 >
 > 대상: `apps/web/src/app/features/mypage`
 >
