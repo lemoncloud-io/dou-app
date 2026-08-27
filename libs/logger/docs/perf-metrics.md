@@ -114,22 +114,24 @@ flowchart LR
     end
 
     subgraph perf["libs/logger/src/perf"]
-        CFG["configurePerfMetrics()<br/>isSampledRun(runId) 1회 판정"]
-        RPT["PerfMetricReporter<br/>report() · noteQueueDrops()<br/>droppedTotal (누적)"]
+        CFG["createPerfMetricReporter()<br/>isSampledRun(runId) 1회 판정"]
+        RPT["BudgetedPerfMetricReporter<br/>+ PerfBudgetCatalog<br/>droppedTotal (누적)"]
+        SINK["LoggerPerfMetricSink<br/>(PerfMetricSink 구현)"]
     end
 
     HUB["logHub"]
     UP["LogUploadScheduler<br/>→ POST /hello/report-bulk"]
 
-    CFG -->|"뽑힘: new PerfMetricReporter"| RPT
-    CFG -->|"미샘플·미구성: 리포터 없음"| X(["∅"])
+    CFG -->|"뽑힘: BudgetedPerfMetricReporter"| RPT
+    CFG -->|"미샘플·미구성: NOOP_PERF_METRIC_REPORTER"| X(["∅"])
 
     BMS -->|"'boot', totalMs, marks"| RPT
     WV -->|"'fcp' / 'lcp'"| RPT
     CS -->|"'cloud-switch', ok"| RPT
     SS -->|"'site-switch', ok"| RPT
 
-    RPT --> LOG["logger.info('PERF', msg, data)"]
+    RPT -->|"PerfMetricRecord"| SINK
+    SINK --> LOG["logger.info('PERF', msg, record)"]
 
     LOG --> HUB
     HUB --> NQ
@@ -198,22 +200,34 @@ sequenceDiagram
 
 지표가 곧 `LogEntry`이므로 의존이 `@chatic/logger` 하나로 닫힌다. 두 앱 모두 이미 이 패키지를 쓴다(웹은 [`@chatic/bridges`가 재수출](../../bridges/src/logger/index.ts)). ADR-0065가 만들 `libs/perf` 이름을 비워두므로 그 레인과 충돌하지 않는다.
 
-| 파일                                     | 역할                                                                                                                                             |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`types.ts`](../src/perf/types.ts)       | `PerfMetricName`(5종 닫힌 유니온) · `PerfMetricData`(와이어에 실리는 `data` 형태)                                                                |
-| [`budgets.ts`](../src/perf/budgets.ts)   | `PERF_BUDGET_MS` · `PERF_BUDGET_STAT` — 예산 표의 런타임 정본                                                                                    |
-| [`sampling.ts`](../src/perf/sampling.ts) | `PERF_SAMPLE_PERCENT = 10` · `hashRunId()`(FNV-1a 32bit) · `isSampledRun()` — **순수함수**                                                       |
-| [`perfNow.ts`](../src/perf/perfNow.ts)   | `performance.now()`가 있으면 그것, 없으면 `Date.now()`                                                                                           |
-| [`reporter.ts`](../src/perf/reporter.ts) | `PerfMetricReporter` 클래스 + 홀더(`configurePerfMetrics` / `reportPerfMetric` / `noteQueueDrops` / `isPerfMetricsEnabled` / `resetPerfMetrics`) |
+| 파일                                                                     | 역할                                                                                                                                   |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [`types.ts`](../src/perf/types.ts)                                       | 데이터 계약 — `PerfMetricName`(5종 닫힌 유니온) · `PerfBudget` · `PerfMetricOptions` · **`PerfMetricRecord`**(싱크가 받는 중립 레코드) |
+| [`budgets.ts`](../src/perf/budgets.ts)                                   | `PERF_BUDGETS`(값+통계를 한 레코드에) · `PerfBudgetCatalog` 인터페이스 · `StaticPerfBudgetCatalog`                                     |
+| [`sampling.ts`](../src/perf/sampling.ts)                                 | `PERF_SAMPLE_PERCENT = 10` · `hashRunId()`(FNV-1a 32bit) · `isSampledRun()` — **순수함수**                                             |
+| [`perfNow.ts`](../src/perf/perfNow.ts)                                   | `performance.now()`가 있으면 그것, 없으면 `Date.now()`                                                                                 |
+| [`PerfMetricSink.ts`](../src/perf/PerfMetricSink.ts)                     | `PerfMetricSink` 인터페이스 + `LoggerPerfMetricSink`(→ `info`/`PERF`)                                                                  |
+| [`PerfMetricReporter.ts`](../src/perf/PerfMetricReporter.ts)             | `PerfMetricReporter` 인터페이스 + `BudgetedPerfMetricReporter` + `NOOP_PERF_METRIC_REPORTER`                                           |
+| [`createPerfMetricReporter.ts`](../src/perf/createPerfMetricReporter.ts) | 팩터리 — 샘플 판정이 일어나는 **유일한** 곳                                                                                            |
+| [`runtime.ts`](../src/perf/runtime.ts)                                   | 프로세스 슬롯 + `configurePerfMetrics` / `reportPerfMetric` / `noteQueueDrops` / `resetPerfMetrics`                                    |
 
-`reporter.ts`는 [`runtime.ts`](../src/runtime.ts)가 `CoreLogger`에 하는 것과 같은 모양이다 — **상태를 든 클래스 하나 + 그것을 세우는 홀더 하나**, 그리고 홀더를 거치는 자유 함수들. 계측 지점(사이트 전환·웹바이탈 콜백·부팅 확정)은 관계없는 코드에 묻혀 있어 인스턴스를 넘겨받을 수 없으므로 자유 함수로 부르고, 클래스 자체는 단독으로 만들 수 있어 테스트가 프로세스 상태를 건드리지 않는다. `Logger`는 싱글턴에서 import하지 않고 **인자로 받는다**: 이 패키지의 합성 루트는 하나뿐이고 나머지는 싱글턴에 손을 뻗지 않는다는 규칙 때문이다.
+구조는 `LogSink`/`ConsoleLogSink`와 `runtime.ts`/`CoreLogger`가 이미 쓰는 모양을 그대로 따른다 — **인터페이스 + 구현 클래스 + 조립 팩터리 + 프로세스 슬롯 하나.**
+
+**인터페이스는 실제로 갈릴 축에만 뒀다.** 추상화가 값을 못 하는 곳에 붙이면 껍데기만 늘어나므로, 근거가 문서에 있는 둘만 인터페이스다:
+
+- **`PerfMetricSink` — 목적지.** ADR-0071이 이미 후속을 지목했다: 지금 로그 파이프를 타는 이유는 백엔드 작업이 0이기 때문이고, 표본이 오프라인 집계를 넘어서면 전용 엔드포인트로 옮긴다. 그 이전은 **이 인터페이스의 두 번째 구현 하나**이고 리포터·예산·계측 지점 전부 그대로다.
+- **`PerfBudgetCatalog` — 목표치.** 카나리에서 조이거나 테스트가 둥근 수를 쓰려 할 때 리포터를 건드리지 않는다. 기본값은 정적이며, 그게 사람이 편집할 때만 바뀌는 값의 정직한 모양이다.
+
+**`PerfMetricReporter`는 인터페이스이고 구현이 둘이다** — `BudgetedPerfMetricReporter`와 `NOOP_PERF_METRIC_REPORTER`. 뽑히지 않은 런은 "플래그가 꺼진 리포터"가 아니라 **아무것도 안 하는 리포터**다(널 오브젝트). 덕분에 샘플 판정이 팩터리 **한 곳**에만 존재하고, 그 아래 코드에는 `if (sampled)`도 `?.`도 없다.
+
+**`Logger`는 싱글턴에서 import하지 않고 인자로 받는다** — 이 패키지의 합성 루트는 하나뿐이고 나머지는 싱글턴에 손을 뻗지 않는다는 규칙 때문이다. 계측 지점(사이트 전환·웹바이탈 콜백·부팅 확정)은 관계없는 코드에 묻혀 있어 인스턴스를 넘겨받을 수 없으므로 `runtime.ts`의 자유 함수로 부르고, 클래스 자체는 단독으로 만들 수 있어 테스트가 프로세스 상태를 건드리지 않는다.
 
 **드롭 총계가 리포터 안에 있는 이유.** 예전엔 별도 모듈의 전역이었는데, 그러면 `report()`의 출력이 **생성자에 없는 상태**에 의존한다 — 리포터만 읽어서는 지표에 `dropped`가 왜 붙는지 알 수 없었다. 필드로 들이면 의존이 드러나고, 전역이 하나 줄고, 테스트가 인스턴스마다 독립된다. 대가는 배선 순서다 — 리포터보다 먼저 일어난 드롭은 세지 않으므로, 호스트는 큐보다 **먼저** `configurePerfMetrics`를 불러야 한다(§호스트 배선).
 
-`data`에 실리는 형태:
+싱크가 받는 레코드:
 
 ```ts
-interface PerfMetricData {
+interface PerfMetricRecord {
     metric: PerfMetricName;
     ms: number; // 정수로 반올림
     budgetMs: number;
@@ -259,17 +273,20 @@ interface PerfMetricData {
 
 ### 유닛 테스트
 
-| 파일                                                                                                                                       | 고정하는 성질                                                                                                                                                                                                                                                                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`sampling.spec.ts`](../src/perf/sampling.spec.ts)                                                                                         | 결정성 · 32비트 범위 · 비율 경계(0%/100%) · 비율 단조성 · 1만 표본에서 지정 비율 근처 · 빈 `runId` 탈락                                                                                                                                                                                  |
-| [`reporter.spec.ts`](../src/perf/reporter.spec.ts)                                                                                         | 미구성/미샘플 시 0건 · `info`/`PERF` 형태 · `overBudget` 경계(예산과 같으면 초과 아님) · `ok`/`marks`/`dropped`는 준 것만 실림 · NaN·음수·Infinity 무시 · **직렬화 길이가 2000자 캡에서 멀다** · 클래스 단독 인스턴스화 · 드롭 총계가 인스턴스별로 격리됨 · **구성 전 드롭은 세지 않음** |
-| [`BootMetricsService.test.ts`](../../../apps/mobile/src/app/services/perf/BootMetricsService.test.ts)                                      | 진단 라인이 그대로 남는다 · 샘플 시 `marks`+`bootType`과 함께 1건 추가 · **리로드 세션은 `bootType: 'reload'`** · 미샘플 0건 · `totalMs` 없는 세션은 표본 아님 · 예산 초과 표시                                                                                                          |
-| [`LogUploadQueueService.dropCount.test.ts`](../../../apps/mobile/src/app/services/log/uploadQueue/LogUploadQueueService.dropCount.test.ts) | 상한 초과분이 다음 지표의 `dropped`로 정확히 실림 · 드롭 없으면 키 없음 · 읽어도 안 줄어듦 · **드롭 경로가 로그를 한 줄도 안 냄**                                                                                                                                                        |
-| [`switchSite.test.ts`](../../app-runtime/src/socket/auth/switchSite.test.ts)                                                               | 동일 사이트 no-op 0건 · 사용자 없음 0건 · 성공 `ok:true` 1건 · 실패 `ok:false` 1건 · 미구성 호스트 0건                                                                                                                                                                                   |
-| [`useSwitchCloudSession.test.ts`](../../web-core/src/hooks/session/actions/useSwitchCloudSession.test.ts)                                  | 성공/실패 각 1건 · 미구성 호스트 0건 · 콜백 참조 안정성                                                                                                                                                                                                                                  |
-| [`webVitalsReporter.test.ts`](../../../apps/web/src/app/utils/webVitalsReporter.test.ts)                                                   | 전 지표가 오버레이 스토어에 들어감 · **FCP·LCP만** 서버로 · INP·CLS·TTFB 전송 0건 · 미구성 호스트 0건                                                                                                                                                                                    |
+| 파일                                                                                                                                       | 고정하는 성질                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`sampling.spec.ts`](../src/perf/sampling.spec.ts)                                                                                         | 결정성 · 32비트 범위 · 비율 경계(0%/100%) · 비율 단조성 · 1만 표본에서 지정 비율 근처 · 빈 `runId` 탈락                                                                                                                                                                                          |
+| [`PerfMetricReporter.spec.ts`](../src/perf/PerfMetricReporter.spec.ts)                                                                     | 레코드 형태 · `overBudget` 경계(예산과 같으면 초과 아님) · `ok`/`bootType`/`marks`는 준 것만 실림 · 도달 못 한 마일스톤은 키째 빠짐 · NaN·음수·Infinity 무시 · 드롭 누적·인스턴스별 격리 · 카탈로그 교체가 판정에 반영 · **직렬화 길이가 2000자 캡에서 멀다** · no-op은 얼어 있고 아무것도 안 함 |
+| [`PerfMetricSink.spec.ts`](../src/perf/PerfMetricSink.spec.ts)                                                                             | `info`/`PERF` 한 건 · **숫자는 문장이 아니라 `data`에** · `warn`/`error`는 절대 안 씀 · 태그 교체                                                                                                                                                                                                |
+| [`createPerfMetricReporter.spec.ts`](../src/perf/createPerfMetricReporter.spec.ts)                                                         | `runId` 없음/미샘플 → no-op **동일 인스턴스** · 샘플 → 실제 리포터 · 같은 `runId`는 항상 같은 쪽 · 카탈로그 주입                                                                                                                                                                                 |
+| [`runtime.spec.ts`](../src/perf/runtime.spec.ts)                                                                                           | 미구성 호스트 0건 · 기본 싱크로 `info`/`PERF` · **싱크 교체가 logger를 우회** · 재구성 시 이전 드롭 미승계 · **구성 전 드롭은 세지 않음** · reset                                                                                                                                                |
+| [`BootMetricsService.test.ts`](../../../apps/mobile/src/app/services/perf/BootMetricsService.test.ts)                                      | 진단 라인이 그대로 남는다 · 샘플 시 `marks`+`bootType`과 함께 1건 추가 · **리로드 세션은 `bootType: 'reload'`** · 미샘플 0건 · `totalMs` 없는 세션은 표본 아님 · 예산 초과 표시                                                                                                                  |
+| [`LogUploadQueueService.dropCount.test.ts`](../../../apps/mobile/src/app/services/log/uploadQueue/LogUploadQueueService.dropCount.test.ts) | 상한 초과분이 다음 지표의 `dropped`로 정확히 실림 · 드롭 없으면 키 없음 · 읽어도 안 줄어듦 · **드롭 경로가 로그를 한 줄도 안 냄**                                                                                                                                                                |
+| [`switchSite.test.ts`](../../app-runtime/src/socket/auth/switchSite.test.ts)                                                               | 동일 사이트 no-op 0건 · 사용자 없음 0건 · 성공 `ok:true` 1건 · 실패 `ok:false` 1건 · 미구성 호스트 0건                                                                                                                                                                                           |
+| [`useSwitchCloudSession.test.ts`](../../web-core/src/hooks/session/actions/useSwitchCloudSession.test.ts)                                  | 성공/실패 각 1건 · 미구성 호스트 0건 · 콜백 참조 안정성                                                                                                                                                                                                                                          |
+| [`webVitalsReporter.test.ts`](../../../apps/web/src/app/utils/webVitalsReporter.test.ts)                                                   | 전 지표가 오버레이 스토어에 들어감 · **FCP·LCP만** 서버로 · INP·CLS·TTFB 전송 0건 · 미구성 호스트 0건                                                                                                                                                                                            |
 
-> **드롭 카운터 테스트가 자기 파일을 갖는 이유**: 카운터는 프로세스 전역이고 `logHub`는 모듈 싱글턴이다. 다른 테스트가 teardown하지 않고 남긴 서비스와 파일을 공유하면 같은 엔트리를 여러 큐가 각각 버리며 중복으로 세어 숫자가 어긋난다. jest가 파일마다 모듈 레지스트리를 새로 주므로, 파일을 나누는 것이 "몇 건 이상"이 아니라 **정확한 수**를 단언할 수 있게 하는 조건이다.
+> **드롭 테스트가 자기 파일을 갖는 이유**: `logHub`가 모듈 싱글턴이라, 다른 테스트가 teardown하지 않고 남긴 서비스와 파일을 공유하면 같은 엔트리를 여러 큐가 각각 버리며 중복으로 세어 숫자가 어긋난다. jest가 파일마다 모듈 레지스트리를 새로 주므로, 파일을 나누는 것이 "몇 건 이상"이 아니라 **정확한 수**를 단언할 수 있게 하는 조건이다.
 
 ```bash
 npx nx run-many -t test -p @chatic/logger,@chatic/web-core,web,@chatic/mobile,testbed --parallel=1
@@ -297,7 +314,7 @@ npx tsc -b libs/logger/tsconfig.lib.json libs/web-core/tsconfig.lib.json libs/ap
 2. `data`가 `JSON.parse` 가능한지, `runId`가 네이티브 라인과 웹 라인에서 **같은지**.
 3. 샘플 밖 세션에서 `PERF` 지표 이벤트가 0건인지 (기존 `Boot record persisted` 라인은 남아야 함).
 4. 브라우저에서 `apps/web`을 직접 열어 지표 이벤트가 0건인지 (주입 없음 → off).
-5. 서버 수집 확인: `tag=PERF`로 필터해 원본 이벤트를 내려받고, `metric`별로 묶어 p95(시나리오)·p75(FCP/LCP)를 낸다. `PERF_BUDGET_STAT`이 어느 통계를 쓰는지 말해준다.
+5. 서버 수집 확인: `tag=PERF`로 필터해 원본 이벤트를 내려받고, `metric`별로 묶어 p95(시나리오)·p75(FCP/LCP)를 낸다. `PERF_BUDGETS`의 `stat`이 어느 통계를 쓰는지 말해준다.
 
 ## 열린 항목
 

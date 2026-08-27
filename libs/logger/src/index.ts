@@ -8,7 +8,7 @@
  * - `redaction/`     — what counts as a secret, and how it is masked
  * - `serialization/` — turning entries into report / wire payloads
  * - `upload/`        — the server-bound queue, its source port and the send schedule
- * - `perf/`          — the performance budget and the metric entries that measure it
+ * - `perf/`          — the performance budget, and the reporter that measures against it
  * - `runtime.ts`     — the one composition root: the process-wide singleton
  *
  * There is exactly one store: the unsent upload queue. The package used to keep
@@ -18,7 +18,7 @@
  * gone (principle 10).
  *
  * Stateful collaborators are classes (`LogHub`, `CoreLogger`, `LogUploadQueue`,
- * `LogUploadScheduler`, `PerfMetricReporter`, …) and take their dependencies as constructor
+ * `LogUploadScheduler`, `BudgetedPerfMetricReporter`, …) and take their dependencies as constructor
  * arguments, so any of them can be instantiated standalone. Ports that platform
  * layers implement (`LogStoreReader` / `LogStoreWriter`) stay interfaces. Stateless policy
  * (redaction, serialization) stays as functions.

@@ -2,20 +2,49 @@
  * The five scenarios that carry a performance budget (ADR-0071).
  *
  * A closed union on purpose, unlike `tag` which is deliberately open: a budget
- * only means something if the endpoints are pinned, and every name here has a
- * row in `PERF_BUDGET_MS` that the compiler enforces.
+ * only means something if the endpoints are pinned, and every name here must
+ * have a row in the budget catalog for the compiler to be satisfied.
  */
 export type PerfMetricName = 'boot' | 'cloud-switch' | 'site-switch' | 'fcp' | 'lcp';
 
+/** Which statistic decides whether a budget is met. */
+export type PerfBudgetStat = 'p95' | 'p75';
+
 /**
- * What rides in a metric entry's `data`.
+ * One scenario's target.
  *
- * The numbers live here rather than in the message text: `message` is written
- * for a person reading the log monitor, this is written for the script that
- * computes the distribution. One string cannot serve both readers without one
- * of them losing.
+ * The threshold and the statistic travel together because neither answers the
+ * question alone — "1.5s" means nothing until you know it is judged at p95.
+ * They used to be two parallel records that had to be kept in step by hand.
  */
-export interface PerfMetricData {
+export interface PerfBudget {
+    ms: number;
+    stat: PerfBudgetStat;
+}
+
+/** What a call site may attach to a measurement beyond its duration. */
+export interface PerfMetricOptions {
+    /**
+     * Intermediate milestones on the same baseline as the duration. Boot only.
+     *
+     * Accepts unset milestones so a caller can hand over its partial map as-is;
+     * they are dropped rather than serialized as keys with no value.
+     */
+    marks?: Record<string, number | undefined>;
+    /** Which kind of boot produced this sample. Boot only — see `PerfMetricRecord`. */
+    bootType?: 'cold' | 'reload';
+    /** Whether the measured operation succeeded. Switch metrics only. */
+    ok?: boolean;
+}
+
+/**
+ * One finished measurement, before any sink decides how to encode it.
+ *
+ * This is the seam ADR-0071 forecast: today a sink turns it into an `info`
+ * entry, and when the sample volume outgrows offline aggregation the same
+ * record goes to a dedicated endpoint instead. Nothing here mentions logging.
+ */
+export interface PerfMetricRecord {
     metric: PerfMetricName;
     /** Measured duration in ms, rounded — sub-ms precision is noise at this scale. */
     ms: number;
@@ -23,7 +52,7 @@ export interface PerfMetricData {
     /**
      * Whether THIS ONE sample exceeded the budget — not the verdict.
      *
-     * The verdict is p95 (scenarios) / p75 (web vitals) and is computed offline,
+     * The verdict is the budget's `stat` (p95 / p75) and is computed offline,
      * because the value sits inside a `data` string the server cannot aggregate
      * on. Derivable from `ms`/`budgetMs`, and carried anyway: a substring search
      * for `"overBudget":true` is the one cheap server-side filter this design
@@ -38,8 +67,6 @@ export interface PerfMetricData {
      * would bias the distribution optimistic.
      */
     ok?: boolean;
-    /** Intermediate milestones, in ms on the same baseline as `ms`. Boot only. */
-    marks?: Record<string, number>;
     /**
      * Which kind of boot this was. Boot only.
      *
@@ -51,12 +78,14 @@ export interface PerfMetricData {
      * asked, so the sample says which it is and the analysis filters.
      */
     bootType?: 'cold' | 'reload';
+    /** Intermediate milestones, in ms on the same baseline as `ms`. Boot only. */
+    marks?: Record<string, number>;
     /**
      * Entries this run has lost to queue backpressure so far, cumulative.
      *
      * Absent when nothing has been dropped. Cumulative rather than a delta so a
-     * metric entry that is itself dropped does not take the count with it — the
-     * last surviving entry still reports the total.
+     * metric that is itself dropped does not take the count with it — the last
+     * surviving one still reports the total.
      */
     dropped?: number;
 }

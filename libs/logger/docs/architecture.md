@@ -137,7 +137,7 @@ flowchart TB
     rt --> sinks
 ```
 
-`perf/`도 ②의 규칙을 그대로 따른다 — 상태는 `PerfMetricReporter` 클래스가 들고, 조립은 자기 모듈의 홀더 한 곳에서 일어난다(`runtime.ts`가 `CoreLogger`에 하는 것과 같은 모양). 계측 지점은 사이트 전환·웹바이탈 콜백처럼 관계없는 코드에 묻혀 있어 인스턴스를 넘겨받을 수 없으므로, 그 홀더를 거치는 자유 함수로 부른다. 자세한 것은 [성능 예산과 지표 이벤트](./perf-metrics.md).
+`perf/`도 ②의 규칙을 그대로 따른다 — 포트는 인터페이스(`PerfMetricSink` · `PerfBudgetCatalog` · `PerfMetricReporter`), 상태는 `BudgetedPerfMetricReporter` 클래스, 조립은 팩터리 하나(`createPerfMetricReporter`)와 자기 모듈의 홀더 하나. `LogSink`/`ConsoleLogSink`와 `runtime.ts`/`CoreLogger`가 쓰는 모양 그대로다. 계측 지점은 사이트 전환·웹바이탈 콜백처럼 관계없는 코드에 묻혀 있어 인스턴스를 넘겨받을 수 없으므로, 그 홀더를 거치는 자유 함수로 부른다. 자세한 것은 [성능 예산과 지표 이벤트](./perf-metrics.md).
 
 ### ② 엔진의 객체 그래프
 
