@@ -19,6 +19,11 @@ jest.mock('react-i18next', () => ({
 const done = () => screen.getByRole('button', { name: 'createPlace.done' });
 const close = () => screen.getByRole('button', { name: 'createPlace.close' });
 const type = (value: string) => fireEvent.change(screen.getByRole('textbox'), { target: { value } });
+const nameField = () => screen.getByRole('textbox');
+// The decorative header is not unmounted while typing, only collapsed behind `aria-hidden` — which
+// is exactly what `*ByRole` ignores, so its absence here is the compact layout being in effect.
+// `level: 1` picks the visible heading over the dialog's own sr-only <h2> of the same name.
+const header = () => screen.queryByRole('heading', { name: 'createPlace.title', level: 1 });
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -89,5 +94,32 @@ describe('CreatePlaceDialog', () => {
 
         fireEvent.click(leave);
         expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('이름 입력칸에 포커스하면 헤더를 접고, 포커스가 빠지면 되돌린다', () => {
+        render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
+
+        expect(header()).toBeInTheDocument();
+        expect(screen.getByText('createPlace.photoOptional')).toBeVisible();
+
+        fireEvent.focus(nameField());
+        expect(header()).not.toBeInTheDocument();
+
+        fireEvent.blur(nameField());
+        expect(header()).toBeInTheDocument();
+    });
+
+    it('키보드의 완료 키(Enter)로도 플레이스를 만든다 — 이름이 없으면 아무 일도 없다', async () => {
+        createPlaceMock.mockResolvedValue({ id: 'pl-1' });
+        render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
+
+        fireEvent.keyDown(nameField(), { key: 'Enter' });
+        expect(createPlaceMock).not.toHaveBeenCalled();
+
+        type('책모임');
+        fireEvent.keyDown(nameField(), { key: 'Enter' });
+
+        await waitFor(() => expect(createPlaceMock).toHaveBeenCalledTimes(1));
+        expect(switchSiteMock).toHaveBeenCalledWith('pl-1');
     });
 });
